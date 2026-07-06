@@ -1,5 +1,5 @@
 .sidebar {
-  width: 260px;
+  position: relative;
   flex-shrink: 0;
   background: var(--sidebar-bg);
   display: flex;

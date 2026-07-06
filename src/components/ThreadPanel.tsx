@@ -1,11 +1,17 @@
-import { Show, createMemo } from 'solid-js';
+import { Show, createMemo, createSignal } from 'solid-js';
 import { activeThread, closeThread, threadMessages, channelById } from '../store';
 import MessageRows from './MessageRows';
 import Composer from './Composer';
+import ResizeHandle from './ResizeHandle';
 import './ThreadPanel.css';
+
+const DEFAULT_WIDTH = 380;
+const MIN_WIDTH = 280;
+const MAX_WIDTH = 640;
 
 export default function ThreadPanel() {
   const thread = activeThread;
+  const [width, setWidth] = createSignal(DEFAULT_WIDTH);
 
   const messages = createMemo(() => {
     const t = thread();
@@ -22,7 +28,8 @@ export default function ThreadPanel() {
   return (
     <Show when={thread()}>
       {(t) => (
-        <div class="thread-panel">
+        <div class="thread-panel" style={{ width: `${width()}px` }}>
+          <ResizeHandle width={width} setWidth={setWidth} min={MIN_WIDTH} max={MAX_WIDTH} direction={-1} side="left" />
           <div class="thread-panel-header">
             <div>
               <div class="thread-panel-title">Thread</div>

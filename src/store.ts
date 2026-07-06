@@ -176,19 +176,28 @@ function setup() {
   async function editMessageText(location: MessageLocation, channelId: string, ts: string, text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
-    await editMessage(channelId, ts, trimmed);
-    patchMessage(location, ts, { text: trimmed, editedLocally: true });
+    try {
+      await editMessage(channelId, ts, trimmed);
+      patchMessage(location, ts, { text: trimmed, editedLocally: true });
+    } catch (err) {
+      console.error('Failed to edit message', err);
+    }
   }
 
   async function deleteMessageAt(location: MessageLocation, channelId: string, ts: string) {
-    await deleteMessage(channelId, ts);
-    removeMessage(location, ts);
+    try {
+      await deleteMessage(channelId, ts);
+      removeMessage(location, ts);
+    } catch (err) {
+      console.error('Failed to delete message', err);
+    }
   }
 
   async function reactToMessage(location: MessageLocation, channelId: string, msg: Message, emojiName: string) {
     const me = currentUser();
     if (!me) return;
-    const reactions = msg.reactions ?? [];
+    const previousReactions = msg.reactions;
+    const reactions = previousReactions ?? [];
     const existing = reactions.find((r) => r.name === emojiName);
     const alreadyReacted = !!existing?.users.includes(me.id);
 
@@ -209,7 +218,12 @@ function setup() {
       nextReactions = [...reactions, { name: emojiName, count: 1, users: [me.id] }];
     }
     patchMessage(location, msg.ts, { reactions: nextReactions });
-    await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
+    try {
+      await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
+    } catch (err) {
+      console.error('Failed to toggle reaction', err);
+      patchMessage(location, msg.ts, { reactions: previousReactions });
+    }
   }
 
   const [savedTs, setSavedTs] = createStore<Record<string, boolean>>({});
@@ -217,7 +231,12 @@ function setup() {
   async function toggleSaveForLater(channelId: string, ts: string) {
     const currentlySaved = !!savedTs[ts];
     setSavedTs(ts, !currentlySaved);
-    await toggleSaved(channelId, ts, currentlySaved);
+    try {
+      await toggleSaved(channelId, ts, currentlySaved);
+    } catch (err) {
+      console.error('Failed to toggle saved-for-later', err);
+      setSavedTs(ts, currentlySaved);
+    }
   }
 
   async function sendMessage(channelId: string, text: string, threadTs?: string) {
@@ -234,6 +253,7 @@ function setup() {
       day: 'Today',
     };
     const key = threadTs ?? channelId;
+    const location: MessageLocation = threadTs ? { store: 'thread', key } : { store: 'channel', key };
     if (threadTs) {
       setThreadMessages(
         produce((draft) => {
@@ -249,7 +269,21 @@ function setup() {
         }),
       );
     }
-    await postMessage(channelId, trimmed, threadTs);
+    try {
+      const res = await postMessage(channelId, trimmed, threadTs);
+      // Swap the optimistic id/ts for the real ones Slack assigned, so the next
+      // poll recognizes this message as already present instead of duplicating it.
+      const match = (m: Message) => m.id === optimistic.id;
+      const realTs = res.ts as string;
+      if (location.store === 'channel') {
+        setMessagesByChannel(location.key, match, { id: realTs, ts: realTs });
+      } else {
+        setThreadMessages(location.key, match, { id: realTs, ts: realTs });
+      }
+    } catch (err) {
+      console.error('Failed to send message', err);
+      removeMessage(location, optimistic.ts);
+    }
   }
 
   return {

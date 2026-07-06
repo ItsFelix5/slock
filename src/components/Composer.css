@@ -75,6 +75,9 @@
   height: 28px;
   border-radius: 4px;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .composer-send:disabled {

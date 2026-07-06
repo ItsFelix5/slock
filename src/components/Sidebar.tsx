@@ -1,7 +1,12 @@
 import { For, Show, createMemo, createSignal } from 'solid-js';
 import { bootstrap, userById, activeView, setActiveView } from '../store';
 import Icon, { type IconName } from '../icons';
+import ResizeHandle from './ResizeHandle';
 import './Sidebar.css';
+
+const DEFAULT_WIDTH = 260;
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 420;
 
 const topLinks: { icon: IconName; label: string }[] = [
   { icon: 'threads', label: 'Threads' },
@@ -11,9 +16,11 @@ const topLinks: { icon: IconName; label: string }[] = [
 export default function Sidebar() {
   const [channelsOpen, setChannelsOpen] = createSignal(true);
   const [dmsOpen, setDmsOpen] = createSignal(true);
+  const [width, setWidth] = createSignal(DEFAULT_WIDTH);
 
   return (
-    <div class="sidebar">
+    <div class="sidebar" style={{ width: `${width()}px` }}>
+      <ResizeHandle width={width} setWidth={setWidth} min={MIN_WIDTH} max={MAX_WIDTH} direction={1} side="right" />
       <div class="sidebar-header">
         <span class="sidebar-title">{bootstrap()?.currentUser ? 'Hack Club' : 'Loading…'}</span>
         <Icon name="caretDown" size={14} class="sidebar-chevron" />

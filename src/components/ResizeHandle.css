@@ -1,0 +1,22 @@
+.resize-handle {
+  position: absolute;
+  top: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle.right {
+  right: -3px;
+}
+
+.resize-handle.left {
+  left: -3px;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: var(--accent);
+  opacity: 0.6;
+}
