@@ -1,0 +1,87 @@
+.composer {
+  margin: 0 20px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--composer-bg);
+  flex-shrink: 0;
+}
+
+.composer:focus-within {
+  border-color: var(--text-dim);
+}
+
+.composer-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 6px 6px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.composer-tool {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 28px;
+  height: 26px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.composer-tool:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.composer-tool-text {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.composer-input {
+  width: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  min-height: 22px;
+  max-height: 200px;
+}
+
+.composer-input::placeholder {
+  color: var(--text-dim);
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px 6px;
+}
+
+.composer-send {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  width: 30px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.composer-send:disabled {
+  background: var(--hover-bg);
+  color: var(--text-dim);
+}
+
+.composer-send:not(:disabled):hover {
+  background: var(--accent-hover);
+}
