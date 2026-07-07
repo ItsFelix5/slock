@@ -64,7 +64,14 @@ export default function BrowseChannels() {
               autofocus
             />
             <div class="browse-channels-list">
-              <For each={browsableChannels()} fallback={<div class="browse-channels-empty">No channels found</div>}>
+              <For
+                each={browsableChannels()}
+                fallback={
+                  <div class="browse-channels-empty">
+                    {query().trim() ? 'No channels found' : 'Type to search channels across the workspace'}
+                  </div>
+                }
+              >
                 {(c) => (
                   <div class="browse-channels-row">
                     <span class="browse-channels-icon">{c.private ? <Icon name="lock" size={13} /> : '#'}</span>

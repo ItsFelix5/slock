@@ -4,6 +4,8 @@ import {
   pinnedMessagesCache,
   closePinnedPanel,
   channelById,
+  dmById,
+  userById,
   togglePinMessage,
   openPinnedPanel,
   openThread,
@@ -22,10 +24,21 @@ export default function PinnedPanel() {
     return id ? (pinnedMessagesCache[id] ?? []) : [];
   });
 
+  // Generic conversation id — could be a channel or a DM, so every lookup here
+  // has to branch on which one it actually resolves to.
+  const title = () => {
+    const id = channelId();
+    if (!id) return '';
+    const channel = channelById(id);
+    if (channel) return `Pinned in #${channel.name}`;
+    const dm = dmById(id);
+    return `Pinned in ${(dm && userById(dm.userId)?.name) ?? 'conversation'}`;
+  };
+
   const goTo = (ts: string) => {
     const id = channelId();
     if (!id) return;
-    setActiveView({ kind: 'channel', id });
+    setActiveView({ kind: channelById(id) ? 'channel' : 'dm', id });
     openThread(id, ts);
     closePinnedPanel();
   };
@@ -41,7 +54,7 @@ export default function PinnedPanel() {
         <div class="pinned-panel-overlay" onClick={(e) => e.target === e.currentTarget && closePinnedPanel()}>
           <div class="pinned-panel-card">
             <div class="pinned-panel-header">
-              <div class="pinned-panel-title">Pinned in #{channelById(id())?.name ?? ''}</div>
+              <div class="pinned-panel-title">{title()}</div>
               <button class="pinned-panel-close" onClick={closePinnedPanel} title="Close">
                 ✕
               </button>

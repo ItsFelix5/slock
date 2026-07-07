@@ -10,6 +10,7 @@ import type {
   ActivityItem,
   SavedItem,
   BrowsableChannel,
+  ProfileFieldDef,
 } from './types';
 
 interface Bootstrap {
@@ -38,22 +39,41 @@ function tzLabelFromOffset(seconds: number | undefined): string | undefined {
   return `UTC${sign}${whole}${minutes ? ':' + String(minutes).padStart(2, '0') : ''}`;
 }
 
+// The self object in client.userBoot (unlike regular users.list members) carries no
+// profile.image_* URLs at all — just an avatar_hash — so the current user's own avatar
+// has to be built from Slack's CDN URL convention instead of read off the profile directly.
+function avatarUrlFromHash(raw: any): string | undefined {
+  const hash = raw.profile?.avatar_hash;
+  const team = raw.profile?.team ?? raw.team_id;
+  if (!hash || !team) return undefined;
+  return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
+}
+
 function mapUser(raw: any): User {
   const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
+  const rawFields = raw.profile?.fields ?? {};
+  const customFields = Object.keys(rawFields)
+    .map((id) => ({ id, value: rawFields[id]?.value ?? '', alt: rawFields[id]?.alt || undefined }))
+    .filter((f) => f.value);
   return {
     id: raw.id,
     name,
     avatarColor: colorFromHex(raw.color),
-    avatarUrl: raw.profile?.image_192 || raw.profile?.image_72 || raw.profile?.image_48,
+    avatarUrl: raw.profile?.image_192 || raw.profile?.image_72 || raw.profile?.image_48 || avatarUrlFromHash(raw),
     initials: initialsOf(name),
     presence: raw.presence === 'away' ? 'away' : 'active',
     title: raw.profile?.title || undefined,
     pronouns: raw.profile?.pronouns || undefined,
     statusText: raw.profile?.status_text || undefined,
     statusEmoji: raw.profile?.status_emoji || undefined,
-    isBot: !!raw.is_bot,
+    // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
+    // Slack's API never sets is_bot for it — flag it by id instead.
+    isBot: !!raw.is_bot || raw.id === 'USLACKBOT',
     tz: raw.tz,
     tzLabel: raw.tz_label || tzLabelFromOffset(raw.tz_offset),
+    email: raw.profile?.email || undefined,
+    phone: raw.profile?.phone || undefined,
+    customFields: customFields.length ? customFields : undefined,
   };
 }
 
@@ -100,10 +120,18 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       mentions: unreadMap[c.id]?.mentions || undefined,
     }));
 
+  const countsIms: any[] = data.counts?.ims ?? [];
+  const latestByIm = new Map(countsIms.map((c) => [c.id, parseFloat(c.latest) * 1000 || undefined]));
+
   const rawIms: any[] = data.boot.ims ?? [];
   const directMessages: DirectMessage[] = rawIms
     .filter((im) => im.is_open && im.user)
-    .map((im) => ({ id: im.id, userId: im.user, unread: !!unreadMap[im.id]?.unread }));
+    .map((im) => ({
+      id: im.id,
+      userId: im.user,
+      unread: !!unreadMap[im.id]?.unread,
+      lastActivity: latestByIm.get(im.id) || im.updated || (im.created ? im.created * 1000 : undefined),
+    }));
 
   const currentUser = mapUser(data.boot.self);
 
@@ -232,6 +260,16 @@ export async function fetchUser(id: string): Promise<User | null> {
   const data = await res.json();
   if (!data.ok) return null;
   return mapUser(data.user);
+}
+
+// team.profile.get's field *definitions* (label/ordering) are workspace-wide and
+// separate from each user's field *values* (see mapUser's customFields) — fetched
+// once and joined against a user's values at render time.
+export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
+  const res = await fetch('/api/profile-fields');
+  const data = await res.json();
+  if (!data.ok) return [];
+  return data.fields ?? [];
 }
 
 // Org-wide directory search — the bootstrap user list is capped at 200 for
@@ -403,6 +441,17 @@ export async function openDm(userId: string): Promise<string | null> {
   const data = await res.json();
   if (!data.ok) return null;
   return data.channel?.id ?? null;
+}
+
+export async function closeDm(channelId: string) {
+  const res = await fetch('/api/dm/close', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ channel: channelId }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error ?? 'conversations.close failed');
+  return data;
 }
 
 export interface SearchResult {

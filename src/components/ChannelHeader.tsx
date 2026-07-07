@@ -8,11 +8,12 @@ import {
   toggleChannelStar,
   leaveCurrentChannel,
   markCurrentChannelRead,
-  messageFilterQuery,
-  setMessageFilterQuery,
+  openMessageSearch,
   openUserProfile,
   isChannelMuted,
   toggleMuteChannel,
+  isChannelNotifyAll,
+  toggleNotifyAllChannel,
   openPinnedPanel,
   canvasByChannel,
   ensureCanvasChecked,
@@ -24,7 +25,6 @@ import Icon from '../icons';
 import './ChannelHeader.css';
 
 export default function ChannelHeader() {
-  const [searchOpen, setSearchOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
 
   createEffect(() => {
@@ -61,14 +61,19 @@ export default function ChannelHeader() {
     const v = activeView();
     return !!v && isChannelMuted(v.id);
   };
+  const notifyAll = () => {
+    const v = activeView();
+    return !!v && isChannelNotifyAll(v.id);
+  };
   const canvas = () => {
     const v = activeView();
     return v?.kind === 'channel' ? canvasByChannel[v.id] : undefined;
   };
 
-  const closeSearch = () => {
-    setSearchOpen(false);
-    setMessageFilterQuery('');
+  const searchInConversation = () => {
+    const v = activeView();
+    if (!v) return;
+    openMessageSearch('', v.kind === 'channel' ? { inChannelId: v.id } : {});
   };
 
   const viewDmUser = () => {
@@ -112,10 +117,10 @@ export default function ChannelHeader() {
               <Icon name="codeBlock" size={16} />
             </button>
           </Show>
-          <button class="channel-header-btn" classList={{ active: searchOpen() }} title="Search in conversation" onClick={() => setSearchOpen(!searchOpen())}>
+          <button class="channel-header-btn" title="Search in conversation" onClick={searchInConversation}>
             <Icon name="search" size={16} />
           </button>
-          <Show when={isChannel()}>
+          <Show when={activeView()}>
             <div class="channel-header-more-wrap">
               <button class="channel-header-btn" title="More" onClick={() => setMoreOpen(!moreOpen())}>
                 <Icon name="moreVertical" size={16} />
@@ -149,7 +154,16 @@ export default function ChannelHeader() {
                   >
                     {muted() ? 'Unmute channel' : 'Mute channel'}
                   </button>
-                  <Show when={!canvas()}>
+                  <button
+                    class="channel-header-menu-item"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      if (activeView()) toggleNotifyAllChannel(activeView()!.id);
+                    }}
+                  >
+                    {notifyAll() ? 'Only notify me about mentions' : 'Notify me about all new messages'}
+                  </button>
+                  <Show when={isChannel() && !canvas()}>
                     <button
                       class="channel-header-menu-item"
                       onClick={() => {
@@ -167,39 +181,26 @@ export default function ChannelHeader() {
                       navigator.clipboard.writeText(`${location.origin}/#${activeView()?.id}`);
                     }}
                   >
-                    Copy link to channel
+                    {isChannel() ? 'Copy link to channel' : 'Copy link to conversation'}
                   </button>
-                  <button
-                    class="channel-header-menu-item danger"
-                    onClick={() => {
-                      setMoreOpen(false);
-                      const v = activeView();
-                      if (v && confirm(`Leave #${title()}?`)) leaveCurrentChannel(v.id);
-                    }}
-                  >
-                    Leave channel
-                  </button>
+                  <Show when={isChannel()}>
+                    <button
+                      class="channel-header-menu-item danger"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        const v = activeView();
+                        if (v && confirm(`Leave #${title()}?`)) leaveCurrentChannel(v.id);
+                      }}
+                    >
+                      Leave channel
+                    </button>
+                  </Show>
                 </div>
               </Show>
             </div>
           </Show>
         </div>
       </div>
-      <Show when={searchOpen()}>
-        <div class="channel-header-search">
-          <input
-            class="channel-header-search-input"
-            type="text"
-            placeholder="Search in this conversation"
-            value={messageFilterQuery()}
-            onInput={(e) => setMessageFilterQuery(e.currentTarget.value)}
-            autofocus
-          />
-          <button class="channel-header-search-close" onClick={closeSearch} title="Close search">
-            ✕
-          </button>
-        </div>
-      </Show>
     </div>
   );
 }

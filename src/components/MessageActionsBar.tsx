@@ -12,6 +12,7 @@ import {
   markMessageUnread,
   remindAboutMessage,
   REMINDER_OPTIONS,
+  recordEmojiUse,
   type MessageLocation,
 } from '../store';
 import type { Message } from '../types';
@@ -53,6 +54,7 @@ export default function MessageActionsBar(props: {
   };
 
   const react = (name: string) => {
+    recordEmojiUse(name);
     reactToMessage(props.location, props.channelId, props.msg, name);
     setPickerOpen(false);
     setFullPickerOpen(false);

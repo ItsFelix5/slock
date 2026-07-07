@@ -3,6 +3,7 @@ import { createStore, produce, reconcile } from 'solid-js/store';
 import {
   fetchBootstrap,
   fetchSections,
+  fetchProfileFieldDefs,
   fetchHistory,
   fetchReplies,
   fetchUser,
@@ -14,6 +15,7 @@ import {
   toggleStar,
   fetchSaved,
   openDm,
+  closeDm,
   fetchMentions,
   mapMessage,
   leaveChannel,
@@ -41,8 +43,9 @@ import {
 } from './slackApi';
 import type { Message, User, Channel, DirectMessage, ActivityItem, SavedItem, BrowsableChannel, CanvasInfo } from './types';
 import { showToast } from './toast';
+import { EMPTY_FILTERS, type SearchFilters } from './searchQuery';
 
-export type Nav = 'home' | 'activity' | 'later';
+export type Nav = 'home' | 'activity' | 'later' | 'search';
 export type View = { kind: 'channel'; id: string } | { kind: 'dm'; id: string };
 export type ThreadRef = { channelId: string; ts: string };
 // Where a given Message lives in the store, so actions (edit/delete/react) can
@@ -59,14 +62,49 @@ function mergeMessages(existing: Message[], fresh: Message[]): Message[] {
 
 function wsUrl() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${location.host}/ws`;
+  // Vite's dev-server proxy can't relay the /ws upgrade (its bundled http-proxy
+  // never completes the handshake), so in dev we connect straight to the backend
+  // port instead of going through the proxy. Plain HTTP proxying (/api) is unaffected.
+  const host = import.meta.env.DEV ? `${location.hostname}:5174` : location.host;
+  return `${proto}://${host}/ws`;
+}
+
+// A small frequency+recency ("frecency") usage tracker, persisted to
+// localStorage — the same local-usage-database approach the real client uses
+// (for its quick-switcher jump list, its emoji picker, etc.) since neither is
+// backed by a documented, ranked Slack API.
+function createFrecencyTracker(storageKey: string) {
+  const HALF_LIFE_MS = 3 * 24 * 60 * 60 * 1000;
+  const load = (): Record<string, { count: number; lastTs: number }> => {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) ?? '{}');
+    } catch {
+      return {};
+    }
+  };
+  const data = load();
+  return {
+    record(id: string) {
+      const entry = data[id];
+      data[id] = { count: (entry?.count ?? 0) + 1, lastTs: Date.now() };
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    },
+    score(id: string): number {
+      const entry = data[id];
+      if (!entry) return 0;
+      return entry.count * Math.pow(0.5, (Date.now() - entry.lastTs) / HALF_LIFE_MS);
+    },
+  };
 }
 
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);
   const [sections] = createResource(fetchSections);
+  const [profileFieldDefs] = createResource(fetchProfileFieldDefs);
   const [selected, setSelected] = createSignal<View | null>(null);
   const [nav, setNav] = createSignal<Nav>('home');
+  const [searchScreenQuery, setSearchScreenQuery] = createSignal('');
+  const [searchScreenFilters, setSearchScreenFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
   const [messagesByChannel, setMessagesByChannel] = createStore<Record<string, Message[]>>({});
   const loadedChannels = new Set<string>();
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
@@ -78,7 +116,11 @@ function setup() {
   const [starredChannelIds, setStarredChannelIds] = createStore<Record<string, boolean>>({});
   let starredSeeded = false;
   const [leftChannelIds, setLeftChannelIds] = createStore<Record<string, boolean>>({});
-  const [messageFilterQuery, setMessageFilterQuery] = createSignal('');
+  const [closedDmIds, setClosedDmIds] = createStore<Record<string, boolean>>({});
+  const [dmLastActivity, setDmLastActivity] = createStore<Record<string, number>>({});
+  let dmActivitySeeded = false;
+  let autoCloseTimer: ReturnType<typeof setInterval> | null = null;
+  const DM_AUTO_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 
   const [activeThread, setActiveThread] = createSignal<ThreadRef | null>(null);
   const [threadMessages, setThreadMessages] = createStore<Record<string, Message[]>>({});
@@ -119,18 +161,47 @@ function setup() {
     Object.fromEntries(loadMuted().map((id) => [id, true])),
   );
 
+  const NOTIFY_ALL_STORAGE_KEY = 'slock-notify-all-channels';
+  const loadNotifyAll = (): string[] => {
+    try {
+      return JSON.parse(localStorage.getItem(NOTIFY_ALL_STORAGE_KEY) ?? '[]');
+    } catch {
+      return [];
+    }
+  };
+  const [notifyAllChannelIds, setNotifyAllChannelIds] = createStore<Record<string, boolean>>(
+    Object.fromEntries(loadNotifyAll().map((id) => [id, true])),
+  );
+
   const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(
     Number(localStorage.getItem('slock-dnd-until') ?? 0) || null,
   );
 
+  // Mirrors the "frecency" ranking the real client uses for local usage
+  // databases (quick-switcher jump targets, emoji picker): each use bumps a
+  // count, but the score decays with a few days' half-life so old history
+  // doesn't outrank what's actually used today.
+  const jumpFrecency = createFrecencyTracker('slock-frecency');
+  const recordVisit = jumpFrecency.record;
+  const frecencyScore = jumpFrecency.score;
+
+  const emojiFrecency = createFrecencyTracker('slock-emoji-frecency');
+  const recordEmojiUse = emojiFrecency.record;
+  const emojiUseScore = emojiFrecency.score;
+
   const [canvasByChannel, setCanvasByChannel] = createStore<Record<string, CanvasInfo | null>>({});
   const [openCanvasChannelId, setOpenCanvasChannelId] = createSignal<string | null>(null);
 
-  const directMessages = createMemo<DirectMessage[]>(() => {
+  // All known DMs regardless of local close state, so reopening/lookups can still find them.
+  const allDirectMessages = createMemo<DirectMessage[]>(() => {
     const base = bootstrap()?.directMessages ?? [];
     const extra = extraDms.filter((dm) => !base.some((b) => b.id === dm.id));
     return [...base, ...extra];
   });
+
+  const directMessages = createMemo<DirectMessage[]>(() =>
+    allDirectMessages().filter((dm) => !closedDmIds[dm.id]),
+  );
 
   // Channels newly joined/created this session — bootstrap() is a resource
   // snapshot from boot, not a store, so a freshly joined channel needs to be
@@ -156,13 +227,21 @@ function setup() {
     setSelected(view);
     setNav('home');
     setUnreadChannelIds(view.id, false);
-    setMessageFilterQuery('');
+    if (view.kind === 'dm' && closedDmIds[view.id]) setClosedDmIds(view.id, false);
+    const frecencyId = view.kind === 'dm' ? (allDirectMessages().find((d) => d.id === view.id)?.userId ?? view.id) : view.id;
+    recordVisit(frecencyId);
   }
 
   function setNavView(next: Nav) {
     setNav(next);
     if (next === 'later') ensureLaterLoaded();
     if (next === 'activity') ensureActivityLoaded();
+  }
+
+  function openMessageSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {
+    setSearchScreenQuery(query);
+    setSearchScreenFilters(filters);
+    setNavView('search');
   }
 
   // ---- initial per-view loads (the websocket keeps things fresh after this) ----
@@ -172,6 +251,20 @@ function setup() {
     if (!data || starredSeeded) return;
     starredSeeded = true;
     for (const id of data.starredChannelIds) setStarredChannelIds(id, true);
+  });
+
+  createEffect(() => {
+    const data = bootstrap();
+    if (!data || dmActivitySeeded) return;
+    dmActivitySeeded = true;
+    for (const dm of data.directMessages) {
+      if (dm.lastActivity) setDmLastActivity(dm.id, dm.lastActivity);
+    }
+    autoCloseInactiveDms();
+    autoCloseTimer = setInterval(autoCloseInactiveDms, 60 * 60 * 1000);
+  });
+  onCleanup(() => {
+    if (autoCloseTimer) clearInterval(autoCloseTimer);
   });
 
   createEffect(() => {
@@ -281,6 +374,37 @@ function setup() {
     );
   }
 
+  const BROADCAST_RE = /<!(channel|here)>/;
+  const SUBTEAM_RE = /<!subteam\^([^|>]+)/;
+
+  // Priority order matters: a direct @mention always wins over the channel's
+  // broader notification settings, down to "notify on every post" as the catch-all.
+  function classifyIncomingActivity(
+    channel: string,
+    ts: string,
+    msg: Message,
+    meId: string,
+    threadRelevant: boolean,
+  ): ActivityItem | null {
+    const text = msg.text ?? '';
+    const time = parseFloat(ts) * 1000;
+    const base = { channelId: channel, ts, userId: msg.userId, text, time };
+
+    if (text.includes(`<@${meId}>`)) return { ...base, id: `mn-${channel}-${ts}`, kind: 'mention' };
+    if (directMessages().some((d) => d.id === channel)) return { ...base, id: `dm-${channel}-${ts}`, kind: 'dm' };
+
+    const broadcast = text.match(BROADCAST_RE);
+    if (broadcast) return { ...base, id: `cb-${channel}-${ts}`, kind: 'channel_mention', broadcastRange: broadcast[1] as 'channel' | 'here' };
+
+    const subteam = text.match(SUBTEAM_RE);
+    if (subteam) return { ...base, id: `ug-${channel}-${ts}`, kind: 'usergroup_mention', usergroupId: subteam[1] };
+
+    if (threadRelevant) return { ...base, id: `th-${channel}-${ts}`, kind: 'thread_reply' };
+    if (notifyAllChannelIds[channel]) return { ...base, id: `ca-${channel}-${ts}`, kind: 'channel_all' };
+
+    return null;
+  }
+
   function handleIncomingMessage(payload: any) {
     const subtype = payload.subtype;
     const channel = payload.channel;
@@ -305,9 +429,10 @@ function setup() {
     if (!ts) return;
     const msg = mapMessage(payload);
     const me = currentUser();
+    const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
+    let threadRelevant = false;
 
-    if (payload.thread_ts && payload.thread_ts !== ts) {
-      // Thread reply.
+    if (isThreadReply) {
       if (loadedThreads.has(payload.thread_ts)) {
         setThreadMessages(payload.thread_ts, (existing = []) =>
           existing.some((m) => m.ts === ts) ? existing : [...existing, msg],
@@ -317,7 +442,9 @@ function setup() {
       if (parent) {
         const parentMsg = parent.list.find((m) => m.ts === payload.thread_ts)!;
         patchMessage(parent.location, payload.thread_ts, { replyCount: (parentMsg.replyCount ?? 0) + 1 });
+        if (me && parentMsg.userId === me.id) threadRelevant = true;
       }
+      if (me && !threadRelevant && threadMessages[payload.thread_ts]?.some((m) => m.userId === me.id)) threadRelevant = true;
     } else if (loadedChannels.has(channel)) {
       setMessagesByChannel(channel, (existing = []) => (existing.some((m) => m.ts === ts) ? existing : [...existing, msg]));
     }
@@ -325,16 +452,15 @@ function setup() {
     const activeId = activeView()?.id;
     if (channel !== activeId) setUnreadChannelIds(channel, true);
 
-    if (me && msg.userId !== me.id && msg.text?.includes(`<@${me.id}>`)) {
-      pushActivity({
-        id: `mn-${channel}-${ts}`,
-        kind: 'mention',
-        channelId: channel,
-        ts,
-        userId: msg.userId,
-        text: msg.text,
-        time: parseFloat(ts) * 1000,
-      });
+    if (allDirectMessages().some((d) => d.id === channel)) {
+      setDmLastActivity(channel, Date.now());
+      // A new message on a DM the user closed means it's active again.
+      if (closedDmIds[channel]) setClosedDmIds(channel, false);
+    }
+
+    if (me && msg.userId !== me.id) {
+      const activity = classifyIncomingActivity(channel, ts, msg, me.id, threadRelevant);
+      if (activity) pushActivity(activity);
     }
   }
 
@@ -466,11 +592,11 @@ function setup() {
   }
 
   function dmById(id: string): DirectMessage | undefined {
-    return directMessages().find((d) => d.id === id);
+    return allDirectMessages().find((d) => d.id === id);
   }
 
   function dmIdForUser(userId: string): string | undefined {
-    return directMessages().find((d) => d.userId === userId)?.id;
+    return allDirectMessages().find((d) => d.userId === userId)?.id;
   }
 
   function currentUser(): User | undefined {
@@ -501,9 +627,9 @@ function setup() {
   }
 
   async function openDmWithUser(userId: string) {
-    const existing = dmIdForUser(userId);
-    if (existing) {
-      setActiveView({ kind: 'dm', id: existing });
+    const existing = allDirectMessages().find((d) => d.userId === userId);
+    if (existing && !closedDmIds[existing.id]) {
+      setActiveView({ kind: 'dm', id: existing.id });
       closeUserProfile();
       return;
     }
@@ -512,9 +638,41 @@ function setup() {
       showToast('Could not open a direct message with this user.');
       return;
     }
-    setExtraDms(produce((list) => list.push({ id: channelId, userId, unread: false })));
+    if (existing) setClosedDmIds(channelId, false);
+    else setExtraDms(produce((list) => list.push({ id: channelId, userId, unread: false })));
     setActiveView({ kind: 'dm', id: channelId });
     closeUserProfile();
+  }
+
+  async function closeDmConversation(dmId: string) {
+    setClosedDmIds(dmId, true);
+    const view = activeView();
+    if (view?.kind === 'dm' && view.id === dmId) {
+      const next = directMessages().find((d) => d.id !== dmId);
+      if (next) setActiveView({ kind: 'dm', id: next.id });
+    }
+    try {
+      await closeDm(dmId);
+    } catch (err) {
+      console.error('Failed to close DM', err);
+      showToast('Failed to close conversation.');
+      setClosedDmIds(dmId, false);
+    }
+  }
+
+  // Mirrors Slack's own "dormant" DM cleanup: a DM nobody has touched in a week
+  // quietly closes itself (still reachable again via compose/search) so the
+  // sidebar doesn't accumulate every one-off conversation forever.
+  function autoCloseInactiveDms() {
+    const now = Date.now();
+    const view = activeView();
+    for (const dm of directMessages()) {
+      if (view?.kind === 'dm' && view.id === dm.id) continue;
+      if (unreadChannelIds[dm.id]) continue;
+      const last = dmLastActivity[dm.id];
+      if (!last || now - last < DM_AUTO_CLOSE_MS) continue;
+      closeDmConversation(dm.id);
+    }
   }
 
   function patchMessage(location: MessageLocation, ts: string, patch: Partial<Message>) {
@@ -664,6 +822,20 @@ function setup() {
 
   const unreadActivityCount = createMemo(
     () => activityItems.filter((i) => i.time > lastActivityReadAt()).length,
+  );
+
+  // Bell states, from most to least urgent: a red dot for things addressed
+  // straight at the user (direct pings, DMs), a plain glow for activity that's
+  // relevant but not personally directed (thread replies, @channel/@here/usergroup
+  // pings, channels set to notify on every post), and nothing at all for reactions.
+  const PING_KINDS = new Set(['mention', 'dm']);
+  const GLOW_KINDS = new Set(['thread_reply', 'channel_mention', 'usergroup_mention', 'channel_all']);
+
+  const hasUnreadPing = createMemo(() =>
+    activityItems.some((i) => PING_KINDS.has(i.kind) && i.time > lastActivityReadAt()),
+  );
+  const hasUnreadGlow = createMemo(() =>
+    activityItems.some((i) => GLOW_KINDS.has(i.kind) && i.time > lastActivityReadAt()),
   );
 
   function markActivityRead() {
@@ -849,6 +1021,18 @@ function setup() {
     localStorage.setItem(MUTE_STORAGE_KEY, JSON.stringify(allMuted));
     setMutedChannels(allMuted);
     showToast(next ? 'Channel muted.' : 'Channel unmuted.');
+  }
+
+  function isChannelNotifyAll(channelId: string): boolean {
+    return !!notifyAllChannelIds[channelId];
+  }
+
+  function toggleNotifyAllChannel(channelId: string) {
+    const next = !isChannelNotifyAll(channelId);
+    setNotifyAllChannelIds(channelId, next);
+    const allNotifyAll = Object.keys(notifyAllChannelIds).filter((id) => notifyAllChannelIds[id]);
+    localStorage.setItem(NOTIFY_ALL_STORAGE_KEY, JSON.stringify(allNotifyAll));
+    showToast(next ? 'You’ll be notified about all new messages here.' : 'You’ll only be notified about mentions here.');
   }
 
   function isDndActive(): boolean {
@@ -1075,11 +1259,18 @@ function setup() {
   return {
     bootstrap,
     sections,
+    profileFieldDefs,
     directMessages,
     nav,
     setNavView,
+    searchScreenQuery,
+    searchScreenFilters,
+    openMessageSearch,
     activeView,
     setActiveView,
+    frecencyScore,
+    recordEmojiUse,
+    emojiUseScore,
     messagesByChannel,
     activeThread,
     threadMessages,
@@ -1104,12 +1295,15 @@ function setup() {
     activityItems,
     ensureActivityLoaded,
     unreadActivityCount,
+    hasUnreadPing,
+    hasUnreadGlow,
     markActivityRead,
     lastActivityReadAt,
     profileUserId,
     openUserProfile,
     closeUserProfile,
     openDmWithUser,
+    closeDmConversation,
     rtmConnected,
     unreadChannelIds,
     isChannelStarred,
@@ -1117,8 +1311,6 @@ function setup() {
     isChannelLeft,
     leaveCurrentChannel,
     markCurrentChannelRead,
-    messageFilterQuery,
-    setMessageFilterQuery,
     isMessagePinned,
     togglePinMessage,
     copyMessageLink,
@@ -1142,6 +1334,8 @@ function setup() {
     updateMyPresence,
     isChannelMuted,
     toggleMuteChannel,
+    isChannelNotifyAll,
+    toggleNotifyAllChannel,
     isDndActive,
     dndSnoozedUntil,
     snoozeDnd,
@@ -1162,11 +1356,18 @@ function setup() {
 export const {
   bootstrap,
   sections,
+  profileFieldDefs,
   directMessages,
   nav,
   setNavView,
+  searchScreenQuery,
+  searchScreenFilters,
+  openMessageSearch,
   activeView,
   setActiveView,
+  frecencyScore,
+  recordEmojiUse,
+  emojiUseScore,
   messagesByChannel,
   activeThread,
   threadMessages,
@@ -1191,12 +1392,15 @@ export const {
   activityItems,
   ensureActivityLoaded,
   unreadActivityCount,
+  hasUnreadPing,
+  hasUnreadGlow,
   markActivityRead,
   lastActivityReadAt,
   profileUserId,
   openUserProfile,
   closeUserProfile,
   openDmWithUser,
+  closeDmConversation,
   rtmConnected,
   unreadChannelIds,
   isChannelStarred,
@@ -1204,8 +1408,6 @@ export const {
   isChannelLeft,
   leaveCurrentChannel,
   markCurrentChannelRead,
-  messageFilterQuery,
-  setMessageFilterQuery,
   isMessagePinned,
   togglePinMessage,
   copyMessageLink,
@@ -1229,6 +1431,8 @@ export const {
   updateMyPresence,
   isChannelMuted,
   toggleMuteChannel,
+  isChannelNotifyAll,
+  toggleNotifyAllChannel,
   isDndActive,
   dndSnoozedUntil,
   snoozeDnd,

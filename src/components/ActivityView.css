@@ -31,30 +31,142 @@
   color: var(--text-primary);
 }
 
-.activity-filters {
+.activity-toolbar {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
-.activity-filter-btn {
+.activity-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--input-bg, var(--hover-bg));
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.activity-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.activity-read-toggle {
+  display: flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.activity-read-toggle button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.activity-read-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.activity-filter-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.activity-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   background: none;
   border: 1px solid var(--border-strong);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 14px;
+  white-space: nowrap;
 }
 
-.activity-filter-btn:hover {
+.activity-filter-toggle:hover {
   background: var(--hover-bg);
 }
 
-.activity-filter-btn.active {
-  background: var(--accent);
+.activity-filter-toggle.active {
   border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.activity-filter-count {
+  background: var(--accent);
   color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 15px;
+  line-height: 1.4;
+  border-radius: 8px;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.activity-filter-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+.activity-filter-panel {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 260px;
+  background: var(--panel-bg, var(--sidebar-bg));
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.activity-filter-checkbox:hover {
+  background: var(--hover-bg);
+}
+
+.activity-filter-clear {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px;
+  text-align: left;
+}
+
+.activity-filter-clear:hover {
+  color: var(--text-primary);
 }
 
 .activity-empty {

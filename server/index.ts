@@ -50,18 +50,43 @@ function getEmojiMap() {
   return emojiMapPromise;
 }
 
+let profileFieldsPromise: Promise<{ id: string; label: string }[]> | null = null;
+
+// team.profile.get returns the workspace's custom-profile-field *definitions*
+// (id -> label/type/ordering) — a separate call from users.info/users.list, which
+// only carry each user's field *values* keyed by those same ids. Some workspaces
+// restrict this to admins, so a failure here degrades to "no custom fields shown"
+// rather than breaking anything that actually needs a user's own values.
+function getProfileFieldDefs() {
+  if (!profileFieldsPromise) {
+    profileFieldsPromise = callSlack('team.profile.get', {})
+      .then((data) => {
+        if (!data.ok) return [];
+        const fields: any[] = data.profile?.fields ?? [];
+        return fields
+          .filter((f) => !f.is_hidden)
+          .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
+          .map((f) => ({ id: f.id, label: f.label }));
+      })
+      .catch(() => []);
+  }
+  return profileFieldsPromise;
+}
+
 // ---------------------------------------------------------------------------
-// Real-time relay: connect to Slack's own RTM websocket server-side (keeps the
-// token off the browser) and fan its events out to every connected client over
-// our own /ws endpoint. If rtm.connect isn't available for this workspace/token
-// (Enterprise Grid has been migrating off classic RTM), fall back to polling
-// Slack ourselves — still just a single relayed connection from the browser's
-// point of view, never a per-second fetch loop in the client.
+// Real-time relay: connect to Slack's own Edge Gateway websocket server-side
+// (keeps the token off the browser) and fan its events out to every connected
+// client over our own /ws endpoint. Classic rtm.connect is permanently
+// unavailable on Enterprise Grid workspaces like this one (enterprise_is_restricted),
+// so we speak the same protocol the official web/desktop client uses instead.
+// If the gateway connection is down, fall back to polling Slack ourselves —
+// still just a single relayed connection from the browser's point of view,
+// never a per-second fetch loop in the client.
 // ---------------------------------------------------------------------------
 
 type ClientSocket = { send(data: string): void };
 const clients = new Set<ClientSocket>();
-let rtmConnected = false;
+let gatewayConnected = false;
 const watchedChannels = new Set<string>();
 const watchedThreads = new Map<string, string>(); // ts -> channel
 
@@ -77,25 +102,13 @@ function broadcast(payload: unknown) {
 }
 
 function broadcastStatus() {
-  broadcast({ type: '_status', connected: rtmConnected });
+  broadcast({ type: '_status', connected: gatewayConnected });
 }
 
-let rtmSocket: WebSocket | null = null;
-let rtmRetryDelay = 2000;
-const RTM_MAX_RETRY_DELAY = 60000;
+let gatewaySocket: WebSocket | null = null;
+let gatewayRetryDelay = 2000;
+const GATEWAY_MAX_RETRY_DELAY = 60000;
 let fallbackTimer: ReturnType<typeof setInterval> | null = null;
-
-// Errors that mean "this workspace/token will never be able to use RTM" rather than
-// "try again in a bit" — Enterprise Grid workspaces commonly reject classic RTM outright.
-const RTM_PERMANENT_ERRORS = new Set([
-  'enterprise_is_restricted',
-  'not_authed',
-  'invalid_auth',
-  'account_inactive',
-  'missing_scope',
-  'no_permission',
-  'user_is_bot',
-]);
 
 function startFallbackPolling() {
   if (fallbackTimer) return;
@@ -126,28 +139,39 @@ function stopFallbackPolling() {
   }
 }
 
-async function connectRtm() {
-  try {
-    const data = await callSlack('rtm.connect', {});
-    if (!data.ok || !data.url) {
-      startFallbackPolling();
-      if (RTM_PERMANENT_ERRORS.has(data.error)) {
-        console.warn(`rtm.connect permanently unavailable (${data.error}) — staying on server-side polling.`);
-        return;
-      }
-      console.warn('rtm.connect unavailable, retrying:', data.error ?? data);
-      rtmRetryDelay = Math.min(rtmRetryDelay * 2, RTM_MAX_RETRY_DELAY);
-      setTimeout(connectRtm, rtmRetryDelay);
-      return;
-    }
+// Slack's Enterprise Grid gateway addresses the "org-wide" connection by a team id
+// that mirrors the enterprise id with its leading "E" swapped for "T" — not
+// documented anywhere, found by inspecting the official client's own websocket
+// handshake in devtools.
+const ENTERPRISE_ID = ROUTE.split(':')[0];
+const GATEWAY_TEAM_ID = 'T' + ENTERPRISE_ID.slice(1);
 
-    const socket = new WebSocket(data.url);
-    rtmSocket = socket;
+function buildGatewayUrl() {
+  const shard = 1 + Math.floor(Math.random() * 3);
+  const params = new URLSearchParams({
+    token: TOKEN,
+    sync_desync: '1',
+    slack_client: 'desktop',
+    start_args: `?agent=client&org_wide_aware=true&agent_version=${Date.now()}&eac_cache_ts=true&cache_ts=0&name_tagging=true&only_self_subteams=true&connect_only=true&ms_latest=true`,
+    no_query_on_subscribe: '1',
+    flannel: '3',
+    lazy_channels: '1',
+    gateway_server: `${GATEWAY_TEAM_ID}-${shard}`,
+    enterprise_id: ENTERPRISE_ID,
+    batch_presence_aware: '1',
+  });
+  return `wss://wss-primary.slack.com/?${params}`;
+}
+
+function connectGateway() {
+  try {
+    const socket = new WebSocket(buildGatewayUrl(), { headers: { cookie: COOKIE } } as any);
+    gatewaySocket = socket;
 
     socket.addEventListener('open', () => {
-      console.log('Connected to Slack RTM');
-      rtmConnected = true;
-      rtmRetryDelay = 2000;
+      console.log('Connected to Slack Edge gateway');
+      gatewayConnected = true;
+      gatewayRetryDelay = 2000;
       stopFallbackPolling();
       broadcastStatus();
     });
@@ -155,20 +179,20 @@ async function connectRtm() {
     socket.addEventListener('message', (event) => {
       try {
         const payload = JSON.parse(String(event.data));
-        if (payload.type && payload.type !== 'pong') broadcast(payload);
+        if (payload.type && payload.type !== 'pong' && payload.type !== 'reconnect_url') broadcast(payload);
       } catch {
         // ignore malformed frames
       }
     });
 
     const onDown = () => {
-      if (rtmSocket !== socket) return;
-      rtmSocket = null;
-      rtmConnected = false;
+      if (gatewaySocket !== socket) return;
+      gatewaySocket = null;
+      gatewayConnected = false;
       broadcastStatus();
       startFallbackPolling();
-      setTimeout(connectRtm, rtmRetryDelay);
-      rtmRetryDelay = Math.min(rtmRetryDelay * 2, RTM_MAX_RETRY_DELAY);
+      setTimeout(connectGateway, gatewayRetryDelay);
+      gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
     };
     socket.addEventListener('close', onDown);
     socket.addEventListener('error', onDown);
@@ -184,14 +208,14 @@ async function connectRtm() {
     }, 30000);
     socket.addEventListener('close', () => clearInterval(pingTimer));
   } catch (err) {
-    console.warn('Failed to connect to Slack RTM, retrying:', err);
+    console.warn('Failed to connect to Slack gateway, retrying:', err);
     startFallbackPolling();
-    setTimeout(connectRtm, rtmRetryDelay);
-    rtmRetryDelay = Math.min(rtmRetryDelay * 2, RTM_MAX_RETRY_DELAY);
+    setTimeout(connectGateway, gatewayRetryDelay);
+    gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
   }
 }
 
-connectRtm();
+connectGateway();
 
 // ---------------------------------------------------------------------------
 // Org-wide member search: users.list has no server-side name filter, and on a
@@ -269,55 +293,30 @@ function isAllowedFileHost(hostname: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Channel directory: same rationale/shape as the member directory above —
-// conversations.list has no name filter, so page it in the background and
-// search the cache. Channel counts run far smaller than a huge org's member
-// count, but the mechanism is identical.
+// Channel directory search: conversations.list is permanently unavailable on
+// this Enterprise Grid workspace (enterprise_is_restricted, same as rtm.connect
+// and the classic RTM gateway), so there's no way to page and cache a full
+// channel directory server-side. Instead we call the same search.modules.channels
+// endpoint the real web client's "Browse channels" uses — a live, server-side
+// search with no local caching needed.
 // ---------------------------------------------------------------------------
 
-const channelDirectory: any[] = [];
-let channelDirectoryCursor = '';
-let channelDirectorySynced = false;
-
-async function syncChannelDirectoryStep() {
-  const data = await callSlack('conversations.list', {
-    limit: '1000',
-    cursor: channelDirectoryCursor,
-    types: 'public_channel',
-    exclude_archived: 'true',
-  });
-  if (!data.ok) {
-    channelDirectorySynced = true;
-    return;
-  }
-  channelDirectory.push(...(data.channels ?? []));
-  const nextCursor = data.response_metadata?.next_cursor;
-  if (!nextCursor) {
-    channelDirectorySynced = true;
-    return;
-  }
-  channelDirectoryCursor = nextCursor;
-}
-
-async function runBackgroundChannelSync() {
-  while (!channelDirectorySynced) {
-    try {
-      await syncChannelDirectoryStep();
-    } catch {
-      // transient network error; next tick retries from the same cursor
-    }
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  console.log(`Channel directory sync complete: ${channelDirectory.length} channels cached.`);
-}
-
-runBackgroundChannelSync();
-
-function searchChannelDirectory(query: string, limit = 40) {
-  const q = query.trim().toLowerCase();
-  const pool = channelDirectory.filter((c) => !c.is_archived && !c.is_member);
-  const matches = q ? pool.filter((c) => (c.name ?? '').toLowerCase().includes(q)) : pool;
-  return { channels: matches.slice(0, limit), truncated: matches.length > limit || !channelDirectorySynced };
+async function searchChannelDirectory(query: string, limit = 40) {
+  const q = query.trim();
+  if (!q) return { channels: [], truncated: false };
+  const data = await callSlack('search.modules.channels', { query: q, module: 'channels', count: String(limit) });
+  if (!data.ok) return { channels: [], truncated: false };
+  const items: any[] = data.items ?? [];
+  const channels = items
+    .filter((c) => !c.is_archived && !c.is_member)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      is_private: c.is_private,
+      topic: { value: c.purpose?.value ?? '' },
+      num_members: c.member_count,
+    }));
+  return { channels, truncated: !!data.pagination?.next_cursor };
 }
 
 function extractChannelSections(data: any): { id: string; name: string; channelIds: string[] }[] | null {
@@ -413,6 +412,11 @@ Bun.serve({
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
+      if (url.pathname === '/api/profile-fields') {
+        const fields = await getProfileFieldDefs();
+        return new Response(JSON.stringify({ ok: true, fields }), { headers: cors });
+      }
+
       if (url.pathname === '/api/users/search') {
         const q = url.searchParams.get('q') ?? '';
         const result = await searchDirectory(q);
@@ -436,6 +440,12 @@ Bun.serve({
       if (url.pathname === '/api/dm/open' && req.method === 'POST') {
         const { userId } = (await req.json()) as { userId: string };
         const data = await callSlack('conversations.open', { users: userId });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/dm/close' && req.method === 'POST') {
+        const { channel } = (await req.json()) as { channel: string };
+        const data = await callSlack('conversations.close', { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
@@ -601,7 +611,7 @@ Bun.serve({
 
       if (url.pathname === '/api/channels/browse') {
         const q = url.searchParams.get('q') ?? '';
-        const result = searchChannelDirectory(q);
+        const result = await searchChannelDirectory(q);
         return new Response(JSON.stringify({ ok: true, ...result }), { headers: cors });
       }
 
@@ -712,7 +722,7 @@ Bun.serve({
   websocket: {
     open(ws) {
       clients.add(ws);
-      ws.send(JSON.stringify({ type: '_status', connected: rtmConnected }));
+      ws.send(JSON.stringify({ type: '_status', connected: gatewayConnected }));
     },
     close(ws) {
       clients.delete(ws);

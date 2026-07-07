@@ -1,5 +1,11 @@
 import type { Block } from './blockkit/types';
 
+export interface UserCustomField {
+  id: string;
+  value: string;
+  alt?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -14,6 +20,14 @@ export interface User {
   isBot?: boolean;
   tz?: string;
   tzLabel?: string;
+  email?: string;
+  phone?: string;
+  customFields?: UserCustomField[];
+}
+
+export interface ProfileFieldDef {
+  id: string;
+  label: string;
 }
 
 export interface Reaction {
@@ -95,6 +109,7 @@ export interface DirectMessage {
   id: string;
   userId: string;
   unread: boolean;
+  lastActivity?: number;
 }
 
 export interface BrowsableChannel {
@@ -113,13 +128,15 @@ export interface ChannelSection {
 
 export interface ActivityItem {
   id: string;
-  kind: 'mention' | 'reaction';
+  kind: 'mention' | 'reaction' | 'dm' | 'thread_reply' | 'channel_mention' | 'usergroup_mention' | 'channel_all';
   channelId: string;
   ts: string;
   userId: string;
   text: string;
   time: number;
   reactionName?: string;
+  broadcastRange?: 'channel' | 'here';
+  usergroupId?: string;
 }
 
 export interface SavedItem {

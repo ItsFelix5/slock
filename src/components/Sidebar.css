@@ -97,18 +97,6 @@
   color: var(--text-primary);
 }
 
-.sidebar-connection-dot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-dim);
-}
-
-.sidebar-connection-dot.connected {
-  background: var(--presence-active);
-}
-
 .sidebar-nav {
   display: flex;
   gap: 4px;
@@ -132,15 +120,15 @@
   border-radius: 8px;
 }
 
-.sidebar-nav-btn .sidebar-badge {
+.sidebar-nav-btn .sidebar-ping-dot {
   position: absolute;
-  top: 4px;
-  right: 14px;
-  margin-left: 0;
-  font-size: 10px;
-  min-width: 15px;
-  text-align: center;
-  line-height: 1.3;
+  top: 6px;
+  right: 16px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--badge-bg);
+  border: 2px solid var(--sidebar-bg);
 }
 
 .sidebar-nav-btn:hover {
@@ -153,13 +141,21 @@
   color: #fff;
 }
 
+.sidebar-nav-btn.has-glow:not(.active) {
+  color: var(--text-primary);
+}
+
 .sidebar-search {
-  padding: 6px 12px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 8px;
   flex-shrink: 0;
 }
 
 .sidebar-search-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: var(--main-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -172,33 +168,39 @@
   border-color: var(--accent);
 }
 
-.sidebar-toolbar {
-  display: flex;
-  gap: 4px;
-  padding: 0 12px 6px;
+.sidebar-search-icon-btn {
   flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-.sidebar-toolbar-btn {
   background: none;
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.sidebar-toolbar-btn:hover {
+.sidebar-search-icon-btn:hover {
   background: var(--hover-bg);
   color: var(--text-primary);
 }
 
-.sidebar-toolbar-btn.active {
+.sidebar-search-icon-btn.active {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+
+.sidebar-unread-filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+
+.sidebar-search-icon-btn.active .sidebar-unread-filter-dot {
+  background: currentColor;
 }
 
 .sidebar-scroll {
@@ -264,6 +266,35 @@
 }
 
 .sidebar-compose:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.sidebar-row-wrap {
+  position: relative;
+}
+
+.sidebar-row-close {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.sidebar-row-wrap:hover .sidebar-row-close {
+  display: flex;
+}
+
+.sidebar-row-close:hover {
   background: var(--hover-bg);
   color: var(--text-primary);
 }

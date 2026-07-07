@@ -1,4 +1,5 @@
 import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import type { ActivityItem } from '../types';
 import {
   activityItems,
   ensureActivityLoaded,
@@ -11,25 +12,85 @@ import {
 } from '../store';
 import Mrkdwn from '../blockkit/mrkdwn';
 import Pronouns from './Pronouns';
+import Icon from '../icons';
 import './ActivityView.css';
 
-type FilterKind = 'all' | 'mention' | 'reaction';
+type Tag = ActivityItem['kind'] | 'app';
+type ReadState = 'all' | 'unread' | 'read';
 
-const FILTERS: { key: FilterKind; label: string }[] = [
-  { key: 'all', label: 'All' },
+const TAG_FILTERS: { key: Tag; label: string }[] = [
   { key: 'mention', label: 'Mentions' },
+  { key: 'dm', label: 'Direct messages' },
+  { key: 'thread_reply', label: 'Threads' },
+  { key: 'channel_mention', label: '@channel & @here' },
+  { key: 'usergroup_mention', label: 'Usergroups' },
+  { key: 'channel_all', label: 'Channels set to notify on all messages' },
   { key: 'reaction', label: 'Reactions' },
+  { key: 'app', label: 'Apps' },
 ];
 
+const READ_STATES: { key: ReadState; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'read', label: 'Read' },
+];
+
+function verbFor(item: ActivityItem): string {
+  switch (item.kind) {
+    case 'mention':
+      return 'mentioned you in';
+    case 'dm':
+      return 'sent you a message';
+    case 'thread_reply':
+      return 'replied to a thread in';
+    case 'channel_mention':
+      return `mentioned @${item.broadcastRange ?? 'channel'} in`;
+    case 'usergroup_mention':
+      return 'mentioned a usergroup in';
+    case 'channel_all':
+      return 'posted in';
+    case 'reaction':
+    default:
+      return 'reacted to your message in';
+  }
+}
+
 export default function ActivityView() {
-  const [filter, setFilter] = createSignal<FilterKind>('all');
+  const [selectedTags, setSelectedTags] = createSignal<Set<Tag>>(new Set());
+  const [keyword, setKeyword] = createSignal('');
+  const [readState, setReadState] = createSignal<ReadState>('all');
+  const [filterOpen, setFilterOpen] = createSignal(false);
 
   onMount(() => ensureActivityLoaded());
 
+  const toggleTag = (tag: Tag) => {
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  };
+
   const items = createMemo(() => {
     const sorted = [...activityItems].sort((a, b) => b.time - a.time);
-    const f = filter();
-    return f === 'all' ? sorted : sorted.filter((i) => i.kind === f);
+    const tags = selectedTags();
+    const kw = keyword().trim().toLowerCase();
+    const read = readState();
+    const cutoff = lastActivityReadAt();
+
+    return sorted.filter((item) => {
+      if (tags.size > 0) {
+        const itemTags: Tag[] = [item.kind];
+        if (userById(item.userId)?.isBot) itemTags.push('app');
+        if (!itemTags.some((t) => tags.has(t))) return false;
+      }
+      if (kw && !item.text.toLowerCase().includes(kw)) return false;
+      const unread = item.time > cutoff;
+      if (read === 'unread' && !unread) return false;
+      if (read === 'read' && unread) return false;
+      return true;
+    });
   });
 
   const goTo = (channelId: string, ts: string) => {
@@ -45,19 +106,61 @@ export default function ActivityView() {
           Mark all as read
         </button>
       </div>
-      <div class="activity-filters">
-        <For each={FILTERS}>
-          {(f) => (
-            <button
-              class="activity-filter-btn"
-              classList={{ active: filter() === f.key }}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          )}
-        </For>
+
+      <div class="activity-toolbar">
+        <input
+          class="activity-search"
+          type="text"
+          placeholder="Filter by keyword"
+          value={keyword()}
+          onInput={(e) => setKeyword(e.currentTarget.value)}
+        />
+
+        <div class="activity-read-toggle">
+          <For each={READ_STATES}>
+            {(r) => (
+              <button classList={{ active: readState() === r.key }} onClick={() => setReadState(r.key)}>
+                {r.label}
+              </button>
+            )}
+          </For>
+        </div>
+
+        <div class="activity-filter-wrap">
+          <button
+            class="activity-filter-toggle"
+            classList={{ active: selectedTags().size > 0 }}
+            onClick={() => setFilterOpen(!filterOpen())}
+          >
+            Filter
+            <Show when={selectedTags().size > 0}>
+              <span class="activity-filter-count">{selectedTags().size}</span>
+            </Show>
+            <Icon name="caretDown" size={14} />
+          </button>
+          <Show when={filterOpen()}>
+            <>
+              <div class="activity-filter-scrim" onClick={() => setFilterOpen(false)} />
+              <div class="activity-filter-panel">
+                <For each={TAG_FILTERS}>
+                  {(f) => (
+                    <label class="activity-filter-checkbox">
+                      <input type="checkbox" checked={selectedTags().has(f.key)} onChange={() => toggleTag(f.key)} />
+                      {f.label}
+                    </label>
+                  )}
+                </For>
+                <Show when={selectedTags().size > 0}>
+                  <button class="activity-filter-clear" onClick={() => setSelectedTags(new Set())}>
+                    Clear filters
+                  </button>
+                </Show>
+              </div>
+            </>
+          </Show>
+        </div>
       </div>
+
       <Show when={items().length > 0} fallback={<div class="activity-empty">Nothing here yet.</div>}>
         <For each={items()}>
           {(item) => {
@@ -76,8 +179,10 @@ export default function ActivityView() {
                   <div class="activity-headline">
                     <strong>{user()?.name ?? 'Someone'}</strong>
                     <Pronouns text={user()?.pronouns} />{' '}
-                    {item.kind === 'mention' ? 'mentioned you in' : 'reacted to your message in'}{' '}
-                    <span class="activity-channel">#{channel()?.name ?? item.channelId}</span>
+                    {verbFor(item)}{' '}
+                    <Show when={item.kind !== 'dm'}>
+                      <span class="activity-channel">#{channel()?.name ?? item.channelId}</span>
+                    </Show>
                   </div>
                   <div class="activity-snippet">
                     <Mrkdwn text={item.text} />

@@ -1,5 +1,5 @@
 import { For, Show, createEffect, createSignal } from 'solid-js';
-import { activeView, channelById, dmById, userById, sendMessage, handleSlashCommand } from '../store';
+import { activeView, channelById, dmById, userById, sendMessage, handleSlashCommand, recordEmojiUse } from '../store';
 import { uploadFile } from '../slackApi';
 import { showToast } from '../toast';
 import Icon, { type IconName } from '../icons';
@@ -276,6 +276,7 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
             <div class="composer-emoji-popover">
               <EmojiPicker
                 onSelect={(name) => {
+                  recordEmojiUse(name);
                   insertText(`:${name}:`);
                   setEmojiOpen(false);
                 }}

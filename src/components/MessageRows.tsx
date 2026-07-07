@@ -34,7 +34,14 @@ export default function MessageRows(props: {
         // Bot messages carry their own username/icon rather than a real user id
         // (frequently a bot_id that isn't a resolvable user) — don't bounce that
         // through userById, which would just burn a wasted /api/user lookup.
-        const user = createMemo(() => (msg.botName ? undefined : userById(msg.userId)));
+        // Slackbot's own automated announcements are a special case: Slack delivers
+        // them as bot_message with username "Slackbot" but no icons at all, so
+        // resolve the real Slackbot user instead of falling back to a generic 🤖.
+        const isSlackbot = () => msg.botName === 'Slackbot';
+        const user = createMemo(() => {
+          if (isSlackbot()) return userById('USLACKBOT');
+          return msg.botName ? undefined : userById(msg.userId);
+        });
         const displayName = () => msg.botName ?? user()?.name ?? 'Unknown';
         const avatarUrl = () => msg.botIcon ?? user()?.avatarUrl;
         const [isEditing, setIsEditing] = createSignal(false);

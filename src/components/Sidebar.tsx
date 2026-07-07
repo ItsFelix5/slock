@@ -1,5 +1,5 @@
 import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
-import type { Channel } from '../types';
+import type { Channel, DirectMessage } from '../types';
 import {
   sections,
   channels,
@@ -12,11 +12,11 @@ import {
   currentUser,
   openUserProfile,
   openDmWithUser,
-  rtmConnected,
+  closeDmConversation,
   unreadChannelIds,
   isChannelLeft,
-  unreadActivityCount,
-  markAllAsRead,
+  hasUnreadPing,
+  hasUnreadGlow,
   openBrowseChannels,
   isChannelMuted,
   type Nav,
@@ -43,9 +43,50 @@ interface Category {
   channels: Channel[];
 }
 
+function DmRow(props: { dm: DirectMessage }) {
+  const user = createMemo(() => userById(props.dm.userId));
+  const isActive = createMemo(() => {
+    const v = activeView();
+    return nav() === 'home' && v?.kind === 'dm' && v.id === props.dm.id;
+  });
+
+  return (
+    <Show when={user()}>
+      {(u) => (
+        <div class="sidebar-row-wrap">
+          <button
+            class="sidebar-row"
+            classList={{ active: isActive(), unread: !!unreadChannelIds[props.dm.id] }}
+            onClick={() => setActiveView({ kind: 'dm', id: props.dm.id })}
+          >
+            <span class="sidebar-row-avatar" style={{ background: u().avatarColor }}>
+              <Show when={u().avatarUrl} fallback={u().initials}>
+                {(url) => <img class="sidebar-row-avatar-img" src={url()} alt="" />}
+              </Show>
+              <span class="sidebar-presence-dot" classList={{ away: u().presence === 'away' }} />
+            </span>
+            <span class="sidebar-row-name">{u().name}</span>
+          </button>
+          <button
+            class="sidebar-row-close"
+            title="Close conversation"
+            onClick={(e) => {
+              e.stopPropagation();
+              closeDmConversation(props.dm.id);
+            }}
+          >
+            <Icon name="close" size={12} />
+          </button>
+        </div>
+      )}
+    </Show>
+  );
+}
+
 export default function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
   const [dmsOpen, setDmsOpen] = createSignal(true);
+  const [appsOpen, setAppsOpen] = createSignal(true);
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [query, setQuery] = createSignal('');
   const [composeOpen, setComposeOpen] = createSignal(false);
@@ -106,6 +147,9 @@ export default function Sidebar() {
     });
   });
 
+  const peopleDms = createMemo(() => filteredDms().filter((dm) => !userById(dm.userId)?.isBot));
+  const appDms = createMemo(() => filteredDms().filter((dm) => userById(dm.userId)?.isBot));
+
   return (
     <div class="sidebar" style={{ width: `${width()}px` }}>
       <ResizeHandle width={width} setWidth={setWidth} min={MIN_WIDTH} max={MAX_WIDTH} direction={1} side="right" />
@@ -131,11 +175,6 @@ export default function Sidebar() {
         <button class="sidebar-global-search-btn" title="Search (Ctrl+K)" onClick={() => setSearchOpen(true)}>
           <Icon name="search" size={16} />
         </button>
-        <span
-          class="sidebar-connection-dot"
-          classList={{ connected: rtmConnected() }}
-          title={rtmConnected() ? 'Live connection active' : 'Reconnecting…'}
-        />
       </div>
 
       <Show when={searchOpen()}>
@@ -145,11 +184,18 @@ export default function Sidebar() {
       <div class="sidebar-nav">
         <For each={NAV_ITEMS}>
           {(item) => (
-            <button class="sidebar-nav-btn" classList={{ active: nav() === item.key }} onClick={() => setNavView(item.key)}>
+            <button
+              class="sidebar-nav-btn"
+              classList={{
+                active: nav() === item.key,
+                'has-glow': item.key === 'activity' && hasUnreadGlow(),
+              }}
+              onClick={() => setNavView(item.key)}
+            >
               <Icon name={item.icon} size={16} />
               {item.label}
-              <Show when={item.key === 'activity' && unreadActivityCount() > 0}>
-                <span class="sidebar-badge">{unreadActivityCount()}</span>
+              <Show when={item.key === 'activity' && hasUnreadPing()}>
+                <span class="sidebar-ping-dot" />
               </Show>
             </button>
           )}
@@ -164,22 +210,16 @@ export default function Sidebar() {
           value={query()}
           onInput={(e) => setQuery(e.currentTarget.value)}
         />
-      </div>
-
-      <div class="sidebar-toolbar">
         <button
-          class="sidebar-toolbar-btn"
+          class="sidebar-search-icon-btn"
           classList={{ active: unreadsOnly() }}
           title={unreadsOnly() ? 'Show all' : 'Show unreads only'}
           onClick={() => setUnreadsOnly(!unreadsOnly())}
         >
-          Unreads
+          <span class="sidebar-unread-filter-dot" />
         </button>
-        <button class="sidebar-toolbar-btn" title="Mark everything as read" onClick={markAllAsRead}>
-          Mark all read
-        </button>
-        <button class="sidebar-toolbar-btn" title="Browse or create channels" onClick={openBrowseChannels}>
-          + Channels
+        <button class="sidebar-search-icon-btn" title="Browse or create channels" onClick={openBrowseChannels}>
+          <Icon name="plus" size={14} />
         </button>
       </div>
 
@@ -188,12 +228,14 @@ export default function Sidebar() {
           {(cat) => (
             <Show when={cat.channels.length > 0 || !query()}>
               <div class="sidebar-section">
-                <button class="sidebar-section-header sidebar-section-header-btn" onClick={() => toggleCategory(cat.id)}>
-                  <span class="sidebar-caret" classList={{ collapsed: collapsed().has(cat.id) }}>
-                    ▾
-                  </span>
-                  {cat.name}
-                </button>
+                <div class="sidebar-section-header">
+                  <button class="sidebar-section-header-btn" onClick={() => toggleCategory(cat.id)}>
+                    <span class="sidebar-caret" classList={{ collapsed: collapsed().has(cat.id) }}>
+                      ▾
+                    </span>
+                    {cat.name}
+                  </button>
+                </div>
                 <div style={{ display: collapsed().has(cat.id) ? 'none' : 'block' }}>
                   <For each={cat.channels}>
                     {(ch) => {
@@ -250,36 +292,25 @@ export default function Sidebar() {
             </span>
           </div>
           <div style={{ display: dmsOpen() ? 'block' : 'none' }}>
-            <For each={filteredDms()}>
-              {(dm) => {
-                const user = createMemo(() => userById(dm.userId));
-                const isActive = createMemo(() => {
-                  const v = activeView();
-                  return nav() === 'home' && v?.kind === 'dm' && v.id === dm.id;
-                });
-                return (
-                  <Show when={user()}>
-                    {(u) => (
-                      <button
-                        class="sidebar-row"
-                        classList={{ active: isActive(), unread: !!unreadChannelIds[dm.id] }}
-                        onClick={() => setActiveView({ kind: 'dm', id: dm.id })}
-                      >
-                        <span class="sidebar-row-avatar" style={{ background: u().avatarColor }}>
-                          <Show when={u().avatarUrl} fallback={u().initials}>
-                            {(url) => <img class="sidebar-row-avatar-img" src={url()} alt="" />}
-                          </Show>
-                          <span class="sidebar-presence-dot" classList={{ away: u().presence === 'away' }} />
-                        </span>
-                        <span class="sidebar-row-name">{u().name}</span>
-                      </button>
-                    )}
-                  </Show>
-                );
-              }}
-            </For>
+            <For each={peopleDms()}>{(dm) => <DmRow dm={dm} />}</For>
           </div>
         </div>
+
+        <Show when={appDms().length > 0}>
+          <div class="sidebar-section">
+            <div class="sidebar-section-header">
+              <button class="sidebar-section-header-btn" onClick={() => setAppsOpen(!appsOpen())}>
+                <span class="sidebar-caret" classList={{ collapsed: !appsOpen() }}>
+                  ▾
+                </span>
+                Apps
+              </button>
+            </div>
+            <div style={{ display: appsOpen() ? 'block' : 'none' }}>
+              <For each={appDms()}>{(dm) => <DmRow dm={dm} />}</For>
+            </div>
+          </div>
+        </Show>
       </div>
     </div>
   );

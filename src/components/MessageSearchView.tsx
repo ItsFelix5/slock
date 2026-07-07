@@ -1,6 +1,16 @@
 import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { searchMessages, type SearchResult } from '../slackApi';
-import { bootstrap, userById, searchScreenQuery, searchUsers, setActiveView, openThread, setNavView, currentUser } from '../store';
+import {
+  bootstrap,
+  userById,
+  searchScreenQuery,
+  searchScreenFilters,
+  searchUsers,
+  setActiveView,
+  openThread,
+  setNavView,
+  currentUser,
+} from '../store';
 import {
   buildSearchQuery,
   hasActiveFilters,
@@ -63,6 +73,7 @@ export default function MessageSearchView() {
 
   onMount(() => {
     setQuery(searchScreenQuery());
+    setFilters(searchScreenFilters());
     runSearch();
   });
 

@@ -1,37 +1,36 @@
-.user-profile-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+.user-profile-panel {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--main-bg);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.user-profile-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 50;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.user-profile-card {
-  width: 320px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-}
-
-.user-profile-banner {
-  height: 56px;
-  background: linear-gradient(135deg, var(--accent), #3d1f6e);
+.user-profile-header-title {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text-primary);
 }
 
 .user-profile-body {
-  padding: 0 20px 20px;
-  margin-top: -36px;
+  padding: 20px 20px 24px;
 }
 
 .user-profile-avatar {
   width: 72px;
   height: 72px;
   border-radius: 12px;
-  border: 3px solid var(--composer-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,7 +55,7 @@
   height: 14px;
   border-radius: 50%;
   background: var(--presence-active);
-  border: 2px solid var(--composer-bg);
+  border: 2px solid var(--main-bg);
 }
 
 .user-profile-presence.away {
@@ -115,24 +114,54 @@
 }
 
 .user-profile-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.3);
+  background: none;
   border: none;
-  color: #fff;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
 .user-profile-close:hover {
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
-.user-profile-card {
-  position: relative;
+.user-profile-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.user-profile-section-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.user-profile-field {
+  margin-bottom: 12px;
+}
+
+.user-profile-field-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.user-profile-field-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.user-profile-field-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.user-profile-field-link:hover {
+  text-decoration: underline;
 }

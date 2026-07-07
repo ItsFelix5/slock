@@ -5,6 +5,7 @@ import MessageList from './MessageList';
 import Composer from './Composer';
 import ActivityView from './ActivityView';
 import LaterView from './LaterView';
+import MessageSearchView from './MessageSearchView';
 import './MainPanel.css';
 
 export default function MainPanel() {
@@ -16,6 +17,9 @@ export default function MainPanel() {
         </Match>
         <Match when={nav() === 'later'}>
           <LaterView />
+        </Match>
+        <Match when={nav() === 'search'}>
+          <MessageSearchView />
         </Match>
         <Match when={nav() === 'home'}>
           <ChannelHeader />
