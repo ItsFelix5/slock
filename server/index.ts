@@ -50,6 +50,46 @@ function getEmojiMap() {
   return emojiMapPromise;
 }
 
+let prefsPromise: Promise<{ emojiUse: Record<string, number>; channelFrecency: Record<string, { count: number; lastVisit: number }> }> | null = null;
+
+// users.prefs.get carries the account's *real* local-usage databases (each pref
+// value is itself a JSON string the client must parse) — emoji_use is a flat
+// name->count map, while frecency_ent_jumper (Enterprise Grid) / frecency_jumper
+// (non-EG) is the quick-switcher's jump list: one entry per canonical id plus a
+// bunch of alias entries (search prefixes typed while jumping) that share that
+// same id, so entries are reduced down to one {count, lastVisit} per id.
+function getUserPrefs() {
+  if (!prefsPromise) {
+    prefsPromise = callSlack('users.prefs.get', {}).then((data) => {
+      const prefs = data.prefs ?? {};
+      const parse = (key: string) => {
+        try {
+          const raw = prefs[key];
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const emojiUse: Record<string, number> = parse('emoji_use') ?? {};
+
+      const jumper = parse('frecency_ent_jumper') ?? parse('frecency_jumper') ?? parse('frecency') ?? {};
+      const channelFrecency: Record<string, { count: number; lastVisit: number }> = {};
+      for (const entry of Object.values<any>(jumper)) {
+        const id = entry?.id;
+        const count = entry?.count ?? 0;
+        const lastVisit = Array.isArray(entry?.visits) ? Math.max(...entry.visits) : 0;
+        if (!id) continue;
+        const existing = channelFrecency[id];
+        if (!existing || count > existing.count) channelFrecency[id] = { count, lastVisit };
+      }
+
+      return { emojiUse, channelFrecency };
+    });
+  }
+  return prefsPromise;
+}
+
 let profileFieldsPromise: Promise<{ id: string; label: string }[]> | null = null;
 
 // team.profile.get returns the workspace's custom-profile-field *definitions*
@@ -415,6 +455,11 @@ Bun.serve({
       if (url.pathname === '/api/profile-fields') {
         const fields = await getProfileFieldDefs();
         return new Response(JSON.stringify({ ok: true, fields }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/prefs') {
+        const { emojiUse, channelFrecency } = await getUserPrefs();
+        return new Response(JSON.stringify({ ok: true, emojiUse, channelFrecency }), { headers: cors });
       }
 
       if (url.pathname === '/api/users/search') {

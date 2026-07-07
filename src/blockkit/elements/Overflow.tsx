@@ -2,7 +2,7 @@ import { For, Show, createSignal } from 'solid-js';
 import type { OverflowElement } from '../types';
 import BkText from '../BkText';
 import Icon from '../../icons';
-import { showToast } from '../../toast';
+import { showToast } from '../../lib/toast';
 
 export default function Overflow(props: { el: OverflowElement }) {
   const [open, setOpen] = createSignal(false);

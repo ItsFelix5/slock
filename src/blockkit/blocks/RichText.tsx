@@ -6,7 +6,7 @@ import type {
   RichTextSubBlock,
 } from '../types';
 import { Mention, formatSlackDate } from '../mrkdwn';
-import EmojiText from '../../components/EmojiText';
+import EmojiText from '../../components/messages/EmojiText';
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
   const el = props.el;

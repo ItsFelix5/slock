@@ -1,6 +1,6 @@
 import type { TextObject } from './types';
 import Mrkdwn from './mrkdwn';
-import EmojiText from '../components/EmojiText';
+import EmojiText from '../components/messages/EmojiText';
 
 export default function BkText(props: { text: TextObject | undefined; class?: string }) {
   if (!props.text) return null;

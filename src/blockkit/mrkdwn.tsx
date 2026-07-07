@@ -1,6 +1,6 @@
 import { For, Show, type JSX } from 'solid-js';
-import { userById, channelById, openUserProfile, setActiveView } from '../store';
-import EmojiText from '../components/EmojiText';
+import { userById, channelById, openUserProfile, setActiveView } from '../lib/store';
+import EmojiText from '../components/messages/EmojiText';
 
 // Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
 // cases around emphasis boundaries), but covers everything real workspaces actually send:

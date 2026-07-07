@@ -1,13 +1,13 @@
 import { Show } from 'solid-js';
-import Sidebar from './components/Sidebar';
-import MainPanel from './components/MainPanel';
-import ThreadPanel from './components/ThreadPanel';
-import UserProfile from './components/UserProfile';
-import ToastStack from './components/Toast';
-import BrowseChannels from './components/BrowseChannels';
-import PinnedPanel from './components/PinnedPanel';
-import CanvasPanel from './components/CanvasPanel';
-import { bootstrap } from './store';
+import Sidebar from './components/sidebar/Sidebar';
+import MainPanel from './components/layout/MainPanel';
+import ThreadPanel from './components/messages/ThreadPanel';
+import UserProfile from './components/user/UserProfile';
+import ToastStack from './components/layout/Toast';
+import BrowseChannels from './components/sidebar/BrowseChannels';
+import PinnedPanel from './components/channel/PinnedPanel';
+import CanvasPanel from './components/channel/CanvasPanel';
+import { bootstrap } from './lib/store';
 
 function App() {
   return (

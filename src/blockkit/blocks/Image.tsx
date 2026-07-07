@@ -1,6 +1,6 @@
 import { Show } from 'solid-js';
 import type { ImageBlock } from '../types';
-import EmojiText from '../../components/EmojiText';
+import EmojiText from '../../components/messages/EmojiText';
 
 export default function Image(props: { block: ImageBlock }) {
   return (

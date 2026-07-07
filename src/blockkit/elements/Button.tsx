@@ -1,6 +1,6 @@
 import type { ButtonElement } from '../types';
 import BkText from '../BkText';
-import { showToast } from '../../toast';
+import { showToast } from '../../lib/toast';
 
 export default function Button(props: { el: ButtonElement }) {
   const onClick = () => {
