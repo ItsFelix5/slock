@@ -13,6 +13,7 @@ import {
 } from './slackApi';
 import type { Message, User, Channel, DirectMessage } from './types';
 
+export type Nav = 'home' | 'activity' | 'later' | 'search';
 export type View = { kind: 'channel'; id: string } | { kind: 'dm'; id: string };
 export type ThreadRef = { channelId: string; ts: string };
 // Where a given Message lives in the store, so actions (edit/delete/react) can
@@ -29,9 +30,20 @@ function mergeMessages(existing: Message[], fresh: Message[]): Message[] {
   return merged;
 }
 
+function wsUrl() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  // Vite's dev-server proxy can't relay the /ws upgrade (its bundled http-proxy
+  // never completes the handshake), so in dev we connect straight to the backend
+  // port instead of going through the proxy. Plain HTTP proxying (/api) is unaffected.
+  const host = import.meta.env.DEV ? `${location.hostname}:5174` : location.host;
+  return `${proto}://${host}/ws`;
+}
+
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);
   const [selected, setSelected] = createSignal<View | null>(null);
+  const [nav, setNav] = createSignal<Nav>('home');
+  const [searchScreenQuery, setSearchScreenQuery] = createSignal('');
   const [messagesByChannel, setMessagesByChannel] = createStore<Record<string, Message[]>>({});
   const loadedChannels = new Set<string>();
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
@@ -54,7 +66,42 @@ function setup() {
   function setActiveView(view: View) {
     setActiveThread(null);
     setSelected(view);
+    setNav('home');
+    setUnreadChannelIds(view.id, false);
+    setMessageFilterQuery('');
   }
+
+  function setNavView(next: Nav) {
+    setNav(next);
+    if (next === 'later') ensureLaterLoaded();
+    if (next === 'activity') ensureActivityLoaded();
+  }
+
+  function openMessageSearch(query: string) {
+    setSearchScreenQuery(query);
+    setNavView('search');
+  }
+
+  // ---- initial per-view loads (the websocket keeps things fresh after this) ----
+
+  createEffect(() => {
+    const data = bootstrap();
+    if (!data || starredSeeded) return;
+    starredSeeded = true;
+    for (const id of data.starredChannelIds) setStarredChannelIds(id, true);
+  });
+
+  createEffect(() => {
+    const view = activeView();
+    if (view) ensurePinsLoaded(view.id);
+  });
+
+  let wasOnActivity = false;
+  createEffect(() => {
+    const isActivity = nav() === 'activity';
+    if (wasOnActivity && !isActivity) markActivityRead();
+    wasOnActivity = isActivity;
+  });
 
   createEffect(() => {
     const view = activeView();
@@ -80,7 +127,7 @@ function setup() {
         .then((fresh) => {
           setMessagesByChannel(view.id, (existing = []) => mergeMessages(existing, fresh));
         })
-        .catch(() => {});
+        .catch(() => { });
     }, POLL_INTERVAL_MS);
     onCleanup(() => clearInterval(timer));
   });
@@ -109,7 +156,7 @@ function setup() {
         .then((fresh) => {
           setThreadMessages(key, (existing = []) => mergeMessages(existing, fresh));
         })
-        .catch(() => {});
+        .catch(() => { });
     }, POLL_INTERVAL_MS);
     onCleanup(() => clearInterval(timer));
   });
@@ -288,6 +335,12 @@ function setup() {
 
   return {
     bootstrap,
+    sections,
+    directMessages,
+    nav,
+    setNavView,
+    searchScreenQuery,
+    openMessageSearch,
     activeView,
     setActiveView,
     messagesByChannel,
@@ -310,6 +363,12 @@ function setup() {
 
 export const {
   bootstrap,
+  sections,
+  directMessages,
+  nav,
+  setNavView,
+  searchScreenQuery,
+  openMessageSearch,
   activeView,
   setActiveView,
   messagesByChannel,

@@ -1,0 +1,35 @@
+.message-search-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.message-search-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.message-search-input {
+  font-size: 18px;
+}
+
+.message-search-filters {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+}
+
+.message-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 24px 24px;
+  max-width: 720px;
+}
+
+.message-search-result {
+  margin-bottom: 4px;
+}
