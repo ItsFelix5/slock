@@ -65,6 +65,22 @@
   padding: 2px 20px 2px 16px;
 }
 
+.compact-mode .message-row {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.compact-mode .message-avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.compact-mode .message-meta {
+  gap: 6px;
+}
+
 .message-row:hover {
   background: var(--hover-bg);
 }
@@ -142,13 +158,20 @@
   background: var(--hover-bg);
 }
 
+.reaction-picker-full {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 6;
+}
+
 .message-more-menu {
   position: absolute;
   top: 32px;
   right: 0;
   display: flex;
   flex-direction: column;
-  min-width: 160px;
+  min-width: 190px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -164,6 +187,7 @@
   text-align: left;
   padding: 7px 10px;
   border-radius: 5px;
+  width: 100%;
 }
 
 .message-more-item:hover {
@@ -172,6 +196,24 @@
 
 .message-more-item.danger {
   color: #e0554a;
+}
+
+.message-more-item-wrap {
+  position: relative;
+}
+
+.message-more-submenu {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 6;
 }
 
 .message-row.compact {
@@ -192,6 +234,9 @@
   flex-shrink: 0;
   margin-top: 2px;
   overflow: hidden;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .message-avatar-img {
@@ -229,11 +274,38 @@
   font-weight: 800;
   font-size: 15px;
   color: #fff;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.message-author:hover {
+  text-decoration: underline;
+}
+
+.message-author:disabled {
+  cursor: default;
+}
+
+.message-author:disabled:hover {
+  text-decoration: none;
 }
 
 .message-time {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.message-bot-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: var(--hover-bg);
+  border-radius: 3px;
+  padding: 1px 4px;
+  letter-spacing: 0.02em;
 }
 
 .message-text {

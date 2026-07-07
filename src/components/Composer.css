@@ -10,11 +10,54 @@
   border-color: var(--text-dim);
 }
 
+.composer.drag-over {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.composer-file-input {
+  display: none;
+}
+
+.composer-file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px 0;
+}
+
+.composer-file-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--hover-bg);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.composer-file-chip button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 0;
+}
+
+.composer-file-chip button:hover {
+  color: var(--text-primary);
+}
+
 .composer-toolbar {
   display: flex;
   gap: 2px;
   padding: 6px 6px 2px;
   border-bottom: 1px solid var(--border);
+}
+
+.composer-toolbar.hidden {
+  display: none;
 }
 
 .composer-tool {
@@ -39,6 +82,27 @@
 .composer-tool-text {
   font-size: 13px;
   font-weight: 800;
+}
+
+.composer-tool.active {
+  background: var(--active-bg);
+  color: #fff;
+}
+
+.composer-picker-wrap {
+  position: relative;
+}
+
+.composer-emoji-popover,
+.composer-mention-popover {
+  position: absolute;
+  bottom: 34px;
+  left: 0;
+  z-index: 10;
+}
+
+.composer-mention-popover .compose-picker {
+  position: static;
 }
 
 .composer-input {

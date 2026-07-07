@@ -1,8 +1,12 @@
 import { Show } from 'solid-js';
-import IconRail from './components/IconRail';
 import Sidebar from './components/Sidebar';
 import MainPanel from './components/MainPanel';
 import ThreadPanel from './components/ThreadPanel';
+import UserProfile from './components/UserProfile';
+import ToastStack from './components/Toast';
+import BrowseChannels from './components/BrowseChannels';
+import PinnedPanel from './components/PinnedPanel';
+import CanvasPanel from './components/CanvasPanel';
 import { bootstrap } from './store';
 
 function App() {
@@ -16,10 +20,14 @@ function App() {
         fallback={<div class="app-status">Failed to load: {String(bootstrap.error)}</div>}
       >
         <div class="app">
-          <IconRail />
           <Sidebar />
           <MainPanel />
           <ThreadPanel />
+          <UserProfile />
+          <BrowseChannels />
+          <PinnedPanel />
+          <CanvasPanel />
+          <ToastStack />
         </div>
       </Show>
     </Show>

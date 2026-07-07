@@ -3,12 +3,20 @@ import {
   currentUser,
   reactToMessage,
   deleteMessageAt,
-  savedTs,
+  isSavedForLater,
   toggleSaveForLater,
+  openUserProfile,
+  isMessagePinned,
+  togglePinMessage,
+  copyMessageLink,
+  markMessageUnread,
+  remindAboutMessage,
+  REMINDER_OPTIONS,
   type MessageLocation,
 } from '../store';
 import type { Message } from '../types';
 import EmojiText from './EmojiText';
+import EmojiPicker from './EmojiPicker';
 import Icon from '../icons';
 
 const QUICK_REACTIONS = ['+1', 'heart', 'joy', 'tada', 'eyes', 'white_check_mark'];
@@ -21,10 +29,13 @@ export default function MessageActionsBar(props: {
   onEditRequest: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
+  const [fullPickerOpen, setFullPickerOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
+  const [remindOpen, setRemindOpen] = createSignal(false);
 
   const isMine = createMemo(() => currentUser()?.id === props.msg.userId);
-  const isSaved = createMemo(() => !!savedTs[props.msg.ts]);
+  const isSaved = createMemo(() => isSavedForLater(props.msg.ts));
+  const isPinned = createMemo(() => isMessagePinned(props.channelId, props.msg.ts));
 
   const copyText = () => {
     navigator.clipboard.writeText(props.msg.text);
@@ -41,6 +52,33 @@ export default function MessageActionsBar(props: {
     if (confirm('Delete this message?')) deleteMessageAt(props.location, props.channelId, props.msg.ts);
   };
 
+  const react = (name: string) => {
+    reactToMessage(props.location, props.channelId, props.msg, name);
+    setPickerOpen(false);
+    setFullPickerOpen(false);
+  };
+
+  const copyLink = () => {
+    setMoreOpen(false);
+    copyMessageLink(props.channelId, props.msg.ts);
+  };
+
+  const togglePin = () => {
+    setMoreOpen(false);
+    togglePinMessage(props.channelId, props.msg.ts);
+  };
+
+  const markUnread = () => {
+    setMoreOpen(false);
+    markMessageUnread(props.channelId, props.msg.ts);
+  };
+
+  const remind = (time: string) => {
+    setMoreOpen(false);
+    setRemindOpen(false);
+    remindAboutMessage(props.channelId, props.msg.ts, time);
+  };
+
   return (
     <div class="message-hover-actions" classList={{ forceVisible: pickerOpen() || moreOpen() }}>
       <div class="message-hover-picker-wrap">
@@ -51,17 +89,19 @@ export default function MessageActionsBar(props: {
           <div class="reaction-picker">
             <For each={QUICK_REACTIONS}>
               {(name) => (
-                <button
-                  class="reaction-picker-btn"
-                  onClick={() => {
-                    reactToMessage(props.location, props.channelId, props.msg, name);
-                    setPickerOpen(false);
-                  }}
-                >
+                <button class="reaction-picker-btn" onClick={() => react(name)}>
                   <EmojiText text={`:${name}:`} />
                 </button>
               )}
             </For>
+            <button class="reaction-picker-btn" title="More emoji" onClick={() => setFullPickerOpen(true)}>
+              <Icon name="plus" size={14} />
+            </button>
+          </div>
+        </Show>
+        <Show when={fullPickerOpen()}>
+          <div class="reaction-picker-full">
+            <EmojiPicker onSelect={react} onClose={() => setFullPickerOpen(false)} />
           </div>
         </Show>
       </div>
@@ -82,11 +122,52 @@ export default function MessageActionsBar(props: {
       </button>
 
       <div class="message-hover-picker-wrap">
-        <button class="message-hover-btn" title="More actions" onClick={() => setMoreOpen(!moreOpen())}>
+        <button
+          class="message-hover-btn"
+          title="More actions"
+          onClick={() => {
+            setMoreOpen(!moreOpen());
+            setRemindOpen(false);
+          }}
+        >
           <Icon name="moreVertical" size={16} />
         </button>
         <Show when={moreOpen()}>
           <div class="message-more-menu">
+            <button class="message-more-item" onClick={copyLink}>
+              Copy link
+            </button>
+            <button class="message-more-item" onClick={togglePin}>
+              {isPinned() ? 'Unpin from channel' : 'Pin to channel'}
+            </button>
+            <div class="message-more-item-wrap">
+              <button class="message-more-item" onClick={() => setRemindOpen(!remindOpen())}>
+                Remind me about this…
+              </button>
+              <Show when={remindOpen()}>
+                <div class="message-more-submenu">
+                  <For each={REMINDER_OPTIONS}>
+                    {(opt) => (
+                      <button class="message-more-item" onClick={() => remind(opt.time)}>
+                        {opt.label}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+            <button class="message-more-item" onClick={markUnread}>
+              Mark unread
+            </button>
+            <button
+              class="message-more-item"
+              onClick={() => {
+                setMoreOpen(false);
+                openUserProfile(props.msg.userId);
+              }}
+            >
+              View profile
+            </button>
             <button class="message-more-item" onClick={copyText}>
               Copy text
             </button>

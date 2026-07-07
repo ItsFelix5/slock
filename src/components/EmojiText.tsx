@@ -24,17 +24,14 @@ export default function EmojiText(props: { text: string }) {
     <For each={splitParts(props.text)}>
       {(part) => {
         if (part.type === 'text') return <>{part.value}</>;
-        // Workspace custom emoji can override standard names, so check it first.
+        // Workspace custom emoji can override standard names, so check it first;
+        // while that's resolving (or if it resolves to nothing), fall back to the
+        // standard unicode glyph so known emoji never flash as raw `:name:` text.
         const url = createMemo(() => emojiUrl(part.name));
         const unicode = STANDARD_EMOJI[part.name];
         return (
-          <Show when={url() !== undefined} fallback={<>{`:${part.name}:`}</>}>
-            <Show
-              when={url()}
-              fallback={unicode ? <span class="emoji">{unicode}</span> : <>{`:${part.name}:`}</>}
-            >
-              {(u) => <img class="emoji-img" src={u()} alt={`:${part.name}:`} title={`:${part.name}:`} />}
-            </Show>
+          <Show when={url()} fallback={unicode ? <span class="emoji">{unicode}</span> : <>{`:${part.name}:`}</>}>
+            {(u) => <img class="emoji-img" src={u()} alt={`:${part.name}:`} title={`:${part.name}:`} />}
           </Show>
         );
       }}

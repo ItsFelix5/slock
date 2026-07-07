@@ -1,0 +1,96 @@
+.canvas-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.canvas-panel-card {
+  width: 640px;
+  max-width: 92vw;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.canvas-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.canvas-panel-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.canvas-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.canvas-panel-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.canvas-panel-editor {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: var(--composer-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 16px;
+  line-height: 1.5;
+}
+
+.canvas-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.canvas-panel-note {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.canvas-panel-save {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 6px;
+}
+
+.canvas-panel-save:disabled {
+  background: var(--hover-bg);
+  color: var(--text-dim);
+}
+
+.canvas-panel-save:not(:disabled):hover {
+  background: var(--accent-hover);
+}

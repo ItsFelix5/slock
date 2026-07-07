@@ -1,5 +1,5 @@
 import { Show, createMemo } from 'solid-js';
-import { activeView, messagesByChannel, dmById, channelById, userById, openThread } from '../store';
+import { activeView, messagesByChannel, dmById, channelById, userById, openThread, messageFilterQuery } from '../store';
 import MessageRows from './MessageRows';
 import './MessageList.css';
 
@@ -7,7 +7,10 @@ export default function MessageList() {
   const messages = createMemo(() => {
     const v = activeView();
     if (!v) return [];
-    return messagesByChannel[v.id] ?? [];
+    const all = messagesByChannel[v.id] ?? [];
+    const query = messageFilterQuery().trim().toLowerCase();
+    if (!query) return all;
+    return all.filter((m) => m.text?.toLowerCase().includes(query));
   });
 
   const channelName = createMemo(() => {

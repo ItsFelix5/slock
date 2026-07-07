@@ -30,6 +30,10 @@
   color: var(--text-primary);
 }
 
+.channel-header-star.active {
+  color: #e0a72d;
+}
+
 .channel-header-icon {
   font-size: 15px;
   color: var(--text-secondary);
@@ -41,6 +45,17 @@
   color: #fff;
   white-space: nowrap;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.channel-header-title-btn {
+  cursor: pointer;
+}
+
+.channel-header-title-btn:hover {
+  text-decoration: underline;
 }
 
 .channel-header-topic {
@@ -76,33 +91,76 @@
   justify-content: center;
 }
 
-.channel-header-btn:hover {
+.channel-header-btn:hover,
+.channel-header-btn.active {
   background: var(--hover-bg);
   color: var(--text-primary);
 }
 
-.channel-header-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 0 12px;
+.channel-header-more-wrap {
+  position: relative;
 }
 
-.channel-tab {
+.channel-header-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  min-width: 190px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 8;
+}
+
+.channel-header-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 7px 10px;
+  border-radius: 5px;
+}
+
+.channel-header-menu-item:hover {
+  background: var(--hover-bg);
+}
+
+.channel-header-menu-item.danger {
+  color: #e0554a;
+}
+
+.channel-header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.channel-header-search-input {
+  flex: 1;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 6px 10px;
+}
+
+.channel-header-search-close {
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 13px;
-  padding: 8px 10px 10px;
-  border-bottom: 2px solid transparent;
-  display: flex;
-  align-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
 }
 
-.channel-tab:hover {
+.channel-header-search-close:hover {
+  background: var(--hover-bg);
   color: var(--text-primary);
-}
-
-.channel-tab.active {
-  color: #fff;
-  border-bottom-color: var(--accent);
 }

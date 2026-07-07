@@ -17,6 +17,31 @@
   --font: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+:root.theme-light {
+  --rail-bg: #f7f7f8;
+  --sidebar-bg: #f0f0f2;
+  --main-bg: #ffffff;
+  --composer-bg: #ffffff;
+  --border: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text-primary: #1d1c1d;
+  --text-secondary: rgba(29, 28, 29, 0.7);
+  --text-dim: rgba(29, 28, 29, 0.45);
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --active-bg: rgba(18, 100, 163, 0.12);
+}
+
+:root.theme-light .sidebar-me-name,
+:root.theme-light .channel-header-title,
+:root.theme-light .message-author,
+:root.theme-light .sidebar-row.active,
+:root.theme-light .sidebar-row.unread .sidebar-row-name,
+:root.theme-light .sidebar-nav-btn.active,
+:root.theme-light .composer-tool.active,
+:root.theme-light .thread-panel-title {
+  color: var(--text-primary);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -67,4 +92,11 @@ button {
   justify-content: center;
   color: var(--text-secondary);
   font-size: 15px;
+}
+
+.pronouns {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 0.9em;
+  margin-left: 4px;
 }

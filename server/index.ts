@@ -9,7 +9,7 @@ if (!DOMAIN || !TOKEN || !COOKIE || !ROUTE) {
   throw new Error('Missing SLACK_DOMAIN / SLACK_TOKEN / SLACK_COOKIE / SLACK_ROUTE in .env');
 }
 
-async function callSlack(method: string, params: Record<string, string>) {
+async function callSlack(method: string, params: Record<string, string> = {}) {
   const body = new URLSearchParams({ token: TOKEN, ...params });
   const url = `https://${DOMAIN}/api/${method}?slack_route=${encodeURIComponent(ROUTE)}&_x_app_name=client`;
   const res = await fetch(url, {
@@ -51,19 +51,17 @@ function getEmojiMap() {
 }
 
 // ---------------------------------------------------------------------------
-// Real-time relay: connect to Slack's own Edge Gateway websocket server-side
-// (keeps the token off the browser) and fan its events out to every connected
-// client over our own /ws endpoint. Classic rtm.connect is permanently
-// unavailable on Enterprise Grid workspaces like this one (enterprise_is_restricted),
-// so we speak the same protocol the official web/desktop client uses instead.
-// If the gateway connection is down, fall back to polling Slack ourselves —
-// still just a single relayed connection from the browser's point of view,
-// never a per-second fetch loop in the client.
+// Real-time relay: connect to Slack's own RTM websocket server-side (keeps the
+// token off the browser) and fan its events out to every connected client over
+// our own /ws endpoint. If rtm.connect isn't available for this workspace/token
+// (Enterprise Grid has been migrating off classic RTM), fall back to polling
+// Slack ourselves — still just a single relayed connection from the browser's
+// point of view, never a per-second fetch loop in the client.
 // ---------------------------------------------------------------------------
 
 type ClientSocket = { send(data: string): void };
 const clients = new Set<ClientSocket>();
-let gatewayConnected = false;
+let rtmConnected = false;
 const watchedChannels = new Set<string>();
 const watchedThreads = new Map<string, string>(); // ts -> channel
 
@@ -79,13 +77,25 @@ function broadcast(payload: unknown) {
 }
 
 function broadcastStatus() {
-  broadcast({ type: '_status', connected: gatewayConnected });
+  broadcast({ type: '_status', connected: rtmConnected });
 }
 
-let gatewaySocket: WebSocket | null = null;
-let gatewayRetryDelay = 2000;
-const GATEWAY_MAX_RETRY_DELAY = 60000;
+let rtmSocket: WebSocket | null = null;
+let rtmRetryDelay = 2000;
+const RTM_MAX_RETRY_DELAY = 60000;
 let fallbackTimer: ReturnType<typeof setInterval> | null = null;
+
+// Errors that mean "this workspace/token will never be able to use RTM" rather than
+// "try again in a bit" — Enterprise Grid workspaces commonly reject classic RTM outright.
+const RTM_PERMANENT_ERRORS = new Set([
+  'enterprise_is_restricted',
+  'not_authed',
+  'invalid_auth',
+  'account_inactive',
+  'missing_scope',
+  'no_permission',
+  'user_is_bot',
+]);
 
 function startFallbackPolling() {
   if (fallbackTimer) return;
@@ -116,39 +126,28 @@ function stopFallbackPolling() {
   }
 }
 
-// Slack's Enterprise Grid gateway addresses the "org-wide" connection by a team id
-// that mirrors the enterprise id with its leading "E" swapped for "T" — not
-// documented anywhere, found by inspecting the official client's own websocket
-// handshake in devtools.
-const ENTERPRISE_ID = ROUTE.split(':')[0];
-const GATEWAY_TEAM_ID = 'T' + ENTERPRISE_ID.slice(1);
-
-function buildGatewayUrl() {
-  const shard = 1 + Math.floor(Math.random() * 3);
-  const params = new URLSearchParams({
-    token: TOKEN,
-    sync_desync: '1',
-    slack_client: 'desktop',
-    start_args: `?agent=client&org_wide_aware=true&agent_version=${Date.now()}&eac_cache_ts=true&cache_ts=0&name_tagging=true&only_self_subteams=true&connect_only=true&ms_latest=true`,
-    no_query_on_subscribe: '1',
-    flannel: '3',
-    lazy_channels: '1',
-    gateway_server: `${GATEWAY_TEAM_ID}-${shard}`,
-    enterprise_id: ENTERPRISE_ID,
-    batch_presence_aware: '1',
-  });
-  return `wss://wss-primary.slack.com/?${params}`;
-}
-
-function connectGateway() {
+async function connectRtm() {
   try {
-    const socket = new WebSocket(buildGatewayUrl(), { headers: { cookie: COOKIE } } as any);
-    gatewaySocket = socket;
+    const data = await callSlack('rtm.connect', {});
+    if (!data.ok || !data.url) {
+      startFallbackPolling();
+      if (RTM_PERMANENT_ERRORS.has(data.error)) {
+        console.warn(`rtm.connect permanently unavailable (${data.error}) — staying on server-side polling.`);
+        return;
+      }
+      console.warn('rtm.connect unavailable, retrying:', data.error ?? data);
+      rtmRetryDelay = Math.min(rtmRetryDelay * 2, RTM_MAX_RETRY_DELAY);
+      setTimeout(connectRtm, rtmRetryDelay);
+      return;
+    }
+
+    const socket = new WebSocket(data.url);
+    rtmSocket = socket;
 
     socket.addEventListener('open', () => {
-      console.log('Connected to Slack Edge gateway');
-      gatewayConnected = true;
-      gatewayRetryDelay = 2000;
+      console.log('Connected to Slack RTM');
+      rtmConnected = true;
+      rtmRetryDelay = 2000;
       stopFallbackPolling();
       broadcastStatus();
     });
@@ -156,20 +155,20 @@ function connectGateway() {
     socket.addEventListener('message', (event) => {
       try {
         const payload = JSON.parse(String(event.data));
-        if (payload.type && payload.type !== 'pong' && payload.type !== 'reconnect_url') broadcast(payload);
+        if (payload.type && payload.type !== 'pong') broadcast(payload);
       } catch {
         // ignore malformed frames
       }
     });
 
     const onDown = () => {
-      if (gatewaySocket !== socket) return;
-      gatewaySocket = null;
-      gatewayConnected = false;
+      if (rtmSocket !== socket) return;
+      rtmSocket = null;
+      rtmConnected = false;
       broadcastStatus();
       startFallbackPolling();
-      setTimeout(connectGateway, gatewayRetryDelay);
-      gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
+      setTimeout(connectRtm, rtmRetryDelay);
+      rtmRetryDelay = Math.min(rtmRetryDelay * 2, RTM_MAX_RETRY_DELAY);
     };
     socket.addEventListener('close', onDown);
     socket.addEventListener('error', onDown);
@@ -185,14 +184,14 @@ function connectGateway() {
     }, 30000);
     socket.addEventListener('close', () => clearInterval(pingTimer));
   } catch (err) {
-    console.warn('Failed to connect to Slack gateway, retrying:', err);
+    console.warn('Failed to connect to Slack RTM, retrying:', err);
     startFallbackPolling();
-    setTimeout(connectGateway, gatewayRetryDelay);
-    gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
+    setTimeout(connectRtm, rtmRetryDelay);
+    rtmRetryDelay = Math.min(rtmRetryDelay * 2, RTM_MAX_RETRY_DELAY);
   }
 }
 
-connectGateway();
+connectRtm();
 
 // ---------------------------------------------------------------------------
 // Org-wide member search: users.list has no server-side name filter, and on a
@@ -339,16 +338,41 @@ function extractChannelSections(data: any): { id: string; name: string; channelI
 Bun.serve({
   hostname: '127.0.0.1',
   port: PORT,
-  async fetch(req) {
+  async fetch(req, server) {
     const url = new URL(req.url);
+
+    if (url.pathname === '/ws') {
+      if (server.upgrade(req)) return;
+      return new Response('upgrade failed', { status: 400 });
+    }
 
     try {
       if (url.pathname === '/api/bootstrap') {
-        const [boot, users] = await Promise.all([
+        // client.counts is what the real webapp uses to paint sidebar unread dots/mention
+        // badges right at boot without fetching full history for every channel — without
+        // it, unread state only exists after a live websocket event during the session,
+        // so a reload wipes every unread indicator. Best-effort: if the shape doesn't
+        // match what we expect, bootstrap still succeeds with today's "nothing unread"
+        // fallback rather than failing the whole app.
+        const [boot, users, counts] = await Promise.all([
           callSlack('client.userBoot', {}),
           callSlack('users.list', { limit: '200' }),
+          callSlack('client.counts', {}).catch(() => ({ ok: false })),
         ]);
-        return new Response(JSON.stringify({ boot, users }), { headers: cors });
+        return new Response(JSON.stringify({ boot, users, counts }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/channel/info') {
+        const channel = url.searchParams.get('channel');
+        if (!channel) return new Response('missing channel', { status: 400, headers: cors });
+        const data = await callSlack('conversations.info', { channel });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/sections') {
+        const data = await callSlack('users.channelSections.list', {});
+        const sections = data.ok ? extractChannelSections(data) : null;
+        return new Response(JSON.stringify({ ok: !!sections, sections: sections ?? [] }), { headers: cors });
       }
 
       if (url.pathname === '/api/history') {
@@ -366,11 +390,20 @@ Bun.serve({
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/emoji') {
-        const name = url.searchParams.get('name');
-        if (!name) return new Response('missing name', { status: 400, headers: cors });
+      if (url.pathname === '/api/emojis') {
         const map = await getEmojiMap();
-        return new Response(JSON.stringify({ ok: true, url: map[name] ?? null }), { headers: cors });
+        const body = JSON.stringify({ ok: true, emoji: map });
+        // Large workspaces can have tens of thousands of custom emoji (multiple MB of
+        // JSON) — gzip cuts that by roughly 8x, and the cache header means a browser
+        // reload doesn't refetch it at all within the window.
+        const acceptsGzip = (req.headers.get('accept-encoding') ?? '').includes('gzip');
+        const headers = { ...cors, 'cache-control': 'public, max-age=1800' };
+        if (acceptsGzip) {
+          return new Response(Bun.gzipSync(Buffer.from(body)), {
+            headers: { ...headers, 'content-encoding': 'gzip' },
+          });
+        }
+        return new Response(body, { headers });
       }
 
       if (url.pathname === '/api/user') {
@@ -380,14 +413,42 @@ Bun.serve({
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
+      if (url.pathname === '/api/users/search') {
+        const q = url.searchParams.get('q') ?? '';
+        const result = await searchDirectory(q);
+        return new Response(JSON.stringify({ ok: true, ...result }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/search') {
+        const query = url.searchParams.get('q');
+        if (!query) return new Response('missing q', { status: 400, headers: cors });
+        const sort = url.searchParams.get('sort') === 'score' ? 'score' : 'timestamp';
+        const sortDir = url.searchParams.get('sort_dir') === 'asc' ? 'asc' : 'desc';
+        const data = await callSlack('search.messages', { query, sort, sort_dir: sortDir, count: '40' });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/saved') {
+        const data = await callSlack('saved.list', { limit: '40' });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/dm/open' && req.method === 'POST') {
+        const { userId } = (await req.json()) as { userId: string };
+        const data = await callSlack('conversations.open', { users: userId });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
       if (url.pathname === '/api/send' && req.method === 'POST') {
-        const { channel, text, thread_ts } = (await req.json()) as {
+        const { channel, text, thread_ts, blocks } = (await req.json()) as {
           channel: string;
           text: string;
           thread_ts?: string;
+          blocks?: unknown;
         };
         const params: Record<string, string> = { channel, text };
         if (thread_ts) params.thread_ts = thread_ts;
+        if (blocks) params.blocks = JSON.stringify(blocks);
         const data = await callSlack('chat.postMessage', params);
         return new Response(JSON.stringify(data), { headers: cors });
       }
@@ -433,6 +494,213 @@ Bun.serve({
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
+      if (url.pathname === '/api/star' && req.method === 'POST') {
+        const { channel, remove } = (await req.json()) as { channel: string; remove?: boolean };
+        const data = await callSlack(remove ? 'stars.remove' : 'stars.add', { channel });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/channel/leave' && req.method === 'POST') {
+        const { channel } = (await req.json()) as { channel: string };
+        const data = await callSlack('conversations.leave', { channel });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/mark' && req.method === 'POST') {
+        const { channel, ts } = (await req.json()) as { channel: string; ts: string };
+        const data = await callSlack('conversations.mark', { channel, ts });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/pins' && req.method === 'GET') {
+        const channel = url.searchParams.get('channel');
+        if (!channel) return new Response('missing channel', { status: 400, headers: cors });
+        const data = await callSlack('pins.list', { channel });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/pin' && req.method === 'POST') {
+        const { channel, ts, remove } = (await req.json()) as { channel: string; ts: string; remove?: boolean };
+        const data = await callSlack(remove ? 'pins.remove' : 'pins.add', { channel, timestamp: ts });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/permalink' && req.method === 'GET') {
+        const channel = url.searchParams.get('channel');
+        const ts = url.searchParams.get('ts');
+        if (!channel || !ts) return new Response('missing channel/ts', { status: 400, headers: cors });
+        const data = await callSlack('chat.getPermalink', { channel, message_ts: ts });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/remind' && req.method === 'POST') {
+        const { text, time } = (await req.json()) as { text: string; time: string };
+        const data = await callSlack('reminders.add', { text, time });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/file') {
+        const fileUrl = url.searchParams.get('url');
+        if (!fileUrl) return new Response('missing url', { status: 400, headers: cors });
+        let parsed: URL;
+        try {
+          parsed = new URL(fileUrl);
+        } catch {
+          return new Response('invalid url', { status: 400, headers: cors });
+        }
+        if (!isAllowedFileHost(parsed.hostname)) {
+          return new Response('host not allowed', { status: 403, headers: cors });
+        }
+        const fileRes = await fetch(parsed, { headers: { cookie: COOKIE } });
+        if (!fileRes.ok || !fileRes.body) {
+          return new Response('failed to fetch file', { status: 502, headers: cors });
+        }
+        return new Response(fileRes.body, {
+          headers: {
+            'access-control-allow-origin': cors['access-control-allow-origin'],
+            'content-type': fileRes.headers.get('content-type') ?? 'application/octet-stream',
+            'cache-control': 'private, max-age=3600',
+          },
+        });
+      }
+
+      if (url.pathname === '/api/upload' && req.method === 'POST') {
+        const form = await req.formData();
+        const file = form.get('file') as File | null;
+        const channel = form.get('channel') as string | null;
+        const filename = (form.get('filename') as string | null) ?? file?.name ?? 'file';
+        const threadTs = form.get('thread_ts') as string | null;
+        const initialComment = form.get('comment') as string | null;
+        if (!file || !channel) return new Response(JSON.stringify({ ok: false, error: 'missing file/channel' }), { status: 400, headers: cors });
+
+        // Modern (non-deprecated) Slack upload flow: reserve an upload URL, POST the
+        // raw bytes to it, then tell Slack to attach the finished upload to a channel.
+        const buffer = await file.arrayBuffer();
+        const reserve = await callSlack('files.getUploadURLExternal', {
+          filename,
+          length: String(buffer.byteLength),
+        });
+        if (!reserve.ok) return new Response(JSON.stringify(reserve), { headers: cors });
+
+        const uploadForm = new FormData();
+        uploadForm.append('file', new Blob([buffer]), filename);
+        const putRes = await fetch(reserve.upload_url, { method: 'POST', body: uploadForm });
+        if (!putRes.ok) {
+          return new Response(JSON.stringify({ ok: false, error: 'upload_failed' }), { headers: cors });
+        }
+
+        const completeParams: Record<string, string> = {
+          files: JSON.stringify([{ id: reserve.file_id, title: filename }]),
+          channel_id: channel,
+        };
+        if (threadTs) completeParams.thread_ts = threadTs;
+        if (initialComment) completeParams.initial_comment = initialComment;
+        const complete = await callSlack('files.completeUploadExternal', completeParams);
+        return new Response(JSON.stringify(complete), { headers: cors });
+      }
+
+      if (url.pathname === '/api/channels/browse') {
+        const q = url.searchParams.get('q') ?? '';
+        const result = searchChannelDirectory(q);
+        return new Response(JSON.stringify({ ok: true, ...result }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/channels/join' && req.method === 'POST') {
+        const { channel } = (await req.json()) as { channel: string };
+        const data = await callSlack('conversations.join', { channel });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/channels/create' && req.method === 'POST') {
+        const { name, isPrivate } = (await req.json()) as { name: string; isPrivate?: boolean };
+        const data = await callSlack('conversations.create', { name, is_private: isPrivate ? 'true' : 'false' });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/status' && req.method === 'POST') {
+        const { text, emoji, expiration } = (await req.json()) as { text: string; emoji: string; expiration: number };
+        const profile = JSON.stringify({ status_text: text, status_emoji: emoji, status_expiration: expiration });
+        const data = await callSlack('users.profile.set', { profile });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/presence' && req.method === 'POST') {
+        const { presence } = (await req.json()) as { presence: 'auto' | 'away' };
+        const data = await callSlack('users.setPresence', { presence });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/mute' && req.method === 'POST') {
+        // Best-effort: muted_channels is the same client-prefs blob mechanism the real
+        // webapp saves all of its local settings through, not a documented api.slack.com
+        // method — the client treats this as non-critical since mute is kept locally too.
+        const { channelIds } = (await req.json()) as { channelIds: string[] };
+        const data = await callSlack('users.prefs.set', { name: 'muted_channels', value: channelIds.join(',') });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/dnd' && req.method === 'POST') {
+        const { minutes } = (await req.json()) as { minutes: number };
+        const data = minutes > 0
+          ? await callSlack('dnd.setSnooze', { num_minutes: String(minutes) })
+          : await callSlack('dnd.endSnooze', {});
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/canvas') {
+        // Reading a canvas's actual document content back out isn't something we can
+        // fully verify without live testing against a real canvas — this is a
+        // best-effort attempt (fetch the backing file's content and hand back
+        // whatever text comes back); the client always keeps a permalink fallback.
+        const fileId = url.searchParams.get('file');
+        if (!fileId) return new Response('missing file', { status: 400, headers: cors });
+        const info = await callSlack('files.info', { file: fileId });
+        if (!info.ok) return new Response(JSON.stringify(info), { headers: cors });
+        const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
+        if (!downloadUrl) return new Response(JSON.stringify({ ok: false, error: 'no_content_url' }), { headers: cors });
+        try {
+          const contentRes = await fetch(downloadUrl, { headers: { cookie: COOKIE } });
+          const content = await contentRes.text();
+          return new Response(
+            JSON.stringify({ ok: true, content, permalink: info.file?.permalink }),
+            { headers: cors },
+          );
+        } catch {
+          return new Response(JSON.stringify({ ok: false, error: 'fetch_failed', permalink: info.file?.permalink }), { headers: cors });
+        }
+      }
+
+      if (url.pathname === '/api/canvas/create' && req.method === 'POST') {
+        const { channel } = (await req.json()) as { channel: string };
+        const data = await callSlack('conversations.canvases.create', { channel_id: channel });
+        return new Response(JSON.stringify({ ok: data.ok, fileId: data.canvas_id, error: data.error }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/canvas/edit' && req.method === 'POST') {
+        const { file, markdown } = (await req.json()) as { file: string; markdown: string };
+        const changes = JSON.stringify([
+          { operation: 'replace', document_content: { type: 'markdown', markdown } },
+        ]);
+        const data = await callSlack('canvases.edit', { canvas_id: file, changes });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/channel/topic' && req.method === 'POST') {
+        const { channel, topic } = (await req.json()) as { channel: string; topic: string };
+        const data = await callSlack('conversations.setTopic', { channel, topic });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === '/api/command' && req.method === 'POST') {
+        // Best-effort: there's no documented public method for dispatching a slash
+        // command from a client — this mirrors the internal call the real webapp
+        // makes, which we can't fully verify without live testing. Failure is
+        // surfaced honestly to the user rather than assumed to have worked.
+        const { channel, command, text } = (await req.json()) as { channel: string; command: string; text: string };
+        const data = await callSlack('chat.command', { channel, command, text });
+        return new Response(JSON.stringify(data), { headers: cors });
+      }
+
       return new Response('not found', { status: 404, headers: cors });
     } catch (err) {
       return new Response(JSON.stringify({ ok: false, error: String(err) }), {
@@ -444,7 +712,7 @@ Bun.serve({
   websocket: {
     open(ws) {
       clients.add(ws);
-      ws.send(JSON.stringify({ type: '_status', connected: gatewayConnected }));
+      ws.send(JSON.stringify({ type: '_status', connected: rtmConnected }));
     },
     close(ws) {
       clients.delete(ws);
