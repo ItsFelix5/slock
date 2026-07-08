@@ -1,18 +1,24 @@
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import Icon, { type IconName } from "../../icons";
-import { uploadFile } from "../../lib/slackApi";
+import { fetchBrowsableChannels, uploadFile } from "../../lib/slackApi";
 import {
   activeView,
+  bootstrap,
   channelById,
+  channels,
+  currentUser,
   dmById,
   handleSlashCommand,
   recordEmojiUse,
+  searchUsers,
   sendMessage,
   userById,
 } from "../../lib/store";
 import { showToast } from "../../lib/toast";
+import type { User } from "../../lib/types";
 import type { Block } from "../blockkit/types";
+import { Avatar } from "../common";
 import ComposeUserPicker from "./ComposeUserPicker";
 import EmojiPicker from "./EmojiPicker";
 import "./Composer.css";
@@ -38,6 +44,85 @@ const FORMAT_TOOLS: FormatTool[] = [
   { kind: "attach", icon: "attachment", title: "Attach file" },
   { kind: "mention", icon: "mentions", title: "Mention someone" },
 ];
+
+type UserSuggestItem = { kind: "user"; id: string; name: string; user: User };
+type ChannelSuggestItem = { kind: "channel"; id: string; name: string; private: boolean };
+type CommandSuggestItem = { kind: "command"; name: string; desc: string };
+type SuggestItem = UserSuggestItem | ChannelSuggestItem | CommandSuggestItem;
+
+type SuggestState =
+  | { kind: "user"; start: number; items: UserSuggestItem[]; active: number }
+  | { kind: "channel"; start: number; items: ChannelSuggestItem[]; active: number }
+  | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number };
+
+const SLASH_COMMANDS: { name: string; desc: string }[] = [
+  { name: "shrug", desc: "Append ¯\\_(ツ)_/¯ to your message" },
+  { name: "me", desc: "Share an action you're doing" },
+  { name: "topic", desc: "Set the channel topic" },
+  { name: "remind", desc: "Set a reminder" },
+  { name: "msg", desc: "Send a direct message" },
+  { name: "invite", desc: "Invite people to this channel" },
+  { name: "leave", desc: "Leave this channel" },
+  { name: "archive", desc: "Archive this channel" },
+  { name: "rename", desc: "Rename this channel" },
+  { name: "status", desc: "Set your status" },
+  { name: "dnd", desc: "Snooze notifications" },
+  { name: "who", desc: "List members of this channel" },
+  { name: "mute", desc: "Mute this channel" },
+  { name: "call", desc: "Start a call" },
+];
+
+// Detects an in-progress @mention, #channel-mention, or /slash-command token
+// immediately before the cursor, the way Slack's real composer does. Mentions
+// must start at a word boundary (so "user@example.com" doesn't trigger) and
+// slash commands are only recognized as the very first token of the message.
+function detectMentionTrigger(
+  value: string,
+  cursor: number,
+): { kind: "user" | "channel" | "command"; start: number; query: string } | null {
+  const before = value.slice(0, cursor);
+  if (before.startsWith("/") && !/[\s]/.test(before.slice(1))) {
+    return { kind: "command", start: 0, query: before.slice(1) };
+  }
+  const atIdx = before.lastIndexOf("@");
+  const hashIdx = before.lastIndexOf("#");
+  const idx = Math.max(atIdx, hashIdx);
+  if (idx === -1) return null;
+  const prevChar = before[idx - 1];
+  if (prevChar !== undefined && !/\s/.test(prevChar)) return null;
+  const token = before.slice(idx + 1);
+  if (/\s/.test(token)) return null;
+  return { kind: idx === atIdx ? "user" : "channel", start: idx, query: token };
+}
+
+function suggestItemContent(item: SuggestItem) {
+  switch (item.kind) {
+    case "user":
+      return (
+        <>
+          <Avatar user={item.user} size="small" />
+          <span class="composer-suggest-label">{item.name}</span>
+        </>
+      );
+    case "channel":
+      return (
+        <>
+          <span class="composer-suggest-icon">
+            {item.private ? <Icon name="lock" size={12} /> : "#"}
+          </span>
+          <span class="composer-suggest-label">{item.name}</span>
+        </>
+      );
+    case "command":
+      return (
+        <>
+          <span class="composer-suggest-icon">/</span>
+          <span class="composer-suggest-label">{item.name}</span>
+          <span class="composer-suggest-desc">{item.desc}</span>
+        </>
+      );
+  }
+}
 
 type SpecialBlock = { id: number; kind: "header"; text: string } | { id: number; kind: "divider" };
 
@@ -72,8 +157,112 @@ export default function Composer(props: {
   const [pendingFiles, setPendingFiles] = createSignal<File[]>([]);
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
+  const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   let textareaRef: HTMLTextAreaElement | undefined;
   let fileInputRef: HTMLInputElement | undefined;
+  let suggestRequestId = 0;
+
+  function setActiveSuggestion(index: number) {
+    setSuggest((prev) => (prev ? { ...prev, active: index } : prev));
+  }
+
+  function moveActiveSuggestion(delta: number) {
+    const s = suggest();
+    if (!s) return;
+    const n = s.items.length;
+    setActiveSuggestion((((s.active + delta) % n) + n) % n);
+  }
+
+  function updateSuggestions(value: string, cursor: number) {
+    const trigger = detectMentionTrigger(value, cursor);
+    if (!trigger) {
+      setSuggest(null);
+      return;
+    }
+    const q = trigger.query.toLowerCase();
+    const reqId = ++suggestRequestId;
+
+    if (trigger.kind === "command") {
+      const items = SLASH_COMMANDS.filter((c) => c.name.startsWith(q)).map(
+        (c): CommandSuggestItem => ({ kind: "command", name: c.name, desc: c.desc }),
+      );
+      setSuggest(
+        items.length > 0 ? { kind: "command", start: trigger.start, items, active: 0 } : null,
+      );
+      return;
+    }
+
+    if (trigger.kind === "user") {
+      const me = currentUser()?.id;
+      const local = (bootstrap()?.users ?? [])
+        .filter((u) => u.id !== me && u.name.toLowerCase().includes(q))
+        .slice(0, 8)
+        .map((u): UserSuggestItem => ({ kind: "user", id: u.id, name: u.name, user: u }));
+      setSuggest({ kind: "user", start: trigger.start, items: local, active: 0 });
+      if (!q) return;
+      searchUsers(q, me).then((found) => {
+        if (reqId !== suggestRequestId) return;
+        setSuggest((prev) => {
+          if (!prev || prev.kind !== "user") return prev;
+          const merged = new Map<string, UserSuggestItem>();
+          for (const it of prev.items) merged.set(it.id, it);
+          for (const u of found)
+            merged.set(u.id, { kind: "user", id: u.id, name: u.name, user: u });
+          return { ...prev, items: [...merged.values()].slice(0, 8) };
+        });
+      });
+      return;
+    }
+
+    const local = channels()
+      .filter((c) => c.name.toLowerCase().includes(q))
+      .slice(0, 8)
+      .map(
+        (c): ChannelSuggestItem => ({
+          kind: "channel",
+          id: c.id,
+          name: c.name,
+          private: c.private,
+        }),
+      );
+    setSuggest({ kind: "channel", start: trigger.start, items: local, active: 0 });
+    if (!q) return;
+    fetchBrowsableChannels(q).then((found) => {
+      if (reqId !== suggestRequestId) return;
+      setSuggest((prev) => {
+        if (!prev || prev.kind !== "channel") return prev;
+        const merged = new Map<string, ChannelSuggestItem>();
+        for (const it of prev.items) merged.set(it.id, it);
+        for (const c of found)
+          merged.set(c.id, { kind: "channel", id: c.id, name: c.name, private: c.private });
+        return { ...prev, items: [...merged.values()].slice(0, 8) };
+      });
+    });
+  }
+
+  function applySuggestion(index?: number) {
+    const s = suggest();
+    const el = textareaRef;
+    if (!s || !el) return;
+    const item = s.items[index ?? s.active];
+    if (!item) return;
+    const insertion =
+      item.kind === "user"
+        ? `<@${item.id}> `
+        : item.kind === "channel"
+          ? `<#${item.id}|${item.name}> `
+          : `/${item.name} `;
+    const value = el.value;
+    const cursor = el.selectionStart;
+    const next = value.slice(0, s.start) + insertion + value.slice(cursor);
+    const newCursor = s.start + insertion.length;
+    el.value = next;
+    setText(next);
+    setSuggest(null);
+    el.focus();
+    el.setSelectionRange(newCursor, newCursor);
+    resizeTextarea();
+  }
 
   const targetChannelId = () => props.channelId ?? activeView()?.id;
   const draftKey = () => (props.threadTs ? `thread:${props.threadTs}` : targetChannelId());
@@ -121,6 +310,7 @@ export default function Composer(props: {
   ) {
     const el = textareaRef;
     if (!el) return;
+    setSuggest(null);
     const { next, cursor } = mutate(el.value, el.selectionStart, el.selectionEnd);
     el.value = next;
     setText(next);
@@ -275,6 +465,29 @@ export default function Composer(props: {
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    const s = suggest();
+    if (s && s.items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        moveActiveSuggestion(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        moveActiveSuggestion(-1);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        applySuggestion();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSuggest(null);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       submit(e);
     }
@@ -387,23 +600,47 @@ export default function Composer(props: {
           </Show>
         </div>
 
-        <textarea
-          ref={(el) => {
-            textareaRef = el;
-            queueMicrotask(resizeTextarea);
-          }}
-          class="composer-input"
-          placeholder={dragOver() ? "Drop to attach" : placeholder()}
-          value={text()}
-          onInput={(e) => {
-            setText(e.currentTarget.value);
-            resizeTextarea();
-          }}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-          rows={1}
-          disabled={!targetChannelId() || sending()}
-        />
+        <div class="composer-input-wrap">
+          <textarea
+            ref={(el) => {
+              textareaRef = el;
+              queueMicrotask(resizeTextarea);
+            }}
+            class="composer-input"
+            placeholder={dragOver() ? "Drop to attach" : placeholder()}
+            value={text()}
+            onInput={(e) => {
+              setText(e.currentTarget.value);
+              resizeTextarea();
+              updateSuggestions(e.currentTarget.value, e.currentTarget.selectionStart);
+            }}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            onBlur={() => setSuggest(null)}
+            rows={1}
+            disabled={!targetChannelId() || sending()}
+          />
+          <Show when={suggest()}>
+            {(s) => (
+              <div class="composer-suggest-popover">
+                <For each={s().items}>
+                  {(item, i) => (
+                    <button
+                      type="button"
+                      class="composer-suggest-row"
+                      classList={{ active: i() === s().active }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setActiveSuggestion(i())}
+                      onClick={() => applySuggestion(i())}
+                    >
+                      {suggestItemContent(item)}
+                    </button>
+                  )}
+                </For>
+              </div>
+            )}
+          </Show>
+        </div>
 
         <input
           ref={fileInputRef}

@@ -202,9 +202,74 @@
   position: static;
 }
 
-.composer-input {
+.composer-input-wrap {
+  position: relative;
   flex: 1;
   min-width: 0;
+}
+
+.composer-suggest-popover {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 6px;
+  min-width: 220px;
+  max-width: 360px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.composer-suggest-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.composer-suggest-row:hover,
+.composer-suggest-row.active {
+  background: var(--hover-bg);
+}
+
+.composer-suggest-icon {
+  flex-shrink: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.composer-suggest-label {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.composer-suggest-desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.composer-input {
+  display: block;
+  width: 100%;
   background: none;
   border: none;
   outline: none;
