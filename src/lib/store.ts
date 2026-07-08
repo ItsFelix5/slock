@@ -861,12 +861,20 @@ function setup() {
 
   function patchMessage(location: MessageLocation, ts: string, patch: Partial<Message>) {
     if (location.store === "channel") {
-      setMessagesByChannel(location.key, (list = []) =>
-        list.map((m) => (m.ts === ts ? { ...m, ...patch } : m)),
+      setMessagesByChannel(
+        location.key,
+        produce((list) => {
+          const msg = list.find((m) => m.ts === ts);
+          if (msg) Object.assign(msg, patch);
+        }),
       );
     } else {
-      setThreadMessages(location.key, (list = []) =>
-        list.map((m) => (m.ts === ts ? { ...m, ...patch } : m)),
+      setThreadMessages(
+        location.key,
+        produce((list) => {
+          const msg = list.find((m) => m.ts === ts);
+          if (msg) Object.assign(msg, patch);
+        }),
       );
     }
   }
@@ -1430,12 +1438,26 @@ function setup() {
       const res = await postMessage(channelId, trimmed, threadTs, blocks);
       const realTs = res.ts as string;
       if (location.store === "channel") {
-        setMessagesByChannel(location.key, (list = []) =>
-          list.map((m) => (m.id === optimistic.id ? { ...m, id: realTs, ts: realTs } : m)),
+        setMessagesByChannel(
+          location.key,
+          produce((list) => {
+            const msg = list.find((m) => m.id === optimistic.id);
+            if (msg) {
+              msg.id = realTs;
+              msg.ts = realTs;
+            }
+          }),
         );
       } else {
-        setThreadMessages(location.key, (list = []) =>
-          list.map((m) => (m.id === optimistic.id ? { ...m, id: realTs, ts: realTs } : m)),
+        setThreadMessages(
+          location.key,
+          produce((list) => {
+            const msg = list.find((m) => m.id === optimistic.id);
+            if (msg) {
+              msg.id = realTs;
+              msg.ts = realTs;
+            }
+          }),
         );
       }
     } catch (err) {
