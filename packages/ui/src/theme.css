@@ -1,0 +1,32 @@
+:root {
+  --rail-bg: #191a20;
+  --sidebar-bg: #101214;
+  --main-bg: #1a1d21;
+  --composer-bg: #222529;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text-primary: #d1d2d3;
+  --text-secondary: rgba(224, 224, 224, 0.7);
+  --text-dim: rgba(224, 224, 224, 0.45);
+  --accent: #1264a3;
+  --accent-hover: #0b5385;
+  --presence-active: #2eb67d;
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --active-bg: rgba(255, 255, 255, 0.1);
+  --badge-bg: #cd2553;
+  --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+:root.theme-light {
+  --rail-bg: #f7f7f8;
+  --sidebar-bg: #f0f0f2;
+  --main-bg: #ffffff;
+  --composer-bg: #ffffff;
+  --border: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text-primary: #1d1c1d;
+  --text-secondary: rgba(29, 28, 29, 0.7);
+  --text-dim: rgba(29, 28, 29, 0.45);
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --active-bg: rgba(18, 100, 163, 0.12);
+}

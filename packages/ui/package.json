@@ -1,0 +1,13 @@
+{
+  "name": "@slock/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme.css": "./src/theme.css"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.13"
+  }
+}

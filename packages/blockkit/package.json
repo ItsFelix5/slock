@@ -1,0 +1,15 @@
+{
+  "name": "@slock/blockkit",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@slock/slack-api": "workspace:*",
+    "@slock/ui": "workspace:*",
+    "gemoji": "^8.1.0",
+    "solid-js": "^1.9.13"
+  }
+}
