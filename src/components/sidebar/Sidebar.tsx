@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { For, Show, Switch, Match, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import type { Channel, DirectMessage } from '../../lib/types';
 import {
   sections,
@@ -19,17 +19,27 @@ import {
   hasUnreadGlow,
   openBrowseChannels,
   isChannelMuted,
+  isChannelStarred,
+  createChannelSection,
+  renameChannelSection,
+  deleteChannelSection,
   type Nav,
 } from '../../lib/store';
 import Icon, { type IconName } from '../../icons';
 import ResizeHandle from '../layout/ResizeHandle';
 import ComposeUserPicker from '../composer/ComposeUserPicker';
 import GlobalSearch from '../search/GlobalSearch';
+import ActivityView from './ActivityView';
+import LaterView from './LaterView';
 import './Sidebar.css';
 
 const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 420;
+
+const FEED_DEFAULT_WIDTH = 420;
+const FEED_MIN_WIDTH = 340;
+const FEED_MAX_WIDTH = 640;
 
 const NAV_ITEMS: { key: Nav; label: string; icon: IconName }[] = [
   { key: 'home', label: 'Home', icon: 'home' },
@@ -41,6 +51,7 @@ interface Category {
   id: string;
   name: string;
   channels: Channel[];
+  custom: boolean;
 }
 
 function DmRow(props: { dm: DirectMessage }) {
@@ -88,10 +99,16 @@ export default function Sidebar() {
   const [dmsOpen, setDmsOpen] = createSignal(true);
   const [appsOpen, setAppsOpen] = createSignal(true);
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
-  const [query, setQuery] = createSignal('');
+  const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
+  const feedMode = createMemo(() => nav() === 'later' || nav() === 'activity');
   const [composeOpen, setComposeOpen] = createSignal(false);
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
+  const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
+  const [renamingId, setRenamingId] = createSignal<string | null>(null);
+  const [renameValue, setRenameValue] = createSignal('');
+  const [addSectionOpen, setAddSectionOpen] = createSignal(false);
+  const [newSectionName, setNewSectionName] = createSignal('');
 
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -102,6 +119,12 @@ export default function Sidebar() {
     };
     window.addEventListener('keydown', onKey);
     onCleanup(() => window.removeEventListener('keydown', onKey));
+
+    const onDocClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest?.('.sidebar-section-menu-wrap')) setSectionMenuOpen(null);
+    };
+    document.addEventListener('mousedown', onDocClick, true);
+    onCleanup(() => document.removeEventListener('mousedown', onDocClick, true));
   });
 
   const toggleCategory = (id: string) => {
@@ -113,46 +136,85 @@ export default function Sidebar() {
 
   const categories = createMemo<Category[]>(() => {
     const allChannels = channels().filter((c) => !isChannelLeft(c.id));
-    const filter = query().trim().toLowerCase();
-    const matches = (c: Channel) =>
-      (!filter || c.name.toLowerCase().includes(filter)) && (!unreadsOnly() || c.unread || !!unreadChannelIds[c.id]);
-    const secs = sections();
-
-    if (!secs || secs.length === 0) {
-      return [{ id: 'channels', name: 'Channels', channels: allChannels.filter(matches) }];
-    }
-
+    const matches = (c: Channel) => !unreadsOnly() || c.unread || !!unreadChannelIds[c.id];
     const byId = new Map(allChannels.map((c) => [c.id, c]));
     const used = new Set<string>();
-    const groups: Category[] = secs.map((s) => {
-      for (const id of s.channelIds) used.add(id);
-      return {
-        id: s.id,
-        name: s.name,
-        channels: s.channelIds.map((id) => byId.get(id)).filter((c): c is Channel => !!c && matches(c)),
-      };
-    });
+    const result: Category[] = [];
+
+    // Starred channels get pulled into their own group up top (like the real
+    // client) and out of Channels/whatever section they'd otherwise land in —
+    // sourced from the app's own starredChannelIds, not channel_sections'
+    // built-in "stars" pseudo-section, which this workspace never populates.
+    const starredIds = allChannels.filter((c) => isChannelStarred(c.id)).map((c) => c.id);
+    if (starredIds.length > 0) {
+      for (const id of starredIds) used.add(id);
+      result.push({
+        id: '__starred',
+        name: 'Starred',
+        channels: starredIds.map((id) => byId.get(id)).filter((c): c is Channel => !!c && matches(c)),
+        custom: false,
+      });
+    }
+
+    const secs = sections();
+    if (secs && secs.length > 0) {
+      for (const s of secs) {
+        const ids = s.channelIds.filter((id) => !used.has(id));
+        for (const id of ids) used.add(id);
+        result.push({
+          id: s.id,
+          name: s.name,
+          channels: ids.map((id) => byId.get(id)).filter((c): c is Channel => !!c && matches(c)),
+          custom: true,
+        });
+      }
+      const rest = allChannels.filter((c) => !used.has(c.id) && matches(c));
+      if (rest.length) result.push({ id: '__rest', name: 'Channels', channels: rest, custom: false });
+      return result;
+    }
+
     const rest = allChannels.filter((c) => !used.has(c.id) && matches(c));
-    if (rest.length) groups.push({ id: '__rest', name: 'Channels', channels: rest });
-    return groups;
+    result.push({ id: 'channels', name: 'Channels', channels: rest, custom: false });
+    return result;
   });
 
-  const filteredDms = createMemo(() => {
-    const filter = query().trim().toLowerCase();
-    return directMessages().filter((dm) => {
-      if (unreadsOnly() && !dm.unread && !unreadChannelIds[dm.id]) return false;
-      if (!filter) return true;
-      const u = userById(dm.userId);
-      return u?.name.toLowerCase().includes(filter);
-    });
-  });
+  const startRename = (cat: Category) => {
+    setSectionMenuOpen(null);
+    setRenamingId(cat.id);
+    setRenameValue(cat.name);
+  };
+
+  const commitRename = () => {
+    const id = renamingId();
+    const name = renameValue().trim();
+    setRenamingId(null);
+    if (id && name) renameChannelSection(id, name);
+  };
+
+  const submitNewSection = () => {
+    const name = newSectionName().trim();
+    setAddSectionOpen(false);
+    setNewSectionName('');
+    if (name) createChannelSection(name);
+  };
+
+  const filteredDms = createMemo(() =>
+    directMessages().filter((dm) => !unreadsOnly() || dm.unread || !!unreadChannelIds[dm.id]),
+  );
 
   const peopleDms = createMemo(() => filteredDms().filter((dm) => !userById(dm.userId)?.isBot));
   const appDms = createMemo(() => filteredDms().filter((dm) => userById(dm.userId)?.isBot));
 
   return (
-    <div class="sidebar" style={{ width: `${width()}px` }}>
-      <ResizeHandle width={width} setWidth={setWidth} min={MIN_WIDTH} max={MAX_WIDTH} direction={1} side="right" />
+    <div class="sidebar" classList={{ feed: feedMode() }} style={{ width: `${(feedMode() ? feedWidth() : width())}px` }}>
+      <ResizeHandle
+        width={feedMode() ? feedWidth : width}
+        setWidth={feedMode() ? setFeedWidth : setWidth}
+        min={feedMode() ? FEED_MIN_WIDTH : MIN_WIDTH}
+        max={feedMode() ? FEED_MAX_WIDTH : MAX_WIDTH}
+        direction={1}
+        side="right"
+      />
 
       <div class="sidebar-top">
         <Show when={currentUser()}>
@@ -202,14 +264,20 @@ export default function Sidebar() {
         </For>
       </div>
 
+      <Show
+        when={!feedMode()}
+        fallback={
+          <Switch>
+            <Match when={nav() === 'activity'}>
+              <ActivityView />
+            </Match>
+            <Match when={nav() === 'later'}>
+              <LaterView />
+            </Match>
+          </Switch>
+        }
+      >
       <div class="sidebar-search">
-        <input
-          class="sidebar-search-input"
-          type="text"
-          placeholder="Filter channels & DMs"
-          value={query()}
-          onInput={(e) => setQuery(e.currentTarget.value)}
-        />
         <button
           class="sidebar-search-icon-btn"
           classList={{ active: unreadsOnly() }}
@@ -226,15 +294,61 @@ export default function Sidebar() {
       <div class="sidebar-scroll">
         <For each={categories()}>
           {(cat) => (
-            <Show when={cat.channels.length > 0 || !query()}>
+            <Show when={cat.channels.length > 0 || !unreadsOnly()}>
               <div class="sidebar-section">
                 <div class="sidebar-section-header">
-                  <button class="sidebar-section-header-btn" onClick={() => toggleCategory(cat.id)}>
-                    <span class="sidebar-caret" classList={{ collapsed: collapsed().has(cat.id) }}>
-                      ▾
-                    </span>
-                    {cat.name}
-                  </button>
+                  <Show
+                    when={renamingId() !== cat.id}
+                    fallback={
+                      <input
+                        class="sidebar-section-rename-input"
+                        value={renameValue()}
+                        onInput={(e) => setRenameValue(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRename();
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        onBlur={commitRename}
+                        autofocus
+                      />
+                    }
+                  >
+                    <button class="sidebar-section-header-btn" onClick={() => toggleCategory(cat.id)}>
+                      <span class="sidebar-caret" classList={{ collapsed: collapsed().has(cat.id) }}>
+                        ▾
+                      </span>
+                      {cat.name}
+                    </button>
+                  </Show>
+                  <Show when={cat.custom && renamingId() !== cat.id}>
+                    <div class="sidebar-section-menu-wrap">
+                      <button
+                        class="sidebar-section-menu-btn"
+                        title="Section options"
+                        onClick={() => setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)}
+                      >
+                        <Icon name="moreVertical" size={14} />
+                      </button>
+                      <Show when={sectionMenuOpen() === cat.id}>
+                        <div class="sidebar-section-menu">
+                          <button class="sidebar-section-menu-item" onClick={() => startRename(cat)}>
+                            Rename
+                          </button>
+                          <button
+                            class="sidebar-section-menu-item danger"
+                            onClick={() => {
+                              setSectionMenuOpen(null);
+                              if (confirm(`Delete section "${cat.name}"? Its channels won't be removed from the workspace.`)) {
+                                deleteChannelSection(cat.id);
+                              }
+                            }}
+                          >
+                            Delete section
+                          </button>
+                        </div>
+                      </Show>
+                    </div>
+                  </Show>
                 </div>
                 <div style={{ display: collapsed().has(cat.id) ? 'none' : 'block' }}>
                   <For each={cat.channels}>
@@ -263,6 +377,33 @@ export default function Sidebar() {
             </Show>
           )}
         </For>
+
+        <div class="sidebar-add-section">
+          <Show
+            when={addSectionOpen()}
+            fallback={
+              <button class="sidebar-add-section-btn" onClick={() => setAddSectionOpen(true)}>
+                <Icon name="plus" size={12} /> Add section
+              </button>
+            }
+          >
+            <input
+              class="sidebar-add-section-input"
+              placeholder="Section name"
+              value={newSectionName()}
+              onInput={(e) => setNewSectionName(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitNewSection();
+                if (e.key === 'Escape') {
+                  setAddSectionOpen(false);
+                  setNewSectionName('');
+                }
+              }}
+              onBlur={submitNewSection}
+              autofocus
+            />
+          </Show>
+        </div>
 
         <div class="sidebar-section">
           <div class="sidebar-section-header">
@@ -312,6 +453,7 @@ export default function Sidebar() {
           </div>
         </Show>
       </div>
+      </Show>
     </div>
   );
 }

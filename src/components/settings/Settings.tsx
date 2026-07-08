@@ -1,4 +1,4 @@
-import { Show, createSignal } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import { theme, setTheme, compactMode, setCompactMode } from '../../lib/theme';
 import {
   currentUser,
@@ -9,9 +9,14 @@ import {
   dndSnoozedUntil,
   snoozeDnd,
   endDnd,
+  mutedChannels,
+  notifyAllChannels,
+  toggleMuteChannel,
+  toggleNotifyAllChannel,
 } from '../../lib/store';
 import EmojiPicker from '../composer/EmojiPicker';
 import EmojiText from '../messages/EmojiText';
+import Icon from '../../icons';
 import { useEscapeClose } from '../../hooks/useEscapeClose';
 import './Settings.css';
 
@@ -29,10 +34,27 @@ const DND_OPTIONS = [
   { label: '3 hours', minutes: 180 },
 ];
 
+const SHORTCUTS: { keys: string; label: string }[] = [
+  { keys: 'Ctrl/⌘ K', label: 'Open the quick switcher (jump to a channel or person)' },
+  { keys: 'Enter', label: 'Send the message in the composer' },
+  { keys: 'Shift Enter', label: 'Insert a new line in the composer' },
+  { keys: 'Escape', label: 'Close whatever panel or dialog is open' },
+];
+
+type Tab = 'profile' | 'notifications' | 'appearance' | 'shortcuts';
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'profile', label: 'Profile' },
+  { key: 'notifications', label: 'Notifications' },
+  { key: 'appearance', label: 'Appearance' },
+  { key: 'shortcuts', label: 'Shortcuts' },
+];
+
 export default function Settings(props: { onClose: () => void }) {
   useEscapeClose(props.onClose);
 
   const me = currentUser;
+  const [tab, setTab] = createSignal<Tab>('profile');
   const [statusText, setStatusText] = createSignal(me()?.statusText ?? '');
   const [statusEmoji, setStatusEmoji] = createSignal(me()?.statusEmoji ?? '');
   const [expiration, setExpiration] = createSignal(0);
@@ -64,136 +86,226 @@ export default function Settings(props: { onClose: () => void }) {
         <button class="settings-close" onClick={props.onClose} title="Close">
           ✕
         </button>
-        <h2>Settings</h2>
 
-        <div class="settings-section">
-          <div class="settings-row-label">Status</div>
-          <div class="settings-status-row">
-            <div class="settings-status-emoji-wrap">
-              <button class="settings-status-emoji-btn" onClick={() => setEmojiOpen(!emojiOpen())}>
-                <Show when={statusEmoji()} fallback="🙂">
-                  <EmojiText text={statusEmoji()} />
-                </Show>
+        <div class="settings-nav">
+          <For each={TABS}>
+            {(t) => (
+              <button class="settings-nav-btn" classList={{ active: tab() === t.key }} onClick={() => setTab(t.key)}>
+                {t.label}
               </button>
-              <Show when={emojiOpen()}>
-                <div class="settings-status-emoji-popover">
-                  <EmojiPicker
-                    onSelect={(name) => {
-                      setStatusEmoji(`:${name}:`);
-                      setEmojiOpen(false);
-                    }}
-                    onClose={() => setEmojiOpen(false)}
-                  />
+            )}
+          </For>
+        </div>
+
+        <div class="settings-content">
+          <Show when={tab() === 'profile'}>
+            <h2>Profile</h2>
+
+            <div class="settings-section">
+              <div class="settings-row-label">Status</div>
+              <div class="settings-status-row">
+                <div class="settings-status-emoji-wrap">
+                  <button class="settings-status-emoji-btn" onClick={() => setEmojiOpen(!emojiOpen())}>
+                    <Show when={statusEmoji()} fallback="🙂">
+                      <EmojiText text={statusEmoji()} />
+                    </Show>
+                  </button>
+                  <Show when={emojiOpen()}>
+                    <div class="settings-status-emoji-popover">
+                      <EmojiPicker
+                        onSelect={(name) => {
+                          setStatusEmoji(`:${name}:`);
+                          setEmojiOpen(false);
+                        }}
+                        onClose={() => setEmojiOpen(false)}
+                      />
+                    </div>
+                  </Show>
+                </div>
+                <input
+                  class="settings-status-input"
+                  type="text"
+                  placeholder="What's your status?"
+                  value={statusText()}
+                  onInput={(e) => setStatusText(e.currentTarget.value)}
+                />
+              </div>
+              <select
+                class="settings-status-expiration"
+                value={expiration()}
+                onChange={(e) => setExpiration(Number(e.currentTarget.value))}
+              >
+                {EXPIRATION_OPTIONS.map((opt) => (
+                  <option value={opt.seconds}>{opt.label}</option>
+                ))}
+              </select>
+              <div class="settings-status-actions">
+                <button class="settings-status-save" onClick={saveStatus} disabled={savingStatus()}>
+                  {savingStatus() ? 'Saving…' : 'Save status'}
+                </button>
+                <Show when={statusText() || statusEmoji()}>
+                  <button class="settings-status-clear" onClick={clear}>
+                    Clear
+                  </button>
+                </Show>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Presence</div>
+                <div class="settings-row-hint">Manually mark yourself away.</div>
+              </div>
+              <div class="settings-toggle-group">
+                <button
+                  class="settings-toggle-btn"
+                  classList={{ active: me()?.presence !== 'away' }}
+                  onClick={() => updateMyPresence('auto')}
+                >
+                  Active
+                </button>
+                <button
+                  class="settings-toggle-btn"
+                  classList={{ active: me()?.presence === 'away' }}
+                  onClick={() => updateMyPresence('away')}
+                >
+                  Away
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Do Not Disturb</div>
+                <div class="settings-row-hint">
+                  {isDndActive() && dndSnoozedUntil()
+                    ? `On until ${new Date(dndSnoozedUntil()!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                    : 'Pause notifications for a while.'}
+                </div>
+              </div>
+              <div class="settings-toggle-group">
+                <Show
+                  when={!isDndActive()}
+                  fallback={
+                    <button class="settings-toggle-btn active" onClick={endDnd}>
+                      Turn off
+                    </button>
+                  }
+                >
+                  {DND_OPTIONS.map((opt) => (
+                    <button class="settings-toggle-btn" onClick={() => snoozeDnd(opt.minutes)}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </Show>
+              </div>
+            </div>
+          </Show>
+
+          <Show when={tab() === 'notifications'}>
+            <h2>Notifications</h2>
+
+            <div class="settings-section">
+              <div class="settings-row-label">Muted channels</div>
+              <div class="settings-row-hint">You won't see unread badges or mentions for these.</div>
+              <Show
+                when={mutedChannels().length > 0}
+                fallback={<div class="settings-list-empty">No muted channels.</div>}
+              >
+                <div class="settings-list">
+                  <For each={mutedChannels()}>
+                    {(c) => (
+                      <div class="settings-list-row">
+                        <span class="settings-list-row-name">
+                          {c.private ? <Icon name="lock" size={12} /> : '#'} {c.name}
+                        </span>
+                        <button class="settings-list-row-action" onClick={() => toggleMuteChannel(c.id)}>
+                          Unmute
+                        </button>
+                      </div>
+                    )}
+                  </For>
                 </div>
               </Show>
             </div>
-            <input
-              class="settings-status-input"
-              type="text"
-              placeholder="What's your status?"
-              value={statusText()}
-              onInput={(e) => setStatusText(e.currentTarget.value)}
-            />
-          </div>
-          <select
-            class="settings-status-expiration"
-            value={expiration()}
-            onChange={(e) => setExpiration(Number(e.currentTarget.value))}
-          >
-            {EXPIRATION_OPTIONS.map((opt) => (
-              <option value={opt.seconds}>{opt.label}</option>
-            ))}
-          </select>
-          <div class="settings-status-actions">
-            <button class="settings-status-save" onClick={saveStatus} disabled={savingStatus()}>
-              {savingStatus() ? 'Saving…' : 'Save status'}
-            </button>
-            <Show when={statusText() || statusEmoji()}>
-              <button class="settings-status-clear" onClick={clear}>
-                Clear
-              </button>
-            </Show>
-          </div>
-        </div>
 
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Presence</div>
-            <div class="settings-row-hint">Manually mark yourself away.</div>
-          </div>
-          <div class="settings-toggle-group">
-            <button
-              class="settings-toggle-btn"
-              classList={{ active: me()?.presence !== 'away' }}
-              onClick={() => updateMyPresence('auto')}
-            >
-              Active
-            </button>
-            <button
-              class="settings-toggle-btn"
-              classList={{ active: me()?.presence === 'away' }}
-              onClick={() => updateMyPresence('away')}
-            >
-              Away
-            </button>
-          </div>
-        </div>
-
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Do Not Disturb</div>
-            <div class="settings-row-hint">
-              {isDndActive() && dndSnoozedUntil()
-                ? `On until ${new Date(dndSnoozedUntil()!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                : 'Pause notifications for a while.'}
+            <div class="settings-section">
+              <div class="settings-row-label">Notify for all messages</div>
+              <div class="settings-row-hint">
+                These channels ping you for every new message instead of just mentions.
+              </div>
+              <Show
+                when={notifyAllChannels().length > 0}
+                fallback={<div class="settings-list-empty">No channels set to notify for all messages.</div>}
+              >
+                <div class="settings-list">
+                  <For each={notifyAllChannels()}>
+                    {(c) => (
+                      <div class="settings-list-row">
+                        <span class="settings-list-row-name">
+                          {c.private ? <Icon name="lock" size={12} /> : '#'} {c.name}
+                        </span>
+                        <button class="settings-list-row-action" onClick={() => toggleNotifyAllChannel(c.id)}>
+                          Reset to mentions only
+                        </button>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
             </div>
-          </div>
-          <div class="settings-toggle-group">
-            <Show
-              when={!isDndActive()}
-              fallback={
-                <button class="settings-toggle-btn active" onClick={endDnd}>
-                  Turn off
-                </button>
-              }
-            >
-              {DND_OPTIONS.map((opt) => (
-                <button class="settings-toggle-btn" onClick={() => snoozeDnd(opt.minutes)}>
-                  {opt.label}
-                </button>
-              ))}
-            </Show>
-          </div>
-        </div>
+          </Show>
 
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Theme</div>
-            <div class="settings-row-hint">Applies immediately, saved on this device.</div>
-          </div>
-          <div class="settings-toggle-group">
-            <button class="settings-toggle-btn" classList={{ active: theme() === 'dark' }} onClick={() => setTheme('dark')}>
-              Dark
-            </button>
-            <button class="settings-toggle-btn" classList={{ active: theme() === 'light' }} onClick={() => setTheme('light')}>
-              Light
-            </button>
-          </div>
-        </div>
+          <Show when={tab() === 'appearance'}>
+            <h2>Appearance</h2>
 
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Compact messages</div>
-            <div class="settings-row-hint">Tighter spacing between consecutive messages.</div>
-          </div>
-          <button
-            class="settings-switch"
-            classList={{ on: compactMode() }}
-            onClick={() => setCompactMode(!compactMode())}
-            title="Toggle compact mode"
-          >
-            <span class="settings-switch-knob" />
-          </button>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Theme</div>
+                <div class="settings-row-hint">"System" follows your OS's light/dark setting.</div>
+              </div>
+              <div class="settings-toggle-group">
+                <button class="settings-toggle-btn" classList={{ active: theme() === 'dark' }} onClick={() => setTheme('dark')}>
+                  Dark
+                </button>
+                <button class="settings-toggle-btn" classList={{ active: theme() === 'light' }} onClick={() => setTheme('light')}>
+                  Light
+                </button>
+                <button class="settings-toggle-btn" classList={{ active: theme() === 'system' }} onClick={() => setTheme('system')}>
+                  System
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Compact messages</div>
+                <div class="settings-row-hint">Tighter spacing between consecutive messages.</div>
+              </div>
+              <button
+                class="settings-switch"
+                classList={{ on: compactMode() }}
+                onClick={() => setCompactMode(!compactMode())}
+                title="Toggle compact mode"
+              >
+                <span class="settings-switch-knob" />
+              </button>
+            </div>
+          </Show>
+
+          <Show when={tab() === 'shortcuts'}>
+            <h2>Shortcuts</h2>
+            <div class="settings-list">
+              <For each={SHORTCUTS}>
+                {(s) => (
+                  <div class="settings-list-row">
+                    <span class="settings-list-row-name">{s.label}</span>
+                    <kbd class="settings-kbd">{s.keys}</kbd>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
         </div>
       </div>
     </div>

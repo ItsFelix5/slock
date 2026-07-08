@@ -1,20 +1,32 @@
 import { createSignal } from 'solid-js';
 
-export type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light' | 'system';
 
 const STORAGE_KEY = 'slock-theme';
 
 function initial(): Theme {
   const saved = localStorage.getItem(STORAGE_KEY);
-  return saved === 'light' ? 'light' : 'dark';
+  return saved === 'light' || saved === 'system' ? saved : 'dark';
 }
 
 const [theme, setThemeSignal] = createSignal<Theme>(initial());
 
+const systemQuery = window.matchMedia?.('(prefers-color-scheme: light)');
+
+function resolve(t: Theme): 'dark' | 'light' {
+  return t === 'system' ? (systemQuery?.matches ? 'light' : 'dark') : t;
+}
+
 function apply(t: Theme) {
-  document.documentElement.classList.toggle('theme-light', t === 'light');
+  document.documentElement.classList.toggle('theme-light', resolve(t) === 'light');
 }
 apply(theme());
+
+// Live-follow the OS theme while "system" is selected, instead of only
+// resolving it once at load.
+systemQuery?.addEventListener('change', () => {
+  if (theme() === 'system') apply('system');
+});
 
 export function setTheme(t: Theme) {
   setThemeSignal(t);

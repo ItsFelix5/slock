@@ -16,11 +16,8 @@ import {
   type MessageLocation,
 } from '../../lib/store';
 import type { Message } from '../../lib/types';
-import EmojiText from './EmojiText';
 import EmojiPicker from '../composer/EmojiPicker';
 import Icon from '../../icons';
-
-const QUICK_REACTIONS = ['+1', 'heart', 'joy', 'tada', 'eyes', 'white_check_mark'];
 
 export default function MessageActionsBar(props: {
   channelId: string;
@@ -30,7 +27,6 @@ export default function MessageActionsBar(props: {
   onEditRequest: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
-  const [fullPickerOpen, setFullPickerOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [remindOpen, setRemindOpen] = createSignal(false);
 
@@ -57,7 +53,6 @@ export default function MessageActionsBar(props: {
     recordEmojiUse(name);
     reactToMessage(props.location, props.channelId, props.msg, name);
     setPickerOpen(false);
-    setFullPickerOpen(false);
   };
 
   const copyLink = () => {
@@ -88,22 +83,8 @@ export default function MessageActionsBar(props: {
           <Icon name="emoji" size={16} />
         </button>
         <Show when={pickerOpen()}>
-          <div class="reaction-picker">
-            <For each={QUICK_REACTIONS}>
-              {(name) => (
-                <button class="reaction-picker-btn" onClick={() => react(name)}>
-                  <EmojiText text={`:${name}:`} />
-                </button>
-              )}
-            </For>
-            <button class="reaction-picker-btn" title="More emoji" onClick={() => setFullPickerOpen(true)}>
-              <Icon name="plus" size={14} />
-            </button>
-          </div>
-        </Show>
-        <Show when={fullPickerOpen()}>
           <div class="reaction-picker-full">
-            <EmojiPicker onSelect={react} onClose={() => setFullPickerOpen(false)} />
+            <EmojiPicker onSelect={react} onClose={() => setPickerOpen(false)} />
           </div>
         </Show>
       </div>

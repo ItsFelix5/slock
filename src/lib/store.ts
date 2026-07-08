@@ -3,6 +3,10 @@ import { createStore, produce, reconcile } from 'solid-js/store';
 import {
   fetchBootstrap,
   fetchSections,
+  createSection as apiCreateSection,
+  renameSection as apiRenameSection,
+  deleteSection as apiDeleteSection,
+  updateSectionChannels as apiUpdateSectionChannels,
   fetchProfileFieldDefs,
   fetchHistory,
   fetchReplies,
@@ -105,7 +109,69 @@ function createFrecencyTracker(storageKey: string) {
 
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);
-  const [sections] = createResource(fetchSections);
+  const [sections, { refetch: refetchSections }] = createResource(fetchSections);
+
+  async function createChannelSection(name: string): Promise<{ id: string; name: string } | null> {
+    const created = await apiCreateSection(name);
+    if (!created) {
+      showToast('Failed to create section.');
+      return null;
+    }
+    await refetchSections();
+    showToast(`Created section "${created.name}".`);
+    return created;
+  }
+
+  async function renameChannelSection(sectionId: string, name: string) {
+    const ok = await apiRenameSection(sectionId, name);
+    if (!ok) {
+      showToast('Failed to rename section.');
+      return;
+    }
+    await refetchSections();
+  }
+
+  async function deleteChannelSection(sectionId: string) {
+    const ok = await apiDeleteSection(sectionId);
+    if (!ok) {
+      showToast('Failed to delete section.');
+      return;
+    }
+    await refetchSections();
+    showToast('Section deleted.');
+  }
+
+  // Slack's bulkUpdate is scoped to one section at a time, so moving a channel
+  // between two custom sections is a remove-then-insert pair rather than one call.
+  async function moveChannelToSection(channelId: string, targetSectionId: string | null) {
+    const current = sections() ?? [];
+    const from = current.find((s) => s.channelIds.includes(channelId) && s.id !== targetSectionId);
+    if (from) {
+      const ok = await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
+      if (!ok) {
+        showToast('Failed to move channel.');
+        return;
+      }
+    }
+    if (targetSectionId) {
+      const ok = await apiUpdateSectionChannels(targetSectionId, { insertChannelIds: [channelId] });
+      if (!ok) {
+        showToast('Failed to move channel.');
+        return;
+      }
+      // Starred and sectioned are mutually exclusive in the real client — a channel
+      // moved into a section drops out of Starred.
+      if (isChannelStarred(channelId)) {
+        setStarredChannelIds(channelId, false);
+        toggleStar(channelId, true).catch((err) => {
+          console.error('Failed to unstar channel', err);
+          setStarredChannelIds(channelId, true);
+        });
+      }
+    }
+    await refetchSections();
+    showToast(targetSectionId ? 'Moved to section.' : 'Removed from section.');
+  }
   const [profileFieldDefs] = createResource(fetchProfileFieldDefs);
   const [selected, setSelected] = createSignal<View | null>(null);
   const [nav, setNav] = createSignal<Nav>('home');
@@ -256,6 +322,16 @@ function setup() {
     setNav(next);
     if (next === 'later') ensureLaterLoaded();
     if (next === 'activity') ensureActivityLoaded();
+  }
+
+  // Opens a channel/message from the Activity or Later list without leaving that
+  // tab — nav stays on 'activity'/'later' (so the feed keeps showing in the
+  // sidebar) while the main panel switches to the selected channel.
+  function openChannelPeek(channelId: string, ts: string) {
+    setSelected({ kind: 'channel', id: channelId });
+    setUnreadChannelIds(channelId, false);
+    recordVisit(channelId);
+    openThread(channelId, ts);
   }
 
   function openMessageSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {
@@ -526,7 +602,10 @@ function setup() {
           break;
         case 'reaction_added':
         case 'reaction_removed':
-          if (payload.item?.channel && payload.item?.ts) {
+          // Our own reacts/unreacts are already applied optimistically in
+          // reactToMessage — the gateway echoes them back over the socket like
+          // any other client's, so re-applying here double-counted them.
+          if (payload.item?.channel && payload.item?.ts && payload.user !== currentUser()?.id) {
             applyReactionEvent(payload.item.channel, payload.item.ts, payload.reaction, payload.user, payload.type === 'reaction_added');
           }
           break;
@@ -1055,6 +1134,16 @@ function setup() {
     showToast(next ? 'You’ll be notified about all new messages here.' : 'You’ll only be notified about mentions here.');
   }
 
+  // Central lists for the Settings > Notifications tab — everywhere else, mute
+  // and notify-all are set per-channel from that channel's own header/context
+  // menu, so this is the only place all of them are visible together.
+  const mutedChannels = createMemo<Channel[]>(() =>
+    channels().filter((c) => mutedChannelIds[c.id]),
+  );
+  const notifyAllChannels = createMemo<Channel[]>(() =>
+    channels().filter((c) => notifyAllChannelIds[c.id]),
+  );
+
   function isDndActive(): boolean {
     const until = dndSnoozedUntil();
     return !!until && until > Date.now();
@@ -1273,6 +1362,16 @@ function setup() {
       console.error('Failed to toggle star', err);
       showToast('Failed to update star.');
       setStarredChannelIds(channelId, currentlyStarred);
+      return;
+    }
+    // Starred and sectioned are mutually exclusive in the real client — starring a
+    // channel pulls it out of whatever section it was in.
+    if (!currentlyStarred) {
+      const from = (sections() ?? []).find((s) => s.channelIds.includes(channelId));
+      if (from) {
+        await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
+        await refetchSections();
+      }
     }
   }
 
@@ -1288,6 +1387,7 @@ function setup() {
     openMessageSearch,
     activeView,
     setActiveView,
+    openChannelPeek,
     frecencyScore,
     recordEmojiUse,
     emojiUseScore,
@@ -1356,6 +1456,12 @@ function setup() {
     toggleMuteChannel,
     isChannelNotifyAll,
     toggleNotifyAllChannel,
+    mutedChannels,
+    notifyAllChannels,
+    createChannelSection,
+    renameChannelSection,
+    deleteChannelSection,
+    moveChannelToSection,
     isDndActive,
     dndSnoozedUntil,
     snoozeDnd,
@@ -1385,6 +1491,7 @@ export const {
   openMessageSearch,
   activeView,
   setActiveView,
+  openChannelPeek,
   frecencyScore,
   recordEmojiUse,
   emojiUseScore,
@@ -1453,6 +1560,12 @@ export const {
   toggleMuteChannel,
   isChannelNotifyAll,
   toggleNotifyAllChannel,
+  mutedChannels,
+  notifyAllChannels,
+  createChannelSection,
+  renameChannelSection,
+  deleteChannelSection,
+  moveChannelToSection,
   isDndActive,
   dndSnoozedUntil,
   snoozeDnd,

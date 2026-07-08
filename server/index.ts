@@ -363,15 +363,23 @@ function extractChannelSections(data: any): { id: string; name: string; channelI
   const raw = data?.channel_sections ?? data?.channelSections;
   if (!Array.isArray(raw)) return null;
   return raw
+    // Slack always includes built-in pseudo-sections alongside real ones —
+    // "stars", "slack_connect", "salesforce_records", "channels",
+    // "direct_messages", "recent_apps", "agents" — each with its own fixed,
+    // non-renameable channel_section_id, even when the user has never created
+    // a custom category. Real user-created sections come back as type
+    // "standard" (confirmed by creating one) — filtering on that (rather than
+    // on whether it currently has channels) is what actually distinguishes
+    // those from the built-ins — a freshly created section starts out with
+    // zero channels too, and needs to stay visible so there's somewhere to
+    // move a channel into.
+    .filter((s: any) => s.type === 'standard')
     .map((s: any) => ({
       id: s.channel_section_id ?? s.id ?? s.name,
-      name: s.name ?? 'Channels',
+      name: s.name ?? 'Section',
       channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
     }))
-    // Slack always includes built-in pseudo-sections (stars, direct_messages, recent_apps, ...)
-    // even when the user has never created a custom category — they're always empty in that
-    // case, so drop anything with no channels rather than rendering empty section headers.
-    .filter((s: any) => s.id && Array.isArray(s.channelIds) && s.channelIds.length > 0);
+    .filter((s: any) => s.id);
 }
 
 Bun.serve({
@@ -412,6 +420,56 @@ Bun.serve({
         const data = await callSlack('users.channelSections.list', {});
         const sections = data.ok ? extractChannelSections(data) : null;
         return new Response(JSON.stringify({ ok: !!sections, sections: sections ?? [] }), { headers: cors });
+      }
+
+      // The following three (rename/delete/channels) are undocumented, unverified
+      // against a live workspace — the param names are a best-effort guess from the
+      // shape users.channelSections.list itself returns (see extractChannelSections
+      // above). Each just forwards Slack's raw response so a wrong guess surfaces as
+      // a real `error` field the client can show instead of failing silently.
+      if (url.pathname === '/api/sections/create' && req.method === 'POST') {
+        const { name } = (await req.json()) as { name: string };
+        // type must be "standard" (the enum rejects "custom" despite that being the
+        // more intuitive guess) and emoji is a required field, empty string is fine.
+        const data = await callSlack('users.channelSections.create', { name, type: 'standard', emoji: '' });
+        const created = data.channel_section ?? data;
+        return new Response(
+          JSON.stringify({ ok: !!data.ok, id: created?.channel_section_id ?? created?.id, name: created?.name ?? name, error: data.error }),
+          { headers: cors },
+        );
+      }
+
+      if (url.pathname === '/api/sections/rename' && req.method === 'POST') {
+        const { sectionId, name } = (await req.json()) as { sectionId: string; name: string };
+        const data = await callSlack('users.channelSections.update', { channel_section_id: sectionId, name });
+        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/sections/delete' && req.method === 'POST') {
+        const { sectionId } = (await req.json()) as { sectionId: string };
+        const data = await callSlack('users.channelSections.delete', { channel_section_id: sectionId });
+        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), { headers: cors });
+      }
+
+      if (url.pathname === '/api/sections/channels' && req.method === 'POST') {
+        const { sectionId, insertChannelIds, removeChannelIds } = (await req.json()) as {
+          sectionId: string;
+          insertChannelIds?: string[];
+          removeChannelIds?: string[];
+        };
+        // Confirmed via a live client network capture: the top-level params are
+        // "insert"/"remove" (not "insert_channel_ids"/"channel_section_id" as
+        // previously guessed), each a JSON array of {channel_section_id, channel_ids}
+        // batches — the earlier flat-string shape parsed fine and returned ok:true
+        // but silently moved nothing.
+        const insert = insertChannelIds?.length ? [{ channel_section_id: sectionId, channel_ids: insertChannelIds }] : [];
+        const remove = removeChannelIds?.length ? [{ channel_section_id: sectionId, channel_ids: removeChannelIds }] : [];
+        const data = await callSlack('users.channelSections.channels.bulkUpdate', {
+          insert: JSON.stringify(insert),
+          remove: JSON.stringify(remove),
+          _x_reason: 'channel-sidebar-channel-drop',
+        });
+        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), { headers: cors });
       }
 
       if (url.pathname === '/api/history') {

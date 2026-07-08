@@ -152,6 +152,50 @@ export async function fetchSections(): Promise<ChannelSection[]> {
   }
 }
 
+export async function createSection(name: string): Promise<{ id: string; name: string } | null> {
+  const res = await fetch('/api/sections/create', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json();
+  if (!data.ok || !data.id) return null;
+  return { id: data.id, name: data.name ?? name };
+}
+
+export async function renameSection(sectionId: string, name: string): Promise<boolean> {
+  const res = await fetch('/api/sections/rename', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sectionId, name }),
+  });
+  const data = await res.json();
+  return !!data.ok;
+}
+
+export async function deleteSection(sectionId: string): Promise<boolean> {
+  const res = await fetch('/api/sections/delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sectionId }),
+  });
+  const data = await res.json();
+  return !!data.ok;
+}
+
+export async function updateSectionChannels(
+  sectionId: string,
+  changes: { insertChannelIds?: string[]; removeChannelIds?: string[] },
+): Promise<boolean> {
+  const res = await fetch('/api/sections/channels', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sectionId, ...changes }),
+  });
+  const data = await res.json();
+  return !!data.ok;
+}
+
 function formatTime(ts: string) {
   const date = new Date(parseFloat(ts) * 1000);
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

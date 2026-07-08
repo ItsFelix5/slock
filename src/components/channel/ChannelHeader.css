@@ -114,7 +114,9 @@
 }
 
 .channel-header-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   text-align: left;
   background: none;
@@ -131,6 +133,57 @@
 
 .channel-header-menu-item.danger {
   color: #e0554a;
+}
+
+.channel-header-star-wrap {
+  position: relative;
+}
+
+.channel-header-star-menu {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 9;
+}
+
+.channel-header-star-menu-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  padding: 4px 10px;
+}
+
+.channel-header-star-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}
+
+.channel-header-star-menu-input {
+  width: 100%;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+.channel-header-menu-check {
+  display: inline-block;
+  width: 14px;
+  color: var(--accent);
 }
 
 .channel-header-search {

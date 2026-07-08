@@ -7,8 +7,7 @@ import {
   lastActivityReadAt,
   userById,
   channelById,
-  setActiveView,
-  openThread,
+  openChannelPeek,
 } from '../../lib/store';
 import Mrkdwn from '../../blockkit/mrkdwn';
 import Pronouns from '../user/Pronouns';
@@ -93,10 +92,7 @@ export default function ActivityView() {
     });
   });
 
-  const goTo = (channelId: string, ts: string) => {
-    setActiveView({ kind: 'channel', id: channelId });
-    openThread(channelId, ts);
-  };
+  const goTo = (channelId: string, ts: string) => openChannelPeek(channelId, ts);
 
   return (
     <div class="activity-view">

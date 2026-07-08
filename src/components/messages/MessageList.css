@@ -129,35 +129,6 @@
   position: relative;
 }
 
-.reaction-picker {
-  position: absolute;
-  top: 32px;
-  right: 0;
-  display: flex;
-  gap: 2px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 4px;
-  z-index: 5;
-}
-
-.reaction-picker-btn {
-  background: none;
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-}
-
-.reaction-picker-btn:hover {
-  background: var(--hover-bg);
-}
-
 .reaction-picker-full {
   position: absolute;
   top: 32px;

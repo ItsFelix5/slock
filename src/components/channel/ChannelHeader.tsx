@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal } from 'solid-js';
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import {
   activeView,
   channelById,
@@ -19,6 +19,9 @@ import {
   ensureCanvasChecked,
   openChannelCanvas,
   createCanvasForCurrentChannel,
+  sections,
+  moveChannelToSection,
+  createChannelSection,
 } from '../../lib/store';
 import EmojiText from '../messages/EmojiText';
 import Icon from '../../icons';
@@ -26,6 +29,20 @@ import './ChannelHeader.css';
 
 export default function ChannelHeader() {
   const [moreOpen, setMoreOpen] = createSignal(false);
+  const [starMenuOpen, setStarMenuOpen] = createSignal(false);
+  const [addingSection, setAddingSection] = createSignal(false);
+  const [newSectionName, setNewSectionName] = createSignal('');
+
+  onMount(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest?.('.channel-header-star-wrap')) {
+        setStarMenuOpen(false);
+        setAddingSection(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick, true);
+    onCleanup(() => document.removeEventListener('mousedown', onDocClick, true));
+  });
 
   createEffect(() => {
     const v = activeView();
@@ -69,6 +86,22 @@ export default function ChannelHeader() {
     const v = activeView();
     return v?.kind === 'channel' ? canvasByChannel[v.id] : undefined;
   };
+  const currentSectionId = () => {
+    const v = activeView();
+    if (!v) return null;
+    return sections()?.find((s) => s.channelIds.includes(v.id))?.id ?? null;
+  };
+
+  const submitNewSectionFromStar = async () => {
+    const name = newSectionName().trim();
+    setAddingSection(false);
+    setNewSectionName('');
+    if (!name) return;
+    const v = activeView();
+    const created = await createChannelSection(name);
+    if (created && v) moveChannelToSection(v.id, created.id);
+    setStarMenuOpen(false);
+  };
 
   const searchInConversation = () => {
     const v = activeView();
@@ -87,14 +120,70 @@ export default function ChannelHeader() {
     <div class="channel-header">
       <div class="channel-header-top">
         <Show when={isChannel()}>
-          <button
-            class="channel-header-star"
-            classList={{ active: starred() }}
-            title={starred() ? 'Remove from starred' : 'Star channel'}
-            onClick={() => activeView() && toggleChannelStar(activeView()!.id)}
-          >
-            <Icon name="star" size={16} />
-          </button>
+          <div class="channel-header-star-wrap">
+            <button
+              class="channel-header-star"
+              classList={{ active: starred() }}
+              title="Move to…"
+              onClick={() => setStarMenuOpen(!starMenuOpen())}
+            >
+              <Icon name="star" size={16} />
+            </button>
+            <Show when={starMenuOpen()}>
+              <div class="channel-header-star-menu">
+                <div class="channel-header-star-menu-label">Move to</div>
+                <button
+                  class="channel-header-menu-item"
+                  onClick={() => {
+                    const v = activeView();
+                    if (v) toggleChannelStar(v.id);
+                  }}
+                >
+                  <span class="channel-header-menu-check">{starred() ? '✓' : ''}</span>
+                  Starred
+                </button>
+                <For each={sections()}>
+                  {(s) => (
+                    <button
+                      class="channel-header-menu-item"
+                      onClick={() => {
+                        const v = activeView();
+                        if (v) moveChannelToSection(v.id, currentSectionId() === s.id ? null : s.id);
+                      }}
+                    >
+                      <span class="channel-header-menu-check">{currentSectionId() === s.id ? '✓' : ''}</span>
+                      {s.name}
+                    </button>
+                  )}
+                </For>
+                <div class="channel-header-star-menu-divider" />
+                <Show
+                  when={addingSection()}
+                  fallback={
+                    <button class="channel-header-menu-item" onClick={() => setAddingSection(true)}>
+                      <Icon name="plus" size={13} /> New section
+                    </button>
+                  }
+                >
+                  <input
+                    class="channel-header-star-menu-input"
+                    placeholder="Section name"
+                    value={newSectionName()}
+                    onInput={(e) => setNewSectionName(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') submitNewSectionFromStar();
+                      if (e.key === 'Escape') {
+                        setAddingSection(false);
+                        setNewSectionName('');
+                      }
+                    }}
+                    onBlur={submitNewSectionFromStar}
+                    autofocus
+                  />
+                </Show>
+              </div>
+            </Show>
+          </div>
         </Show>
         <span class="channel-header-icon">
           <Show when={activeView()?.kind !== 'dm'} fallback={null}>

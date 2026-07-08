@@ -5,8 +5,7 @@ import {
   ensureLaterLoaded,
   ensureLaterMessageLoaded,
   channelById,
-  setActiveView,
-  openThread,
+  openChannelPeek,
   toggleSaveForLater,
 } from '../../lib/store';
 import Mrkdwn from '../../blockkit/mrkdwn';
@@ -16,10 +15,7 @@ import './LaterView.css';
 export default function LaterView() {
   onMount(() => ensureLaterLoaded());
 
-  const goTo = (channelId: string, ts: string) => {
-    setActiveView({ kind: 'channel', id: channelId });
-    openThread(channelId, ts);
-  };
+  const goTo = (channelId: string, ts: string) => openChannelPeek(channelId, ts);
 
   return (
     <div class="later-view">
