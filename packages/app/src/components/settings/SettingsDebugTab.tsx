@@ -1,16 +1,14 @@
-import { ICON_NAMES, Icon, showToast } from "@slock/ui";
+import { fuzzySearch, ICON_NAMES, Icon, showToast } from "@slock/ui";
 import { createMemo, createSignal, For } from "solid-js";
-import "./SettingsTabs.css";
+import "./Settings.css";
 import "./SettingsDebugTab.css";
 
 export default function SettingsDebugTab() {
   const [query, setQuery] = createSignal("");
 
-  const filtered = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    if (!q) return ICON_NAMES;
-    return ICON_NAMES.filter((name) => name.toLowerCase().includes(q));
-  });
+  const filtered = createMemo(() =>
+    fuzzySearch(ICON_NAMES, { query: query(), text: (name) => name }),
+  );
 
   const copyName = async (name: string) => {
     await navigator.clipboard.writeText(name);

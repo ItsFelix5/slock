@@ -1,6 +1,6 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem } from "@slock/slack-api";
-import { Avatar, Icon, Menu, Pronouns } from "@slock/ui";
+import { Avatar, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   activityItems,
@@ -199,7 +199,6 @@ export default function ActivityView() {
                 <div class="activity-body">
                   <div class="activity-headline">
                     <strong>{user()?.name ?? "Someone"}</strong>
-                    <Pronouns text={user()?.pronouns} /> {verbFor(item)}{" "}
                     <Show when={item.kind !== "dm"}>
                       <span class="activity-channel">#{channel()?.name ?? item.channelId}</span>
                     </Show>

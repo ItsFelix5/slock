@@ -1,7 +1,7 @@
 import type { User } from "@slock/slack-api";
-import { Avatar, useClickOutside, useEscapeClose } from "@slock/ui";
+import { Avatar, fuzzySearch, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import { bootstrap, currentUser, searchUsers } from "../../lib/store";
+import { bootstrap, currentUser, frecencyScore, searchUsers } from "../../lib/store";
 
 export default function ComposeUserPicker(props: {
   onSelect: (userId: string) => void;
@@ -21,12 +21,9 @@ export default function ComposeUserPicker(props: {
     onCleanup(() => clearTimeout(debounceTimer));
   });
 
-  const localMatches = createMemo(() => {
-    const q = query().trim().toLowerCase();
+  const localUsers = createMemo(() => {
     const me = currentUser()?.id;
-    return (bootstrap()?.users ?? []).filter(
-      (u) => u.id !== me && (!q || u.name.toLowerCase().includes(q)),
-    );
+    return (bootstrap()?.users ?? []).filter((u) => u.id !== me);
   });
 
   const onInput = (value: string) => {
@@ -53,14 +50,21 @@ export default function ComposeUserPicker(props: {
   // The 200-user bootstrap slice is instant but only covers a fraction of a
   // large workspace, so once a query goes out, merge in whatever the org-wide
   // directory search has found so far — local results first (no flicker),
-  // remote ones appended and de-duped.
+  // remote ones merged in — then rank the whole pool by fuzzy name match with
+  // frecency (usage frequency/recency) as the tiebreaker, same policy as
+  // GlobalSearch and the composer's @mention suggestions.
   const users = createMemo(() => {
-    const q = query().trim();
-    if (!q) return localMatches().slice(0, 40);
     const merged = new Map<string, User>();
-    for (const u of localMatches()) merged.set(u.id, u);
+    for (const u of localUsers()) merged.set(u.id, u);
     for (const u of remoteResults()) merged.set(u.id, u);
-    return [...merged.values()].slice(0, 40);
+    const pool = [...merged.values()];
+    const q = query().trim();
+    if (!q) return pool.slice(0, 40);
+    return fuzzySearch(pool, {
+      query: q,
+      text: (u) => u.name,
+      frequency: (u) => frecencyScore(u.id),
+    }).slice(0, 40);
   });
 
   return (

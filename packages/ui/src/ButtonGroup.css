@@ -1,0 +1,17 @@
+.btn-group {
+  display: inline-flex;
+  gap: 0;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.btn-group .btn {
+  border-radius: 4px;
+  margin: 0;
+}
+
+.btn-group .btn + .btn {
+  margin-left: 2px;
+}

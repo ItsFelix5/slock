@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 
 export type Theme = "dark" | "light" | "system";
 
@@ -126,5 +126,136 @@ export function resetThemeColors(): void {
   setThemeColorsSignal({});
   localStorage.removeItem(THEME_COLORS_KEY);
 }
+
+export function resetThemeColor(key: keyof ThemeColors): void {
+  const next = { ...themeColors() };
+  delete next[key];
+  setThemeColorsSignal(next);
+  document.documentElement.style.removeProperty(THEME_COLOR_VARS[key]);
+  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(next));
+}
+
+// Every override-able color token (i.e. everything in ThemeColors except the
+// non-color `font` entry), in the order they should be listed in a "literal
+// color" editor UI.
+export const THEME_COLOR_KEYS = Object.keys(THEME_COLOR_VARS).filter(
+  (k) => k !== "font",
+) as Exclude<keyof ThemeColors, "font">[];
+
+export const THEME_COLOR_LABELS: Record<Exclude<keyof ThemeColors, "font">, string> = {
+  railBg: "Rail background",
+  sidebarBg: "Sidebar background",
+  mainBg: "Main background",
+  composerBg: "Composer background",
+  border: "Border",
+  borderStrong: "Border (strong)",
+  textPrimary: "Text (primary)",
+  textSecondary: "Text (secondary)",
+  textDim: "Text (dim)",
+  accent: "Accent",
+  accentHover: "Accent (hover)",
+  presenceActive: "Presence (active)",
+  hoverBg: "Hover background",
+  activeBg: "Active background",
+  badgeBg: "Badge background",
+};
+
+export { THEME_COLOR_VARS };
+
+// The color actually in effect for a token right now: an explicit override if
+// set, otherwise whatever the active stylesheet resolved for its CSS var.
+export function getEffectiveColor(key: keyof ThemeColors): string {
+  const override = themeColors()[key];
+  if (override) return override;
+  return getComputedStyle(document.documentElement).getPropertyValue(THEME_COLOR_VARS[key]).trim();
+}
+
+export interface ThemePreset {
+  id: string;
+  label: string;
+  colors: Pick<ThemeColors, "accent" | "accentHover" | "presenceActive" | "badgeBg">;
+}
+
+// Presets only tint the accent family, leaving backgrounds/borders/text to the
+// dark/light/system toggle above — so a preset looks right in either mode.
+export const THEME_PRESETS: ThemePreset[] = [
+  {
+    id: "default",
+    label: "Default",
+    colors: {
+      accent: "#1264a3",
+      accentHover: "#0b5385",
+      presenceActive: "#2eb67d",
+      badgeBg: "#cd2553",
+    },
+  },
+  {
+    id: "aubergine",
+    label: "Aubergine",
+    colors: {
+      accent: "#611f69",
+      accentHover: "#4a154b",
+      presenceActive: "#2bac76",
+      badgeBg: "#e01e5a",
+    },
+  },
+  {
+    id: "forest",
+    label: "Forest",
+    colors: {
+      accent: "#2f855a",
+      accentHover: "#276749",
+      presenceActive: "#48bb78",
+      badgeBg: "#dd6b20",
+    },
+  },
+  {
+    id: "crimson",
+    label: "Crimson",
+    colors: {
+      accent: "#b91c1c",
+      accentHover: "#991b1b",
+      presenceActive: "#16a34a",
+      badgeBg: "#db2777",
+    },
+  },
+  {
+    id: "sunset",
+    label: "Sunset",
+    colors: {
+      accent: "#ea580c",
+      accentHover: "#c2410c",
+      presenceActive: "#22c55e",
+      badgeBg: "#db2777",
+    },
+  },
+  {
+    id: "slate",
+    label: "Slate",
+    colors: {
+      accent: "#52525b",
+      accentHover: "#3f3f46",
+      presenceActive: "#71717a",
+      badgeBg: "#ef4444",
+    },
+  },
+];
+
+export function applyPreset(preset: ThemePreset): void {
+  setThemeColors(preset.colors);
+}
+
+// Which preset (if any) matches the colors currently in effect — used to
+// highlight the active swatch. "custom" means the user has hand-edited a
+// value away from every known preset.
+export const activePreset = createMemo((): string => {
+  for (const preset of THEME_PRESETS) {
+    const matches = (Object.keys(preset.colors) as (keyof ThemePreset["colors"])[]).every(
+      (k) => getEffectiveColor(k).toLowerCase() === preset.colors[k]?.toLowerCase(),
+    );
+    if (matches) return preset.id;
+  }
+  return "custom";
+});
 
 export { compactMode, theme, themeColors };

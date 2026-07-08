@@ -13,6 +13,7 @@ import {
 import {
   bootstrap,
   currentUser,
+  frecencyScore,
   openThread,
   searchScreenFilters,
   searchScreenQuery,
@@ -85,14 +86,19 @@ export default function MessageSearchView() {
     (bootstrap()?.channels ?? []).map((c) => ({
       id: c.id,
       label: `#${c.name}`,
+      score: frecencyScore(c.id),
     })),
   );
   const userItems = createMemo(() =>
-    (bootstrap()?.users ?? []).map((u) => ({ id: u.id, label: u.name })),
+    (bootstrap()?.users ?? []).map((u) => ({
+      id: u.id,
+      label: u.name,
+      score: frecencyScore(u.id),
+    })),
   );
   const remoteUserSearch = (q: string) =>
     searchUsers(q, currentUser()?.id).then((users) =>
-      users.map((u) => ({ id: u.id, label: u.name })),
+      users.map((u) => ({ id: u.id, label: u.name, score: frecencyScore(u.id) })),
     );
 
   const goToMessage = (r: SearchResult) => {

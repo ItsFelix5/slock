@@ -1,9 +1,14 @@
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { fuzzySearch } from "./fuzzy";
 import { useClickOutside } from "./useClickOutside";
+import "./FilterCombobox.css";
 
 export interface ComboItem {
   id: string;
   label: string;
+  // Optional usage frequency/frecency, higher = used more. Only breaks ties
+  // between equally-good fuzzy matches — same policy as every other searcher.
+  score?: number;
 }
 
 export default function FilterCombobox(props: {
@@ -35,16 +40,18 @@ export default function FilterCombobox(props: {
     () => pickedLabel() ?? props.items.find((i) => i.id === props.value)?.label,
   );
 
-  const localMatches = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    return props.items.filter((i) => !q || i.label.toLowerCase().includes(q));
-  });
-
   const filtered = createMemo(() => {
     const merged = new Map<string, ComboItem>();
-    for (const i of localMatches()) merged.set(i.id, i);
+    for (const i of props.items) merged.set(i.id, i);
     for (const i of remoteItems()) merged.set(i.id, i);
-    return [...merged.values()].slice(0, 40);
+    const pool = [...merged.values()];
+    const q = query().trim();
+    if (!q) return pool.slice(0, 40);
+    return fuzzySearch(pool, {
+      query: q,
+      text: (i) => i.label,
+      frequency: (i) => i.score ?? 0,
+    }).slice(0, 40);
   });
 
   const onInput = (value: string) => {

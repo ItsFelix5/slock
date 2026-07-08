@@ -559,6 +559,30 @@ function setup() {
     return null;
   }
 
+  // Our own sent messages are added optimistically (see sendMessage) under a
+  // temporary "pending-*" id/ts before the post resolves. The websocket often
+  // echoes that same message back before the post's response arrives, so a
+  // plain ts/id dedup check misses it (the pending entry still has the fake
+  // client-side ts) and the message would otherwise get appended a second time.
+  // Replacing the still-pending entry in place here, and having sendMessage's
+  // resolution back off if it sees the real ts already present (below), covers
+  // both orderings of that race.
+  function mergeIncomingMessage(existing: Message[], msg: Message): Message[] {
+    if (existing.some((m) => m.ts === msg.ts || m.id === msg.ts)) return existing;
+    const me = currentUser();
+    if (me && msg.userId === me.id) {
+      const pendingIdx = existing.findIndex(
+        (m) => m.id.startsWith("pending-") && m.text === msg.text,
+      );
+      if (pendingIdx !== -1) {
+        const next = existing.slice();
+        next[pendingIdx] = msg;
+        return next;
+      }
+    }
+    return [...existing, msg];
+  }
+
   function handleIncomingMessage(payload: any) {
     const subtype = payload.subtype;
     const channel = payload.channel;
@@ -594,7 +618,7 @@ function setup() {
     if (isThreadReply) {
       if (loadedThreads.has(payload.thread_ts)) {
         setThreadMessages(payload.thread_ts, (existing = []) =>
-          existing.some((m) => m.ts === ts || m.id === ts) ? existing : [...existing, msg],
+          mergeIncomingMessage(existing, msg),
         );
       }
       const parent = findMessageList(channel, payload.thread_ts);
@@ -612,9 +636,7 @@ function setup() {
       )
         threadRelevant = true;
     } else if (loadedChannels.has(channel)) {
-      setMessagesByChannel(channel, (existing = []) =>
-        existing.some((m) => m.ts === ts || m.id === ts) ? existing : [...existing, msg],
-      );
+      setMessagesByChannel(channel, (existing = []) => mergeIncomingMessage(existing, msg));
     }
 
     const activeId = activeView()?.id;
@@ -1438,28 +1460,18 @@ function setup() {
     try {
       const res = await postMessage(channelId, trimmed, threadTs, blocks);
       const realTs = res.ts as string;
+      // The websocket echo can beat this response back, in which case
+      // mergeIncomingMessage already replaced the pending entry with the real
+      // one — just drop the (now-stale) pending placeholder rather than
+      // renaming it into a second copy of the same message.
+      const resolvePending = (list: Message[]) =>
+        list.some((m) => m.id !== optimistic.id && (m.ts === realTs || m.id === realTs))
+          ? list.filter((m) => m.id !== optimistic.id)
+          : list.map((m) => (m.id === optimistic.id ? { ...m, id: realTs, ts: realTs } : m));
       if (location.store === "channel") {
-        setMessagesByChannel(
-          location.key,
-          produce((list) => {
-            const msg = list.find((m) => m.id === optimistic.id);
-            if (msg) {
-              msg.id = realTs;
-              msg.ts = realTs;
-            }
-          }),
-        );
+        setMessagesByChannel(location.key, resolvePending);
       } else {
-        setThreadMessages(
-          location.key,
-          produce((list) => {
-            const msg = list.find((m) => m.id === optimistic.id);
-            if (msg) {
-              msg.id = realTs;
-              msg.ts = realTs;
-            }
-          }),
-        );
+        setThreadMessages(location.key, resolvePending);
       }
     } catch (err) {
       console.error("Failed to send message", err);

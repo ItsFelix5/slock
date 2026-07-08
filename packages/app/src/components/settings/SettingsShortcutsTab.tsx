@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import "./SettingsTabs.css";
+import "./Settings.css";
 
 const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: "Ctrl/⌘ K", label: "Open the quick switcher (jump to a channel or person)" },

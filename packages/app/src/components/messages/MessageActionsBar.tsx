@@ -27,8 +27,24 @@ export default function MessageActionsBar(props: {
   onEditRequest: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
+  const [pickerFlipUp, setPickerFlipUp] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [remindOpen, setRemindOpen] = createSignal(false);
+  let pickerWrapRef: HTMLDivElement | undefined;
+
+  // The picker's own height (see EmojiPicker.css) plus a little breathing
+  // room — if opening downward from here would run past the viewport bottom
+  // (e.g. reacting on one of the last messages in the list), flip it to open
+  // upward from the button instead so it's never clipped off-screen.
+  const PICKER_HEIGHT = 400;
+
+  const togglePicker = () => {
+    if (!pickerOpen() && pickerWrapRef) {
+      const rect = pickerWrapRef.getBoundingClientRect();
+      setPickerFlipUp(rect.bottom + PICKER_HEIGHT > window.innerHeight);
+    }
+    setPickerOpen(!pickerOpen());
+  };
 
   const isMine = createMemo(() => currentUser()?.id === props.msg.userId);
   const isSaved = createMemo(() => isSavedForLater(props.msg.ts));
@@ -79,17 +95,12 @@ export default function MessageActionsBar(props: {
 
   return (
     <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
-      <div class="message-hover-picker-wrap">
-        <button
-          type="button"
-          class="message-hover-btn"
-          title="React"
-          onClick={() => setPickerOpen(!pickerOpen())}
-        >
+      <div class="message-hover-picker-wrap" ref={pickerWrapRef}>
+        <button type="button" class="message-hover-btn" title="React" onClick={togglePicker}>
           <Icon name="emoji" size={16} />
         </button>
         <Show when={pickerOpen()}>
-          <div class="reaction-picker-full">
+          <div class="reaction-picker-full" classList={{ "flip-up": pickerFlipUp() }}>
             <EmojiPicker onSelect={react} onClose={() => setPickerOpen(false)} />
           </div>
         </Show>

@@ -1,0 +1,38 @@
+.popover-root {
+  position: relative;
+  display: inline-block;
+}
+
+.popover {
+  position: absolute;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  z-index: 10;
+}
+
+.popover-bottom {
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+}
+
+.popover-top {
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+}
+
+.popover-left {
+  right: 100%;
+  top: 0;
+  margin-right: 4px;
+}
+
+.popover-right {
+  left: 100%;
+  top: 0;
+  margin-left: 4px;
+}

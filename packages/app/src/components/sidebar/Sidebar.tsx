@@ -5,7 +5,6 @@ import {
   activeView,
   channels,
   closeDmConversation,
-  createChannelSection,
   currentUser,
   deleteChannelSection,
   directMessages,
@@ -17,7 +16,6 @@ import {
   type Nav,
   nav,
   openBrowseChannels,
-  openDmWithUser,
   openUserProfile,
   renameChannelSection,
   sections,
@@ -26,7 +24,6 @@ import {
   unreadChannelIds,
   userById,
 } from "../../lib/store";
-import ComposeUserPicker from "../composer/ComposeUserPicker";
 import GlobalSearch from "../search/GlobalSearch";
 import ActivityView from "./ActivityView";
 import LaterView from "./LaterView";
@@ -97,14 +94,11 @@ export default function Sidebar() {
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
   const feedMode = createMemo(() => nav() === "later" || nav() === "activity");
-  const [composeOpen, setComposeOpen] = createSignal(false);
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
-  const [addSectionOpen, setAddSectionOpen] = createSignal(false);
-  const [newSectionName, setNewSectionName] = createSignal("");
 
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -182,13 +176,6 @@ export default function Sidebar() {
     const name = renameValue().trim();
     setRenamingId(null);
     if (id && name) renameChannelSection(id, name);
-  };
-
-  const submitNewSection = () => {
-    const name = newSectionName().trim();
-    setAddSectionOpen(false);
-    setNewSectionName("");
-    if (name) createChannelSection(name);
   };
 
   const filteredDms = createMemo(() =>
@@ -414,37 +401,6 @@ export default function Sidebar() {
             )}
           </For>
 
-          <div class="sidebar-add-section">
-            <Show
-              when={addSectionOpen()}
-              fallback={
-                <button
-                  type="button"
-                  class="sidebar-add-section-btn"
-                  onClick={() => setAddSectionOpen(true)}
-                >
-                  <Icon name="plus" size={12} /> Add section
-                </button>
-              }
-            >
-              <input
-                class="sidebar-add-section-input"
-                placeholder="Section name"
-                value={newSectionName()}
-                onInput={(e) => setNewSectionName(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitNewSection();
-                  if (e.key === "Escape") {
-                    setAddSectionOpen(false);
-                    setNewSectionName("");
-                  }
-                }}
-                onBlur={submitNewSection}
-                autofocus
-              />
-            </Show>
-          </div>
-
           <div class="sidebar-section">
             <div class="sidebar-section-header">
               <button
@@ -457,25 +413,6 @@ export default function Sidebar() {
                 </span>
                 Direct messages
               </button>
-              <span class="sidebar-compose-wrap">
-                <button
-                  type="button"
-                  class="sidebar-compose"
-                  title="New message"
-                  onClick={() => setComposeOpen(!composeOpen())}
-                >
-                  <Icon name="compose" size={14} />
-                </button>
-                <Show when={composeOpen()}>
-                  <ComposeUserPicker
-                    onSelect={(id) => {
-                      openDmWithUser(id);
-                      setComposeOpen(false);
-                    }}
-                    onClose={() => setComposeOpen(false)}
-                  />
-                </Show>
-              </span>
             </div>
             <div style={{ display: dmsOpen() ? "block" : "none" }}>
               <For each={peopleDms()}>{(dm) => <DmRow dm={dm} />}</For>

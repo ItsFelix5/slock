@@ -11,7 +11,7 @@ import {
   updateMyStatus,
 } from "../../lib/store";
 import EmojiPicker from "../composer/EmojiPicker";
-import "./SettingsTabs.css";
+import "./Settings.css";
 
 const EXPIRATION_OPTIONS = [
   { label: "Don't clear", seconds: 0 },

@@ -1,0 +1,94 @@
+.filter-combobox {
+  position: relative;
+  display: inline-flex;
+}
+
+.filter-combobox-trigger {
+  background: var(--main-bg);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.filter-combobox-trigger:hover {
+  color: var(--text-primary);
+  border-style: solid;
+}
+
+.filter-combobox-chip {
+  background: var(--active-bg);
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-combobox-clear {
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.filter-combobox-chip:hover .filter-combobox-clear {
+  color: var(--text-primary);
+}
+
+.filter-combobox-menu {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  width: 220px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  z-index: 12;
+}
+
+.filter-combobox-input {
+  width: 100%;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+
+.filter-combobox-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.filter-combobox-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.filter-combobox-item:hover {
+  background: var(--hover-bg);
+}
+
+.filter-combobox-empty {
+  padding: 8px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}

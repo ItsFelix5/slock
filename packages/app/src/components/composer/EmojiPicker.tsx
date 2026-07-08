@@ -1,4 +1,4 @@
-import { customEmojiNames, emojiUrl } from "@slock/blockkit";
+import { emojiUrl } from "@slock/blockkit";
 import { useEscapeClose } from "@slock/ui";
 import {
   createEffect,
@@ -10,29 +10,15 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { EMOJI_CATEGORIES } from "../../lib/emojiCategories";
-import { emojiUseScore } from "../../lib/store";
+import {
+  allEmojiEntries,
+  EMOJI_CATEGORY_ORDER,
+  frequentEmoji,
+  type EmojiEntry as PickerEntry,
+  searchEmoji,
+} from "../../lib/emojiSearch";
 import "./EmojiPicker.css";
 
-interface PickerEntry {
-  name: string;
-  unicode?: string;
-  category: string;
-  searchText: string;
-}
-
-const STANDARD_ENTRIES: PickerEntry[] = EMOJI_CATEGORIES.flatMap((group) =>
-  group.entries.map(
-    (e): PickerEntry => ({
-      name: e.names[0],
-      unicode: e.emoji,
-      category: group.label,
-      searchText: [...e.names, ...e.tags, e.description].join(" ").toLowerCase(),
-    }),
-  ),
-);
-
-const CATEGORY_ORDER = ["Custom", ...EMOJI_CATEGORIES.map((g) => g.label)];
 const FREQUENT_LIMIT = 24;
 
 // Workspaces can have tens of thousands of custom emoji, so rendering every
@@ -60,11 +46,13 @@ function blockHeight(block: Block): number {
   return block.kind === "label" ? LABEL_HEIGHT : rowsBlockHeight(block.entries.length);
 }
 
-function buildBlocks(sections: { label: string; entries: PickerEntry[] }[]): Block[] {
+// `label` is optional so search results can be rendered as one flat run of
+// chunks with no category headers — see `blocks` below.
+function buildBlocks(sections: { label?: string; entries: PickerEntry[] }[]): Block[] {
   const blocks: Block[] = [];
   for (const section of sections) {
     if (!section.entries.length) continue;
-    blocks.push({ kind: "label", text: section.label });
+    if (section.label) blocks.push({ kind: "label", text: section.label });
     for (let i = 0; i < section.entries.length; i += CHUNK_SIZE) {
       blocks.push({ kind: "chunk", entries: section.entries.slice(i, i + CHUNK_SIZE) });
     }
@@ -90,13 +78,7 @@ export default function EmojiPicker(props: {
     onCleanup(() => document.removeEventListener("mousedown", onDocClick, true));
   });
 
-  const customEntries = createMemo<PickerEntry[]>(() =>
-    customEmojiNames()
-      .filter((n) => emojiUrl(n))
-      .map((name) => ({ name, category: "Custom", searchText: name })),
-  );
-
-  const allEntries = createMemo(() => [...customEntries(), ...STANDARD_ENTRIES]);
+  const allEntries = createMemo(() => allEmojiEntries());
 
   // With no search, lead with whatever's actually been picked before — the same
   // frecency signal store.ts tracks for the quick switcher's jump list.
@@ -104,42 +86,41 @@ export default function EmojiPicker(props: {
   // Composer's onSelect) since this component is also used just to insert text.
   const frequent = createMemo(() => {
     if (query().trim()) return [];
-    return allEntries()
-      .map((e) => ({ e, score: emojiUseScore(e.name) }))
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, FREQUENT_LIMIT)
-      .map((x) => x.e);
+    return frequentEmoji(allEntries(), FREQUENT_LIMIT);
   });
 
+  // Browsing (no query) stays grouped by category so scrolling through the
+  // full set is navigable. Searching drops the grouping entirely and returns
+  // one flat list ranked by name-similarity to the query, then usage — a
+  // dead-on match in "Custom" shouldn't get stranded below weaker matches
+  // just because "Smileys" sorts first in category order.
   const groups = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    const entries = allEntries();
-    const filtered = q ? entries.filter((e) => e.searchText.includes(q)) : entries;
+    if (query().trim()) return [];
     const byCategory = new Map<string, PickerEntry[]>();
-    for (const e of filtered) {
+    for (const e of allEntries()) {
       const list = byCategory.get(e.category) ?? [];
       list.push(e);
       byCategory.set(e.category, list);
     }
-    // While searching, rank each category's matches by usage frequency too, so
-    // a frequently-picked emoji still surfaces near the top of its group.
-    if (q) {
-      for (const list of byCategory.values())
-        list.sort((a, b) => emojiUseScore(b.name) - emojiUseScore(a.name));
-    }
-    return CATEGORY_ORDER.filter((label) => byCategory.has(label)).map((label) => ({
+    return EMOJI_CATEGORY_ORDER.filter((label) => byCategory.has(label)).map((label) => ({
       label,
       entries: byCategory.get(label) ?? [],
     }));
   });
 
+  const searchResults = createMemo(() => searchEmoji(allEntries(), query()));
+
   const isEmpty = createMemo(
-    () => frequent().length === 0 && groups().every((g) => g.entries.length === 0),
+    () =>
+      frequent().length === 0 &&
+      searchResults().length === 0 &&
+      groups().every((g) => g.entries.length === 0),
   );
 
   const blocks = createMemo(() =>
-    buildBlocks([{ label: "Frequently used", entries: frequent() }, ...groups()]),
+    query().trim()
+      ? buildBlocks([{ entries: searchResults() }])
+      : buildBlocks([{ label: "Frequently used", entries: frequent() }, ...groups()]),
   );
 
   const blockLayout = createMemo(() => {

@@ -1,6 +1,6 @@
 import type { BrowsableChannel, Channel, User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
-import { Avatar, Icon, Overlay, useEscapeClose } from "@slock/ui";
+import { Avatar, fuzzyMatch, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   bootstrap,
@@ -23,21 +23,7 @@ interface JumpChannel {
 }
 
 type Row = { kind: "channel"; data: JumpChannel } | { kind: "person"; data: User };
-
-// How well a name matches the typed query, low = better. This is the *primary*
-// sort key (see `rows` below) — frecency alone previously decided ranking, so
-// any channel/person with even a sliver of usage history could outrank a
-// dead-on exact/prefix match with none. Tiers: exact, prefix, match right after
-// a word boundary (so "general" ranks #general above #off-topic-general-chat
-// ahead of e.g. "eneral-ish"), then anywhere else mid-word.
-function matchRank(name: string, q: string): number {
-  const lower = name.toLowerCase();
-  if (lower === q) return 0;
-  if (lower.startsWith(q)) return 1;
-  const idx = lower.indexOf(q);
-  if (idx > 0 && /[-_\s]/.test(lower[idx - 1])) return 2;
-  return 3;
-}
+type Candidate = { row: Row; name: string; id: string };
 
 export default function GlobalSearch(props: { onClose: () => void }) {
   const [query, setQuery] = createSignal("");
@@ -55,7 +41,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const localChannelMatches = createMemo<Channel[]>(() => {
     const q = query().trim().toLowerCase();
     if (!q) return [];
-    return (bootstrap()?.channels ?? []).filter((c) => c.name.toLowerCase().includes(q));
+    return (bootstrap()?.channels ?? []).filter((c) => fuzzyMatch(c.name, q) !== null);
   });
 
   // The sidebar only knows channels you've already joined — on a large workspace,
@@ -82,9 +68,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     const q = query().trim().toLowerCase();
     if (!q) return [];
     const me = currentUser()?.id;
-    return (bootstrap()?.users ?? []).filter(
-      (u) => u.id !== me && u.name.toLowerCase().includes(q),
-    );
+    return (bootstrap()?.users ?? []).filter((u) => u.id !== me && fuzzyMatch(u.name, q) !== null);
   });
 
   // The bootstrap user list is capped at 200 for payload size, which on a large
@@ -129,44 +113,30 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   };
 
   // One flat, ranked list instead of separate headed sections — channels and
-  // people ranked together, text-match quality first (see matchRank) so an
-  // exact/prefix hit always beats a loose one, and frecency (frequency +
-  // recency of visits, the same signal the real client's quick switcher uses
-  // its local jump-target database for) only breaks ties *within* a match
-  // tier, e.g. picking between two channels that both start with the query.
-  // Actual message content search stays out of this box entirely; "Search all
-  // messages for…" (rendered above the list) is the only way to reach it.
+  // people ranked together, fuzzy text-match quality first so an exact/prefix
+  // hit always beats a loose one (typos still surface via the fuzzy fallback),
+  // and frecency (frequency + recency of visits, the same signal the real
+  // client's quick switcher uses its local jump-target database for) only
+  // breaks ties *within* a match tier, e.g. picking between two channels that
+  // both start with the query. Actual message content search stays out of
+  // this box entirely; "Search all messages for…" (rendered above the list)
+  // is the only way to reach it.
   const rows = createMemo<Row[]>(() => {
     if (!hasQuery()) return [];
-    const q = query().trim().toLowerCase();
-    type Ranked = { name: string; rank: number; score: number; row: Row };
-    const ranked: Ranked[] = [
+    const candidates: Candidate[] = [
       ...channelResults().map(
-        (c): Ranked => ({
-          name: c.name,
-          rank: matchRank(c.name, q),
-          score: frecencyScore(c.id),
-          row: { kind: "channel", data: c },
-        }),
+        (c): Candidate => ({ row: { kind: "channel", data: c }, name: c.name, id: c.id }),
       ),
       ...peopleResults().map(
-        (u): Ranked => ({
-          name: u.name,
-          rank: matchRank(u.name, q),
-          score: frecencyScore(u.id),
-          row: { kind: "person", data: u },
-        }),
+        (u): Candidate => ({ row: { kind: "person", data: u }, name: u.name, id: u.id }),
       ),
     ];
-    ranked.sort((a, b) => {
-      const rankDiff = a.rank - b.rank;
-      if (rankDiff !== 0) return rankDiff;
-      const scoreDiff = b.score - a.score;
-      if (scoreDiff !== 0) return scoreDiff;
-      return a.name.localeCompare(b.name);
+    const ranked = fuzzySearch(candidates, {
+      query: query(),
+      text: (c) => c.name,
+      frequency: (c) => frecencyScore(c.id),
     });
-
-    return ranked.slice(0, 8).map((r) => r.row);
+    return ranked.slice(0, 8).map((c) => c.row);
   });
 
   const goToChannel = (c: JumpChannel) => {

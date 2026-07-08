@@ -1,5 +1,5 @@
 import { EmojiText } from "@slock/blockkit";
-import { Icon, Pronouns, ResizeHandle, useEscapeClose } from "@slock/ui";
+import { Icon, ResizeHandle, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   closeUserProfile,
@@ -89,7 +89,9 @@ export default function UserProfile() {
             <h2 class="user-profile-name">
               {u().name}
               {u().isBot ? " (bot)" : ""}
-              <Pronouns text={u().pronouns} />
+              <Show when={u().pronouns}>
+                <span class="pronouns">({u().pronouns})</span>
+              </Show>
             </h2>
             <Show when={u().title}>
               <p class="user-profile-title">{u().title}</p>

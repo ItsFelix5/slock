@@ -1,6 +1,6 @@
 import { BlockKit, Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
-import { Icon, Pronouns } from "@slock/ui";
+import { Icon } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   editMessageText,
@@ -101,8 +101,10 @@ export default function MessageRows(props: {
                       <Show when={msg.botName}>
                         <span class="message-bot-badge">APP</span>
                       </Show>
-                      <Pronouns text={user()?.pronouns} />
                       <span class="message-time">{msg.time}</span>
+                      <Show when={user()?.pronouns}>
+                        <span class="pronouns">•&nbsp;{user()?.pronouns}</span>
+                      </Show>
                     </div>
                   </Show>
 

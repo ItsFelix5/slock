@@ -1,3 +1,5 @@
+@import "src/theme-utilities.css";
+
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -103,6 +105,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .message-hover-btn:hover {
@@ -123,6 +126,11 @@
   top: 32px;
   right: 0;
   z-index: 6;
+}
+
+.reaction-picker-full.flip-up {
+  top: auto;
+  bottom: 32px;
 }
 
 .message-more-menu {
@@ -148,6 +156,7 @@
   padding: 7px 10px;
   border-radius: 5px;
   width: 100%;
+  cursor: pointer;
 }
 
 .message-more-item:hover {
@@ -234,7 +243,6 @@
 .message-meta {
   display: flex;
   align-items: baseline;
-  gap: 8px;
 }
 
 .compact-mode .message-meta {
@@ -267,6 +275,7 @@
 .message-time {
   font-size: 12px;
   color: var(--text-dim);
+  margin-left: 6px;
 }
 
 .message-bot-badge {
@@ -317,6 +326,7 @@
   font-size: 13px;
   font-weight: 700;
   padding: 5px 12px;
+  cursor: pointer;
 }
 
 .message-edit-save {
@@ -358,6 +368,7 @@
 
 .reaction-pill:hover {
   border-color: var(--text-dim);
+  cursor: pointer;
 }
 
 .reaction-pill.mine {
@@ -382,9 +393,16 @@
   font-size: 13px;
   font-weight: 700;
   padding: 4px 10px;
+  cursor: pointer;
 }
 
 .message-replies:hover {
   background: var(--hover-bg);
   border-color: var(--text-dim);
+}
+
+.pronouns {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 0.9em;
 }

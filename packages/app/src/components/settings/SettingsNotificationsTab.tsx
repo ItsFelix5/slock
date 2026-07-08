@@ -6,7 +6,7 @@ import {
   toggleMuteChannel,
   toggleNotifyAllChannel,
 } from "../../lib/store";
-import "./SettingsTabs.css";
+import "./Settings.css";
 
 export default function SettingsNotificationsTab() {
   return (
