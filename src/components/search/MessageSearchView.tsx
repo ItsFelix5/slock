@@ -1,49 +1,49 @@
-import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
-import { searchMessages, type SearchResult } from '../../lib/slackApi';
-import {
-  bootstrap,
-  userById,
-  searchScreenQuery,
-  searchScreenFilters,
-  searchUsers,
-  setActiveView,
-  openThread,
-  setNavView,
-  currentUser,
-} from '../../lib/store';
+import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import Icon from "../../icons";
 import {
   buildSearchQuery,
-  hasActiveFilters,
-  sortParams,
   EMPTY_FILTERS,
+  hasActiveFilters,
   type SearchFilters,
   type SortMode,
-} from '../../lib/searchQuery';
-import Mrkdwn from '../../blockkit/mrkdwn';
-import Icon from '../../icons';
-import FilterCombobox from './FilterCombobox';
-import './GlobalSearch.css';
-import './MessageSearchView.css';
+  sortParams,
+} from "../../lib/searchQuery";
+import { type SearchResult, searchMessages } from "../../lib/slackApi";
+import {
+  bootstrap,
+  currentUser,
+  openThread,
+  searchScreenFilters,
+  searchScreenQuery,
+  searchUsers,
+  setActiveView,
+  setNavView,
+  userById,
+} from "../../lib/store";
+import Mrkdwn from "../blockkit/mrkdwn";
+import FilterCombobox from "./FilterCombobox";
+import "./GlobalSearch.css";
+import "./MessageSearchView.css";
 
 const HAS_TOGGLES: { key: keyof SearchFilters; label: string }[] = [
-  { key: 'hasLink', label: 'Has link' },
-  { key: 'hasStar', label: 'Starred' },
-  { key: 'hasPin', label: 'Pinned' },
-  { key: 'hasReaction', label: 'Has reaction' },
-  { key: 'isThread', label: 'In thread' },
-  { key: 'isSaved', label: 'Saved' },
+  { key: "hasLink", label: "Has link" },
+  { key: "hasStar", label: "Starred" },
+  { key: "hasPin", label: "Pinned" },
+  { key: "hasReaction", label: "Has reaction" },
+  { key: "isThread", label: "In thread" },
+  { key: "isSaved", label: "Saved" },
 ];
 
 const SORT_OPTIONS: { key: SortMode; label: string }[] = [
-  { key: 'relevant', label: 'Most relevant' },
-  { key: 'newest', label: 'Newest' },
-  { key: 'oldest', label: 'Oldest' },
+  { key: "relevant", label: "Most relevant" },
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
 ];
 
 export default function MessageSearchView() {
-  const [query, setQuery] = createSignal('');
+  const [query, setQuery] = createSignal("");
   const [filters, setFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
-  const [sort, setSort] = createSignal<SortMode>('relevant');
+  const [sort, setSort] = createSignal<SortMode>("relevant");
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -83,14 +83,21 @@ export default function MessageSearchView() {
   };
 
   const channelItems = createMemo(() =>
-    (bootstrap()?.channels ?? []).map((c) => ({ id: c.id, label: `#${c.name}` })),
+    (bootstrap()?.channels ?? []).map((c) => ({
+      id: c.id,
+      label: `#${c.name}`,
+    })),
   );
-  const userItems = createMemo(() => (bootstrap()?.users ?? []).map((u) => ({ id: u.id, label: u.name })));
+  const userItems = createMemo(() =>
+    (bootstrap()?.users ?? []).map((u) => ({ id: u.id, label: u.name })),
+  );
   const remoteUserSearch = (q: string) =>
-    searchUsers(q, currentUser()?.id).then((users) => users.map((u) => ({ id: u.id, label: u.name })));
+    searchUsers(q, currentUser()?.id).then((users) =>
+      users.map((u) => ({ id: u.id, label: u.name })),
+    );
 
   const goToMessage = (r: SearchResult) => {
-    setActiveView({ kind: 'channel', id: r.channelId });
+    setActiveView({ kind: "channel", id: r.channelId });
     openThread(r.channelId, r.ts);
   };
 
@@ -111,7 +118,7 @@ export default function MessageSearchView() {
           }}
           autofocus
         />
-        <button class="global-search-close" title="Close search" onClick={() => setNavView('home')}>
+        <button class="global-search-close" title="Close search" onClick={() => setNavView("home")}>
           ✕
         </button>
       </div>
@@ -140,14 +147,14 @@ export default function MessageSearchView() {
           <input
             class="global-search-date"
             type="date"
-            value={filters().after ?? ''}
+            value={filters().after ?? ""}
             onInput={(e) => patchFilters({ after: e.currentTarget.value || undefined })}
           />
           <label class="global-search-filter-label">Before</label>
           <input
             class="global-search-date"
             type="date"
-            value={filters().before ?? ''}
+            value={filters().before ?? ""}
             onInput={(e) => patchFilters({ before: e.currentTarget.value || undefined })}
           />
         </div>
@@ -158,7 +165,11 @@ export default function MessageSearchView() {
               <button
                 class="global-search-chip"
                 classList={{ active: !!filters()[t.key] }}
-                onClick={() => patchFilters({ [t.key]: !filters()[t.key] } as Partial<SearchFilters>)}
+                onClick={() =>
+                  patchFilters({
+                    [t.key]: !filters()[t.key],
+                  } as Partial<SearchFilters>)
+                }
               >
                 {t.label}
               </button>
@@ -201,17 +212,30 @@ export default function MessageSearchView() {
       <div class="message-search-results">
         <Show
           when={canSearch()}
-          fallback={<div class="global-search-hint">Type something, or set filters, to search every message.</div>}
+          fallback={
+            <div class="global-search-hint">
+              Type something, or set filters, to search every message.
+            </div>
+          }
         >
-          <Show when={!loading()} fallback={<div class="global-search-hint">Searching messages…</div>}>
-            <Show when={results().length > 0} fallback={<div class="global-search-empty">No matches.</div>}>
+          <Show
+            when={!loading()}
+            fallback={<div class="global-search-hint">Searching messages…</div>}
+          >
+            <Show
+              when={results().length > 0}
+              fallback={<div class="global-search-empty">No matches.</div>}
+            >
               <For each={results()}>
                 {(r) => {
                   const user = () => userById(r.userId);
                   return (
-                    <button class="global-search-result message-search-result" onClick={() => goToMessage(r)}>
+                    <button
+                      class="global-search-result message-search-result"
+                      onClick={() => goToMessage(r)}
+                    >
                       <div class="global-search-result-meta">
-                        {user()?.name ?? 'Someone'} in #{r.channelName ?? r.channelId}
+                        {user()?.name ?? "Someone"} in #{r.channelName ?? r.channelId}
                       </div>
                       <div class="global-search-result-snippet">
                         <Mrkdwn text={r.text} />

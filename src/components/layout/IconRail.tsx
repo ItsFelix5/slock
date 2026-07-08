@@ -1,13 +1,14 @@
-import { Show } from 'solid-js';
-import { currentUser } from '../../lib/store';
-import Icon, { type IconName } from '../../icons';
-import './IconRail.css';
+import { Show } from "solid-js";
+import Icon, { type IconName } from "../../icons";
+import { currentUser } from "../../lib/store";
+import { Avatar } from "../common";
+import "./IconRail.css";
 
 const items: { key: string; label: string; icon: IconName }[] = [
-  { key: 'home', label: 'Home', icon: 'home' },
-  { key: 'dms', label: 'DMs', icon: 'dms' },
-  { key: 'activity', label: 'Activity', icon: 'notifications' },
-  { key: 'more', label: 'More', icon: 'more' },
+  { key: "home", label: "Home", icon: "home" },
+  { key: "dms", label: "DMs", icon: "direct-messages-filled" },
+  { key: "activity", label: "Activity", icon: "notifications" },
+  { key: "more", label: "More", icon: "ellipsis-horizontal-filled" },
 ];
 
 export default function IconRail() {
@@ -27,14 +28,7 @@ export default function IconRail() {
           <Icon name="plus" size={16} />
         </button>
         <Show when={currentUser()}>
-          {(user) => (
-            <div class="icon-rail-avatar" style={{ background: user().avatarColor }}>
-              <Show when={user().avatarUrl} fallback={user().initials}>
-                {(url) => <img class="icon-rail-avatar-img" src={url()} alt="" />}
-              </Show>
-              <span class="presence-dot" />
-            </div>
-          )}
+          {(user) => <Avatar user={user()} size="medium" showPresence />}
         </Show>
       </div>
     </div>

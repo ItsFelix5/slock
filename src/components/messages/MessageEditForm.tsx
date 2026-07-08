@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal } from "solid-js";
 
 export default function MessageEditForm(props: {
   initialText: string;
@@ -16,10 +16,10 @@ export default function MessageEditForm(props: {
         value={text()}
         onInput={(e) => setText(e.currentTarget.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
+          if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             save();
-          } else if (e.key === 'Escape') {
+          } else if (e.key === "Escape") {
             props.onCancel();
           }
         }}

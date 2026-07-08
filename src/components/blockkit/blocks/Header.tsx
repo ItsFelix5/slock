@@ -1,5 +1,5 @@
-import type { HeaderBlock } from '../types';
-import EmojiText from '../../components/messages/EmojiText';
+import EmojiText from "../../messages/EmojiText";
+import type { HeaderBlock } from "../types";
 
 export default function Header(props: { block: HeaderBlock }) {
   return (

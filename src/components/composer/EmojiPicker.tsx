@@ -1,9 +1,18 @@
-import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
-import { EMOJI_CATEGORIES } from '../../lib/emojiCategories';
-import { emojiUrl, customEmojiNames } from '../../lib/emojiCache';
-import { emojiUseScore } from '../../lib/store';
-import { useEscapeClose } from '../../hooks/useEscapeClose';
-import './EmojiPicker.css';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
+import { customEmojiNames, emojiUrl } from "../../lib/emojiCache";
+import { EMOJI_CATEGORIES } from "../../lib/emojiCategories";
+import { emojiUseScore } from "../../lib/store";
+import "./EmojiPicker.css";
 
 interface PickerEntry {
   name: string;
@@ -18,12 +27,12 @@ const STANDARD_ENTRIES: PickerEntry[] = EMOJI_CATEGORIES.flatMap((group) =>
       name: e.names[0],
       unicode: e.emoji,
       category: group.label,
-      searchText: [...e.names, ...e.tags, e.description].join(' ').toLowerCase(),
+      searchText: [...e.names, ...e.tags, e.description].join(" ").toLowerCase(),
     }),
   ),
 );
 
-const CATEGORY_ORDER = ['Custom', ...EMOJI_CATEGORIES.map((g) => g.label)];
+const CATEGORY_ORDER = ["Custom", ...EMOJI_CATEGORIES.map((g) => g.label)];
 const FREQUENT_LIMIT = 24;
 
 // Workspaces can have tens of thousands of custom emoji, so rendering every
@@ -40,7 +49,7 @@ const CHUNK_SIZE = COLS * CHUNK_ROWS;
 const LABEL_HEIGHT = 28;
 const OVERSCAN_PX = 400;
 
-type Block = { kind: 'label'; text: string } | { kind: 'chunk'; entries: PickerEntry[] };
+type Block = { kind: "label"; text: string } | { kind: "chunk"; entries: PickerEntry[] };
 
 function rowsBlockHeight(count: number): number {
   const rows = Math.ceil(count / COLS);
@@ -48,23 +57,26 @@ function rowsBlockHeight(count: number): number {
 }
 
 function blockHeight(block: Block): number {
-  return block.kind === 'label' ? LABEL_HEIGHT : rowsBlockHeight(block.entries.length);
+  return block.kind === "label" ? LABEL_HEIGHT : rowsBlockHeight(block.entries.length);
 }
 
 function buildBlocks(sections: { label: string; entries: PickerEntry[] }[]): Block[] {
   const blocks: Block[] = [];
   for (const section of sections) {
     if (!section.entries.length) continue;
-    blocks.push({ kind: 'label', text: section.label });
+    blocks.push({ kind: "label", text: section.label });
     for (let i = 0; i < section.entries.length; i += CHUNK_SIZE) {
-      blocks.push({ kind: 'chunk', entries: section.entries.slice(i, i + CHUNK_SIZE) });
+      blocks.push({ kind: "chunk", entries: section.entries.slice(i, i + CHUNK_SIZE) });
     }
   }
   return blocks;
 }
 
-export default function EmojiPicker(props: { onSelect: (name: string) => void; onClose: () => void }) {
-  const [query, setQuery] = createSignal('');
+export default function EmojiPicker(props: {
+  onSelect: (name: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = createSignal("");
   let rootRef: HTMLDivElement | undefined;
   let bodyRef: HTMLDivElement | undefined;
 
@@ -74,14 +86,14 @@ export default function EmojiPicker(props: { onSelect: (name: string) => void; o
     const onDocClick = (e: MouseEvent) => {
       if (rootRef && !rootRef.contains(e.target as Node)) props.onClose();
     };
-    document.addEventListener('mousedown', onDocClick, true);
-    onCleanup(() => document.removeEventListener('mousedown', onDocClick, true));
+    document.addEventListener("mousedown", onDocClick, true);
+    onCleanup(() => document.removeEventListener("mousedown", onDocClick, true));
   });
 
   const customEntries = createMemo<PickerEntry[]>(() =>
     customEmojiNames()
       .filter((n) => emojiUrl(n))
-      .map((name) => ({ name, category: 'Custom', searchText: name })),
+      .map((name) => ({ name, category: "Custom", searchText: name })),
   );
 
   const allEntries = createMemo(() => [...customEntries(), ...STANDARD_ENTRIES]);
@@ -113,15 +125,21 @@ export default function EmojiPicker(props: { onSelect: (name: string) => void; o
     // While searching, rank each category's matches by usage frequency too, so
     // a frequently-picked emoji still surfaces near the top of its group.
     if (q) {
-      for (const list of byCategory.values()) list.sort((a, b) => emojiUseScore(b.name) - emojiUseScore(a.name));
+      for (const list of byCategory.values())
+        list.sort((a, b) => emojiUseScore(b.name) - emojiUseScore(a.name));
     }
-    return CATEGORY_ORDER.filter((label) => byCategory.has(label)).map((label) => ({ label, entries: byCategory.get(label)! }));
+    return CATEGORY_ORDER.filter((label) => byCategory.has(label)).map((label) => ({
+      label,
+      entries: byCategory.get(label)!,
+    }));
   });
 
-  const isEmpty = createMemo(() => frequent().length === 0 && groups().every((g) => g.entries.length === 0));
+  const isEmpty = createMemo(
+    () => frequent().length === 0 && groups().every((g) => g.entries.length === 0),
+  );
 
   const blocks = createMemo(() =>
-    buildBlocks([{ label: 'Frequently used', entries: frequent() }, ...groups()]),
+    buildBlocks([{ label: "Frequently used", entries: frequent() }, ...groups()]),
   );
 
   const blockLayout = createMemo(() => {
@@ -149,10 +167,14 @@ export default function EmojiPicker(props: { onSelect: (name: string) => void; o
   // A new query reflows the whole block layout, so a stale scroll offset would
   // otherwise leave the (now much shorter) results scrolled out of view.
   createEffect(
-    on(query, () => {
-      setScrollTop(0);
-      if (bodyRef) bodyRef.scrollTop = 0;
-    }, { defer: true }),
+    on(
+      query,
+      () => {
+        setScrollTop(0);
+        if (bodyRef) bodyRef.scrollTop = 0;
+      },
+      { defer: true },
+    ),
   );
 
   const visible = createMemo(() => {
@@ -180,16 +202,22 @@ export default function EmojiPicker(props: { onSelect: (name: string) => void; o
           autofocus
         />
       </div>
-      <div class="emoji-picker-body" ref={bodyRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
+      <div
+        class="emoji-picker-body"
+        ref={bodyRef}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
         <Show when={!isEmpty()} fallback={<div class="emoji-picker-empty">No emoji found</div>}>
           <div style={{ height: `${visible().topSpacer}px` }} />
           <For each={visible().list}>
             {(item) =>
-              item.block.kind === 'label' ? (
+              item.block.kind === "label" ? (
                 <div class="emoji-picker-category-label">{item.block.text}</div>
               ) : (
                 <div class="emoji-picker-grid">
-                  <For each={item.block.entries}>{(entry) => <EmojiButton entry={entry} onSelect={props.onSelect} />}</For>
+                  <For each={item.block.entries}>
+                    {(entry) => <EmojiButton entry={entry} onSelect={props.onSelect} />}
+                  </For>
                 </div>
               )
             }
@@ -210,7 +238,7 @@ function EmojiButton(props: { entry: PickerEntry; onSelect: (name: string) => vo
       title={`:${props.entry.name}:`}
       onClick={() => props.onSelect(props.entry.name)}
     >
-      <Show when={url()} fallback={props.entry.unicode ?? '❔'}>
+      <Show when={url()} fallback={props.entry.unicode ?? "❔"}>
         {(u) => <img src={u()} alt={props.entry.name} />}
       </Show>
     </button>

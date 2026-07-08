@@ -1,10 +1,15 @@
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
-import { bootstrap, currentUser, searchUsers } from '../../lib/store';
-import type { User } from '../../lib/types';
-import { useEscapeClose } from '../../hooks/useEscapeClose';
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
+import { bootstrap, currentUser, searchUsers } from "../../lib/store";
+import type { User } from "../../lib/types";
+import { Avatar } from "../common";
 
-export default function ComposeUserPicker(props: { onSelect: (userId: string) => void; onClose: () => void }) {
-  const [query, setQuery] = createSignal('');
+export default function ComposeUserPicker(props: {
+  onSelect: (userId: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = createSignal("");
   const [remoteResults, setRemoteResults] = createSignal<User[]>([]);
   const [searching, setSearching] = createSignal(false);
   let rootRef: HTMLDivElement | undefined;
@@ -12,20 +17,18 @@ export default function ComposeUserPicker(props: { onSelect: (userId: string) =>
   let requestId = 0;
 
   useEscapeClose(props.onClose);
+  useClickOutside(".compose-picker", props.onClose);
 
   onMount(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (rootRef && !rootRef.contains(e.target as Node)) props.onClose();
-    };
-    document.addEventListener('mousedown', onDocClick, true);
-    onCleanup(() => document.removeEventListener('mousedown', onDocClick, true));
     onCleanup(() => clearTimeout(debounceTimer));
   });
 
   const localMatches = createMemo(() => {
     const q = query().trim().toLowerCase();
     const me = currentUser()?.id;
-    return (bootstrap()?.users ?? []).filter((u) => u.id !== me && (!q || u.name.toLowerCase().includes(q)));
+    return (bootstrap()?.users ?? []).filter(
+      (u) => u.id !== me && (!q || u.name.toLowerCase().includes(q)),
+    );
   });
 
   const onInput = (value: string) => {
@@ -76,17 +79,13 @@ export default function ComposeUserPicker(props: { onSelect: (userId: string) =>
         <Show
           when={users().length > 0}
           fallback={
-            <div class="compose-picker-empty">{searching() ? 'Searching…' : 'No matches'}</div>
+            <div class="compose-picker-empty">{searching() ? "Searching…" : "No matches"}</div>
           }
         >
           <For each={users()}>
             {(u) => (
               <button class="compose-picker-row" onClick={() => props.onSelect(u.id)}>
-                <span class="compose-picker-avatar" style={{ background: u.avatarColor }}>
-                  <Show when={u.avatarUrl} fallback={u.initials}>
-                    {(url) => <img src={url()} alt="" />}
-                  </Show>
-                </span>
+                <Avatar user={u} size="small" />
                 {u.name}
               </button>
             )}

@@ -1,4 +1,4 @@
-import type { Block } from '../blockkit/types';
+import type { Block } from "../components/blockkit/types";
 
 export interface UserCustomField {
   id: string;
@@ -12,7 +12,7 @@ export interface User {
   avatarColor: string;
   avatarUrl?: string;
   initials: string;
-  presence: 'active' | 'away';
+  presence: "active" | "away";
   title?: string;
   pronouns?: string;
   statusText?: string;
@@ -69,7 +69,7 @@ export interface Attachment {
 // subtypes (bot messages, file shares, thread broadcasts) still render as a
 // normal message row; "system" subtypes (join/leave/topic/pin notices) render
 // as a small centered line instead of a chat bubble.
-export type MessageKind = 'normal' | 'system';
+export type MessageKind = "normal" | "system";
 
 export interface Message {
   id: string;
@@ -128,14 +128,21 @@ export interface ChannelSection {
 
 export interface ActivityItem {
   id: string;
-  kind: 'mention' | 'reaction' | 'dm' | 'thread_reply' | 'channel_mention' | 'usergroup_mention' | 'channel_all';
+  kind:
+    | "mention"
+    | "reaction"
+    | "dm"
+    | "thread_reply"
+    | "channel_mention"
+    | "usergroup_mention"
+    | "channel_all";
   channelId: string;
   ts: string;
   userId: string;
   text: string;
   time: number;
   reactionName?: string;
-  broadcastRange?: 'channel' | 'here';
+  broadcastRange?: "channel" | "here";
   usergroupId?: string;
 }
 

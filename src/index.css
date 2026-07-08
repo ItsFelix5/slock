@@ -14,7 +14,7 @@
   --hover-bg: rgba(255, 255, 255, 0.06);
   --active-bg: rgba(255, 255, 255, 0.1);
   --badge-bg: #cd2553;
-  --font: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 :root.theme-light {

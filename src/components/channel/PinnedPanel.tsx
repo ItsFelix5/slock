@@ -1,19 +1,19 @@
-import { For, Show, createMemo } from 'solid-js';
+import { createMemo, For, Show } from "solid-js";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
 import {
-  pinnedPanelChannelId,
-  pinnedMessagesCache,
-  closePinnedPanel,
   channelById,
+  closePinnedPanel,
   dmById,
-  userById,
-  togglePinMessage,
   openPinnedPanel,
   openThread,
+  pinnedMessagesCache,
+  pinnedPanelChannelId,
   setActiveView,
-} from '../../lib/store';
-import Mrkdwn from '../../blockkit/mrkdwn';
-import { useEscapeClose } from '../../hooks/useEscapeClose';
-import './PinnedPanel.css';
+  togglePinMessage,
+  userById,
+} from "../../lib/store";
+import Mrkdwn from "../blockkit/mrkdwn";
+import "./PinnedPanel.css";
 
 export default function PinnedPanel() {
   const channelId = pinnedPanelChannelId;
@@ -28,17 +28,17 @@ export default function PinnedPanel() {
   // has to branch on which one it actually resolves to.
   const title = () => {
     const id = channelId();
-    if (!id) return '';
+    if (!id) return "";
     const channel = channelById(id);
     if (channel) return `Pinned in #${channel.name}`;
     const dm = dmById(id);
-    return `Pinned in ${(dm && userById(dm.userId)?.name) ?? 'conversation'}`;
+    return `Pinned in ${(dm && userById(dm.userId)?.name) ?? "conversation"}`;
   };
 
   const goTo = (ts: string) => {
     const id = channelId();
     if (!id) return;
-    setActiveView({ kind: channelById(id) ? 'channel' : 'dm', id });
+    setActiveView({ kind: channelById(id) ? "channel" : "dm", id });
     openThread(id, ts);
     closePinnedPanel();
   };
@@ -51,7 +51,10 @@ export default function PinnedPanel() {
   return (
     <Show when={channelId()}>
       {(id) => (
-        <div class="pinned-panel-overlay" onClick={(e) => e.target === e.currentTarget && closePinnedPanel()}>
+        <div
+          class="pinned-panel-overlay"
+          onClick={(e) => e.target === e.currentTarget && closePinnedPanel()}
+        >
           <div class="pinned-panel-card">
             <div class="pinned-panel-header">
               <div class="pinned-panel-title">{title()}</div>
@@ -60,7 +63,10 @@ export default function PinnedPanel() {
               </button>
             </div>
             <div class="pinned-panel-list">
-              <For each={pins()} fallback={<div class="pinned-panel-empty">No pinned messages yet.</div>}>
+              <For
+                each={pins()}
+                fallback={<div class="pinned-panel-empty">No pinned messages yet.</div>}
+              >
                 {(pin) => (
                   <Show when={pin.message}>
                     {(msg) => (

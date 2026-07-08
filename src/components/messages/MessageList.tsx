@@ -1,7 +1,14 @@
-import { Show, createMemo, createEffect } from 'solid-js';
-import { activeView, messagesByChannel, dmById, channelById, userById, openThread } from '../../lib/store';
-import MessageRows from './MessageRows';
-import './MessageList.css';
+import { createEffect, createMemo, Show } from "solid-js";
+import {
+  activeView,
+  channelById,
+  dmById,
+  messagesByChannel,
+  openThread,
+  userById,
+} from "../../lib/store";
+import MessageRows from "./MessageRows";
+import "./MessageList.css";
 
 const NEAR_BOTTOM_PX = 120;
 
@@ -17,10 +24,10 @@ export default function MessageList() {
 
   const channelName = createMemo(() => {
     const v = activeView();
-    if (!v) return '';
-    if (v.kind === 'channel') return channelById(v.id)?.name ?? '';
+    if (!v) return "";
+    if (v.kind === "channel") return channelById(v.id)?.name ?? "";
     const dm = dmById(v.id);
-    return dm ? userById(dm.userId)?.name ?? '' : '';
+    return dm ? (userById(dm.userId)?.name ?? "") : "";
   });
 
   // Jump to the newest message whenever the channel changes or its history first
@@ -56,7 +63,7 @@ export default function MessageList() {
           <MessageRows
             messages={messages()}
             channelId={v().id}
-            location={{ store: 'channel', key: v().id }}
+            location={{ store: "channel", key: v().id }}
             onOpenThread={(ts) => openThread(v().id, ts)}
           />
         )}

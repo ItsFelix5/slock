@@ -1,0 +1,37 @@
+.debug-icon-search {
+  width: 100%;
+  margin: 10px 0 12px;
+}
+
+.debug-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.debug-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 10px 4px;
+  color: var(--text-secondary);
+}
+
+.debug-icon-cell:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.debug-icon-cell-name {
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

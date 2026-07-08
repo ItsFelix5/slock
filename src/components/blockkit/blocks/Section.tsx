@@ -1,7 +1,7 @@
-import { For, Show } from 'solid-js';
-import type { SectionBlock } from '../types';
-import BkText from '../BkText';
-import ElementRenderer from '../elements/ElementRenderer';
+import { For, Show } from "solid-js";
+import BkText from "../BkText";
+import ElementRenderer from "../elements/ElementRenderer";
+import type { SectionBlock } from "../types";
 
 export default function Section(props: { block: SectionBlock }) {
   return (
@@ -14,7 +14,13 @@ export default function Section(props: { block: SectionBlock }) {
         </Show>
         <Show when={props.block.fields?.length}>
           <div class="bk-section-fields">
-            <For each={props.block.fields}>{(f) => <div class="bk-section-field"><BkText text={f} /></div>}</For>
+            <For each={props.block.fields}>
+              {(f) => (
+                <div class="bk-section-field">
+                  <BkText text={f} />
+                </div>
+              )}
+            </For>
           </div>
         </Show>
       </div>

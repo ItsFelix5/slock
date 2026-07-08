@@ -1,16 +1,16 @@
-import { For, Show, createMemo, onMount } from 'solid-js';
+import { createMemo, For, onMount, Show } from "solid-js";
+import Icon from "../../icons";
 import {
-  laterItems,
-  laterMessages,
+  channelById,
   ensureLaterLoaded,
   ensureLaterMessageLoaded,
-  channelById,
+  laterItems,
+  laterMessages,
   openChannelPeek,
   toggleSaveForLater,
-} from '../../lib/store';
-import Mrkdwn from '../../blockkit/mrkdwn';
-import Icon from '../../icons';
-import './LaterView.css';
+} from "../../lib/store";
+import Mrkdwn from "../blockkit/mrkdwn";
+import "./LaterView.css";
 
 export default function LaterView() {
   onMount(() => ensureLaterLoaded());
@@ -20,7 +20,10 @@ export default function LaterView() {
   return (
     <div class="later-view">
       <h2>Later</h2>
-      <Show when={laterItems.length > 0} fallback={<div class="later-empty">Nothing saved for later.</div>}>
+      <Show
+        when={laterItems.length > 0}
+        fallback={<div class="later-empty">Nothing saved for later.</div>}
+      >
         <For each={laterItems}>
           {(item) => {
             const key = `${item.channelId}:${item.ts}`;
@@ -33,12 +36,23 @@ export default function LaterView() {
                 <button class="later-main" onClick={() => goTo(item.channelId, item.ts)}>
                   <div class="later-channel">#{channel()?.name ?? item.channelId}</div>
                   <div class="later-snippet">
-                    <Show when={!isLoaded()} fallback={<Show when={msg()} fallback="Message unavailable">{(m) => <Mrkdwn text={m().text} />}</Show>}>
+                    <Show
+                      when={!isLoaded()}
+                      fallback={
+                        <Show when={msg()} fallback="Message unavailable">
+                          {(m) => <Mrkdwn text={m().text} />}
+                        </Show>
+                      }
+                    >
                       Loading…
                     </Show>
                   </div>
                 </button>
-                <button class="later-remove" title="Remove from Later" onClick={() => toggleSaveForLater(item.channelId, item.ts)}>
+                <button
+                  class="later-remove"
+                  title="Remove from Later"
+                  onClick={() => toggleSaveForLater(item.channelId, item.ts)}
+                >
                   <Icon name="bookmark" size={16} />
                 </button>
               </div>

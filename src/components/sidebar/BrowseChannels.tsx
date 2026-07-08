@@ -1,20 +1,20 @@
-import { For, Show, createSignal } from 'solid-js';
+import { createSignal, For, Show } from "solid-js";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
+import Icon from "../../icons";
 import {
   browsableChannels,
   browsingChannels,
-  searchBrowsableChannels,
   closeBrowseChannels,
-  joinChannelById,
   createNewChannel,
-} from '../../lib/store';
-import { useEscapeClose } from '../../hooks/useEscapeClose';
-import Icon from '../../icons';
-import './BrowseChannels.css';
+  joinChannelById,
+  searchBrowsableChannels,
+} from "../../lib/store";
+import "./BrowseChannels.css";
 
 export default function BrowseChannels() {
-  const [query, setQuery] = createSignal('');
-  const [mode, setMode] = createSignal<'browse' | 'create'>('browse');
-  const [newName, setNewName] = createSignal('');
+  const [query, setQuery] = createSignal("");
+  const [mode, setMode] = createSignal<"browse" | "create">("browse");
+  const [newName, setNewName] = createSignal("");
   const [newPrivate, setNewPrivate] = createSignal(false);
   const [creating, setCreating] = createSignal(false);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -38,14 +38,25 @@ export default function BrowseChannels() {
 
   return (
     <Show when={browsingChannels()}>
-      <div class="browse-channels-overlay" onClick={(e) => e.target === e.currentTarget && closeBrowseChannels()}>
+      <div
+        class="browse-channels-overlay"
+        onClick={(e) => e.target === e.currentTarget && closeBrowseChannels()}
+      >
         <div class="browse-channels-card">
           <div class="browse-channels-header">
             <div class="browse-channels-tabs">
-              <button class="browse-channels-tab" classList={{ active: mode() === 'browse' }} onClick={() => setMode('browse')}>
+              <button
+                class="browse-channels-tab"
+                classList={{ active: mode() === "browse" }}
+                onClick={() => setMode("browse")}
+              >
                 Browse channels
               </button>
-              <button class="browse-channels-tab" classList={{ active: mode() === 'create' }} onClick={() => setMode('create')}>
+              <button
+                class="browse-channels-tab"
+                classList={{ active: mode() === "create" }}
+                onClick={() => setMode("create")}
+              >
                 Create channel
               </button>
             </div>
@@ -54,7 +65,7 @@ export default function BrowseChannels() {
             </button>
           </div>
 
-          <Show when={mode() === 'browse'}>
+          <Show when={mode() === "browse"}>
             <input
               class="browse-channels-search"
               type="text"
@@ -68,13 +79,17 @@ export default function BrowseChannels() {
                 each={browsableChannels()}
                 fallback={
                   <div class="browse-channels-empty">
-                    {query().trim() ? 'No channels found' : 'Type to search channels across the workspace'}
+                    {query().trim()
+                      ? "No channels found"
+                      : "Type to search channels across the workspace"}
                   </div>
                 }
               >
                 {(c) => (
                   <div class="browse-channels-row">
-                    <span class="browse-channels-icon">{c.private ? <Icon name="lock" size={13} /> : '#'}</span>
+                    <span class="browse-channels-icon">
+                      {c.private ? <Icon name="lock" size={13} /> : "#"}
+                    </span>
                     <div class="browse-channels-info">
                       <div class="browse-channels-name">{c.name}</div>
                       <Show when={c.topic}>
@@ -90,7 +105,7 @@ export default function BrowseChannels() {
             </div>
           </Show>
 
-          <Show when={mode() === 'create'}>
+          <Show when={mode() === "create"}>
             <form class="browse-channels-create-form" onSubmit={submitCreate}>
               <label class="browse-channels-label">Name</label>
               <input
@@ -102,11 +117,19 @@ export default function BrowseChannels() {
                 autofocus
               />
               <label class="browse-channels-checkbox">
-                <input type="checkbox" checked={newPrivate()} onChange={(e) => setNewPrivate(e.currentTarget.checked)} />
+                <input
+                  type="checkbox"
+                  checked={newPrivate()}
+                  onChange={(e) => setNewPrivate(e.currentTarget.checked)}
+                />
                 Make private
               </label>
-              <button type="submit" class="browse-channels-create-btn" disabled={!newName().trim() || creating()}>
-                {creating() ? 'Creating…' : 'Create channel'}
+              <button
+                type="submit"
+                class="browse-channels-create-btn"
+                disabled={!newName().trim() || creating()}
+              >
+                {creating() ? "Creating…" : "Create channel"}
               </button>
             </form>
           </Show>

@@ -1,33 +1,53 @@
-import { For, Show, createEffect, createSignal } from 'solid-js';
-import { activeView, channelById, dmById, userById, sendMessage, handleSlashCommand, recordEmojiUse } from '../../lib/store';
-import { uploadFile } from '../../lib/slackApi';
-import { showToast } from '../../lib/toast';
-import Icon, { type IconName } from '../../icons';
-import EmojiPicker from './EmojiPicker';
-import ComposeUserPicker from './ComposeUserPicker';
-import './Composer.css';
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import Icon, { type IconName } from "../../icons";
+import { uploadFile } from "../../lib/slackApi";
+import {
+  activeView,
+  channelById,
+  dmById,
+  handleSlashCommand,
+  recordEmojiUse,
+  sendMessage,
+  userById,
+} from "../../lib/store";
+import { showToast } from "../../lib/toast";
+import type { Block } from "../blockkit/types";
+import ComposeUserPicker from "./ComposeUserPicker";
+import EmojiPicker from "./EmojiPicker";
+import "./Composer.css";
 
-type WrapTool = { icon: IconName; title: string; before: string; after?: string };
-type LineTool = { icon: IconName; title: string; linePrefix: string };
+type FormatTool =
+  | { kind: "wrap"; icon: IconName; title: string; before: string; after?: string }
+  | { kind: "line"; icon: IconName; title: string; linePrefix: string }
+  | { kind: "block"; icon: IconName; title: string; block: "header" | "divider" }
+  | { kind: "attach"; icon: IconName; title: string }
+  | { kind: "mention"; icon: IconName; title: string };
 
-const WRAP_TOOLS: WrapTool[] = [
-  { icon: 'bold', title: 'Bold', before: '*' },
-  { icon: 'italic', title: 'Italic', before: '_' },
-  { icon: 'strikethrough', title: 'Strikethrough', before: '~' },
-  { icon: 'code', title: 'Inline code', before: '`' },
+const FORMAT_TOOLS: FormatTool[] = [
+  { kind: "block", icon: "text", title: "Header", block: "header" },
+  { kind: "block", icon: "divider", title: "Divider", block: "divider" },
+  { kind: "wrap", icon: "bold", title: "Bold", before: "*" },
+  { kind: "wrap", icon: "italic", title: "Italic", before: "_" },
+  { kind: "wrap", icon: "strikethrough", title: "Strikethrough", before: "~" },
+  { kind: "wrap", icon: "code", title: "Inline code", before: "`" },
+  { kind: "wrap", icon: "code-block", title: "Code block", before: "```\n", after: "\n```" },
+  { kind: "line", icon: "bulleted-list", title: "Bulleted list", linePrefix: "• " },
+  { kind: "line", icon: "numbered-list", title: "Ordered list", linePrefix: "1. " },
+  { kind: "line", icon: "quote", title: "Blockquote", linePrefix: "&gt; " },
+  { kind: "attach", icon: "attachment", title: "Attach file" },
+  { kind: "mention", icon: "mentions", title: "Mention someone" },
 ];
 
-const LINE_TOOLS: LineTool[] = [
-  { icon: 'bulletedList', title: 'Bulleted list', linePrefix: '• ' },
-  { icon: 'numberedList', title: 'Ordered list', linePrefix: '1. ' },
-  { icon: 'quote', title: 'Blockquote', linePrefix: '&gt; ' },
-];
+type SpecialBlock = { id: number; kind: "header"; text: string } | { id: number; kind: "divider" };
 
-const DRAFTS_KEY = 'slock-drafts';
+let nextBlockId = 1;
+
+const DRAFTS_KEY = "slock-drafts";
 
 function loadDrafts(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? '{}');
+    return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}");
   } catch {
     return {};
   }
@@ -39,9 +59,14 @@ function persistDrafts() {
   localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
 }
 
-export default function Composer(props: { channelId?: string; threadTs?: string; placeholder?: string }) {
-  const [text, setText] = createSignal('');
-  const [toolbarOpen, setToolbarOpen] = createSignal(true);
+export default function Composer(props: {
+  channelId?: string;
+  threadTs?: string;
+  placeholder?: string;
+}) {
+  const [text, setText] = createSignal("");
+  const [specialBlocks, setSpecialBlocks] = createSignal<SpecialBlock[]>([]);
+  const [toolsOpen, setToolsOpen] = createSignal(false);
   const [emojiOpen, setEmojiOpen] = createSignal(false);
   const [mentionOpen, setMentionOpen] = createSignal(false);
   const [pendingFiles, setPendingFiles] = createSignal<File[]>([]);
@@ -53,12 +78,23 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
   const targetChannelId = () => props.channelId ?? activeView()?.id;
   const draftKey = () => (props.threadTs ? `thread:${props.threadTs}` : targetChannelId());
 
+  const resizeTextarea = () => {
+    const el = textareaRef;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
   // The composer is a single long-lived component reused across every channel/DM
   // (and once per open thread) rather than remounted on switch, so without this
   // the exact same in-progress text would carry over when you change channels.
   createEffect((prevKey: string | undefined) => {
     const key = draftKey();
-    if (key !== prevKey) setText((key && drafts[key]) || '');
+    if (key !== prevKey) {
+      setText((key && drafts[key]) || "");
+      setSpecialBlocks([]);
+      queueMicrotask(resizeTextarea);
+    }
     return key;
   }, undefined);
 
@@ -74,13 +110,15 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
   const placeholder = () => {
     if (props.placeholder) return props.placeholder;
     const v = activeView();
-    if (!v) return 'Message';
-    if (v.kind === 'channel') return `Message #${channelById(v.id)?.name ?? ''}`;
+    if (!v) return "Message";
+    if (v.kind === "channel") return `Message #${channelById(v.id)?.name ?? ""}`;
     const dm = dmById(v.id);
-    return `Message ${dm ? userById(dm.userId)?.name ?? '' : ''}`;
+    return `Message ${dm ? (userById(dm.userId)?.name ?? "") : ""}`;
   };
 
-  function applyAtCursor(mutate: (value: string, start: number, end: number) => { next: string; cursor: number }) {
+  function applyAtCursor(
+    mutate: (value: string, start: number, end: number) => { next: string; cursor: number },
+  ) {
     const el = textareaRef;
     if (!el) return;
     const { next, cursor } = mutate(el.value, el.selectionStart, el.selectionEnd);
@@ -88,6 +126,7 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
     setText(next);
     el.focus();
     el.setSelectionRange(cursor, cursor);
+    resizeTextarea();
   }
 
   const wrapSelection = (before: string, after: string = before) => {
@@ -100,25 +139,15 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
 
   const prefixLines = (prefix: string) => {
     applyAtCursor((value, start, end) => {
-      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
       const before = value.slice(0, lineStart);
       const affected = value.slice(lineStart, end);
       const prefixed = affected
-        .split('\n')
+        .split("\n")
         .map((line) => prefix + line)
-        .join('\n');
+        .join("\n");
       const next = before + prefixed + value.slice(end);
       return { next, cursor: next.length - (value.length - end) };
-    });
-  };
-
-  const insertLink = () => {
-    applyAtCursor((value, start, end) => {
-      const selected = value.slice(start, end);
-      const isUrl = /^https?:\/\//.test(selected);
-      const inserted = isUrl ? `<${selected}>` : `<https://|${selected || 'link text'}>`;
-      const next = value.slice(0, start) + inserted + value.slice(end);
-      return { next, cursor: start + inserted.length };
     });
   };
 
@@ -128,6 +157,69 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
       return { next, cursor: start + fragment.length };
     });
   };
+
+  const addBlock = (kind: "header" | "divider") => {
+    setSpecialBlocks([...specialBlocks(), { id: nextBlockId++, kind, text: "" } as SpecialBlock]);
+    setToolsOpen(false);
+  };
+
+  const removeBlock = (id: number) => {
+    setSpecialBlocks(specialBlocks().filter((b) => b.id !== id));
+  };
+
+  const updateHeaderText = (id: number, value: string) => {
+    setSpecialBlocks(
+      specialBlocks().map((b) => (b.id === id && b.kind === "header" ? { ...b, text: value } : b)),
+    );
+  };
+
+  const runTool = (tool: FormatTool) => {
+    switch (tool.kind) {
+      case "wrap":
+        wrapSelection(tool.before, tool.after);
+        setToolsOpen(false);
+        return;
+      case "line":
+        prefixLines(tool.linePrefix);
+        setToolsOpen(false);
+        return;
+      case "block":
+        addBlock(tool.block);
+        return;
+      case "attach":
+        setToolsOpen(false);
+        fileInputRef?.click();
+        return;
+      case "mention":
+        setToolsOpen(false);
+        setMentionOpen(true);
+        return;
+    }
+  };
+
+  const buildBlocks = (trimmed: string): Block[] => {
+    const blocks: Block[] = [];
+    for (const sb of specialBlocks()) {
+      if (sb.kind === "header") {
+        if (sb.text.trim())
+          blocks.push({
+            type: "header",
+            text: { type: "plain_text", text: sb.text.trim(), emoji: true },
+          });
+      } else {
+        blocks.push({ type: "divider" });
+      }
+    }
+    if (trimmed) blocks.push({ type: "section", text: { type: "mrkdwn", text: trimmed } });
+    return blocks;
+  };
+
+  const canSend = createMemo(() => {
+    if (sending()) return false;
+    if (pendingFiles().length > 0) return true;
+    if (text().trim()) return true;
+    return specialBlocks().some((b) => b.kind === "divider" || b.text.trim());
+  });
 
   const addFiles = (fileList: FileList | File[]) => {
     setPendingFiles([...pendingFiles(), ...Array.from(fileList)]);
@@ -140,40 +232,50 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
   const submit = async (e: Event) => {
     e.preventDefault();
     const id = targetChannelId();
-    if (!id) return;
+    if (!id || !canSend()) return;
     const files = pendingFiles();
     const trimmed = text().trim();
-    if (!trimmed && files.length === 0) return;
-
-    if (files.length === 0) {
-      if (trimmed.startsWith('/')) {
-        setText('');
-        const handled = await handleSlashCommand(id, props.threadTs, trimmed);
-        if (handled) return;
-      }
-      sendMessage(id, trimmed, props.threadTs);
-      setText('');
-      return;
-    }
+    const blocks = specialBlocks().length > 0 ? buildBlocks(trimmed) : undefined;
 
     setSending(true);
-    setPendingFiles([]);
-    setText('');
     try {
+      if (files.length === 0) {
+        if (blocks && blocks.length > 0) {
+          setSpecialBlocks([]);
+          setText("");
+          queueMicrotask(resizeTextarea);
+          await sendMessage(id, trimmed, props.threadTs, blocks);
+          return;
+        }
+        if (trimmed.startsWith("/")) {
+          setText("");
+          queueMicrotask(resizeTextarea);
+          const handled = await handleSlashCommand(id, props.threadTs, trimmed);
+          if (handled) return;
+        }
+        await sendMessage(id, trimmed, props.threadTs);
+        setText("");
+        queueMicrotask(resizeTextarea);
+        return;
+      }
+
+      setPendingFiles([]);
+      setText("");
+      queueMicrotask(resizeTextarea);
       await uploadFile(id, files[0], props.threadTs, trimmed || undefined);
       for (const file of files.slice(1)) {
         await uploadFile(id, file, props.threadTs);
       }
     } catch (err) {
-      console.error('Failed to upload file', err);
-      showToast('Failed to upload file.');
+      console.error("Failed to send", err);
+      showToast("Failed to send.");
     } finally {
       setSending(false);
     }
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       submit(e);
     }
   };
@@ -186,10 +288,12 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
     }
   };
 
+  useClickOutside(".composer-tools-wrap", () => setToolsOpen(false));
+
   return (
     <form
       class="composer"
-      classList={{ 'drag-over': dragOver() }}
+      classList={{ "drag-over": dragOver() }}
       onSubmit={submit}
       onDragOver={(e) => {
         e.preventDefault();
@@ -202,24 +306,36 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
         if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
       }}
     >
-      <div class="composer-toolbar" classList={{ hidden: !toolbarOpen() }}>
-        {WRAP_TOOLS.map((tool) => (
-          <button type="button" class="composer-tool" title={tool.title} onClick={() => wrapSelection(tool.before, tool.after)}>
-            <Icon name={tool.icon} size={15} />
-          </button>
-        ))}
-        <button type="button" class="composer-tool" title="Link" onClick={insertLink}>
-          <Icon name="link" size={15} />
-        </button>
-        {LINE_TOOLS.map((tool) => (
-          <button type="button" class="composer-tool" title={tool.title} onClick={() => prefixLines(tool.linePrefix)}>
-            <Icon name={tool.icon} size={15} />
-          </button>
-        ))}
-        <button type="button" class="composer-tool" title="Code block" onClick={() => wrapSelection('```\n', '\n```')}>
-          <Icon name="codeBlock" size={15} />
-        </button>
-      </div>
+      <Show when={specialBlocks().length > 0}>
+        <div class="composer-blocks">
+          <For each={specialBlocks()}>
+            {(b) => (
+              <div class="composer-block-chip" classList={{ divider: b.kind === "divider" }}>
+                <Show
+                  when={b.kind === "header"}
+                  fallback={<span class="composer-block-divider-line" />}
+                >
+                  <input
+                    class="composer-block-header-input"
+                    placeholder="Header text"
+                    value={b.kind === "header" ? b.text : ""}
+                    onInput={(e) => updateHeaderText(b.id, e.currentTarget.value)}
+                  />
+                </Show>
+                <button
+                  type="button"
+                  class="composer-block-remove"
+                  title="Remove"
+                  onClick={() => removeBlock(b.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+
       <Show when={pendingFiles().length > 0}>
         <div class="composer-file-chips">
           <For each={pendingFiles()}>
@@ -234,42 +350,79 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
           </For>
         </div>
       </Show>
-      <textarea
-        ref={textareaRef}
-        class="composer-input"
-        placeholder={dragOver() ? 'Drop to attach' : placeholder()}
-        value={text()}
-        onInput={(e) => setText(e.currentTarget.value)}
-        onKeyDown={onKeyDown}
-        onPaste={onPaste}
-        rows={1}
-        disabled={!targetChannelId() || sending()}
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        class="composer-file-input"
-        onChange={(e) => {
-          if (e.currentTarget.files?.length) addFiles(e.currentTarget.files);
-          e.currentTarget.value = '';
-        }}
-      />
-      <div class="composer-footer">
-        <button
-          type="button"
-          class="composer-tool composer-tool-text"
-          classList={{ active: toolbarOpen() }}
-          title={toolbarOpen() ? 'Hide formatting' : 'Show formatting'}
-          onClick={() => setToolbarOpen(!toolbarOpen())}
-        >
-          Aa
-        </button>
-        <button type="button" class="composer-tool" title="Attach file" onClick={() => fileInputRef?.click()}>
-          <Icon name="attachment" size={16} />
-        </button>
+
+      <div class="composer-row">
+        <div class="composer-tools-wrap">
+          <button
+            type="button"
+            class="composer-tool"
+            classList={{ active: toolsOpen() }}
+            title="Add formatting or a block"
+            onClick={() => setToolsOpen(!toolsOpen())}
+          >
+            <Icon name="plus" size={16} />
+          </button>
+          <Show when={toolsOpen()}>
+            <div class="composer-tools-menu">
+              <For each={FORMAT_TOOLS}>
+                {(tool) => (
+                  <button type="button" class="composer-tools-item" onClick={() => runTool(tool)}>
+                    <Icon name={tool.icon} size={15} />
+                    {tool.title}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show when={mentionOpen()}>
+            <div class="composer-mention-popover">
+              <ComposeUserPicker
+                onSelect={(id) => {
+                  insertText(`<@${id}> `);
+                  setMentionOpen(false);
+                }}
+                onClose={() => setMentionOpen(false)}
+              />
+            </div>
+          </Show>
+        </div>
+
+        <textarea
+          ref={(el) => {
+            textareaRef = el;
+            queueMicrotask(resizeTextarea);
+          }}
+          class="composer-input"
+          placeholder={dragOver() ? "Drop to attach" : placeholder()}
+          value={text()}
+          onInput={(e) => {
+            setText(e.currentTarget.value);
+            resizeTextarea();
+          }}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
+          rows={1}
+          disabled={!targetChannelId() || sending()}
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          class="composer-file-input"
+          onChange={(e) => {
+            if (e.currentTarget.files?.length) addFiles(e.currentTarget.files);
+            e.currentTarget.value = "";
+          }}
+        />
+
         <div class="composer-picker-wrap">
-          <button type="button" class="composer-tool" title="Emoji" onClick={() => setEmojiOpen(!emojiOpen())}>
+          <button
+            type="button"
+            class="composer-tool"
+            title="Emoji"
+            onClick={() => setEmojiOpen(!emojiOpen())}
+          >
             <Icon name="emoji" size={16} />
           </button>
           {emojiOpen() && (
@@ -285,28 +438,8 @@ export default function Composer(props: { channelId?: string; threadTs?: string;
             </div>
           )}
         </div>
-        <div class="composer-picker-wrap">
-          <button type="button" class="composer-tool" title="Mention someone" onClick={() => setMentionOpen(!mentionOpen())}>
-            <Icon name="mentions" size={16} />
-          </button>
-          {mentionOpen() && (
-            <div class="composer-mention-popover">
-              <ComposeUserPicker
-                onSelect={(id) => {
-                  insertText(`<@${id}> `);
-                  setMentionOpen(false);
-                }}
-                onClose={() => setMentionOpen(false)}
-              />
-            </div>
-          )}
-        </div>
-        <button
-          type="submit"
-          class="composer-send"
-          disabled={(!text().trim() && pendingFiles().length === 0) || sending()}
-          title="Send"
-        >
+
+        <button type="submit" class="composer-send" disabled={!canSend()} title="Send">
           <Icon name="send" size={15} />
         </button>
       </div>

@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show } from "solid-js";
 
 export default function Pronouns(props: { text: string | undefined }) {
   return (

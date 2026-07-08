@@ -1,4 +1,4 @@
-import { gemoji, type Gemoji } from 'gemoji';
+import { type Gemoji, gemoji } from "gemoji";
 
 export interface EmojiCategory {
   label: string;

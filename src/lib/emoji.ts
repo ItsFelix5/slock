@@ -1,4 +1,4 @@
-import { nameToEmoji } from 'gemoji';
+import { nameToEmoji } from "gemoji";
 
 // Every known shortcode alias (e.g. both "+1" and "thumbsup") mapped to its
 // unicode glyph, sourced from GitHub's gemoji dataset — the same shortcode

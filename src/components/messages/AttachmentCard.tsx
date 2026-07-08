@@ -1,15 +1,15 @@
-import { For, Show } from 'solid-js';
-import type { Attachment } from '../../lib/types';
-import { fileProxyUrl } from '../../lib/slackApi';
-import Mrkdwn from '../../blockkit/mrkdwn';
-import './AttachmentCard.css';
+import { For, Show } from "solid-js";
+import { fileProxyUrl } from "../../lib/slackApi";
+import type { Attachment } from "../../lib/types";
+import Mrkdwn from "../blockkit/mrkdwn";
+import "./AttachmentCard.css";
 
 // A slack-hosted image proxies through our cookie-authenticated file route;
 // anything else (most link-unfurl previews) is a normal externally-hosted URL.
 function imageSrc(url: string): string {
   try {
     const host = new URL(url).hostname;
-    if (host.endsWith('.slack.com') || host.endsWith('.slack-files.com')) return fileProxyUrl(url);
+    if (host.endsWith(".slack.com") || host.endsWith(".slack-files.com")) return fileProxyUrl(url);
   } catch {
     // relative or malformed URL; fall through to using it as-is
   }
@@ -19,7 +19,12 @@ function imageSrc(url: string): string {
 export default function AttachmentCard(props: { attachment: Attachment }) {
   const a = props.attachment;
   return (
-    <div class="attachment-card" style={{ 'border-left-color': a.color ? `#${a.color.replace('#', '')}` : 'var(--border-strong)' }}>
+    <div
+      class="attachment-card"
+      style={{
+        "border-left-color": a.color ? `#${a.color.replace("#", "")}` : "var(--border-strong)",
+      }}
+    >
       <Show when={a.authorName}>
         <div class="attachment-author">
           <Show when={a.authorIcon}>
@@ -29,12 +34,14 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
         </div>
       </Show>
       <Show when={a.title}>
-        <Show
-          when={a.titleLink}
-          fallback={<div class="attachment-title">{a.title}</div>}
-        >
+        <Show when={a.titleLink} fallback={<div class="attachment-title">{a.title}</div>}>
           {(link) => (
-            <a class="attachment-title attachment-title-link" href={link()} target="_blank" rel="noopener noreferrer">
+            <a
+              class="attachment-title attachment-title-link"
+              href={link()}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {a.title}
             </a>
           )}

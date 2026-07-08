@@ -1,23 +1,23 @@
-import { For, Show, createMemo, createSignal } from 'solid-js';
+import { createMemo, createSignal, For, Show } from "solid-js";
+import Icon from "../../icons";
 import {
-  currentUser,
-  reactToMessage,
-  deleteMessageAt,
-  isSavedForLater,
-  toggleSaveForLater,
-  openUserProfile,
-  isMessagePinned,
-  togglePinMessage,
   copyMessageLink,
-  markMessageUnread,
-  remindAboutMessage,
-  REMINDER_OPTIONS,
-  recordEmojiUse,
+  currentUser,
+  deleteMessageAt,
+  isMessagePinned,
+  isSavedForLater,
   type MessageLocation,
-} from '../../lib/store';
-import type { Message } from '../../lib/types';
-import EmojiPicker from '../composer/EmojiPicker';
-import Icon from '../../icons';
+  markMessageUnread,
+  openUserProfile,
+  REMINDER_OPTIONS,
+  reactToMessage,
+  recordEmojiUse,
+  remindAboutMessage,
+  togglePinMessage,
+  toggleSaveForLater,
+} from "../../lib/store";
+import type { Message } from "../../lib/types";
+import EmojiPicker from "../composer/EmojiPicker";
 
 export default function MessageActionsBar(props: {
   channelId: string;
@@ -46,7 +46,8 @@ export default function MessageActionsBar(props: {
 
   const requestDelete = () => {
     setMoreOpen(false);
-    if (confirm('Delete this message?')) deleteMessageAt(props.location, props.channelId, props.msg.ts);
+    if (confirm("Delete this message?"))
+      deleteMessageAt(props.location, props.channelId, props.msg.ts);
   };
 
   const react = (name: string) => {
@@ -77,9 +78,13 @@ export default function MessageActionsBar(props: {
   };
 
   return (
-    <div class="message-hover-actions" classList={{ forceVisible: pickerOpen() || moreOpen() }}>
+    <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
       <div class="message-hover-picker-wrap">
-        <button class="message-hover-btn" title="React" onClick={() => setPickerOpen(!pickerOpen())}>
+        <button
+          class="message-hover-btn"
+          title="React"
+          onClick={() => setPickerOpen(!pickerOpen())}
+        >
           <Icon name="emoji" size={16} />
         </button>
         <Show when={pickerOpen()}>
@@ -90,7 +95,11 @@ export default function MessageActionsBar(props: {
       </div>
 
       <Show when={props.onOpenThread}>
-        <button class="message-hover-btn" title="Reply in thread" onClick={() => props.onOpenThread?.(props.msg.ts)}>
+        <button
+          class="message-hover-btn"
+          title="Reply in thread"
+          onClick={() => props.onOpenThread?.(props.msg.ts)}
+        >
           <Icon name="threads" size={16} />
         </button>
       </Show>
@@ -98,7 +107,7 @@ export default function MessageActionsBar(props: {
       <button
         class="message-hover-btn"
         classList={{ active: isSaved() }}
-        title={isSaved() ? 'Remove from Later' : 'Save for later'}
+        title={isSaved() ? "Remove from Later" : "Save for later"}
         onClick={() => toggleSaveForLater(props.channelId, props.msg.ts)}
       >
         <Icon name="bookmark" size={15} />
@@ -113,7 +122,7 @@ export default function MessageActionsBar(props: {
             setRemindOpen(false);
           }}
         >
-          <Icon name="moreVertical" size={16} />
+          <Icon name="ellipsis-vertical-filled" size={16} />
         </button>
         <Show when={moreOpen()}>
           <div class="message-more-menu">
@@ -121,7 +130,7 @@ export default function MessageActionsBar(props: {
               Copy link
             </button>
             <button class="message-more-item" onClick={togglePin}>
-              {isPinned() ? 'Unpin from channel' : 'Pin to channel'}
+              {isPinned() ? "Unpin from channel" : "Pin to channel"}
             </button>
             <div class="message-more-item-wrap">
               <button class="message-more-item" onClick={() => setRemindOpen(!remindOpen())}>

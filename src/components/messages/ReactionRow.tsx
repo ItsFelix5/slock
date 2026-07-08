@@ -1,9 +1,12 @@
-import { For, createMemo } from 'solid-js';
-import { currentUser } from '../../lib/store';
-import type { Reaction } from '../../lib/types';
-import EmojiText from './EmojiText';
+import { createMemo, For } from "solid-js";
+import { currentUser } from "../../lib/store";
+import type { Reaction } from "../../lib/types";
+import EmojiText from "./EmojiText";
 
-export default function ReactionRow(props: { reactions: Reaction[]; onToggle: (name: string) => void }) {
+export default function ReactionRow(props: {
+  reactions: Reaction[];
+  onToggle: (name: string) => void;
+}) {
   return (
     <div class="reaction-row">
       <For each={props.reactions}>
@@ -13,7 +16,11 @@ export default function ReactionRow(props: { reactions: Reaction[]; onToggle: (n
             return !!me && r.users.includes(me.id);
           });
           return (
-            <button class="reaction-pill" classList={{ mine: mine() }} onClick={() => props.onToggle(r.name)}>
+            <button
+              class="reaction-pill"
+              classList={{ mine: mine() }}
+              onClick={() => props.onToggle(r.name)}
+            >
               <EmojiText text={`:${r.name}:`} />
               <span class="reaction-count">{r.count}</span>
             </button>

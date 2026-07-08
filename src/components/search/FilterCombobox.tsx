@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 export interface ComboItem {
   id: string;
@@ -16,7 +16,7 @@ export default function FilterCombobox(props: {
   remoteSearch?: (query: string) => Promise<ComboItem[]>;
 }) {
   const [open, setOpen] = createSignal(false);
-  const [query, setQuery] = createSignal('');
+  const [query, setQuery] = createSignal("");
   const [remoteItems, setRemoteItems] = createSignal<ComboItem[]>([]);
   const [searching, setSearching] = createSignal(false);
   const [pickedLabel, setPickedLabel] = createSignal<string | undefined>(undefined);
@@ -28,12 +28,14 @@ export default function FilterCombobox(props: {
     const onDocClick = (e: MouseEvent) => {
       if (rootRef && !rootRef.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', onDocClick, true);
-    onCleanup(() => document.removeEventListener('mousedown', onDocClick, true));
+    document.addEventListener("mousedown", onDocClick, true);
+    onCleanup(() => document.removeEventListener("mousedown", onDocClick, true));
     onCleanup(() => clearTimeout(debounceTimer));
   });
 
-  const selectedLabel = createMemo(() => pickedLabel() ?? props.items.find((i) => i.id === props.value)?.label);
+  const selectedLabel = createMemo(
+    () => pickedLabel() ?? props.items.find((i) => i.id === props.value)?.label,
+  );
 
   const localMatches = createMemo(() => {
     const q = query().trim().toLowerCase();
@@ -72,7 +74,7 @@ export default function FilterCombobox(props: {
     setPickedLabel(item.label);
     props.onSelect(item.id);
     setOpen(false);
-    setQuery('');
+    setQuery("");
     setRemoteItems([]);
   };
 
@@ -110,7 +112,9 @@ export default function FilterCombobox(props: {
           <div class="filter-combobox-list">
             <For
               each={filtered()}
-              fallback={<div class="filter-combobox-empty">{searching() ? 'Searching…' : 'No matches'}</div>}
+              fallback={
+                <div class="filter-combobox-empty">{searching() ? "Searching…" : "No matches"}</div>
+              }
             >
               {(item) => (
                 <button type="button" class="filter-combobox-item" onClick={() => pick(item)}>

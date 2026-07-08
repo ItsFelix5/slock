@@ -1,5 +1,5 @@
-import Mrkdwn from '../../blockkit/mrkdwn';
-import './SystemMessage.css';
+import Mrkdwn from "../blockkit/mrkdwn";
+import "./SystemMessage.css";
 
 export default function SystemMessage(props: { text: string; time: string }) {
   return (

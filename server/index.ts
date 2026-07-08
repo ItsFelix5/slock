@@ -6,16 +6,16 @@ const COOKIE = process.env.SLACK_COOKIE!;
 const ROUTE = process.env.SLACK_ROUTE!;
 
 if (!DOMAIN || !TOKEN || !COOKIE || !ROUTE) {
-  throw new Error('Missing SLACK_DOMAIN / SLACK_TOKEN / SLACK_COOKIE / SLACK_ROUTE in .env');
+  throw new Error("Missing SLACK_DOMAIN / SLACK_TOKEN / SLACK_COOKIE / SLACK_ROUTE in .env");
 }
 
 async function callSlack(method: string, params: Record<string, string> = {}) {
   const body = new URLSearchParams({ token: TOKEN, ...params });
   const url = `https://${DOMAIN}/api/${method}?slack_route=${encodeURIComponent(ROUTE)}&_x_app_name=client`;
   const res = await fetch(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'content-type': 'application/x-www-form-urlencoded',
+      "content-type": "application/x-www-form-urlencoded",
       cookie: COOKIE,
     },
     body: body.toString(),
@@ -24,25 +24,25 @@ async function callSlack(method: string, params: Record<string, string> = {}) {
 }
 
 const cors = {
-  'access-control-allow-origin': 'http://localhost:5173',
-  'content-type': 'application/json',
+  "access-control-allow-origin": "http://localhost:5173",
+  "content-type": "application/json",
 };
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
 function getEmojiMap() {
   if (!emojiMapPromise) {
-    emojiMapPromise = callSlack('emoji.list', {}).then((data) => {
+    emojiMapPromise = callSlack("emoji.list", {}).then((data) => {
       const raw: Record<string, string> = data.emoji ?? {};
       const resolved: Record<string, string> = {};
       for (const name of Object.keys(raw)) {
         let value = raw[name];
         let hops = 0;
-        while (typeof value === 'string' && value.startsWith('alias:') && hops < 5) {
-          value = raw[value.slice('alias:'.length)];
+        while (typeof value === "string" && value.startsWith("alias:") && hops < 5) {
+          value = raw[value.slice("alias:".length)];
           hops++;
         }
-        if (typeof value === 'string' && value.startsWith('http')) resolved[name] = value;
+        if (typeof value === "string" && value.startsWith("http")) resolved[name] = value;
       }
       return resolved;
     });
@@ -50,7 +50,10 @@ function getEmojiMap() {
   return emojiMapPromise;
 }
 
-let prefsPromise: Promise<{ emojiUse: Record<string, number>; channelFrecency: Record<string, { count: number; lastVisit: number }> }> | null = null;
+let prefsPromise: Promise<{
+  emojiUse: Record<string, number>;
+  channelFrecency: Record<string, { count: number; lastVisit: number }>;
+}> | null = null;
 
 // users.prefs.get carries the account's *real* local-usage databases (each pref
 // value is itself a JSON string the client must parse) — emoji_use is a flat
@@ -60,7 +63,7 @@ let prefsPromise: Promise<{ emojiUse: Record<string, number>; channelFrecency: R
 // same id, so entries are reduced down to one {count, lastVisit} per id.
 function getUserPrefs() {
   if (!prefsPromise) {
-    prefsPromise = callSlack('users.prefs.get', {}).then((data) => {
+    prefsPromise = callSlack("users.prefs.get", {}).then((data) => {
       const prefs = data.prefs ?? {};
       const parse = (key: string) => {
         try {
@@ -71,9 +74,10 @@ function getUserPrefs() {
         }
       };
 
-      const emojiUse: Record<string, number> = parse('emoji_use') ?? {};
+      const emojiUse: Record<string, number> = parse("emoji_use") ?? {};
 
-      const jumper = parse('frecency_ent_jumper') ?? parse('frecency_jumper') ?? parse('frecency') ?? {};
+      const jumper =
+        parse("frecency_ent_jumper") ?? parse("frecency_jumper") ?? parse("frecency") ?? {};
       const channelFrecency: Record<string, { count: number; lastVisit: number }> = {};
       for (const entry of Object.values<any>(jumper)) {
         const id = entry?.id;
@@ -99,7 +103,7 @@ let profileFieldsPromise: Promise<{ id: string; label: string }[]> | null = null
 // rather than breaking anything that actually needs a user's own values.
 function getProfileFieldDefs() {
   if (!profileFieldsPromise) {
-    profileFieldsPromise = callSlack('team.profile.get', {})
+    profileFieldsPromise = callSlack("team.profile.get", {})
       .then((data) => {
         if (!data.ok) return [];
         const fields: any[] = data.profile?.fields ?? [];
@@ -142,7 +146,7 @@ function broadcast(payload: unknown) {
 }
 
 function broadcastStatus() {
-  broadcast({ type: '_status', connected: gatewayConnected });
+  broadcast({ type: "_status", connected: gatewayConnected });
 }
 
 let gatewaySocket: WebSocket | null = null;
@@ -155,16 +159,18 @@ function startFallbackPolling() {
   fallbackTimer = setInterval(async () => {
     for (const channel of watchedChannels) {
       try {
-        const data = await callSlack('conversations.history', { channel, limit: '60' });
-        if (data.ok) broadcast({ type: '_history_snapshot', channel, messages: data.messages ?? [] });
+        const data = await callSlack("conversations.history", { channel, limit: "60" });
+        if (data.ok)
+          broadcast({ type: "_history_snapshot", channel, messages: data.messages ?? [] });
       } catch {
         // transient network error; next tick retries
       }
     }
     for (const [ts, channel] of watchedThreads) {
       try {
-        const data = await callSlack('conversations.replies', { channel, ts, limit: '200' });
-        if (data.ok) broadcast({ type: '_replies_snapshot', channel, ts, messages: data.messages ?? [] });
+        const data = await callSlack("conversations.replies", { channel, ts, limit: "200" });
+        if (data.ok)
+          broadcast({ type: "_replies_snapshot", channel, ts, messages: data.messages ?? [] });
       } catch {
         // transient network error; next tick retries
       }
@@ -183,22 +189,22 @@ function stopFallbackPolling() {
 // that mirrors the enterprise id with its leading "E" swapped for "T" — not
 // documented anywhere, found by inspecting the official client's own websocket
 // handshake in devtools.
-const ENTERPRISE_ID = ROUTE.split(':')[0];
-const GATEWAY_TEAM_ID = 'T' + ENTERPRISE_ID.slice(1);
+const ENTERPRISE_ID = ROUTE.split(":")[0];
+const GATEWAY_TEAM_ID = "T" + ENTERPRISE_ID.slice(1);
 
 function buildGatewayUrl() {
   const shard = 1 + Math.floor(Math.random() * 3);
   const params = new URLSearchParams({
     token: TOKEN,
-    sync_desync: '1',
-    slack_client: 'desktop',
+    sync_desync: "1",
+    slack_client: "desktop",
     start_args: `?agent=client&org_wide_aware=true&agent_version=${Date.now()}&eac_cache_ts=true&cache_ts=0&name_tagging=true&only_self_subteams=true&connect_only=true&ms_latest=true`,
-    no_query_on_subscribe: '1',
-    flannel: '3',
-    lazy_channels: '1',
+    no_query_on_subscribe: "1",
+    flannel: "3",
+    lazy_channels: "1",
     gateway_server: `${GATEWAY_TEAM_ID}-${shard}`,
     enterprise_id: ENTERPRISE_ID,
-    batch_presence_aware: '1',
+    batch_presence_aware: "1",
   });
   return `wss://wss-primary.slack.com/?${params}`;
 }
@@ -208,18 +214,19 @@ function connectGateway() {
     const socket = new WebSocket(buildGatewayUrl(), { headers: { cookie: COOKIE } } as any);
     gatewaySocket = socket;
 
-    socket.addEventListener('open', () => {
-      console.log('Connected to Slack Edge gateway');
+    socket.addEventListener("open", () => {
+      console.log("Connected to Slack Edge gateway");
       gatewayConnected = true;
       gatewayRetryDelay = 2000;
       stopFallbackPolling();
       broadcastStatus();
     });
 
-    socket.addEventListener('message', (event) => {
+    socket.addEventListener("message", (event) => {
       try {
         const payload = JSON.parse(String(event.data));
-        if (payload.type && payload.type !== 'pong' && payload.type !== 'reconnect_url') broadcast(payload);
+        if (payload.type && payload.type !== "pong" && payload.type !== "reconnect_url")
+          broadcast(payload);
       } catch {
         // ignore malformed frames
       }
@@ -234,21 +241,21 @@ function connectGateway() {
       setTimeout(connectGateway, gatewayRetryDelay);
       gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
     };
-    socket.addEventListener('close', onDown);
-    socket.addEventListener('error', onDown);
+    socket.addEventListener("close", onDown);
+    socket.addEventListener("error", onDown);
 
     // Keep the connection alive / detect silently-dead sockets.
     const pingTimer = setInterval(() => {
       if (socket.readyState !== WebSocket.OPEN) return;
       try {
-        socket.send(JSON.stringify({ type: 'ping', id: Date.now() }));
+        socket.send(JSON.stringify({ type: "ping", id: Date.now() }));
       } catch {
         clearInterval(pingTimer);
       }
     }, 30000);
-    socket.addEventListener('close', () => clearInterval(pingTimer));
+    socket.addEventListener("close", () => clearInterval(pingTimer));
   } catch (err) {
-    console.warn('Failed to connect to Slack gateway, retrying:', err);
+    console.warn("Failed to connect to Slack gateway, retrying:", err);
     startFallbackPolling();
     setTimeout(connectGateway, gatewayRetryDelay);
     gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
@@ -277,11 +284,11 @@ connectGateway();
 // ---------------------------------------------------------------------------
 
 const userDirectory: any[] = [];
-let directoryCursor = '';
+let directoryCursor = "";
 let directorySynced = false;
 
 async function syncDirectoryStep() {
-  const data = await callSlack('users.list', { limit: '1000', cursor: directoryCursor });
+  const data = await callSlack("users.list", { limit: "1000", cursor: directoryCursor });
   if (!data.ok) {
     directorySynced = true;
     return;
@@ -311,8 +318,14 @@ runBackgroundDirectorySync();
 
 function matchesQuery(u: any, q: string): boolean {
   if (u.deleted) return false;
-  const haystacks = [u.profile?.display_name, u.profile?.real_name, u.real_name, u.name, u.profile?.email];
-  return haystacks.some((h) => typeof h === 'string' && h.toLowerCase().includes(q));
+  const haystacks = [
+    u.profile?.display_name,
+    u.profile?.real_name,
+    u.real_name,
+    u.name,
+    u.profile?.email,
+  ];
+  return haystacks.some((h) => typeof h === "string" && h.toLowerCase().includes(q));
 }
 
 function searchDirectory(query: string, limit = 30) {
@@ -344,7 +357,11 @@ function isAllowedFileHost(hostname: string): boolean {
 async function searchChannelDirectory(query: string, limit = 40) {
   const q = query.trim();
   if (!q) return { channels: [], truncated: false };
-  const data = await callSlack('search.modules.channels', { query: q, module: 'channels', count: String(limit) });
+  const data = await callSlack("search.modules.channels", {
+    query: q,
+    module: "channels",
+    count: String(limit),
+  });
   if (!data.ok) return { channels: [], truncated: false };
   const items: any[] = data.items ?? [];
   const channels = items
@@ -353,48 +370,52 @@ async function searchChannelDirectory(query: string, limit = 40) {
       id: c.id,
       name: c.name,
       is_private: c.is_private,
-      topic: { value: c.purpose?.value ?? '' },
+      topic: { value: c.purpose?.value ?? "" },
       num_members: c.member_count,
     }));
   return { channels, truncated: !!data.pagination?.next_cursor };
 }
 
-function extractChannelSections(data: any): { id: string; name: string; channelIds: string[] }[] | null {
+function extractChannelSections(
+  data: any,
+): { id: string; name: string; channelIds: string[] }[] | null {
   const raw = data?.channel_sections ?? data?.channelSections;
   if (!Array.isArray(raw)) return null;
-  return raw
-    // Slack always includes built-in pseudo-sections alongside real ones —
-    // "stars", "slack_connect", "salesforce_records", "channels",
-    // "direct_messages", "recent_apps", "agents" — each with its own fixed,
-    // non-renameable channel_section_id, even when the user has never created
-    // a custom category. Real user-created sections come back as type
-    // "standard" (confirmed by creating one) — filtering on that (rather than
-    // on whether it currently has channels) is what actually distinguishes
-    // those from the built-ins — a freshly created section starts out with
-    // zero channels too, and needs to stay visible so there's somewhere to
-    // move a channel into.
-    .filter((s: any) => s.type === 'standard')
-    .map((s: any) => ({
-      id: s.channel_section_id ?? s.id ?? s.name,
-      name: s.name ?? 'Section',
-      channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
-    }))
-    .filter((s: any) => s.id);
+  return (
+    raw
+      // Slack always includes built-in pseudo-sections alongside real ones —
+      // "stars", "slack_connect", "salesforce_records", "channels",
+      // "direct_messages", "recent_apps", "agents" — each with its own fixed,
+      // non-renameable channel_section_id, even when the user has never created
+      // a custom category. Real user-created sections come back as type
+      // "standard" (confirmed by creating one) — filtering on that (rather than
+      // on whether it currently has channels) is what actually distinguishes
+      // those from the built-ins — a freshly created section starts out with
+      // zero channels too, and needs to stay visible so there's somewhere to
+      // move a channel into.
+      .filter((s: any) => s.type === "standard")
+      .map((s: any) => ({
+        id: s.channel_section_id ?? s.id ?? s.name,
+        name: s.name ?? "Section",
+        channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
+      }))
+      .filter((s: any) => s.id)
+  );
 }
 
 Bun.serve({
-  hostname: '127.0.0.1',
+  hostname: "127.0.0.1",
   port: PORT,
   async fetch(req, server) {
     const url = new URL(req.url);
 
-    if (url.pathname === '/ws') {
+    if (url.pathname === "/ws") {
       if (server.upgrade(req)) return;
-      return new Response('upgrade failed', { status: 400 });
+      return new Response("upgrade failed", { status: 400 });
     }
 
     try {
-      if (url.pathname === '/api/bootstrap') {
+      if (url.pathname === "/api/bootstrap") {
         // client.counts is what the real webapp uses to paint sidebar unread dots/mention
         // badges right at boot without fetching full history for every channel — without
         // it, unread state only exists after a live websocket event during the session,
@@ -402,24 +423,26 @@ Bun.serve({
         // match what we expect, bootstrap still succeeds with today's "nothing unread"
         // fallback rather than failing the whole app.
         const [boot, users, counts] = await Promise.all([
-          callSlack('client.userBoot', {}),
-          callSlack('users.list', { limit: '200' }),
-          callSlack('client.counts', {}).catch(() => ({ ok: false })),
+          callSlack("client.userBoot", {}),
+          callSlack("users.list", { limit: "200" }),
+          callSlack("client.counts", {}).catch(() => ({ ok: false })),
         ]);
         return new Response(JSON.stringify({ boot, users, counts }), { headers: cors });
       }
 
-      if (url.pathname === '/api/channel/info') {
-        const channel = url.searchParams.get('channel');
-        if (!channel) return new Response('missing channel', { status: 400, headers: cors });
-        const data = await callSlack('conversations.info', { channel });
+      if (url.pathname === "/api/channel/info") {
+        const channel = url.searchParams.get("channel");
+        if (!channel) return new Response("missing channel", { status: 400, headers: cors });
+        const data = await callSlack("conversations.info", { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/sections') {
-        const data = await callSlack('users.channelSections.list', {});
+      if (url.pathname === "/api/sections") {
+        const data = await callSlack("users.channelSections.list", {});
         const sections = data.ok ? extractChannelSections(data) : null;
-        return new Response(JSON.stringify({ ok: !!sections, sections: sections ?? [] }), { headers: cors });
+        return new Response(JSON.stringify({ ok: !!sections, sections: sections ?? [] }), {
+          headers: cors,
+        });
       }
 
       // The following three (rename/delete/channels) are undocumented, unverified
@@ -427,31 +450,49 @@ Bun.serve({
       // shape users.channelSections.list itself returns (see extractChannelSections
       // above). Each just forwards Slack's raw response so a wrong guess surfaces as
       // a real `error` field the client can show instead of failing silently.
-      if (url.pathname === '/api/sections/create' && req.method === 'POST') {
+      if (url.pathname === "/api/sections/create" && req.method === "POST") {
         const { name } = (await req.json()) as { name: string };
         // type must be "standard" (the enum rejects "custom" despite that being the
         // more intuitive guess) and emoji is a required field, empty string is fine.
-        const data = await callSlack('users.channelSections.create', { name, type: 'standard', emoji: '' });
+        const data = await callSlack("users.channelSections.create", {
+          name,
+          type: "standard",
+          emoji: "",
+        });
         const created = data.channel_section ?? data;
         return new Response(
-          JSON.stringify({ ok: !!data.ok, id: created?.channel_section_id ?? created?.id, name: created?.name ?? name, error: data.error }),
+          JSON.stringify({
+            ok: !!data.ok,
+            id: created?.channel_section_id ?? created?.id,
+            name: created?.name ?? name,
+            error: data.error,
+          }),
           { headers: cors },
         );
       }
 
-      if (url.pathname === '/api/sections/rename' && req.method === 'POST') {
+      if (url.pathname === "/api/sections/rename" && req.method === "POST") {
         const { sectionId, name } = (await req.json()) as { sectionId: string; name: string };
-        const data = await callSlack('users.channelSections.update', { channel_section_id: sectionId, name });
-        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), { headers: cors });
+        const data = await callSlack("users.channelSections.update", {
+          channel_section_id: sectionId,
+          name,
+        });
+        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), {
+          headers: cors,
+        });
       }
 
-      if (url.pathname === '/api/sections/delete' && req.method === 'POST') {
+      if (url.pathname === "/api/sections/delete" && req.method === "POST") {
         const { sectionId } = (await req.json()) as { sectionId: string };
-        const data = await callSlack('users.channelSections.delete', { channel_section_id: sectionId });
-        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), { headers: cors });
+        const data = await callSlack("users.channelSections.delete", {
+          channel_section_id: sectionId,
+        });
+        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), {
+          headers: cors,
+        });
       }
 
-      if (url.pathname === '/api/sections/channels' && req.method === 'POST') {
+      if (url.pathname === "/api/sections/channels" && req.method === "POST") {
         const { sectionId, insertChannelIds, removeChannelIds } = (await req.json()) as {
           sectionId: string;
           insertChannelIds?: string[];
@@ -462,97 +503,111 @@ Bun.serve({
         // previously guessed), each a JSON array of {channel_section_id, channel_ids}
         // batches — the earlier flat-string shape parsed fine and returned ok:true
         // but silently moved nothing.
-        const insert = insertChannelIds?.length ? [{ channel_section_id: sectionId, channel_ids: insertChannelIds }] : [];
-        const remove = removeChannelIds?.length ? [{ channel_section_id: sectionId, channel_ids: removeChannelIds }] : [];
-        const data = await callSlack('users.channelSections.channels.bulkUpdate', {
+        const insert = insertChannelIds?.length
+          ? [{ channel_section_id: sectionId, channel_ids: insertChannelIds }]
+          : [];
+        const remove = removeChannelIds?.length
+          ? [{ channel_section_id: sectionId, channel_ids: removeChannelIds }]
+          : [];
+        const data = await callSlack("users.channelSections.channels.bulkUpdate", {
           insert: JSON.stringify(insert),
           remove: JSON.stringify(remove),
-          _x_reason: 'channel-sidebar-channel-drop',
+          _x_reason: "channel-sidebar-channel-drop",
         });
-        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), { headers: cors });
+        return new Response(JSON.stringify({ ok: !!data.ok, error: data.error }), {
+          headers: cors,
+        });
       }
 
-      if (url.pathname === '/api/history') {
-        const channel = url.searchParams.get('channel');
-        if (!channel) return new Response('missing channel', { status: 400, headers: cors });
-        const data = await callSlack('conversations.history', { channel, limit: '60' });
+      if (url.pathname === "/api/history") {
+        const channel = url.searchParams.get("channel");
+        if (!channel) return new Response("missing channel", { status: 400, headers: cors });
+        const data = await callSlack("conversations.history", { channel, limit: "60" });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/replies') {
-        const channel = url.searchParams.get('channel');
-        const ts = url.searchParams.get('ts');
-        if (!channel || !ts) return new Response('missing channel/ts', { status: 400, headers: cors });
-        const data = await callSlack('conversations.replies', { channel, ts, limit: '200' });
+      if (url.pathname === "/api/replies") {
+        const channel = url.searchParams.get("channel");
+        const ts = url.searchParams.get("ts");
+        if (!channel || !ts)
+          return new Response("missing channel/ts", { status: 400, headers: cors });
+        const data = await callSlack("conversations.replies", { channel, ts, limit: "200" });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/emojis') {
+      if (url.pathname === "/api/emojis") {
         const map = await getEmojiMap();
         const body = JSON.stringify({ ok: true, emoji: map });
         // Large workspaces can have tens of thousands of custom emoji (multiple MB of
         // JSON) — gzip cuts that by roughly 8x, and the cache header means a browser
         // reload doesn't refetch it at all within the window.
-        const acceptsGzip = (req.headers.get('accept-encoding') ?? '').includes('gzip');
-        const headers = { ...cors, 'cache-control': 'public, max-age=1800' };
+        const acceptsGzip = (req.headers.get("accept-encoding") ?? "").includes("gzip");
+        const headers = { ...cors, "cache-control": "public, max-age=1800" };
         if (acceptsGzip) {
           return new Response(Bun.gzipSync(Buffer.from(body)), {
-            headers: { ...headers, 'content-encoding': 'gzip' },
+            headers: { ...headers, "content-encoding": "gzip" },
           });
         }
         return new Response(body, { headers });
       }
 
-      if (url.pathname === '/api/user') {
-        const user = url.searchParams.get('id');
-        if (!user) return new Response('missing id', { status: 400, headers: cors });
-        const data = await callSlack('users.info', { user });
+      if (url.pathname === "/api/user") {
+        const user = url.searchParams.get("id");
+        if (!user) return new Response("missing id", { status: 400, headers: cors });
+        const data = await callSlack("users.info", { user });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/profile-fields') {
+      if (url.pathname === "/api/profile-fields") {
         const fields = await getProfileFieldDefs();
         return new Response(JSON.stringify({ ok: true, fields }), { headers: cors });
       }
 
-      if (url.pathname === '/api/prefs') {
+      if (url.pathname === "/api/prefs") {
         const { emojiUse, channelFrecency } = await getUserPrefs();
-        return new Response(JSON.stringify({ ok: true, emojiUse, channelFrecency }), { headers: cors });
+        return new Response(JSON.stringify({ ok: true, emojiUse, channelFrecency }), {
+          headers: cors,
+        });
       }
 
-      if (url.pathname === '/api/users/search') {
-        const q = url.searchParams.get('q') ?? '';
+      if (url.pathname === "/api/users/search") {
+        const q = url.searchParams.get("q") ?? "";
         const result = await searchDirectory(q);
         return new Response(JSON.stringify({ ok: true, ...result }), { headers: cors });
       }
 
-      if (url.pathname === '/api/search') {
-        const query = url.searchParams.get('q');
-        if (!query) return new Response('missing q', { status: 400, headers: cors });
-        const sort = url.searchParams.get('sort') === 'score' ? 'score' : 'timestamp';
-        const sortDir = url.searchParams.get('sort_dir') === 'asc' ? 'asc' : 'desc';
-        const data = await callSlack('search.messages', { query, sort, sort_dir: sortDir, count: '40' });
+      if (url.pathname === "/api/search") {
+        const query = url.searchParams.get("q");
+        if (!query) return new Response("missing q", { status: 400, headers: cors });
+        const sort = url.searchParams.get("sort") === "score" ? "score" : "timestamp";
+        const sortDir = url.searchParams.get("sort_dir") === "asc" ? "asc" : "desc";
+        const data = await callSlack("search.messages", {
+          query,
+          sort,
+          sort_dir: sortDir,
+          count: "40",
+        });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/saved') {
-        const data = await callSlack('saved.list', { limit: '40' });
+      if (url.pathname === "/api/saved") {
+        const data = await callSlack("saved.list", { limit: "40" });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/dm/open' && req.method === 'POST') {
+      if (url.pathname === "/api/dm/open" && req.method === "POST") {
         const { userId } = (await req.json()) as { userId: string };
-        const data = await callSlack('conversations.open', { users: userId });
+        const data = await callSlack("conversations.open", { users: userId });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/dm/close' && req.method === 'POST') {
+      if (url.pathname === "/api/dm/close" && req.method === "POST") {
         const { channel } = (await req.json()) as { channel: string };
-        const data = await callSlack('conversations.close', { channel });
+        const data = await callSlack("conversations.close", { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/send' && req.method === 'POST') {
+      if (url.pathname === "/api/send" && req.method === "POST") {
         const { channel, text, thread_ts, blocks } = (await req.json()) as {
           channel: string;
           text: string;
@@ -562,30 +617,34 @@ Bun.serve({
         const params: Record<string, string> = { channel, text };
         if (thread_ts) params.thread_ts = thread_ts;
         if (blocks) params.blocks = JSON.stringify(blocks);
-        const data = await callSlack('chat.postMessage', params);
+        const data = await callSlack("chat.postMessage", params);
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/edit' && req.method === 'POST') {
-        const { channel, ts, text } = (await req.json()) as { channel: string; ts: string; text: string };
-        const data = await callSlack('chat.update', { channel, ts, text });
+      if (url.pathname === "/api/edit" && req.method === "POST") {
+        const { channel, ts, text } = (await req.json()) as {
+          channel: string;
+          ts: string;
+          text: string;
+        };
+        const data = await callSlack("chat.update", { channel, ts, text });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/delete' && req.method === 'POST') {
+      if (url.pathname === "/api/delete" && req.method === "POST") {
         const { channel, ts } = (await req.json()) as { channel: string; ts: string };
-        const data = await callSlack('chat.delete', { channel, ts });
+        const data = await callSlack("chat.delete", { channel, ts });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/react' && req.method === 'POST') {
+      if (url.pathname === "/api/react" && req.method === "POST") {
         const { channel, timestamp, name, remove } = (await req.json()) as {
           channel: string;
           timestamp: string;
           name: string;
           remove?: boolean;
         };
-        const data = await callSlack(remove ? 'reactions.remove' : 'reactions.add', {
+        const data = await callSlack(remove ? "reactions.remove" : "reactions.add", {
           channel,
           timestamp,
           name,
@@ -593,113 +652,127 @@ Bun.serve({
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/save' && req.method === 'POST') {
+      if (url.pathname === "/api/save" && req.method === "POST") {
         const { channel, ts, remove } = (await req.json()) as {
           channel: string;
           ts: string;
           remove?: boolean;
         };
-        const data = await callSlack(remove ? 'saved.delete' : 'saved.add', {
-          item_type: 'message',
+        const data = await callSlack(remove ? "saved.delete" : "saved.add", {
+          item_type: "message",
           item_id: channel,
           ts,
         });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/star' && req.method === 'POST') {
+      if (url.pathname === "/api/star" && req.method === "POST") {
         const { channel, remove } = (await req.json()) as { channel: string; remove?: boolean };
-        const data = await callSlack(remove ? 'stars.remove' : 'stars.add', { channel });
+        const data = await callSlack(remove ? "stars.remove" : "stars.add", { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/channel/leave' && req.method === 'POST') {
+      if (url.pathname === "/api/channel/leave" && req.method === "POST") {
         const { channel } = (await req.json()) as { channel: string };
-        const data = await callSlack('conversations.leave', { channel });
+        const data = await callSlack("conversations.leave", { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/mark' && req.method === 'POST') {
+      if (url.pathname === "/api/mark" && req.method === "POST") {
         const { channel, ts } = (await req.json()) as { channel: string; ts: string };
-        const data = await callSlack('conversations.mark', { channel, ts });
+        const data = await callSlack("conversations.mark", { channel, ts });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/pins' && req.method === 'GET') {
-        const channel = url.searchParams.get('channel');
-        if (!channel) return new Response('missing channel', { status: 400, headers: cors });
-        const data = await callSlack('pins.list', { channel });
+      if (url.pathname === "/api/pins" && req.method === "GET") {
+        const channel = url.searchParams.get("channel");
+        if (!channel) return new Response("missing channel", { status: 400, headers: cors });
+        const data = await callSlack("pins.list", { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/pin' && req.method === 'POST') {
-        const { channel, ts, remove } = (await req.json()) as { channel: string; ts: string; remove?: boolean };
-        const data = await callSlack(remove ? 'pins.remove' : 'pins.add', { channel, timestamp: ts });
+      if (url.pathname === "/api/pin" && req.method === "POST") {
+        const { channel, ts, remove } = (await req.json()) as {
+          channel: string;
+          ts: string;
+          remove?: boolean;
+        };
+        const data = await callSlack(remove ? "pins.remove" : "pins.add", {
+          channel,
+          timestamp: ts,
+        });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/permalink' && req.method === 'GET') {
-        const channel = url.searchParams.get('channel');
-        const ts = url.searchParams.get('ts');
-        if (!channel || !ts) return new Response('missing channel/ts', { status: 400, headers: cors });
-        const data = await callSlack('chat.getPermalink', { channel, message_ts: ts });
+      if (url.pathname === "/api/permalink" && req.method === "GET") {
+        const channel = url.searchParams.get("channel");
+        const ts = url.searchParams.get("ts");
+        if (!channel || !ts)
+          return new Response("missing channel/ts", { status: 400, headers: cors });
+        const data = await callSlack("chat.getPermalink", { channel, message_ts: ts });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/remind' && req.method === 'POST') {
+      if (url.pathname === "/api/remind" && req.method === "POST") {
         const { text, time } = (await req.json()) as { text: string; time: string };
-        const data = await callSlack('reminders.add', { text, time });
+        const data = await callSlack("reminders.add", { text, time });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/file') {
-        const fileUrl = url.searchParams.get('url');
-        if (!fileUrl) return new Response('missing url', { status: 400, headers: cors });
+      if (url.pathname === "/api/file") {
+        const fileUrl = url.searchParams.get("url");
+        if (!fileUrl) return new Response("missing url", { status: 400, headers: cors });
         let parsed: URL;
         try {
           parsed = new URL(fileUrl);
         } catch {
-          return new Response('invalid url', { status: 400, headers: cors });
+          return new Response("invalid url", { status: 400, headers: cors });
         }
         if (!isAllowedFileHost(parsed.hostname)) {
-          return new Response('host not allowed', { status: 403, headers: cors });
+          return new Response("host not allowed", { status: 403, headers: cors });
         }
         const fileRes = await fetch(parsed, { headers: { cookie: COOKIE } });
         if (!fileRes.ok || !fileRes.body) {
-          return new Response('failed to fetch file', { status: 502, headers: cors });
+          return new Response("failed to fetch file", { status: 502, headers: cors });
         }
         return new Response(fileRes.body, {
           headers: {
-            'access-control-allow-origin': cors['access-control-allow-origin'],
-            'content-type': fileRes.headers.get('content-type') ?? 'application/octet-stream',
-            'cache-control': 'private, max-age=3600',
+            "access-control-allow-origin": cors["access-control-allow-origin"],
+            "content-type": fileRes.headers.get("content-type") ?? "application/octet-stream",
+            "cache-control": "private, max-age=3600",
           },
         });
       }
 
-      if (url.pathname === '/api/upload' && req.method === 'POST') {
+      if (url.pathname === "/api/upload" && req.method === "POST") {
         const form = await req.formData();
-        const file = form.get('file') as File | null;
-        const channel = form.get('channel') as string | null;
-        const filename = (form.get('filename') as string | null) ?? file?.name ?? 'file';
-        const threadTs = form.get('thread_ts') as string | null;
-        const initialComment = form.get('comment') as string | null;
-        if (!file || !channel) return new Response(JSON.stringify({ ok: false, error: 'missing file/channel' }), { status: 400, headers: cors });
+        const file = form.get("file") as File | null;
+        const channel = form.get("channel") as string | null;
+        const filename = (form.get("filename") as string | null) ?? file?.name ?? "file";
+        const threadTs = form.get("thread_ts") as string | null;
+        const initialComment = form.get("comment") as string | null;
+        if (!file || !channel)
+          return new Response(JSON.stringify({ ok: false, error: "missing file/channel" }), {
+            status: 400,
+            headers: cors,
+          });
 
         // Modern (non-deprecated) Slack upload flow: reserve an upload URL, POST the
         // raw bytes to it, then tell Slack to attach the finished upload to a channel.
         const buffer = await file.arrayBuffer();
-        const reserve = await callSlack('files.getUploadURLExternal', {
+        const reserve = await callSlack("files.getUploadURLExternal", {
           filename,
           length: String(buffer.byteLength),
         });
         if (!reserve.ok) return new Response(JSON.stringify(reserve), { headers: cors });
 
         const uploadForm = new FormData();
-        uploadForm.append('file', new Blob([buffer]), filename);
-        const putRes = await fetch(reserve.upload_url, { method: 'POST', body: uploadForm });
+        uploadForm.append("file", new Blob([buffer]), filename);
+        const putRes = await fetch(reserve.upload_url, { method: "POST", body: uploadForm });
         if (!putRes.ok) {
-          return new Response(JSON.stringify({ ok: false, error: 'upload_failed' }), { headers: cors });
+          return new Response(JSON.stringify({ ok: false, error: "upload_failed" }), {
+            headers: cors,
+          });
         }
 
         const completeParams: Record<string, string> = {
@@ -708,69 +781,87 @@ Bun.serve({
         };
         if (threadTs) completeParams.thread_ts = threadTs;
         if (initialComment) completeParams.initial_comment = initialComment;
-        const complete = await callSlack('files.completeUploadExternal', completeParams);
+        const complete = await callSlack("files.completeUploadExternal", completeParams);
         return new Response(JSON.stringify(complete), { headers: cors });
       }
 
-      if (url.pathname === '/api/channels/browse') {
-        const q = url.searchParams.get('q') ?? '';
+      if (url.pathname === "/api/channels/browse") {
+        const q = url.searchParams.get("q") ?? "";
         const result = await searchChannelDirectory(q);
         return new Response(JSON.stringify({ ok: true, ...result }), { headers: cors });
       }
 
-      if (url.pathname === '/api/channels/join' && req.method === 'POST') {
+      if (url.pathname === "/api/channels/join" && req.method === "POST") {
         const { channel } = (await req.json()) as { channel: string };
-        const data = await callSlack('conversations.join', { channel });
+        const data = await callSlack("conversations.join", { channel });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/channels/create' && req.method === 'POST') {
+      if (url.pathname === "/api/channels/create" && req.method === "POST") {
         const { name, isPrivate } = (await req.json()) as { name: string; isPrivate?: boolean };
-        const data = await callSlack('conversations.create', { name, is_private: isPrivate ? 'true' : 'false' });
+        const data = await callSlack("conversations.create", {
+          name,
+          is_private: isPrivate ? "true" : "false",
+        });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/status' && req.method === 'POST') {
-        const { text, emoji, expiration } = (await req.json()) as { text: string; emoji: string; expiration: number };
-        const profile = JSON.stringify({ status_text: text, status_emoji: emoji, status_expiration: expiration });
-        const data = await callSlack('users.profile.set', { profile });
+      if (url.pathname === "/api/status" && req.method === "POST") {
+        const { text, emoji, expiration } = (await req.json()) as {
+          text: string;
+          emoji: string;
+          expiration: number;
+        };
+        const profile = JSON.stringify({
+          status_text: text,
+          status_emoji: emoji,
+          status_expiration: expiration,
+        });
+        const data = await callSlack("users.profile.set", { profile });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/presence' && req.method === 'POST') {
-        const { presence } = (await req.json()) as { presence: 'auto' | 'away' };
-        const data = await callSlack('users.setPresence', { presence });
+      if (url.pathname === "/api/presence" && req.method === "POST") {
+        const { presence } = (await req.json()) as { presence: "auto" | "away" };
+        const data = await callSlack("users.setPresence", { presence });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/mute' && req.method === 'POST') {
+      if (url.pathname === "/api/mute" && req.method === "POST") {
         // Best-effort: muted_channels is the same client-prefs blob mechanism the real
         // webapp saves all of its local settings through, not a documented api.slack.com
         // method — the client treats this as non-critical since mute is kept locally too.
         const { channelIds } = (await req.json()) as { channelIds: string[] };
-        const data = await callSlack('users.prefs.set', { name: 'muted_channels', value: channelIds.join(',') });
+        const data = await callSlack("users.prefs.set", {
+          name: "muted_channels",
+          value: channelIds.join(","),
+        });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/dnd' && req.method === 'POST') {
+      if (url.pathname === "/api/dnd" && req.method === "POST") {
         const { minutes } = (await req.json()) as { minutes: number };
-        const data = minutes > 0
-          ? await callSlack('dnd.setSnooze', { num_minutes: String(minutes) })
-          : await callSlack('dnd.endSnooze', {});
+        const data =
+          minutes > 0
+            ? await callSlack("dnd.setSnooze", { num_minutes: String(minutes) })
+            : await callSlack("dnd.endSnooze", {});
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/canvas') {
+      if (url.pathname === "/api/canvas") {
         // Reading a canvas's actual document content back out isn't something we can
         // fully verify without live testing against a real canvas — this is a
         // best-effort attempt (fetch the backing file's content and hand back
         // whatever text comes back); the client always keeps a permalink fallback.
-        const fileId = url.searchParams.get('file');
-        if (!fileId) return new Response('missing file', { status: 400, headers: cors });
-        const info = await callSlack('files.info', { file: fileId });
+        const fileId = url.searchParams.get("file");
+        if (!fileId) return new Response("missing file", { status: 400, headers: cors });
+        const info = await callSlack("files.info", { file: fileId });
         if (!info.ok) return new Response(JSON.stringify(info), { headers: cors });
         const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
-        if (!downloadUrl) return new Response(JSON.stringify({ ok: false, error: 'no_content_url' }), { headers: cors });
+        if (!downloadUrl)
+          return new Response(JSON.stringify({ ok: false, error: "no_content_url" }), {
+            headers: cors,
+          });
         try {
           const contentRes = await fetch(downloadUrl, { headers: { cookie: COOKIE } });
           const content = await contentRes.text();
@@ -779,42 +870,52 @@ Bun.serve({
             { headers: cors },
           );
         } catch {
-          return new Response(JSON.stringify({ ok: false, error: 'fetch_failed', permalink: info.file?.permalink }), { headers: cors });
+          return new Response(
+            JSON.stringify({ ok: false, error: "fetch_failed", permalink: info.file?.permalink }),
+            { headers: cors },
+          );
         }
       }
 
-      if (url.pathname === '/api/canvas/create' && req.method === 'POST') {
+      if (url.pathname === "/api/canvas/create" && req.method === "POST") {
         const { channel } = (await req.json()) as { channel: string };
-        const data = await callSlack('conversations.canvases.create', { channel_id: channel });
-        return new Response(JSON.stringify({ ok: data.ok, fileId: data.canvas_id, error: data.error }), { headers: cors });
+        const data = await callSlack("conversations.canvases.create", { channel_id: channel });
+        return new Response(
+          JSON.stringify({ ok: data.ok, fileId: data.canvas_id, error: data.error }),
+          { headers: cors },
+        );
       }
 
-      if (url.pathname === '/api/canvas/edit' && req.method === 'POST') {
+      if (url.pathname === "/api/canvas/edit" && req.method === "POST") {
         const { file, markdown } = (await req.json()) as { file: string; markdown: string };
         const changes = JSON.stringify([
-          { operation: 'replace', document_content: { type: 'markdown', markdown } },
+          { operation: "replace", document_content: { type: "markdown", markdown } },
         ]);
-        const data = await callSlack('canvases.edit', { canvas_id: file, changes });
+        const data = await callSlack("canvases.edit", { canvas_id: file, changes });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/channel/topic' && req.method === 'POST') {
+      if (url.pathname === "/api/channel/topic" && req.method === "POST") {
         const { channel, topic } = (await req.json()) as { channel: string; topic: string };
-        const data = await callSlack('conversations.setTopic', { channel, topic });
+        const data = await callSlack("conversations.setTopic", { channel, topic });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      if (url.pathname === '/api/command' && req.method === 'POST') {
+      if (url.pathname === "/api/command" && req.method === "POST") {
         // Best-effort: there's no documented public method for dispatching a slash
         // command from a client — this mirrors the internal call the real webapp
         // makes, which we can't fully verify without live testing. Failure is
         // surfaced honestly to the user rather than assumed to have worked.
-        const { channel, command, text } = (await req.json()) as { channel: string; command: string; text: string };
-        const data = await callSlack('chat.command', { channel, command, text });
+        const { channel, command, text } = (await req.json()) as {
+          channel: string;
+          command: string;
+          text: string;
+        };
+        const data = await callSlack("chat.command", { channel, command, text });
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
-      return new Response('not found', { status: 404, headers: cors });
+      return new Response("not found", { status: 404, headers: cors });
     } catch (err) {
       return new Response(JSON.stringify({ ok: false, error: String(err) }), {
         status: 500,
@@ -825,7 +926,7 @@ Bun.serve({
   websocket: {
     open(ws) {
       clients.add(ws);
-      ws.send(JSON.stringify({ type: '_status', connected: gatewayConnected }));
+      ws.send(JSON.stringify({ type: "_status", connected: gatewayConnected }));
     },
     close(ws) {
       clients.delete(ws);
@@ -833,10 +934,11 @@ Bun.serve({
     message(ws, raw) {
       try {
         const msg = JSON.parse(String(raw));
-        if (msg.type === 'watch_channel' && msg.channel) watchedChannels.add(msg.channel);
-        else if (msg.type === 'unwatch_channel' && msg.channel) watchedChannels.delete(msg.channel);
-        else if (msg.type === 'watch_thread' && msg.channel && msg.ts) watchedThreads.set(msg.ts, msg.channel);
-        else if (msg.type === 'unwatch_thread' && msg.ts) watchedThreads.delete(msg.ts);
+        if (msg.type === "watch_channel" && msg.channel) watchedChannels.add(msg.channel);
+        else if (msg.type === "unwatch_channel" && msg.channel) watchedChannels.delete(msg.channel);
+        else if (msg.type === "watch_thread" && msg.channel && msg.ts)
+          watchedThreads.set(msg.ts, msg.channel);
+        else if (msg.type === "unwatch_thread" && msg.ts) watchedThreads.delete(msg.ts);
       } catch {
         // ignore malformed client frames
       }

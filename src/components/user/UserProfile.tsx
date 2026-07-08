@@ -1,12 +1,20 @@
-import { For, Show, createMemo, createSignal } from 'solid-js';
-import { profileUserId, closeUserProfile, userById, currentUser, openDmWithUser, profileFieldDefs } from '../../lib/store';
-import Icon from '../../icons';
-import Settings from '../settings/Settings';
-import EmojiText from '../messages/EmojiText';
-import Pronouns from './Pronouns';
-import ResizeHandle from '../layout/ResizeHandle';
-import { useEscapeClose } from '../../hooks/useEscapeClose';
-import './UserProfile.css';
+import { createMemo, createSignal, For, Show } from "solid-js";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
+import Icon from "../../icons";
+import {
+  closeUserProfile,
+  currentUser,
+  openDmWithUser,
+  profileFieldDefs,
+  profileUserId,
+  userById,
+} from "../../lib/store";
+import { Avatar } from "../common";
+import ResizeHandle from "../layout/ResizeHandle";
+import EmojiText from "../messages/EmojiText";
+import Settings from "../settings/Settings";
+import Pronouns from "./Pronouns";
+import "./UserProfile.css";
 
 const DEFAULT_WIDTH = 340;
 const MIN_WIDTH = 280;
@@ -28,7 +36,11 @@ export default function UserProfile() {
     const tz = user()?.tz;
     if (!tz) return null;
     try {
-      return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: tz });
+      return new Date().toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: tz,
+      });
     } catch {
       return null;
     }
@@ -52,7 +64,14 @@ export default function UserProfile() {
     <Show when={user()}>
       {(u) => (
         <div class="user-profile-panel" style={{ width: `${width()}px` }}>
-          <ResizeHandle width={width} setWidth={setWidth} min={MIN_WIDTH} max={MAX_WIDTH} direction={-1} side="left" />
+          <ResizeHandle
+            width={width}
+            setWidth={setWidth}
+            min={MIN_WIDTH}
+            max={MAX_WIDTH}
+            direction={-1}
+            side="left"
+          />
           <div class="user-profile-header">
             <div class="user-profile-header-title">Profile</div>
             <button class="user-profile-close" onClick={closeUserProfile} title="Close">
@@ -64,11 +83,11 @@ export default function UserProfile() {
               <Show when={u().avatarUrl} fallback={u().initials}>
                 {(url) => <img src={url()} alt="" />}
               </Show>
-              <span class="user-profile-presence" classList={{ away: u().presence === 'away' }} />
+              <span class="user-profile-presence" classList={{ away: u().presence === "away" }} />
             </div>
             <h2 class="user-profile-name">
               {u().name}
-              {u().isBot ? ' (bot)' : ''}
+              {u().isBot ? " (bot)" : ""}
               <Pronouns text={u().pronouns} />
             </h2>
             <Show when={u().title}>
@@ -84,7 +103,7 @@ export default function UserProfile() {
             </Show>
             <Show when={localTime()}>
               <p class="user-profile-meta">
-                {localTime()} local time{u().tzLabel ? ` (${u().tzLabel})` : ''}
+                {localTime()} local time{u().tzLabel ? ` (${u().tzLabel})` : ""}
               </p>
             </Show>
             <div class="user-profile-actions">
@@ -92,13 +111,13 @@ export default function UserProfile() {
                 when={!isSelf()}
                 fallback={
                   <button class="user-profile-message-btn" onClick={() => setSettingsOpen(true)}>
-                    <Icon name="moreVertical" size={15} />
+                    <Icon name="ellipsis-vertical-filled" size={15} />
                     Settings
                   </button>
                 }
               >
                 <button class="user-profile-message-btn" onClick={() => openDmWithUser(u().id)}>
-                  <Icon name="dms" size={15} />
+                  <Icon name="direct-messages-filled" size={15} />
                   Message
                 </button>
               </Show>
@@ -110,7 +129,10 @@ export default function UserProfile() {
                 <Show when={u().email}>
                   <div class="user-profile-field">
                     <div class="user-profile-field-label">Email</div>
-                    <a class="user-profile-field-value user-profile-field-link" href={`mailto:${u().email}`}>
+                    <a
+                      class="user-profile-field-value user-profile-field-link"
+                      href={`mailto:${u().email}`}
+                    >
                       {u().email}
                     </a>
                   </div>

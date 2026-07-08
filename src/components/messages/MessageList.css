@@ -47,7 +47,7 @@
 
 .day-divider::before,
 .day-divider::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--border);
@@ -98,7 +98,7 @@
 }
 
 .message-row:hover .message-hover-actions,
-.message-hover-actions.forceVisible {
+.message-hover-actions.force-visible {
   opacity: 1;
   pointer-events: auto;
 }

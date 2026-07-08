@@ -1,17 +1,23 @@
-import { For, Show, createMemo, createSignal } from 'solid-js';
-import { userById, editMessageText, reactToMessage, openUserProfile, type MessageLocation } from '../../lib/store';
-import type { Message } from '../../lib/types';
-import Mrkdwn from '../../blockkit/mrkdwn';
-import BlockKit from '../../blockkit/BlockKit';
-import MessageActionsBar from './MessageActionsBar';
-import MessageEditForm from './MessageEditForm';
-import MessageFiles from './MessageFiles';
-import AttachmentCard from './AttachmentCard';
-import SystemMessage from './SystemMessage';
-import ReactionRow from './ReactionRow';
-import Pronouns from '../user/Pronouns';
-import Icon from '../../icons';
-import './MessageList.css';
+import { createMemo, createSignal, For, Show } from "solid-js";
+import Icon from "../../icons";
+import {
+  editMessageText,
+  type MessageLocation,
+  openUserProfile,
+  reactToMessage,
+  userById,
+} from "../../lib/store";
+import type { Message } from "../../lib/types";
+import BlockKit from "../blockkit/BlockKit";
+import Mrkdwn from "../blockkit/mrkdwn";
+import Pronouns from "../user/Pronouns";
+import AttachmentCard from "./AttachmentCard";
+import MessageActionsBar from "./MessageActionsBar";
+import MessageEditForm from "./MessageEditForm";
+import MessageFiles from "./MessageFiles";
+import ReactionRow from "./ReactionRow";
+import SystemMessage from "./SystemMessage";
+import "./MessageList.css";
 
 export default function MessageRows(props: {
   messages: Message[];
@@ -37,12 +43,12 @@ export default function MessageRows(props: {
         // Slackbot's own automated announcements are a special case: Slack delivers
         // them as bot_message with username "Slackbot" but no icons at all, so
         // resolve the real Slackbot user instead of falling back to a generic 🤖.
-        const isSlackbot = () => msg.botName === 'Slackbot';
+        const isSlackbot = () => msg.botName === "Slackbot";
         const user = createMemo(() => {
-          if (isSlackbot()) return userById('USLACKBOT');
+          if (isSlackbot()) return userById("USLACKBOT");
           return msg.botName ? undefined : userById(msg.userId);
         });
-        const displayName = () => msg.botName ?? user()?.name ?? 'Unknown';
+        const displayName = () => msg.botName ?? user()?.name ?? "Unknown";
         const avatarUrl = () => msg.botIcon ?? user()?.avatarUrl;
         const [isEditing, setIsEditing] = createSignal(false);
 
@@ -54,7 +60,7 @@ export default function MessageRows(props: {
               </div>
             </Show>
             <Show
-              when={msg.kind !== 'system'}
+              when={msg.kind !== "system"}
               fallback={<SystemMessage text={msg.text} time={msg.time} />}
             >
               <div class="message-row" classList={{ compact: sameAuthorAsPrev() }}>
@@ -67,15 +73,18 @@ export default function MessageRows(props: {
                 />
                 <Show
                   when={!sameAuthorAsPrev()}
-                  fallback={<div class="message-avatar-spacer">{msg.time.split(' ')[0]}</div>}
+                  fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
                 >
                   <button
                     type="button"
                     class="message-avatar"
-                    style={{ background: user()?.avatarColor ?? '#616061' }}
+                    style={{ background: user()?.avatarColor ?? "#616061" }}
                     onClick={() => !msg.botName && openUserProfile(msg.userId)}
                   >
-                    <Show when={avatarUrl()} fallback={msg.botName ? '🤖' : (user()?.initials ?? '?')}>
+                    <Show
+                      when={avatarUrl()}
+                      fallback={msg.botName ? "🤖" : (user()?.initials ?? "?")}
+                    >
                       {(url) => <img class="message-avatar-img" src={url()} alt="" />}
                     </Show>
                   </button>
@@ -133,14 +142,16 @@ export default function MessageRows(props: {
                   <Show when={(msg.reactions?.length ?? 0) > 0}>
                     <ReactionRow
                       reactions={msg.reactions!}
-                      onToggle={(name) => reactToMessage(props.location, props.channelId, msg, name)}
+                      onToggle={(name) =>
+                        reactToMessage(props.location, props.channelId, msg, name)
+                      }
                     />
                   </Show>
 
                   <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
                     <button class="message-replies" onClick={() => props.onOpenThread?.(msg.ts)}>
-                      <Icon name="threads" size={14} /> {msg.replyCount}{' '}
-                      {msg.replyCount === 1 ? 'reply' : 'replies'}
+                      <Icon name="threads" size={14} /> {msg.replyCount}{" "}
+                      {msg.replyCount === 1 ? "reply" : "replies"}
                     </button>
                   </Show>
                 </div>

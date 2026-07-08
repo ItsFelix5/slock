@@ -1,78 +1,73 @@
-import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { createEffect, createSignal, For, Show } from "solid-js";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import Icon from "../../icons";
 import {
   activeView,
+  canvasByChannel,
   channelById,
+  createCanvasForCurrentChannel,
+  createChannelSection,
   dmById,
-  userById,
+  ensureCanvasChecked,
+  isChannelMuted,
+  isChannelNotifyAll,
   isChannelStarred,
-  toggleChannelStar,
   leaveCurrentChannel,
   markCurrentChannelRead,
-  openMessageSearch,
-  openUserProfile,
-  isChannelMuted,
-  toggleMuteChannel,
-  isChannelNotifyAll,
-  toggleNotifyAllChannel,
-  openPinnedPanel,
-  canvasByChannel,
-  ensureCanvasChecked,
-  openChannelCanvas,
-  createCanvasForCurrentChannel,
-  sections,
   moveChannelToSection,
-  createChannelSection,
-} from '../../lib/store';
-import EmojiText from '../messages/EmojiText';
-import Icon from '../../icons';
-import './ChannelHeader.css';
+  openChannelCanvas,
+  openMessageSearch,
+  openPinnedPanel,
+  openUserProfile,
+  sections,
+  toggleChannelStar,
+  toggleMuteChannel,
+  toggleNotifyAllChannel,
+  userById,
+} from "../../lib/store";
+import EmojiText from "../messages/EmojiText";
+import "./ChannelHeader.css";
 
 export default function ChannelHeader() {
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [starMenuOpen, setStarMenuOpen] = createSignal(false);
   const [addingSection, setAddingSection] = createSignal(false);
-  const [newSectionName, setNewSectionName] = createSignal('');
+  const [newSectionName, setNewSectionName] = createSignal("");
 
-  onMount(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest?.('.channel-header-star-wrap')) {
-        setStarMenuOpen(false);
-        setAddingSection(false);
-      }
-    };
-    document.addEventListener('mousedown', onDocClick, true);
-    onCleanup(() => document.removeEventListener('mousedown', onDocClick, true));
+  useClickOutside(".channel-header-star-wrap", () => {
+    setStarMenuOpen(false);
+    setAddingSection(false);
   });
 
   createEffect(() => {
     const v = activeView();
-    if (v?.kind === 'channel') ensureCanvasChecked(v.id);
+    if (v?.kind === "channel") ensureCanvasChecked(v.id);
   });
 
   const title = () => {
     const v = activeView();
-    if (!v) return '';
-    if (v.kind === 'channel') return channelById(v.id)?.name ?? '';
+    if (!v) return "";
+    if (v.kind === "channel") return channelById(v.id)?.name ?? "";
     const dm = dmById(v.id);
-    return dm ? userById(dm.userId)?.name ?? '' : '';
+    return dm ? (userById(dm.userId)?.name ?? "") : "";
   };
 
   const topic = () => {
     const v = activeView();
-    if (!v) return '';
-    if (v.kind === 'channel') return channelById(v.id)?.topic ?? '';
-    return 'Direct message';
+    if (!v) return "";
+    if (v.kind === "channel") return channelById(v.id)?.topic ?? "";
+    return "Direct message";
   };
 
   const isPrivate = () => {
     const v = activeView();
-    return v?.kind === 'channel' && !!channelById(v.id)?.private;
+    return v?.kind === "channel" && !!channelById(v.id)?.private;
   };
 
-  const isChannel = () => activeView()?.kind === 'channel';
+  const isChannel = () => activeView()?.kind === "channel";
   const starred = () => {
     const v = activeView();
-    return v?.kind === 'channel' && isChannelStarred(v.id);
+    return v?.kind === "channel" && isChannelStarred(v.id);
   };
   const muted = () => {
     const v = activeView();
@@ -84,7 +79,7 @@ export default function ChannelHeader() {
   };
   const canvas = () => {
     const v = activeView();
-    return v?.kind === 'channel' ? canvasByChannel[v.id] : undefined;
+    return v?.kind === "channel" ? canvasByChannel[v.id] : undefined;
   };
   const currentSectionId = () => {
     const v = activeView();
@@ -95,7 +90,7 @@ export default function ChannelHeader() {
   const submitNewSectionFromStar = async () => {
     const name = newSectionName().trim();
     setAddingSection(false);
-    setNewSectionName('');
+    setNewSectionName("");
     if (!name) return;
     const v = activeView();
     const created = await createChannelSection(name);
@@ -106,12 +101,12 @@ export default function ChannelHeader() {
   const searchInConversation = () => {
     const v = activeView();
     if (!v) return;
-    openMessageSearch('', v.kind === 'channel' ? { inChannelId: v.id } : {});
+    openMessageSearch("", v.kind === "channel" ? { inChannelId: v.id } : {});
   };
 
   const viewDmUser = () => {
     const v = activeView();
-    if (v?.kind !== 'dm') return;
+    if (v?.kind !== "dm") return;
     const dm = dmById(v.id);
     if (dm) openUserProfile(dm.userId);
   };
@@ -139,7 +134,7 @@ export default function ChannelHeader() {
                     if (v) toggleChannelStar(v.id);
                   }}
                 >
-                  <span class="channel-header-menu-check">{starred() ? '✓' : ''}</span>
+                  <span class="channel-header-menu-check">{starred() ? "✓" : ""}</span>
                   Starred
                 </button>
                 <For each={sections()}>
@@ -148,10 +143,13 @@ export default function ChannelHeader() {
                       class="channel-header-menu-item"
                       onClick={() => {
                         const v = activeView();
-                        if (v) moveChannelToSection(v.id, currentSectionId() === s.id ? null : s.id);
+                        if (v)
+                          moveChannelToSection(v.id, currentSectionId() === s.id ? null : s.id);
                       }}
                     >
-                      <span class="channel-header-menu-check">{currentSectionId() === s.id ? '✓' : ''}</span>
+                      <span class="channel-header-menu-check">
+                        {currentSectionId() === s.id ? "✓" : ""}
+                      </span>
                       {s.name}
                     </button>
                   )}
@@ -171,10 +169,10 @@ export default function ChannelHeader() {
                     value={newSectionName()}
                     onInput={(e) => setNewSectionName(e.currentTarget.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') submitNewSectionFromStar();
-                      if (e.key === 'Escape') {
+                      if (e.key === "Enter") submitNewSectionFromStar();
+                      if (e.key === "Escape") {
                         setAddingSection(false);
-                        setNewSectionName('');
+                        setNewSectionName("");
                       }
                     }}
                     onBlur={submitNewSectionFromStar}
@@ -186,8 +184,8 @@ export default function ChannelHeader() {
           </div>
         </Show>
         <span class="channel-header-icon">
-          <Show when={activeView()?.kind !== 'dm'} fallback={null}>
-            {isPrivate() ? <Icon name="lock" size={14} /> : '#'}
+          <Show when={activeView()?.kind !== "dm"} fallback={null}>
+            {isPrivate() ? <Icon name="lock" size={14} /> : "#"}
           </Show>
         </span>
         <Show when={!isChannel()} fallback={<span class="channel-header-title">{title()}</span>}>
@@ -202,17 +200,29 @@ export default function ChannelHeader() {
         </Show>
         <div class="channel-header-actions">
           <Show when={isChannel() && canvas()}>
-            <button class="channel-header-btn" title="Canvas" onClick={() => activeView() && openChannelCanvas(activeView()!.id)}>
-              <Icon name="codeBlock" size={16} />
+            <button
+              class="channel-header-btn"
+              title="Canvas"
+              onClick={() => activeView() && openChannelCanvas(activeView()!.id)}
+            >
+              <Icon name="code-block" size={16} />
             </button>
           </Show>
-          <button class="channel-header-btn" title="Search in conversation" onClick={searchInConversation}>
+          <button
+            class="channel-header-btn"
+            title="Search in conversation"
+            onClick={searchInConversation}
+          >
             <Icon name="search" size={16} />
           </button>
           <Show when={activeView()}>
             <div class="channel-header-more-wrap">
-              <button class="channel-header-btn" title="More" onClick={() => setMoreOpen(!moreOpen())}>
-                <Icon name="moreVertical" size={16} />
+              <button
+                class="channel-header-btn"
+                title="More"
+                onClick={() => setMoreOpen(!moreOpen())}
+              >
+                <Icon name="ellipsis-vertical-filled" size={16} />
               </button>
               <Show when={moreOpen()}>
                 <div class="channel-header-menu">
@@ -241,7 +251,7 @@ export default function ChannelHeader() {
                       if (activeView()) toggleMuteChannel(activeView()!.id);
                     }}
                   >
-                    {muted() ? 'Unmute channel' : 'Mute channel'}
+                    {muted() ? "Unmute channel" : "Mute channel"}
                   </button>
                   <button
                     class="channel-header-menu-item"
@@ -250,7 +260,9 @@ export default function ChannelHeader() {
                       if (activeView()) toggleNotifyAllChannel(activeView()!.id);
                     }}
                   >
-                    {notifyAll() ? 'Only notify me about mentions' : 'Notify me about all new messages'}
+                    {notifyAll()
+                      ? "Only notify me about mentions"
+                      : "Notify me about all new messages"}
                   </button>
                   <Show when={isChannel() && !canvas()}>
                     <button
@@ -270,7 +282,7 @@ export default function ChannelHeader() {
                       navigator.clipboard.writeText(`${location.origin}/#${activeView()?.id}`);
                     }}
                   >
-                    {isChannel() ? 'Copy link to channel' : 'Copy link to conversation'}
+                    {isChannel() ? "Copy link to channel" : "Copy link to conversation"}
                   </button>
                   <Show when={isChannel()}>
                     <button

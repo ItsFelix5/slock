@@ -1,6 +1,6 @@
-import { For } from 'solid-js';
-import { toasts } from '../../lib/toast';
-import './Toast.css';
+import { For } from "solid-js";
+import { toasts } from "../../lib/toast";
+import "./Toast.css";
 
 export default function ToastStack() {
   return (

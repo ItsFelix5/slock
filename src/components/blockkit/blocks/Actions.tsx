@@ -1,6 +1,6 @@
-import { For } from 'solid-js';
-import type { ActionsBlock } from '../types';
-import ElementRenderer from '../elements/ElementRenderer';
+import { For } from "solid-js";
+import ElementRenderer from "../elements/ElementRenderer";
+import type { ActionsBlock } from "../types";
 
 export default function Actions(props: { block: ActionsBlock }) {
   return (

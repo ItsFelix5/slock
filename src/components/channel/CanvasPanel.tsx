@@ -1,14 +1,14 @@
-import { Show, createResource, createSignal } from 'solid-js';
+import { createResource, createSignal, Show } from "solid-js";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
 import {
-  openCanvasChannelId,
-  closeChannelCanvas,
   canvasByChannel,
   channelById,
+  closeChannelCanvas,
   loadCanvasContent,
+  openCanvasChannelId,
   saveChannelCanvas,
-} from '../../lib/store';
-import { useEscapeClose } from '../../hooks/useEscapeClose';
-import './CanvasPanel.css';
+} from "../../lib/store";
+import "./CanvasPanel.css";
 
 export default function CanvasPanel() {
   const channelId = openCanvasChannelId;
@@ -23,7 +23,7 @@ export default function CanvasPanel() {
   const [saving, setSaving] = createSignal(false);
   const [draft, setDraft] = createSignal<string | null>(null);
 
-  const text = () => draft() ?? content() ?? '';
+  const text = () => draft() ?? content() ?? "";
 
   const save = async () => {
     const id = fileId();
@@ -38,15 +38,21 @@ export default function CanvasPanel() {
   return (
     <Show when={channelId()}>
       {(id) => (
-        <div class="canvas-panel-overlay" onClick={(e) => e.target === e.currentTarget && closeChannelCanvas()}>
+        <div
+          class="canvas-panel-overlay"
+          onClick={(e) => e.target === e.currentTarget && closeChannelCanvas()}
+        >
           <div class="canvas-panel-card">
             <div class="canvas-panel-header">
-              <div class="canvas-panel-title">Canvas · #{channelById(id())?.name ?? ''}</div>
+              <div class="canvas-panel-title">Canvas · #{channelById(id())?.name ?? ""}</div>
               <button class="canvas-panel-close" onClick={closeChannelCanvas} title="Close">
                 ✕
               </button>
             </div>
-            <Show when={!content.loading} fallback={<div class="canvas-panel-loading">Loading canvas…</div>}>
+            <Show
+              when={!content.loading}
+              fallback={<div class="canvas-panel-loading">Loading canvas…</div>}
+            >
               <textarea
                 class="canvas-panel-editor"
                 value={text()}
@@ -57,8 +63,12 @@ export default function CanvasPanel() {
                 <div class="canvas-panel-note">
                   Best-effort preview — formatting may not perfectly match Slack's canvas editor.
                 </div>
-                <button class="canvas-panel-save" onClick={save} disabled={saving() || draft() === null}>
-                  {saving() ? 'Saving…' : 'Save'}
+                <button
+                  class="canvas-panel-save"
+                  onClick={save}
+                  disabled={saving() || draft() === null}
+                >
+                  {saving() ? "Saving…" : "Save"}
                 </button>
               </div>
             </Show>

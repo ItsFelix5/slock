@@ -1,17 +1,17 @@
 import type {
-  User,
+  ActivityItem,
+  Attachment,
+  BrowsableChannel,
   Channel,
+  ChannelSection,
   DirectMessage,
   Message,
   MessageKind,
-  SlackFile,
-  Attachment,
-  ChannelSection,
-  ActivityItem,
-  SavedItem,
-  BrowsableChannel,
   ProfileFieldDef,
-} from './types';
+  SavedItem,
+  SlackFile,
+  User,
+} from "./types";
 
 interface Bootstrap {
   currentUser: User;
@@ -22,21 +22,21 @@ interface Bootstrap {
 }
 
 function colorFromHex(hex: string | undefined) {
-  return hex ? `#${hex}` : '#616061';
+  return hex ? `#${hex}` : "#616061";
 }
 
 function initialsOf(name: string) {
-  return name.slice(0, 1).toUpperCase() || '?';
+  return name.slice(0, 1).toUpperCase() || "?";
 }
 
 function tzLabelFromOffset(seconds: number | undefined): string | undefined {
   if (seconds === undefined) return undefined;
   const hours = seconds / 3600;
-  const sign = hours >= 0 ? '+' : '-';
+  const sign = hours >= 0 ? "+" : "-";
   const abs = Math.abs(hours);
   const whole = Math.floor(abs);
   const minutes = Math.round((abs - whole) * 60);
-  return `UTC${sign}${whole}${minutes ? ':' + String(minutes).padStart(2, '0') : ''}`;
+  return `UTC${sign}${whole}${minutes ? ":" + String(minutes).padStart(2, "0") : ""}`;
 }
 
 // The self object in client.userBoot (unlike regular users.list members) carries no
@@ -53,22 +53,26 @@ function mapUser(raw: any): User {
   const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
   const rawFields = raw.profile?.fields ?? {};
   const customFields = Object.keys(rawFields)
-    .map((id) => ({ id, value: rawFields[id]?.value ?? '', alt: rawFields[id]?.alt || undefined }))
+    .map((id) => ({ id, value: rawFields[id]?.value ?? "", alt: rawFields[id]?.alt || undefined }))
     .filter((f) => f.value);
   return {
     id: raw.id,
     name,
     avatarColor: colorFromHex(raw.color),
-    avatarUrl: raw.profile?.image_192 || raw.profile?.image_72 || raw.profile?.image_48 || avatarUrlFromHash(raw),
+    avatarUrl:
+      raw.profile?.image_192 ||
+      raw.profile?.image_72 ||
+      raw.profile?.image_48 ||
+      avatarUrlFromHash(raw),
     initials: initialsOf(name),
-    presence: raw.presence === 'away' ? 'away' : 'active',
+    presence: raw.presence === "away" ? "away" : "active",
     title: raw.profile?.title || undefined,
     pronouns: raw.profile?.pronouns || undefined,
     statusText: raw.profile?.status_text || undefined,
     statusEmoji: raw.profile?.status_emoji || undefined,
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
     // Slack's API never sets is_bot for it — flag it by id instead.
-    isBot: !!raw.is_bot || raw.id === 'USLACKBOT',
+    isBot: !!raw.is_bot || raw.id === "USLACKBOT",
     tz: raw.tz,
     tzLabel: raw.tz_label || tzLabelFromOffset(raw.tz_offset),
     email: raw.profile?.email || undefined,
@@ -85,7 +89,11 @@ function mapUser(raw: any): User {
 function buildUnreadMap(counts: any): Record<string, { unread: boolean; mentions: number }> {
   const map: Record<string, { unread: boolean; mentions: number }> = {};
   if (!counts?.ok) return map;
-  const groups: any[] = [...(counts.channels ?? []), ...(counts.mpims ?? []), ...(counts.ims ?? [])];
+  const groups: any[] = [
+    ...(counts.channels ?? []),
+    ...(counts.mpims ?? []),
+    ...(counts.ims ?? []),
+  ];
   for (const g of groups) {
     if (!g?.id) continue;
     const mentions = Number(g.mention_count ?? g.mention_count_display ?? 0) || 0;
@@ -97,10 +105,10 @@ function buildUnreadMap(counts: any): Record<string, { unread: boolean; mentions
 }
 
 export async function fetchBootstrap(): Promise<Bootstrap> {
-  const res = await fetch('/api/bootstrap');
+  const res = await fetch("/api/bootstrap");
   const data = await res.json();
   if (!data.boot?.ok) {
-    throw new Error(data.boot?.error ?? 'client.userBoot failed');
+    throw new Error(data.boot?.error ?? "client.userBoot failed");
   }
 
   const unreadMap = buildUnreadMap(data.counts);
@@ -115,13 +123,15 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       id: c.id,
       name: c.name,
       private: !!c.is_private,
-      topic: c.purpose?.value || c.topic?.value || '',
+      topic: c.purpose?.value || c.topic?.value || "",
       unread: !!unreadMap[c.id]?.unread,
       mentions: unreadMap[c.id]?.mentions || undefined,
     }));
 
   const countsIms: any[] = data.counts?.ims ?? [];
-  const latestByIm = new Map(countsIms.map((c) => [c.id, parseFloat(c.latest) * 1000 || undefined]));
+  const latestByIm = new Map(
+    countsIms.map((c) => [c.id, parseFloat(c.latest) * 1000 || undefined]),
+  );
 
   const rawIms: any[] = data.boot.ims ?? [];
   const directMessages: DirectMessage[] = rawIms
@@ -130,32 +140,39 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       id: im.id,
       userId: im.user,
       unread: !!unreadMap[im.id]?.unread,
-      lastActivity: latestByIm.get(im.id) || im.updated || (im.created ? im.created * 1000 : undefined),
+      lastActivity:
+        latestByIm.get(im.id) || im.updated || (im.created ? im.created * 1000 : undefined),
     }));
 
   const currentUser = mapUser(data.boot.self);
 
   const rawStarred: any[] = data.boot.starred ?? [];
-  const starredChannelIds: string[] = rawStarred.map((s) => (typeof s === 'string' ? s : s?.channel ?? s?.id)).filter(Boolean);
+  const starredChannelIds: string[] = rawStarred
+    .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
+    .filter(Boolean);
 
   return { currentUser, users, channels, directMessages, starredChannelIds };
 }
 
 export async function fetchSections(): Promise<ChannelSection[]> {
   try {
-    const res = await fetch('/api/sections');
+    const res = await fetch("/api/sections");
     const data = await res.json();
     if (!data.ok) return [];
-    return (data.sections ?? []).map((s: any) => ({ id: s.id, name: s.name, channelIds: s.channelIds ?? [] }));
+    return (data.sections ?? []).map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      channelIds: s.channelIds ?? [],
+    }));
   } catch {
     return [];
   }
 }
 
 export async function createSection(name: string): Promise<{ id: string; name: string } | null> {
-  const res = await fetch('/api/sections/create', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/sections/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ name }),
   });
   const data = await res.json();
@@ -164,9 +181,9 @@ export async function createSection(name: string): Promise<{ id: string; name: s
 }
 
 export async function renameSection(sectionId: string, name: string): Promise<boolean> {
-  const res = await fetch('/api/sections/rename', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/sections/rename", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ sectionId, name }),
   });
   const data = await res.json();
@@ -174,9 +191,9 @@ export async function renameSection(sectionId: string, name: string): Promise<bo
 }
 
 export async function deleteSection(sectionId: string): Promise<boolean> {
-  const res = await fetch('/api/sections/delete', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/sections/delete", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ sectionId }),
   });
   const data = await res.json();
@@ -187,9 +204,9 @@ export async function updateSectionChannels(
   sectionId: string,
   changes: { insertChannelIds?: string[]; removeChannelIds?: string[] },
 ): Promise<boolean> {
-  const res = await fetch('/api/sections/channels', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/sections/channels", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ sectionId, ...changes }),
   });
   const data = await res.json();
@@ -198,7 +215,7 @@ export async function updateSectionChannels(
 
 function formatTime(ts: string) {
   const date = new Date(parseFloat(ts) * 1000);
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function formatDay(ts: string) {
@@ -207,10 +224,12 @@ function formatDay(ts: string) {
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
   const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  if (sameDay(date, today)) return 'Today';
-  if (sameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (sameDay(date, today)) return "Today";
+  if (sameDay(date, yesterday)) return "Yesterday";
+  return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 
 // A handful of subtypes are just alternate shapes of an ordinary, visible
@@ -219,19 +238,30 @@ function formatDay(ts: string) {
 // (message_changed etc., which conversations.history/replies never really
 // hands us as a distinct row anyway) is a system notice like "X joined the
 // channel", which Slack already hands us as ready-to-render text.
-const CONTENT_SUBTYPES = new Set(['bot_message', 'file_share', 'thread_broadcast', 'me_message', 'file_comment']);
-const HIDE_SUBTYPES = new Set(['message_changed', 'message_deleted', 'message_replied', 'reply_broadcast']);
+const CONTENT_SUBTYPES = new Set([
+  "bot_message",
+  "file_share",
+  "thread_broadcast",
+  "me_message",
+  "file_comment",
+]);
+const HIDE_SUBTYPES = new Set([
+  "message_changed",
+  "message_deleted",
+  "message_replied",
+  "reply_broadcast",
+]);
 
 function mapFile(f: any): SlackFile {
   const mimetype: string | undefined = f.mimetype;
   return {
     id: f.id,
-    name: f.name ?? 'file',
+    name: f.name ?? "file",
     title: f.title,
     mimetype,
     filetype: f.filetype,
     size: f.size,
-    isImage: !!mimetype?.startsWith('image/'),
+    isImage: !!mimetype?.startsWith("image/"),
     urlPrivate: f.url_private,
     thumbUrl: f.thumb_720 ?? f.thumb_360 ?? f.thumb_160,
     width: f.thumb_360_w ?? f.original_w,
@@ -258,11 +288,11 @@ function mapAttachment(a: any): Attachment {
 
 export function mapMessage(m: any): Message {
   const subtype: string | undefined = m.subtype;
-  const kind: MessageKind = !subtype || CONTENT_SUBTYPES.has(subtype) ? 'normal' : 'system';
+  const kind: MessageKind = !subtype || CONTENT_SUBTYPES.has(subtype) ? "normal" : "system";
   return {
     id: m.ts,
     ts: m.ts,
-    userId: m.user ?? m.bot_id ?? '',
+    userId: m.user ?? m.bot_id ?? "",
     text: m.text,
     blocks: m.blocks,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
@@ -273,18 +303,21 @@ export function mapMessage(m: any): Message {
     replyUsers: m.reply_users,
     reactions: m.reactions,
     kind,
-    botName: subtype === 'bot_message' ? m.username : undefined,
-    botIcon: subtype === 'bot_message' ? (m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36) : undefined,
+    botName: subtype === "bot_message" ? m.username : undefined,
+    botIcon:
+      subtype === "bot_message"
+        ? (m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36)
+        : undefined,
   };
 }
 
 export async function fetchHistory(channelId: string): Promise<Message[]> {
   const res = await fetch(`/api/history?channel=${encodeURIComponent(channelId)}`);
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.history failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   return messages
-    .filter((m) => m.type === 'message' && !HIDE_SUBTYPES.has(m.subtype))
+    .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
     .map(mapMessage)
     .reverse();
 }
@@ -294,9 +327,11 @@ export async function fetchReplies(channelId: string, threadTs: string): Promise
     `/api/replies?channel=${encodeURIComponent(channelId)}&ts=${encodeURIComponent(threadTs)}`,
   );
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.replies failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
   const messages: any[] = data.messages ?? [];
-  return messages.filter((m) => m.type === 'message' && !HIDE_SUBTYPES.has(m.subtype)).map(mapMessage);
+  return messages
+    .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
+    .map(mapMessage);
 }
 
 export async function fetchUser(id: string): Promise<User | null> {
@@ -310,7 +345,7 @@ export async function fetchUser(id: string): Promise<User | null> {
 // separate from each user's field *values* (see mapUser's customFields) — fetched
 // once and joined against a user's values at render time.
 export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
-  const res = await fetch('/api/profile-fields');
+  const res = await fetch("/api/profile-fields");
   const data = await res.json();
   if (!data.ok) return [];
   return data.fields ?? [];
@@ -325,7 +360,7 @@ export type UserPrefs = {
 // from Slack's own local-usage database (see server's /api/prefs) — used to seed
 // frecency ranking with real history instead of starting cold in this client.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
-  const res = await fetch('/api/prefs');
+  const res = await fetch("/api/prefs");
   const data = await res.json();
   if (!data.ok) return { emojiUse: {}, channelFrecency: {} };
   return { emojiUse: data.emojiUse ?? {}, channelFrecency: data.channelFrecency ?? {} };
@@ -337,7 +372,9 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
 // starting at boot (see server/index.ts) and this just reads whatever's been
 // synced so far, so results improve over the server's uptime rather than
 // triggering a scan per query.
-export async function searchDirectory(query: string): Promise<{ users: User[]; truncated: boolean }> {
+export async function searchDirectory(
+  query: string,
+): Promise<{ users: User[]; truncated: boolean }> {
   const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
   const data = await res.json();
   if (!data.ok) return { users: [], truncated: false };
@@ -345,89 +382,94 @@ export async function searchDirectory(query: string): Promise<{ users: User[]; t
   return { users: raw.map(mapUser), truncated: !!data.truncated };
 }
 
-export async function postMessage(channelId: string, text: string, threadTs?: string, blocks?: unknown) {
-  const res = await fetch('/api/send', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+export async function postMessage(
+  channelId: string,
+  text: string,
+  threadTs?: string,
+  blocks?: unknown,
+) {
+  const res = await fetch("/api/send", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, text, thread_ts: threadTs, blocks }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'chat.postMessage failed');
+  if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
   return data;
 }
 
 export async function editMessage(channelId: string, ts: string, text: string) {
-  const res = await fetch('/api/edit', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/edit", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, ts, text }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'chat.update failed');
+  if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
 
 export async function deleteMessage(channelId: string, ts: string) {
-  const res = await fetch('/api/delete', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/delete", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, ts }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'chat.delete failed');
+  if (!data.ok) throw new Error(data.error ?? "chat.delete failed");
   return data;
 }
 
 export async function toggleReaction(channelId: string, ts: string, name: string, remove: boolean) {
-  const res = await fetch('/api/react', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/react", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, timestamp: ts, name, remove }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'reactions failed');
+  if (!data.ok) throw new Error(data.error ?? "reactions failed");
   return data;
 }
 
 export async function toggleSaved(channelId: string, ts: string, remove: boolean) {
-  const res = await fetch('/api/save', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/save", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, ts, remove }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'saved.add/remove failed');
+  if (!data.ok) throw new Error(data.error ?? "saved.add/remove failed");
   return data;
 }
 
 export async function leaveChannel(channelId: string) {
-  const res = await fetch('/api/channel/leave', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/channel/leave", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.leave failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.leave failed");
   return data;
 }
 
 export async function markChannelRead(channelId: string, ts: string) {
-  const res = await fetch('/api/mark', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/mark", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, ts }),
   });
   return res.json();
 }
 
 export async function toggleStar(channelId: string, remove: boolean) {
-  const res = await fetch('/api/star', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/star", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, remove }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'stars.add/remove failed');
+  if (!data.ok) throw new Error(data.error ?? "stars.add/remove failed");
   return data;
 }
 
@@ -440,50 +482,52 @@ export async function fetchPins(channelId: string): Promise<string[]> {
 }
 
 export async function togglePin(channelId: string, ts: string, remove: boolean) {
-  const res = await fetch('/api/pin', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/pin", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, ts, remove }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'pins.add/remove failed');
+  if (!data.ok) throw new Error(data.error ?? "pins.add/remove failed");
   return data;
 }
 
 export async function getPermalink(channelId: string, ts: string): Promise<string | null> {
-  const res = await fetch(`/api/permalink?channel=${encodeURIComponent(channelId)}&ts=${encodeURIComponent(ts)}`);
+  const res = await fetch(
+    `/api/permalink?channel=${encodeURIComponent(channelId)}&ts=${encodeURIComponent(ts)}`,
+  );
   const data = await res.json();
   if (!data.ok) return null;
   return data.permalink ?? null;
 }
 
 export async function addReminder(text: string, time: string) {
-  const res = await fetch('/api/remind', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/remind", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ text, time }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'reminders.add failed');
+  if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
   return data;
 }
 
 export async function fetchAllEmoji(): Promise<Record<string, string>> {
-  const res = await fetch('/api/emojis');
+  const res = await fetch("/api/emojis");
   const data = await res.json();
   if (!data.ok) return {};
   return data.emoji ?? {};
 }
 
 export async function fetchSaved(): Promise<SavedItem[]> {
-  const res = await fetch('/api/saved');
+  const res = await fetch("/api/saved");
   const data = await res.json();
   if (!data.ok) return [];
   // saved.list returns `saved_items`, each shaped like { item_id (the channel),
   // item_type: 'message', ts, ... } — item_id/ts sit at the top level, not nested.
   const items: any[] = data.saved_items ?? data.items ?? [];
   return items
-    .filter((it) => !it.item_type || it.item_type === 'message')
+    .filter((it) => !it.item_type || it.item_type === "message")
     .map((it) => ({
       channelId: it.item_id ?? it.channel_id ?? it.channel,
       ts: it.ts ?? it.message_ts,
@@ -492,9 +536,9 @@ export async function fetchSaved(): Promise<SavedItem[]> {
 }
 
 export async function openDm(userId: string): Promise<string | null> {
-  const res = await fetch('/api/dm/open', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/dm/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ userId }),
   });
   const data = await res.json();
@@ -503,13 +547,13 @@ export async function openDm(userId: string): Promise<string | null> {
 }
 
 export async function closeDm(channelId: string) {
-  const res = await fetch('/api/dm/close', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/dm/close", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.close failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.close failed");
   return data;
 }
 
@@ -523,11 +567,11 @@ export interface SearchResult {
 
 export async function searchMessages(
   query: string,
-  opts?: { sort?: 'score' | 'timestamp'; sortDir?: 'asc' | 'desc' },
+  opts?: { sort?: "score" | "timestamp"; sortDir?: "asc" | "desc" },
 ): Promise<SearchResult[]> {
   const params = new URLSearchParams({ q: query });
-  if (opts?.sort) params.set('sort', opts.sort);
-  if (opts?.sortDir) params.set('sort_dir', opts.sortDir);
+  if (opts?.sort) params.set("sort", opts.sort);
+  if (opts?.sortDir) params.set("sort_dir", opts.sortDir);
   const res = await fetch(`/api/search?${params.toString()}`);
   const data = await res.json();
   if (!data.ok) return [];
@@ -537,7 +581,7 @@ export async function searchMessages(
     channelName: m.channel?.name,
     ts: m.ts,
     userId: m.user,
-    text: m.text ?? '',
+    text: m.text ?? "",
   }));
 }
 
@@ -548,11 +592,11 @@ export async function fetchMentions(selfUserId: string): Promise<ActivityItem[]>
   const matches: any[] = data.messages?.matches ?? [];
   return matches.map((m) => ({
     id: `${m.channel?.id}-${m.ts}`,
-    kind: 'mention' as const,
+    kind: "mention" as const,
     channelId: m.channel?.id,
     ts: m.ts,
     userId: m.user,
-    text: m.text ?? '',
+    text: m.text ?? "",
     time: parseFloat(m.ts) * 1000,
   }));
 }
@@ -571,14 +615,14 @@ export async function uploadFile(
   comment?: string,
 ): Promise<void> {
   const form = new FormData();
-  form.append('file', file);
-  form.append('channel', channelId);
-  form.append('filename', file.name);
-  if (threadTs) form.append('thread_ts', threadTs);
-  if (comment) form.append('comment', comment);
-  const res = await fetch('/api/upload', { method: 'POST', body: form });
+  form.append("file", file);
+  form.append("channel", channelId);
+  form.append("filename", file.name);
+  if (threadTs) form.append("thread_ts", threadTs);
+  if (comment) form.append("comment", comment);
+  const res = await fetch("/api/upload", { method: "POST", body: form });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'file upload failed');
+  if (!data.ok) throw new Error(data.error ?? "file upload failed");
 }
 
 export async function fetchBrowsableChannels(query: string): Promise<BrowsableChannel[]> {
@@ -590,33 +634,39 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
     id: c.id,
     name: c.name,
     private: !!c.is_private,
-    topic: c.topic?.value ?? c.purpose?.value ?? '',
+    topic: c.topic?.value ?? c.purpose?.value ?? "",
     memberCount: c.num_members,
   }));
 }
 
 export async function joinChannel(channelId: string): Promise<Channel> {
-  const res = await fetch('/api/channels/join', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/channels/join", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.join failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.join failed");
   const c = data.channel;
-  return { id: c.id, name: c.name, private: !!c.is_private, topic: c.topic?.value ?? c.purpose?.value ?? '', unread: false };
+  return {
+    id: c.id,
+    name: c.name,
+    private: !!c.is_private,
+    topic: c.topic?.value ?? c.purpose?.value ?? "",
+    unread: false,
+  };
 }
 
 export async function createChannel(name: string, isPrivate: boolean): Promise<Channel> {
-  const res = await fetch('/api/channels/create', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/channels/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ name, isPrivate }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.create failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.create failed");
   const c = data.channel;
-  return { id: c.id, name: c.name, private: !!c.is_private, topic: '', unread: false };
+  return { id: c.id, name: c.name, private: !!c.is_private, topic: "", unread: false };
 }
 
 export interface PinnedMessage {
@@ -630,28 +680,28 @@ export async function fetchPinnedMessages(channelId: string): Promise<PinnedMess
   if (!data.ok) return [];
   const items: any[] = data.items ?? [];
   return items
-    .filter((it) => it.type === 'message' && it.message)
+    .filter((it) => it.type === "message" && it.message)
     .map((it) => ({ ts: it.message.ts, message: mapMessage(it.message) }));
 }
 
 export async function setStatus(text: string, emoji: string, expiration: number): Promise<void> {
-  const res = await fetch('/api/status', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/status", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ text, emoji, expiration }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'users.profile.set failed');
+  if (!data.ok) throw new Error(data.error ?? "users.profile.set failed");
 }
 
-export async function setPresence(presence: 'auto' | 'away'): Promise<void> {
-  const res = await fetch('/api/presence', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+export async function setPresence(presence: "auto" | "away"): Promise<void> {
+  const res = await fetch("/api/presence", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ presence }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'users.setPresence failed');
+  if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
 }
 
 export async function setMutedChannels(channelIds: string[]): Promise<void> {
@@ -659,9 +709,9 @@ export async function setMutedChannels(channelIds: string[]): Promise<void> {
   // saves all of its local settings through, not a documented api.slack.com
   // method — treated as non-critical since mute is also kept client-side.
   try {
-    await fetch('/api/mute', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
+    await fetch("/api/mute", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ channelIds }),
     });
   } catch {
@@ -670,36 +720,36 @@ export async function setMutedChannels(channelIds: string[]): Promise<void> {
 }
 
 export async function setDndSnooze(minutes: number): Promise<void> {
-  const res = await fetch('/api/dnd', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/dnd", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ minutes }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'dnd.setSnooze failed');
+  if (!data.ok) throw new Error(data.error ?? "dnd.setSnooze failed");
 }
 
 export async function endDndSnooze(): Promise<void> {
-  const res = await fetch('/api/dnd', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/dnd", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ minutes: 0 }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'dnd.endSnooze failed');
+  if (!data.ok) throw new Error(data.error ?? "dnd.endSnooze failed");
 }
 
 export async function fetchCanvas(fileId: string): Promise<string | null> {
   const res = await fetch(`/api/canvas?file=${encodeURIComponent(fileId)}`);
   const data = await res.json();
   if (!data.ok) return null;
-  return data.content ?? '';
+  return data.content ?? "";
 }
 
 export async function createChannelCanvas(channelId: string): Promise<string | null> {
-  const res = await fetch('/api/canvas/create', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/canvas/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId }),
   });
   const data = await res.json();
@@ -708,32 +758,36 @@ export async function createChannelCanvas(channelId: string): Promise<string | n
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {
-  const res = await fetch('/api/canvas/edit', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/canvas/edit", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ file: fileId, markdown }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'canvases.edit failed');
+  if (!data.ok) throw new Error(data.error ?? "canvases.edit failed");
 }
 
 export async function setChannelTopic(channelId: string, topic: string): Promise<void> {
-  const res = await fetch('/api/channel/topic', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+  const res = await fetch("/api/channel/topic", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, topic }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error ?? 'conversations.setTopic failed');
+  if (!data.ok) throw new Error(data.error ?? "conversations.setTopic failed");
 }
 
-export async function runSlashCommand(channelId: string, command: string, text: string): Promise<string | null> {
-  const res = await fetch('/api/command', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+export async function runSlashCommand(
+  channelId: string,
+  command: string,
+  text: string,
+): Promise<string | null> {
+  const res = await fetch("/api/command", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ channel: channelId, command, text }),
   });
   const data = await res.json();
-  if (!data.ok) return data.error ?? 'Command not supported by this client.';
+  if (!data.ok) return data.error ?? "Command not supported by this client.";
   return null;
 }

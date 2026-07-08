@@ -1,9 +1,10 @@
 .composer {
   margin: 0 20px 20px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: 18px;
   background: var(--composer-bg);
   flex-shrink: 0;
+  padding: 4px 4px 4px 8px;
 }
 
 .composer:focus-within {
@@ -15,6 +16,12 @@
   border-style: dashed;
 }
 
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .composer-file-input {
   display: none;
 }
@@ -23,7 +30,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 10px 0;
+  padding: 8px 6px 0;
 }
 
 .composer-file-chip {
@@ -49,29 +56,81 @@
   color: var(--text-primary);
 }
 
-.composer-toolbar {
+.composer-blocks {
   display: flex;
-  gap: 2px;
-  padding: 6px 6px 2px;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 6px 0;
 }
 
-.composer-toolbar.hidden {
-  display: none;
+.composer-block-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--hover-bg);
+  border-radius: 8px;
+  padding: 4px 6px 4px 10px;
+}
+
+.composer-block-chip.divider {
+  padding: 4px 6px 4px 10px;
+}
+
+.composer-block-header-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  padding: 4px 0;
+}
+
+.composer-block-header-input::placeholder {
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.composer-block-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.composer-block-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.composer-block-remove:hover {
+  background: var(--active-bg);
+  color: var(--text-primary);
 }
 
 .composer-tool {
   background: none;
   border: none;
   color: var(--text-secondary);
-  width: 28px;
-  height: 26px;
-  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   font-size: 13px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .composer-tool:hover {
@@ -79,24 +138,62 @@
   color: var(--text-primary);
 }
 
-.composer-tool-text {
-  font-size: 13px;
-  font-weight: 800;
-}
-
 .composer-tool.active {
   background: var(--active-bg);
-  color: #fff;
+  color: var(--text-primary);
+}
+
+.composer-tools-wrap {
+  position: relative;
+}
+
+.composer-tools-menu {
+  position: absolute;
+  bottom: 36px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.composer-tools-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.composer-tools-item:hover {
+  background: var(--hover-bg);
 }
 
 .composer-picker-wrap {
   position: relative;
 }
 
-.composer-emoji-popover,
+.composer-emoji-popover {
+  position: absolute;
+  bottom: 36px;
+  right: 0;
+  z-index: 10;
+}
+
 .composer-mention-popover {
   position: absolute;
-  bottom: 34px;
+  bottom: 36px;
   left: 0;
   z-index: 10;
 }
@@ -106,7 +203,8 @@
 }
 
 .composer-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   outline: none;
@@ -114,30 +212,24 @@
   color: var(--text-primary);
   font-family: inherit;
   font-size: 15px;
-  padding: 10px 12px;
-  min-height: 22px;
+  padding: 7px 6px;
+  min-height: 30px;
   max-height: 200px;
+  line-height: 1.35;
 }
 
 .composer-input::placeholder {
   color: var(--text-dim);
 }
 
-.composer-footer {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 6px 6px;
-}
-
 .composer-send {
-  margin-left: auto;
+  flex-shrink: 0;
   background: var(--accent);
   color: #fff;
   border: none;
   width: 30px;
-  height: 28px;
-  border-radius: 4px;
+  height: 30px;
+  border-radius: 50%;
   font-size: 13px;
   display: flex;
   align-items: center;

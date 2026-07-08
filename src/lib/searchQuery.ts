@@ -16,7 +16,7 @@ export interface SearchFilters {
   isSaved?: boolean;
 }
 
-export type SortMode = 'relevant' | 'newest' | 'oldest';
+export type SortMode = "relevant" | "newest" | "oldest";
 
 export const EMPTY_FILTERS: SearchFilters = {};
 
@@ -41,24 +41,27 @@ export function buildSearchQuery(text: string, f: SearchFilters): string {
   if (trimmed) parts.push(trimmed);
   if (f.fromUserId) parts.push(`from:<@${f.fromUserId}>`);
   if (f.inChannelId) parts.push(`in:<#${f.inChannelId}>`);
-  if (f.hasLink) parts.push('has:link');
-  if (f.hasStar) parts.push('has:star');
-  if (f.hasPin) parts.push('has:pin');
-  if (f.hasReaction) parts.push('has:reaction');
+  if (f.hasLink) parts.push("has:link");
+  if (f.hasStar) parts.push("has:star");
+  if (f.hasPin) parts.push("has:pin");
+  if (f.hasReaction) parts.push("has:reaction");
   if (f.after) parts.push(`after:${f.after}`);
   if (f.before) parts.push(`before:${f.before}`);
-  if (f.isThread) parts.push('is:thread');
-  if (f.isSaved) parts.push('is:saved');
-  return parts.join(' ');
+  if (f.isThread) parts.push("is:thread");
+  if (f.isSaved) parts.push("is:saved");
+  return parts.join(" ");
 }
 
-export function sortParams(mode: SortMode): { sort: 'score' | 'timestamp'; sortDir: 'asc' | 'desc' } {
+export function sortParams(mode: SortMode): {
+  sort: "score" | "timestamp";
+  sortDir: "asc" | "desc";
+} {
   switch (mode) {
-    case 'newest':
-      return { sort: 'timestamp', sortDir: 'desc' };
-    case 'oldest':
-      return { sort: 'timestamp', sortDir: 'asc' };
+    case "newest":
+      return { sort: "timestamp", sortDir: "desc" };
+    case "oldest":
+      return { sort: "timestamp", sortDir: "asc" };
     default:
-      return { sort: 'score', sortDir: 'desc' };
+      return { sort: "score", sortDir: "desc" };
   }
 }
