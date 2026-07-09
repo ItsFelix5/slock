@@ -163,7 +163,12 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
   };
 
   return (
-    <button type="button" class="bk-mention" onClick={onClick}>
+    <button
+      type="button"
+      class="bk-mention"
+      classList={{ "bk-mention-self": isUser && !!user()?.isSelf }}
+      onClick={onClick}
+    >
       {isUser ? "@" : "#"}
       {name()}
     </button>

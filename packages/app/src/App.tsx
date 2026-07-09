@@ -13,6 +13,7 @@ import {
   bootstrap,
   channelById,
   channelDisplayName,
+  currentUser,
   openUserProfile,
   setActiveView,
   userById,
@@ -21,7 +22,7 @@ import {
 const blockKitResolver: BlockKitResolver = {
   resolveUser: (id) => {
     const user = userById(id);
-    return user ? { name: user.name } : undefined;
+    return user ? { name: user.name, isSelf: id === currentUser()?.id } : undefined;
   },
   resolveChannel: (id) => {
     const channel = channelById(id);

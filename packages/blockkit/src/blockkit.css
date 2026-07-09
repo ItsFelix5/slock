@@ -245,6 +245,19 @@
   cursor: default;
 }
 
+/* Mentions that actually notify the viewer — a direct @you, or an @here/
+   @channel/@everyone broadcast — get the gold "pings you" highlight, so they
+   stand out from the plain, non-pinging mentions of other people. */
+.bk-mention-self,
+.bk-mention-broadcast {
+  background: rgba(224, 167, 45, 0.22);
+  color: #e0a72d;
+}
+
+.bk-mention-self:hover {
+  background: rgba(224, 167, 45, 0.35);
+}
+
 .bk-color-swatch {
   display: inline-flex;
   align-items: center;
