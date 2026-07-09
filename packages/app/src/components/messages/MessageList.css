@@ -301,29 +301,13 @@
 }
 
 .message-deleted-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   color: #e0554a;
-  font-style: italic;
-  opacity: 0.85;
+  text-decoration: line-through;
+  opacity: 0.7;
 }
 
 .message-row.deleted:hover {
   background: rgba(224, 85, 74, 0.06);
-}
-
-.message-edit-input {
-  width: 100%;
-  background: var(--composer-bg);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 15px;
-  padding: 8px 10px;
-  resize: vertical;
-  min-height: 22px;
 }
 
 .message-edit-actions {
@@ -460,4 +444,42 @@
   font-weight: 400;
   color: var(--text-dim);
   font-size: 0.9em;
+}
+
+.message-status-emoji {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  cursor: default;
+}
+
+.message-status-emoji .emoji-img {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+
+.message-status-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: none;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  background: var(--main-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.message-status-emoji:hover .message-status-tooltip {
+  display: block;
 }

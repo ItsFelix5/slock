@@ -1,14 +1,7 @@
 - Improve activities (better UI/UX, read & next button, multi message threads should look like threads, reactions should display nice etc)
-- Show interactors pfps (thread yappers & reactors) + hover for all names
+- Show interactors pfps thread yappers + hover for all names
 - Reply in threads by linking & display message links at the start of the message inline like discord
-- Deleted messages should turn red instead of being deleted
 - Implement canvases
-- Display more info on user cards
-- User statuses + other info on hover
-- Icon fill on colored starred and later 
-- Channel names (public name else https://flaron.halceon.dev/channel/id else id)
 - Non pinging mentions
 - Unify server and vite
 - Unfurls
-- history state shenanigans for nav
-- Abstract way more into the ui package

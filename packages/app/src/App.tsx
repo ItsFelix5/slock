@@ -14,6 +14,7 @@ import {
   channelById,
   channelDisplayName,
   currentUser,
+  isChannelMember,
   openUserProfile,
   setActiveView,
   userById,
@@ -26,7 +27,13 @@ const blockKitResolver: BlockKitResolver = {
   },
   resolveChannel: (id) => {
     const channel = channelById(id);
-    return channel ? { name: channelDisplayName(channel) } : undefined;
+    return channel
+      ? {
+          name: channelDisplayName(channel),
+          isPrivate: channel.private,
+          isMember: isChannelMember(id),
+        }
+      : undefined;
   },
   onUserClick: openUserProfile,
   onChannelClick: (id) => setActiveView({ kind: "channel", id }),

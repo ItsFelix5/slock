@@ -1,19 +1,13 @@
-import { BlockKit, Mrkdwn } from "@slock/blockkit";
+import { BlockKit, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
-import { Icon } from "@slock/ui";
+import { Icon, logDeletedMessages } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import {
-  editMessageText,
-  type MessageLocation,
-  openUserProfile,
-  reactToMessage,
-  userById,
-} from "../../lib/store";
+import { editMessageText, openUserProfile, reactToMessage, userById } from "../../lib/store";
+import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import AttachmentCard from "./AttachmentCard";
 import InteractorAvatars from "./InteractorAvatars";
 import MessageActionsBar from "./MessageActionsBar";
-import MessageEditForm from "./MessageEditForm";
 import MessageFiles from "./MessageFiles";
 import ReactionRow from "./ReactionRow";
 import SystemMessage from "./SystemMessage";
@@ -22,7 +16,6 @@ import "./MessageList.css";
 export default function MessageRows(props: {
   messages: Message[];
   channelId: string;
-  location: MessageLocation;
   onOpenThread?: (ts: string) => void;
 }) {
   return (
@@ -77,7 +70,7 @@ export default function MessageRows(props: {
         );
 
         return (
-          <>
+          <Show when={!msg.deleted || logDeletedMessages()}>
             <Show when={showDayDivider()}>
               <div class="day-divider">
                 <span>{msg.day}</span>
@@ -94,7 +87,6 @@ export default function MessageRows(props: {
                 <Show when={!msg.deleted}>
                   <MessageActionsBar
                     channelId={props.channelId}
-                    location={props.location}
                     msg={msg}
                     onOpenThread={props.onOpenThread}
                     onEditRequest={() => setIsEditing(true)}
@@ -114,6 +106,16 @@ export default function MessageRows(props: {
                       <Show when={!msg.botName} fallback={authorButton()}>
                         <UserHoverCard userId={msg.userId}>{authorButton()}</UserHoverCard>
                       </Show>
+                      <Show when={user()?.statusEmoji}>
+                        {(emoji) => (
+                          <span class="message-status-emoji">
+                            <EmojiText text={emoji()} />
+                            <Show when={user()?.statusText}>
+                              <span class="message-status-tooltip">{user()?.statusText}</span>
+                            </Show>
+                          </span>
+                        )}
+                      </Show>
                       <Show when={msg.botName}>
                         <span class="message-bot-badge">APP</span>
                       </Show>
@@ -125,78 +127,70 @@ export default function MessageRows(props: {
                   </Show>
 
                   <Show
-                    when={!msg.deleted}
+                    when={!isEditing()}
                     fallback={
-                      <div class="message-text message-deleted-text">
-                        <Icon name="trash" size={14} /> This message was deleted
-                      </div>
+                      <Composer
+                        channelId={props.channelId}
+                        editing={{
+                          initialText: msg.text,
+                          onSave: (text, blocks) => {
+                            editMessageText(props.channelId, msg.ts, text, blocks);
+                            setIsEditing(false);
+                          },
+                          onCancel: () => setIsEditing(false),
+                        }}
+                      />
                     }
                   >
-                    <Show
-                      when={!isEditing()}
-                      fallback={
-                        <MessageEditForm
-                          initialText={msg.text}
-                          onSave={(text) => {
-                            editMessageText(props.location, props.channelId, msg.ts, text);
-                            setIsEditing(false);
-                          }}
-                          onCancel={() => setIsEditing(false)}
-                        />
-                      }
-                    >
-                      <div class="message-text">
-                        <Show
-                          when={msg.blocks?.length ? msg.blocks : undefined}
-                          fallback={<Mrkdwn text={msg.text} />}
-                        >
-                          {(blocks) => <BlockKit blocks={blocks()} />}
-                        </Show>
-                        <Show when={msg.editedLocally}>
-                          <span class="message-edited"> (edited)</span>
-                        </Show>
-                      </div>
-                    </Show>
-
-                    <Show when={msg.files?.length ? msg.files : undefined}>
-                      {(files) => <MessageFiles files={files()} />}
-                    </Show>
-
-                    <Show when={msg.attachments?.length}>
-                      <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
-                    </Show>
-
-                    <Show when={msg.reactions?.length ? msg.reactions : undefined}>
-                      {(reactions) => (
-                        <ReactionRow
-                          reactions={reactions()}
-                          onToggle={(name) =>
-                            reactToMessage(props.location, props.channelId, msg, name)
-                          }
-                        />
-                      )}
-                    </Show>
-
-                    <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
-                      <button
-                        type="button"
-                        class="message-replies"
-                        onClick={() => props.onOpenThread?.(msg.ts)}
+                    <div class={"message-text" + (msg.deleted ? " message-deleted-text" : "")}>
+                      <Show
+                        when={msg.blocks?.length ? msg.blocks : undefined}
+                        fallback={<Mrkdwn text={msg.text} />}
                       >
-                        <Show
-                          when={msg.replyUsers?.length ? msg.replyUsers : undefined}
-                          fallback={<Icon name="threads" size={14} />}
-                        >
-                          {(users) => <InteractorAvatars userIds={users()} />}
-                        </Show>{" "}
-                        {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
-                      </button>
-                    </Show>
+                        {(blocks) => <BlockKit blocks={blocks()} />}
+                      </Show>
+                      <Show when={msg.editedLocally}>
+                        <span class="message-edited"> (edited)</span>
+                      </Show>
+                    </div>
+                  </Show>
+
+                  <Show when={msg.files?.length ? msg.files : undefined}>
+                    {(files) => <MessageFiles files={files()} />}
+                  </Show>
+
+                  <Show when={msg.attachments?.length}>
+                    <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
+                  </Show>
+
+                  <Show when={msg.reactions?.length ? msg.reactions : undefined}>
+                    {(reactions) => (
+                      <ReactionRow
+                        reactions={reactions()}
+                        onToggle={(name) => reactToMessage(props.channelId, msg, name)}
+                      />
+                    )}
+                  </Show>
+
+                  <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
+                    <button
+                      type="button"
+                      class="message-replies"
+                      onClick={() => props.onOpenThread?.(msg.ts)}
+                    >
+                      <Show
+                        when={msg.replyUsers?.length ? msg.replyUsers : undefined}
+                        fallback={<Icon name="threads" size={14} />}
+                      >
+                        {(users) => <InteractorAvatars userIds={users()} />}
+                      </Show>{" "}
+                      {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+                    </button>
                   </Show>
                 </div>
               </div>
             </Show>
-          </>
+          </Show>
         );
       }}
     </For>

@@ -1,3 +1,4 @@
+import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "./context";
 import EmojiText from "./EmojiText";
@@ -156,8 +157,13 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
     isUser
       ? (user()?.name ?? props.label ?? props.id)
       : (channel()?.name ?? props.label ?? props.id);
+  const isPrivate = () => channel()?.isPrivate !== false;
+  // Only true once we've actually resolved the channel and know it's private
+  // and we're not in it — never true while unresolved, so this can't flash.
+  const isInaccessible = () => isPrivate() && channel()?.isMember !== true;
 
   const onClick = () => {
+    if (isInaccessible()) return;
     if (isUser) resolver.onUserClick(props.id);
     else resolver.onChannelClick(props.id);
   };
@@ -166,10 +172,15 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
     <button
       type="button"
       class="bk-mention"
-      classList={{ "bk-mention-self": isUser && !!user()?.isSelf }}
+      classList={{
+        "bk-mention-self": isUser && !!user()?.isSelf,
+        "bk-mention-inaccessible": isInaccessible(),
+      }}
       onClick={onClick}
     >
-      {isUser ? "@" : "#"}
+      <Show when={isPrivate()} fallback={isUser ? "@" : "#"}>
+        <Icon name="lock" size={12} />
+      </Show>
       {name()}
     </button>
   );

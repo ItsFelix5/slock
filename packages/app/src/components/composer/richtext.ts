@@ -1,7 +1,7 @@
 import { emojiUrl, formatSlackDate } from "@slock/blockkit";
 import type { Block } from "@slock/slack-api";
 import { standardEmojiUnicode } from "../../lib/emojiSearch";
-import { channelById, userById } from "../../lib/store";
+import { channelById, channelDisplayName, userById } from "../../lib/store";
 
 // The composer edits a live DOM tree (contenteditable) instead of a raw mrkdwn
 // string, so bold/italic/etc. render for real as you type instead of showing
@@ -112,7 +112,7 @@ function appendToken(parent: Node, token: string) {
   }
   if (token.startsWith("#")) {
     const [id, label] = token.slice(1).split("|");
-    parent.appendChild(createChannelChip(id, label ?? channelById(id)?.name ?? id));
+    parent.appendChild(createChannelChip(id, label ?? channelDisplayName(channelById(id), id)));
     return;
   }
   if (token.startsWith("!date^")) {

@@ -3,9 +3,11 @@ import {
   applyPreset,
   compactMode,
   getEffectiveColor,
+  logDeletedMessages,
   resetThemeColor,
   resetThemeColors,
   setCompactMode,
+  setLogDeletedMessages,
   setTheme,
   setThemeColors,
   THEME_COLOR_KEYS,
@@ -113,6 +115,24 @@ export default function SettingsAppearanceTab() {
           classList={{ on: compactMode() }}
           onClick={() => setCompactMode(!compactMode())}
           title="Toggle compact mode"
+        >
+          <span class="settings-switch-knob" />
+        </button>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Log deleted messages</div>
+          <div class="settings-row-hint">
+            Keep a deleted message visible, struck through, instead of removing it from the list.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="settings-switch"
+          classList={{ on: logDeletedMessages() }}
+          onClick={() => setLogDeletedMessages(!logDeletedMessages())}
+          title="Toggle logging deleted messages"
         >
           <span class="settings-switch-knob" />
         </button>

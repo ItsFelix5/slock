@@ -18,6 +18,11 @@
   border-style: dashed;
 }
 
+.composer.composer-editing {
+  margin: 4px 0 0;
+  border-color: var(--accent);
+}
+
 .composer-row {
   display: flex;
   align-items: flex-end;

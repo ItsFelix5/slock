@@ -311,15 +311,25 @@ export function mapMessage(m: any): Message {
   };
 }
 
-export async function fetchHistory(channelId: string): Promise<Message[]> {
-  const res = await fetch(`/api/history?channel=${encodeURIComponent(channelId)}`);
+export type HistoryPage = { messages: Message[]; hasMore: boolean; nextCursor?: string };
+
+// `cursor` (from a prior page's nextCursor) fetches the next page of messages
+// older than that page — conversations.history paginates backwards in time.
+export async function fetchHistory(channelId: string, cursor?: string): Promise<HistoryPage> {
+  const params = new URLSearchParams({ channel: channelId });
+  if (cursor) params.set("cursor", cursor);
+  const res = await fetch(`/api/history?${params.toString()}`);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
-  return messages
-    .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
-    .map(mapMessage)
-    .reverse();
+  return {
+    messages: messages
+      .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
+      .map(mapMessage)
+      .reverse(),
+    hasMore: !!data.has_more,
+    nextCursor: data.response_metadata?.next_cursor || undefined,
+  };
 }
 
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
@@ -341,6 +351,25 @@ export async function fetchUser(id: string): Promise<User | null> {
   return mapUser(data.user);
 }
 
+// Resolves channels we don't have locally (mentioned in a message but never joined,
+// or not in this session's bootstrap) via Flaron, a public, CORS-open Slack workspace
+// archive/lookup service — no auth or proxying through our own server needed.
+export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
+  const res = await fetch(`https://flaron.halceon.dev/channel/${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if (!data.name) return null;
+  // Flaron's own UI uses "no `counts` field" as its private/public signal (it can't
+  // get member/bot counts for channels it doesn't have access to) — mirror that here
+  // since the API doesn't expose an explicit is_private flag.
+  return {
+    id: data.id ?? id,
+    name: data.name,
+    private: !data.counts,
+    topic: data.topic ?? "",
+    unread: false,
+  };
+}
+
 // team.profile.get's field *definitions* (label/ordering) are workspace-wide and
 // separate from each user's field *values* (see mapUser's customFields) — fetched
 // once and joined against a user's values at render time.
@@ -354,16 +383,67 @@ export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
 export type UserPrefs = {
   emojiUse: Record<string, number>;
   channelFrecency: Record<string, { count: number; lastVisit: number }>;
+  mutedChannels: string[];
+  notifyAllChannels: string[];
 };
 
-// The account's real emoji-use and quick-switcher jump-list frequencies, straight
-// from Slack's own local-usage database (see server's /api/prefs) — used to seed
-// frecency ranking with real history instead of starting cold in this client.
+// The account's real emoji-use, quick-switcher jump-list frequencies, muted
+// channels and per-channel notification overrides, straight from Slack's own
+// prefs blob (see server's /api/prefs) — used to seed local state with real
+// account history instead of starting cold in this client.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const res = await fetch("/api/prefs");
   const data = await res.json();
-  if (!data.ok) return { emojiUse: {}, channelFrecency: {} };
-  return { emojiUse: data.emojiUse ?? {}, channelFrecency: data.channelFrecency ?? {} };
+  if (!data.ok) return { emojiUse: {}, channelFrecency: {}, mutedChannels: [], notifyAllChannels: [] };
+  return {
+    emojiUse: data.emojiUse ?? {},
+    channelFrecency: data.channelFrecency ?? {},
+    mutedChannels: data.mutedChannels ?? [],
+    notifyAllChannels: data.notifyAllChannels ?? [],
+  };
+}
+
+// dnd.info is a documented public method — the account's real snooze deadline,
+// replacing a locally-cached one.
+export async function fetchDndStatus(): Promise<number | null> {
+  const res = await fetch("/api/dnd");
+  const data = await res.json();
+  return data.ok ? (data.snoozedUntil ?? null) : null;
+}
+
+export async function setChannelNotifyAll(channelId: string, notifyAll: boolean): Promise<void> {
+  const res = await fetch("/api/notify-all", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ channelId, notifyAll }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error("users.prefs.setNotifications failed");
+}
+
+// The account's real per-conversation read cursors (client.counts), used to tell
+// whether an activity/mention item has actually been read rather than tracking
+// a single locally-invented "activity read at" timestamp.
+export async function fetchLastReadByChannel(): Promise<Record<string, number>> {
+  const res = await fetch("/api/counts");
+  const data = await res.json();
+  return data.ok ? (data.lastReadByChannel ?? {}) : {};
+}
+
+export type DraftEntry = { channelId: string; threadTs?: string; text: string };
+
+export async function fetchDrafts(): Promise<DraftEntry[]> {
+  const res = await fetch("/api/drafts");
+  const data = await res.json();
+  return data.ok ? (data.drafts ?? []) : [];
+}
+
+export async function saveDraft(channelId: string, threadTs: string | undefined, text: string) {
+  await fetch("/api/drafts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ channelId, threadTs, text }),
+  });
 }
 
 // Org-wide directory search — the bootstrap user list is capped at 200 for
@@ -398,11 +478,11 @@ export async function postMessage(
   return data;
 }
 
-export async function editMessage(channelId: string, ts: string, text: string) {
+export async function editMessage(channelId: string, ts: string, text: string, blocks?: unknown) {
   const res = await fetch("/api/edit", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ channel: channelId, ts, text }),
+    body: JSON.stringify({ channel: channelId, ts, text, blocks }),
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
@@ -517,6 +597,13 @@ export async function fetchAllEmoji(): Promise<Record<string, string>> {
   const data = await res.json();
   if (!data.ok) return {};
   return data.emoji ?? {};
+}
+
+export async function fetchSlashCommands(): Promise<{ name: string; desc: string }[]> {
+  const res = await fetch("/api/slash-commands");
+  const data = await res.json();
+  if (!data.ok) return [];
+  return data.commands ?? [];
 }
 
 export async function fetchSaved(): Promise<SavedItem[]> {

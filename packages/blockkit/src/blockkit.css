@@ -258,6 +258,18 @@
   background: rgba(224, 167, 45, 0.35);
 }
 
+/* A private channel the viewer isn't a member of — same as Slack, this renders
+   dimmed and non-clickable since there's nowhere for the viewer to go. */
+.bk-mention-inaccessible {
+  background: rgba(148, 158, 168, 0.16);
+  color: #8b96a3;
+  cursor: default;
+}
+
+.bk-mention-inaccessible:hover {
+  background: rgba(148, 158, 168, 0.16);
+}
+
 .bk-color-swatch {
   display: inline-flex;
   align-items: center;

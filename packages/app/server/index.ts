@@ -71,9 +71,19 @@ function getEmojiMap() {
   return emojiMapPromise;
 }
 
+// Tracks the real Slack draft id + client_msg_id behind each channel/thread's
+// live composer draft, so repeated saves update the same draft.create row
+// instead of creating a new one on every debounce tick.
+const draftState = new Map<string, { draftId: string; clientMsgId: string }>();
+function draftKey(channelId: string, threadTs?: string): string {
+  return threadTs ? `${channelId}:${threadTs}` : channelId;
+}
+
 let prefsPromise: Promise<{
   emojiUse: Record<string, number>;
   channelFrecency: Record<string, { count: number; lastVisit: number }>;
+  mutedChannels: string[];
+  notifyAllChannels: string[];
 }> | null = null;
 
 // users.prefs.get carries the account's *real* local-usage databases (each pref
@@ -82,6 +92,10 @@ let prefsPromise: Promise<{
 // (non-EG) is the quick-switcher's jump list: one entry per canonical id plus a
 // bunch of alias entries (search prefixes typed while jumping) that share that
 // same id, so entries are reduced down to one {count, lastVisit} per id.
+// muted_channels is a plain comma-separated id list; all_notifications_prefs is
+// a JSON blob shaped `{channels: {id: {desktop?, mobile?}}, global: {...}}` where
+// a channel override value of "everything" means "notify me about all messages"
+// (confirmed by round-tripping users.prefs.setNotifications against a real channel).
 function getUserPrefs() {
   if (!prefsPromise) {
     prefsPromise = callSlack("users.prefs.get", {}).then((data) => {
@@ -109,7 +123,19 @@ function getUserPrefs() {
         if (!existing || count > existing.count) channelFrecency[id] = { count, lastVisit };
       }
 
-      return { emojiUse, channelFrecency };
+      const mutedChannels: string[] = (prefs.muted_channels ?? "")
+        .split(",")
+        .map((id: string) => id.trim())
+        .filter(Boolean);
+
+      const notificationOverrides = parse("all_notifications_prefs")?.channels ?? {};
+      const notifyAllChannels = Object.keys(notificationOverrides).filter(
+        (id) =>
+          notificationOverrides[id]?.desktop === "everything" ||
+          notificationOverrides[id]?.mobile === "everything",
+      );
+
+      return { emojiUse, channelFrecency, mutedChannels, notifyAllChannels };
     });
   }
   return prefsPromise;
@@ -136,6 +162,26 @@ function getProfileFieldDefs() {
       .catch(() => []);
   }
   return profileFieldsPromise;
+}
+
+let slashCommandsPromise: Promise<{ name: string; desc: string }[]> | null = null;
+
+// commands.list returns the workspace's available slash commands — used for
+// autocomplete in the composer. Some workspaces may restrict this, so a failure
+// here degrades to "empty command list" rather than breaking anything.
+function getSlashCommands() {
+  if (!slashCommandsPromise) {
+    slashCommandsPromise = callSlack("commands.list", {})
+      .then((data) => {
+        if (!data.ok) return [];
+        const commands: any[] = data.commands ?? [];
+        return commands
+          .filter((c) => c.name && !c.app_id) // Filter out custom app commands
+          .map((c) => ({ name: c.name, desc: c.description || "" }));
+      })
+      .catch(() => []);
+  }
+  return slashCommandsPromise;
 }
 
 // ---------------------------------------------------------------------------
@@ -549,7 +595,10 @@ Bun.serve({
       if (url.pathname === "/api/history") {
         const channel = url.searchParams.get("channel");
         if (!channel) return new Response("missing channel", { status: 400, headers: cors });
-        const data = await callSlack("conversations.history", { channel, limit: "60" });
+        const params: Record<string, string> = { channel, limit: "60" };
+        const cursor = url.searchParams.get("cursor");
+        if (cursor) params.cursor = cursor;
+        const data = await callSlack("conversations.history", params);
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
@@ -590,11 +639,18 @@ Bun.serve({
         return new Response(JSON.stringify({ ok: true, fields }), { headers: cors });
       }
 
+      if (url.pathname === "/api/slash-commands") {
+        const commands = await getSlashCommands();
+        return new Response(JSON.stringify({ ok: true, commands }), { headers: cors });
+      }
+
       if (url.pathname === "/api/prefs") {
-        const { emojiUse, channelFrecency } = await getUserPrefs();
-        return new Response(JSON.stringify({ ok: true, emojiUse, channelFrecency }), {
-          headers: cors,
-        });
+        const { emojiUse, channelFrecency, mutedChannels, notifyAllChannels } =
+          await getUserPrefs();
+        return new Response(
+          JSON.stringify({ ok: true, emojiUse, channelFrecency, mutedChannels, notifyAllChannels }),
+          { headers: cors },
+        );
       }
 
       if (url.pathname === "/api/users/search") {
@@ -649,12 +705,15 @@ Bun.serve({
       }
 
       if (url.pathname === "/api/edit" && req.method === "POST") {
-        const { channel, ts, text } = (await req.json()) as {
+        const { channel, ts, text, blocks } = (await req.json()) as {
           channel: string;
           ts: string;
           text: string;
+          blocks?: unknown;
         };
-        const data = await callSlack("chat.update", { channel, ts, text });
+        const params: Record<string, string> = { channel, ts, text };
+        if (blocks) params.blocks = JSON.stringify(blocks);
+        const data = await callSlack("chat.update", params);
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
@@ -866,6 +925,17 @@ Bun.serve({
         return new Response(JSON.stringify(data), { headers: cors });
       }
 
+      if (url.pathname === "/api/dnd" && req.method === "GET") {
+        // dnd.info is a real documented method — the current snooze state lives on
+        // the account itself, so this replaces reading a locally-cached deadline.
+        const data = await callSlack("dnd.info", {});
+        const snoozedUntil =
+          data.ok && data.snooze_enabled && data.snooze_endtime
+            ? data.snooze_endtime * 1000
+            : null;
+        return new Response(JSON.stringify({ ok: data.ok, snoozedUntil }), { headers: cors });
+      }
+
       if (url.pathname === "/api/dnd" && req.method === "POST") {
         const { minutes } = (await req.json()) as { minutes: number };
         const data =
@@ -873,6 +943,100 @@ Bun.serve({
             ? await callSlack("dnd.setSnooze", { num_minutes: String(minutes) })
             : await callSlack("dnd.endSnooze", {});
         return new Response(JSON.stringify(data), { headers: cors });
+      }
+
+      if (url.pathname === "/api/notify-all" && req.method === "POST") {
+        // Same private users.prefs.setNotifications mechanism as the real webapp's
+        // per-channel "Notification preferences" menu — confirmed by round-tripping
+        // a real channel: {name: desktop|mobile, value: "everything"} is the "all new
+        // messages" override, "mentions_dms" is the no-override/default state.
+        const { channelId, notifyAll } = (await req.json()) as {
+          channelId: string;
+          notifyAll: boolean;
+        };
+        const value = notifyAll ? "everything" : "mentions_dms";
+        const [desktop, mobile] = await Promise.all([
+          callSlack("users.prefs.setNotifications", {
+            name: "desktop",
+            value,
+            channel_id: channelId,
+            global: "false",
+          }),
+          callSlack("users.prefs.setNotifications", {
+            name: "mobile",
+            value,
+            channel_id: channelId,
+            global: "false",
+          }),
+        ]);
+        return new Response(JSON.stringify({ ok: desktop.ok && mobile.ok }), { headers: cors });
+      }
+
+      if (url.pathname === "/api/counts" && req.method === "GET") {
+        // client.counts carries the account's real per-conversation read cursors
+        // (last_read) — used to derive "is this mention/activity item still
+        // unread" instead of a single locally-invented read-at timestamp.
+        const data = await callSlack("client.counts", {});
+        const lastReadByChannel: Record<string, number> = {};
+        for (const list of [data.channels, data.ims, data.mpims]) {
+          for (const c of list ?? []) {
+            const ts = parseFloat(c.last_read);
+            if (ts) lastReadByChannel[c.id] = ts * 1000;
+          }
+        }
+        return new Response(JSON.stringify({ ok: data.ok, lastReadByChannel }), { headers: cors });
+      }
+
+      if (url.pathname === "/api/drafts" && req.method === "GET") {
+        const data = await callSlack("drafts.list", { is_active: "true", limit: "100" });
+        const drafts = (data.drafts ?? []).map((d: any) => {
+          const dest = d.destinations?.[0] ?? {};
+          const key = draftKey(dest.channel_id, dest.thread_ts);
+          draftState.set(key, { draftId: d.id, clientMsgId: d.client_msg_id });
+          return {
+            channelId: dest.channel_id,
+            threadTs: dest.thread_ts,
+            text: d.blocks?.[0]?.text?.text ?? "",
+          };
+        });
+        return new Response(JSON.stringify({ ok: data.ok !== false, drafts }), { headers: cors });
+      }
+
+      if (url.pathname === "/api/drafts" && req.method === "POST") {
+        const { channelId, threadTs, text } = (await req.json()) as {
+          channelId: string;
+          threadTs?: string;
+          text: string;
+        };
+        const key = draftKey(channelId, threadTs);
+        const existing = draftState.get(key);
+
+        if (!text.trim()) {
+          if (existing) {
+            await callSlack("drafts.delete", {
+              draft_id: existing.draftId,
+              client_last_updated_ts: String(Date.now() / 1000),
+            });
+            draftState.delete(key);
+          }
+          return new Response(JSON.stringify({ ok: true }), { headers: cors });
+        }
+
+        const clientMsgId = existing?.clientMsgId ?? crypto.randomUUID();
+        const destination: Record<string, string> = { channel_id: channelId };
+        if (threadTs) destination.thread_ts = threadTs;
+        const params: Record<string, string> = {
+          blocks: JSON.stringify([{ type: "section", text: { type: "mrkdwn", text } }]),
+          destinations: JSON.stringify([destination]),
+          is_from_composer: "true",
+          client_msg_id: clientMsgId,
+          file_ids: "[]",
+        };
+        if (existing) params.draft_id = existing.draftId;
+        const data = await callSlack("drafts.create", params);
+        const draftId = data.draft?.id ?? data.id;
+        if (data.ok !== false && draftId) draftState.set(key, { draftId, clientMsgId });
+        return new Response(JSON.stringify({ ok: data.ok !== false }), { headers: cors });
       }
 
       if (url.pathname === "/api/canvas") {

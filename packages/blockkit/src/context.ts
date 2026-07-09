@@ -8,6 +8,11 @@ export interface BlockKitMentionInfo {
   // True when this mention refers to the viewing user, so it can be rendered
   // as a "pings you" highlight rather than a plain, non-pinging mention.
   isSelf?: boolean;
+  // Channel mentions only: true for private channels, so they render with a
+  // lock icon instead of "#". When private and `isMember` is false, the mention
+  // also renders dimmed/non-clickable — the viewer has no way to open it.
+  isPrivate?: boolean;
+  isMember?: boolean;
 }
 
 export interface BlockKitResolver {

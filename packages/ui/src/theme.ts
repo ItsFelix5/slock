@@ -48,6 +48,18 @@ export function setCompactMode(on: boolean) {
   applyCompact(on);
 }
 
+// Whether deleted messages stay visible (struck through) instead of being
+// removed from the list entirely.
+const LOG_DELETED_KEY = "slock-log-deleted-messages";
+const [logDeletedMessages, setLogDeletedMessagesSignal] = createSignal(
+  localStorage.getItem(LOG_DELETED_KEY) === "1",
+);
+
+export function setLogDeletedMessages(on: boolean) {
+  setLogDeletedMessagesSignal(on);
+  localStorage.setItem(LOG_DELETED_KEY, on ? "1" : "0");
+}
+
 // Runtime-overridable color tokens, on top of the static `:root`/`:root.theme-light`
 // tokens in theme.css — lets any consumer of @slock/ui re-skin the app without
 // forking the stylesheet. Applied as inline styles on <html>, which win over the
@@ -258,4 +270,4 @@ export const activePreset = createMemo((): string => {
   return "custom";
 });
 
-export { compactMode, theme, themeColors };
+export { compactMode, logDeletedMessages, theme, themeColors };

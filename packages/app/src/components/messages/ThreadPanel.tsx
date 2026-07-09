@@ -53,11 +53,7 @@ export default function ThreadPanel() {
             </button>
           </div>
           <div class="thread-panel-messages">
-            <MessageRows
-              messages={messages()}
-              channelId={t().channelId}
-              location={{ store: "thread", key: t().ts }}
-            />
+            <MessageRows messages={messages()} channelId={t().channelId} />
           </div>
           <Composer channelId={t().channelId} threadTs={t().ts} placeholder="Reply…" />
         </div>

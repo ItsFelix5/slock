@@ -7,7 +7,6 @@ import {
   deleteMessageAt,
   isMessagePinned,
   isSavedForLater,
-  type MessageLocation,
   markMessageUnread,
   openUserProfile,
   REMINDER_OPTIONS,
@@ -21,7 +20,6 @@ import EmojiPicker from "../composer/EmojiPicker";
 
 export default function MessageActionsBar(props: {
   channelId: string;
-  location: MessageLocation;
   msg: Message;
   onOpenThread?: (ts: string) => void;
   onEditRequest: () => void;
@@ -62,13 +60,12 @@ export default function MessageActionsBar(props: {
 
   const requestDelete = () => {
     setMoreOpen(false);
-    if (confirm("Delete this message?"))
-      deleteMessageAt(props.location, props.channelId, props.msg.ts);
+    if (confirm("Delete this message?")) deleteMessageAt(props.channelId, props.msg.ts);
   };
 
   const react = (name: string) => {
     recordEmojiUse(name);
-    reactToMessage(props.location, props.channelId, props.msg, name);
+    reactToMessage(props.channelId, props.msg, name);
     setPickerOpen(false);
   };
 

@@ -7,7 +7,7 @@ import {
   channelById,
   channelDisplayName,
   ensureActivityLoaded,
-  lastActivityReadAt,
+  isActivityItemUnread,
   markActivityRead,
   openChannelPeek,
   userById,
@@ -75,7 +75,6 @@ export default function ActivityView() {
     const tags = selectedTags();
     const kw = keyword().trim().toLowerCase();
     const read = readState();
-    const cutoff = lastActivityReadAt();
 
     return sorted.filter((item) => {
       if (tags.size > 0) {
@@ -84,7 +83,7 @@ export default function ActivityView() {
         if (!itemTags.some((t) => tags.has(t))) return false;
       }
       if (kw && !item.text.toLowerCase().includes(kw)) return false;
-      const unread = item.time > cutoff;
+      const unread = isActivityItemUnread(item);
       if (read === "unread" && !unread) return false;
       if (read === "read" && unread) return false;
       return true;
@@ -177,7 +176,7 @@ export default function ActivityView() {
           {(item) => {
             const user = createMemo(() => userById(item.userId));
             const channel = createMemo(() => channelById(item.channelId));
-            const isUnread = createMemo(() => item.time > lastActivityReadAt());
+            const isUnread = createMemo(() => isActivityItemUnread(item));
             return (
               <button
                 type="button"

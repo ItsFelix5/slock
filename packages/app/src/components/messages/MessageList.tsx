@@ -4,6 +4,9 @@ import {
   channelById,
   channelDisplayName,
   dmById,
+  hasMoreHistory,
+  isLoadingHistory,
+  loadOlderMessages,
   messagesByChannel,
   openThread,
   userById,
@@ -12,10 +15,16 @@ import MessageRows from "./MessageRows";
 import "./MessageList.css";
 
 const NEAR_BOTTOM_PX = 120;
+const NEAR_TOP_PX = 200;
 
 export default function MessageList() {
   let scrollRef: HTMLDivElement | undefined;
   let lastViewId: string | undefined;
+  // Set right before requesting an older page, so the effect below can restore
+  // the reader's viewport onto the same messages instead of the browser leaving
+  // scrollTop untouched (which would visually yank the view down as content is
+  // inserted above it).
+  let olderPageAnchor: { scrollHeight: number; scrollTop: number } | null = null;
 
   const messages = createMemo(() => {
     const v = activeView();
@@ -43,6 +52,19 @@ export default function MessageList() {
     lastViewId = view?.id;
     const el = scrollRef;
     if (!el) return;
+
+    if (olderPageAnchor) {
+      const anchor = olderPageAnchor;
+      olderPageAnchor = null;
+      if (!switchedView) {
+        queueMicrotask(() => {
+          if (scrollRef)
+            scrollRef.scrollTop = scrollRef.scrollHeight - anchor.scrollHeight + anchor.scrollTop;
+        });
+        return;
+      }
+    }
+
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
     if (switchedView || nearBottom) {
       queueMicrotask(() => {
@@ -51,22 +73,38 @@ export default function MessageList() {
     }
   });
 
-  return (
-    <div class="message-list" ref={scrollRef}>
-      <div class="message-list-intro">
-        <div class="message-list-intro-icon">#</div>
-        <h2>{channelName()}</h2>
-        <p>This is the very beginning of your conversation. Say hello!</p>
-      </div>
+  function handleScroll() {
+    const el = scrollRef;
+    const view = activeView();
+    if (!el || !view || el.scrollTop > NEAR_TOP_PX) return;
+    if (!hasMoreHistory(view.id) || isLoadingHistory(view.id)) return;
+    olderPageAnchor = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop };
+    loadOlderMessages(view.id);
+  }
 
+  return (
+    <div class="message-list" ref={scrollRef} onScroll={handleScroll}>
       <Show when={activeView()}>
         {(v) => (
-          <MessageRows
-            messages={messages()}
-            channelId={v().id}
-            location={{ store: "channel", key: v().id }}
-            onOpenThread={(ts) => openThread(v().id, ts)}
-          />
+          <>
+            <Show when={hasMoreHistory(v().id)}>
+              <div class="message-list-loading-older">
+                <Show when={isLoadingHistory(v().id)}>Loading earlier messages…</Show>
+              </div>
+            </Show>
+            <Show when={!hasMoreHistory(v().id)}>
+              <div class="message-list-intro">
+                <div class="message-list-intro-icon">#</div>
+                <h2>{channelName()}</h2>
+                <p>This is the very beginning of your conversation. Say hello!</p>
+              </div>
+            </Show>
+            <MessageRows
+              messages={messages()}
+              channelId={v().id}
+              onOpenThread={(ts) => openThread(v().id, ts)}
+            />
+          </>
         )}
       </Show>
     </div>

@@ -1,8 +1,8 @@
 import { emojiUrl } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
-import { fetchBrowsableChannels, uploadFile } from "@slock/slack-api";
+import { fetchBrowsableChannels, fetchDrafts, fetchSlashCommands, saveDraft, uploadFile } from "@slock/slack-api";
 import { Avatar, fuzzySearch, Icon, type IconName, Menu, showToast } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   allEmojiEntries,
   frequentEmoji,
@@ -55,10 +55,6 @@ type FormatTool =
 // they're typed markdown-style at the start of a line; see maybeApplyLineTrigger.
 // Date is the one block that stays in the menu: it needs a real picker popup.
 const FORMAT_TOOLS: FormatTool[] = [
-  { kind: "mark", icon: "bold", title: "Bold", mark: "bold" },
-  { kind: "mark", icon: "italic", title: "Italic", mark: "italic" },
-  { kind: "mark", icon: "strikethrough", title: "Strikethrough", mark: "strike" },
-  { kind: "mark", icon: "code", title: "Inline code", mark: "code" },
   { kind: "date", icon: "calendar", title: "Date" },
   { kind: "attach", icon: "attachment", title: "Attach file" },
   { kind: "mention", icon: "mentions", title: "Mention someone" },
@@ -76,22 +72,6 @@ type SuggestState =
   | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
   | { kind: "emoji"; start: number; items: EmojiSuggestItem[]; active: number };
 
-const SLASH_COMMANDS: { name: string; desc: string }[] = [
-  { name: "shrug", desc: "Append ¯\\_(ツ)_/¯ to your message" },
-  { name: "me", desc: "Share an action you're doing" },
-  { name: "topic", desc: "Set the channel topic" },
-  { name: "remind", desc: "Set a reminder" },
-  { name: "msg", desc: "Send a direct message" },
-  { name: "invite", desc: "Invite people to this channel" },
-  { name: "leave", desc: "Leave this channel" },
-  { name: "archive", desc: "Archive this channel" },
-  { name: "rename", desc: "Rename this channel" },
-  { name: "status", desc: "Set your status" },
-  { name: "dnd", desc: "Snooze notifications" },
-  { name: "who", desc: "List members of this channel" },
-  { name: "mute", desc: "Mute this channel" },
-  { name: "call", desc: "Start a call" },
-];
 
 // Detects an in-progress @mention, #channel-mention, :emoji-shortcode, or
 // /slash-command token immediately before the cursor, the way Slack's real
@@ -160,36 +140,57 @@ function suggestItemContent(item: SuggestItem) {
   }
 }
 
-const DRAFTS_KEY = "slock-drafts";
+// Drafts live on the real Slack account (drafts.list/create/delete) rather
+// than in localStorage, so they follow you to another device the way a real
+// unsent-message draft does. Keyed the same way as before (`thread:<ts>` for
+// a thread reply, else the channel id) — this module-level cache is shared
+// across every Composer instance (the component is reused across channel
+// switches, never remounted), and is hydrated once from the account at load.
+const drafts: Record<string, string> = {};
+const [draftsReady, setDraftsReady] = createSignal(false);
+fetchDrafts()
+  .then((entries) => {
+    for (const d of entries) drafts[d.threadTs ? `thread:${d.threadTs}` : d.channelId] = d.text;
+  })
+  .finally(() => setDraftsReady(true));
 
-function loadDrafts(): Record<string, string> {
-  try {
-    return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
+const draftSaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-const drafts = loadDrafts();
-
-function persistDrafts() {
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+// Debounced so a debounce-free character-by-character sync doesn't spam
+// drafts.create — Slack's own draft round-trip only needs to be roughly
+// current, not live.
+function persistDraft(channelId: string, threadTs: string | undefined, text: string) {
+  const key = threadTs ? `thread:${threadTs}` : channelId;
+  const pending = draftSaveTimers.get(key);
+  if (pending) clearTimeout(pending);
+  draftSaveTimers.set(
+    key,
+    setTimeout(() => {
+      draftSaveTimers.delete(key);
+      saveDraft(channelId, threadTs, text).catch(() => {});
+    }, 1000),
+  );
 }
 
 export default function Composer(props: {
   channelId?: string;
   threadTs?: string;
   placeholder?: string;
+  editing?: {
+    initialText: string;
+    onSave: (text: string, blocks?: unknown) => void;
+    onCancel: () => void;
+  };
 }) {
   const [text, setText] = createSignal("");
   const [toolsOpen, setToolsOpen] = createSignal(false);
-  const [emojiOpen, setEmojiOpen] = createSignal(false);
   const [mentionOpen, setMentionOpen] = createSignal(false);
   const [dateOpen, setDateOpen] = createSignal(false);
   const [pendingFiles, setPendingFiles] = createSignal<File[]>([]);
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
+  const [slashCommands, setSlashCommands] = createSignal<{ name: string; desc: string }[]>([]);
   let editorRef: HTMLDivElement | undefined;
   let fileInputRef: HTMLInputElement | undefined;
   let suggestRequestId = 0;
@@ -273,7 +274,7 @@ export default function Composer(props: {
     const reqId = ++suggestRequestId;
 
     if (trigger.kind === "command") {
-      const items = fuzzySearch(SLASH_COMMANDS, { query: q, text: (c) => c.name }).map(
+      const items = fuzzySearch(slashCommands(), { query: q, text: (c) => c.name }).map(
         (c): CommandSuggestItem => ({ kind: "command", name: c.name, desc: c.desc }),
       );
       setSuggest(
@@ -398,23 +399,42 @@ export default function Composer(props: {
   // The composer is a single long-lived component reused across every channel/DM
   // (and once per open thread) rather than remounted on switch, so without this
   // the exact same in-progress text would carry over when you change channels.
-  createEffect((prevKey: string | undefined) => {
+  // An editing composer is mounted fresh per edit session instead, so it skips
+  // drafts entirely and loads the message's own text once on mount below.
+  // Also waits on draftsReady so a channel opened before the initial
+  // drafts.list fetch resolves still picks up its real draft once it lands.
+  let loadedDraftKey: string | undefined;
+  createEffect(() => {
+    if (props.editing || !draftsReady()) return;
     const key = draftKey();
-    if (key !== prevKey) {
-      const value = (key && drafts[key]) || "";
-      setText(value);
-      loadDraftIntoEditor(value);
-    }
-    return key;
-  }, undefined);
+    if (key === loadedDraftKey) return;
+    loadedDraftKey = key;
+    const value = (key && drafts[key]) || "";
+    setText(value);
+    loadDraftIntoEditor(value);
+  });
 
   createEffect(() => {
+    if (props.editing || !draftsReady()) return;
     const key = draftKey();
-    if (!key) return;
+    const channelId = targetChannelId();
+    if (!key || !channelId) return;
     const value = text();
     if (value.trim()) drafts[key] = value;
     else delete drafts[key];
-    persistDrafts();
+    persistDraft(channelId, props.threadTs, value);
+  });
+
+  onMount(() => {
+    if (!props.editing) return;
+    setText(props.editing.initialText);
+    loadDraftIntoEditor(props.editing.initialText);
+    focusEditor();
+    if (editorRef) placeCaretAtEnd(editorRef);
+  });
+
+  createEffect(() => {
+    fetchSlashCommands().then(setSlashCommands).catch(() => {});
   });
 
   const placeholder = () => {
@@ -826,6 +846,13 @@ export default function Composer(props: {
     return Boolean(text().trim());
   });
 
+  // Can't attach a new file to an already-sent message, so that tool is
+  // pointless (and its target, an <input type=file>, isn't even rendered) in
+  // edit mode.
+  const availableTools = createMemo(() =>
+    props.editing ? FORMAT_TOOLS.filter((t) => t.kind !== "attach") : FORMAT_TOOLS,
+  );
+
   const addFiles = (fileList: FileList | File[]) => {
     setPendingFiles([...pendingFiles(), ...Array.from(fileList)]);
   };
@@ -836,13 +863,20 @@ export default function Composer(props: {
 
   const submit = async (e: Event) => {
     e.preventDefault();
-    const id = targetChannelId();
-    if (!id || !canSend()) return;
-    const files = pendingFiles();
     const trimmed = text().trim();
     // Headers/dividers can't be expressed in plain mrkdwn — such messages go
     // out as an ordered block list, with `trimmed` as the notification text.
     const blocks = editorRef ? (fragmentToBlocks(editorRef) ?? undefined) : undefined;
+
+    if (props.editing) {
+      if (!trimmed) return;
+      props.editing.onSave(trimmed, blocks);
+      return;
+    }
+
+    const id = targetChannelId();
+    if (!id || !canSend()) return;
+    const files = pendingFiles();
 
     setSending(true);
     try {
@@ -899,6 +933,11 @@ export default function Composer(props: {
         setSuggest(null);
         return;
       }
+    }
+    if (e.key === "Escape" && props.editing) {
+      e.preventDefault();
+      props.editing.onCancel();
+      return;
     }
     if (e.key === "Enter" && !e.shiftKey) {
       submit(e);
@@ -1037,20 +1076,20 @@ export default function Composer(props: {
   return (
     <form
       class="composer"
-      classList={{ "drag-over": dragOver() }}
+      classList={{ "drag-over": dragOver(), "composer-editing": !!props.editing }}
       onSubmit={submit}
       onDragOver={(e) => {
         e.preventDefault();
-        if (targetChannelId()) setDragOver(true);
+        if (!props.editing && targetChannelId()) setDragOver(true);
       }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDragOver(false);
-        if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
+        if (!props.editing && e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
       }}
     >
-      <Show when={pendingFiles().length > 0}>
+      <Show when={!props.editing && pendingFiles().length > 0}>
         <div class="composer-file-chips">
           <For each={pendingFiles()}>
             {(file, i) => (
@@ -1084,7 +1123,7 @@ export default function Composer(props: {
               </button>
             }
           >
-            <For each={FORMAT_TOOLS}>
+            <For each={availableTools()}>
               {(tool) => (
                 <button
                   type="button"

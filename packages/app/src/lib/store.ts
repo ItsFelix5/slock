@@ -25,7 +25,10 @@ import {
   fetchBootstrap,
   fetchBrowsableChannels,
   fetchCanvas,
+  fetchDndStatus,
+  fetchFlaronChannel,
   fetchHistory,
+  fetchLastReadByChannel,
   fetchMentions,
   fetchPinnedMessages,
   fetchPins,
@@ -46,6 +49,7 @@ import {
   runSlashCommand,
   saveCanvas,
   searchDirectory,
+  setChannelNotifyAll,
   setChannelTopic,
   setDndSnooze,
   setMutedChannels,
@@ -73,10 +77,14 @@ export type ThreadRef = { channelId: string; ts: string };
 // patch the right list — a message can appear in a channel's history and/or a thread's replies.
 export type MessageLocation = { store: "channel"; key: string } | { store: "thread"; key: string };
 
+// `fresh` is only ever the latest ~60 messages (a poll snapshot), while `existing`
+// may additionally hold older messages paginated in via loadOlderMessages — so this
+// must keep anything existing doesn't get an authoritative update for (pending
+// stubs and older history alike), not just overwrite wholesale with `fresh`.
 function mergeMessages(existing: Message[], fresh: Message[]): Message[] {
   const freshById = new Map(fresh.map((m) => [m.id, m]));
-  const pendingOnly = existing.filter((m) => m.id.startsWith("pending-") && !freshById.has(m.id));
-  const merged = [...fresh, ...pendingOnly];
+  const keep = existing.filter((m) => !freshById.has(m.id));
+  const merged = [...keep, ...fresh];
   merged.sort(
     (a, b) => parseFloat(a.ts || "0") - parseFloat(b.ts || "0") || (a.id < b.id ? -1 : 1),
   );
@@ -197,6 +205,13 @@ function setup() {
   const [searchScreenFilters, setSearchScreenFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
   const [messagesByChannel, setMessagesByChannel] = createStore<Record<string, Message[]>>({});
   const loadedChannels = new Set<string>();
+  // Cursor for the next (older) page of a channel's history, from
+  // conversations.history's response_metadata.next_cursor. Not reactive — only
+  // loadOlderMessages reads it, so it doesn't need to drive re-renders.
+  const historyCursor = new Map<string, string | undefined>();
+  const [historyMeta, setHistoryMeta] = createStore<
+    Record<string, { hasMore: boolean; loading: boolean }>
+  >({});
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
   const pendingUsers = new Set<string>();
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
@@ -204,6 +219,12 @@ function setup() {
   );
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
+  // Channels resolved only for display purposes (e.g. a #channel mention link
+  // pointing at a channel the user has never joined) — kept separate from
+  // `extraChannels` so a lookup never makes an unjoined channel show up in
+  // the sidebar via `channels()`.
+  const [discoveredChannels, setDiscoveredChannels] = createStore<Channel[]>([]);
+  const pendingChannels = new Set<string>();
   const [unreadChannelIds, setUnreadChannelIds] = createStore<Record<string, boolean>>({});
   const [starredChannelIds, setStarredChannelIds] = createStore<Record<string, boolean>>({});
   let starredSeeded = false;
@@ -223,9 +244,12 @@ function setup() {
 
   const [activityItems, setActivityItems] = createStore<ActivityItem[]>([]);
   const [activityLoaded, setActivityLoaded] = createSignal(false);
-  const [lastActivityReadAt, setLastActivityReadAt] = createSignal(
-    Number(localStorage.getItem("slock-activity-read-at") ?? 0),
-  );
+  // Per-channel real Slack read cursors (client.counts' last_read) rather than a
+  // single locally-invented "activity read at" timestamp — an activity item is
+  // unread if its ts is past the *account's own* read cursor for that channel,
+  // the same signal Slack's real unread badges use.
+  const [lastReadByChannel, setLastReadByChannel] = createStore<Record<string, number>>({});
+  const [lastReadByChannelResource] = createResource(fetchLastReadByChannel);
 
   const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);
   const [laterLoaded, setLaterLoaded] = createSignal(false);
@@ -245,33 +269,13 @@ function setup() {
 
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
 
-  const MUTE_STORAGE_KEY = "slock-muted-channels";
-  const loadMuted = (): string[] => {
-    try {
-      return JSON.parse(localStorage.getItem(MUTE_STORAGE_KEY) ?? "[]");
-    } catch {
-      return [];
-    }
-  };
-  const [mutedChannelIds, setMutedChannelIds] = createStore<Record<string, boolean>>(
-    Object.fromEntries(loadMuted().map((id) => [id, true])),
-  );
-
-  const NOTIFY_ALL_STORAGE_KEY = "slock-notify-all-channels";
-  const loadNotifyAll = (): string[] => {
-    try {
-      return JSON.parse(localStorage.getItem(NOTIFY_ALL_STORAGE_KEY) ?? "[]");
-    } catch {
-      return [];
-    }
-  };
-  const [notifyAllChannelIds, setNotifyAllChannelIds] = createStore<Record<string, boolean>>(
-    Object.fromEntries(loadNotifyAll().map((id) => [id, true])),
-  );
-
-  const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(
-    Number(localStorage.getItem("slock-dnd-until") ?? 0) || null,
-  );
+  // Muted / notify-all channels and DND snooze all live on the real Slack
+  // account (users.prefs / dnd.info) — these seed from there via createEffect
+  // below rather than from localStorage, once the boot fetch resolves.
+  const [mutedChannelIds, setMutedChannelIds] = createStore<Record<string, boolean>>({});
+  const [notifyAllChannelIds, setNotifyAllChannelIds] = createStore<Record<string, boolean>>({});
+  const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(null);
+  const [dndStatus] = createResource(fetchDndStatus);
 
   // Mirrors the "frecency" ranking the real client uses for local usage
   // databases (quick-switcher jump targets, emoji picker): each use bumps a
@@ -435,6 +439,28 @@ function setup() {
     if (autoCloseTimer) clearInterval(autoCloseTimer);
   });
 
+  let mutePrefsSeeded = false;
+  createEffect(() => {
+    const prefs = userPrefs();
+    if (!prefs || mutePrefsSeeded) return;
+    mutePrefsSeeded = true;
+    for (const id of prefs.mutedChannels) setMutedChannelIds(id, true);
+    for (const id of prefs.notifyAllChannels) setNotifyAllChannelIds(id, true);
+  });
+
+  createEffect(() => {
+    const status = dndStatus();
+    if (status !== undefined) setDndSnoozedUntil(status);
+  });
+
+  let lastReadSeeded = false;
+  createEffect(() => {
+    const data = lastReadByChannelResource();
+    if (!data || lastReadSeeded) return;
+    lastReadSeeded = true;
+    for (const [id, ts] of Object.entries(data)) setLastReadByChannel(id, ts);
+  });
+
   createEffect(() => {
     const view = activeView();
     if (view) ensurePinsLoaded(view.id);
@@ -453,13 +479,48 @@ function setup() {
     if (loadedChannels.has(view.id)) return;
     loadedChannels.add(view.id);
     fetchHistory(view.id)
-      .then((messages) => {
+      .then(({ messages, hasMore, nextCursor }) => {
         setMessagesByChannel(view.id, messages);
+        historyCursor.set(view.id, nextCursor);
+        setHistoryMeta(view.id, { hasMore, loading: false });
       })
       .catch(() => {
         loadedChannels.delete(view.id);
       });
   });
+
+  function hasMoreHistory(channelId: string) {
+    // Unknown (not loaded yet) defaults to true so the "beginning of channel"
+    // intro doesn't flash before the first page has actually confirmed it.
+    return historyMeta[channelId]?.hasMore ?? true;
+  }
+
+  function isLoadingHistory(channelId: string) {
+    return historyMeta[channelId]?.loading ?? false;
+  }
+
+  async function loadOlderMessages(channelId: string) {
+    if (!loadedChannels.has(channelId)) return;
+    const meta = historyMeta[channelId];
+    if (meta?.loading || meta?.hasMore === false) return;
+    const cursor = historyCursor.get(channelId);
+    if (!cursor) {
+      setHistoryMeta(channelId, "hasMore", false);
+      return;
+    }
+    setHistoryMeta(channelId, "loading", true);
+    try {
+      const { messages: older, hasMore, nextCursor } = await fetchHistory(channelId, cursor);
+      setMessagesByChannel(channelId, (existing = []) => {
+        const existingIds = new Set(existing.map((m) => m.id));
+        return [...older.filter((m) => !existingIds.has(m.id)), ...existing];
+      });
+      historyCursor.set(channelId, nextCursor);
+      setHistoryMeta(channelId, { hasMore, loading: false });
+    } catch {
+      setHistoryMeta(channelId, "loading", false);
+    }
+  }
 
   createEffect(() => {
     const thread = activeThread();
@@ -488,18 +549,25 @@ function setup() {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(payload));
   }
 
-  function findMessageList(
+  // A thread's parent message is stored twice — once in the channel's own
+  // list, once as the first entry of its thread list — so any patch (edit,
+  // delete, reaction, reply count) has to hit every copy or one view goes
+  // stale until reload. Same ts can't collide across channels/threads since
+  // Slack timestamps are effectively unique.
+  function findAllMessageLocations(
     channelId: string,
     ts: string,
-  ): { location: MessageLocation; list: Message[] } | null {
+  ): { location: MessageLocation; list: Message[] }[] {
+    const results: { location: MessageLocation; list: Message[] }[] = [];
     const inChannel = messagesByChannel[channelId];
     if (inChannel?.some((m) => m.ts === ts))
-      return { location: { store: "channel", key: channelId }, list: inChannel };
+      results.push({ location: { store: "channel", key: channelId }, list: inChannel });
     for (const key of Object.keys(threadMessages)) {
       const list = threadMessages[key];
-      if (list?.some((m) => m.ts === ts)) return { location: { store: "thread", key }, list };
+      if (list?.some((m) => m.ts === ts))
+        results.push({ location: { store: "thread", key }, list });
     }
-    return null;
+    return results;
   }
 
   function applyReactionEvent(
@@ -509,9 +577,9 @@ function setup() {
     userId: string,
     added: boolean,
   ) {
-    const found = findMessageList(channel, ts);
-    if (!found) return;
-    const msg = found.list.find((m) => m.ts === ts);
+    const locations = findAllMessageLocations(channel, ts);
+    if (locations.length === 0) return;
+    const msg = locations[0].list.find((m) => m.ts === ts);
     if (!msg) return;
     const reactions = msg.reactions ?? [];
     const existing = reactions.find((r) => r.name === name);
@@ -519,8 +587,8 @@ function setup() {
     if (added) {
       next = existing
         ? reactions.map((r) =>
-            r.name === name ? { ...r, count: r.count + 1, users: [...r.users, userId] } : r,
-          )
+          r.name === name ? { ...r, count: r.count + 1, users: [...r.users, userId] } : r,
+        )
         : [...reactions, { name, count: 1, users: [userId] }];
     } else if (existing) {
       next = reactions
@@ -533,7 +601,7 @@ function setup() {
     } else {
       next = reactions;
     }
-    patchMessage(found.location, ts, { reactions: next });
+    patchMessage(channel, ts, { reactions: next });
 
     const me = currentUser();
     if (added && me && msg.userId === me.id) {
@@ -635,23 +703,20 @@ function setup() {
     if (subtype === "message_changed") {
       const updated = payload.message;
       if (!updated?.ts) return;
-      const found = findMessageList(channel, updated.ts);
-      if (found)
-        patchMessage(found.location, updated.ts, {
-          text: updated.text,
-          blocks: updated.blocks,
-          editedLocally: !!updated.edited,
-        });
+      patchMessage(channel, updated.ts, {
+        text: updated.text,
+        blocks: updated.blocks,
+        editedLocally: !!updated.edited,
+      });
       return;
     }
 
     if (subtype === "message_deleted") {
       const ts = payload.deleted_ts;
       if (!ts) return;
-      const found = findMessageList(channel, ts);
       // Slack removes deleted messages outright; we keep the row as a red
       // tombstone instead so the conversation doesn't silently reshuffle.
-      if (found) patchMessage(found.location, ts, { deleted: true });
+      patchMessage(channel, ts, { deleted: true });
       return;
     }
 
@@ -668,10 +733,10 @@ function setup() {
           mergeIncomingMessage(existing, msg),
         );
       }
-      const parent = findMessageList(channel, payload.thread_ts);
-      const parentMsg = parent?.list.find((m) => m.ts === payload.thread_ts);
-      if (parent && parentMsg) {
-        patchMessage(parent.location, payload.thread_ts, {
+      const parentLocations = findAllMessageLocations(channel, payload.thread_ts);
+      const parentMsg = parentLocations[0]?.list.find((m) => m.ts === payload.thread_ts);
+      if (parentMsg) {
+        patchMessage(channel, payload.thread_ts, {
           replyCount: (parentMsg.replyCount ?? 0) + 1,
         });
         if (me && parentMsg.userId === me.id) threadRelevant = true;
@@ -842,7 +907,25 @@ function setup() {
   }
 
   function channelById(id: string): Channel | undefined {
-    return channels().find((c) => c.id === id);
+    const known = channels().find((c) => c.id === id);
+    if (known) return known;
+    const discovered = discoveredChannels.find((c) => c.id === id);
+    if (discovered) return discovered;
+    if (!pendingChannels.has(id)) {
+      pendingChannels.add(id);
+      fetchFlaronChannel(id)
+        .then((channel) => {
+          if (channel) setDiscoveredChannels(produce((list) => list.push(channel)));
+        })
+        .catch(() => {
+          pendingChannels.delete(id);
+        });
+    }
+    return undefined;
+  }
+
+  function isChannelMember(id: string): boolean {
+    return channels().some((c) => c.id === id);
   }
 
   function dmById(id: string): DirectMessage | undefined {
@@ -929,23 +1012,25 @@ function setup() {
     }
   }
 
-  function patchMessage(location: MessageLocation, ts: string, patch: Partial<Message>) {
-    if (location.store === "channel") {
-      setMessagesByChannel(
-        location.key,
-        produce((list) => {
-          const msg = list.find((m) => m.ts === ts);
-          if (msg) Object.assign(msg, patch);
-        }),
-      );
-    } else {
-      setThreadMessages(
-        location.key,
-        produce((list) => {
-          const msg = list.find((m) => m.ts === ts);
-          if (msg) Object.assign(msg, patch);
-        }),
-      );
+  function patchMessage(channelId: string, ts: string, patch: Partial<Message>) {
+    for (const { location } of findAllMessageLocations(channelId, ts)) {
+      if (location.store === "channel") {
+        setMessagesByChannel(
+          location.key,
+          produce((list) => {
+            const msg = list.find((m) => m.ts === ts);
+            if (msg) Object.assign(msg, patch);
+          }),
+        );
+      } else {
+        setThreadMessages(
+          location.key,
+          produce((list) => {
+            const msg = list.find((m) => m.ts === ts);
+            if (msg) Object.assign(msg, patch);
+          }),
+        );
+      }
     }
   }
 
@@ -961,39 +1046,33 @@ function setup() {
     }
   }
 
-  async function editMessageText(
-    location: MessageLocation,
-    channelId: string,
-    ts: string,
-    text: string,
-  ) {
+  async function editMessageText(channelId: string, ts: string, text: string, blocks?: unknown) {
     const trimmed = text.trim();
     if (!trimmed) return;
     try {
-      await editMessage(channelId, ts, trimmed);
-      patchMessage(location, ts, { text: trimmed, editedLocally: true });
+      await editMessage(channelId, ts, trimmed, blocks);
+      patchMessage(channelId, ts, {
+        text: trimmed,
+        blocks: blocks as Message["blocks"],
+        editedLocally: true,
+      });
     } catch (err) {
       console.error("Failed to edit message", err);
       showToast("Failed to edit message.");
     }
   }
 
-  async function deleteMessageAt(location: MessageLocation, channelId: string, ts: string) {
+  async function deleteMessageAt(channelId: string, ts: string) {
     try {
       await deleteMessage(channelId, ts);
-      patchMessage(location, ts, { deleted: true });
+      patchMessage(channelId, ts, { deleted: true });
     } catch (err) {
       console.error("Failed to delete message", err);
       showToast("Failed to delete message.");
     }
   }
 
-  async function reactToMessage(
-    location: MessageLocation,
-    channelId: string,
-    msg: Message,
-    emojiName: string,
-  ) {
+  async function reactToMessage(channelId: string, msg: Message, emojiName: string) {
     const me = currentUser();
     if (!me) return;
     const previousReactions = msg.reactions;
@@ -1017,12 +1096,12 @@ function setup() {
     } else {
       nextReactions = [...reactions, { name: emojiName, count: 1, users: [me.id] }];
     }
-    patchMessage(location, msg.ts, { reactions: nextReactions });
+    patchMessage(channelId, msg.ts, { reactions: nextReactions });
     try {
       await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
     } catch (err) {
       console.error("Failed to toggle reaction", err);
-      patchMessage(location, msg.ts, { reactions: previousReactions });
+      patchMessage(channelId, msg.ts, { reactions: previousReactions });
     }
   }
 
@@ -1095,8 +1174,12 @@ function setup() {
     }
   }
 
+  function isActivityItemUnread(item: ActivityItem): boolean {
+    return item.time > (lastReadByChannel[item.channelId] ?? 0);
+  }
+
   const unreadActivityCount = createMemo(
-    () => activityItems.filter((i) => i.time > lastActivityReadAt()).length,
+    () => activityItems.filter(isActivityItemUnread).length,
   );
 
   // Bell states, from most to least urgent: a red dot for things addressed
@@ -1112,17 +1195,27 @@ function setup() {
   ]);
 
   const hasUnreadPing = createMemo(() =>
-    activityItems.some((i) => PING_KINDS.has(i.kind) && i.time > lastActivityReadAt()),
+    activityItems.some((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
   const hasUnreadGlow = createMemo(() =>
-    activityItems.some((i) => GLOW_KINDS.has(i.kind) && i.time > lastActivityReadAt()),
+    activityItems.some((i) => GLOW_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
 
+  // Advances each represented channel's *real* Slack read cursor up through the
+  // latest activity item in it — the same effect as actually reading that
+  // message in the channel, and (unlike a single "now" cutoff) never marks
+  // later, still-unread messages in that channel as read.
   function markActivityRead() {
-    const latest = activityItems.reduce((max, i) => Math.max(max, i.time), 0);
-    const next = Math.max(latest, Date.now());
-    setLastActivityReadAt(next);
-    localStorage.setItem("slock-activity-read-at", String(next));
+    const latestTsByChannel = new Map<string, string>();
+    for (const item of activityItems) {
+      if (!isActivityItemUnread(item)) continue;
+      const prev = latestTsByChannel.get(item.channelId);
+      if (!prev || parseFloat(item.ts) > parseFloat(prev)) latestTsByChannel.set(item.channelId, item.ts);
+    }
+    for (const [channelId, ts] of latestTsByChannel) {
+      setLastReadByChannel(channelId, parseFloat(ts) * 1000);
+      markChannelRead(channelId, ts).catch(() => {});
+    }
   }
 
   async function ensurePinsLoaded(channelId: string) {
@@ -1298,7 +1391,6 @@ function setup() {
     const next = !isChannelMuted(channelId);
     setMutedChannelIds(channelId, next);
     const allMuted = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
-    localStorage.setItem(MUTE_STORAGE_KEY, JSON.stringify(allMuted));
     setMutedChannels(allMuted);
     showToast(next ? "Channel muted." : "Channel unmuted.");
   }
@@ -1307,16 +1399,19 @@ function setup() {
     return !!notifyAllChannelIds[channelId];
   }
 
-  function toggleNotifyAllChannel(channelId: string) {
+  async function toggleNotifyAllChannel(channelId: string) {
     const next = !isChannelNotifyAll(channelId);
     setNotifyAllChannelIds(channelId, next);
-    const allNotifyAll = Object.keys(notifyAllChannelIds).filter((id) => notifyAllChannelIds[id]);
-    localStorage.setItem(NOTIFY_ALL_STORAGE_KEY, JSON.stringify(allNotifyAll));
     showToast(
       next
         ? "You’ll be notified about all new messages here."
         : "You’ll only be notified about mentions here.",
     );
+    try {
+      await setChannelNotifyAll(channelId, next);
+    } catch (err) {
+      console.error("Failed to set channel notification preference", err);
+    }
   }
 
   // Central lists for the Settings > Notifications tab — everywhere else, mute
@@ -1337,7 +1432,6 @@ function setup() {
   async function snoozeDnd(minutes: number) {
     const until = Date.now() + minutes * 60_000;
     setDndSnoozedUntil(until);
-    localStorage.setItem("slock-dnd-until", String(until));
     try {
       await setDndSnooze(minutes);
       showToast(`Do Not Disturb on for ${minutes} minutes.`);
@@ -1349,7 +1443,6 @@ function setup() {
 
   async function endDnd() {
     setDndSnoozedUntil(null);
-    localStorage.removeItem("slock-dnd-until");
     try {
       await endDndSnooze();
     } catch (err) {
@@ -1369,7 +1462,7 @@ function setup() {
     ];
     for (const id of targets) {
       setUnreadChannelIds(id, false);
-      markChannelRead(id, now).catch(() => {});
+      markChannelRead(id, now).catch(() => { });
     }
     showToast("Marked everything as read.");
   }
@@ -1550,7 +1643,7 @@ function setup() {
     setUnreadChannelIds(channelId, false);
     const list = messagesByChannel[channelId];
     const latest = list?.[list.length - 1]?.ts;
-    if (latest) markChannelRead(channelId, latest).catch(() => {});
+    if (latest) markChannelRead(channelId, latest).catch(() => { });
   }
 
   function isChannelStarred(channelId: string): boolean {
@@ -1596,6 +1689,9 @@ function setup() {
     recordEmojiUse,
     emojiUseScore,
     messagesByChannel,
+    loadOlderMessages,
+    hasMoreHistory,
+    isLoadingHistory,
     activeThread,
     threadMessages,
     openThread,
@@ -1603,6 +1699,7 @@ function setup() {
     userById,
     searchUsers,
     channelById,
+    isChannelMember,
     dmById,
     dmIdForUser,
     currentUser,
@@ -1622,7 +1719,7 @@ function setup() {
     hasUnreadPing,
     hasUnreadGlow,
     markActivityRead,
-    lastActivityReadAt,
+    isActivityItemUnread,
     profileUserId,
     openUserProfile,
     closeUserProfile,
@@ -1700,6 +1797,9 @@ export const {
   recordEmojiUse,
   emojiUseScore,
   messagesByChannel,
+  loadOlderMessages,
+  hasMoreHistory,
+  isLoadingHistory,
   activeThread,
   threadMessages,
   openThread,
@@ -1707,6 +1807,7 @@ export const {
   userById,
   searchUsers,
   channelById,
+  isChannelMember,
   dmById,
   dmIdForUser,
   currentUser,
@@ -1726,7 +1827,7 @@ export const {
   hasUnreadPing,
   hasUnreadGlow,
   markActivityRead,
-  lastActivityReadAt,
+  isActivityItemUnread,
   profileUserId,
   openUserProfile,
   closeUserProfile,
@@ -1787,8 +1888,10 @@ export const {
 } = createRoot(setup);
 
 // Some channels arrive without a human-readable name (shared/external channels,
-// or ones we can only see by id). Fall back to a shareable Flaron permalink for
-// public channels, and to the bare id only when even that wouldn't resolve
+// or ones we can only see by id) — channelById already kicks off a background
+// Flaron lookup for those, but this covers the gap before it resolves (or if
+// Flaron doesn't know the id either). Fall back to a shareable Flaron permalink
+// for public channels, and to the bare id only when even that wouldn't resolve
 // (private channels we can't publicly link).
 export function channelDisplayName(
   channel: Pick<Channel, "id" | "name" | "private"> | undefined,
@@ -1797,7 +1900,5 @@ export function channelDisplayName(
   const name = channel?.name?.trim();
   if (name) return name;
   const id = channel?.id ?? fallbackId ?? "";
-  if (!id) return "";
-  if (channel?.private) return id;
-  return `https://flaron.halceon.dev/channel/${id}`;
+  return id;
 }
