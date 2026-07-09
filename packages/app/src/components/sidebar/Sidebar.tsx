@@ -3,6 +3,7 @@ import { Avatar, Icon, type IconName, Menu, ResizeHandle } from "@slock/ui";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import {
   activeView,
+  channelDisplayName,
   channels,
   closeDmConversation,
   currentUser,
@@ -387,7 +388,7 @@ export default function Sidebar() {
                             <span class="sidebar-row-icon">
                               {ch.private ? <Icon name="lock" size={13} /> : "#"}
                             </span>
-                            <span class="sidebar-row-name">{ch.name}</span>
+                            <span class="sidebar-row-name">{channelDisplayName(ch)}</span>
                             {!muted() && ch.mentions ? (
                               <span class="sidebar-badge">{ch.mentions}</span>
                             ) : null}

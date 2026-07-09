@@ -3,6 +3,7 @@ import { useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
 import {
   channelById,
+  channelDisplayName,
   closePinnedPanel,
   dmById,
   openPinnedPanel,
@@ -30,7 +31,7 @@ export default function PinnedPanel() {
     const id = channelId();
     if (!id) return "";
     const channel = channelById(id);
-    if (channel) return `Pinned in #${channel.name}`;
+    if (channel) return `Pinned in #${channelDisplayName(channel)}`;
     const dm = dmById(id);
     return `Pinned in ${(dm && userById(dm.userId)?.name) ?? "conversation"}`;
   };

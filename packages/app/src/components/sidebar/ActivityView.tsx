@@ -5,6 +5,7 @@ import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   activityItems,
   channelById,
+  channelDisplayName,
   ensureActivityLoaded,
   lastActivityReadAt,
   markActivityRead,
@@ -200,7 +201,9 @@ export default function ActivityView() {
                   <div class="activity-headline">
                     <strong>{user()?.name ?? "Someone"}</strong>
                     <Show when={item.kind !== "dm"}>
-                      <span class="activity-channel">#{channel()?.name ?? item.channelId}</span>
+                      <span class="activity-channel">
+                        #{channelDisplayName(channel(), item.channelId)}
+                      </span>
                     </Show>
                   </div>
                   <div class="activity-snippet">

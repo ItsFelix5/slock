@@ -1,6 +1,12 @@
 import { ResizeHandle } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
-import { activeThread, channelById, closeThread, threadMessages } from "../../lib/store";
+import {
+  activeThread,
+  channelById,
+  channelDisplayName,
+  closeThread,
+  threadMessages,
+} from "../../lib/store";
 import Composer from "../composer/Composer";
 import MessageRows from "./MessageRows";
 import "./ThreadPanel.css";
@@ -22,7 +28,7 @@ export default function ThreadPanel() {
   const channelName = createMemo(() => {
     const t = thread();
     if (!t) return "";
-    return channelById(t.channelId)?.name ?? "";
+    return channelDisplayName(channelById(t.channelId), t.channelId);
   });
 
   return (

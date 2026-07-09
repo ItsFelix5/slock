@@ -13,6 +13,7 @@ import {
   activeView,
   bootstrap,
   channelById,
+  channelDisplayName,
   channels,
   currentUser,
   dmById,
@@ -420,7 +421,7 @@ export default function Composer(props: {
     if (props.placeholder) return props.placeholder;
     const v = activeView();
     if (!v) return "Message";
-    if (v.kind === "channel") return `Message #${channelById(v.id)?.name ?? ""}`;
+    if (v.kind === "channel") return `Message #${channelDisplayName(channelById(v.id), v.id)}`;
     const dm = dmById(v.id);
     return `Message ${dm ? (userById(dm.userId)?.name ?? "") : ""}`;
   };

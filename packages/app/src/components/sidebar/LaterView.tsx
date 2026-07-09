@@ -3,6 +3,7 @@ import { Icon } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
 import {
   channelById,
+  channelDisplayName,
   ensureLaterLoaded,
   ensureLaterMessageLoaded,
   laterItems,
@@ -38,7 +39,9 @@ export default function LaterView() {
                   class="later-main"
                   onClick={() => goTo(item.channelId, item.ts)}
                 >
-                  <div class="later-channel">#{channel()?.name ?? item.channelId}</div>
+                  <div class="later-channel">
+                    #{channelDisplayName(channel(), item.channelId)}
+                  </div>
                   <div class="later-snippet">
                     <Show
                       when={!isLoaded()}

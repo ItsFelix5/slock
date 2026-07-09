@@ -2,6 +2,7 @@ import { createEffect, createMemo, Show } from "solid-js";
 import {
   activeView,
   channelById,
+  channelDisplayName,
   dmById,
   messagesByChannel,
   openThread,
@@ -25,7 +26,7 @@ export default function MessageList() {
   const channelName = createMemo(() => {
     const v = activeView();
     if (!v) return "";
-    if (v.kind === "channel") return channelById(v.id)?.name ?? "";
+    if (v.kind === "channel") return channelDisplayName(channelById(v.id), v.id);
     const dm = dmById(v.id);
     return dm ? (userById(dm.userId)?.name ?? "") : "";
   });

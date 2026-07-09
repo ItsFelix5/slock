@@ -3,6 +3,7 @@ import { createResource, createSignal, Show } from "solid-js";
 import {
   canvasByChannel,
   channelById,
+  channelDisplayName,
   closeChannelCanvas,
   loadCanvasContent,
   openCanvasChannelId,
@@ -46,7 +47,9 @@ export default function CanvasPanel() {
         >
           <div class="canvas-panel-card">
             <div class="canvas-panel-header">
-              <div class="canvas-panel-title">Canvas · #{channelById(id())?.name ?? ""}</div>
+              <div class="canvas-panel-title">
+                Canvas · #{channelDisplayName(channelById(id()), id())}
+              </div>
               <button
                 type="button"
                 class="canvas-panel-close"
