@@ -10,6 +10,7 @@ import {
   userById,
 } from "../../lib/store";
 import AttachmentCard from "./AttachmentCard";
+import InteractorAvatars from "./InteractorAvatars";
 import MessageActionsBar from "./MessageActionsBar";
 import MessageEditForm from "./MessageEditForm";
 import MessageFiles from "./MessageFiles";
@@ -172,8 +173,13 @@ export default function MessageRows(props: {
                         class="message-replies"
                         onClick={() => props.onOpenThread?.(msg.ts)}
                       >
-                        <Icon name="threads" size={14} /> {msg.replyCount}{" "}
-                        {msg.replyCount === 1 ? "reply" : "replies"}
+                        <Show
+                          when={msg.replyUsers?.length ? msg.replyUsers : undefined}
+                          fallback={<Icon name="threads" size={14} />}
+                        >
+                          {(users) => <InteractorAvatars userIds={users()} />}
+                        </Show>{" "}
+                        {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
                       </button>
                     </Show>
                   </Show>

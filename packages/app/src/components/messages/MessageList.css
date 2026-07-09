@@ -368,6 +368,7 @@
 }
 
 .reaction-pill {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -377,6 +378,47 @@
   padding: 2px 8px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.reaction-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--main-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.reaction-pill:hover .reaction-tooltip {
+  display: flex;
+}
+
+.reaction-tooltip-avatars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+}
+
+.reaction-tooltip-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .reaction-pill:hover {
@@ -412,6 +454,29 @@
 .message-replies:hover {
   background: var(--hover-bg);
   border-color: var(--text-dim);
+}
+
+.interactor-avatars {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.interactor-avatar {
+  display: inline-flex;
+  border-radius: 5px;
+  box-shadow: 0 0 0 2px var(--main-bg);
+}
+
+.interactor-avatar:not(:first-child) {
+  margin-left: -6px;
+}
+
+.interactor-extra {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .pronouns {
