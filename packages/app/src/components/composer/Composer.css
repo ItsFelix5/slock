@@ -61,9 +61,33 @@
 
 .composer-header {
   margin: 4px 0 2px;
-  font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
+}
+
+h1.composer-header {
+  font-size: 26px;
+}
+
+h2.composer-header {
+  font-size: 22px;
+}
+
+h3.composer-header {
+  font-size: 18px;
+}
+
+h4.composer-header {
+  font-size: 16px;
+}
+
+h5.composer-header {
+  font-size: 14px;
+}
+
+h6.composer-header {
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .composer-divider {

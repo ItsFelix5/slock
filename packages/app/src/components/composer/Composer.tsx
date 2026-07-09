@@ -25,7 +25,6 @@ import {
 } from "../../lib/store";
 import ComposeDatePicker from "./ComposeDatePicker";
 import ComposeUserPicker from "./ComposeUserPicker";
-import EmojiPicker from "./EmojiPicker";
 import {
   closestListItem,
   createChannelChip,
@@ -37,6 +36,7 @@ import {
   expandRangeToLines,
   fragmentToBlocks,
   fragmentToMrkdwn,
+  HEADING_TAG_RE,
   mrkdwnToFragment,
   placeCaretAtEnd,
   placeCaretAtStart,
@@ -510,9 +510,9 @@ export default function Composer(props: {
     });
   }
 
-  function applyHeader() {
+  function applyHeader(level: number) {
     wrapCurrentLinesInBlock((frag) => {
-      const h = createHeaderElement();
+      const h = createHeaderElement(level);
       h.appendChild(frag);
       return h;
     });
@@ -671,8 +671,7 @@ export default function Composer(props: {
       br.after(target);
     }
     // Placeholder <br> keeps the new line visible while it's still empty.
-    if (!(target as Text).length && !target.nextSibling)
-      target.after(document.createElement("br"));
+    if (!(target as Text).length && !target.nextSibling) target.after(document.createElement("br"));
     placeCaretInText(target as Text, 0);
     syncFromDom();
   }
@@ -685,12 +684,12 @@ export default function Composer(props: {
     const sel = window.getSelection();
     if (!el || !sel || sel.rangeCount === 0) return false;
     let n: Node | null = sel.getRangeAt(0).startContainer;
-    while (n && n !== el && n.nodeName !== "H3") n = n.parentNode;
+    while (n && n !== el && !HEADING_TAG_RE.test(n.nodeName)) n = n.parentNode;
     if (!n || n === el) return false;
-    const h3 = n as HTMLElement;
-    if (!h3.nextSibling) h3.after(document.createElement("br"));
+    const heading = n as HTMLElement;
+    if (!heading.nextSibling) heading.after(document.createElement("br"));
     const r = document.createRange();
-    r.setStartAfter(h3);
+    r.setStartAfter(heading);
     r.collapse(true);
     sel.removeAllRanges();
     sel.addRange(r);
@@ -725,6 +724,74 @@ export default function Composer(props: {
       li.after(newLi);
       placeCaretAtStart(newLi);
     }
+    syncFromDom();
+    return true;
+  }
+
+  // Headers and dividers are "typed into existence" by a markdown trigger
+  // (see maybeApplyLineTrigger) and have no visible marker afterwards, so the
+  // browser's native Backspace handling on them is unpredictable — it can eat
+  // extra characters, get stuck, or turn the element into a resize-selected
+  // object instead of just removing it. Treat each as a single character:
+  // Backspace right at its start undoes it in one press, same as deleting one
+  // char, instead of that native funkiness.
+  function handleBackspaceOnHeading(): boolean {
+    const el = editorRef;
+    const sel = window.getSelection();
+    if (!el || !sel || !sel.isCollapsed || sel.rangeCount === 0) return false;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+
+    let n: Node | null = startContainer;
+    while (n && n !== el && !HEADING_TAG_RE.test(n.nodeName)) n = n.parentNode;
+    if (!n || n === el) return false;
+    const heading = n as HTMLElement;
+
+    const beforeCaret = document.createRange();
+    beforeCaret.selectNodeContents(heading);
+    beforeCaret.setEnd(startContainer, startOffset);
+    if (beforeCaret.toString().length > 0 || beforeCaret.cloneContents().querySelector("img"))
+      return false;
+
+    const before = heading.previousSibling;
+    const after = heading.nextSibling;
+    const frag = document.createDocumentFragment();
+    if (before) frag.appendChild(document.createElement("br"));
+    const marker = document.createTextNode("");
+    frag.appendChild(marker);
+    while (heading.firstChild) frag.appendChild(heading.firstChild);
+    if (after) frag.appendChild(document.createElement("br"));
+    heading.replaceWith(frag);
+    placeCaretInText(marker, 0);
+    syncFromDom();
+    return true;
+  }
+
+  function handleBackspaceOnDivider(): boolean {
+    const el = editorRef;
+    const sel = window.getSelection();
+    if (!el || !sel || !sel.isCollapsed || sel.rangeCount === 0) return false;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+
+    let hr: Node | null = null;
+    if (startContainer.nodeType === Node.TEXT_NODE) {
+      if (startOffset !== 0 || startContainer.parentNode !== el) return false;
+      let prev: Node | null = startContainer.previousSibling;
+      while (prev && prev.nodeType === Node.TEXT_NODE && !(prev as Text).length)
+        prev = prev.previousSibling;
+      if (prev?.nodeName === "HR") hr = prev;
+    } else if (startContainer === el) {
+      const candidate = el.childNodes[startOffset - 1];
+      if (candidate?.nodeName === "HR") hr = candidate;
+    }
+    if (!hr) return false;
+
+    const br = document.createElement("br");
+    (hr as ChildNode).replaceWith(br);
+    const r = document.createRange();
+    r.setStartAfter(br);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
     syncFromDom();
     return true;
   }
@@ -841,6 +908,12 @@ export default function Composer(props: {
       if (!handleShiftEnterInHeader() && !handleShiftEnterInList()) insertLineBreak();
       return;
     }
+    if (e.key === "Backspace" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (handleBackspaceOnHeading() || handleBackspaceOnDivider()) {
+        e.preventDefault();
+        return;
+      }
+    }
     const mod = e.metaKey || e.ctrlKey;
     if (mod && !e.altKey && !e.shiftKey) {
       if (e.key.toLowerCase() === "b") {
@@ -883,16 +956,17 @@ export default function Composer(props: {
       only.tagName === "BLOCKQUOTE" ||
       only.tagName === "UL" ||
       only.tagName === "OL" ||
-      only.tagName === "H3" ||
+      HEADING_TAG_RE.test(only.tagName) ||
       only.tagName === "HR"
     ) {
       el.innerHTML = "";
     }
   }
 
-  // Block formats are typed, markdown-style, at the start of a line: "## " →
-  // header, "> " → quote, "- "/"* " → bulleted list, "1. " → ordered list, and
-  // "```"/"---" convert the moment the third character lands. Only fires for
+  // Block formats are typed, markdown-style, at the start of a line: "# "
+  // through "###### " → header (level = number of #s), "> " → quote, "- "/"* "
+  // → bulleted list, "1. " → ordered list, and "```"/"---" convert the moment
+  // the third character lands. Only fires for
   // bare top-level text, so a line already inside a quote/list/code block
   // can't re-trigger.
   function maybeApplyLineTrigger(): boolean {
@@ -902,21 +976,23 @@ export default function Composer(props: {
     const { node, offset } = ctx;
     if (node.parentNode !== el) return false;
     // "Start of line" = nothing before, a <br>, or a block element (content
-    // after H3/HR/PRE/… starts a fresh line without any <br>). Empty text
-    // nodes don't count — Chrome litters them around caret repositioning.
-    const LINE_BOUNDARY = ["BR", "H3", "HR", "PRE", "BLOCKQUOTE", "UL", "OL"];
+    // after a heading/HR/PRE/… starts a fresh line without any <br>). Empty
+    // text nodes don't count — Chrome litters them around caret repositioning.
+    const LINE_BOUNDARY = ["BR", "HR", "PRE", "BLOCKQUOTE", "UL", "OL"];
     let prev = node.previousSibling;
     while (prev && prev.nodeType === Node.TEXT_NODE && !(prev as Text).length) {
       prev = prev.previousSibling;
     }
-    if (prev && !LINE_BOUNDARY.includes(prev.nodeName)) return false;
+    if (prev && !LINE_BOUNDARY.includes(prev.nodeName) && !HEADING_TAG_RE.test(prev.nodeName))
+      return false;
     const before = (node.textContent ?? "").slice(0, offset);
 
     // Accept nbsp as the trigger space: Chrome inserts a space at the end of a line as nbsp (a plain
     // trailing space would collapse visually), and the trigger space is
     // always at the end of the line when typed.
     let action: (() => void) | undefined;
-    if (/^#{2,3}[ \u00a0]$/.test(before)) action = applyHeader;
+    const headerMatch = /^(#{1,6})[ \u00a0]$/.exec(before);
+    if (headerMatch) action = () => applyHeader(headerMatch[1].length);
     else if (before === "---") action = insertDividerAtCaret;
     else if (before === "```") action = applyCodeBlock;
     else if (/^>[ \u00a0]$/.test(before)) action = applyQuote;

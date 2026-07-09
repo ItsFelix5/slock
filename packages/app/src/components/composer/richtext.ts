@@ -19,11 +19,12 @@ import { channelById, userById } from "../../lib/store";
 
 const INLINE_RE = /`([^`]+)`|<([^<>]*)>|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~|:([a-zA-Z0-9_+-]+):/g;
 const QUOTE_LINE_RE = /^&gt;\s?/;
-const HEADER_LINE_RE = /^#{2,3} (.*)$/;
+const HEADER_LINE_RE = /^(#{1,6}) (.*)$/;
+export const HEADING_TAG_RE = /^H[1-6]$/;
 const CODE_FENCE_RE = /```([\s\S]*?)```/g;
 
-export function createHeaderElement(): HTMLHeadingElement {
-  const h = document.createElement("h3");
+export function createHeaderElement(level = 3): HTMLHeadingElement {
+  const h = document.createElement(`h${Math.min(6, Math.max(1, level))}`) as HTMLHeadingElement;
   h.className = "composer-header";
   return h;
 }
@@ -173,11 +174,11 @@ function appendPlainSegment(frag: DocumentFragment, text: string) {
   let current: string[] = [];
   let currentIsQuote = false;
 
-  // H3/HR serialize with their own trailing "\n" (see serializeNode), so the
-  // line after them needs no <br> separator — inserting one would add a blank
-  // line on every draft round-trip.
+  // Headers/HR serialize with their own trailing "\n" (see serializeNode), so
+  // the line after them needs no <br> separator — inserting one would add a
+  // blank line on every draft round-trip.
   const needsSeparator = () =>
-    !!frag.lastChild && frag.lastChild.nodeName !== "H3" && frag.lastChild.nodeName !== "HR";
+    !!frag.lastChild && !HEADING_TAG_RE.test(frag.lastChild.nodeName) && frag.lastChild.nodeName !== "HR";
 
   const flush = () => {
     if (current.length === 0) return;
@@ -207,8 +208,8 @@ function appendPlainSegment(frag: DocumentFragment, text: string) {
     }
     const header = HEADER_LINE_RE.exec(line);
     if (header) {
-      const h = createHeaderElement();
-      appendInline(h, header[1]);
+      const h = createHeaderElement(header[1].length);
+      appendInline(h, header[2]);
       appendBlock(h);
       continue;
     }
@@ -266,6 +267,13 @@ function serializeNode(node: Node): string {
     const fallback = el.dataset.dateFallback || formatSlackDate(Number(el.dataset.dateTs));
     return `<!date^${el.dataset.dateTs}^${format}|${fallback}>`;
   }
+  if (HEADING_TAG_RE.test(el.tagName)) {
+    // An empty header (all content deleted) serializes to nothing, so the
+    // editor still counts as empty and the stray element gets cleaned up.
+    const level = Number(el.tagName[1]);
+    const inner = serializeChildren(el).replace(/\n$/, "");
+    return inner.trim() ? `${"#".repeat(level)} ${inner}\n` : "";
+  }
   switch (el.tagName) {
     case "BR":
       return "\n";
@@ -284,18 +292,12 @@ function serializeNode(node: Node): string {
       return wrapNonEmpty(serializeChildren(el), "~");
     case "CODE":
       return wrapNonEmpty(serializeChildren(el), "`");
-    // H3/HR own their trailing newline: as block elements, whatever follows
-    // them in the DOM starts a new visual line even without a <br>, so the
-    // separator has to come from serialization. The draft parser knows this
-    // and skips the <br> it would otherwise insert after them.
+    // Headers/HR own their trailing newline: as block elements, whatever
+    // follows them in the DOM starts a new visual line even without a <br>,
+    // so the separator has to come from serialization. The draft parser
+    // knows this and skips the <br> it would otherwise insert after them.
     case "HR":
       return "---\n";
-    case "H3": {
-      // An empty header (all content deleted) serializes to nothing, so the
-      // editor still counts as empty and the stray element gets cleaned up.
-      const inner = serializeChildren(el).replace(/\n$/, "");
-      return inner.trim() ? `## ${inner}\n` : "";
-    }
     // Blocks created on an empty line carry a placeholder <br> (see
     // wrapCurrentLinesInBlock) — strip the trailing newline it serializes to.
     case "PRE":
@@ -321,7 +323,7 @@ function serializeNode(node: Node): string {
 
 // Serializes the current contenteditable DOM back into mrkdwn text — the
 // inverse of mrkdwnToFragment, and the source of truth sent to the API.
-// Trailing newlines (H3/HR's own terminator, placeholder <br>s) are trimmed
+// Trailing newlines (a heading's/HR's own terminator, placeholder <br>s) are trimmed
 // so a draft round-trips without accumulating blank lines.
 export function fragmentToMrkdwn(root: HTMLElement): string {
   return serializeChildren(root).replace(/\n+$/, "");
@@ -329,10 +331,12 @@ export function fragmentToMrkdwn(root: HTMLElement): string {
 
 // Headers and dividers have no mrkdwn syntax, so a message containing them
 // must be sent as an ordered Block Kit block list: runs of inline content
-// become section blocks, split wherever an H3/HR sits. Returns null when the
-// message is plain text and can be sent without blocks.
+// become section blocks, split wherever a heading/HR sits. Slack's header
+// block has no levels, so H1-H6 all become the same block type. Returns null
+// when the message is plain text and can be sent without blocks.
 export function fragmentToBlocks(root: HTMLElement): Block[] | null {
-  if (!root.querySelector(":scope > h3, :scope > hr")) return null;
+  if (!root.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > hr"))
+    return null;
   const blocks: Block[] = [];
   let run = "";
   const flush = () => {
@@ -341,7 +345,7 @@ export function fragmentToBlocks(root: HTMLElement): Block[] | null {
     run = "";
   };
   for (const child of Array.from(root.childNodes)) {
-    if (child.nodeName === "H3") {
+    if (HEADING_TAG_RE.test(child.nodeName)) {
       flush();
       const text = (child.textContent ?? "").trim();
       if (text) blocks.push({ type: "header", text: { type: "plain_text", text, emoji: true } });
