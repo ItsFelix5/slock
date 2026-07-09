@@ -58,7 +58,7 @@ export default function LaterView() {
                   title="Remove from Later"
                   onClick={() => toggleSaveForLater(item.channelId, item.ts)}
                 >
-                  <Icon name="bookmark" size={16} />
+                  <Icon name="bookmark-filled" size={16} />
                 </button>
               </div>
             );

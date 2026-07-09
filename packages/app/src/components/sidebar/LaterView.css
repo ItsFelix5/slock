@@ -54,7 +54,7 @@
   flex-shrink: 0;
   background: none;
   border: none;
-  color: var(--text-dim);
+  color: var(--accent);
   padding: 4px;
   border-radius: 6px;
 }

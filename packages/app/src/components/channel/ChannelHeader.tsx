@@ -125,7 +125,7 @@ export default function ChannelHeader() {
                 title="Move to…"
                 onClick={() => setStarMenuOpen(!starMenuOpen())}
               >
-                <Icon name="star" size={16} />
+                <Icon name={starred() ? "star-filled" : "star"} size={16} />
               </button>
             }
           >

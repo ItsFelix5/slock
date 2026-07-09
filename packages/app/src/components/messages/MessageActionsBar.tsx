@@ -124,7 +124,7 @@ export default function MessageActionsBar(props: {
         title={isSaved() ? "Remove from Later" : "Save for later"}
         onClick={() => toggleSaveForLater(props.channelId, props.msg.ts)}
       >
-        <Icon name="bookmark" size={15} />
+        <Icon name={isSaved() ? "bookmark-filled" : "bookmark"} size={15} />
       </button>
 
       <Menu
