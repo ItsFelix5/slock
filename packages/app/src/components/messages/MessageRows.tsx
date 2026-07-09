@@ -61,14 +61,19 @@ export default function MessageRows(props: {
               when={msg.kind !== "system"}
               fallback={<SystemMessage text={msg.text} time={msg.time} />}
             >
-              <div class="message-row" classList={{ compact: sameAuthorAsPrev() }}>
-                <MessageActionsBar
-                  channelId={props.channelId}
-                  location={props.location}
-                  msg={msg}
-                  onOpenThread={props.onOpenThread}
-                  onEditRequest={() => setIsEditing(true)}
-                />
+              <div
+                class="message-row"
+                classList={{ compact: sameAuthorAsPrev(), deleted: msg.deleted }}
+              >
+                <Show when={!msg.deleted}>
+                  <MessageActionsBar
+                    channelId={props.channelId}
+                    location={props.location}
+                    msg={msg}
+                    onOpenThread={props.onOpenThread}
+                    onEditRequest={() => setIsEditing(true)}
+                  />
+                </Show>
                 <Show
                   when={!sameAuthorAsPrev()}
                   fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
@@ -109,59 +114,68 @@ export default function MessageRows(props: {
                   </Show>
 
                   <Show
-                    when={!isEditing()}
+                    when={!msg.deleted}
                     fallback={
-                      <MessageEditForm
-                        initialText={msg.text}
-                        onSave={(text) => {
-                          editMessageText(props.location, props.channelId, msg.ts, text);
-                          setIsEditing(false);
-                        }}
-                        onCancel={() => setIsEditing(false)}
-                      />
+                      <div class="message-text message-deleted-text">
+                        <Icon name="trash" size={14} /> This message was deleted
+                      </div>
                     }
                   >
-                    <div class="message-text">
-                      <Show
-                        when={msg.blocks?.length ? msg.blocks : undefined}
-                        fallback={<Mrkdwn text={msg.text} />}
-                      >
-                        {(blocks) => <BlockKit blocks={blocks()} />}
-                      </Show>
-                      <Show when={msg.editedLocally}>
-                        <span class="message-edited"> (edited)</span>
-                      </Show>
-                    </div>
-                  </Show>
-
-                  <Show when={msg.files?.length ? msg.files : undefined}>
-                    {(files) => <MessageFiles files={files()} />}
-                  </Show>
-
-                  <Show when={msg.attachments?.length}>
-                    <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
-                  </Show>
-
-                  <Show when={msg.reactions?.length ? msg.reactions : undefined}>
-                    {(reactions) => (
-                      <ReactionRow
-                        reactions={reactions()}
-                        onToggle={(name) =>
-                          reactToMessage(props.location, props.channelId, msg, name)
-                        }
-                      />
-                    )}
-                  </Show>
-
-                  <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
-                    <button
-                      type="button"
-                      class="message-replies"
-                      onClick={() => props.onOpenThread?.(msg.ts)}
+                    <Show
+                      when={!isEditing()}
+                      fallback={
+                        <MessageEditForm
+                          initialText={msg.text}
+                          onSave={(text) => {
+                            editMessageText(props.location, props.channelId, msg.ts, text);
+                            setIsEditing(false);
+                          }}
+                          onCancel={() => setIsEditing(false)}
+                        />
+                      }
                     >
-                      <Icon name="threads" size={14} /> {msg.replyCount}{" "}
-                      {msg.replyCount === 1 ? "reply" : "replies"}
-                    </button>
+                      <div class="message-text">
+                        <Show
+                          when={msg.blocks?.length ? msg.blocks : undefined}
+                          fallback={<Mrkdwn text={msg.text} />}
+                        >
+                          {(blocks) => <BlockKit blocks={blocks()} />}
+                        </Show>
+                        <Show when={msg.editedLocally}>
+                          <span class="message-edited"> (edited)</span>
+                        </Show>
+                      </div>
+                    </Show>
+
+                    <Show when={msg.files?.length ? msg.files : undefined}>
+                      {(files) => <MessageFiles files={files()} />}
+                    </Show>
+
+                    <Show when={msg.attachments?.length}>
+                      <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
+                    </Show>
+
+                    <Show when={msg.reactions?.length ? msg.reactions : undefined}>
+                      {(reactions) => (
+                        <ReactionRow
+                          reactions={reactions()}
+                          onToggle={(name) =>
+                            reactToMessage(props.location, props.channelId, msg, name)
+                          }
+                        />
+                      )}
+                    </Show>
+
+                    <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
+                      <button
+                        type="button"
+                        class="message-replies"
+                        onClick={() => props.onOpenThread?.(msg.ts)}
+                      >
+                        <Icon name="threads" size={14} /> {msg.replyCount}{" "}
+                        {msg.replyCount === 1 ? "reply" : "replies"}
+                      </button>
+                    </Show>
                   </Show>
                 </div>
               </div>

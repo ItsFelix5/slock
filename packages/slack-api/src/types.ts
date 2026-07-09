@@ -85,6 +85,7 @@ export interface Message {
   replyUsers?: string[];
   reactions?: Reaction[];
   editedLocally?: boolean;
+  deleted?: boolean;
   kind: MessageKind;
   botName?: string;
   botIcon?: string;

@@ -604,7 +604,9 @@ function setup() {
       const ts = payload.deleted_ts;
       if (!ts) return;
       const found = findMessageList(channel, ts);
-      if (found) removeMessage(found.location, ts);
+      // Slack removes deleted messages outright; we keep the row as a red
+      // tombstone instead so the conversation doesn't silently reshuffle.
+      if (found) patchMessage(found.location, ts, { deleted: true });
       return;
     }
 
@@ -934,7 +936,7 @@ function setup() {
   async function deleteMessageAt(location: MessageLocation, channelId: string, ts: string) {
     try {
       await deleteMessage(channelId, ts);
-      removeMessage(location, ts);
+      patchMessage(location, ts, { deleted: true });
     } catch (err) {
       console.error("Failed to delete message", err);
       showToast("Failed to delete message.");

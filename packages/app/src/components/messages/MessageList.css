@@ -300,6 +300,19 @@
   color: var(--text-dim);
 }
 
+.message-deleted-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #e0554a;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.message-row.deleted:hover {
+  background: rgba(224, 85, 74, 0.06);
+}
+
 .message-edit-input {
   width: 100%;
   background: var(--composer-bg);
