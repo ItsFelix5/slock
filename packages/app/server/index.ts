@@ -30,6 +30,25 @@ const cors = {
   "content-type": "application/json",
 };
 
+// Where `vite build` drops the compiled client. In production this one process
+// serves both the API/websocket and the static app, so there's no separate vite
+// server to run — in dev, vite owns the frontend and only proxies /api and /ws
+// here, so these files simply won't exist and serveStatic no-ops.
+const DIST_DIR = `${import.meta.dir}/../dist`;
+
+async function serveStatic(pathname: string): Promise<Response | null> {
+  if (pathname.includes("..")) return null;
+  const rel = pathname === "/" ? "/index.html" : pathname;
+  const file = Bun.file(`${DIST_DIR}${rel}`);
+  if (await file.exists()) return new Response(file);
+  // SPA fallback: client-side routes (no file extension) fall back to index.html.
+  if (!rel.slice(rel.lastIndexOf("/") + 1).includes(".")) {
+    const index = Bun.file(`${DIST_DIR}/index.html`);
+    if (await index.exists()) return new Response(index);
+  }
+  return null;
+}
+
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
 function getEmojiMap() {
@@ -414,6 +433,12 @@ Bun.serve({
     if (url.pathname === "/ws") {
       if (server.upgrade(req)) return;
       return new Response("upgrade failed", { status: 400 });
+    }
+
+    // Serve the built client for any non-API GET (production single-server mode).
+    if (req.method === "GET" && !url.pathname.startsWith("/api/")) {
+      const asset = await serveStatic(url.pathname);
+      if (asset) return asset;
     }
 
     try {

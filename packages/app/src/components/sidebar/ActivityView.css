@@ -240,8 +240,19 @@
   font-weight: 700;
 }
 
-.activity-channel {
+.activity-verb {
+  margin-left: 4px;
+  font-weight: 400;
   color: var(--text-secondary);
+}
+
+.activity-channel {
+  margin-left: 4px;
+  color: var(--text-secondary);
+}
+
+.activity-reaction {
+  margin-left: 4px;
 }
 
 .activity-snippet {

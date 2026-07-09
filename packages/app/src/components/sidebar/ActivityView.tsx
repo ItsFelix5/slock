@@ -1,10 +1,11 @@
-import { Mrkdwn } from "@slock/blockkit";
+import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem } from "@slock/slack-api";
 import { Avatar, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   activityItems,
   channelById,
+  channelDisplayName,
   ensureActivityLoaded,
   lastActivityReadAt,
   markActivityRead,
@@ -199,8 +200,16 @@ export default function ActivityView() {
                 <div class="activity-body">
                   <div class="activity-headline">
                     <strong>{user()?.name ?? "Someone"}</strong>
+                    <span class="activity-verb">{verbFor(item)}</span>
                     <Show when={item.kind !== "dm"}>
-                      <span class="activity-channel">#{channel()?.name ?? item.channelId}</span>
+                      <span class="activity-channel">
+                        #{channelDisplayName(channel(), item.channelId)}
+                      </span>
+                    </Show>
+                    <Show when={item.kind === "reaction" && item.reactionName}>
+                      <span class="activity-reaction">
+                        <EmojiText text={`:${item.reactionName}:`} />
+                      </span>
                     </Show>
                   </div>
                   <div class="activity-snippet">

@@ -9,7 +9,9 @@ import {
   reactToMessage,
   userById,
 } from "../../lib/store";
+import UserHoverCard from "../user/UserHoverCard";
 import AttachmentCard from "./AttachmentCard";
+import InteractorAvatars from "./InteractorAvatars";
 import MessageActionsBar from "./MessageActionsBar";
 import MessageEditForm from "./MessageEditForm";
 import MessageFiles from "./MessageFiles";
@@ -50,6 +52,30 @@ export default function MessageRows(props: {
         const avatarUrl = () => msg.botIcon ?? user()?.avatarUrl;
         const [isEditing, setIsEditing] = createSignal(false);
 
+        const avatarButton = () => (
+          <button
+            type="button"
+            class="message-avatar"
+            style={{ background: user()?.avatarColor ?? "#616061" }}
+            onClick={() => !msg.botName && openUserProfile(msg.userId)}
+          >
+            <Show when={avatarUrl()} fallback={msg.botName ? "🤖" : (user()?.initials ?? "?")}>
+              {(url) => <img class="message-avatar-img" src={url()} alt="" />}
+            </Show>
+          </button>
+        );
+
+        const authorButton = () => (
+          <button
+            type="button"
+            class="message-author"
+            disabled={!!msg.botName}
+            onClick={() => !msg.botName && openUserProfile(msg.userId)}
+          >
+            {displayName()}
+          </button>
+        );
+
         return (
           <>
             <Show when={showDayDivider()}>
@@ -61,43 +87,33 @@ export default function MessageRows(props: {
               when={msg.kind !== "system"}
               fallback={<SystemMessage text={msg.text} time={msg.time} />}
             >
-              <div class="message-row" classList={{ compact: sameAuthorAsPrev() }}>
-                <MessageActionsBar
-                  channelId={props.channelId}
-                  location={props.location}
-                  msg={msg}
-                  onOpenThread={props.onOpenThread}
-                  onEditRequest={() => setIsEditing(true)}
-                />
+              <div
+                class="message-row"
+                classList={{ compact: sameAuthorAsPrev(), deleted: msg.deleted }}
+              >
+                <Show when={!msg.deleted}>
+                  <MessageActionsBar
+                    channelId={props.channelId}
+                    location={props.location}
+                    msg={msg}
+                    onOpenThread={props.onOpenThread}
+                    onEditRequest={() => setIsEditing(true)}
+                  />
+                </Show>
                 <Show
                   when={!sameAuthorAsPrev()}
                   fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
                 >
-                  <button
-                    type="button"
-                    class="message-avatar"
-                    style={{ background: user()?.avatarColor ?? "#616061" }}
-                    onClick={() => !msg.botName && openUserProfile(msg.userId)}
-                  >
-                    <Show
-                      when={avatarUrl()}
-                      fallback={msg.botName ? "🤖" : (user()?.initials ?? "?")}
-                    >
-                      {(url) => <img class="message-avatar-img" src={url()} alt="" />}
-                    </Show>
-                  </button>
+                  <Show when={!msg.botName} fallback={avatarButton()}>
+                    <UserHoverCard userId={msg.userId}>{avatarButton()}</UserHoverCard>
+                  </Show>
                 </Show>
                 <div class="message-body">
                   <Show when={!sameAuthorAsPrev()}>
                     <div class="message-meta">
-                      <button
-                        type="button"
-                        class="message-author"
-                        disabled={!!msg.botName}
-                        onClick={() => !msg.botName && openUserProfile(msg.userId)}
-                      >
-                        {displayName()}
-                      </button>
+                      <Show when={!msg.botName} fallback={authorButton()}>
+                        <UserHoverCard userId={msg.userId}>{authorButton()}</UserHoverCard>
+                      </Show>
                       <Show when={msg.botName}>
                         <span class="message-bot-badge">APP</span>
                       </Show>
@@ -109,59 +125,73 @@ export default function MessageRows(props: {
                   </Show>
 
                   <Show
-                    when={!isEditing()}
+                    when={!msg.deleted}
                     fallback={
-                      <MessageEditForm
-                        initialText={msg.text}
-                        onSave={(text) => {
-                          editMessageText(props.location, props.channelId, msg.ts, text);
-                          setIsEditing(false);
-                        }}
-                        onCancel={() => setIsEditing(false)}
-                      />
+                      <div class="message-text message-deleted-text">
+                        <Icon name="trash" size={14} /> This message was deleted
+                      </div>
                     }
                   >
-                    <div class="message-text">
-                      <Show
-                        when={msg.blocks?.length ? msg.blocks : undefined}
-                        fallback={<Mrkdwn text={msg.text} />}
-                      >
-                        {(blocks) => <BlockKit blocks={blocks()} />}
-                      </Show>
-                      <Show when={msg.editedLocally}>
-                        <span class="message-edited"> (edited)</span>
-                      </Show>
-                    </div>
-                  </Show>
-
-                  <Show when={msg.files?.length ? msg.files : undefined}>
-                    {(files) => <MessageFiles files={files()} />}
-                  </Show>
-
-                  <Show when={msg.attachments?.length}>
-                    <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
-                  </Show>
-
-                  <Show when={msg.reactions?.length ? msg.reactions : undefined}>
-                    {(reactions) => (
-                      <ReactionRow
-                        reactions={reactions()}
-                        onToggle={(name) =>
-                          reactToMessage(props.location, props.channelId, msg, name)
-                        }
-                      />
-                    )}
-                  </Show>
-
-                  <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
-                    <button
-                      type="button"
-                      class="message-replies"
-                      onClick={() => props.onOpenThread?.(msg.ts)}
+                    <Show
+                      when={!isEditing()}
+                      fallback={
+                        <MessageEditForm
+                          initialText={msg.text}
+                          onSave={(text) => {
+                            editMessageText(props.location, props.channelId, msg.ts, text);
+                            setIsEditing(false);
+                          }}
+                          onCancel={() => setIsEditing(false)}
+                        />
+                      }
                     >
-                      <Icon name="threads" size={14} /> {msg.replyCount}{" "}
-                      {msg.replyCount === 1 ? "reply" : "replies"}
-                    </button>
+                      <div class="message-text">
+                        <Show
+                          when={msg.blocks?.length ? msg.blocks : undefined}
+                          fallback={<Mrkdwn text={msg.text} />}
+                        >
+                          {(blocks) => <BlockKit blocks={blocks()} />}
+                        </Show>
+                        <Show when={msg.editedLocally}>
+                          <span class="message-edited"> (edited)</span>
+                        </Show>
+                      </div>
+                    </Show>
+
+                    <Show when={msg.files?.length ? msg.files : undefined}>
+                      {(files) => <MessageFiles files={files()} />}
+                    </Show>
+
+                    <Show when={msg.attachments?.length}>
+                      <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
+                    </Show>
+
+                    <Show when={msg.reactions?.length ? msg.reactions : undefined}>
+                      {(reactions) => (
+                        <ReactionRow
+                          reactions={reactions()}
+                          onToggle={(name) =>
+                            reactToMessage(props.location, props.channelId, msg, name)
+                          }
+                        />
+                      )}
+                    </Show>
+
+                    <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
+                      <button
+                        type="button"
+                        class="message-replies"
+                        onClick={() => props.onOpenThread?.(msg.ts)}
+                      >
+                        <Show
+                          when={msg.replyUsers?.length ? msg.replyUsers : undefined}
+                          fallback={<Icon name="threads" size={14} />}
+                        >
+                          {(users) => <InteractorAvatars userIds={users()} />}
+                        </Show>{" "}
+                        {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+                      </button>
+                    </Show>
                   </Show>
                 </div>
               </div>

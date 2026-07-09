@@ -5,6 +5,9 @@ import { createContext, useContext } from "solid-js";
 // ids to display names and to handle mention clicks.
 export interface BlockKitMentionInfo {
   name: string;
+  // True when this mention refers to the viewing user, so it can be rendered
+  // as a "pings you" highlight rather than a plain, non-pinging mention.
+  isSelf?: boolean;
 }
 
 export interface BlockKitResolver {

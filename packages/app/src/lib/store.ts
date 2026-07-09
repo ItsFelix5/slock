@@ -367,6 +367,51 @@ function setup() {
     setNavView("search");
   }
 
+  // ---- browser history integration (back/forward navigates views) ----
+  // Every view change (channel/dm selection, tab, open thread) is mirrored into
+  // window.history so the browser's back/forward buttons walk the same path.
+  // `lastNavSerialized` de-dupes and, crucially, is primed on popstate so the
+  // effect that re-runs after we restore a snapshot recognises it as a no-op
+  // and doesn't push the restored state back on top of the stack.
+  interface NavSnapshot {
+    nav: Nav;
+    view: View | null;
+    thread: ThreadRef | null;
+  }
+  let lastNavSerialized: string | null = null;
+
+  function currentNavSnapshot(): NavSnapshot {
+    return { nav: nav(), view: selected(), thread: activeThread() };
+  }
+
+  function applyNavSnapshot(snap: NavSnapshot) {
+    setSelected(snap.view ?? null);
+    setNav(snap.nav ?? "home");
+    setActiveThread(snap.thread ?? null);
+  }
+
+  if (typeof window !== "undefined") {
+    const onPopState = (e: PopStateEvent) => {
+      const snap = (e.state as { slockNav?: NavSnapshot } | null)?.slockNav;
+      if (!snap) return;
+      lastNavSerialized = JSON.stringify(snap);
+      applyNavSnapshot(snap);
+    };
+    window.addEventListener("popstate", onPopState);
+    onCleanup(() => window.removeEventListener("popstate", onPopState));
+
+    createEffect(() => {
+      const snap = currentNavSnapshot();
+      const serialized = JSON.stringify(snap);
+      if (serialized === lastNavSerialized) return;
+      const isFirst = lastNavSerialized === null;
+      lastNavSerialized = serialized;
+      const entry = { slockNav: snap };
+      if (isFirst) window.history.replaceState(entry, "");
+      else window.history.pushState(entry, "");
+    });
+  }
+
   // ---- initial per-view loads (the websocket keeps things fresh after this) ----
 
   createEffect(() => {
@@ -604,7 +649,9 @@ function setup() {
       const ts = payload.deleted_ts;
       if (!ts) return;
       const found = findMessageList(channel, ts);
-      if (found) removeMessage(found.location, ts);
+      // Slack removes deleted messages outright; we keep the row as a red
+      // tombstone instead so the conversation doesn't silently reshuffle.
+      if (found) patchMessage(found.location, ts, { deleted: true });
       return;
     }
 
@@ -934,7 +981,7 @@ function setup() {
   async function deleteMessageAt(location: MessageLocation, channelId: string, ts: string) {
     try {
       await deleteMessage(channelId, ts);
-      removeMessage(location, ts);
+      patchMessage(location, ts, { deleted: true });
     } catch (err) {
       console.error("Failed to delete message", err);
       showToast("Failed to delete message.");
@@ -1738,3 +1785,19 @@ export const {
   saveChannelCanvas,
   handleSlashCommand,
 } = createRoot(setup);
+
+// Some channels arrive without a human-readable name (shared/external channels,
+// or ones we can only see by id). Fall back to a shareable Flaron permalink for
+// public channels, and to the bare id only when even that wouldn't resolve
+// (private channels we can't publicly link).
+export function channelDisplayName(
+  channel: Pick<Channel, "id" | "name" | "private"> | undefined,
+  fallbackId?: string,
+): string {
+  const name = channel?.name?.trim();
+  if (name) return name;
+  const id = channel?.id ?? fallbackId ?? "";
+  if (!id) return "";
+  if (channel?.private) return id;
+  return `https://flaron.halceon.dev/channel/${id}`;
+}

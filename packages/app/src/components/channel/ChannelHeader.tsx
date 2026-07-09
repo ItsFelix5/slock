@@ -5,6 +5,7 @@ import {
   activeView,
   canvasByChannel,
   channelById,
+  channelDisplayName,
   createCanvasForCurrentChannel,
   createChannelSection,
   dmById,
@@ -41,7 +42,7 @@ export default function ChannelHeader() {
   const title = () => {
     const v = activeView();
     if (!v) return "";
-    if (v.kind === "channel") return channelById(v.id)?.name ?? "";
+    if (v.kind === "channel") return channelDisplayName(channelById(v.id), v.id);
     const dm = dmById(v.id);
     return dm ? (userById(dm.userId)?.name ?? "") : "";
   };
@@ -125,7 +126,7 @@ export default function ChannelHeader() {
                 title="Move to…"
                 onClick={() => setStarMenuOpen(!starMenuOpen())}
               >
-                <Icon name="star" size={16} />
+                <Icon name={starred() ? "star-filled" : "star"} size={16} />
               </button>
             }
           >

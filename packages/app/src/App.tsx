@@ -9,16 +9,24 @@ import ThreadPanel from "./components/messages/ThreadPanel";
 import BrowseChannels from "./components/sidebar/BrowseChannels";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserProfile from "./components/user/UserProfile";
-import { bootstrap, channelById, openUserProfile, setActiveView, userById } from "./lib/store";
+import {
+  bootstrap,
+  channelById,
+  channelDisplayName,
+  currentUser,
+  openUserProfile,
+  setActiveView,
+  userById,
+} from "./lib/store";
 
 const blockKitResolver: BlockKitResolver = {
   resolveUser: (id) => {
     const user = userById(id);
-    return user ? { name: user.name } : undefined;
+    return user ? { name: user.name, isSelf: id === currentUser()?.id } : undefined;
   },
   resolveChannel: (id) => {
     const channel = channelById(id);
-    return channel ? { name: channel.name } : undefined;
+    return channel ? { name: channelDisplayName(channel) } : undefined;
   },
   onUserClick: openUserProfile,
   onChannelClick: (id) => setActiveView({ kind: "channel", id }),

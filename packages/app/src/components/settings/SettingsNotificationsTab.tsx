@@ -1,6 +1,7 @@
 import { Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
 import {
+  channelDisplayName,
   mutedChannels,
   notifyAllChannels,
   toggleMuteChannel,
@@ -25,7 +26,7 @@ export default function SettingsNotificationsTab() {
               {(c) => (
                 <div class="settings-list-row">
                   <span class="settings-list-row-name">
-                    {c.private ? <Icon name="lock" size={12} /> : "#"} {c.name}
+                    {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
                   <button
                     type="button"
@@ -57,7 +58,7 @@ export default function SettingsNotificationsTab() {
               {(c) => (
                 <div class="settings-list-row">
                   <span class="settings-list-row-name">
-                    {c.private ? <Icon name="lock" size={12} /> : "#"} {c.name}
+                    {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
                   <button
                     type="button"

@@ -10,6 +10,7 @@
     "dev": "bun run --filter slock-web dev",
     "server": "bun run --filter slock-web server",
     "build": "tsc -b && bun run --filter slock-web build",
+    "start": "bun run --filter slock-web build && bun run --filter slock-web server",
     "preview": "bun run --filter slock-web preview",
     "lint": "biome lint .",
     "format": "biome format --write .",
