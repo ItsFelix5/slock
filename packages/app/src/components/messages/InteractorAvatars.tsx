@@ -1,5 +1,5 @@
-import { Avatar } from "@slock/ui";
-import { createMemo, For, Show } from "solid-js";
+import { AvatarStack } from "@slock/ui";
+import { createMemo } from "solid-js";
 import { currentUser, userById } from "../../lib/store";
 
 // Turns a list of user ids into a natural-language list ("you, Alice and Bob"),
@@ -17,29 +17,11 @@ export function formatInteractorNames(userIds: string[]): string {
 // A compact overlapping stack of the people who interacted with a message
 // (thread repliers, reactors). Hovering the stack surfaces every name.
 export default function InteractorAvatars(props: { userIds: string[]; max?: number }) {
-  const max = () => props.max ?? 3;
-  const shown = createMemo(() => props.userIds.slice(0, max()));
-  const extra = createMemo(() => props.userIds.length - shown().length);
+  const users = createMemo(() =>
+    props.userIds.map((id) => userById(id)).filter((u) => u !== undefined),
+  );
 
   return (
-    <span class="interactor-avatars" title={formatInteractorNames(props.userIds)}>
-      <For each={shown()}>
-        {(id) => {
-          const user = createMemo(() => userById(id));
-          return (
-            <Show when={user()}>
-              {(u) => (
-                <span class="interactor-avatar">
-                  <Avatar user={u()} size="small" />
-                </span>
-              )}
-            </Show>
-          );
-        }}
-      </For>
-      <Show when={extra() > 0}>
-        <span class="interactor-extra">+{extra()}</span>
-      </Show>
-    </span>
+    <AvatarStack users={users()} max={props.max} title={formatInteractorNames(props.userIds)} />
   );
 }

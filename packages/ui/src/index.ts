@@ -1,5 +1,7 @@
-export type { AvatarProps } from "./Avatar";
+export type { AvatarProps, AvatarUser } from "./Avatar";
 export { default as Avatar } from "./Avatar";
+export type { AvatarStackProps } from "./AvatarStack";
+export { default as AvatarStack } from "./AvatarStack";
 export type { BadgeProps } from "./Badge";
 export { default as Badge } from "./Badge";
 export type { ButtonProps } from "./Button";

@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
 import "./Avatar.css";
 
-interface User {
+export interface AvatarUser {
   id: string;
   name: string;
   avatarUrl?: string;
@@ -11,7 +11,7 @@ interface User {
 }
 
 export interface AvatarProps {
-  user: User;
+  user: AvatarUser;
   size?: "small" | "medium" | "large";
   showPresence?: boolean;
 }

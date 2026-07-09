@@ -1,0 +1,22 @@
+.avatar-stack {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.avatar-stack-item {
+  display: inline-flex;
+  border-radius: 5px;
+  box-shadow: 0 0 0 2px var(--main-bg);
+}
+
+.avatar-stack-item:not(:first-child) {
+  margin-left: -6px;
+}
+
+.avatar-stack-extra {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}

@@ -456,29 +456,6 @@
   border-color: var(--text-dim);
 }
 
-.interactor-avatars {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-}
-
-.interactor-avatar {
-  display: inline-flex;
-  border-radius: 5px;
-  box-shadow: 0 0 0 2px var(--main-bg);
-}
-
-.interactor-avatar:not(:first-child) {
-  margin-left: -6px;
-}
-
-.interactor-extra {
-  margin-left: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
 .pronouns {
   font-weight: 400;
   color: var(--text-dim);
