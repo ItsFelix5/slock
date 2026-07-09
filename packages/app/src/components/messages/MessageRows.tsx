@@ -9,6 +9,7 @@ import {
   reactToMessage,
   userById,
 } from "../../lib/store";
+import UserHoverCard from "../user/UserHoverCard";
 import AttachmentCard from "./AttachmentCard";
 import InteractorAvatars from "./InteractorAvatars";
 import MessageActionsBar from "./MessageActionsBar";
@@ -51,6 +52,30 @@ export default function MessageRows(props: {
         const avatarUrl = () => msg.botIcon ?? user()?.avatarUrl;
         const [isEditing, setIsEditing] = createSignal(false);
 
+        const avatarButton = () => (
+          <button
+            type="button"
+            class="message-avatar"
+            style={{ background: user()?.avatarColor ?? "#616061" }}
+            onClick={() => !msg.botName && openUserProfile(msg.userId)}
+          >
+            <Show when={avatarUrl()} fallback={msg.botName ? "🤖" : (user()?.initials ?? "?")}>
+              {(url) => <img class="message-avatar-img" src={url()} alt="" />}
+            </Show>
+          </button>
+        );
+
+        const authorButton = () => (
+          <button
+            type="button"
+            class="message-author"
+            disabled={!!msg.botName}
+            onClick={() => !msg.botName && openUserProfile(msg.userId)}
+          >
+            {displayName()}
+          </button>
+        );
+
         return (
           <>
             <Show when={showDayDivider()}>
@@ -79,31 +104,16 @@ export default function MessageRows(props: {
                   when={!sameAuthorAsPrev()}
                   fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
                 >
-                  <button
-                    type="button"
-                    class="message-avatar"
-                    style={{ background: user()?.avatarColor ?? "#616061" }}
-                    onClick={() => !msg.botName && openUserProfile(msg.userId)}
-                  >
-                    <Show
-                      when={avatarUrl()}
-                      fallback={msg.botName ? "🤖" : (user()?.initials ?? "?")}
-                    >
-                      {(url) => <img class="message-avatar-img" src={url()} alt="" />}
-                    </Show>
-                  </button>
+                  <Show when={!msg.botName} fallback={avatarButton()}>
+                    <UserHoverCard userId={msg.userId}>{avatarButton()}</UserHoverCard>
+                  </Show>
                 </Show>
                 <div class="message-body">
                   <Show when={!sameAuthorAsPrev()}>
                     <div class="message-meta">
-                      <button
-                        type="button"
-                        class="message-author"
-                        disabled={!!msg.botName}
-                        onClick={() => !msg.botName && openUserProfile(msg.userId)}
-                      >
-                        {displayName()}
-                      </button>
+                      <Show when={!msg.botName} fallback={authorButton()}>
+                        <UserHoverCard userId={msg.userId}>{authorButton()}</UserHoverCard>
+                      </Show>
                       <Show when={msg.botName}>
                         <span class="message-bot-badge">APP</span>
                       </Show>
