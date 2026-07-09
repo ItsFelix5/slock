@@ -367,6 +367,51 @@ function setup() {
     setNavView("search");
   }
 
+  // ---- browser history integration (back/forward navigates views) ----
+  // Every view change (channel/dm selection, tab, open thread) is mirrored into
+  // window.history so the browser's back/forward buttons walk the same path.
+  // `lastNavSerialized` de-dupes and, crucially, is primed on popstate so the
+  // effect that re-runs after we restore a snapshot recognises it as a no-op
+  // and doesn't push the restored state back on top of the stack.
+  interface NavSnapshot {
+    nav: Nav;
+    view: View | null;
+    thread: ThreadRef | null;
+  }
+  let lastNavSerialized: string | null = null;
+
+  function currentNavSnapshot(): NavSnapshot {
+    return { nav: nav(), view: selected(), thread: activeThread() };
+  }
+
+  function applyNavSnapshot(snap: NavSnapshot) {
+    setSelected(snap.view ?? null);
+    setNav(snap.nav ?? "home");
+    setActiveThread(snap.thread ?? null);
+  }
+
+  if (typeof window !== "undefined") {
+    const onPopState = (e: PopStateEvent) => {
+      const snap = (e.state as { slockNav?: NavSnapshot } | null)?.slockNav;
+      if (!snap) return;
+      lastNavSerialized = JSON.stringify(snap);
+      applyNavSnapshot(snap);
+    };
+    window.addEventListener("popstate", onPopState);
+    onCleanup(() => window.removeEventListener("popstate", onPopState));
+
+    createEffect(() => {
+      const snap = currentNavSnapshot();
+      const serialized = JSON.stringify(snap);
+      if (serialized === lastNavSerialized) return;
+      const isFirst = lastNavSerialized === null;
+      lastNavSerialized = serialized;
+      const entry = { slockNav: snap };
+      if (isFirst) window.history.replaceState(entry, "");
+      else window.history.pushState(entry, "");
+    });
+  }
+
   // ---- initial per-view loads (the websocket keeps things fresh after this) ----
 
   createEffect(() => {
