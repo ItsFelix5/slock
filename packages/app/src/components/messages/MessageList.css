@@ -6,6 +6,17 @@
   padding-bottom: 12px;
 }
 
+.message-list-skeleton {
+  padding-top: 32px;
+}
+
+.message-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .message-list-intro {
   padding: 32px 20px 24px;
 }
@@ -54,6 +65,29 @@
 }
 
 .day-divider span {
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.unread-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 20px;
+}
+
+.unread-divider::before,
+.unread-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--danger);
+}
+
+.unread-divider span {
   padding: 0 10px;
   white-space: nowrap;
 }
@@ -330,38 +364,40 @@
   background: rgba(var(--danger-rgb), 0.06);
 }
 
-.message-edit-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
+.message-row.saved {
+  box-shadow: inset 2px 0 0 rgba(var(--accent-rgb), 0.5);
 }
 
-.message-edit-save,
-.message-edit-cancel {
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
+.message-row.ephemeral {
+  background: rgba(var(--mention-self-rgb), 0.05);
+  box-shadow: inset 2px 0 0 rgba(var(--mention-self-rgb), 0.4);
+}
+
+.message-row.ephemeral:hover {
+  background: rgba(var(--mention-self-rgb), 0.09);
+}
+
+.message-saved-badge,
+.message-ephemeral-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 5px 12px;
-  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  letter-spacing: 0.02em;
 }
 
-.message-edit-save {
-  background: var(--accent);
-  color: var(--text-on-accent);
+.message-saved-badge {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
-.message-edit-save:hover {
-  background: var(--accent-hover);
-}
-
-.message-edit-cancel {
-  background: none;
-  color: var(--text-secondary);
-}
-
-.message-edit-cancel:hover {
-  color: var(--text-primary);
+.message-ephemeral-badge {
+  color: var(--mention-self-text);
+  background: var(--mention-self-bg);
 }
 
 .reaction-row {

@@ -8,6 +8,7 @@ import {
   directMessages,
   frecencyScore,
   joinChannelById,
+  knownUsers,
   openDmWithUser,
   openMessageSearch,
   searchUsers,
@@ -68,13 +69,12 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     const q = query().trim().toLowerCase();
     if (!q) return [];
     const me = currentUser()?.id;
-    return (bootstrap()?.users ?? []).filter((u) => u.id !== me && fuzzyMatch(u.name, q) !== null);
+    return knownUsers().filter((u) => u.id !== me && fuzzyMatch(u.name, q) !== null);
   });
 
-  // The bootstrap user list is capped at 200 for payload size, which on a large
-  // workspace covers a sliver of the org — merge in a debounced org-wide search
-  // so "people" results aren't silently limited to whoever happened to load first.
-  // Final ranking (by frecency) happens once, together with channels, in `rows`.
+  // Local matches are only whoever's already been resolved this session — merge
+  // in a debounced org-wide search so "people" results aren't silently limited to
+  // that. Final ranking (by frecency) happens once, together with channels, in `rows`.
   const peopleResults = createMemo<User[]>(() => {
     const q = query().trim().toLowerCase();
     if (!q) return [];
@@ -181,7 +181,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             }}
             autofocus
           />
-          <button type="button" class="global-search-close" onClick={props.onClose} title="Close">
+          <button type="button" class="panel-close-btn" onClick={props.onClose} title="Close">
             ✕
           </button>
         </div>

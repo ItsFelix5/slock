@@ -1,7 +1,7 @@
 import type { User } from "@slock/slack-api";
 import { Avatar, fuzzySearch, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import { bootstrap, currentUser, frecencyScore, searchUsers } from "../../lib/store";
+import { currentUser, frecencyScore, knownUsers, searchUsers } from "../../lib/store";
 import "./ComposeUserPicker.css";
 
 export default function ComposeUserPicker(props: {
@@ -24,7 +24,7 @@ export default function ComposeUserPicker(props: {
 
   const localUsers = createMemo(() => {
     const me = currentUser()?.id;
-    return (bootstrap()?.users ?? []).filter((u) => u.id !== me);
+    return knownUsers().filter((u) => u.id !== me);
   });
 
   const onInput = (value: string) => {
@@ -48,12 +48,11 @@ export default function ComposeUserPicker(props: {
     }, 250);
   };
 
-  // The 200-user bootstrap slice is instant but only covers a fraction of a
-  // large workspace, so once a query goes out, merge in whatever the org-wide
-  // directory search has found so far — local results first (no flicker),
-  // remote ones merged in — then rank the whole pool by fuzzy name match with
-  // frecency (usage frequency/recency) as the tiebreaker, same policy as
-  // GlobalSearch and the composer's @mention suggestions.
+  // Local results (anyone already resolved this session) show instantly with no
+  // flicker; once a query goes out, merge in whatever the org-wide directory search
+  // has found so far, then rank the whole pool by fuzzy name match with frecency
+  // (usage frequency/recency) as the tiebreaker, same policy as GlobalSearch and
+  // the composer's @mention suggestions.
   const users = createMemo(() => {
     const merged = new Map<string, User>();
     for (const u of localUsers()) merged.set(u.id, u);

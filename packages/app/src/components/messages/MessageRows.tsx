@@ -3,7 +3,14 @@ import type { Message } from "@slock/slack-api";
 import { Icon, logDeletedMessages } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../lib/replyLink";
-import { editMessageText, openUserProfile, reactToMessage, userById } from "../../lib/store";
+import {
+  editMessageText,
+  isSavedForLater,
+  openUserProfile,
+  reactToMessage,
+  unreadDividerTsForChannel,
+  userById,
+} from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import AttachmentCard from "./AttachmentCard";
@@ -18,6 +25,7 @@ import "./MessageList.css";
 export default function MessageRows(props: {
   messages: Message[];
   channelId: string;
+  threadTs?: string;
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
@@ -30,9 +38,30 @@ export default function MessageRows(props: {
           const p = prev();
           return !p || p.day !== msg.day;
         };
+        const showUnreadDivider = () => {
+          const p = prev();
+          // In a thread, the first row is always the parent message, which the
+          // user has already read by virtue of opening the thread — never worth
+          // a divider above it.
+          if (props.threadTs && !p) return false;
+          const anchor = unreadDividerTsForChannel(props.channelId);
+          if (anchor == null) return false;
+          if (parseFloat(msg.ts) * 1000 <= anchor) return false;
+          return !p || parseFloat(p.ts) * 1000 <= anchor;
+        };
         const replyRef = createMemo(() => parseReplyLink(msg.text));
         const referencedMessage = createMemo(() =>
           props.messages.find((m) => m.ts === replyRef()?.ts),
+        );
+        // A broadcasted reply shows up in the channel's own timeline (like
+        // Slack), but on its own it'd read like an out-of-context message —
+        // so it gets the same "reply to" reference row as a manual reply
+        // link, pointing at the thread it came from instead.
+        const showThreadContext = createMemo(
+          () => !!(props.onOpenThread && msg.isBroadcast && msg.threadTs),
+        );
+        const threadParent = createMemo(() =>
+          showThreadContext() ? props.messages.find((m) => m.ts === msg.threadTs) : undefined,
         );
         // Slack auto-unfurls the permalink in `attachments` — redundant with
         // our own ReplyReferenceRow above the message, so drop just that one.
@@ -46,7 +75,8 @@ export default function MessageRows(props: {
             p.userId === msg.userId &&
             !showDayDivider() &&
             p.kind === msg.kind &&
-            !replyRef()
+            !replyRef() &&
+            !showThreadContext()
           );
         };
         // Bot messages carry their own username/icon rather than a real user id
@@ -95,6 +125,11 @@ export default function MessageRows(props: {
                 <span>{msg.day}</span>
               </div>
             </Show>
+            <Show when={showUnreadDivider()}>
+              <div class="unread-divider">
+                <span>New messages</span>
+              </div>
+            </Show>
             <Show
               when={msg.kind !== "system"}
               fallback={<SystemMessage text={msg.text} time={msg.time} />}
@@ -105,15 +140,28 @@ export default function MessageRows(props: {
                   onJump={() => props.onJumpToMessage?.(replyRef()?.ts ?? "")}
                 />
               </Show>
+              <Show when={showThreadContext()}>
+                <ReplyReferenceRow
+                  message={threadParent()}
+                  icon="threads"
+                  onJump={() => props.onOpenThread?.(msg.threadTs ?? "")}
+                />
+              </Show>
               <div
                 class="message-row"
-                classList={{ compact: sameAuthorAsPrev(), deleted: msg.deleted }}
+                classList={{
+                  compact: sameAuthorAsPrev(),
+                  deleted: msg.deleted,
+                  ephemeral: msg.isEphemeral,
+                  saved: isSavedForLater(msg.ts),
+                }}
                 data-message-ts={msg.ts}
               >
-                <Show when={!msg.deleted}>
+                <Show when={!msg.deleted && !msg.isEphemeral}>
                   <MessageActionsBar
                     channelId={props.channelId}
                     msg={msg}
+                    threadTs={props.threadTs}
                     onOpenThread={props.onOpenThread}
                     onReplyLink={props.onReplyLink}
                     onEditRequest={() => setIsEditing(true)}
@@ -149,6 +197,18 @@ export default function MessageRows(props: {
                       <span class="message-time">{msg.time}</span>
                       <Show when={user()?.pronouns}>
                         <span class="pronouns">•&nbsp;{user()?.pronouns}</span>
+                      </Show>
+                      <Show when={msg.isEphemeral}>
+                        <span class="message-ephemeral-badge">
+                          <Icon name="eye-closed" size={11} />
+                          Only visible to you
+                        </span>
+                      </Show>
+                      <Show when={isSavedForLater(msg.ts)}>
+                        <span class="message-saved-badge">
+                          <Icon name="bookmark-filled" size={11} />
+                          Saved
+                        </span>
                       </Show>
                     </div>
                   </Show>
@@ -189,6 +249,9 @@ export default function MessageRows(props: {
                       </Show>
                       <Show when={msg.edited}>
                         <span class="message-edited"> (edited)</span>
+                      </Show>
+                      <Show when={msg.isBroadcast && !props.onOpenThread}>
+                        <span class="message-edited"> · Also sent to channel</span>
                       </Show>
                     </div>
                   </Show>

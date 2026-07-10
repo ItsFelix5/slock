@@ -12,27 +12,6 @@
   overflow: hidden;
 }
 
-.settings-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.settings-close:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
 /* Navigation sidebar */
 .settings-nav {
   width: 160px;

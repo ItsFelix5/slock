@@ -57,6 +57,12 @@ export async function editMessage(channelId: string, ts: string, text: string, b
   return data;
 }
 
+export async function broadcastReply(channelId: string, ts: string) {
+  const data = await callSlack("chat.update", { channel: channelId, ts, reply_broadcast: "true" });
+  if (!data.ok) throw new Error(data.error ?? "chat.update failed");
+  return data;
+}
+
 export async function deleteMessage(channelId: string, ts: string) {
   const data = await callSlack("chat.delete", { channel: channelId, ts });
   if (!data.ok) throw new Error(data.error ?? "chat.delete failed");

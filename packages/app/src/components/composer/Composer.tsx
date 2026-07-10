@@ -22,7 +22,6 @@ import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../lib/emojiSear
 import { encodeReplyLink } from "../../lib/replyLink";
 import {
   activeView,
-  bootstrap,
   channelById,
   channelDisplayName,
   channels,
@@ -30,6 +29,7 @@ import {
   dmById,
   frecencyScore,
   handleSlashCommand,
+  knownUsers,
   recordEmojiUse,
   searchUsers,
   sendMessage,
@@ -345,7 +345,7 @@ export default function Composer(props: {
           .slice(0, 8)
           .map((u) => ({ kind: "user", id: u.id, name: u.name, user: u }));
 
-      const localUsers = (bootstrap()?.users ?? []).filter((u) => u.id !== me);
+      const localUsers = knownUsers().filter((u) => u.id !== me);
       setSuggest({ kind: "user", start: trigger.start, items: toItems(localUsers), active: 0 });
       if (!q) return;
       searchUsers(q, me).then((found) => {

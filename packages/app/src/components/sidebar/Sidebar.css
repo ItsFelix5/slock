@@ -71,15 +71,6 @@
   color: var(--accent);
 }
 
-.sidebar-dnd-popover {
-  width: 240px;
-  padding: 14px;
-}
-
-.sidebar-dnd-popover .settings-row-hint {
-  margin-bottom: 10px;
-}
-
 .sidebar-nav {
   display: flex;
   gap: 4px;
@@ -127,50 +118,6 @@
   border-radius: 50%;
   background: var(--badge-bg);
   border: 2px solid var(--sidebar-bg);
-}
-
-.sidebar-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px 8px;
-  flex-shrink: 0;
-}
-
-.sidebar-search-icon-btn {
-  flex-shrink: 0;
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.sidebar-search-icon-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-.sidebar-search-icon-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
-}
-
-.sidebar-unread-filter-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-}
-
-.sidebar-search-icon-btn.active .sidebar-unread-filter-dot {
-  background: currentColor;
 }
 
 .sidebar-scroll {
@@ -265,61 +212,6 @@
   right: 0;
   left: auto;
   min-width: 150px;
-}
-
-.sidebar-add-section {
-  padding: 0 12px;
-  margin-top: 4px;
-}
-
-.sidebar-add-section-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 11px;
-  line-height: 1;
-  padding: 3px 4px;
-  cursor: pointer;
-}
-
-.sidebar-add-section-btn:hover {
-  color: var(--text-primary);
-}
-
-.sidebar-add-section-input {
-  width: 100%;
-  background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 5px 8px;
-}
-
-.sidebar-compose-wrap {
-  position: relative;
-  margin-left: auto;
-}
-
-.sidebar-compose {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.sidebar-compose:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
 }
 
 .sidebar-row-wrap {

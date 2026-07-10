@@ -5,9 +5,9 @@
 - Channel notification settings (every thread, broadcast, all posts, mute)
 - thread subscriptions
 - Activity improvements
-- y bootstrap
 - no toasts
 - Clean up dead code/css and huge files
 - Fix unreads
 - DND duration (some kinda hover popover something with only numbers)
-- history.pushstate
+- Auth
+- Topic mrkdwn

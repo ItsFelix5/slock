@@ -3,6 +3,7 @@ import { fuzzySearch, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../lib/replyLink";
 import {
+  broadcastThreadReply,
   copyMessageLink,
   currentUser,
   deleteMessageAt,
@@ -23,6 +24,7 @@ import EmojiPicker from "../composer/EmojiPicker";
 export default function MessageActionsBar(props: {
   channelId: string;
   msg: Message;
+  threadTs?: string;
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
@@ -82,9 +84,19 @@ export default function MessageActionsBar(props: {
     setShortcutsOpen(!shortcutsOpen());
   };
 
+  // A broadcasted reply's own ts is just where it landed in the channel —
+  // its actual thread lives at threadTs, so "reply in thread" must jump
+  // there instead of opening a new thread rooted on the broadcast itself.
+  const threadRootTs = createMemo(() =>
+    props.msg.isBroadcast && props.msg.threadTs ? props.msg.threadTs : props.msg.ts,
+  );
+
   const isMine = createMemo(() => currentUser()?.id === props.msg.userId);
   const isSaved = createMemo(() => isSavedForLater(props.msg.ts));
   const isPinned = createMemo(() => isMessagePinned(props.channelId, props.msg.ts));
+  const canBroadcast = createMemo(
+    () => !!props.threadTs && props.threadTs !== props.msg.ts && !props.msg.isBroadcast,
+  );
 
   const copyText = () => {
     navigator.clipboard.writeText(parseReplyLink(props.msg.text)?.rest ?? props.msg.text);
@@ -115,6 +127,11 @@ export default function MessageActionsBar(props: {
   const togglePin = () => {
     setMoreOpen(false);
     togglePinMessage(props.channelId, props.msg.ts);
+  };
+
+  const broadcastToChannel = () => {
+    setMoreOpen(false);
+    broadcastThreadReply(props.channelId, props.msg.ts);
   };
 
   const markUnread = () => {
@@ -153,7 +170,7 @@ export default function MessageActionsBar(props: {
           type="button"
           class="message-hover-btn"
           title="Reply in thread"
-          onClick={() => props.onOpenThread?.(props.msg.ts)}
+          onClick={() => props.onOpenThread?.(threadRootTs())}
         >
           <Icon name="threads" size={16} />
         </button>
@@ -210,6 +227,12 @@ export default function MessageActionsBar(props: {
           <Icon name="pin" size={15} />
           {isPinned() ? "Unpin from channel" : "Pin to channel"}
         </button>
+        <Show when={canBroadcast()}>
+          <button type="button" class="menu-item" onClick={broadcastToChannel}>
+            <Icon name="channel" size={15} />
+            Also send to channel
+          </button>
+        </Show>
         <Menu
           class="message-more-item-wrap"
           panelClass="menu-panel message-more-submenu"

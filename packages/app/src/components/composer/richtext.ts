@@ -63,7 +63,7 @@ export function createChannelChip(id: string, name: string): HTMLSpanElement {
   return chip;
 }
 
-export const DEFAULT_DATE_FORMAT = "{date_short_pretty} at {time}";
+const DEFAULT_DATE_FORMAT = "{date_short_pretty} at {time}";
 
 export function createDateChip(
   timestamp: number,

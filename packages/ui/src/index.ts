@@ -28,9 +28,13 @@ export { default as Popover } from "./Popover";
 export { default as ResizeHandle } from "./ResizeHandle";
 export type { SegmentedControlProps } from "./SegmentedControl";
 export { default as SegmentedControl } from "./SegmentedControl";
+export type { SkeletonProps } from "./Skeleton";
+export { default as Skeleton } from "./Skeleton";
 export type { SwitchProps } from "./Switch";
 export { default as Switch } from "./Switch";
 export { default as ToastStack } from "./Toast";
+export type { TypingIndicatorProps } from "./TypingIndicator";
+export { default as TypingIndicator } from "./TypingIndicator";
 export {
   activePreset,
   applyPreset,
@@ -55,3 +59,5 @@ export {
 export { showToast, type Toast, toasts } from "./toast";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
+export type { ZoomableImageProps } from "./ZoomableImage";
+export { default as ZoomableImage } from "./ZoomableImage";

@@ -6,17 +6,11 @@
   max-width: 420px;
 }
 
-.message-file-image-link {
-  display: inline-block;
-  max-width: 360px;
-}
-
 .message-file-image {
   max-width: 360px;
   max-height: 320px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  display: block;
 }
 
 .message-file-card {

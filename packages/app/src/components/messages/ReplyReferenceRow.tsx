@@ -1,17 +1,21 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
-import { Avatar, Icon } from "@slock/ui";
+import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
 import { parseReplyLink } from "../../lib/replyLink";
 import { userById } from "../../lib/store";
 import "./ReplyReferenceRow.css";
 
-export default function ReplyReferenceRow(props: { message?: Message; onJump: () => void }) {
+export default function ReplyReferenceRow(props: {
+  message?: Message;
+  onJump: () => void;
+  icon?: IconName;
+}) {
   const snippet = (msg: Message) => parseReplyLink(msg.text)?.rest ?? msg.text;
 
   return (
     <button type="button" class="reply-reference-row" onClick={props.onJump}>
-      <Icon name="email-reply" size={13} />
+      <Icon name={props.icon ?? "email-reply"} size={13} />
       <Show
         when={props.message}
         fallback={<span class="reply-reference-snippet">Original message</span>}

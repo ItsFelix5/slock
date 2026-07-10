@@ -1,6 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
 import { fileProxyUrl } from "@slock/slack-api";
+import { ZoomableImage } from "@slock/ui";
 import { For, Show } from "solid-js";
 import "./AttachmentCard.css";
 
@@ -69,7 +70,7 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
         </div>
       </Show>
       <Show when={a.imageUrl}>
-        {(url) => <img class="attachment-image" src={imageSrc(url())} alt="" />}
+        {(url) => <ZoomableImage class="attachment-image" src={imageSrc(url())} alt="" />}
       </Show>
       <Show when={a.footer}>
         <div class="attachment-footer">

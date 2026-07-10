@@ -1,6 +1,6 @@
 import type { SlackFile } from "@slock/slack-api";
 import { fileProxyUrl } from "@slock/slack-api";
-import { Icon } from "@slock/ui";
+import { Icon, ZoomableImage } from "@slock/ui";
 import { For, Show } from "solid-js";
 import "./MessageFiles.css";
 
@@ -36,20 +36,14 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
             }
           >
             {(thumb) => (
-              <a
-                href={fileProxyUrl(file.urlPrivate)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="message-file-image-link"
-              >
-                <img
-                  class="message-file-image"
-                  src={fileProxyUrl(thumb())}
-                  alt={file.title || file.name}
-                  width={file.width}
-                  height={file.height}
-                />
-              </a>
+              <ZoomableImage
+                class="message-file-image"
+                src={fileProxyUrl(thumb())}
+                fullSrc={fileProxyUrl(file.urlPrivate)}
+                alt={file.title || file.name}
+                width={file.width}
+                height={file.height}
+              />
             )}
           </Show>
         )}

@@ -1,7 +1,7 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
-import { ToastStack } from "@slock/ui";
-import { Show } from "solid-js";
+import { showToast, ToastStack, TypingIndicator } from "@slock/ui";
+import { createEffect, createMemo, Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
@@ -23,6 +23,7 @@ import {
   nav,
   openUserProfile,
   setActiveView,
+  typingUsersInChannel,
   userById,
 } from "./lib/store";
 
@@ -47,39 +48,48 @@ const blockKitResolver: BlockKitResolver = {
 
 function App() {
   const unjoinedChannelId = () => {
+    if (bootstrap.loading) return undefined;
     const v = activeView();
     return v?.kind === "channel" && !isChannelMember(v.id) ? v.id : undefined;
   };
 
-  return (
-    <Show when={!bootstrap.loading} fallback={<div class="app-status">Loading Slack…</div>}>
-      <Show
-        when={!bootstrap.error}
-        fallback={<div class="app-status">Failed to load: {String(bootstrap.error)}</div>}
-      >
-        <BlockKitResolverContext.Provider value={blockKitResolver}>
-          <div class="app">
-            <Sidebar />
+  const typingNames = createMemo(() => {
+    const v = activeView();
+    if (!v) return [];
+    return typingUsersInChannel(v.id).map((u) => u.name);
+  });
 
-            <div class="main-panel">
-              <Show when={nav() !== "search"} fallback={<MessageSearchView />}>
-                <ChannelHeader />
-                <MessageList />
-                <Show when={unjoinedChannelId()} fallback={<Composer />}>
-                  {(channelId) => <JoinChannelBar channelId={channelId()} />}
-                </Show>
-              </Show>
-            </div>
-            <ThreadPanel />
-            <UserProfile />
-            <ChannelDetails />
-            <PinnedPanel />
-            <CanvasPanel />
-            <ToastStack />
-          </div>
-        </BlockKitResolverContext.Provider>
-      </Show>
-    </Show>
+  // The shell renders immediately on every other piece of state (channels, DMs,
+  // current user) already falling back to empty/undefined — no reason to block
+  // the whole app behind one resource when each part can show its own skeleton
+  // and fill in as bootstrap resolves.
+  createEffect(() => {
+    if (bootstrap.error) showToast(`Failed to load: ${String(bootstrap.error)}`, 5000);
+  });
+
+  return (
+    <BlockKitResolverContext.Provider value={blockKitResolver}>
+      <div class="app">
+        <Sidebar />
+
+        <div class="main-panel">
+          <Show when={nav() !== "search"} fallback={<MessageSearchView />}>
+            <ChannelHeader />
+            <MessageList />
+            <TypingIndicator names={typingNames()} />
+            <Show when={unjoinedChannelId()} fallback={<Composer />}>
+              {(channelId) => <JoinChannelBar channelId={channelId()} />}
+            </Show>
+          </Show>
+        </div>
+        <ThreadPanel />
+        <UserProfile />
+        <ChannelDetails />
+        <PinnedPanel />
+        <CanvasPanel />
+        <ToastStack />
+      </div>
+    </BlockKitResolverContext.Provider>
   );
 }
 

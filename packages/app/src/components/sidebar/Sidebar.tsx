@@ -1,8 +1,9 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
-import { Avatar, Icon, Menu, Popover, ResizeHandle } from "@slock/ui";
+import { Avatar, Icon, Menu, ResizeHandle, Skeleton } from "@slock/ui";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import {
   activeView,
+  bootstrap,
   channelDisplayName,
   channels,
   closeDmConversation,
@@ -81,6 +82,28 @@ function DmRow(props: { dm: DirectMessage }) {
         </div>
       )}
     </Show>
+  );
+}
+
+// Placeholder rows shown in place of the real channel list until bootstrap
+// resolves — varied widths so it reads as "text loading", not a repeated block.
+const SKELETON_ROW_WIDTHS = [120, 88, 150, 100, 70, 130, 95];
+
+function SidebarSkeleton() {
+  return (
+    <div class="sidebar-section" aria-hidden="true">
+      <div class="sidebar-section-header">
+        <Skeleton width={64} height={11} />
+      </div>
+      <For each={SKELETON_ROW_WIDTHS}>
+        {(w) => (
+          <div class="sidebar-row">
+            <Skeleton width={16} height={12} radius={3} />
+            <Skeleton width={w} height={12} />
+          </div>
+        )}
+      </For>
+    </div>
   );
 }
 
@@ -199,7 +222,15 @@ export default function Sidebar() {
       />
 
       <div class="sidebar-top">
-        <Show when={currentUser()}>
+        <Show
+          when={currentUser()}
+          fallback={
+            <div class="sidebar-me sidebar-me-skeleton">
+              <Skeleton width={32} height={32} radius={8} />
+              <Skeleton width={90} height={14} />
+            </div>
+          }
+        >
           {(user) => (
             <button
               type="button"
@@ -305,153 +336,155 @@ export default function Sidebar() {
         }
       >
         <div class="sidebar-scroll">
-          <For each={categories()}>
-            {(cat) => (
-              <div class="sidebar-section">
-                <div class="sidebar-section-header">
-                  <Show
-                    when={renamingId() !== cat.id}
-                    fallback={
-                      <input
-                        class="sidebar-section-rename-input"
-                        value={renameValue()}
-                        onInput={(e) => setRenameValue(e.currentTarget.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") commitRename();
-                          if (e.key === "Escape") setRenamingId(null);
-                        }}
-                        onBlur={commitRename}
-                        autofocus
-                      />
-                    }
-                  >
-                    <button
-                      type="button"
-                      class="sidebar-section-header-btn"
-                      onClick={() => toggleCategory(cat.id)}
-                    >
-                      <span
-                        class="sidebar-caret"
-                        classList={{ collapsed: collapsed().has(cat.id) }}
-                      >
-                        <Icon name="caret-down-filled" size={10} />
-                      </span>
-                      {cat.name}
-                    </button>
-                  </Show>
-                  <Show when={cat.custom && renamingId() !== cat.id}>
-                    <Menu
-                      class="sidebar-section-menu-wrap"
-                      panelClass="menu-panel sidebar-section-menu"
-                      open={sectionMenuOpen() === cat.id}
-                      onClose={() => setSectionMenuOpen(null)}
-                      trigger={
-                        <button
-                          type="button"
-                          class="sidebar-section-menu-btn"
-                          title="Section options"
-                          onClick={() =>
-                            setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
-                          }
-                        >
-                          <Icon name="ellipsis-vertical-filled" size={14} />
-                        </button>
+          <Show when={!bootstrap.loading} fallback={<SidebarSkeleton />}>
+            <For each={categories()}>
+              {(cat) => (
+                <div class="sidebar-section">
+                  <div class="sidebar-section-header">
+                    <Show
+                      when={renamingId() !== cat.id}
+                      fallback={
+                        <input
+                          class="sidebar-section-rename-input"
+                          value={renameValue()}
+                          onInput={(e) => setRenameValue(e.currentTarget.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitRename();
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          onBlur={commitRename}
+                          autofocus
+                        />
                       }
                     >
-                      <button type="button" class="menu-item" onClick={() => startRename(cat)}>
-                        Rename
-                      </button>
                       <button
                         type="button"
-                        class="menu-item danger"
-                        onClick={() => {
-                          setSectionMenuOpen(null);
-                          if (
-                            confirm(
-                              `Delete section "${cat.name}"? Its channels won't be removed from the workspace.`,
-                            )
-                          ) {
-                            deleteChannelSection(cat.id);
-                          }
-                        }}
+                        class="sidebar-section-header-btn"
+                        onClick={() => toggleCategory(cat.id)}
                       >
-                        Delete section
+                        <span
+                          class="sidebar-caret"
+                          classList={{ collapsed: collapsed().has(cat.id) }}
+                        >
+                          <Icon name="caret-down-filled" size={10} />
+                        </span>
+                        {cat.name}
                       </button>
-                    </Menu>
-                  </Show>
-                </div>
-                <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
-                  <For each={cat.channels}>
-                    {(ch) => {
-                      const isActive = createMemo(() => {
-                        const v = activeView();
-                        return nav() === "home" && v?.kind === "channel" && v.id === ch.id;
-                      });
-                      const isUnread = createMemo(() => !!unreadChannelIds[ch.id]);
-                      const muted = createMemo(() => isChannelMuted(ch.id));
-                      return (
+                    </Show>
+                    <Show when={cat.custom && renamingId() !== cat.id}>
+                      <Menu
+                        class="sidebar-section-menu-wrap"
+                        panelClass="menu-panel sidebar-section-menu"
+                        open={sectionMenuOpen() === cat.id}
+                        onClose={() => setSectionMenuOpen(null)}
+                        trigger={
+                          <button
+                            type="button"
+                            class="sidebar-section-menu-btn"
+                            title="Section options"
+                            onClick={() =>
+                              setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
+                            }
+                          >
+                            <Icon name="ellipsis-vertical-filled" size={14} />
+                          </button>
+                        }
+                      >
+                        <button type="button" class="menu-item" onClick={() => startRename(cat)}>
+                          Rename
+                        </button>
                         <button
                           type="button"
-                          class="sidebar-row"
-                          classList={{
-                            active: isActive(),
-                            unread: isUnread() && !muted(),
-                            muted: muted(),
+                          class="menu-item danger"
+                          onClick={() => {
+                            setSectionMenuOpen(null);
+                            if (
+                              confirm(
+                                `Delete section "${cat.name}"? Its channels won't be removed from the workspace.`,
+                              )
+                            ) {
+                              deleteChannelSection(cat.id);
+                            }
                           }}
-                          onClick={() => setActiveView({ kind: "channel", id: ch.id })}
                         >
-                          <span class="sidebar-row-icon">
-                            {ch.private ? <Icon name="lock" size={13} /> : "#"}
-                          </span>
-                          <span class="sidebar-row-name">{channelDisplayName(ch)}</span>
-                          {!muted() && ch.mentions ? (
-                            <span class="sidebar-badge">{ch.mentions}</span>
-                          ) : null}
+                          Delete section
                         </button>
-                      );
-                    }}
-                  </For>
+                      </Menu>
+                    </Show>
+                  </div>
+                  <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
+                    <For each={cat.channels}>
+                      {(ch) => {
+                        const isActive = createMemo(() => {
+                          const v = activeView();
+                          return nav() === "home" && v?.kind === "channel" && v.id === ch.id;
+                        });
+                        const isUnread = createMemo(() => !!unreadChannelIds[ch.id]);
+                        const muted = createMemo(() => isChannelMuted(ch.id));
+                        return (
+                          <button
+                            type="button"
+                            class="sidebar-row"
+                            classList={{
+                              active: isActive(),
+                              unread: isUnread() && !muted(),
+                              muted: muted(),
+                            }}
+                            onClick={() => setActiveView({ kind: "channel", id: ch.id })}
+                          >
+                            <span class="sidebar-row-icon">
+                              {ch.private ? <Icon name="lock" size={13} /> : "#"}
+                            </span>
+                            <span class="sidebar-row-name">{channelDisplayName(ch)}</span>
+                            {!muted() && ch.mentions ? (
+                              <span class="sidebar-badge">{ch.mentions}</span>
+                            ) : null}
+                          </button>
+                        );
+                      }}
+                    </For>
+                  </div>
                 </div>
-              </div>
-            )}
-          </For>
+              )}
+            </For>
 
-          <div class="sidebar-section">
-            <div class="sidebar-section-header">
-              <button
-                type="button"
-                class="sidebar-section-header-btn"
-                onClick={() => setDmsOpen(!dmsOpen())}
-              >
-                <span class="sidebar-caret" classList={{ collapsed: !dmsOpen() }}>
-                  <Icon name="caret-down-filled" size={10} />
-                </span>
-                Direct messages
-              </button>
-            </div>
-            <div style={{ display: dmsOpen() ? "block" : "none" }}>
-              <For each={peopleDms()}>{(dm) => <DmRow dm={dm} />}</For>
-            </div>
-          </div>
-
-          <Show when={appDms().length > 0}>
             <div class="sidebar-section">
               <div class="sidebar-section-header">
                 <button
                   type="button"
                   class="sidebar-section-header-btn"
-                  onClick={() => setAppsOpen(!appsOpen())}
+                  onClick={() => setDmsOpen(!dmsOpen())}
                 >
-                  <span class="sidebar-caret" classList={{ collapsed: !appsOpen() }}>
+                  <span class="sidebar-caret" classList={{ collapsed: !dmsOpen() }}>
                     <Icon name="caret-down-filled" size={10} />
                   </span>
-                  Apps
+                  Direct messages
                 </button>
               </div>
-              <div style={{ display: appsOpen() ? "block" : "none" }}>
-                <For each={appDms()}>{(dm) => <DmRow dm={dm} />}</For>
+              <div style={{ display: dmsOpen() ? "block" : "none" }}>
+                <For each={peopleDms()}>{(dm) => <DmRow dm={dm} />}</For>
               </div>
             </div>
+
+            <Show when={appDms().length > 0}>
+              <div class="sidebar-section">
+                <div class="sidebar-section-header">
+                  <button
+                    type="button"
+                    class="sidebar-section-header-btn"
+                    onClick={() => setAppsOpen(!appsOpen())}
+                  >
+                    <span class="sidebar-caret" classList={{ collapsed: !appsOpen() }}>
+                      <Icon name="caret-down-filled" size={10} />
+                    </span>
+                    Apps
+                  </button>
+                </div>
+                <div style={{ display: appsOpen() ? "block" : "none" }}>
+                  <For each={appDms()}>{(dm) => <DmRow dm={dm} />}</For>
+                </div>
+              </div>
+            </Show>
           </Show>
         </div>
       </Show>

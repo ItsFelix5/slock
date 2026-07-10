@@ -23,7 +23,12 @@ export default function Settings(props: { onClose: () => void }) {
   return (
     <Overlay onClose={props.onClose}>
       <div class="settings-card">
-        <button type="button" class="settings-close" onClick={props.onClose} title="Close">
+        <button
+          type="button"
+          class="panel-close-btn floating"
+          onClick={props.onClose}
+          title="Close"
+        >
           ✕
         </button>
 

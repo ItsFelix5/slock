@@ -1,6 +1,6 @@
 import type { Block } from "./blocks";
 
-export interface UserCustomField {
+interface UserCustomField {
   id: string;
   value: string;
   alt?: string;
@@ -94,6 +94,14 @@ export interface Message {
   kind: MessageKind;
   botName?: string;
   botIcon?: string;
+  isBroadcast?: boolean;
+  // Root ts of the thread this reply belongs to, when different from its own
+  // ts — set for broadcasted replies so the channel view can show the thread
+  // context they were sent from.
+  threadTs?: string;
+  // chat.postEphemeral responses (e.g. slash command output) — only ever
+  // delivered to the user they're meant for, never part of real history.
+  isEphemeral?: boolean;
 }
 
 export interface CanvasInfo {

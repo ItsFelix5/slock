@@ -46,26 +46,6 @@
   background: var(--hover-bg);
 }
 
-.compose-picker-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-on-accent);
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.compose-picker-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .compose-picker-empty {
   padding: 10px;
   text-align: center;

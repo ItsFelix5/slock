@@ -29,7 +29,7 @@ export function standardEmojiUnicode(name: string): string | undefined {
   return STANDARD_EMOJI_BY_NAME.get(name);
 }
 
-export function customEmojiEntries(): EmojiEntry[] {
+function customEmojiEntries(): EmojiEntry[] {
   return customEmojiNames()
     .filter((n) => emojiUrl(n))
     .map((name): EmojiEntry => ({ name, category: "Custom", searchText: name }));

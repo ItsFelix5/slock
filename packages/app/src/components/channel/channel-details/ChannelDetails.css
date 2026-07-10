@@ -372,3 +372,7 @@
 .channel-details-retention-input {
   width: 80px;
 }
+
+.channel-details-retention-save {
+  margin-top: 10px;
+}

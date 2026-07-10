@@ -60,27 +60,50 @@ export function mapUser(raw: any): User {
   };
 }
 
-// client.counts is what the real webapp uses to paint unread dots/mention badges at
-// boot without fetching full history for every channel. Field names below are our
-// best understanding of that (undocumented) shape; anything that doesn't match just
-// falls through to "not unread" for that entry rather than throwing, since this is
-// read-only enhancement, not something bootstrap should ever fail over.
-export function buildUnreadMap(counts: any): Record<string, { unread: boolean; mentions: number }> {
+// Shared by client.counts (REST, boot) and badge_counts_updated (gateway, live) —
+// both hand back the same per-conversation shape, just wrapped in a different
+// envelope. Field names are our best understanding of that (undocumented) shape;
+// anything that doesn't match just falls through to "not unread" for that entry
+// rather than throwing, since this is read-only enhancement, not something that
+// should ever fail bootstrap or drop a socket message over.
+function parseCountGroup(g: any): { id: string; unread: boolean; mentions: number } | null {
+  if (!g?.id) return null;
+  const mentions = Number(g.mention_count ?? g.mention_count_display ?? 0) || 0;
+  const unreadCount = Number(g.unread_count_display ?? g.unread_count ?? 0) || 0;
+  const unread = !!(g.has_unreads ?? g.is_unread ?? (unreadCount > 0 || mentions > 0));
+  return { id: g.id, unread, mentions };
+}
+
+function mapCountGroups(groups: any[]): Record<string, { unread: boolean; mentions: number }> {
   const map: Record<string, { unread: boolean; mentions: number }> = {};
-  if (!counts?.ok) return map;
-  const groups: any[] = [
+  for (const g of groups) {
+    const parsed = parseCountGroup(g);
+    if (parsed) map[parsed.id] = { unread: parsed.unread, mentions: parsed.mentions };
+  }
+  return map;
+}
+
+export function buildUnreadMap(counts: any): Record<string, { unread: boolean; mentions: number }> {
+  if (!counts?.ok) return {};
+  return mapCountGroups([
     ...(counts.channels ?? []),
     ...(counts.mpims ?? []),
     ...(counts.ims ?? []),
-  ];
-  for (const g of groups) {
-    if (!g?.id) continue;
-    const mentions = Number(g.mention_count ?? g.mention_count_display ?? 0) || 0;
-    const unreadCount = Number(g.unread_count_display ?? g.unread_count ?? 0) || 0;
-    const unread = !!(g.has_unreads ?? g.is_unread ?? (unreadCount > 0 || mentions > 0));
-    map[g.id] = { unread, mentions };
-  }
-  return map;
+  ]);
+}
+
+// The gateway's live push counterpart to client.counts — same per-item fields,
+// but we've seen it both nested under a top-level "badges" object and flattened
+// at the top level, so check both rather than betting on one.
+export function parseBadgeCounts(
+  payload: any,
+): Record<string, { unread: boolean; mentions: number }> {
+  const source = payload?.badges ?? payload ?? {};
+  return mapCountGroups([
+    ...(source.channels ?? []),
+    ...(source.mpims ?? []),
+    ...(source.ims ?? []),
+  ]);
 }
 
 function formatTime(ts: string) {
@@ -181,6 +204,9 @@ export function mapMessage(m: any): Message {
       subtype === "bot_message"
         ? (m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36)
         : undefined,
+    isBroadcast: subtype === "thread_broadcast",
+    threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
+    isEphemeral: !!m.is_ephemeral,
   };
 }
 

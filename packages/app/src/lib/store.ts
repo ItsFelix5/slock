@@ -18,6 +18,7 @@ import {
   setProfileFields as apiSetProfileFields,
   setStatus as apiSetStatus,
   updateSectionChannels as apiUpdateSectionChannels,
+  broadcastReply,
   closeDm,
   createChannelCanvas,
   deleteMessage,
@@ -48,6 +49,7 @@ import {
   markChannelRead,
   openDm,
   type PinnedMessage,
+  parseBadgeCounts,
   postMessage,
   runMessageShortcut,
   runSlashCommand,
@@ -251,6 +253,31 @@ function setup() {
   let autoCloseTimer: ReturnType<typeof setInterval> | null = null;
   const DM_AUTO_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 
+  // Keyed by channel id, or `${channel}:${thread_ts}` for typing inside a thread's
+  // reply composer — Slack keeps those scoped separately so the main channel view
+  // doesn't show "typing" for someone who's only replying in a thread. Values are
+  // expiry timestamps: there's no explicit "stopped typing" event, only repeated
+  // user_typing pushes every ~3s while the composer stays non-empty, so an entry
+  // is swept once it goes a beat past that without a refresh.
+  const [typingByKey, setTypingByKey] = createStore<Record<string, Record<string, number>>>({});
+  const TYPING_TTL_MS = 4000;
+  const typingSweepTimer: ReturnType<typeof setInterval> = setInterval(() => {
+    const now = Date.now();
+    for (const key of Object.keys(typingByKey)) {
+      const entries = typingByKey[key];
+      for (const userId of Object.keys(entries)) {
+        if (entries[userId] <= now) {
+          setTypingByKey(
+            key,
+            produce((e) => {
+              delete e[userId];
+            }),
+          );
+        }
+      }
+    }
+  }, 1000);
+
   const [activeThread, setActiveThread] = createSignal<ThreadRef | null>(null);
   const [threadMessages, setThreadMessages] = createStore<Record<string, Message[]>>({});
   const loadedThreads = new Set<string>();
@@ -266,6 +293,11 @@ function setup() {
   // the same signal Slack's real unread badges use.
   const [lastReadByChannel, setLastReadByChannel] = createStore<Record<string, number>>({});
   const [lastReadByChannelResource] = createResource(fetchLastReadByChannel);
+  // Where the "new messages" divider line sits — frozen at the read cursor's
+  // position from *before* the current visit marks everything read, so it
+  // doesn't vanish the instant you open the channel. Reset when you leave so
+  // the next visit re-anchors to whatever's unread by then.
+  const [unreadDividerTs, setUnreadDividerTs] = createStore<Record<string, number>>({});
 
   const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);
   const [laterLoaded, setLaterLoaded] = createSignal(false);
@@ -403,7 +435,8 @@ function setup() {
 
   // ---- browser history integration (back/forward navigates views) ----
   // Every view change (channel/dm selection, tab, open thread) is mirrored into
-  // window.history so the browser's back/forward buttons walk the same path.
+  // window.history — as a real path, not just a state blob, so the address bar
+  // reflects where you are and a hard refresh/pasted link lands back there.
   // `lastNavSerialized` de-dupes and, crucially, is primed on popstate so the
   // effect that re-runs after we restore a snapshot recognises it as a no-op
   // and doesn't push the restored state back on top of the stack.
@@ -424,7 +457,44 @@ function setup() {
     setActiveThread(snap.thread ?? null);
   }
 
+  function navSnapshotToPath(snap: NavSnapshot): string {
+    const parts: string[] = [];
+    if (snap.nav === "search") {
+      parts.push("search");
+    } else {
+      if (snap.nav !== "home") parts.push(snap.nav);
+      if (snap.view) parts.push(snap.view.id);
+    }
+    const path = `/${parts.join("/")}`;
+    return snap.thread ? `${path}?t=${encodeURIComponent(snap.thread.ts)}` : path;
+  }
+
+  // DM conversation ids are Slack "D..." ims (see bootstrap.ts); everything
+  // else selectable (public/private channels) is a "C..." id. That's enough
+  // to tell channel and DM URLs apart without a /channel/ or /dm/ segment.
+  function parseNavPath(url: URL): NavSnapshot {
+    const segs = url.pathname.split("/").filter(Boolean);
+    if (segs[0] === "search") return { nav: "search", view: null, thread: null };
+
+    let nav: Nav = "home";
+    const first = segs[0];
+    if (first === "activity" || first === "later") {
+      nav = first;
+      segs.shift();
+    }
+
+    const id = segs[0];
+    const view: View | null = id ? { kind: id.startsWith("D") ? "dm" : "channel", id } : null;
+
+    const ts = url.searchParams.get("t");
+    const thread: ThreadRef | null = ts && view ? { channelId: view.id, ts } : null;
+
+    return { nav, view, thread };
+  }
+
   if (typeof window !== "undefined") {
+    applyNavSnapshot(parseNavPath(new URL(window.location.href)));
+
     const onPopState = (e: PopStateEvent) => {
       const snap = (e.state as { slockNav?: NavSnapshot } | null)?.slockNav;
       if (!snap) return;
@@ -441,8 +511,9 @@ function setup() {
       const isFirst = lastNavSerialized === null;
       lastNavSerialized = serialized;
       const entry = { slockNav: snap };
-      if (isFirst) window.history.replaceState(entry, "");
-      else window.history.pushState(entry, "");
+      const path = navSnapshotToPath(snap);
+      if (isFirst) window.history.replaceState(entry, "", path);
+      else window.history.pushState(entry, "", path);
     });
   }
 
@@ -519,6 +590,37 @@ function setup() {
       });
   });
 
+  // Snapshots where the "new messages" divider sits, once per visit to a
+  // channel — keyed only on the active channel id, *not* on the message list,
+  // so it re-anchors every time you switch in even if the list hasn't changed
+  // (e.g. after using "mark unread", which doesn't add any new message).
+  // Must run before the mark-as-read effect below so it captures the cursor's
+  // pre-visit value rather than the one that effect is about to write.
+  const dividerAnchoredChannels = new Set<string>();
+  createEffect(() => {
+    const id = activeView()?.id;
+    if (!id) return;
+    // Read cursors haven't arrived yet — anchoring now would treat "unknown"
+    // as "read nothing" (0) and plant the divider above the oldest loaded
+    // message. Wait, without latching, so this fires for real once loaded.
+    if (lastReadByChannelResource.loading) return;
+    if (dividerAnchoredChannels.has(id)) return;
+    dividerAnchoredChannels.add(id);
+    setUnreadDividerTs(id, lastReadByChannel[id] ?? 0);
+  });
+
+  // Drop the divider anchor for a channel once you leave it, so the next
+  // visit re-anchors to whatever's unread by then instead of reusing a stale
+  // (now fully-read) position.
+  let previousActiveChannelId: string | undefined;
+  createEffect(() => {
+    const id = activeView()?.id;
+    if (previousActiveChannelId && previousActiveChannelId !== id) {
+      dividerAnchoredChannels.delete(previousActiveChannelId);
+    }
+    previousActiveChannelId = id;
+  });
+
   // Advances the *real* Slack read cursor to the latest message of whichever
   // channel/DM is currently open — `setActiveView` above only clears the
   // local unread dot, it never tells Slack itself. Reruns whenever the active
@@ -536,8 +638,12 @@ function setup() {
     lastMarkedReadTs[view.id] = latest.ts;
     clearChannelUnread(view.id);
     setLastReadByChannel(view.id, parseFloat(latest.ts) * 1000);
-    markChannelRead(view.id, latest.ts).catch(() => { });
+    markChannelRead(view.id, latest.ts).catch(() => {});
   });
+
+  function unreadDividerTsForChannel(channelId: string) {
+    return unreadDividerTs[channelId];
+  }
 
   function hasMoreHistory(channelId: string) {
     // Unknown (not loaded yet) defaults to true so the "beginning of channel"
@@ -637,8 +743,8 @@ function setup() {
     if (added) {
       next = existing
         ? reactions.map((r) =>
-          r.name === name ? { ...r, count: r.count + 1, users: [...r.users, userId] } : r,
-        )
+            r.name === name ? { ...r, count: r.count + 1, users: [...r.users, userId] } : r,
+          )
         : [...reactions, { name, count: 1, users: [userId] }];
     } else if (existing) {
       next = reactions
@@ -747,6 +853,20 @@ function setup() {
     return [...existing, msg];
   }
 
+  // Broadcasting a reply surfaces a message whose ts can be much older than
+  // anything currently at the end of the channel's list (it was written
+  // whenever the original reply was sent), so — unlike genuinely new
+  // messages, which mergeIncomingMessage can safely just append — it has to
+  // be sorted into chronological position instead.
+  function insertMessageInOrder(channelId: string, msg: Message) {
+    setMessagesByChannel(channelId, (existing = []) => {
+      if (existing.some((m) => m.ts === msg.ts)) return existing;
+      const idx = existing.findIndex((m) => parseFloat(m.ts) > parseFloat(msg.ts));
+      if (idx === -1) return [...existing, msg];
+      return [...existing.slice(0, idx), msg, ...existing.slice(idx)];
+    });
+  }
+
   function handleIncomingMessage(payload: any) {
     const subtype = payload.subtype;
     const channel = payload.channel;
@@ -754,11 +874,23 @@ function setup() {
     if (subtype === "message_changed") {
       const updated = payload.message;
       if (!updated?.ts) return;
+      // Broadcasting a reply (ours or another member's) goes through
+      // chat.update under the hood, same as a text edit, so it arrives here
+      // rather than as a fresh "message" event — mirror it into the channel
+      // list the same way a live broadcast would.
+      const isBroadcast = updated.subtype === "thread_broadcast";
       patchMessage(channel, updated.ts, {
         text: updated.text,
         blocks: updated.blocks,
         edited: !!updated.edited,
+        isBroadcast,
       });
+      if (isBroadcast && loadedChannels.has(channel)) {
+        const msg = findAllMessageLocations(channel, updated.ts)[0]?.list.find(
+          (m) => m.ts === updated.ts,
+        );
+        if (msg) insertMessageInOrder(channel, msg);
+      }
       return;
     }
 
@@ -774,6 +906,18 @@ function setup() {
     const ts = payload.ts;
     if (!ts) return;
     const msg = mapMessage(payload);
+
+    // Ephemeral messages (e.g. slash command responses) are pushed only to
+    // the user they're meant for, never land in real history, and shouldn't
+    // affect unread/activity state — just surface them in the channel the
+    // user is currently looking at.
+    if (msg.isEphemeral) {
+      if (loadedChannels.has(channel)) {
+        setMessagesByChannel(channel, (existing = []) => [...existing, msg]);
+      }
+      return;
+    }
+
     const me = currentUser();
     const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
     let threadRelevant = false;
@@ -798,6 +942,13 @@ function setup() {
         threadMessages[payload.thread_ts]?.some((m) => m.userId === me.id)
       )
         threadRelevant = true;
+      // A reply sent with "Also send to channel" checked arrives as a
+      // regular new "message" event (unlike broadcasting an existing reply
+      // after the fact, which is a chat.update / message_changed) — it still
+      // belongs in the channel's own timeline alongside the thread.
+      if (subtype === "thread_broadcast" && loadedChannels.has(channel)) {
+        setMessagesByChannel(channel, (existing = []) => mergeIncomingMessage(existing, msg));
+      }
     } else if (loadedChannels.has(channel)) {
       setMessagesByChannel(channel, (existing = []) => mergeIncomingMessage(existing, msg));
     }
@@ -897,6 +1048,33 @@ function setup() {
           for (const id of ids) setPresenceOverrides(id, presence);
           break;
         }
+        case "user_typing": {
+          if (payload.channel && payload.user && payload.user !== currentUser()?.id) {
+            const key = payload.thread_ts
+              ? `${payload.channel}:${payload.thread_ts}`
+              : payload.channel;
+            const expiresAt = Date.now() + TYPING_TTL_MS;
+            setTypingByKey(
+              produce((s) => {
+                if (!s[key]) s[key] = {};
+                s[key][payload.user] = expiresAt;
+              }),
+            );
+          }
+          break;
+        }
+        case "badge_counts_updated": {
+          for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
+            setUnreadChannelIds(id, unread);
+            patchChannel(id, { mentions });
+          }
+          break;
+        }
+        case "user_invalidated": {
+          const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
+          for (const id of ids) invalidateUser(id);
+          break;
+        }
         default:
           break;
       }
@@ -913,6 +1091,7 @@ function setup() {
 
   connectSocket();
   onCleanup(() => socket?.close());
+  onCleanup(() => clearInterval(typingSweepTimer));
 
   createEffect(() => {
     const view = activeView();
@@ -924,8 +1103,16 @@ function setup() {
     if (thread) send({ type: "watch_thread", channel: thread.channelId, ts: thread.ts });
   });
 
+  // Every user ever resolved this session — via userById's lazy fetchUser,
+  // searchUsers' remote matches, or an invalidateUser refresh. There's no bootstrap
+  // user list to seed this from (a fixed-size slice of the org is never complete),
+  // so it starts empty and fills in as the UI asks about people.
+  function knownUsers(): User[] {
+    return Object.values(extraUsers);
+  }
+
   function userById(id: string): User | undefined {
-    const known = bootstrap()?.users.find((u) => u.id === id) ?? extraUsers[id];
+    const known = extraUsers[id];
     if (!known) {
       if (!pendingUsers.has(id)) {
         pendingUsers.add(id);
@@ -945,17 +1132,44 @@ function setup() {
     return { ...known, ...(presence ? { presence } : {}), ...(selfOverride ?? {}) };
   }
 
-  // Org-wide people search for DM compose / @mention / global search. The bootstrap
-  // user list is capped at 200 for payload size, which on a large workspace (Hack
-  // Club's is ~100k members) covers a sliver of the org — searching only that slice
-  // would silently fail to find almost anyone. This merges instantly-available local
-  // matches (bootstrap + anyone already resolved via userById) with a live
-  // search.modules.people query (see searchDirectory).
+  // The gateway sends this when a user's profile changes elsewhere (name, avatar,
+  // status, etc.) — our cached extraUsers entry is now stale. Just drop it rather
+  // than eagerly re-fetching; userById already lazily re-fetches on demand next
+  // time it's actually needed, same as any other never-seen id.
+  function invalidateUser(id: string) {
+    setExtraUsers(
+      produce((s) => {
+        delete s[id];
+      }),
+    );
+    pendingUsers.delete(id);
+  }
+
+  function typingUsersInChannel(channelId: string): User[] {
+    const entries = typingByKey[channelId];
+    if (!entries) return [];
+    return Object.keys(entries)
+      .map(userById)
+      .filter((u): u is User => !!u);
+  }
+
+  function typingUsersInThread(channelId: string, ts: string): User[] {
+    const entries = typingByKey[`${channelId}:${ts}`];
+    if (!entries) return [];
+    return Object.keys(entries)
+      .map(userById)
+      .filter((u): u is User => !!u);
+  }
+
+  // Org-wide people search for DM compose / @mention / global search. On a large
+  // workspace (Hack Club's is ~100k members) there's no local slice worth trusting
+  // as complete, so this merges instantly-available local matches (anyone already
+  // resolved via userById/a prior search) with a live search.modules.people query
+  // (see searchDirectory).
   async function searchUsers(query: string, excludeId?: string): Promise<User[]> {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     const local = new Map<string, User>();
-    for (const u of bootstrap()?.users ?? []) local.set(u.id, u);
     for (const id of Object.keys(extraUsers)) local.set(id, extraUsers[id]);
     const localMatches = [...local.values()].filter(
       (u) => u.id !== excludeId && u.name.toLowerCase().includes(q),
@@ -1128,6 +1342,24 @@ function setup() {
     }
   }
 
+  async function broadcastThreadReply(channelId: string, ts: string) {
+    patchMessage(channelId, ts, { isBroadcast: true });
+    try {
+      await broadcastReply(channelId, ts);
+      showToast("Sent to channel.");
+      // Slack doesn't move the reply — it just also surfaces it in the
+      // channel's own timeline, so mirror it into messagesByChannel the same
+      // way a live broadcast event would, instead of requiring a reload.
+      const broadcasted = findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
+      if (broadcasted && loadedChannels.has(channelId))
+        insertMessageInOrder(channelId, broadcasted);
+    } catch (err) {
+      console.error("Failed to broadcast reply", err);
+      showToast("Failed to send to channel.");
+      patchMessage(channelId, ts, { isBroadcast: false });
+    }
+  }
+
   async function deleteMessageAt(channelId: string, ts: string) {
     try {
       await deleteMessage(channelId, ts);
@@ -1280,7 +1512,7 @@ function setup() {
     for (const [channelId, ts] of latestTsByChannel) {
       setLastReadByChannel(channelId, parseFloat(ts) * 1000);
       patchChannel(channelId, { mentions: 0 });
-      markChannelRead(channelId, ts).catch(() => { });
+      markChannelRead(channelId, ts).catch(() => {});
     }
   }
 
@@ -1291,7 +1523,7 @@ function setup() {
     const time = parseFloat(ts) * 1000;
     if (time <= (lastReadByChannel[channelId] ?? 0)) return;
     setLastReadByChannel(channelId, time);
-    markChannelRead(channelId, ts).catch(() => { });
+    markChannelRead(channelId, ts).catch(() => {});
   }
 
   async function ensurePinsLoaded(channelId: string) {
@@ -1354,6 +1586,11 @@ function setup() {
     const list = messagesByChannel[channelId] ?? [];
     const idx = list.findIndex((m) => m.ts === ts);
     const previousTs = idx > 0 ? list[idx - 1].ts : "0";
+    const previousMs = parseFloat(previousTs) * 1000;
+    // Roll the local cursor back immediately so the divider shows up right
+    // away instead of waiting on a round trip to Slack.
+    setLastReadByChannel(channelId, previousMs);
+    setUnreadDividerTs(channelId, previousMs);
     markChannelRead(channelId, previousTs)
       .then(() => {
         setUnreadChannelIds(channelId, true);
@@ -1563,7 +1800,7 @@ function setup() {
     ];
     for (const id of targets) {
       clearChannelUnread(id);
-      markChannelRead(id, now).catch(() => { });
+      markChannelRead(id, now).catch(() => {});
     }
     showToast("Marked everything as read.");
   }
@@ -1738,7 +1975,7 @@ function setup() {
     clearChannelUnread(channelId);
     const list = messagesByChannel[channelId];
     const latest = list?.[list.length - 1]?.ts;
-    if (latest) markChannelRead(channelId, latest).catch(() => { });
+    if (latest) markChannelRead(channelId, latest).catch(() => {});
   }
 
   function isChannelStarred(channelId: string): boolean {
@@ -1794,6 +2031,7 @@ function setup() {
     openThread,
     closeThread,
     userById,
+    knownUsers,
     searchUsers,
     channelById,
     patchChannel,
@@ -1803,6 +2041,7 @@ function setup() {
     currentUser,
     sendMessage,
     editMessageText,
+    broadcastThreadReply,
     deleteMessageAt,
     reactToMessage,
     isSavedForLater,
@@ -1838,6 +2077,7 @@ function setup() {
     markMessageUnread,
     remindAboutMessage,
     REMINDER_OPTIONS,
+    unreadDividerTsForChannel,
     channels,
     pinnedPanelChannelId,
     pinnedMessagesCache,
@@ -1874,6 +2114,8 @@ function setup() {
     loadCanvasContent,
     saveChannelCanvas,
     handleSlashCommand,
+    typingUsersInChannel,
+    typingUsersInThread,
   };
 }
 
@@ -1904,6 +2146,7 @@ export const {
   openThread,
   closeThread,
   userById,
+  knownUsers,
   searchUsers,
   channelById,
   patchChannel,
@@ -1913,6 +2156,7 @@ export const {
   currentUser,
   sendMessage,
   editMessageText,
+  broadcastThreadReply,
   deleteMessageAt,
   reactToMessage,
   isSavedForLater,
@@ -1948,6 +2192,7 @@ export const {
   markMessageUnread,
   remindAboutMessage,
   REMINDER_OPTIONS,
+  unreadDividerTsForChannel,
   channels,
   pinnedPanelChannelId,
   pinnedMessagesCache,
@@ -1984,6 +2229,8 @@ export const {
   loadCanvasContent,
   saveChannelCanvas,
   handleSlashCommand,
+  typingUsersInChannel,
+  typingUsersInThread,
 } = createRoot(setup);
 
 // Some channels arrive without a human-readable name (shared/external channels,

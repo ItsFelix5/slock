@@ -12,6 +12,8 @@ import { currentUser, openUserProfile, userById } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/ComposeUserPicker";
 import "./ChannelDetails.css";
 
+type PagedFilter = "everyone" | "apps";
+
 const MEMBER_FILTERS: { key: MemberFilter; label: string }[] = [
   { key: "everyone", label: "Everyone" },
   { key: "managers", label: "Channel managers" },
@@ -21,15 +23,23 @@ const MEMBER_FILTERS: { key: MemberFilter; label: string }[] = [
 export default function ChannelMembersTab(props: { channelId: string; channelName: string }) {
   const [query, setQuery] = createSignal("");
   const [filter, setFilter] = createSignal<MemberFilter>("everyone");
-  const [members, setMembers] = createSignal<User[]>([]);
-  const [cursor, setCursor] = createSignal<string | undefined>();
+  // Kept per-filter (rather than one shared list) so switching Everyone ->
+  // Apps -> Everyone shows what was already loaded instead of wiping it.
+  const [pagedMembers, setPagedMembers] = createSignal<Record<PagedFilter, User[]>>({
+    everyone: [],
+    apps: [],
+  });
+  const [pagedCursors, setPagedCursors] = createSignal<Record<PagedFilter, string | undefined>>({
+    everyone: undefined,
+    apps: undefined,
+  });
   const [loadingMembers, setLoadingMembers] = createSignal(false);
-  const loadedPagedFilters = new Set<"everyone" | "apps">();
+  const loadedPagedFilters = new Set<PagedFilter>();
 
   // Channel managers come from a completely different, non-paginated
   // endpoint (admin.roles.entity.listAssignments — see fetchChannelManagerIds)
   // that only returns ids, so they're resolved through the store's user
-  // lookup rather than sharing the `members` list the edge API fills in.
+  // lookup rather than sharing the `pagedMembers` cache the edge API fills in.
   const [managerIds, setManagerIds] = createSignal<string[]>([]);
   const [loadingManagers, setLoadingManagers] = createSignal(false);
   let managersLoaded = false;
@@ -37,17 +47,19 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
   const [addingPeople, setAddingPeople] = createSignal(false);
 
   // Switching between Everyone/Apps queries the same edge endpoint with a
-  // different `filter` param — reset and re-page rather than merging
-  // unrelated result sets.
-  const loadMore = async (f: "everyone" | "apps") => {
+  // different `filter` param. Results always land in that filter's own slot
+  // (not "whichever filter is selected right now"), so a fetch that's still
+  // in flight when the user switches away doesn't get dropped.
+  const loadMore = async (f: PagedFilter) => {
     if (loadingMembers()) return;
     setLoadingMembers(true);
-    const page = await loadChannelMembers(props.channelId, f, cursor());
-    if (f === filter()) {
-      const known = new Set(members().map((u) => u.id));
-      setMembers((prev) => [...prev, ...page.members.filter((u) => !known.has(u.id))]);
-      setCursor(page.nextCursor);
-    }
+    const page = await loadChannelMembers(props.channelId, f, pagedCursors()[f]);
+    const known = new Set(pagedMembers()[f].map((u) => u.id));
+    setPagedMembers((prev) => ({
+      ...prev,
+      [f]: [...prev[f], ...page.members.filter((u) => !known.has(u.id))],
+    }));
+    setPagedCursors((prev) => ({ ...prev, [f]: page.nextCursor }));
     setLoadingMembers(false);
   };
 
@@ -65,8 +77,6 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
       loadManagers();
       return;
     }
-    setMembers([]);
-    setCursor(undefined);
     if (loadedPagedFilters.has(f)) return;
     loadedPagedFilters.add(f);
     loadMore(f);
@@ -78,9 +88,10 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
       .filter((u): u is User => !!u),
   );
 
-  const visibleMembers = createMemo(() =>
-    filter() === "managers" ? resolvedManagers() : members(),
-  );
+  const visibleMembers = createMemo(() => {
+    const f = filter();
+    return f === "managers" ? resolvedManagers() : pagedMembers()[f];
+  });
 
   const isLoading = createMemo(() =>
     filter() === "managers" ? loadingManagers() : loadingMembers(),
@@ -109,8 +120,13 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
     setAddingPeople(false);
     if (await inviteUsersToChannel(props.channelId, [userId])) {
       const user = userById(userId);
-      if (user && filter() === "everyone") {
-        setMembers((prev) => (prev.some((u) => u.id === userId) ? prev : [user, ...prev]));
+      if (user) {
+        setPagedMembers((prev) => ({
+          ...prev,
+          everyone: prev.everyone.some((u) => u.id === userId)
+            ? prev.everyone
+            : [user, ...prev.everyone],
+        }));
       }
       showToast(`Added ${user?.name ?? "user"} to the channel.`);
     }
@@ -119,7 +135,10 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
   const removeMember = async (user: User) => {
     if (!confirm(`Remove ${user.name} from #${props.channelName}?`)) return;
     if (await removeUserFromChannel(props.channelId, user.id)) {
-      setMembers((prev) => prev.filter((u) => u.id !== user.id));
+      setPagedMembers((prev) => ({
+        everyone: prev.everyone.filter((u) => u.id !== user.id),
+        apps: prev.apps.filter((u) => u.id !== user.id),
+      }));
       setManagerIds((prev) => prev.filter((id) => id !== user.id));
       showToast(`Removed ${user.name}.`);
     }
@@ -205,11 +224,13 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
         <Show when={isLoading()}>
           <div class="channel-details-member-placeholder">Loading…</div>
         </Show>
-        <Show when={filter() !== "managers" && cursor() && !isLoading()}>
+        <Show
+          when={filter() !== "managers" && pagedCursors()[filter() as PagedFilter] && !isLoading()}
+        >
           <button
             type="button"
             class="channel-details-show-more"
-            onClick={() => loadMore(filter() as "everyone" | "apps")}
+            onClick={() => loadMore(filter() as PagedFilter)}
           >
             Show more
           </button>

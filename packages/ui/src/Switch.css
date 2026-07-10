@@ -13,6 +13,11 @@
   background: var(--presence-active);
 }
 
+.switch.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .switch-knob {
   position: absolute;
   top: 2px;

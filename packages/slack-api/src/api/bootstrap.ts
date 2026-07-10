@@ -4,7 +4,6 @@ import { callSlack } from "./relay";
 
 interface Bootstrap {
   currentUser: User;
-  users: User[];
   channels: Channel[];
   directMessages: DirectMessage[];
   starredChannelIds: string[];
@@ -15,17 +14,18 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   // badges right at boot without fetching full history for every channel — without
   // it, unread state only exists after a live websocket event during the session.
   // Best-effort: if it fails, bootstrap still succeeds with "nothing unread".
-  const [boot, users, counts] = await Promise.all([
+  //
+  // Deliberately no users.list here: a fixed-size slice of the org is never complete
+  // (see store's searchUsers/userById, which already fetch users individually or via
+  // live directory search), so it only added latency without actually removing any
+  // of those fetches.
+  const [boot, counts] = await Promise.all([
     callSlack("client.userBoot"),
-    callSlack("users.list", { limit: "200" }),
     callSlack("client.counts").catch(() => ({ ok: false })),
   ]);
   if (!boot?.ok) throw new Error(boot?.error ?? "client.userBoot failed");
 
   const unreadMap = buildUnreadMap(counts);
-
-  const usersRaw: any[] = users?.members ?? [];
-  const mappedUsers = usersRaw.filter((u) => !u.deleted).map(mapUser);
 
   const rawChannels: any[] = boot.channels ?? [];
   const channels: Channel[] = rawChannels
@@ -62,5 +62,5 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
     .filter(Boolean);
 
-  return { currentUser, users: mappedUsers, channels, directMessages, starredChannelIds };
+  return { currentUser, channels, directMessages, starredChannelIds };
 }

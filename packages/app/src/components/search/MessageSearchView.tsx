@@ -14,6 +14,7 @@ import {
   bootstrap,
   currentUser,
   frecencyScore,
+  knownUsers,
   openThread,
   searchScreenFilters,
   searchScreenQuery,
@@ -90,7 +91,7 @@ export default function MessageSearchView() {
     })),
   );
   const userItems = createMemo(() =>
-    (bootstrap()?.users ?? []).map((u) => ({
+    knownUsers().map((u) => ({
       id: u.id,
       label: u.name,
       score: frecencyScore(u.id),

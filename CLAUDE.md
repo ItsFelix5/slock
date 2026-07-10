@@ -16,3 +16,4 @@ Important rules:
 - Don't add comments that state the obvious
 - Don't mess with dev servers (there always is one running) or chromium only to test if it works
 - Ask instead of giving up
+- Don't mess with git

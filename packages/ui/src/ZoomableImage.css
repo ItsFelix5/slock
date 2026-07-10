@@ -1,0 +1,35 @@
+.zoomable-image-trigger {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.zoomable-image {
+  display: block;
+}
+
+.zoomable-image-spyglass-area {
+  position: relative;
+  display: inline-block;
+}
+
+.zoomable-image-full {
+  display: block;
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 4px;
+  cursor: crosshair;
+}
+
+.zoomable-image-lens {
+  position: absolute;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  background-repeat: no-repeat;
+  pointer-events: none;
+}

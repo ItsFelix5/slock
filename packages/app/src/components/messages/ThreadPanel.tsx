@@ -1,5 +1,5 @@
 import type { Message } from "@slock/slack-api";
-import { ResizeHandle, showToast } from "@slock/ui";
+import { PanelHeader, ResizeHandle, showToast, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import {
   activeThread,
@@ -8,6 +8,7 @@ import {
   closeThread,
   prepareReplyLink,
   threadMessages,
+  typingUsersInThread,
 } from "../../lib/store";
 import Composer from "../composer/Composer";
 import MessageRows from "./MessageRows";
@@ -33,6 +34,12 @@ export default function ThreadPanel() {
   });
 
   const replyTargetMessage = createMemo(() => messages().find((m) => m.ts === replyTarget()?.ts));
+
+  const typingNames = createMemo(() => {
+    const t = thread();
+    if (!t) return [];
+    return typingUsersInThread(t.channelId, t.ts).map((u) => u.name);
+  });
 
   createEffect(() => {
     thread();
@@ -76,23 +83,22 @@ export default function ThreadPanel() {
             direction={-1}
             side="left"
           />
-          <div class="thread-panel-header">
+          <PanelHeader onClose={closeThread}>
             <div>
               <div class="thread-panel-title">Thread</div>
               <div class="thread-panel-subtitle">#{channelName()}</div>
             </div>
-            <button type="button" class="thread-panel-close" onClick={closeThread}>
-              ✕
-            </button>
-          </div>
+          </PanelHeader>
           <div class="thread-panel-messages" ref={messagesRef}>
             <MessageRows
               messages={messages()}
               channelId={t().channelId}
+              threadTs={t().ts}
               onReplyLink={startReply}
               onJumpToMessage={jumpToMessage}
             />
           </div>
+          <TypingIndicator names={typingNames()} />
           <Show when={replyTarget()}>
             <div class="thread-reply-preview">
               <ReplyReferenceRow

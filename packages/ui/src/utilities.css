@@ -99,6 +99,34 @@
   overflow: hidden;
 }
 
+/* Round "✕" close button — panel headers use it inline, modals float it
+   in a corner via .floating (parent needs position: relative). */
+.panel-close-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.panel-close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.panel-close-btn.floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
 /* Icon button base */
 .icon-btn {
   display: flex;

@@ -1,6 +1,8 @@
-import { createEffect, createMemo, Show } from "solid-js";
+import { Skeleton } from "@slock/ui";
+import { createEffect, createMemo, For, Show } from "solid-js";
 import {
   activeView,
+  bootstrap,
   channelById,
   channelDisplayName,
   dmById,
@@ -16,6 +18,34 @@ import "./MessageList.css";
 
 const NEAR_BOTTOM_PX = 120;
 const NEAR_TOP_PX = 200;
+
+// Placeholder rows shown in place of real history until bootstrap resolves —
+// varied text widths so it reads as "text loading", not a repeated block.
+const SKELETON_ROWS = [
+  { name: 60, lines: [92, 70] },
+  { name: 80, lines: [55] },
+  { name: 70, lines: [80, 40, 60] },
+];
+
+function MessageListSkeleton() {
+  return (
+    <div class="message-list-skeleton" aria-hidden="true">
+      <For each={SKELETON_ROWS}>
+        {(row) => (
+          <div class="message-row">
+            <Skeleton width={36} height={36} radius={6} />
+            <div class="message-body">
+              <Skeleton width={row.name} height={13} />
+              <div class="message-skeleton-lines">
+                <For each={row.lines}>{(pct) => <Skeleton width={`${pct}%`} height={13} />}</For>
+              </div>
+            </div>
+          </div>
+        )}
+      </For>
+    </div>
+  );
+}
 
 export default function MessageList() {
   let scrollRef: HTMLDivElement | undefined;
@@ -84,27 +114,29 @@ export default function MessageList() {
 
   return (
     <div class="message-list" ref={scrollRef} onScroll={handleScroll}>
-      <Show when={activeView()}>
-        {(v) => (
-          <>
-            <Show when={hasMoreHistory(v().id)}>
-              <div class="message-list-loading-older">
-                <Show when={isLoadingHistory(v().id)}>Loading earlier messages…</Show>
-              </div>
-            </Show>
-            <Show when={!hasMoreHistory(v().id)}>
-              <div class="message-list-intro">
-                <div class="message-list-intro-icon">#</div>
-                <h2>{channelName()}</h2>
-              </div>
-            </Show>
-            <MessageRows
-              messages={messages()}
-              channelId={v().id}
-              onOpenThread={(ts) => openThread(v().id, ts)}
-            />
-          </>
-        )}
+      <Show when={!bootstrap.loading} fallback={<MessageListSkeleton />}>
+        <Show when={activeView()}>
+          {(v) => (
+            <>
+              <Show when={hasMoreHistory(v().id)}>
+                <div class="message-list-loading-older">
+                  <Show when={isLoadingHistory(v().id)}>Loading earlier messages…</Show>
+                </div>
+              </Show>
+              <Show when={!hasMoreHistory(v().id)}>
+                <div class="message-list-intro">
+                  <div class="message-list-intro-icon">#</div>
+                  <h2>{channelName()}</h2>
+                </div>
+              </Show>
+              <MessageRows
+                messages={messages()}
+                channelId={v().id}
+                onOpenThread={(ts) => openThread(v().id, ts)}
+              />
+            </>
+          )}
+        </Show>
       </Show>
     </div>
   );

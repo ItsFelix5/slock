@@ -44,15 +44,6 @@ button {
   overflow: hidden;
 }
 
-.app-status {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  font-size: 15px;
-}
-
 .main-panel {
   flex: 1;
   min-width: 0;
