@@ -11,23 +11,8 @@
   overflow: hidden;
 }
 
-.pinned-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
 .pinned-panel-title {
   font-weight: 700;
-  font-size: 14px;
-}
-
-.pinned-panel-close {
-  background: none;
-  border: none;
-  color: var(--text-dim);
   font-size: 14px;
 }
 
@@ -44,11 +29,18 @@
 }
 
 .pinned-panel-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 8px;
   border-radius: 6px;
+}
+
+.pinned-panel-feedback {
+  position: absolute;
+  bottom: 2px;
+  left: 8px;
 }
 
 .pinned-panel-item:hover {

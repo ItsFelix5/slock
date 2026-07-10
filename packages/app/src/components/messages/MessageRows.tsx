@@ -1,9 +1,11 @@
 import { BlockKit, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
-import { Icon, logDeletedMessages } from "@slock/ui";
+import { AvatarStack, Icon, InlineFeedback, logDeletedMessages } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../lib/replyLink";
 import {
+  actionFeedback,
+  currentUser,
   editMessageText,
   isSavedForLater,
   openUserProfile,
@@ -14,7 +16,6 @@ import {
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import AttachmentCard from "./AttachmentCard";
-import InteractorAvatars from "./InteractorAvatars";
 import MessageActionsBar from "./MessageActionsBar";
 import MessageFiles from "./MessageFiles";
 import ReactionRow from "./ReactionRow";
@@ -101,9 +102,7 @@ export default function MessageRows(props: {
             style={{ background: user()?.avatarColor ?? "#616061" }}
             onClick={() => !msg.botName && openUserProfile(msg.userId)}
           >
-            <Show when={avatarUrl()} fallback={msg.botName ? "🤖" : (user()?.initials ?? "?")}>
-              {(url) => <img class="message-avatar-img" src={url()} alt="" />}
-            </Show>
+            <img class="message-avatar-img" src={avatarUrl()} alt="?" />
           </button>
         );
 
@@ -275,6 +274,8 @@ export default function MessageRows(props: {
                     )}
                   </Show>
 
+                  <InlineFeedback feedback={actionFeedback.get(msg.ts)} class="message-feedback" />
+
                   <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
                     <button
                       type="button"
@@ -285,9 +286,32 @@ export default function MessageRows(props: {
                         when={msg.replyUsers?.length ? msg.replyUsers : undefined}
                         fallback={<Icon name="threads" size={14} />}
                       >
-                        {(users) => <InteractorAvatars userIds={users()} />}
+                        {(users) => (
+                          <AvatarStack
+                            users={users()
+                              .slice(0, 3)
+                              .map((id) => userById(id))
+                              .filter((u) => u !== undefined)}
+                            title={() =>
+                              users()
+                                .map((id) =>
+                                  id === currentUser()?.id
+                                    ? "you"
+                                    : (userById(id)?.name ?? "someone"),
+                                )
+                                .reduce(
+                                  (prev, curr, i, a) =>
+                                    (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
+                                  "",
+                                )
+                            }
+                          />
+                        )}
                       </Show>{" "}
                       {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+                      <Show when={msg.lastReplyLabel}>
+                        <span class="message-replies-last">Last reply {msg.lastReplyLabel}</span>
+                      </Show>
                     </button>
                   </Show>
                 </div>

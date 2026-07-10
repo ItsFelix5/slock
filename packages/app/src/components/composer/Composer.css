@@ -27,6 +27,11 @@
   gap: 2px;
 }
 
+.composer-feedback {
+  display: block;
+  padding: 4px 8px 0;
+}
+
 .composer-file-input {
   display: none;
 }
@@ -60,6 +65,42 @@
 
 .composer-file-chip button:hover {
   color: var(--text-primary);
+}
+
+.composer-link-previews {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px 0;
+}
+
+.composer-link-preview {
+  position: relative;
+  max-width: 460px;
+}
+
+.composer-link-preview .attachment-card {
+  margin-top: 0;
+  padding-right: 26px;
+}
+
+.composer-link-preview-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--hover-bg);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.composer-link-preview-remove:hover {
+  color: var(--text-primary);
+  background: var(--active-bg);
 }
 
 .composer-tool {

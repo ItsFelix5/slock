@@ -13,9 +13,9 @@ import {
   setChannelTopic,
   setMemberPermissions,
 } from "@slock/slack-api";
-import { showToast } from "@slock/ui";
 import { createRoot, createSignal } from "solid-js";
 import { patchChannel } from "./store";
+import { actionFeedback } from "./store/feedback";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 
@@ -36,7 +36,11 @@ function setup() {
     try {
       return await fetchChannelDetails(id);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to load channel details.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load channel details.",
+        "error",
+      );
       return null;
     }
   }
@@ -49,7 +53,11 @@ function setup() {
     try {
       return await fetchChannelMembers(id, filter, cursor);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to load members.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load members.",
+        "error",
+      );
       return { members: [] };
     }
   }
@@ -58,7 +66,11 @@ function setup() {
     try {
       return await fetchChannelManagerIds(id);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to load channel managers.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load channel managers.",
+        "error",
+      );
       return [];
     }
   }
@@ -67,10 +79,13 @@ function setup() {
     try {
       const finalName = await renameChannel(id, name);
       patchChannel(id, { name: finalName });
-      showToast("Channel renamed.");
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to rename channel.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to rename channel.",
+        "error",
+      );
       return false;
     }
   }
@@ -79,10 +94,13 @@ function setup() {
     try {
       await setChannelTopic(id, topic);
       patchChannel(id, { topic });
-      showToast("Topic updated.");
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to set topic.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to set topic.",
+        "error",
+      );
       return false;
     }
   }
@@ -90,10 +108,13 @@ function setup() {
   async function updateChannelPurpose(id: string, purpose: string): Promise<boolean> {
     try {
       await setChannelPurpose(id, purpose);
-      showToast("Description updated.");
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to set description.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to set description.",
+        "error",
+      );
       return false;
     }
   }
@@ -103,7 +124,11 @@ function setup() {
       await inviteToChannel(id, userIds);
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to add to channel.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to add to channel.",
+        "error",
+      );
       return false;
     }
   }
@@ -113,7 +138,11 @@ function setup() {
       await removeFromChannel(id, userId);
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to remove from channel.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to remove from channel.",
+        "error",
+      );
       return false;
     }
   }
@@ -128,10 +157,13 @@ function setup() {
   ): Promise<boolean> {
     try {
       await setChannelPostingPrefs(id, opts);
-      showToast("Posting permissions updated.");
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to update posting permissions.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to update posting permissions.",
+        "error",
+      );
       return false;
     }
   }
@@ -139,10 +171,13 @@ function setup() {
   async function updateChannelRetention(id: string, days: number | null): Promise<boolean> {
     try {
       await setChannelRetention(id, days);
-      showToast("Message retention updated.");
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to update message retention.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to update message retention.",
+        "error",
+      );
       return false;
     }
   }
@@ -153,10 +188,13 @@ function setup() {
   ): Promise<boolean> {
     try {
       await setMemberPermissions(id, perms);
-      showToast("Member permissions updated.");
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to update member permissions.");
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to update member permissions.",
+        "error",
+      );
       return false;
     }
   }

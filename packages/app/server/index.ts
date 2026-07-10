@@ -2,14 +2,17 @@
 // the Slack relay (see relay-core.ts) on a single port. There's no Vite here
 // (that's dev-only, see dev-plugin.ts) — just static files and the relay.
 import {
+  authResponse,
   clients,
   configResponse,
   fileProxyResponse,
+  fileUploadProxyResponse,
   handleClientMessage,
   slackEdgeRelayResponse,
   slackRelayResponse,
   startGateway,
   statusMessage,
+  unfurlResponse,
 } from "./relay-core";
 
 const PORT = Number(process.env.PORT ?? 5174);
@@ -59,8 +62,27 @@ Bun.serve({
       return fileProxyResponse(url.searchParams.get("url"));
     }
 
+    if (req.method === "POST" && url.pathname === "/file-upload") {
+      const buffer = new Uint8Array(await req.arrayBuffer());
+      return fileUploadProxyResponse(
+        buffer,
+        url.searchParams.get("url"),
+        url.searchParams.get("filename"),
+      );
+    }
+
+    if (req.method === "GET" && url.pathname === "/unfurl") {
+      return unfurlResponse(url.searchParams.get("url"));
+    }
+
     if (req.method === "GET" && url.pathname === "/config") {
       return configResponse();
+    }
+
+    if (req.method === "POST" && url.pathname === "/auth") {
+      const { raw } = (await req.json().catch(() => ({}))) as { raw?: string };
+      if (!raw) return new Response("missing raw", { status: 400 });
+      return authResponse(raw);
     }
 
     if (req.method === "GET") {

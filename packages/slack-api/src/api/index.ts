@@ -6,4 +6,4 @@ export * from "./content";
 export * from "./directory";
 export { mapMessage, parseBadgeCounts } from "./mappers";
 export * from "./messages";
-export { fileProxyUrl } from "./relay";
+export { fileProxyUrl, getConfig, submitAuthRequest } from "./relay";

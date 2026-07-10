@@ -40,10 +40,18 @@ export async function postMessage(
   text: string,
   threadTs?: string,
   blocks?: unknown,
+  suppressUnfurl?: boolean,
 ) {
   const params: Record<string, string> = { channel: channelId, text };
   if (threadTs) params.thread_ts = threadTs;
   if (blocks) params.blocks = JSON.stringify(blocks);
+  // Slack's own link unfurl is all-or-nothing for the whole message — there's
+  // no documented way to suppress just one link — so dismissing any preview
+  // in the composer turns it off for the message as a whole.
+  if (suppressUnfurl) {
+    params.unfurl_links = "false";
+    params.unfurl_media = "false";
+  }
   const data = await callSlack("chat.postMessage", params);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
   return data;
@@ -126,6 +134,25 @@ export async function togglePin(channelId: string, ts: string, remove: boolean) 
     timestamp: ts,
   });
   if (!data.ok) throw new Error(data.error ?? "pins.add/remove failed");
+  return data;
+}
+
+// Private endpoint behind the webapp's "Get notified about new replies" /
+// "Unfollow thread" thread-menu actions — conversations.replies exposes the
+// resulting state back as `subscribed` on the thread's root message.
+export async function toggleThreadSubscription(
+  channelId: string,
+  threadTs: string,
+  remove: boolean,
+) {
+  const data = await callSlack(
+    remove ? "subscriptions.thread.remove" : "subscriptions.thread.add",
+    {
+      channel: channelId,
+      thread_ts: threadTs,
+    },
+  );
+  if (!data.ok) throw new Error(data.error ?? "subscriptions.thread.add/remove failed");
   return data;
 }
 

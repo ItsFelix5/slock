@@ -1,7 +1,8 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
-import { Avatar, Icon, Menu, ResizeHandle, Skeleton } from "@slock/ui";
+import { Avatar, Icon, InlineFeedback, Menu, ResizeHandle, Skeleton } from "@slock/ui";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import {
+  actionFeedback,
   activeView,
   bootstrap,
   channelDisplayName,
@@ -10,26 +11,24 @@ import {
   currentUser,
   deleteChannelSection,
   directMessages,
-  endDnd,
   hasUnreadGlow,
   hasUnreadPing,
   isChannelLeft,
   isChannelMuted,
   isChannelStarred,
-  isDndActive,
   nav,
   openUserProfile,
   renameChannelSection,
   sections,
   setActiveView,
   setNavView,
-  snoozeDnd,
   unreadChannelIds,
   userById,
 } from "../../lib/store";
 import GlobalSearch from "../search/GlobalSearch";
 import Settings from "../settings/Settings";
 import ActivityView from "./ActivityView";
+import DndButton from "./DndButton";
 import LaterView from "./LaterView";
 import "./Sidebar.css";
 
@@ -79,6 +78,7 @@ function DmRow(props: { dm: DirectMessage }) {
           >
             <Icon name="close" size={12} />
           </button>
+          <InlineFeedback feedback={actionFeedback.get(props.dm.id)} class="sidebar-row-feedback" />
         </div>
       )}
     </Show>
@@ -243,14 +243,7 @@ export default function Sidebar() {
             </button>
           )}
         </Show>
-        <button
-          type="button"
-          class="sidebar-global-search-btn"
-          title={isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"}
-          onClick={() => (isDndActive() ? endDnd() : snoozeDnd(60))}
-        >
-          <Icon name={isDndActive() ? "moon-filled" : "moon"} size={16} />
-        </button>
+        <DndButton />
         <button
           type="button"
           class="sidebar-global-search-btn"
@@ -371,6 +364,10 @@ export default function Sidebar() {
                         {cat.name}
                       </button>
                     </Show>
+                    <InlineFeedback
+                      feedback={actionFeedback.get(cat.id)}
+                      class="sidebar-section-feedback"
+                    />
                     <Show when={cat.custom && renamingId() !== cat.id}>
                       <Menu
                         class="sidebar-section-menu-wrap"

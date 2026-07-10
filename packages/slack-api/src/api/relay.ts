@@ -47,3 +47,21 @@ export function getWorkspaceDomain(): Promise<string> {
   }
   return workspaceDomain;
 }
+
+// Unlike getWorkspaceDomain, this is never cached — it's polled by the
+// connect-to-slack screen while waiting for the server to have credentials.
+export async function getConfig(): Promise<{ domain: string | null; configured: boolean }> {
+  const res = await fetch("/config");
+  return res.json();
+}
+
+// Submits a request pasted from devtools (see server/parse-auth-request.ts)
+// so the relay can extract a token/cookie/route from it.
+export async function submitAuthRequest(raw: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch("/auth", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ raw }),
+  });
+  return res.json();
+}

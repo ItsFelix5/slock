@@ -1,4 +1,4 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, For } from "solid-js";
 import Avatar, { type AvatarUser } from "./Avatar";
 import "./AvatarStack.css";
 
@@ -6,18 +6,15 @@ export interface AvatarStackProps {
   users: AvatarUser[];
   max?: number;
   size?: "small" | "medium" | "large";
-  title?: string;
+  title?: () => string;
 }
 
-// An overlapping row of avatars with a "+N" overflow badge. Generic on purpose:
-// callers resolve their own domain objects down to AvatarUser first.
 export default function AvatarStack(props: AvatarStackProps) {
   const max = () => props.max ?? 3;
   const shown = createMemo(() => props.users.slice(0, max()));
-  const extra = createMemo(() => props.users.length - shown().length);
 
   return (
-    <span class="avatar-stack" title={props.title}>
+    <span class="avatar-stack">
       <For each={shown()}>
         {(user) => (
           <span class="avatar-stack-item">
@@ -25,9 +22,7 @@ export default function AvatarStack(props: AvatarStackProps) {
           </span>
         )}
       </For>
-      <Show when={extra() > 0}>
-        <span class="avatar-stack-extra">+{extra()}</span>
-      </Show>
+      <span class="reaction-tooltip">{props.title?.()}</span>
     </span>
   );
 }

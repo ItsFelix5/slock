@@ -1,7 +1,7 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
-import { showToast, ToastStack, TypingIndicator } from "@slock/ui";
-import { createEffect, createMemo, Show } from "solid-js";
+import { TypingIndicator } from "@slock/ui";
+import { createMemo, Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
@@ -59,17 +59,12 @@ function App() {
     return typingUsersInChannel(v.id).map((u) => u.name);
   });
 
-  // The shell renders immediately on every other piece of state (channels, DMs,
-  // current user) already falling back to empty/undefined — no reason to block
-  // the whole app behind one resource when each part can show its own skeleton
-  // and fill in as bootstrap resolves.
-  createEffect(() => {
-    if (bootstrap.error) showToast(`Failed to load: ${String(bootstrap.error)}`, 5000);
-  });
-
   return (
     <BlockKitResolverContext.Provider value={blockKitResolver}>
       <div class="app">
+        <Show when={bootstrap.error}>
+          <div class="app-bootstrap-error">Failed to load: {String(bootstrap.error)}</div>
+        </Show>
         <Sidebar />
 
         <div class="main-panel">
@@ -87,7 +82,6 @@ function App() {
         <ChannelDetails />
         <PinnedPanel />
         <CanvasPanel />
-        <ToastStack />
       </div>
     </BlockKitResolverContext.Provider>
   );

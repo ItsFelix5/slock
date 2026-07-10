@@ -6,7 +6,6 @@ export interface AvatarUser {
   name: string;
   avatarUrl?: string;
   avatarColor: string;
-  initials: string;
   presence?: "active" | "away";
 }
 
@@ -22,9 +21,7 @@ export default function Avatar(props: AvatarProps) {
 
   return (
     <span class={`avatar ${sizeClass()}`} style={{ background: props.user.avatarColor }}>
-      <Show when={props.user.avatarUrl} fallback={props.user.initials}>
-        {(url) => <img class="avatar-img" src={url()} alt="" />}
-      </Show>
+      <img class="avatar-img" src={props.user.avatarUrl} alt="?" loading="lazy" />
       <Show when={props.showPresence}>
         <span class={`avatar-presence-dot ${presenceClass()}`} />
       </Show>

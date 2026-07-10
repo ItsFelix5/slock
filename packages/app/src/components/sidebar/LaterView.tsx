@@ -1,7 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Icon } from "@slock/ui";
+import { Icon, InlineFeedback } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
 import {
+  actionFeedback,
   channelById,
   channelDisplayName,
   ensureLaterLoaded,
@@ -61,6 +62,7 @@ export default function LaterView() {
                 >
                   <Icon name="bookmark-filled" size={16} />
                 </button>
+                <InlineFeedback feedback={actionFeedback.get(item.ts)} class="later-feedback" />
               </div>
             );
           }}

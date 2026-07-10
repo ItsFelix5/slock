@@ -1,19 +1,15 @@
-import { fuzzySearch, ICON_NAMES, Icon, showToast } from "@slock/ui";
+import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon } from "@slock/ui";
 import { createMemo, createSignal, For } from "solid-js";
 import "./Settings.css";
 import "./SettingsDebugTab.css";
 
 export default function SettingsDebugTab() {
   const [query, setQuery] = createSignal("");
+  const [copiedKey, copy] = createCopyFeedback();
 
   const filtered = createMemo(() =>
     fuzzySearch(ICON_NAMES, { query: query(), text: (name) => name }),
   );
-
-  const copyName = async (name: string) => {
-    await navigator.clipboard.writeText(name);
-    showToast(`Copied "${name}"`);
-  };
 
   return (
     <>
@@ -38,9 +34,9 @@ export default function SettingsDebugTab() {
                 type="button"
                 class="debug-icon-cell"
                 title={name}
-                onClick={() => copyName(name)}
+                onClick={() => copy(name, name)}
               >
-                <Icon name={name} size={20} />
+                <Icon name={copiedKey() === name ? "check" : name} size={20} />
                 <span class="debug-icon-cell-name">{name}</span>
               </button>
             )}

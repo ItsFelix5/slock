@@ -1,13 +1,16 @@
 import type { Message } from "@slock/slack-api";
-import { PanelHeader, ResizeHandle, showToast, TypingIndicator } from "@slock/ui";
+import { Icon, PanelHeader, ResizeHandle, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import {
+  actionFeedback,
   activeThread,
   channelById,
   channelDisplayName,
   closeThread,
+  isThreadSubscribed,
   prepareReplyLink,
   threadMessages,
+  toggleThreadSubscribed,
   typingUsersInThread,
 } from "../../lib/store";
 import Composer from "../composer/Composer";
@@ -57,7 +60,7 @@ export default function ThreadPanel() {
     if (!t) return;
     const permalink = await prepareReplyLink(t.channelId, msg.ts, t.ts);
     if (!permalink) {
-      showToast("Failed to prepare reply link.");
+      actionFeedback.flash(msg.ts, "Failed to prepare reply link.", "error");
       return;
     }
     setReplyTarget({ ts: msg.ts, permalink });
@@ -84,9 +87,25 @@ export default function ThreadPanel() {
             side="left"
           />
           <PanelHeader onClose={closeThread}>
-            <div>
-              <div class="thread-panel-title">Thread</div>
-              <div class="thread-panel-subtitle">#{channelName()}</div>
+            <div class="thread-panel-header-info">
+              <div>
+                <div class="thread-panel-title">Thread</div>
+                <div class="thread-panel-subtitle">#{channelName()}</div>
+              </div>
+              <button
+                type="button"
+                class="thread-panel-subscribe-btn"
+                classList={{ subscribed: isThreadSubscribed(t().ts) }}
+                title={
+                  isThreadSubscribed(t().ts) ? "Unfollow thread" : "Get notified about new replies"
+                }
+                onClick={() => toggleThreadSubscribed(t().channelId, t().ts)}
+              >
+                <Icon
+                  name={isThreadSubscribed(t().ts) ? "notifications-check" : "notifications"}
+                  size={16}
+                />
+              </button>
             </div>
           </PanelHeader>
           <div class="thread-panel-messages" ref={messagesRef}>

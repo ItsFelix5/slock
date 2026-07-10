@@ -4,10 +4,6 @@ function colorFromHex(hex: string | undefined) {
   return hex ? `#${hex}` : "#616061";
 }
 
-function initialsOf(name: string) {
-  return name.slice(0, 1).toUpperCase() || "?";
-}
-
 function tzLabelFromOffset(seconds: number | undefined): string | undefined {
   if (seconds === undefined) return undefined;
   const hours = seconds / 3600;
@@ -43,7 +39,6 @@ export function mapUser(raw: any): User {
       raw.profile?.image_72 ||
       raw.profile?.image_48 ||
       avatarUrlFromHash(raw),
-    initials: initialsOf(name),
     presence: raw.presence === "away" ? "away" : "active",
     title: raw.profile?.title || undefined,
     pronouns: raw.profile?.pronouns || undefined,
@@ -155,10 +150,12 @@ function mapFile(f: any): SlackFile {
     filetype: f.filetype,
     size: f.size,
     isImage: !!mimetype?.startsWith("image/"),
+    isVideo: !!mimetype?.startsWith("video/"),
     urlPrivate: f.url_private,
     thumbUrl: f.thumb_720 ?? f.thumb_360 ?? f.thumb_160,
     width: f.thumb_360_w ?? f.original_w,
     height: f.thumb_360_h ?? f.original_h,
+    duration: f.duration,
     permalink: f.permalink,
   };
 }
@@ -173,6 +170,9 @@ function mapAttachment(a: any): Attachment {
     titleLink: a.title_link,
     text: a.text,
     imageUrl: a.image_url,
+    videoUrl: a.video_url,
+    videoWidth: a.video_width,
+    videoHeight: a.video_height,
     footer: a.footer,
     footerIcon: a.footer_icon,
     fields: a.fields,
@@ -196,6 +196,9 @@ export function mapMessage(m: any): Message {
     day: formatDay(m.ts),
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
+    lastReplyLabel: m.latest_reply
+      ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
+      : undefined,
     reactions: m.reactions,
     edited: !!m.edited,
     kind,
@@ -207,6 +210,7 @@ export function mapMessage(m: any): Message {
     isBroadcast: subtype === "thread_broadcast",
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     isEphemeral: !!m.is_ephemeral,
+    isSubscribed: typeof m.subscribed === "boolean" ? m.subscribed : undefined,
   };
 }
 

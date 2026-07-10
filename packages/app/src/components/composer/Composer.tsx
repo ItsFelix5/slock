@@ -1,8 +1,9 @@
 import { emojiUrl } from "@slock/blockkit";
-import type { User } from "@slock/slack-api";
+import type { Attachment, LinkPreview, User } from "@slock/slack-api";
 import {
   fetchBrowsableChannels,
   fetchDrafts,
+  fetchLinkPreview,
   fetchSlashCommands,
   saveDraft,
   uploadFile,
@@ -12,8 +13,8 @@ import {
   fuzzySearch,
   Icon,
   type IconName,
+  InlineFeedback,
   Menu,
-  showToast,
   useClickOutside,
   useEscapeClose,
 } from "@slock/ui";
@@ -21,6 +22,7 @@ import { createEffect, createMemo, createSignal, For, onMount, Show } from "soli
 import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../lib/emojiSearch";
 import { encodeReplyLink } from "../../lib/replyLink";
 import {
+  actionFeedback,
   activeView,
   channelById,
   channelDisplayName,
@@ -35,6 +37,7 @@ import {
   sendMessage,
   userById,
 } from "../../lib/store";
+import AttachmentCard from "../messages/AttachmentCard";
 import ComposeDatePicker from "./ComposeDatePicker";
 import ComposeUserPicker from "./ComposeUserPicker";
 import {
@@ -82,6 +85,29 @@ type SuggestState =
   | { kind: "channel"; start: number; items: ChannelSuggestItem[]; active: number }
   | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
   | { kind: "emoji"; start: number; items: EmojiSuggestItem[]; active: number };
+
+// Matches Slack's own composer trigger for a link preview: any bare
+// http(s) URL, trailing sentence punctuation stripped since that's almost
+// never actually part of the link.
+const URL_RE = /https?:\/\/[^\s<>]+/g;
+function detectUrls(value: string): string[] {
+  const found = new Set<string>();
+  for (const m of value.matchAll(URL_RE)) {
+    const clean = m[0].replace(/[),.!?;:'"]+$/, "");
+    if (clean) found.add(clean);
+  }
+  return [...found];
+}
+
+function linkPreviewToAttachment(preview: LinkPreview): Attachment {
+  return {
+    title: preview.title || preview.url,
+    titleLink: preview.url,
+    text: preview.description,
+    imageUrl: preview.imageUrl,
+    footer: preview.siteName,
+  };
+}
 
 // Detects an in-progress @mention, #channel-mention, :emoji-shortcode, or
 // /slash-command token immediately before the cursor, the way Slack's real
@@ -210,11 +236,55 @@ export default function Composer(props: {
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
+  const [linkPreviews, setLinkPreviews] = createSignal<Record<string, LinkPreview | null>>({});
+  const [dismissedLinks, setDismissedLinks] = createSignal<Set<string>>(new Set());
   let editorRef: HTMLDivElement | undefined;
   let fileInputRef: HTMLInputElement | undefined;
   let suggestRequestId = 0;
   let savedRange: Range | null = null;
   let suggestPopoverRef: HTMLDivElement | undefined;
+  let unfurlDebounce: ReturnType<typeof setTimeout> | undefined;
+
+  const detectedUrls = createMemo(() => detectUrls(text()));
+
+  const visiblePreviews = createMemo(() => {
+    const dismissed = dismissedLinks();
+    const cache = linkPreviews();
+    const result: LinkPreview[] = [];
+    for (const url of detectedUrls()) {
+      if (dismissed.has(url)) continue;
+      const preview = cache[url];
+      if (preview) result.push(preview);
+    }
+    return result;
+  });
+
+  // Debounced so a link half-typed character-by-character doesn't fire a
+  // fetch per keystroke — only once the text settles down.
+  createEffect(() => {
+    const urls = detectedUrls();
+    clearTimeout(unfurlDebounce);
+    unfurlDebounce = setTimeout(() => {
+      const dismissed = dismissedLinks();
+      const cache = linkPreviews();
+      for (const url of urls) {
+        if (dismissed.has(url) || url in cache) continue;
+        setLinkPreviews((prev) => ({ ...prev, [url]: null }));
+        fetchLinkPreview(url).then((preview) => {
+          setLinkPreviews((prev) => ({ ...prev, [url]: preview }));
+        });
+      }
+    }, 500);
+  });
+
+  function dismissLinkPreview(url: string) {
+    setDismissedLinks((prev) => new Set(prev).add(url));
+  }
+
+  function resetLinkPreviews() {
+    setLinkPreviews({});
+    setDismissedLinks(new Set<string>());
+  }
 
   useClickOutside(
     () => suggestPopoverRef,
@@ -250,6 +320,7 @@ export default function Composer(props: {
   function clearEditor() {
     setText("");
     if (editorRef) editorRef.innerHTML = "";
+    resetLinkPreviews();
   }
 
   function focusEditor() {
@@ -431,6 +502,7 @@ export default function Composer(props: {
 
   const targetChannelId = () => props.channelId ?? activeView()?.id;
   const draftKey = () => (props.threadTs ? `thread:${props.threadTs}` : targetChannelId());
+  const feedbackKey = () => props.threadTs ?? targetChannelId() ?? "";
   const disabled = () => !targetChannelId() || sending();
 
   // The composer is a single long-lived component reused across every channel/DM
@@ -449,6 +521,7 @@ export default function Composer(props: {
     const value = (key && drafts[key]) || "";
     setText(value);
     loadDraftIntoEditor(value);
+    resetLinkPreviews();
   });
 
   createEffect(() => {
@@ -888,6 +961,8 @@ export default function Composer(props: {
       props.replyTo && !isSlashAttempt
         ? encodeReplyLink(props.replyTo.permalink) + trimmed
         : trimmed;
+    const dismissed = dismissedLinks();
+    const suppressUnfurl = detectedUrls().some((u) => dismissed.has(u));
 
     if (props.editing) {
       if (!trimmed) return;
@@ -904,7 +979,7 @@ export default function Composer(props: {
       if (files.length === 0) {
         if (blocks && blocks.length > 0) {
           clearEditor();
-          await sendMessage(id, outgoing, props.threadTs, blocks);
+          await sendMessage(id, outgoing, props.threadTs, blocks, suppressUnfurl);
           props.replyTo?.onSent();
           return;
         }
@@ -913,7 +988,7 @@ export default function Composer(props: {
           const handled = await handleSlashCommand(id, props.threadTs, trimmed);
           if (handled) return;
         }
-        await sendMessage(id, outgoing, props.threadTs);
+        await sendMessage(id, outgoing, props.threadTs, undefined, suppressUnfurl);
         clearEditor();
         props.replyTo?.onSent();
         return;
@@ -928,7 +1003,7 @@ export default function Composer(props: {
       props.replyTo?.onSent();
     } catch (err) {
       console.error("Failed to send", err);
-      showToast("Failed to send.");
+      actionFeedback.flash(feedbackKey(), "Failed to send.", "error");
     } finally {
       setSending(false);
     }
@@ -1126,6 +1201,30 @@ export default function Composer(props: {
             )}
           </For>
         </div>
+      </Show>
+
+      <Show when={!props.editing && visiblePreviews().length > 0}>
+        <div class="composer-link-previews">
+          <For each={visiblePreviews()}>
+            {(preview) => (
+              <div class="composer-link-preview">
+                <AttachmentCard attachment={linkPreviewToAttachment(preview)} />
+                <button
+                  type="button"
+                  class="composer-link-preview-remove"
+                  onClick={() => dismissLinkPreview(preview.url)}
+                  title="Remove preview"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+
+      <Show when={!props.editing}>
+        <InlineFeedback feedback={actionFeedback.get(feedbackKey())} class="composer-feedback" />
       </Show>
 
       <div class="composer-row">

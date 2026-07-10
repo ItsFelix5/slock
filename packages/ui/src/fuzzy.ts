@@ -66,10 +66,14 @@ export interface FuzzySearchOptions<T> {
   // match at all. A hit here always ranks behind every `text` hit, including a
   // fuzzy one, since it's one signal further from what the user is looking at.
   altText?: (item: T) => string;
+  // A coarser tiebreak than `frequency`, checked first: groups items within a
+  // match tier (e.g. "already a member" vs "just browsing") before frecency
+  // decides ordering inside each group. Still can't outrank a better text match.
+  priority?: (item: T) => number;
   // Usage frequency/frecency, higher = used more. Only ever breaks ties
-  // between matches of equal tier — it can't outrank a categorically better
-  // text match, but it does decide ordering among near-equal matches, which is
-  // most of what a user types.
+  // between matches of equal tier (and equal priority) — it can't outrank a
+  // categorically better text match, but it does decide ordering among
+  // near-equal matches, which is most of what a user types.
   frequency?: (item: T) => number;
 }
 
@@ -81,7 +85,7 @@ export function fuzzySearch<T>(items: readonly T[], opts: FuzzySearchOptions<T>)
   const q = opts.query.trim().toLowerCase();
   if (!q) return [...items];
 
-  const scored: { item: T; tier: number; score: number; freq: number }[] = [];
+  const scored: { item: T; tier: number; score: number; pri: number; freq: number }[] = [];
   for (const item of items) {
     let m = fuzzyMatch(opts.text(item), q);
     if (!m && opts.altText) {
@@ -89,9 +93,15 @@ export function fuzzySearch<T>(items: readonly T[], opts: FuzzySearchOptions<T>)
       if (alt) m = { tier: alt.tier + ALT_TIER_OFFSET, score: alt.score };
     }
     if (!m) continue;
-    scored.push({ item, tier: m.tier, score: m.score, freq: opts.frequency?.(item) ?? 0 });
+    scored.push({
+      item,
+      tier: m.tier,
+      score: m.score,
+      pri: opts.priority?.(item) ?? 0,
+      freq: opts.frequency?.(item) ?? 0,
+    });
   }
 
-  scored.sort((a, b) => a.tier - b.tier || b.freq - a.freq || b.score - a.score);
+  scored.sort((a, b) => a.tier - b.tier || b.pri - a.pri || b.freq - a.freq || b.score - a.score);
   return scored.map((s) => s.item);
 }

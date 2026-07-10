@@ -76,6 +76,14 @@
   display: block;
 }
 
+.attachment-video {
+  max-width: 360px;
+  max-height: 300px;
+  border-radius: 6px;
+  margin-top: 6px;
+  display: block;
+}
+
 .attachment-footer {
   display: flex;
   align-items: center;

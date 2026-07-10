@@ -482,18 +482,33 @@
   align-items: center;
   gap: 6px;
   background: none;
-  border: 1px solid var(--border-strong);
+  border: none;
   border-radius: 6px;
   color: var(--accent);
   font-size: 13px;
   font-weight: 700;
   padding: 4px 10px;
   cursor: pointer;
+  width: 100%;
 }
 
 .message-replies:hover {
   background: var(--hover-bg);
   border-color: var(--text-dim);
+}
+
+.message-replies-last {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.message-feedback {
+  display: block;
+  margin-top: 4px;
+}
+
+.message-replies:hover .message-replies-last {
+  color: var(--text-secondary);
 }
 
 .pronouns {

@@ -44,6 +44,19 @@ button {
   overflow: hidden;
 }
 
+.app-bootstrap-error {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--danger);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+  padding: 6px 12px;
+}
+
 .main-panel {
   flex: 1;
   min-width: 0;

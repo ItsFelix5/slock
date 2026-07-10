@@ -152,6 +152,12 @@
   color: var(--text-primary);
 }
 
+.bk-overflow-unsupported {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 .menu-panel.bk-overflow-menu {
   top: 36px;
   left: 0;

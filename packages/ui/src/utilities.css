@@ -99,6 +99,13 @@
   overflow: hidden;
 }
 
+/* Centered empty state for modals, pickers, empty lists */
+.empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
 /* Round "✕" close button — panel headers use it inline, modals float it
    in a corner via .floating (parent needs position: relative). */
 .panel-close-btn {

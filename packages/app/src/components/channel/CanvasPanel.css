@@ -11,23 +11,8 @@
   overflow: hidden;
 }
 
-.canvas-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
 .canvas-panel-title {
   font-weight: 700;
-  font-size: 14px;
-}
-
-.canvas-panel-close {
-  background: none;
-  border: none;
-  color: var(--text-dim);
   font-size: 14px;
 }
 

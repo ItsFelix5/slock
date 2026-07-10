@@ -1,4 +1,4 @@
-import type { SavedItem } from "../types";
+import type { LinkPreview, SavedItem } from "../types";
 import { callSlack, fileProxyUrl } from "./relay";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
@@ -97,26 +97,26 @@ export async function runSlashCommand(
   return null;
 }
 
-// Modern (non-deprecated) Slack upload flow: reserve an upload URL, PUT the raw
-// bytes to it directly from the browser (the same presigned-URL flow the real
-// web client uses — no cookie required for this step), then tell Slack to
-// attach the finished upload to a channel.
+// Modern (non-deprecated) Slack upload flow: reserve an upload URL, then send
+// the raw bytes to it, then tell Slack to attach the finished upload to a
+// channel. The middle step can't be a direct browser POST to Slack's
+// presigned URL — Slack doesn't grant our own origin CORS access to
+// files.slack.com — so it goes through our own same-origin relay instead,
+// which forwards it server-side where CORS doesn't apply.
 export async function uploadFile(
   channelId: string,
   file: File,
   threadTs?: string,
   comment?: string,
 ): Promise<void> {
-  const buffer = await file.arrayBuffer();
   const reserve = await callSlack("files.getUploadURLExternal", {
     filename: file.name,
-    length: String(buffer.byteLength),
+    length: String(file.size),
   });
   if (!reserve.ok) throw new Error(reserve.error ?? "files.getUploadURLExternal failed");
 
-  const uploadForm = new FormData();
-  uploadForm.append("file", new Blob([buffer]), file.name);
-  const putRes = await fetch(reserve.upload_url, { method: "POST", body: uploadForm });
+  const uploadUrl = `/file-upload?url=${encodeURIComponent(reserve.upload_url)}&filename=${encodeURIComponent(file.name)}`;
+  const putRes = await fetch(uploadUrl, { method: "POST", body: file });
   if (!putRes.ok) throw new Error("file upload failed");
 
   const completeParams: Record<string, string> = {
@@ -127,4 +127,26 @@ export async function uploadFile(
   if (comment) completeParams.initial_comment = comment;
   const complete = await callSlack("files.completeUploadExternal", completeParams);
   if (!complete.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
+}
+
+// Client-side stand-in for Slack's own link unfurl, which only ever runs
+// server-side after a message is posted — this lets the composer show a
+// preview of a pasted/typed link before send, the way Slack's real composer
+// does. Best-effort: any fetch/parse failure just means no preview, not an error.
+export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {
+  try {
+    const res = await fetch(`/unfurl?url=${encodeURIComponent(url)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.title && !data.description && !data.imageUrl) return null;
+    return {
+      url,
+      title: data.title,
+      description: data.description,
+      imageUrl: data.imageUrl,
+      siteName: data.siteName,
+    };
+  } catch {
+    return null;
+  }
 }

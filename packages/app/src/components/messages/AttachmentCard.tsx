@@ -69,7 +69,20 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
           </For>
         </div>
       </Show>
-      <Show when={a.imageUrl}>
+      <Show when={a.videoUrl}>
+        {(url) => (
+          <video
+            class="attachment-video"
+            src={imageSrc(url())}
+            controls
+            width={a.videoWidth}
+            height={a.videoHeight}
+            aria-label={a.title || "Embedded video"}
+            style={{ "max-width": "100%", height: "auto" }}
+          />
+        )}
+      </Show>
+      <Show when={a.imageUrl && !a.videoUrl}>
         {(url) => <ZoomableImage class="attachment-image" src={imageSrc(url())} alt="" />}
       </Show>
       <Show when={a.footer}>

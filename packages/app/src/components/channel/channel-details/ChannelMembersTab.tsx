@@ -1,5 +1,5 @@
 import type { User } from "@slock/slack-api";
-import { Avatar, Icon, SegmentedControl, showToast } from "@slock/ui";
+import { Avatar, Icon, SegmentedControl } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import {
   inviteUsersToChannel,
@@ -128,7 +128,6 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
             : [user, ...prev.everyone],
         }));
       }
-      showToast(`Added ${user?.name ?? "user"} to the channel.`);
     }
   };
 
@@ -140,7 +139,6 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
         apps: prev.apps.filter((u) => u.id !== user.id),
       }));
       setManagerIds((prev) => prev.filter((id) => id !== user.id));
-      showToast(`Removed ${user.name}.`);
     }
   };
 

@@ -1,13 +1,12 @@
 import type { BrowsableChannel, Channel, User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
-import { Avatar, fuzzyMatch, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { Avatar, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import {
   bootstrap,
   currentUser,
   directMessages,
   frecencyScore,
-  joinChannelById,
   knownUsers,
   openDmWithUser,
   openMessageSearch,
@@ -25,24 +24,40 @@ interface JumpChannel {
 
 type Row = { kind: "channel"; data: JumpChannel } | { kind: "person"; data: User };
 type Candidate = { row: Row; name: string; id: string };
+type SearchItem =
+  | { kind: "message-search" }
+  | { kind: "channel"; data: JumpChannel }
+  | { kind: "person"; data: User };
 
 export default function GlobalSearch(props: { onClose: () => void }) {
   const [query, setQuery] = createSignal("");
   const [remotePeople, setRemotePeople] = createSignal<User[]>([]);
   const [remoteChannels, setRemoteChannels] = createSignal<BrowsableChannel[]>([]);
+  const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
   let peopleDebounce: ReturnType<typeof setTimeout> | undefined;
   let peopleRequestId = 0;
   let channelDebounce: ReturnType<typeof setTimeout> | undefined;
   let channelRequestId = 0;
 
   useEscapeClose(props.onClose);
+  onCleanup(() => {
+    clearTimeout(peopleDebounce);
+    clearTimeout(channelDebounce);
+  });
 
   const hasQuery = createMemo(() => !!query().trim());
 
+  // Ranked (not just filtered) so that, once this gets capped to 20 below, the
+  // candidates that survive are the best matches rather than whatever happened
+  // to come first in bootstrap's channel order.
   const localChannelMatches = createMemo<Channel[]>(() => {
-    const q = query().trim().toLowerCase();
+    const q = query().trim();
     if (!q) return [];
-    return (bootstrap()?.channels ?? []).filter((c) => fuzzyMatch(c.name, q) !== null);
+    return fuzzySearch(bootstrap()?.channels ?? [], {
+      query: q,
+      text: (c) => c.name,
+      frequency: (c) => frecencyScore(c.id),
+    });
   });
 
   // The sidebar only knows channels you've already joined — on a large workspace,
@@ -65,11 +80,16 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     return [...joined, ...remote].slice(0, 20);
   });
 
+  // Same reasoning as localChannelMatches: rank before the 20-item cap below
+  // picks which candidates make it into the final merge+rank.
   const localPeopleMatches = createMemo<User[]>(() => {
-    const q = query().trim().toLowerCase();
+    const q = query().trim();
     if (!q) return [];
     const me = currentUser()?.id;
-    return knownUsers().filter((u) => u.id !== me && fuzzyMatch(u.name, q) !== null);
+    return fuzzySearch(
+      knownUsers().filter((u) => u.id !== me),
+      { query: q, text: (u) => u.name, frequency: (u) => frecencyScore(u.id) },
+    );
   });
 
   // Local matches are only whoever's already been resolved this session — merge
@@ -114,10 +134,12 @@ export default function GlobalSearch(props: { onClose: () => void }) {
 
   // One flat, ranked list instead of separate headed sections — channels and
   // people ranked together, fuzzy text-match quality first so an exact/prefix
-  // hit always beats a loose one (typos still surface via the fuzzy fallback),
+  // hit always beats a loose one (typos still surface via the fuzzy fallback).
+  // Within a tier, a channel you've actually joined outranks one you're just
+  // browsing (membership is a stronger signal than having previewed it once),
   // and frecency (frequency + recency of visits, the same signal the real
   // client's quick switcher uses its local jump-target database for) only
-  // breaks ties *within* a match tier, e.g. picking between two channels that
+  // breaks ties *within* that, e.g. picking between two joined channels that
   // both start with the query. Actual message content search stays out of
   // this box entirely; "Search all messages for…" (rendered above the list)
   // is the only way to reach it.
@@ -134,19 +156,30 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     const ranked = fuzzySearch(candidates, {
       query: query(),
       text: (c) => c.name,
+      priority: (c) => (c.row.kind === "channel" && !c.row.data.joined ? 0 : 1),
       frequency: (c) => frecencyScore(c.id),
     });
     return ranked.slice(0, 8).map((c) => c.row);
   });
 
-  const goToChannel = (c: JumpChannel) => {
-    if (c.joined) {
-      setActiveView({ kind: "channel", id: c.id });
-      props.onClose();
-    } else {
-      joinChannelById(c.id);
-      props.onClose();
+  const items = createMemo<SearchItem[]>(() => {
+    if (!hasQuery()) return [];
+    return [{ kind: "message-search" }, ...rows()];
+  });
+
+  createEffect(() => {
+    const total = items().length;
+    const current = activeIndex();
+    if (total === 0) {
+      if (current !== null) setActiveIndex(null);
+      return;
     }
+    if (current === null || current > total - 1) setActiveIndex(0);
+  });
+
+  const goToChannel = (c: JumpChannel) => {
+    setActiveView({ kind: "channel", id: c.id });
+    props.onClose();
   };
 
   const goToPerson = (userId: string) => {
@@ -161,6 +194,32 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     props.onClose();
   };
 
+  const activateItem = (index: number) => {
+    const item = items()[index];
+    if (!item) return;
+
+    if (item.kind === "message-search") {
+      goToMessageSearch();
+      return;
+    }
+
+    if (item.kind === "channel") {
+      goToChannel(item.data);
+      return;
+    }
+
+    goToPerson(item.data.id);
+  };
+
+  const moveActive = (delta: number) => {
+    const total = items().length;
+    if (!total) return;
+
+    const current = activeIndex();
+    const next = current === null ? 0 : Math.max(0, Math.min(total - 1, current + delta));
+    setActiveIndex(next);
+  };
+
   return (
     <Overlay onClose={props.onClose}>
       <div class="global-search-card">
@@ -173,11 +232,23 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             value={query()}
             onInput={(e) => {
               setQuery(e.currentTarget.value);
+              setActiveIndex(e.currentTarget.value.trim() ? 0 : null);
               runPeopleSearch();
               runChannelSearch();
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && hasQuery()) goToMessageSearch();
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                moveActive(1);
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                moveActive(-1);
+              } else if (e.key === "Enter" && hasQuery()) {
+                e.preventDefault();
+                const index = activeIndex();
+                if (index === null) goToMessageSearch();
+                else activateItem(index);
+              }
             }}
             autofocus
           />
@@ -193,8 +264,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
           >
             <button
               type="button"
-              class="global-search-result global-search-jump global-search-message-action"
+              class="global-search-result global-search-message-action"
+              classList={{ active: activeIndex() === 0 }}
               onClick={goToMessageSearch}
+              onMouseEnter={() => setActiveIndex(0)}
             >
               <span class="global-search-jump-icon">
                 <Icon name="search" size={13} />
@@ -203,14 +276,17 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             </button>
 
             <For each={rows()}>
-              {(row) => {
+              {(row, index) => {
+                const itemIndex = () => index() + 1;
                 if (row.kind === "channel") {
                   const c = row.data;
                   return (
                     <button
                       type="button"
                       class="global-search-result global-search-jump"
+                      classList={{ active: activeIndex() === itemIndex() }}
                       onClick={() => goToChannel(c)}
+                      onMouseEnter={() => setActiveIndex(itemIndex())}
                     >
                       <span class="global-search-jump-icon">
                         {c.private ? <Icon name="lock" size={13} /> : "#"}
@@ -224,7 +300,9 @@ export default function GlobalSearch(props: { onClose: () => void }) {
                   <button
                     type="button"
                     class="global-search-result global-search-jump"
+                    classList={{ active: activeIndex() === itemIndex() }}
                     onClick={() => goToPerson(u.id)}
+                    onMouseEnter={() => setActiveIndex(itemIndex())}
                   >
                     <Avatar user={u} size="small" />
                     {u.name}

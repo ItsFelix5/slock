@@ -1,8 +1,9 @@
-import { EmojiText } from "@slock/blockkit";
-import { Icon, Menu } from "@slock/ui";
+import { Mrkdwn } from "@slock/blockkit";
+import { Icon, InlineFeedback, Menu } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import {
+  actionFeedback,
   activeView,
   canvasByChannel,
   channelById,
@@ -89,7 +90,7 @@ export default function ChannelHeader() {
     setNewSectionName("");
     if (!name) return;
     const v = activeView();
-    const created = await createChannelSection(name);
+    const created = await createChannelSection(name, v?.id ?? name);
     if (created && v) moveChannelToSection(v.id, created.id);
     setStarMenuOpen(false);
   };
@@ -216,8 +217,13 @@ export default function ChannelHeader() {
         </button>
         <Show when={topic()}>
           <span class="channel-header-topic">
-            <EmojiText text={topic()} />
+            <Mrkdwn text={topic()} />
           </span>
+        </Show>
+        <Show when={activeView()?.id}>
+          {(id) => (
+            <InlineFeedback feedback={actionFeedback.get(id())} class="channel-header-feedback" />
+          )}
         </Show>
         <div class="channel-header-actions">
           <Show when={isChannel() && canvas()}>

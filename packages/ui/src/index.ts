@@ -2,20 +2,23 @@ export type { AvatarProps, AvatarUser } from "./Avatar";
 export { default as Avatar } from "./Avatar";
 export type { AvatarStackProps } from "./AvatarStack";
 export { default as AvatarStack } from "./AvatarStack";
-export type { BadgeProps } from "./Badge";
-export { default as Badge } from "./Badge";
 export type { ButtonProps } from "./Button";
 export { default as Button } from "./Button";
 export type { ButtonGroupProps } from "./ButtonGroup";
 export { default as ButtonGroup } from "./ButtonGroup";
 export type { ColorFieldProps } from "./ColorField";
 export { default as ColorField } from "./ColorField";
+export { createCopyFeedback } from "./copyFeedback";
 export type { ComboItem } from "./FilterCombobox";
 export { default as FilterCombobox } from "./FilterCombobox";
 export type { FuzzyMatch, FuzzySearchOptions } from "./fuzzy";
 export { fuzzyMatch, fuzzySearch } from "./fuzzy";
 export type { IconName } from "./Icon";
 export { default as Icon, ICON_NAMES } from "./Icon";
+export type { InlineFeedbackProps } from "./InlineFeedback";
+export { default as InlineFeedback } from "./InlineFeedback";
+export type { Feedback, FeedbackKind } from "./keyedFeedback";
+export { createKeyedFeedback } from "./keyedFeedback";
 export { default as Menu, type MenuProps } from "./Menu";
 export type { MenuButtonProps } from "./MenuButton";
 export { default as MenuButton } from "./MenuButton";
@@ -32,7 +35,6 @@ export type { SkeletonProps } from "./Skeleton";
 export { default as Skeleton } from "./Skeleton";
 export type { SwitchProps } from "./Switch";
 export { default as Switch } from "./Switch";
-export { default as ToastStack } from "./Toast";
 export type { TypingIndicatorProps } from "./TypingIndicator";
 export { default as TypingIndicator } from "./TypingIndicator";
 export {
@@ -56,7 +58,6 @@ export {
   theme,
   themeColors,
 } from "./theme";
-export { showToast, type Toast, toasts } from "./toast";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export type { ZoomableImageProps } from "./ZoomableImage";

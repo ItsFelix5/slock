@@ -11,7 +11,6 @@ export interface User {
   name: string;
   avatarColor: string;
   avatarUrl?: string;
-  initials: string;
   presence: "active" | "away";
   title?: string;
   pronouns?: string;
@@ -44,10 +43,12 @@ export interface SlackFile {
   filetype?: string;
   size?: number;
   isImage: boolean;
+  isVideo?: boolean;
   urlPrivate: string;
   thumbUrl?: string;
   width?: number;
   height?: number;
+  duration?: number;
   permalink?: string;
 }
 
@@ -60,6 +61,9 @@ export interface Attachment {
   titleLink?: string;
   text?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  videoWidth?: number;
+  videoHeight?: number;
   footer?: string;
   footerIcon?: string;
   fields?: { title: string; value: string; short?: boolean }[];
@@ -88,6 +92,7 @@ export interface Message {
   day: string;
   replyCount?: number;
   replyUsers?: string[];
+  lastReplyLabel?: string;
   reactions?: Reaction[];
   edited?: boolean;
   deleted?: boolean;
@@ -102,6 +107,10 @@ export interface Message {
   // chat.postEphemeral responses (e.g. slash command output) — only ever
   // delivered to the user they're meant for, never part of real history.
   isEphemeral?: boolean;
+  // Whether the current user is following this thread for new-reply
+  // notifications — only ever set on the thread's root message, mirroring
+  // where conversations.replies puts the `subscribed` field.
+  isSubscribed?: boolean;
 }
 
 export interface CanvasInfo {
@@ -200,4 +209,14 @@ export interface ActivityItem {
 export interface SavedItem {
   channelId: string;
   ts: string;
+}
+
+// A client-side stand-in for a Slack unfurl, shown in the composer before
+// send — see fetchLinkPreview.
+export interface LinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  siteName?: string;
 }

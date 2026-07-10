@@ -1,5 +1,5 @@
-import { Icon } from "@slock/ui";
-import { channelById, channelDisplayName, joinChannelById } from "../../lib/store";
+import { Icon, InlineFeedback } from "@slock/ui";
+import { actionFeedback, channelById, channelDisplayName, joinChannelById } from "../../lib/store";
 import "./JoinChannelBar.css";
 
 export default function JoinChannelBar(props: { channelId: string }) {
@@ -10,6 +10,7 @@ export default function JoinChannelBar(props: { channelId: string }) {
       <div class="join-channel-bar-text">
         You aren't a member of <strong>#{name()}</strong>.
       </div>
+      <InlineFeedback feedback={actionFeedback.get(props.channelId)} />
       <button
         type="button"
         class="join-channel-bar-btn"

@@ -158,6 +158,11 @@
   color: var(--text-primary);
 }
 
+.sidebar-section-feedback {
+  white-space: nowrap;
+  margin-right: 4px;
+}
+
 .sidebar-caret {
   font-size: 10px;
   transition: transform 0.1s;
@@ -237,6 +242,16 @@
 
 .sidebar-row-wrap:hover .sidebar-row-close {
   display: flex;
+}
+
+.sidebar-row-feedback {
+  position: absolute;
+  top: 100%;
+  left: 10px;
+  right: 10px;
+  z-index: 1;
+  background: var(--sidebar-bg);
+  padding: 2px 0;
 }
 
 .sidebar-row-close:hover {

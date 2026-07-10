@@ -67,6 +67,11 @@
   margin-left: 4px;
 }
 
+.channel-header-feedback {
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
 .channel-header-actions {
   margin-left: auto;
   display: flex;

@@ -1,11 +1,8 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Reaction } from "@slock/slack-api";
-import { Avatar } from "@slock/ui";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, For } from "solid-js";
+import AvatarStack from "../../../../ui/src/AvatarStack";
 import { currentUser, userById } from "../../lib/store";
-import { formatInteractorNames } from "./InteractorAvatars";
-
-const TOOLTIP_AVATAR_LIMIT = 12;
 
 export default function ReactionRow(props: {
   reactions: Reaction[];
@@ -19,10 +16,6 @@ export default function ReactionRow(props: {
             const me = currentUser();
             return !!me && r.users.includes(me.id);
           });
-          const tooltip = createMemo(() => {
-            const who = formatInteractorNames(r.users);
-            return who ? `${who} reacted` : "";
-          });
           return (
             <button
               type="button"
@@ -32,23 +25,23 @@ export default function ReactionRow(props: {
             >
               <EmojiText text={`:${r.name}:`} />
               <span class="reaction-count">{r.count}</span>
-              <Show when={r.users.length > 0}>
-                <span class="reaction-tooltip">
-                  <span class="reaction-tooltip-avatars">
-                    <For each={r.users.slice(0, TOOLTIP_AVATAR_LIMIT)}>
-                      {(id) => {
-                        const user = createMemo(() => userById(id));
-                        return (
-                          <Show when={user()}>{(u) => <Avatar user={u()} size="small" />}</Show>
-                        );
-                      }}
-                    </For>
-                  </span>
-                  <span class="reaction-tooltip-text">
-                    {tooltip()} with <EmojiText text={`:${r.name}:`} />
-                  </span>
-                </span>
-              </Show>
+              <AvatarStack
+                users={r.users
+                  .slice(0, 3)
+                  .map((id) => userById(id))
+                  .filter((u) => u !== undefined)}
+                title={() =>
+                  r.users
+                    .map((id) =>
+                      id === currentUser()?.id ? "you" : (userById(id)?.name ?? "someone"),
+                    )
+                    .reduce(
+                      (prev, curr, i, a) =>
+                        (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
+                      "",
+                    )
+                }
+              />
             </button>
           );
         }}

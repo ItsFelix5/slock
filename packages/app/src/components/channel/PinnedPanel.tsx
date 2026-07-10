@@ -1,7 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Overlay, useEscapeClose } from "@slock/ui";
+import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
 import {
+  actionFeedback,
   channelById,
   channelDisplayName,
   closePinnedPanel,
@@ -54,17 +55,9 @@ export default function PinnedPanel() {
       {(id) => (
         <Overlay align="top" onClose={closePinnedPanel}>
           <div class="pinned-panel-card">
-            <div class="pinned-panel-header">
+            <PanelHeader onClose={closePinnedPanel}>
               <div class="pinned-panel-title">{title()}</div>
-              <button
-                type="button"
-                class="pinned-panel-close"
-                onClick={closePinnedPanel}
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
+            </PanelHeader>
             <div class="pinned-panel-list">
               <For
                 each={pins()}
@@ -89,6 +82,10 @@ export default function PinnedPanel() {
                         >
                           Unpin
                         </button>
+                        <InlineFeedback
+                          feedback={actionFeedback.get(pin.ts)}
+                          class="pinned-panel-feedback"
+                        />
                       </div>
                     )}
                   </Show>

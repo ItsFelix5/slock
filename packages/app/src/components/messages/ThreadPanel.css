@@ -5,6 +5,14 @@
   flex-direction: column;
   background: var(--main-bg);
   border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.thread-panel-header-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .thread-panel-title {
@@ -16,6 +24,29 @@
 .thread-panel-subtitle {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.thread-panel-subscribe-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.thread-panel-subscribe-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.thread-panel-subscribe-btn.subscribed {
+  color: var(--accent);
 }
 
 .thread-panel-messages {

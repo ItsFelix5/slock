@@ -11,6 +11,14 @@
   max-height: 320px;
   border-radius: 6px;
   border: 1px solid var(--border);
+  object-fit: contain;
+}
+
+.message-file-video {
+  max-width: 360px;
+  max-height: 320px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
 }
 
 .message-file-card {

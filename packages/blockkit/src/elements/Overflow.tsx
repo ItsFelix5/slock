@@ -1,17 +1,22 @@
 import type { OverflowElement } from "@slock/slack-api";
-import { Icon, Menu, showToast } from "@slock/ui";
-import { createSignal, For } from "solid-js";
+import { Icon, Menu } from "@slock/ui";
+import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 
 export default function Overflow(props: { el: OverflowElement }) {
   const [open, setOpen] = createSignal(false);
+  const [unsupported, setUnsupported] = createSignal(false);
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   return (
     <Menu
       class="bk-overflow-wrap"
       panelClass="menu-panel bk-overflow-menu"
       open={open()}
-      onClose={() => setOpen(false)}
+      onClose={() => {
+        setOpen(false);
+        setUnsupported(false);
+      }}
       trigger={
         <button
           type="button"
@@ -29,16 +34,23 @@ export default function Overflow(props: { el: OverflowElement }) {
             type="button"
             class="menu-item"
             onClick={() => {
-              setOpen(false);
-              if (opt.url) window.open(opt.url, "_blank", "noopener,noreferrer");
-              else
-                showToast("This option needs its app to respond — not supported in this client.");
+              if (opt.url) {
+                setOpen(false);
+                window.open(opt.url, "_blank", "noopener,noreferrer");
+                return;
+              }
+              clearTimeout(timer);
+              setUnsupported(true);
+              timer = setTimeout(() => setUnsupported(false), 2000);
             }}
           >
             <BkText text={opt.text} />
           </button>
         )}
       </For>
+      <Show when={unsupported()}>
+        <div class="bk-overflow-unsupported">This option needs its app to respond.</div>
+      </Show>
     </Menu>
   );
 }

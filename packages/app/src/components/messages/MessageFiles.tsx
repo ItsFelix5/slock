@@ -19,20 +19,39 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
           <Show
             when={file.isImage && file.thumbUrl}
             fallback={
-              <a
-                class="message-file-card"
-                href={fileProxyUrl(file.urlPrivate)}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Show
+                when={file.isVideo && file.thumbUrl}
+                fallback={
+                  <a
+                    class="message-file-card"
+                    href={fileProxyUrl(file.urlPrivate)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon name="code-block" size={20} />
+                    <span class="message-file-info">
+                      <span class="message-file-name">{file.title || file.name}</span>
+                      <span class="message-file-meta">
+                        {file.filetype?.toUpperCase()} {formatSize(file.size)}
+                      </span>
+                    </span>
+                  </a>
+                }
               >
-                <Icon name="code-block" size={20} />
-                <span class="message-file-info">
-                  <span class="message-file-name">{file.title || file.name}</span>
-                  <span class="message-file-meta">
-                    {file.filetype?.toUpperCase()} {formatSize(file.size)}
-                  </span>
-                </span>
-              </a>
+                {(thumb) => (
+                  <video
+                    class="message-file-video"
+                    poster={fileProxyUrl(thumb())}
+                    width={file.width}
+                    height={file.height}
+                    controls
+                    aria-label={file.title || file.name}
+                  >
+                    <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+              </Show>
             }
           >
             {(thumb) => (

@@ -1,13 +1,6 @@
-- Show interactors pfps thread yappers + hover for all names
-- Implement canvases
-- Non pinging mentions
-- Unfurls
-- Channel notification settings (every thread, broadcast, all posts, mute)
-- thread subscriptions
-- Activity improvements
-- no toasts
-- Clean up dead code/css and huge files
-- Fix unreads
-- DND duration (some kinda hover popover something with only numbers)
-- Auth
-- Topic mrkdwn
+- Add non pinging mentions
+- Improve channel notification settings (every thread, broadcast)
+- Activity improvements, it should be better than both slack activity tab (v2) and the thread tab by showing data cleanly and functionally
+- Fix the notification system
+- Anything else that is required to make this better than slack
+- Improve UI/UX/QoL

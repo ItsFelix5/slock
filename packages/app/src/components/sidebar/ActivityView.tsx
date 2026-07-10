@@ -1,11 +1,12 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem } from "@slock/slack-api";
-import { Avatar } from "@slock/ui";
+import { Avatar, AvatarStack } from "@slock/ui";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   activityItems,
   channelById,
   channelDisplayName,
+  currentUser,
   ensureActivityLoaded,
   isActivityItemUnread,
   markActivityItemRead,
@@ -13,7 +14,6 @@ import {
   openChannelPeek,
   userById,
 } from "../../lib/store";
-import InteractorAvatars, { formatInteractorNames } from "../messages/InteractorAvatars";
 import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
@@ -93,6 +93,16 @@ function ActivityRowView(props: {
     props.onMarkRead(latest().channelId, latest().ts);
   };
 
+  const formatInteractorNames = (ids: string[]) => {
+    const names = ids.map((id) =>
+      id === currentUser()?.id ? "you" : (userById(id)?.name ?? "someone"),
+    );
+    return names.reduce(
+      (prev, curr, i, a) => (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
+      "",
+    );
+  };
+
   return (
     <div class="activity-item-wrap">
       <button
@@ -111,7 +121,13 @@ function ActivityRowView(props: {
             </Show>
           }
         >
-          <InteractorAvatars userIds={replierIds()} />
+          <AvatarStack
+            users={replierIds()
+              .slice(0, 3)
+              .map((id) => userById(id))
+              .filter((u) => u !== undefined)}
+            title={() => formatInteractorNames(replierIds())}
+          />
         </Show>
         <div class="activity-body">
           <div class="activity-headline">

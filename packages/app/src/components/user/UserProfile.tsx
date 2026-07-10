@@ -1,7 +1,15 @@
 import { EmojiText } from "@slock/blockkit";
-import { Icon, Popover, ResizeHandle, SegmentedControl, useEscapeClose } from "@slock/ui";
+import {
+  Icon,
+  InlineFeedback,
+  PanelHeader,
+  Popover,
+  ResizeHandle,
+  useEscapeClose,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import {
+  actionFeedback,
   clearMyStatus,
   closeUserProfile,
   currentUser,
@@ -162,23 +170,22 @@ export default function UserProfile() {
             direction={-1}
             side="left"
           />
-          <div class="user-profile-header">
-            <div class="user-profile-header-title">Profile</div>
-            <button
-              type="button"
-              class="user-profile-close"
-              onClick={closeUserProfile}
-              title="Close"
-            >
-              ✕
-            </button>
-          </div>
+          <PanelHeader title="Profile" onClose={closeUserProfile} />
           <div class="user-profile-body">
+            <InlineFeedback
+              feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
+              class="user-profile-feedback"
+            />
             <div class="user-profile-avatar" style={{ background: u().avatarColor }}>
-              <Show when={u().avatarUrl} fallback={u().initials}>
-                {(url) => <img src={url()} alt="" />}
-              </Show>
-              <span class="user-profile-presence" classList={{ away: u().presence === "away" }} />
+              <img src={u().avatarUrl} alt="?" />
+              <button
+                type="button"
+                class="user-profile-presence"
+                classList={{ away: u().presence === "away" }}
+                onClick={() =>
+                  isSelf() && updateMyPresence(u().presence === "away" ? "auto" : "away")
+                }
+              />
             </div>
             <Show
               when={!isSelf()}
@@ -310,31 +317,6 @@ export default function UserProfile() {
                     </button>
                   </Show>
                 </div>
-              </div>
-
-              <div class="settings-row">
-                <div>
-                  <div class="settings-row-label">Presence</div>
-                  <div class="settings-row-hint">Manually mark yourself away.</div>
-                </div>
-                <SegmentedControl>
-                  <button
-                    type="button"
-                    class="segmented-control-btn"
-                    classList={{ active: u().presence !== "away" }}
-                    onClick={() => updateMyPresence("auto")}
-                  >
-                    Active
-                  </button>
-                  <button
-                    type="button"
-                    class="segmented-control-btn"
-                    classList={{ active: u().presence === "away" }}
-                    onClick={() => updateMyPresence("away")}
-                  >
-                    Away
-                  </button>
-                </SegmentedControl>
               </div>
             </Show>
 

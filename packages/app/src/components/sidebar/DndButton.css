@@ -1,0 +1,26 @@
+.dnd-btn-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dnd-btn-feedback {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.menu-panel.dnd-duration-panel {
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  min-width: 170px;
+}
+
+.dnd-duration-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}

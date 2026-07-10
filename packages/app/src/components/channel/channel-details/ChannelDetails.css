@@ -11,13 +11,6 @@
   overflow: hidden;
 }
 
-.channel-details-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 20px 12px;
-}
-
 .channel-details-header-icon {
   color: var(--text-secondary);
   font-size: 16px;
@@ -35,24 +28,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.channel-details-close {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.channel-details-close:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
 }
 
 .channel-details-tabs {
@@ -88,6 +63,15 @@
 .channel-details-tab-count {
   color: var(--text-dim);
   font-weight: 400;
+}
+
+.channel-details-feedback {
+  display: block;
+  padding: 8px 20px 0;
+}
+
+.channel-details-load-error {
+  padding: 16px 20px;
 }
 
 .channel-details-body {

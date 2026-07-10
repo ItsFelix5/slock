@@ -2,14 +2,17 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { WebSocketServer } from "ws";
 import {
+  authResponse,
   clients,
   configResponse,
   fileProxyResponse,
+  fileUploadProxyResponse,
   handleClientMessage,
   slackEdgeRelayResponse,
   slackRelayResponse,
   startGateway,
   statusMessage,
+  unfurlResponse,
 } from "./relay-core";
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -19,6 +22,20 @@ function readBody(req: IncomingMessage): Promise<string> {
       data += chunk;
     });
     req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+}
+
+// Uploaded file bytes go through here too, so this has to collect raw Buffer
+// chunks rather than concatenating as a string — string concatenation would
+// mangle binary data through implicit utf8 decoding.
+function readBodyBuffer(req: IncomingMessage): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
@@ -95,8 +112,43 @@ export function slackRelayPlugin(): Plugin {
           return;
         }
 
+        if (req.method === "POST" && url.pathname === "/file-upload") {
+          const buffer = await readBodyBuffer(req);
+          await sendWebResponse(
+            res,
+            await fileUploadProxyResponse(
+              buffer,
+              url.searchParams.get("url"),
+              url.searchParams.get("filename"),
+            ),
+          );
+          return;
+        }
+
+        if (req.method === "GET" && url.pathname === "/unfurl") {
+          await sendWebResponse(res, await unfurlResponse(url.searchParams.get("url")));
+          return;
+        }
+
         if (req.method === "GET" && url.pathname === "/config") {
           await sendWebResponse(res, configResponse());
+          return;
+        }
+
+        if (req.method === "POST" && url.pathname === "/auth") {
+          const body = await readBody(req);
+          let raw: string | undefined;
+          try {
+            raw = JSON.parse(body).raw;
+          } catch {
+            // malformed body; fall through to the missing-raw response below
+          }
+          if (!raw) {
+            res.statusCode = 400;
+            res.end("missing raw");
+            return;
+          }
+          await sendWebResponse(res, await authResponse(raw));
           return;
         }
 

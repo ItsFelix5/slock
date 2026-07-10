@@ -1,6 +1,7 @@
-import { Overlay, useEscapeClose } from "@slock/ui";
+import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createResource, createSignal, Show } from "solid-js";
 import {
+  actionFeedback,
   canvasByChannel,
   channelById,
   channelDisplayName,
@@ -41,19 +42,11 @@ export default function CanvasPanel() {
       {(id) => (
         <Overlay onClose={closeChannelCanvas}>
           <div class="canvas-panel-card">
-            <div class="canvas-panel-header">
+            <PanelHeader onClose={closeChannelCanvas}>
               <div class="canvas-panel-title">
                 Canvas · #{channelDisplayName(channelById(id()), id())}
               </div>
-              <button
-                type="button"
-                class="canvas-panel-close"
-                onClick={closeChannelCanvas}
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
+            </PanelHeader>
             <Show
               when={!content.loading}
               fallback={<div class="canvas-panel-loading">Loading canvas…</div>}
@@ -68,6 +61,7 @@ export default function CanvasPanel() {
                 <div class="canvas-panel-note">
                   Best-effort preview — formatting may not perfectly match Slack's canvas editor.
                 </div>
+                <InlineFeedback feedback={actionFeedback.get(fileId() ?? "")} />
                 <button
                   type="button"
                   class="canvas-panel-save"
