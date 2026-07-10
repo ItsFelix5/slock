@@ -1,5 +1,3 @@
-@import "src/theme-utilities.css";
-
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -76,6 +74,21 @@
   background: var(--hover-bg);
 }
 
+@keyframes message-flash {
+  0%,
+  100% {
+    background: transparent;
+  }
+  25%,
+  75% {
+    background: var(--hover-bg);
+  }
+}
+
+.message-row.message-flash {
+  animation: message-flash 1.2s ease;
+}
+
 .message-hover-actions {
   position: absolute;
   top: -14px;
@@ -133,56 +146,63 @@
   bottom: 32px;
 }
 
-.message-more-menu {
-  position: absolute;
+.menu-panel.message-more-menu {
   top: 32px;
   right: 0;
-  display: flex;
-  flex-direction: column;
+  left: auto;
   min-width: 190px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 4px;
   z-index: 5;
 }
 
-.message-more-item {
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  font-size: 14px;
-  text-align: left;
-  padding: 7px 10px;
-  border-radius: 5px;
-  width: 100%;
-  cursor: pointer;
-}
-
-.message-more-item:hover {
-  background: var(--hover-bg);
-}
-
-.message-more-item.danger {
-  color: #e0554a;
+.message-more-menu.flip-up {
+  top: auto;
+  bottom: 32px;
 }
 
 .message-more-item-wrap {
   position: relative;
 }
 
-.message-more-submenu {
-  position: absolute;
+.menu-panel.message-more-submenu {
   top: 0;
   right: calc(100% + 4px);
+  left: auto;
+  margin-top: 0;
+  min-width: 150px;
+  z-index: 6;
+}
+
+.menu-panel.message-shortcuts-menu {
+  top: 0;
+  right: calc(100% + 4px);
+  left: auto;
+  margin-top: 0;
+  min-width: 220px;
+  max-width: 260px;
+  z-index: 6;
+}
+
+.message-shortcuts-menu.flip-up {
+  top: auto;
+  bottom: 0;
+}
+
+.message-shortcuts-menu .search-input {
+  margin-bottom: 4px;
+}
+
+.message-shortcuts-list {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  min-width: 150px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 4px;
-  z-index: 6;
+}
+
+.message-shortcuts-empty {
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .message-row.compact {
@@ -197,7 +217,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 700;
   font-size: 14px;
   flex-shrink: 0;
@@ -252,7 +272,7 @@
 .message-author {
   font-weight: 800;
   font-size: 15px;
-  color: #fff;
+  color: var(--text-on-accent);
   background: none;
   border: none;
   padding: 0;
@@ -301,13 +321,13 @@
 }
 
 .message-deleted-text {
-  color: #e0554a;
+  color: var(--danger);
   text-decoration: line-through;
   opacity: 0.7;
 }
 
 .message-row.deleted:hover {
-  background: rgba(224, 85, 74, 0.06);
+  background: rgba(var(--danger-rgb), 0.06);
 }
 
 .message-edit-actions {
@@ -328,7 +348,7 @@
 
 .message-edit-save {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .message-edit-save:hover {
@@ -381,7 +401,7 @@
   background: var(--main-bg);
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-tooltip);
   pointer-events: none;
 }
 
@@ -411,7 +431,7 @@
 }
 
 .reaction-pill.mine {
-  background: rgba(18, 100, 163, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
   border-color: var(--accent);
   color: var(--text-primary);
 }
@@ -476,7 +496,7 @@
   background: var(--main-bg);
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-tooltip);
   pointer-events: none;
 }
 

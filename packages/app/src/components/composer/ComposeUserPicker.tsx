@@ -2,6 +2,7 @@ import type { User } from "@slock/slack-api";
 import { Avatar, fuzzySearch, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { bootstrap, currentUser, frecencyScore, searchUsers } from "../../lib/store";
+import "./ComposeUserPicker.css";
 
 export default function ComposeUserPicker(props: {
   onSelect: (userId: string) => void;

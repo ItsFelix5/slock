@@ -96,7 +96,6 @@ export default function MessageList() {
               <div class="message-list-intro">
                 <div class="message-list-intro-icon">#</div>
                 <h2>{channelName()}</h2>
-                <p>This is the very beginning of your conversation. Say hello!</p>
               </div>
             </Show>
             <MessageRows

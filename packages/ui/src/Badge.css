@@ -7,7 +7,7 @@
   border-radius: 9px;
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .badge-default {
@@ -19,11 +19,11 @@
 }
 
 .badge-warning {
-  background: #f39c12;
+  background: var(--warning);
 }
 
 .badge-danger {
-  background: #e0554a;
+  background: var(--danger);
 }
 
 .badge-dot {

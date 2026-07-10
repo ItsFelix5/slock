@@ -3,14 +3,12 @@ import { createSignal, For, Show } from "solid-js";
 import SettingsAppearanceTab from "./SettingsAppearanceTab";
 import SettingsDebugTab from "./SettingsDebugTab";
 import SettingsNotificationsTab from "./SettingsNotificationsTab";
-import SettingsProfileTab from "./SettingsProfileTab";
 import SettingsShortcutsTab from "./SettingsShortcutsTab";
 import "./Settings.css";
 
-type Tab = "profile" | "notifications" | "appearance" | "shortcuts" | "debugging";
+type Tab = "notifications" | "appearance" | "shortcuts" | "debugging";
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "profile", label: "Profile" },
   { key: "notifications", label: "Notifications" },
   { key: "appearance", label: "Appearance" },
   { key: "shortcuts", label: "Shortcuts" },
@@ -20,7 +18,7 @@ const TABS: { key: Tab; label: string }[] = [
 export default function Settings(props: { onClose: () => void }) {
   useEscapeClose(props.onClose);
 
-  const [tab, setTab] = createSignal<Tab>("profile");
+  const [tab, setTab] = createSignal<Tab>("notifications");
 
   return (
     <Overlay onClose={props.onClose}>
@@ -45,10 +43,6 @@ export default function Settings(props: { onClose: () => void }) {
         </div>
 
         <div class="settings-content">
-          <Show when={tab() === "profile"}>
-            <SettingsProfileTab />
-          </Show>
-
           <Show when={tab() === "notifications"}>
             <SettingsNotificationsTab />
           </Show>

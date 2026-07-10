@@ -1,6 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
 import { Icon, Menu } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
+import { openChannelDetails } from "../../lib/channelDetails";
 import {
   activeView,
   canvasByChannel,
@@ -139,7 +140,11 @@ export default function ChannelHeader() {
                 if (v) toggleChannelStar(v.id);
               }}
             >
-              <span class="channel-header-menu-check">{starred() ? "✓" : ""}</span>
+              <span class="channel-header-menu-check" style="color: var(--mention-self-text);">
+                <Show when={starred()}>
+                  <Icon name="star-filled" size={12} />
+                </Show>
+              </span>
               Starred
             </button>
             <For each={sections()}>
@@ -153,7 +158,9 @@ export default function ChannelHeader() {
                   }}
                 >
                   <span class="channel-header-menu-check">
-                    {currentSectionId() === s.id ? "✓" : ""}
+                    <Show when={currentSectionId() === s.id}>
+                      <Icon name="check-filled" size={12} />
+                    </Show>
                   </span>
                   {s.name}
                 </button>
@@ -195,15 +202,18 @@ export default function ChannelHeader() {
             {isPrivate() ? <Icon name="lock" size={14} /> : "#"}
           </Show>
         </span>
-        <Show when={!isChannel()} fallback={<span class="channel-header-title">{title()}</span>}>
-          <button
-            type="button"
-            class="channel-header-title channel-header-title-btn"
-            onClick={viewDmUser}
-          >
-            {title()}
-          </button>
-        </Show>
+        <button
+          type="button"
+          class="channel-header-title channel-header-title-btn"
+          onClick={() => {
+            const v = activeView();
+            if (!v) return;
+            if (v.kind === "channel") openChannelDetails(v.id);
+            else viewDmUser();
+          }}
+        >
+          {title()}
+        </button>
         <Show when={topic()}>
           <span class="channel-header-topic">
             <EmojiText text={topic()} />
@@ -257,8 +267,23 @@ export default function ChannelHeader() {
                   if (v) markCurrentChannelRead(v.id);
                 }}
               >
+                <Icon name="mark-as-read" />
                 Mark as read
               </button>
+              <Show when={isChannel()}>
+                <button
+                  type="button"
+                  class="channel-header-menu-item"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    const v = activeView();
+                    if (v) openChannelDetails(v.id);
+                  }}
+                >
+                  <Icon name="channel-section" />
+                  Open channel details
+                </button>
+              </Show>
               <button
                 type="button"
                 class="channel-header-menu-item"
@@ -268,6 +293,7 @@ export default function ChannelHeader() {
                   if (v) openPinnedPanel(v.id);
                 }}
               >
+                <Icon name="pin" />
                 View pinned items
               </button>
               <button
@@ -279,6 +305,7 @@ export default function ChannelHeader() {
                   if (v) toggleMuteChannel(v.id);
                 }}
               >
+                <Icon name={muted() ? "notifications" : "notifications-off"} />
                 {muted() ? "Unmute channel" : "Mute channel"}
               </button>
               <button
@@ -290,6 +317,9 @@ export default function ChannelHeader() {
                   if (v) toggleNotifyAllChannel(v.id);
                 }}
               >
+                <Icon
+                  name={notifyAll() ? "notifications-just-mentions" : "notifications-all-new-posts"}
+                />
                 {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
               </button>
               <Show when={isChannel() && !canvas()}>
@@ -302,6 +332,7 @@ export default function ChannelHeader() {
                     if (v) createCanvasForCurrentChannel(v.id);
                   }}
                 >
+                  <Icon name="add-channel-canvas" />
                   Create canvas
                 </button>
               </Show>
@@ -314,6 +345,7 @@ export default function ChannelHeader() {
                   if (v) navigator.clipboard.writeText(`${location.origin}/#${v.id}`);
                 }}
               >
+                <Icon name="link" />
                 {isChannel() ? "Copy link to channel" : "Copy link to conversation"}
               </button>
               <Show when={isChannel()}>
@@ -326,6 +358,7 @@ export default function ChannelHeader() {
                     if (v && confirm(`Leave #${title()}?`)) leaveCurrentChannel(v.id);
                   }}
                 >
+                  <Icon name="sign-out" />
                   Leave channel
                 </button>
               </Show>

@@ -8,6 +8,8 @@ export type { ButtonProps } from "./Button";
 export { default as Button } from "./Button";
 export type { ButtonGroupProps } from "./ButtonGroup";
 export { default as ButtonGroup } from "./ButtonGroup";
+export type { ColorFieldProps } from "./ColorField";
+export { default as ColorField } from "./ColorField";
 export type { ComboItem } from "./FilterCombobox";
 export { default as FilterCombobox } from "./FilterCombobox";
 export type { FuzzyMatch, FuzzySearchOptions } from "./fuzzy";
@@ -19,11 +21,15 @@ export type { MenuButtonProps } from "./MenuButton";
 export { default as MenuButton } from "./MenuButton";
 export type { OverlayProps } from "./Overlay";
 export { default as Overlay } from "./Overlay";
-export type { PopoverProps } from "./Popover";
-export { default as Popover } from "./Popover";
 export type { PanelHeaderProps } from "./PanelHeader";
 export { default as PanelHeader } from "./PanelHeader";
+export type { PopoverProps } from "./Popover";
+export { default as Popover } from "./Popover";
 export { default as ResizeHandle } from "./ResizeHandle";
+export type { SegmentedControlProps } from "./SegmentedControl";
+export { default as SegmentedControl } from "./SegmentedControl";
+export type { SwitchProps } from "./Switch";
+export { default as Switch } from "./Switch";
 export { default as ToastStack } from "./Toast";
 export {
   activePreset,

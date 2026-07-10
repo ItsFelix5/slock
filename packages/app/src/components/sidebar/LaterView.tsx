@@ -39,9 +39,7 @@ export default function LaterView() {
                   class="later-main"
                   onClick={() => goTo(item.channelId, item.ts)}
                 >
-                  <div class="later-channel">
-                    #{channelDisplayName(channel(), item.channelId)}
-                  </div>
+                  <div class="later-channel">#{channelDisplayName(channel(), item.channelId)}</div>
                   <div class="later-snippet">
                     <Show
                       when={!isLoaded()}

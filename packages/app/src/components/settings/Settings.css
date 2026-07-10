@@ -1,14 +1,4 @@
 /* Settings modal styles */
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 60;
-}
-
 .settings-card {
   width: 620px;
   height: 85vh;
@@ -16,7 +6,7 @@
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-modal-lg);
   position: relative;
   display: flex;
   overflow: hidden;
@@ -120,75 +110,11 @@
   margin-bottom: 8px;
 }
 
-/* Toggle button group */
-.settings-toggle-group {
-  display: flex;
-  gap: 4px;
-  background: var(--hover-bg);
-  padding: 2px;
-  border-radius: 6px;
-}
-
-.settings-toggle-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.settings-toggle-btn:hover {
-  color: var(--text-primary);
-}
-
-.settings-toggle-btn.active {
-  background: var(--active-bg);
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* Toggle switch */
-.settings-switch {
-  position: relative;
-  width: 40px;
-  height: 24px;
-  border-radius: 12px;
-  background: var(--border);
-  border: none;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.settings-switch.on {
-  background: var(--presence-active);
-}
-
-.settings-switch-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fff;
-  transition: left 0.2s;
-}
-
-.settings-switch.on .settings-switch-knob {
-  left: 18px;
-}
-
 /* Status emoji picker */
 .settings-status-row {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
-}
-
-.settings-status-emoji-wrap {
-  position: relative;
 }
 
 .settings-status-emoji-btn {
@@ -207,17 +133,6 @@
 
 .settings-status-emoji-btn:hover {
   background: var(--active-bg);
-}
-
-.settings-status-emoji-popover {
-  position: absolute;
-  top: 36px;
-  left: 0;
-  z-index: 10;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .settings-status-input {
@@ -253,7 +168,7 @@
 .settings-status-save {
   background: var(--presence-active);
   border: none;
-  color: #fff;
+  color: var(--text-on-accent);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
@@ -380,73 +295,6 @@
   flex-direction: column;
   gap: 2px;
   margin-bottom: 12px;
-}
-
-.settings-color-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-}
-
-.settings-color-swatch {
-  position: relative;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.35);
-  overflow: hidden;
-}
-
-.settings-color-native {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.settings-color-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.settings-color-text {
-  width: 150px;
-  flex-shrink: 0;
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  padding: 5px 8px;
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-family: monospace;
-}
-
-.settings-color-reset {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 14px;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.settings-color-reset:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .settings-kbd {

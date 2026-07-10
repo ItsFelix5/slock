@@ -1,5 +1,5 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
-import { Avatar, Icon, type IconName, Menu, ResizeHandle } from "@slock/ui";
+import { Avatar, Icon, Menu, Popover, ResizeHandle } from "@slock/ui";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import {
   activeView,
@@ -9,23 +9,25 @@ import {
   currentUser,
   deleteChannelSection,
   directMessages,
+  endDnd,
   hasUnreadGlow,
   hasUnreadPing,
   isChannelLeft,
   isChannelMuted,
   isChannelStarred,
-  type Nav,
+  isDndActive,
   nav,
-  openBrowseChannels,
   openUserProfile,
   renameChannelSection,
   sections,
   setActiveView,
   setNavView,
+  snoozeDnd,
   unreadChannelIds,
   userById,
 } from "../../lib/store";
 import GlobalSearch from "../search/GlobalSearch";
+import Settings from "../settings/Settings";
 import ActivityView from "./ActivityView";
 import LaterView from "./LaterView";
 import "./Sidebar.css";
@@ -37,12 +39,6 @@ const MAX_WIDTH = 420;
 const FEED_DEFAULT_WIDTH = 420;
 const FEED_MIN_WIDTH = 340;
 const FEED_MAX_WIDTH = 640;
-
-const NAV_ITEMS: { key: Nav; label: string; icon: IconName }[] = [
-  { key: "home", label: "Home", icon: "home" },
-  { key: "activity", label: "Activity", icon: "notifications" },
-  { key: "later", label: "Later", icon: "bookmark" },
-];
 
 interface Category {
   id: string;
@@ -96,6 +92,7 @@ export default function Sidebar() {
   const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
   const feedMode = createMemo(() => nav() === "later" || nav() === "activity");
   const [searchOpen, setSearchOpen] = createSignal(false);
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
@@ -218,6 +215,22 @@ export default function Sidebar() {
         <button
           type="button"
           class="sidebar-global-search-btn"
+          title={isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"}
+          onClick={() => (isDndActive() ? endDnd() : snoozeDnd(60))}
+        >
+          <Icon name={isDndActive() ? "moon-filled" : "moon"} size={16} />
+        </button>
+        <button
+          type="button"
+          class="sidebar-global-search-btn"
+          title="Settings"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <Icon name="settings" size={16} />
+        </button>
+        <button
+          type="button"
+          class="sidebar-global-search-btn"
           title="Search (Ctrl+K)"
           onClick={() => setSearchOpen(true)}
         >
@@ -229,26 +242,53 @@ export default function Sidebar() {
         <GlobalSearch onClose={() => setSearchOpen(false)} />
       </Show>
 
+      <Show when={settingsOpen()}>
+        <Settings onClose={() => setSettingsOpen(false)} />
+      </Show>
+
       <div class="sidebar-nav">
-        <For each={NAV_ITEMS}>
-          {(item) => (
-            <button
-              type="button"
-              class="sidebar-nav-btn"
-              classList={{
-                active: nav() === item.key,
-                "has-glow": item.key === "activity" && hasUnreadGlow(),
-              }}
-              onClick={() => setNavView(item.key)}
-            >
-              <Icon name={item.icon} size={16} />
-              {item.label}
-              <Show when={item.key === "activity" && hasUnreadPing()}>
-                <span class="sidebar-ping-dot" />
-              </Show>
-            </button>
-          )}
-        </For>
+        <button
+          type="button"
+          class="sidebar-nav-btn"
+          classList={{
+            active: nav() === "home",
+          }}
+          onClick={() => {
+            if (nav() === "home") setUnreadsOnly(!unreadsOnly());
+            else setNavView("home");
+          }}
+        >
+          <Icon name={"home"} size={16} />
+          <Show when={unreadsOnly()} fallback="Home">
+            Unread
+          </Show>
+        </button>
+        <button
+          type="button"
+          class="sidebar-nav-btn"
+          classList={{
+            active: nav() === "activity",
+            "has-glow": hasUnreadGlow(),
+          }}
+          onClick={() => setNavView("activity")}
+        >
+          <Icon name={"notifications"} size={16} />
+          Activity
+          <Show when={hasUnreadPing()}>
+            <span class="sidebar-ping-dot" />
+          </Show>
+        </button>
+        <button
+          type="button"
+          class="sidebar-nav-btn"
+          classList={{
+            active: nav() === "later",
+          }}
+          onClick={() => setNavView("later")}
+        >
+          <Icon name={"bookmark"} size={16} />
+          Later
+        </button>
       </div>
 
       <Show
@@ -264,141 +304,115 @@ export default function Sidebar() {
           </Switch>
         }
       >
-        <div class="sidebar-search">
-          <button
-            type="button"
-            class="sidebar-search-icon-btn"
-            classList={{ active: unreadsOnly() }}
-            title={unreadsOnly() ? "Show all" : "Show unreads only"}
-            onClick={() => setUnreadsOnly(!unreadsOnly())}
-          >
-            <span class="sidebar-unread-filter-dot" />
-          </button>
-          <button
-            type="button"
-            class="sidebar-search-icon-btn"
-            title="Browse or create channels"
-            onClick={openBrowseChannels}
-          >
-            <Icon name="plus" size={14} />
-          </button>
-        </div>
-
         <div class="sidebar-scroll">
           <For each={categories()}>
             {(cat) => (
-              <Show when={cat.channels.length > 0 || !unreadsOnly()}>
-                <div class="sidebar-section">
-                  <div class="sidebar-section-header">
-                    <Show
-                      when={renamingId() !== cat.id}
-                      fallback={
-                        <input
-                          class="sidebar-section-rename-input"
-                          value={renameValue()}
-                          onInput={(e) => setRenameValue(e.currentTarget.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRename();
-                            if (e.key === "Escape") setRenamingId(null);
-                          }}
-                          onBlur={commitRename}
-                          autofocus
-                        />
+              <div class="sidebar-section">
+                <div class="sidebar-section-header">
+                  <Show
+                    when={renamingId() !== cat.id}
+                    fallback={
+                      <input
+                        class="sidebar-section-rename-input"
+                        value={renameValue()}
+                        onInput={(e) => setRenameValue(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename();
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        onBlur={commitRename}
+                        autofocus
+                      />
+                    }
+                  >
+                    <button
+                      type="button"
+                      class="sidebar-section-header-btn"
+                      onClick={() => toggleCategory(cat.id)}
+                    >
+                      <span
+                        class="sidebar-caret"
+                        classList={{ collapsed: collapsed().has(cat.id) }}
+                      >
+                        <Icon name="caret-down-filled" size={10} />
+                      </span>
+                      {cat.name}
+                    </button>
+                  </Show>
+                  <Show when={cat.custom && renamingId() !== cat.id}>
+                    <Menu
+                      class="sidebar-section-menu-wrap"
+                      panelClass="menu-panel sidebar-section-menu"
+                      open={sectionMenuOpen() === cat.id}
+                      onClose={() => setSectionMenuOpen(null)}
+                      trigger={
+                        <button
+                          type="button"
+                          class="sidebar-section-menu-btn"
+                          title="Section options"
+                          onClick={() =>
+                            setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
+                          }
+                        >
+                          <Icon name="ellipsis-vertical-filled" size={14} />
+                        </button>
                       }
                     >
+                      <button type="button" class="menu-item" onClick={() => startRename(cat)}>
+                        Rename
+                      </button>
                       <button
                         type="button"
-                        class="sidebar-section-header-btn"
-                        onClick={() => toggleCategory(cat.id)}
+                        class="menu-item danger"
+                        onClick={() => {
+                          setSectionMenuOpen(null);
+                          if (
+                            confirm(
+                              `Delete section "${cat.name}"? Its channels won't be removed from the workspace.`,
+                            )
+                          ) {
+                            deleteChannelSection(cat.id);
+                          }
+                        }}
                       >
-                        <span
-                          class="sidebar-caret"
-                          classList={{ collapsed: collapsed().has(cat.id) }}
-                        >
-                          ▾
-                        </span>
-                        {cat.name}
+                        Delete section
                       </button>
-                    </Show>
-                    <Show when={cat.custom && renamingId() !== cat.id}>
-                      <Menu
-                        class="sidebar-section-menu-wrap"
-                        panelClass="sidebar-section-menu"
-                        open={sectionMenuOpen() === cat.id}
-                        onClose={() => setSectionMenuOpen(null)}
-                        trigger={
-                          <button
-                            type="button"
-                            class="sidebar-section-menu-btn"
-                            title="Section options"
-                            onClick={() =>
-                              setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
-                            }
-                          >
-                            <Icon name="ellipsis-vertical-filled" size={14} />
-                          </button>
-                        }
-                      >
-                        <button
-                          type="button"
-                          class="sidebar-section-menu-item"
-                          onClick={() => startRename(cat)}
-                        >
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          class="sidebar-section-menu-item danger"
-                          onClick={() => {
-                            setSectionMenuOpen(null);
-                            if (
-                              confirm(
-                                `Delete section "${cat.name}"? Its channels won't be removed from the workspace.`,
-                              )
-                            ) {
-                              deleteChannelSection(cat.id);
-                            }
-                          }}
-                        >
-                          Delete section
-                        </button>
-                      </Menu>
-                    </Show>
-                  </div>
-                  <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
-                    <For each={cat.channels}>
-                      {(ch) => {
-                        const isActive = createMemo(() => {
-                          const v = activeView();
-                          return nav() === "home" && v?.kind === "channel" && v.id === ch.id;
-                        });
-                        const isUnread = createMemo(() => !!unreadChannelIds[ch.id]);
-                        const muted = createMemo(() => isChannelMuted(ch.id));
-                        return (
-                          <button
-                            type="button"
-                            class="sidebar-row"
-                            classList={{
-                              active: isActive(),
-                              unread: isUnread() && !muted(),
-                              muted: muted(),
-                            }}
-                            onClick={() => setActiveView({ kind: "channel", id: ch.id })}
-                          >
-                            <span class="sidebar-row-icon">
-                              {ch.private ? <Icon name="lock" size={13} /> : "#"}
-                            </span>
-                            <span class="sidebar-row-name">{channelDisplayName(ch)}</span>
-                            {!muted() && ch.mentions ? (
-                              <span class="sidebar-badge">{ch.mentions}</span>
-                            ) : null}
-                          </button>
-                        );
-                      }}
-                    </For>
-                  </div>
+                    </Menu>
+                  </Show>
                 </div>
-              </Show>
+                <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
+                  <For each={cat.channels}>
+                    {(ch) => {
+                      const isActive = createMemo(() => {
+                        const v = activeView();
+                        return nav() === "home" && v?.kind === "channel" && v.id === ch.id;
+                      });
+                      const isUnread = createMemo(() => !!unreadChannelIds[ch.id]);
+                      const muted = createMemo(() => isChannelMuted(ch.id));
+                      return (
+                        <button
+                          type="button"
+                          class="sidebar-row"
+                          classList={{
+                            active: isActive(),
+                            unread: isUnread() && !muted(),
+                            muted: muted(),
+                          }}
+                          onClick={() => setActiveView({ kind: "channel", id: ch.id })}
+                        >
+                          <span class="sidebar-row-icon">
+                            {ch.private ? <Icon name="lock" size={13} /> : "#"}
+                          </span>
+                          <span class="sidebar-row-name">{channelDisplayName(ch)}</span>
+                          {!muted() && ch.mentions ? (
+                            <span class="sidebar-badge">{ch.mentions}</span>
+                          ) : null}
+                        </button>
+                      );
+                    }}
+                  </For>
+                </div>
+              </div>
             )}
           </For>
 
@@ -410,7 +424,7 @@ export default function Sidebar() {
                 onClick={() => setDmsOpen(!dmsOpen())}
               >
                 <span class="sidebar-caret" classList={{ collapsed: !dmsOpen() }}>
-                  ▾
+                  <Icon name="caret-down-filled" size={10} />
                 </span>
                 Direct messages
               </button>
@@ -429,7 +443,7 @@ export default function Sidebar() {
                   onClick={() => setAppsOpen(!appsOpen())}
                 >
                   <span class="sidebar-caret" classList={{ collapsed: !appsOpen() }}>
-                    ▾
+                    <Icon name="caret-down-filled" size={10} />
                   </span>
                   Apps
                 </button>

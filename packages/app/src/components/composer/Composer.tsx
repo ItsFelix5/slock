@@ -1,14 +1,25 @@
 import { emojiUrl } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
-import { fetchBrowsableChannels, fetchDrafts, fetchSlashCommands, saveDraft, uploadFile } from "@slock/slack-api";
-import { Avatar, fuzzySearch, Icon, type IconName, Menu, showToast } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
-  allEmojiEntries,
-  frequentEmoji,
-  searchEmoji,
-  standardEmojiUnicode,
-} from "../../lib/emojiSearch";
+  fetchBrowsableChannels,
+  fetchDrafts,
+  fetchSlashCommands,
+  saveDraft,
+  uploadFile,
+} from "@slock/slack-api";
+import {
+  Avatar,
+  fuzzySearch,
+  Icon,
+  type IconName,
+  Menu,
+  showToast,
+  useClickOutside,
+  useEscapeClose,
+} from "@slock/ui";
+import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../lib/emojiSearch";
+import { encodeReplyLink } from "../../lib/replyLink";
 import {
   activeView,
   bootstrap,
@@ -62,7 +73,7 @@ const FORMAT_TOOLS: FormatTool[] = [
 
 type UserSuggestItem = { kind: "user"; id: string; name: string; user: User };
 type ChannelSuggestItem = { kind: "channel"; id: string; name: string; private: boolean };
-type CommandSuggestItem = { kind: "command"; name: string; desc: string };
+type CommandSuggestItem = { kind: "command"; name: string; desc: string; icon?: string | null };
 type EmojiSuggestItem = { kind: "emoji"; name: string; unicode?: string };
 type SuggestItem = UserSuggestItem | ChannelSuggestItem | CommandSuggestItem | EmojiSuggestItem;
 
@@ -71,7 +82,6 @@ type SuggestState =
   | { kind: "channel"; start: number; items: ChannelSuggestItem[]; active: number }
   | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
   | { kind: "emoji"; start: number; items: EmojiSuggestItem[]; active: number };
-
 
 // Detects an in-progress @mention, #channel-mention, :emoji-shortcode, or
 // /slash-command token immediately before the cursor, the way Slack's real
@@ -121,7 +131,9 @@ function suggestItemContent(item: SuggestItem) {
     case "command":
       return (
         <>
-          <span class="composer-suggest-icon">/</span>
+          <span class="composer-suggest-icon">
+            {item.icon ? <img src={item.icon} alt="" /> : "/"}
+          </span>
           <span class="composer-suggest-label">{item.name}</span>
           <span class="composer-suggest-desc">{item.desc}</span>
         </>
@@ -154,6 +166,13 @@ fetchDrafts()
   })
   .finally(() => setDraftsReady(true));
 
+const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<
+  { name: string; desc: string; icon: string | null }[]
+>([]);
+fetchSlashCommands()
+  .then(setSlashCommandsGlobal)
+  .catch(() => {});
+
 const draftSaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 // Debounced so a debounce-free character-by-character sync doesn't spam
@@ -176,6 +195,7 @@ export default function Composer(props: {
   channelId?: string;
   threadTs?: string;
   placeholder?: string;
+  replyTo?: { permalink: string; onSent: () => void };
   editing?: {
     initialText: string;
     onSave: (text: string, blocks?: unknown) => void;
@@ -190,11 +210,28 @@ export default function Composer(props: {
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  const [slashCommands, setSlashCommands] = createSignal<{ name: string; desc: string }[]>([]);
   let editorRef: HTMLDivElement | undefined;
   let fileInputRef: HTMLInputElement | undefined;
   let suggestRequestId = 0;
   let savedRange: Range | null = null;
+  let suggestPopoverRef: HTMLDivElement | undefined;
+
+  useClickOutside(
+    () => suggestPopoverRef,
+    () => setSuggest(null),
+  );
+  useEscapeClose(() => setSuggest(null));
+
+  createEffect(() => {
+    const s = suggest();
+    if (!s || !suggestPopoverRef) return;
+    const activeButton = suggestPopoverRef.querySelector(
+      `.composer-suggest-row:nth-child(${s.active + 1})`,
+    ) as HTMLElement | null;
+    if (activeButton) {
+      activeButton.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  });
 
   // --- selection / DOM plumbing -----------------------------------------
 
@@ -274,8 +311,8 @@ export default function Composer(props: {
     const reqId = ++suggestRequestId;
 
     if (trigger.kind === "command") {
-      const items = fuzzySearch(slashCommands(), { query: q, text: (c) => c.name }).map(
-        (c): CommandSuggestItem => ({ kind: "command", name: c.name, desc: c.desc }),
+      const items = fuzzySearch(slashCommandsGlobal(), { query: q, text: (c) => c.name }).map(
+        (c): CommandSuggestItem => ({ kind: "command", name: c.name, desc: c.desc, icon: c.icon }),
       );
       setSuggest(
         items.length > 0 ? { kind: "command", start: trigger.start, items, active: 0 } : null,
@@ -431,10 +468,6 @@ export default function Composer(props: {
     loadDraftIntoEditor(props.editing.initialText);
     focusEditor();
     if (editorRef) placeCaretAtEnd(editorRef);
-  });
-
-  createEffect(() => {
-    fetchSlashCommands().then(setSlashCommands).catch(() => {});
   });
 
   const placeholder = () => {
@@ -622,25 +655,6 @@ export default function Composer(props: {
     syncFromDom();
   }
 
-  function insertEmojiAtCaret(name: string) {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    if (emojiUrl(name)) {
-      const chip = createEmojiChip(name);
-      range.insertNode(chip);
-      const space = document.createTextNode(" ");
-      chip.after(space);
-      placeCaretInText(space, 1);
-    } else {
-      const text = document.createTextNode(`${standardEmojiUnicode(name) ?? `:${name}:`} `);
-      range.insertNode(text);
-      placeCaretInText(text, text.length);
-    }
-    syncFromDom();
-  }
-
   function insertMentionChipAtCaret(id: string) {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -759,7 +773,7 @@ export default function Composer(props: {
   function handleBackspaceOnHeading(): boolean {
     const el = editorRef;
     const sel = window.getSelection();
-    if (!el || !sel || !sel.isCollapsed || sel.rangeCount === 0) return false;
+    if (!el || !sel?.isCollapsed || sel.rangeCount === 0) return false;
     const { startContainer, startOffset } = sel.getRangeAt(0);
 
     let n: Node | null = startContainer;
@@ -790,7 +804,7 @@ export default function Composer(props: {
   function handleBackspaceOnDivider(): boolean {
     const el = editorRef;
     const sel = window.getSelection();
-    if (!el || !sel || !sel.isCollapsed || sel.rangeCount === 0) return false;
+    if (!el || !sel?.isCollapsed || sel.rangeCount === 0) return false;
     const { startContainer, startOffset } = sel.getRangeAt(0);
 
     let hr: Node | null = null;
@@ -867,6 +881,13 @@ export default function Composer(props: {
     // Headers/dividers can't be expressed in plain mrkdwn — such messages go
     // out as an ordered block list, with `trimmed` as the notification text.
     const blocks = editorRef ? (fragmentToBlocks(editorRef) ?? undefined) : undefined;
+    // A reply link never decorates an actual slash command — only real
+    // message text.
+    const isSlashAttempt = trimmed.startsWith("/");
+    const outgoing =
+      props.replyTo && !isSlashAttempt
+        ? encodeReplyLink(props.replyTo.permalink) + trimmed
+        : trimmed;
 
     if (props.editing) {
       if (!trimmed) return;
@@ -883,25 +904,28 @@ export default function Composer(props: {
       if (files.length === 0) {
         if (blocks && blocks.length > 0) {
           clearEditor();
-          await sendMessage(id, trimmed, props.threadTs, blocks);
+          await sendMessage(id, outgoing, props.threadTs, blocks);
+          props.replyTo?.onSent();
           return;
         }
-        if (trimmed.startsWith("/")) {
+        if (isSlashAttempt) {
           clearEditor();
           const handled = await handleSlashCommand(id, props.threadTs, trimmed);
           if (handled) return;
         }
-        await sendMessage(id, trimmed, props.threadTs);
+        await sendMessage(id, outgoing, props.threadTs);
         clearEditor();
+        props.replyTo?.onSent();
         return;
       }
 
       setPendingFiles([]);
       clearEditor();
-      await uploadFile(id, files[0], props.threadTs, trimmed || undefined);
+      await uploadFile(id, files[0], props.threadTs, outgoing || undefined);
       for (const file of files.slice(1)) {
         await uploadFile(id, file, props.threadTs);
       }
+      props.replyTo?.onSent();
     } catch (err) {
       console.error("Failed to send", err);
       showToast("Failed to send.");
@@ -1107,7 +1131,7 @@ export default function Composer(props: {
       <div class="composer-row">
         <div class="composer-tools-wrap">
           <Menu
-            panelClass="composer-tools-menu"
+            panelClass="menu-panel composer-tools-menu"
             open={toolsOpen()}
             onClose={() => setToolsOpen(false)}
             trigger={
@@ -1127,7 +1151,7 @@ export default function Composer(props: {
               {(tool) => (
                 <button
                   type="button"
-                  class="composer-tools-item"
+                  class="menu-item"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runTool(tool)}
                 >
@@ -1184,7 +1208,12 @@ export default function Composer(props: {
           />
           <Show when={suggest()}>
             {(s) => (
-              <div class="composer-suggest-popover">
+              <div
+                ref={(el) => {
+                  suggestPopoverRef = el;
+                }}
+                class="menu-panel composer-suggest-popover"
+              >
                 <For each={s().items}>
                   {(item, i) => (
                     <button

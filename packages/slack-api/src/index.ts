@@ -1,3 +1,3 @@
+export * from "./api";
 export * from "./blocks";
-export * from "./client";
 export * from "./types";

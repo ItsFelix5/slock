@@ -157,7 +157,7 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
     isUser
       ? (user()?.name ?? props.label ?? props.id)
       : (channel()?.name ?? props.label ?? props.id);
-  const isPrivate = () => channel()?.isPrivate !== false;
+  const isPrivate = () => !isUser && channel()?.isPrivate !== false;
   // Only true once we've actually resolved the channel and know it's private
   // and we're not in it — never true while unresolved, so this can't flash.
   const isInaccessible = () => isPrivate() && channel()?.isMember !== true;

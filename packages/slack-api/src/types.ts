@@ -63,6 +63,11 @@ export interface Attachment {
   footer?: string;
   footerIcon?: string;
   fields?: { title: string; value: string; short?: boolean }[];
+  // Set when this attachment is Slack's own auto-unfurl of a permalink found
+  // in the message text, with `ts` identifying which message it unfurled —
+  // used to suppress the redundant native unfurl of our own reply-link.
+  isMessageUnfurl?: boolean;
+  ts?: string;
 }
 
 // Most chat.postMessage-shaped events have no subtype. A handful of "content"
@@ -84,7 +89,7 @@ export interface Message {
   replyCount?: number;
   replyUsers?: string[];
   reactions?: Reaction[];
-  editedLocally?: boolean;
+  edited?: boolean;
   deleted?: boolean;
   kind: MessageKind;
   botName?: string;
@@ -113,6 +118,29 @@ export interface DirectMessage {
   lastActivity?: number;
 }
 
+export interface ChannelTab {
+  type: string;
+  label?: string;
+}
+
+export interface ChannelDetails {
+  id: string;
+  name: string;
+  private: boolean;
+  topic: string;
+  purpose: string;
+  created: number;
+  creatorId?: string;
+  memberCount?: number;
+  tabs: ChannelTab[];
+  email?: string;
+}
+
+export interface ChannelMembersPage {
+  members: User[];
+  nextCursor?: string;
+}
+
 export interface BrowsableChannel {
   id: string;
   name: string;
@@ -125,6 +153,17 @@ export interface ChannelSection {
   id: string;
   name: string;
   channelIds: string[];
+}
+
+// A per-message "app shortcut" (Slack's Interactivity & Shortcuts > Message
+// Shortcuts) — installed apps that can act on a message from its ⋯ menu.
+export interface MessageShortcut {
+  actionId: string;
+  appId: string;
+  appName: string;
+  name: string;
+  description?: string;
+  icon?: string;
 }
 
 export interface ActivityItem {
@@ -145,6 +184,9 @@ export interface ActivityItem {
   reactionName?: string;
   broadcastRange?: "channel" | "here";
   usergroupId?: string;
+  // Root ts of the thread this happened in, when different from `ts` (e.g. a
+  // thread_reply's own message ts vs. the parent it replied to).
+  threadTs?: string;
 }
 
 export interface SavedItem {

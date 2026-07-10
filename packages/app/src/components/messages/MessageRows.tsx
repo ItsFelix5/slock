@@ -2,6 +2,7 @@ import { BlockKit, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
 import { Icon, logDeletedMessages } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import { parseReplyLink } from "../../lib/replyLink";
 import { editMessageText, openUserProfile, reactToMessage, userById } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
@@ -10,6 +11,7 @@ import InteractorAvatars from "./InteractorAvatars";
 import MessageActionsBar from "./MessageActionsBar";
 import MessageFiles from "./MessageFiles";
 import ReactionRow from "./ReactionRow";
+import ReplyReferenceRow from "./ReplyReferenceRow";
 import SystemMessage from "./SystemMessage";
 import "./MessageList.css";
 
@@ -17,6 +19,8 @@ export default function MessageRows(props: {
   messages: Message[];
   channelId: string;
   onOpenThread?: (ts: string) => void;
+  onReplyLink?: (msg: Message) => void;
+  onJumpToMessage?: (ts: string) => void;
 }) {
   return (
     <For each={props.messages}>
@@ -26,9 +30,24 @@ export default function MessageRows(props: {
           const p = prev();
           return !p || p.day !== msg.day;
         };
+        const replyRef = createMemo(() => parseReplyLink(msg.text));
+        const referencedMessage = createMemo(() =>
+          props.messages.find((m) => m.ts === replyRef()?.ts),
+        );
+        // Slack auto-unfurls the permalink in `attachments` — redundant with
+        // our own ReplyReferenceRow above the message, so drop just that one.
+        const visibleAttachments = createMemo(() =>
+          msg.attachments?.filter((a) => !(a.isMessageUnfurl && a.ts === replyRef()?.ts)),
+        );
         const sameAuthorAsPrev = () => {
           const p = prev();
-          return !!p && p.userId === msg.userId && !showDayDivider() && p.kind === msg.kind;
+          return (
+            !!p &&
+            p.userId === msg.userId &&
+            !showDayDivider() &&
+            p.kind === msg.kind &&
+            !replyRef()
+          );
         };
         // Bot messages carry their own username/icon rather than a real user id
         // (frequently a bot_id that isn't a resolvable user) — don't bounce that
@@ -80,15 +99,23 @@ export default function MessageRows(props: {
               when={msg.kind !== "system"}
               fallback={<SystemMessage text={msg.text} time={msg.time} />}
             >
+              <Show when={replyRef()}>
+                <ReplyReferenceRow
+                  message={referencedMessage()}
+                  onJump={() => props.onJumpToMessage?.(replyRef()?.ts ?? "")}
+                />
+              </Show>
               <div
                 class="message-row"
                 classList={{ compact: sameAuthorAsPrev(), deleted: msg.deleted }}
+                data-message-ts={msg.ts}
               >
                 <Show when={!msg.deleted}>
                   <MessageActionsBar
                     channelId={props.channelId}
                     msg={msg}
                     onOpenThread={props.onOpenThread}
+                    onReplyLink={props.onReplyLink}
                     onEditRequest={() => setIsEditing(true)}
                   />
                 </Show>
@@ -132,9 +159,14 @@ export default function MessageRows(props: {
                       <Composer
                         channelId={props.channelId}
                         editing={{
-                          initialText: msg.text,
+                          initialText: replyRef()?.rest ?? msg.text,
                           onSave: (text, blocks) => {
-                            editMessageText(props.channelId, msg.ts, text, blocks);
+                            editMessageText(
+                              props.channelId,
+                              msg.ts,
+                              (replyRef()?.prefix ?? "") + text,
+                              blocks,
+                            );
                             setIsEditing(false);
                           },
                           onCancel: () => setIsEditing(false),
@@ -142,14 +174,20 @@ export default function MessageRows(props: {
                       />
                     }
                   >
-                    <div class={"message-text" + (msg.deleted ? " message-deleted-text" : "")}>
+                    <div class={`message-text${msg.deleted ? " message-deleted-text" : ""}`}>
                       <Show
-                        when={msg.blocks?.length ? msg.blocks : undefined}
-                        fallback={<Mrkdwn text={msg.text} />}
+                        // Slack auto-generates `blocks` (rich_text) for any plain-text
+                        // message, promoting a detected bare URL — our reply-link
+                        // marker — into a real link element. That'd re-render the raw
+                        // permalink even though `text` itself round-trips untouched, so
+                        // a reply-linked message always renders from the parsed/stripped
+                        // text instead of trusting Slack's auto blocks.
+                        when={!replyRef() && msg.blocks?.length ? msg.blocks : undefined}
+                        fallback={<Mrkdwn text={replyRef()?.rest ?? msg.text} />}
                       >
                         {(blocks) => <BlockKit blocks={blocks()} />}
                       </Show>
-                      <Show when={msg.editedLocally}>
+                      <Show when={msg.edited}>
                         <span class="message-edited"> (edited)</span>
                       </Show>
                     </div>
@@ -159,8 +197,10 @@ export default function MessageRows(props: {
                     {(files) => <MessageFiles files={files()} />}
                   </Show>
 
-                  <Show when={msg.attachments?.length}>
-                    <For each={msg.attachments}>{(a) => <AttachmentCard attachment={a} />}</For>
+                  <Show when={visibleAttachments()?.length}>
+                    <For each={visibleAttachments()}>
+                      {(a) => <AttachmentCard attachment={a} />}
+                    </For>
                   </Show>
 
                   <Show when={msg.reactions?.length ? msg.reactions : undefined}>

@@ -6,7 +6,7 @@
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-popover);
   overflow: hidden;
 }
 
@@ -14,16 +14,6 @@
   padding: 8px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-}
-
-.emoji-picker-search input {
-  width: 100%;
-  background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 8px;
 }
 
 .emoji-picker-body {

@@ -30,9 +30,7 @@ export default function Popover(props: PopoverProps) {
     <div class={`popover-root ${props.class || ""}`} ref={rootRef}>
       {props.trigger}
       <Show when={props.open}>
-        <div
-          class={`popover popover-${props.placement || "bottom"} ${props.panelClass || ""}`}
-        >
+        <div class={`popover popover-${props.placement || "bottom"} ${props.panelClass || ""}`}>
           {props.children}
         </div>
       </Show>

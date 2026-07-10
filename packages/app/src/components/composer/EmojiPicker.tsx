@@ -176,6 +176,7 @@ export default function EmojiPicker(props: {
     <div class="emoji-picker" ref={rootRef}>
       <div class="emoji-picker-search">
         <input
+          class="search-input"
           type="text"
           placeholder="Search emoji…"
           value={query()}

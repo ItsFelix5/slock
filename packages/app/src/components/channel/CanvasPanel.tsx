@@ -1,4 +1,4 @@
-import { useEscapeClose } from "@slock/ui";
+import { Overlay, useEscapeClose } from "@slock/ui";
 import { createResource, createSignal, Show } from "solid-js";
 import {
   canvasByChannel,
@@ -39,12 +39,7 @@ export default function CanvasPanel() {
   return (
     <Show when={channelId()}>
       {(id) => (
-        // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is a mouse-only convenience; Escape (useEscapeClose above) is the keyboard equivalent
-        // biome-ignore lint/a11y/useKeyWithClickEvents: see above
-        <div
-          class="canvas-panel-overlay"
-          onClick={(e) => e.target === e.currentTarget && closeChannelCanvas()}
-        >
+        <Overlay onClose={closeChannelCanvas}>
           <div class="canvas-panel-card">
             <div class="canvas-panel-header">
               <div class="canvas-panel-title">
@@ -84,7 +79,7 @@ export default function CanvasPanel() {
               </div>
             </Show>
           </div>
-        </div>
+        </Overlay>
       )}
     </Show>
   );

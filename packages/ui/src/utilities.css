@@ -46,7 +46,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-popover);
   z-index: 10;
 }
 
@@ -70,7 +70,19 @@
 }
 
 .popover-item.danger {
-  color: #e0554a;
+  color: var(--danger);
+}
+
+/* Boxed filter/search field — emoji picker, filter dropdowns, message
+   shortcuts search, etc. all want the same look. */
+.search-input {
+  width: 100%;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
 }
 
 /* Text truncation */

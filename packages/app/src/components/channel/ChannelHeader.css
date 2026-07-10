@@ -30,10 +30,6 @@
   color: var(--text-primary);
 }
 
-.channel-header-star.active {
-  color: #e0a72d;
-}
-
 .channel-header-icon {
   font-size: 15px;
   color: var(--text-secondary);
@@ -42,7 +38,7 @@
 .channel-header-title {
   font-weight: 800;
   font-size: 16px;
-  color: #fff;
+  color: var(--text-on-accent);
   white-space: nowrap;
   flex-shrink: 0;
   background: none;
@@ -132,7 +128,7 @@
 }
 
 .channel-header-menu-item.danger {
-  color: #e0554a;
+  color: var(--danger);
 }
 
 .channel-header-star-wrap {

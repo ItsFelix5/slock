@@ -178,7 +178,9 @@ function appendPlainSegment(frag: DocumentFragment, text: string) {
   // the line after them needs no <br> separator — inserting one would add a
   // blank line on every draft round-trip.
   const needsSeparator = () =>
-    !!frag.lastChild && !HEADING_TAG_RE.test(frag.lastChild.nodeName) && frag.lastChild.nodeName !== "HR";
+    !!frag.lastChild &&
+    !HEADING_TAG_RE.test(frag.lastChild.nodeName) &&
+    frag.lastChild.nodeName !== "HR";
 
   const flush = () => {
     if (current.length === 0) return;
@@ -335,7 +337,11 @@ export function fragmentToMrkdwn(root: HTMLElement): string {
 // block has no levels, so H1-H6 all become the same block type. Returns null
 // when the message is plain text and can be sent without blocks.
 export function fragmentToBlocks(root: HTMLElement): Block[] | null {
-  if (!root.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > hr"))
+  if (
+    !root.querySelector(
+      ":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > hr",
+    )
+  )
     return null;
   const blocks: Block[] = [];
   let run = "";

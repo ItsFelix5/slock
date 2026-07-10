@@ -1,6 +1,6 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem } from "@slock/slack-api";
-import { Avatar, Icon, Menu } from "@slock/ui";
+import { Avatar } from "@slock/ui";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   activityItems,
@@ -8,14 +8,22 @@ import {
   channelDisplayName,
   ensureActivityLoaded,
   isActivityItemUnread,
+  markActivityItemRead,
   markActivityRead,
   openChannelPeek,
   userById,
 } from "../../lib/store";
+import InteractorAvatars, { formatInteractorNames } from "../messages/InteractorAvatars";
 import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read";
+
+interface ActivityRow {
+  key: string;
+  items: ActivityItem[];
+  isThread: boolean;
+}
 
 const TAG_FILTERS: { key: Tag; label: string }[] = [
   { key: "mention", label: "Mentions" },
@@ -53,11 +61,105 @@ function verbFor(item: ActivityItem): string {
   }
 }
 
+function rowTarget(row: ActivityRow) {
+  const latest = row.items[0];
+  return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
+}
+
+function ActivityRowView(props: {
+  row: ActivityRow;
+  onOpen: (channelId: string, ts: string) => void;
+  onMarkRead: (channelId: string, ts: string) => void;
+}) {
+  const latest = createMemo(() => props.row.items[0]);
+  const user = createMemo(() => userById(latest().userId));
+  const channel = createMemo(() => channelById(latest().channelId));
+  const isUnread = createMemo(() => props.row.items.some(isActivityItemUnread));
+  const replierIds = createMemo(() => {
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const item of props.row.items) {
+      if (!seen.has(item.userId)) {
+        seen.add(item.userId);
+        ids.push(item.userId);
+      }
+    }
+    return ids;
+  });
+  const isThreadGroup = createMemo(() => props.row.isThread && props.row.items.length > 1);
+
+  const markRead = (e: MouseEvent) => {
+    e.stopPropagation();
+    props.onMarkRead(latest().channelId, latest().ts);
+  };
+
+  return (
+    <div class="activity-item-wrap">
+      <button
+        type="button"
+        class="activity-item"
+        classList={{ unread: isUnread(), "activity-item-thread": props.row.isThread }}
+        onClick={() => props.onOpen(latest().channelId, rowTarget(props.row).ts)}
+      >
+        <Show
+          when={isThreadGroup()}
+          fallback={
+            <Show when={user()}>
+              {(u) => (
+                <Avatar user={{ ...u(), avatarColor: u().avatarColor ?? "#616061" }} size="small" />
+              )}
+            </Show>
+          }
+        >
+          <InteractorAvatars userIds={replierIds()} />
+        </Show>
+        <div class="activity-body">
+          <div class="activity-headline">
+            <Show when={isThreadGroup()} fallback={<strong>{user()?.name ?? "Someone"}</strong>}>
+              <strong>{formatInteractorNames(replierIds())}</strong>
+            </Show>
+            <span class="activity-verb">{verbFor(latest())}</span>
+            <Show when={latest().kind !== "dm"}>
+              <span class="activity-channel">
+                #{channelDisplayName(channel(), latest().channelId)}
+              </span>
+            </Show>
+            <Show when={isThreadGroup()}>
+              <span class="activity-reply-count">{props.row.items.length} replies</span>
+            </Show>
+            <Show when={latest().kind === "reaction" && latest().reactionName}>
+              <span class="activity-reaction">
+                <EmojiText text={`:${latest().reactionName}:`} />
+              </span>
+            </Show>
+          </div>
+          <div class="activity-snippet">
+            <Mrkdwn text={latest().text} />
+          </div>
+          <div class="activity-time">
+            {new Date(latest().time).toLocaleString([], {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </div>
+        </div>
+      </button>
+      <Show when={isUnread()} fallback={<span class="activity-unread-dot" />}>
+        <button
+          type="button"
+          class="activity-unread-dot unread"
+          title="Mark as read"
+          onClick={markRead}
+        />
+      </Show>
+    </div>
+  );
+}
+
 export default function ActivityView() {
   const [selectedTags, setSelectedTags] = createSignal<Set<Tag>>(new Set());
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
-  const [filterOpen, setFilterOpen] = createSignal(false);
 
   onMount(() => ensureActivityLoaded());
 
@@ -70,7 +172,7 @@ export default function ActivityView() {
     });
   };
 
-  const items = createMemo(() => {
+  const filteredItems = createMemo(() => {
     const sorted = [...activityItems].sort((a, b) => b.time - a.time);
     const tags = selectedTags();
     const kw = keyword().trim().toLowerCase();
@@ -90,15 +192,66 @@ export default function ActivityView() {
     });
   });
 
+  // Consecutive replies to the same thread collapse into a single row (keyed
+  // at the position of their most recent reply) so a busy thread reads like a
+  // thread instead of a wall of near-identical "replied in #x" lines.
+  const rows = createMemo<ActivityRow[]>(() => {
+    const groups = new Map<string, ActivityRow>();
+    const ordered: ActivityRow[] = [];
+    for (const item of filteredItems()) {
+      if (item.kind === "thread_reply") {
+        const key = `thread:${item.channelId}:${item.threadTs ?? item.ts}`;
+        let row = groups.get(key);
+        if (!row) {
+          row = { key, items: [], isThread: true };
+          groups.set(key, row);
+          ordered.push(row);
+        }
+        row.items.push(item);
+      } else {
+        ordered.push({ key: `single:${item.id}`, items: [item], isThread: false });
+      }
+    }
+    return ordered;
+  });
+
+  const unreadRows = createMemo(() => rows().filter((r) => r.items.some(isActivityItemUnread)));
+
   const goTo = (channelId: string, ts: string) => openChannelPeek(channelId, ts);
+
+  const markRowRead = (channelId: string, ts: string) => markActivityItemRead(channelId, ts);
+
+  // Triage flow: mark the topmost unread row read, then jump straight to
+  // whatever is now next in the unread queue so you can blast through activity.
+  const readAndNext = () => {
+    const current = unreadRows()[0];
+    if (!current) return;
+    const target = rowTarget(current);
+    markActivityItemRead(target.channelId, current.items[0].ts);
+    const next = unreadRows()[0];
+    if (next) goTo(rowTarget(next).channelId, rowTarget(next).ts);
+  };
 
   return (
     <div class="activity-view">
       <div class="activity-view-header">
         <h2>Activity</h2>
-        <button type="button" class="activity-mark-read" onClick={markActivityRead}>
-          Mark all as read
-        </button>
+        <div class="activity-header-actions">
+          <button
+            type="button"
+            class="activity-read-next"
+            disabled={unreadRows().length === 0}
+            onClick={readAndNext}
+          >
+            Read &amp; next
+            <Show when={unreadRows().length > 0}>
+              <span class="activity-read-next-count">{unreadRows().length}</span>
+            </Show>
+          </button>
+          <button type="button" class="activity-mark-read" onClick={markActivityRead}>
+            Mark all as read
+          </button>
+        </div>
       </div>
 
       <div class="activity-toolbar">
@@ -123,107 +276,35 @@ export default function ActivityView() {
             )}
           </For>
         </div>
-
-        <Menu
-          class="activity-filter-wrap"
-          panelClass="activity-filter-panel"
-          open={filterOpen()}
-          onClose={() => setFilterOpen(false)}
-          trigger={
-            <button
-              type="button"
-              class="activity-filter-toggle"
-              classList={{ active: selectedTags().size > 0 }}
-              onClick={() => setFilterOpen(!filterOpen())}
-            >
-              Filter
-              <Show when={selectedTags().size > 0}>
-                <span class="activity-filter-count">{selectedTags().size}</span>
-              </Show>
-              <Icon name="caret-down-filled" size={14} />
-            </button>
-          }
-        >
-          <For each={TAG_FILTERS}>
-            {(f) => (
-              <label class="activity-filter-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedTags().has(f.key)}
-                  onChange={() => toggleTag(f.key)}
-                />
-                {f.label}
-              </label>
-            )}
-          </For>
-          <Show when={selectedTags().size > 0}>
-            <button
-              type="button"
-              class="activity-filter-clear"
-              onClick={() => setSelectedTags(new Set())}
-            >
-              Clear filters
-            </button>
-          </Show>
-        </Menu>
       </div>
 
-      <Show
-        when={items().length > 0}
-        fallback={<div class="activity-empty">Nothing here yet.</div>}
-      >
-        <For each={items()}>
-          {(item) => {
-            const user = createMemo(() => userById(item.userId));
-            const channel = createMemo(() => channelById(item.channelId));
-            const isUnread = createMemo(() => isActivityItemUnread(item));
-            return (
-              <button
-                type="button"
-                class="activity-item"
-                classList={{ unread: isUnread() }}
-                onClick={() => goTo(item.channelId, item.ts)}
-              >
-                <span class="activity-unread-dot" />
-                <Show when={user()}>
-                  {(u) => (
-                    <Avatar
-                      user={{
-                        ...u(),
-                        avatarColor: u().avatarColor ?? "#616061",
-                      }}
-                      size="small"
-                    />
-                  )}
-                </Show>
-                <div class="activity-body">
-                  <div class="activity-headline">
-                    <strong>{user()?.name ?? "Someone"}</strong>
-                    <span class="activity-verb">{verbFor(item)}</span>
-                    <Show when={item.kind !== "dm"}>
-                      <span class="activity-channel">
-                        #{channelDisplayName(channel(), item.channelId)}
-                      </span>
-                    </Show>
-                    <Show when={item.kind === "reaction" && item.reactionName}>
-                      <span class="activity-reaction">
-                        <EmojiText text={`:${item.reactionName}:`} />
-                      </span>
-                    </Show>
-                  </div>
-                  <div class="activity-snippet">
-                    <Mrkdwn text={item.text} />
-                  </div>
-                  <div class="activity-time">
-                    {new Date(item.time).toLocaleString([], {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </div>
-                </div>
-              </button>
-            );
-          }}
+      <div class="activity-tag-filters">
+        <For each={TAG_FILTERS}>
+          {(f) => (
+            <button
+              type="button"
+              class="activity-tag-chip"
+              classList={{ active: selectedTags().has(f.key) }}
+              onClick={() => toggleTag(f.key)}
+            >
+              {f.label}
+            </button>
+          )}
+        </For>
+        <Show when={selectedTags().size > 0}>
+          <button
+            type="button"
+            class="activity-tag-clear"
+            onClick={() => setSelectedTags(new Set())}
+          >
+            Clear
+          </button>
+        </Show>
+      </div>
+
+      <Show when={rows().length > 0} fallback={<div class="activity-empty">Nothing here yet.</div>}>
+        <For each={rows()}>
+          {(row) => <ActivityRowView row={row} onOpen={goTo} onMarkRead={markRowRead} />}
         </For>
       </Show>
     </div>

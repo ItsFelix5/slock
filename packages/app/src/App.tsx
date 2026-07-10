@@ -3,18 +3,24 @@ import { BlockKitResolverContext } from "@slock/blockkit";
 import { ToastStack } from "@slock/ui";
 import { Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
+import ChannelHeader from "./components/channel/ChannelHeader";
+import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
+import JoinChannelBar from "./components/channel/JoinChannelBar";
 import PinnedPanel from "./components/channel/PinnedPanel";
-import MainPanel from "./components/layout/MainPanel";
+import Composer from "./components/composer/Composer";
+import MessageList from "./components/messages/MessageList";
 import ThreadPanel from "./components/messages/ThreadPanel";
-import BrowseChannels from "./components/sidebar/BrowseChannels";
+import MessageSearchView from "./components/search/MessageSearchView";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserProfile from "./components/user/UserProfile";
 import {
+  activeView,
   bootstrap,
   channelById,
   channelDisplayName,
   currentUser,
   isChannelMember,
+  nav,
   openUserProfile,
   setActiveView,
   userById,
@@ -40,6 +46,11 @@ const blockKitResolver: BlockKitResolver = {
 };
 
 function App() {
+  const unjoinedChannelId = () => {
+    const v = activeView();
+    return v?.kind === "channel" && !isChannelMember(v.id) ? v.id : undefined;
+  };
+
   return (
     <Show when={!bootstrap.loading} fallback={<div class="app-status">Loading Slack…</div>}>
       <Show
@@ -49,10 +60,19 @@ function App() {
         <BlockKitResolverContext.Provider value={blockKitResolver}>
           <div class="app">
             <Sidebar />
-            <MainPanel />
+
+            <div class="main-panel">
+              <Show when={nav() !== "search"} fallback={<MessageSearchView />}>
+                <ChannelHeader />
+                <MessageList />
+                <Show when={unjoinedChannelId()} fallback={<Composer />}>
+                  {(channelId) => <JoinChannelBar channelId={channelId()} />}
+                </Show>
+              </Show>
+            </div>
             <ThreadPanel />
             <UserProfile />
-            <BrowseChannels />
+            <ChannelDetails />
             <PinnedPanel />
             <CanvasPanel />
             <ToastStack />

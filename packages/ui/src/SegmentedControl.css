@@ -1,0 +1,28 @@
+.segmented-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--hover-bg);
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.segmented-control-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.segmented-control-btn:hover {
+  color: var(--text-primary);
+}
+
+.segmented-control-btn.active {
+  background: var(--active-bg);
+  color: var(--text-primary);
+  font-weight: 500;
+}

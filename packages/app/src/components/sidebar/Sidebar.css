@@ -1,5 +1,3 @@
-@import "src/theme-utilities.css";
-
 .sidebar {
   position: relative;
   flex-shrink: 0;
@@ -43,7 +41,7 @@
 .sidebar-me-name {
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-on-accent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -66,6 +64,20 @@
 .sidebar-global-search-btn:hover {
   background: var(--hover-bg);
   color: var(--text-primary);
+}
+
+.sidebar-global-search-btn.active {
+  background: var(--active-bg);
+  color: var(--accent);
+}
+
+.sidebar-dnd-popover {
+  width: 240px;
+  padding: 14px;
+}
+
+.sidebar-dnd-popover .settings-row-hint {
+  margin-bottom: 10px;
 }
 
 .sidebar-nav {
@@ -99,7 +111,7 @@
 
 .sidebar-nav-btn.active {
   background: var(--active-bg);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .sidebar-nav-btn.has-glow:not(.active) {
@@ -147,7 +159,7 @@
 .sidebar-search-icon-btn.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .sidebar-unread-filter-dot {
@@ -248,38 +260,11 @@
   color: var(--text-primary);
 }
 
-.sidebar-section-menu {
-  position: absolute;
+.menu-panel.sidebar-section-menu {
   top: 24px;
   right: 0;
+  left: auto;
   min-width: 150px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  padding: 4px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-section-menu-item {
-  text-align: left;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.sidebar-section-menu-item:hover {
-  background: var(--hover-bg);
-}
-
-.sidebar-section-menu-item.danger {
-  color: #e0554a;
 }
 
 .sidebar-add-section {
@@ -389,7 +374,7 @@
 
 .sidebar-row.active {
   background: var(--active-bg);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .sidebar-row.muted {
@@ -410,91 +395,16 @@
 }
 
 .sidebar-row.unread .sidebar-row-name {
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 700;
 }
 
 .sidebar-badge {
   margin-left: auto;
   background: var(--badge-bg);
-  color: #fff;
+  color: var(--text-on-accent);
   font-size: 11px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 9px;
-}
-
-.compose-picker {
-  position: absolute;
-  top: 26px;
-  right: 0;
-  width: 220px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  padding: 6px;
-  z-index: 10;
-}
-
-.compose-picker-input {
-  width: 100%;
-  background: var(--main-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 8px;
-  margin-bottom: 4px;
-}
-
-.compose-picker-list {
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.compose-picker-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.compose-picker-row:hover {
-  background: var(--hover-bg);
-}
-
-.compose-picker-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.compose-picker-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.compose-picker-empty {
-  padding: 10px;
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 13px;
 }

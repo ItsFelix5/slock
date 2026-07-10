@@ -1,7 +1,13 @@
-- Improve activities (better UI/UX, read & next button, multi message threads should look like threads, reactions should display nice etc)
 - Show interactors pfps thread yappers + hover for all names
-- Reply in threads by linking & display message links at the start of the message inline like discord
 - Implement canvases
 - Non pinging mentions
-- Unify server and vite
 - Unfurls
+- Channel notification settings (every thread, broadcast, all posts, mute)
+- thread subscriptions
+- Activity improvements
+- y bootstrap
+- no toasts
+- Clean up dead code/css and huge files
+- Fix unreads
+- DND duration (some kinda hover popover something with only numbers)
+- history.pushstate

@@ -1,0 +1,69 @@
+.reply-reference-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 20px -2px 34px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  min-width: 0;
+  position: relative;
+}
+
+.reply-reference-row::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  bottom: 2px;
+  width: 12px;
+  height: 10px;
+  border-left: 2px solid var(--border-strong);
+  border-top: 2px solid var(--border-strong);
+  border-top-left-radius: 6px;
+}
+
+.reply-reference-row:hover {
+  color: var(--text-primary);
+}
+
+.reply-reference-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.reply-reference-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reply-reference-name {
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.reply-reference-row:hover .reply-reference-name {
+  text-decoration: underline;
+}
+
+.reply-reference-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.reply-reference-snippet .mrkdwn > * {
+  display: inline;
+}

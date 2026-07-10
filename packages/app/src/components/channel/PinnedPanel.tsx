@@ -1,5 +1,5 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { useEscapeClose } from "@slock/ui";
+import { Overlay, useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
 import {
   channelById,
@@ -52,12 +52,7 @@ export default function PinnedPanel() {
   return (
     <Show when={channelId()}>
       {(id) => (
-        // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is a mouse-only convenience; Escape (useEscapeClose above) is the keyboard equivalent
-        // biome-ignore lint/a11y/useKeyWithClickEvents: see above
-        <div
-          class="pinned-panel-overlay"
-          onClick={(e) => e.target === e.currentTarget && closePinnedPanel()}
-        >
+        <Overlay align="top" onClose={closePinnedPanel}>
           <div class="pinned-panel-card">
             <div class="pinned-panel-header">
               <div class="pinned-panel-title">{title()}</div>
@@ -101,7 +96,7 @@ export default function PinnedPanel() {
               </For>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
     </Show>
   );

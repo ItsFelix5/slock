@@ -1,6 +1,6 @@
-import { type JSX, Show } from "solid-js";
-import Menu, { type MenuProps } from "./Menu";
+import { Show } from "solid-js";
 import Icon, { type IconName } from "./Icon";
+import Menu, { type MenuProps } from "./Menu";
 import "./MenuButton.css";
 
 export interface MenuButtonProps extends Omit<MenuProps, "trigger" | "class"> {
@@ -20,7 +20,10 @@ export default function MenuButton(props: MenuButtonProps) {
       open={props.open}
       onClose={props.onClose}
       trigger={
-        <button class={`menu-button btn-${props.variant || "secondary"} btn-${props.size || "md"}`}>
+        <button
+          type="button"
+          class={`menu-button btn-${props.variant || "secondary"} btn-${props.size || "md"}`}
+        >
           <Icon name={props.icon} />
           <Show when={props.label}>{props.label}</Show>
         </button>

@@ -81,6 +81,11 @@ export interface ThemeColors {
   activeBg?: string;
   badgeBg?: string;
   font?: string;
+  danger?: string;
+  warning?: string;
+  textOnAccent?: string;
+  mentionText?: string;
+  mentionSelfText?: string;
 }
 
 const THEME_COLOR_VARS: Record<keyof ThemeColors, string> = {
@@ -100,9 +105,23 @@ const THEME_COLOR_VARS: Record<keyof ThemeColors, string> = {
   activeBg: "--active-bg",
   badgeBg: "--badge-bg",
   font: "--font",
+  danger: "--danger",
+  warning: "--warning",
+  textOnAccent: "--text-on-accent",
+  mentionText: "--mention-text",
+  mentionSelfText: "--mention-self-text",
 };
 
 const THEME_COLORS_KEY = "slock-theme-colors";
+
+function hexToRgbTriplet(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return "";
+  const r = parseInt(result[1], 16);
+  const g = parseInt(result[2], 16);
+  const b = parseInt(result[3], 16);
+  return `${r}, ${g}, ${b}`;
+}
 
 function loadThemeColors(): ThemeColors {
   try {
@@ -118,8 +137,17 @@ const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeC
 function applyThemeColors(colors: ThemeColors) {
   for (const key of Object.keys(colors) as (keyof ThemeColors)[]) {
     const value = colors[key];
-    if (value !== undefined)
+    if (value !== undefined) {
       document.documentElement.style.setProperty(THEME_COLOR_VARS[key], value);
+      // Keep RGB triplet companion vars in sync for colors that need opacity variants
+      if (key === "accent" && value) {
+        const rgb = hexToRgbTriplet(value);
+        if (rgb) document.documentElement.style.setProperty("--accent-rgb", rgb);
+      } else if (key === "danger" && value) {
+        const rgb = hexToRgbTriplet(value);
+        if (rgb) document.documentElement.style.setProperty("--danger-rgb", rgb);
+      }
+    }
   }
 }
 applyThemeColors(themeColors());
@@ -135,6 +163,9 @@ export function resetThemeColors(): void {
   for (const cssVar of Object.values(THEME_COLOR_VARS)) {
     document.documentElement.style.removeProperty(cssVar);
   }
+  // Also reset RGB companion vars
+  document.documentElement.style.removeProperty("--accent-rgb");
+  document.documentElement.style.removeProperty("--danger-rgb");
   setThemeColorsSignal({});
   localStorage.removeItem(THEME_COLORS_KEY);
 }
@@ -144,6 +175,9 @@ export function resetThemeColor(key: keyof ThemeColors): void {
   delete next[key];
   setThemeColorsSignal(next);
   document.documentElement.style.removeProperty(THEME_COLOR_VARS[key]);
+  // Also reset companion RGB var if resetting a color that has one
+  if (key === "accent") document.documentElement.style.removeProperty("--accent-rgb");
+  else if (key === "danger") document.documentElement.style.removeProperty("--danger-rgb");
   localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(next));
 }
 
@@ -170,6 +204,11 @@ export const THEME_COLOR_LABELS: Record<Exclude<keyof ThemeColors, "font">, stri
   hoverBg: "Hover background",
   activeBg: "Active background",
   badgeBg: "Badge background",
+  danger: "Danger",
+  warning: "Warning",
+  textOnAccent: "Text on accent",
+  mentionText: "Mention text",
+  mentionSelfText: "Mention (self)",
 };
 
 export { THEME_COLOR_VARS };

@@ -107,7 +107,7 @@ export default function FilterCombobox(props: {
       <Show when={open() && !props.value}>
         <div class="filter-combobox-menu">
           <input
-            class="filter-combobox-input"
+            class="filter-combobox-input search-input"
             type="text"
             placeholder="Type to filter…"
             value={query()}

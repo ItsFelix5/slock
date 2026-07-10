@@ -51,7 +51,7 @@
 /* Variants */
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -85,11 +85,11 @@
 
 .btn-danger {
   background: none;
-  color: #e0554a;
+  color: var(--danger);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: rgba(224, 85, 74, 0.1);
+  background: rgba(var(--danger-rgb), 0.1);
 }
 
 /* Disabled state */

@@ -1,0 +1,74 @@
+.compose-picker {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  width: 220px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  padding: 6px;
+  z-index: 10;
+}
+
+.compose-picker-input {
+  width: 100%;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+
+.compose-picker-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.compose-picker-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.compose-picker-row:hover {
+  background: var(--hover-bg);
+}
+
+.compose-picker-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.compose-picker-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compose-picker-empty {
+  padding: 10px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}

@@ -34,7 +34,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 700;
   font-size: 28px;
   overflow: hidden;
@@ -97,7 +97,7 @@
 .user-profile-message-btn {
   flex: 1;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 6px;
   padding: 9px 12px;
@@ -171,4 +171,67 @@
   color: var(--text-dim);
   font-size: 0.9em;
   margin-left: 4px;
+}
+
+/* Self-view identity fields: plain inputs that read as text until focused,
+   so editing your own name/title/pronouns needs no separate edit mode. */
+.user-profile-edit-name {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-profile-name-input,
+.user-profile-title-input,
+.user-profile-pronouns-input,
+.user-profile-field-input {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 6px;
+  margin: -3px -6px;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.user-profile-name-input {
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.user-profile-title-input,
+.user-profile-pronouns-input {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.user-profile-field-input {
+  display: block;
+  width: 100%;
+  font-size: 14px;
+}
+
+.user-profile-name-input::placeholder,
+.user-profile-title-input::placeholder,
+.user-profile-pronouns-input::placeholder,
+.user-profile-field-input::placeholder {
+  color: var(--text-dim);
+}
+
+.user-profile-name-input:hover,
+.user-profile-title-input:hover,
+.user-profile-pronouns-input:hover,
+.user-profile-field-input:hover {
+  border-color: var(--border);
+  background: var(--hover-bg);
+}
+
+.user-profile-name-input:focus,
+.user-profile-title-input:focus,
+.user-profile-pronouns-input:focus,
+.user-profile-field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--hover-bg);
 }

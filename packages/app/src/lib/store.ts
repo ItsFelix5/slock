@@ -5,6 +5,7 @@ import type {
   Channel,
   DirectMessage,
   Message,
+  MessageShortcut,
   SavedItem,
   User,
 } from "@slock/slack-api";
@@ -14,10 +15,10 @@ import {
   deleteSection as apiDeleteSection,
   renameSection as apiRenameSection,
   setPresence as apiSetPresence,
+  setProfileFields as apiSetProfileFields,
   setStatus as apiSetStatus,
   updateSectionChannels as apiUpdateSectionChannels,
   closeDm,
-  createChannel,
   createChannelCanvas,
   deleteMessage,
   editMessage,
@@ -25,11 +26,13 @@ import {
   fetchBootstrap,
   fetchBrowsableChannels,
   fetchCanvas,
+  fetchChannelCanvasInfo,
   fetchDndStatus,
   fetchFlaronChannel,
   fetchHistory,
   fetchLastReadByChannel,
   fetchMentions,
+  fetchMessageShortcuts,
   fetchPinnedMessages,
   fetchPins,
   fetchProfileFieldDefs,
@@ -46,6 +49,7 @@ import {
   openDm,
   type PinnedMessage,
   postMessage,
+  runMessageShortcut,
   runSlashCommand,
   saveCanvas,
   searchDirectory,
@@ -93,11 +97,7 @@ function mergeMessages(existing: Message[], fresh: Message[]): Message[] {
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  // Vite's dev-server proxy can't relay the /ws upgrade (its bundled http-proxy
-  // never completes the handshake), so in dev we connect straight to the backend
-  // port instead of going through the proxy. Plain HTTP proxying (/api) is unaffected.
-  const host = import.meta.env.DEV ? `${location.hostname}:5174` : location.host;
-  return `${proto}://${host}/ws`;
+  return `${proto}://${location.host}/ws`;
 }
 
 // A small frequency+recency ("frecency") usage tracker, persisted to
@@ -136,6 +136,19 @@ function createFrecencyTracker(storageKey: string) {
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);
   const [sections, { refetch: refetchSections }] = createResource(fetchSections);
+  const [messageShortcuts] = createResource(fetchMessageShortcuts);
+
+  async function runMessageShortcutAt(
+    channelId: string,
+    ts: string,
+    shortcut: Pick<MessageShortcut, "actionId" | "appId" | "appName">,
+  ) {
+    try {
+      await runMessageShortcut(shortcut.actionId, shortcut.appId, channelId, ts);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : `Failed to run ${shortcut.appName}.`);
+    }
+  }
 
   async function createChannelSection(name: string): Promise<{ id: string; name: string } | null> {
     const created = await apiCreateSection(name);
@@ -219,6 +232,9 @@ function setup() {
   );
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
+  // Local edits (rename, topic) on top of the immutable bootstrap snapshot,
+  // applied when `channels()` assembles its list.
+  const [channelPatches, setChannelPatches] = createStore<Record<string, Partial<Channel>>>({});
   // Channels resolved only for display purposes (e.g. a #channel mention link
   // pointing at a channel the user has never joined) — kept separate from
   // `extraChannels` so a lookup never makes an unjoined channel show up in
@@ -265,7 +281,6 @@ function setup() {
   const [pinnedPanelChannelId, setPinnedPanelChannelId] = createSignal<string | null>(null);
 
   const [browsableChannels, setBrowsableChannels] = createSignal<BrowsableChannel[]>([]);
-  const [browsingChannels, setBrowsingChannelsOpen] = createSignal(false);
 
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
 
@@ -323,8 +338,23 @@ function setup() {
   const channels = createMemo<Channel[]>(() => {
     const base = bootstrap()?.channels ?? [];
     const extra = extraChannels.filter((c) => !base.some((b) => b.id === c.id));
-    return [...base, ...extra];
+    return [...base, ...extra].map((c) =>
+      channelPatches[c.id] ? { ...c, ...channelPatches[c.id] } : c,
+    );
   });
+
+  function patchChannel(id: string, patch: Partial<Channel>) {
+    setChannelPatches(id, { ...channelPatches[id], ...patch });
+  }
+
+  // client.counts' mention badge is only fetched once at boot (see bootstrap's
+  // buildUnreadMap) and never refreshed, so left alone it goes stale the moment
+  // a mention arrives or gets read during the session — keep it in sync locally
+  // wherever we already tell Slack "read up to here".
+  function clearChannelUnread(channelId: string) {
+    setUnreadChannelIds(channelId, false);
+    patchChannel(channelId, { mentions: 0 });
+  }
 
   const activeView = createMemo<View | null>(() => {
     const explicit = selected();
@@ -340,7 +370,7 @@ function setup() {
     setActiveThread(null);
     setSelected(view);
     setNav("home");
-    setUnreadChannelIds(view.id, false);
+    clearChannelUnread(view.id);
     if (view.kind === "dm" && closedDmIds[view.id]) setClosedDmIds(view.id, false);
     const frecencyId =
       view.kind === "dm"
@@ -360,7 +390,7 @@ function setup() {
   // sidebar) while the main panel switches to the selected channel.
   function openChannelPeek(channelId: string, ts: string) {
     setSelected({ kind: "channel", id: channelId });
-    setUnreadChannelIds(channelId, false);
+    clearChannelUnread(channelId);
     recordVisit(channelId);
     openThread(channelId, ts);
   }
@@ -489,6 +519,26 @@ function setup() {
       });
   });
 
+  // Advances the *real* Slack read cursor to the latest message of whichever
+  // channel/DM is currently open — `setActiveView` above only clears the
+  // local unread dot, it never tells Slack itself. Reruns whenever the active
+  // channel's message list changes, so this also covers a new message
+  // arriving while you're already looking at it (the way the real client
+  // keeps a channel "seen" live), not just the initial switch.
+  const lastMarkedReadTs: Record<string, string> = {};
+  createEffect(() => {
+    const view = activeView();
+    if (!view) return;
+    const list = messagesByChannel[view.id];
+    const latest = list?.[list.length - 1];
+    if (!latest || latest.id.startsWith("pending-")) return;
+    if (lastMarkedReadTs[view.id] === latest.ts) return;
+    lastMarkedReadTs[view.id] = latest.ts;
+    clearChannelUnread(view.id);
+    setLastReadByChannel(view.id, parseFloat(latest.ts) * 1000);
+    markChannelRead(view.id, latest.ts).catch(() => { });
+  });
+
   function hasMoreHistory(channelId: string) {
     // Unknown (not loaded yet) defaults to true so the "beginning of channel"
     // intro doesn't flash before the first page has actually confirmed it.
@@ -604,7 +654,7 @@ function setup() {
     patchMessage(channel, ts, { reactions: next });
 
     const me = currentUser();
-    if (added && me && msg.userId === me.id) {
+    if (added && me && msg.userId === me.id && userId !== me.id) {
       pushActivity({
         id: `rx-${channel}-${ts}-${name}-${userId}-${Date.now()}`,
         kind: "reaction",
@@ -638,10 +688,11 @@ function setup() {
     msg: Message,
     meId: string,
     threadRelevant: boolean,
+    threadTs: string | undefined,
   ): ActivityItem | null {
     const text = msg.text ?? "";
     const time = parseFloat(ts) * 1000;
-    const base = { channelId: channel, ts, userId: msg.userId, text, time };
+    const base = { channelId: channel, ts, userId: msg.userId, text, time, threadTs };
 
     if (text.includes(`<@${meId}>`)) return { ...base, id: `mn-${channel}-${ts}`, kind: "mention" };
     if (directMessages().some((d) => d.id === channel))
@@ -706,7 +757,7 @@ function setup() {
       patchMessage(channel, updated.ts, {
         text: updated.text,
         blocks: updated.blocks,
-        editedLocally: !!updated.edited,
+        edited: !!updated.edited,
       });
       return;
     }
@@ -761,8 +812,21 @@ function setup() {
     }
 
     if (me && msg.userId !== me.id) {
-      const activity = classifyIncomingActivity(channel, ts, msg, me.id, threadRelevant);
-      if (activity) pushActivity(activity);
+      const activity = classifyIncomingActivity(
+        channel,
+        ts,
+        msg,
+        me.id,
+        threadRelevant,
+        isThreadReply ? payload.thread_ts : undefined,
+      );
+      if (activity) {
+        pushActivity(activity);
+        if (activity.kind === "mention") {
+          const current = channels().find((c) => c.id === channel)?.mentions ?? 0;
+          patchChannel(channel, { mentions: current + 1 });
+        }
+      }
     }
   }
 
@@ -876,15 +940,17 @@ function setup() {
       return undefined;
     }
     const presence = presenceOverrides[id];
-    return presence ? { ...known, presence } : known;
+    const selfOverride = id === bootstrap()?.currentUser?.id ? selfStatusOverride() : null;
+    if (!presence && !selfOverride) return known;
+    return { ...known, ...(presence ? { presence } : {}), ...(selfOverride ?? {}) };
   }
 
   // Org-wide people search for DM compose / @mention / global search. The bootstrap
   // user list is capped at 200 for payload size, which on a large workspace (Hack
   // Club's is ~100k members) covers a sliver of the org — searching only that slice
   // would silently fail to find almost anyone. This merges instantly-available local
-  // matches (bootstrap + anyone already resolved via userById) with the server's
-  // continuously-syncing directory cache (see server/index.ts).
+  // matches (bootstrap + anyone already resolved via userById) with a live
+  // search.modules.people query (see searchDirectory).
   async function searchUsers(query: string, excludeId?: string): Promise<User[]> {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -1054,7 +1120,7 @@ function setup() {
       patchMessage(channelId, ts, {
         text: trimmed,
         blocks: blocks as Message["blocks"],
-        editedLocally: true,
+        edited: true,
       });
     } catch (err) {
       console.error("Failed to edit message", err);
@@ -1178,9 +1244,7 @@ function setup() {
     return item.time > (lastReadByChannel[item.channelId] ?? 0);
   }
 
-  const unreadActivityCount = createMemo(
-    () => activityItems.filter(isActivityItemUnread).length,
-  );
+  const unreadActivityCount = createMemo(() => activityItems.filter(isActivityItemUnread).length);
 
   // Bell states, from most to least urgent: a red dot for things addressed
   // straight at the user (direct pings, DMs), a plain glow for activity that's
@@ -1210,12 +1274,24 @@ function setup() {
     for (const item of activityItems) {
       if (!isActivityItemUnread(item)) continue;
       const prev = latestTsByChannel.get(item.channelId);
-      if (!prev || parseFloat(item.ts) > parseFloat(prev)) latestTsByChannel.set(item.channelId, item.ts);
+      if (!prev || parseFloat(item.ts) > parseFloat(prev))
+        latestTsByChannel.set(item.channelId, item.ts);
     }
     for (const [channelId, ts] of latestTsByChannel) {
       setLastReadByChannel(channelId, parseFloat(ts) * 1000);
-      markChannelRead(channelId, ts).catch(() => {});
+      patchChannel(channelId, { mentions: 0 });
+      markChannelRead(channelId, ts).catch(() => { });
     }
+  }
+
+  // Same as markActivityRead but scoped to a single channel/ts — used by the
+  // Activity view's per-row and "read & next" actions so marking one item
+  // doesn't also clear other still-unread items in the same channel.
+  function markActivityItemRead(channelId: string, ts: string) {
+    const time = parseFloat(ts) * 1000;
+    if (time <= (lastReadByChannel[channelId] ?? 0)) return;
+    setLastReadByChannel(channelId, time);
+    markChannelRead(channelId, ts).catch(() => { });
   }
 
   async function ensurePinsLoaded(channelId: string) {
@@ -1258,6 +1334,19 @@ function setup() {
     } catch (err) {
       console.error("Failed to get permalink", err);
       showToast("Failed to copy link.");
+    }
+  }
+
+  async function prepareReplyLink(
+    channelId: string,
+    ts: string,
+    threadTs?: string,
+  ): Promise<string | null> {
+    try {
+      return await getPermalink(channelId, ts, threadTs);
+    } catch (err) {
+      console.error("Failed to get permalink", err);
+      return null;
     }
   }
 
@@ -1319,21 +1408,11 @@ function setup() {
     setBrowsableChannels(found);
   }
 
-  function openBrowseChannels() {
-    setBrowsingChannelsOpen(true);
-    searchBrowsableChannels("");
-  }
-
-  function closeBrowseChannels() {
-    setBrowsingChannelsOpen(false);
-  }
-
   async function joinChannelById(channelId: string) {
     try {
       const channel = await joinChannel(channelId);
       setExtraChannels(produce((list) => list.push(channel)));
       setActiveView({ kind: "channel", id: channel.id });
-      closeBrowseChannels();
       showToast(`Joined #${channel.name}.`);
     } catch (err) {
       console.error("Failed to join channel", err);
@@ -1341,23 +1420,14 @@ function setup() {
     }
   }
 
-  async function createNewChannel(name: string, isPrivate: boolean) {
-    try {
-      const channel = await createChannel(name, isPrivate);
-      setExtraChannels(produce((list) => list.push(channel)));
-      setActiveView({ kind: "channel", id: channel.id });
-      closeBrowseChannels();
-      showToast(`Created #${channel.name}.`);
-    } catch (err) {
-      console.error("Failed to create channel", err);
-      showToast(err instanceof Error ? err.message : "Failed to create channel.");
-    }
-  }
-
   // ---- own status / presence ----
 
   async function updateMyStatus(text: string, emoji: string, expiration: number) {
-    setSelfStatusOverride({ statusText: text || undefined, statusEmoji: emoji || undefined });
+    setSelfStatusOverride((prev) => ({
+      ...prev,
+      statusText: text || undefined,
+      statusEmoji: emoji || undefined,
+    }));
     try {
       await apiSetStatus(text, emoji, expiration);
     } catch (err) {
@@ -1368,6 +1438,37 @@ function setup() {
 
   async function clearMyStatus() {
     await updateMyStatus("", "", 0);
+  }
+
+  async function updateMyProfile(fields: {
+    displayName?: string;
+    title?: string;
+    pronouns?: string;
+    customFields?: Record<string, string>;
+  }) {
+    setSelfStatusOverride((prev) => {
+      const next: Partial<User> = { ...prev };
+      if (fields.displayName !== undefined) next.name = fields.displayName;
+      if (fields.title !== undefined) next.title = fields.title || undefined;
+      if (fields.pronouns !== undefined) next.pronouns = fields.pronouns || undefined;
+      if (fields.customFields) {
+        const merged = new Map(
+          (prev?.customFields ?? currentUser()?.customFields ?? []).map((f) => [f.id, f]),
+        );
+        for (const [id, value] of Object.entries(fields.customFields)) {
+          if (value) merged.set(id, { id, value });
+          else merged.delete(id);
+        }
+        next.customFields = [...merged.values()];
+      }
+      return next;
+    });
+    try {
+      await apiSetProfileFields(fields);
+    } catch (err) {
+      console.error("Failed to update profile", err);
+      showToast(err instanceof Error ? err.message : "Failed to update profile.");
+    }
   }
 
   async function updateMyPresence(presence: "auto" | "away") {
@@ -1461,7 +1562,7 @@ function setup() {
       ...directMessages().map((d) => d.id),
     ];
     for (const id of targets) {
-      setUnreadChannelIds(id, false);
+      clearChannelUnread(id);
       markChannelRead(id, now).catch(() => { });
     }
     showToast("Marked everything as read.");
@@ -1472,13 +1573,7 @@ function setup() {
   async function ensureCanvasChecked(channelId: string) {
     if (channelId in canvasByChannel) return;
     try {
-      const res = await fetch(`/api/channel/info?channel=${encodeURIComponent(channelId)}`);
-      const data = await res.json();
-      const canvas = data?.channel?.properties?.canvas;
-      setCanvasByChannel(
-        channelId,
-        canvas?.file_id ? { fileId: canvas.file_id, isEmpty: !!canvas.is_empty } : null,
-      );
+      setCanvasByChannel(channelId, await fetchChannelCanvasInfo(channelId));
     } catch {
       setCanvasByChannel(channelId, null);
     }
@@ -1640,7 +1735,7 @@ function setup() {
   }
 
   function markCurrentChannelRead(channelId: string) {
-    setUnreadChannelIds(channelId, false);
+    clearChannelUnread(channelId);
     const list = messagesByChannel[channelId];
     const latest = list?.[list.length - 1]?.ts;
     if (latest) markChannelRead(channelId, latest).catch(() => { });
@@ -1675,6 +1770,8 @@ function setup() {
   return {
     bootstrap,
     sections,
+    messageShortcuts,
+    runMessageShortcutAt,
     profileFieldDefs,
     directMessages,
     nav,
@@ -1699,6 +1796,7 @@ function setup() {
     userById,
     searchUsers,
     channelById,
+    patchChannel,
     isChannelMember,
     dmById,
     dmIdForUser,
@@ -1719,6 +1817,7 @@ function setup() {
     hasUnreadPing,
     hasUnreadGlow,
     markActivityRead,
+    markActivityItemRead,
     isActivityItemUnread,
     profileUserId,
     openUserProfile,
@@ -1735,6 +1834,7 @@ function setup() {
     isMessagePinned,
     togglePinMessage,
     copyMessageLink,
+    prepareReplyLink,
     markMessageUnread,
     remindAboutMessage,
     REMINDER_OPTIONS,
@@ -1744,14 +1844,11 @@ function setup() {
     openPinnedPanel,
     closePinnedPanel,
     browsableChannels,
-    browsingChannels,
     searchBrowsableChannels,
-    openBrowseChannels,
-    closeBrowseChannels,
     joinChannelById,
-    createNewChannel,
     updateMyStatus,
     clearMyStatus,
+    updateMyProfile,
     updateMyPresence,
     isChannelMuted,
     toggleMuteChannel,
@@ -1783,6 +1880,8 @@ function setup() {
 export const {
   bootstrap,
   sections,
+  messageShortcuts,
+  runMessageShortcutAt,
   profileFieldDefs,
   directMessages,
   nav,
@@ -1807,6 +1906,7 @@ export const {
   userById,
   searchUsers,
   channelById,
+  patchChannel,
   isChannelMember,
   dmById,
   dmIdForUser,
@@ -1827,6 +1927,7 @@ export const {
   hasUnreadPing,
   hasUnreadGlow,
   markActivityRead,
+  markActivityItemRead,
   isActivityItemUnread,
   profileUserId,
   openUserProfile,
@@ -1843,6 +1944,7 @@ export const {
   isMessagePinned,
   togglePinMessage,
   copyMessageLink,
+  prepareReplyLink,
   markMessageUnread,
   remindAboutMessage,
   REMINDER_OPTIONS,
@@ -1852,14 +1954,11 @@ export const {
   openPinnedPanel,
   closePinnedPanel,
   browsableChannels,
-  browsingChannels,
   searchBrowsableChannels,
-  openBrowseChannels,
-  closeBrowseChannels,
   joinChannelById,
-  createNewChannel,
   updateMyStatus,
   clearMyStatus,
+  updateMyProfile,
   updateMyPresence,
   isChannelMuted,
   toggleMuteChannel,

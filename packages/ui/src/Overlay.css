@@ -1,9 +1,14 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 60;
+}
+
+.overlay-top {
+  align-items: flex-start;
+  padding-top: 10vh;
 }
