@@ -13,8 +13,8 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createMemo, createResource, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "./feedback";
-import type { View } from "./types";
+import { actionFeedback } from "../feedback";
+import type { View } from "../types";
 
 export function createChannelsSlice(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;

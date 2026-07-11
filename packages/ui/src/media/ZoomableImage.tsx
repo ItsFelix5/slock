@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
-import Overlay from "./Overlay";
-import { useEscapeClose } from "./useEscapeClose";
+import Overlay from "../overlay/Overlay";
+import { useEscapeClose } from "../useEscapeClose";
 import "./ZoomableImage.css";
 
 export interface ZoomableImageProps {

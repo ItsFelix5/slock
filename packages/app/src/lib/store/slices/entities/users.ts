@@ -8,7 +8,7 @@ import {
 } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "./feedback";
+import { actionFeedback } from "../feedback";
 
 export function createUsersSlice(deps: { currentUserBase: () => User | undefined }) {
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});

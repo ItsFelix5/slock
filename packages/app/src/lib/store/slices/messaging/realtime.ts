@@ -1,9 +1,9 @@
 import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
 import { mapMessage, parseBadgeCounts } from "@slock/slack-api";
 import { createEffect, createSignal, onCleanup } from "solid-js";
+import type { MessageLocation, ThreadRef, View } from "../types";
 import { classifyIncomingActivity } from "./activity";
 import { mergeMessages } from "./messages";
-import type { MessageLocation, ThreadRef, View } from "./types";
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";

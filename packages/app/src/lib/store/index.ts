@@ -8,27 +8,27 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createResource, createRoot } from "solid-js";
 import { EMPTY_FILTERS, type SearchFilters } from "../searchQuery";
-import { createActivitySlice } from "./activity";
-import { createCanvasSlice } from "./canvas";
-import { createChannelsSlice } from "./channels";
-import { createCommandsSlice } from "./commands";
-import { createDmsSlice } from "./dms";
-import { actionFeedback } from "./feedback";
-import { createLaterSlice } from "./later";
-import { createMessagesSlice } from "./messages";
-import { createPinnedSlice } from "./pinned";
-import { createPreferencesSlice } from "./preferences";
-import { createRealtimeSlice } from "./realtime";
-import type { Nav, View } from "./types";
-import { createTypingSlice } from "./typing";
-import { createUnreadSlice } from "./unread";
-import { createUsageSlice } from "./usage";
-import { createUsersSlice } from "./users";
-import { createViewStateSlice } from "./viewState";
+import { createCanvasSlice } from "./slices/entities/canvas";
+import { createChannelsSlice } from "./slices/entities/channels";
+import { createDmsSlice } from "./slices/entities/dms";
+import { createPinnedSlice } from "./slices/entities/pinned";
+import { createUsersSlice } from "./slices/entities/users";
+import { actionFeedback } from "./slices/feedback";
+import { createActivitySlice } from "./slices/messaging/activity";
+import { createMessagesSlice } from "./slices/messaging/messages";
+import { createRealtimeSlice } from "./slices/messaging/realtime";
+import { createTypingSlice } from "./slices/messaging/typing";
+import { createUnreadSlice } from "./slices/messaging/unread";
+import { createCommandsSlice } from "./slices/session/commands";
+import { createLaterSlice } from "./slices/session/later";
+import { createPreferencesSlice } from "./slices/session/preferences";
+import { createUsageSlice } from "./slices/session/usage";
+import { createViewStateSlice } from "./slices/session/viewState";
+import type { Nav, View } from "./slices/types";
 
-export { actionFeedback } from "./feedback";
-export { REMINDER_OPTIONS } from "./messages";
-export type { MessageLocation, Nav, ThreadRef, View } from "./types";
+export { actionFeedback } from "./slices/feedback";
+export { REMINDER_OPTIONS } from "./slices/messaging/messages";
+export type { MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);

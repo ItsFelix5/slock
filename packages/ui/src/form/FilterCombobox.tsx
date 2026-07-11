@@ -1,6 +1,6 @@
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { fuzzySearch } from "./fuzzy";
-import { useClickOutside } from "./useClickOutside";
+import { fuzzySearch } from "../fuzzy";
+import { useClickOutside } from "../useClickOutside";
 import "./FilterCombobox.css";
 
 export interface ComboItem {

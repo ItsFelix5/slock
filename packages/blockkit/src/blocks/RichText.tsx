@@ -5,7 +5,7 @@ import type {
   RichTextSubBlock,
 } from "@slock/slack-api";
 import { For, Show } from "solid-js";
-import EmojiText from "../EmojiText";
+import EmojiText from "../emoji/EmojiText";
 import { formatSlackDate, Mention } from "../mrkdwn";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {

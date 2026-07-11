@@ -2,8 +2,8 @@ import { Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
 import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
-import { parseReplyLink } from "../../lib/replyLink";
-import { userById } from "../../lib/store";
+import { parseReplyLink } from "../../../lib/replyLink";
+import { userById } from "../../../lib/store";
 import "./ReplyReferenceRow.css";
 
 export default function ReplyReferenceRow(props: {

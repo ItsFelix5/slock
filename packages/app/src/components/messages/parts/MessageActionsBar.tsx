@@ -1,7 +1,7 @@
 import type { Message, MessageShortcut } from "@slock/slack-api";
 import { fuzzySearch, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { parseReplyLink } from "../../lib/replyLink";
+import { parseReplyLink } from "../../../lib/replyLink";
 import {
   broadcastThreadReply,
   copyMessageLink,
@@ -18,8 +18,8 @@ import {
   runMessageShortcutAt,
   togglePinMessage,
   toggleSaveForLater,
-} from "../../lib/store";
-import EmojiPicker from "../composer/EmojiPicker";
+} from "../../../lib/store";
+import EmojiPicker from "../../composer/EmojiPicker";
 
 export default function MessageActionsBar(props: {
   channelId: string;

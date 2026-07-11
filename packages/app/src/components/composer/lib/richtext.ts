@@ -1,7 +1,7 @@
 import { emojiUrl, formatSlackDate } from "@slock/blockkit";
 import type { Block } from "@slock/slack-api";
-import { standardEmojiUnicode } from "../../lib/emojiSearch";
-import { channelById, channelDisplayName, userById } from "../../lib/store";
+import { standardEmojiUnicode } from "../../../lib/emojiSearch";
+import { channelById, channelDisplayName, userById } from "../../../lib/store";
 
 // The composer edits a live DOM tree (contenteditable) instead of a raw mrkdwn
 // string, so bold/italic/etc. render for real as you type instead of showing

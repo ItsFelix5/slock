@@ -1,7 +1,7 @@
 import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { actionFeedback } from "./feedback";
+import { actionFeedback } from "../feedback";
 
 export function createPinnedSlice() {
   const [pinnedByChannel, setPinnedByChannel] = createStore<

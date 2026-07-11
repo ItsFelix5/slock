@@ -2,7 +2,7 @@ import type { Message, SavedItem } from "@slock/slack-api";
 import { fetchHistory, fetchReplies, fetchSaved, toggleSaved } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
-import { actionFeedback } from "./feedback";
+import { actionFeedback } from "../feedback";
 
 export function createLaterSlice() {
   const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);

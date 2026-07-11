@@ -14,8 +14,8 @@ import {
 } from "@slock/slack-api";
 import { createEffect } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "./feedback";
-import type { MessageLocation, ThreadRef, View } from "./types";
+import { actionFeedback } from "../feedback";
+import type { MessageLocation, ThreadRef, View } from "../types";
 
 // `fresh` is only ever the latest ~60 messages (a poll snapshot), while `existing`
 // may additionally hold older messages paginated in via loadOlderMessages — so this

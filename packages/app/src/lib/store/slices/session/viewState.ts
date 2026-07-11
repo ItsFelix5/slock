@@ -1,7 +1,7 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import { EMPTY_FILTERS, type SearchFilters } from "../searchQuery";
-import type { Nav, ThreadRef, View } from "./types";
+import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
+import type { Nav, ThreadRef, View } from "../types";
 
 interface NavSnapshot {
   nav: Nav;

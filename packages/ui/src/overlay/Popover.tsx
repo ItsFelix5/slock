@@ -1,6 +1,6 @@
 import { type JSX, Show } from "solid-js";
-import { useClickOutside } from "./useClickOutside";
-import { useEscapeClose } from "./useEscapeClose";
+import { useClickOutside } from "../useClickOutside";
+import { useEscapeClose } from "../useEscapeClose";
 import "./Popover.css";
 
 export interface PopoverProps {

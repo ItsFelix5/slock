@@ -8,7 +8,7 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createMemo, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { actionFeedback } from "./feedback";
+import { actionFeedback } from "../feedback";
 
 // Muted / notify-all channels and DND snooze all live on the real Slack
 // account (users.prefs / dnd.info) — these seed from there via createEffect

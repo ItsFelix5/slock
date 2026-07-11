@@ -29,10 +29,10 @@ import {
   sendMessage,
   userById,
 } from "../../lib/store";
-import AttachmentCard from "../messages/AttachmentCard";
+import AttachmentCard from "../messages/parts/AttachmentCard";
 import ComposeDatePicker from "./ComposeDatePicker";
 import ComposeUserPicker from "./ComposeUserPicker";
-import { drafts, draftsReady, persistDraft, slashCommandsGlobal } from "./drafts";
+import { drafts, draftsReady, persistDraft, slashCommandsGlobal } from "./lib/drafts";
 import {
   closestListItem,
   createChannelChip,
@@ -49,16 +49,16 @@ import {
   placeCaretAtEnd,
   placeCaretAtStart,
   placeCaretInText,
-} from "./richtext";
+} from "./lib/richtext";
 import type {
   ChannelSuggestItem,
   CommandSuggestItem,
   EmojiSuggestItem,
   SuggestState,
   UserSuggestItem,
-} from "./suggestTypes";
-import { suggestItemContent } from "./suggestTypes";
-import { detectMentionTrigger, detectUrls, linkPreviewToAttachment } from "./textDetection";
+} from "./lib/suggestTypes";
+import { suggestItemContent } from "./lib/suggestTypes";
+import { detectMentionTrigger, detectUrls, linkPreviewToAttachment } from "./lib/textDetection";
 import "./Composer.css";
 
 type FormatTool =

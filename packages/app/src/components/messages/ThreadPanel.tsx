@@ -15,7 +15,7 @@ import {
 } from "../../lib/store";
 import Composer from "../composer/Composer";
 import MessageRows from "./MessageRows";
-import ReplyReferenceRow from "./ReplyReferenceRow";
+import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 import "./ThreadPanel.css";
 
 const DEFAULT_WIDTH = 380;

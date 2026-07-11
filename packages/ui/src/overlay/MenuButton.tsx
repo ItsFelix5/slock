@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import Icon, { type IconName } from "./Icon";
+import Icon, { type IconName } from "../media/Icon";
 import Menu, { type MenuProps } from "./Menu";
 import "./MenuButton.css";
 

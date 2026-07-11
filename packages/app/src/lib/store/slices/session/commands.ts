@@ -1,5 +1,5 @@
 import { addReminder, runSlashCommand, setChannelTopic } from "@slock/slack-api";
-import { actionFeedback } from "./feedback";
+import { actionFeedback } from "../feedback";
 
 // Well-understood commands map to real documented APIs already wired up
 // elsewhere in this file; anything else is forwarded best-effort to Slack's

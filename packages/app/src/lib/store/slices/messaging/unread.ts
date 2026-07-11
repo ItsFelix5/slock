@@ -2,7 +2,7 @@ import type { Channel, Message } from "@slock/slack-api";
 import { fetchLastReadByChannel, markChannelRead } from "@slock/slack-api";
 import { createEffect, createResource } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { View } from "./types";
+import type { View } from "../types";
 
 // client.counts' mention badge is only fetched once at boot (see bootstrap's
 // buildUnreadMap) and never refreshed, so left alone it goes stale the moment

@@ -2,8 +2,8 @@ import type { DirectMessage } from "@slock/slack-api";
 import { closeDm, openDm } from "@slock/slack-api";
 import { createEffect, createMemo, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "./feedback";
-import type { View } from "./types";
+import { actionFeedback } from "../feedback";
+import type { View } from "../types";
 
 const DM_AUTO_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 
