@@ -13,7 +13,7 @@ import {
   startGateway,
   statusMessage,
   unfurlResponse,
-} from "./relay-core";
+} from "./relay-core.js";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {

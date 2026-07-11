@@ -13,7 +13,7 @@ import {
   startGateway,
   statusMessage,
   unfurlResponse,
-} from "./relay-core";
+} from "./relay-core.js";
 
 const PORT = Number(process.env.PORT ?? 5174);
 const DIST_DIR = `${import.meta.dir}/../dist`;

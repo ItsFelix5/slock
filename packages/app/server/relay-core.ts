@@ -13,8 +13,10 @@
 // uses portable APIs (fetch, the `ws` package, node:fs) rather than Bun-only
 // globals.
 import { readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { WebSocket } from "ws";
-import { parseDevtoolsRequest } from "./parse-auth-request";
+import { parseDevtoolsRequest } from "./parse-auth-request.js";
 
 type Credentials = { domain: string; token: string; cookie: string; route: string };
 
@@ -31,7 +33,7 @@ export function isConfigured(): boolean {
 }
 
 // Repo-root .env — this file lives at packages/app/server/, so three levels up.
-const ENV_PATH = `${import.meta.dir}/../../../.env`;
+const ENV_PATH = `${dirname(fileURLToPath(import.meta.url))}/../../../.env`;
 
 async function persistCredentials(next: Credentials) {
   const lines: Record<string, string> = {};
@@ -69,7 +71,10 @@ export async function setCredentialsFromDevtoolsRequest(raw: string): Promise<vo
   connectGateway();
 }
 
-export async function callSlack(method: string, params: Record<string, string> = {}) {
+// Return type is genuinely `any`, not just unannotated — this is a generic
+// relay with no response shaping (see the module comment above), so the
+// response shape varies per Slack method and callers already expect that.
+export async function callSlack(method: string, params: Record<string, string> = {}): Promise<any> {
   if (!creds) return { ok: false, error: "not_configured" };
   const body = new URLSearchParams({ token: creds.token, ...params });
   const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
