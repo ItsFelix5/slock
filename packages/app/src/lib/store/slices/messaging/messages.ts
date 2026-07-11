@@ -1,12 +1,10 @@
 import type { ActivityItem, Message, User } from "@slock/slack-api";
 import {
-  addReminder,
   broadcastReply,
   deleteMessage,
   editMessage,
   fetchHistory,
   fetchReplies,
-  getPermalink,
   markChannelRead,
   postMessage,
   toggleReaction,
@@ -16,28 +14,10 @@ import { createEffect } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 import type { MessageLocation, ThreadRef, View } from "../types";
+import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./messageLinks";
 
-// `fresh` is only ever the latest ~60 messages (a poll snapshot), while `existing`
-// may additionally hold older messages paginated in via loadOlderMessages — so this
-// must keep anything existing doesn't get an authoritative update for (pending
-// stubs and older history alike), not just overwrite wholesale with `fresh`.
-export function mergeMessages(existing: Message[], fresh: Message[]): Message[] {
-  const freshById = new Map(fresh.map((m) => [m.id, m]));
-  const keep = existing.filter((m) => !freshById.has(m.id));
-  const merged = [...keep, ...fresh];
-  merged.sort(
-    (a, b) => parseFloat(a.ts || "0") - parseFloat(b.ts || "0") || (a.id < b.id ? -1 : 1),
-  );
-  return merged;
-}
-
-export const REMINDER_OPTIONS: { label: string; time: string }[] = [
-  { label: "in 20 minutes", time: "in 20 minutes" },
-  { label: "in 1 hour", time: "in 1 hour" },
-  { label: "in 3 hours", time: "in 3 hours" },
-  { label: "tomorrow", time: "tomorrow at 9am" },
-  { label: "next week", time: "next monday at 9am" },
-];
+export { REMINDER_OPTIONS } from "./messageLinks";
+export { mergeMessages } from "./messageMerge";
 
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;
@@ -446,42 +426,6 @@ export function createMessagesSlice(deps: {
         deps.setUnreadChannelIds(channelId, true);
       })
       .catch(() => actionFeedback.flash(ts, "Failed to mark as unread.", "error"));
-  }
-
-  async function copyMessageLink(channelId: string, ts: string) {
-    try {
-      const link = await getPermalink(channelId, ts);
-      if (!link) throw new Error("no permalink");
-      await navigator.clipboard.writeText(link);
-      actionFeedback.flash(ts, "Link copied to clipboard.");
-    } catch (err) {
-      console.error("Failed to get permalink", err);
-      actionFeedback.flash(ts, "Failed to copy link.", "error");
-    }
-  }
-
-  async function prepareReplyLink(
-    channelId: string,
-    ts: string,
-    threadTs?: string,
-  ): Promise<string | null> {
-    try {
-      return await getPermalink(channelId, ts, threadTs);
-    } catch (err) {
-      console.error("Failed to get permalink", err);
-      return null;
-    }
-  }
-
-  async function remindAboutMessage(channelId: string, ts: string, time: string) {
-    try {
-      const link = await getPermalink(channelId, ts);
-      await addReminder(link ?? `message ${ts} in ${channelId}`, time);
-      actionFeedback.flash(ts, "I'll remind you about this.");
-    } catch (err) {
-      console.error("Failed to set reminder", err);
-      actionFeedback.flash(ts, "Failed to set reminder.", "error");
-    }
   }
 
   return {

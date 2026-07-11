@@ -3,7 +3,7 @@ import { mapMessage, parseBadgeCounts } from "@slock/slack-api";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import type { MessageLocation, ThreadRef, View } from "../types";
 import { classifyIncomingActivity } from "./activity";
-import { mergeMessages } from "./messages";
+import { mergeMessages } from "./messageMerge";
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
