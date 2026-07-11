@@ -40,11 +40,15 @@ export function createPreferencesSlice(deps: {
     return !!mutedChannelIds[channelId];
   }
 
-  function toggleMuteChannel(channelId: string) {
+  async function toggleMuteChannel(channelId: string) {
     const next = !isChannelMuted(channelId);
     setMutedChannelIds(channelId, next);
     const allMuted = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
-    setMutedChannels(allMuted);
+    try {
+      await setMutedChannels(allMuted);
+    } catch (err) {
+      console.error("Failed to set channel mute preference", err);
+    }
   }
 
   function isChannelNotifyAll(channelId: string): boolean {

@@ -88,6 +88,7 @@ export function createChannelsSlice(deps: {
     try {
       const channel = await joinChannel(channelId);
       setExtraChannels(produce((list) => list.push(channel)));
+      setLeftChannelIds(channelId, false);
       deps.setActiveView({ kind: "channel", id: channel.id });
     } catch (err) {
       console.error("Failed to join channel", err);

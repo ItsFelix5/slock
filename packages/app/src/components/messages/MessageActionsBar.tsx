@@ -78,7 +78,7 @@ export default function MessageActionsBar(props: {
   const toggleShortcuts = () => {
     if (!shortcutsOpen() && shortcutsBtnRef) {
       const rect = shortcutsBtnRef.getBoundingClientRect();
-      setShortcutsFlipUp(rect.top + SHORTCUTS_MENU_HEIGHT > window.innerHeight);
+      setShortcutsFlipUp(rect.bottom + SHORTCUTS_MENU_HEIGHT > window.innerHeight);
     }
     if (shortcutsOpen()) setShortcutQuery("");
     setShortcutsOpen(!shortcutsOpen());

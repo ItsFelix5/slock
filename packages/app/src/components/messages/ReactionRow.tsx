@@ -1,7 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Reaction } from "@slock/slack-api";
+import { AvatarStack } from "@slock/ui";
 import { createMemo, For } from "solid-js";
-import AvatarStack from "../../../../ui/src/AvatarStack";
 import { currentUser, userById } from "../../lib/store";
 
 export default function ReactionRow(props: {

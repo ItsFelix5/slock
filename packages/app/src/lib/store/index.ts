@@ -181,7 +181,8 @@ function setup() {
   }
 
   async function markAllAsRead() {
-    const now = String(Date.now() / 1000);
+    const nowMs = Date.now();
+    const now = String(nowMs / 1000);
     const targets = [
       ...channels
         .channels()
@@ -191,6 +192,7 @@ function setup() {
     ];
     for (const id of targets) {
       unread.clearChannelUnread(id);
+      unread.setLastReadByChannel(id, nowMs);
       markChannelRead(id, now).catch(() => {});
     }
   }

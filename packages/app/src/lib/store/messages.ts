@@ -426,7 +426,10 @@ export function createMessagesSlice(deps: {
     deps.clearChannelUnread(channelId);
     const list = messagesByChannel[channelId];
     const latest = list?.[list.length - 1]?.ts;
-    if (latest) markChannelRead(channelId, latest).catch(() => {});
+    if (latest) {
+      deps.setLastReadByChannel(channelId, parseFloat(latest) * 1000);
+      markChannelRead(channelId, latest).catch(() => {});
+    }
   }
 
   function markMessageUnread(channelId: string, ts: string) {

@@ -1,15 +1,7 @@
 import { emojiUrl } from "@slock/blockkit";
-import type { Attachment, LinkPreview, User } from "@slock/slack-api";
+import type { LinkPreview, User } from "@slock/slack-api";
+import { fetchBrowsableChannels, fetchLinkPreview, uploadFile } from "@slock/slack-api";
 import {
-  fetchBrowsableChannels,
-  fetchDrafts,
-  fetchLinkPreview,
-  fetchSlashCommands,
-  saveDraft,
-  uploadFile,
-} from "@slock/slack-api";
-import {
-  Avatar,
   fuzzySearch,
   Icon,
   type IconName,
@@ -40,6 +32,7 @@ import {
 import AttachmentCard from "../messages/AttachmentCard";
 import ComposeDatePicker from "./ComposeDatePicker";
 import ComposeUserPicker from "./ComposeUserPicker";
+import { drafts, draftsReady, persistDraft, slashCommandsGlobal } from "./drafts";
 import {
   closestListItem,
   createChannelChip,
@@ -57,6 +50,15 @@ import {
   placeCaretAtStart,
   placeCaretInText,
 } from "./richtext";
+import type {
+  ChannelSuggestItem,
+  CommandSuggestItem,
+  EmojiSuggestItem,
+  SuggestState,
+  UserSuggestItem,
+} from "./suggestTypes";
+import { suggestItemContent } from "./suggestTypes";
+import { detectMentionTrigger, detectUrls, linkPreviewToAttachment } from "./textDetection";
 import "./Composer.css";
 
 type FormatTool =
@@ -73,149 +75,6 @@ const FORMAT_TOOLS: FormatTool[] = [
   { kind: "attach", icon: "attachment", title: "Attach file" },
   { kind: "mention", icon: "mentions", title: "Mention someone" },
 ];
-
-type UserSuggestItem = { kind: "user"; id: string; name: string; user: User };
-type ChannelSuggestItem = { kind: "channel"; id: string; name: string; private: boolean };
-type CommandSuggestItem = { kind: "command"; name: string; desc: string; icon?: string | null };
-type EmojiSuggestItem = { kind: "emoji"; name: string; unicode?: string };
-type SuggestItem = UserSuggestItem | ChannelSuggestItem | CommandSuggestItem | EmojiSuggestItem;
-
-type SuggestState =
-  | { kind: "user"; start: number; items: UserSuggestItem[]; active: number }
-  | { kind: "channel"; start: number; items: ChannelSuggestItem[]; active: number }
-  | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
-  | { kind: "emoji"; start: number; items: EmojiSuggestItem[]; active: number };
-
-// Matches Slack's own composer trigger for a link preview: any bare
-// http(s) URL, trailing sentence punctuation stripped since that's almost
-// never actually part of the link.
-const URL_RE = /https?:\/\/[^\s<>]+/g;
-function detectUrls(value: string): string[] {
-  const found = new Set<string>();
-  for (const m of value.matchAll(URL_RE)) {
-    const clean = m[0].replace(/[),.!?;:'"]+$/, "");
-    if (clean) found.add(clean);
-  }
-  return [...found];
-}
-
-function linkPreviewToAttachment(preview: LinkPreview): Attachment {
-  return {
-    title: preview.title || preview.url,
-    titleLink: preview.url,
-    text: preview.description,
-    imageUrl: preview.imageUrl,
-    footer: preview.siteName,
-  };
-}
-
-// Detects an in-progress @mention, #channel-mention, :emoji-shortcode, or
-// /slash-command token immediately before the cursor, the way Slack's real
-// composer does. Mentions and emoji must start at a word boundary (so
-// "user@example.com" and clock times like "10:30" don't trigger), and slash
-// commands are only recognized as the very first token of the message.
-function detectMentionTrigger(
-  value: string,
-  cursor: number,
-): { kind: "user" | "channel" | "command" | "emoji"; start: number; query: string } | null {
-  const before = value.slice(0, cursor);
-  if (before.startsWith("/") && !/[\s]/.test(before.slice(1))) {
-    return { kind: "command", start: 0, query: before.slice(1) };
-  }
-  const atIdx = before.lastIndexOf("@");
-  const hashIdx = before.lastIndexOf("#");
-  const colonIdx = before.lastIndexOf(":");
-  const idx = Math.max(atIdx, hashIdx, colonIdx);
-  if (idx === -1) return null;
-  const prevChar = before[idx - 1];
-  if (prevChar !== undefined && !/\s/.test(prevChar)) return null;
-  const token = before.slice(idx + 1);
-  if (/\s/.test(token)) return null;
-  const kind = idx === atIdx ? "user" : idx === hashIdx ? "channel" : "emoji";
-  if (kind === "emoji" && !/^[a-z0-9_+-]*$/i.test(token)) return null;
-  return { kind, start: idx, query: token };
-}
-
-function suggestItemContent(item: SuggestItem) {
-  switch (item.kind) {
-    case "user":
-      return (
-        <>
-          <Avatar user={item.user} size="small" />
-          <span class="composer-suggest-label">{item.name}</span>
-        </>
-      );
-    case "channel":
-      return (
-        <>
-          <span class="composer-suggest-icon">
-            {item.private ? <Icon name="lock" size={12} /> : "#"}
-          </span>
-          <span class="composer-suggest-label">{item.name}</span>
-        </>
-      );
-    case "command":
-      return (
-        <>
-          <span class="composer-suggest-icon">
-            {item.icon ? <img src={item.icon} alt="" /> : "/"}
-          </span>
-          <span class="composer-suggest-label">{item.name}</span>
-          <span class="composer-suggest-desc">{item.desc}</span>
-        </>
-      );
-    case "emoji": {
-      const url = emojiUrl(item.name);
-      return (
-        <>
-          <span class="composer-suggest-icon composer-suggest-emoji">
-            {url ? <img src={url} alt="" /> : (item.unicode ?? "❔")}
-          </span>
-          <span class="composer-suggest-label">:{item.name}:</span>
-        </>
-      );
-    }
-  }
-}
-
-// Drafts live on the real Slack account (drafts.list/create/delete) rather
-// than in localStorage, so they follow you to another device the way a real
-// unsent-message draft does. Keyed the same way as before (`thread:<ts>` for
-// a thread reply, else the channel id) — this module-level cache is shared
-// across every Composer instance (the component is reused across channel
-// switches, never remounted), and is hydrated once from the account at load.
-const drafts: Record<string, string> = {};
-const [draftsReady, setDraftsReady] = createSignal(false);
-fetchDrafts()
-  .then((entries) => {
-    for (const d of entries) drafts[d.threadTs ? `thread:${d.threadTs}` : d.channelId] = d.text;
-  })
-  .finally(() => setDraftsReady(true));
-
-const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<
-  { name: string; desc: string; icon: string | null }[]
->([]);
-fetchSlashCommands()
-  .then(setSlashCommandsGlobal)
-  .catch(() => {});
-
-const draftSaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-// Debounced so a debounce-free character-by-character sync doesn't spam
-// drafts.create — Slack's own draft round-trip only needs to be roughly
-// current, not live.
-function persistDraft(channelId: string, threadTs: string | undefined, text: string) {
-  const key = threadTs ? `thread:${threadTs}` : channelId;
-  const pending = draftSaveTimers.get(key);
-  if (pending) clearTimeout(pending);
-  draftSaveTimers.set(
-    key,
-    setTimeout(() => {
-      draftSaveTimers.delete(key);
-      saveDraft(channelId, threadTs, text).catch(() => {});
-    }, 1000),
-  );
-}
 
 export default function Composer(props: {
   channelId?: string;
@@ -816,6 +675,8 @@ export default function Composer(props: {
     if ((li.textContent ?? "").trim() === "") {
       const list = li.parentElement;
       if (!list) return true;
+      const nextLi = li.nextElementSibling as HTMLElement | null;
+      const prevLi = li.previousElementSibling as HTMLElement | null;
       li.remove();
       if (list.children.length === 0) {
         const br = document.createElement("br");
@@ -825,6 +686,10 @@ export default function Composer(props: {
         r.collapse(true);
         sel.removeAllRanges();
         sel.addRange(r);
+      } else if (nextLi) {
+        placeCaretAtStart(nextLi);
+      } else if (prevLi) {
+        placeCaretAtEnd(prevLi);
       }
     } else {
       const newLi = document.createElement("li");

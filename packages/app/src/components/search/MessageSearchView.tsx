@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { type SearchResult, searchMessages } from "@slock/slack-api";
 import { FilterCombobox, Icon } from "@slock/ui";
-import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
   buildSearchQuery,
   EMPTY_FILTERS,
@@ -77,6 +77,8 @@ export default function MessageSearchView() {
     setFilters(searchScreenFilters());
     runSearch();
   });
+
+  onCleanup(() => clearTimeout(debounceTimer));
 
   const patchFilters = (patch: Partial<SearchFilters>) => {
     setFilters({ ...filters(), ...patch });

@@ -416,7 +416,7 @@ export default function Sidebar() {
                           const v = activeView();
                           return nav() === "home" && v?.kind === "channel" && v.id === ch.id;
                         });
-                        const isUnread = createMemo(() => !!unreadChannelIds[ch.id]);
+                        const isUnread = createMemo(() => ch.unread || !!unreadChannelIds[ch.id]);
                         const muted = createMemo(() => isChannelMuted(ch.id));
                         return (
                           <button
