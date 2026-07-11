@@ -20,11 +20,11 @@ import { createMessagesSlice } from "./slices/messaging/messages";
 import { createRealtimeSlice } from "./slices/messaging/realtime";
 import { createTypingSlice } from "./slices/messaging/typing";
 import { createUnreadSlice } from "./slices/messaging/unread";
-import { createActivityCompletionSlice } from "./slices/session/activityCompletion";
 import { createCommandsSlice } from "./slices/session/commands";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
 import { createPreferencesSlice } from "./slices/session/preferences";
+import { createSearchHistorySlice } from "./slices/session/searchHistory";
 import { createUsageSlice } from "./slices/session/usage";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { Nav, View } from "./slices/types";
@@ -87,8 +87,8 @@ function setup() {
     setLastReadByChannel: unread.setLastReadByChannel,
     patchChannel: channels.patchChannel,
   });
-  const desktopNotifications = createDesktopNotificationsSlice();
-  const activityCompletion = createActivityCompletionSlice();
+  const desktopNotifications = createDesktopNotificationsSlice({ userPrefs: usage.userPrefs });
+  const searchHistory = createSearchHistorySlice({ userPrefs: usage.userPrefs });
   const later = createLaterSlice();
   const dms = createDmsSlice({
     bootstrap,
@@ -356,8 +356,10 @@ function setup() {
     desktopNotificationsEnabled: desktopNotifications.enabled,
     requestDesktopNotificationPermission: desktopNotifications.requestPermission,
     setDesktopNotificationsEnabled: desktopNotifications.setNotificationsEnabled,
-    isActivityComplete: activityCompletion.isActivityComplete,
-    toggleActivityComplete: activityCompletion.toggleActivityComplete,
+    searchHistory: searchHistory.searchHistory,
+    recordSearch: searchHistory.recordSearch,
+    removeSearchHistoryEntry: searchHistory.removeSearchHistoryEntry,
+    clearSearchHistory: searchHistory.clearSearchHistory,
   };
 }
 
@@ -482,6 +484,8 @@ export const {
   desktopNotificationsEnabled,
   requestDesktopNotificationPermission,
   setDesktopNotificationsEnabled,
-  isActivityComplete,
-  toggleActivityComplete,
+  searchHistory,
+  recordSearch,
+  removeSearchHistoryEntry,
+  clearSearchHistory,
 } = createRoot(setup);

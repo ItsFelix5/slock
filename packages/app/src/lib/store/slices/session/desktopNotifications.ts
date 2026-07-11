@@ -1,27 +1,31 @@
-import type { ActivityItem, Channel, User } from "@slock/slack-api";
+import type { ActivityItem, Channel, User, UserPrefs } from "@slock/slack-api";
+import { setDesktopNotificationsEnabled as setDesktopNotificationsEnabledApi } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
 import { PING_KINDS } from "../messaging/activity";
 
-const ENABLED_KEY = "slock:desktop-notifications-enabled";
-
-// A pure client-side preference — unlike mute/DND/notify-all, Slack's own
-// account has no concept of "should this browser tab pop OS notifications",
-// so this one genuinely belongs in localStorage rather than being faked as
-// account state.
-function loadEnabled(): boolean {
-  return localStorage.getItem(ENABLED_KEY) !== "off";
-}
-
-export function createDesktopNotificationsSlice() {
+// Synced through the same users.prefs blob as mute/pingwords (custom key,
+// since Slack's own account has no built-in concept of "pop OS
+// notifications") rather than localStorage, so it follows you across devices.
+export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const supported = typeof window !== "undefined" && "Notification" in window;
   const [permission, setPermission] = createSignal<NotificationPermission>(
     supported ? Notification.permission : "denied",
   );
-  const [enabled, setEnabled] = createSignal(supported && loadEnabled());
+  const [enabled, setEnabled] = createSignal(false);
+
+  let seeded = false;
+  createEffect(() => {
+    const prefs = deps.userPrefs();
+    if (!prefs || seeded) return;
+    seeded = true;
+    setEnabled(supported && prefs.desktopNotificationsEnabled);
+  });
 
   function setNotificationsEnabled(next: boolean) {
     setEnabled(next);
-    localStorage.setItem(ENABLED_KEY, next ? "on" : "off");
+    setDesktopNotificationsEnabledApi(next).catch((err) => {
+      console.error("Failed to set desktop notification preference", err);
+    });
   }
 
   async function requestPermission() {

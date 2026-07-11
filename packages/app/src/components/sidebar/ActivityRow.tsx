@@ -3,20 +3,21 @@ import type { ActivityItem } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import {
+  COMPLETE_EMOJI,
   findActivityMessage,
   hasUserReacted,
+  hasUserReactedWith,
   hasUserResponded,
+  toggleActivityComplete,
 } from "../../lib/activityInteractions";
 import {
   channelById,
   channelDisplayName,
   currentUser,
-  isActivityComplete,
   isActivityItemUnread,
   isPingingActivity,
   messagesByChannel,
   threadMessages,
-  toggleActivityComplete,
   userById,
 } from "../../lib/store";
 
@@ -94,7 +95,13 @@ export default function ActivityRow(props: {
   const channel = createMemo(() => channelById(latest().channelId));
   const isUnread = createMemo(() => props.row.items.some(isActivityItemUnread));
   const isPinging = createMemo(() => isPingingActivity(latest()));
-  const isComplete = createMemo(() => isActivityComplete(latest().id));
+  const isComplete = createMemo(() =>
+    hasUserReactedWith(
+      findActivityMessage(latest(), messagesByChannel, threadMessages),
+      currentUser()?.id,
+      COMPLETE_EMOJI,
+    ),
+  );
   const replierIds = createMemo(() => {
     const seen = new Set<string>();
     const ids: string[] = [];
@@ -144,7 +151,7 @@ export default function ActivityRow(props: {
 
   const toggleComplete = (e: MouseEvent) => {
     e.stopPropagation();
-    toggleActivityComplete(latest().id);
+    toggleActivityComplete(latest(), isComplete()).catch(() => {});
   };
 
   const formatInteractorNames = (ids: string[]) => {

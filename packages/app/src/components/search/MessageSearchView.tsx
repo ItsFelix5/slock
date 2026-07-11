@@ -12,10 +12,14 @@ import {
 } from "../../lib/searchQuery";
 import {
   bootstrap,
+  clearSearchHistory,
   currentUser,
   frecencyScore,
   knownUsers,
   openThread,
+  recordSearch,
+  removeSearchHistoryEntry,
+  searchHistory,
   searchScreenFilters,
   searchScreenQuery,
   searchUsers,
@@ -68,8 +72,14 @@ export default function MessageSearchView() {
       if (id === requestId) {
         setResults(found);
         setLoading(false);
+        recordSearch(query());
       }
     }, 300);
+  };
+
+  const runHistorySearch = (q: string) => {
+    setQuery(q);
+    runSearch();
   };
 
   onMount(() => {
@@ -235,9 +245,49 @@ export default function MessageSearchView() {
         <Show
           when={canSearch()}
           fallback={
-            <div class="global-search-hint">
-              Type something, or set filters, to search every message.
-            </div>
+            <Show
+              when={searchHistory().length > 0}
+              fallback={
+                <div class="global-search-hint">
+                  Type something, or set filters, to search every message.
+                </div>
+              }
+            >
+              <div class="message-search-history">
+                <div class="message-search-history-header">
+                  <span class="global-search-filter-label">Recent searches</span>
+                  <button
+                    type="button"
+                    class="global-search-clear-filters"
+                    onClick={clearSearchHistory}
+                  >
+                    Clear
+                  </button>
+                </div>
+                <For each={searchHistory()}>
+                  {(q) => (
+                    <div class="message-search-history-item">
+                      <button
+                        type="button"
+                        class="global-search-result message-search-history-query"
+                        onClick={() => runHistorySearch(q)}
+                      >
+                        <Icon name="search" size={13} class="global-search-jump-icon" />
+                        {q}
+                      </button>
+                      <button
+                        type="button"
+                        class="message-search-history-remove"
+                        title="Remove"
+                        onClick={() => removeSearchHistoryEntry(q)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
           }
         >
           <Show

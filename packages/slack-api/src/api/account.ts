@@ -32,6 +32,8 @@ export type UserPrefs = {
   mutedChannels: string[];
   notifyAllChannels: string[];
   highlightWords: string[];
+  desktopNotificationsEnabled: boolean;
+  searchHistory: string[];
 };
 
 // users.prefs.get carries the account's *real* local-usage databases (each pref
@@ -46,6 +48,10 @@ export type UserPrefs = {
 // is the same shape as muted_channels — a plain comma-separated list, this
 // time of custom keywords ("pingwords") that ping you like an @mention
 // whenever they appear in a message, even without being directly mentioned.
+// slock_desktop_notifications and slock_search_history are app-invented keys
+// (the prefs blob is a generic KV store, not limited to Slack's own known
+// keys) — used to sync purely client-side app settings across devices the
+// same real way rather than falling back to localStorage for them.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const empty: UserPrefs = {
     emojiUse: {},
@@ -53,6 +59,8 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     mutedChannels: [],
     notifyAllChannels: [],
     highlightWords: [],
+    desktopNotificationsEnabled: true,
+    searchHistory: [],
   };
   const data = await callSlack("users.prefs.get");
   if (!data.ok) return empty;
@@ -97,7 +105,19 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       notificationOverrides[id]?.mobile === "everything",
   );
 
-  return { emojiUse, channelFrecency, mutedChannels, notifyAllChannels, highlightWords };
+  const desktopNotificationsEnabled: boolean = prefs.slock_desktop_notifications !== "off";
+  const parsedSearchHistory = parse("slock_search_history");
+  const searchHistory: string[] = Array.isArray(parsedSearchHistory) ? parsedSearchHistory : [];
+
+  return {
+    emojiUse,
+    channelFrecency,
+    mutedChannels,
+    notifyAllChannels,
+    highlightWords,
+    desktopNotificationsEnabled,
+    searchHistory,
+  };
 }
 
 export async function setStatus(text: string, emoji: string, expiration: number): Promise<void> {
@@ -151,6 +171,28 @@ export async function setHighlightWords(words: string[]): Promise<void> {
     await callSlack("users.prefs.set", { name: "highlight_words", value: words.join(",") });
   } catch {
     // non-fatal — pingwords still apply locally even if the sync fails
+  }
+}
+
+export async function setDesktopNotificationsEnabled(enabled: boolean): Promise<void> {
+  try {
+    await callSlack("users.prefs.set", {
+      name: "slock_desktop_notifications",
+      value: enabled ? "on" : "off",
+    });
+  } catch {
+    // non-fatal — the setting still applies locally even if the sync fails
+  }
+}
+
+export async function setSearchHistory(queries: string[]): Promise<void> {
+  try {
+    await callSlack("users.prefs.set", {
+      name: "slock_search_history",
+      value: JSON.stringify(queries),
+    });
+  } catch {
+    // non-fatal — history still applies locally even if the sync fails
   }
 }
 

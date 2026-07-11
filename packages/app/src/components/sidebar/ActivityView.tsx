@@ -6,7 +6,6 @@ import {
   isActivityItemUnread,
   isPingingActivity,
   markActivityItemRead,
-  markActivityRead,
   openChannelPeek,
   userById,
 } from "../../lib/store";
@@ -116,6 +115,13 @@ export default function ActivityView() {
 
   const markRowRead = (channelId: string, ts: string) => markActivityItemRead(channelId, ts);
 
+  // Scoped to whatever's currently filtered/visible, not every activity item
+  // that's ever landed here — so "Mark all as read" while filtered to
+  // "Reactions" doesn't also silently clear unread mentions out of view.
+  const markVisibleAsRead = () => {
+    for (const item of filteredItems()) markActivityItemRead(item.channelId, item.ts);
+  };
+
   // Triage flow: mark the topmost unread row read, then jump straight to
   // whatever is now next in the unread queue so you can blast through activity.
   const readAndNext = () => {
@@ -143,7 +149,7 @@ export default function ActivityView() {
               <span class="activity-read-next-count">{unreadRows().length}</span>
             </Show>
           </button>
-          <button type="button" class="activity-mark-read" onClick={markActivityRead}>
+          <button type="button" class="activity-mark-read" onClick={markVisibleAsRead}>
             Mark all as read
           </button>
         </div>
