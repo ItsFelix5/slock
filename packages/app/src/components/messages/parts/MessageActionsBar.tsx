@@ -1,7 +1,12 @@
 import type { Message } from "@slock/slack-api";
 import { Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
-import { isSavedForLater, reactToMessage, recordEmojiUse, toggleSaveForLater } from "../../../lib/store";
+import {
+  isSavedForLater,
+  reactToMessage,
+  recordEmojiUse,
+  toggleSaveForLater,
+} from "../../../lib/store";
 import EmojiPicker from "../../composer/EmojiPicker";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 

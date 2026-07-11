@@ -1,4 +1,4 @@
-import type { Channel, MessageShortcut } from "@slock/slack-api";
+import type { MessageShortcut } from "@slock/slack-api";
 import {
   fetchBootstrap,
   fetchMessageShortcuts,
@@ -8,6 +8,7 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createResource, createRoot } from "solid-js";
 import { EMPTY_FILTERS, type SearchFilters } from "../searchQuery";
+import { channelDisplayName } from "./slices/channelDisplayName";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -19,6 +20,7 @@ import { createMessagesSlice } from "./slices/messaging/messages";
 import { createRealtimeSlice } from "./slices/messaging/realtime";
 import { createTypingSlice } from "./slices/messaging/typing";
 import { createUnreadSlice } from "./slices/messaging/unread";
+import { createActivityCompletionSlice } from "./slices/session/activityCompletion";
 import { createCommandsSlice } from "./slices/session/commands";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
@@ -27,6 +29,7 @@ import { createUsageSlice } from "./slices/session/usage";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { Nav, View } from "./slices/types";
 
+export { channelDisplayName } from "./slices/channelDisplayName";
 export { actionFeedback } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
@@ -85,6 +88,7 @@ function setup() {
     patchChannel: channels.patchChannel,
   });
   const desktopNotifications = createDesktopNotificationsSlice();
+  const activityCompletion = createActivityCompletionSlice();
   const later = createLaterSlice();
   const dms = createDmsSlice({
     bootstrap,
@@ -352,6 +356,8 @@ function setup() {
     desktopNotificationsEnabled: desktopNotifications.enabled,
     requestDesktopNotificationPermission: desktopNotifications.requestPermission,
     setDesktopNotificationsEnabled: desktopNotifications.setNotificationsEnabled,
+    isActivityComplete: activityCompletion.isActivityComplete,
+    toggleActivityComplete: activityCompletion.toggleActivityComplete,
   };
 }
 
@@ -476,20 +482,6 @@ export const {
   desktopNotificationsEnabled,
   requestDesktopNotificationPermission,
   setDesktopNotificationsEnabled,
+  isActivityComplete,
+  toggleActivityComplete,
 } = createRoot(setup);
-
-// Some channels arrive without a human-readable name (shared/external channels,
-// or ones we can only see by id) — channelById already kicks off a background
-// Flaron lookup for those, but this covers the gap before it resolves (or if
-// Flaron doesn't know the id either). Fall back to a shareable Flaron permalink
-// for public channels, and to the bare id only when even that wouldn't resolve
-// (private channels we can't publicly link).
-export function channelDisplayName(
-  channel: Pick<Channel, "id" | "name" | "private"> | undefined,
-  fallbackId?: string,
-): string {
-  const name = channel?.name?.trim();
-  if (name) return name;
-  const id = channel?.id ?? fallbackId ?? "";
-  return id;
-}

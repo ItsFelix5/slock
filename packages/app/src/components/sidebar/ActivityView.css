@@ -217,6 +217,40 @@
   transform: scale(1.7);
 }
 
+.activity-complete-toggle {
+  position: absolute;
+  right: 10px;
+  top: 12px;
+  display: flex;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--text-dim);
+  opacity: 0;
+}
+
+.activity-item-wrap:hover .activity-complete-toggle,
+.activity-complete-toggle.active {
+  opacity: 1;
+}
+
+.activity-complete-toggle.active {
+  color: var(--accent);
+}
+
+.activity-complete-toggle:hover {
+  color: var(--text-primary);
+}
+
+.activity-complete-toggle.active:hover {
+  color: var(--accent);
+  filter: brightness(1.15);
+}
+
+.activity-item.complete {
+  opacity: 0.6;
+}
+
 .activity-body {
   min-width: 0;
   flex: 1;
@@ -271,12 +305,91 @@
   vertical-align: middle;
 }
 
+.activity-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--text-dim);
+  vertical-align: middle;
+}
+
+.activity-badge-complete {
+  color: var(--accent);
+}
+
 .activity-snippet {
   margin-top: 3px;
   font-size: 14px;
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* A thread group's root message, shown for context above the reply list. */
+.activity-thread-root {
+  margin-top: 3px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border-strong);
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.activity-thread-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.activity-thread-reply {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.activity-thread-reply.unread {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.activity-thread-reply-author {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.activity-thread-reply.unread .activity-thread-reply-author {
+  font-weight: 700;
+}
+
+.activity-thread-reply-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.activity-show-more {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.activity-show-more:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
 }
 
 .activity-time {
