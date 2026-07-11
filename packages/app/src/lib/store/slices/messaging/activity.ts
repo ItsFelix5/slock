@@ -6,6 +6,24 @@ import { createStore, produce } from "solid-js/store";
 const BROADCAST_RE = /<!(channel|here)>/;
 const SUBTEAM_RE = /<!subteam\^([^|>]+)/;
 
+// Which activity kinds represent a real, personally-addressed ping (direct
+// @mention, DM) versus ambient activity that's relevant but not aimed at you
+// (thread replies, @channel/@here/usergroup broadcasts, a channel you've set
+// to notify on every post) versus neither (reactions, app messages). Shared
+// between the sidebar bell's two-tier urgency and the Activity view's own
+// pinging/ambient filter and row styling, so the definition lives in one place.
+export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm"]);
+export const GLOW_KINDS = new Set<ActivityItem["kind"]>([
+  "thread_reply",
+  "channel_mention",
+  "usergroup_mention",
+  "channel_all",
+]);
+
+export function isPingingActivity(item: ActivityItem): boolean {
+  return PING_KINDS.has(item.kind);
+}
+
 // Priority order matters: a direct @mention always wins over the channel's
 // broader notification settings, down to "notify on every post" as the catch-all.
 // Kept as a pure function (no store closure) since it's only ever invoked from
@@ -103,14 +121,6 @@ export function createActivitySlice(deps: {
   // straight at the user (direct pings, DMs), a plain glow for activity that's
   // relevant but not personally directed (thread replies, @channel/@here/usergroup
   // pings, channels set to notify on every post), and nothing at all for reactions.
-  const PING_KINDS = new Set(["mention", "dm"]);
-  const GLOW_KINDS = new Set([
-    "thread_reply",
-    "channel_mention",
-    "usergroup_mention",
-    "channel_all",
-  ]);
-
   const hasUnreadPing = createMemo(() =>
     activityItems.some((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );

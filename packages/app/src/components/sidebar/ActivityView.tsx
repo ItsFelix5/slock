@@ -9,6 +9,7 @@ import {
   currentUser,
   ensureActivityLoaded,
   isActivityItemUnread,
+  isPingingActivity,
   markActivityItemRead,
   markActivityRead,
   openChannelPeek,
@@ -18,6 +19,7 @@ import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read";
+type PingFilter = "all" | "pinging" | "ambient";
 
 interface ActivityRow {
   key: string;
@@ -40,6 +42,17 @@ const READ_STATES: { key: ReadState; label: string }[] = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
   { key: "read", label: "Read" },
+];
+
+// "Pinging" mirrors the sidebar bell's own definition (direct @mention, DM) —
+// everything else here is activity that's relevant but wasn't personally
+// addressed at you (a thread you're in, an @channel/@here/usergroup broadcast,
+// a channel set to notify on every post, or a reaction), the way a real
+// notification-vs-ambient split works.
+const PING_FILTERS: { key: PingFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "pinging", label: "Pinged you" },
+  { key: "ambient", label: "Other" },
 ];
 
 function verbFor(item: ActivityItem): string {
@@ -75,6 +88,7 @@ function ActivityRowView(props: {
   const user = createMemo(() => userById(latest().userId));
   const channel = createMemo(() => channelById(latest().channelId));
   const isUnread = createMemo(() => props.row.items.some(isActivityItemUnread));
+  const isPinging = createMemo(() => isPingingActivity(latest()));
   const replierIds = createMemo(() => {
     const seen = new Set<string>();
     const ids: string[] = [];
@@ -108,7 +122,11 @@ function ActivityRowView(props: {
       <button
         type="button"
         class="activity-item"
-        classList={{ unread: isUnread(), "activity-item-thread": props.row.isThread }}
+        classList={{
+          unread: isUnread(),
+          pinging: isPinging(),
+          "activity-item-thread": props.row.isThread,
+        }}
         onClick={() => props.onOpen(latest().channelId, rowTarget(props.row).ts)}
       >
         <Show
@@ -176,6 +194,7 @@ export default function ActivityView() {
   const [selectedTags, setSelectedTags] = createSignal<Set<Tag>>(new Set());
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
+  const [pingFilter, setPingFilter] = createSignal<PingFilter>("all");
 
   onMount(() => ensureActivityLoaded());
 
@@ -193,6 +212,7 @@ export default function ActivityView() {
     const tags = selectedTags();
     const kw = keyword().trim().toLowerCase();
     const read = readState();
+    const ping = pingFilter();
 
     return sorted.filter((item) => {
       if (tags.size > 0) {
@@ -204,6 +224,9 @@ export default function ActivityView() {
       const unread = isActivityItemUnread(item);
       if (read === "unread" && !unread) return false;
       if (read === "read" && unread) return false;
+      const pinging = isPingingActivity(item);
+      if (ping === "pinging" && !pinging) return false;
+      if (ping === "ambient" && pinging) return false;
       return true;
     });
   });
@@ -288,6 +311,20 @@ export default function ActivityView() {
                 onClick={() => setReadState(r.key)}
               >
                 {r.label}
+              </button>
+            )}
+          </For>
+        </div>
+
+        <div class="activity-read-toggle">
+          <For each={PING_FILTERS}>
+            {(p) => (
+              <button
+                type="button"
+                classList={{ active: pingFilter() === p.key }}
+                onClick={() => setPingFilter(p.key)}
+              >
+                {p.label}
               </button>
             )}
           </For>

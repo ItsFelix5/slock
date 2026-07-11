@@ -257,7 +257,8 @@ export default function Composer(props: {
     }
     if (e.key === "Enter" && e.shiftKey) {
       e.preventDefault();
-      if (!editor.handleShiftEnterInHeader() && !editor.handleShiftEnterInList()) editor.insertLineBreak();
+      if (!editor.handleShiftEnterInHeader() && !editor.handleShiftEnterInList())
+        editor.insertLineBreak();
       return;
     }
     if (e.key === "Backspace" && !e.metaKey && !e.ctrlKey && !e.altKey) {

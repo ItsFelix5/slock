@@ -20,6 +20,7 @@ import { createRealtimeSlice } from "./slices/messaging/realtime";
 import { createTypingSlice } from "./slices/messaging/typing";
 import { createUnreadSlice } from "./slices/messaging/unread";
 import { createCommandsSlice } from "./slices/session/commands";
+import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createUsageSlice } from "./slices/session/usage";
@@ -27,6 +28,7 @@ import { createViewStateSlice } from "./slices/session/viewState";
 import type { Nav, View } from "./slices/types";
 
 export { actionFeedback } from "./slices/feedback";
+export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
 export type { MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
@@ -82,6 +84,7 @@ function setup() {
     setLastReadByChannel: unread.setLastReadByChannel,
     patchChannel: channels.patchChannel,
   });
+  const desktopNotifications = createDesktopNotificationsSlice();
   const later = createLaterSlice();
   const dms = createDmsSlice({
     bootstrap,
@@ -216,6 +219,17 @@ function setup() {
     messagesByChannel: messages.messagesByChannel,
   });
 
+  desktopNotifications.wireNotifications({
+    activityItems: activity.activityItems,
+    userById: users.userById,
+    channelById: channels.channelById,
+    channelDisplayName,
+    isChannelMuted: preferences.isChannelMuted,
+    isDndActive: preferences.isDndActive,
+    activeView: viewState.activeView,
+    openChannelPeek,
+  });
+
   return {
     bootstrap,
     sections: channels.sections,
@@ -329,6 +343,11 @@ function setup() {
     handleSlashCommand: commands.handleSlashCommand,
     typingUsersInChannel: typing.typingUsersInChannel,
     typingUsersInThread: typing.typingUsersInThread,
+    desktopNotificationsSupported: desktopNotifications.supported,
+    desktopNotificationPermission: desktopNotifications.permission,
+    desktopNotificationsEnabled: desktopNotifications.enabled,
+    requestDesktopNotificationPermission: desktopNotifications.requestPermission,
+    setDesktopNotificationsEnabled: desktopNotifications.setNotificationsEnabled,
   };
 }
 
@@ -445,6 +464,11 @@ export const {
   handleSlashCommand,
   typingUsersInChannel,
   typingUsersInThread,
+  desktopNotificationsSupported,
+  desktopNotificationPermission,
+  desktopNotificationsEnabled,
+  requestDesktopNotificationPermission,
+  setDesktopNotificationsEnabled,
 } = createRoot(setup);
 
 // Some channels arrive without a human-readable name (shared/external channels,

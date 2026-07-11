@@ -1,9 +1,14 @@
-import { Icon } from "@slock/ui";
+import { Icon, Switch } from "@slock/ui";
 import { For, Show } from "solid-js";
 import {
   channelDisplayName,
+  desktopNotificationPermission,
+  desktopNotificationsEnabled,
+  desktopNotificationsSupported,
   mutedChannels,
   notifyAllChannels,
+  requestDesktopNotificationPermission,
+  setDesktopNotificationsEnabled,
   toggleMuteChannel,
   toggleNotifyAllChannel,
 } from "../../lib/store";
@@ -13,6 +18,43 @@ export default function SettingsNotificationsTab() {
   return (
     <>
       <h2>Notifications</h2>
+
+      <Show when={desktopNotificationsSupported}>
+        <div class="settings-section">
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Desktop notifications</div>
+              <div class="settings-row-hint">
+                Pop a notification for direct mentions and DMs when this tab isn't focused.
+              </div>
+            </div>
+            <Show
+              when={desktopNotificationPermission() === "granted"}
+              fallback={
+                <Show
+                  when={desktopNotificationPermission() === "denied"}
+                  fallback={
+                    <button
+                      type="button"
+                      class="settings-list-row-action"
+                      onClick={requestDesktopNotificationPermission}
+                    >
+                      Enable
+                    </button>
+                  }
+                >
+                  <span class="settings-row-hint">Blocked in browser settings</span>
+                </Show>
+              }
+            >
+              <Switch
+                checked={desktopNotificationsEnabled()}
+                onChange={setDesktopNotificationsEnabled}
+              />
+            </Show>
+          </div>
+        </div>
+      </Show>
 
       <div class="settings-section">
         <div class="settings-row-label">Muted channels</div>

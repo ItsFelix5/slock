@@ -188,6 +188,10 @@
   box-shadow: inset 2px 0 0 var(--border-strong);
 }
 
+.activity-item.pinging {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 .activity-item:hover {
   background: var(--hover-bg);
 }

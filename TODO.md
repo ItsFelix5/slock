@@ -1,6 +1,6 @@
-- Add non pinging mentions
-- Improve channel notification settings (every thread, broadcast)
+- [x] Add non pinging mentions — Activity view now has a "Pinged you / Other" filter and a distinct row accent for real pings (direct @mention, DM) vs ambient activity (@channel/@here, usergroups, threads, notify-all), sharing one definition with the sidebar bell instead of duplicating it.
+- Improve channel notification settings (every thread, broadcast) — still just mute + notify-all; needs research into what granularity the internal Slack API actually exposes before building more.
 - Activity improvements, it should be better than both slack activity tab (v2) and the thread tab by showing data cleanly and functionally
-- Fix the notification system
+- [x] Fix the notification system — fixed several real bugs (mark-as-read wasn't advancing the read cursor, sidebar unread dot ignored boot state, rejoining a channel stayed hidden, mute persistence had no error handling) and added desktop/OS notifications (Settings > Notifications), which didn't exist at all before. Still no sound.
 - Anything else that is required to make this better than slack
 - Improve UI/UX/QoL

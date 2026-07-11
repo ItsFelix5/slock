@@ -13,7 +13,12 @@ import {
   searchUsers,
 } from "../../../lib/store";
 import { slashCommandsGlobal } from "./drafts";
-import { createChannelChip, createEmojiChip, createMentionChip, placeCaretInText } from "./richtext";
+import {
+  createChannelChip,
+  createEmojiChip,
+  createMentionChip,
+  placeCaretInText,
+} from "./richtext";
 import type {
   ChannelSuggestItem,
   CommandSuggestItem,
@@ -90,7 +95,12 @@ export function createSuggestionController(opts: {
           .map((u) => ({ kind: "user", id: u.id, name: u.name, user: u }));
 
       const localUsers = knownUsers().filter((u) => u.id !== me);
-      opts.setSuggest({ kind: "user", start: trigger.start, items: toItems(localUsers), active: 0 });
+      opts.setSuggest({
+        kind: "user",
+        start: trigger.start,
+        items: toItems(localUsers),
+        active: 0,
+      });
       if (!q) return;
       searchUsers(q, me).then((found) => {
         if (reqId !== suggestRequestId) return;
