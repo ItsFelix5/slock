@@ -102,15 +102,11 @@
   position: relative;
 }
 
-.channel-header-menu {
-  position: absolute;
+.channel-header-menu.menu-panel {
   top: 34px;
   right: 0;
+  left: auto;
   min-width: 190px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 4px;
   z-index: 8;
 }
 

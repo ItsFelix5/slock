@@ -1,6 +1,13 @@
 import { BlockKit, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
-import { AvatarStack, Icon, InlineFeedback, logDeletedMessages } from "@slock/ui";
+import {
+  AvatarStack,
+  ContextMenu,
+  Icon,
+  InlineFeedback,
+  logDeletedMessages,
+  useContextMenu,
+} from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../lib/replyLink";
 import {
@@ -17,6 +24,7 @@ import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import AttachmentCard from "./AttachmentCard";
 import MessageActionsBar from "./MessageActionsBar";
+import MessageActionsMenuItems from "./MessageActionsMenuItems";
 import MessageFiles from "./MessageFiles";
 import ReactionRow from "./ReactionRow";
 import ReplyReferenceRow from "./ReplyReferenceRow";
@@ -94,6 +102,7 @@ export default function MessageRows(props: {
         const displayName = () => msg.botName ?? user()?.name ?? "Unknown";
         const avatarUrl = () => msg.botIcon ?? user()?.avatarUrl;
         const [isEditing, setIsEditing] = createSignal(false);
+        const ctxMenu = useContextMenu();
 
         const avatarButton = () => (
           <button
@@ -146,6 +155,7 @@ export default function MessageRows(props: {
                   onJump={() => props.onOpenThread?.(msg.threadTs ?? "")}
                 />
               </Show>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: right-click-to-open-context-menu is a mouse-only convenience alongside the row's own interactive children */}
               <div
                 class="message-row"
                 classList={{
@@ -155,6 +165,9 @@ export default function MessageRows(props: {
                   saved: isSavedForLater(msg.ts),
                 }}
                 data-message-ts={msg.ts}
+                onContextMenu={(e) => {
+                  if (!msg.deleted && !msg.isEphemeral && !isEditing()) ctxMenu.open(e);
+                }}
               >
                 <Show when={!msg.deleted && !msg.isEphemeral}>
                   <MessageActionsBar
@@ -165,6 +178,20 @@ export default function MessageRows(props: {
                     onReplyLink={props.onReplyLink}
                     onEditRequest={() => setIsEditing(true)}
                   />
+                  <ContextMenu
+                    open={ctxMenu.isOpen()}
+                    x={ctxMenu.x()}
+                    y={ctxMenu.y()}
+                    onClose={ctxMenu.close}
+                  >
+                    <MessageActionsMenuItems
+                      channelId={props.channelId}
+                      msg={msg}
+                      threadTs={props.threadTs}
+                      onEditRequest={() => setIsEditing(true)}
+                      onClose={ctxMenu.close}
+                    />
+                  </ContextMenu>
                 </Show>
                 <Show
                   when={!sameAuthorAsPrev()}
