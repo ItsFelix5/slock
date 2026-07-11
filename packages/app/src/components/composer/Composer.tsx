@@ -12,7 +12,7 @@ import {
   sendMessage,
   userById,
 } from "../../lib/store";
-import AttachmentCard from "../messages/parts/AttachmentCard";
+import AttachmentCard from "../messages/parts/media/AttachmentCard";
 import ComposeDatePicker from "./ComposeDatePicker";
 import ComposeUserPicker from "./ComposeUserPicker";
 import { drafts, draftsReady, persistDraft } from "./lib/drafts";

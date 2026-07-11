@@ -32,6 +32,8 @@ export type { IconName } from "./media/Icon";
 export { default as Icon, ICON_NAMES } from "./media/Icon";
 export type { ZoomableImageProps } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
+export type { ContextMenuProps } from "./overlay/ContextMenu";
+export { default as ContextMenu } from "./overlay/ContextMenu";
 export { default as Menu, type MenuProps } from "./overlay/Menu";
 export type { MenuButtonProps } from "./overlay/MenuButton";
 export { default as MenuButton } from "./overlay/MenuButton";
@@ -39,6 +41,7 @@ export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
 export type { PopoverProps } from "./overlay/Popover";
 export { default as Popover } from "./overlay/Popover";
+export { useContextMenu } from "./overlay/useContextMenu";
 export {
   activePreset,
   applyPreset,
