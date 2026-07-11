@@ -28,6 +28,7 @@ export function createRealtimeSlice(deps: {
   closedDmIds: Record<string, boolean>;
   setClosedDmIds: (id: string, closed: boolean) => void;
   isChannelNotifyAll: (id: string) => boolean;
+  matchingHighlightWord: (text: string) => string | undefined;
   pushActivity: (item: ActivityItem) => void;
   messagesByChannel: Record<string, Message[]>;
   setMessagesByChannel: (...args: any[]) => void;
@@ -170,6 +171,7 @@ export function createRealtimeSlice(deps: {
         {
           isDirectMessage: (id) => deps.allDirectMessages().some((d) => d.id === id),
           isNotifyAll: deps.isChannelNotifyAll,
+          matchingHighlightWord: deps.matchingHighlightWord,
         },
       );
       if (activity) {

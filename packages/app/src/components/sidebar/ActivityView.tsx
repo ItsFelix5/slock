@@ -30,6 +30,7 @@ interface ActivityRow {
 const TAG_FILTERS: { key: Tag; label: string }[] = [
   { key: "mention", label: "Mentions" },
   { key: "dm", label: "Direct messages" },
+  { key: "keyword", label: "Pingwords" },
   { key: "thread_reply", label: "Threads" },
   { key: "channel_mention", label: "@channel & @here" },
   { key: "usergroup_mention", label: "Usergroups" },
@@ -44,11 +45,11 @@ const READ_STATES: { key: ReadState; label: string }[] = [
   { key: "read", label: "Read" },
 ];
 
-// "Pinging" mirrors the sidebar bell's own definition (direct @mention, DM) —
-// everything else here is activity that's relevant but wasn't personally
-// addressed at you (a thread you're in, an @channel/@here/usergroup broadcast,
-// a channel set to notify on every post, or a reaction), the way a real
-// notification-vs-ambient split works.
+// "Pinging" mirrors the sidebar bell's own definition (direct @mention, DM,
+// or a pingword) — everything else here is activity that's relevant but
+// wasn't personally addressed at you (a thread you're in, an @channel/@here/
+// usergroup broadcast, a channel set to notify on every post, or a reaction),
+// the way a real notification-vs-ambient split works.
 const PING_FILTERS: { key: PingFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "pinging", label: "Pinged you" },
@@ -61,6 +62,8 @@ function verbFor(item: ActivityItem): string {
       return "mentioned you in";
     case "dm":
       return "sent you a message";
+    case "keyword":
+      return item.matchedKeyword ? `said "${item.matchedKeyword}" in` : "used a pingword in";
     case "thread_reply":
       return "replied to a thread in";
     case "channel_mention":

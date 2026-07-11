@@ -192,7 +192,8 @@ export interface ActivityItem {
     | "thread_reply"
     | "channel_mention"
     | "usergroup_mention"
-    | "channel_all";
+    | "channel_all"
+    | "keyword";
   channelId: string;
   ts: string;
   userId: string;
@@ -201,6 +202,9 @@ export interface ActivityItem {
   reactionName?: string;
   broadcastRange?: "channel" | "here";
   usergroupId?: string;
+  // The pingword that matched, for kind "keyword" — see users.prefs'
+  // highlight_words, surfaced via fetchUserPrefs().highlightWords.
+  matchedKeyword?: string;
   // Root ts of the thread this happened in, when different from `ts` (e.g. a
   // thread_reply's own message ts vs. the parent it replied to).
   threadTs?: string;

@@ -7,12 +7,13 @@ const BROADCAST_RE = /<!(channel|here)>/;
 const SUBTEAM_RE = /<!subteam\^([^|>]+)/;
 
 // Which activity kinds represent a real, personally-addressed ping (direct
-// @mention, DM) versus ambient activity that's relevant but not aimed at you
-// (thread replies, @channel/@here/usergroup broadcasts, a channel you've set
-// to notify on every post) versus neither (reactions, app messages). Shared
-// between the sidebar bell's two-tier urgency and the Activity view's own
-// pinging/ambient filter and row styling, so the definition lives in one place.
-export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm"]);
+// @mention, DM, a custom pingword) versus ambient activity that's relevant
+// but not aimed at you (thread replies, @channel/@here/usergroup broadcasts,
+// a channel you've set to notify on every post) versus neither (reactions,
+// app messages). Shared between the sidebar bell's two-tier urgency and the
+// Activity view's own pinging/ambient filter and row styling, so the
+// definition lives in one place.
+export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword"]);
 export const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
   "channel_mention",
@@ -38,6 +39,7 @@ export function classifyIncomingActivity(
   ctx: {
     isDirectMessage: (channelId: string) => boolean;
     isNotifyAll: (channelId: string) => boolean;
+    matchingHighlightWord: (text: string) => string | undefined;
   },
 ): ActivityItem | null {
   const text = msg.text ?? "";
@@ -46,6 +48,12 @@ export function classifyIncomingActivity(
 
   if (text.includes(`<@${meId}>`)) return { ...base, id: `mn-${channel}-${ts}`, kind: "mention" };
   if (ctx.isDirectMessage(channel)) return { ...base, id: `dm-${channel}-${ts}`, kind: "dm" };
+
+  // A custom "pingword" — pings you like an @mention wherever it appears,
+  // even in a channel you'd otherwise get no activity from at all.
+  const matchedKeyword = ctx.matchingHighlightWord(text);
+  if (matchedKeyword)
+    return { ...base, id: `kw-${channel}-${ts}`, kind: "keyword", matchedKeyword };
 
   const broadcast = text.match(BROADCAST_RE);
   if (broadcast)

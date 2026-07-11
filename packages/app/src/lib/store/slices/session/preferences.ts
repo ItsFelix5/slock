@@ -4,21 +4,29 @@ import {
   fetchDndStatus,
   setChannelNotifyAll,
   setDndSnooze,
+  setHighlightWords as setHighlightWordsApi,
   setMutedChannels,
 } from "@slock/slack-api";
 import { createEffect, createMemo, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 
-// Muted / notify-all channels and DND snooze all live on the real Slack
-// account (users.prefs / dnd.info) — these seed from there via createEffect
-// below rather than from localStorage, once the boot fetch resolves.
+// Escapes regex metacharacters in a user-typed keyword before building a
+// word-boundary RegExp out of it.
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Muted / notify-all channels, pingwords, and DND snooze all live on the real
+// Slack account (users.prefs / dnd.info) — these seed from there via
+// createEffect below rather than from localStorage, once the boot fetch resolves.
 export function createPreferencesSlice(deps: {
   channels: () => Channel[];
   userPrefs: () => UserPrefs | undefined;
 }) {
   const [mutedChannelIds, setMutedChannelIds] = createStore<Record<string, boolean>>({});
   const [notifyAllChannelIds, setNotifyAllChannelIds] = createStore<Record<string, boolean>>({});
+  const [highlightWords, setHighlightWordsSignal] = createSignal<string[]>([]);
   const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(null);
   const [dndStatus] = createResource(fetchDndStatus);
 
@@ -29,6 +37,7 @@ export function createPreferencesSlice(deps: {
     mutePrefsSeeded = true;
     for (const id of prefs.mutedChannels) setMutedChannelIds(id, true);
     for (const id of prefs.notifyAllChannels) setNotifyAllChannelIds(id, true);
+    setHighlightWordsSignal(prefs.highlightWords);
   });
 
   createEffect(() => {
@@ -75,6 +84,34 @@ export function createPreferencesSlice(deps: {
     deps.channels().filter((c) => notifyAllChannelIds[c.id]),
   );
 
+  async function persistHighlightWords(words: string[]) {
+    setHighlightWordsSignal(words);
+    try {
+      await setHighlightWordsApi(words);
+    } catch (err) {
+      console.error("Failed to set pingwords", err);
+    }
+  }
+
+  async function addHighlightWord(word: string) {
+    const trimmed = word.trim();
+    if (!trimmed || highlightWords().some((w) => w.toLowerCase() === trimmed.toLowerCase())) return;
+    await persistHighlightWords([...highlightWords(), trimmed]);
+  }
+
+  async function removeHighlightWord(word: string) {
+    await persistHighlightWords(highlightWords().filter((w) => w !== word));
+  }
+
+  // The keyword that pings via <text> the way an @mention does — first match
+  // wins, case-insensitive, on a whole word (so "cat" doesn't fire on
+  // "concatenate"). Mirrors Slack's own "highlight words" notification setting.
+  function matchingHighlightWord(text: string): string | undefined {
+    return highlightWords().find((word) =>
+      new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(text),
+    );
+  }
+
   function isDndActive(): boolean {
     const until = dndSnoozedUntil();
     return !!until && until > Date.now();
@@ -108,6 +145,10 @@ export function createPreferencesSlice(deps: {
     toggleNotifyAllChannel,
     mutedChannels,
     notifyAllChannels,
+    highlightWords,
+    addHighlightWord,
+    removeHighlightWord,
+    matchingHighlightWord,
     isDndActive,
     dndSnoozedUntil,
     snoozeDnd,

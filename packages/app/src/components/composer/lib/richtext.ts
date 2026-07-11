@@ -71,7 +71,7 @@ export function createDateChip(
   fallback?: string,
 ): HTMLSpanElement {
   const chip = document.createElement("span");
-  chip.className = "composer-chip";
+  chip.className = "composer-chip composer-date-chip";
   chip.contentEditable = "false";
   chip.dataset.dateTs = String(timestamp);
   chip.dataset.dateFormat = format;
