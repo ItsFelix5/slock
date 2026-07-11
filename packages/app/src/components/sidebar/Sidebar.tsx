@@ -5,7 +5,6 @@ import {
   actionFeedback,
   activeView,
   bootstrap,
-  channelDisplayName,
   channels,
   closeDmConversation,
   currentUser,
@@ -14,7 +13,6 @@ import {
   hasUnreadGlow,
   hasUnreadPing,
   isChannelLeft,
-  isChannelMuted,
   isChannelStarred,
   nav,
   openUserProfile,
@@ -28,6 +26,7 @@ import {
 import GlobalSearch from "../search/GlobalSearch";
 import Settings from "../settings/Settings";
 import ActivityView from "./ActivityView";
+import ChannelRow from "./ChannelRow";
 import DndButton from "./DndButton";
 import LaterView from "./LaterView";
 import "./Sidebar.css";
@@ -411,34 +410,7 @@ export default function Sidebar() {
                   </div>
                   <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
                     <For each={cat.channels}>
-                      {(ch) => {
-                        const isActive = createMemo(() => {
-                          const v = activeView();
-                          return nav() === "home" && v?.kind === "channel" && v.id === ch.id;
-                        });
-                        const isUnread = createMemo(() => !!unreadChannelIds[ch.id]);
-                        const muted = createMemo(() => isChannelMuted(ch.id));
-                        return (
-                          <button
-                            type="button"
-                            class="sidebar-row"
-                            classList={{
-                              active: isActive(),
-                              unread: isUnread() && !muted(),
-                              muted: muted(),
-                            }}
-                            onClick={() => setActiveView({ kind: "channel", id: ch.id })}
-                          >
-                            <span class="sidebar-row-icon">
-                              {ch.private ? <Icon name="lock" size={13} /> : "#"}
-                            </span>
-                            <span class="sidebar-row-name">{channelDisplayName(ch)}</span>
-                            {!muted() && ch.mentions ? (
-                              <span class="sidebar-badge">{ch.mentions}</span>
-                            ) : null}
-                          </button>
-                        );
-                      }}
+                      {(ch) => <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />}
                     </For>
                   </div>
                 </div>

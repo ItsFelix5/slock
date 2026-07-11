@@ -8,6 +8,8 @@ export type { ButtonGroupProps } from "./ButtonGroup";
 export { default as ButtonGroup } from "./ButtonGroup";
 export type { ColorFieldProps } from "./ColorField";
 export { default as ColorField } from "./ColorField";
+export type { ContextMenuProps } from "./ContextMenu";
+export { default as ContextMenu } from "./ContextMenu";
 export { createCopyFeedback } from "./copyFeedback";
 export type { ComboItem } from "./FilterCombobox";
 export { default as FilterCombobox } from "./FilterCombobox";
@@ -59,6 +61,7 @@ export {
   themeColors,
 } from "./theme";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
+export { useContextMenu } from "./useContextMenu";
 export { useEscapeClose } from "./useEscapeClose";
 export type { ZoomableImageProps } from "./ZoomableImage";
 export { default as ZoomableImage } from "./ZoomableImage";

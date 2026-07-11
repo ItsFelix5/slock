@@ -8,26 +8,19 @@ import {
   canvasByChannel,
   channelById,
   channelDisplayName,
-  createCanvasForCurrentChannel,
   createChannelSection,
   dmById,
   ensureCanvasChecked,
-  isChannelMuted,
-  isChannelNotifyAll,
   isChannelStarred,
-  leaveCurrentChannel,
-  markCurrentChannelRead,
   moveChannelToSection,
   openChannelCanvas,
   openMessageSearch,
-  openPinnedPanel,
   openUserProfile,
   sections,
   toggleChannelStar,
-  toggleMuteChannel,
-  toggleNotifyAllChannel,
   userById,
 } from "../../lib/store";
+import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
 import "./ChannelHeader.css";
 
 export default function ChannelHeader() {
@@ -65,14 +58,6 @@ export default function ChannelHeader() {
   const starred = () => {
     const v = activeView();
     return v?.kind === "channel" && isChannelStarred(v.id);
-  };
-  const muted = () => {
-    const v = activeView();
-    return !!v && isChannelMuted(v.id);
-  };
-  const notifyAll = () => {
-    const v = activeView();
-    return !!v && isChannelNotifyAll(v.id);
   };
   const canvas = () => {
     const v = activeView();
@@ -248,127 +233,31 @@ export default function ChannelHeader() {
             <Icon name="search" size={16} />
           </button>
           <Show when={activeView()}>
-            <Menu
-              class="channel-header-more-wrap"
-              panelClass="channel-header-menu"
-              open={moreOpen()}
-              onClose={() => setMoreOpen(false)}
-              trigger={
-                <button
-                  type="button"
-                  class="channel-header-btn"
-                  title="More"
-                  onClick={() => setMoreOpen(!moreOpen())}
-                >
-                  <Icon name="ellipsis-vertical-filled" size={16} />
-                </button>
-              }
-            >
-              <button
-                type="button"
-                class="channel-header-menu-item"
-                onClick={() => {
-                  setMoreOpen(false);
-                  const v = activeView();
-                  if (v) markCurrentChannelRead(v.id);
-                }}
+            {(v) => (
+              <Menu
+                class="channel-header-more-wrap"
+                panelClass="menu-panel channel-header-menu"
+                open={moreOpen()}
+                onClose={() => setMoreOpen(false)}
+                trigger={
+                  <button
+                    type="button"
+                    class="channel-header-btn"
+                    title="More"
+                    onClick={() => setMoreOpen(!moreOpen())}
+                  >
+                    <Icon name="ellipsis-vertical-filled" size={16} />
+                  </button>
+                }
               >
-                <Icon name="mark-as-read" />
-                Mark as read
-              </button>
-              <Show when={isChannel()}>
-                <button
-                  type="button"
-                  class="channel-header-menu-item"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    const v = activeView();
-                    if (v) openChannelDetails(v.id);
-                  }}
-                >
-                  <Icon name="channel-section" />
-                  Open channel details
-                </button>
-              </Show>
-              <button
-                type="button"
-                class="channel-header-menu-item"
-                onClick={() => {
-                  setMoreOpen(false);
-                  const v = activeView();
-                  if (v) openPinnedPanel(v.id);
-                }}
-              >
-                <Icon name="pin" />
-                View pinned items
-              </button>
-              <button
-                type="button"
-                class="channel-header-menu-item"
-                onClick={() => {
-                  setMoreOpen(false);
-                  const v = activeView();
-                  if (v) toggleMuteChannel(v.id);
-                }}
-              >
-                <Icon name={muted() ? "notifications" : "notifications-off"} />
-                {muted() ? "Unmute channel" : "Mute channel"}
-              </button>
-              <button
-                type="button"
-                class="channel-header-menu-item"
-                onClick={() => {
-                  setMoreOpen(false);
-                  const v = activeView();
-                  if (v) toggleNotifyAllChannel(v.id);
-                }}
-              >
-                <Icon
-                  name={notifyAll() ? "notifications-just-mentions" : "notifications-all-new-posts"}
+                <ChannelActionsMenuItems
+                  channelId={v().id}
+                  channelTitle={title()}
+                  isDm={v().kind === "dm"}
+                  onClose={() => setMoreOpen(false)}
                 />
-                {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
-              </button>
-              <Show when={isChannel() && !canvas()}>
-                <button
-                  type="button"
-                  class="channel-header-menu-item"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    const v = activeView();
-                    if (v) createCanvasForCurrentChannel(v.id);
-                  }}
-                >
-                  <Icon name="add-channel-canvas" />
-                  Create canvas
-                </button>
-              </Show>
-              <button
-                type="button"
-                class="channel-header-menu-item"
-                onClick={() => {
-                  setMoreOpen(false);
-                  const v = activeView();
-                  if (v) navigator.clipboard.writeText(`${location.origin}/#${v.id}`);
-                }}
-              >
-                <Icon name="link" />
-                {isChannel() ? "Copy link to channel" : "Copy link to conversation"}
-              </button>
-              <Show when={isChannel()}>
-                <button
-                  type="button"
-                  class="channel-header-menu-item danger"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    const v = activeView();
-                    if (v && confirm(`Leave #${title()}?`)) leaveCurrentChannel(v.id);
-                  }}
-                >
-                  <Icon name="sign-out" />
-                  Leave channel
-                </button>
-              </Show>
-            </Menu>
+              </Menu>
+            )}
           </Show>
         </div>
       </div>
