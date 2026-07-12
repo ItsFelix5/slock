@@ -239,7 +239,11 @@ export default function ChannelDetails() {
                   </Show>
 
                   <Show when={tab() === "members"}>
-                    <ChannelMembersTab channelId={d().id} channelName={d().name} />
+                    <ChannelMembersTab
+                      channelId={d().id}
+                      channelName={d().name}
+                      onMembersChanged={refetch}
+                    />
                   </Show>
 
                   <Show when={tab() === "tabs"}>

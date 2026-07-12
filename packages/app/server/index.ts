@@ -7,13 +7,14 @@ import {
   configResponse,
   fileProxyResponse,
   fileUploadProxyResponse,
+  handleClientDisconnect,
   handleClientMessage,
   slackEdgeRelayResponse,
   slackRelayResponse,
   startGateway,
   statusMessage,
   unfurlResponse,
-} from "./relay-core.js";
+} from "./relay-core";
 
 const PORT = Number(process.env.PORT ?? 5174);
 const DIST_DIR = `${import.meta.dir}/../dist`;
@@ -99,9 +100,10 @@ Bun.serve({
     },
     close(ws) {
       clients.delete(ws);
+      handleClientDisconnect(ws);
     },
-    message(_ws, raw) {
-      handleClientMessage(String(raw));
+    message(ws, raw) {
+      handleClientMessage(String(raw), ws);
     },
   },
 });

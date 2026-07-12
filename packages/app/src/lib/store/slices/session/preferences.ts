@@ -7,7 +7,7 @@ import {
   setHighlightWords as setHighlightWordsApi,
   setMutedChannels,
 } from "@slock/slack-api";
-import { createEffect, createMemo, createResource, createSignal } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 
@@ -45,6 +45,21 @@ export function createPreferencesSlice(deps: {
     if (status !== undefined) setDndSnoozedUntil(status);
   });
 
+  // isDndActive() only re-evaluates when dndSnoozedUntil() itself changes — without
+  // this, a snooze that lapses while nothing else touches the signal would leave the
+  // UI reporting DND as active forever, until the user manually toggles it again.
+  createEffect(() => {
+    const until = dndSnoozedUntil();
+    if (!until) return;
+    const remaining = until - Date.now();
+    if (remaining <= 0) {
+      setDndSnoozedUntil(null);
+      return;
+    }
+    const timer = setTimeout(() => setDndSnoozedUntil(null), remaining);
+    onCleanup(() => clearTimeout(timer));
+  });
+
   function isChannelMuted(channelId: string): boolean {
     return !!mutedChannelIds[channelId];
   }
@@ -71,6 +86,8 @@ export function createPreferencesSlice(deps: {
       await setChannelNotifyAll(channelId, next);
     } catch (err) {
       console.error("Failed to set channel notification preference", err);
+      actionFeedback.flash(channelId, "Failed to update notification preference.", "error");
+      setNotifyAllChannelIds(channelId, !next);
     }
   }
 

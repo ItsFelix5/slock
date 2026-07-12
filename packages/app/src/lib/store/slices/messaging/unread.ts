@@ -1,4 +1,4 @@
-import type { Channel, Message } from "@slock/slack-api";
+import type { Channel, DirectMessage, Message } from "@slock/slack-api";
 import { fetchLastReadByChannel, markChannelRead } from "@slock/slack-api";
 import { createEffect, createResource } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -10,8 +10,21 @@ import type { View } from "../types";
 // wherever we already tell Slack "read up to here".
 export function createUnreadSlice(deps: {
   patchChannel: (id: string, patch: Partial<Channel>) => void;
+  bootstrap: () => { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
 }) {
   const [unreadChannelIds, setUnreadChannelIds] = createStore<Record<string, boolean>>({});
+
+  // Seed from client.counts (via bootstrap) so a fresh load shows the real
+  // unread dots immediately, instead of waiting for a live event to touch
+  // each channel/DM.
+  let unreadIdsSeeded = false;
+  createEffect(() => {
+    const data = deps.bootstrap();
+    if (!data || unreadIdsSeeded) return;
+    unreadIdsSeeded = true;
+    for (const c of data.channels) if (c.unread) setUnreadChannelIds(c.id, true);
+    for (const dm of data.directMessages) if (dm.unread) setUnreadChannelIds(dm.id, true);
+  });
   // Per-channel real Slack read cursors (client.counts' last_read) rather than a
   // single locally-invented "activity read at" timestamp — an activity item is
   // unread if its ts is past the *account's own* read cursor for that channel,
