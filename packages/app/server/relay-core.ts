@@ -13,8 +13,10 @@
 // uses portable APIs (fetch, the `ws` package, node:fs) rather than Bun-only
 // globals.
 import { readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { WebSocket } from "ws";
-import { parseDevtoolsRequest } from "./parse-auth-request";
+import { parseDevtoolsRequest } from "./parse-auth-request.ts";
 
 type Credentials = { domain: string; token: string; cookie: string; route: string };
 
@@ -31,7 +33,9 @@ export function isConfigured(): boolean {
 }
 
 // Repo-root .env — this file lives at packages/app/server/, so three levels up.
-const ENV_PATH = `${import.meta.dir}/../../../.env`;
+// `import.meta.dir` is Bun-only and this module also runs under plain Node (via
+// the Vite dev plugin), so derive the directory portably from `import.meta.url`.
+const ENV_PATH = `${dirname(fileURLToPath(import.meta.url))}/../../../.env`;
 
 async function persistCredentials(next: Credentials) {
   const lines: Record<string, string> = {};
@@ -69,7 +73,11 @@ export async function setCredentialsFromDevtoolsRequest(raw: string): Promise<vo
   connectGateway();
 }
 
-export async function callSlack(method: string, params: Record<string, string> = {}) {
+// Raw Slack API responses are duck-typed `any` throughout this module and
+// @slock/slack-api's mappers (never a fixed shape worth declaring) — an
+// explicit return type keeps that consistent instead of leaking whatever
+// `unknown` the current @types/node fetch typings would otherwise infer.
+export async function callSlack(method: string, params: Record<string, string> = {}): Promise<any> {
   if (!creds) return { ok: false, error: "not_configured" };
   const body = new URLSearchParams({ token: creds.token, ...params });
   const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
@@ -318,20 +326,63 @@ export function isGatewayConnected() {
   return gatewayConnected;
 }
 
-const watchedChannels = new Set<string>();
-const watchedThreads = new Map<string, string>();
+// Refcounted rather than plain sets: multiple browser tabs can watch the same
+// channel/thread, and one tab unwatching (e.g. switching away, or closing)
+// must not stop fallback polling for a tab that's still watching it.
+const watchedChannels = new Map<string, number>();
+const watchedThreads = new Map<string, { channel: string; count: number }>();
+const clientWatches = new WeakMap<ClientSocket, { channels: Set<string>; threads: Set<string> }>();
 
-export function watchChannel(channel: string) {
-  watchedChannels.add(channel);
+function getClientWatches(socket: ClientSocket) {
+  let watches = clientWatches.get(socket);
+  if (!watches) {
+    watches = { channels: new Set(), threads: new Set() };
+    clientWatches.set(socket, watches);
+  }
+  return watches;
 }
-export function unwatchChannel(channel: string) {
-  watchedChannels.delete(channel);
+
+function watchChannel(socket: ClientSocket, channel: string) {
+  const watches = getClientWatches(socket);
+  if (watches.channels.has(channel)) return;
+  watches.channels.add(channel);
+  watchedChannels.set(channel, (watchedChannels.get(channel) ?? 0) + 1);
 }
-export function watchThread(channel: string, ts: string) {
-  watchedThreads.set(ts, channel);
+function unwatchChannel(socket: ClientSocket, channel: string) {
+  const watches = clientWatches.get(socket);
+  if (!watches?.channels.has(channel)) return;
+  watches.channels.delete(channel);
+  const count = (watchedChannels.get(channel) ?? 1) - 1;
+  if (count <= 0) watchedChannels.delete(channel);
+  else watchedChannels.set(channel, count);
 }
-export function unwatchThread(ts: string) {
-  watchedThreads.delete(ts);
+function watchThread(socket: ClientSocket, channel: string, ts: string) {
+  const watches = getClientWatches(socket);
+  if (watches.threads.has(ts)) return;
+  watches.threads.add(ts);
+  const entry = watchedThreads.get(ts);
+  if (entry) entry.count++;
+  else watchedThreads.set(ts, { channel, count: 1 });
+}
+function unwatchThread(socket: ClientSocket, ts: string) {
+  const watches = clientWatches.get(socket);
+  if (!watches?.threads.has(ts)) return;
+  watches.threads.delete(ts);
+  const entry = watchedThreads.get(ts);
+  if (!entry) return;
+  entry.count--;
+  if (entry.count <= 0) watchedThreads.delete(ts);
+}
+
+// Call from the socket's close handler so a disconnected tab's watches don't
+// linger forever (and so other tabs still watching the same channel/thread
+// keep getting fallback-poll updates).
+export function handleClientDisconnect(socket: ClientSocket) {
+  const watches = clientWatches.get(socket);
+  if (!watches) return;
+  for (const channel of [...watches.channels]) unwatchChannel(socket, channel);
+  for (const ts of [...watches.threads]) unwatchThread(socket, ts);
+  clientWatches.delete(socket);
 }
 
 function broadcast(payload: unknown) {
@@ -361,7 +412,7 @@ let fallbackTimer: ReturnType<typeof setInterval> | null = null;
 function startFallbackPolling() {
   if (fallbackTimer) return;
   fallbackTimer = setInterval(async () => {
-    for (const channel of watchedChannels) {
+    for (const channel of watchedChannels.keys()) {
       try {
         const data = await callSlack("conversations.history", { channel, limit: "60" });
         if (data.ok)
@@ -370,7 +421,7 @@ function startFallbackPolling() {
         // transient network error; next tick retries
       }
     }
-    for (const [ts, channel] of watchedThreads) {
+    for (const [ts, { channel }] of watchedThreads) {
       try {
         const data = await callSlack("conversations.replies", { channel, ts, limit: "200" });
         if (data.ok)
@@ -473,13 +524,14 @@ export function startGateway() {
   if (creds) connectGateway();
 }
 
-export function handleClientMessage(raw: string) {
+export function handleClientMessage(raw: string, socket: ClientSocket) {
   try {
     const msg = JSON.parse(raw);
-    if (msg.type === "watch_channel" && msg.channel) watchChannel(msg.channel);
-    else if (msg.type === "unwatch_channel" && msg.channel) unwatchChannel(msg.channel);
-    else if (msg.type === "watch_thread" && msg.channel && msg.ts) watchThread(msg.channel, msg.ts);
-    else if (msg.type === "unwatch_thread" && msg.ts) unwatchThread(msg.ts);
+    if (msg.type === "watch_channel" && msg.channel) watchChannel(socket, msg.channel);
+    else if (msg.type === "unwatch_channel" && msg.channel) unwatchChannel(socket, msg.channel);
+    else if (msg.type === "watch_thread" && msg.channel && msg.ts)
+      watchThread(socket, msg.channel, msg.ts);
+    else if (msg.type === "unwatch_thread" && msg.ts) unwatchThread(socket, msg.ts);
   } catch {
     // ignore malformed client frames
   }

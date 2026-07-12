@@ -7,7 +7,7 @@ import {
   ResizeHandle,
   useEscapeClose,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
 import {
   actionFeedback,
   clearMyStatus,
@@ -126,11 +126,17 @@ export default function UserProfile() {
     await clearMyStatus();
   };
 
+  // Ticks once a minute so the panel's clock keeps advancing while it's left
+  // open, rather than freezing at whatever time it happened to render at.
+  const [now, setNow] = createSignal(Date.now());
+  const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
+  onCleanup(() => clearInterval(clockTimer));
+
   const localTime = createMemo(() => {
     const tz = user()?.tz;
     if (!tz) return null;
     try {
-      return new Date().toLocaleTimeString([], {
+      return new Date(now()).toLocaleTimeString([], {
         hour: "numeric",
         minute: "2-digit",
         timeZone: tz,
