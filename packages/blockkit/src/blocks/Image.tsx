@@ -1,7 +1,7 @@
 import type { ImageBlock } from "@slock/slack-api";
 import { ZoomableImage } from "@slock/ui";
 import { Show } from "solid-js";
-import EmojiText from "../EmojiText";
+import EmojiText from "../emoji/EmojiText";
 
 export default function Image(props: { block: ImageBlock }) {
   return (

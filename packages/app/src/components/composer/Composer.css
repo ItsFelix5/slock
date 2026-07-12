@@ -336,6 +336,39 @@
   font-size: 0.9em;
 }
 
+/* Matches the rendered message view's non-pinging @mention/#channel style
+   (see blockkit's .bk-mention) so a chip looks the same while composing as
+   it will once sent — a plain colored reference, not a highlighted "ping". */
+.composer-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--mention-bg);
+  color: var(--mention-text);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 700;
+  user-select: none;
+}
+
+.composer-date-chip {
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  font-weight: 400;
+}
+
+.composer-emoji-chip {
+  background: none;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.composer-emoji-chip img {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+
 .composer-pre {
   margin: 4px 0;
   padding: 8px 10px;

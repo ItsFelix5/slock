@@ -14,8 +14,7 @@ import {
   setMemberPermissions,
 } from "@slock/slack-api";
 import { createRoot, createSignal } from "solid-js";
-import { patchChannel } from "./store";
-import { actionFeedback } from "./store/feedback";
+import { actionFeedback, patchChannel } from "./store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 

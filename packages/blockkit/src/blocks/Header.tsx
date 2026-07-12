@@ -1,5 +1,5 @@
 import type { HeaderBlock } from "@slock/slack-api";
-import EmojiText from "../EmojiText";
+import EmojiText from "../emoji/EmojiText";
 
 export default function Header(props: { block: HeaderBlock }) {
   return (

@@ -33,3 +33,42 @@
 .message-search-result {
   margin-bottom: 4px;
 }
+
+.message-search-history {
+  padding-top: 4px;
+}
+
+.message-search-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+}
+
+.message-search-history-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-search-history-query {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-search-history-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.message-search-history-remove:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}

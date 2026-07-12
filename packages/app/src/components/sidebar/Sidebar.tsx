@@ -410,7 +410,9 @@ export default function Sidebar() {
                   </div>
                   <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
                     <For each={cat.channels}>
-                      {(ch) => <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />}
+                      {(ch) => (
+                        <ChannelRow channel={ch} unread={ch.unread || !!unreadChannelIds[ch.id]} />
+                      )}
                     </For>
                   </div>
                 </div>

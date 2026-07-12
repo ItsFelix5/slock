@@ -22,13 +22,13 @@ import {
 } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
-import AttachmentCard from "./AttachmentCard";
-import MessageActionsBar from "./MessageActionsBar";
-import MessageActionsMenuItems from "./MessageActionsMenuItems";
-import MessageFiles from "./MessageFiles";
-import ReactionRow from "./ReactionRow";
-import ReplyReferenceRow from "./ReplyReferenceRow";
-import SystemMessage from "./SystemMessage";
+import MessageActionsBar from "./parts/MessageActionsBar";
+import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
+import AttachmentCard from "./parts/media/AttachmentCard";
+import MessageFiles from "./parts/media/MessageFiles";
+import ReactionRow from "./parts/ReactionRow";
+import ReplyReferenceRow from "./parts/ReplyReferenceRow";
+import SystemMessage from "./parts/SystemMessage";
 import "./MessageList.css";
 
 export default function MessageRows(props: {

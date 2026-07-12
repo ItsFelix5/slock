@@ -31,6 +31,9 @@ export type UserPrefs = {
   channelFrecency: Record<string, { count: number; lastVisit: number }>;
   mutedChannels: string[];
   notifyAllChannels: string[];
+  highlightWords: string[];
+  desktopNotificationsEnabled: boolean;
+  searchHistory: string[];
 };
 
 // users.prefs.get carries the account's *real* local-usage databases (each pref
@@ -41,13 +44,23 @@ export type UserPrefs = {
 // one {count, lastVisit} per id. muted_channels is a plain comma-separated id
 // list; all_notifications_prefs is a JSON blob shaped
 // `{channels: {id: {desktop?, mobile?}}, global: {...}}` where a channel override
-// value of "everything" means "notify me about all messages".
+// value of "everything" means "notify me about all messages". highlight_words
+// is the same shape as muted_channels — a plain comma-separated list, this
+// time of custom keywords ("pingwords") that ping you like an @mention
+// whenever they appear in a message, even without being directly mentioned.
+// slock_desktop_notifications and slock_search_history are app-invented keys
+// (the prefs blob is a generic KV store, not limited to Slack's own known
+// keys) — used to sync purely client-side app settings across devices the
+// same real way rather than falling back to localStorage for them.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const empty: UserPrefs = {
     emojiUse: {},
     channelFrecency: {},
     mutedChannels: [],
     notifyAllChannels: [],
+    highlightWords: [],
+    desktopNotificationsEnabled: true,
+    searchHistory: [],
   };
   const data = await callSlack("users.prefs.get");
   if (!data.ok) return empty;
@@ -80,6 +93,11 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     .map((id: string) => id.trim())
     .filter(Boolean);
 
+  const highlightWords: string[] = (prefs.highlight_words ?? "")
+    .split(",")
+    .map((w: string) => w.trim())
+    .filter(Boolean);
+
   const notificationOverrides = parse("all_notifications_prefs")?.channels ?? {};
   const notifyAllChannels = Object.keys(notificationOverrides).filter(
     (id) =>
@@ -87,7 +105,19 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       notificationOverrides[id]?.mobile === "everything",
   );
 
-  return { emojiUse, channelFrecency, mutedChannels, notifyAllChannels };
+  const desktopNotificationsEnabled: boolean = prefs.slock_desktop_notifications !== "off";
+  const parsedSearchHistory = parse("slock_search_history");
+  const searchHistory: string[] = Array.isArray(parsedSearchHistory) ? parsedSearchHistory : [];
+
+  return {
+    emojiUse,
+    channelFrecency,
+    mutedChannels,
+    notifyAllChannels,
+    highlightWords,
+    desktopNotificationsEnabled,
+    searchHistory,
+  };
 }
 
 export async function setStatus(text: string, emoji: string, expiration: number): Promise<void> {
@@ -132,6 +162,37 @@ export async function setMutedChannels(channelIds: string[]): Promise<void> {
     await callSlack("users.prefs.set", { name: "muted_channels", value: channelIds.join(",") });
   } catch {
     // non-fatal — mute still applies locally even if the sync fails
+  }
+}
+
+export async function setHighlightWords(words: string[]): Promise<void> {
+  // Same best-effort prefs-blob mechanism as setMutedChannels above.
+  try {
+    await callSlack("users.prefs.set", { name: "highlight_words", value: words.join(",") });
+  } catch {
+    // non-fatal — pingwords still apply locally even if the sync fails
+  }
+}
+
+export async function setDesktopNotificationsEnabled(enabled: boolean): Promise<void> {
+  try {
+    await callSlack("users.prefs.set", {
+      name: "slock_desktop_notifications",
+      value: enabled ? "on" : "off",
+    });
+  } catch {
+    // non-fatal — the setting still applies locally even if the sync fails
+  }
+}
+
+export async function setSearchHistory(queries: string[]): Promise<void> {
+  try {
+    await callSlack("users.prefs.set", {
+      name: "slock_search_history",
+      value: JSON.stringify(queries),
+    });
+  } catch {
+    // non-fatal — history still applies locally even if the sync fails
   }
 }
 

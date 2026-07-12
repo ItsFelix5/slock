@@ -1,4 +1,4 @@
-import type { Channel, MessageShortcut } from "@slock/slack-api";
+import type { MessageShortcut } from "@slock/slack-api";
 import {
   fetchBootstrap,
   fetchMessageShortcuts,
@@ -8,27 +8,32 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createResource, createRoot } from "solid-js";
 import { EMPTY_FILTERS, type SearchFilters } from "../searchQuery";
-import { createActivitySlice } from "./activity";
-import { createCanvasSlice } from "./canvas";
-import { createChannelsSlice } from "./channels";
-import { createCommandsSlice } from "./commands";
-import { createDmsSlice } from "./dms";
-import { actionFeedback } from "./feedback";
-import { createLaterSlice } from "./later";
-import { createMessagesSlice } from "./messages";
-import { createPinnedSlice } from "./pinned";
-import { createPreferencesSlice } from "./preferences";
-import { createRealtimeSlice } from "./realtime";
-import type { Nav, View } from "./types";
-import { createTypingSlice } from "./typing";
-import { createUnreadSlice } from "./unread";
-import { createUsageSlice } from "./usage";
-import { createUsersSlice } from "./users";
-import { createViewStateSlice } from "./viewState";
+import { channelDisplayName } from "./slices/channelDisplayName";
+import { createCanvasSlice } from "./slices/entities/canvas";
+import { createChannelsSlice } from "./slices/entities/channels";
+import { createDmsSlice } from "./slices/entities/dms";
+import { createPinnedSlice } from "./slices/entities/pinned";
+import { createUsersSlice } from "./slices/entities/users";
+import { actionFeedback } from "./slices/feedback";
+import { createActivitySlice } from "./slices/messaging/activity";
+import { createMessagesSlice } from "./slices/messaging/messages";
+import { createRealtimeSlice } from "./slices/messaging/realtime";
+import { createTypingSlice } from "./slices/messaging/typing";
+import { createUnreadSlice } from "./slices/messaging/unread";
+import { createCommandsSlice } from "./slices/session/commands";
+import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
+import { createLaterSlice } from "./slices/session/later";
+import { createPreferencesSlice } from "./slices/session/preferences";
+import { createSearchHistorySlice } from "./slices/session/searchHistory";
+import { createUsageSlice } from "./slices/session/usage";
+import { createViewStateSlice } from "./slices/session/viewState";
+import type { Nav, View } from "./slices/types";
 
-export { actionFeedback } from "./feedback";
-export { REMINDER_OPTIONS } from "./messages";
-export type { MessageLocation, Nav, ThreadRef, View } from "./types";
+export { channelDisplayName } from "./slices/channelDisplayName";
+export { actionFeedback } from "./slices/feedback";
+export { isPingingActivity } from "./slices/messaging/activity";
+export { REMINDER_OPTIONS } from "./slices/messaging/messages";
+export type { MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);
@@ -82,6 +87,8 @@ function setup() {
     setLastReadByChannel: unread.setLastReadByChannel,
     patchChannel: channels.patchChannel,
   });
+  const desktopNotifications = createDesktopNotificationsSlice({ userPrefs: usage.userPrefs });
+  const searchHistory = createSearchHistorySlice({ userPrefs: usage.userPrefs });
   const later = createLaterSlice();
   const dms = createDmsSlice({
     bootstrap,
@@ -117,6 +124,7 @@ function setup() {
     closedDmIds: dms.closedDmIds,
     setClosedDmIds: dms.setClosedDmIds,
     isChannelNotifyAll: preferences.isChannelNotifyAll,
+    matchingHighlightWord: preferences.matchingHighlightWord,
     pushActivity: activity.pushActivity,
     messagesByChannel: messages.messagesByChannel,
     setMessagesByChannel: messages.setMessagesByChannel,
@@ -181,7 +189,8 @@ function setup() {
   }
 
   async function markAllAsRead() {
-    const now = String(Date.now() / 1000);
+    const nowMs = Date.now();
+    const now = String(nowMs / 1000);
     const targets = [
       ...channels
         .channels()
@@ -191,6 +200,7 @@ function setup() {
     ];
     for (const id of targets) {
       unread.clearChannelUnread(id);
+      unread.setLastReadByChannel(id, nowMs);
       markChannelRead(id, now).catch(() => {});
     }
   }
@@ -212,6 +222,17 @@ function setup() {
   unread.wireReadTracking({
     activeView: viewState.activeView,
     messagesByChannel: messages.messagesByChannel,
+  });
+
+  desktopNotifications.wireNotifications({
+    activityItems: activity.activityItems,
+    userById: users.userById,
+    channelById: channels.channelById,
+    channelDisplayName,
+    isChannelMuted: preferences.isChannelMuted,
+    isDndActive: preferences.isDndActive,
+    activeView: viewState.activeView,
+    openChannelPeek,
   });
 
   return {
@@ -307,6 +328,9 @@ function setup() {
     toggleNotifyAllChannel: preferences.toggleNotifyAllChannel,
     mutedChannels: preferences.mutedChannels,
     notifyAllChannels: preferences.notifyAllChannels,
+    highlightWords: preferences.highlightWords,
+    addHighlightWord: preferences.addHighlightWord,
+    removeHighlightWord: preferences.removeHighlightWord,
     createChannelSection: channels.createChannelSection,
     renameChannelSection: channels.renameChannelSection,
     deleteChannelSection: channels.deleteChannelSection,
@@ -327,6 +351,15 @@ function setup() {
     handleSlashCommand: commands.handleSlashCommand,
     typingUsersInChannel: typing.typingUsersInChannel,
     typingUsersInThread: typing.typingUsersInThread,
+    desktopNotificationsSupported: desktopNotifications.supported,
+    desktopNotificationPermission: desktopNotifications.permission,
+    desktopNotificationsEnabled: desktopNotifications.enabled,
+    requestDesktopNotificationPermission: desktopNotifications.requestPermission,
+    setDesktopNotificationsEnabled: desktopNotifications.setNotificationsEnabled,
+    searchHistory: searchHistory.searchHistory,
+    recordSearch: searchHistory.recordSearch,
+    removeSearchHistoryEntry: searchHistory.removeSearchHistoryEntry,
+    clearSearchHistory: searchHistory.clearSearchHistory,
   };
 }
 
@@ -423,6 +456,9 @@ export const {
   toggleNotifyAllChannel,
   mutedChannels,
   notifyAllChannels,
+  highlightWords,
+  addHighlightWord,
+  removeHighlightWord,
   createChannelSection,
   renameChannelSection,
   deleteChannelSection,
@@ -443,20 +479,13 @@ export const {
   handleSlashCommand,
   typingUsersInChannel,
   typingUsersInThread,
+  desktopNotificationsSupported,
+  desktopNotificationPermission,
+  desktopNotificationsEnabled,
+  requestDesktopNotificationPermission,
+  setDesktopNotificationsEnabled,
+  searchHistory,
+  recordSearch,
+  removeSearchHistoryEntry,
+  clearSearchHistory,
 } = createRoot(setup);
-
-// Some channels arrive without a human-readable name (shared/external channels,
-// or ones we can only see by id) — channelById already kicks off a background
-// Flaron lookup for those, but this covers the gap before it resolves (or if
-// Flaron doesn't know the id either). Fall back to a shareable Flaron permalink
-// for public channels, and to the bare id only when even that wouldn't resolve
-// (private channels we can't publicly link).
-export function channelDisplayName(
-  channel: Pick<Channel, "id" | "name" | "private"> | undefined,
-  fallbackId?: string,
-): string {
-  const name = channel?.name?.trim();
-  if (name) return name;
-  const id = channel?.id ?? fallbackId ?? "";
-  return id;
-}

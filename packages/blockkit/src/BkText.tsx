@@ -1,5 +1,5 @@
 import type { TextObject } from "@slock/slack-api";
-import EmojiText from "./EmojiText";
+import EmojiText from "./emoji/EmojiText";
 import Mrkdwn from "./mrkdwn";
 
 export default function BkText(props: { text: TextObject | undefined; class?: string }) {

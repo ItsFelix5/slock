@@ -178,6 +178,17 @@
   background: var(--active-bg);
 }
 
+.settings-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.settings-add-row .search-input {
+  flex: 1;
+}
+
 /* List items */
 .settings-list {
   display: flex;
@@ -226,6 +237,17 @@
 .settings-list-row-action:hover {
   color: var(--text-primary);
   text-decoration: underline;
+}
+
+.settings-add-row .settings-list-row-action {
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+.settings-add-row .settings-list-row-action:disabled {
+  color: var(--text-dim);
+  cursor: default;
+  text-decoration: none;
 }
 
 /* Theme presets */

@@ -1,7 +1,7 @@
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "./context";
-import EmojiText from "./EmojiText";
+import EmojiText from "./emoji/EmojiText";
 
 // Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
 // cases around emphasis boundaries), but covers everything real workspaces actually send:
