@@ -75,7 +75,7 @@ function setup() {
     channels: channels.channels,
     userPrefs: usage.userPrefs,
   });
-  const unread = createUnreadSlice({ patchChannel: channels.patchChannel });
+  const unread = createUnreadSlice({ patchChannel: channels.patchChannel, bootstrap });
   const activity = createActivitySlice({
     currentUser: users.currentUser,
     lastReadByChannel: unread.lastReadByChannel,

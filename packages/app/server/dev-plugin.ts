@@ -7,13 +7,14 @@ import {
   configResponse,
   fileProxyResponse,
   fileUploadProxyResponse,
+  handleClientDisconnect,
   handleClientMessage,
   slackEdgeRelayResponse,
   slackRelayResponse,
   startGateway,
   statusMessage,
   unfurlResponse,
-} from "./relay-core";
+} from "./relay-core.ts";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -159,8 +160,11 @@ export function slackRelayPlugin(): Plugin {
       wss.on("connection", (ws) => {
         clients.add(ws);
         ws.send(statusMessage());
-        ws.on("message", (raw) => handleClientMessage(String(raw)));
-        ws.on("close", () => clients.delete(ws));
+        ws.on("message", (raw) => handleClientMessage(String(raw), ws));
+        ws.on("close", () => {
+          clients.delete(ws);
+          handleClientDisconnect(ws);
+        });
       });
 
       server.httpServer?.on("upgrade", (req, socket, head) => {

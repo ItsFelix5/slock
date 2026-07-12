@@ -20,7 +20,11 @@ const MEMBER_FILTERS: { key: MemberFilter; label: string }[] = [
   { key: "apps", label: "Apps" },
 ];
 
-export default function ChannelMembersTab(props: { channelId: string; channelName: string }) {
+export default function ChannelMembersTab(props: {
+  channelId: string;
+  channelName: string;
+  onMembersChanged?: () => void;
+}) {
   const [query, setQuery] = createSignal("");
   const [filter, setFilter] = createSignal<MemberFilter>("everyone");
   // Kept per-filter (rather than one shared list) so switching Everyone ->
@@ -128,6 +132,7 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
             : [user, ...prev.everyone],
         }));
       }
+      props.onMembersChanged?.();
     }
   };
 
@@ -139,6 +144,7 @@ export default function ChannelMembersTab(props: { channelId: string; channelNam
         apps: prev.apps.filter((u) => u.id !== user.id),
       }));
       setManagerIds((prev) => prev.filter((id) => id !== user.id));
+      props.onMembersChanged?.();
     }
   };
 

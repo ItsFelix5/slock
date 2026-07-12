@@ -82,7 +82,7 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
           />
         )}
       </Show>
-      <Show when={a.imageUrl && !a.videoUrl}>
+      <Show when={!a.videoUrl && a.imageUrl}>
         {(url) => <ZoomableImage class="attachment-image" src={imageSrc(url())} alt="" />}
       </Show>
       <Show when={a.footer}>

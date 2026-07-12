@@ -7,6 +7,7 @@ import {
   configResponse,
   fileProxyResponse,
   fileUploadProxyResponse,
+  handleClientDisconnect,
   handleClientMessage,
   slackEdgeRelayResponse,
   slackRelayResponse,
@@ -99,9 +100,10 @@ Bun.serve({
     },
     close(ws) {
       clients.delete(ws);
+      handleClientDisconnect(ws);
     },
-    message(_ws, raw) {
-      handleClientMessage(String(raw));
+    message(ws, raw) {
+      handleClientMessage(String(raw), ws);
     },
   },
 });

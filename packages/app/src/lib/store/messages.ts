@@ -424,9 +424,12 @@ export function createMessagesSlice(deps: {
 
   function markCurrentChannelRead(channelId: string) {
     deps.clearChannelUnread(channelId);
+    // History may not be loaded (e.g. marking read from the sidebar without ever
+    // opening the channel) — fall back to "now" so Slack's real read cursor still
+    // advances instead of only clearing the local dot.
     const list = messagesByChannel[channelId];
-    const latest = list?.[list.length - 1]?.ts;
-    if (latest) markChannelRead(channelId, latest).catch(() => {});
+    const latest = list?.[list.length - 1]?.ts ?? (Date.now() / 1000).toFixed(6);
+    markChannelRead(channelId, latest).catch(() => {});
   }
 
   function markMessageUnread(channelId: string, ts: string) {
