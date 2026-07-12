@@ -1,7 +1,6 @@
 import {
   createCopyFeedback,
   Icon,
-  type IconName,
   InlineFeedback,
   Overlay,
   PanelHeader,
@@ -21,23 +20,13 @@ import ChannelMembersTab from "./ChannelMembersTab";
 import "./ChannelDetails.css";
 import ChannelSettingsTab from "./ChannelSettingsTab";
 
-type Tab = "about" | "members" | "tabs" | "settings";
+type Tab = "about" | "members" | "settings";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "about", label: "About" },
   { key: "members", label: "Members" },
-  { key: "tabs", label: "Tabs" },
   { key: "settings", label: "Settings" },
 ];
-
-const TAB_ICONS: Record<string, IconName> = {
-  messages: "message-filled",
-  canvas: "canvas-filled",
-  files: "files-filled",
-  bookmarks: "bookmark-filled",
-  lists: "lists-filled",
-  workflows: "bolt-filled",
-};
 
 export default function ChannelDetails() {
   const [tab, setTab] = createSignal<Tab>("about");
@@ -244,30 +233,6 @@ export default function ChannelDetails() {
                       channelName={d().name}
                       onMembersChanged={refetch}
                     />
-                  </Show>
-
-                  <Show when={tab() === "tabs"}>
-                    {/* Read-only: tab layout comes from conversations.info's
-                    properties.tabs, but no non-admin write endpoint for it is
-                    known — nothing to guess a mutation against. */}
-                    <div class="channel-details-tab-list">
-                      <For
-                        each={d().tabs}
-                        fallback={
-                          <p class="channel-details-empty">This channel has no extra tabs.</p>
-                        }
-                      >
-                        {(t) => (
-                          <div class="channel-details-tab-row">
-                            <Icon name={TAB_ICONS[t.type] ?? "open-in-tab"} size={15} />
-                            <span>
-                              {t.label ?? t.type.charAt(0).toUpperCase() + t.type.slice(1)}
-                            </span>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                    <p class="channel-details-meta">Tab layout can only be changed in Slack.</p>
                   </Show>
 
                   <Show when={tab() === "settings"}>

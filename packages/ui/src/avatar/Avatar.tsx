@@ -21,7 +21,13 @@ export default function Avatar(props: AvatarProps) {
 
   return (
     <span class={`avatar ${sizeClass()}`} style={{ background: props.user.avatarColor }}>
-      <img class="avatar-img" src={props.user.avatarUrl} alt="?" loading="lazy" />
+      <img
+        class="avatar-img"
+        src={props.user.avatarUrl}
+        alt="?"
+        loading="lazy"
+        fetchpriority="low"
+      />
       <Show when={props.showPresence}>
         <span class={`avatar-presence-dot ${presenceClass()}`} />
       </Show>

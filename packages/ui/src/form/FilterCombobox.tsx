@@ -2,6 +2,7 @@ import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { fuzzySearch } from "../fuzzy";
 import { useClickOutside } from "../useClickOutside";
 import "./FilterCombobox.css";
+import Icon from "../media/Icon";
 
 export interface ComboItem {
   id: string;
@@ -96,7 +97,10 @@ export default function FilterCombobox(props: {
               props.onSelect(undefined);
             }}
           >
-            {selectedLabel()} <span class="filter-combobox-clear">✕</span>
+            {selectedLabel()}{" "}
+            <span class="filter-combobox-clear">
+              <Icon name="close" size={12} />
+            </span>
           </button>
         }
       >

@@ -72,6 +72,8 @@ export function createPreferencesSlice(deps: {
       await setMutedChannels(allMuted);
     } catch (err) {
       console.error("Failed to set channel mute preference", err);
+      actionFeedback.flash(channelId, "Failed to update mute setting.", "error");
+      setMutedChannelIds(channelId, !next);
     }
   }
 
@@ -102,11 +104,14 @@ export function createPreferencesSlice(deps: {
   );
 
   async function persistHighlightWords(words: string[]) {
+    const previous = highlightWords();
     setHighlightWordsSignal(words);
     try {
       await setHighlightWordsApi(words);
     } catch (err) {
       console.error("Failed to set pingwords", err);
+      actionFeedback.flash("pingwords", "Failed to update pingwords.", "error");
+      setHighlightWordsSignal(previous);
     }
   }
 

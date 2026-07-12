@@ -1,7 +1,8 @@
-import { emojiUrl, formatSlackDate } from "@slock/blockkit";
-import type { Block } from "@slock/slack-api";
+import { emojiUrl, formatSlackDate, parseUserProfileLink } from "@slock/blockkit";
+import { type Block, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
 import { standardEmojiUnicode } from "../../../lib/emojiSearch";
 import { channelById, channelDisplayName, userById } from "../../../lib/store";
+import { createLinkChip, createLinkSpan, serializeLinkElement } from "./linkChip";
 
 // The composer edits a live DOM tree (contenteditable) instead of a raw mrkdwn
 // string, so bold/italic/etc. render for real as you type instead of showing
@@ -49,6 +50,18 @@ export function createMentionChip(id: string, label: string): HTMLSpanElement {
   chip.className = "composer-chip";
   chip.contentEditable = "false";
   chip.dataset.mentionId = id;
+  chip.textContent = `@${label}`;
+  return chip;
+}
+
+// A "@/" silent mention — a grey chip that serializes to a plain link to the
+// person's Slack profile (see fragmentToMrkdwn) instead of a real `<@id>`
+// mention, so sending it never pings them.
+export function createUserLinkChip(id: string, label: string): HTMLSpanElement {
+  const chip = document.createElement("span");
+  chip.className = "composer-chip composer-chip-link";
+  chip.contentEditable = "false";
+  chip.dataset.userLinkId = id;
   chip.textContent = `@${label}`;
   return chip;
 }
@@ -124,8 +137,21 @@ function appendToken(parent: Node, token: string) {
       return;
     }
   }
-  // Usergroup/broadcast/link tokens aren't editable as chips here — keep
-  // them as literal text so an old draft containing one still round-trips.
+  if (!token.startsWith("!")) {
+    const [url, label] = token.split("|");
+    const userId = parseUserProfileLink(url);
+    if (userId) {
+      const name = userById(userId)?.name ?? label?.replace(/^@/, "") ?? userId;
+      parent.appendChild(createUserLinkChip(userId, name));
+      return;
+    }
+    if (/^https?:\/\//.test(url)) {
+      parent.appendChild(label && label !== url ? createLinkChip(url, label) : createLinkSpan(url));
+      return;
+    }
+  }
+  // Usergroup/broadcast tokens aren't editable as chips here — keep them as
+  // literal text so an old draft containing one still round-trips.
   appendText(parent, `<${token}>`);
 }
 
@@ -262,7 +288,14 @@ function serializeNode(node: Node): string {
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
   const el = node as HTMLElement;
   if (el.dataset.mentionId) return `<@${el.dataset.mentionId}>`;
+  if (el.dataset.userLinkId) {
+    const domain = getCachedWorkspaceDomain();
+    const label = (el.textContent ?? `@${el.dataset.userLinkId}`).replace(/\|/g, "");
+    if (!domain) return label;
+    return `<${userProfileUrl(domain, el.dataset.userLinkId)}|${label}>`;
+  }
   if (el.dataset.channelId) return `<#${el.dataset.channelId}|${el.dataset.channelName}>`;
+  if (el.dataset.linkUrl) return serializeLinkElement(el);
   if (el.dataset.emojiName) return `:${el.dataset.emojiName}:`;
   if (el.dataset.dateTs) {
     const format = el.dataset.dateFormat || DEFAULT_DATE_FORMAT;

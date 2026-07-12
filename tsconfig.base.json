@@ -13,6 +13,9 @@
     "moduleDetection": "force",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+
 
     /* Linting */
     "noUnusedLocals": true,

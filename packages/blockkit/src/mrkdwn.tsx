@@ -2,6 +2,7 @@ import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "./context";
 import EmojiText from "./emoji/EmojiText";
+import { parseUserProfileLink } from "./userProfileLink";
 
 // Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
 // cases around emphasis boundaries), but covers everything real workspaces actually send:
@@ -15,6 +16,7 @@ type InlineNode =
   | { t: "strike"; text: string }
   | { t: "code"; text: string }
   | { t: "link"; url: string; label?: string }
+  | { t: "userlink"; id: string; label?: string; url: string }
   | { t: "user"; id: string }
   | { t: "channel"; id: string; label?: string }
   | { t: "usergroup"; id: string }
@@ -63,7 +65,8 @@ function parseToken(token: string): InlineNode {
     return { t: "text", text: `<${token}>` };
   }
   const [url, label] = token.split("|");
-  return { t: "link", url, label };
+  const userId = parseUserProfileLink(url);
+  return userId ? { t: "userlink", id: userId, label, url } : { t: "link", url, label };
 }
 
 function parseInline(text: string): InlineNode[] {
@@ -175,6 +178,7 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
       classList={{
         "bk-mention-self": isUser && !!user()?.isSelf,
         "bk-mention-inaccessible": isInaccessible(),
+        "bk-mention-link": isUser && props.label !== undefined,
       }}
       onClick={onClick}
     >
@@ -217,6 +221,8 @@ function InlineNodeView(props: { node: InlineNode }) {
           {n.label ? <EmojiText text={n.label} /> : n.url}
         </a>
       );
+    case "userlink":
+      return <Mention id={n.id} kind="user" label={n.label} />;
     case "user":
       return <Mention id={n.id} kind="user" />;
     case "channel":

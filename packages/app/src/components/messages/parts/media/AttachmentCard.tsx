@@ -1,21 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
-import { fileProxyUrl } from "@slock/slack-api";
 import { ZoomableImage } from "@slock/ui";
 import { For, Show } from "solid-js";
 import "./AttachmentCard.css";
-
-// A slack-hosted image proxies through our cookie-authenticated file route;
-// anything else (most link-unfurl previews) is a normal externally-hosted URL.
-function imageSrc(url: string): string {
-  try {
-    const host = new URL(url).hostname;
-    if (host.endsWith(".slack.com") || host.endsWith(".slack-files.com")) return fileProxyUrl(url);
-  } catch {
-    // relative or malformed URL; fall through to using it as-is
-  }
-  return url;
-}
 
 export default function AttachmentCard(props: { attachment: Attachment }) {
   const a = props.attachment;
@@ -73,7 +60,7 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
         {(url) => (
           <video
             class="attachment-video"
-            src={imageSrc(url())}
+            src={url()}
             controls
             width={a.videoWidth}
             height={a.videoHeight}
@@ -83,7 +70,7 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
         )}
       </Show>
       <Show when={!a.videoUrl && a.imageUrl}>
-        {(url) => <ZoomableImage class="attachment-image" src={imageSrc(url())} alt="" />}
+        {(url) => <ZoomableImage class="attachment-image" src={url()} alt="" />}
       </Show>
       <Show when={a.footer}>
         <div class="attachment-footer">

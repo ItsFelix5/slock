@@ -2,9 +2,11 @@ import { Mrkdwn } from "@slock/blockkit";
 import { Icon, InlineFeedback, Menu } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
+import { ADDABLE_CHANNEL_TABS, channelTabsFeedbackKey } from "../../lib/channelTabMeta";
 import {
   actionFeedback,
   activeView,
+  addChannelTab,
   canvasByChannel,
   channelById,
   channelDisplayName,
@@ -15,8 +17,11 @@ import {
   moveChannelToSection,
   openChannelCanvas,
   openMessageSearch,
+  openPinnedPanel,
   openUserProfile,
+  removeChannelTab,
   sections,
+  tabsForChannel,
   toggleChannelStar,
   userById,
 } from "../../lib/store";
@@ -28,6 +33,7 @@ export default function ChannelHeader() {
   const [starMenuOpen, setStarMenuOpen] = createSignal(false);
   const [addingSection, setAddingSection] = createSignal(false);
   const [newSectionName, setNewSectionName] = createSignal("");
+  const [addTabOpen, setAddTabOpen] = createSignal(false);
 
   createEffect(() => {
     const v = activeView();
@@ -55,18 +61,22 @@ export default function ChannelHeader() {
   };
 
   const isChannel = () => activeView()?.kind === "channel";
+  const channelId = () => {
+    const v = activeView();
+    return v?.kind === "channel" ? v.id : null;
+  };
   const starred = () => {
     const v = activeView();
     return v?.kind === "channel" && isChannelStarred(v.id);
   };
-  const canvas = () => {
-    const v = activeView();
-    return v?.kind === "channel" ? canvasByChannel[v.id] : undefined;
-  };
   const currentSectionId = () => {
     const v = activeView();
     if (!v) return null;
-    return sections()?.find((s) => s.channelIds.includes(v.id))?.id ?? null;
+    return (
+      sections()
+        ?.filter((s) => s.type === "standard")
+        .find((s) => s.channelIds.includes(v.id))?.id ?? null
+    );
   };
 
   const submitNewSectionFromStar = async () => {
@@ -85,6 +95,9 @@ export default function ChannelHeader() {
     if (!v) return;
     openMessageSearch("", v.kind === "channel" ? { inChannelId: v.id } : {});
   };
+
+  const availableTabs = (id: string) =>
+    ADDABLE_CHANNEL_TABS.filter((t) => !tabsForChannel(id).includes(t.type));
 
   const viewDmUser = () => {
     const v = activeView();
@@ -133,7 +146,7 @@ export default function ChannelHeader() {
               </span>
               Starred
             </button>
-            <For each={sections()}>
+            <For each={sections()?.filter((s) => s.type === "standard")}>
               {(s) => (
                 <button
                   type="button"
@@ -211,19 +224,6 @@ export default function ChannelHeader() {
           )}
         </Show>
         <div class="channel-header-actions">
-          <Show when={isChannel() && canvas()}>
-            <button
-              type="button"
-              class="channel-header-btn"
-              title="Canvas"
-              onClick={() => {
-                const v = activeView();
-                if (v) openChannelCanvas(v.id);
-              }}
-            >
-              <Icon name="code-block" size={16} />
-            </button>
-          </Show>
           <button
             type="button"
             class="channel-header-btn"
@@ -261,6 +261,92 @@ export default function ChannelHeader() {
           </Show>
         </div>
       </div>
+      <Show when={channelId() && false}>
+        {(id) => (
+          <div class="channel-header-tabs" role="toolbar" aria-label="Channel tabs">
+            <span class="channel-header-tab-current" aria-current="true">
+              <Icon name="message-filled" size={14} />
+              Messages
+            </span>
+            <Show when={canvasByChannel[id()]?.fileId}>
+              <button
+                type="button"
+                class="channel-header-tab-real"
+                onClick={() => openChannelCanvas(id())}
+              >
+                <Icon name="canvas-filled" size={14} />
+                Canvas
+              </button>
+            </Show>
+            <For each={tabsForChannel(id())}>
+              {(type) => {
+                const meta =
+                  ADDABLE_CHANNEL_TABS.find((t) => t.type === type) ?? ADDABLE_CHANNEL_TABS[0];
+                return (
+                  <span class="channel-header-tab">
+                    <button
+                      type="button"
+                      class="channel-header-tab-btn"
+                      onClick={() => openPinnedPanel(id())}
+                    >
+                      <Icon name={meta.icon} size={14} />
+                      {meta.label}
+                    </button>
+                    <button
+                      type="button"
+                      class="channel-header-tab-remove"
+                      title={`Remove ${meta.label} tab`}
+                      aria-label={`Remove ${meta.label} tab`}
+                      onClick={() => removeChannelTab(id(), type)}
+                    >
+                      <Icon name="close-filled" size={11} />
+                    </button>
+                  </span>
+                );
+              }}
+            </For>
+            <Show when={availableTabs(id()).length > 0}>
+              <Menu
+                class="channel-header-tab-add-wrap"
+                panelClass="channel-header-tab-add-menu"
+                open={addTabOpen()}
+                onClose={() => setAddTabOpen(false)}
+                trigger={
+                  <button
+                    type="button"
+                    class="channel-header-tab-add"
+                    title="Add a tab"
+                    aria-label="Add a tab"
+                    onClick={() => setAddTabOpen(!addTabOpen())}
+                  >
+                    <Icon name="plus-filled" size={12} />
+                  </button>
+                }
+              >
+                <For each={availableTabs(id())}>
+                  {(t) => (
+                    <button
+                      type="button"
+                      class="channel-header-menu-item"
+                      onClick={() => {
+                        addChannelTab(id(), t.type);
+                        setAddTabOpen(false);
+                      }}
+                    >
+                      <Icon name={t.icon} size={14} />
+                      {t.label}
+                    </button>
+                  )}
+                </For>
+              </Menu>
+            </Show>
+            <InlineFeedback
+              feedback={actionFeedback.get(channelTabsFeedbackKey(id()))}
+              class="channel-header-tabs-feedback"
+            />
+          </div>
+        )}
+      </Show>
     </div>
   );
 }

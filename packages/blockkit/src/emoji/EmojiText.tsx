@@ -1,5 +1,5 @@
 import { createMemo, For, Show } from "solid-js";
-import { STANDARD_EMOJI } from "./emoji";
+import { resolveStandardEmoji } from "./emoji";
 import { emojiUrl } from "./emojiCache";
 import "./EmojiText.css";
 
@@ -29,7 +29,7 @@ export default function EmojiText(props: { text: string }) {
         // while that's resolving (or if it resolves to nothing), fall back to the
         // standard unicode glyph so known emoji never flash as raw `:name:` text.
         const url = createMemo(() => emojiUrl(part.name));
-        const unicode = STANDARD_EMOJI[part.name];
+        const unicode = resolveStandardEmoji(part.name);
         return (
           <Show
             when={url()}

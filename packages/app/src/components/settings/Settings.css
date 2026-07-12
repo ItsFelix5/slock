@@ -250,6 +250,13 @@
   text-decoration: none;
 }
 
+/* Account tab */
+.settings-account-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* Theme presets */
 .settings-preset-group {
   display: flex;

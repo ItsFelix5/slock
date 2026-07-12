@@ -1,14 +1,16 @@
-import { Overlay, useEscapeClose } from "@slock/ui";
+import { Icon, Overlay, useEscapeClose } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
+import SettingsAccountTab from "./SettingsAccountTab";
 import SettingsAppearanceTab from "./SettingsAppearanceTab";
 import SettingsDebugTab from "./SettingsDebugTab";
 import SettingsNotificationsTab from "./SettingsNotificationsTab";
 import SettingsShortcutsTab from "./SettingsShortcutsTab";
 import "./Settings.css";
 
-type Tab = "notifications" | "appearance" | "shortcuts" | "debugging";
+type Tab = "account" | "notifications" | "appearance" | "shortcuts" | "debugging";
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: "account", label: "Account" },
   { key: "notifications", label: "Notifications" },
   { key: "appearance", label: "Appearance" },
   { key: "shortcuts", label: "Shortcuts" },
@@ -29,7 +31,7 @@ export default function Settings(props: { onClose: () => void }) {
           onClick={props.onClose}
           title="Close"
         >
-          ✕
+          <Icon name="close" size={12} />
         </button>
 
         <div class="settings-nav">
@@ -48,6 +50,10 @@ export default function Settings(props: { onClose: () => void }) {
         </div>
 
         <div class="settings-content">
+          <Show when={tab() === "account"}>
+            <SettingsAccountTab />
+          </Show>
+
           <Show when={tab() === "notifications"}>
             <SettingsNotificationsTab />
           </Show>

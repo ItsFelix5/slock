@@ -1,8 +1,9 @@
-import type { BrowsableChannel, Channel } from "@slock/slack-api";
+import type { BrowsableChannel, Channel, ChannelSection } from "@slock/slack-api";
 import {
   createSection as apiCreateSection,
   deleteSection as apiDeleteSection,
   renameSection as apiRenameSection,
+  reorderSection as apiReorderSection,
   updateSectionChannels as apiUpdateSectionChannels,
   fetchBrowsableChannels,
   fetchFlaronChannel,
@@ -112,7 +113,8 @@ export function createChannelsSlice(deps: {
 
   // ---- sections ----
 
-  const [sections, { refetch: refetchSections }] = createResource(fetchSections);
+  const [sections, { refetch: refetchSections, mutate: mutateSections }] =
+    createResource(fetchSections);
 
   async function createChannelSection(
     name: string,
@@ -145,6 +147,32 @@ export function createChannelsSlice(deps: {
     await refetchSections();
   }
 
+  // Moves `sectionId` to sit directly above `nextSectionId` (or to the
+  // bottom of the list when null). Reordered optimistically so a drag feels
+  // instant; rolled back if the server call fails.
+  async function reorderChannelSection(sectionId: string, nextSectionId: string | null) {
+    const current = sections() ?? [];
+    const moved = current.find((s) => s.id === sectionId);
+    if (!moved) return;
+    const without = current.filter((s) => s.id !== sectionId);
+    const insertAt = nextSectionId ? without.findIndex((s) => s.id === nextSectionId) : -1;
+    const target = insertAt === -1 ? without.length : insertAt;
+    const optimistic: ChannelSection[] = [
+      ...without.slice(0, target),
+      moved,
+      ...without.slice(target),
+    ];
+    mutateSections(optimistic);
+
+    const ok = await apiReorderSection(sectionId, nextSectionId);
+    if (!ok) {
+      actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
+      mutateSections(current);
+      return;
+    }
+    await refetchSections();
+  }
+
   function isChannelStarred(channelId: string): boolean {
     return !!starredChannelIds[channelId];
   }
@@ -163,7 +191,9 @@ export function createChannelsSlice(deps: {
     // Starred and sectioned are mutually exclusive in the real client — starring a
     // channel pulls it out of whatever section it was in.
     if (!currentlyStarred) {
-      const from = (sections() ?? []).find((s) => s.channelIds.includes(channelId));
+      const from = (sections() ?? []).find(
+        (s) => s.type === "standard" && s.channelIds.includes(channelId),
+      );
       if (from) {
         await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
         await refetchSections();
@@ -175,7 +205,9 @@ export function createChannelsSlice(deps: {
   // between two custom sections is a remove-then-insert pair rather than one call.
   async function moveChannelToSection(channelId: string, targetSectionId: string | null) {
     const current = sections() ?? [];
-    const from = current.find((s) => s.channelIds.includes(channelId) && s.id !== targetSectionId);
+    const from = current.find(
+      (s) => s.type === "standard" && s.channelIds.includes(channelId) && s.id !== targetSectionId,
+    );
     if (from) {
       const ok = await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
       if (!ok) {
@@ -221,6 +253,7 @@ export function createChannelsSlice(deps: {
     createChannelSection,
     renameChannelSection,
     deleteChannelSection,
+    reorderChannelSection,
     moveChannelToSection,
     isChannelStarred,
     toggleChannelStar,

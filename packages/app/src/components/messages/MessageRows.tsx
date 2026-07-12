@@ -28,7 +28,6 @@ import AttachmentCard from "./parts/media/AttachmentCard";
 import MessageFiles from "./parts/media/MessageFiles";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
-import SystemMessage from "./parts/SystemMessage";
 import "./MessageList.css";
 
 export default function MessageRows(props: {
@@ -43,8 +42,12 @@ export default function MessageRows(props: {
     <For each={props.messages}>
       {(msg, i) => {
         const prev = () => props.messages[i() - 1];
-        const showDayDivider = () => {
+        const dayChanged = () => {
           const p = prev();
+          // The thread parent already carries its own timestamp in the meta
+          // row, and the reply right after it sits directly under the
+          // "N replies" divider — a date divider there is redundant either way.
+          if (props.threadTs && (!p || p.ts === props.threadTs)) return false;
           return !p || p.day !== msg.day;
         };
         const showUnreadDivider = () => {
@@ -58,6 +61,11 @@ export default function MessageRows(props: {
           if (parseFloat(msg.ts) * 1000 <= anchor) return false;
           return !p || parseFloat(p.ts) * 1000 <= anchor;
         };
+        // When the date change lands on the same message as the unread
+        // marker, fold it into that (red) divider instead of stacking a
+        // separate gray one right above it.
+        const showDayDivider = () => dayChanged() && !showUnreadDivider();
+        const showRepliesDivider = () => !!props.threadTs && !prev() && (msg.replyCount ?? 0) > 0;
         const replyRef = createMemo(() => parseReplyLink(msg.text));
         const referencedMessage = createMemo(() =>
           props.messages.find((m) => m.ts === replyRef()?.ts),
@@ -135,213 +143,220 @@ export default function MessageRows(props: {
             </Show>
             <Show when={showUnreadDivider()}>
               <div class="unread-divider">
-                <span>New messages</span>
+                <span>{dayChanged() ? `${msg.day} · New messages` : "New messages"}</span>
               </div>
             </Show>
-            <Show
-              when={msg.kind !== "system"}
-              fallback={<SystemMessage text={msg.text} time={msg.time} />}
+            <Show when={replyRef()}>
+              <ReplyReferenceRow
+                message={referencedMessage()}
+                onJump={() => props.onJumpToMessage?.(replyRef()?.ts ?? "")}
+              />
+            </Show>
+            <Show when={showThreadContext()}>
+              <ReplyReferenceRow
+                message={threadParent()}
+                icon="threads"
+                onJump={() => props.onOpenThread?.(msg.threadTs ?? "")}
+              />
+            </Show>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: right-click-to-open-context-menu is a mouse-only convenience alongside the row's own interactive children */}
+            <div
+              class="message-row"
+              classList={{
+                compact: sameAuthorAsPrev(),
+                deleted: msg.deleted,
+                ephemeral: msg.isEphemeral,
+                saved: isSavedForLater(msg.ts),
+              }}
+              data-message-ts={msg.ts}
+              onContextMenu={(e) => {
+                if (!msg.deleted && !msg.isEphemeral && !isEditing()) ctxMenu.open(e);
+              }}
             >
-              <Show when={replyRef()}>
-                <ReplyReferenceRow
-                  message={referencedMessage()}
-                  onJump={() => props.onJumpToMessage?.(replyRef()?.ts ?? "")}
+              <Show when={!msg.deleted && !msg.isEphemeral}>
+                <MessageActionsBar
+                  channelId={props.channelId}
+                  msg={msg}
+                  threadTs={props.threadTs}
+                  onOpenThread={props.onOpenThread}
+                  onReplyLink={props.onReplyLink}
+                  onEditRequest={() => setIsEditing(true)}
                 />
-              </Show>
-              <Show when={showThreadContext()}>
-                <ReplyReferenceRow
-                  message={threadParent()}
-                  icon="threads"
-                  onJump={() => props.onOpenThread?.(msg.threadTs ?? "")}
-                />
-              </Show>
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: right-click-to-open-context-menu is a mouse-only convenience alongside the row's own interactive children */}
-              <div
-                class="message-row"
-                classList={{
-                  compact: sameAuthorAsPrev(),
-                  deleted: msg.deleted,
-                  ephemeral: msg.isEphemeral,
-                  saved: isSavedForLater(msg.ts),
-                }}
-                data-message-ts={msg.ts}
-                onContextMenu={(e) => {
-                  if (!msg.deleted && !msg.isEphemeral && !isEditing()) ctxMenu.open(e);
-                }}
-              >
-                <Show when={!msg.deleted && !msg.isEphemeral}>
-                  <MessageActionsBar
+                <ContextMenu
+                  open={ctxMenu.isOpen()}
+                  x={ctxMenu.x()}
+                  y={ctxMenu.y()}
+                  onClose={ctxMenu.close}
+                >
+                  <MessageActionsMenuItems
                     channelId={props.channelId}
                     msg={msg}
                     threadTs={props.threadTs}
-                    onOpenThread={props.onOpenThread}
-                    onReplyLink={props.onReplyLink}
                     onEditRequest={() => setIsEditing(true)}
-                  />
-                  <ContextMenu
-                    open={ctxMenu.isOpen()}
-                    x={ctxMenu.x()}
-                    y={ctxMenu.y()}
                     onClose={ctxMenu.close}
-                  >
-                    <MessageActionsMenuItems
-                      channelId={props.channelId}
-                      msg={msg}
-                      threadTs={props.threadTs}
-                      onEditRequest={() => setIsEditing(true)}
-                      onClose={ctxMenu.close}
-                    />
-                  </ContextMenu>
+                  />
+                </ContextMenu>
+              </Show>
+              <Show
+                when={!sameAuthorAsPrev()}
+                fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
+              >
+                <Show when={!msg.botName} fallback={avatarButton()}>
+                  <UserHoverCard userId={msg.userId}>{avatarButton()}</UserHoverCard>
                 </Show>
+              </Show>
+              <div class="message-body">
+                <Show when={!sameAuthorAsPrev()}>
+                  <div class="message-meta">
+                    <Show when={!msg.botName} fallback={authorButton()}>
+                      <UserHoverCard userId={msg.userId}>{authorButton()}</UserHoverCard>
+                    </Show>
+                    <Show when={user()?.statusEmoji}>
+                      {(emoji) => (
+                        <span class="message-status-emoji">
+                          <EmojiText text={emoji()} />
+                          <Show when={user()?.statusText}>
+                            <span class="message-status-tooltip">{user()?.statusText}</span>
+                          </Show>
+                        </span>
+                      )}
+                    </Show>
+                    <Show when={msg.botName}>
+                      &nbsp;
+                      <span class="message-bot-badge">APP</span>
+                    </Show>
+                    <Show when={msg.kind === "system"}>
+                      &nbsp;
+                      <span class="message-bot-badge">System</span>
+                    </Show>
+
+                    <span class="message-time">{msg.time}</span>
+                    <Show when={user()?.pronouns}>
+                      <span class="pronouns">•&nbsp;{user()?.pronouns}</span>
+                    </Show>
+                    <Show when={msg.isEphemeral}>
+                      <span class="message-ephemeral-badge">
+                        <Icon name="eye-closed" size={11} />
+                        Only visible to you
+                      </span>
+                    </Show>
+                    <Show when={isSavedForLater(msg.ts)}>
+                      <span class="message-saved-badge">
+                        <Icon name="bookmark-filled" size={11} />
+                        Saved
+                      </span>
+                    </Show>
+                  </div>
+                </Show>
+
                 <Show
-                  when={!sameAuthorAsPrev()}
-                  fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
+                  when={!isEditing()}
+                  fallback={
+                    <Composer
+                      channelId={props.channelId}
+                      editing={{
+                        initialText: replyRef()?.rest ?? msg.text,
+                        onSave: (text, blocks) => {
+                          editMessageText(
+                            props.channelId,
+                            msg.ts,
+                            (replyRef()?.prefix ?? "") + text,
+                            blocks,
+                          );
+                          setIsEditing(false);
+                        },
+                        onCancel: () => setIsEditing(false),
+                      }}
+                    />
+                  }
                 >
-                  <Show when={!msg.botName} fallback={avatarButton()}>
-                    <UserHoverCard userId={msg.userId}>{avatarButton()}</UserHoverCard>
-                  </Show>
-                </Show>
-                <div class="message-body">
-                  <Show when={!sameAuthorAsPrev()}>
-                    <div class="message-meta">
-                      <Show when={!msg.botName} fallback={authorButton()}>
-                        <UserHoverCard userId={msg.userId}>{authorButton()}</UserHoverCard>
-                      </Show>
-                      <Show when={user()?.statusEmoji}>
-                        {(emoji) => (
-                          <span class="message-status-emoji">
-                            <EmojiText text={emoji()} />
-                            <Show when={user()?.statusText}>
-                              <span class="message-status-tooltip">{user()?.statusText}</span>
-                            </Show>
-                          </span>
-                        )}
-                      </Show>
-                      <Show when={msg.botName}>
-                        <span class="message-bot-badge">APP</span>
-                      </Show>
-                      <span class="message-time">{msg.time}</span>
-                      <Show when={user()?.pronouns}>
-                        <span class="pronouns">•&nbsp;{user()?.pronouns}</span>
-                      </Show>
-                      <Show when={msg.isEphemeral}>
-                        <span class="message-ephemeral-badge">
-                          <Icon name="eye-closed" size={11} />
-                          Only visible to you
-                        </span>
-                      </Show>
-                      <Show when={isSavedForLater(msg.ts)}>
-                        <span class="message-saved-badge">
-                          <Icon name="bookmark-filled" size={11} />
-                          Saved
-                        </span>
-                      </Show>
-                    </div>
-                  </Show>
-
-                  <Show
-                    when={!isEditing()}
-                    fallback={
-                      <Composer
-                        channelId={props.channelId}
-                        editing={{
-                          initialText: replyRef()?.rest ?? msg.text,
-                          onSave: (text, blocks) => {
-                            editMessageText(
-                              props.channelId,
-                              msg.ts,
-                              (replyRef()?.prefix ?? "") + text,
-                              blocks,
-                            );
-                            setIsEditing(false);
-                          },
-                          onCancel: () => setIsEditing(false),
-                        }}
-                      />
-                    }
-                  >
-                    <div class={`message-text${msg.deleted ? " message-deleted-text" : ""}`}>
-                      <Show
-                        // Slack auto-generates `blocks` (rich_text) for any plain-text
-                        // message, promoting a detected bare URL — our reply-link
-                        // marker — into a real link element. That'd re-render the raw
-                        // permalink even though `text` itself round-trips untouched, so
-                        // a reply-linked message always renders from the parsed/stripped
-                        // text instead of trusting Slack's auto blocks.
-                        when={!replyRef() && msg.blocks?.length ? msg.blocks : undefined}
-                        fallback={<Mrkdwn text={replyRef()?.rest ?? msg.text} />}
-                      >
-                        {(blocks) => <BlockKit blocks={blocks()} />}
-                      </Show>
-                      <Show when={msg.edited}>
-                        <span class="message-edited"> (edited)</span>
-                      </Show>
-                      <Show when={msg.isBroadcast && !props.onOpenThread}>
-                        <span class="message-edited"> · Also sent to channel</span>
-                      </Show>
-                    </div>
-                  </Show>
-
-                  <Show when={msg.files?.length ? msg.files : undefined}>
-                    {(files) => <MessageFiles files={files()} />}
-                  </Show>
-
-                  <Show when={visibleAttachments()?.length}>
-                    <For each={visibleAttachments()}>
-                      {(a) => <AttachmentCard attachment={a} />}
-                    </For>
-                  </Show>
-
-                  <Show when={msg.reactions?.length ? msg.reactions : undefined}>
-                    {(reactions) => (
-                      <ReactionRow
-                        reactions={reactions()}
-                        onToggle={(name) => reactToMessage(props.channelId, msg, name)}
-                      />
-                    )}
-                  </Show>
-
-                  <InlineFeedback feedback={actionFeedback.get(msg.ts)} class="message-feedback" />
-
-                  <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
-                    <button
-                      type="button"
-                      class="message-replies"
-                      onClick={() => props.onOpenThread?.(msg.ts)}
+                  <div class={`message-text${msg.deleted ? " message-deleted-text" : ""}`}>
+                    <Show
+                      // Slack auto-generates `blocks` (rich_text) for any plain-text
+                      // message, promoting a detected bare URL — our reply-link
+                      // marker — into a real link element. That'd re-render the raw
+                      // permalink even though `text` itself round-trips untouched, so
+                      // a reply-linked message always renders from the parsed/stripped
+                      // text instead of trusting Slack's auto blocks.
+                      when={!replyRef() && msg.blocks?.length ? msg.blocks : undefined}
+                      fallback={<Mrkdwn text={replyRef()?.rest ?? msg.text} />}
                     >
-                      <Show
-                        when={msg.replyUsers?.length ? msg.replyUsers : undefined}
-                        fallback={<Icon name="threads" size={14} />}
-                      >
-                        {(users) => (
-                          <AvatarStack
-                            users={users()
-                              .slice(0, 3)
-                              .map((id) => userById(id))
-                              .filter((u) => u !== undefined)}
-                            title={() =>
-                              users()
-                                .map((id) =>
-                                  id === currentUser()?.id
-                                    ? "you"
-                                    : (userById(id)?.name ?? "someone"),
-                                )
-                                .reduce(
-                                  (prev, curr, i, a) =>
-                                    (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
-                                  "",
-                                )
-                            }
-                          />
-                        )}
-                      </Show>{" "}
-                      {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
-                      <Show when={msg.lastReplyLabel}>
-                        <span class="message-replies-last">Last reply {msg.lastReplyLabel}</span>
-                      </Show>
-                    </button>
-                  </Show>
-                </div>
+                      {(blocks) => <BlockKit blocks={blocks()} />}
+                    </Show>
+                    <Show when={msg.edited}>
+                      <span class="message-edited"> (edited)</span>
+                    </Show>
+                    <Show when={msg.isBroadcast && !props.onOpenThread}>
+                      <span class="message-edited"> · Also sent to channel</span>
+                    </Show>
+                  </div>
+                </Show>
+
+                <Show when={msg.files?.length ? msg.files : undefined}>
+                  {(files) => <MessageFiles files={files()} />}
+                </Show>
+
+                <Show when={visibleAttachments()?.length}>
+                  <For each={visibleAttachments()}>{(a) => <AttachmentCard attachment={a} />}</For>
+                </Show>
+
+                <Show when={msg.reactions?.length ? msg.reactions : undefined}>
+                  {(reactions) => (
+                    <ReactionRow
+                      reactions={reactions()}
+                      onToggle={(name) => reactToMessage(props.channelId, msg, name)}
+                    />
+                  )}
+                </Show>
+
+                <InlineFeedback feedback={actionFeedback.get(msg.ts)} class="message-feedback" />
+
+                <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
+                  <button
+                    type="button"
+                    class="message-replies"
+                    onClick={() => props.onOpenThread?.(msg.ts)}
+                  >
+                    <Show
+                      when={msg.replyUsers?.length ? msg.replyUsers : undefined}
+                      fallback={<Icon name="threads" size={14} />}
+                    >
+                      {(users) => (
+                        <AvatarStack
+                          users={users()
+                            .slice(0, 3)
+                            .map((id) => userById(id))
+                            .filter((u) => u !== undefined)}
+                          title={() =>
+                            users()
+                              .map((id) =>
+                                id === currentUser()?.id
+                                  ? "you"
+                                  : (userById(id)?.name ?? "someone"),
+                              )
+                              .reduce(
+                                (prev, curr, i, a) =>
+                                  (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
+                                "",
+                              )
+                          }
+                        />
+                      )}
+                    </Show>{" "}
+                    {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+                    <Show when={msg.lastReplyLabel}>
+                      <span class="message-replies-last">Last reply {msg.lastReplyLabel}</span>
+                    </Show>
+                  </button>
+                </Show>
+              </div>
+            </div>
+
+            <Show when={showRepliesDivider()}>
+              <div class="day-divider">
+                <span>
+                  {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+                </span>
               </div>
             </Show>
           </Show>

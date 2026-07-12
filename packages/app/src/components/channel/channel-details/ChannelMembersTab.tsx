@@ -208,9 +208,6 @@ export default function ChannelMembersTab(props: {
                 <Show when={u.isBot}>
                   <span class="channel-details-member-badge">APP</span>
                 </Show>
-                <Show when={u.title}>
-                  <span class="channel-details-member-title">{u.title}</span>
-                </Show>
               </button>
               <Show when={u.id !== currentUser()?.id}>
                 <button

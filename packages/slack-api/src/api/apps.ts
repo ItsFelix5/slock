@@ -1,5 +1,5 @@
 import type { MessageShortcut } from "../types";
-import { callSlack } from "./relay";
+import { callSlack, fileProxyUrl } from "./relay";
 
 // client.appCommands' `app_actions` list mixes every action any installed
 // app registered — global shortcuts (composer lightning bolt) and
@@ -14,8 +14,9 @@ export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
   const apps: any[] = data.app_actions ?? [];
   const shortcuts: MessageShortcut[] = [];
   for (const app of apps) {
-    const icon =
+    const rawIcon =
       app.icons?.image_48 ?? app.icons?.image_72 ?? app.icons?.image_32 ?? app.icons?.image_64;
+    const icon = rawIcon ? fileProxyUrl(rawIcon) : undefined;
     for (const action of app.actions ?? []) {
       if (action.type !== "message_action") continue;
       shortcuts.push({

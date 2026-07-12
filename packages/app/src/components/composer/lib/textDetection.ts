@@ -23,15 +23,18 @@ export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
   };
 }
 
-// Detects an in-progress @mention, #channel-mention, :emoji-shortcode, or
-// /slash-command token immediately before the cursor, the way Slack's real
-// composer does. Mentions and emoji must start at a word boundary (so
-// "user@example.com" and clock times like "10:30" don't trigger), and slash
-// commands are only recognized as the very first token of the message.
+// Detects an in-progress @mention, @/link-mention, #channel-mention,
+// :emoji-shortcode, or /slash-command token immediately before the cursor,
+// the way Slack's real composer does. Mentions and emoji must start at a
+// word boundary (so "user@example.com" and clock times like "10:30" don't
+// trigger), and slash commands are only recognized as the very first token
+// of the message. "@/" runs the same user search as "@" but is meant to
+// insert a silent link to the person's Slack profile instead of a real
+// mention — see suggestionController and createUserLinkChip.
 export function detectMentionTrigger(
   value: string,
   cursor: number,
-): { kind: "user" | "channel" | "command" | "emoji"; start: number; query: string } | null {
+): { kind: "user" | "userlink" | "channel" | "command" | "emoji"; start: number; query: string } | null {
   const before = value.slice(0, cursor);
   if (before.startsWith("/") && !/[\s]/.test(before.slice(1))) {
     return { kind: "command", start: 0, query: before.slice(1) };
@@ -43,9 +46,14 @@ export function detectMentionTrigger(
   if (idx === -1) return null;
   const prevChar = before[idx - 1];
   if (prevChar !== undefined && !/\s/.test(prevChar)) return null;
-  const token = before.slice(idx + 1);
+  let token = before.slice(idx + 1);
   if (/\s/.test(token)) return null;
-  const kind = idx === atIdx ? "user" : idx === hashIdx ? "channel" : "emoji";
+  let kind: "user" | "userlink" | "channel" | "emoji" =
+    idx === atIdx ? "user" : idx === hashIdx ? "channel" : "emoji";
+  if (kind === "user" && token.startsWith("/")) {
+    kind = "userlink";
+    token = token.slice(1);
+  }
   if (kind === "emoji" && !/^[a-z0-9_+-]*$/i.test(token)) return null;
   return { kind, start: idx, query: token };
 }

@@ -76,8 +76,20 @@ export function createUnreadSlice(deps: {
       // message. Wait, without latching, so this fires for real once loaded.
       if (lastReadByChannelResource.loading) return;
       if (dividerAnchoredChannels.has(id)) return;
+      // Wait for the channel's own history too — deciding "caught up" below
+      // needs the actual last message, not an empty list that hasn't loaded yet.
+      const list = readDeps.messagesByChannel[id];
+      if (!list) return;
       dividerAnchoredChannels.add(id);
-      setUnreadDividerTs(id, lastReadByChannel[id] ?? 0);
+      const lastRead = lastReadByChannel[id] ?? 0;
+      const latest = list[list.length - 1];
+      // Only anchor a divider when there's a genuine gap (unread messages
+      // already sitting there when you opened). Otherwise — already caught
+      // up — use a sentinel no message can ever cross, so a message sent or
+      // received *during* this visit (including your own) never gets mistaken
+      // for "new since last time" and grows a divider above it.
+      const hasUnreadGap = !!latest && parseFloat(latest.ts) * 1000 > lastRead;
+      setUnreadDividerTs(id, hasUnreadGap ? lastRead : Infinity);
     });
 
     // Drop the divider anchor for a channel once you leave it, so the next

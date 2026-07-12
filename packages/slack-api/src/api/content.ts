@@ -16,7 +16,8 @@ export function fetchAllEmoji(): Promise<Record<string, string>> {
           value = raw[value.slice("alias:".length)];
           hops++;
         }
-        if (typeof value === "string" && value.startsWith("http")) resolved[name] = value;
+        if (typeof value === "string" && value.startsWith("http"))
+          resolved[name] = fileProxyUrl(value);
       }
       return resolved;
     });
@@ -68,12 +69,6 @@ export async function fetchCanvas(fileId: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-export async function createChannelCanvas(channelId: string): Promise<string | null> {
-  const data = await callSlack("conversations.canvases.create", { channel_id: channelId });
-  if (!data.ok) return null;
-  return data.canvas_id ?? null;
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {

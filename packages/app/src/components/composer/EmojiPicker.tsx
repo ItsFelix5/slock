@@ -80,10 +80,9 @@ export default function EmojiPicker(props: {
 
   const allEntries = createMemo(() => allEmojiEntries());
 
-  // With no search, lead with whatever's actually been picked before — the same
-  // frecency signal store.ts tracks for the quick switcher's jump list.
-  // Recording a use is the caller's job (see MessageActionsBar's react() and
-  // Composer's onSelect) since this component is also used just to insert text.
+  // With no search, lead with whatever Slack's own emoji-use counts (from
+  // users.prefs.get, see store.ts's emojiUseScore) say has actually been
+  // picked before.
   const frequent = createMemo(() => {
     if (query().trim()) return [];
     return frequentEmoji(allEntries(), FREQUENT_LIMIT);

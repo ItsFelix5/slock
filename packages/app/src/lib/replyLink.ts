@@ -15,7 +15,7 @@
 // means the worst-case fallback (this failing to parse, or showing up in a
 // real Slack client) renders an invisible label instead of the raw
 // permalink text.
-const REPLY_LINK_RE = /^<?(https?:\/\/[^\s|>]+)(?:\|[^>]*)?>??/;
+const REPLY_LINK_RE = /^<?(https?:\/\/[^\s|>]+)(?:\|[^>]*)?>?/;
 const PERMALINK_RE = /\/archives\/([A-Z0-9]+)\/p(\d+)/;
 
 export function encodeReplyLink(permalink: string): string {

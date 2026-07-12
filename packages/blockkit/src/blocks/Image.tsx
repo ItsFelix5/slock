@@ -1,4 +1,4 @@
-import type { ImageBlock } from "@slock/slack-api";
+import { fileProxyUrl, type ImageBlock } from "@slock/slack-api";
 import { ZoomableImage } from "@slock/ui";
 import { Show } from "solid-js";
 import EmojiText from "../emoji/EmojiText";
@@ -8,7 +8,7 @@ export default function Image(props: { block: ImageBlock }) {
     <figure class="bk-image-block">
       <ZoomableImage
         class="bk-image-block-img"
-        src={props.block.image_url}
+        src={fileProxyUrl(props.block.image_url)}
         alt={props.block.alt_text}
       />
       <Show when={props.block.title}>

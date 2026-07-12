@@ -7,3 +7,4 @@ export { default as EmojiText } from "./emoji/EmojiText";
 // need to be public API, not just internal implementation details.
 export { customEmojiNames, emojiUrl, isEmojiLoaded } from "./emoji/emojiCache";
 export { default as Mrkdwn, formatSlackDate, Mention } from "./mrkdwn";
+export { parseUserProfileLink } from "./userProfileLink";

@@ -253,7 +253,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             autofocus
           />
           <button type="button" class="panel-close-btn" onClick={props.onClose} title="Close">
-            ✕
+            <Icon name="close" size={12} />
           </button>
         </div>
 

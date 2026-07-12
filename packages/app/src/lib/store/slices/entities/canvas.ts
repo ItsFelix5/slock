@@ -1,10 +1,5 @@
 import type { CanvasInfo } from "@slock/slack-api";
-import {
-  createChannelCanvas,
-  fetchCanvas,
-  fetchChannelCanvasInfo,
-  saveCanvas,
-} from "@slock/slack-api";
+import { fetchCanvas, fetchChannelCanvasInfo, saveCanvas } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { actionFeedback } from "../feedback";
@@ -30,15 +25,6 @@ export function createCanvasSlice() {
     setOpenCanvasChannelId(null);
   }
 
-  async function createCanvasForCurrentChannel(channelId: string) {
-    const fileId = await createChannelCanvas(channelId);
-    if (!fileId) {
-      actionFeedback.flash(channelId, "Failed to create canvas.", "error");
-      return;
-    }
-    setCanvasByChannel(channelId, { fileId, isEmpty: true });
-  }
-
   async function loadCanvasContent(fileId: string): Promise<string> {
     return (await fetchCanvas(fileId)) ?? "";
   }
@@ -58,7 +44,6 @@ export function createCanvasSlice() {
     openCanvasChannelId,
     openChannelCanvas,
     closeChannelCanvas,
-    createCanvasForCurrentChannel,
     loadCanvasContent,
     saveChannelCanvas,
   };

@@ -255,6 +255,20 @@
   background: var(--mention-inaccessible-bg);
 }
 
+/* A "@/" link mention — points at the person's real Slack profile instead of
+   notifying them, so it gets the same neutral grey as an inaccessible
+   mention rather than the blue "pings someone" look, but stays clickable. */
+.bk-mention-link {
+  display: inline-block;
+  text-decoration: none;
+  background: var(--mention-inaccessible-bg);
+  color: var(--mention-inaccessible-text);
+}
+
+.bk-mention-link:hover {
+  background: rgba(148, 158, 168, 0.28);
+}
+
 .bk-color-swatch {
   display: inline-flex;
   align-items: center;

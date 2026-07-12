@@ -1,4 +1,4 @@
-import type { ContextBlock } from "@slock/slack-api";
+import { type ContextBlock, fileProxyUrl } from "@slock/slack-api";
 import { For, Show } from "solid-js";
 import BkText from "../BkText";
 
@@ -13,7 +13,7 @@ export default function Context(props: { block: ContextBlock }) {
           >
             <img
               class="bk-context-image"
-              src={(el as any).image_url ?? (el as any).slack_file?.url}
+              src={fileProxyUrl((el as any).image_url ?? (el as any).slack_file?.url)}
               alt={(el as any).alt_text ?? ""}
             />
           </Show>

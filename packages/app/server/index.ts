@@ -2,18 +2,13 @@
 // the Slack relay (see relay-core.ts) on a single port. There's no Vite here
 // (that's dev-only, see dev-plugin.ts) — just static files and the relay.
 import {
-  authResponse,
-  clients,
-  configResponse,
-  fileProxyResponse,
-  fileUploadProxyResponse,
+  type Credentials,
   handleClientDisconnect,
   handleClientMessage,
-  slackEdgeRelayResponse,
-  slackRelayResponse,
-  startGateway,
+  handleClientOpen,
+  parseCredsCookie,
+  routeRelayRequest,
   statusMessage,
-  unfurlResponse,
 } from "./relay-core";
 
 const PORT = Number(process.env.PORT ?? 5174);
@@ -32,59 +27,33 @@ async function serveStatic(pathname: string): Promise<Response | null> {
   return null;
 }
 
-startGateway();
-
-Bun.serve({
+Bun.serve<{ creds: Credentials | null }>({
   hostname: "0.0.0.0",
   port: PORT,
   async fetch(req, server) {
     const url = new URL(req.url);
+    const creds = parseCredsCookie(req.headers.get("cookie"));
 
     if (url.pathname === "/ws") {
-      if (server.upgrade(req)) return;
+      // Cookies auto-attach to a same-origin WS handshake, so creds parsed
+      // above from this same upgrade request travel through as `ws.data`.
+      if (server.upgrade(req, { data: { creds } })) return;
       return new Response("upgrade failed", { status: 400 });
     }
 
-    if (req.method === "POST" && url.pathname.startsWith("/slack/")) {
-      const method = url.pathname.slice("/slack/".length);
-      if (!method) return new Response("missing method", { status: 400 });
-      const params = (await req.json().catch(() => ({}))) as Record<string, string>;
-      return slackRelayResponse(method, params);
-    }
-
-    if (req.method === "POST" && url.pathname.startsWith("/slack-edge/")) {
-      const method = url.pathname.slice("/slack-edge/".length);
-      if (!method) return new Response("missing method", { status: 400 });
-      const params = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      return slackEdgeRelayResponse(method, params);
-    }
-
-    if (url.pathname === "/file") {
-      return fileProxyResponse(url.searchParams.get("url"));
-    }
-
-    if (req.method === "POST" && url.pathname === "/file-upload") {
-      const buffer = new Uint8Array(await req.arrayBuffer());
-      return fileUploadProxyResponse(
-        buffer,
-        url.searchParams.get("url"),
-        url.searchParams.get("filename"),
-      );
-    }
-
-    if (req.method === "GET" && url.pathname === "/unfurl") {
-      return unfurlResponse(url.searchParams.get("url"));
-    }
-
-    if (req.method === "GET" && url.pathname === "/config") {
-      return configResponse();
-    }
-
-    if (req.method === "POST" && url.pathname === "/auth") {
-      const { raw } = (await req.json().catch(() => ({}))) as { raw?: string };
-      if (!raw) return new Response("missing raw", { status: 400 });
-      return authResponse(raw);
-    }
+    const relayRes = await routeRelayRequest(
+      req.method,
+      url.pathname,
+      url.searchParams,
+      creds,
+      url.protocol === "https:",
+      {
+        json: () => req.json().catch(() => ({})),
+        text: () => req.text().catch(() => ""),
+        buffer: async () => new Uint8Array(await req.arrayBuffer()),
+      },
+    );
+    if (relayRes) return relayRes;
 
     if (req.method === "GET") {
       const asset = await serveStatic(url.pathname);
@@ -95,11 +64,10 @@ Bun.serve({
   },
   websocket: {
     open(ws) {
-      clients.add(ws);
-      ws.send(statusMessage());
+      ws.send(statusMessage(false));
+      handleClientOpen(ws, ws.data.creds);
     },
     close(ws) {
-      clients.delete(ws);
       handleClientDisconnect(ws);
     },
     message(ws, raw) {

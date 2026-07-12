@@ -34,6 +34,7 @@ export type UserPrefs = {
   highlightWords: string[];
   desktopNotificationsEnabled: boolean;
   searchHistory: string[];
+  channelTabs: Record<string, { type: string }[]>;
 };
 
 // users.prefs.get carries the account's *real* local-usage databases (each pref
@@ -48,10 +49,13 @@ export type UserPrefs = {
 // is the same shape as muted_channels — a plain comma-separated list, this
 // time of custom keywords ("pingwords") that ping you like an @mention
 // whenever they appear in a message, even without being directly mentioned.
-// slock_desktop_notifications and slock_search_history are app-invented keys
-// (the prefs blob is a generic KV store, not limited to Slack's own known
-// keys) — used to sync purely client-side app settings across devices the
-// same real way rather than falling back to localStorage for them.
+// slock_desktop_notifications, slock_search_history and slock_channel_tabs are
+// app-invented keys (the prefs blob is a generic KV store, not limited to
+// Slack's own known keys) — used to sync purely client-side app settings
+// across devices the same real way rather than falling back to localStorage
+// for them. slock_channel_tabs in particular backs this app's own editable
+// per-channel tab bar (Canvas/Pinned shortcuts under the channel header) —
+// unrelated to Slack's real, admin-only, unwritable `properties.tabs`.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const empty: UserPrefs = {
     emojiUse: {},
@@ -61,6 +65,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     highlightWords: [],
     desktopNotificationsEnabled: true,
     searchHistory: [],
+    channelTabs: {},
   };
   const data = await callSlack("users.prefs.get");
   if (!data.ok) return empty;
@@ -108,6 +113,9 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
   const desktopNotificationsEnabled: boolean = prefs.slock_desktop_notifications !== "off";
   const parsedSearchHistory = parse("slock_search_history");
   const searchHistory: string[] = Array.isArray(parsedSearchHistory) ? parsedSearchHistory : [];
+  const parsedChannelTabs = parse("slock_channel_tabs");
+  const channelTabs: Record<string, { type: string }[]> =
+    parsedChannelTabs && typeof parsedChannelTabs === "object" ? parsedChannelTabs : {};
 
   return {
     emojiUse,
@@ -117,6 +125,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     highlightWords,
     desktopNotificationsEnabled,
     searchHistory,
+    channelTabs,
   };
 }
 
@@ -154,46 +163,46 @@ export async function setPresence(presence: "auto" | "away"): Promise<void> {
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
 }
 
+// This uses the same "prefs blob" mechanism the real webapp saves all of its
+// local settings through, not a documented api.slack.com method.
 export async function setMutedChannels(channelIds: string[]): Promise<void> {
-  // Best-effort: this uses the same "prefs blob" mechanism the real webapp
-  // saves all of its local settings through, not a documented api.slack.com
-  // method — treated as non-critical since mute is also kept client-side.
-  try {
-    await callSlack("users.prefs.set", { name: "muted_channels", value: channelIds.join(",") });
-  } catch {
-    // non-fatal — mute still applies locally even if the sync fails
-  }
+  const data = await callSlack("users.prefs.set", {
+    name: "muted_channels",
+    value: channelIds.join(","),
+  });
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setHighlightWords(words: string[]): Promise<void> {
-  // Same best-effort prefs-blob mechanism as setMutedChannels above.
-  try {
-    await callSlack("users.prefs.set", { name: "highlight_words", value: words.join(",") });
-  } catch {
-    // non-fatal — pingwords still apply locally even if the sync fails
-  }
+  const data = await callSlack("users.prefs.set", {
+    name: "highlight_words",
+    value: words.join(","),
+  });
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setDesktopNotificationsEnabled(enabled: boolean): Promise<void> {
-  try {
-    await callSlack("users.prefs.set", {
-      name: "slock_desktop_notifications",
-      value: enabled ? "on" : "off",
-    });
-  } catch {
-    // non-fatal — the setting still applies locally even if the sync fails
-  }
+  const data = await callSlack("users.prefs.set", {
+    name: "slock_desktop_notifications",
+    value: enabled ? "on" : "off",
+  });
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setSearchHistory(queries: string[]): Promise<void> {
-  try {
-    await callSlack("users.prefs.set", {
-      name: "slock_search_history",
-      value: JSON.stringify(queries),
-    });
-  } catch {
-    // non-fatal — history still applies locally even if the sync fails
-  }
+  const data = await callSlack("users.prefs.set", {
+    name: "slock_search_history",
+    value: JSON.stringify(queries),
+  });
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
+}
+
+export async function setChannelTabs(entries: Record<string, { type: string }[]>): Promise<void> {
+  const data = await callSlack("users.prefs.set", {
+    name: "slock_channel_tabs",
+    value: JSON.stringify(entries),
+  });
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 // dnd.info is a documented public method — the account's real snooze deadline.

@@ -2,18 +2,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { WebSocketServer } from "ws";
 import {
-  authResponse,
-  clients,
-  configResponse,
-  fileProxyResponse,
-  fileUploadProxyResponse,
   handleClientDisconnect,
   handleClientMessage,
-  slackEdgeRelayResponse,
-  slackRelayResponse,
-  startGateway,
+  handleClientOpen,
+  parseCredsCookie,
+  routeRelayRequest,
   statusMessage,
-  unfurlResponse,
 } from "./relay-core.ts";
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -51,7 +45,7 @@ async function sendWebResponse(res: ServerResponse, response: Response) {
     return;
   }
   const reader = response.body.getReader();
-  for (;;) {
+  for (; ;) {
     const { done, value } = await reader.read();
     if (done) break;
     res.write(value);
@@ -67,89 +61,31 @@ export function slackRelayPlugin(): Plugin {
   return {
     name: "slock-slack-relay",
     configureServer(server) {
-      startGateway();
-
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url ?? "/", "http://internal");
+        const creds = parseCredsCookie(req.headers.cookie ?? null);
 
-        if (req.method === "POST" && url.pathname.startsWith("/slack/")) {
-          const method = url.pathname.slice("/slack/".length);
-          if (!method) {
-            res.statusCode = 400;
-            res.end("missing method");
-            return;
-          }
-          const body = await readBody(req);
-          let params: Record<string, string> = {};
-          try {
-            params = body ? JSON.parse(body) : {};
-          } catch {
-            // malformed body; forward an empty params object
-          }
-          await sendWebResponse(res, await slackRelayResponse(method, params));
-          return;
-        }
-
-        if (req.method === "POST" && url.pathname.startsWith("/slack-edge/")) {
-          const method = url.pathname.slice("/slack-edge/".length);
-          if (!method) {
-            res.statusCode = 400;
-            res.end("missing method");
-            return;
-          }
-          const body = await readBody(req);
-          let params: Record<string, unknown> = {};
-          try {
-            params = body ? JSON.parse(body) : {};
-          } catch {
-            // malformed body; forward an empty params object
-          }
-          await sendWebResponse(res, await slackEdgeRelayResponse(method, params));
-          return;
-        }
-
-        if (req.method === "GET" && url.pathname === "/file") {
-          await sendWebResponse(res, await fileProxyResponse(url.searchParams.get("url")));
-          return;
-        }
-
-        if (req.method === "POST" && url.pathname === "/file-upload") {
-          const buffer = await readBodyBuffer(req);
-          await sendWebResponse(
-            res,
-            await fileUploadProxyResponse(
-              buffer,
-              url.searchParams.get("url"),
-              url.searchParams.get("filename"),
-            ),
-          );
-          return;
-        }
-
-        if (req.method === "GET" && url.pathname === "/unfurl") {
-          await sendWebResponse(res, await unfurlResponse(url.searchParams.get("url")));
-          return;
-        }
-
-        if (req.method === "GET" && url.pathname === "/config") {
-          await sendWebResponse(res, configResponse());
-          return;
-        }
-
-        if (req.method === "POST" && url.pathname === "/auth") {
-          const body = await readBody(req);
-          let raw: string | undefined;
-          try {
-            raw = JSON.parse(body).raw;
-          } catch {
-            // malformed body; fall through to the missing-raw response below
-          }
-          if (!raw) {
-            res.statusCode = 400;
-            res.end("missing raw");
-            return;
-          }
-          await sendWebResponse(res, await authResponse(raw));
+        const relayRes = await routeRelayRequest(
+          req.method ?? "GET",
+          url.pathname,
+          url.searchParams,
+          creds,
+          false,
+          {
+            json: async () => {
+              const raw = await readBody(req);
+              try {
+                return raw ? JSON.parse(raw) : {};
+              } catch {
+                return {};
+              }
+            },
+            text: () => readBody(req),
+            buffer: () => readBodyBuffer(req),
+          },
+        );
+        if (relayRes) {
+          await sendWebResponse(res, relayRes);
           return;
         }
 
@@ -157,14 +93,12 @@ export function slackRelayPlugin(): Plugin {
       });
 
       const wss = new WebSocketServer({ noServer: true });
-      wss.on("connection", (ws) => {
-        clients.add(ws);
-        ws.send(statusMessage());
+      wss.on("connection", (ws, req: IncomingMessage) => {
+        const creds = parseCredsCookie(req.headers.cookie ?? null);
+        ws.send(statusMessage(false));
+        handleClientOpen(ws, creds);
         ws.on("message", (raw) => handleClientMessage(String(raw), ws));
-        ws.on("close", () => {
-          clients.delete(ws);
-          handleClientDisconnect(ws);
-        });
+        ws.on("close", () => handleClientDisconnect(ws));
       });
 
       server.httpServer?.on("upgrade", (req, socket, head) => {

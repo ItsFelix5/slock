@@ -6,7 +6,9 @@ import type {
 } from "@slock/slack-api";
 import { For, Show } from "solid-js";
 import EmojiText from "../emoji/EmojiText";
+import { hexCodepointsToEmoji } from "../emoji/emoji";
 import { formatSlackDate, Mention } from "../mrkdwn";
+import { parseUserProfileLink } from "../userProfileLink";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
   const el = props.el;
@@ -28,18 +30,20 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
         </span>
       );
     }
-    case "link":
-      return (
+    case "link": {
+      const userId = parseUserProfileLink(el.url);
+      return userId ? (
+        <Mention id={userId} kind="user" label={el.text} />
+      ) : (
         <a class="bk-link" href={el.url} target="_blank" rel="noopener noreferrer">
           {el.text ? <EmojiText text={el.text} /> : el.url}
         </a>
       );
-    case "emoji":
-      return el.unicode ? (
-        <span class="emoji">{el.unicode}</span>
-      ) : (
-        <EmojiText text={`:${el.name}:`} />
-      );
+    }
+    case "emoji": {
+      const unicode = el.unicode && hexCodepointsToEmoji(el.unicode);
+      return unicode ? <span class="emoji">{unicode}</span> : <EmojiText text={`:${el.name}:`} />;
+    }
     case "user":
       return <Mention id={el.user_id} kind="user" />;
     case "channel":

@@ -1,9 +1,5 @@
 import "./Icon.css";
-import { ICONS_1 } from "./icons/icons-1";
-import { ICONS_2 } from "./icons/icons-2";
-import { ICONS_3 } from "./icons/icons-3";
-
-const ICONS = { ...ICONS_1, ...ICONS_2, ...ICONS_3 };
+import ICONS from "./icons.json";
 
 export type IconName = keyof typeof ICONS;
 

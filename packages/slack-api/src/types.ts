@@ -135,11 +135,6 @@ export interface DirectMessage {
   lastActivity?: number;
 }
 
-export interface ChannelTab {
-  type: string;
-  label?: string;
-}
-
 export interface ChannelDetails {
   id: string;
   name: string;
@@ -149,7 +144,6 @@ export interface ChannelDetails {
   created: number;
   creatorId?: string;
   memberCount?: number;
-  tabs: ChannelTab[];
   email?: string;
 }
 
@@ -170,6 +164,11 @@ export interface ChannelSection {
   id: string;
   name: string;
   channelIds: string[];
+  // "standard" is a real user-created section; everything else is one of
+  // Slack's fixed built-in pseudo-sections ("stars", "channels",
+  // "direct_messages", ...). Membership operations (move channel into
+  // section) only make sense for "standard" — callers must filter on that.
+  type: string;
 }
 
 // A per-message "app shortcut" (Slack's Interactivity & Shortcuts > Message

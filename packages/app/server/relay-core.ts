@@ -4,80 +4,70 @@
 // call has to be relayed through a real server. The Edge Gateway websocket
 // needs that same cookie on its handshake, which the browser's native
 // WebSocket has no way to attach either, so the real-time connection lives
-// here too, fanned out to connected browser clients.
+// here too.
+//
+// Nothing in this module is global, shared, per-process state — this relay
+// is used by many different people at once, each with their own Slack
+// credentials, so every function takes `creds` as an argument (read by the
+// caller from that one request's own `slock_creds` cookie — see
+// parseCredsCookie below) rather than reading a module-level variable. The
+// server never stores anyone's credentials beyond the single request or
+// live connection it's actively serving; the browser's own httpOnly cookie
+// (invisible to page JS, unlike localStorage, so a rendering bug in the rich
+// Slack content this app displays can't exfiltrate it) is the only place
+// they live.
 //
 // This module holds no business logic — no endpoint shaping, no response
 // mapping. That all lives client-side in @slock/slack-api. It's imported by
 // both the dev-time Vite plugin (server/dev-plugin.ts, runs under Node) and
 // the production entry point (server/index.ts, runs under Bun), so it only
-// uses portable APIs (fetch, the `ws` package, node:fs) rather than Bun-only
-// globals.
-import { readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+// uses portable APIs (fetch, the `ws` package) rather than Bun-only globals.
 import { WebSocket } from "ws";
-import { parseDevtoolsRequest } from "./parse-auth-request.ts";
 
-type Credentials = { domain: string; token: string; cookie: string; route: string };
+export type Credentials = { domain: string; token: string; cookie: string; route: string };
 
-function loadCredentialsFromEnv(): Credentials | null {
-  const { SLACK_DOMAIN, SLACK_TOKEN, SLACK_COOKIE, SLACK_ROUTE } = process.env;
-  if (!SLACK_DOMAIN || !SLACK_TOKEN || !SLACK_COOKIE || !SLACK_ROUTE) return null;
-  return { domain: SLACK_DOMAIN, token: SLACK_TOKEN, cookie: SLACK_COOKIE, route: SLACK_ROUTE };
+const CREDS_COOKIE = "slock_creds";
+
+// Cookie values can't contain the raw JSON (commas/semicolons/etc are
+// unsafe), so it's URI-encoded going in and decoded coming back out.
+export function encodeCredsCookie(creds: Credentials, secure: boolean): string {
+  const value = encodeURIComponent(JSON.stringify(creds));
+  const flags = ["HttpOnly", "SameSite=Strict", "Path=/", "Max-Age=34560000"];
+  if (secure) flags.push("Secure");
+  return `${CREDS_COOKIE}=${value}; ${flags.join("; ")}`;
 }
 
-let creds: Credentials | null = loadCredentialsFromEnv();
-
-export function isConfigured(): boolean {
-  return creds !== null;
+export function clearCredsCookie(): string {
+  return `${CREDS_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
 }
 
-// Repo-root .env — this file lives at packages/app/server/, so three levels up.
-// `import.meta.dir` is Bun-only and this module also runs under plain Node (via
-// the Vite dev plugin), so derive the directory portably from `import.meta.url`.
-const ENV_PATH = `${dirname(fileURLToPath(import.meta.url))}/../../../.env`;
-
-async function persistCredentials(next: Credentials) {
-  const lines: Record<string, string> = {};
-  try {
-    const text = await readFile(ENV_PATH, "utf8");
-    for (const line of text.split("\n")) {
-      const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-      if (match) lines[match[1]] = match[2];
+// Every route parses its own creds out of the request it's currently
+// handling — nothing is cached or looked up from anywhere else.
+export function parseCredsCookie(cookieHeader: string | null): Credentials | null {
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() !== CREDS_COOKIE) continue;
+    try {
+      const parsed = JSON.parse(decodeURIComponent(part.slice(eq + 1).trim()));
+      if (parsed?.domain && parsed.token && parsed.cookie && parsed.route) return parsed;
+    } catch {
+      return null;
     }
-  } catch {
-    // no existing .env; write a fresh one
   }
-  lines.SLACK_DOMAIN = next.domain;
-  lines.SLACK_TOKEN = next.token;
-  lines.SLACK_COOKIE = `"${next.cookie}"`;
-  lines.SLACK_ROUTE = next.route;
-  const text = `${Object.entries(lines)
-    .map(([key, value]) => `${key}=${value}`)
-    .join("\n")}\n`;
-  await writeFile(ENV_PATH, text);
-}
-
-// Pasting a fresh request from devtools is the only way a user gets a
-// token/cookie pair in the first place (see parse-auth-request.ts for why
-// devtools' copy formats need tolerant parsing). Reconnects the gateway with
-// the new credentials immediately so re-authing after a stale cookie doesn't
-// need a server restart.
-export async function setCredentialsFromDevtoolsRequest(raw: string): Promise<void> {
-  const next = parseDevtoolsRequest(raw);
-  creds = next;
-  await persistCredentials(next);
-  gatewaySocket?.close();
-  gatewaySocket = null;
-  gatewayRetryDelay = 2000;
-  connectGateway();
+  return null;
 }
 
 // Raw Slack API responses are duck-typed `any` throughout this module and
 // @slock/slack-api's mappers (never a fixed shape worth declaring) — an
 // explicit return type keeps that consistent instead of leaking whatever
 // `unknown` the current @types/node fetch typings would otherwise infer.
-export async function callSlack(method: string, params: Record<string, string> = {}): Promise<any> {
+export async function callSlack(
+  method: string,
+  params: Record<string, string>,
+  creds: Credentials | null,
+): Promise<any> {
   if (!creds) return { ok: false, error: "not_configured" };
   const body = new URLSearchParams({ token: creds.token, ...params });
   const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
@@ -94,10 +84,17 @@ export async function callSlack(method: string, params: Record<string, string> =
 
 const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
 
-export async function authResponse(raw: string): Promise<Response> {
+// Pasting a fresh request from devtools is the only way a user gets a
+// token/cookie pair in the first place (see parse-auth-request.ts for why
+// devtools' copy formats need tolerant parsing). Purely a parse — the
+// extracted fields go straight into the response's Set-Cookie header, never
+// held onto here, and page JS never sees the raw token/cookie at all.
+export async function authResponse(raw: string, secure: boolean): Promise<Response> {
   try {
-    await setCredentialsFromDevtoolsRequest(raw);
-    return new Response(JSON.stringify({ ok: true }), { headers: cors });
+    const creds = JSON.parse(raw);
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { ...cors, "set-cookie": encodeCredsCookie(creds, secure) },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Couldn't parse that request.";
     return new Response(JSON.stringify({ ok: false, error: message }), {
@@ -107,11 +104,18 @@ export async function authResponse(raw: string): Promise<Response> {
   }
 }
 
+export function logoutResponse(): Response {
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { ...cors, "set-cookie": clearCredsCookie() },
+  });
+}
+
 export async function slackRelayResponse(
   method: string,
   params: Record<string, string>,
+  creds: Credentials | null,
 ): Promise<Response> {
-  const data = await callSlack(method, params);
+  const data = await callSlack(method, params, creds);
   return new Response(JSON.stringify(data), { headers: cors });
 }
 
@@ -119,7 +123,11 @@ export async function slackRelayResponse(
 // JSON bodies instead of form-encoded) — the official client reads workspace
 // data that Enterprise Grid blocks on the Web API from here instead, e.g.
 // channel membership, where conversations.members is enterprise_is_restricted.
-async function callSlackEdge(method: string, params: Record<string, unknown>) {
+async function callSlackEdge(
+  method: string,
+  params: Record<string, unknown>,
+  creds: Credentials | null,
+) {
   if (!creds) return { ok: false, error: "not_configured" };
   const enterpriseId = creds.route.split(":")[0];
   const res = await fetch(`https://edgeapi.slack.com/cache/${enterpriseId}/${method}`, {
@@ -133,28 +141,101 @@ async function callSlackEdge(method: string, params: Record<string, unknown>) {
 export async function slackEdgeRelayResponse(
   method: string,
   params: Record<string, unknown>,
+  creds: Credentials | null,
 ): Promise<Response> {
-  const data = await callSlackEdge(method, params);
+  const data = await callSlackEdge(method, params, creds);
   return new Response(JSON.stringify(data), { headers: cors });
+}
+
+// Every route the relay handles, shared by both the production entry point
+// (server/index.ts, Bun.serve) and the dev-time Vite plugin (dev-plugin.ts,
+// Node's http) — the only thing that differs between them is how a request's
+// body gets read, supplied here as `body` so each platform can use its own
+// native APIs. Returns null for anything this relay doesn't handle, so the
+// caller can fall through to its own static file serving / next().
+export async function routeRelayRequest(
+  method: string,
+  pathname: string,
+  searchParams: URLSearchParams,
+  creds: Credentials | null,
+  secure: boolean,
+  body: {
+    json(): Promise<Record<string, unknown>>;
+    text(): Promise<string>;
+    buffer(): Promise<Uint8Array>;
+  },
+): Promise<Response | null> {
+  if (method === "POST" && pathname.startsWith("/slack/")) {
+    const slackMethod = pathname.slice("/slack/".length);
+    if (!slackMethod) return new Response("missing method", { status: 400 });
+    return slackRelayResponse(slackMethod, (await body.json()) as Record<string, string>, creds);
+  }
+
+  if (method === "POST" && pathname.startsWith("/slack-edge/")) {
+    const slackMethod = pathname.slice("/slack-edge/".length);
+    if (!slackMethod) return new Response("missing method", { status: 400 });
+    return slackEdgeRelayResponse(slackMethod, await body.json(), creds);
+  }
+
+  if (method === "GET" && pathname === "/file") {
+    return fileProxyResponse(searchParams.get("url"), creds);
+  }
+
+  if (method === "POST" && pathname === "/file-upload") {
+    return fileUploadProxyResponse(
+      await body.buffer(),
+      searchParams.get("url"),
+      searchParams.get("filename"),
+    );
+  }
+
+  if (method === "GET" && pathname === "/unfurl") {
+    return unfurlResponse(searchParams.get("url"));
+  }
+
+  if (method === "GET" && pathname === "/config") {
+    return configResponse(creds);
+  }
+
+  if (method === "POST" && pathname === "/auth") {
+    const raw = await body.text();
+    if (!raw) return new Response("missing raw", { status: 400 });
+    return authResponse(raw, secure);
+  }
+
+  if (method === "POST" && pathname === "/auth/logout") {
+    return logoutResponse();
+  }
+
+  return null;
 }
 
 // `chat.getPermalink` is blocked by `enterprise_is_restricted` on Enterprise
 // Grid workspaces like this one — the client instead builds permalink URLs
-// itself from the workspace domain, which only the server knows (env-only).
-// Also doubles as the "are we configured" check the client uses to decide
-// whether to show the connect-to-slack screen instead of the app.
-export function configResponse(): Response {
+// itself from the workspace domain. Also doubles as the "are we configured"
+// check the client uses to decide whether to show the connect-to-slack
+// screen instead of the app. Reads only this request's own cookie, so it's
+// not server-held state — just decoding what the browser already sent.
+export function configResponse(creds: Credentials | null): Response {
   return new Response(
     JSON.stringify({ domain: creds?.domain ?? null, configured: creds !== null }),
-    { headers: cors },
+    {
+      headers: cors,
+    },
   );
 }
 
 // Slack file URLs require the session cookie the browser never gets — host is
-// restricted to Slack's own file domains so this can't become an open SSRF proxy.
-const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/];
+// restricted to Slack's own file/avatar/emoji CDN domains so this can't become
+// an open SSRF proxy. Slack's session cookie is SameSite, so it's never sent
+// on a cross-site <img>/<video> subresource request anyway — every displayed
+// Slack image goes through this proxy now, not just fetchCanvas.
+const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 
-export async function fileProxyResponse(fileUrl: string | null): Promise<Response> {
+export async function fileProxyResponse(
+  fileUrl: string | null,
+  creds: Credentials | null,
+): Promise<Response> {
   if (!fileUrl) return new Response("missing url", { status: 400, headers: cors });
   let parsed: URL;
   try {
@@ -320,112 +401,70 @@ export async function unfurlResponse(targetUrl: string | null): Promise<Response
 // ---------------------------------------------------------------------------
 
 export type ClientSocket = { send(data: string): void };
-export const clients = new Set<ClientSocket>();
-let gatewayConnected = false;
-export function isGatewayConnected() {
-  return gatewayConnected;
-}
 
-// Refcounted rather than plain sets: multiple browser tabs can watch the same
-// channel/thread, and one tab unwatching (e.g. switching away, or closing)
-// must not stop fallback polling for a tab that's still watching it.
-const watchedChannels = new Map<string, number>();
-const watchedThreads = new Map<string, { channel: string; count: number }>();
-const clientWatches = new WeakMap<ClientSocket, { channels: Set<string>; threads: Set<string> }>();
+// Everything below used to be one set of module-level globals shared by
+// every connected browser — one gateway socket, one watch list, fanned out
+// to a shared `clients` Set. That's wrong once more than one person can be
+// connected at once: each browser gets its own dedicated Slack Edge Gateway
+// connection and its own watch list, scoped to that one /ws connection and
+// torn down when it closes. Events go straight back to the one browser they
+// came from, so there's no fan-out/broadcast step anymore either.
+type ConnectionState = {
+  creds: Credentials;
+  socket: ClientSocket;
+  gatewaySocket: WebSocket | null;
+  gatewayConnected: boolean;
+  gatewayRetryDelay: number;
+  fallbackTimer: ReturnType<typeof setInterval> | null;
+  watchedChannels: Set<string>;
+  watchedThreads: Map<string, string>; // ts -> channel
+  closed: boolean;
+};
 
-function getClientWatches(socket: ClientSocket) {
-  let watches = clientWatches.get(socket);
-  if (!watches) {
-    watches = { channels: new Set(), threads: new Set() };
-    clientWatches.set(socket, watches);
-  }
-  return watches;
-}
-
-function watchChannel(socket: ClientSocket, channel: string) {
-  const watches = getClientWatches(socket);
-  if (watches.channels.has(channel)) return;
-  watches.channels.add(channel);
-  watchedChannels.set(channel, (watchedChannels.get(channel) ?? 0) + 1);
-}
-function unwatchChannel(socket: ClientSocket, channel: string) {
-  const watches = clientWatches.get(socket);
-  if (!watches?.channels.has(channel)) return;
-  watches.channels.delete(channel);
-  const count = (watchedChannels.get(channel) ?? 1) - 1;
-  if (count <= 0) watchedChannels.delete(channel);
-  else watchedChannels.set(channel, count);
-}
-function watchThread(socket: ClientSocket, channel: string, ts: string) {
-  const watches = getClientWatches(socket);
-  if (watches.threads.has(ts)) return;
-  watches.threads.add(ts);
-  const entry = watchedThreads.get(ts);
-  if (entry) entry.count++;
-  else watchedThreads.set(ts, { channel, count: 1 });
-}
-function unwatchThread(socket: ClientSocket, ts: string) {
-  const watches = clientWatches.get(socket);
-  if (!watches?.threads.has(ts)) return;
-  watches.threads.delete(ts);
-  const entry = watchedThreads.get(ts);
-  if (!entry) return;
-  entry.count--;
-  if (entry.count <= 0) watchedThreads.delete(ts);
-}
-
-// Call from the socket's close handler so a disconnected tab's watches don't
-// linger forever (and so other tabs still watching the same channel/thread
-// keep getting fallback-poll updates).
-export function handleClientDisconnect(socket: ClientSocket) {
-  const watches = clientWatches.get(socket);
-  if (!watches) return;
-  for (const channel of [...watches.channels]) unwatchChannel(socket, channel);
-  for (const ts of [...watches.threads]) unwatchThread(socket, ts);
-  clientWatches.delete(socket);
-}
-
-function broadcast(payload: unknown) {
-  const data = JSON.stringify(payload);
-  for (const ws of clients) {
-    try {
-      ws.send(data);
-    } catch {
-      // dropped client; the close handler will clean it up
-    }
-  }
-}
-
-function broadcastStatus() {
-  broadcast({ type: "_status", connected: gatewayConnected });
-}
-
-export function statusMessage(): string {
-  return JSON.stringify({ type: "_status", connected: gatewayConnected });
-}
-
-let gatewaySocket: WebSocket | null = null;
-let gatewayRetryDelay = 2000;
+const connections = new WeakMap<ClientSocket, ConnectionState>();
 const GATEWAY_MAX_RETRY_DELAY = 60000;
-let fallbackTimer: ReturnType<typeof setInterval> | null = null;
 
-function startFallbackPolling() {
-  if (fallbackTimer) return;
-  fallbackTimer = setInterval(async () => {
-    for (const channel of watchedChannels.keys()) {
+function send(state: ConnectionState, payload: unknown) {
+  try {
+    state.socket.send(JSON.stringify(payload));
+  } catch {
+    // dropped client; the close handler will clean it up
+  }
+}
+
+function sendStatus(state: ConnectionState) {
+  send(state, { type: "_status", connected: state.gatewayConnected });
+}
+
+export function statusMessage(connected: boolean): string {
+  return JSON.stringify({ type: "_status", connected });
+}
+
+function startFallbackPolling(state: ConnectionState) {
+  if (state.fallbackTimer) return;
+  state.fallbackTimer = setInterval(async () => {
+    for (const channel of state.watchedChannels) {
       try {
-        const data = await callSlack("conversations.history", { channel, limit: "60" });
+        const data = await callSlack(
+          "conversations.history",
+          { channel, limit: "60" },
+          state.creds,
+        );
         if (data.ok)
-          broadcast({ type: "_history_snapshot", channel, messages: data.messages ?? [] });
+          send(state, { type: "_history_snapshot", channel, messages: data.messages ?? [] });
       } catch {
         // transient network error; next tick retries
       }
     }
-    for (const [ts, { channel }] of watchedThreads) {
+    for (const [ts, channel] of state.watchedThreads) {
       try {
-        const data = await callSlack("conversations.replies", { channel, ts, limit: "200" });
+        const data = await callSlack(
+          "conversations.replies",
+          { channel, ts, limit: "200" },
+          state.creds,
+        );
         if (data.ok)
-          broadcast({ type: "_replies_snapshot", channel, ts, messages: data.messages ?? [] });
+          send(state, { type: "_replies_snapshot", channel, ts, messages: data.messages ?? [] });
       } catch {
         // transient network error; next tick retries
       }
@@ -433,10 +472,10 @@ function startFallbackPolling() {
   }, 4000);
 }
 
-function stopFallbackPolling() {
-  if (fallbackTimer) {
-    clearInterval(fallbackTimer);
-    fallbackTimer = null;
+function stopFallbackPolling(state: ConnectionState) {
+  if (state.fallbackTimer) {
+    clearInterval(state.fallbackTimer);
+    state.fallbackTimer = null;
   }
 }
 
@@ -463,39 +502,41 @@ function buildGatewayUrl(current: Credentials) {
   return `wss://wss-primary.slack.com/?${params}`;
 }
 
-function connectGateway() {
-  if (!creds) return;
-  const current = creds;
+function connectGateway(state: ConnectionState) {
+  if (state.closed) return;
   try {
-    const socket = new WebSocket(buildGatewayUrl(current), { headers: { cookie: current.cookie } });
-    gatewaySocket = socket;
+    const socket = new WebSocket(buildGatewayUrl(state.creds), {
+      headers: { cookie: state.creds.cookie },
+    });
+    state.gatewaySocket = socket;
 
     socket.addEventListener("open", () => {
       console.log("Connected to Slack Edge gateway");
-      gatewayConnected = true;
-      gatewayRetryDelay = 2000;
-      stopFallbackPolling();
-      broadcastStatus();
+      state.gatewayConnected = true;
+      state.gatewayRetryDelay = 2000;
+      stopFallbackPolling(state);
+      sendStatus(state);
     });
 
     socket.addEventListener("message", (event) => {
       try {
         const payload = JSON.parse(String(event.data));
         if (payload.type && payload.type !== "pong" && payload.type !== "reconnect_url")
-          broadcast(payload);
+          send(state, payload);
       } catch {
         // ignore malformed frames
       }
     });
 
     const onDown = () => {
-      if (gatewaySocket !== socket) return;
-      gatewaySocket = null;
-      gatewayConnected = false;
-      broadcastStatus();
-      startFallbackPolling();
-      setTimeout(connectGateway, gatewayRetryDelay);
-      gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
+      if (state.gatewaySocket !== socket) return;
+      state.gatewaySocket = null;
+      state.gatewayConnected = false;
+      sendStatus(state);
+      if (state.closed) return;
+      startFallbackPolling(state);
+      setTimeout(() => connectGateway(state), state.gatewayRetryDelay);
+      state.gatewayRetryDelay = Math.min(state.gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
     };
     socket.addEventListener("close", onDown);
     socket.addEventListener("error", onDown);
@@ -511,27 +552,57 @@ function connectGateway() {
     socket.addEventListener("close", () => clearInterval(pingTimer));
   } catch (err) {
     console.warn("Failed to connect to Slack gateway, retrying:", err);
-    startFallbackPolling();
-    setTimeout(connectGateway, gatewayRetryDelay);
-    gatewayRetryDelay = Math.min(gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
+    if (state.closed) return;
+    startFallbackPolling(state);
+    setTimeout(() => connectGateway(state), state.gatewayRetryDelay);
+    state.gatewayRetryDelay = Math.min(state.gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
   }
 }
 
-let started = false;
-export function startGateway() {
-  if (started) return;
-  started = true;
-  if (creds) connectGateway();
+// Called once a browser's /ws connection opens, with credentials already
+// parsed from that same upgrade request's own cookie — nothing is looked up
+// or restored from anywhere else. A connection with no creds just sits idle
+// (shouldn't happen in practice: the client only opens /ws once configured).
+export function handleClientOpen(socket: ClientSocket, creds: Credentials | null): void {
+  if (!creds) return;
+  const state: ConnectionState = {
+    creds,
+    socket,
+    gatewaySocket: null,
+    gatewayConnected: false,
+    gatewayRetryDelay: 2000,
+    fallbackTimer: null,
+    watchedChannels: new Set(),
+    watchedThreads: new Map(),
+    closed: false,
+  };
+  connections.set(socket, state);
+  connectGateway(state);
 }
 
-export function handleClientMessage(raw: string, socket: ClientSocket) {
+// Tears down everything scoped to this one connection — its dedicated
+// gateway socket, its fallback-poll timer — so nothing outlives the browser
+// tab that opened it.
+export function handleClientDisconnect(socket: ClientSocket): void {
+  const state = connections.get(socket);
+  if (!state) return;
+  state.closed = true;
+  state.gatewaySocket?.close();
+  stopFallbackPolling(state);
+  connections.delete(socket);
+}
+
+export function handleClientMessage(raw: string, socket: ClientSocket): void {
+  const state = connections.get(socket);
+  if (!state) return;
   try {
     const msg = JSON.parse(raw);
-    if (msg.type === "watch_channel" && msg.channel) watchChannel(socket, msg.channel);
-    else if (msg.type === "unwatch_channel" && msg.channel) unwatchChannel(socket, msg.channel);
+    if (msg.type === "watch_channel" && msg.channel) state.watchedChannels.add(msg.channel);
+    else if (msg.type === "unwatch_channel" && msg.channel)
+      state.watchedChannels.delete(msg.channel);
     else if (msg.type === "watch_thread" && msg.channel && msg.ts)
-      watchThread(socket, msg.channel, msg.ts);
-    else if (msg.type === "unwatch_thread" && msg.ts) unwatchThread(socket, msg.ts);
+      state.watchedThreads.set(msg.ts, msg.channel);
+    else if (msg.type === "unwatch_thread" && msg.ts) state.watchedThreads.delete(msg.ts);
   } catch {
     // ignore malformed client frames
   }

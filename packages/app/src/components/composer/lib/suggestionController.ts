@@ -4,19 +4,13 @@ import { fetchBrowsableChannels } from "@slock/slack-api";
 import { fuzzySearch } from "@slock/ui";
 import type { Setter } from "solid-js";
 import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../../lib/emojiSearch";
-import {
-  channels,
-  currentUser,
-  frecencyScore,
-  knownUsers,
-  recordEmojiUse,
-  searchUsers,
-} from "../../../lib/store";
+import { channels, currentUser, frecencyScore, knownUsers, searchUsers } from "../../../lib/store";
 import { slashCommandsGlobal } from "./drafts";
 import {
   createChannelChip,
   createEmojiChip,
   createMentionChip,
+  createUserLinkChip,
   placeCaretInText,
 } from "./richtext";
 import type {
@@ -87,7 +81,8 @@ export function createSuggestionController(opts: {
     // remote) each time new remote results land, so a remote match doesn't
     // just get appended after whatever was locally visible first.
 
-    if (trigger.kind === "user") {
+    if (trigger.kind === "user" || trigger.kind === "userlink") {
+      const stateKind = trigger.kind;
       const me = currentUser()?.id;
       const toItems = (users: User[]): UserSuggestItem[] =>
         fuzzySearch(users, { query: q, text: (u) => u.name, frequency: (u) => frecencyScore(u.id) })
@@ -96,7 +91,7 @@ export function createSuggestionController(opts: {
 
       const localUsers = knownUsers().filter((u) => u.id !== me);
       opts.setSuggest({
-        kind: "user",
+        kind: stateKind,
         start: trigger.start,
         items: toItems(localUsers),
         active: 0,
@@ -108,7 +103,7 @@ export function createSuggestionController(opts: {
         for (const u of localUsers) merged.set(u.id, u);
         for (const u of found) merged.set(u.id, u);
         opts.setSuggest((prev) =>
-          prev?.kind === "user" ? { ...prev, items: toItems([...merged.values()]) } : prev,
+          prev?.kind === stateKind ? { ...prev, items: toItems([...merged.values()]) } : prev,
         );
       });
       return;
@@ -157,7 +152,6 @@ export function createSuggestionController(opts: {
       parent.insertBefore(insertion, after);
       placeCaretInText(insertion, insertion.length);
     } else if (item.kind === "emoji") {
-      recordEmojiUse(item.name);
       if (emojiUrl(item.name)) {
         const chip = createEmojiChip(item.name);
         parent.insertBefore(chip, after);
@@ -171,9 +165,11 @@ export function createSuggestionController(opts: {
       }
     } else {
       const chip =
-        item.kind === "user"
-          ? createMentionChip(item.id, item.name)
-          : createChannelChip(item.id, item.name);
+        s.kind === "userlink"
+          ? createUserLinkChip(item.id, item.name)
+          : item.kind === "user"
+            ? createMentionChip(item.id, item.name)
+            : createChannelChip(item.id, item.name);
       parent.insertBefore(chip, after);
       const space = document.createTextNode(" ");
       parent.insertBefore(space, after);

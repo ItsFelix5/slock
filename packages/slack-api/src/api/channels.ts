@@ -5,7 +5,6 @@ import type {
   ChannelDetails,
   ChannelMembersPage,
   ChannelSection,
-  ChannelTab,
 } from "../types";
 import { extractChannelSections, mapUser } from "./mappers";
 import { callSlack, callSlackEdge } from "./relay";
@@ -67,9 +66,6 @@ export async function fetchChannelDetails(channelId: string): Promise<ChannelDet
   });
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   const c = data.channel;
-  const tabs: ChannelTab[] = (c.properties?.tabs ?? [])
-    .filter((t: any) => t?.type && !t.is_disabled)
-    .map((t: any) => ({ type: t.type, label: t.label || undefined }));
   return {
     id: c.id,
     name: c.name,
@@ -79,7 +75,6 @@ export async function fetchChannelDetails(channelId: string): Promise<ChannelDet
     created: c.created ?? 0,
     creatorId: c.creator || undefined,
     memberCount: c.num_members,
-    tabs,
     // Unverified guess at where "send emails to this channel" addresses would
     // live on the info payload — if the guess is wrong this stays undefined and
     // the UI simply hides the email row.
@@ -286,7 +281,12 @@ export async function fetchSections(): Promise<ChannelSection[]> {
     const data = await callSlack("users.channelSections.list");
     if (!data.ok) return [];
     const sections = extractChannelSections(data);
-    return (sections ?? []).map((s) => ({ id: s.id, name: s.name, channelIds: s.channelIds }));
+    return (sections ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      channelIds: s.channelIds,
+      type: s.type,
+    }));
   } catch {
     return [];
   }
@@ -320,6 +320,21 @@ export async function renameSection(sectionId: string, name: string): Promise<bo
 
 export async function deleteSection(sectionId: string): Promise<boolean> {
   const data = await callSlack("users.channelSections.delete", { channel_section_id: sectionId });
+  return !!data.ok;
+}
+
+// Confirmed via a live capture of the real Slack web client dragging a
+// section: "users.channelSections.set" takes the section being moved plus
+// the section it should now sit directly above ("next"). Omitting
+// next_channel_section_id drops the section to the bottom of the list.
+export async function reorderSection(
+  sectionId: string,
+  nextSectionId: string | null,
+): Promise<boolean> {
+  const data = await callSlack("users.channelSections.set", {
+    channel_section_id: sectionId,
+    ...(nextSectionId ? { next_channel_section_id: nextSectionId } : {}),
+  });
   return !!data.ok;
 }
 

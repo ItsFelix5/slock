@@ -1,6 +1,7 @@
-import { Icon, Switch } from "@slock/ui";
+import { Icon, InlineFeedback, Switch } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import {
+  actionFeedback,
   addHighlightWord,
   channelDisplayName,
   desktopNotificationPermission,
@@ -66,6 +67,7 @@ export default function SettingsNotificationsTab() {
               />
             </Show>
           </div>
+          <InlineFeedback feedback={actionFeedback.get("desktop-notifications")} />
         </div>
       </Show>
 
@@ -83,6 +85,7 @@ export default function SettingsNotificationsTab() {
                   <span class="settings-list-row-name">
                     {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
+                  <InlineFeedback feedback={actionFeedback.get(c.id)} />
                   <button
                     type="button"
                     class="settings-list-row-action"
@@ -147,6 +150,7 @@ export default function SettingsNotificationsTab() {
             Add
           </button>
         </form>
+        <InlineFeedback feedback={actionFeedback.get("pingwords")} />
         <Show
           when={highlightWords().length > 0}
           fallback={<div class="settings-list-empty">No pingwords yet.</div>}

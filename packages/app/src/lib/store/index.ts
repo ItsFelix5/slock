@@ -3,10 +3,12 @@ import {
   fetchBootstrap,
   fetchMessageShortcuts,
   fetchProfileFieldDefs,
+  fetchUserPrefs,
   markChannelRead,
   runMessageShortcut,
 } from "@slock/slack-api";
 import { createEffect, createResource, createRoot } from "solid-js";
+import * as frecency from "../frecency";
 import { EMPTY_FILTERS, type SearchFilters } from "../searchQuery";
 import { channelDisplayName } from "./slices/channelDisplayName";
 import { createCanvasSlice } from "./slices/entities/canvas";
@@ -20,12 +22,12 @@ import { createMessagesSlice } from "./slices/messaging/messages";
 import { createRealtimeSlice } from "./slices/messaging/realtime";
 import { createTypingSlice } from "./slices/messaging/typing";
 import { createUnreadSlice } from "./slices/messaging/unread";
+import { createChannelTabsSlice } from "./slices/session/channelTabs";
 import { createCommandsSlice } from "./slices/session/commands";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
-import { createUsageSlice } from "./slices/session/usage";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { Nav, View } from "./slices/types";
 
@@ -59,7 +61,7 @@ function setup() {
   const viewState = createViewStateSlice({ bootstrap });
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
   const typing = createTypingSlice({ userById: users.userById });
-  const usage = createUsageSlice();
+  const [userPrefs] = createResource(fetchUserPrefs);
 
   // channels.ts and dms.ts both need to be able to *switch the active view*
   // (join/leave a channel, open/close a DM) — but the actual setActiveView
@@ -68,7 +70,7 @@ function setup() {
   // `setActiveView` wrapper, which only starts forwarding to the real
   // implementation once it's assigned further down — always well before any
   // user interaction can invoke it.
-  let setActiveViewImpl: (view: View) => void = () => {};
+  let setActiveViewImpl: (view: View) => void = () => { };
   const setActiveView = (view: View) => setActiveViewImpl(view);
 
   const channels = createChannelsSlice({
@@ -78,7 +80,7 @@ function setup() {
   });
   const preferences = createPreferencesSlice({
     channels: channels.channels,
-    userPrefs: usage.userPrefs,
+    userPrefs: userPrefs,
   });
   const unread = createUnreadSlice({ patchChannel: channels.patchChannel, bootstrap });
   const activity = createActivitySlice({
@@ -87,8 +89,9 @@ function setup() {
     setLastReadByChannel: unread.setLastReadByChannel,
     patchChannel: channels.patchChannel,
   });
-  const desktopNotifications = createDesktopNotificationsSlice({ userPrefs: usage.userPrefs });
-  const searchHistory = createSearchHistorySlice({ userPrefs: usage.userPrefs });
+  const desktopNotifications = createDesktopNotificationsSlice({ userPrefs: userPrefs });
+  const searchHistory = createSearchHistorySlice({ userPrefs: userPrefs });
+  const channelTabsSlice = createChannelTabsSlice({ userPrefs: userPrefs });
   const later = createLaterSlice();
   const dms = createDmsSlice({
     bootstrap,
@@ -140,8 +143,11 @@ function setup() {
   });
   const commands = createCommandsSlice({ sendMessage: messages.sendMessage });
 
+  const frecencyScore = (id: string) => frecency.frecencyScore(userPrefs(), id);
+  const emojiUseScore = (name: string) => frecency.emojiUseScore(userPrefs(), name);
+
   // ---- composed actions: switching views has side effects across several ----
-  // ---- slices (unread, frecency, DM re-opening, the realtime watch set) ----
+  // ---- slices (unread, DM re-opening, the realtime watch set) ----
 
   setActiveViewImpl = (view: View) => {
     viewState.setActiveThread(null);
@@ -149,11 +155,6 @@ function setup() {
     viewState.setNav("home");
     unread.clearChannelUnread(view.id);
     if (view.kind === "dm" && dms.closedDmIds[view.id]) dms.setClosedDmIds(view.id, false);
-    const frecencyId =
-      view.kind === "dm"
-        ? (dms.allDirectMessages().find((d) => d.id === view.id)?.userId ?? view.id)
-        : view.id;
-    usage.recordVisit(frecencyId);
   };
 
   function setNavView(next: Nav) {
@@ -178,7 +179,6 @@ function setup() {
   function openChannelPeek(channelId: string, ts: string) {
     viewState.setSelected({ kind: "channel", id: channelId });
     unread.clearChannelUnread(channelId);
-    usage.recordVisit(channelId);
     openThread(channelId, ts);
   }
 
@@ -201,7 +201,7 @@ function setup() {
     for (const id of targets) {
       unread.clearChannelUnread(id);
       unread.setLastReadByChannel(id, nowMs);
-      markChannelRead(id, now).catch(() => {});
+      markChannelRead(id, now).catch(() => { });
     }
   }
 
@@ -250,9 +250,8 @@ function setup() {
     activeView: viewState.activeView,
     setActiveView,
     openChannelPeek,
-    frecencyScore: usage.frecencyScore,
-    recordEmojiUse: usage.recordEmojiUse,
-    emojiUseScore: usage.emojiUseScore,
+    frecencyScore,
+    emojiUseScore,
     messagesByChannel: messages.messagesByChannel,
     loadOlderMessages: messages.loadOlderMessages,
     hasMoreHistory: messages.hasMoreHistory,
@@ -334,6 +333,7 @@ function setup() {
     createChannelSection: channels.createChannelSection,
     renameChannelSection: channels.renameChannelSection,
     deleteChannelSection: channels.deleteChannelSection,
+    reorderChannelSection: channels.reorderChannelSection,
     moveChannelToSection: channels.moveChannelToSection,
     isDndActive: preferences.isDndActive,
     dndSnoozedUntil: preferences.dndSnoozedUntil,
@@ -345,7 +345,6 @@ function setup() {
     openCanvasChannelId: canvas.openCanvasChannelId,
     openChannelCanvas: canvas.openChannelCanvas,
     closeChannelCanvas: canvas.closeChannelCanvas,
-    createCanvasForCurrentChannel: canvas.createCanvasForCurrentChannel,
     loadCanvasContent: canvas.loadCanvasContent,
     saveChannelCanvas: canvas.saveChannelCanvas,
     handleSlashCommand: commands.handleSlashCommand,
@@ -356,10 +355,8 @@ function setup() {
     desktopNotificationsEnabled: desktopNotifications.enabled,
     requestDesktopNotificationPermission: desktopNotifications.requestPermission,
     setDesktopNotificationsEnabled: desktopNotifications.setNotificationsEnabled,
-    searchHistory: searchHistory.searchHistory,
-    recordSearch: searchHistory.recordSearch,
-    removeSearchHistoryEntry: searchHistory.removeSearchHistoryEntry,
-    clearSearchHistory: searchHistory.clearSearchHistory,
+    ...searchHistory,
+    ...channelTabsSlice,
   };
 }
 
@@ -379,7 +376,6 @@ export const {
   setActiveView,
   openChannelPeek,
   frecencyScore,
-  recordEmojiUse,
   emojiUseScore,
   messagesByChannel,
   loadOlderMessages,
@@ -462,18 +458,22 @@ export const {
   createChannelSection,
   renameChannelSection,
   deleteChannelSection,
+  reorderChannelSection,
   moveChannelToSection,
   isDndActive,
   dndSnoozedUntil,
   snoozeDnd,
   endDnd,
   markAllAsRead,
+  tabsForChannel,
+  addChannelTab,
+  removeChannelTab,
+  moveChannelTab,
   canvasByChannel,
   ensureCanvasChecked,
   openCanvasChannelId,
   openChannelCanvas,
   closeChannelCanvas,
-  createCanvasForCurrentChannel,
   loadCanvasContent,
   saveChannelCanvas,
   handleSlashCommand,

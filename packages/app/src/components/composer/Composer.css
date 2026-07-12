@@ -350,6 +350,13 @@
   user-select: none;
 }
 
+/* A "@/" link mention — grey to match the non-pinging chip it renders as
+   once sent (see blockkit's .bk-mention-link). */
+.composer-chip-link {
+  background: var(--mention-inaccessible-bg);
+  color: var(--mention-inaccessible-text);
+}
+
 .composer-date-chip {
   background: var(--hover-bg);
   color: var(--text-secondary);
@@ -367,6 +374,62 @@
   width: 18px;
   height: 18px;
   vertical-align: middle;
+}
+
+.composer-link {
+  color: #1d9bd1;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.composer-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.composer-link-chip {
+  background: var(--mention-bg);
+  color: var(--mention-text);
+  text-decoration: none;
+}
+
+.composer-link-chip:hover {
+  opacity: 0.8;
+}
+
+.compose-link-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+  padding: 8px;
+  bottom: 2em;
+  top: unset;
+}
+
+.compose-link-input {
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  font-family: inherit;
+}
+
+.compose-link-input::placeholder {
+  color: var(--text-dim);
+}
+
+.compose-link-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.compose-link-buttons button {
+  flex: 1;
 }
 
 .composer-pre {

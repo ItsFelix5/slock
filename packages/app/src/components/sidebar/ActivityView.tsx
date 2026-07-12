@@ -4,7 +4,6 @@ import {
   activityItems,
   ensureActivityLoaded,
   isActivityItemUnread,
-  isPingingActivity,
   markActivityItemRead,
   openChannelPeek,
   userById,
@@ -14,7 +13,6 @@ import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read";
-type PingFilter = "all" | "pinging" | "ambient";
 
 const TAG_FILTERS: { key: Tag; label: string }[] = [
   { key: "mention", label: "Mentions" },
@@ -34,22 +32,10 @@ const READ_STATES: { key: ReadState; label: string }[] = [
   { key: "read", label: "Read" },
 ];
 
-// "Pinging" mirrors the sidebar bell's own definition (direct @mention, DM,
-// or a pingword) — everything else here is activity that's relevant but
-// wasn't personally addressed at you (a thread you're in, an @channel/@here/
-// usergroup broadcast, a channel set to notify on every post, or a reaction),
-// the way a real notification-vs-ambient split works.
-const PING_FILTERS: { key: PingFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "pinging", label: "Pinged you" },
-  { key: "ambient", label: "Other" },
-];
-
 export default function ActivityView() {
   const [selectedTags, setSelectedTags] = createSignal<Set<Tag>>(new Set());
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
-  const [pingFilter, setPingFilter] = createSignal<PingFilter>("all");
 
   onMount(() => ensureActivityLoaded());
 
@@ -67,7 +53,6 @@ export default function ActivityView() {
     const tags = selectedTags();
     const kw = keyword().trim().toLowerCase();
     const read = readState();
-    const ping = pingFilter();
 
     return sorted.filter((item) => {
       if (tags.size > 0) {
@@ -79,9 +64,6 @@ export default function ActivityView() {
       const unread = isActivityItemUnread(item);
       if (read === "unread" && !unread) return false;
       if (read === "read" && unread) return false;
-      const pinging = isPingingActivity(item);
-      if (ping === "pinging" && !pinging) return false;
-      if (ping === "ambient" && pinging) return false;
       return true;
     });
   });
@@ -173,20 +155,6 @@ export default function ActivityView() {
                 onClick={() => setReadState(r.key)}
               >
                 {r.label}
-              </button>
-            )}
-          </For>
-        </div>
-
-        <div class="activity-read-toggle">
-          <For each={PING_FILTERS}>
-            {(p) => (
-              <button
-                type="button"
-                classList={{ active: pingFilter() === p.key }}
-                onClick={() => setPingFilter(p.key)}
-              >
-                {p.label}
               </button>
             )}
           </For>

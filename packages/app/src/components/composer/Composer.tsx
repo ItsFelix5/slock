@@ -14,6 +14,7 @@ import {
 } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
 import ComposeDatePicker from "./ComposeDatePicker";
+import ComposeLinkEditor from "./ComposeLinkEditor";
 import ComposeUserPicker from "./ComposeUserPicker";
 import { drafts, draftsReady, persistDraft } from "./lib/drafts";
 import { createEditorCommands } from "./lib/editor/editorCommands";
@@ -41,6 +42,11 @@ export default function Composer(props: {
   const [toolsOpen, setToolsOpen] = createSignal(false);
   const [mentionOpen, setMentionOpen] = createSignal(false);
   const [dateOpen, setDateOpen] = createSignal(false);
+  const [linkEditor, setLinkEditor] = createSignal<{
+    el: HTMLElement;
+    url: string;
+    label?: string;
+  } | null>(null);
   const [pendingFiles, setPendingFiles] = createSignal<File[]>([]);
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
@@ -163,6 +169,7 @@ export default function Composer(props: {
 
   const submit = async (e: Event) => {
     e.preventDefault();
+    editor.linkifyAll();
     const trimmed = text().trim();
     // Headers/dividers can't be expressed in plain mrkdwn — such messages go
     // out as an ordered block list, with `trimmed` as the notification text.
@@ -297,6 +304,7 @@ export default function Composer(props: {
   const onInput = () => {
     editor.normalizeStrayEmptyBlock();
     if (editor.maybeApplyLineTrigger()) return;
+    editor.maybeLinkifyTypedUrl();
     editor.syncFromDom();
     // Selecting-all-and-deleting (or backspacing to nothing) can leave the
     // browser's own empty-line placeholder <br> behind, which defeats the
@@ -317,7 +325,26 @@ export default function Composer(props: {
     }
     e.preventDefault();
     const pasted = e.clipboardData?.getData("text/plain") ?? "";
-    if (pasted) editor.insertPlainTextAtCaret(pasted);
+    if (pasted) {
+      editor.insertPlainTextAtCaret(pasted);
+      editor.linkifyAll();
+    }
+  };
+
+  const onEditorClick = (e: MouseEvent) => {
+    const target = (e.target as HTMLElement).closest(".composer-link, .composer-link-chip");
+    if (!target) return;
+    const url = target.dataset.linkUrl ?? "";
+    if (!url) return;
+    setLinkEditor({
+      el: target as HTMLElement,
+      url,
+      label:
+        target.classList.contains("composer-link-chip") &&
+        target.textContent !== url
+          ? target.textContent ?? undefined
+          : undefined,
+    });
   };
 
   return (
@@ -343,7 +370,7 @@ export default function Composer(props: {
               <span class="composer-file-chip">
                 {file.name}
                 <button type="button" onClick={() => removeFile(i())} title="Remove">
-                  ✕
+                  <Icon name="close" size={12} />
                 </button>
               </span>
             )}
@@ -363,7 +390,7 @@ export default function Composer(props: {
                   onClick={() => linkPreviews.dismissLinkPreview(preview.url)}
                   title="Remove preview"
                 >
-                  ✕
+                  <Icon name="close" size={12} />
                 </button>
               </div>
             )}
@@ -449,6 +476,7 @@ export default function Composer(props: {
             onInput={onInput}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
+            onClick={onEditorClick}
             onBlur={() => setSuggest(null)}
           />
           <Show when={suggest()}>
@@ -474,6 +502,16 @@ export default function Composer(props: {
                   )}
                 </For>
               </div>
+            )}
+          </Show>
+          <Show when={linkEditor()}>
+            {(le) => (
+              <ComposeLinkEditor
+                linkEl={le().el}
+                url={le().url}
+                currentLabel={le().label}
+                onClose={() => setLinkEditor(null)}
+              />
             )}
           </Show>
         </div>

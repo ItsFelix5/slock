@@ -169,15 +169,8 @@
 }
 
 .reaction-picker-full {
-  position: absolute;
-  top: 32px;
-  right: 0;
+  position: fixed;
   z-index: 6;
-}
-
-.reaction-picker-full.flip-up {
-  top: auto;
-  bottom: 32px;
 }
 
 .menu-panel.message-more-menu {

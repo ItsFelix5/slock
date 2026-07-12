@@ -19,6 +19,9 @@ export type SuggestItem =
 
 export type SuggestState =
   | { kind: "user"; start: number; items: UserSuggestItem[]; active: number }
+  // Same user list as "user" — inserted as a link to the person's Slack
+  // profile instead of a real @mention. See textDetection's "@/" trigger.
+  | { kind: "userlink"; start: number; items: UserSuggestItem[]; active: number }
   | { kind: "channel"; start: number; items: ChannelSuggestItem[]; active: number }
   | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
   | { kind: "emoji"; start: number; items: EmojiSuggestItem[]; active: number };

@@ -1,5 +1,4 @@
-import type { SlackFile } from "@slock/slack-api";
-import { fileProxyUrl } from "@slock/slack-api";
+import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
 import { Icon, ZoomableImage } from "@slock/ui";
 import { For, Show } from "solid-js";
 import "./MessageFiles.css";
@@ -20,11 +19,11 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
             when={file.isImage && file.thumbUrl}
             fallback={
               <Show
-                when={file.isVideo && file.thumbUrl}
+                when={file.isVideo}
                 fallback={
                   <a
                     class="message-file-card"
-                    href={fileProxyUrl(file.urlPrivate)}
+                    href={file.urlPrivate}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -38,26 +37,25 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                   </a>
                 }
               >
-                {(thumb) => (
-                  <video
-                    class="message-file-video"
-                    poster={fileProxyUrl(thumb())}
-                    width={file.width}
-                    height={file.height}
-                    controls
-                    aria-label={file.title || file.name}
-                  >
-                    <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
-                    Your browser does not support the video tag.
-                  </video>
-                )}
+                <video
+                  class="message-file-video"
+                  poster={file.thumbUrl}
+                  width={file.width}
+                  height={file.height}
+                  controls
+                  aria-label={file.title || file.name}
+                  preload="metadata"
+                >
+                  <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
+                  Your browser does not support the video tag.
+                </video>
               </Show>
             }
           >
             {(thumb) => (
               <ZoomableImage
                 class="message-file-image"
-                src={fileProxyUrl(thumb())}
+                src={thumb()}
                 fullSrc={fileProxyUrl(file.urlPrivate)}
                 alt={file.title || file.name}
                 width={file.width}

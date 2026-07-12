@@ -128,6 +128,28 @@
 
 .sidebar-section {
   margin-top: 10px;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+}
+
+.sidebar-section-dragging {
+  opacity: 0.5;
+}
+
+.sidebar-section-drop-before {
+  border-top-color: var(--accent);
+}
+
+.sidebar-section-drop-after {
+  border-bottom-color: var(--accent);
+}
+
+.sidebar-section-header-draggable {
+  cursor: grab;
+}
+
+.sidebar-section-dragging .sidebar-section-header-draggable {
+  cursor: grabbing;
 }
 
 .sidebar-section-header {

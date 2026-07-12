@@ -3,12 +3,12 @@ import { createMemo, onMount, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import {
   canvasByChannel,
-  createCanvasForCurrentChannel,
   ensureCanvasChecked,
   isChannelMuted,
   isChannelNotifyAll,
   leaveCurrentChannel,
   markCurrentChannelRead,
+  openChannelCanvas,
   openPinnedPanel,
   toggleMuteChannel,
   toggleNotifyAllChannel,
@@ -84,14 +84,14 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
         />
         {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
       </button>
-      <Show when={!props.isDm && !canvas()}>
+      <Show when={!props.isDm && canvas()}>
         <button
           type="button"
           class="menu-item"
-          onClick={() => run(() => createCanvasForCurrentChannel(props.channelId))}
+          onClick={() => run(() => openChannelCanvas(props.channelId))}
         >
-          <Icon name="add-channel-canvas" size={15} />
-          Create canvas
+          <Icon name="canvas-filled" size={15} />
+          View canvas
         </button>
       </Show>
       <button

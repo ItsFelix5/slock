@@ -1,12 +1,8 @@
 import type { Message } from "@slock/slack-api";
 import { Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
-import {
-  isSavedForLater,
-  reactToMessage,
-  recordEmojiUse,
-  toggleSaveForLater,
-} from "../../../lib/store";
+import { Portal } from "solid-js/web";
+import { isSavedForLater, reactToMessage, toggleSaveForLater } from "../../../lib/store";
 import EmojiPicker from "../../composer/EmojiPicker";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
@@ -19,23 +15,30 @@ export default function MessageActionsBar(props: {
   onEditRequest: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
-  const [pickerFlipUp, setPickerFlipUp] = createSignal(false);
+  const [pickerPos, setPickerPos] = createSignal({ left: 0, top: 0 });
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [moreFlipUp, setMoreFlipUp] = createSignal(false);
   let pickerWrapRef: HTMLDivElement | undefined;
   let moreBtnRef: HTMLButtonElement | undefined;
 
-  // The picker's own height (see EmojiPicker.css) plus a little breathing
-  // room — if opening downward from here would run past the viewport bottom
-  // (e.g. reacting on one of the last messages in the list), flip it to open
-  // upward from the button instead so it's never clipped off-screen.
+  // The picker's own size (see EmojiPicker.css) plus a little breathing room.
+  // It's portalled to <body> and fixed-positioned (like UserHoverCard) rather
+  // than absolutely positioned inside the message row, because message lists
+  // (and especially the narrow thread panel) scroll with overflow: auto,
+  // which clips any in-flow popup that would otherwise spill outside them.
+  const PICKER_WIDTH = 320;
   const PICKER_HEIGHT = 400;
   const MORE_MENU_HEIGHT = 220;
 
   const togglePicker = () => {
     if (!pickerOpen() && pickerWrapRef) {
       const rect = pickerWrapRef.getBoundingClientRect();
-      setPickerFlipUp(rect.bottom + PICKER_HEIGHT > window.innerHeight);
+      const flipUp = rect.bottom + PICKER_HEIGHT > window.innerHeight;
+      const left = Math.min(rect.right - PICKER_WIDTH, window.innerWidth - PICKER_WIDTH - 8);
+      setPickerPos({
+        left: Math.max(8, left),
+        top: flipUp ? rect.top - PICKER_HEIGHT : rect.bottom + 4,
+      });
     }
     setPickerOpen(!pickerOpen());
   };
@@ -58,7 +61,6 @@ export default function MessageActionsBar(props: {
   const isSaved = createMemo(() => isSavedForLater(props.msg.ts));
 
   const react = (name: string) => {
-    recordEmojiUse(name);
     reactToMessage(props.channelId, props.msg, name);
     setPickerOpen(false);
   };
@@ -70,9 +72,14 @@ export default function MessageActionsBar(props: {
           <Icon name="emoji" size={16} />
         </button>
         <Show when={pickerOpen()}>
-          <div class="reaction-picker-full" classList={{ "flip-up": pickerFlipUp() }}>
-            <EmojiPicker onSelect={react} onClose={() => setPickerOpen(false)} />
-          </div>
+          <Portal>
+            <div
+              class="reaction-picker-full"
+              style={{ left: `${pickerPos().left}px`, top: `${pickerPos().top}px` }}
+            >
+              <EmojiPicker onSelect={react} onClose={() => setPickerOpen(false)} />
+            </div>
+          </Portal>
         </Show>
       </div>
 

@@ -182,3 +182,125 @@
   width: 14px;
   color: var(--accent);
 }
+
+.channel-header-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0 12px 6px;
+}
+
+.channel-header-tabs-feedback {
+  margin-left: 6px;
+}
+
+.channel-header-tab-current {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.channel-header-tab-real {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+}
+
+.channel-header-tab-real:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.channel-header-tab {
+  display: flex;
+  align-items: center;
+}
+
+.channel-header-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 6px 0 0 6px;
+}
+
+.channel-header-tab-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.channel-header-tab-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  width: 22px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 6px 6px 0;
+  opacity: 0;
+}
+
+.channel-header-tab:hover .channel-header-tab-remove,
+.channel-header-tab-remove:focus-visible {
+  opacity: 1;
+}
+
+.channel-header-tab-remove:hover {
+  background: var(--hover-bg);
+  color: var(--danger);
+}
+
+.channel-header-tab-add-wrap {
+  position: relative;
+}
+
+.channel-header-tab-add {
+  background: none;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-dim);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+
+.channel-header-tab-add:hover {
+  color: var(--text-primary);
+  border-color: var(--text-dim);
+}
+
+.channel-header-tab-add-menu {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 9;
+}

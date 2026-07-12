@@ -46,9 +46,9 @@ function navSnapshotToPath(snap: NavSnapshot): string {
 
 // Raw navigation state: which view/tab/thread is selected, plus the browser
 // history <-> in-app-navigation sync. Side effects that reach into other
-// slices (clearing unread state, recording frecency, etc.) live one layer up
-// in the composed setActiveView/setNavView in store/index.ts — this slice
-// only knows about "where am I", not what opening a view should also do.
+// slices (clearing unread state, DM re-opening, etc.) live one layer up in
+// the composed setActiveView/setNavView in store/index.ts — this slice only
+// knows about "where am I", not what opening a view should also do.
 export function createViewStateSlice(deps: {
   bootstrap: () => { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
 }) {

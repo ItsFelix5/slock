@@ -1,5 +1,6 @@
 import { createBlockCommands } from "./blockCommands";
 import { createEditorRef } from "./editorRef";
+import { createLinkifyCommands } from "./linkifyCommands";
 import { createSelectionCommands } from "./selectionCommands";
 
 // Owns the contentEditable DOM node and all direct manipulation of it. Split
@@ -23,11 +24,16 @@ export function createEditorCommands(opts: {
     currentTextContext: selection.currentTextContext,
     closeSuggestions: opts.closeSuggestions,
   });
+  const linkify = createLinkifyCommands(ref, {
+    currentTextContext: selection.currentTextContext,
+    syncFromDom: selection.syncFromDom,
+  });
 
   return {
     setRef: ref.set,
     getRef: ref.get,
     ...selection,
     ...block,
+    ...linkify,
   };
 }

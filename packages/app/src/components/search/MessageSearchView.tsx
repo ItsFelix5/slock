@@ -142,7 +142,7 @@ export default function MessageSearchView() {
           title="Close search"
           onClick={() => setNavView("home")}
         >
-          ✕
+          <Icon name="close" size={12} />
         </button>
       </div>
 
@@ -281,7 +281,7 @@ export default function MessageSearchView() {
                         title="Remove"
                         onClick={() => removeSearchHistoryEntry(q)}
                       >
-                        ✕
+                        <Icon name="close" size={12} />
                       </button>
                     </div>
                   )}

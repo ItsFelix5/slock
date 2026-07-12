@@ -88,10 +88,8 @@ export default function ThreadPanel() {
           />
           <PanelHeader onClose={closeThread}>
             <div class="thread-panel-header-info">
-              <div>
-                <div class="thread-panel-title">Thread</div>
-                <div class="thread-panel-subtitle">#{channelName()}</div>
-              </div>
+              <div class="thread-panel-title">Thread</div>
+              <div class="thread-panel-subtitle">#{channelName()}</div>
               <button
                 type="button"
                 class="thread-panel-subscribe-btn"
@@ -130,7 +128,7 @@ export default function ThreadPanel() {
                 title="Cancel reply"
                 onClick={() => setReplyTarget(null)}
               >
-                ✕
+                <Icon name="close" size={12} />
               </button>
             </div>
           </Show>

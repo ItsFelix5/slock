@@ -1,6 +1,7 @@
 import type { ActivityItem, Channel, User, UserPrefs } from "@slock/slack-api";
 import { setDesktopNotificationsEnabled as setDesktopNotificationsEnabledApi } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
+import { actionFeedback } from "../feedback";
 import { PING_KINDS } from "../messaging/activity";
 
 // Synced through the same users.prefs blob as mute/pingwords (custom key,
@@ -25,6 +26,12 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     setEnabled(next);
     setDesktopNotificationsEnabledApi(next).catch((err) => {
       console.error("Failed to set desktop notification preference", err);
+      actionFeedback.flash(
+        "desktop-notifications",
+        "Failed to update desktop notifications.",
+        "error",
+      );
+      setEnabled(!next);
     });
   }
 

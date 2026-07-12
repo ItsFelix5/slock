@@ -6,4 +6,12 @@ export * from "./content";
 export * from "./directory";
 export { mapMessage, parseBadgeCounts } from "./mappers";
 export * from "./messages";
-export { fileProxyUrl, getConfig, submitAuthRequest } from "./relay";
+export {
+  fileProxyUrl,
+  getCachedWorkspaceDomain,
+  getConfig,
+  getWorkspaceDomain,
+  logout,
+  submitAuthRequest,
+  userProfileUrl,
+} from "./relay";
