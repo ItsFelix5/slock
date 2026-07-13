@@ -416,7 +416,12 @@ export function createMessagesSlice(deps: {
   function markMessageUnread(channelId: string, ts: string) {
     const list = messagesByChannel[channelId] ?? [];
     const idx = list.findIndex((m) => m.ts === ts);
-    const previousTs = idx > 0 ? list[idx - 1].ts : "0";
+    // idx === -1 means the target message isn't in the loaded history (e.g.
+    // reached via search/Activity) — fall back to just before its own ts so
+    // only it and later messages go unread, instead of rolling the whole
+    // channel back to epoch 0 like a truly-first-message case would.
+    const previousTs =
+      idx > 0 ? list[idx - 1].ts : idx === 0 ? "0" : (parseFloat(ts) - 0.000001).toFixed(6);
     const previousMs = parseFloat(previousTs) * 1000;
     // Roll the local cursor back immediately so the divider shows up right
     // away instead of waiting on a round trip to Slack.

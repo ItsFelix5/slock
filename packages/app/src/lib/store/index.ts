@@ -70,7 +70,7 @@ function setup() {
   // `setActiveView` wrapper, which only starts forwarding to the real
   // implementation once it's assigned further down — always well before any
   // user interaction can invoke it.
-  let setActiveViewImpl: (view: View) => void = () => { };
+  let setActiveViewImpl: (view: View) => void = () => {};
   const setActiveView = (view: View) => setActiveViewImpl(view);
 
   const channels = createChannelsSlice({
@@ -122,6 +122,7 @@ function setup() {
     setPresenceOverrides: users.setPresenceOverrides,
     invalidateUser: users.invalidateUser,
     recordTyping: typing.recordTyping,
+    clearTyping: typing.clearTyping,
     allDirectMessages: dms.allDirectMessages,
     setDmLastActivity: dms.setDmLastActivity,
     closedDmIds: dms.closedDmIds,
@@ -177,7 +178,8 @@ function setup() {
   // tab — nav stays on 'activity'/'later' (so the feed keeps showing in the
   // sidebar) while the main panel switches to the selected channel.
   function openChannelPeek(channelId: string, ts: string) {
-    viewState.setSelected({ kind: "channel", id: channelId });
+    const kind = dms.dmById(channelId) ? "dm" : "channel";
+    viewState.setSelected({ kind, id: channelId });
     unread.clearChannelUnread(channelId);
     openThread(channelId, ts);
   }
@@ -201,7 +203,7 @@ function setup() {
     for (const id of targets) {
       unread.clearChannelUnread(id);
       unread.setLastReadByChannel(id, nowMs);
-      markChannelRead(id, now).catch(() => { });
+      markChannelRead(id, now).catch(() => {});
     }
   }
 

@@ -34,7 +34,11 @@ export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
 export function detectMentionTrigger(
   value: string,
   cursor: number,
-): { kind: "user" | "userlink" | "channel" | "command" | "emoji"; start: number; query: string } | null {
+): {
+  kind: "user" | "userlink" | "channel" | "command" | "emoji";
+  start: number;
+  query: string;
+} | null {
   const before = value.slice(0, cursor);
   if (before.startsWith("/") && !/[\s]/.test(before.slice(1))) {
     return { kind: "command", start: 0, query: before.slice(1) };

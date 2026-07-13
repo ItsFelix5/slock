@@ -44,7 +44,10 @@ function linkifyTextNode(node: Text, caretOffset: number | null, re: RegExp): bo
 
 export function createLinkifyCommands(
   ref: EditorRefHandle,
-  opts: { currentTextContext: () => { node: Text; offset: number } | null; syncFromDom: () => void },
+  opts: {
+    currentTextContext: () => { node: Text; offset: number } | null;
+    syncFromDom: () => void;
+  },
 ) {
   function maybeLinkifyTypedUrl(): boolean {
     const ctx = opts.currentTextContext();
@@ -67,7 +70,8 @@ export function createLinkifyCommands(
     for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
     let changed = false;
     for (const node of nodes) {
-      if (linkifyTextNode(node, node === caretNode ? caretOffset : null, FINAL_URL_RE)) changed = true;
+      if (linkifyTextNode(node, node === caretNode ? caretOffset : null, FINAL_URL_RE))
+        changed = true;
     }
     if (changed) opts.syncFromDom();
   }

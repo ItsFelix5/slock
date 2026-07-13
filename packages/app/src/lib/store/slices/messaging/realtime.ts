@@ -23,6 +23,7 @@ export function createRealtimeSlice(deps: {
   setPresenceOverrides: (id: string, presence: "active" | "away") => void;
   invalidateUser: (id: string) => void;
   recordTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
+  clearTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
   allDirectMessages: () => DirectMessage[];
   setDmLastActivity: (id: string, ts: number) => void;
   closedDmIds: Record<string, boolean>;
@@ -115,6 +116,7 @@ export function createRealtimeSlice(deps: {
     const me = deps.currentUser();
     const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
     let threadRelevant = false;
+    deps.clearTyping(channel, isThreadReply ? payload.thread_ts : undefined, msg.userId);
 
     if (isThreadReply) {
       if (deps.loadedThreads.has(payload.thread_ts)) {

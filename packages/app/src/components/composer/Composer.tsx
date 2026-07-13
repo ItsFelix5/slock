@@ -332,7 +332,9 @@ export default function Composer(props: {
   };
 
   const onEditorClick = (e: MouseEvent) => {
-    const target = (e.target as HTMLElement).closest(".composer-link, .composer-link-chip");
+    const target = (e.target as HTMLElement).closest<HTMLElement>(
+      ".composer-link, .composer-link-chip",
+    );
     if (!target) return;
     const url = target.dataset.linkUrl ?? "";
     if (!url) return;
@@ -340,9 +342,8 @@ export default function Composer(props: {
       el: target as HTMLElement,
       url,
       label:
-        target.classList.contains("composer-link-chip") &&
-        target.textContent !== url
-          ? target.textContent ?? undefined
+        target.classList.contains("composer-link-chip") && target.textContent !== url
+          ? (target.textContent ?? undefined)
           : undefined,
     });
   };

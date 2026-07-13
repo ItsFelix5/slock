@@ -261,7 +261,7 @@ export default function ChannelHeader() {
           </Show>
         </div>
       </div>
-      <Show when={channelId() && false}>
+      <Show when={channelId()}>
         {(id) => (
           <div class="channel-header-tabs" role="toolbar" aria-label="Channel tabs">
             <span class="channel-header-tab-current" aria-current="true">

@@ -33,11 +33,7 @@ export default function ComposeLinkEditor(props: {
   };
 
   return (
-    <div
-      ref={rootRef}
-      class="menu-panel compose-link-editor"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div ref={rootRef} class="menu-panel compose-link-editor" onClick={(e) => e.stopPropagation()}>
       <input
         ref={inputRef}
         type="text"
@@ -57,12 +53,7 @@ export default function ComposeLinkEditor(props: {
         autofocus
       />
       <div class="compose-link-buttons">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={unlink}
-        >
+        <Button type="button" variant="secondary" size="sm" onClick={unlink}>
           Unlink
         </Button>
       </div>
