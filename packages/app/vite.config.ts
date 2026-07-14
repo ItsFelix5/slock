@@ -2,6 +2,9 @@ import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 
 export default defineConfig(async ({ command }) => ({
+  optimizeDeps: {
+    exclude: ["@slock/ui", "@slock/slack-api", "@slock/blockkit"],
+  },
   plugins: [
     solid(),
     // Only wired up for `vite dev` — `vite build` has no server to attach to,
@@ -10,8 +13,5 @@ export default defineConfig(async ({ command }) => ({
   ],
   resolve: {
     dedupe: ["solid-js"],
-  },
-  optimizeDeps: {
-    exclude: ["@slock/ui", "@slock/slack-api", "@slock/blockkit"],
   },
 }));

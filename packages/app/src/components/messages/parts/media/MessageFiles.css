@@ -2,35 +2,33 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 4px;
   max-width: 420px;
+  margin-top: 4px;
 }
 
 .message-file-image {
   max-width: 360px;
   max-height: 320px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
   object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 .message-file-video {
   max-width: 360px;
   max-height: 320px;
-  border-radius: 6px;
   border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 .message-file-card {
-  display: flex;
-  align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
   color: var(--text-primary);
   text-decoration: none;
   background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
 }
 
 .message-file-card:hover {
@@ -44,10 +42,10 @@
 }
 
 .message-file-name {
-  font-size: 14px;
-  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
 }
 

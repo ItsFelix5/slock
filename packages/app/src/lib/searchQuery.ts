@@ -4,16 +4,16 @@
 // assembly pure and testable, separate from the React-ish component.
 
 export interface SearchFilters {
-  fromUserId?: string;
-  inChannelId?: string;
-  hasLink?: boolean;
-  hasStar?: boolean;
-  hasPin?: boolean;
-  hasReaction?: boolean;
   after?: string; // yyyy-mm-dd
   before?: string; // yyyy-mm-dd
-  isThread?: boolean;
+  fromUserId?: string;
+  hasLink?: boolean;
+  hasPin?: boolean;
+  hasReaction?: boolean;
+  hasStar?: boolean;
+  inChannelId?: string;
   isSaved?: boolean;
+  isThread?: boolean;
 }
 
 export type SortMode = "relevant" | "newest" | "oldest";

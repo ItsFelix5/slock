@@ -1,14 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { WebSocketServer } from "ws";
+import { parseCredsCookie, routeRelayRequest } from "./relay-core.ts";
 import {
   handleClientDisconnect,
   handleClientMessage,
   handleClientOpen,
-  parseCredsCookie,
-  routeRelayRequest,
   statusMessage,
-} from "./relay-core.ts";
+} from "./relay-gateway.ts";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -45,7 +44,7 @@ async function sendWebResponse(res: ServerResponse, response: Response) {
     return;
   }
   const reader = response.body.getReader();
-  for (; ;) {
+  while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     res.write(value);
@@ -59,7 +58,6 @@ async function sendWebResponse(res: ServerResponse, response: Response) {
 // talks to Vite's port.
 export function slackRelayPlugin(): Plugin {
   return {
-    name: "slock-slack-relay",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url ?? "/", "http://internal");
@@ -72,6 +70,7 @@ export function slackRelayPlugin(): Plugin {
           creds,
           false,
           {
+            buffer: () => readBodyBuffer(req),
             json: async () => {
               const raw = await readBody(req);
               try {
@@ -81,7 +80,6 @@ export function slackRelayPlugin(): Plugin {
               }
             },
             text: () => readBody(req),
-            buffer: () => readBodyBuffer(req),
           },
         );
         if (relayRes) {
@@ -107,5 +105,6 @@ export function slackRelayPlugin(): Plugin {
         wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
       });
     },
+    name: "slock-slack-relay",
   };
 }

@@ -40,11 +40,11 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
             pendingUsers.delete(id);
           });
       }
-      return undefined;
+      return;
     }
     const presence = presenceOverrides[id];
     const selfOverride = id === deps.currentUserBase()?.id ? selfStatusOverride() : null;
-    if (!presence && !selfOverride) return known;
+    if (!(presence || selfOverride)) return known;
     return { ...known, ...(presence ? { presence } : {}), ...(selfOverride ?? {}) };
   }
 
@@ -91,7 +91,7 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
     if (!base) return base;
     const presence = presenceOverrides[base.id];
     const status = selfStatusOverride();
-    if (!presence && !status) return base;
+    if (!(presence || status)) return base;
     return { ...base, ...(presence ? { presence } : {}), ...(status ?? {}) };
   }
 
@@ -106,8 +106,8 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
   async function updateMyStatus(text: string, emoji: string, expiration: number) {
     setSelfStatusOverride((prev) => ({
       ...prev,
-      statusText: text || undefined,
       statusEmoji: emoji || undefined,
+      statusText: text || undefined,
     }));
     try {
       await apiSetStatus(text, emoji, expiration);
@@ -168,18 +168,18 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
   }
 
   return {
-    knownUsers,
-    userById,
-    invalidateUser,
-    searchUsers,
-    currentUser,
-    setPresenceOverrides,
-    profileUserId,
-    openUserProfile,
-    closeUserProfile,
-    updateMyStatus,
     clearMyStatus,
-    updateMyProfile,
+    closeUserProfile,
+    currentUser,
+    invalidateUser,
+    knownUsers,
+    openUserProfile,
+    profileUserId,
+    searchUsers,
+    setPresenceOverrides,
     updateMyPresence,
+    updateMyProfile,
+    updateMyStatus,
+    userById,
   };
 }

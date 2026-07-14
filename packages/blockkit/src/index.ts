@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/noBarrelFile: This is the package's public API entry point.
 export { default as BkText } from "./BkText";
 export { default as BlockKit } from "./BlockKit";
 export type { BlockKitMentionInfo, BlockKitResolver } from "./context";

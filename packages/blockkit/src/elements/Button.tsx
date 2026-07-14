@@ -17,19 +17,19 @@ export default function Button(props: { el: ButtonElement }) {
     <a
       class={`bk-button bk-button--${props.el.style ?? "default"}`}
       href={props.el.url}
-      target="_blank"
       rel="noopener noreferrer"
+      target="_blank"
     >
       <BkText text={props.el.text} />
     </a>
   ) : (
     <button
-      type="button"
       class={`bk-button bk-button--${props.el.style ?? "default"}`}
-      title={unsupported() ? undefined : "This button needs its app to respond"}
       onClick={onClick}
+      title={unsupported() ? undefined : "This button needs its app to respond"}
+      type="button"
     >
-      <Show when={unsupported()} fallback={<BkText text={props.el.text} />}>
+      <Show fallback={<BkText text={props.el.text} />} when={unsupported()}>
         Not supported here
       </Show>
     </button>

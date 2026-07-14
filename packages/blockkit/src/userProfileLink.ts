@@ -6,7 +6,8 @@
 // a real `<@USERID>` mention), so any of them render as the same grey chip.
 // Shared between mrkdwn.tsx (plain-text messages) and RichText.tsx (rich_text
 // blocks), which both need to tell these apart from ordinary links.
-const USER_PROFILE_LINK_RE = /^https:\/\/[a-z0-9-]+(?:\.enterprise)?\.slack\.com\/team\/([A-Z0-9]+)(?:[/?#].*)?$/i;
+const USER_PROFILE_LINK_RE =
+  /^https:\/\/[a-z0-9-]+(?:\.enterprise)?\.slack\.com\/team\/([A-Z0-9]+)(?:[/?#].*)?$/i;
 
 export function parseUserProfileLink(url: string): string | null {
   return USER_PROFILE_LINK_RE.exec(url)?.[1] ?? null;

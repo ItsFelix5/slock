@@ -5,12 +5,12 @@ import "./MenuButton.css";
 import "./ContextMenu.css";
 
 export interface ContextMenuProps {
+  children: JSX.Element;
+  class?: string;
+  onClose: () => void;
   open: boolean;
   x: number;
   y: number;
-  onClose: () => void;
-  children: JSX.Element;
-  class?: string;
 }
 
 // Right-click menu positioned at an arbitrary cursor point rather than
@@ -33,12 +33,12 @@ export default function ContextMenu(props: ContextMenuProps) {
   return (
     <Show when={props.open}>
       <ContextMenuPanel
-        x={props.x}
-        y={props.y}
         class={props.class}
         setRef={(el) => {
           panelRef = el;
         }}
+        x={props.x}
+        y={props.y}
       >
         {props.children}
       </ContextMenuPanel>
@@ -70,8 +70,8 @@ function ContextMenuPanel(props: {
   return (
     <div
       class={`menu-panel context-menu ${props.class ?? ""}`}
-      style={{ left: `${props.x}px`, top: `${props.y}px` }}
       ref={ref}
+      style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >
       {props.children}
     </div>

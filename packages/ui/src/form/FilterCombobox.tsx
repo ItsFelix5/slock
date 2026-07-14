@@ -49,9 +49,9 @@ export default function FilterCombobox(props: {
     const q = query().trim();
     if (!q) return pool.slice(0, 40);
     return fuzzySearch(pool, {
+      frequency: (i) => i.score ?? 0,
       query: q,
       text: (i) => i.label,
-      frequency: (i) => i.score ?? 0,
     }).slice(0, 40);
   });
 
@@ -87,15 +87,14 @@ export default function FilterCombobox(props: {
   return (
     <div class="filter-combobox" ref={rootRef}>
       <Show
-        when={!props.value}
         fallback={
           <button
-            type="button"
             class="filter-combobox-chip"
             onClick={() => {
               setPickedLabel(undefined);
               props.onSelect(undefined);
             }}
+            type="button"
           >
             {selectedLabel()}{" "}
             <span class="filter-combobox-clear">
@@ -103,20 +102,21 @@ export default function FilterCombobox(props: {
             </span>
           </button>
         }
+        when={selectedLabel()}
       >
-        <button type="button" class="filter-combobox-trigger" onClick={() => setOpen(!open())}>
+        <button class="filter-combobox-trigger" onClick={() => setOpen(!open())} type="button">
           {props.placeholder}
         </button>
       </Show>
       <Show when={open() && !props.value}>
         <div class="filter-combobox-menu">
           <input
-            class="filter-combobox-input search-input"
-            type="text"
-            placeholder="Type to filter…"
-            value={query()}
-            onInput={(e) => onInput(e.currentTarget.value)}
             autofocus
+            class="filter-combobox-input search-input"
+            onInput={(e) => onInput(e.currentTarget.value)}
+            placeholder="Type to filter…"
+            type="text"
+            value={query()}
           />
           <div class="filter-combobox-list">
             <For
@@ -126,7 +126,7 @@ export default function FilterCombobox(props: {
               }
             >
               {(item) => (
-                <button type="button" class="filter-combobox-item" onClick={() => pick(item)}>
+                <button class="filter-combobox-item" onClick={() => pick(item)} type="button">
                   {item.label}
                 </button>
               )}

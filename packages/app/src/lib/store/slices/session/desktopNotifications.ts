@@ -103,11 +103,11 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
   }
 
   return {
-    supported,
-    permission,
     enabled,
+    permission,
     requestPermission,
     setNotificationsEnabled,
+    supported,
     wireNotifications,
   };
 }

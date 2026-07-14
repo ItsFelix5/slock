@@ -11,18 +11,18 @@ export default function Overflow(props: { el: OverflowElement }) {
   return (
     <Menu
       class="bk-overflow-wrap"
-      panelClass="menu-panel bk-overflow-menu"
-      open={open()}
       onClose={() => {
         setOpen(false);
         setUnsupported(false);
       }}
+      open={open()}
+      panelClass="menu-panel bk-overflow-menu"
       trigger={
         <button
-          type="button"
           class="bk-overflow-btn"
           onClick={() => setOpen(!open())}
           title="More options"
+          type="button"
         >
           <Icon name="ellipsis-vertical-filled" size={16} />
         </button>
@@ -31,7 +31,6 @@ export default function Overflow(props: { el: OverflowElement }) {
       <For each={props.el.options}>
         {(opt) => (
           <button
-            type="button"
             class="menu-item"
             onClick={() => {
               if (opt.url) {
@@ -43,6 +42,7 @@ export default function Overflow(props: { el: OverflowElement }) {
               setUnsupported(true);
               timer = setTimeout(() => setUnsupported(false), 2000);
             }}
+            type="button"
           >
             <BkText text={opt.text} />
           </button>

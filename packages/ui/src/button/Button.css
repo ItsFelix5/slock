@@ -1,13 +1,13 @@
 .btn {
-  font: inherit;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
   display: inline-flex;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  font: inherit;
   font-weight: 600;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
   transition: all 0.15s ease-in-out;
 }
 
@@ -50,8 +50,8 @@
 
 /* Variants */
 .btn-primary {
-  background: var(--accent);
   color: var(--text-on-accent);
+  background: var(--accent);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -59,33 +59,33 @@
 }
 
 .btn-secondary {
-  background: none;
   color: var(--text-secondary);
+  background: none;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--hover-bg);
   color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
 .btn-secondary.active {
-  background: var(--active-bg);
   color: var(--text-primary);
+  background: var(--active-bg);
 }
 
 .btn-ghost {
-  background: none;
   color: var(--text-secondary);
+  background: none;
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--hover-bg);
   color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
 .btn-danger {
-  background: none;
   color: var(--danger);
+  background: none;
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -95,6 +95,6 @@
 /* Disabled state */
 .btn:disabled,
 .btn-disabled {
-  opacity: 0.6;
   cursor: not-allowed;
+  opacity: 0.6;
 }

@@ -3,10 +3,10 @@ import Avatar, { type AvatarUser } from "./Avatar";
 import "./AvatarStack.css";
 
 export interface AvatarStackProps {
-  users: AvatarUser[];
   max?: number;
   size?: "small" | "medium" | "large";
   title?: () => string;
+  users: AvatarUser[];
 }
 
 export default function AvatarStack(props: AvatarStackProps) {
@@ -18,7 +18,7 @@ export default function AvatarStack(props: AvatarStackProps) {
       <For each={shown()}>
         {(user) => (
           <span class="avatar-stack-item">
-            <Avatar user={user} size={props.size ?? "small"} />
+            <Avatar size={props.size ?? "small"} user={user} />
           </span>
         )}
       </For>

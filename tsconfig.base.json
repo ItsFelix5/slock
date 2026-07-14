@@ -1,26 +1,26 @@
 {
   "compilerOptions": {
-    "target": "es2023",
-    "module": "esnext",
-    "lib": ["ES2023", "DOM"],
     "allowArbitraryExtensions": true,
-    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "moduleDetection": "force",
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": false,
 
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "target": "es2023",
+    "verbatimModuleSyntax": true
   }
 }

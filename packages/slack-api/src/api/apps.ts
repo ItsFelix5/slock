@@ -23,9 +23,9 @@ export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
         actionId: action.action_id,
         appId: app.app_id,
         appName: app.app_name,
-        name: action.name,
         description: action.description ?? action.desc,
         icon,
+        name: action.name,
       });
     }
   }
@@ -42,11 +42,11 @@ export async function runMessageShortcut(
   messageTs: string,
 ) {
   const data = await callSlack("apps.actions.v2.execute", {
+    _x_reason: "message-shortcuts-menu",
     action_id: actionId,
     app_id: appId,
-    context: JSON.stringify({ channel_id: channelId, message_ts: messageTs }),
     client_token: `web-${Date.now()}`,
-    _x_reason: "message-shortcuts-menu",
+    context: JSON.stringify({ channel_id: channelId, message_ts: messageTs }),
   });
   if (!data.ok) throw new Error(data.error ?? "apps.actions.v2.execute failed");
   return data;

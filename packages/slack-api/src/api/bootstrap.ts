@@ -3,8 +3,8 @@ import { buildUnreadMap, mapUser } from "./mappers";
 import { callSlack } from "./relay";
 
 interface Bootstrap {
-  currentUser: User;
   channels: Channel[];
+  currentUser: User;
   directMessages: DirectMessage[];
   starredChannelIds: string[];
 }
@@ -32,11 +32,11 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .filter((c) => c.is_channel || c.is_group)
     .map((c) => ({
       id: c.id,
+      mentions: unreadMap[c.id]?.mentions || undefined,
       name: c.name,
       private: !!c.is_private,
-      topic: c.topic?.value || "",
+      topic: typeof c.topic === "string" ? c.topic : (c.topic?.value ?? ""),
       unread: !!unreadMap[c.id]?.unread,
-      mentions: unreadMap[c.id]?.mentions || undefined,
     }));
 
   const countsIms: any[] = counts?.ims ?? [];
@@ -49,10 +49,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .filter((im) => im.is_open && im.user)
     .map((im) => ({
       id: im.id,
-      userId: im.user,
-      unread: !!unreadMap[im.id]?.unread,
       lastActivity:
         latestByIm.get(im.id) || im.updated || (im.created ? im.created * 1000 : undefined),
+      unread: !!unreadMap[im.id]?.unread,
+      userId: im.user,
     }));
 
   const currentUser = mapUser(boot.self);
@@ -62,5 +62,5 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
     .filter(Boolean);
 
-  return { currentUser, channels, directMessages, starredChannelIds };
+  return { channels, currentUser, directMessages, starredChannelIds };
 }

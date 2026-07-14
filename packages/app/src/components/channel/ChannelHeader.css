@@ -1,33 +1,17 @@
 .channel-header {
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
   background: var(--main-bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .channel-header-top {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 0 16px;
   height: 49px;
+  padding: 0 16px;
 }
 
 .channel-header-star {
-  background: none;
-  border: none;
-  color: var(--text-dim);
   font-size: 15px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-}
-
-.channel-header-star:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
 }
 
 .channel-header-icon {
@@ -36,14 +20,12 @@
 }
 
 .channel-header-title {
-  font-weight: 800;
+  flex-shrink: 0;
+  padding: 0;
   font-size: 16px;
+  font-weight: 800;
   color: var(--text-on-accent);
   white-space: nowrap;
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  padding: 0;
 }
 
 .channel-header-title-btn {
@@ -57,14 +39,9 @@
 .channel-header-topic {
   flex: 1;
   min-width: 0;
-  color: var(--text-dim);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   padding-left: 8px;
-  border-left: 1px solid var(--border);
   margin-left: 4px;
+  border-left: 1px solid var(--border);
 }
 
 .channel-header-feedback {
@@ -73,29 +50,14 @@
 }
 
 .channel-header-actions {
-  margin-left: auto;
   display: flex;
-  gap: 2px;
   flex-shrink: 0;
+  gap: 2px;
+  margin-left: auto;
 }
 
 .channel-header-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
   font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.channel-header-btn:hover,
-.channel-header-btn.active {
-  background: var(--hover-bg);
-  color: var(--text-primary);
 }
 
 .channel-header-more-wrap {
@@ -106,30 +68,13 @@
   top: 34px;
   right: 0;
   left: auto;
-  min-width: 190px;
   z-index: 8;
+  min-width: 190px;
 }
 
 .channel-header-menu-item {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  color: var(--text-primary);
   font-size: 14px;
-  padding: 7px 10px;
-  border-radius: 5px;
-}
-
-.channel-header-menu-item:hover {
-  background: var(--hover-bg);
-}
-
-.channel-header-menu-item.danger {
-  color: var(--danger);
 }
 
 .channel-header-star-wrap {
@@ -140,41 +85,10 @@
   position: absolute;
   top: 30px;
   left: 0;
-  display: flex;
-  flex-direction: column;
+  z-index: 9;
   min-width: 190px;
   max-height: 260px;
   overflow-y: auto;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 4px;
-  z-index: 9;
-}
-
-.channel-header-star-menu-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-dim);
-  padding: 4px 10px;
-}
-
-.channel-header-star-menu-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 4px 2px;
-}
-
-.channel-header-star-menu-input {
-  width: 100%;
-  background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 8px;
 }
 
 .channel-header-menu-check {
@@ -185,9 +99,9 @@
 
 .channel-header-tabs {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   gap: 2px;
+  align-items: center;
   padding: 0 12px 6px;
 }
 
@@ -197,31 +111,26 @@
 
 .channel-header-tab-current {
   display: flex;
-  align-items: center;
   gap: 6px;
+  align-items: center;
   padding: 5px 10px;
-  border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   background: var(--hover-bg);
+  border-radius: 6px;
 }
 
 .channel-header-tab-real {
-  display: flex;
-  align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 13px;
   color: var(--text-secondary);
-  background: none;
-  border: none;
+  border-radius: 6px;
 }
 
 .channel-header-tab-real:hover {
-  background: var(--hover-bg);
   color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
 .channel-header-tab {
@@ -230,31 +139,20 @@
 }
 
 .channel-header-tab-btn {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 13px;
   padding: 5px 6px 5px 10px;
+  color: var(--text-secondary);
   border-radius: 6px 0 0 6px;
 }
 
 .channel-header-tab-btn:hover {
-  background: var(--hover-bg);
   color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
 .channel-header-tab-remove {
-  background: none;
-  border: none;
-  color: var(--text-dim);
   width: 22px;
   height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 0 6px 6px 0;
   opacity: 0;
 }
@@ -265,8 +163,8 @@
 }
 
 .channel-header-tab-remove:hover {
-  background: var(--hover-bg);
   color: var(--danger);
+  background: var(--hover-bg);
 }
 
 .channel-header-tab-add-wrap {
@@ -274,16 +172,10 @@
 }
 
 .channel-header-tab-add {
-  background: none;
-  border: 1px dashed var(--border-strong);
-  color: var(--text-dim);
   width: 26px;
   height: 26px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin-left: 2px;
+  border: 1px dashed var(--border-strong);
 }
 
 .channel-header-tab-add:hover {
@@ -295,12 +187,12 @@
   position: absolute;
   top: 30px;
   left: 0;
+  z-index: 9;
   display: flex;
   flex-direction: column;
   min-width: 150px;
+  padding: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  padding: 4px;
-  z-index: 9;
 }

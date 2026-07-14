@@ -13,66 +13,56 @@ import ThreadPanel from "./components/messages/ThreadPanel";
 import MessageSearchView from "./components/search/MessageSearchView";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserProfile from "./components/user/UserProfile";
-import {
-  activeView,
-  bootstrap,
-  channelById,
-  channelDisplayName,
-  currentUser,
-  isChannelMember,
-  nav,
-  openUserProfile,
-  setActiveView,
-  typingUsersInChannel,
-  userById,
-} from "./lib/store";
+import { channelDisplayName, store } from "./lib/store";
 
 const blockKitResolver: BlockKitResolver = {
-  resolveUser: (id) => {
-    const user = userById(id);
-    return user ? { name: user.name, isSelf: id === currentUser()?.id } : undefined;
-  },
+  onChannelClick: (id) => store.viewState.setActiveView({ id, kind: "channel" }),
+  onUserClick: store.users.openUserProfile,
   resolveChannel: (id) => {
-    const channel = channelById(id);
+    const channel = store.channels.channelById(id);
     return channel
       ? {
-          name: channelDisplayName(channel),
+          isMember: store.channels.isChannelMember(id),
           isPrivate: channel.private,
-          isMember: isChannelMember(id),
+          name: channelDisplayName(channel),
         }
       : undefined;
   },
-  onUserClick: openUserProfile,
-  onChannelClick: (id) => setActiveView({ kind: "channel", id }),
+  resolveUser: (id) => {
+    const user = store.users.userById(id);
+    return user ? { isSelf: id === store.users.currentUser()?.id, name: user.name } : undefined;
+  },
 };
 
 function App() {
   const unjoinedChannelId = () => {
-    if (bootstrap.loading) return undefined;
-    const v = activeView();
-    return v?.kind === "channel" && !isChannelMember(v.id) ? v.id : undefined;
+    if (store.resources.bootstrap.loading) return;
+    const v = store.viewState.activeView();
+    return v?.kind === "channel" && !store.channels.isChannelMember(v.id) ? v.id : undefined;
   };
 
   const typingNames = createMemo(() => {
-    const v = activeView();
+    const v = store.viewState.activeView();
     if (!v) return [];
-    return typingUsersInChannel(v.id).map((u) => u.name);
+    return store.typing.typingUsersInChannel(v.id).map((u) => u.name);
   });
 
   return (
     <BlockKitResolverContext.Provider value={blockKitResolver}>
       <div class="app">
-        <Show when={bootstrap.error}>
-          <div class="app-bootstrap-error">Failed to load: {String(bootstrap.error)}</div>
+        <Show when={store.resources.bootstrap.error}>
+          <div class="app-bootstrap-error">
+            Failed to load: {String(store.resources.bootstrap.error)}
+          </div>
         </Show>
         <Sidebar />
 
         <div class="main-panel">
-          <Show when={nav() !== "search"} fallback={<MessageSearchView />}>
+          <Show fallback={<MessageSearchView />} when={store.viewState.nav() !== "search"}>
             <ChannelHeader />
             <MessageList />
             <TypingIndicator names={typingNames()} />
-            <Show when={unjoinedChannelId()} fallback={<Composer />}>
+            <Show fallback={<Composer />} when={unjoinedChannelId()}>
               {(channelId) => <JoinChannelBar channelId={channelId()} />}
             </Show>
           </Show>

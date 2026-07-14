@@ -40,11 +40,11 @@ export function createCanvasSlice() {
 
   return {
     canvasByChannel,
+    closeChannelCanvas,
     ensureCanvasChecked,
+    loadCanvasContent,
     openCanvasChannelId,
     openChannelCanvas,
-    closeChannelCanvas,
-    loadCanvasContent,
     saveChannelCanvas,
   };
 }

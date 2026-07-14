@@ -57,11 +57,11 @@ export function createLaterSlice() {
   }
 
   return {
-    isSavedForLater,
-    toggleSaveForLater,
-    laterItems,
-    laterMessages,
     ensureLaterLoaded,
     ensureLaterMessageLoaded,
+    isSavedForLater,
+    laterItems,
+    laterMessages,
+    toggleSaveForLater,
   };
 }

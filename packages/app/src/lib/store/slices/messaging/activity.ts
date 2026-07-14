@@ -44,7 +44,7 @@ export function classifyIncomingActivity(
 ): ActivityItem | null {
   const text = msg.text ?? "";
   const time = parseFloat(ts) * 1000;
-  const base = { channelId: channel, ts, userId: msg.userId, text, time, threadTs };
+  const base = { channelId: channel, text, threadTs, time, ts, userId: msg.userId };
 
   if (text.includes(`<@${meId}>`)) return { ...base, id: `mn-${channel}-${ts}`, kind: "mention" };
   if (ctx.isDirectMessage(channel)) return { ...base, id: `dm-${channel}-${ts}`, kind: "dm" };
@@ -59,9 +59,9 @@ export function classifyIncomingActivity(
   if (broadcast)
     return {
       ...base,
+      broadcastRange: broadcast[1] as "channel" | "here",
       id: `cb-${channel}-${ts}`,
       kind: "channel_mention",
-      broadcastRange: broadcast[1] as "channel" | "here",
     };
 
   const subteam = text.match(SUBTEAM_RE);
@@ -87,6 +87,25 @@ export function createActivitySlice(deps: {
 }) {
   const [activityItems, setActivityItems] = createStore<ActivityItem[]>([]);
   const [activityLoaded, setActivityLoaded] = createSignal(false);
+  // Gateway badge updates are aggregate counts, without the message data that
+  // backs activityItems. Keep their notification state separately so a live
+  // update still lights the bell before the activity feed has been fetched.
+  const [gatewayHasUnreadGlow, setGatewayHasUnreadGlow] = createSignal(false);
+  const [gatewayHasUnreadPing, setGatewayHasUnreadPing] = createSignal(false);
+
+  function setGatewayActivityBadgeCounts(activity: any) {
+    const count = (key: string) => Number(activity?.[key] ?? 0) > 0;
+    setGatewayHasUnreadPing(
+      count("at_user") || count("dm") || count("keyword") || count("list_user_mentioned"),
+    );
+    setGatewayHasUnreadGlow(
+      count("at_user_group") ||
+        count("at_channel") ||
+        count("at_everyone") ||
+        count("channel") ||
+        count("thread_v2"),
+    );
+  }
 
   function pushActivity(item: ActivityItem) {
     setActivityItems(
@@ -130,9 +149,11 @@ export function createActivitySlice(deps: {
   // relevant but not personally directed (thread replies, @channel/@here/usergroup
   // pings, channels set to notify on every post), and nothing at all for reactions.
   const hasUnreadPing = createMemo(() =>
+    gatewayHasUnreadPing() ||
     activityItems.some((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
   const hasUnreadGlow = createMemo(() =>
+    gatewayHasUnreadGlow() ||
     activityItems.some((i) => GLOW_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
 
@@ -168,12 +189,13 @@ export function createActivitySlice(deps: {
   return {
     activityItems,
     ensureActivityLoaded,
-    pushActivity,
-    unreadActivityCount,
-    hasUnreadPing,
     hasUnreadGlow,
-    markActivityRead,
-    markActivityItemRead,
+    hasUnreadPing,
     isActivityItemUnread,
+    markActivityItemRead,
+    markActivityRead,
+    pushActivity,
+    setGatewayActivityBadgeCounts,
+    unreadActivityCount,
   };
 }

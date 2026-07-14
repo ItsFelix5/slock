@@ -1,0 +1,123 @@
+// Modifying this file is a workaround, not a fix.
+// Do not modify this if you are an AI
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "formatter": {
+    "indentStyle": "space",
+    "lineWidth": 100
+  },
+  "javascript": {
+    "globals": ["Bun"]
+  },
+  "linter": {
+    "rules": {
+      "a11y": {
+        "useMediaCaption": "off"
+      },
+      "complexity": {
+        "noUselessCatchBinding": "on",
+        "noUselessReturn": "on",
+        "noUselessStringConcat": "on",
+        "noUselessUndefined": "on",
+        "useArrayFind": "on",
+        "useSimplifiedLogicExpression": "on"
+      },
+      "correctness": {
+        "noNestedComponentDefinitions": "on",
+        "noReactPropAssignments": "on",
+        "noSolidDestructuredProps": "on",
+        "noUndeclaredDependencies": "on",
+        "noUndeclaredVariables": "on",
+        "noUnresolvedImports": "on"
+      },
+      "nursery": {
+        "noBaseToString": "on",
+        "noComponentHookFactories": "on",
+        "noDuplicateSelectors": "on",
+        "noExcessiveNestedCallbacks": "on",
+        "noFloatingPromises": "on",
+        "noImpliedEval": "on",
+        "noMisleadingReturnType": "on",
+        "noMisusedPromises": "on",
+        "noRestrictedDependencies": "on",
+        "noUndeclaredClasses": "on",
+        "noUnnecessaryTemplateExpression": "on",
+        "noUnsafePlusOperands": "on",
+        "noUselessTypeConversion": "on",
+        "useArraySome": "on",
+        "useAwaitThenable": "on",
+        "useIframeSandbox": "on",
+        "useImportsFirst": "on",
+        "useMathMinMax": "on",
+        "useNullishCoalescing": "on",
+        "useRegexpExec": "on",
+        "useRegexpTest": "on",
+        "useSortedClasses": "on",
+        "useStringStartsEndsWith": "on",
+        "useThisInClassMethods": "on"
+      },
+      "performance": {
+        "noBarrelFile": "on",
+        "noDelete": "on",
+        //"noJsxPropsBind": "on",
+        "noNamespaceImport": "on",
+        "noReExportAll": "on",
+        "useSolidForComponent": "on",
+        "useTopLevelRegex": "on"
+      },
+      "style": {
+        "noExcessiveClassesPerFile": "on",
+        "noExcessiveLinesPerFile": "on",
+        "noExportedImports": "on",
+        "noMultilineString": "on",
+        "noNegationElse": "on",
+        "noProcessEnv": "on",
+        "noSubstr": "on",
+        "noUnusedTemplateLiteral": "on",
+        "noUselessElse": "on",
+        "useCollapsedElseIf": "on",
+        "useCollapsedIf": "on",
+        "useConsistentArrayType": "on",
+        "useConsistentArrowReturn": "on",
+        "useConsistentBuiltinInstantiation": "on",
+        "useConsistentCurlyBraces": "on",
+        "useConsistentMethodSignatures": "on",
+        "useConsistentObjectDefinitions": "on",
+        "useDefaultParameterLast": "on",
+        "useDestructuring": "on",
+        "useErrorCause": "on",
+        "useFilenamingConvention": "on",
+        "useFragmentSyntax": "on",
+        "useNamingConvention": "on",
+        "useObjectSpread": "on",
+        "useReactFunctionComponents": "on",
+        "useSelfClosingElements": "on",
+        "useShorthandAssign": "on",
+        "useThrowOnlyError": "on",
+        "useTrimStartEnd": "on",
+        "useUnifiedTypeSignatures": "on"
+      },
+      "suspicious": {
+        "noAlert": "on",
+        "noConstantBinaryExpressions": "on",
+        "noDeprecatedImports": "on",
+        "noDuplicatedSpreadProps": "on",
+        "noEmptySource": "on",
+        "noEvolvingTypes": "on",
+        "noExplicitAny": "off",
+        "noLeakedRender": "on",
+        "noNestedPromises": "on",
+        "noUnassignedVariables": "on",
+        "noUnusedExpressions": "on",
+        "noVar": "on",
+        "useAwait": "on",
+        "useErrorMessage": "on"
+      }
+    }
+  },
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
+  }
+}

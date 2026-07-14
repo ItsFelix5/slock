@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/noBarrelFile: This is the UI package's public API entry point.
 export type { AvatarProps, AvatarUser } from "./avatar/Avatar";
 export { default as Avatar } from "./avatar/Avatar";
 export type { AvatarStackProps } from "./avatar/AvatarStack";

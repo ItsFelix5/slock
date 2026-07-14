@@ -31,9 +31,9 @@ function toLocalInputValue(d: Date): string {
 }
 
 const PRESETS: { label: string; date: () => Date }[] = [
-  { label: "In 1 hour", date: nextHour },
-  { label: "Tomorrow at 9 AM", date: tomorrowAt9 },
-  { label: "Next Monday at 9 AM", date: nextMondayAt9 },
+  { date: nextHour, label: "In 1 hour" },
+  { date: tomorrowAt9, label: "Tomorrow at 9 AM" },
+  { date: nextMondayAt9, label: "Next Monday at 9 AM" },
 ];
 
 // Picks a moment in time for a <!date^…> token — the one composer "block"
@@ -59,7 +59,11 @@ export default function ComposeDatePicker(props: {
     <div class="compose-date-picker">
       <For each={PRESETS}>
         {(preset) => (
-          <button type="button" class="compose-date-row" onClick={() => pick(preset.date())}>
+          <button
+            class="compose-date-row popover-item"
+            onClick={() => pick(preset.date())}
+            type="button"
+          >
             <span>{preset.label}</span>
             <span class="compose-date-preview">
               {formatSlackDate(Math.floor(preset.date().getTime() / 1000))}
@@ -69,18 +73,18 @@ export default function ComposeDatePicker(props: {
       </For>
       <div class="compose-date-custom">
         <input
-          ref={inputRef}
-          class="compose-date-input"
-          type="datetime-local"
-          value={toLocalInputValue(nextHour())}
+          class="compose-date-input input-reset"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               insertCustom();
             }
           }}
+          ref={inputRef}
+          type="datetime-local"
+          value={toLocalInputValue(nextHour())}
         />
-        <Button type="button" variant="primary" size="sm" onClick={insertCustom}>
+        <Button onClick={insertCustom} size="sm" type="button" variant="primary">
           Insert
         </Button>
       </div>

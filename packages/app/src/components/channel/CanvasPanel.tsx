@@ -1,27 +1,18 @@
 import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createResource, createSignal, Show } from "solid-js";
-import {
-  actionFeedback,
-  canvasByChannel,
-  channelById,
-  channelDisplayName,
-  closeChannelCanvas,
-  loadCanvasContent,
-  openCanvasChannelId,
-  saveChannelCanvas,
-} from "../../lib/store";
+import { store, actionFeedback, channelDisplayName } from "../../lib/store";
 import "./CanvasPanel.css";
 
 export default function CanvasPanel() {
-  const channelId = openCanvasChannelId;
-  useEscapeClose(closeChannelCanvas);
+  const channelId = store.canvas.openCanvasChannelId;
+  useEscapeClose(store.canvas.closeChannelCanvas);
 
   const fileId = () => {
     const id = channelId();
-    return id ? canvasByChannel[id]?.fileId : undefined;
+    return id ? store.canvas.canvasByChannel[id]?.fileId : undefined;
   };
 
-  const [content, { mutate }] = createResource(fileId, loadCanvasContent);
+  const [content, { mutate }] = createResource(fileId, store.canvas.loadCanvasContent);
   const [saving, setSaving] = createSignal(false);
   const [draft, setDraft] = createSignal<string | null>(null);
 
@@ -31,7 +22,7 @@ export default function CanvasPanel() {
     const id = fileId();
     if (!id) return;
     setSaving(true);
-    await saveChannelCanvas(id, text());
+    await store.canvas.saveChannelCanvas(id, text());
     mutate(text());
     setDraft(null);
     setSaving(false);
@@ -40,33 +31,32 @@ export default function CanvasPanel() {
   return (
     <Show when={channelId()}>
       {(id) => (
-        <Overlay onClose={closeChannelCanvas}>
-          <div class="canvas-panel-card">
-            <PanelHeader onClose={closeChannelCanvas}>
+        <Overlay onClose={store.canvas.closeChannelCanvas}>
+          <div class="canvas-panel-card flex-col">
+            <PanelHeader onClose={store.canvas.closeChannelCanvas}>
               <div class="canvas-panel-title">
-                Canvas · #{channelDisplayName(channelById(id()), id())}
+                Canvas · #{channelDisplayName(store.channels.channelById(id()), id())}
               </div>
             </PanelHeader>
             <Show
+              fallback={
+                <div class="canvas-panel-loading flex-center text-dim text-sm">Loading canvas…</div>
+              }
               when={!content.loading}
-              fallback={<div class="canvas-panel-loading">Loading canvas…</div>}
             >
               <textarea
                 class="canvas-panel-editor"
-                value={text()}
                 onInput={(e) => setDraft(e.currentTarget.value)}
                 placeholder="Write something for this channel…"
+                value={text()}
               />
-              <div class="canvas-panel-footer">
-                <div class="canvas-panel-note">
-                  Best-effort preview — formatting may not perfectly match Slack's canvas editor.
-                </div>
+              <div class="canvas-panel-footer flex-between">
                 <InlineFeedback feedback={actionFeedback.get(fileId() ?? "")} />
                 <button
-                  type="button"
-                  class="canvas-panel-save"
-                  onClick={save}
+                  class="canvas-panel-save btn-reset"
                   disabled={saving() || draft() === null}
+                  onClick={save}
+                  type="button"
                 >
                   {saving() ? "Saving…" : "Save"}
                 </button>

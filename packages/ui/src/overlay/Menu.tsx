@@ -3,12 +3,12 @@ import { useClickOutside } from "../useClickOutside";
 import { useEscapeClose } from "../useEscapeClose";
 
 export interface MenuProps {
-  open: boolean;
-  onClose: () => void;
-  trigger: JSX.Element;
   children: JSX.Element;
   class?: string;
+  onClose: () => void;
+  open: boolean;
   panelClass?: string;
+  trigger: JSX.Element;
 }
 
 // Thin structural wrapper around a trigger + a click-outside/Escape-closeable panel —

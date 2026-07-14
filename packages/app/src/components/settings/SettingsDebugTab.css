@@ -12,21 +12,18 @@
 }
 
 .debug-icon-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 6px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  align-items: center;
   padding: 10px 4px;
   color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: 6px;
 }
 
 .debug-icon-cell:hover {
+  color: var(--text-primary);
   background: var(--hover-bg);
   border-color: var(--border-strong);
-  color: var(--text-primary);
 }
 
 .debug-icon-cell-name {

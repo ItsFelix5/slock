@@ -2,327 +2,274 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 2px;
   max-width: 640px;
+  margin-top: 2px;
 }
-
 .bk-section {
   display: flex;
   gap: 12px;
   align-items: flex-start;
 }
-
 .bk-section-main {
   flex: 1;
   min-width: 0;
 }
-
 .bk-section-text {
   font-size: 15px;
   line-height: 1.46;
-  white-space: pre-wrap;
   word-break: break-word;
+  white-space: pre-wrap;
 }
-
 .bk-section-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px 12px;
   margin-top: 6px;
 }
-
 .bk-section-field {
   font-size: 14px;
   line-height: 1.4;
 }
-
 .bk-section-accessory {
   flex-shrink: 0;
 }
-
 .bk-divider {
+  margin: 4px 0;
   border: none;
   border-top: 1px solid var(--border-strong);
-  margin: 4px 0;
 }
-
 .bk-header {
   font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
 }
-
 .bk-context {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
   font-size: 13px;
   color: var(--text-secondary);
 }
-
 .bk-context-image {
   width: 20px;
   height: 20px;
-  border-radius: 4px;
   object-fit: cover;
+  border-radius: 4px;
 }
-
 .bk-image-block {
-  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin: 0;
 }
-
 .bk-image-block-img {
   max-width: 360px;
   max-height: 360px;
-  border-radius: 6px;
   border: 1px solid var(--border);
+  border-radius: 6px;
 }
-
 .bk-image-el {
   max-width: 240px;
   max-height: 120px;
-  border-radius: 4px;
   object-fit: cover;
+  border-radius: 4px;
 }
-
 .bk-image-block-title {
   font-size: 13px;
   font-weight: 700;
 }
-
 .bk-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .bk-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  color: var(--text-primary);
-  border-radius: 6px;
   padding: 7px 14px;
   font-size: 14px;
   font-weight: 700;
+  color: var(--text-primary);
   text-decoration: none;
   cursor: pointer;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
 }
-
 .bk-button:hover {
   border-color: var(--text-dim);
 }
-
 .bk-button--primary {
+  color: var(--text-on-accent);
   background: #2b7a4b;
   border-color: #2b7a4b;
-  color: var(--text-on-accent);
 }
-
 .bk-button--danger {
+  color: var(--text-on-accent);
   background: #8f3527;
   border-color: #8f3527;
-  color: var(--text-on-accent);
 }
-
 .bk-overflow-wrap {
   position: relative;
   display: inline-flex;
 }
-
 .bk-overflow-btn {
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  border-radius: 6px;
-  width: 32px;
-  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-secondary);
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
 }
-
 .bk-overflow-btn:hover {
   color: var(--text-primary);
 }
-
 .bk-overflow-unsupported {
   padding: 6px 10px;
   font-size: 12px;
   color: var(--text-dim);
 }
-
 .menu-panel.bk-overflow-menu {
   top: 36px;
   left: 0;
-  min-width: 180px;
   z-index: 8;
+  min-width: 180px;
 }
-
 .bk-unsupported {
   font-size: 13px;
-  color: var(--text-dim);
   font-style: italic;
+  color: var(--text-dim);
 }
-
 .bk-quote {
-  margin: 2px 0;
   padding: 2px 0 2px 12px;
-  border-left: 3px solid var(--border-strong);
+  margin: 2px 0;
   color: var(--text-secondary);
+  border-left: 3px solid var(--border-strong);
 }
-
 .bk-codeblock {
-  margin: 4px 0;
   padding: 8px 10px;
+  margin: 4px 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  word-break: break-word;
+  white-space: pre-wrap;
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
-
 .bk-inline-code {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
   padding: 1px 5px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 0.9em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
-
 .bk-link {
   color: #1d9bd1;
   text-decoration: none;
 }
-
 .bk-link:hover {
   text-decoration: underline;
 }
-
 .bk-mention {
   display: inline;
-  background: var(--mention-bg);
+  padding: 0 3px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
   color: var(--mention-text);
+  cursor: pointer;
+  background: var(--mention-bg);
   border: none;
   border-radius: 4px;
-  padding: 0 3px;
-  font-weight: 700;
-  font-size: inherit;
-  font-family: inherit;
-  cursor: pointer;
 }
-
 .bk-mention:hover {
   background: rgba(var(--mention-rgb), 0.3);
 }
-
 .bk-mention-static,
 .bk-mention-broadcast {
   cursor: default;
 }
-
-/* Mentions that actually notify the viewer — a direct @you, or an @here/
-   @channel/@everyone broadcast — get the gold "pings you" highlight, so they
+/* @channel /@everyone broadcast — get the gold "pings you" highlight, so they
    stand out from the plain, non-pinging mentions of other people. */
 .bk-mention-self,
 .bk-mention-broadcast {
-  background: var(--mention-self-bg);
   color: var(--mention-self-text);
+  background: var(--mention-self-bg);
 }
-
 .bk-mention-self:hover {
   background: rgba(var(--mention-self-rgb), 0.35);
 }
-
-/* A private channel the viewer isn't a member of — same as Slack, this renders
-   dimmed and non-clickable since there's nowhere for the viewer to go. */
+/* dimmed and non-clickable since there's nowhere for the viewer to go. */
 .bk-mention-inaccessible {
-  background: var(--mention-inaccessible-bg);
   color: var(--mention-inaccessible-text);
   cursor: default;
+  background: var(--mention-inaccessible-bg);
 }
-
 .bk-mention-inaccessible:hover {
   background: var(--mention-inaccessible-bg);
 }
-
-/* A "@/" link mention — points at the person's real Slack profile instead of
-   notifying them, so it gets the same neutral grey as an inaccessible
+/* notifying them, so it gets the same neutral grey as an inaccessible
    mention rather than the blue "pings someone" look, but stays clickable. */
 .bk-mention-link {
   display: inline-block;
+  color: var(--mention-inaccessible-text);
   text-decoration: none;
   background: var(--mention-inaccessible-bg);
-  color: var(--mention-inaccessible-text);
 }
-
 .bk-mention-link:hover {
   background: rgba(148, 158, 168, 0.28);
 }
-
 .bk-color-swatch {
   display: inline-flex;
-  align-items: center;
   gap: 4px;
+  align-items: center;
 }
-
 .bk-color-dot {
+  display: inline-block;
   width: 12px;
   height: 12px;
-  border-radius: 3px;
   border: 1px solid var(--border-strong);
-  display: inline-block;
+  border-radius: 3px;
 }
-
 .bk-rich-text {
   font-size: 15px;
   line-height: 1.46;
 }
-
 .bk-rt-section {
-  white-space: pre-wrap;
   word-break: break-word;
+  white-space: pre-wrap;
 }
-
 .bk-rt-bold {
   font-weight: 700;
 }
-
 .bk-rt-italic {
   font-style: italic;
 }
-
 .bk-rt-strike {
   text-decoration: line-through;
 }
-
 .bk-rt-code {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
   padding: 1px 5px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 0.9em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
-
 .bk-rt-highlight {
   background: rgba(255, 214, 89, 0.35);
   border-radius: 3px;
 }
-
 .bk-rt-list {
   margin: 2px 0;
 }
-
 .bk-rt-list li {
   margin: 1px 0;
 }

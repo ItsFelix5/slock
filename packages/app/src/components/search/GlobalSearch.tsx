@@ -2,33 +2,21 @@ import type { BrowsableChannel, Channel, User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
 import { Avatar, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import {
-  bootstrap,
-  currentUser,
-  directMessages,
-  frecencyScore,
-  knownUsers,
-  openDmWithUser,
-  openMessageSearch,
-  searchUsers,
-  setActiveView,
-} from "../../lib/store";
+import { store } from "../../lib/store";
 import "./GlobalSearch.css";
 
 interface JumpChannel {
   id: string;
+  joined: boolean;
   name: string;
   private: boolean;
-  joined: boolean;
 }
-
 type Row = { kind: "channel"; data: JumpChannel } | { kind: "person"; data: User };
 type Candidate = { row: Row; name: string; id: string };
 type SearchItem =
   | { kind: "message-search" }
   | { kind: "channel"; data: JumpChannel }
   | { kind: "person"; data: User };
-
 export default function GlobalSearch(props: { onClose: () => void }) {
   const [query, setQuery] = createSignal("");
   const [remotePeople, setRemotePeople] = createSignal<User[]>([]);
@@ -38,63 +26,42 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   let peopleRequestId = 0;
   let channelDebounce: ReturnType<typeof setTimeout> | undefined;
   let channelRequestId = 0;
-
   useEscapeClose(props.onClose);
   onCleanup(() => {
     clearTimeout(peopleDebounce);
     clearTimeout(channelDebounce);
   });
-
   const hasQuery = createMemo(() => !!query().trim());
-
-  // Ranked (not just filtered) so that, once this gets capped to 20 below, the
-  // candidates that survive are the best matches rather than whatever happened
-  // to come first in bootstrap's channel order.
   const localChannelMatches = createMemo<Channel[]>(() => {
     const q = query().trim();
     if (!q) return [];
-    return fuzzySearch(bootstrap()?.channels ?? [], {
+    return fuzzySearch(store.resources.bootstrap()?.channels ?? [], {
+      frequency: (c) => store.preferences.frecencyScore(c.id),
       query: q,
       text: (c) => c.name,
-      frequency: (c) => frecencyScore(c.id),
     });
   });
-
-  // The sidebar only knows channels you've already joined — on a large workspace,
-  // most channels aren't in that list. Merge in a debounced live search (same
-  // search.modules.channels-backed endpoint "Browse channels" uses) so jumping to
-  // a channel you haven't joined yet works too, without ever fetching/caching the
-  // full channel directory. Final ranking (by frecency) happens once, together
-  // with people, in `rows` below — this just dedupes the candidate pool, capped
-  // generously so a real high-frecency match doesn't get cut before that sort runs.
   const channelResults = createMemo<JumpChannel[]>(() => {
     const q = query().trim().toLowerCase();
     if (!q) return [];
     const joined = localChannelMatches().map(
-      (c): JumpChannel => ({ id: c.id, name: c.name, private: c.private, joined: true }),
+      (c): JumpChannel => ({ id: c.id, joined: true, name: c.name, private: c.private }),
     );
     const joinedIds = new Set(joined.map((c) => c.id));
     const remote = remoteChannels()
       .filter((c) => !joinedIds.has(c.id))
-      .map((c): JumpChannel => ({ id: c.id, name: c.name, private: c.private, joined: false }));
+      .map((c): JumpChannel => ({ id: c.id, joined: false, name: c.name, private: c.private }));
     return [...joined, ...remote].slice(0, 20);
   });
-
-  // Same reasoning as localChannelMatches: rank before the 20-item cap below
-  // picks which candidates make it into the final merge+rank.
   const localPeopleMatches = createMemo<User[]>(() => {
     const q = query().trim();
     if (!q) return [];
-    const me = currentUser()?.id;
+    const me = store.users.currentUser()?.id;
     return fuzzySearch(
-      knownUsers().filter((u) => u.id !== me),
-      { query: q, text: (u) => u.name, frequency: (u) => frecencyScore(u.id) },
+      store.users.knownUsers().filter((u) => u.id !== me),
+      { frequency: (u) => store.preferences.frecencyScore(u.id), query: q, text: (u) => u.name },
     );
   });
-
-  // Local matches are only whoever's already been resolved this session — merge
-  // in a debounced org-wide search so "people" results aren't silently limited to
-  // that. Final ranking (by frecency) happens once, together with channels, in `rows`.
   const peopleResults = createMemo<User[]>(() => {
     const q = query().trim().toLowerCase();
     if (!q) return [];
@@ -103,7 +70,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     for (const u of remotePeople()) merged.set(u.id, u);
     return [...merged.values()].slice(0, 20);
   });
-
   const runPeopleSearch = () => {
     clearTimeout(peopleDebounce);
     const q = query().trim();
@@ -113,11 +79,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     }
     const id = ++peopleRequestId;
     peopleDebounce = setTimeout(async () => {
-      const found = await searchUsers(q, currentUser()?.id);
+      const found = await store.users.searchUsers(q, store.users.currentUser()?.id);
       if (id === peopleRequestId) setRemotePeople(found);
     }, 250);
   };
-
   const runChannelSearch = () => {
     clearTimeout(channelDebounce);
     const q = query().trim();
@@ -131,42 +96,28 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       if (id === channelRequestId) setRemoteChannels(found);
     }, 250);
   };
-
-  // One flat, ranked list instead of separate headed sections — channels and
-  // people ranked together, fuzzy text-match quality first so an exact/prefix
-  // hit always beats a loose one (typos still surface via the fuzzy fallback).
-  // Within a tier, a channel you've actually joined outranks one you're just
-  // browsing (membership is a stronger signal than having previewed it once),
-  // and frecency (frequency + recency of visits, the same signal the real
-  // client's quick switcher uses its local jump-target database for) only
-  // breaks ties *within* that, e.g. picking between two joined channels that
-  // both start with the query. Actual message content search stays out of
-  // this box entirely; "Search all messages for…" (rendered above the list)
-  // is the only way to reach it.
   const rows = createMemo<Row[]>(() => {
     if (!hasQuery()) return [];
     const candidates: Candidate[] = [
       ...channelResults().map(
-        (c): Candidate => ({ row: { kind: "channel", data: c }, name: c.name, id: c.id }),
+        (c): Candidate => ({ id: c.id, name: c.name, row: { data: c, kind: "channel" } }),
       ),
       ...peopleResults().map(
-        (u): Candidate => ({ row: { kind: "person", data: u }, name: u.name, id: u.id }),
+        (u): Candidate => ({ id: u.id, name: u.name, row: { data: u, kind: "person" } }),
       ),
     ];
     const ranked = fuzzySearch(candidates, {
+      frequency: (c) => store.preferences.frecencyScore(c.id),
+      priority: (c) => (c.row.kind === "channel" && !c.row.data.joined ? 0 : 1),
       query: query(),
       text: (c) => c.name,
-      priority: (c) => (c.row.kind === "channel" && !c.row.data.joined ? 0 : 1),
-      frequency: (c) => frecencyScore(c.id),
     });
     return ranked.slice(0, 8).map((c) => c.row);
   });
-
   const items = createMemo<SearchItem[]>(() => {
     if (!hasQuery()) return [];
     return [{ kind: "message-search" }, ...rows()];
   });
-
   createEffect(() => {
     const total = items().length;
     const current = activeIndex();
@@ -176,60 +127,48 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     }
     if (current === null || current > total - 1) setActiveIndex(0);
   });
-
   const goToChannel = (c: JumpChannel) => {
-    setActiveView({ kind: "channel", id: c.id });
+    store.viewState.setActiveView({ id: c.id, kind: "channel" });
     props.onClose();
   };
-
   const goToPerson = (userId: string) => {
-    const dm = directMessages().find((d) => d.userId === userId);
-    if (dm) setActiveView({ kind: "dm", id: dm.id });
-    else openDmWithUser(userId);
+    const dm = store.dms.directMessages().find((d) => d.userId === userId);
+    if (dm) store.viewState.setActiveView({ id: dm.id, kind: "dm" });
+    else store.dms.openDmWithUser(userId);
     props.onClose();
   };
-
   const goToMessageSearch = () => {
-    openMessageSearch(query());
+    store.viewState.openMessageSearch(query());
     props.onClose();
   };
-
   const activateItem = (index: number) => {
     const item = items()[index];
     if (!item) return;
-
     if (item.kind === "message-search") {
       goToMessageSearch();
       return;
     }
-
     if (item.kind === "channel") {
       goToChannel(item.data);
       return;
     }
-
     goToPerson(item.data.id);
   };
-
   const moveActive = (delta: number) => {
     const total = items().length;
     if (!total) return;
-
     const current = activeIndex();
     const next = current === null ? 0 : Math.max(0, Math.min(total - 1, current + delta));
     setActiveIndex(next);
   };
-
   return (
     <Overlay onClose={props.onClose}>
-      <div class="global-search-card">
-        <div class="global-search-input-row">
-          <Icon name="search" size={16} class="global-search-icon" />
+      <div class="global-search-card modal-card">
+        <div class="global-search-input-row flex-align-center">
+          <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
           <input
-            class="global-search-input"
-            type="text"
-            placeholder="Search channels, people…"
-            value={query()}
+            autofocus
+            class="global-search-input input-reset"
             onInput={(e) => {
               setQuery(e.currentTarget.value);
               setActiveIndex(e.currentTarget.value.trim() ? 0 : null);
@@ -250,31 +189,35 @@ export default function GlobalSearch(props: { onClose: () => void }) {
                 else activateItem(index);
               }
             }}
-            autofocus
+            placeholder="Search channels, people…"
+            type="text"
+            value={query()}
           />
-          <button type="button" class="panel-close-btn" onClick={props.onClose} title="Close">
+          <button class="panel-close-btn" onClick={props.onClose} title="Close" type="button">
             <Icon name="close" size={12} />
           </button>
         </div>
-
         <div class="global-search-results">
           <Show
+            fallback={
+              <div class="global-search-hint empty-state">
+                Jump to a channel or person. (Ctrl+K)
+              </div>
+            }
             when={hasQuery()}
-            fallback={<div class="global-search-hint">Jump to a channel or person. (Ctrl+K)</div>}
           >
             <button
-              type="button"
-              class="global-search-result global-search-message-action"
+              class="global-search-result global-search-message-action btn-reset flex-align-center"
               classList={{ active: activeIndex() === 0 }}
               onClick={goToMessageSearch}
               onMouseEnter={() => setActiveIndex(0)}
+              type="button"
             >
               <span class="global-search-jump-icon">
                 <Icon name="search" size={13} />
               </span>
               Search all messages for "{query()}"
             </button>
-
             <For each={rows()}>
               {(row, index) => {
                 const itemIndex = () => index() + 1;
@@ -282,11 +225,11 @@ export default function GlobalSearch(props: { onClose: () => void }) {
                   const c = row.data;
                   return (
                     <button
-                      type="button"
-                      class="global-search-result global-search-jump"
+                      class="global-search-result global-search-jump btn-reset flex-align-center"
                       classList={{ active: activeIndex() === itemIndex() }}
                       onClick={() => goToChannel(c)}
                       onMouseEnter={() => setActiveIndex(itemIndex())}
+                      type="button"
                     >
                       <span class="global-search-jump-icon">
                         {c.private ? <Icon name="lock" size={13} /> : "#"}
@@ -298,23 +241,20 @@ export default function GlobalSearch(props: { onClose: () => void }) {
                 const u = row.data;
                 return (
                   <button
-                    type="button"
-                    class="global-search-result global-search-jump"
+                    class="global-search-result global-search-jump btn-reset flex-align-center"
                     classList={{ active: activeIndex() === itemIndex() }}
                     onClick={() => goToPerson(u.id)}
                     onMouseEnter={() => setActiveIndex(itemIndex())}
+                    type="button"
                   >
-                    <Avatar user={u} size="small" />
+                    <Avatar size="small" user={u} />
                     {u.name}
                   </button>
                 );
               }}
             </For>
-
             <Show when={rows().length === 0}>
-              <div class="global-search-empty">
-                No channels or people matched — try searching messages above.
-              </div>
+              <div class="global-search-empty empty-state">Noting found :c</div>
             </Show>
           </Show>
         </div>

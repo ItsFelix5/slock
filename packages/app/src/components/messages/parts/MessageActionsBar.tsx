@@ -2,7 +2,7 @@ import type { Message } from "@slock/slack-api";
 import { Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { isSavedForLater, reactToMessage, toggleSaveForLater } from "../../../lib/store";
+import { store } from "../../../lib/store";
 import EmojiPicker from "../../composer/EmojiPicker";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
@@ -26,18 +26,18 @@ export default function MessageActionsBar(props: {
   // than absolutely positioned inside the message row, because message lists
   // (and especially the narrow thread panel) scroll with overflow: auto,
   // which clips any in-flow popup that would otherwise spill outside them.
-  const PICKER_WIDTH = 320;
-  const PICKER_HEIGHT = 400;
-  const MORE_MENU_HEIGHT = 220;
+  const PickerWidth = 320;
+  const PickerHeight = 400;
+  const MoreMenuHeight = 220;
 
   const togglePicker = () => {
     if (!pickerOpen() && pickerWrapRef) {
       const rect = pickerWrapRef.getBoundingClientRect();
-      const flipUp = rect.bottom + PICKER_HEIGHT > window.innerHeight;
-      const left = Math.min(rect.right - PICKER_WIDTH, window.innerWidth - PICKER_WIDTH - 8);
+      const flipUp = rect.bottom + PickerHeight > window.innerHeight;
+      const left = Math.min(rect.right - PickerWidth, window.innerWidth - PickerWidth - 8);
       setPickerPos({
         left: Math.max(8, left),
-        top: flipUp ? rect.top - PICKER_HEIGHT : rect.bottom + 4,
+        top: flipUp ? rect.top - PickerHeight : rect.bottom + 4,
       });
     }
     setPickerOpen(!pickerOpen());
@@ -46,7 +46,7 @@ export default function MessageActionsBar(props: {
   const toggleMore = () => {
     if (!moreOpen() && moreBtnRef) {
       const rect = moreBtnRef.getBoundingClientRect();
-      setMoreFlipUp(rect.bottom + MORE_MENU_HEIGHT > window.innerHeight);
+      setMoreFlipUp(rect.bottom + MoreMenuHeight > window.innerHeight);
     }
     setMoreOpen(!moreOpen());
   };
@@ -58,17 +58,22 @@ export default function MessageActionsBar(props: {
     props.msg.isBroadcast && props.msg.threadTs ? props.msg.threadTs : props.msg.ts,
   );
 
-  const isSaved = createMemo(() => isSavedForLater(props.msg.ts));
+  const isSaved = createMemo(() => store.later.isSavedForLater(props.msg.ts));
 
   const react = (name: string) => {
-    reactToMessage(props.channelId, props.msg, name);
+    store.messages.reactToMessage(props.channelId, props.msg, name);
     setPickerOpen(false);
   };
 
   return (
     <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
       <div class="message-hover-picker-wrap" ref={pickerWrapRef}>
-        <button type="button" class="message-hover-btn" title="React" onClick={togglePicker}>
+        <button
+          class="message-hover-btn btn-reset flex-center"
+          onClick={togglePicker}
+          title="React"
+          type="button"
+        >
           <Icon name="emoji" size={16} />
         </button>
         <Show when={pickerOpen()}>
@@ -77,7 +82,7 @@ export default function MessageActionsBar(props: {
               class="reaction-picker-full"
               style={{ left: `${pickerPos().left}px`, top: `${pickerPos().top}px` }}
             >
-              <EmojiPicker onSelect={react} onClose={() => setPickerOpen(false)} />
+              <EmojiPicker onClose={() => setPickerOpen(false)} onSelect={react} />
             </div>
           </Portal>
         </Show>
@@ -85,10 +90,10 @@ export default function MessageActionsBar(props: {
 
       <Show when={props.onOpenThread}>
         <button
-          type="button"
-          class="message-hover-btn"
-          title="Reply in thread"
+          class="message-hover-btn btn-reset flex-center"
           onClick={() => props.onOpenThread?.(threadRootTs())}
+          title="Reply in thread"
+          type="button"
         >
           <Icon name="threads" size={16} />
         </button>
@@ -96,37 +101,37 @@ export default function MessageActionsBar(props: {
 
       <Show when={props.onReplyLink}>
         <button
-          type="button"
-          class="message-hover-btn"
-          title="Reply"
+          class="message-hover-btn btn-reset flex-center"
           onClick={() => props.onReplyLink?.(props.msg)}
+          title="Reply"
+          type="button"
         >
           <Icon name="email-reply" size={16} />
         </button>
       </Show>
 
       <button
-        type="button"
-        class="message-hover-btn"
+        class="message-hover-btn btn-reset flex-center"
         classList={{ active: isSaved() }}
+        onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
         title={isSaved() ? "Remove from Later" : "Save for later"}
-        onClick={() => toggleSaveForLater(props.channelId, props.msg.ts)}
+        type="button"
       >
         <Icon name={isSaved() ? "bookmark-filled" : "bookmark"} size={15} />
       </button>
 
       <Menu
         class="message-hover-picker-wrap"
-        panelClass={`menu-panel message-more-menu${moreFlipUp() ? " flip-up" : ""}`}
-        open={moreOpen()}
         onClose={() => setMoreOpen(false)}
+        open={moreOpen()}
+        panelClass={`menu-panel message-more-menu${moreFlipUp() ? " flip-up" : ""}`}
         trigger={
           <button
-            ref={moreBtnRef}
-            type="button"
-            class="message-hover-btn"
-            title="More actions"
+            class="message-hover-btn btn-reset flex-center"
             onClick={toggleMore}
+            ref={moreBtnRef}
+            title="More actions"
+            type="button"
           >
             <Icon name="ellipsis-vertical-filled" size={16} />
           </button>
@@ -135,9 +140,9 @@ export default function MessageActionsBar(props: {
         <MessageActionsMenuItems
           channelId={props.channelId}
           msg={props.msg}
-          threadTs={props.threadTs}
-          onEditRequest={props.onEditRequest}
           onClose={() => setMoreOpen(false)}
+          onEditRequest={props.onEditRequest}
+          threadTs={props.threadTs}
         />
       </Menu>
     </div>

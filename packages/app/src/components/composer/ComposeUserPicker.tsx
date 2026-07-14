@@ -1,7 +1,7 @@
 import type { User } from "@slock/slack-api";
 import { Avatar, fuzzySearch, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import { currentUser, frecencyScore, knownUsers, searchUsers } from "../../lib/store";
+import { store } from "../../lib/store";
 import "./ComposeUserPicker.css";
 
 export default function ComposeUserPicker(props: {
@@ -23,8 +23,8 @@ export default function ComposeUserPicker(props: {
   });
 
   const localUsers = createMemo(() => {
-    const me = currentUser()?.id;
-    return knownUsers().filter((u) => u.id !== me);
+    const me = store.users.currentUser()?.id;
+    return store.users.knownUsers().filter((u) => u.id !== me);
   });
 
   const onInput = (value: string) => {
@@ -39,8 +39,8 @@ export default function ComposeUserPicker(props: {
     setSearching(true);
     const id = ++requestId;
     debounceTimer = setTimeout(async () => {
-      const me = currentUser()?.id;
-      const found = await searchUsers(q, me);
+      const me = store.users.currentUser()?.id;
+      const found = await store.users.searchUsers(q, me);
       if (id === requestId) {
         setRemoteResults(found);
         setSearching(false);
@@ -61,33 +61,37 @@ export default function ComposeUserPicker(props: {
     const q = query().trim();
     if (!q) return pool.slice(0, 40);
     return fuzzySearch(pool, {
+      frequency: (u) => store.preferences.frecencyScore(u.id),
       query: q,
       text: (u) => u.name,
-      frequency: (u) => frecencyScore(u.id),
     }).slice(0, 40);
   });
 
   return (
     <div class="compose-picker" ref={rootRef}>
       <input
-        class="compose-picker-input"
-        type="text"
-        placeholder="Find a person…"
-        value={query()}
-        onInput={(e) => onInput(e.currentTarget.value)}
         autofocus
+        class="compose-picker-input"
+        onInput={(e) => onInput(e.currentTarget.value)}
+        placeholder="Find a person…"
+        type="text"
+        value={query()}
       />
       <div class="compose-picker-list">
         <Show
-          when={users().length > 0}
           fallback={
             <div class="compose-picker-empty">{searching() ? "Searching…" : "No matches"}</div>
           }
+          when={users().length > 0}
         >
           <For each={users()}>
             {(u) => (
-              <button type="button" class="compose-picker-row" onClick={() => props.onSelect(u.id)}>
-                <Avatar user={u} size="small" />
+              <button
+                class="compose-picker-row btn-reset flex-align-center"
+                onClick={() => props.onSelect(u.id)}
+                type="button"
+              >
+                <Avatar size="small" user={u} />
                 {u.name}
               </button>
             )}

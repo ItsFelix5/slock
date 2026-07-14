@@ -1,13 +1,6 @@
 import type { ActivityItem } from "@slock/slack-api";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import {
-  activityItems,
-  ensureActivityLoaded,
-  isActivityItemUnread,
-  markActivityItemRead,
-  openChannelPeek,
-  userById,
-} from "../../lib/store";
+import { store } from "../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData, rowTarget } from "./ActivityRow";
 import "./ActivityView.css";
 
@@ -37,7 +30,7 @@ export default function ActivityView() {
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
-  onMount(() => ensureActivityLoaded());
+  onMount(() => store.activity.ensureActivityLoaded());
 
   const toggleTag = (tag: Tag) => {
     setSelectedTags((prev) => {
@@ -49,7 +42,7 @@ export default function ActivityView() {
   };
 
   const filteredItems = createMemo(() => {
-    const sorted = [...activityItems].sort((a, b) => b.time - a.time);
+    const sorted = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
     const tags = selectedTags();
     const kw = keyword().trim().toLowerCase();
     const read = readState();
@@ -57,11 +50,11 @@ export default function ActivityView() {
     return sorted.filter((item) => {
       if (tags.size > 0) {
         const itemTags: Tag[] = [item.kind];
-        if (userById(item.userId)?.isBot) itemTags.push("app");
+        if (store.users.userById(item.userId)?.isBot) itemTags.push("app");
         if (!itemTags.some((t) => tags.has(t))) return false;
       }
       if (kw && !item.text.toLowerCase().includes(kw)) return false;
-      const unread = isActivityItemUnread(item);
+      const unread = store.activity.isActivityItemUnread(item);
       if (read === "unread" && !unread) return false;
       if (read === "read" && unread) return false;
       return true;
@@ -79,29 +72,33 @@ export default function ActivityView() {
         const key = `thread:${item.channelId}:${item.threadTs ?? item.ts}`;
         let row = groups.get(key);
         if (!row) {
-          row = { key, items: [], isThread: true };
+          row = { isThread: true, items: [], key };
           groups.set(key, row);
           ordered.push(row);
         }
         row.items.push(item);
       } else {
-        ordered.push({ key: `single:${item.id}`, items: [item], isThread: false });
+        ordered.push({ isThread: false, items: [item], key: `single:${item.id}` });
       }
     }
     return ordered;
   });
 
-  const unreadRows = createMemo(() => rows().filter((r) => r.items.some(isActivityItemUnread)));
+  const unreadRows = createMemo(() =>
+    rows().filter((r) => r.items.some(store.activity.isActivityItemUnread)),
+  );
 
-  const goTo = (channelId: string, ts: string) => openChannelPeek(channelId, ts);
+  const goTo = (channelId: string, ts: string) => store.viewState.openChannelPeek(channelId, ts);
 
-  const markRowRead = (channelId: string, ts: string) => markActivityItemRead(channelId, ts);
+  const markRowRead = (channelId: string, ts: string) =>
+    store.activity.markActivityItemRead(channelId, ts);
 
   // Scoped to whatever's currently filtered/visible, not every activity item
   // that's ever landed here — so "Mark all as read" while filtered to
   // "Reactions" doesn't also silently clear unread mentions out of view.
   const markVisibleAsRead = () => {
-    for (const item of filteredItems()) markActivityItemRead(item.channelId, item.ts);
+    for (const item of filteredItems())
+      store.activity.markActivityItemRead(item.channelId, item.ts);
   };
 
   // Triage flow: mark the topmost unread row read, then jump straight to
@@ -110,49 +107,54 @@ export default function ActivityView() {
     const current = unreadRows()[0];
     if (!current) return;
     const target = rowTarget(current);
-    markActivityItemRead(target.channelId, current.items[0].ts);
+    store.activity.markActivityItemRead(target.channelId, current.items[0].ts);
     const next = unreadRows()[0];
     if (next) goTo(rowTarget(next).channelId, rowTarget(next).ts);
   };
 
   return (
     <div class="activity-view">
-      <div class="activity-view-header">
+      <div class="activity-view-header flex-between">
         <h2>Activity</h2>
-        <div class="activity-header-actions">
+        <div class="activity-header-actions flex-align-center">
           <button
-            type="button"
-            class="activity-read-next"
+            class="activity-read-next btn-reset flex-align-center text-xs"
             disabled={unreadRows().length === 0}
             onClick={readAndNext}
+            type="button"
           >
             Read &amp; next
             <Show when={unreadRows().length > 0}>
               <span class="activity-read-next-count">{unreadRows().length}</span>
             </Show>
           </button>
-          <button type="button" class="activity-mark-read" onClick={markVisibleAsRead}>
+          <button
+            class="activity-mark-read btn-reset chip"
+            onClick={markVisibleAsRead}
+            type="button"
+          >
             Mark all as read
           </button>
         </div>
       </div>
 
-      <div class="activity-toolbar">
+      <div class="activity-toolbar flex-align-center">
         <input
           class="activity-search"
-          type="text"
-          placeholder="Filter by keyword"
-          value={keyword()}
           onInput={(e) => setKeyword(e.currentTarget.value)}
+          placeholder="Filter by keyword"
+          type="text"
+          value={keyword()}
         />
 
         <div class="activity-read-toggle">
           <For each={READ_STATES}>
             {(r) => (
               <button
-                type="button"
+                class="btn-reset"
                 classList={{ active: readState() === r.key }}
                 onClick={() => setReadState(r.key)}
+                type="button"
               >
                 {r.label}
               </button>
@@ -161,14 +163,14 @@ export default function ActivityView() {
         </div>
       </div>
 
-      <div class="activity-tag-filters">
+      <div class="activity-tag-filters flex-align-center">
         <For each={TAG_FILTERS}>
           {(f) => (
             <button
-              type="button"
-              class="activity-tag-chip"
+              class="activity-tag-chip btn-reset chip"
               classList={{ active: selectedTags().has(f.key) }}
               onClick={() => toggleTag(f.key)}
+              type="button"
             >
               {f.label}
             </button>
@@ -176,18 +178,21 @@ export default function ActivityView() {
         </For>
         <Show when={selectedTags().size > 0}>
           <button
-            type="button"
-            class="activity-tag-clear"
+            class="activity-tag-clear btn-reset link-action"
             onClick={() => setSelectedTags(new Set())}
+            type="button"
           >
             Clear
           </button>
         </Show>
       </div>
 
-      <Show when={rows().length > 0} fallback={<div class="activity-empty">Nothing here yet.</div>}>
+      <Show
+        fallback={<div class="activity-empty empty-state">Nothing here yet.</div>}
+        when={rows().length > 0}
+      >
         <For each={rows()}>
-          {(row) => <ActivityRow row={row} onOpen={goTo} onMarkRead={markRowRead} />}
+          {(row) => <ActivityRow onMarkRead={markRowRead} onOpen={goTo} row={row} />}
         </For>
       </Show>
     </div>

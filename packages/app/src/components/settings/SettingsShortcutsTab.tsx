@@ -12,11 +12,11 @@ export default function SettingsShortcutsTab() {
   return (
     <>
       <h2>Shortcuts</h2>
-      <div class="settings-list">
+      <div class="settings-list flex-col">
         <For each={SHORTCUTS}>
           {(s) => (
-            <div class="settings-list-row">
-              <span class="settings-list-row-name">{s.label}</span>
+            <div class="settings-list-row flex-between">
+              <span class="settings-list-row-name flex-align-center">{s.label}</span>
               <kbd class="settings-kbd">{s.keys}</kbd>
             </div>
           )}

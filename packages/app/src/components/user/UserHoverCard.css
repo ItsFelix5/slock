@@ -10,11 +10,11 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  border-radius: 12px;
+  color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
+  border-radius: 12px;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.32);
-  color: var(--text-primary);
 }
 
 .user-hovercard-top {
@@ -28,32 +28,29 @@
   flex-shrink: 0;
   width: 52px;
   height: 52px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 20px;
-  color: var(--text-on-accent);
   overflow: visible;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  border-radius: 10px;
 }
 
 .user-hovercard-avatar img {
   width: 100%;
   height: 100%;
-  border-radius: 10px;
   object-fit: cover;
+  border-radius: 10px;
 }
 
 .user-hovercard-presence {
   position: absolute;
-  bottom: -2px;
   right: -2px;
+  bottom: -2px;
   width: 13px;
   height: 13px;
-  border-radius: 50%;
   background: var(--presence-active);
   border: 2px solid var(--main-bg);
+  border-radius: 50%;
 }
 
 .user-hovercard-presence.away {
@@ -61,49 +58,36 @@
 }
 
 .user-hovercard-heading {
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .user-hovercard-name {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
   font-size: 16px;
   font-weight: 800;
 }
 
 .user-hovercard-badge {
+  padding: 1px 4px;
   font-size: 10px;
   font-weight: 700;
-  background: var(--badge-bg);
   color: var(--text-secondary);
-  padding: 1px 4px;
+  background: var(--badge-bg);
   border-radius: 3px;
 }
 
-.user-hovercard-title {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
 .user-hovercard-status {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
 }
 
 .user-hovercard-meta {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: var(--text-dim);
 }
 
 .user-hovercard-actions {
@@ -112,19 +96,14 @@
 }
 
 .user-hovercard-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   flex: 1;
-  justify-content: center;
+  gap: 6px;
   padding: 7px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-strong);
-  background: none;
-  color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
-  cursor: pointer;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
 }
 
 .user-hovercard-btn:hover {

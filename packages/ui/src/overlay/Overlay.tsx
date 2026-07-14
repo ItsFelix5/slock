@@ -2,9 +2,9 @@ import type { JSX } from "solid-js";
 import "./Overlay.css";
 
 export interface OverlayProps {
-  onClose: () => void;
-  children: JSX.Element;
   align?: "center" | "top";
+  children: JSX.Element;
+  onClose: () => void;
 }
 
 export default function Overlay(props: OverlayProps) {

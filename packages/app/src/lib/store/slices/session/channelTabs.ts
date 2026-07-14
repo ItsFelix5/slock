@@ -73,5 +73,5 @@ export function createChannelTabsSlice(deps: { userPrefs: () => UserPrefs | unde
     persist(channelId, { ...channelTabs(), [channelId]: next });
   }
 
-  return { tabsForChannel, addChannelTab, removeChannelTab, moveChannelTab };
+  return { addChannelTab, channelTabs, moveChannelTab, removeChannelTab, tabsForChannel };
 }

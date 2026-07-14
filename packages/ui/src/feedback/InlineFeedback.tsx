@@ -3,8 +3,8 @@ import type { Feedback } from "./keyedFeedback";
 import "./InlineFeedback.css";
 
 export interface InlineFeedbackProps {
-  feedback: Feedback | undefined;
   class?: string;
+  feedback: Feedback | undefined;
 }
 
 export default function InlineFeedback(props: InlineFeedbackProps) {

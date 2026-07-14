@@ -43,5 +43,5 @@ export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | un
     persist([]);
   }
 
-  return { searchHistory, recordSearch, removeSearchHistoryEntry, clearSearchHistory };
+  return { clearSearchHistory, recordSearch, removeSearchHistoryEntry, searchHistory };
 }

@@ -10,9 +10,9 @@ export type FormatTool =
 // they're typed markdown-style at the start of a line; see maybeApplyLineTrigger.
 // Date is the one block that stays in the menu: it needs a real picker popup.
 export const FORMAT_TOOLS: FormatTool[] = [
-  { kind: "date", icon: "calendar", title: "Date" },
-  { kind: "attach", icon: "attachment", title: "Attach file" },
-  { kind: "mention", icon: "mentions", title: "Mention someone" },
+  { icon: "calendar", kind: "date", title: "Date" },
+  { icon: "attachment", kind: "attach", title: "Attach file" },
+  { icon: "mentions", kind: "mention", title: "Mention someone" },
 ];
 
 export function createRunTool(opts: {

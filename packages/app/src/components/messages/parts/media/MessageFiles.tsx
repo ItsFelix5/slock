@@ -16,16 +16,14 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
       <For each={props.files}>
         {(file) => (
           <Show
-            when={file.isImage && file.thumbUrl}
             fallback={
               <Show
-                when={file.isVideo}
                 fallback={
                   <a
-                    class="message-file-card"
+                    class="message-file-card flex-align-center"
                     href={file.urlPrivate}
-                    target="_blank"
                     rel="noopener noreferrer"
+                    target="_blank"
                   >
                     <Icon name="code-block" size={20} />
                     <span class="message-file-info">
@@ -36,30 +34,32 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                     </span>
                   </a>
                 }
+                when={file.isVideo}
               >
                 <video
-                  class="message-file-video"
-                  poster={file.thumbUrl}
-                  width={file.width}
-                  height={file.height}
-                  controls
                   aria-label={file.title || file.name}
+                  class="message-file-video"
+                  controls
+                  height={file.height}
+                  poster={file.thumbUrl}
                   preload="metadata"
+                  width={file.width}
                 >
                   <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
                   Your browser does not support the video tag.
                 </video>
               </Show>
             }
+            when={file.isImage ? file.thumbUrl : undefined}
           >
             {(thumb) => (
               <ZoomableImage
-                class="message-file-image"
-                src={thumb()}
-                fullSrc={fileProxyUrl(file.urlPrivate)}
                 alt={file.title || file.name}
-                width={file.width}
+                class="message-file-image"
+                fullSrc={fileProxyUrl(file.urlPrivate)}
                 height={file.height}
+                src={thumb()}
+                width={file.width}
               />
             )}
           </Show>

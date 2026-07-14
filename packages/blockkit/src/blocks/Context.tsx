@@ -8,13 +8,13 @@ export default function Context(props: { block: ContextBlock }) {
       <For each={props.block.elements}>
         {(el) => (
           <Show
+            fallback={<BkText class="bk-context-text" text={el as any} />}
             when={"type" in el && el.type === "image"}
-            fallback={<BkText text={el as any} class="bk-context-text" />}
           >
             <img
+              alt={(el as any).alt_text ?? ""}
               class="bk-context-image"
               src={fileProxyUrl((el as any).image_url ?? (el as any).slack_file?.url)}
-              alt={(el as any).alt_text ?? ""}
             />
           </Show>
         )}

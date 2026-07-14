@@ -57,5 +57,5 @@ export function createLinkPreviewController(text: () => string) {
     return detectedUrls().some((u) => dismissed.has(u));
   }
 
-  return { detectedUrls, visiblePreviews, dismissLinkPreview, reset, shouldSuppressUnfurl };
+  return { detectedUrls, dismissLinkPreview, reset, shouldSuppressUnfurl, visiblePreviews };
 }

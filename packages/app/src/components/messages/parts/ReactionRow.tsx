@@ -2,7 +2,7 @@ import { EmojiText } from "@slock/blockkit";
 import type { Reaction } from "@slock/slack-api";
 import { AvatarStack } from "@slock/ui";
 import { createMemo, For } from "solid-js";
-import { currentUser, userById } from "../../../lib/store";
+import { store } from "../../../lib/store";
 
 export default function ReactionRow(props: {
   reactions: Reaction[];
@@ -13,27 +13,25 @@ export default function ReactionRow(props: {
       <For each={props.reactions}>
         {(r) => {
           const mine = createMemo(() => {
-            const me = currentUser();
+            const me = store.users.currentUser();
             return !!me && r.users.includes(me.id);
           });
           return (
             <button
-              type="button"
-              class="reaction-pill"
+              class="reaction-pill btn-reset flex-align-center"
               classList={{ mine: mine() }}
               onClick={() => props.onToggle(r.name)}
+              type="button"
             >
               <EmojiText text={`:${r.name}:`} />
               <span class="reaction-count">{r.count}</span>
               <AvatarStack
-                users={r.users
-                  .slice(0, 3)
-                  .map((id) => userById(id))
-                  .filter((u) => u !== undefined)}
                 title={() =>
                   r.users
                     .map((id) =>
-                      id === currentUser()?.id ? "you" : (userById(id)?.name ?? "someone"),
+                      id === store.users.currentUser()?.id
+                        ? "you"
+                        : (store.users.userById(id)?.name ?? "someone"),
                     )
                     .reduce(
                       (prev, curr, i, a) =>
@@ -41,6 +39,10 @@ export default function ReactionRow(props: {
                       "",
                     )
                 }
+                users={r.users
+                  .slice(0, 3)
+                  .map((id) => store.users.userById(id))
+                  .filter((u) => u !== undefined)}
               />
             </button>
           );

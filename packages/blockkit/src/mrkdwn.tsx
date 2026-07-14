@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to rendering.
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "./context";
@@ -43,30 +44,30 @@ const INLINE_RE = /`([^`]+)`|<([^<>]*)>|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
 function parseToken(token: string): InlineNode {
   if (token.startsWith("@")) {
     const [id] = token.slice(1).split("|");
-    return { t: "user", id };
+    return { id, t: "user" };
   }
   if (token.startsWith("#")) {
     const [id, label] = token.slice(1).split("|");
-    return { t: "channel", id, label };
+    return { id, label, t: "channel" };
   }
   if (token.startsWith("!subteam^")) {
     const [id] = token.slice("!subteam^".length).split("|");
-    return { t: "usergroup", id };
+    return { id, t: "usergroup" };
   }
   if (token.startsWith("!date^")) {
     const [main, fallback] = token.slice("!date^".length).split("|");
     const [ts, format, url] = main.split("^");
-    return { t: "date", timestamp: Number(ts), format, url, fallback };
+    return { fallback, format, t: "date", timestamp: Number(ts), url };
   }
   if (token.startsWith("!")) {
     const range = token.slice(1);
     if (range === "here" || range === "channel" || range === "everyone")
-      return { t: "broadcast", range };
+      return { range, t: "broadcast" };
     return { t: "text", text: `<${token}>` };
   }
   const [url, label] = token.split("|");
   const userId = parseUserProfileLink(url);
-  return userId ? { t: "userlink", id: userId, label, url } : { t: "link", url, label };
+  return userId ? { id: userId, label, t: "userlink", url } : { label, t: "link", url };
 }
 
 function parseInline(text: string): InlineNode[] {
@@ -104,8 +105,8 @@ function parseLinesAndQuotes(text: string): BlockNode[] {
     if (current.length === 0) return;
     const joined = current.join("\n");
     groups.push({
-      t: currentIsQuote ? "quote" : "lines",
       nodes: parseInline(joined),
+      t: currentIsQuote ? "quote" : "lines",
     });
     current = [];
   };
@@ -155,7 +156,7 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
   const resolver = useBlockKitResolver();
   const isUser = props.kind === "user";
   const user = () => (isUser ? resolver.resolveUser(props.id) : undefined);
-  const channel = () => (!isUser ? resolver.resolveChannel(props.id) : undefined);
+  const channel = () => (isUser ? undefined : resolver.resolveChannel(props.id));
   const name = () =>
     isUser
       ? (user()?.name ?? props.label ?? props.id)
@@ -173,16 +174,16 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
 
   return (
     <button
-      type="button"
       class="bk-mention"
       classList={{
-        "bk-mention-self": isUser && !!user()?.isSelf,
         "bk-mention-inaccessible": isInaccessible(),
         "bk-mention-link": isUser && props.label !== undefined,
+        "bk-mention-self": isUser && !!user()?.isSelf,
       }}
       onClick={onClick}
+      type="button"
     >
-      <Show when={isPrivate()} fallback={isUser ? "@" : "#"}>
+      <Show fallback={isUser ? "@" : "#"} when={isPrivate()}>
         <Icon name="lock" size={12} />
       </Show>
       {name()}
@@ -217,7 +218,7 @@ function InlineNodeView(props: { node: InlineNode }) {
       return <code class="bk-inline-code">{n.text}</code>;
     case "link":
       return (
-        <a class="bk-link" href={n.url} target="_blank" rel="noopener noreferrer">
+        <a class="bk-link" href={n.url} rel="noopener noreferrer" target="_blank">
           {n.label ? <EmojiText text={n.label} /> : n.url}
         </a>
       );
@@ -233,7 +234,7 @@ function InlineNodeView(props: { node: InlineNode }) {
       return <span class="bk-mention bk-mention-broadcast">@{n.range}</span>;
     case "date":
       return n.url ? (
-        <a class="bk-link" href={n.url} target="_blank" rel="noopener noreferrer">
+        <a class="bk-link" href={n.url} rel="noopener noreferrer" target="_blank">
           {formatDate(n)}
         </a>
       ) : (
@@ -252,17 +253,17 @@ export default function Mrkdwn(props: { text: string }): JSX.Element {
     <For each={blocks()}>
       {(b) => (
         <Show
-          when={b.t === "lines"}
           fallback={
             <Show
-              when={b.t === "quote"}
               fallback={<pre class="bk-codeblock">{(b as any).text}</pre>}
+              when={b.t === "quote"}
             >
               <blockquote class="bk-quote">
                 <InlineList nodes={(b as Extract<BlockNode, { t: "quote" }>).nodes} />
               </blockquote>
             </Show>
           }
+          when={b.t === "lines"}
         >
           <InlineList nodes={(b as Extract<BlockNode, { t: "lines" }>).nodes} />
         </Show>

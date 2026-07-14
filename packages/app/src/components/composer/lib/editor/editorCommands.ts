@@ -15,14 +15,14 @@ export function createEditorCommands(opts: {
 }) {
   const ref = createEditorRef();
   const selection = createSelectionCommands(ref, {
-    setText: opts.setText,
     resetLinkPreviews: opts.resetLinkPreviews,
+    setText: opts.setText,
   });
   const block = createBlockCommands(ref, {
+    closeSuggestions: opts.closeSuggestions,
+    currentTextContext: selection.currentTextContext,
     focusEditor: selection.focusEditor,
     syncFromDom: selection.syncFromDom,
-    currentTextContext: selection.currentTextContext,
-    closeSuggestions: opts.closeSuggestions,
   });
   const linkify = createLinkifyCommands(ref, {
     currentTextContext: selection.currentTextContext,
@@ -30,8 +30,8 @@ export function createEditorCommands(opts: {
   });
 
   return {
-    setRef: ref.set,
     getRef: ref.get,
+    setRef: ref.set,
     ...selection,
     ...block,
     ...linkify,

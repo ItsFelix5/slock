@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to request parsing.
 import { submitAuthRequest } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import "./ConnectSlack.css";
@@ -7,7 +8,6 @@ function firstMatch(text: string, patterns: RegExp[]): string | undefined {
     const found = text.match(pattern)?.[1];
     if (found !== undefined) return found;
   }
-  return undefined;
 }
 
 function unescapeJs(value: string): string {
@@ -48,14 +48,13 @@ function extractMultipartField(
     const disposition = part.match(/Content-Disposition:\s*form-data;\s*name="([^"]+)"/i);
     if (disposition?.[1] !== fieldName) continue;
     const sepIndex = part.indexOf("\r\n\r\n");
-    const valueStart = sepIndex !== -1 ? sepIndex + 4 : part.indexOf("\n\n") + 2;
+    const valueStart = sepIndex === -1 ? part.indexOf("\n\n") + 2 : sepIndex + 4;
     if (valueStart <= 0) continue;
     return part
       .slice(valueStart)
       .replace(/\r?\n--$/, "")
       .trim();
   }
-  return undefined;
 }
 
 export default function ConnectSlack(props: { onConnected: () => void }) {
@@ -73,11 +72,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
         .replace(/`\r?\n/g, " ");
 
       const urlMatch = text.match(/https?:\/\/[^\s'"\\]+/);
-      if (!urlMatch) {
-        throw new Error(
-          "Couldn't find a URL in that. Paste the whole request — in the Network tab, right-click a call to /api/... and choose Copy > Copy as cURL.",
-        );
-      }
+      if (!urlMatch) throw new Error("Couldn't find a URL in that.");
       const url = new URL(urlMatch[0]);
       const domain = url.hostname;
 
@@ -133,7 +128,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
         );
       }
 
-      const result = await submitAuthRequest({ domain, token, cookie: cookie.trim(), route });
+      const result = await submitAuthRequest({ cookie: cookie.trim(), domain, route, token });
       if (!result.ok) throw result.error;
       props.onConnected();
     } catch (e) {
@@ -142,7 +137,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
   }
 
   return (
-    <div class="connect-slack">
+    <div class="connect-slack flex-center">
       <div class="connect-slack-card">
         <h1>Connect to Slack</h1>
         <p class="connect-slack-intro">
@@ -159,10 +154,10 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
         </ol>
         <textarea
           class="connect-slack-input"
-          placeholder="curl 'https://your-workspace.slack.com/api/...' -H ..."
           onInput={(e) => validate(e.currentTarget.value)}
-          spellcheck={false}
+          placeholder="curl 'https://your-workspace.slack.com/api/...' -H ..."
           rows={8}
+          spellcheck={false}
         />
         {error() && <p class="connect-slack-error">{error()}</p>}
       </div>

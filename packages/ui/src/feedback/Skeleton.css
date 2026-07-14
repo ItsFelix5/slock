@@ -21,7 +21,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
-    animation: none;
     background: var(--hover-bg);
+    animation: none;
   }
 }

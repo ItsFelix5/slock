@@ -1,18 +1,7 @@
 import type { Message } from "@slock/slack-api";
 import { Icon, PanelHeader, ResizeHandle, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
-import {
-  actionFeedback,
-  activeThread,
-  channelById,
-  channelDisplayName,
-  closeThread,
-  isThreadSubscribed,
-  prepareReplyLink,
-  threadMessages,
-  toggleThreadSubscribed,
-  typingUsersInThread,
-} from "../../lib/store";
+import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import MessageRows from "./MessageRows";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
@@ -23,7 +12,7 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 640;
 
 export default function ThreadPanel() {
-  const thread = activeThread;
+  const thread = store.viewState.activeThread;
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [replyTarget, setReplyTarget] = createSignal<{ ts: string; permalink: string } | null>(
     null,
@@ -33,7 +22,7 @@ export default function ThreadPanel() {
   const messages = createMemo(() => {
     const t = thread();
     if (!t) return [];
-    return threadMessages[t.ts] ?? [];
+    return store.messages.threadMessages[t.ts] ?? [];
   });
 
   const replyTargetMessage = createMemo(() => messages().find((m) => m.ts === replyTarget()?.ts));
@@ -41,8 +30,15 @@ export default function ThreadPanel() {
   const typingNames = createMemo(() => {
     const t = thread();
     if (!t) return [];
-    return typingUsersInThread(t.channelId, t.ts).map((u) => u.name);
+    return store.typing.typingUsersInThread(t.channelId, t.ts).map((u) => u.name);
   });
+
+  const toggleSubscription = () => {
+    const t = thread();
+    if (t) store.messages.toggleThreadSubscribed(t.channelId, t.ts);
+  };
+  const jumpToReplyTarget = () => jumpToMessage(replyTarget()?.ts ?? "");
+  const cancelReply = () => setReplyTarget(null);
 
   createEffect(() => {
     thread();
@@ -52,24 +48,24 @@ export default function ThreadPanel() {
   const channelName = createMemo(() => {
     const t = thread();
     if (!t) return "";
-    return channelDisplayName(channelById(t.channelId), t.channelId);
+    return channelDisplayName(store.channels.channelById(t.channelId), t.channelId);
   });
 
   async function startReply(msg: Message) {
     const t = thread();
     if (!t) return;
-    const permalink = await prepareReplyLink(t.channelId, msg.ts, t.ts);
+    const permalink = await store.messages.prepareReplyLink(t.channelId, msg.ts, t.ts);
     if (!permalink) {
       actionFeedback.flash(msg.ts, "Failed to prepare reply link.", "error");
       return;
     }
-    setReplyTarget({ ts: msg.ts, permalink });
+    setReplyTarget({ permalink, ts: msg.ts });
   }
 
   function jumpToMessage(ts: string) {
     const el = messagesRef?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
     if (!el) return;
-    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("message-flash");
     setTimeout(() => el.classList.remove("message-flash"), 1500);
   }
@@ -79,28 +75,34 @@ export default function ThreadPanel() {
       {(t) => (
         <div class="thread-panel" style={{ width: `${width()}px` }}>
           <ResizeHandle
-            width={width}
-            setWidth={setWidth}
-            min={MIN_WIDTH}
-            max={MAX_WIDTH}
             direction={-1}
+            max={MAX_WIDTH}
+            min={MIN_WIDTH}
+            setWidth={setWidth}
             side="left"
+            width={width}
           />
-          <PanelHeader onClose={closeThread}>
-            <div class="thread-panel-header-info">
+          <PanelHeader onClose={store.viewState.closeThread}>
+            <div class="thread-panel-header-info flex-align-center">
               <div class="thread-panel-title">Thread</div>
               <div class="thread-panel-subtitle">#{channelName()}</div>
               <button
-                type="button"
-                class="thread-panel-subscribe-btn"
-                classList={{ subscribed: isThreadSubscribed(t().ts) }}
+                class="thread-panel-subscribe-btn btn-reset flex-center"
+                classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
+                onClick={toggleSubscription}
                 title={
-                  isThreadSubscribed(t().ts) ? "Unfollow thread" : "Get notified about new replies"
+                  store.messages.isThreadSubscribed(t().ts)
+                    ? "Unfollow thread"
+                    : "Get notified about new replies"
                 }
-                onClick={() => toggleThreadSubscribed(t().channelId, t().ts)}
+                type="button"
               >
                 <Icon
-                  name={isThreadSubscribed(t().ts) ? "notifications-check" : "notifications"}
+                  name={
+                    store.messages.isThreadSubscribed(t().ts)
+                      ? "notifications-check"
+                      : "notifications"
+                  }
                   size={16}
                 />
               </button>
@@ -108,25 +110,22 @@ export default function ThreadPanel() {
           </PanelHeader>
           <div class="thread-panel-messages" ref={messagesRef}>
             <MessageRows
-              messages={messages()}
               channelId={t().channelId}
-              threadTs={t().ts}
-              onReplyLink={startReply}
+              messages={messages()}
               onJumpToMessage={jumpToMessage}
+              onReplyLink={startReply}
+              threadTs={t().ts}
             />
           </div>
           <TypingIndicator names={typingNames()} />
           <Show when={replyTarget()}>
-            <div class="thread-reply-preview">
-              <ReplyReferenceRow
-                message={replyTargetMessage()}
-                onJump={() => jumpToMessage(replyTarget()?.ts ?? "")}
-              />
+            <div class="thread-reply-preview flex-align-center">
+              <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
               <button
-                type="button"
-                class="thread-reply-preview-cancel"
+                class="thread-reply-preview-cancel btn-reset flex-center"
+                onClick={cancelReply}
                 title="Cancel reply"
-                onClick={() => setReplyTarget(null)}
+                type="button"
               >
                 <Icon name="close" size={12} />
               </button>
@@ -134,14 +133,14 @@ export default function ThreadPanel() {
           </Show>
           <Composer
             channelId={t().channelId}
-            threadTs={t().ts}
             placeholder="Reply…"
             replyTo={(() => {
               const rt = replyTarget();
               return rt
-                ? { permalink: rt.permalink, onSent: () => setReplyTarget(null) }
+                ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
                 : undefined;
             })()}
+            threadTs={t().ts}
           />
         </div>
       )}

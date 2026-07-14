@@ -1,11 +1,5 @@
-import {
-  createCopyFeedback,
-  Icon,
-  InlineFeedback,
-  Overlay,
-  PanelHeader,
-  useEscapeClose,
-} from "@slock/ui";
+// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to the save operation.
+import { createCopyFeedback, Icon, InlineFeedback, Overlay, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import {
   channelDetailsId,
@@ -15,7 +9,7 @@ import {
   updateChannelPurpose,
   updateChannelTopic,
 } from "../../../lib/channelDetails";
-import { actionFeedback, userById } from "../../../lib/store";
+import { actionFeedback, store } from "../../../lib/store";
 import ChannelMembersTab from "./ChannelMembersTab";
 import "./ChannelDetails.css";
 import ChannelSettingsTab from "./ChannelSettingsTab";
@@ -67,7 +61,7 @@ export default function ChannelDetails() {
   const saveName = async () => {
     const id = channelDetailsId();
     const v = nameInput().trim().replace(/^#/, "");
-    if (!id || !v || v === details()?.name) return;
+    if (!(id && v) || v === details()?.name) return;
     if (await renameChannelById(id, v)) refetch();
   };
 
@@ -81,11 +75,11 @@ export default function ChannelDetails() {
     const d = details();
     if (!d?.created) return null;
     const date = new Date(d.created * 1000).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
       day: "numeric",
+      month: "long",
+      year: "numeric",
     });
-    const creator = d.creatorId ? userById(d.creatorId)?.name : undefined;
+    const creator = d.creatorId ? store.users.userById(d.creatorId)?.name : undefined;
     return creator ? `Created by ${creator} on ${date}` : `Created on ${date}`;
   });
 
@@ -94,12 +88,8 @@ export default function ChannelDetails() {
       {(id) => (
         <Overlay onClose={closeChannelDetails}>
           <Show
-            when={details()}
             fallback={
-              <div class="channel-details-card">
-                <PanelHeader onClose={closeChannelDetails}>
-                  <span class="channel-details-header-name">Channel details</span>
-                </PanelHeader>
+              <div class="channel-details-card flex-col">
                 <Show when={!details.loading}>
                   <div class="channel-details-load-error">
                     <InlineFeedback feedback={actionFeedback.get(id())} />
@@ -107,24 +97,18 @@ export default function ChannelDetails() {
                 </Show>
               </div>
             }
+            when={details()}
           >
             {(d) => (
-              <div class="channel-details-card">
-                <PanelHeader onClose={closeChannelDetails}>
-                  <span class="channel-details-header-icon">
-                    {d().private ? <Icon name="lock" size={16} /> : "#"}
-                  </span>
-                  <span class="channel-details-header-name">{d().name}</span>
-                </PanelHeader>
-
+              <div class="channel-details-card flex-col">
                 <div class="channel-details-tabs">
                   <For each={TABS}>
                     {(t) => (
                       <button
-                        type="button"
-                        class="channel-details-tab"
+                        class="channel-details-tab btn-reset flex-align-center"
                         classList={{ active: tab() === t.key }}
                         onClick={() => setTab(t.key)}
+                        type="button"
                       >
                         {t.label}
                         <Show when={t.key === "members" && d().memberCount}>
@@ -136,92 +120,96 @@ export default function ChannelDetails() {
                 </div>
 
                 <InlineFeedback
-                  feedback={actionFeedback.get(d().id)}
                   class="channel-details-feedback"
+                  feedback={actionFeedback.get(d().id)}
                 />
 
-                <div class="channel-details-body">
+                <div class="channel-details-body flex-col">
                   <Show when={tab() === "about"}>
-                    <div class="channel-details-field">
+                    <div class="channel-details-field flex-col">
                       <label class="channel-details-label" for="channel-details-name">
                         Channel name
                       </label>
-                      <div class="channel-details-name-wrap">
-                        <span class="channel-details-name-prefix">
+                      <div class="channel-details-name-wrap flex-align-center">
+                        <span class="channel-details-name-prefix flex-align-center">
                           {d().private ? <Icon name="lock" size={13} /> : "#"}
                         </span>
                         <input
-                          id="channel-details-name"
                           class="channel-details-input"
+                          id="channel-details-name"
+                          onBlur={saveName}
+                          onInput={(e) => setNameInput(e.currentTarget.value)}
+                          onKeyDown={blurOnEnter}
                           type="text"
                           value={nameInput()}
-                          onInput={(e) => setNameInput(e.currentTarget.value)}
-                          onBlur={saveName}
-                          onKeyDown={blurOnEnter}
                         />
                       </div>
                     </div>
-                    <div class="channel-details-field">
+                    <div class="channel-details-field flex-col">
                       <label class="channel-details-label" for="channel-details-topic">
                         Topic
                       </label>
                       <input
-                        id="channel-details-topic"
                         class="channel-details-input"
-                        type="text"
-                        placeholder="Add a topic"
-                        value={topicInput()}
-                        onInput={(e) => setTopicInput(e.currentTarget.value)}
+                        id="channel-details-topic"
                         onBlur={saveTopic}
+                        onInput={(e) => setTopicInput(e.currentTarget.value)}
                         onKeyDown={blurOnEnter}
+                        placeholder="Add a topic"
+                        type="text"
+                        value={topicInput()}
                       />
                     </div>
-                    <div class="channel-details-field">
+                    <div class="channel-details-field flex-col">
                       <label class="channel-details-label" for="channel-details-purpose">
                         Description
                       </label>
                       <textarea
-                        id="channel-details-purpose"
                         class="channel-details-input channel-details-textarea"
+                        id="channel-details-purpose"
+                        onBlur={savePurpose}
+                        onInput={(e) => setPurposeInput(e.currentTarget.value)}
                         placeholder="Add a description"
                         value={purposeInput()}
-                        onInput={(e) => setPurposeInput(e.currentTarget.value)}
-                        onBlur={savePurpose}
                       />
                     </div>
                     <Show when={createdLine()}>
                       <p class="channel-details-meta">{createdLine()}</p>
                     </Show>
-                    <div class="channel-details-copy-list">
+                    <div class="channel-details-copy-list flex-col">
                       <Show when={d().email}>
                         {(email) => (
                           <button
-                            type="button"
-                            class="channel-details-copy-row"
+                            class="channel-details-copy-row btn-reset flex-align-center"
                             onClick={() => copy(email(), "email")}
+                            type="button"
                           >
                             <Icon name="email-filled" size={15} />
-                            <span class="channel-details-copy-value">{email()}</span>
+                            <span class="channel-details-copy-value truncate">{email()}</span>
                             <Icon name={copiedKey() === "email" ? "check" : "copy"} size={14} />
                           </button>
                         )}
                       </Show>
                       <button
-                        type="button"
-                        class="channel-details-copy-row"
+                        class="channel-details-copy-row btn-reset flex-align-center"
                         onClick={() => copy(`${location.origin}/#${d().id}`, "link")}
+                        type="button"
                       >
                         <Icon name="link" size={15} />
-                        <span class="channel-details-copy-value">Copy link to channel</span>
+                        <span class="channel-details-copy-value truncate">
+                          Copy link to channel
+                        </span>
                         <Icon name={copiedKey() === "link" ? "check" : "copy"} size={14} />
                       </button>
                       <button
-                        type="button"
-                        class="channel-details-copy-row"
+                        class="channel-details-copy-row btn-reset flex-align-center"
                         onClick={() => copy(d().id, "id")}
+                        type="button"
                       >
                         <Icon name="info" size={15} />
-                        <span class="channel-details-copy-value">Channel ID: {d().id}</span>
+                        <span class="channel-details-copy-value truncate">
+                          Channel ID: {d().id}
+                        </span>
                         <Icon name={copiedKey() === "id" ? "check" : "copy"} size={14} />
                       </button>
                     </div>

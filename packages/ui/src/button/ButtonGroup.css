@@ -1,15 +1,15 @@
 .btn-group {
   display: inline-flex;
   gap: 0;
+  padding: 2px;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  padding: 2px;
 }
 
 .btn-group .btn {
-  border-radius: 4px;
   margin: 0;
+  border-radius: 4px;
 }
 
 .btn-group .btn + .btn {

@@ -31,5 +31,5 @@ export function parseReplyLink(
   if (!urlMatch) return null;
   const [, channelId, digits] = urlMatch;
   const ts = `${digits.slice(0, -6)}.${digits.slice(-6)}`;
-  return { channelId, ts, rest: text.slice(m[0].length), prefix: m[0] };
+  return { channelId, prefix: m[0], rest: text.slice(m[0].length), ts };
 }

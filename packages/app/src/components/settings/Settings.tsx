@@ -24,24 +24,24 @@ export default function Settings(props: { onClose: () => void }) {
 
   return (
     <Overlay onClose={props.onClose}>
-      <div class="settings-card">
+      <div class="settings-card modal-card">
         <button
-          type="button"
           class="panel-close-btn floating"
           onClick={props.onClose}
           title="Close"
+          type="button"
         >
           <Icon name="close" size={12} />
         </button>
 
-        <div class="settings-nav">
+        <div class="settings-nav flex-col">
           <For each={TABS}>
             {(t) => (
               <button
-                type="button"
-                class="settings-nav-btn"
+                class="settings-nav-btn btn-reset"
                 classList={{ active: tab() === t.key }}
                 onClick={() => setTab(t.key)}
+                type="button"
               >
                 {t.label}
               </button>

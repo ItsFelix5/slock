@@ -1,0 +1,86 @@
+import type { SuggestState } from "./lib/suggestTypes";
+
+export function createComposerKeyHandler(deps: {
+  suggest: () => SuggestState | null;
+  moveSuggestion: (delta: number) => void;
+  applySuggestion: () => void;
+  closeSuggestions: () => void;
+  editing?: { onCancel: () => void };
+  submit: (event: Event) => void;
+  editor: any;
+}) {
+  return (e: KeyboardEvent) => {
+    const s = deps.suggest();
+    if (s && s.items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        deps.moveSuggestion(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        deps.moveSuggestion(-1);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        deps.applySuggestion();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        deps.closeSuggestions();
+        return;
+      }
+    }
+    if (e.key === "Escape" && deps.editing) {
+      e.preventDefault();
+      deps.editing.onCancel();
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      deps.submit(e);
+      return;
+    }
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      if (!(deps.editor.handleShiftEnterInHeader() || deps.editor.handleShiftEnterInList()))
+        deps.editor.insertLineBreak();
+      return;
+    }
+    if (
+      e.key === "Backspace" &&
+      !e.metaKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      (deps.editor.handleBackspaceOnHeading() || deps.editor.handleBackspaceOnDivider())
+    ) {
+      e.preventDefault();
+      return;
+    }
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && !e.altKey && !e.shiftKey) {
+      if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        deps.editor.applyMark("bold");
+        return;
+      }
+      if (e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        deps.editor.applyMark("italic");
+        return;
+      }
+    }
+    if (mod && e.shiftKey && !e.altKey) {
+      if (e.key.toLowerCase() === "x") {
+        e.preventDefault();
+        deps.editor.applyMark("strike");
+        return;
+      }
+      if (e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        deps.editor.applyMark("code");
+      }
+    }
+  };
+}

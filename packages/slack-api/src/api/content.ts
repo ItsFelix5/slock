@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 import type { LinkPreview, SavedItem } from "../types";
 import { callSlack, fileProxyUrl } from "./relay";
 
@@ -34,9 +35,9 @@ export async function fetchSlashCommands(): Promise<
   return Object.values<any>(commandsObj)
     .filter((c) => c?.name)
     .map((c) => ({
-      name: c.name.replace(/^\//, ""),
       desc: c.desc || "",
       icon: c.icons?.image_32 || null,
+      name: c.name.replace(/^\//, ""),
     }));
 }
 
@@ -73,7 +74,7 @@ export async function fetchCanvas(fileId: string): Promise<string | null> {
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {
   const changes = JSON.stringify([
-    { operation: "replace", document_content: { type: "markdown", markdown } },
+    { document_content: { markdown, type: "markdown" }, operation: "replace" },
   ]);
   const data = await callSlack("canvases.edit", { canvas_id: fileId, changes });
   if (!data.ok) throw new Error(data.error ?? "canvases.edit failed");
@@ -111,12 +112,12 @@ export async function uploadFile(
   if (!reserve.ok) throw new Error(reserve.error ?? "files.getUploadURLExternal failed");
 
   const uploadUrl = `/file-upload?url=${encodeURIComponent(reserve.upload_url)}&filename=${encodeURIComponent(file.name)}`;
-  const putRes = await fetch(uploadUrl, { method: "POST", body: file });
+  const putRes = await fetch(uploadUrl, { body: file, method: "POST" });
   if (!putRes.ok) throw new Error("file upload failed");
 
   const completeParams: Record<string, string> = {
-    files: JSON.stringify([{ id: reserve.file_id, title: file.name }]),
     channel_id: channelId,
+    files: JSON.stringify([{ id: reserve.file_id, title: file.name }]),
   };
   if (threadTs) completeParams.thread_ts = threadTs;
   if (comment) completeParams.initial_comment = comment;
@@ -133,13 +134,13 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview | null>
     const res = await fetch(`/unfurl?url=${encodeURIComponent(url)}`);
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data.title && !data.description && !data.imageUrl) return null;
+    if (!(data.title || data.description || data.imageUrl)) return null;
     return {
-      url,
-      title: data.title,
       description: data.description,
       imageUrl: data.imageUrl,
       siteName: data.siteName,
+      title: data.title,
+      url,
     };
   } catch {
     return null;

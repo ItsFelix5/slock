@@ -1,7 +1,7 @@
 import { getWorkspaceDomain, logout } from "@slock/slack-api";
 import { Avatar, Button } from "@slock/ui";
 import { createResource, Show } from "solid-js";
-import { currentUser } from "../../lib/store";
+import { store } from "../../lib/store";
 import "./Settings.css";
 
 export default function SettingsAccountTab() {
@@ -19,14 +19,14 @@ export default function SettingsAccountTab() {
     <>
       <h2>Account</h2>
 
-      <Show when={currentUser()}>
+      <Show when={store.users.currentUser()}>
         {(user) => (
-          <div class="settings-row">
-            <div class="settings-account-identity">
-              <Avatar user={user()} size="medium" />
+          <div class="settings-row flex-between">
+            <div class="settings-account-identity flex-align-center">
+              <Avatar size="medium" user={user()} />
               <div>
                 <div class="settings-row-label">{user().name}</div>
-                <div class="settings-row-hint">{domain() ?? "…"}</div>
+                <div class="settings-row-hint text-dim">{domain() ?? "…"}</div>
               </div>
             </div>
           </div>
@@ -35,11 +35,11 @@ export default function SettingsAccountTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Log out</div>
-        <div class="settings-row-hint">
+        <div class="settings-row-hint text-dim">
           Disconnects this browser and server from Slack. You'll need to paste a fresh request from
           devtools to reconnect.
         </div>
-        <Button variant="danger" onClick={handleLogout}>
+        <Button onClick={handleLogout} variant="danger">
           Log out
         </Button>
       </div>

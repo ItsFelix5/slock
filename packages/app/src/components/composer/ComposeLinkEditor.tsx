@@ -34,16 +34,16 @@ export default function ComposeLinkEditor(props: {
 
   return (
     <div
-      ref={rootRef}
       class="menu-panel compose-link-editor"
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      ref={rootRef}
+      role="dialog"
+      tabIndex={-1}
     >
       <input
-        ref={inputRef}
-        type="text"
-        class="compose-link-input"
-        placeholder="Display text (optional)"
-        value={label()}
+        autofocus
+        class="compose-link-input input-reset"
         onInput={(e) => {
           setLabel(e.currentTarget.value);
           save();
@@ -54,15 +54,13 @@ export default function ComposeLinkEditor(props: {
             props.onClose();
           }
         }}
-        autofocus
+        placeholder="Display text (optional)"
+        ref={inputRef}
+        type="text"
+        value={label()}
       />
       <div class="compose-link-buttons">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={unlink}
-        >
+        <Button onClick={unlink} size="sm" type="button" variant="secondary">
           Unlink
         </Button>
       </div>

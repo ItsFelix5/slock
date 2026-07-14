@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to command parsing.
 import { addReminder, runSlashCommand, setChannelTopic } from "@slock/slack-api";
 import { actionFeedback } from "../feedback";
 
@@ -26,10 +27,10 @@ export function createCommandsSlice(deps: {
 
     switch (command) {
       case "shrug":
-        deps.sendMessage(channelId, rest ? `${rest} ¯\\_(ツ)_/¯` : "¯\\_(ツ)_/¯", threadTs);
+        await deps.sendMessage(channelId, rest ? `${rest} ¯\\_(ツ)_/¯` : "¯\\_(ツ)_/¯", threadTs);
         return true;
       case "me":
-        deps.sendMessage(channelId, rest, threadTs);
+        await deps.sendMessage(channelId, rest, threadTs);
         return true;
       case "topic":
         if (!rest.trim()) return true;

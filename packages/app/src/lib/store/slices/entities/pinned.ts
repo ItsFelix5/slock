@@ -62,12 +62,12 @@ export function createPinnedSlice() {
   }
 
   return {
+    closePinnedPanel,
     ensurePinsLoaded,
     isMessagePinned,
-    togglePinMessage,
-    pinnedPanelChannelId,
-    pinnedMessagesCache,
     openPinnedPanel,
-    closePinnedPanel,
+    pinnedMessagesCache,
+    pinnedPanelChannelId,
+    togglePinMessage,
   };
 }

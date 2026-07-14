@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to token detection.
 import type { Attachment, LinkPreview } from "@slock/slack-api";
 
 // Matches Slack's own composer trigger for a link preview: any bare
@@ -15,11 +16,11 @@ export function detectUrls(value: string): string[] {
 
 export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
   return {
+    footer: preview.siteName,
+    imageUrl: preview.imageUrl,
+    text: preview.description,
     title: preview.title || preview.url,
     titleLink: preview.url,
-    text: preview.description,
-    imageUrl: preview.imageUrl,
-    footer: preview.siteName,
   };
 }
 
@@ -34,10 +35,14 @@ export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
 export function detectMentionTrigger(
   value: string,
   cursor: number,
-): { kind: "user" | "userlink" | "channel" | "command" | "emoji"; start: number; query: string } | null {
+): {
+  kind: "user" | "userlink" | "channel" | "command" | "emoji";
+  start: number;
+  query: string;
+} | null {
   const before = value.slice(0, cursor);
   if (before.startsWith("/") && !/[\s]/.test(before.slice(1))) {
-    return { kind: "command", start: 0, query: before.slice(1) };
+    return { kind: "command", query: before.slice(1), start: 0 };
   }
   const atIdx = before.lastIndexOf("@");
   const hashIdx = before.lastIndexOf("#");
@@ -55,5 +60,5 @@ export function detectMentionTrigger(
     token = token.slice(1);
   }
   if (kind === "emoji" && !/^[a-z0-9_+-]*$/i.test(token)) return null;
-  return { kind, start: idx, query: token };
+  return { kind, query: token, start: idx };
 }

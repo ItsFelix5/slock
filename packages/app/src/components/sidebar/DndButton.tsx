@@ -1,17 +1,17 @@
 import { Icon, InlineFeedback } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
-import { actionFeedback, endDnd, isDndActive, snoozeDnd } from "../../lib/store";
+import { actionFeedback, store } from "../../lib/store";
 import "./DndButton.css";
 
 const OPEN_DELAY = 350;
 const CLOSE_DELAY = 200;
 
 const DURATIONS = [
-  { label: "20 minutes", minutes: 20 },
-  { label: "1 hour", minutes: 60 },
-  { label: "3 hours", minutes: 180 },
-  { label: "8 hours", minutes: 480 },
-  { label: "24 hours", minutes: 1440 },
+  { label: "20m", minutes: 20 },
+  { label: "1h", minutes: 60 },
+  { label: "3h", minutes: 180 },
+  { label: "8h", minutes: 480 },
+  { label: "24h", minutes: 1440 },
 ];
 
 // Click still does the quick default toggle (unchanged behavior). Hovering
@@ -26,7 +26,7 @@ export default function DndButton() {
 
   const scheduleOpen = () => {
     clearTimeout(closeTimer);
-    openTimer = setTimeout(() => setOpen(true), OPEN_DELAY);
+    if (!store.preferences.isDndActive()) openTimer = setTimeout(() => setOpen(true), OPEN_DELAY);
   };
   const scheduleClose = () => {
     clearTimeout(openTimer);
@@ -41,50 +41,44 @@ export default function DndButton() {
   const pick = (minutes: number) => {
     clearTimeout(openTimer);
     setOpen(false);
-    snoozeDnd(minutes);
+    store.preferences.snoozeDnd(minutes);
   };
 
   return (
-    <div class="dnd-btn-wrap" onMouseEnter={scheduleOpen} onMouseLeave={scheduleClose}>
+    <fieldset
+      class="dnd-btn-wrap"
+      onBlur={scheduleClose}
+      onFocus={scheduleOpen}
+      onMouseEnter={scheduleOpen}
+      onMouseLeave={scheduleClose}
+    >
       <button
-        type="button"
-        class="sidebar-global-search-btn"
-        classList={{ active: isDndActive() }}
-        title={isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"}
+        class="sidebar-global-search-btn btn-reset icon-btn icon-action"
         onClick={() => {
           clearTimeout(openTimer);
           setOpen(false);
-          if (isDndActive()) endDnd();
-          else snoozeDnd(60);
+          if (store.preferences.isDndActive()) store.preferences.endDnd();
+          else store.preferences.snoozeDnd(60);
         }}
+        title={
+          store.preferences.isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"
+        }
+        type="button"
       >
-        <Icon name={isDndActive() ? "moon-filled" : "moon"} size={16} />
+        <Icon name={store.preferences.isDndActive() ? "moon-filled" : "moon"} size={16} />
       </button>
-      <InlineFeedback feedback={actionFeedback.get("dnd")} class="dnd-btn-feedback" />
+      <InlineFeedback class="dnd-btn-feedback" feedback={actionFeedback.get("dnd")} />
       <Show when={open()}>
         <div class="menu-panel dnd-duration-panel">
-          <Show when={isDndActive()}>
-            <button
-              type="button"
-              class="menu-item"
-              onClick={() => {
-                setOpen(false);
-                endDnd();
-              }}
-            >
-              Turn off Do Not Disturb
-            </button>
-            <div class="dnd-duration-divider" />
-          </Show>
           <For each={DURATIONS}>
             {(d) => (
-              <button type="button" class="menu-item" onClick={() => pick(d.minutes)}>
+              <button class="menu-item" onClick={() => pick(d.minutes)} type="button">
                 {d.label}
               </button>
             )}
           </For>
         </div>
       </Show>
-    </div>
+    </fieldset>
   );
 }

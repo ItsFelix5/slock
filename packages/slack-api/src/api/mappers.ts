@@ -6,7 +6,7 @@ function colorFromHex(hex: string | undefined) {
 }
 
 function tzLabelFromOffset(seconds: number | undefined): string | undefined {
-  if (seconds === undefined) return undefined;
+  if (seconds === undefined) return;
   const hours = seconds / 3600;
   const sign = hours >= 0 ? "+" : "-";
   const abs = Math.abs(hours);
@@ -21,7 +21,7 @@ function tzLabelFromOffset(seconds: number | undefined): string | undefined {
 function avatarUrlFromHash(raw: any): string | undefined {
   const hash = raw.profile?.avatar_hash;
   const team = raw.profile?.team ?? raw.team_id;
-  if (!hash || !team) return undefined;
+  if (!(hash && team)) return;
   return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
 }
 
@@ -29,7 +29,7 @@ export function mapUser(raw: any): User {
   const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
   const rawFields = raw.profile?.fields ?? {};
   const customFields = Object.keys(rawFields)
-    .map((id) => ({ id, value: rawFields[id]?.value ?? "", alt: rawFields[id]?.alt || undefined }))
+    .map((id) => ({ alt: rawFields[id]?.alt || undefined, id, value: rawFields[id]?.value ?? "" }))
     .filter((f) => f.value);
   const avatarUrl: string | undefined =
     raw.profile?.image_192 ||
@@ -37,23 +37,23 @@ export function mapUser(raw: any): User {
     raw.profile?.image_48 ||
     avatarUrlFromHash(raw);
   return {
-    id: raw.id,
-    name,
     avatarColor: colorFromHex(raw.color),
-    avatarUrl: avatarUrl ? fileProxyUrl(avatarUrl) : undefined,
-    presence: raw.presence === "away" ? "away" : "active",
-    title: raw.profile?.title || undefined,
-    pronouns: raw.profile?.pronouns || undefined,
-    statusText: raw.profile?.status_text || undefined,
-    statusEmoji: raw.profile?.status_emoji || undefined,
+    avatarUrl,
+    customFields: customFields.length ? customFields : undefined,
+    email: raw.profile?.email || undefined,
+    id: raw.id,
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
     // Slack's API never sets is_bot for it — flag it by id instead.
     isBot: !!raw.is_bot || raw.id === "USLACKBOT",
+    name,
+    phone: raw.profile?.phone || undefined,
+    presence: raw.presence === "away" ? "away" : "active",
+    pronouns: raw.profile?.pronouns || undefined,
+    statusEmoji: raw.profile?.status_emoji || undefined,
+    statusText: raw.profile?.status_text || undefined,
+    title: raw.profile?.title || undefined,
     tz: raw.tz,
     tzLabel: raw.tz_label || tzLabelFromOffset(raw.tz_offset),
-    email: raw.profile?.email || undefined,
-    phone: raw.profile?.phone || undefined,
-    customFields: customFields.length ? customFields : undefined,
   };
 }
 
@@ -68,14 +68,14 @@ function parseCountGroup(g: any): { id: string; unread: boolean; mentions: numbe
   const mentions = Number(g.mention_count ?? g.mention_count_display ?? 0) || 0;
   const unreadCount = Number(g.unread_count_display ?? g.unread_count ?? 0) || 0;
   const unread = !!(g.has_unreads ?? g.is_unread ?? (unreadCount > 0 || mentions > 0));
-  return { id: g.id, unread, mentions };
+  return { id: g.id, mentions, unread };
 }
 
 function mapCountGroups(groups: any[]): Record<string, { unread: boolean; mentions: number }> {
   const map: Record<string, { unread: boolean; mentions: number }> = {};
   for (const g of groups) {
     const parsed = parseCountGroup(g);
-    if (parsed) map[parsed.id] = { unread: parsed.unread, mentions: parsed.mentions };
+    if (parsed) map[parsed.id] = { mentions: parsed.mentions, unread: parsed.unread };
   }
   return map;
 }
@@ -119,7 +119,7 @@ function formatDay(ts: string) {
     a.getDate() === b.getDate();
   if (sameDay(date, today)) return "Today";
   if (sameDay(date, yesterday)) return "Yesterday";
-  return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "long", weekday: "long" });
 }
 
 // Only a small, known set of subtypes are pure announcements — Slack embeds
@@ -159,48 +159,48 @@ export const HIDE_SUBTYPES = new Set([
 function mapFile(f: any): SlackFile {
   const mimetype: string | undefined = f.mimetype;
   return {
-    id: f.id,
-    name: f.name ?? "file",
-    title: f.title,
-    mimetype,
+    duration: f.duration,
     filetype: f.filetype,
-    size: f.size,
+    height: f.thumb_360_h ?? f.original_h,
+    id: f.id,
     isImage: !!mimetype?.startsWith("image/"),
     isVideo: !!mimetype?.startsWith("video/"),
+    mimetype,
+    name: f.name ?? "file",
+    permalink: f.permalink,
+    size: f.size,
+    thumbUrl: (() => {
+      const raw = f.thumb_720 ?? f.thumb_360 ?? f.thumb_160;
+      return raw ? fileProxyUrl(raw) : undefined;
+    })(),
+    title: f.title,
     // Kept unproxied: used both as a top-level download-link href (a plain
     // navigation, which does send Slack's SameSite cookie) and as an <img>/
     // <video> subresource src (which doesn't) — callers that need the latter
     // wrap it with fileProxyUrl themselves.
     urlPrivate: f.url_private,
-    thumbUrl: (() => {
-      const raw = f.thumb_720 ?? f.thumb_360 ?? f.thumb_160;
-      return raw ? fileProxyUrl(raw) : undefined;
-    })(),
     width: f.thumb_360_w ?? f.original_w,
-    height: f.thumb_360_h ?? f.original_h,
-    duration: f.duration,
-    permalink: f.permalink,
   };
 }
 
 function mapAttachment(a: any): Attachment {
   return {
-    id: a.id,
-    color: a.color,
-    authorName: a.author_name,
     authorIcon: a.author_icon ? fileProxyUrl(a.author_icon) : undefined,
-    title: a.title,
-    titleLink: a.title_link,
-    text: a.text,
-    imageUrl: a.image_url ? fileProxyUrl(a.image_url) : undefined,
-    videoUrl: a.video_url ? fileProxyUrl(a.video_url) : undefined,
-    videoWidth: a.video_width,
-    videoHeight: a.video_height,
+    authorName: a.author_name,
+    color: a.color,
+    fields: a.fields,
     footer: a.footer,
     footerIcon: a.footer_icon ? fileProxyUrl(a.footer_icon) : undefined,
-    fields: a.fields,
+    id: a.id,
+    imageUrl: a.image_url ? fileProxyUrl(a.image_url) : undefined,
     isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
+    text: a.text,
+    title: a.title,
+    titleLink: a.title_link,
     ts: a.ts,
+    videoHeight: a.video_height,
+    videoUrl: a.video_url ? fileProxyUrl(a.video_url) : undefined,
+    videoWidth: a.video_width,
   };
 }
 
@@ -208,39 +208,45 @@ export function mapMessage(m: any): Message {
   const subtype: string | undefined = m.subtype;
   const kind: MessageKind = subtype && SYSTEM_SUBTYPES.has(subtype) ? "system" : "normal";
   return {
-    id: m.ts,
-    ts: m.ts,
-    userId: m.user ?? m.bot_id ?? "",
-    text: m.text,
-    blocks: m.blocks,
-    files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
     attachments: Array.isArray(m.attachments) ? m.attachments.map(mapAttachment) : undefined,
-    time: formatTime(m.ts),
-    day: formatDay(m.ts),
-    replyCount: m.reply_count,
-    replyUsers: m.reply_users,
-    lastReplyLabel: m.latest_reply
-      ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
-      : undefined,
-    reactions: m.reactions,
-    edited: !!m.edited,
-    kind,
-    botName: subtype === "bot_message" ? m.username : undefined,
+    blocks: m.blocks,
     botIcon:
       subtype === "bot_message" && (m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36)
         ? fileProxyUrl(m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36)
         : undefined,
+    botName: subtype === "bot_message" ? m.username : undefined,
+    day: formatDay(m.ts),
+    edited: !!m.edited,
+    files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
+    id: m.ts,
     isBroadcast: subtype === "thread_broadcast",
-    threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     isEphemeral: !!m.is_ephemeral,
     isSubscribed: typeof m.subscribed === "boolean" ? m.subscribed : undefined,
+    kind,
+    lastReplyLabel: m.latest_reply
+      ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
+      : undefined,
+    reactions: m.reactions,
+    replyCount: m.reply_count,
+    replyUsers: m.reply_users,
+    text: m.text,
+    threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
+    time: formatTime(m.ts),
+    ts: m.ts,
+    userId: m.user ?? m.bot_id ?? "",
   };
 }
 
-export function extractChannelSections(
-  data: any,
-): { id: string; name: string; channelIds: string[]; type: string }[] | null {
-  const raw = data?.channel_sections ?? data?.channelSections;
+export function extractChannelSections(data: any):
+  | {
+      id: string;
+      name: string;
+      channelIds: string[];
+      sidebar: "hid" | "active" | "all";
+      type: string;
+    }[]
+  | null {
+  const raw = data?.channel_sections;
   if (!Array.isArray(raw)) return null;
   // Slack always includes built-in pseudo-sections alongside real ones —
   // "stars", "slack_connect", "salesforce_records", "channels",
@@ -254,9 +260,10 @@ export function extractChannelSections(
   // themselves, since that operation is meaningless for the pseudo-sections.
   return raw
     .map((s: any) => ({
+      channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
       id: s.channel_section_id ?? s.id ?? s.name,
       name: s.name ?? "Section",
-      channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
+      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : "hid",
       type: s.type ?? "standard",
     }))
     .filter((s: any) => s.id);

@@ -1,11 +1,11 @@
 .avatar {
   position: relative;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  color: var(--text-on-accent);
   font-weight: 700;
-  flex-shrink: 0;
+  color: var(--text-on-accent);
   border-radius: 8px;
 }
 
@@ -39,30 +39,30 @@
 
 .avatar-presence-dot {
   position: absolute;
-  border-radius: 50%;
   background: var(--presence-active);
   border: 2px solid var(--sidebar-bg);
+  border-radius: 50%;
 }
 
 .avatar-small .avatar-presence-dot {
-  bottom: -3px;
   right: -3px;
+  bottom: -3px;
   width: 10px;
   height: 10px;
   border-width: 2px;
 }
 
 .avatar-medium .avatar-presence-dot {
-  bottom: -4px;
   right: -4px;
+  bottom: -4px;
   width: 14px;
   height: 14px;
   border-width: 2px;
 }
 
 .avatar-large .avatar-presence-dot {
-  bottom: -5px;
   right: -5px;
+  bottom: -5px;
   width: 18px;
   height: 18px;
   border-width: 2px;

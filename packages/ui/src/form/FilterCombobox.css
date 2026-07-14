@@ -4,13 +4,13 @@
 }
 
 .filter-combobox-trigger {
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
   background: var(--main-bg);
   border: 1px dashed var(--border-strong);
-  color: var(--text-secondary);
-  font-size: 13px;
-  padding: 4px 10px;
   border-radius: 6px;
-  cursor: pointer;
 }
 
 .filter-combobox-trigger:hover {
@@ -19,20 +19,20 @@
 }
 
 .filter-combobox-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
   background: var(--active-bg);
   border: 1px solid var(--accent);
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 4px 10px;
   border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .filter-combobox-clear {
-  color: var(--text-dim);
   font-size: 11px;
+  color: var(--text-dim);
   cursor: pointer;
 }
 
@@ -44,13 +44,13 @@
   position: absolute;
   top: 32px;
   left: 0;
+  z-index: 12;
   width: 220px;
+  padding: 6px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   box-shadow: var(--shadow-popover);
-  padding: 6px;
-  z-index: 12;
 }
 
 .filter-combobox-input {
@@ -65,14 +65,14 @@
 .filter-combobox-item {
   display: block;
   width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text-primary);
   text-align: left;
+  cursor: pointer;
   background: none;
   border: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 8px;
   border-radius: 6px;
-  cursor: pointer;
 }
 
 .filter-combobox-item:hover {
@@ -81,7 +81,7 @@
 
 .filter-combobox-empty {
   padding: 8px;
-  text-align: center;
-  color: var(--text-dim);
   font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
 }

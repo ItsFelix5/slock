@@ -3,7 +3,7 @@ import type { Message } from "@slock/slack-api";
 import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
-import { userById } from "../../../lib/store";
+import { store } from "../../../lib/store";
 import "./ReplyReferenceRow.css";
 
 export default function ReplyReferenceRow(props: {
@@ -14,28 +14,34 @@ export default function ReplyReferenceRow(props: {
   const snippet = (msg: Message) => parseReplyLink(msg.text)?.rest ?? msg.text;
 
   return (
-    <button type="button" class="reply-reference-row" onClick={props.onJump}>
+    <button
+      class="reply-reference-row btn-reset flex-align-center"
+      onClick={props.onJump}
+      type="button"
+    >
       <Icon name={props.icon ?? "email-reply"} size={13} />
       <Show
-        when={props.message}
         fallback={<span class="reply-reference-snippet">Original message</span>}
+        when={props.message}
       >
         {(msg) => (
           <>
             <Show
-              when={!msg().botName}
               fallback={
                 <span class="reply-reference-avatar reply-reference-bot">
-                  <Show when={msg().botIcon} fallback="🤖">
-                    {(icon) => <img src={icon()} alt="" />}
+                  <Show fallback="🤖" when={msg().botIcon}>
+                    {(icon) => <img alt="" src={icon()} />}
                   </Show>
                 </span>
               }
+              when={store.users.userById(msg().userId)}
             >
-              <Show when={userById(msg().userId)}>{(u) => <Avatar user={u()} size="small" />}</Show>
+              <Show when={store.users.userById(msg().userId)}>
+                {(u) => <Avatar size="small" user={u()} />}
+              </Show>
             </Show>
             <span class="reply-reference-name">
-              {msg().botName ?? userById(msg().userId)?.name ?? "Unknown"}
+              {msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown"}
             </span>
             <span class="reply-reference-snippet">
               <Mrkdwn text={snippet(msg())} />

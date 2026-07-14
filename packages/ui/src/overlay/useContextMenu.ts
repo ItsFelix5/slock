@@ -11,10 +11,10 @@ export function useContextMenu() {
   const close = () => setPoint(null);
 
   return {
+    close,
     isOpen: () => point() !== null,
+    open,
     x: () => point()?.x ?? 0,
     y: () => point()?.y ?? 0,
-    open,
-    close,
   };
 }

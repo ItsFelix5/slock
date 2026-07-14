@@ -3,8 +3,8 @@ import { createSignal } from "solid-js";
 export type FeedbackKind = "success" | "error";
 
 export interface Feedback {
-  text: string;
   kind: FeedbackKind;
+  text: string;
 }
 
 // A per-key replacement for a global toast stack: async actions (usually store
@@ -17,7 +17,7 @@ export function createKeyedFeedback(ttlMs = 3000) {
 
   function flash(key: string, text: string, kind: FeedbackKind = "success") {
     clearTimeout(timers.get(key));
-    setState((s) => ({ ...s, [key]: { text, kind } }));
+    setState((s) => ({ ...s, [key]: { kind, text } }));
     timers.set(
       key,
       setTimeout(() => {

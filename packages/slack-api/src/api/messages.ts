@@ -13,11 +13,11 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   return {
+    hasMore: !!data.has_more,
     messages: messages
       .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
       .map(mapMessage)
       .reverse(),
-    hasMore: !!data.has_more,
     nextCursor: data.response_metadata?.next_cursor || undefined,
   };
 }
@@ -25,8 +25,8 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
   const data = await callSlack("conversations.replies", {
     channel: channelId,
-    ts: threadTs,
     limit: "200",
+    ts: threadTs,
   });
   if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
   const messages: any[] = data.messages ?? [];
@@ -58,7 +58,7 @@ export async function postMessage(
 }
 
 export async function editMessage(channelId: string, ts: string, text: string, blocks?: unknown) {
-  const params: Record<string, string> = { channel: channelId, ts, text };
+  const params: Record<string, string> = { channel: channelId, text, ts };
   if (blocks) params.blocks = JSON.stringify(blocks);
   const data = await callSlack("chat.update", params);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
@@ -66,7 +66,7 @@ export async function editMessage(channelId: string, ts: string, text: string, b
 }
 
 export async function broadcastReply(channelId: string, ts: string) {
-  const data = await callSlack("chat.update", { channel: channelId, ts, reply_broadcast: "true" });
+  const data = await callSlack("chat.update", { channel: channelId, reply_broadcast: "true", ts });
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
@@ -80,8 +80,8 @@ export async function deleteMessage(channelId: string, ts: string) {
 export async function toggleReaction(channelId: string, ts: string, name: string, remove: boolean) {
   const data = await callSlack(remove ? "reactions.remove" : "reactions.add", {
     channel: channelId,
-    timestamp: ts,
     name,
+    timestamp: ts,
   });
   if (!data.ok) throw new Error(data.error ?? "reactions failed");
   return data;
@@ -89,15 +89,15 @@ export async function toggleReaction(channelId: string, ts: string, name: string
 
 export async function toggleSaved(channelId: string, ts: string, remove: boolean) {
   const data = await callSlack(remove ? "saved.delete" : "saved.add", {
-    item_type: "message",
     item_id: channelId,
+    item_type: "message",
     ts,
   });
   if (!data.ok) throw new Error(data.error ?? "saved.add/remove failed");
   return data;
 }
 
-export async function markChannelRead(channelId: string, ts: string) {
+export function markChannelRead(channelId: string, ts: string) {
   return callSlack("conversations.mark", { channel: channelId, ts });
 }
 
@@ -115,8 +115,8 @@ export async function fetchPins(channelId: string): Promise<string[]> {
 }
 
 export interface PinnedMessage {
-  ts: string;
   message: Message | null;
+  ts: string;
 }
 
 export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
@@ -125,7 +125,7 @@ export async function fetchPinnedMessages(channelId: string): Promise<PinnedMess
   const items: any[] = data.items ?? [];
   return items
     .filter((it) => it.type === "message" && it.message)
-    .map((it) => ({ ts: it.message.ts, message: mapMessage(it.message) }));
+    .map((it) => ({ message: mapMessage(it.message), ts: it.message.ts }));
 }
 
 export async function togglePin(channelId: string, ts: string, remove: boolean) {
@@ -187,9 +187,9 @@ export async function addReminder(text: string, time: string) {
 export interface SearchResult {
   channelId: string;
   channelName: string;
+  text: string;
   ts: string;
   userId: string;
-  text: string;
 }
 
 export async function searchMessages(
@@ -197,38 +197,38 @@ export async function searchMessages(
   opts?: { sort?: "score" | "timestamp"; sortDir?: "asc" | "desc" },
 ): Promise<SearchResult[]> {
   const data = await callSlack("search.messages", {
+    count: "40",
     query,
     sort: opts?.sort ?? "timestamp",
     sort_dir: opts?.sortDir ?? "desc",
-    count: "40",
   });
   if (!data.ok) return [];
   const matches: any[] = data.messages?.matches ?? [];
   return matches.map((m) => ({
     channelId: m.channel?.id,
     channelName: m.channel?.name,
+    text: m.text ?? "",
     ts: m.ts,
     userId: m.user,
-    text: m.text ?? "",
   }));
 }
 
 export async function fetchMentions(selfUserId: string): Promise<ActivityItem[]> {
   const data = await callSlack("search.messages", {
+    count: "40",
     query: `<@${selfUserId}>`,
     sort: "timestamp",
     sort_dir: "desc",
-    count: "40",
   });
   if (!data.ok) return [];
   const matches: any[] = data.messages?.matches ?? [];
   return matches.map((m) => ({
+    channelId: m.channel?.id,
     id: `${m.channel?.id}-${m.ts}`,
     kind: "mention" as const,
-    channelId: m.channel?.id,
-    ts: m.ts,
-    userId: m.user,
     text: m.text ?? "",
     time: parseFloat(m.ts) * 1000,
+    ts: m.ts,
+    userId: m.user,
   }));
 }

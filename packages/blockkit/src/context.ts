@@ -4,29 +4,29 @@ import { createContext, useContext } from "solid-js";
 // state directly, it just asks whoever mounts BlockKit (or Mrkdwn) to resolve mention
 // ids to display names and to handle mention clicks.
 export interface BlockKitMentionInfo {
-  name: string;
-  // True when this mention refers to the viewing user, so it can be rendered
-  // as a "pings you" highlight rather than a plain, non-pinging mention.
-  isSelf?: boolean;
+  isMember?: boolean;
   // Channel mentions only: true for private channels, so they render with a
   // lock icon instead of "#". When private and `isMember` is false, the mention
   // also renders dimmed/non-clickable — the viewer has no way to open it.
   isPrivate?: boolean;
-  isMember?: boolean;
+  // True when this mention refers to the viewing user, so it can be rendered
+  // as a "pings you" highlight rather than a plain, non-pinging mention.
+  isSelf?: boolean;
+  name: string;
 }
 
 export interface BlockKitResolver {
-  resolveUser(id: string): BlockKitMentionInfo | undefined;
-  resolveChannel(id: string): BlockKitMentionInfo | undefined;
-  onUserClick(id: string): void;
   onChannelClick(id: string): void;
+  onUserClick(id: string): void;
+  resolveChannel(id: string): BlockKitMentionInfo | undefined;
+  resolveUser(id: string): BlockKitMentionInfo | undefined;
 }
 
 const defaultNoopResolver: BlockKitResolver = {
-  resolveUser: () => undefined,
-  resolveChannel: () => undefined,
-  onUserClick: () => {},
   onChannelClick: () => {},
+  onUserClick: () => {},
+  resolveChannel: () => undefined,
+  resolveUser: () => undefined,
 };
 
 export const BlockKitResolverContext = createContext<BlockKitResolver>(defaultNoopResolver);

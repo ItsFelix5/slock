@@ -6,7 +6,7 @@ import {
   updateChannelRetention,
   updateMemberPermissions,
 } from "../../../lib/channelDetails";
-import { currentUser } from "../../../lib/store";
+import { store } from "../../../lib/store";
 import "../../settings/Settings.css";
 import "./ChannelDetails.css";
 
@@ -16,7 +16,7 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
   // below are read-only until this resolves the current user as a manager.
   const [managerIds] = createResource(() => props.channelId, loadChannelManagerIds);
   const isManager = createMemo(() => {
-    const me = currentUser()?.id;
+    const me = store.users.currentUser()?.id;
     return !!me && (managerIds() ?? []).includes(me);
   });
 
@@ -42,7 +42,7 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
   // spam the channel with a message per change.
   const [retentionEnabled, setRetentionEnabled] = createSignal(false);
   const [retentionDays, setRetentionDays] = createSignal(90);
-  const [savedRetention, setSavedRetention] = createSignal({ enabled: false, days: 90 });
+  const [savedRetention, setSavedRetention] = createSignal({ days: 90, enabled: false });
   const [savingRetention, setSavingRetention] = createSignal(false);
 
   const retentionDirty = createMemo(() => {
@@ -58,17 +58,17 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
     allowChannelMentions?: boolean;
   }) => {
     const next = {
+      allowChannelMentions: patch.allowChannelMentions ?? allowChannelMentions(),
       postingRestricted: patch.postingRestricted ?? postingRestricted(),
       threadsRestricted: patch.threadsRestricted ?? threadsRestricted(),
-      allowChannelMentions: patch.allowChannelMentions ?? allowChannelMentions(),
     };
     setPostingRestricted(next.postingRestricted);
     setThreadsRestricted(next.threadsRestricted);
     setAllowChannelMentions(next.allowChannelMentions);
     await updateChannelPostingPrefs(props.channelId, {
+      allowChannelMentions: next.allowChannelMentions,
       postingRestrictedToManagers: next.postingRestricted,
       threadsRestrictedToManagers: next.threadsRestricted,
-      allowChannelMentions: next.allowChannelMentions,
     });
   };
 
@@ -77,7 +77,7 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
     const days = retentionDays();
     setSavingRetention(true);
     const ok = await updateChannelRetention(props.channelId, enabled ? days : null);
-    if (ok) setSavedRetention({ enabled, days });
+    if (ok) setSavedRetention({ days, enabled });
     setSavingRetention(false);
   };
 
@@ -88,16 +88,16 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
   }) => {
     const next = {
       inviteRestricted: patch.inviteRestricted ?? inviteRestricted(),
-      topicRestricted: patch.topicRestricted ?? topicRestricted(),
       purposeRestricted: patch.purposeRestricted ?? purposeRestricted(),
+      topicRestricted: patch.topicRestricted ?? topicRestricted(),
     };
     setInviteRestricted(next.inviteRestricted);
     setTopicRestricted(next.topicRestricted);
     setPurposeRestricted(next.purposeRestricted);
     await updateMemberPermissions(props.channelId, {
       invite: !next.inviteRestricted,
-      setTopic: !next.topicRestricted,
       setPurpose: !next.purposeRestricted,
+      setTopic: !next.topicRestricted,
     });
   };
 
@@ -107,15 +107,6 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
 
   return (
     <>
-      <div class="channel-details-field">
-        <div class="channel-details-label">Visibility</div>
-        <p class="channel-details-value">
-          {props.private
-            ? "Private — only invited people can view this channel"
-            : "Public — anyone in the workspace can join"}
-        </p>
-      </div>
-
       <Show when={managerIds.state === "ready" && !isManager()}>
         <p class="channel-details-meta">Only channel managers can change these settings.</p>
       </Show>
@@ -193,7 +184,7 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
         <div class="settings-row">
           <div>
             <div class="settings-row-label">Automatically delete old messages</div>
-            <div class="settings-row-hint">
+            <div class="settings-row-hint text-dim">
               This posts a system message to the channel, so it isn't applied until you save.
             </div>
           </div>
@@ -204,24 +195,24 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
           />
         </div>
         <Show when={retentionEnabled()}>
-          <div class="channel-details-retention-row">
+          <div class="channel-details-retention-row flex-align-center">
             <input
               class="channel-details-input channel-details-retention-input"
-              type="number"
-              min="1"
               disabled={!isManager()}
-              value={retentionDays()}
+              min="1"
               onInput={(e) => setRetentionDays(Number(e.currentTarget.value) || 1)}
               onKeyDown={blurOnEnter}
+              type="number"
+              value={retentionDays()}
             />
             <span class="channel-details-meta">days</span>
           </div>
         </Show>
         <button
-          type="button"
           class="settings-status-save channel-details-retention-save"
-          disabled={!isManager() || !retentionDirty() || savingRetention()}
+          disabled={!(isManager() && retentionDirty()) || savingRetention()}
           onClick={saveRetention}
+          type="button"
         >
           {savingRetention() ? "Saving…" : "Save retention"}
         </button>

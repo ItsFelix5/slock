@@ -2,14 +2,14 @@ import { type JSX, mergeProps, splitProps } from "solid-js";
 import "./Button.css";
 
 export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger" | "ghost";
-  size?: "sm" | "md" | "lg";
-  icon?: boolean;
   disabled?: boolean;
+  icon?: boolean;
+  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "danger" | "ghost";
 }
 
 export default function Button(props: ButtonProps) {
-  const merged = mergeProps({ variant: "secondary", size: "md" }, props);
+  const merged = mergeProps({ size: "md", variant: "secondary" }, props);
   const [, rest] = splitProps(merged, ["variant", "size", "icon", "disabled", "children"]);
 
   return (

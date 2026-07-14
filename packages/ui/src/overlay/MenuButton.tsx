@@ -4,12 +4,12 @@ import Menu, { type MenuProps } from "./Menu";
 import "./MenuButton.css";
 
 export interface MenuButtonProps extends Omit<MenuProps, "trigger" | "class" | "open" | "onClose"> {
+  class?: string;
   icon: IconName;
   label?: string;
-  variant?: "primary" | "secondary" | "danger" | "ghost";
-  size?: "sm" | "md" | "lg";
-  class?: string;
   panelClass?: string;
+  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "danger" | "ghost";
 }
 
 // Self-contained trigger + menu: unlike Menu itself (which is fully controlled by
@@ -20,14 +20,14 @@ export default function MenuButton(props: MenuButtonProps) {
   return (
     <Menu
       class={`menu-button-wrap ${props.class || ""}`}
-      panelClass={`menu-panel ${props.panelClass || ""}`}
-      open={open()}
       onClose={() => setOpen(false)}
+      open={open()}
+      panelClass={`menu-panel ${props.panelClass || ""}`}
       trigger={
         <button
-          type="button"
-          class={`menu-button btn-${props.variant || "secondary"} btn-${props.size || "md"}`}
+          class={`menu-button btn-${props.variant ?? "secondary"} btn-${props.size ?? "md"}`}
           onClick={() => setOpen(!open())}
+          type="button"
         >
           <Icon name={props.icon} />
           <Show when={props.label}>{props.label}</Show>

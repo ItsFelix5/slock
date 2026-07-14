@@ -1,4 +1,5 @@
-import { fragmentToMrkdwn, mrkdwnToFragment, placeCaretAtEnd } from "../richtext";
+import { mrkdwnToFragment, placeCaretAtEnd } from "../richtext";
+import { fragmentToMrkdwn } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
 // Caret/selection plumbing and draft-loading for the composer's
@@ -52,7 +53,7 @@ export function createSelectionCommands(
     focusEditor();
     const sel = window.getSelection();
     const el = ref.get();
-    if (!sel || !el) return;
+    if (!(sel && el)) return;
     sel.removeAllRanges();
     if (savedRange) sel.addRange(savedRange);
     else placeCaretAtEnd(el);
@@ -68,12 +69,12 @@ export function createSelectionCommands(
   }
 
   return {
-    syncFromDom,
-    loadDraftIntoEditor,
     clearEditor,
-    focusEditor,
-    saveSelection,
-    restoreSelection,
     currentTextContext,
+    focusEditor,
+    loadDraftIntoEditor,
+    restoreSelection,
+    saveSelection,
+    syncFromDom,
   };
 }

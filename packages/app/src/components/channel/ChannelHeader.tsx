@@ -3,29 +3,19 @@ import { Icon, InlineFeedback, Menu } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { ADDABLE_CHANNEL_TABS, channelTabsFeedbackKey } from "../../lib/channelTabMeta";
-import {
-  actionFeedback,
-  activeView,
-  addChannelTab,
-  canvasByChannel,
-  channelById,
-  channelDisplayName,
-  createChannelSection,
-  dmById,
-  ensureCanvasChecked,
-  isChannelStarred,
-  moveChannelToSection,
-  openChannelCanvas,
-  openMessageSearch,
-  openPinnedPanel,
-  openUserProfile,
-  removeChannelTab,
-  sections,
-  tabsForChannel,
-  toggleChannelStar,
-  userById,
-} from "../../lib/store";
+import { actionFeedback, store } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
+import {
+  availableChannelTabs,
+  channelTitle,
+  channelTopic,
+  currentSectionId,
+  isChannelView,
+  isPrivateChannel,
+  isStarred,
+  openCurrentDmProfile,
+  searchCurrentConversation,
+} from "./channelHeaderState";
 import "./ChannelHeader.css";
 
 export default function ChannelHeader() {
@@ -34,127 +24,73 @@ export default function ChannelHeader() {
   const [addingSection, setAddingSection] = createSignal(false);
   const [newSectionName, setNewSectionName] = createSignal("");
   const [addTabOpen, setAddTabOpen] = createSignal(false);
-
   createEffect(() => {
-    const v = activeView();
-    if (v?.kind === "channel") ensureCanvasChecked(v.id);
+    const v = store.viewState.activeView();
+    if (v?.kind === "channel") store.canvas.ensureCanvasChecked(v.id);
   });
-
-  const title = () => {
-    const v = activeView();
-    if (!v) return "";
-    if (v.kind === "channel") return channelDisplayName(channelById(v.id), v.id);
-    const dm = dmById(v.id);
-    return dm ? (userById(dm.userId)?.name ?? "") : "";
-  };
-
-  const topic = () => {
-    const v = activeView();
-    if (!v) return "";
-    if (v.kind === "channel") return channelById(v.id)?.topic ?? "";
-    return "Direct message";
-  };
-
-  const isPrivate = () => {
-    const v = activeView();
-    return v?.kind === "channel" && !!channelById(v.id)?.private;
-  };
-
-  const isChannel = () => activeView()?.kind === "channel";
-  const channelId = () => {
-    const v = activeView();
-    return v?.kind === "channel" ? v.id : null;
-  };
-  const starred = () => {
-    const v = activeView();
-    return v?.kind === "channel" && isChannelStarred(v.id);
-  };
-  const currentSectionId = () => {
-    const v = activeView();
-    if (!v) return null;
-    return (
-      sections()
-        ?.filter((s) => s.type === "standard")
-        .find((s) => s.channelIds.includes(v.id))?.id ?? null
-    );
-  };
-
   const submitNewSectionFromStar = async () => {
     const name = newSectionName().trim();
     setAddingSection(false);
     setNewSectionName("");
     if (!name) return;
-    const v = activeView();
-    const created = await createChannelSection(name, v?.id ?? name);
-    if (created && v) moveChannelToSection(v.id, created.id);
+    const v = store.viewState.activeView();
+    const created = await store.channels.createChannelSection(name, v?.id ?? name);
+    if (created && v) store.channels.moveChannelToSection(v.id, created.id);
     setStarMenuOpen(false);
   };
-
-  const searchInConversation = () => {
-    const v = activeView();
-    if (!v) return;
-    openMessageSearch("", v.kind === "channel" ? { inChannelId: v.id } : {});
-  };
-
-  const availableTabs = (id: string) =>
-    ADDABLE_CHANNEL_TABS.filter((t) => !tabsForChannel(id).includes(t.type));
-
-  const viewDmUser = () => {
-    const v = activeView();
-    if (v?.kind !== "dm") return;
-    const dm = dmById(v.id);
-    if (dm) openUserProfile(dm.userId);
-  };
-
   return (
     <div class="channel-header">
-      <div class="channel-header-top">
-        <Show when={isChannel()}>
+      <div class="channel-header-top flex-align-center">
+        <Show when={isChannelView()}>
           <Menu
             class="channel-header-star-wrap"
-            panelClass="channel-header-star-menu"
-            open={starMenuOpen()}
             onClose={() => {
               setStarMenuOpen(false);
               setAddingSection(false);
             }}
+            open={starMenuOpen()}
+            panelClass="channel-header-star-menu popover flex-col"
             trigger={
               <button
-                type="button"
-                class="channel-header-star"
-                classList={{ active: starred() }}
-                title="Move to…"
+                class="channel-header-star btn-reset icon-btn sm icon-action text-dim"
+                classList={{ active: isStarred() }}
                 onClick={() => setStarMenuOpen(!starMenuOpen())}
+                title="Move to…"
+                type="button"
               >
-                <Icon name={starred() ? "star-filled" : "section"} size={16} />
+                <Icon name={isStarred() ? "star-filled" : "section"} size={16} />
               </button>
             }
           >
-            <div class="channel-header-star-menu-label">Move to</div>
+            <div class="channel-header-star-menu-label menu-label">Move to</div>
             <button
-              type="button"
-              class="channel-header-menu-item"
+              class="channel-header-menu-item popover-item"
               onClick={() => {
-                const v = activeView();
-                if (v) toggleChannelStar(v.id);
+                const v = store.viewState.activeView();
+                if (v) store.channels.toggleChannelStar(v.id);
               }}
+              type="button"
             >
               <span class="channel-header-menu-check" style="color: var(--mention-self-text);">
-                <Show when={starred()}>
+                <Show when={isStarred()}>
                   <Icon name="star-filled" size={12} />
                 </Show>
               </span>
               Starred
             </button>
-            <For each={sections()?.filter((s) => s.type === "standard")}>
+            <For each={store.channels.sections()?.filter((s) => s.type === "standard")}>
               {(s) => (
                 <button
-                  type="button"
-                  class="channel-header-menu-item"
+                  class="channel-header-menu-item popover-item"
                   onClick={() => {
-                    const v = activeView();
-                    if (v) moveChannelToSection(v.id, currentSectionId() === s.id ? null : s.id);
+                    const v = store.viewState.activeView();
+                    if (v)
+                      store.channels.moveChannelToSection(
+                        v.id,
+                        currentSectionId() === s.id ? null : s.id,
+                      );
                   }}
+                  type="button"
                 >
                   <span class="channel-header-menu-check">
                     <Show when={currentSectionId() === s.id}>
@@ -165,23 +101,23 @@ export default function ChannelHeader() {
                 </button>
               )}
             </For>
-            <div class="channel-header-star-menu-divider" />
+            <div class="channel-header-star-menu-divider divider" />
             <Show
-              when={addingSection()}
               fallback={
                 <button
-                  type="button"
-                  class="channel-header-menu-item"
+                  class="channel-header-menu-item popover-item"
                   onClick={() => setAddingSection(true)}
+                  type="button"
                 >
                   <Icon name="plus" size={13} /> New section
                 </button>
               }
+              when={addingSection()}
             >
               <input
-                class="channel-header-star-menu-input"
-                placeholder="Section name"
-                value={newSectionName()}
+                autofocus
+                class="channel-header-star-menu-input search-input"
+                onBlur={submitNewSectionFromStar}
                 onInput={(e) => setNewSectionName(e.currentTarget.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") submitNewSectionFromStar();
@@ -190,61 +126,61 @@ export default function ChannelHeader() {
                     setNewSectionName("");
                   }
                 }}
-                onBlur={submitNewSectionFromStar}
-                autofocus
+                placeholder="Section name"
+                value={newSectionName()}
               />
             </Show>
           </Menu>
         </Show>
         <span class="channel-header-icon">
-          <Show when={activeView()?.kind !== "dm"} fallback={null}>
-            {isPrivate() ? <Icon name="lock" size={14} /> : "#"}
+          <Show fallback={null} when={store.viewState.activeView()?.kind !== "dm"}>
+            {isPrivateChannel() ? <Icon name="lock" size={14} /> : "#"}
           </Show>
         </span>
         <button
-          type="button"
-          class="channel-header-title channel-header-title-btn"
+          class="channel-header-title channel-header-title-btn btn-reset"
           onClick={() => {
-            const v = activeView();
+            const v = store.viewState.activeView();
             if (!v) return;
             if (v.kind === "channel") openChannelDetails(v.id);
-            else viewDmUser();
+            else openCurrentDmProfile();
           }}
+          type="button"
         >
-          {title()}
+          {channelTitle()}
         </button>
-        <Show when={topic()}>
-          <span class="channel-header-topic">
-            <Mrkdwn text={topic()} />
+        <Show when={channelTopic()}>
+          <span class="channel-header-topic truncate text-dim text-sm">
+            <Mrkdwn text={channelTopic()} />
           </span>
         </Show>
-        <Show when={activeView()?.id}>
+        <Show when={store.viewState.activeView()?.id}>
           {(id) => (
-            <InlineFeedback feedback={actionFeedback.get(id())} class="channel-header-feedback" />
+            <InlineFeedback class="channel-header-feedback" feedback={actionFeedback.get(id())} />
           )}
         </Show>
         <div class="channel-header-actions">
           <button
-            type="button"
-            class="channel-header-btn"
+            class="channel-header-btn btn-reset icon-btn md icon-action"
+            onClick={searchCurrentConversation}
             title="Search in conversation"
-            onClick={searchInConversation}
+            type="button"
           >
             <Icon name="search" size={16} />
           </button>
-          <Show when={activeView()}>
+          <Show when={store.viewState.activeView()}>
             {(v) => (
               <Menu
                 class="channel-header-more-wrap"
-                panelClass="menu-panel channel-header-menu"
-                open={moreOpen()}
                 onClose={() => setMoreOpen(false)}
+                open={moreOpen()}
+                panelClass="menu-panel channel-header-menu"
                 trigger={
                   <button
-                    type="button"
-                    class="channel-header-btn"
-                    title="More"
+                    class="channel-header-btn btn-reset icon-btn md icon-action"
                     onClick={() => setMoreOpen(!moreOpen())}
+                    title="More"
+                    type="button"
                   >
                     <Icon name="ellipsis-vertical-filled" size={16} />
                   </button>
@@ -252,7 +188,7 @@ export default function ChannelHeader() {
               >
                 <ChannelActionsMenuItems
                   channelId={v().id}
-                  channelTitle={title()}
+                  channelTitle={channelTitle()}
                   isDm={v().kind === "dm"}
                   onClose={() => setMoreOpen(false)}
                 />
@@ -261,43 +197,43 @@ export default function ChannelHeader() {
           </Show>
         </div>
       </div>
-      <Show when={channelId() && false}>
+      <Show when={undefined as string | undefined}>
         {(id) => (
-          <div class="channel-header-tabs" role="toolbar" aria-label="Channel tabs">
-            <span class="channel-header-tab-current" aria-current="true">
+          <div aria-label="Channel tabs" class="channel-header-tabs" role="toolbar">
+            <span aria-current="true" class="channel-header-tab-current">
               <Icon name="message-filled" size={14} />
               Messages
             </span>
-            <Show when={canvasByChannel[id()]?.fileId}>
+            <Show when={store.canvas.canvasByChannel[id()]?.fileId}>
               <button
+                class="channel-header-tab-real btn-reset flex-align-center text-sm"
+                onClick={() => store.canvas.openChannelCanvas(id())}
                 type="button"
-                class="channel-header-tab-real"
-                onClick={() => openChannelCanvas(id())}
               >
                 <Icon name="canvas-filled" size={14} />
                 Canvas
               </button>
             </Show>
-            <For each={tabsForChannel(id())}>
+            <For each={store.channelTabs.tabsForChannel(id())}>
               {(type) => {
                 const meta =
                   ADDABLE_CHANNEL_TABS.find((t) => t.type === type) ?? ADDABLE_CHANNEL_TABS[0];
                 return (
                   <span class="channel-header-tab">
                     <button
+                      class="channel-header-tab-btn btn-reset flex-align-center text-sm"
+                      onClick={() => store.pinned.openPinnedPanel(id())}
                       type="button"
-                      class="channel-header-tab-btn"
-                      onClick={() => openPinnedPanel(id())}
                     >
                       <Icon name={meta.icon} size={14} />
                       {meta.label}
                     </button>
                     <button
-                      type="button"
-                      class="channel-header-tab-remove"
-                      title={`Remove ${meta.label} tab`}
                       aria-label={`Remove ${meta.label} tab`}
-                      onClick={() => removeChannelTab(id(), type)}
+                      class="channel-header-tab-remove btn-reset icon-btn text-dim"
+                      onClick={() => store.channelTabs.removeChannelTab(id(), type)}
+                      title={`Remove ${meta.label} tab`}
+                      type="button"
                     >
                       <Icon name="close-filled" size={11} />
                     </button>
@@ -305,33 +241,33 @@ export default function ChannelHeader() {
                 );
               }}
             </For>
-            <Show when={availableTabs(id()).length > 0}>
+            <Show when={availableChannelTabs(id()).length > 0}>
               <Menu
                 class="channel-header-tab-add-wrap"
-                panelClass="channel-header-tab-add-menu"
-                open={addTabOpen()}
                 onClose={() => setAddTabOpen(false)}
+                open={addTabOpen()}
+                panelClass="channel-header-tab-add-menu popover flex-col"
                 trigger={
                   <button
-                    type="button"
-                    class="channel-header-tab-add"
-                    title="Add a tab"
                     aria-label="Add a tab"
+                    class="channel-header-tab-add btn-reset icon-btn text-dim"
                     onClick={() => setAddTabOpen(!addTabOpen())}
+                    title="Add a tab"
+                    type="button"
                   >
                     <Icon name="plus-filled" size={12} />
                   </button>
                 }
               >
-                <For each={availableTabs(id())}>
+                <For each={availableChannelTabs(id())}>
                   {(t) => (
                     <button
-                      type="button"
-                      class="channel-header-menu-item"
+                      class="channel-header-menu-item popover-item"
                       onClick={() => {
-                        addChannelTab(id(), t.type);
+                        store.channelTabs.addChannelTab(id(), t.type);
                         setAddTabOpen(false);
                       }}
+                      type="button"
                     >
                       <Icon name={t.icon} size={14} />
                       {t.label}
@@ -341,8 +277,8 @@ export default function ChannelHeader() {
               </Menu>
             </Show>
             <InlineFeedback
-              feedback={actionFeedback.get(channelTabsFeedbackKey(id()))}
               class="channel-header-tabs-feedback"
+              feedback={actionFeedback.get(channelTabsFeedbackKey(id()))}
             />
           </div>
         )}

@@ -4,8 +4,10 @@ import {
   deleteSection as apiDeleteSection,
   renameSection as apiRenameSection,
   reorderSection as apiReorderSection,
+  setSectionSidebar as apiSetSectionSidebar,
   updateSectionChannels as apiUpdateSectionChannels,
   fetchBrowsableChannels,
+  fetchChannelDetails,
   fetchFlaronChannel,
   fetchSections,
   joinChannel,
@@ -29,6 +31,7 @@ export function createChannelsSlice(deps: {
   // the sidebar via `channels()`.
   const [discoveredChannels, setDiscoveredChannels] = createStore<Channel[]>([]);
   const pendingChannels = new Set<string>();
+  const channelDetailsRequested = new Set<string>();
   // Local edits (rename, topic) on top of the immutable bootstrap snapshot,
   // applied when `channels()` assembles its list.
   const [channelPatches, setChannelPatches] = createStore<Record<string, Partial<Channel>>>({});
@@ -61,7 +64,20 @@ export function createChannelsSlice(deps: {
 
   function channelById(id: string): Channel | undefined {
     const known = channels().find((c) => c.id === id);
-    if (known) return known;
+    if (known) {
+      // client.userBoot can omit topic metadata for a channel. Resolve it lazily
+      // from the authenticated conversations.info response when the UI asks for
+      // that channel, then patch the reactive channel snapshot.
+      if (!(known.topic || channelDetailsRequested.has(id))) {
+        channelDetailsRequested.add(id);
+        fetchChannelDetails(id)
+          .then((details) => {
+            if (details.topic) patchChannel(id, { topic: details.topic });
+          })
+          .catch(() => {});
+      }
+      return known;
+    }
     const discovered = discoveredChannels.find((c) => c.id === id);
     if (discovered) return discovered;
     if (!pendingChannels.has(id)) {
@@ -74,7 +90,6 @@ export function createChannelsSlice(deps: {
           pendingChannels.delete(id);
         });
     }
-    return undefined;
   }
 
   function isChannelMember(id: string): boolean {
@@ -90,7 +105,7 @@ export function createChannelsSlice(deps: {
       const channel = await joinChannel(channelId);
       setExtraChannels(produce((list) => list.push(channel)));
       setLeftChannelIds(channelId, false);
-      deps.setActiveView({ kind: "channel", id: channel.id });
+      deps.setActiveView({ id: channel.id, kind: "channel" });
     } catch (err) {
       console.error("Failed to join channel", err);
       actionFeedback.flash(channelId, "Failed to join channel.", "error");
@@ -103,7 +118,7 @@ export function createChannelsSlice(deps: {
       setLeftChannelIds(channelId, true);
       if (deps.activeView()?.id === channelId) {
         const next = channels().find((c) => c.id !== channelId && !isChannelLeft(c.id));
-        if (next) deps.setActiveView({ kind: "channel", id: next.id });
+        if (next) deps.setActiveView({ id: next.id, kind: "channel" });
       }
     } catch (err) {
       console.error("Failed to leave channel", err);
@@ -142,6 +157,23 @@ export function createChannelsSlice(deps: {
     const ok = await apiDeleteSection(sectionId);
     if (!ok) {
       actionFeedback.flash(sectionId, "Failed to delete section.", "error");
+      return;
+    }
+    await refetchSections();
+  }
+
+  async function setChannelSectionSidebar(sectionId: string, sidebar: ChannelSection["sidebar"]) {
+    const current = sections() ?? [];
+    const section = current.find((candidate) => candidate.id === sectionId);
+    if (!section || section.sidebar === sidebar) return;
+    mutateSections(
+      current.map((candidate) =>
+        candidate.id === sectionId ? { ...candidate, sidebar } : candidate,
+      ),
+    );
+    if (!(await apiSetSectionSidebar(sectionId, sidebar))) {
+      actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
+      mutateSections(current);
       return;
     }
     await refetchSections();
@@ -242,22 +274,23 @@ export function createChannelsSlice(deps: {
   }
 
   return {
-    channels,
-    patchChannel,
+    browsableChannels,
     channelById,
-    isChannelMember,
+    channels,
+    createChannelSection,
+    deleteChannelSection,
     isChannelLeft,
+    isChannelMember,
+    isChannelStarred,
     joinChannelById,
     leaveCurrentChannel,
-    sections,
-    createChannelSection,
-    renameChannelSection,
-    deleteChannelSection,
-    reorderChannelSection,
     moveChannelToSection,
-    isChannelStarred,
-    toggleChannelStar,
-    browsableChannels,
+    patchChannel,
+    renameChannelSection,
+    reorderChannelSection,
+    setChannelSectionSidebar,
     searchBrowsableChannels,
+    sections,
+    toggleChannelStar,
   };
 }

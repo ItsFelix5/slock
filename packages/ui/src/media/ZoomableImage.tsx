@@ -4,12 +4,12 @@ import { useEscapeClose } from "../useEscapeClose";
 import "./ZoomableImage.css";
 
 export interface ZoomableImageProps {
-  src: string;
-  fullSrc?: string;
   alt?: string;
   class?: string;
-  width?: number;
+  fullSrc?: string;
   height?: number;
+  src: string;
+  width?: number;
 }
 
 export default function ZoomableImage(props: ZoomableImageProps) {
@@ -17,20 +17,20 @@ export default function ZoomableImage(props: ZoomableImageProps) {
 
   return (
     <>
-      <button type="button" class="zoomable-image-trigger" onClick={() => setOpen(true)}>
+      <button class="zoomable-image-trigger" onClick={() => setOpen(true)} type="button">
         <img
-          class={`zoomable-image ${props.class ?? ""}`}
-          src={props.src}
           alt={props.alt}
-          width={props.width}
+          class={`zoomable-image ${props.class ?? ""}`}
           height={props.height}
+          src={props.src}
+          width={props.width}
         />
       </button>
       <Show when={open()}>
         <ImageLightbox
-          src={props.fullSrc ?? props.src}
           alt={props.alt}
           onClose={() => setOpen(false)}
+          src={props.fullSrc ?? props.src}
         />
       </Show>
     </>
@@ -60,16 +60,16 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
       <div
         class="zoomable-image-spyglass-area"
         onMouseDown={moveLens}
+        onMouseLeave={() => setLens(null)}
         onMouseMove={(e) => lens() && moveLens(e)}
         onMouseUp={() => setLens(null)}
-        onMouseLeave={() => setLens(null)}
       >
         <img
-          ref={imgRef}
-          class="zoomable-image-full"
-          src={props.src}
           alt={props.alt}
+          class="zoomable-image-full"
           draggable={false}
+          ref={imgRef}
+          src={props.src}
         />
         <Show when={lens()}>
           {(pos) => {
@@ -78,13 +78,13 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
               <div
                 class="zoomable-image-lens"
                 style={{
+                  "background-image": `url(${props.src})`,
+                  "background-position": `-${pos().x * LENS_ZOOM - LENS_SIZE / 2}px -${pos().y * LENS_ZOOM - LENS_SIZE / 2}px`,
+                  "background-size": `${(rect()?.width ?? 0) * LENS_ZOOM}px ${(rect()?.height ?? 0) * LENS_ZOOM}px`,
+                  height: `${LENS_SIZE}px`,
                   left: `${pos().x - LENS_SIZE / 2}px`,
                   top: `${pos().y - LENS_SIZE / 2}px`,
                   width: `${LENS_SIZE}px`,
-                  height: `${LENS_SIZE}px`,
-                  "background-image": `url(${props.src})`,
-                  "background-size": `${(rect()?.width ?? 0) * LENS_ZOOM}px ${(rect()?.height ?? 0) * LENS_ZOOM}px`,
-                  "background-position": `-${pos().x * LENS_ZOOM - LENS_SIZE / 2}px -${pos().y * LENS_ZOOM - LENS_SIZE / 2}px`,
                 }}
               />
             );

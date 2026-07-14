@@ -4,13 +4,13 @@ import { useEscapeClose } from "../useEscapeClose";
 import "./Popover.css";
 
 export interface PopoverProps {
-  open: boolean;
-  onClose: () => void;
-  trigger: JSX.Element;
   children: JSX.Element;
-  placement?: "top" | "bottom" | "left" | "right";
   class?: string;
+  onClose: () => void;
+  open: boolean;
   panelClass?: string;
+  placement?: "top" | "bottom" | "left" | "right";
+  trigger: JSX.Element;
 }
 
 export default function Popover(props: PopoverProps) {
@@ -30,7 +30,7 @@ export default function Popover(props: PopoverProps) {
     <div class={`popover-root ${props.class || ""}`} ref={rootRef}>
       {props.trigger}
       <Show when={props.open}>
-        <div class={`popover popover-${props.placement || "bottom"} ${props.panelClass || ""}`}>
+        <div class={`popover popover-${props.placement ?? "bottom"} ${props.panelClass || ""}`}>
           {props.children}
         </div>
       </Show>

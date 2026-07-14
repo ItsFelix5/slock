@@ -8,7 +8,7 @@ import {
   type MemberFilter,
   removeUserFromChannel,
 } from "../../../lib/channelDetails";
-import { currentUser, openUserProfile, userById } from "../../../lib/store";
+import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/ComposeUserPicker";
 import "./ChannelDetails.css";
 
@@ -30,12 +30,12 @@ export default function ChannelMembersTab(props: {
   // Kept per-filter (rather than one shared list) so switching Everyone ->
   // Apps -> Everyone shows what was already loaded instead of wiping it.
   const [pagedMembers, setPagedMembers] = createSignal<Record<PagedFilter, User[]>>({
-    everyone: [],
     apps: [],
+    everyone: [],
   });
   const [pagedCursors, setPagedCursors] = createSignal<Record<PagedFilter, string | undefined>>({
-    everyone: undefined,
     apps: undefined,
+    everyone: undefined,
   });
   const [loadingMembers, setLoadingMembers] = createSignal(false);
   const loadedPagedFilters = new Set<PagedFilter>();
@@ -88,7 +88,7 @@ export default function ChannelMembersTab(props: {
 
   const resolvedManagers = createMemo(() =>
     managerIds()
-      .map((id) => userById(id))
+      .map((id) => store.users.userById(id))
       .filter((u): u is User => !!u),
   );
 
@@ -123,7 +123,7 @@ export default function ChannelMembersTab(props: {
   const addPerson = async (userId: string) => {
     setAddingPeople(false);
     if (await inviteUsersToChannel(props.channelId, [userId])) {
-      const user = userById(userId);
+      const user = store.users.userById(userId);
       if (user) {
         setPagedMembers((prev) => ({
           ...prev,
@@ -140,8 +140,8 @@ export default function ChannelMembersTab(props: {
     if (!confirm(`Remove ${user.name} from #${props.channelName}?`)) return;
     if (await removeUserFromChannel(props.channelId, user.id)) {
       setPagedMembers((prev) => ({
-        everyone: prev.everyone.filter((u) => u.id !== user.id),
         apps: prev.apps.filter((u) => u.id !== user.id),
+        everyone: prev.everyone.filter((u) => u.id !== user.id),
       }));
       setManagerIds((prev) => prev.filter((id) => id !== user.id));
       props.onMembersChanged?.();
@@ -154,10 +154,10 @@ export default function ChannelMembersTab(props: {
         <For each={MEMBER_FILTERS}>
           {(f) => (
             <button
-              type="button"
               class="segmented-control-btn"
               classList={{ active: filter() === f.key }}
               onClick={() => setFilter(f.key)}
+              type="button"
             >
               {f.label}
             </button>
@@ -167,16 +167,16 @@ export default function ChannelMembersTab(props: {
       <div class="channel-details-members-bar">
         <input
           class="channel-details-input"
-          type="text"
-          placeholder="Find members"
-          value={query()}
           onInput={(e) => setQuery(e.currentTarget.value)}
+          placeholder="Find members"
+          type="text"
+          value={query()}
         />
         <Show when={filter() === "everyone"}>
           <button
-            type="button"
-            class="channel-details-add-btn"
+            class="channel-details-add-btn btn-reset flex-align-center"
             onClick={() => setAddingPeople(true)}
+            type="button"
           >
             <Icon name="user-add" size={15} /> Add people
           </button>
@@ -184,10 +184,10 @@ export default function ChannelMembersTab(props: {
       </div>
       <Show when={addingPeople()}>
         <div class="channel-details-picker">
-          <ComposeUserPicker onSelect={addPerson} onClose={() => setAddingPeople(false)} />
+          <ComposeUserPicker onClose={() => setAddingPeople(false)} onSelect={addPerson} />
         </div>
       </Show>
-      <div class="channel-details-member-list">
+      <div class="channel-details-member-list flex-col">
         <For
           each={filteredMembers()}
           fallback={
@@ -197,24 +197,27 @@ export default function ChannelMembersTab(props: {
           }
         >
           {(u) => (
-            <div class="channel-details-member">
+            <div class="channel-details-member flex-align-center">
               <button
+                class="channel-details-member-main btn-reset flex-align-center"
+                onClick={() => store.users.openUserProfile(u.id)}
                 type="button"
-                class="channel-details-member-main"
-                onClick={() => openUserProfile(u.id)}
               >
-                <Avatar user={u} size="small" />
-                <span class="channel-details-member-name">{u.name}</span>
+                <Avatar size="small" user={u} />
+                <span class="channel-details-member-name truncate">{u.name}</span>
+                <Show when={managerIds().includes(u.id)}>
+                  <span class="channel-details-member-badge">Manager</span>
+                </Show>
                 <Show when={u.isBot}>
                   <span class="channel-details-member-badge">APP</span>
                 </Show>
               </button>
-              <Show when={u.id !== currentUser()?.id}>
+              <Show when={u.id !== store.users.currentUser()?.id}>
                 <button
-                  type="button"
-                  class="channel-details-member-remove"
-                  title="Remove from channel"
+                  class="channel-details-member-remove btn-reset flex-center"
                   onClick={() => removeMember(u)}
+                  title="Remove from channel"
+                  type="button"
                 >
                   <Icon name="close-filled" size={14} />
                 </button>
@@ -229,9 +232,9 @@ export default function ChannelMembersTab(props: {
           when={filter() !== "managers" && pagedCursors()[filter() as PagedFilter] && !isLoading()}
         >
           <button
-            type="button"
-            class="channel-details-show-more"
+            class="channel-details-show-more btn-reset"
             onClick={() => loadMore(filter() as PagedFilter)}
+            type="button"
           >
             Show more
           </button>

@@ -2,19 +2,19 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  background: var(--hover-bg);
   padding: 2px;
+  background: var(--hover-bg);
   border-radius: 6px;
 }
 
 .segmented-control-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
   background: none;
   border: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-  padding: 6px 12px;
   border-radius: 4px;
-  cursor: pointer;
 }
 
 .segmented-control-btn:hover {
@@ -22,7 +22,7 @@
 }
 
 .segmented-control-btn.active {
-  background: var(--active-bg);
-  color: var(--text-primary);
   font-weight: 500;
+  color: var(--text-primary);
+  background: var(--active-bg);
 }

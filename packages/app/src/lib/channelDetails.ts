@@ -14,7 +14,7 @@ import {
   setMemberPermissions,
 } from "@slock/slack-api";
 import { createRoot, createSignal } from "solid-js";
-import { actionFeedback, patchChannel } from "./store";
+import { actionFeedback, store } from "./store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 
@@ -77,7 +77,7 @@ function setup() {
   async function renameChannelById(id: string, name: string): Promise<boolean> {
     try {
       const finalName = await renameChannel(id, name);
-      patchChannel(id, { name: finalName });
+      store.channels.patchChannel(id, { name: finalName });
       return true;
     } catch (err) {
       actionFeedback.flash(
@@ -92,7 +92,7 @@ function setup() {
   async function updateChannelTopic(id: string, topic: string): Promise<boolean> {
     try {
       await setChannelTopic(id, topic);
-      patchChannel(id, { topic });
+      store.channels.patchChannel(id, { topic });
       return true;
     } catch (err) {
       actionFeedback.flash(
@@ -200,18 +200,18 @@ function setup() {
 
   return {
     channelDetailsId,
-    openChannelDetails,
     closeChannelDetails,
-    loadChannelDetails,
-    loadChannelMembers,
-    loadChannelManagerIds,
-    renameChannelById,
-    updateChannelTopic,
-    updateChannelPurpose,
     inviteUsersToChannel,
+    loadChannelDetails,
+    loadChannelManagerIds,
+    loadChannelMembers,
+    openChannelDetails,
     removeUserFromChannel,
+    renameChannelById,
     updateChannelPostingPrefs,
+    updateChannelPurpose,
     updateChannelRetention,
+    updateChannelTopic,
     updateMemberPermissions,
   };
 }

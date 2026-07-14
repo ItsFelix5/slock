@@ -31,14 +31,14 @@ export function suggestItemContent(item: SuggestItem) {
     case "user":
       return (
         <>
-          <Avatar user={item.user} size="small" />
+          <Avatar size="small" user={item.user} />
           <span class="composer-suggest-label">{item.name}</span>
         </>
       );
     case "channel":
       return (
         <>
-          <span class="composer-suggest-icon">
+          <span class="composer-suggest-icon flex-center">
             {item.private ? <Icon name="lock" size={12} /> : "#"}
           </span>
           <span class="composer-suggest-label">{item.name}</span>
@@ -47,8 +47,8 @@ export function suggestItemContent(item: SuggestItem) {
     case "command":
       return (
         <>
-          <span class="composer-suggest-icon">
-            {item.icon ? <img src={item.icon} alt="" /> : "/"}
+          <span class="composer-suggest-icon flex-center">
+            {item.icon ? <img alt="" src={item.icon} /> : "/"}
           </span>
           <span class="composer-suggest-label">{item.name}</span>
           <span class="composer-suggest-desc">{item.desc}</span>
@@ -58,8 +58,8 @@ export function suggestItemContent(item: SuggestItem) {
       const url = emojiUrl(item.name);
       return (
         <>
-          <span class="composer-suggest-icon composer-suggest-emoji">
-            {url ? <img src={url} alt="" /> : (item.unicode ?? "❔")}
+          <span class="composer-suggest-icon composer-suggest-emoji flex-center">
+            {url ? <img alt="" src={url} /> : (item.unicode ?? "❔")}
           </span>
           <span class="composer-suggest-label">:{item.name}:</span>
         </>

@@ -11,16 +11,16 @@ export async function searchDirectory(
   query: string,
 ): Promise<{ users: User[]; truncated: boolean }> {
   const q = query.trim();
-  if (!q) return { users: [], truncated: false };
+  if (!q) return { truncated: false, users: [] };
   const data = await callSlack("search.modules.people", {
-    query: q,
-    module: "people",
     count: "30",
+    module: "people",
+    query: q,
   });
-  if (!data.ok) return { users: [], truncated: false };
+  if (!data.ok) return { truncated: false, users: [] };
   const items: any[] = data.items ?? [];
   return {
-    users: items.map(mapUser),
     truncated: (data.pagination?.total_count ?? items.length) > items.length,
+    users: items.map(mapUser),
   };
 }

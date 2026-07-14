@@ -1,17 +1,15 @@
 .message-search-view {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   overflow: hidden;
 }
 
 .message-search-header {
-  display: flex;
-  align-items: center;
+  flex-shrink: 0;
   gap: 8px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
 }
 
 .message-search-input {
@@ -19,15 +17,15 @@
 }
 
 .message-search-filters {
-  border-bottom: 1px solid var(--border);
   padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
 }
 
 .message-search-results {
   flex: 1;
-  overflow-y: auto;
-  padding: 10px 24px 24px;
   max-width: 720px;
+  padding: 10px 24px 24px;
+  overflow-y: auto;
 }
 
 .message-search-result {
@@ -47,8 +45,8 @@
 
 .message-search-history-item {
   display: flex;
-  align-items: center;
   gap: 4px;
+  align-items: center;
 }
 
 .message-search-history-query {
@@ -57,18 +55,16 @@
 }
 
 .message-search-history-remove {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 12px;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
-  cursor: pointer;
+  font-size: 12px;
 }
 
-.message-search-history-remove:hover {
+.global-search-result-meta {
+  margin-bottom: 3px;
+}
+
+.global-search-result-snippet {
+  line-height: 1.35;
   color: var(--text-primary);
-  background: var(--hover-bg);
 }

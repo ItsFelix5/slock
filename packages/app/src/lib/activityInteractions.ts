@@ -18,11 +18,10 @@ export function findActivityMessage(
   const inChannel = messagesByChannel[item.channelId]?.find((m) => m.ts === item.ts);
   if (inChannel) return inChannel;
   if (item.threadTs) return threadMessages[item.threadTs]?.find((m) => m.ts === item.ts);
-  return undefined;
 }
 
 export function hasUserReacted(message: Message | undefined, userId: string | undefined): boolean {
-  if (!message?.reactions || !userId) return false;
+  if (!(message?.reactions && userId)) return false;
   return message.reactions.some((r) => r.users.includes(userId));
 }
 
@@ -31,7 +30,7 @@ export function hasUserReactedWith(
   userId: string | undefined,
   emojiName: string,
 ): boolean {
-  if (!message?.reactions || !userId) return false;
+  if (!(message?.reactions && userId)) return false;
   return !!message.reactions.find((r) => r.name === emojiName)?.users.includes(userId);
 }
 

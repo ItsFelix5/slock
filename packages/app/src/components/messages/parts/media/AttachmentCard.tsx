@@ -14,21 +14,21 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
       }}
     >
       <Show when={a.authorName}>
-        <div class="attachment-author">
+        <div class="attachment-author flex-align-center">
           <Show when={a.authorIcon}>
-            {(icon) => <img class="attachment-author-icon" src={icon()} alt="" />}
+            {(icon) => <img alt="" class="attachment-author-icon" src={icon()} />}
           </Show>
           {a.authorName}
         </div>
       </Show>
       <Show when={a.title}>
-        <Show when={a.titleLink} fallback={<div class="attachment-title">{a.title}</div>}>
+        <Show fallback={<div class="attachment-title">{a.title}</div>} when={a.titleLink}>
           {(link) => (
             <a
               class="attachment-title attachment-title-link"
               href={link()}
-              target="_blank"
               rel="noopener noreferrer"
+              target="_blank"
             >
               {a.title}
             </a>
@@ -59,23 +59,23 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
       <Show when={a.videoUrl}>
         {(url) => (
           <video
-            class="attachment-video"
-            src={url()}
-            controls
-            width={a.videoWidth}
-            height={a.videoHeight}
             aria-label={a.title || "Embedded video"}
-            style={{ "max-width": "100%", height: "auto" }}
+            class="attachment-video"
+            controls
+            height={a.videoHeight}
+            src={url()}
+            style={{ height: "auto", "max-width": "100%" }}
+            width={a.videoWidth}
           />
         )}
       </Show>
       <Show when={!a.videoUrl && a.imageUrl}>
-        {(url) => <ZoomableImage class="attachment-image" src={url()} alt="" />}
+        {(url) => <ZoomableImage alt="" class="attachment-image" src={url()} />}
       </Show>
       <Show when={a.footer}>
-        <div class="attachment-footer">
+        <div class="attachment-footer flex-align-center text-dim text-xs">
           <Show when={a.footerIcon}>
-            {(icon) => <img class="attachment-footer-icon" src={icon()} alt="" />}
+            {(icon) => <img alt="" class="attachment-footer-icon" src={icon()} />}
           </Show>
           {a.footer}
         </div>

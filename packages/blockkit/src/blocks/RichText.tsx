@@ -20,10 +20,10 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
           class="bk-rt-text"
           classList={{
             "bk-rt-bold": !!s?.bold,
-            "bk-rt-italic": !!s?.italic,
-            "bk-rt-strike": !!s?.strike,
             "bk-rt-code": !!s?.code,
             "bk-rt-highlight": !!s?.highlight,
+            "bk-rt-italic": !!s?.italic,
+            "bk-rt-strike": !!s?.strike,
           }}
         >
           <EmojiText text={el.text} />
@@ -35,7 +35,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       return userId ? (
         <Mention id={userId} kind="user" label={el.text} />
       ) : (
-        <a class="bk-link" href={el.url} target="_blank" rel="noopener noreferrer">
+        <a class="bk-link" href={el.url} rel="noopener noreferrer" target="_blank">
           {el.text ? <EmojiText text={el.text} /> : el.url}
         </a>
       );
@@ -61,7 +61,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       );
     case "date":
       return el.url ? (
-        <a class="bk-link" href={el.url} target="_blank" rel="noopener noreferrer">
+        <a class="bk-link" href={el.url} rel="noopener noreferrer" target="_blank">
           {formatSlackDate(el.timestamp, el.fallback)}
         </a>
       ) : (
@@ -107,7 +107,6 @@ export default function RichText(props: { block: RichTextBlockType }) {
             case "rich_text_list":
               return (
                 <Show
-                  when={sub.style === "ordered"}
                   fallback={
                     <ul
                       class="bk-rt-list"
@@ -124,6 +123,7 @@ export default function RichText(props: { block: RichTextBlockType }) {
                       </For>
                     </ul>
                   }
+                  when={sub.style === "ordered"}
                 >
                   <ol
                     class="bk-rt-list"

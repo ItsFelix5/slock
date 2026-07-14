@@ -14,7 +14,7 @@ export const STANDARD_EMOJI: Record<string, string> = nameToEmoji;
 const HEX_CODEPOINTS_RE = /^[0-9a-f]{1,6}(-[0-9a-f]{1,6})*$/i;
 
 export function hexCodepointsToEmoji(hex: string): string | undefined {
-  if (!HEX_CODEPOINTS_RE.test(hex)) return undefined;
+  if (!HEX_CODEPOINTS_RE.test(hex)) return;
   return String.fromCodePoint(...hex.split("-").map((cp) => parseInt(cp, 16)));
 }
 

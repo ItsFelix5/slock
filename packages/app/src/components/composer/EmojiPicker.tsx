@@ -54,7 +54,7 @@ function buildBlocks(sections: { label?: string; entries: PickerEntry[] }[]): Bl
     if (!section.entries.length) continue;
     if (section.label) blocks.push({ kind: "label", text: section.label });
     for (let i = 0; i < section.entries.length; i += CHUNK_SIZE) {
-      blocks.push({ kind: "chunk", entries: section.entries.slice(i, i + CHUNK_SIZE) });
+      blocks.push({ entries: section.entries.slice(i, i + CHUNK_SIZE), kind: "chunk" });
     }
   }
   return blocks;
@@ -102,8 +102,8 @@ export default function EmojiPicker(props: {
       byCategory.set(e.category, list);
     }
     return EMOJI_CATEGORY_ORDER.filter((label) => byCategory.has(label)).map((label) => ({
-      label,
       entries: byCategory.get(label) ?? [],
+      label,
     }));
   });
 
@@ -119,7 +119,7 @@ export default function EmojiPicker(props: {
   const blocks = createMemo(() =>
     query().trim()
       ? buildBlocks([{ entries: searchResults() }])
-      : buildBlocks([{ label: "Frequently used", entries: frequent() }, ...groups()]),
+      : buildBlocks([{ entries: frequent(), label: "Frequently used" }, ...groups()]),
   );
 
   const blockLayout = createMemo(() => {
@@ -127,7 +127,7 @@ export default function EmojiPicker(props: {
     const laid: { block: Block; top: number; height: number }[] = [];
     for (const block of blocks()) {
       const height = blockHeight(block);
-      laid.push({ block, top, height });
+      laid.push({ block, height, top });
       top += height;
     }
     return { laid, totalHeight: top };
@@ -168,27 +168,27 @@ export default function EmojiPicker(props: {
     const topSpacer = laid[start]?.top ?? 0;
     const last = laid[end - 1];
     const bottomSpacer = totalHeight - (last ? last.top + last.height : 0);
-    return { list: laid.slice(start, end), topSpacer, bottomSpacer };
+    return { bottomSpacer, list: laid.slice(start, end), topSpacer };
   });
 
   return (
     <div class="emoji-picker" ref={rootRef}>
       <div class="emoji-picker-search">
         <input
-          class="search-input"
-          type="text"
-          placeholder="Search emoji…"
-          value={query()}
-          onInput={(e) => setQuery(e.currentTarget.value)}
           autofocus
+          class="search-input"
+          onInput={(e) => setQuery(e.currentTarget.value)}
+          placeholder="Search emoji…"
+          type="text"
+          value={query()}
         />
       </div>
       <div
         class="emoji-picker-body"
-        ref={bodyRef}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        ref={bodyRef}
       >
-        <Show when={!isEmpty()} fallback={<div class="emoji-picker-empty">No emoji found</div>}>
+        <Show fallback={<div class="emoji-picker-empty">No emoji found</div>} when={!isEmpty()}>
           <div style={{ height: `${visible().topSpacer}px` }} />
           <For each={visible().list}>
             {(item) =>
@@ -214,13 +214,13 @@ function EmojiButton(props: { entry: PickerEntry; onSelect: (name: string) => vo
   const url = createMemo(() => emojiUrl(props.entry.name));
   return (
     <button
-      type="button"
-      class="emoji-picker-btn"
-      title={`:${props.entry.name}:`}
+      class="emoji-picker-btn btn-reset flex-center"
       onClick={() => props.onSelect(props.entry.name)}
+      title={`:${props.entry.name}:`}
+      type="button"
     >
-      <Show when={url()} fallback={props.entry.unicode ?? "❔"}>
-        {(u) => <img src={u()} alt={props.entry.name} />}
+      <Show fallback={props.entry.unicode ?? "❔"} when={url()}>
+        {(u) => <img alt={props.entry.name} src={u()} />}
       </Show>
     </button>
   );

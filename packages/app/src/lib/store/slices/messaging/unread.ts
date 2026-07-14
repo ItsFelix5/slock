@@ -126,14 +126,14 @@ export function createUnreadSlice(deps: {
   }
 
   return {
-    unreadChannelIds,
-    setUnreadChannelIds,
-    lastReadByChannel,
-    setLastReadByChannel,
-    lastReadByChannelResource,
-    unreadDividerTs,
-    setUnreadDividerTs,
     clearChannelUnread,
+    lastReadByChannel,
+    lastReadByChannelResource,
+    setLastReadByChannel,
+    setUnreadChannelIds,
+    setUnreadDividerTs,
+    unreadChannelIds,
+    unreadDividerTs,
     unreadDividerTsForChannel,
     wireReadTracking,
   };

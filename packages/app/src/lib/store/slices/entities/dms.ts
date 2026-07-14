@@ -1,5 +1,5 @@
 import type { DirectMessage } from "@slock/slack-api";
-import { closeDm, openDm } from "@slock/slack-api";
+import { openDm } from "@slock/slack-api";
 import { createEffect, createMemo, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
@@ -71,7 +71,7 @@ export function createDmsSlice(deps: {
   async function openDmWithUser(userId: string) {
     const existing = allDirectMessages().find((d) => d.userId === userId);
     if (existing && !closedDmIds[existing.id]) {
-      deps.setActiveView({ kind: "dm", id: existing.id });
+      deps.setActiveView({ id: existing.id, kind: "dm" });
       deps.closeUserProfile();
       return;
     }
@@ -81,36 +81,29 @@ export function createDmsSlice(deps: {
       return;
     }
     if (existing) setClosedDmIds(channelId, false);
-    else setExtraDms(produce((list) => list.push({ id: channelId, userId, unread: false })));
-    deps.setActiveView({ kind: "dm", id: channelId });
+    else setExtraDms(produce((list) => list.push({ id: channelId, unread: false, userId })));
+    deps.setActiveView({ id: channelId, kind: "dm" });
     deps.closeUserProfile();
   }
 
-  async function closeDmConversation(dmId: string) {
+  function closeDmConversation(dmId: string) {
     setClosedDmIds(dmId, true);
     const view = deps.activeView();
     if (view?.kind === "dm" && view.id === dmId) {
       const next = directMessages().find((d) => d.id !== dmId);
-      if (next) deps.setActiveView({ kind: "dm", id: next.id });
-    }
-    try {
-      await closeDm(dmId);
-    } catch (err) {
-      console.error("Failed to close DM", err);
-      actionFeedback.flash(dmId, "Failed to close conversation.", "error");
-      setClosedDmIds(dmId, false);
+      if (next) deps.setActiveView({ id: next.id, kind: "dm" });
     }
   }
 
   return {
     allDirectMessages,
-    directMessages,
+    closeDmConversation,
     closedDmIds,
-    setClosedDmIds,
-    setDmLastActivity,
+    directMessages,
     dmById,
     dmIdForUser,
     openDmWithUser,
-    closeDmConversation,
+    setClosedDmIds,
+    setDmLastActivity,
   };
 }

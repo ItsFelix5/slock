@@ -42,6 +42,17 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
     );
   }
 
+  function clearTyping(channelId: string, threadTs: string | undefined, userId: string) {
+    const key = threadTs ? `${channelId}:${threadTs}` : channelId;
+    if (!typingByKey[key]?.[userId]) return;
+    setTypingByKey(
+      key,
+      produce((e) => {
+        delete e[userId];
+      }),
+    );
+  }
+
   function typingUsersInChannel(channelId: string): User[] {
     const entries = typingByKey[channelId];
     if (!entries) return [];
@@ -58,5 +69,5 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
       .filter((u): u is User => !!u);
   }
 
-  return { recordTyping, typingUsersInChannel, typingUsersInThread };
+  return { clearTyping, recordTyping, typingUsersInChannel, typingUsersInThread };
 }

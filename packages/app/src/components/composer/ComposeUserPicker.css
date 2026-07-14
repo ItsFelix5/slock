@@ -2,24 +2,24 @@
   position: absolute;
   top: 26px;
   right: 0;
+  z-index: 10;
   width: 220px;
+  padding: 6px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   box-shadow: var(--shadow-popover);
-  padding: 6px;
-  z-index: 10;
 }
 
 .compose-picker-input {
   width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 8px;
-  margin-bottom: 4px;
 }
 
 .compose-picker-list {
@@ -28,18 +28,11 @@
 }
 
 .compose-picker-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
   gap: 8px;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  font-size: 13px;
+  width: 100%;
   padding: 6px 8px;
-  border-radius: 6px;
   text-align: left;
-  cursor: pointer;
+  border-radius: 6px;
 }
 
 .compose-picker-row:hover {
@@ -48,7 +41,7 @@
 
 .compose-picker-empty {
   padding: 10px;
-  text-align: center;
-  color: var(--text-dim);
   font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
 }

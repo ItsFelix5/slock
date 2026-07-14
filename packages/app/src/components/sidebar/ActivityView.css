@@ -1,399 +1,265 @@
 .activity-view {
   flex: 1;
-  overflow-y: auto;
   padding: 24px 28px;
+  overflow-y: auto;
 }
-
 .activity-view-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: 12px;
 }
-
 .activity-view h2 {
   margin: 0;
   font-size: 20px;
 }
-
 .activity-header-actions {
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
-
 .activity-read-next {
-  display: flex;
-  align-items: center;
   gap: 7px;
+  padding: 5px 12px;
+  font-weight: 700;
+  color: var(--text-on-accent);
   background: var(--accent);
   border: 1px solid var(--accent);
-  color: var(--text-on-accent);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 5px 12px;
   border-radius: 6px;
 }
-
 .activity-read-next:hover:not(:disabled) {
   filter: brightness(1.08);
 }
-
 .activity-read-next:disabled {
+  color: var(--text-dim);
   background: none;
   border-color: var(--border-strong);
-  color: var(--text-dim);
 }
-
 .activity-read-next-count {
-  background: rgba(0, 0, 0, 0.18);
+  padding: 0 5px;
   font-size: 10px;
   font-weight: 700;
   line-height: 1.5;
-  padding: 0 5px;
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 8px;
 }
-
 .activity-mark-read {
-  background: none;
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
   padding: 5px 10px;
   border-radius: 6px;
 }
-
 .activity-mark-read:hover {
-  background: var(--hover-bg);
   color: var(--text-primary);
+  background: var(--hover-bg);
 }
-
 .activity-toolbar {
-  display: flex;
-  align-items: center;
   gap: 8px;
   margin-bottom: 16px;
 }
-
 .activity-search {
   flex: 1;
   min-width: 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
   background: var(--input-bg, var(--hover-bg));
   border: 1px solid var(--border-strong);
   border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 6px 10px;
 }
-
 .activity-search:focus {
   outline: none;
   border-color: var(--accent);
 }
-
 .activity-read-toggle {
   display: flex;
+  flex-shrink: 0;
+  padding: 2px;
   border: 1px solid var(--border-strong);
   border-radius: 14px;
-  padding: 2px;
-  flex-shrink: 0;
 }
-
 .activity-read-toggle button {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
+  padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
-  padding: 4px 10px;
   border-radius: 12px;
 }
-
 .activity-read-toggle button.active {
-  background: var(--accent);
   color: var(--text-on-accent);
+  background: var(--accent);
 }
-
 .activity-tag-filters {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 6px;
   margin-bottom: 16px;
 }
-
 .activity-tag-chip {
-  background: none;
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
   border-radius: 14px;
-  white-space: nowrap;
 }
-
-.activity-tag-chip:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-.activity-tag-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
-}
-
 .activity-tag-clear {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 600;
   padding: 4px 6px;
 }
-
-.activity-tag-clear:hover {
-  color: var(--text-primary);
-}
-
 .activity-empty {
-  color: var(--text-dim);
-  font-size: 14px;
   margin-top: 40px;
+  font-size: 14px;
   text-align: center;
 }
-
 .activity-item-wrap {
   position: relative;
 }
-
 .activity-item {
-  display: flex;
   gap: 12px;
   align-items: flex-start;
+  width: 100%;
   padding: 12px;
   padding-left: 20px;
-  border-radius: 8px;
-  background: none;
-  border: none;
   text-align: left;
-  width: 100%;
-  color: inherit;
-  font-family: inherit;
+  border-radius: 8px;
 }
-
 .activity-item.activity-item-thread {
   box-shadow: inset 2px 0 0 var(--border-strong);
 }
-
 .activity-item.pinging {
   box-shadow: inset 2px 0 0 var(--accent);
 }
-
 .activity-item:hover {
   background: var(--hover-bg);
 }
-
 .activity-unread-dot {
   position: absolute;
-  left: 6px;
   top: 20px;
+  left: 6px;
   width: 8px;
   height: 8px;
   padding: 0;
+  background: transparent;
   border: none;
   border-radius: 50%;
-  background: transparent;
 }
-
 .activity-unread-dot.unread {
-  background: var(--accent);
   cursor: pointer;
+  background: var(--accent);
 }
-
 .activity-unread-dot.unread:hover {
   transform: scale(1.7);
 }
-
 .activity-complete-toggle {
   position: absolute;
-  right: 10px;
   top: 12px;
-  display: flex;
-  background: none;
-  border: none;
+  right: 10px;
   padding: 2px;
-  color: var(--text-dim);
   opacity: 0;
 }
-
 .activity-item-wrap:hover .activity-complete-toggle,
 .activity-complete-toggle.active {
   opacity: 1;
 }
-
 .activity-complete-toggle.active {
   color: var(--accent);
 }
-
 .activity-complete-toggle:hover {
   color: var(--text-primary);
 }
-
 .activity-complete-toggle.active:hover {
   color: var(--accent);
   filter: brightness(1.15);
 }
-
 .activity-item.complete {
   opacity: 0.6;
 }
-
 .activity-body {
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
-
 .activity-headline {
   font-size: 14px;
   line-height: 1.4;
 }
-
 .activity-item.unread .activity-headline {
   font-weight: 600;
 }
-
 .activity-headline strong {
   font-weight: 700;
 }
-
 .activity-verb {
   margin-left: 4px;
   font-weight: 400;
   color: var(--text-secondary);
 }
-
 .activity-channel {
   margin-left: 4px;
   color: var(--text-secondary);
 }
-
 .activity-reply-count {
+  padding: 1px 7px;
   margin-left: 6px;
-  background: var(--hover-bg);
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
-  padding: 1px 7px;
-  border-radius: 10px;
+  color: var(--text-secondary);
   white-space: nowrap;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
 }
-
 .activity-reaction {
   display: inline-flex;
   align-items: center;
-  margin-left: 6px;
-  background: var(--hover-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
   padding: 1px 7px;
+  margin-left: 6px;
   font-size: 14px;
   line-height: 1.3;
   vertical-align: middle;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
 }
-
 .activity-badge {
   display: inline-flex;
   align-items: center;
   margin-left: 6px;
-  color: var(--text-dim);
   vertical-align: middle;
+  color: var(--text-dim);
 }
-
 .activity-badge-complete {
   color: var(--accent);
 }
-
 .activity-snippet {
   margin-top: 3px;
   font-size: 14px;
   color: var(--text-secondary);
-  white-space: pre-wrap;
   word-break: break-word;
+  white-space: pre-wrap;
 }
-
-/* A thread group's root message, shown for context above the reply list. */
 .activity-thread-root {
-  margin-top: 3px;
   padding-left: 8px;
-  border-left: 2px solid var(--border-strong);
+  margin-top: 3px;
   font-size: 13px;
   color: var(--text-dim);
-  white-space: pre-wrap;
   word-break: break-word;
+  white-space: pre-wrap;
+  border-left: 2px solid var(--border-strong);
 }
-
 .activity-thread-replies {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 6px;
 }
-
 .activity-thread-reply {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  font-size: 13px;
-  color: var(--text-secondary);
   min-width: 0;
+  text-align: left;
 }
-
 .activity-thread-reply.unread {
-  color: var(--text-primary);
   font-weight: 600;
+  color: var(--text-primary);
 }
-
 .activity-thread-reply-author {
   flex-shrink: 0;
   font-weight: 600;
 }
-
 .activity-thread-reply.unread .activity-thread-reply-author {
   font-weight: 700;
 }
-
 .activity-thread-reply-snippet {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   min-width: 0;
 }
-
 .activity-show-more {
   margin-top: 4px;
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 600;
 }
-
-.activity-show-more:hover {
-  color: var(--text-primary);
-  text-decoration: underline;
-}
-
 .activity-time {
   margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-dim);
 }

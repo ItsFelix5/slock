@@ -8,7 +8,7 @@ import type { IconName } from "@slock/ui";
 export type ChannelTabType = "pinned";
 
 export const ADDABLE_CHANNEL_TABS: { type: ChannelTabType; label: string; icon: IconName }[] = [
-  { type: "pinned", label: "Pinned", icon: "pin-filled" },
+  { icon: "pin-filled", label: "Pinned", type: "pinned" },
 ];
 
 // actionFeedback is a single flat keyspace shared by lots of unrelated

@@ -7,9 +7,9 @@ export default function Image(props: { block: ImageBlock }) {
   return (
     <figure class="bk-image-block">
       <ZoomableImage
+        alt={props.block.alt_text}
         class="bk-image-block-img"
         src={fileProxyUrl(props.block.image_url)}
-        alt={props.block.alt_text}
       />
       <Show when={props.block.title}>
         {(title) => (

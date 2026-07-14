@@ -1,11 +1,11 @@
 .user-profile-panel {
   position: relative;
-  flex-shrink: 0;
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
+  overflow-y: auto;
   background: var(--main-bg);
   border-left: 1px solid var(--border);
-  overflow-y: auto;
 }
 
 .user-profile-body {
@@ -18,17 +18,14 @@
 }
 
 .user-profile-avatar {
+  position: relative;
   width: 72px;
   height: 72px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-on-accent);
-  font-weight: 700;
-  font-size: 28px;
   overflow: hidden;
-  position: relative;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  border-radius: 12px;
 }
 
 .user-profile-avatar img {
@@ -39,13 +36,13 @@
 
 .user-profile-presence {
   position: absolute;
-  bottom: 2px;
   right: 2px;
+  bottom: 2px;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
   background: var(--presence-active);
   border: 2px solid var(--main-bg);
+  border-radius: 50%;
 }
 
 .user-profile-presence.away {
@@ -61,42 +58,34 @@
 .user-profile-title {
   margin: 2px 0 0;
   font-size: 14px;
-  color: var(--text-secondary);
 }
 
 .user-profile-status {
+  gap: 6px;
   margin: 8px 0 0;
   font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .user-profile-meta {
   margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--text-secondary);
 }
 
 .user-profile-actions {
-  margin-top: 16px;
   display: flex;
   gap: 8px;
+  margin-top: 16px;
 }
 
 .user-profile-message-btn {
   flex: 1;
-  background: var(--accent);
+  gap: 6px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text-on-accent);
+  background: var(--accent);
   border: none;
   border-radius: 6px;
-  padding: 9px 12px;
-  font-weight: 700;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
 }
 
 .user-profile-message-btn:hover {
@@ -104,8 +93,8 @@
 }
 
 .user-profile-section {
-  margin-top: 20px;
   padding-top: 16px;
+  margin-top: 20px;
   border-top: 1px solid var(--border);
 }
 
@@ -121,9 +110,8 @@
 }
 
 .user-profile-field-label {
-  font-size: 12px;
-  color: var(--text-secondary);
   margin-bottom: 2px;
+  font-size: 12px;
 }
 
 .user-profile-field-value {
@@ -142,32 +130,32 @@
 }
 
 .pronouns {
+  margin-left: 4px;
+  font-size: 0.9em;
   font-weight: 400;
   color: var(--text-dim);
-  font-size: 0.9em;
-  margin-left: 4px;
 }
 
 /* Self-view identity fields: plain inputs that read as text until focused,
    so editing your own name/title/pronouns needs no separate edit mode. */
 .user-profile-edit-name {
-  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin-top: 12px;
 }
 
 .user-profile-name-input,
 .user-profile-title-input,
 .user-profile-pronouns-input,
 .user-profile-field-input {
+  padding: 3px 6px;
+  margin: -3px -6px;
+  font-family: inherit;
+  color: var(--text-primary);
   background: none;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 3px 6px;
-  margin: -3px -6px;
-  color: var(--text-primary);
-  font-family: inherit;
 }
 
 .user-profile-name-input {
@@ -198,8 +186,8 @@
 .user-profile-title-input:hover,
 .user-profile-pronouns-input:hover,
 .user-profile-field-input:hover {
-  border-color: var(--border);
   background: var(--hover-bg);
+  border-color: var(--border);
 }
 
 .user-profile-name-input:focus,
@@ -207,6 +195,6 @@
 .user-profile-pronouns-input:focus,
 .user-profile-field-input:focus {
   outline: none;
-  border-color: var(--accent);
   background: var(--hover-bg);
+  border-color: var(--accent);
 }

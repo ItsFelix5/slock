@@ -4,39 +4,38 @@
 
 .menu-button {
   display: flex;
-  align-items: center;
   gap: 6px;
+  align-items: center;
 }
 
 .menu-panel {
   position: absolute;
   top: 100%;
   left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
   margin-top: 4px;
-  min-width: 160px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   box-shadow: var(--shadow-popover);
-  padding: 4px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
 }
 
 .menu-item {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
   background: none;
   border: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  text-align: left;
-  padding: 7px 10px;
   border-radius: 5px;
-  width: 100%;
-  cursor: pointer;
 }
 
 .menu-item:hover {
@@ -48,14 +47,14 @@
 }
 
 .menu-item .icon {
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
-  flex-shrink: 0;
 }
 
 .menu-item-app-icon {
+  flex-shrink: 0;
   width: 15px;
   height: 15px;
   border-radius: 3px;
-  flex-shrink: 0;
 }

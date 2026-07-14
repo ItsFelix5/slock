@@ -2,7 +2,7 @@ import { EmojiText } from "@slock/blockkit";
 import { Icon } from "@slock/ui";
 import { createMemo, createSignal, type JSX, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { currentUser, openDmWithUser, openUserProfile, userById } from "../../lib/store";
+import { store } from "../../lib/store";
 import "./UserHoverCard.css";
 
 const OPEN_DELAY = 350;
@@ -20,8 +20,8 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
   let openTimer: ReturnType<typeof setTimeout> | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const user = createMemo(() => userById(props.userId));
-  const isSelf = createMemo(() => props.userId === currentUser()?.id);
+  const user = createMemo(() => store.users.userById(props.userId));
+  const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
 
   const localTime = createMemo(() => {
     const tz = user()?.tz;
@@ -61,9 +61,9 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real controls are the buttons inside the children and the card
     <span
       class="user-hovercard-anchor"
-      ref={anchor}
       onMouseEnter={scheduleOpen}
       onMouseLeave={scheduleClose}
+      ref={anchor}
     >
       {props.children}
       <Show when={open() && user()}>
@@ -72,13 +72,16 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
             {/* biome-ignore lint/a11y/noStaticElementInteractions: hover-intent container keeping the card open while the pointer is over it */}
             <div
               class="user-hovercard"
-              style={{ left: `${pos().left}px`, top: `${pos().top}px`, width: `${CARD_WIDTH}px` }}
               onMouseEnter={() => clearTimeout(closeTimer)}
               onMouseLeave={scheduleClose}
+              style={{ left: `${pos().left}px`, top: `${pos().top}px`, width: `${CARD_WIDTH}px` }}
             >
               <div class="user-hovercard-top">
-                <div class="user-hovercard-avatar" style={{ background: u().avatarColor }}>
-                  <img src={u().avatarUrl} alt="?" />
+                <div
+                  class="user-hovercard-avatar flex-center"
+                  style={{ background: u().avatarColor }}
+                >
+                  <img alt="?" src={u().avatarUrl} />
                   <span
                     class="user-hovercard-presence"
                     classList={{ away: u().presence === "away" }}
@@ -95,20 +98,20 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                     </Show>
                   </div>
                   <Show when={u().title}>
-                    <div class="user-hovercard-title">{u().title}</div>
+                    <div class="user-hovercard-title text-muted text-sm">{u().title}</div>
                   </Show>
                 </div>
               </div>
 
               <Show when={u().statusText || u().statusEmoji}>
-                <div class="user-hovercard-status">
+                <div class="user-hovercard-status flex-align-center text-muted text-sm">
                   <Show when={u().statusEmoji}>{(emoji) => <EmojiText text={emoji()} />}</Show>
                   <span>{u().statusText}</span>
                 </div>
               </Show>
 
               <Show when={localTime()}>
-                <div class="user-hovercard-meta">
+                <div class="user-hovercard-meta flex-align-center text-dim text-sm">
                   <Icon name="clock" size={13} />
                   {localTime()} local time{u().tzLabel ? ` (${u().tzLabel})` : ""}
                 </div>
@@ -116,38 +119,38 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
 
               <div class="user-hovercard-actions">
                 <Show
-                  when={!isSelf()}
                   fallback={
                     <button
-                      type="button"
-                      class="user-hovercard-btn"
+                      class="user-hovercard-btn btn-reset flex-center"
                       onClick={() => {
                         setOpen(false);
-                        openUserProfile(u().id);
+                        store.users.openUserProfile(u().id);
                       }}
+                      type="button"
                     >
                       View profile
                     </button>
                   }
+                  when={!isSelf()}
                 >
                   <button
-                    type="button"
-                    class="user-hovercard-btn"
+                    class="user-hovercard-btn btn-reset flex-center"
                     onClick={() => {
                       setOpen(false);
-                      openDmWithUser(u().id);
+                      store.dms.openDmWithUser(u().id);
                     }}
+                    type="button"
                   >
                     <Icon name="direct-messages-filled" size={14} />
                     Message
                   </button>
                   <button
-                    type="button"
-                    class="user-hovercard-btn"
+                    class="user-hovercard-btn btn-reset flex-center"
                     onClick={() => {
                       setOpen(false);
-                      openUserProfile(u().id);
+                      store.users.openUserProfile(u().id);
                     }}
+                    type="button"
                   >
                     View profile
                   </button>

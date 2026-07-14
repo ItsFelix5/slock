@@ -1,11 +1,24 @@
 import type { ProfileFieldDef, User } from "../types";
 import { mapUser } from "./mappers";
-import { callSlack } from "./relay";
+import { callSlack, callSlackEdge } from "./relay";
 
 export async function fetchUser(id: string): Promise<User | null> {
-  const data = await callSlack("users.info", { user: id });
+  // The normal Web API users.info endpoint is restricted on Enterprise Grid.
+  // The cache endpoint accepts the ids it should refresh as a timestamp map;
+  // zero deliberately requests the complete current record.
+  const data = await callSlackEdge("users/info", {
+    include_profile_only_users: true,
+    updated_ids: { [id]: 0 },
+  });
   if (!data.ok) return null;
-  return mapUser(data.user);
+  // Cache responses have appeared as both an id-keyed `users` object and a
+  // result array. Retain `user` as a fallback for compatible relay responses.
+  const raw =
+    data.users?.[id] ??
+    data.results?.find((user: any) => user.id === id) ??
+    data.users?.find?.((user: any) => user.id === id) ??
+    data.user;
+  return raw ? mapUser(raw) : null;
 }
 
 // team.profile.get's field *definitions* (label/ordering) are workspace-wide and
@@ -35,6 +48,18 @@ export type UserPrefs = {
   desktopNotificationsEnabled: boolean;
   searchHistory: string[];
   channelTabs: Record<string, { type: string }[]>;
+  globalNotifications: {
+    channelsInActivity: boolean;
+    desktop: string;
+    desktopPushEnabled: boolean;
+    keywords: string[];
+    mobileSound?: string;
+    mpdmDesktop: string;
+    noTextInNotifications: boolean;
+    pushIdleWait: number;
+    pushShowPreview: boolean;
+    threadsEverything: boolean;
+  };
 };
 
 // users.prefs.get carries the account's *real* local-usage databases (each pref
@@ -45,10 +70,10 @@ export type UserPrefs = {
 // one {count, lastVisit} per id. muted_channels is a plain comma-separated id
 // list; all_notifications_prefs is a JSON blob shaped
 // `{channels: {id: {desktop?, mobile?}}, global: {...}}` where a channel override
-// value of "everything" means "notify me about all messages". highlight_words
-// is the same shape as muted_channels — a plain comma-separated list, this
-// time of custom keywords ("pingwords") that ping you like an @mention
-// whenever they appear in a message, even without being directly mentioned.
+// value of "everything" means "notify me about all messages". Its `global`
+// object also contains all account-wide notification settings, including
+// `global_keywords`: the comma-separated custom keywords ("pingwords") that
+// ping you like an @mention whenever they appear in a message.
 // slock_desktop_notifications, slock_search_history and slock_channel_tabs are
 // app-invented keys (the prefs blob is a generic KV store, not limited to
 // Slack's own known keys) — used to sync purely client-side app settings
@@ -58,14 +83,25 @@ export type UserPrefs = {
 // unrelated to Slack's real, admin-only, unwritable `properties.tabs`.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const empty: UserPrefs = {
-    emojiUse: {},
     channelFrecency: {},
+    channelTabs: {},
+    desktopNotificationsEnabled: true,
+    emojiUse: {},
+    highlightWords: [],
     mutedChannels: [],
     notifyAllChannels: [],
-    highlightWords: [],
-    desktopNotificationsEnabled: true,
     searchHistory: [],
-    channelTabs: {},
+    globalNotifications: {
+      channelsInActivity: true,
+      desktop: "mentions_dms",
+      desktopPushEnabled: true,
+      keywords: [],
+      mpdmDesktop: "mentions_dms",
+      noTextInNotifications: false,
+      pushIdleWait: 0,
+      pushShowPreview: true,
+      threadsEverything: false,
+    },
   };
   const data = await callSlack("users.prefs.get");
   if (!data.ok) return empty;
@@ -73,7 +109,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
   const parse = (key: string) => {
     try {
       const raw = prefs[key];
-      return raw ? JSON.parse(raw) : null;
+      return typeof raw === "string" ? JSON.parse(raw) : (raw ?? null);
     } catch {
       return null;
     }
@@ -98,19 +134,43 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     .map((id: string) => id.trim())
     .filter(Boolean);
 
-  const highlightWords: string[] = (prefs.highlight_words ?? "")
-    .split(",")
-    .map((w: string) => w.trim())
-    .filter(Boolean);
-
-  const notificationOverrides = parse("all_notifications_prefs")?.channels ?? {};
+  const allNotifications = parse("all_notifications_prefs") ?? {};
+  const notificationGlobal = allNotifications.global ?? {};
+  const notificationOverrides = allNotifications.channels ?? {};
+  const hasGlobalKeywords = typeof notificationGlobal.global_keywords === "string";
+  const globalKeywords = hasGlobalKeywords
+    ? notificationGlobal.global_keywords
+        .split(",")
+        .map((word: string) => word.trim())
+        .filter(Boolean)
+    : [];
+  // `global_keywords` is Slack's canonical pingword setting. Retain the
+  // previous key only as a fallback for old or incomplete pref payloads.
+  const highlightWords: string[] = hasGlobalKeywords
+    ? globalKeywords
+    : (prefs.highlight_words ?? "")
+        .split(",")
+        .map((word: string) => word.trim())
+        .filter(Boolean);
+  const globalNotifications = {
+    channelsInActivity: notificationGlobal.global_channels_in_activity !== false,
+    desktop: notificationGlobal.global_desktop ?? "mentions_dms",
+    desktopPushEnabled: notificationGlobal.global_desktop_push_enabled !== false,
+    keywords: globalKeywords,
+    mobileSound: notificationGlobal.mobile_sound,
+    mpdmDesktop: notificationGlobal.global_mpdm_desktop ?? "mentions_dms",
+    noTextInNotifications: !!notificationGlobal.no_text_in_notifications,
+    pushIdleWait: Number(notificationGlobal.push_idle_wait) || 0,
+    pushShowPreview: notificationGlobal.push_show_preview !== false,
+    threadsEverything: !!notificationGlobal.threads_everything,
+  };
   const notifyAllChannels = Object.keys(notificationOverrides).filter(
     (id) =>
       notificationOverrides[id]?.desktop === "everything" ||
       notificationOverrides[id]?.mobile === "everything",
   );
 
-  const desktopNotificationsEnabled: boolean = prefs.slock_desktop_notifications !== "off";
+  const desktopNotificationsEnabled = globalNotifications.desktopPushEnabled;
   const parsedSearchHistory = parse("slock_search_history");
   const searchHistory: string[] = Array.isArray(parsedSearchHistory) ? parsedSearchHistory : [];
   const parsedChannelTabs = parse("slock_channel_tabs");
@@ -118,22 +178,23 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     parsedChannelTabs && typeof parsedChannelTabs === "object" ? parsedChannelTabs : {};
 
   return {
-    emojiUse,
     channelFrecency,
+    channelTabs,
+    desktopNotificationsEnabled,
+    emojiUse,
+    globalNotifications,
+    highlightWords,
     mutedChannels,
     notifyAllChannels,
-    highlightWords,
-    desktopNotificationsEnabled,
     searchHistory,
-    channelTabs,
   };
 }
 
 export async function setStatus(text: string, emoji: string, expiration: number): Promise<void> {
   const profile = JSON.stringify({
-    status_text: text,
     status_emoji: emoji,
     status_expiration: expiration,
+    status_text: text,
   });
   const data = await callSlack("users.profile.set", { profile });
   if (!data.ok) throw new Error(data.error ?? "users.profile.set failed");
@@ -151,7 +212,7 @@ export async function setProfileFields(fields: {
   if (fields.pronouns !== undefined) profile.pronouns = fields.pronouns;
   if (fields.customFields) {
     profile.fields = Object.fromEntries(
-      Object.entries(fields.customFields).map(([id, value]) => [id, { value, alt: "" }]),
+      Object.entries(fields.customFields).map(([id, value]) => [id, { alt: "", value }]),
     );
   }
   const data = await callSlack("users.profile.set", { profile: JSON.stringify(profile) });
@@ -174,11 +235,12 @@ export async function setMutedChannels(channelIds: string[]): Promise<void> {
 }
 
 export async function setHighlightWords(words: string[]): Promise<void> {
-  const data = await callSlack("users.prefs.set", {
-    name: "highlight_words",
+  const data = await callSlack("users.prefs.setNotifications", {
+    global: "true",
+    name: "keywords",
     value: words.join(","),
   });
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.setNotifications failed");
 }
 
 export async function setDesktopNotificationsEnabled(enabled: boolean): Promise<void> {
@@ -208,7 +270,7 @@ export async function setChannelTabs(entries: Record<string, { type: string }[]>
 // dnd.info is a documented public method — the account's real snooze deadline.
 export async function fetchDndStatus(): Promise<number | null> {
   const data = await callSlack("dnd.info");
-  if (!data.ok || !data.snooze_enabled || !data.snooze_endtime) return null;
+  if (!(data.ok && data.snooze_enabled && data.snooze_endtime)) return null;
   return data.snooze_endtime * 1000;
 }
 
@@ -255,13 +317,13 @@ export async function fetchDrafts(): Promise<DraftEntry[]> {
   return drafts.map((d) => {
     const dest = d.destinations?.[0] ?? {};
     draftState.set(draftKey(dest.channel_id, dest.thread_ts), {
-      draftId: d.id,
       clientMsgId: d.client_msg_id,
+      draftId: d.id,
     });
     return {
       channelId: dest.channel_id,
-      threadTs: dest.thread_ts,
       text: d.blocks?.[0]?.text?.text ?? "",
+      threadTs: dest.thread_ts,
     };
   });
 }
@@ -273,8 +335,8 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
   if (!text.trim()) {
     if (existing) {
       await callSlack("drafts.delete", {
-        draft_id: existing.draftId,
         client_last_updated_ts: String(Date.now() / 1000),
+        draft_id: existing.draftId,
       });
       draftState.delete(key);
     }
@@ -285,14 +347,14 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
   const destination: Record<string, string> = { channel_id: channelId };
   if (threadTs) destination.thread_ts = threadTs;
   const params: Record<string, string> = {
-    blocks: JSON.stringify([{ type: "section", text: { type: "mrkdwn", text } }]),
-    destinations: JSON.stringify([destination]),
-    is_from_composer: "true",
+    blocks: JSON.stringify([{ text: { text, type: "mrkdwn" }, type: "section" }]),
     client_msg_id: clientMsgId,
+    destinations: JSON.stringify([destination]),
     file_ids: "[]",
+    is_from_composer: "true",
   };
   if (existing) params.draft_id = existing.draftId;
   const data = await callSlack("drafts.create", params);
   const draftId = data.draft?.id ?? data.id;
-  if (data.ok !== false && draftId) draftState.set(key, { draftId, clientMsgId });
+  if (data.ok !== false && draftId) draftState.set(key, { clientMsgId, draftId });
 }

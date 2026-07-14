@@ -2,26 +2,14 @@ import type { Message, MessageShortcut } from "@slock/slack-api";
 import { fuzzySearch, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
-import {
-  broadcastThreadReply,
-  copyMessageLink,
-  currentUser,
-  deleteMessageAt,
-  isMessagePinned,
-  markMessageUnread,
-  messageShortcuts,
-  REMINDER_OPTIONS,
-  remindAboutMessage,
-  runMessageShortcutAt,
-  togglePinMessage,
-} from "../../../lib/store";
+import { REMINDER_OPTIONS, store } from "../../../lib/store";
 
 export interface MessageActionsMenuItemsProps {
   channelId: string;
   msg: Message;
-  threadTs?: string;
-  onEditRequest: () => void;
   onClose: () => void;
+  onEditRequest: () => void;
+  threadTs?: string;
 }
 
 // The message "..." menu's contents — shared between the hover toolbar's more-actions
@@ -33,10 +21,10 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
   const [shortcutQuery, setShortcutQuery] = createSignal("");
   let shortcutsBtnRef: HTMLButtonElement | undefined;
 
-  const SHORTCUTS_MENU_HEIGHT = 280;
+  const ShortcutsMenuHeight = 280;
 
   const filteredShortcuts = createMemo(() => {
-    const all = messageShortcuts() ?? [];
+    const all: MessageShortcut[] = store.resources.messageShortcuts() ?? [];
     const q = shortcutQuery().trim();
     if (!q) return all;
     return fuzzySearch(all, { query: q, text: (s) => `${s.appName} ${s.name}` });
@@ -45,14 +33,14 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
   const toggleShortcuts = () => {
     if (!shortcutsOpen() && shortcutsBtnRef) {
       const rect = shortcutsBtnRef.getBoundingClientRect();
-      setShortcutsFlipUp(rect.bottom + SHORTCUTS_MENU_HEIGHT > window.innerHeight);
+      setShortcutsFlipUp(rect.bottom + ShortcutsMenuHeight > window.innerHeight);
     }
     if (shortcutsOpen()) setShortcutQuery("");
     setShortcutsOpen(!shortcutsOpen());
   };
 
-  const isMine = createMemo(() => currentUser()?.id === props.msg.userId);
-  const isPinned = createMemo(() => isMessagePinned(props.channelId, props.msg.ts));
+  const isMine = createMemo(() => store.users.currentUser()?.id === props.msg.userId);
+  const isPinned = createMemo(() => store.pinned.isMessagePinned(props.channelId, props.msg.ts));
   const canBroadcast = createMemo(
     () => !!props.threadTs && props.threadTs !== props.msg.ts && !props.msg.isBroadcast,
   );
@@ -66,22 +54,22 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const copyLink = () => {
     close();
-    copyMessageLink(props.channelId, props.msg.ts);
+    store.messages.copyMessageLink(props.channelId, props.msg.ts);
   };
 
   const togglePin = () => {
     close();
-    togglePinMessage(props.channelId, props.msg.ts);
+    store.pinned.togglePinMessage(props.channelId, props.msg.ts);
   };
 
   const broadcastToChannel = () => {
     close();
-    broadcastThreadReply(props.channelId, props.msg.ts);
+    store.messages.broadcastThreadReply(props.channelId, props.msg.ts);
   };
 
   const markUnread = () => {
     close();
-    markMessageUnread(props.channelId, props.msg.ts);
+    store.messages.markMessageUnread(props.channelId, props.msg.ts);
   };
 
   const copyText = () => {
@@ -91,12 +79,12 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const remind = (time: string) => {
     close();
-    remindAboutMessage(props.channelId, props.msg.ts, time);
+    store.messages.remindAboutMessage(props.channelId, props.msg.ts, time);
   };
 
   const runShortcut = (shortcut: MessageShortcut) => {
     close();
-    runMessageShortcutAt(props.channelId, props.msg.ts, shortcut);
+    store.resources.runMessageShortcutAt(props.channelId, props.msg.ts, shortcut);
   };
 
   const requestEdit = () => {
@@ -106,32 +94,33 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const requestDelete = () => {
     close();
-    if (confirm("Delete this message?")) deleteMessageAt(props.channelId, props.msg.ts);
+    if (confirm("Delete this message?"))
+      store.messages.deleteMessageAt(props.channelId, props.msg.ts);
   };
 
   return (
     <>
-      <button type="button" class="menu-item" onClick={copyLink}>
+      <button class="menu-item" onClick={copyLink} type="button">
         <Icon name="link" size={15} />
         Copy link
       </button>
-      <button type="button" class="menu-item" onClick={togglePin}>
+      <button class="menu-item" onClick={togglePin} type="button">
         <Icon name="pin" size={15} />
         {isPinned() ? "Unpin from channel" : "Pin to channel"}
       </button>
       <Show when={canBroadcast()}>
-        <button type="button" class="menu-item" onClick={broadcastToChannel}>
+        <button class="menu-item" onClick={broadcastToChannel} type="button">
           <Icon name="channel" size={15} />
           Also send to channel
         </button>
       </Show>
       <Menu
         class="message-more-item-wrap"
-        panelClass="menu-panel message-more-submenu"
-        open={remindOpen()}
         onClose={() => setRemindOpen(false)}
+        open={remindOpen()}
+        panelClass="menu-panel message-more-submenu"
         trigger={
-          <button type="button" class="menu-item" onClick={() => setRemindOpen(!remindOpen())}>
+          <button class="menu-item" onClick={() => setRemindOpen(!remindOpen())} type="button">
             <Icon name="clock" size={15} />
             Remind me
           </button>
@@ -139,53 +128,53 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
       >
         <For each={REMINDER_OPTIONS}>
           {(opt) => (
-            <button type="button" class="menu-item" onClick={() => remind(opt.time)}>
+            <button class="menu-item" onClick={() => remind(opt.time)} type="button">
               {opt.label}
             </button>
           )}
         </For>
       </Menu>
-      <button type="button" class="menu-item" onClick={markUnread}>
+      <button class="menu-item" onClick={markUnread} type="button">
         <Icon name="mark-as-unread" size={15} />
         Mark unread
       </button>
-      <button type="button" class="menu-item" onClick={copyText}>
+      <button class="menu-item" onClick={copyText} type="button">
         <Icon name="text" size={15} />
         Copy text
       </button>
-      <Show when={messageShortcuts()?.length}>
+      <Show when={store.resources.messageShortcuts()?.length}>
         <Menu
           class="message-more-item-wrap"
-          panelClass={`menu-panel message-shortcuts-menu${shortcutsFlipUp() ? " flip-up" : ""}`}
-          open={shortcutsOpen()}
           onClose={() => {
             setShortcutsOpen(false);
             setShortcutQuery("");
           }}
+          open={shortcutsOpen()}
+          panelClass={`menu-panel message-shortcuts-menu${shortcutsFlipUp() ? " flip-up" : ""}`}
           trigger={
-            <button ref={shortcutsBtnRef} type="button" class="menu-item" onClick={toggleShortcuts}>
+            <button class="menu-item" onClick={toggleShortcuts} ref={shortcutsBtnRef} type="button">
               <Icon name="apps" size={15} />
               More message shortcuts
             </button>
           }
         >
           <input
-            class="search-input"
-            type="text"
-            placeholder="Search shortcuts"
-            value={shortcutQuery()}
-            onInput={(e) => setShortcutQuery(e.currentTarget.value)}
             autofocus
+            class="search-input"
+            onInput={(e) => setShortcutQuery(e.currentTarget.value)}
+            placeholder="Search shortcuts"
+            type="text"
+            value={shortcutQuery()}
           />
-          <div class="message-shortcuts-list">
+          <div class="message-shortcuts-list flex-col">
             <For
               each={filteredShortcuts()}
               fallback={<div class="message-shortcuts-empty">No matching shortcuts</div>}
             >
               {(shortcut) => (
-                <button type="button" class="menu-item" onClick={() => runShortcut(shortcut)}>
-                  <Show when={shortcut.icon} fallback={<Icon name="apps" size={15} />}>
-                    {(icon) => <img class="menu-item-app-icon" src={icon()} alt="" />}
+                <button class="menu-item" onClick={() => runShortcut(shortcut)} type="button">
+                  <Show fallback={<Icon name="apps" size={15} />} when={shortcut.icon}>
+                    {(icon) => <img alt="" class="menu-item-app-icon" src={icon()} />}
                   </Show>
                   {shortcut.name}
                 </button>
@@ -195,11 +184,11 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         </Menu>
       </Show>
       <Show when={isMine()}>
-        <button type="button" class="menu-item" onClick={requestEdit}>
+        <button class="menu-item" onClick={requestEdit} type="button">
           <Icon name="edit" size={15} />
           Edit message
         </button>
-        <button type="button" class="menu-item danger" onClick={requestDelete}>
+        <button class="menu-item danger" onClick={requestDelete} type="button">
           <Icon name="trash" size={15} />
           Delete message
         </button>

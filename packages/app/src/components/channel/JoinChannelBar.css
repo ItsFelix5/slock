@@ -1,14 +1,11 @@
 .join-channel-bar {
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 14px 16px;
   margin: 0 20px 20px;
+  background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 18px;
-  background: var(--composer-bg);
-  flex-shrink: 0;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .join-channel-bar-text {
@@ -21,18 +18,14 @@
 }
 
 .join-channel-bar-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   flex-shrink: 0;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  border: none;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 8px 14px;
   font-size: 14px;
   font-weight: 700;
-  padding: 8px 14px;
-  cursor: pointer;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border-radius: 6px;
 }
 
 .join-channel-bar-btn:hover {

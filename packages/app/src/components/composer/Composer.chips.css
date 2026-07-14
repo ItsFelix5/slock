@@ -1,0 +1,136 @@
+.composer-input {
+  min-height: 30px;
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.35;
+  word-break: break-word;
+  cursor: text;
+}
+.composer-input.disabled {
+  cursor: default;
+}
+.composer-input:empty::before {
+  color: var(--text-dim);
+  pointer-events: none;
+  content: attr(data-placeholder);
+}
+.composer-input strong {
+  font-weight: 700;
+}
+.composer-input em {
+  font-style: italic;
+}
+.composer-input code {
+  padding: 1px 5px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.composer-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 3px;
+  font-weight: 700;
+  color: var(--mention-text);
+  user-select: none;
+  background: var(--mention-bg);
+  border-radius: 4px;
+}
+.composer-chip-link {
+  color: var(--mention-inaccessible-text);
+  background: var(--mention-inaccessible-bg);
+}
+.composer-date-chip {
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+}
+.composer-emoji-chip {
+  padding: 0;
+  vertical-align: middle;
+  background: none;
+}
+.composer-emoji-chip img {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+.composer-link {
+  color: #1d9bd1;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.composer-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+.composer-link-chip {
+  color: var(--mention-text);
+  text-decoration: none;
+  background: var(--mention-bg);
+}
+.composer-link-chip:hover {
+  opacity: 0.8;
+}
+.compose-link-editor {
+  top: unset;
+  bottom: 2em;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+  padding: 8px;
+}
+.compose-link-input {
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.compose-link-input::placeholder {
+  color: var(--text-dim);
+}
+.compose-link-buttons {
+  display: flex;
+  gap: 6px;
+}
+.compose-link-buttons button {
+  flex: 1;
+}
+.composer-pre {
+  padding: 8px 10px;
+  margin: 4px 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
+  word-break: break-word;
+  white-space: pre-wrap;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.composer-pre code {
+  padding: 0;
+  background: none;
+  border: none;
+}
+.composer-quote {
+  padding: 2px 0 2px 12px;
+  margin: 2px 0;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--border-strong);
+}
+.composer-list {
+  padding-left: 22px;
+  margin: 4px 0;
+}
+.composer-list li {
+  margin: 2px 0;
+}

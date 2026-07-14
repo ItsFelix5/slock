@@ -17,24 +17,24 @@ export default function SettingsDebugTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Icon browser</div>
-        <div class="settings-row-hint">
+        <div class="settings-row-hint text-dim">
           {ICON_NAMES.length} icons available. Click one to copy its name.
         </div>
         <input
           class="settings-status-input debug-icon-search"
-          type="text"
-          placeholder="Filter icons…"
-          value={query()}
           onInput={(e) => setQuery(e.currentTarget.value)}
+          placeholder="Filter icons…"
+          type="text"
+          value={query()}
         />
         <div class="debug-icon-grid">
           <For each={filtered()}>
             {(name) => (
               <button
-                type="button"
-                class="debug-icon-cell"
-                title={name}
+                class="debug-icon-cell btn-reset flex-col"
                 onClick={() => copy(name, name)}
+                title={name}
+                type="button"
               >
                 <Icon name={copiedKey() === name ? "check" : name} size={20} />
                 <span class="debug-icon-cell-name">{name}</span>

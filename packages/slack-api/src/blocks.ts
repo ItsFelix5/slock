@@ -3,52 +3,54 @@
 // fallback members below, so the renderer can show a graceful placeholder instead of crashing.
 
 export interface TextObject {
-  type: "plain_text" | "mrkdwn";
-  text: string;
   emoji?: boolean;
+  text: string;
+  type: "plain_text" | "mrkdwn";
   verbatim?: boolean;
 }
 
 export interface ConfirmationDialog {
-  title: TextObject;
-  text: TextObject;
   confirm: TextObject;
   deny: TextObject;
   style?: "primary" | "danger";
+  text: TextObject;
+  title: TextObject;
 }
 
 export interface Option {
-  text: TextObject;
-  value?: string;
   description?: TextObject;
+  text: TextObject;
   url?: string;
+  value?: string;
 }
 
 export interface ButtonElement {
-  type: "button";
-  text: TextObject;
   action_id?: string;
+  confirm?: ConfirmationDialog;
+  style?: "primary" | "danger";
+  text: TextObject;
+  type: "button";
   url?: string;
   value?: string;
-  style?: "primary" | "danger";
-  confirm?: ConfirmationDialog;
 }
 
 export interface ImageElement {
-  type: "image";
+  alt_text: string;
   image_url?: string;
   slack_file?: { url?: string; id?: string };
-  alt_text: string;
+  type: "image";
 }
 
 export interface OverflowElement {
-  type: "overflow";
   action_id?: string;
-  options: Option[];
   confirm?: ConfirmationDialog;
+  options: Option[];
+  type: "overflow";
 }
 
 export interface SelectElement {
+  action_id?: string;
+  placeholder?: TextObject;
   type:
     | "static_select"
     | "external_select"
@@ -60,21 +62,19 @@ export interface SelectElement {
     | "multi_users_select"
     | "multi_conversations_select"
     | "multi_channels_select";
-  placeholder?: TextObject;
-  action_id?: string;
 }
 
 export interface DatePickerElement {
-  type: "datepicker" | "timepicker" | "datetimepicker";
   action_id?: string;
-  placeholder?: TextObject;
   initial_date?: string;
+  placeholder?: TextObject;
+  type: "datepicker" | "timepicker" | "datetimepicker";
 }
 
 export interface CheckboxRadioElement {
-  type: "checkboxes" | "radio_buttons";
   action_id?: string;
   options: Option[];
+  type: "checkboxes" | "radio_buttons";
 }
 
 export interface UnknownElement {
@@ -92,95 +92,95 @@ export type BlockElement =
   | UnknownElement;
 
 export interface SectionBlock {
-  type: "section";
-  block_id?: string;
-  text?: TextObject;
-  fields?: TextObject[];
   accessory?: BlockElement;
+  block_id?: string;
+  fields?: TextObject[];
+  text?: TextObject;
+  type: "section";
 }
 
 export interface DividerBlock {
-  type: "divider";
   block_id?: string;
+  type: "divider";
 }
 
 export interface HeaderBlock {
-  type: "header";
   block_id?: string;
   text: TextObject;
+  type: "header";
 }
 
 export interface ContextBlock {
-  type: "context";
   block_id?: string;
   elements: (TextObject | ImageElement)[];
+  type: "context";
 }
 
 export interface ImageBlock {
-  type: "image";
+  alt_text: string;
   block_id?: string;
   image_url: string;
-  alt_text: string;
   title?: TextObject;
+  type: "image";
 }
 
 export interface ActionsBlock {
-  type: "actions";
   block_id?: string;
   elements: BlockElement[];
+  type: "actions";
 }
 
 export interface InputBlock {
-  type: "input";
   block_id?: string;
-  label: TextObject;
   element: BlockElement;
   hint?: TextObject;
+  label: TextObject;
   optional?: boolean;
+  type: "input";
 }
 
 // --- rich_text ---
 
 export interface RichTextStyle {
   bold?: boolean;
-  italic?: boolean;
-  strike?: boolean;
+  client_highlight?: boolean;
   code?: boolean;
   highlight?: boolean;
-  client_highlight?: boolean;
+  italic?: boolean;
+  strike?: boolean;
   unlink?: boolean;
 }
 
 export interface RichTextTextElement {
-  type: "text";
-  text: string;
   style?: RichTextStyle;
+  text: string;
+  type: "text";
 }
 
 export interface RichTextLinkElement {
-  type: "link";
-  url: string;
-  text?: string;
-  unsafe?: boolean;
   style?: RichTextStyle;
+  text?: string;
+  type: "link";
+  unsafe?: boolean;
+  url: string;
 }
 
 export interface RichTextEmojiElement {
-  type: "emoji";
   name: string;
+  type: "emoji";
   unicode?: string;
 }
 
 export interface RichTextUserElement {
+  style?: RichTextStyle;
   type: "user";
   user_id: string;
-  style?: RichTextStyle;
 }
 
 export interface RichTextChannelElement {
-  type: "channel";
   channel_id: string;
   style?: RichTextStyle;
+  type: "channel";
 }
 
 export interface RichTextUsergroupElement {
@@ -189,8 +189,8 @@ export interface RichTextUsergroupElement {
 }
 
 export interface RichTextBroadcastElement {
-  type: "broadcast";
   range: "here" | "channel" | "everyone";
+  type: "broadcast";
 }
 
 export interface RichTextColorElement {
@@ -199,11 +199,11 @@ export interface RichTextColorElement {
 }
 
 export interface RichTextDateElement {
-  type: "date";
-  timestamp: number;
-  format: string;
-  url?: string;
   fallback?: string;
+  format: string;
+  timestamp: number;
+  type: "date";
+  url?: string;
 }
 
 export type RichTextInlineElement =
@@ -218,29 +218,29 @@ export type RichTextInlineElement =
   | RichTextDateElement;
 
 export interface RichTextSection {
-  type: "rich_text_section";
   elements: RichTextInlineElement[];
+  type: "rich_text_section";
 }
 
 export interface RichTextList {
-  type: "rich_text_list";
-  style: "bullet" | "ordered";
+  border?: number;
   elements: RichTextSection[];
   indent?: number;
   offset?: number;
-  border?: number;
+  style: "bullet" | "ordered";
+  type: "rich_text_list";
 }
 
 export interface RichTextPreformatted {
-  type: "rich_text_preformatted";
-  elements: RichTextInlineElement[];
   border?: number;
+  elements: RichTextInlineElement[];
+  type: "rich_text_preformatted";
 }
 
 export interface RichTextQuote {
-  type: "rich_text_quote";
-  elements: RichTextInlineElement[];
   border?: number;
+  elements: RichTextInlineElement[];
+  type: "rich_text_quote";
 }
 
 export type RichTextSubBlock =
@@ -250,14 +250,14 @@ export type RichTextSubBlock =
   | RichTextQuote;
 
 export interface RichTextBlock {
-  type: "rich_text";
   block_id?: string;
   elements: RichTextSubBlock[];
+  type: "rich_text";
 }
 
 export interface UnknownBlock {
-  type: string;
   block_id?: string;
+  type: string;
   [key: string]: unknown;
 }
 

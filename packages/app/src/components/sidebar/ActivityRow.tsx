@@ -10,28 +10,16 @@ import {
   hasUserResponded,
   toggleActivityComplete,
 } from "../../lib/activityInteractions";
-import {
-  channelById,
-  channelDisplayName,
-  currentUser,
-  isActivityItemUnread,
-  isPingingActivity,
-  messagesByChannel,
-  threadMessages,
-  userById,
-} from "../../lib/store";
-
+import { channelDisplayName, isPingingActivity, store } from "../../lib/store";
 export interface ActivityRow {
-  key: string;
-  items: ActivityItem[];
   isThread: boolean;
+  items: ActivityItem[];
+  key: string;
 }
-
 export function rowTarget(row: ActivityRow) {
   const latest = row.items[0];
   return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
 }
-
 function verbFor(item: ActivityItem): string {
   switch (item.kind) {
     case "mention":
@@ -52,28 +40,23 @@ function verbFor(item: ActivityItem): string {
       return "reacted to your message in";
   }
 }
-
 const REPLIES_SHOWN_COLLAPSED = 3;
-
-// A single reply within an expanded thread group — its own tiny avatar,
-// author, snippet, and read state, so "N people replied" becomes something
-// you can actually triage without opening the thread.
 function ThreadReplyRow(props: { item: ActivityItem; onOpen: () => void }) {
-  const user = createMemo(() => userById(props.item.userId));
-  const unread = createMemo(() => isActivityItemUnread(props.item));
+  const user = createMemo(() => store.users.userById(props.item.userId));
+  const unread = createMemo(() => store.activity.isActivityItemUnread(props.item));
   return (
     <button
-      type="button"
-      class="activity-thread-reply"
+      class="activity-thread-reply btn-reset flex-align-center text-sm"
       classList={{ unread: unread() }}
       onClick={(e) => {
         e.stopPropagation();
         props.onOpen();
       }}
+      type="button"
     >
       <Show when={user()}>
         {(u) => (
-          <Avatar user={{ ...u(), avatarColor: u().avatarColor ?? "#616061" }} size="small" />
+          <Avatar size="small" user={{ ...u(), avatarColor: u().avatarColor ?? "#616061" }} />
         )}
       </Show>
       <span class="activity-thread-reply-author">{user()?.name ?? "Someone"}</span>
@@ -83,7 +66,6 @@ function ThreadReplyRow(props: { item: ActivityItem; onOpen: () => void }) {
     </button>
   );
 }
-
 export default function ActivityRow(props: {
   row: ActivityRow;
   onOpen: (channelId: string, ts: string) => void;
@@ -91,14 +73,18 @@ export default function ActivityRow(props: {
 }) {
   const [expanded, setExpanded] = createSignal(false);
   const latest = createMemo(() => props.row.items[0]);
-  const user = createMemo(() => userById(latest().userId));
-  const channel = createMemo(() => channelById(latest().channelId));
-  const isUnread = createMemo(() => props.row.items.some(isActivityItemUnread));
+  const user = createMemo(() => store.users.userById(latest().userId));
+  const channel = createMemo(() => store.channels.channelById(latest().channelId));
+  const isUnread = createMemo(() => props.row.items.some(store.activity.isActivityItemUnread));
   const isPinging = createMemo(() => isPingingActivity(latest()));
   const isComplete = createMemo(() =>
     hasUserReactedWith(
-      findActivityMessage(latest(), messagesByChannel, threadMessages),
-      currentUser()?.id,
+      findActivityMessage(
+        latest(),
+        store.messages.messagesByChannel,
+        store.messages.threadMessages,
+      ),
+      store.users.currentUser()?.id,
       COMPLETE_EMOJI,
     ),
   );
@@ -114,8 +100,6 @@ export default function ActivityRow(props: {
     return ids;
   });
   const isThreadGroup = createMemo(() => props.row.isThread && props.row.items.length > 1);
-
-  // Oldest-first so the reply list reads top-to-bottom like the thread itself.
   const orderedReplies = createMemo(() => [...props.row.items].reverse());
   const visibleReplies = createMemo(() =>
     expanded() ? orderedReplies() : orderedReplies().slice(-REPLIES_SHOWN_COLLAPSED),
@@ -123,81 +107,81 @@ export default function ActivityRow(props: {
   const hiddenReplyCount = createMemo(() =>
     Math.max(0, orderedReplies().length - visibleReplies().length),
   );
-
-  // The thread's root message, for "replying to: ..." context — best-effort,
-  // only available once that channel has been loaded into the store this
-  // session (see findActivityMessage).
   const rootMessage = createMemo(() => {
-    if (!isThreadGroup()) return undefined;
+    if (!isThreadGroup()) return;
     const threadTs = latest().threadTs;
-    if (!threadTs) return undefined;
-    return messagesByChannel[latest().channelId]?.find((m) => m.ts === threadTs);
+    if (!threadTs) return;
+    return store.messages.messagesByChannel[latest().channelId]?.find((m) => m.ts === threadTs);
   });
-
   const reacted = createMemo(() =>
     hasUserReacted(
-      findActivityMessage(latest(), messagesByChannel, threadMessages),
-      currentUser()?.id,
+      findActivityMessage(
+        latest(),
+        store.messages.messagesByChannel,
+        store.messages.threadMessages,
+      ),
+      store.users.currentUser()?.id,
     ),
   );
   const responded = createMemo(() =>
-    hasUserResponded(latest(), messagesByChannel, threadMessages, currentUser()?.id),
+    hasUserResponded(
+      latest(),
+      store.messages.messagesByChannel,
+      store.messages.threadMessages,
+      store.users.currentUser()?.id,
+    ),
   );
-
   const markRead = (e: MouseEvent) => {
     e.stopPropagation();
     props.onMarkRead(latest().channelId, latest().ts);
   };
-
   const toggleComplete = (e: MouseEvent) => {
     e.stopPropagation();
     toggleActivityComplete(latest(), isComplete()).catch(() => {});
   };
-
   const formatInteractorNames = (ids: string[]) => {
     const names = ids.map((id) =>
-      id === currentUser()?.id ? "you" : (userById(id)?.name ?? "someone"),
+      id === store.users.currentUser()?.id ? "you" : (store.users.userById(id)?.name ?? "someone"),
     );
     return names.reduce(
       (prev, curr, i, a) => (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
       "",
     );
   };
-
   return (
     <div class="activity-item-wrap">
       <button
-        type="button"
-        class="activity-item"
+        class="activity-item btn-reset flex-align-center"
         classList={{
-          unread: isUnread(),
-          pinging: isPinging(),
-          complete: isComplete(),
           "activity-item-thread": props.row.isThread,
+          complete: isComplete(),
+          pinging: isPinging(),
+          unread: isUnread(),
         }}
         onClick={() => props.onOpen(latest().channelId, rowTarget(props.row).ts)}
+        type="button"
       >
         <Show
-          when={isThreadGroup()}
           fallback={
             <Show when={user()}>
               {(u) => (
-                <Avatar user={{ ...u(), avatarColor: u().avatarColor ?? "#616061" }} size="small" />
+                <Avatar size="small" user={{ ...u(), avatarColor: u().avatarColor ?? "#616061" }} />
               )}
             </Show>
           }
+          when={isThreadGroup()}
         >
           <AvatarStack
+            title={() => formatInteractorNames(replierIds())}
             users={replierIds()
               .slice(0, 3)
-              .map((id) => userById(id))
+              .map((id) => store.users.userById(id))
               .filter((u) => u !== undefined)}
-            title={() => formatInteractorNames(replierIds())}
           />
         </Show>
         <div class="activity-body">
           <div class="activity-headline">
-            <Show when={isThreadGroup()} fallback={<strong>{user()?.name ?? "Someone"}</strong>}>
+            <Show fallback={<strong>{user()?.name ?? "Someone"}</strong>} when={isThreadGroup()}>
               <strong>{formatInteractorNames(replierIds())}</strong>
             </Show>
             <span class="activity-verb">{verbFor(latest())}</span>
@@ -230,14 +214,13 @@ export default function ActivityRow(props: {
               </span>
             </Show>
           </div>
-
           <Show
-            when={isThreadGroup()}
             fallback={
               <div class="activity-snippet">
                 <Mrkdwn text={latest().text} />
               </div>
             }
+            when={isThreadGroup()}
           >
             <Show when={rootMessage()}>
               {(root) => (
@@ -258,19 +241,18 @@ export default function ActivityRow(props: {
             </div>
             <Show when={hiddenReplyCount() > 0}>
               <button
-                type="button"
-                class="activity-show-more"
+                class="activity-show-more btn-reset link-action"
                 onClick={(e) => {
                   e.stopPropagation();
                   setExpanded(true);
                 }}
+                type="button"
               >
                 Show {hiddenReplyCount()} more {hiddenReplyCount() === 1 ? "reply" : "replies"}
               </button>
             </Show>
           </Show>
-
-          <div class="activity-time">
+          <div class="activity-time text-dim text-xs">
             {new Date(latest().time).toLocaleString([], {
               dateStyle: "medium",
               timeStyle: "short",
@@ -279,20 +261,20 @@ export default function ActivityRow(props: {
         </div>
       </button>
       <button
-        type="button"
-        class="activity-complete-toggle"
+        class="activity-complete-toggle btn-reset flex-center text-dim"
         classList={{ active: isComplete() }}
-        title={isComplete() ? "Mark as not complete" : "Mark as complete"}
         onClick={toggleComplete}
+        title={isComplete() ? "Mark as not complete" : "Mark as complete"}
+        type="button"
       >
         <Icon name={isComplete() ? "check-circle-filled" : "check-circle"} size={15} />
       </button>
-      <Show when={isUnread()} fallback={<span class="activity-unread-dot" />}>
+      <Show fallback={<span class="activity-unread-dot" />} when={isUnread()}>
         <button
-          type="button"
           class="activity-unread-dot unread"
-          title="Mark as read"
           onClick={markRead}
+          title="Mark as read"
+          type="button"
         />
       </Show>
     </div>

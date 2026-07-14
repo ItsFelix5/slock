@@ -9,10 +9,6 @@ function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   return `${proto}://${location.host}/ws`;
 }
-
-// A single persistent socket to our own server, which relays Slack's RTM
-// websocket (or, if that's unavailable for this workspace, its own fallback
-// poll) — the browser itself never polls on an interval.
 export function createRealtimeSlice(deps: {
   activeView: () => View | null;
   activeThread: () => ThreadRef | null;
@@ -20,9 +16,11 @@ export function createRealtimeSlice(deps: {
   channels: () => Channel[];
   patchChannel: (id: string, patch: Partial<Channel>) => void;
   setUnreadChannelIds: (id: string, unread: boolean) => void;
+  setLastReadByChannel: (id: string, ts: number) => void;
   setPresenceOverrides: (id: string, presence: "active" | "away") => void;
   invalidateUser: (id: string) => void;
   recordTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
+  clearTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
   allDirectMessages: () => DirectMessage[];
   setDmLastActivity: (id: string, ts: number) => void;
   closedDmIds: Record<string, boolean>;
@@ -30,6 +28,7 @@ export function createRealtimeSlice(deps: {
   isChannelNotifyAll: (id: string) => boolean;
   matchingHighlightWord: (text: string) => string | undefined;
   pushActivity: (item: ActivityItem) => void;
+  setGatewayActivityBadgeCounts: (activity: any) => void;
   messagesByChannel: Record<string, Message[]>;
   setMessagesByChannel: (...args: any[]) => void;
   threadMessages: Record<string, Message[]>;
@@ -52,32 +51,24 @@ export function createRealtimeSlice(deps: {
   ) => void;
 }) {
   const [rtmConnected, setRtmConnected] = createSignal(false);
-
   let socket: WebSocket | null = null;
   let reconnectDelay = 1000;
-  const MAX_RECONNECT_DELAY = 20000;
-
+  const MaxReconnectDelay = 20000;
   function send(payload: unknown) {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(payload));
   }
-
   function handleIncomingMessage(payload: any) {
     const subtype = payload.subtype;
     const channel = payload.channel;
-
     if (subtype === "message_changed") {
       const updated = payload.message;
       if (!updated?.ts) return;
-      // Broadcasting a reply (ours or another member's) goes through
-      // chat.update under the hood, same as a text edit, so it arrives here
-      // rather than as a fresh "message" event — mirror it into the channel
-      // list the same way a live broadcast would.
       const isBroadcast = updated.subtype === "thread_broadcast";
       deps.patchMessage(channel, updated.ts, {
-        text: updated.text,
         blocks: updated.blocks,
         edited: !!updated.edited,
         isBroadcast,
+        text: updated.text,
       });
       if (isBroadcast && deps.loadedChannels.has(channel)) {
         const msg = deps
@@ -87,35 +78,25 @@ export function createRealtimeSlice(deps: {
       }
       return;
     }
-
     if (subtype === "message_deleted") {
       const ts = payload.deleted_ts;
       if (!ts) return;
-      // Slack removes deleted messages outright; we keep the row as a red
-      // tombstone instead so the conversation doesn't silently reshuffle.
       deps.patchMessage(channel, ts, { deleted: true });
       return;
     }
-
     const ts = payload.ts;
     if (!ts) return;
     const msg = mapMessage(payload);
-
-    // Ephemeral messages (e.g. slash command responses) are pushed only to
-    // the user they're meant for, never land in real history, and shouldn't
-    // affect unread/activity state — just surface them in the channel the
-    // user is currently looking at.
     if (msg.isEphemeral) {
       if (deps.loadedChannels.has(channel)) {
         deps.setMessagesByChannel(channel, (existing: Message[] = []) => [...existing, msg]);
       }
       return;
     }
-
     const me = deps.currentUser();
     const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
     let threadRelevant = false;
-
+    deps.clearTyping(channel, isThreadReply ? payload.thread_ts : undefined, msg.userId);
     if (isThreadReply) {
       if (deps.loadedThreads.has(payload.thread_ts)) {
         deps.setThreadMessages(payload.thread_ts, (existing: Message[] = []) =>
@@ -136,10 +117,6 @@ export function createRealtimeSlice(deps: {
         deps.threadMessages[payload.thread_ts]?.some((m) => m.userId === me.id)
       )
         threadRelevant = true;
-      // A reply sent with "Also send to channel" checked arrives as a
-      // regular new "message" event (unlike broadcasting an existing reply
-      // after the fact, which is a chat.update / message_changed) — it still
-      // belongs in the channel's own timeline alongside the thread.
       if (subtype === "thread_broadcast" && deps.loadedChannels.has(channel)) {
         deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
           deps.mergeIncomingMessage(existing, msg),
@@ -150,16 +127,12 @@ export function createRealtimeSlice(deps: {
         deps.mergeIncomingMessage(existing, msg),
       );
     }
-
     const activeId = deps.activeView()?.id;
     if (channel !== activeId) deps.setUnreadChannelIds(channel, true);
-
     if (deps.allDirectMessages().some((d) => d.id === channel)) {
       deps.setDmLastActivity(channel, Date.now());
-      // A new message on a DM the user closed means it's active again.
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
     }
-
     if (me && msg.userId !== me.id) {
       const activity = classifyIncomingActivity(
         channel,
@@ -183,17 +156,14 @@ export function createRealtimeSlice(deps: {
       }
     }
   }
-
   function connectSocket() {
     socket = new WebSocket(wsUrl());
-
     socket.addEventListener("open", () => {
       reconnectDelay = 1000;
-      for (const channel of deps.loadedChannels) send({ type: "watch_channel", channel });
+      for (const channel of deps.loadedChannels) send({ channel, type: "watch_channel" });
       const thread = deps.activeThread();
-      if (thread) send({ type: "watch_thread", channel: thread.channelId, ts: thread.ts });
+      if (thread) send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
     });
-
     socket.addEventListener("message", (event) => {
       let payload: any;
       try {
@@ -201,7 +171,6 @@ export function createRealtimeSlice(deps: {
       } catch {
         return;
       }
-
       switch (payload.type) {
         case "_status":
           setRtmConnected(!!payload.connected);
@@ -232,9 +201,6 @@ export function createRealtimeSlice(deps: {
           break;
         case "reaction_added":
         case "reaction_removed":
-          // Our own reacts/unreacts are already applied optimistically in
-          // reactToMessage — the gateway echoes them back over the socket like
-          // any other client's, so re-applying here double-counted them.
           if (
             payload.item?.channel &&
             payload.item?.ts &&
@@ -266,6 +232,18 @@ export function createRealtimeSlice(deps: {
             deps.setUnreadChannelIds(id, unread);
             deps.patchChannel(id, { mentions });
           }
+          deps.setGatewayActivityBadgeCounts(payload.activity_v2);
+          break;
+        }
+        case "channel_marked": {
+          // Sent when Slack advances this account's read cursor, including from
+          // another client. The event's zero counts are authoritative, even if
+          // we did not receive the corresponding conversations.mark response.
+          if (!payload.channel) break;
+          deps.setUnreadChannelIds(payload.channel, false);
+          deps.patchChannel(payload.channel, { mentions: 0 });
+          const readTs = Number(payload.ts) * 1000;
+          if (Number.isFinite(readTs)) deps.setLastReadByChannel(payload.channel, readTs);
           break;
         }
         case "user_invalidated": {
@@ -277,28 +255,23 @@ export function createRealtimeSlice(deps: {
           break;
       }
     });
-
     const reconnect = () => {
       socket = null;
       setTimeout(connectSocket, reconnectDelay);
-      reconnectDelay = Math.min(reconnectDelay * 1.7, MAX_RECONNECT_DELAY);
+      reconnectDelay = Math.min(reconnectDelay * 1.7, MaxReconnectDelay);
     };
     socket.addEventListener("close", reconnect);
     socket.addEventListener("error", () => socket?.close());
   }
-
   connectSocket();
   onCleanup(() => socket?.close());
-
   createEffect(() => {
     const view = deps.activeView();
-    if (view) send({ type: "watch_channel", channel: view.id });
+    if (view) send({ channel: view.id, type: "watch_channel" });
   });
-
   createEffect(() => {
     const thread = deps.activeThread();
-    if (thread) send({ type: "watch_thread", channel: thread.channelId, ts: thread.ts });
+    if (thread) send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
   });
-
   return { rtmConnected, send };
 }

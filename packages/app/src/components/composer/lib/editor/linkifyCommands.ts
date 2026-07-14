@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to link parsing.
 import { createLinkSpan } from "../linkChip";
 import { placeCaretInText } from "../richtext";
 import type { EditorRefHandle } from "./editorRef";
@@ -44,12 +45,15 @@ function linkifyTextNode(node: Text, caretOffset: number | null, re: RegExp): bo
 
 export function createLinkifyCommands(
   ref: EditorRefHandle,
-  opts: { currentTextContext: () => { node: Text; offset: number } | null; syncFromDom: () => void },
+  opts: {
+    currentTextContext: () => { node: Text; offset: number } | null;
+    syncFromDom: () => void;
+  },
 ) {
   function maybeLinkifyTypedUrl(): boolean {
     const ctx = opts.currentTextContext();
     const el = ref.get();
-    if (!ctx || !el?.contains(ctx.node)) return false;
+    if (!(ctx && el?.contains(ctx.node))) return false;
     const changed = linkifyTextNode(ctx.node, ctx.offset, TYPED_URL_RE);
     if (changed) opts.syncFromDom();
     return changed;
@@ -67,10 +71,11 @@ export function createLinkifyCommands(
     for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
     let changed = false;
     for (const node of nodes) {
-      if (linkifyTextNode(node, node === caretNode ? caretOffset : null, FINAL_URL_RE)) changed = true;
+      if (linkifyTextNode(node, node === caretNode ? caretOffset : null, FINAL_URL_RE))
+        changed = true;
     }
     if (changed) opts.syncFromDom();
   }
 
-  return { maybeLinkifyTypedUrl, linkifyAll };
+  return { linkifyAll, maybeLinkifyTypedUrl };
 }

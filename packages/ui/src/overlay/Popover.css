@@ -5,12 +5,12 @@
 
 .popover {
   position: absolute;
+  z-index: 10;
+  padding: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   box-shadow: var(--shadow-popover);
-  padding: 4px;
-  z-index: 10;
 }
 
 .popover-bottom {
@@ -26,13 +26,13 @@
 }
 
 .popover-left {
-  right: 100%;
   top: 0;
+  right: 100%;
   margin-right: 4px;
 }
 
 .popover-right {
-  left: 100%;
   top: 0;
+  left: 100%;
   margin-left: 4px;
 }

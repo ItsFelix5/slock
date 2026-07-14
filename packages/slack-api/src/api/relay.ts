@@ -6,9 +6,9 @@
 // same-origin request, including this one, so there's no creds plumbing here.
 export async function callSlack(method: string, params: Record<string, string> = {}): Promise<any> {
   const res = await fetch(`/slack/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify(params),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
   return res.json();
 }
@@ -21,9 +21,9 @@ export async function callSlackEdge(
   params: Record<string, unknown> = {},
 ): Promise<any> {
   const res = await fetch(`/slack-edge/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify(params),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
   return res.json();
 }
@@ -39,6 +39,7 @@ export async function callSlackEdge(
 // in the first place — those still hotlink fine, and the server's own host
 // allowlist would 403 them anyway, so only rewrite URLs on Slack's domains.
 const SLACK_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
+const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
 
 export function fileProxyUrl(url: string): string {
   try {
@@ -87,7 +88,7 @@ export function getCachedWorkspaceDomain(): string | null {
 // "*.slack.com" form — never both, which would produce a malformed
 // "*.enterprise.enterprise.slack.com" host.
 export function userProfileUrl(domain: string, userId: string): string {
-  const sub = domain.replace(/(\.enterprise)?\.slack\.com$/, "");
+  const sub = domain.replace(SLACK_DOMAIN_SUFFIX_RE, "");
   return `https://${sub}.enterprise.slack.com/team/${userId}`;
 }
 
@@ -113,9 +114,9 @@ export async function getConfig(): Promise<{ domain: string | null; configured: 
 // server process's lifetime).
 export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch("/auth", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify(raw),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
   return res.json();
 }

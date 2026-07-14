@@ -1,8 +1,8 @@
 import { type Gemoji, gemoji } from "gemoji";
 
 export interface EmojiCategory {
-  label: string;
   entries: Gemoji[];
+  label: string;
 }
 
 // Grouped straight from gemoji's own category field (real Unicode CLDR groups)
@@ -18,5 +18,5 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = (() => {
     }
     byCategory.get(entry.category)?.push(entry);
   }
-  return order.map((label) => ({ label, entries: byCategory.get(label) ?? [] }));
+  return order.map((label) => ({ entries: byCategory.get(label) ?? [], label }));
 })();

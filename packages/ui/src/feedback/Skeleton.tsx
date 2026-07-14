@@ -1,10 +1,10 @@
 import "./Skeleton.css";
 
 export interface SkeletonProps {
-  width?: string | number;
+  circle?: boolean;
   height?: string | number;
   radius?: string | number;
-  circle?: boolean;
+  width?: string | number;
 }
 
 export default function Skeleton(props: SkeletonProps) {
@@ -15,9 +15,9 @@ export default function Skeleton(props: SkeletonProps) {
     <div
       class="skeleton"
       style={{
-        width: toCss(props.width, "100%"),
-        height: toCss(props.height, "1em"),
         "border-radius": props.circle ? "50%" : toCss(props.radius, "4px"),
+        height: toCss(props.height, "1em"),
+        width: toCss(props.width, "100%"),
       }}
     />
   );

@@ -13,7 +13,7 @@ function splitParts(text: string): Part[] {
   for (const match of text.matchAll(EMOJI_RE)) {
     const index = match.index ?? 0;
     if (index > lastIndex) result.push({ type: "text", value: text.slice(lastIndex, index) });
-    result.push({ type: "emoji", name: match[1] });
+    result.push({ name: match[1], type: "emoji" });
     lastIndex = index + match[0].length;
   }
   if (lastIndex < text.length) result.push({ type: "text", value: text.slice(lastIndex) });
@@ -32,11 +32,11 @@ export default function EmojiText(props: { text: string }) {
         const unicode = resolveStandardEmoji(part.name);
         return (
           <Show
-            when={url()}
             fallback={unicode ? <span class="emoji">{unicode}</span> : `:${part.name}:`}
+            when={url()}
           >
             {(u) => (
-              <img class="emoji-img" src={u()} alt={`:${part.name}:`} title={`:${part.name}:`} />
+              <img alt={`:${part.name}:`} class="emoji-img" src={u()} title={`:${part.name}:`} />
             )}
           </Show>
         );

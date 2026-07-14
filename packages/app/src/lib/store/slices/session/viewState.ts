@@ -5,8 +5,8 @@ import type { Nav, ThreadRef, View } from "../types";
 
 interface NavSnapshot {
   nav: Nav;
-  view: View | null;
   thread: ThreadRef | null;
+  view: View | null;
 }
 
 // DM conversation ids are Slack "D..." ims (see bootstrap.ts); everything
@@ -14,7 +14,7 @@ interface NavSnapshot {
 // to tell channel and DM URLs apart without a /channel/ or /dm/ segment.
 function parseNavPath(url: URL): NavSnapshot {
   const segs = url.pathname.split("/").filter(Boolean);
-  if (segs[0] === "search") return { nav: "search", view: null, thread: null };
+  if (segs[0] === "search") return { nav: "search", thread: null, view: null };
 
   let nav: Nav = "home";
   const first = segs[0];
@@ -24,12 +24,12 @@ function parseNavPath(url: URL): NavSnapshot {
   }
 
   const id = segs[0];
-  const view: View | null = id ? { kind: id.startsWith("D") ? "dm" : "channel", id } : null;
+  const view: View | null = id ? { id, kind: id.startsWith("D") ? "dm" : "channel" } : null;
 
   const ts = url.searchParams.get("t");
   const thread: ThreadRef | null = ts && view ? { channelId: view.id, ts } : null;
 
-  return { nav, view, thread };
+  return { nav, thread, view };
 }
 
 function navSnapshotToPath(snap: NavSnapshot): string {
@@ -63,8 +63,8 @@ export function createViewStateSlice(deps: {
     if (explicit) return explicit;
     const data = deps.bootstrap();
     if (!data) return null;
-    if (data.channels[0]) return { kind: "channel", id: data.channels[0].id };
-    if (data.directMessages[0]) return { kind: "dm", id: data.directMessages[0].id };
+    if (data.channels[0]) return { id: data.channels[0].id, kind: "channel" };
+    if (data.directMessages[0]) return { id: data.directMessages[0].id, kind: "dm" };
     return null;
   });
 
@@ -78,7 +78,7 @@ export function createViewStateSlice(deps: {
   let lastNavSerialized: string | null = null;
 
   function currentNavSnapshot(): NavSnapshot {
-    return { nav: nav(), view: selected(), thread: activeThread() };
+    return { nav: nav(), thread: activeThread(), view: selected() };
   }
 
   function applyNavSnapshot(snap: NavSnapshot) {
@@ -113,16 +113,16 @@ export function createViewStateSlice(deps: {
   }
 
   return {
-    selected,
-    setSelected,
-    nav,
-    setNav,
-    searchScreenQuery,
-    setSearchScreenQuery,
-    searchScreenFilters,
-    setSearchScreenFilters,
     activeThread,
-    setActiveThread,
     activeView,
+    nav,
+    searchScreenFilters,
+    searchScreenQuery,
+    selected,
+    setActiveThread,
+    setNav,
+    setSearchScreenFilters,
+    setSearchScreenQuery,
+    setSelected,
   };
 }

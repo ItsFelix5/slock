@@ -9,6 +9,7 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
+import * as frecency from "../../../frecency";
 import { actionFeedback } from "../feedback";
 
 // Escapes regex metacharacters in a user-typed keyword before building a
@@ -81,6 +82,28 @@ export function createPreferencesSlice(deps: {
     return !!notifyAllChannelIds[channelId];
   }
 
+  async function persistHighlightWords(words: string[]) {
+    const previous = highlightWords();
+    setHighlightWordsSignal(words);
+    try {
+      await setHighlightWordsApi(words);
+    } catch (err) {
+      console.error("Failed to set pingwords", err);
+      actionFeedback.flash("pingwords", "Failed to update pingwords.", "error");
+      setHighlightWordsSignal(previous);
+    }
+  }
+
+  async function addHighlightWord(word: string) {
+    const trimmed = word.trim();
+    if (!trimmed || highlightWords().some((w) => w.toLowerCase() === trimmed.toLowerCase())) return;
+    await persistHighlightWords([...highlightWords(), trimmed]);
+  }
+
+  async function removeHighlightWord(word: string) {
+    await persistHighlightWords(highlightWords().filter((wordToRemove) => wordToRemove !== word));
+  }
+
   async function toggleNotifyAllChannel(channelId: string) {
     const next = !isChannelNotifyAll(channelId);
     setNotifyAllChannelIds(channelId, next);
@@ -103,28 +126,6 @@ export function createPreferencesSlice(deps: {
     deps.channels().filter((c) => notifyAllChannelIds[c.id]),
   );
 
-  async function persistHighlightWords(words: string[]) {
-    const previous = highlightWords();
-    setHighlightWordsSignal(words);
-    try {
-      await setHighlightWordsApi(words);
-    } catch (err) {
-      console.error("Failed to set pingwords", err);
-      actionFeedback.flash("pingwords", "Failed to update pingwords.", "error");
-      setHighlightWordsSignal(previous);
-    }
-  }
-
-  async function addHighlightWord(word: string) {
-    const trimmed = word.trim();
-    if (!trimmed || highlightWords().some((w) => w.toLowerCase() === trimmed.toLowerCase())) return;
-    await persistHighlightWords([...highlightWords(), trimmed]);
-  }
-
-  async function removeHighlightWord(word: string) {
-    await persistHighlightWords(highlightWords().filter((w) => w !== word));
-  }
-
   // The keyword that pings via <text> the way an @mention does — first match
   // wins, case-insensitive, on a whole word (so "cat" doesn't fire on
   // "concatenate"). Mirrors Slack's own "highlight words" notification setting.
@@ -138,6 +139,9 @@ export function createPreferencesSlice(deps: {
     const until = dndSnoozedUntil();
     return !!until && until > Date.now();
   }
+
+  const frecencyScore = (id: string) => frecency.frecencyScore(deps.userPrefs(), id);
+  const emojiUseScore = (name: string) => frecency.emojiUseScore(deps.userPrefs(), name);
 
   async function snoozeDnd(minutes: number) {
     const until = Date.now() + minutes * 60_000;
@@ -160,20 +164,22 @@ export function createPreferencesSlice(deps: {
   }
 
   return {
-    notifyAllChannelIds,
-    isChannelMuted,
-    toggleMuteChannel,
-    isChannelNotifyAll,
-    toggleNotifyAllChannel,
-    mutedChannels,
-    notifyAllChannels,
-    highlightWords,
     addHighlightWord,
-    removeHighlightWord,
-    matchingHighlightWord,
-    isDndActive,
     dndSnoozedUntil,
-    snoozeDnd,
     endDnd,
+    emojiUseScore,
+    frecencyScore,
+    highlightWords,
+    isChannelMuted,
+    isChannelNotifyAll,
+    isDndActive,
+    matchingHighlightWord,
+    mutedChannels,
+    notifyAllChannelIds,
+    notifyAllChannels,
+    removeHighlightWord,
+    snoozeDnd,
+    toggleMuteChannel,
+    toggleNotifyAllChannel,
   };
 }

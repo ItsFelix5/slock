@@ -1,29 +1,16 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import {
-  actionFeedback,
-  channelById,
-  channelDisplayName,
-  closePinnedPanel,
-  dmById,
-  openPinnedPanel,
-  openThread,
-  pinnedMessagesCache,
-  pinnedPanelChannelId,
-  setActiveView,
-  togglePinMessage,
-  userById,
-} from "../../lib/store";
+import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "./PinnedPanel.css";
 
 export default function PinnedPanel() {
-  const channelId = pinnedPanelChannelId;
-  useEscapeClose(closePinnedPanel);
+  const channelId = store.pinned.pinnedPanelChannelId;
+  useEscapeClose(store.pinned.closePinnedPanel);
 
   const pins = createMemo(() => {
     const id = channelId();
-    return id ? (pinnedMessagesCache[id] ?? []) : [];
+    return id ? (store.pinned.pinnedMessagesCache[id] ?? []) : [];
   });
 
   // Generic conversation id — could be a channel or a DM, so every lookup here
@@ -31,60 +18,60 @@ export default function PinnedPanel() {
   const title = () => {
     const id = channelId();
     if (!id) return "";
-    const channel = channelById(id);
+    const channel = store.channels.channelById(id);
     if (channel) return `Pinned in #${channelDisplayName(channel)}`;
-    const dm = dmById(id);
-    return `Pinned in ${(dm && userById(dm.userId)?.name) ?? "conversation"}`;
+    const dm = store.dms.dmById(id);
+    return `Pinned in ${(dm && store.users.userById(dm.userId)?.name) ?? "conversation"}`;
   };
 
   const goTo = (ts: string) => {
     const id = channelId();
     if (!id) return;
-    setActiveView({ kind: channelById(id) ? "channel" : "dm", id });
-    openThread(id, ts);
-    closePinnedPanel();
+    store.viewState.setActiveView({ id, kind: store.channels.channelById(id) ? "channel" : "dm" });
+    store.viewState.openThread(id, ts);
+    store.pinned.closePinnedPanel();
   };
 
   const unpin = async (id: string, ts: string) => {
-    await togglePinMessage(id, ts);
-    openPinnedPanel(id); // refresh the list so the unpinned item drops off immediately
+    await store.pinned.togglePinMessage(id, ts);
+    store.pinned.openPinnedPanel(id); // refresh the list so the unpinned item drops off immediately
   };
 
   return (
     <Show when={channelId()}>
       {(id) => (
-        <Overlay align="top" onClose={closePinnedPanel}>
-          <div class="pinned-panel-card">
-            <PanelHeader onClose={closePinnedPanel}>
+        <Overlay align="top" onClose={store.pinned.closePinnedPanel}>
+          <div class="pinned-panel-card surface-card">
+            <PanelHeader onClose={store.pinned.closePinnedPanel}>
               <div class="pinned-panel-title">{title()}</div>
             </PanelHeader>
             <div class="pinned-panel-list">
               <For
                 each={pins()}
-                fallback={<div class="pinned-panel-empty">No pinned messages yet.</div>}
+                fallback={<div class="pinned-panel-empty empty-state">No pinned messages yet.</div>}
               >
                 {(pin) => (
                   <Show when={pin.message}>
                     {(msg) => (
                       <div class="pinned-panel-item">
                         <button
-                          type="button"
-                          class="pinned-panel-item-main"
+                          class="pinned-panel-item-main btn-reset"
                           onClick={() => goTo(pin.ts)}
+                          type="button"
                         >
                           <Mrkdwn text={msg().text} />
                         </button>
                         <button
-                          type="button"
                           class="pinned-panel-unpin"
-                          title="Unpin"
                           onClick={() => id() && unpin(id(), pin.ts)}
+                          title="Unpin"
+                          type="button"
                         >
                           Unpin
                         </button>
                         <InlineFeedback
-                          feedback={actionFeedback.get(pin.ts)}
                           class="pinned-panel-feedback"
+                          feedback={actionFeedback.get(pin.ts)}
                         />
                       </div>
                     )}

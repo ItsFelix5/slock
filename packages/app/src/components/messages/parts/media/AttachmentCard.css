@@ -1,20 +1,18 @@
 .attachment-card {
   max-width: 460px;
-  margin-top: 6px;
   padding: 8px 12px;
-  border-left: 3px solid var(--border-strong);
-  background: var(--composer-bg);
-  border-radius: 0 6px 6px 0;
+  margin-top: 6px;
   font-size: 14px;
+  background: var(--composer-bg);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 0 6px 6px 0;
 }
 
 .attachment-author {
-  display: flex;
-  align-items: center;
   gap: 6px;
+  margin-bottom: 2px;
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 2px;
 }
 
 .attachment-author-icon {
@@ -24,8 +22,8 @@
 }
 
 .attachment-title {
-  font-weight: 700;
   margin-bottom: 2px;
+  font-weight: 700;
 }
 
 .attachment-title-link {
@@ -39,8 +37,8 @@
 
 .attachment-text {
   color: var(--text-secondary);
-  white-space: pre-wrap;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .attachment-fields {
@@ -68,25 +66,16 @@
   font-size: 13px;
 }
 
-.attachment-image {
-  max-width: 240px;
-  max-height: 200px;
-  border-radius: 6px;
-  margin-top: 6px;
-  display: block;
-}
-
+.attachment-image,
 .attachment-video {
+  display: block;
   max-width: 240px;
   max-height: 200px;
-  border-radius: 6px;
   margin-top: 6px;
-  display: block;
+  border-radius: 6px;
 }
 
 .attachment-footer {
-  display: flex;
-  align-items: center;
   gap: 6px;
   margin-top: 6px;
   font-size: 12px;
