@@ -9,8 +9,8 @@ import {
   hasUserReactedWith,
   hasUserResponded,
   toggleActivityComplete,
-} from "../../lib/activityInteractions";
-import { channelDisplayName, isPingingActivity, store } from "../../lib/store";
+} from "../../../lib/activityInteractions";
+import { channelDisplayName, isPingingActivity, store } from "../../../lib/store";
 export interface ActivityRow {
   isThread: boolean;
   items: ActivityItem[];

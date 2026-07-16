@@ -1,5 +1,5 @@
-import type { MessageShortcut } from "../types";
-import { callSlack, fileProxyUrl } from "./relay";
+import type { MessageShortcut } from "../../types";
+import { callSlack, fileProxyUrl } from "../relay";
 
 // client.appCommands' `app_actions` list mixes every action any installed
 // app registered — global shortcuts (composer lightning bolt) and

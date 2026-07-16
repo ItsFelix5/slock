@@ -9,7 +9,7 @@ import {
   removeUserFromChannel,
 } from "../../../lib/channelDetails";
 import { store } from "../../../lib/store";
-import ComposeUserPicker from "../../composer/ComposeUserPicker";
+import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import "./ChannelDetails.css";
 
 type PagedFilter = "everyone" | "apps";

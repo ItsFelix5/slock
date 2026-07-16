@@ -1,6 +1,6 @@
-import type { ChannelSection } from "../types";
-import { extractChannelSections } from "./mappers";
-import { callSlack } from "./relay";
+import type { ChannelSection } from "../../types";
+import { extractChannelSections } from "../mappers";
+import { callSlack } from "../relay";
 export async function fetchSections(): Promise<ChannelSection[]> {
   try {
     const data = await callSlack("users.channelSections.list");

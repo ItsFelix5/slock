@@ -10,14 +10,14 @@ import {
 import { produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 import type { MessageLocation, ThreadRef, View } from "../types";
+import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./messageLinks";
 import { findMessageLocations } from "./messageLocations";
-import { createMessageMergeActions } from "./messageMergeActions";
 import { createMessageStatusActions } from "./messageStatusActions";
 
+export { mergeMessages } from "./merge/messageMerge";
 export { REMINDER_OPTIONS } from "./messageLinks";
-export { mergeMessages } from "./messageMerge";
 
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;

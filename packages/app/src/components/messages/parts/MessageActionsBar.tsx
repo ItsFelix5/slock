@@ -3,7 +3,7 @@ import { Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { store } from "../../../lib/store";
-import EmojiPicker from "../../composer/EmojiPicker";
+import EmojiPicker from "../../composer/popovers/EmojiPicker";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
 export default function MessageActionsBar(props: {

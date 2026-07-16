@@ -1,6 +1,6 @@
-import type { ProfileFieldDef, User } from "../types";
-import { mapUser } from "./mappers";
-import { callSlack, callSlackEdge } from "./relay";
+import type { ProfileFieldDef, User } from "../../types";
+import { mapUser } from "../mappers";
+import { callSlack, callSlackEdge } from "../relay";
 
 export async function fetchUser(id: string): Promise<User | null> {
   // The normal Web API users.info endpoint is restricted on Enterprise Grid.

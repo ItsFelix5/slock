@@ -1,8 +1,8 @@
 import type { Channel } from "@slock/slack-api";
 import { ContextMenu, Icon, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
-import { store, channelDisplayName } from "../../lib/store";
-import ChannelActionsMenuItems from "../channel/ChannelActionsMenuItems";
+import { store, channelDisplayName } from "../../../lib/store";
+import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 
 export default function ChannelRow(props: { channel: Channel; unread: boolean }) {
   const ctxMenu = useContextMenu();

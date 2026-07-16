@@ -5,9 +5,9 @@ import type {
   Channel,
   ChannelDetails,
   ChannelMembersPage,
-} from "../types";
-import { mapUser } from "./mappers";
-import { callSlack, callSlackEdge } from "./relay";
+} from "../../types";
+import { mapUser } from "../mappers";
+import { callSlack, callSlackEdge } from "../relay";
 
 export {
   createSection,

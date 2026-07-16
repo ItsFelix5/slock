@@ -1,6 +1,6 @@
-import type { Channel, DirectMessage, User } from "../types";
-import { buildUnreadMap, mapUser } from "./mappers";
-import { callSlack } from "./relay";
+import type { Channel, DirectMessage, User } from "../../types";
+import { buildUnreadMap, mapUser } from "../mappers";
+import { callSlack } from "../relay";
 
 interface Bootstrap {
   channels: Channel[];

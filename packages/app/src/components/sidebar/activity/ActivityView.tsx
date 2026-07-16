@@ -1,6 +1,6 @@
 import type { ActivityItem } from "@slock/slack-api";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import { store } from "../../lib/store";
+import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData, rowTarget } from "./ActivityRow";
 import "./ActivityView.css";
 

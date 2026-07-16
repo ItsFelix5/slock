@@ -1,6 +1,6 @@
-import type { ActivityItem, Message } from "../types";
-import { HIDE_SUBTYPES, mapMessage } from "./mappers";
-import { callSlack, getWorkspaceDomain } from "./relay";
+import type { ActivityItem, Message } from "../../types";
+import { HIDE_SUBTYPES, mapMessage } from "../mappers";
+import { callSlack, getWorkspaceDomain } from "../relay";
 
 export type HistoryPage = { messages: Message[]; hasMore: boolean; nextCursor?: string };
 

@@ -1,7 +1,7 @@
 import type { DirectMessage } from "@slock/slack-api";
 import { Avatar, Icon, InlineFeedback, Skeleton } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { store, actionFeedback } from "../../lib/store";
+import { store, actionFeedback } from "../../../lib/store";
 
 export function DmRow(props: { dm: DirectMessage }) {
   const user = createMemo(() => store.users.userById(props.dm.userId));

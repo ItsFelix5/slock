@@ -9,7 +9,7 @@ import {
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
-import EmojiPicker from "../composer/EmojiPicker";
+import EmojiPicker from "../composer/popovers/EmojiPicker";
 import UserProfileContact from "./UserProfileContact";
 import {
   blurOnEnter,

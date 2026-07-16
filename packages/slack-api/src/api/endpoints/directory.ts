@@ -1,6 +1,6 @@
-import type { User } from "../types";
-import { mapUser } from "./mappers";
-import { callSlack } from "./relay";
+import type { User } from "../../types";
+import { mapUser } from "../mappers";
+import { callSlack } from "../relay";
 
 // Org-wide member search via the same search.modules.people endpoint the real
 // web client's people search uses — a live per-query search, so a 100k-member

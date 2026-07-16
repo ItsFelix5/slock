@@ -16,7 +16,7 @@ import {
   frequentEmoji,
   type EmojiEntry as PickerEntry,
   searchEmoji,
-} from "../../lib/emojiSearch";
+} from "../../../lib/emojiSearch";
 import "./EmojiPicker.css";
 
 const FREQUENT_LIMIT = 24;
