@@ -142,7 +142,12 @@ export function createRealtimeSlice(deps: {
         threadRelevant,
         isThreadReply ? payload.thread_ts : undefined,
         {
-          isDirectMessage: (id) => deps.allDirectMessages().some((d) => d.id === id),
+          // Checking the id shape (DM ids are Slack "D..." ims — see
+          // viewState's parseNavPath) rather than deps.allDirectMessages()
+          // means a message from a DM whose metadata hasn't synced locally
+          // yet still gets classified — and pinged — as a DM instead of
+          // silently falling through activity classification entirely.
+          isDirectMessage: (id) => id.startsWith("D"),
           isNotifyAll: deps.isChannelNotifyAll,
           matchingHighlightWord: deps.matchingHighlightWord,
         },
