@@ -2,7 +2,7 @@
   width: 520px;
   max-width: calc(100vw - 40px);
   max-height: 70vh;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   box-shadow: var(--shadow-modal-lg);
 }
 
@@ -47,7 +47,7 @@
   color-scheme: dark;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 :root.theme-light .global-search-date {
@@ -67,7 +67,7 @@
   cursor: pointer;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 
 .global-search-chip:hover {
@@ -86,14 +86,14 @@
   padding: 2px;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .global-search-sort-btn {
   padding: 4px 10px;
   font-size: 12px;
   color: var(--text-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .global-search-sort-btn.active {
@@ -128,7 +128,7 @@
   font-size: 14px;
   text-align: left;
   background: transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .global-search-result:hover,

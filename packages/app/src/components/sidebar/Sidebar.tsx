@@ -113,11 +113,13 @@ export default function Sidebar() {
       .directMessages()
       .filter((dm) => !unreadsOnly() || !!store.unread.unreadChannelIds[dm.id]),
   );
+  // A multi-person DM (memberIds instead of a single userId) is never a bot
+  // DM, so it always sorts into people.
   const peopleDms = createMemo(() =>
-    filteredDms().filter((dm) => !store.users.userById(dm.userId)?.isBot),
+    filteredDms().filter((dm) => !(dm.userId && store.users.userById(dm.userId)?.isBot)),
   );
   const appDms = createMemo(() =>
-    filteredDms().filter((dm) => store.users.userById(dm.userId)?.isBot),
+    filteredDms().filter((dm) => dm.userId && store.users.userById(dm.userId)?.isBot),
   );
   return (
     <SidebarView

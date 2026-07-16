@@ -21,7 +21,7 @@ export default function TypingIndicator(props: TypingIndicatorProps) {
           <span />
           <span />
         </span>
-        <span class="typing-indicator-label">{label(props.names)}</span>
+        <span class="typing-indicator-label truncate">{label(props.names)}</span>
       </div>
     </Show>
   );

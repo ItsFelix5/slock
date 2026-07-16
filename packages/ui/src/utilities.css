@@ -76,25 +76,8 @@
   padding: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-popover);
-}
-.popover-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  padding: 7px 10px;
-  font-size: 13px;
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: none;
-  border-radius: 5px;
-}
-.popover-item:hover {
-  background: var(--hover-bg);
 }
 .menu-label {
   padding: 4px 10px;
@@ -130,7 +113,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .chip {
   padding: 4px 10px;
@@ -140,7 +123,7 @@
   white-space: nowrap;
   background: none;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .chip:hover {
   color: var(--text-primary);
@@ -176,6 +159,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.img-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .truncate-lines {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -199,7 +187,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .panel-close-btn:hover {
   color: var(--text-primary);
@@ -215,7 +203,7 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .icon-action {
   color: var(--text-secondary);
@@ -248,5 +236,5 @@
   height: 36px;
 }
 .icon-btn.circular {
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }

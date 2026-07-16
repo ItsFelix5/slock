@@ -1,6 +1,6 @@
 import type { ActivityItem } from "@slock/slack-api";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import { store } from "../../lib/store";
+import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData, rowTarget } from "./ActivityRow";
 import "./ActivityView.css";
 
@@ -113,7 +113,7 @@ export default function ActivityView() {
   };
 
   return (
-    <div class="activity-view">
+    <div class="activity-view sidebar-view-panel">
       <div class="activity-view-header flex-between">
         <h2>Activity</h2>
         <div class="activity-header-actions flex-align-center">

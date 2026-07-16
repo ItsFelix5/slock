@@ -2,6 +2,7 @@
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "./context";
+import { formatSlackDateTokens } from "./dateFormat";
 import EmojiText from "./emoji/EmojiText";
 import { parseUserProfileLink } from "./userProfileLink";
 
@@ -139,17 +140,8 @@ function parseMrkdwn(text: string): BlockNode[] {
   return blocks;
 }
 
-export function formatSlackDate(timestamp: number, fallback?: string): string {
-  try {
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return fallback ?? "a date";
-  }
-}
-
 function formatDate(node: Extract<InlineNode, { t: "date" }>): string {
-  return formatSlackDate(node.timestamp, node.fallback);
+  return formatSlackDateTokens(node.format, node.timestamp, node.fallback);
 }
 
 export function Mention(props: { id: string; kind: "user" | "channel"; label?: string }) {

@@ -1,9 +1,10 @@
 import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
 import { mapMessage, parseBadgeCounts } from "@slock/slack-api";
 import { createEffect, createSignal, onCleanup } from "solid-js";
+import { isDmId } from "../../../dmId";
 import type { MessageLocation, ThreadRef, View } from "../types";
 import { classifyIncomingActivity } from "./activity";
-import { mergeMessages } from "./messageMerge";
+import { mergeMessages } from "./merge/messageMerge";
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -30,9 +31,9 @@ export function createRealtimeSlice(deps: {
   pushActivity: (item: ActivityItem) => void;
   setGatewayActivityBadgeCounts: (activity: any) => void;
   messagesByChannel: Record<string, Message[]>;
-  setMessagesByChannel: (...args: any[]) => void;
+  setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
   threadMessages: Record<string, Message[]>;
-  setThreadMessages: (...args: any[]) => void;
+  setThreadMessages: (threadTs: string, updater: (existing?: Message[]) => Message[]) => void;
   loadedChannels: Set<string>;
   loadedThreads: Set<string>;
   findAllMessageLocations: (
@@ -142,7 +143,11 @@ export function createRealtimeSlice(deps: {
         threadRelevant,
         isThreadReply ? payload.thread_ts : undefined,
         {
-          isDirectMessage: (id) => deps.allDirectMessages().some((d) => d.id === id),
+          // A regular DM ("D..." id) is recognized without needing local
+          // data; a multi-person DM shares private channels' "G..." id
+          // namespace, so that case still needs the loaded-dms fallback.
+          isDirectMessage: (id) =>
+            isDmId(id, (candidate) => deps.allDirectMessages().some((d) => d.id === candidate)),
           isNotifyAll: deps.isChannelNotifyAll,
           matchingHighlightWord: deps.matchingHighlightWord,
         },

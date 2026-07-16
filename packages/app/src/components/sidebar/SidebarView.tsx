@@ -1,10 +1,10 @@
 import { Icon, InlineFeedback, Menu, ResizeHandle, SegmentedControl } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
-import ActivityView from "./ActivityView";
-import ChannelRow from "./ChannelRow";
+import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
-import SidebarDmSections from "./SidebarDmSections";
-import { SidebarSkeleton } from "./SidebarRows";
+import ChannelRow from "./rows/ChannelRow";
+import SidebarDmSections from "./rows/SidebarDmSections";
+import { SidebarSkeleton } from "./rows/SidebarRows";
 import SidebarToolbar from "./SidebarToolbar";
 import "./Sidebar.css";
 

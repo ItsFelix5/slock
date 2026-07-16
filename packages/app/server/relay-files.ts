@@ -1,0 +1,55 @@
+import { type Credentials, cors } from "./relay-core.ts";
+
+const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
+
+export async function fileProxyResponse(
+  fileUrl: string | null,
+  creds: Credentials | null,
+): Promise<Response> {
+  if (!fileUrl) return new Response("missing url", { headers: cors, status: 400 });
+  let parsed: URL;
+  try {
+    parsed = new URL(fileUrl);
+  } catch {
+    return new Response("invalid url", { headers: cors, status: 400 });
+  }
+  if (!ALLOWED_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
+    return new Response("host not allowed", { headers: cors, status: 403 });
+  }
+  if (!creds) return new Response("not configured", { headers: cors, status: 401 });
+  const fileRes = await fetch(parsed, { headers: { cookie: creds.cookie } });
+  if (!(fileRes.ok && fileRes.body)) {
+    return new Response("failed to fetch file", { headers: cors, status: 502 });
+  }
+  return new Response(fileRes.body, {
+    headers: {
+      "access-control-allow-origin": cors["access-control-allow-origin"],
+      "cache-control": "private, max-age=3600",
+      "content-type": fileRes.headers.get("content-type") ?? "application/octet-stream",
+    },
+  });
+}
+
+export async function fileUploadProxyResponse(
+  body: Uint8Array,
+  targetUrl: string | null,
+  filename: string | null,
+): Promise<Response> {
+  if (!targetUrl) return new Response("missing url", { headers: cors, status: 400 });
+  let parsed: URL;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return new Response("invalid url", { headers: cors, status: 400 });
+  }
+  if (!ALLOWED_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
+    return new Response("host not allowed", { headers: cors, status: 403 });
+  }
+  const form = new FormData();
+  form.append("file", new Blob([body]), filename ?? "file");
+  const uploadRes = await fetch(parsed, { body: form, method: "POST" });
+  return new Response(JSON.stringify({ ok: uploadRes.ok }), {
+    headers: cors,
+    status: uploadRes.ok ? 200 : 502,
+  });
+}

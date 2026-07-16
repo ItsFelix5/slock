@@ -9,7 +9,7 @@ import {
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
-import EmojiPicker from "../composer/EmojiPicker";
+import EmojiPicker from "../composer/popovers/EmojiPicker";
 import UserProfileContact from "./UserProfileContact";
 import {
   blurOnEnter,
@@ -123,7 +123,7 @@ export default function UserProfile() {
               feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
             />
             <div class="user-profile-avatar flex-center" style={{ background: u().avatarColor }}>
-              <img alt="?" src={u().avatarUrl} />
+              <img alt="?" class="img-cover" src={u().avatarUrl} />
               <button
                 class="user-profile-presence"
                 classList={{ away: u().presence === "away" }}

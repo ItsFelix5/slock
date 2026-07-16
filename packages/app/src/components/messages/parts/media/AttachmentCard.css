@@ -5,7 +5,7 @@
   font-size: 14px;
   background: var(--composer-bg);
   border-left: 3px solid var(--border-strong);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-6) var(--radius-6) 0;
 }
 
 .attachment-author {
@@ -18,7 +18,7 @@
 .attachment-author-icon {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }
 
 .attachment-title {
@@ -72,7 +72,7 @@
   max-width: 240px;
   max-height: 200px;
   margin-top: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .attachment-footer {
@@ -85,5 +85,5 @@
 .attachment-footer-icon {
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }

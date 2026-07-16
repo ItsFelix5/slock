@@ -117,7 +117,13 @@ export default function MessageRow(props: MessageRowProps) {
         }}
         data-message-ts={msg.ts}
         onContextMenu={(e) => {
-          if (!(msg.deleted || msg.isEphemeral || isEditing())) ctxMenu.open(e);
+          if (msg.deleted || msg.isEphemeral || isEditing()) return;
+          // Right-clicking actual embedded content (an image, video, or real
+          // link) is left alone so the browser's own, more relevant menu
+          // shows instead (Save image, Copy link, etc.) — this row's own
+          // generic message menu would only get in the way there.
+          if ((e.target as HTMLElement).closest("img, video, a")) return;
+          ctxMenu.open(e);
         }}
       >
         <Show when={!(msg.deleted || msg.isEphemeral)}>

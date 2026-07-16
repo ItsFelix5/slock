@@ -171,7 +171,6 @@ export const THEME_COLOR_LABELS: Record<Exclude<keyof ThemeColors, "font">, stri
   textSecondary: "Text (secondary)",
   warning: "Warning",
 };
-export { THEME_COLOR_VARS };
 export function getEffectiveColor(key: keyof ThemeColors): string {
   const override = themeColors()[key];
   if (override) return override;

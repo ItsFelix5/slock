@@ -1,13 +1,12 @@
 import { ADDABLE_CHANNEL_TABS } from "../../lib/channelTabMeta";
-import { channelDisplayName, store } from "../../lib/store";
+import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 
 export const channelTitle = () => {
   const view = store.viewState.activeView();
   if (!view) return "";
   if (view.kind === "channel")
     return channelDisplayName(store.channels.channelById(view.id), view.id);
-  const dm = store.dms.dmById(view.id);
-  return dm ? (store.users.userById(dm.userId)?.name ?? "") : "";
+  return dmDisplayName(store.dms.dmById(view.id), store.users.userById);
 };
 export const channelTopic = () => {
   const view = store.viewState.activeView();
@@ -21,10 +20,6 @@ export const isPrivateChannel = () => {
   return view?.kind === "channel" && !!store.channels.channelById(view.id)?.private;
 };
 export const isChannelView = () => store.viewState.activeView()?.kind === "channel";
-export const currentChannelId = () => {
-  const view = store.viewState.activeView();
-  return view?.kind === "channel" ? view.id : null;
-};
 export const isStarred = () => {
   const view = store.viewState.activeView();
   return view?.kind === "channel" && store.channels.isChannelStarred(view.id);
@@ -49,7 +44,9 @@ export const searchCurrentConversation = () => {
 export const openCurrentDmProfile = () => {
   const view = store.viewState.activeView();
   if (view?.kind === "dm") {
-    const dm = store.dms.dmById(view.id);
-    if (dm) store.users.openUserProfile(dm.userId);
+    // No group-profile panel for multi-person DMs (memberIds) yet — only a
+    // regular DM's single userId has somewhere to navigate to.
+    const userId = store.dms.dmById(view.id)?.userId;
+    if (userId) store.users.openUserProfile(userId);
   }
 };

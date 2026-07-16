@@ -1,3 +1,4 @@
+import { isDmId } from "./dmId";
 import { EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 import type { Nav, View } from "./store/slices/types";
 import type { createStoreSlices } from "./store/storeSlices";
@@ -43,7 +44,7 @@ export function createAppActions(deps: AppActionsDeps) {
   }
 
   function openChannelPeek(channelId: string, ts: string) {
-    const kind = dms.dmById(channelId) ? "dm" : "channel";
+    const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
     viewState.setSelected({ id: channelId, kind });
     unread.clearChannelUnread(channelId);
     openThread(channelId, ts);

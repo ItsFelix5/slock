@@ -1,7 +1,7 @@
 import { Button, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createSignal } from "solid-js";
-import { replaceLinkElement, unlinkElement } from "./lib/linkChip";
-import { placeCaretInText } from "./lib/richtext";
+import { replaceLinkElement, unlinkElement } from "../lib/linkChip";
+import { placeCaretInText } from "../lib/richtext";
 
 export default function ComposeLinkEditor(props: {
   linkEl: HTMLElement;

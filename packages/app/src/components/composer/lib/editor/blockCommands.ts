@@ -196,12 +196,12 @@ export function createBlockCommands(
     placeCaretInText(space, 1);
     opts.syncFromDom();
   }
-  function insertDateChipAtCaret(timestamp: number) {
+  function insertDateChipAtCaret(timestamp: number, format?: string) {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     range.deleteContents();
-    const chip = createDateChip(timestamp);
+    const chip = createDateChip(timestamp, format);
     range.insertNode(chip);
     const space = document.createTextNode(" ");
     chip.after(space);

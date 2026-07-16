@@ -31,122 +31,81 @@ function setup() {
     setChannelDetailsId(null);
   }
 
-  async function loadChannelDetails(id: string): Promise<ChannelDetails | null> {
+  // Every action here follows the same shape: call the API, flash a message
+  // keyed to the channel on failure, and fall back to a caller-given value
+  // instead of throwing (the modal stays usable either way).
+  async function withFeedback<T>(
+    id: string,
+    fallbackMessage: string,
+    fallback: T,
+    action: () => Promise<T>,
+  ): Promise<T> {
     try {
-      return await fetchChannelDetails(id);
+      return await action();
     } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load channel details.",
-        "error",
-      );
-      return null;
+      actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
+      return fallback;
     }
   }
 
-  async function loadChannelMembers(
+  function loadChannelDetails(id: string): Promise<ChannelDetails | null> {
+    return withFeedback(id, "Failed to load channel details.", null, () => fetchChannelDetails(id));
+  }
+
+  function loadChannelMembers(
     id: string,
     filter: "everyone" | "apps",
     cursor?: string,
   ): Promise<ChannelMembersPage> {
-    try {
-      return await fetchChannelMembers(id, filter, cursor);
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load members.",
-        "error",
-      );
-      return { members: [] };
-    }
+    return withFeedback(id, "Failed to load members.", { members: [] }, () =>
+      fetchChannelMembers(id, filter, cursor),
+    );
   }
 
-  async function loadChannelManagerIds(id: string): Promise<string[]> {
-    try {
-      return await fetchChannelManagerIds(id);
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load channel managers.",
-        "error",
-      );
-      return [];
-    }
+  function loadChannelManagerIds(id: string): Promise<string[]> {
+    return withFeedback(id, "Failed to load channel managers.", [], () =>
+      fetchChannelManagerIds(id),
+    );
   }
 
-  async function renameChannelById(id: string, name: string): Promise<boolean> {
-    try {
+  function renameChannelById(id: string, name: string): Promise<boolean> {
+    return withFeedback(id, "Failed to rename channel.", false, async () => {
       const finalName = await renameChannel(id, name);
       store.channels.patchChannel(id, { name: finalName });
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to rename channel.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function updateChannelTopic(id: string, topic: string): Promise<boolean> {
-    try {
+  function updateChannelTopic(id: string, topic: string): Promise<boolean> {
+    return withFeedback(id, "Failed to set topic.", false, async () => {
       await setChannelTopic(id, topic);
       store.channels.patchChannel(id, { topic });
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to set topic.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function updateChannelPurpose(id: string, purpose: string): Promise<boolean> {
-    try {
+  function updateChannelPurpose(id: string, purpose: string): Promise<boolean> {
+    return withFeedback(id, "Failed to set description.", false, async () => {
       await setChannelPurpose(id, purpose);
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to set description.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function inviteUsersToChannel(id: string, userIds: string[]): Promise<boolean> {
-    try {
+  function inviteUsersToChannel(id: string, userIds: string[]): Promise<boolean> {
+    return withFeedback(id, "Failed to add to channel.", false, async () => {
       await inviteToChannel(id, userIds);
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to add to channel.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function removeUserFromChannel(id: string, userId: string): Promise<boolean> {
-    try {
+  function removeUserFromChannel(id: string, userId: string): Promise<boolean> {
+    return withFeedback(id, "Failed to remove from channel.", false, async () => {
       await removeFromChannel(id, userId);
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to remove from channel.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function updateChannelPostingPrefs(
+  function updateChannelPostingPrefs(
     id: string,
     opts: {
       postingRestrictedToManagers: boolean;
@@ -154,48 +113,27 @@ function setup() {
       allowChannelMentions: boolean;
     },
   ): Promise<boolean> {
-    try {
+    return withFeedback(id, "Failed to update posting permissions.", false, async () => {
       await setChannelPostingPrefs(id, opts);
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to update posting permissions.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function updateChannelRetention(id: string, days: number | null): Promise<boolean> {
-    try {
+  function updateChannelRetention(id: string, days: number | null): Promise<boolean> {
+    return withFeedback(id, "Failed to update message retention.", false, async () => {
       await setChannelRetention(id, days);
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to update message retention.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
-  async function updateMemberPermissions(
+  function updateMemberPermissions(
     id: string,
     perms: { invite: boolean; setPurpose: boolean; setTopic: boolean },
   ): Promise<boolean> {
-    try {
+    return withFeedback(id, "Failed to update member permissions.", false, async () => {
       await setMemberPermissions(id, perms);
       return true;
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to update member permissions.",
-        "error",
-      );
-      return false;
-    }
+    });
   }
 
   return {

@@ -1,5 +1,10 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to rich-text transformations.
-import { emojiUrl, formatSlackDate, parseUserProfileLink } from "@slock/blockkit";
+import {
+  DEFAULT_DATE_FORMAT,
+  emojiUrl,
+  formatSlackDateTokens,
+  parseUserProfileLink,
+} from "@slock/blockkit";
 import { standardEmojiUnicode } from "../../../lib/emojiSearch";
 import { channelDisplayName, store } from "../../../lib/store";
 import { createLinkChip, createLinkSpan } from "./linkChip";
@@ -51,7 +56,6 @@ export function createChannelChip(id: string, name: string): HTMLSpanElement {
   chip.textContent = `#${name}`;
   return chip;
 }
-const DEFAULT_DATE_FORMAT = "{date_short_pretty} at {time}";
 export function createDateChip(
   timestamp: number,
   format = DEFAULT_DATE_FORMAT,
@@ -62,8 +66,9 @@ export function createDateChip(
   chip.contentEditable = "false";
   chip.dataset.dateTs = String(timestamp);
   chip.dataset.dateFormat = format;
-  chip.dataset.dateFallback = fallback ?? formatSlackDate(timestamp);
-  chip.textContent = formatSlackDate(timestamp);
+  const rendered = formatSlackDateTokens(format, timestamp, fallback);
+  chip.dataset.dateFallback = fallback ?? rendered;
+  chip.textContent = rendered;
   return chip;
 }
 export function createEmojiChip(name: string): HTMLSpanElement {

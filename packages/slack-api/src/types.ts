@@ -133,7 +133,10 @@ export interface DirectMessage {
   id: string;
   lastActivity?: number;
   unread: boolean;
-  userId: string;
+  // Exactly one of these is set: userId for a regular 1:1 DM, memberIds
+  // (everyone but the current user) for a multi-person DM.
+  userId?: string;
+  memberIds?: string[];
 }
 
 export interface ChannelDetails {

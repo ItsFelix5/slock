@@ -36,13 +36,7 @@
   color: var(--text-dim);
   letter-spacing: 0.02em;
   background: var(--hover-bg);
-  border-radius: 3px;
-}
-.message-text {
-  font-size: 15px;
-  line-height: 1.46;
-  word-break: break-word;
-  white-space: pre-wrap;
+  border-radius: var(--radius-3);
 }
 .message-edited {
   font-size: 11px;
@@ -76,7 +70,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }
 .message-saved-badge {
   color: var(--accent);
@@ -100,7 +94,7 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 .reaction-tooltip {
   position: absolute;
@@ -118,7 +112,7 @@
   pointer-events: none;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-tooltip);
   transform: translateX(-50%);
 }
@@ -159,7 +153,7 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--accent);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .message-replies:hover {
   background: var(--hover-bg);
@@ -208,7 +202,7 @@
   pointer-events: none;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-tooltip);
   transform: translateX(-50%);
 }

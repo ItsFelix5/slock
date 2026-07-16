@@ -19,7 +19,7 @@
   margin-top: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-popover);
 }
 
@@ -35,7 +35,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-5);
 }
 
 .menu-item:hover {
@@ -56,5 +56,5 @@
   flex-shrink: 0;
   width: 15px;
   height: 15px;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }

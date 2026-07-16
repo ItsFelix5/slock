@@ -6,7 +6,7 @@
   overflow: hidden;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   box-shadow: var(--shadow-popover);
 }
 
@@ -41,7 +41,7 @@
   width: 32px;
   height: 32px;
   font-size: 19px;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .emoji-picker-btn img {

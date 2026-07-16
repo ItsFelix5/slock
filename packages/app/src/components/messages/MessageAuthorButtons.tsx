@@ -6,7 +6,7 @@ export function MessageAvatarButton(props: { color?: string; src?: string; onCli
       style={{ background: props.color ?? "#616061" }}
       type="button"
     >
-      <img alt="?" class="message-avatar-img" src={props.src} />
+      <img alt="?" class="img-cover" src={props.src} />
     </button>
   );
 }

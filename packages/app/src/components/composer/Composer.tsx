@@ -2,12 +2,12 @@ import { Icon, InlineFeedback, Menu } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { actionFeedback } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
-import ComposeDatePicker from "./ComposeDatePicker";
-import ComposeLinkEditor from "./ComposeLinkEditor";
-import ComposeUserPicker from "./ComposeUserPicker";
 import { type ComposerProps, createComposerController } from "./composerController";
 import { suggestItemContent } from "./lib/suggestTypes";
 import { linkPreviewToAttachment } from "./lib/textDetection";
+import ComposeDatePicker from "./popovers/ComposeDatePicker";
+import ComposeLinkEditor from "./popovers/ComposeLinkEditor";
+import ComposeUserPicker from "./popovers/ComposeUserPicker";
 import "./Composer.css";
 export default function Composer(props: ComposerProps) {
   const {
@@ -149,9 +149,9 @@ export default function Composer(props: ComposerProps) {
             <div class="composer-mention-popover">
               <ComposeDatePicker
                 onClose={() => setDateOpen(false)}
-                onSelect={(ts) => {
+                onSelect={(ts, format) => {
                   editor.restoreSelection();
-                  editor.insertDateChipAtCaret(ts);
+                  editor.insertDateChipAtCaret(ts, format);
                   setDateOpen(false);
                 }}
               />

@@ -14,7 +14,7 @@ const SUBTEAM_RE = /<!subteam\^([^|>]+)/;
 // Activity view's own pinging/ambient filter and row styling, so the
 // definition lives in one place.
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword"]);
-export const GLOW_KINDS = new Set<ActivityItem["kind"]>([
+const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
   "channel_mention",
   "usergroup_mention",
@@ -148,13 +148,15 @@ export function createActivitySlice(deps: {
   // straight at the user (direct pings, DMs), a plain glow for activity that's
   // relevant but not personally directed (thread replies, @channel/@here/usergroup
   // pings, channels set to notify on every post), and nothing at all for reactions.
-  const hasUnreadPing = createMemo(() =>
-    gatewayHasUnreadPing() ||
-    activityItems.some((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)),
+  const hasUnreadPing = createMemo(
+    () =>
+      gatewayHasUnreadPing() ||
+      activityItems.some((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
-  const hasUnreadGlow = createMemo(() =>
-    gatewayHasUnreadGlow() ||
-    activityItems.some((i) => GLOW_KINDS.has(i.kind) && isActivityItemUnread(i)),
+  const hasUnreadGlow = createMemo(
+    () =>
+      gatewayHasUnreadGlow() ||
+      activityItems.some((i) => GLOW_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
 
   // Advances each represented channel's *real* Slack read cursor up through the

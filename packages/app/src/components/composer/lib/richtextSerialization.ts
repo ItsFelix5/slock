@@ -1,9 +1,8 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to serialization.
-import { formatSlackDate } from "@slock/blockkit";
+import { DEFAULT_DATE_FORMAT, formatSlackDateTokens } from "@slock/blockkit";
 import { type Block, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
 import { serializeLinkElement } from "./linkChip";
 export const HEADING_TAG_RE = /^H[1-6]$/;
-const DEFAULT_DATE_FORMAT = "{date_short_pretty} at {time}";
 function wrapNonEmpty(inner: string, marker: string): string {
   return inner ? `${marker}${inner}${marker}` : "";
 }
@@ -29,8 +28,9 @@ function serializeNode(node: Node): string {
   if (el.dataset.linkUrl) return serializeLinkElement(el);
   if (el.dataset.emojiName) return `:${el.dataset.emojiName}:`;
   if (el.dataset.dateTs) {
+    const timestamp = Number(el.dataset.dateTs);
     const format = el.dataset.dateFormat || DEFAULT_DATE_FORMAT;
-    const fallback = el.dataset.dateFallback || formatSlackDate(Number(el.dataset.dateTs));
+    const fallback = el.dataset.dateFallback || formatSlackDateTokens(format, timestamp);
     return `<!date^${el.dataset.dateTs}^${format}|${fallback}>`;
   }
   if (HEADING_TAG_RE.test(el.tagName)) {

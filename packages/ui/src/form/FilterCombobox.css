@@ -10,7 +10,7 @@
   cursor: pointer;
   background: var(--main-bg);
   border: 1px dashed var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .filter-combobox-trigger:hover {
@@ -27,7 +27,7 @@
   color: var(--text-primary);
   background: var(--active-bg);
   border: 1px solid var(--accent);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .filter-combobox-clear {
@@ -49,7 +49,7 @@
   padding: 6px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-popover);
 }
 
@@ -72,7 +72,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .filter-combobox-item:hover {

@@ -11,14 +11,14 @@
   max-height: 320px;
   object-fit: contain;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .message-file-video {
   max-width: 360px;
   max-height: 320px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .message-file-card {
@@ -28,7 +28,7 @@
   text-decoration: none;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .message-file-card:hover {

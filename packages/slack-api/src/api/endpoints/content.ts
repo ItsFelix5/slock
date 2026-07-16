@@ -1,6 +1,6 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
-import type { LinkPreview, SavedItem } from "../types";
-import { callSlack, fileProxyUrl } from "./relay";
+import type { LinkPreview, SavedItem } from "../../types";
+import { callSlack, fileProxyUrl } from "../relay";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 

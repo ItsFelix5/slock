@@ -5,9 +5,10 @@ import type {
   RichTextSubBlock,
 } from "@slock/slack-api";
 import { For, Show } from "solid-js";
+import { formatSlackDateTokens } from "../dateFormat";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import { formatSlackDate, Mention } from "../mrkdwn";
+import { Mention } from "../mrkdwn";
 import { parseUserProfileLink } from "../userProfileLink";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
@@ -62,10 +63,10 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
     case "date":
       return el.url ? (
         <a class="bk-link" href={el.url} rel="noopener noreferrer" target="_blank">
-          {formatSlackDate(el.timestamp, el.fallback)}
+          {formatSlackDateTokens(el.format, el.timestamp, el.fallback)}
         </a>
       ) : (
-        formatSlackDate(el.timestamp, el.fallback)
+        formatSlackDateTokens(el.format, el.timestamp, el.fallback)
       );
     default:
       return null;

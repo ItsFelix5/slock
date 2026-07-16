@@ -19,7 +19,7 @@
   width: 5px;
   height: 5px;
   background: var(--text-dim);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   animation: typing-bounce 1.2s infinite ease-in-out;
 }
 
@@ -29,12 +29,6 @@
 
 .typing-indicator-dots span:nth-child(3) {
   animation-delay: 0.3s;
-}
-
-.typing-indicator-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 @keyframes typing-bounce {

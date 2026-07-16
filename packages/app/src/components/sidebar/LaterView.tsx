@@ -10,7 +10,7 @@ export default function LaterView() {
   const goTo = (channelId: string, ts: string) => store.viewState.openChannelPeek(channelId, ts);
 
   return (
-    <div class="later-view">
+    <div class="later-view sidebar-view-panel">
       <h2>Later</h2>
       <Show
         fallback={<div class="later-empty empty-state">Nothing saved for later.</div>}
