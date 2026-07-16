@@ -21,10 +21,6 @@ export const isPrivateChannel = () => {
   return view?.kind === "channel" && !!store.channels.channelById(view.id)?.private;
 };
 export const isChannelView = () => store.viewState.activeView()?.kind === "channel";
-export const currentChannelId = () => {
-  const view = store.viewState.activeView();
-  return view?.kind === "channel" ? view.id : null;
-};
 export const isStarred = () => {
   const view = store.viewState.activeView();
   return view?.kind === "channel" && store.channels.isChannelStarred(view.id);

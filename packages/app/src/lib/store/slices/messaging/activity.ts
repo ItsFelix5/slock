@@ -14,7 +14,7 @@ const SUBTEAM_RE = /<!subteam\^([^|>]+)/;
 // Activity view's own pinging/ambient filter and row styling, so the
 // definition lives in one place.
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword"]);
-export const GLOW_KINDS = new Set<ActivityItem["kind"]>([
+const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
   "channel_mention",
   "usergroup_mention",

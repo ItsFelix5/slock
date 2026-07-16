@@ -4,7 +4,7 @@ import { nameToEmoji } from "gemoji";
 // unicode glyph, sourced from GitHub's gemoji dataset — the same shortcode
 // conventions Slack's own emoji picker originally borrowed from. ~1900 entries,
 // vs. the ~140 this used to be hand-maintained as.
-export const STANDARD_EMOJI: Record<string, string> = nameToEmoji;
+const STANDARD_EMOJI: Record<string, string> = nameToEmoji;
 
 // For emoji newer than gemoji's alias table (or ZWJ sequences), Slack falls
 // back to naming the shortcode after its raw codepoint(s) in hex, e.g.

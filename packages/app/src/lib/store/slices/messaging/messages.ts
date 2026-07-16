@@ -16,7 +16,6 @@ import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./message
 import { findMessageLocations } from "./messageLocations";
 import { createMessageStatusActions } from "./messageStatusActions";
 
-export { mergeMessages } from "./merge/messageMerge";
 export { REMINDER_OPTIONS } from "./messageLinks";
 
 export function createMessagesSlice(deps: {

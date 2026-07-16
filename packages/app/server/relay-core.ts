@@ -1,6 +1,6 @@
 export type Credentials = { domain: string; token: string; cookie: string; route: string };
 const CREDS_COOKIE = "slock_creds";
-export function encodeCredsCookie(creds: Credentials, secure: boolean): string {
+function encodeCredsCookie(creds: Credentials, secure: boolean): string {
   const value = encodeURIComponent(JSON.stringify(creds));
   const flags = ["HttpOnly", "SameSite=Strict", "Path=/", "Max-Age=34560000"];
   if (secure) flags.push("Secure");
@@ -55,7 +55,7 @@ export async function callSlack(
   return parseSlackResponse(res);
 }
 const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
-export function authResponse(raw: string, secure: boolean): Response {
+function authResponse(raw: string, secure: boolean): Response {
   try {
     const creds = JSON.parse(raw);
     return new Response(JSON.stringify({ ok: true }), {
@@ -69,7 +69,7 @@ export function authResponse(raw: string, secure: boolean): Response {
     });
   }
 }
-export function logoutResponse(): Response {
+function logoutResponse(): Response {
   return new Response(JSON.stringify({ ok: true }), {
     headers: {
       ...cors,
@@ -77,7 +77,7 @@ export function logoutResponse(): Response {
     },
   });
 }
-export async function slackRelayResponse(
+async function slackRelayResponse(
   method: string,
   params: Record<string, string>,
   creds: Credentials | null,
@@ -100,7 +100,7 @@ async function callSlackEdge(
   });
   return parseSlackResponse(res);
 }
-export async function slackEdgeRelayResponse(
+async function slackEdgeRelayResponse(
   method: string,
   params: Record<string, unknown>,
   creds: Credentials | null,
@@ -156,7 +156,7 @@ export async function routeRelayRequest(
   }
   return null;
 }
-export function configResponse(creds: Credentials | null): Response {
+function configResponse(creds: Credentials | null): Response {
   return new Response(
     JSON.stringify({ configured: creds !== null, domain: creds?.domain ?? null }),
     {
@@ -165,7 +165,7 @@ export function configResponse(creds: Credentials | null): Response {
   );
 }
 const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
-export async function fileProxyResponse(
+async function fileProxyResponse(
   fileUrl: string | null,
   creds: Credentials | null,
 ): Promise<Response> {
@@ -192,7 +192,7 @@ export async function fileProxyResponse(
     },
   });
 }
-export async function fileUploadProxyResponse(
+async function fileUploadProxyResponse(
   body: Uint8Array,
   targetUrl: string | null,
   filename: string | null,
@@ -259,7 +259,7 @@ function parseMetaTags(html: string, base: URL) {
   }
   return { description, imageUrl, siteName, title };
 }
-export async function unfurlResponse(targetUrl: string | null): Promise<Response> {
+async function unfurlResponse(targetUrl: string | null): Promise<Response> {
   if (!targetUrl) return new Response("missing url", { headers: cors, status: 400 });
   let parsed: URL;
   try {

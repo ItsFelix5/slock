@@ -16,7 +16,6 @@ export { channelDisplayName } from "./slices/channelDisplayName";
 export { actionFeedback } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
-export type { MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 declare global {
   interface Window {

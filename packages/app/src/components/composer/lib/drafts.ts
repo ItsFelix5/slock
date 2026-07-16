@@ -8,16 +8,22 @@ import { createSignal } from "solid-js";
 // across every Composer instance (the component is reused across channel
 // switches, never remounted), and is hydrated once from the account at load.
 export const drafts: Record<string, string> = {};
-export const [draftsReady, setDraftsReady] = createSignal(false);
+const [draftsReady, setDraftsReady] = createSignal(false);
+
+export { draftsReady };
+
 fetchDrafts()
   .then((entries) => {
     for (const d of entries) drafts[d.threadTs ? `thread:${d.threadTs}` : d.channelId] = d.text;
   })
   .finally(() => setDraftsReady(true));
 
-export const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<
+const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<
   { name: string; desc: string; icon: string | null }[]
 >([]);
+
+export { slashCommandsGlobal };
+
 fetchSlashCommands()
   .then(setSlashCommandsGlobal)
   .catch(() => {});
