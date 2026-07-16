@@ -3,6 +3,7 @@ import { Icon } from "@slock/ui";
 import { createMemo, createSignal, type JSX, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { store } from "../../lib/store";
+import { createLocalTime } from "./userProfileTime";
 import "./UserHoverCard.css";
 
 const OPEN_DELAY = 350;
@@ -23,19 +24,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
   const user = createMemo(() => store.users.userById(props.userId));
   const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
 
-  const localTime = createMemo(() => {
-    const tz = user()?.tz;
-    if (!tz) return null;
-    try {
-      return new Date().toLocaleTimeString([], {
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: tz,
-      });
-    } catch {
-      return null;
-    }
-  });
+  const localTime = createLocalTime(user, Date.now);
 
   const scheduleOpen = () => {
     clearTimeout(closeTimer);

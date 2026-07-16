@@ -1,4 +1,4 @@
-import { EmojiText, Mrkdwn } from "@slock/blockkit";
+import { EmojiText, formatSlackDate, Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
@@ -252,12 +252,7 @@ export default function ActivityRow(props: {
               </button>
             </Show>
           </Show>
-          <div class="activity-time text-dim text-xs">
-            {new Date(latest().time).toLocaleString([], {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </div>
+          <div class="activity-time text-dim text-xs">{formatSlackDate(latest().time / 1000)}</div>
         </div>
       </button>
       <button
