@@ -1,3 +1,4 @@
+import type { EditorCommands } from "./lib/editor/editorCommands";
 import type { SuggestState } from "./lib/suggestTypes";
 
 export function createComposerKeyHandler(deps: {
@@ -7,7 +8,7 @@ export function createComposerKeyHandler(deps: {
   closeSuggestions: () => void;
   editing?: { onCancel: () => void };
   submit: (event: Event) => void;
-  editor: any;
+  editor: EditorCommands;
 }) {
   return (e: KeyboardEvent) => {
     const s = deps.suggest();

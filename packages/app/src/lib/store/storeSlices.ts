@@ -1,3 +1,5 @@
+import type { Bootstrap, UserPrefs } from "@slock/slack-api";
+import type { Resource } from "solid-js";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -17,7 +19,13 @@ import { createSearchHistorySlice } from "./slices/session/searchHistory";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { View } from "./slices/types";
 
-export function createStoreSlices({ bootstrap, userPrefs }: { bootstrap: any; userPrefs: any }) {
+export function createStoreSlices({
+  bootstrap,
+  userPrefs,
+}: {
+  bootstrap: Resource<Bootstrap>;
+  userPrefs: Resource<UserPrefs>;
+}) {
   const viewState = createViewStateSlice({ bootstrap });
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
   const typing = createTypingSlice({ userById: users.userById });

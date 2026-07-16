@@ -37,3 +37,5 @@ export function createEditorCommands(opts: {
     ...linkify,
   };
 }
+
+export type EditorCommands = ReturnType<typeof createEditorCommands>;
