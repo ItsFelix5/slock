@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { actionFeedback, channelDisplayName, store } from "../../lib/store";
+import { actionFeedback, channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./PinnedPanel.css";
 
 export default function PinnedPanel() {
@@ -20,8 +20,8 @@ export default function PinnedPanel() {
     if (!id) return "";
     const channel = store.channels.channelById(id);
     if (channel) return `Pinned in #${channelDisplayName(channel)}`;
-    const dm = store.dms.dmById(id);
-    return `Pinned in ${(dm && store.users.userById(dm.userId)?.name) ?? "conversation"}`;
+    const dmName = dmDisplayName(store.dms.dmById(id), store.users.userById);
+    return `Pinned in ${dmName || "conversation"}`;
   };
 
   const goTo = (ts: string) => {

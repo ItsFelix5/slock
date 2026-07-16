@@ -1,6 +1,6 @@
 import { Skeleton } from "@slock/ui";
 import { createEffect, createMemo, For, Show } from "solid-js";
-import { channelDisplayName, store } from "../../lib/store";
+import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
 
@@ -54,8 +54,7 @@ export default function MessageList() {
     const v = store.viewState.activeView();
     if (!v) return "";
     if (v.kind === "channel") return channelDisplayName(store.channels.channelById(v.id), v.id);
-    const dm = store.dms.dmById(v.id);
-    return dm ? (store.users.userById(dm.userId)?.name ?? "") : "";
+    return dmDisplayName(store.dms.dmById(v.id), store.users.userById);
   });
 
   // Jump to the newest message whenever the channel changes or its history first

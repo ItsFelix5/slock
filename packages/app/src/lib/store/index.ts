@@ -13,6 +13,7 @@ import { createRunMessageShortcut } from "./runMessageShortcut";
 import { createStoreSlices } from "./storeSlices";
 
 export { channelDisplayName } from "./slices/channelDisplayName";
+export { dmDisplayName } from "./slices/dmDisplayName";
 export { actionFeedback } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";

@@ -45,7 +45,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   );
 
   const rawIms: any[] = boot.ims ?? [];
-  const directMessages: DirectMessage[] = rawIms
+  const oneToOneDms: DirectMessage[] = rawIms
     .filter((im) => im.is_open && im.user)
     .map((im) => ({
       id: im.id,
@@ -54,6 +54,30 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       unread: !!unreadMap[im.id]?.unread,
       userId: im.user,
     }));
+
+  // Multi-person DMs (Slack's "mpim") are a separate array from 1:1 ims, with
+  // group ids in the same "G..." namespace private channels use — so unlike a
+  // regular DM's "D..." id, there's no shape-based way to tell an mpim apart
+  // from a private channel; the app can only know one by having it loaded
+  // here. Modeled as a DirectMessage with memberIds instead of a single
+  // userId so the rest of the app (sidebar, unread tracking, activity
+  // classification) already understands it without a parallel code path.
+  const countsMpims: any[] = counts?.mpims ?? [];
+  const latestByMpim = new Map(
+    countsMpims.map((c) => [c.id, parseFloat(c.latest) * 1000 || undefined]),
+  );
+  const rawMpims: any[] = boot.mpims ?? [];
+  const multiPersonDms: DirectMessage[] = rawMpims
+    .filter((g) => g.is_open && Array.isArray(g.members))
+    .map((g) => ({
+      id: g.id,
+      lastActivity:
+        latestByMpim.get(g.id) || g.updated || (g.created ? g.created * 1000 : undefined),
+      memberIds: (g.members as string[]).filter((id) => id !== boot.self?.id),
+      unread: !!unreadMap[g.id]?.unread,
+    }));
+
+  const directMessages: DirectMessage[] = [...oneToOneDms, ...multiPersonDms];
 
   const currentUser = mapUser(boot.self);
 

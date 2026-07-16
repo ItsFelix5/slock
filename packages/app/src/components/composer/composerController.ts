@@ -2,7 +2,7 @@ import { uploadFile } from "@slock/slack-api";
 import { useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onMount } from "solid-js";
 import { encodeReplyLink } from "../../lib/replyLink";
-import { actionFeedback, channelDisplayName, store } from "../../lib/store";
+import { actionFeedback, channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import { createComposerKeyHandler } from "./composerKeyboard";
 import { drafts, draftsReady, persistDraft } from "./lib/drafts";
 import { createEditorCommands } from "./lib/editor/editorCommands";
@@ -107,8 +107,7 @@ export function createComposerController(props: ComposerProps) {
     if (!v) return "Message";
     if (v.kind === "channel")
       return `Message #${channelDisplayName(store.channels.channelById(v.id), v.id)}`;
-    const dm = store.dms.dmById(v.id);
-    return `Message ${dm ? (store.users.userById(dm.userId)?.name ?? "") : ""}`;
+    return `Message ${dmDisplayName(store.dms.dmById(v.id), store.users.userById)}`;
   };
   const runTool = createRunTool({
     applyMark: editor.applyMark,
