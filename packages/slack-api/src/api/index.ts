@@ -6,7 +6,9 @@ export * from "./endpoints/bootstrap";
 export * from "./endpoints/channels";
 export * from "./endpoints/content";
 export * from "./endpoints/directory";
+export * from "./endpoints/drafts";
 export * from "./endpoints/messages";
+export * from "./endpoints/preferences";
 export { mapMessage, parseBadgeCounts } from "./mappers";
 export {
   fileProxyUrl,
