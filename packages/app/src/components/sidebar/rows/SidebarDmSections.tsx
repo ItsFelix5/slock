@@ -1,10 +1,11 @@
+import type { DirectMessage } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { DmRow } from "./SidebarRows";
 
 export default function SidebarDmSections(props: {
-  peopleDms: () => any[];
-  appDms: () => any[];
+  peopleDms: () => DirectMessage[];
+  appDms: () => DirectMessage[];
   unreadsOnly: () => boolean;
   dmsOpen: () => boolean;
   setDmsOpen: (open: boolean) => void;

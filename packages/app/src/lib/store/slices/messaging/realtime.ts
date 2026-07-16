@@ -30,9 +30,9 @@ export function createRealtimeSlice(deps: {
   pushActivity: (item: ActivityItem) => void;
   setGatewayActivityBadgeCounts: (activity: any) => void;
   messagesByChannel: Record<string, Message[]>;
-  setMessagesByChannel: (...args: any[]) => void;
+  setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
   threadMessages: Record<string, Message[]>;
-  setThreadMessages: (...args: any[]) => void;
+  setThreadMessages: (threadTs: string, updater: (existing?: Message[]) => Message[]) => void;
   loadedChannels: Set<string>;
   loadedThreads: Set<string>;
   findAllMessageLocations: (
