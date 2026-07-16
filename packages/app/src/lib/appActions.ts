@@ -43,7 +43,11 @@ export function createAppActions(deps: AppActionsDeps) {
   }
 
   function openChannelPeek(channelId: string, ts: string) {
-    const kind = dms.dmById(channelId) ? "dm" : "channel";
+    // DM conversation ids are Slack "D..." ims (see viewState's parseNavPath) —
+    // checking the id shape instead of the locally-loaded dms list means this
+    // still routes correctly for a DM whose metadata hasn't synced yet (e.g.
+    // jumping in from an Activity item for a conversation not opened before).
+    const kind = channelId.startsWith("D") ? "dm" : "channel";
     viewState.setSelected({ id: channelId, kind });
     unread.clearChannelUnread(channelId);
     openThread(channelId, ts);
