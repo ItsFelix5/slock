@@ -1,5 +1,5 @@
-import { emojiUrl } from "@slock/blockkit";
-import { useEscapeClose } from "@slock/ui";
+import { emojiUrl, loadCustomEmoji } from "@slock/blockkit";
+import { Tooltip, useEscapeClose } from "@slock/ui";
 import {
   createEffect,
   createMemo,
@@ -65,12 +65,15 @@ export default function EmojiPicker(props: {
   onClose: () => void;
 }) {
   const [query, setQuery] = createSignal("");
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let bodyRef: HTMLDivElement | undefined;
 
   useEscapeClose(props.onClose);
 
   onMount(() => {
+    void loadCustomEmoji();
     const onDocClick = (e: MouseEvent) => {
       if (rootRef && !rootRef.contains(e.target as Node)) props.onClose();
     };
@@ -213,15 +216,17 @@ export default function EmojiPicker(props: {
 function EmojiButton(props: { entry: PickerEntry; onSelect: (name: string) => void }) {
   const url = createMemo(() => emojiUrl(props.entry.name));
   return (
-    <button
-      class="emoji-picker-btn btn-reset flex-center"
-      onClick={() => props.onSelect(props.entry.name)}
-      title={`:${props.entry.name}:`}
-      type="button"
-    >
-      <Show fallback={props.entry.unicode ?? "❔"} when={url()}>
-        {(u) => <img alt={props.entry.name} src={u()} />}
-      </Show>
-    </button>
+    <Tooltip content={`:${props.entry.name}:`}>
+      <button
+        aria-label={`:${props.entry.name}:`}
+        class="emoji-picker-btn btn-reset flex-center"
+        onClick={() => props.onSelect(props.entry.name)}
+        type="button"
+      >
+        <Show fallback={props.entry.unicode ?? "❔"} when={url()}>
+          {(u) => <img alt={props.entry.name} src={u()} />}
+        </Show>
+      </button>
+    </Tooltip>
   );
 }

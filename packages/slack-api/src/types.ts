@@ -24,6 +24,15 @@ export interface User {
   tzLabel?: string;
 }
 
+export interface Usergroup {
+  id: string;
+  // Slack's `handle` is the value people actually mention (for example,
+  // `@on-call`), while `name` is a human-readable title. Store the mention
+  // label here so message renderers can display it without knowing that API
+  // distinction.
+  name: string;
+}
+
 export interface ProfileFieldDef {
   id: string;
   label: string;
@@ -40,6 +49,7 @@ export interface SlackFile {
   filetype?: string;
   height?: number;
   id: string;
+  isAudio?: boolean;
   isImage: boolean;
   isVideo?: boolean;
   mimetype?: string;
@@ -48,23 +58,46 @@ export interface SlackFile {
   size?: number;
   thumbUrl?: string;
   title?: string;
+  // Slack's speech-to-text preview for voice messages — truncated, with
+  // `transcriptionHasMore` set when the full transcript runs longer.
+  transcriptionHasMore?: boolean;
+  transcriptionPreview?: string;
   urlPrivate: string;
+  // Per-sample amplitude (0-100) Slack renders as the voice-message waveform.
+  waveform?: number[];
   width?: number;
 }
 
 export interface Attachment {
   authorIcon?: string;
   authorName?: string;
+  // Rich-text body of a message-unfurl attachment (legacy attachments carry
+  // their own `blocks`, separate from a real Message's).
+  blocks?: Block[];
+  // Channel the unfurled message was posted in, for the "Posted in #channel" line.
+  channelId?: string;
   color?: string;
+  // Legacy summary used as the body when an attachment omits blocks and text.
+  fallback?: string;
   fields?: { title: string; value: string; short?: boolean }[];
+  // Files attached to the unfurled message itself (distinct from this
+  // attachment's own imageUrl/videoUrl), e.g. sharing a permalink to a
+  // message that has an uploaded image or file.
+  files?: SlackFile[];
   footer?: string;
   footerIcon?: string;
+  // Permalink to the unfurled message, for the "View message" link.
+  fromUrl?: string;
   id?: number;
   imageUrl?: string;
   // Set when this attachment is Slack's own auto-unfurl of a permalink found
   // in the message text, with `ts` identifying which message it unfurled —
   // used to suppress the redundant native unfurl of our own reply-link.
   isMessageUnfurl?: boolean;
+  // "Today at 11:01 AM"-style label for a message-unfurl's original send time.
+  postedAt?: string;
+  // Text shown immediately above a legacy attachment's bordered content.
+  pretext?: string;
   text?: string;
   title?: string;
   titleLink?: string;
@@ -84,6 +117,10 @@ export interface Message {
   attachments?: Attachment[];
   blocks?: Block[];
   botIcon?: string;
+  // The classic "B..." bot/service id — present on app-posted messages,
+  // needed to resolve which app owns a Block Kit button so its click can be
+  // dispatched (see runBlockAction).
+  botId?: string;
   botName?: string;
   day: string;
   deleted?: boolean;
@@ -105,6 +142,8 @@ export interface Message {
   replyCount?: number;
   replyUsers?: string[];
   text: string;
+  // Slack includes this rendering-ready copy of the parent on broadcast replies.
+  threadRoot?: Message;
   // Root ts of the thread this reply belongs to, when different from its own
   // ts — set for broadcasted replies so the channel view can show the thread
   // context they were sent from.
@@ -132,6 +171,7 @@ export interface Channel {
 export interface DirectMessage {
   id: string;
   lastActivity?: number;
+  mentions?: number;
   unread: boolean;
   // Exactly one of these is set: userId for a regular 1:1 DM, memberIds
   // (everyone but the current user) for a multi-person DM.

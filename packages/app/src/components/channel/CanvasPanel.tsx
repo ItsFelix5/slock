@@ -1,6 +1,6 @@
 import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createResource, createSignal, Show } from "solid-js";
-import { store, actionFeedback, channelDisplayName } from "../../lib/store";
+import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "./CanvasPanel.css";
 
 export default function CanvasPanel() {

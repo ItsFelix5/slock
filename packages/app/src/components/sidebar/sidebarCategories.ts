@@ -24,6 +24,7 @@ export function buildCategories(
   unreadChannelIds: Record<string, boolean>,
   isChannelStarred: (id: string) => boolean,
   isChannelLeft: (id: string) => boolean,
+  isChannelOpen: (id: string) => boolean,
 ): Category[] {
   const visibleChannels = allChannels.filter((c) => !isChannelLeft(c.id));
   // Bootstrap's `unread` value is only an initial snapshot. The reactive map
@@ -32,6 +33,9 @@ export function buildCategories(
   // unread impossible to remove from filtered sections.
   const isUnread = (c: Channel) => !!unreadChannelIds[c.id];
   const matches = (c: Channel, sectionId: string, sidebar: Category["sidebar"]) => {
+    // Opening a channel clears its unread state. Keep it in the sidebar even
+    // when that would otherwise make it disappear from a filtered section.
+    if (isChannelOpen(c.id)) return true;
     // A section-name click is an explicit "show all" request, including
     // while Home is otherwise in its unread-only mode.
     if (expandedSectionIds().has(sectionId)) return true;

@@ -11,12 +11,16 @@ export function createDmsSlice(deps: {
   bootstrap: () => { directMessages: DirectMessage[] } | undefined;
   closeUserProfile: () => void;
   unreadChannelIds: Record<string, boolean>;
+  removeDmFromSidebar: (dmId: string) => Promise<boolean>;
   activeView: () => View | null;
   setActiveView: (view: View) => void;
 }) {
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
   const [closedDmIds, setClosedDmIds] = createStore<Record<string, boolean>>({});
   const [dmLastActivity, setDmLastActivity] = createStore<Record<string, number>>({});
+  // Local edits (e.g. live mention-count updates) on top of the immutable bootstrap
+  // snapshot, applied when `allDirectMessages()` assembles its list.
+  const [dmPatches, setDmPatches] = createStore<Record<string, Partial<DirectMessage>>>({});
   let dmActivitySeeded = false;
   let autoCloseTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -24,8 +28,14 @@ export function createDmsSlice(deps: {
   const allDirectMessages = createMemo<DirectMessage[]>(() => {
     const base = deps.bootstrap()?.directMessages ?? [];
     const extra = extraDms.filter((dm) => !base.some((b) => b.id === dm.id));
-    return [...base, ...extra];
+    return [...base, ...extra].map((dm) =>
+      dmPatches[dm.id] ? { ...dm, ...dmPatches[dm.id] } : dm,
+    );
   });
+
+  function patchDm(id: string, patch: Partial<DirectMessage>) {
+    setDmPatches(id, { ...dmPatches[id], ...patch });
+  }
 
   const directMessages = createMemo<DirectMessage[]>(() =>
     allDirectMessages().filter((dm) => !closedDmIds[dm.id]),
@@ -42,7 +52,7 @@ export function createDmsSlice(deps: {
       if (deps.unreadChannelIds[dm.id]) continue;
       const last = dmLastActivity[dm.id];
       if (!last || now - last < DM_AUTO_CLOSE_MS) continue;
-      closeDmConversation(dm.id);
+      void closeDmConversation(dm.id);
     }
   }
 
@@ -68,6 +78,14 @@ export function createDmsSlice(deps: {
     return allDirectMessages().find((d) => d.userId === userId)?.id;
   }
 
+  // Called when a message arrives on a DM channel we've never seen before (someone
+  // opened a DM with us for the first time this session) so it can show up in the
+  // sidebar without waiting for a full reload.
+  function ensureDm(channelId: string, userId: string) {
+    if (allDirectMessages().some((d) => d.id === channelId)) return;
+    setExtraDms(produce((list) => list.push({ id: channelId, unread: true, userId })));
+  }
+
   async function openDmWithUser(userId: string) {
     const existing = allDirectMessages().find((d) => d.userId === userId);
     if (existing && !closedDmIds[existing.id]) {
@@ -86,7 +104,8 @@ export function createDmsSlice(deps: {
     deps.closeUserProfile();
   }
 
-  function closeDmConversation(dmId: string) {
+  async function closeDmConversation(dmId: string) {
+    if (!(await deps.removeDmFromSidebar(dmId))) return;
     setClosedDmIds(dmId, true);
     const view = deps.activeView();
     if (view?.kind === "dm" && view.id === dmId) {
@@ -102,7 +121,9 @@ export function createDmsSlice(deps: {
     directMessages,
     dmById,
     dmIdForUser,
+    ensureDm,
     openDmWithUser,
+    patchDm,
     setClosedDmIds,
     setDmLastActivity,
   };

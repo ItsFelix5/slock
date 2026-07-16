@@ -1,4 +1,5 @@
 import { createMemo, For, Show } from "solid-js";
+import { decodeTextEntities } from "../entities";
 import { resolveStandardEmoji } from "./emoji";
 import { emojiUrl } from "./emojiCache";
 import "./EmojiText.css";
@@ -22,7 +23,7 @@ function splitParts(text: string): Part[] {
 
 export default function EmojiText(props: { text: string }) {
   return (
-    <For each={splitParts(props.text)}>
+    <For each={splitParts(decodeTextEntities(props.text))}>
       {(part) => {
         if (part.type === "text") return <>{part.value}</>;
         // Workspace custom emoji can override standard names, so check it first;

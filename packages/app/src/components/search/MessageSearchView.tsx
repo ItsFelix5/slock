@@ -1,6 +1,6 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { type SearchResult, searchMessages } from "@slock/slack-api";
-import { FilterCombobox, Icon } from "@slock/ui";
+import { FilterCombobox, Icon, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
   buildSearchQuery,
@@ -99,14 +99,16 @@ export default function MessageSearchView() {
           type="text"
           value={query()}
         />
-        <button
-          class="panel-close-btn"
-          onClick={() => store.viewState.setNavView("home")}
-          title="Close search"
-          type="button"
-        >
-          <Icon name="close" size={12} />
-        </button>
+        <Tooltip content="Close search">
+          <button
+            aria-label="Close search"
+            class="panel-close-btn"
+            onClick={() => store.viewState.setNavView("home")}
+            type="button"
+          >
+            <Icon name="close" size={12} />
+          </button>
+        </Tooltip>
       </div>
       <div class="global-search-filters message-search-filters">
         <div class="global-search-filter-row">
@@ -232,14 +234,16 @@ export default function MessageSearchView() {
                         <Icon class="global-search-jump-icon" name="search" size={13} />
                         {q}
                       </button>
-                      <button
-                        class="message-search-history-remove btn-reset icon-btn icon-action text-dim"
-                        onClick={() => store.searchHistory.removeSearchHistoryEntry(q)}
-                        title="Remove"
-                        type="button"
-                      >
-                        <Icon name="close" size={12} />
-                      </button>
+                      <Tooltip content="Remove">
+                        <button
+                          aria-label="Remove"
+                          class="message-search-history-remove btn-reset icon-btn icon-action text-dim"
+                          onClick={() => store.searchHistory.removeSearchHistoryEntry(q)}
+                          type="button"
+                        >
+                          <Icon name="close" size={12} />
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </For>

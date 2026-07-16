@@ -1,4 +1,5 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
+// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../types";
 import { callSlack, fileProxyUrl } from "../relay";
 

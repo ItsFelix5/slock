@@ -43,6 +43,7 @@ export default function ComposeDatePicker(props: {
   onSelect: (timestamp: number, format: string) => void;
   onClose: () => void;
 }) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let inputRef: HTMLInputElement | undefined;
   const [pickedDate, setPickedDate] = createSignal<Date | null>(null);
 

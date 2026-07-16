@@ -2,12 +2,14 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: 420px;
+  max-width: min(420px, 100%);
   margin-top: 4px;
 }
 
 .message-file-image {
-  max-width: 360px;
+  width: auto;
+  height: auto;
+  max-width: min(360px, 100%);
   max-height: 320px;
   object-fit: contain;
   border: 1px solid var(--border);
@@ -15,7 +17,7 @@
 }
 
 .message-file-video {
-  max-width: 360px;
+  max-width: min(360px, 100%);
   max-height: 320px;
   border: 1px solid var(--border);
   border-radius: var(--radius-6);

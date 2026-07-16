@@ -60,14 +60,7 @@
   font-size: 14px;
 }
 
-.channel-header-more-wrap {
-  position: relative;
-}
-
 .channel-header-menu.menu-panel {
-  top: 34px;
-  right: 0;
-  left: auto;
   z-index: 8;
   min-width: 190px;
 }
@@ -77,14 +70,7 @@
   font-size: 14px;
 }
 
-.channel-header-star-wrap {
-  position: relative;
-}
-
 .channel-header-star-menu {
-  position: absolute;
-  top: 30px;
-  left: 0;
   z-index: 9;
   min-width: 190px;
   max-height: 260px;
@@ -167,10 +153,6 @@
   background: var(--hover-bg);
 }
 
-.channel-header-tab-add-wrap {
-  position: relative;
-}
-
 .channel-header-tab-add {
   width: 26px;
   height: 26px;
@@ -184,9 +166,6 @@
 }
 
 .channel-header-tab-add-menu {
-  position: absolute;
-  top: 30px;
-  left: 0;
   z-index: 9;
   display: flex;
   flex-direction: column;

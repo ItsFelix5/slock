@@ -1,6 +1,6 @@
-import { Icon, InlineFeedback, Menu } from "@slock/ui";
+import { Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { actionFeedback } from "../../lib/store";
+import { actionFeedback, composerFeedbackKey } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
 import { type ComposerProps, createComposerController } from "./composerController";
 import { suggestItemContent } from "./lib/suggestTypes";
@@ -65,14 +65,16 @@ export default function Composer(props: ComposerProps) {
             {(file, i) => (
               <span class="composer-file-chip flex-align-center">
                 {file.name}
-                <button
-                  class="btn-reset"
-                  onClick={() => removeFile(i())}
-                  title="Remove"
-                  type="button"
-                >
-                  <Icon name="close" size={12} />
-                </button>
+                <Tooltip content="Remove">
+                  <button
+                    aria-label="Remove"
+                    class="btn-reset"
+                    onClick={() => removeFile(i())}
+                    type="button"
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                </Tooltip>
               </span>
             )}
           </For>
@@ -84,21 +86,26 @@ export default function Composer(props: ComposerProps) {
             {(preview) => (
               <div class="composer-link-preview">
                 <AttachmentCard attachment={linkPreviewToAttachment(preview)} />
-                <button
-                  class="composer-link-preview-remove btn-reset flex-center"
-                  onClick={() => linkPreviews.dismissLinkPreview(preview.url)}
-                  title="Remove preview"
-                  type="button"
-                >
-                  <Icon name="close" size={12} />
-                </button>
+                <Tooltip content="Remove preview">
+                  <button
+                    aria-label="Remove preview"
+                    class="composer-link-preview-remove btn-reset flex-center"
+                    onClick={() => linkPreviews.dismissLinkPreview(preview.url)}
+                    type="button"
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                </Tooltip>
               </div>
             )}
           </For>
         </div>
       </Show>
       <Show when={!props.editing}>
-        <InlineFeedback class="composer-feedback" feedback={actionFeedback.get(feedbackKey())} />
+        <InlineFeedback
+          class="composer-feedback"
+          feedback={actionFeedback.get(composerFeedbackKey(feedbackKey()))}
+        />
       </Show>
       <div class="composer-row">
         <div class="composer-tools-wrap">
@@ -106,17 +113,20 @@ export default function Composer(props: ComposerProps) {
             onClose={() => setToolsOpen(false)}
             open={toolsOpen()}
             panelClass="menu-panel composer-tools-menu"
+            placement="top"
             trigger={
-              <button
-                class="composer-tool btn-reset flex-center flex-shrink-0"
-                classList={{ active: toolsOpen() }}
-                onClick={() => setToolsOpen(!toolsOpen())}
-                onMouseDown={(e) => e.preventDefault()}
-                title="Add formatting or a block"
-                type="button"
-              >
-                <Icon name="plus" size={16} />
-              </button>
+              <Tooltip content="Add formatting or a block">
+                <button
+                  aria-label="Add formatting or a block"
+                  class="composer-tool btn-reset flex-center flex-shrink-0"
+                  classList={{ active: toolsOpen() }}
+                  onClick={() => setToolsOpen(!toolsOpen())}
+                  onMouseDown={(e) => e.preventDefault()}
+                  type="button"
+                >
+                  <Icon name="plus" size={16} />
+                </button>
+              </Tooltip>
             }
           >
             <For each={availableTools()}>

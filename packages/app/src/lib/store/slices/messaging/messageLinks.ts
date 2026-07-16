@@ -1,11 +1,28 @@
-import { addReminder, getPermalink } from "@slock/slack-api";
+import { addMessageReminder, getPermalink } from "@slock/slack-api";
 
-export const REMINDER_OPTIONS: { label: string; time: string }[] = [
-  { label: "in 20 minutes", time: "in 20 minutes" },
-  { label: "in 1 hour", time: "in 1 hour" },
-  { label: "in 3 hours", time: "in 3 hours" },
-  { label: "tomorrow", time: "tomorrow at 9am" },
-  { label: "next week", time: "next monday at 9am" },
+function inMinutes(minutes: number): number {
+  return Math.floor(Date.now() / 1000) + minutes * 60;
+}
+
+function nextDayAt9am(daysFromNow: number): number {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(9, 0, 0, 0);
+  return Math.floor(d.getTime() / 1000);
+}
+
+function nextMondayAt9am(): number {
+  const d = new Date();
+  const daysUntilMonday = (1 - d.getDay() + 7) % 7 || 7;
+  return nextDayAt9am(daysUntilMonday);
+}
+
+export const REMINDER_OPTIONS: { label: string; dateDue: () => number }[] = [
+  { dateDue: () => inMinutes(20), label: "in 20 minutes" },
+  { dateDue: () => inMinutes(60), label: "in 1 hour" },
+  { dateDue: () => inMinutes(180), label: "in 3 hours" },
+  { dateDue: () => nextDayAt9am(1), label: "tomorrow" },
+  { dateDue: nextMondayAt9am, label: "next week" },
 ];
 
 export async function copyMessageLink(channelId: string, ts: string) {
@@ -31,10 +48,9 @@ export async function prepareReplyLink(
   }
 }
 
-export async function remindAboutMessage(channelId: string, ts: string, time: string) {
+export async function remindAboutMessage(channelId: string, ts: string, dateDue: number) {
   try {
-    const link = await getPermalink(channelId, ts);
-    await addReminder(link ?? `message ${ts} in ${channelId}`, time);
+    await addMessageReminder(channelId, ts, dateDue);
   } catch (err) {
     console.error("Failed to set reminder", err);
   }

@@ -1,9 +1,10 @@
-import type { Bootstrap, UserPrefs } from "@slock/slack-api";
+import type { Bootstrap, DirectMessage, UserPrefs } from "@slock/slack-api";
 import type { Resource } from "solid-js";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
 import { createPinnedSlice } from "./slices/entities/pinned";
+import { createUsergroupsSlice } from "./slices/entities/usergroups";
 import { createUsersSlice } from "./slices/entities/users";
 import { createActivitySlice } from "./slices/messaging/activity";
 import { createMessagesSlice } from "./slices/messaging/messages";
@@ -28,9 +29,17 @@ export function createStoreSlices({
 }) {
   const viewState = createViewStateSlice({ bootstrap });
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
+  const usergroups = createUsergroupsSlice();
   const typing = createTypingSlice({ userById: users.userById });
   const setActiveViewImplRef: { current: (view: View) => void } = { current: () => {} };
   const setActiveView = (view: View) => setActiveViewImplRef.current(view);
+  // dms.patchDm doesn't exist yet when the unread slice is built (dms needs
+  // unread.unreadChannelIds, so it must come later) — bridge with a stable
+  // wrapper, filled in once dms is created below.
+  const patchDmImplRef: { current: (id: string, patch: Partial<DirectMessage>) => void } = {
+    current: () => {},
+  };
+  const patchDm = (id: string, patch: Partial<DirectMessage>) => patchDmImplRef.current(id, patch);
   const channels = createChannelsSlice({
     activeView: viewState.activeView,
     bootstrap,
@@ -40,11 +49,12 @@ export function createStoreSlices({
     channels: channels.channels,
     userPrefs,
   });
-  const unread = createUnreadSlice({ bootstrap, patchChannel: channels.patchChannel });
+  const unread = createUnreadSlice({ bootstrap, patchChannel: channels.patchChannel, patchDm });
   const activity = createActivitySlice({
     currentUser: users.currentUser,
     lastReadByChannel: unread.lastReadByChannel,
     patchChannel: channels.patchChannel,
+    patchDm,
     setLastReadByChannel: unread.setLastReadByChannel,
   });
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
@@ -55,9 +65,11 @@ export function createStoreSlices({
     activeView: viewState.activeView,
     bootstrap,
     closeUserProfile: users.closeUserProfile,
+    removeDmFromSidebar: channels.removeDmFromSidebar,
     setActiveView,
     unreadChannelIds: unread.unreadChannelIds,
   });
+  patchDmImplRef.current = dms.patchDm;
   const pinned = createPinnedSlice();
   const canvas = createCanvasSlice();
   const messages = createMessagesSlice({
@@ -66,6 +78,7 @@ export function createStoreSlices({
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     pushActivity: activity.pushActivity,
+    recordActivityEngagement: activity.recordActivityEngagement,
     setLastReadByChannel: unread.setLastReadByChannel,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     setUnreadDividerTs: unread.setUnreadDividerTs,
@@ -79,6 +92,7 @@ export function createStoreSlices({
     clearTyping: typing.clearTyping,
     closedDmIds: dms.closedDmIds,
     currentUser: users.currentUser,
+    ensureDm: dms.ensureDm,
     findAllMessageLocations: messages.findAllMessageLocations,
     insertMessageInOrder: messages.insertMessageInOrder,
     invalidateUser: users.invalidateUser,
@@ -89,8 +103,10 @@ export function createStoreSlices({
     mergeIncomingMessage: messages.mergeIncomingMessage,
     messagesByChannel: messages.messagesByChannel,
     patchChannel: channels.patchChannel,
+    patchDm: dms.patchDm,
     patchMessage: messages.patchMessage,
     pushActivity: activity.pushActivity,
+    recordActivityEngagement: activity.recordActivityEngagement,
     recordTyping: typing.recordTyping,
     setGatewayActivityBadgeCounts: activity.setGatewayActivityBadgeCounts,
     setClosedDmIds: dms.setClosedDmIds,
@@ -122,6 +138,7 @@ export function createStoreSlices({
     typing,
     unread,
     users,
+    usergroups,
     viewState,
   };
 }

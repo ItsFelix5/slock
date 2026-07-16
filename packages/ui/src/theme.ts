@@ -1,37 +1,23 @@
 import { createMemo, createSignal } from "solid-js";
-export type Theme = "dark" | "light" | "system";
-const STORAGE_KEY = "slock-theme";
-function initial(): Theme {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  return saved === "light" || saved === "system" ? saved : "dark";
+export type MessageSize = 0 | 1 | 2;
+const MESSAGE_SIZE_KEY = "slock-message-size";
+const LEGACY_COMPACT_KEY = "slock-compact";
+function loadMessageSize(): MessageSize {
+  const raw = localStorage.getItem(MESSAGE_SIZE_KEY);
+  const saved = raw === null ? Number.NaN : Number(raw);
+  if (saved === 0 || saved === 1 || saved === 2) return saved;
+  return localStorage.getItem(LEGACY_COMPACT_KEY) === "1" ? 0 : 1;
 }
-const [theme, setThemeSignal] = createSignal<Theme>(initial());
-const systemQuery = window.matchMedia?.("(prefers-color-scheme: light)");
-function resolve(t: Theme): "dark" | "light" {
-  return t === "system" ? (systemQuery?.matches ? "light" : "dark") : t;
+const [messageSize, setMessageSizeSignal] = createSignal<MessageSize>(loadMessageSize());
+function applyMessageSize(size: MessageSize) {
+  document.documentElement.dataset.messageSize = String(size);
 }
-function apply(t: Theme) {
-  document.documentElement.classList.toggle("theme-light", resolve(t) === "light");
-}
-apply(theme());
-systemQuery?.addEventListener("change", () => {
-  if (theme() === "system") apply("system");
-});
-export function setTheme(t: Theme) {
-  setThemeSignal(t);
-  localStorage.setItem(STORAGE_KEY, t);
-  apply(t);
-}
-const COMPACT_KEY = "slock-compact";
-const [compactMode, setCompactModeSignal] = createSignal(localStorage.getItem(COMPACT_KEY) === "1");
-function applyCompact(on: boolean) {
-  document.documentElement.classList.toggle("compact-mode", on);
-}
-applyCompact(compactMode());
-export function setCompactMode(on: boolean) {
-  setCompactModeSignal(on);
-  localStorage.setItem(COMPACT_KEY, on ? "1" : "0");
-  applyCompact(on);
+applyMessageSize(messageSize());
+export function setMessageSize(size: MessageSize) {
+  setMessageSizeSignal(size);
+  localStorage.setItem(MESSAGE_SIZE_KEY, String(size));
+  localStorage.removeItem(LEGACY_COMPACT_KEY);
+  applyMessageSize(size);
 }
 const LOG_DELETED_KEY = "slock-log-deleted-messages";
 const [logDeletedMessages, setLogDeletedMessagesSignal] = createSignal(
@@ -48,6 +34,7 @@ export interface ThemeColors {
   badgeBg?: string;
   border?: string;
   borderStrong?: string;
+  codeBg?: string;
   composerBg?: string;
   danger?: string;
   font?: string;
@@ -71,6 +58,7 @@ const THEME_COLOR_VARS: Record<keyof ThemeColors, string> = {
   badgeBg: "--badge-bg",
   border: "--border",
   borderStrong: "--border-strong",
+  codeBg: "--code-bg",
   composerBg: "--composer-bg",
   danger: "--danger",
   font: "--font",
@@ -100,12 +88,16 @@ function hexToRgbTriplet(hex: string): string {
 function loadThemeColors(): ThemeColors {
   try {
     const raw = localStorage.getItem(THEME_COLORS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const overrides = raw ? JSON.parse(raw) : {};
+    const legacyTheme = localStorage.getItem("slock-theme");
+    const usedLightTheme =
+      legacyTheme === "light" ||
+      (legacyTheme === "system" && window.matchMedia?.("(prefers-color-scheme: light)").matches);
+    return usedLightTheme ? { ...LIGHT_THEME_COLORS, ...overrides } : overrides;
   } catch {
     return {};
   }
 }
-const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeColors());
 function applyThemeColors(colors: ThemeColors) {
   for (const key of Object.keys(colors) as (keyof ThemeColors)[]) {
     const value = colors[key];
@@ -121,7 +113,6 @@ function applyThemeColors(colors: ThemeColors) {
     }
   }
 }
-applyThemeColors(themeColors());
 export function setThemeColors(overrides: ThemeColors): void {
   const merged = { ...themeColors(), ...overrides };
   setThemeColorsSignal(merged);
@@ -156,6 +147,7 @@ export const THEME_COLOR_LABELS: Record<Exclude<keyof ThemeColors, "font">, stri
   badgeBg: "Badge background",
   border: "Border",
   borderStrong: "Border (strong)",
+  codeBg: "Code background",
   composerBg: "Composer background",
   danger: "Danger",
   hoverBg: "Hover background",
@@ -177,23 +169,65 @@ export function getEffectiveColor(key: keyof ThemeColors): string {
   return getComputedStyle(document.documentElement).getPropertyValue(THEME_COLOR_VARS[key]).trim();
 }
 export interface ThemePreset {
-  colors: Pick<ThemeColors, "accent" | "accentHover" | "presenceActive" | "badgeBg">;
+  colors: ThemeColors;
   id: string;
   label: string;
 }
+const DARK_THEME_COLORS = {
+  accent: "#1264a3",
+  accentHover: "#0b5385",
+  activeBg: "rgba(255, 255, 255, 0.1)",
+  badgeBg: "#cd2553",
+  border: "rgba(255, 255, 255, 0.08)",
+  borderStrong: "rgba(255, 255, 255, 0.14)",
+  codeBg: "rgba(0, 0, 0, 0.25)",
+  composerBg: "#222529",
+  danger: "#e0554a",
+  hoverBg: "rgba(255, 255, 255, 0.06)",
+  mainBg: "#1a1d21",
+  mentionSelfText: "#e0a72d",
+  mentionText: "#4bb6e8",
+  presenceActive: "#2eb67d",
+  railBg: "#191a20",
+  sidebarBg: "#101214",
+  textDim: "rgba(224, 224, 224, 0.45)",
+  textOnAccent: "#fff",
+  textPrimary: "#d1d2d3",
+  textSecondary: "rgba(224, 224, 224, 0.7)",
+  warning: "#f39c12",
+} satisfies ThemeColors;
+const LIGHT_THEME_COLORS = {
+  ...DARK_THEME_COLORS,
+  activeBg: "rgba(18, 100, 163, 0.12)",
+  border: "rgba(0, 0, 0, 0.09)",
+  borderStrong: "rgba(0, 0, 0, 0.16)",
+  codeBg: "rgba(0, 0, 0, 0.08)",
+  composerBg: "#ffffff",
+  danger: "#cc3333",
+  hoverBg: "rgba(0, 0, 0, 0.05)",
+  mainBg: "#ffffff",
+  railBg: "#f7f7f8",
+  sidebarBg: "#f0f0f2",
+  textDim: "rgba(29, 28, 29, 0.45)",
+  textPrimary: "#1d1c1d",
+  textSecondary: "rgba(29, 28, 29, 0.7)",
+} satisfies ThemeColors;
+const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeColors());
+applyThemeColors(themeColors());
 export const THEME_PRESETS: ThemePreset[] = [
   {
-    colors: {
-      accent: "#1264a3",
-      accentHover: "#0b5385",
-      badgeBg: "#cd2553",
-      presenceActive: "#2eb67d",
-    },
-    id: "default",
-    label: "Default",
+    colors: DARK_THEME_COLORS,
+    id: "dark",
+    label: "Dark",
+  },
+  {
+    colors: LIGHT_THEME_COLORS,
+    id: "light",
+    label: "Light",
   },
   {
     colors: {
+      ...DARK_THEME_COLORS,
       accent: "#611f69",
       accentHover: "#4a154b",
       badgeBg: "#e01e5a",
@@ -204,6 +238,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
   {
     colors: {
+      ...DARK_THEME_COLORS,
       accent: "#2f855a",
       accentHover: "#276749",
       badgeBg: "#dd6b20",
@@ -214,6 +249,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
   {
     colors: {
+      ...DARK_THEME_COLORS,
       accent: "#b91c1c",
       accentHover: "#991b1b",
       badgeBg: "#db2777",
@@ -224,6 +260,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
   {
     colors: {
+      ...DARK_THEME_COLORS,
       accent: "#ea580c",
       accentHover: "#c2410c",
       badgeBg: "#db2777",
@@ -234,6 +271,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
   {
     colors: {
+      ...DARK_THEME_COLORS,
       accent: "#52525b",
       accentHover: "#3f3f46",
       badgeBg: "#ef4444",
@@ -244,6 +282,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
 ];
 export function applyPreset(preset: ThemePreset): void {
+  resetThemeColors();
   setThemeColors(preset.colors);
 }
 export const activePreset = createMemo((): string => {
@@ -255,4 +294,4 @@ export const activePreset = createMemo((): string => {
   }
   return "custom";
 });
-export { compactMode, logDeletedMessages, theme, themeColors };
+export { logDeletedMessages, messageSize, themeColors };

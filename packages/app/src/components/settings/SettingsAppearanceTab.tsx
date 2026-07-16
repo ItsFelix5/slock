@@ -2,21 +2,20 @@ import {
   activePreset,
   applyPreset,
   ColorField,
-  compactMode,
   getEffectiveColor,
   logDeletedMessages,
+  type MessageSize,
+  messageSize,
   resetThemeColor,
   resetThemeColors,
-  SegmentedControl,
   Switch,
-  setCompactMode,
   setLogDeletedMessages,
-  setTheme,
+  setMessageSize,
   setThemeColors,
   THEME_COLOR_KEYS,
   THEME_COLOR_LABELS,
   THEME_PRESETS,
-  theme,
+  Tooltip,
 } from "@slock/ui";
 import { For } from "solid-js";
 import "./Settings.css";
@@ -28,47 +27,26 @@ export default function SettingsAppearanceTab() {
 
       <div class="settings-row flex-between">
         <div>
-          <div class="settings-row-label">Theme</div>
-          <div class="settings-row-hint text-dim">
-            "System" follows your OS's light/dark setting.
+          <div class="settings-row-label">Message size</div>
+          <div class="settings-row-hint text-dim">Compact, default, or large messages.</div>
+        </div>
+        <div class="settings-size-control">
+          <input
+            aria-label="Message size"
+            class="settings-size-slider"
+            max="2"
+            min="0"
+            onInput={(event) => setMessageSize(Number(event.currentTarget.value) as MessageSize)}
+            step="1"
+            type="range"
+            value={messageSize()}
+          />
+          <div class="settings-size-labels text-dim" aria-hidden="true">
+            <span>Compact</span>
+            <span>Default</span>
+            <span>Large</span>
           </div>
         </div>
-        <SegmentedControl>
-          <button
-            class="segmented-control-btn"
-            classList={{ active: theme() === "dark" }}
-            onClick={() => setTheme("dark")}
-            type="button"
-          >
-            Dark
-          </button>
-          <button
-            class="segmented-control-btn"
-            classList={{ active: theme() === "light" }}
-            onClick={() => setTheme("light")}
-            type="button"
-          >
-            Light
-          </button>
-          <button
-            class="segmented-control-btn"
-            classList={{ active: theme() === "system" }}
-            onClick={() => setTheme("system")}
-            type="button"
-          >
-            System
-          </button>
-        </SegmentedControl>
-      </div>
-
-      <div class="settings-row flex-between">
-        <div>
-          <div class="settings-row-label">Compact messages</div>
-          <div class="settings-row-hint text-dim">
-            Tighter spacing between consecutive messages.
-          </div>
-        </div>
-        <Switch checked={compactMode()} onChange={setCompactMode} title="Toggle compact mode" />
       </div>
 
       <div class="settings-row flex-between">
@@ -86,26 +64,32 @@ export default function SettingsAppearanceTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Color preset</div>
+        <div class="settings-row-label">Theme</div>
         <div class="settings-row-hint text-dim">
-          Quick accent palettes. Fine-tune any of them below.
+          Choose a complete theme, then fine-tune any color below.
         </div>
         <div class="settings-preset-group">
           <For each={THEME_PRESETS}>
             {(preset) => (
-              <button
-                class="settings-preset-btn btn-reset flex-align-center"
-                classList={{ active: activePreset() === preset.id }}
-                onClick={() => applyPreset(preset)}
-                title={preset.label}
-                type="button"
-              >
-                <span
-                  class="settings-preset-swatch"
-                  style={{ "background-color": preset.colors.accent }}
-                />
-                {preset.label}
-              </button>
+              <Tooltip content={preset.label}>
+                <button
+                  aria-label={preset.label}
+                  class="settings-preset-btn btn-reset flex-align-center"
+                  classList={{ active: activePreset() === preset.id }}
+                  onClick={() => applyPreset(preset)}
+                  type="button"
+                >
+                  <span
+                    class="settings-preset-swatch"
+                    style={{
+                      "background-color": preset.colors.mainBg,
+                      "border-color": preset.colors.borderStrong,
+                      color: preset.colors.accent,
+                    }}
+                  />
+                  {preset.label}
+                </button>
+              </Tooltip>
             )}
           </For>
         </div>

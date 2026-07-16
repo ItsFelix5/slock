@@ -1,0 +1,42 @@
+.channel-hovercard-anchor {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.channel-hovercard {
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  color: var(--text-primary);
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.32);
+}
+
+.channel-hovercard-heading {
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.channel-hovercard-hash {
+  color: var(--text-dim);
+}
+
+.channel-hovercard-btn {
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+
+.channel-hovercard-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--text-dim);
+}

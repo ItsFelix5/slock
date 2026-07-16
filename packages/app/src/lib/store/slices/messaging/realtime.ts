@@ -26,9 +26,12 @@ export function createRealtimeSlice(deps: {
   setDmLastActivity: (id: string, ts: number) => void;
   closedDmIds: Record<string, boolean>;
   setClosedDmIds: (id: string, closed: boolean) => void;
+  ensureDm: (channelId: string, userId: string) => void;
+  patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   isChannelNotifyAll: (id: string) => boolean;
   matchingHighlightWord: (text: string) => string | undefined;
   pushActivity: (item: ActivityItem) => void;
+  recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
   setGatewayActivityBadgeCounts: (activity: any) => void;
   messagesByChannel: Record<string, Message[]>;
   setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
@@ -55,12 +58,12 @@ export function createRealtimeSlice(deps: {
   let socket: WebSocket | null = null;
   let reconnectDelay = 1000;
   const MaxReconnectDelay = 20000;
+
   function send(payload: unknown) {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(payload));
   }
   function handleIncomingMessage(payload: any) {
-    const subtype = payload.subtype;
-    const channel = payload.channel;
+    const { channel, subtype, ts } = payload;
     if (subtype === "message_changed") {
       const updated = payload.message;
       if (!updated?.ts) return;
@@ -79,13 +82,19 @@ export function createRealtimeSlice(deps: {
       }
       return;
     }
+    if (subtype === "message_replied") {
+      const updated = payload.message;
+      if (!updated?.ts) return;
+      const { lastReplyLabel, replyCount, replyUsers } = mapMessage(updated);
+      deps.patchMessage(channel, updated.ts, { lastReplyLabel, replyCount, replyUsers });
+      return;
+    }
     if (subtype === "message_deleted") {
       const ts = payload.deleted_ts;
       if (!ts) return;
       deps.patchMessage(channel, ts, { deleted: true });
       return;
     }
-    const ts = payload.ts;
     if (!ts) return;
     const msg = mapMessage(payload);
     if (msg.isEphemeral) {
@@ -129,10 +138,17 @@ export function createRealtimeSlice(deps: {
       );
     }
     const activeId = deps.activeView()?.id;
-    if (channel !== activeId) deps.setUnreadChannelIds(channel, true);
+    // Slack echoes messages sent by this account from its other clients. They
+    // are already read by definition and must not create a local unread dot.
+    if (me && msg.userId !== me.id && channel !== activeId && !isThreadReply) {
+      deps.setUnreadChannelIds(channel, true);
+    }
     if (deps.allDirectMessages().some((d) => d.id === channel)) {
       deps.setDmLastActivity(channel, Date.now());
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
+    } else if (channel.startsWith("D") && me && msg.userId !== me.id) {
+      deps.ensureDm(channel, msg.userId);
+      deps.setDmLastActivity(channel, Date.now());
     }
     if (me && msg.userId !== me.id) {
       const activity = classifyIncomingActivity(
@@ -157,8 +173,13 @@ export function createRealtimeSlice(deps: {
         if (activity.kind === "mention") {
           const current = deps.channels().find((c) => c.id === channel)?.mentions ?? 0;
           deps.patchChannel(channel, { mentions: current + 1 });
+        } else if (activity.kind === "dm") {
+          const current = deps.allDirectMessages().find((d) => d.id === channel)?.mentions ?? 0;
+          deps.patchDm(channel, { mentions: current + 1 });
         }
       }
+    } else if (me && msg.userId === me.id) {
+      deps.recordActivityEngagement(channel, ts, isThreadReply ? payload.thread_ts : undefined);
     }
   }
   function connectSocket() {
@@ -206,11 +227,12 @@ export function createRealtimeSlice(deps: {
           break;
         case "reaction_added":
         case "reaction_removed":
-          if (
-            payload.item?.channel &&
-            payload.item?.ts &&
-            payload.user !== deps.currentUser()?.id
-          ) {
+          if (!(payload.item?.channel && payload.item?.ts)) break;
+          if (payload.user === deps.currentUser()?.id) {
+            if (payload.type === "reaction_added") {
+              deps.recordActivityEngagement(payload.item.channel, payload.item.ts);
+            }
+          } else {
             deps.applyReactionEvent(
               payload.item.channel,
               payload.item.ts,
@@ -234,8 +256,9 @@ export function createRealtimeSlice(deps: {
         }
         case "badge_counts_updated": {
           for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
-            deps.setUnreadChannelIds(id, unread);
-            deps.patchChannel(id, { mentions });
+            if (!unread) deps.setUnreadChannelIds(id, false);
+            if (id.startsWith("D")) deps.patchDm(id, { mentions });
+            else deps.patchChannel(id, { mentions });
           }
           deps.setGatewayActivityBadgeCounts(payload.activity_v2);
           break;

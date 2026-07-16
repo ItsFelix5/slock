@@ -10,6 +10,7 @@ import type { View } from "../types";
 // wherever we already tell Slack "read up to here".
 export function createUnreadSlice(deps: {
   patchChannel: (id: string, patch: Partial<Channel>) => void;
+  patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   bootstrap: () => { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
 }) {
   const [unreadChannelIds, setUnreadChannelIds] = createStore<Record<string, boolean>>({});
@@ -47,7 +48,8 @@ export function createUnreadSlice(deps: {
 
   function clearChannelUnread(channelId: string) {
     setUnreadChannelIds(channelId, false);
-    deps.patchChannel(channelId, { mentions: 0 });
+    if (channelId.startsWith("D")) deps.patchDm(channelId, { mentions: 0 });
+    else deps.patchChannel(channelId, { mentions: 0 });
   }
 
   function unreadDividerTsForChannel(channelId: string) {
@@ -79,7 +81,7 @@ export function createUnreadSlice(deps: {
       // Wait for the channel's own history too — deciding "caught up" below
       // needs the actual last message, not an empty list that hasn't loaded yet.
       const list = readDeps.messagesByChannel[id];
-      if (!list) return;
+      if (!list?.length) return;
       dividerAnchoredChannels.add(id);
       const lastRead = lastReadByChannel[id] ?? 0;
       const latest = list[list.length - 1];
@@ -89,7 +91,19 @@ export function createUnreadSlice(deps: {
       // received *during* this visit (including your own) never gets mistaken
       // for "new since last time" and grows a divider above it.
       const hasUnreadGap = !!latest && parseFloat(latest.ts) * 1000 > lastRead;
-      setUnreadDividerTs(id, hasUnreadGap ? lastRead : Infinity);
+      const anchor = hasUnreadGap ? lastRead : Infinity;
+      setUnreadDividerTs(id, anchor);
+      if (import.meta.env.DEV) {
+        console.debug("[slock unread anchor]", {
+          anchor,
+          channelId: id,
+          firstTs: list[0]?.ts,
+          hasUnreadGap,
+          lastRead,
+          latestTs: latest?.ts,
+          messageCount: list.length,
+        });
+      }
     });
 
     // Drop the divider anchor for a channel once you leave it, so the next

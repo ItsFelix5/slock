@@ -70,8 +70,10 @@
   opacity: 0.8;
 }
 .compose-link-editor {
-  top: unset;
+  position: absolute;
+  left: 0;
   bottom: 2em;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -112,6 +114,15 @@
   padding: 0;
   background: none;
   border: none;
+}
+.composer-quote {
+  padding: 2px 0 2px 12px;
+  margin: 0;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--border-strong);
+}
+.composer-block-separator {
+  display: none;
 }
 .composer-list {
   padding-left: 22px;

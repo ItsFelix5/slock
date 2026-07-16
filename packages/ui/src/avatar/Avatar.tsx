@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import "./Avatar.css";
 
 export interface AvatarUser {
@@ -16,18 +16,27 @@ export interface AvatarProps {
 }
 
 export default function Avatar(props: AvatarProps) {
+  const [imageFailed, setImageFailed] = createSignal(false);
   const sizeClass = () => `avatar-${props.size ?? "medium"}`;
   const presenceClass = () => (props.user.presence === "away" ? "away" : "");
 
   return (
     <span class={`avatar ${sizeClass()}`} style={{ background: props.user.avatarColor }}>
-      <img
-        alt="?"
-        class="avatar-img"
-        fetchpriority="low"
-        loading="lazy"
-        src={props.user.avatarUrl}
-      />
+      <Show when={!props.user.avatarUrl || imageFailed()}>
+        <span aria-hidden="true" class="avatar-fallback">
+          ?
+        </span>
+      </Show>
+      <Show when={props.user.avatarUrl && !imageFailed()}>
+        <img
+          alt=""
+          class="avatar-img"
+          fetchpriority="low"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+          src={props.user.avatarUrl}
+        />
+      </Show>
       <Show when={props.showPresence}>
         <span class={`avatar-presence-dot ${presenceClass()}`} />
       </Show>

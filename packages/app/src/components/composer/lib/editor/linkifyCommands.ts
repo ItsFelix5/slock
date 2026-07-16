@@ -25,7 +25,7 @@ function linkifyTextNode(node: Text, caretOffset: number | null, re: RegExp): bo
   let changed = false;
   for (const m of text.matchAll(re)) {
     const idx = m.index ?? 0;
-    const raw = m[0];
+    const [raw] = m;
     const clean = raw.replace(/[),.!?;:'"]+$/, "");
     if (!clean) continue;
     if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));

@@ -1,6 +1,6 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to command parsing.
 import { addReminder, runSlashCommand, setChannelTopic } from "@slock/slack-api";
-import { actionFeedback } from "../feedback";
+import { actionFeedback, composerFeedbackKey } from "../feedback";
 
 // Well-understood commands map to real documented APIs already wired up
 // elsewhere in this file; anything else is forwarded best-effort to Slack's
@@ -23,7 +23,7 @@ export function createCommandsSlice(deps: {
     const match = input.match(/^\/(\S+)\s*(.*)$/s);
     if (!match) return false;
     const [, command, rest] = match;
-    const key = threadTs ?? channelId;
+    const key = composerFeedbackKey(threadTs ?? channelId);
 
     switch (command) {
       case "shrug":

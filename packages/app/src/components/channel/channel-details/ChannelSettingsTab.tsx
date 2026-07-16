@@ -1,14 +1,17 @@
-import { Switch } from "@slock/ui";
-import { createMemo, createResource, createSignal, Show } from "solid-js";
+import { Avatar, Icon, Switch, Tooltip } from "@slock/ui";
+import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import {
   loadChannelManagerIds,
+  loadChannelPostingPrefs,
   updateChannelPostingPrefs,
   updateChannelRetention,
   updateMemberPermissions,
 } from "../../../lib/channelDetails";
 import { store } from "../../../lib/store";
+import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import "../../settings/Settings.css";
 import "./ChannelDetails.css";
+import "./ChannelSettingsTab.css";
 
 export default function ChannelSettingsTab(props: { channelId: string; private: boolean }) {
   // These are all channel-manager-only actions on the real Slack client (the
@@ -20,14 +23,27 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
     return !!me && (managerIds() ?? []).includes(me);
   });
 
-  // There's no known read endpoint for channels.prefs.set,
-  // conversations.setRetention or conversations.permissions.accountTypes.set —
-  // all three are write-only as far as this relay can tell — so these toggles
-  // start from Slack's ordinary defaults rather than reflecting this
-  // channel's actual current configuration; each just applies a new value.
+  const [postingPrefs] = createResource(() => props.channelId, loadChannelPostingPrefs);
   const [postingRestricted, setPostingRestricted] = createSignal(false);
+  const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<string[]>([]);
   const [threadsRestricted, setThreadsRestricted] = createSignal(false);
   const [allowChannelMentions, setAllowChannelMentions] = createSignal(true);
+  const [savingPostingPrefs, setSavingPostingPrefs] = createSignal(false);
+  const [addingPostingException, setAddingPostingException] = createSignal(false);
+
+  createEffect(
+    on(postingPrefs, (prefs) => {
+      if (!prefs) return;
+      setPostingRestricted(prefs.postingRestrictedToManagers);
+      setPostingExceptionUserIds(prefs.postingExceptionUserIds);
+      setThreadsRestricted(prefs.threadsRestrictedToManagers);
+      setAllowChannelMentions(prefs.allowChannelMentions);
+    }),
+  );
+
+  const canEditPostingPrefs = createMemo(
+    () => !!postingPrefs() && isManager() && !savingPostingPrefs(),
+  );
   // conversations.permissions.accountTypes.set's FULL_MEMBER `is_allowed` flags
   // are the same "channel managers only" restriction as who_can_post/can_thread
   // above — inverted here so every switch in this tab reads the same way
@@ -52,24 +68,70 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
     );
   });
 
-  const savePostingPrefs = async (patch: {
-    postingRestricted?: boolean;
-    threadsRestricted?: boolean;
-    allowChannelMentions?: boolean;
-  }) => {
-    const next = {
-      allowChannelMentions: patch.allowChannelMentions ?? allowChannelMentions(),
-      postingRestricted: patch.postingRestricted ?? postingRestricted(),
-      threadsRestricted: patch.threadsRestricted ?? threadsRestricted(),
-    };
-    setPostingRestricted(next.postingRestricted);
-    setThreadsRestricted(next.threadsRestricted);
-    setAllowChannelMentions(next.allowChannelMentions);
-    await updateChannelPostingPrefs(props.channelId, {
-      allowChannelMentions: next.allowChannelMentions,
-      postingRestrictedToManagers: next.postingRestricted,
-      threadsRestrictedToManagers: next.threadsRestricted,
+  const savePostingRestriction = async (restricted: boolean) => {
+    if (!canEditPostingPrefs()) return;
+    const previousRestricted = postingRestricted();
+    const previousExceptions = postingExceptionUserIds();
+    const nextExceptions = restricted ? previousExceptions : [];
+    setPostingRestricted(restricted);
+    setPostingExceptionUserIds(nextExceptions);
+    if (!restricted) setAddingPostingException(false);
+    setSavingPostingPrefs(true);
+    const ok = await updateChannelPostingPrefs(props.channelId, {
+      posting: { exceptionUserIds: nextExceptions, restrictedToManagers: restricted },
     });
+    if (!ok) {
+      setPostingRestricted(previousRestricted);
+      setPostingExceptionUserIds(previousExceptions);
+    }
+    setSavingPostingPrefs(false);
+  };
+
+  const savePostingExceptions = async (next: string[]) => {
+    if (!canEditPostingPrefs()) return;
+    const previous = postingExceptionUserIds();
+    setPostingExceptionUserIds(next);
+    setAddingPostingException(false);
+    setSavingPostingPrefs(true);
+    const ok = await updateChannelPostingPrefs(props.channelId, {
+      posting: { exceptionUserIds: next, restrictedToManagers: true },
+    });
+    if (!ok) setPostingExceptionUserIds(previous);
+    setSavingPostingPrefs(false);
+  };
+
+  const addPostingException = (userId: string) => {
+    const current = postingExceptionUserIds();
+    if (current.length >= 100 || current.includes(userId)) return;
+    savePostingExceptions([...current, userId]);
+  };
+
+  const removePostingException = (userId: string) => {
+    savePostingExceptions(postingExceptionUserIds().filter((id) => id !== userId));
+  };
+
+  const saveThreadsRestriction = async (restricted: boolean) => {
+    if (!canEditPostingPrefs()) return;
+    const previous = threadsRestricted();
+    setThreadsRestricted(restricted);
+    setSavingPostingPrefs(true);
+    const ok = await updateChannelPostingPrefs(props.channelId, {
+      threadsRestrictedToManagers: restricted,
+    });
+    if (!ok) setThreadsRestricted(previous);
+    setSavingPostingPrefs(false);
+  };
+
+  const saveChannelMentions = async (enabled: boolean) => {
+    if (!canEditPostingPrefs()) return;
+    const previous = allowChannelMentions();
+    setAllowChannelMentions(enabled);
+    setSavingPostingPrefs(true);
+    const ok = await updateChannelPostingPrefs(props.channelId, {
+      allowChannelMentions: enabled,
+    });
+    if (!ok) setAllowChannelMentions(previous);
+    setSavingPostingPrefs(false);
   };
 
   const saveRetention = async () => {
@@ -113,24 +175,104 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
 
       <div class="settings-section">
         <div class="settings-row-label">Posting permissions</div>
+        <Show when={postingPrefs.loading}>
+          <p class="channel-details-meta">Loading posting permissions…</p>
+        </Show>
+        <Show when={postingPrefs.state === "ready" && !postingPrefs()}>
+          <p class="channel-details-meta">
+            Posting permissions couldn't be loaded, so these controls are disabled.
+          </p>
+        </Show>
         <div class="settings-row">
           <div>
             <div class="settings-row-label">Only channel managers can post</div>
           </div>
           <Switch
             checked={postingRestricted()}
-            disabled={!isManager()}
-            onChange={(v) => savePostingPrefs({ postingRestricted: v })}
+            disabled={!canEditPostingPrefs()}
+            onChange={savePostingRestriction}
           />
         </div>
+        <Show when={postingRestricted()}>
+          <div class="channel-details-exceptions">
+            <div class="channel-details-exceptions-header flex-align-center">
+              <div>
+                <div class="settings-row-label">Exceptions</div>
+                <div class="settings-row-hint text-dim">
+                  These people can post even when posting is restricted.
+                </div>
+              </div>
+              <button
+                class="channel-details-add-btn btn-reset flex-align-center"
+                disabled={!canEditPostingPrefs() || postingExceptionUserIds().length >= 100}
+                onClick={() => setAddingPostingException(true)}
+                type="button"
+              >
+                <Icon name="user-add" size={15} /> Add people
+              </button>
+            </div>
+            <Show
+              fallback={<p class="channel-details-meta">No exceptions.</p>}
+              when={postingExceptionUserIds().length > 0}
+            >
+              <div class="channel-details-exception-list flex-col">
+                <For each={postingExceptionUserIds()}>
+                  {(userId) => (
+                    <div class="channel-details-exception flex-align-center">
+                      <Show
+                        fallback={
+                          <span class="channel-details-exception-name truncate">{userId}</span>
+                        }
+                        when={store.users.userById(userId)}
+                      >
+                        {(user) => (
+                          <>
+                            <Avatar size="small" user={user()} />
+                            <span class="channel-details-exception-name truncate">
+                              {user().name}
+                            </span>
+                          </>
+                        )}
+                      </Show>
+                      <Tooltip content="Remove exception">
+                        <button
+                          aria-label="Remove exception"
+                          class="channel-details-exception-remove btn-reset flex-center"
+                          disabled={!canEditPostingPrefs()}
+                          onClick={() => removePostingException(userId)}
+                          type="button"
+                        >
+                          <Icon name="close-filled" size={14} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Show when={postingExceptionUserIds().length >= 100}>
+              <p class="channel-details-meta">Slack allows up to 100 exceptions per channel.</p>
+            </Show>
+            <Show when={addingPostingException()}>
+              <div class="channel-details-picker">
+                <ComposeUserPicker
+                  excludeUserIds={postingExceptionUserIds()}
+                  includeCurrentUser
+                  onClose={() => setAddingPostingException(false)}
+                  onSelect={addPostingException}
+                />
+              </div>
+            </Show>
+          </div>
+        </Show>
         <div class="settings-row">
           <div>
             <div class="settings-row-label">Only channel managers can reply in threads</div>
           </div>
           <Switch
             checked={threadsRestricted()}
-            disabled={!isManager()}
-            onChange={(v) => savePostingPrefs({ threadsRestricted: v })}
+            disabled={!canEditPostingPrefs()}
+            onChange={saveThreadsRestriction}
           />
         </div>
         <div class="settings-row">
@@ -139,8 +281,8 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
           </div>
           <Switch
             checked={allowChannelMentions()}
-            disabled={!isManager()}
-            onChange={(v) => savePostingPrefs({ allowChannelMentions: v })}
+            disabled={!canEditPostingPrefs()}
+            onChange={saveChannelMentions}
           />
         </div>
       </div>

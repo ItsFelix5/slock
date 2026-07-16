@@ -6,12 +6,34 @@ import { createStore } from "solid-js/store";
 const [emojiUrls, setEmojiUrls] = createStore<Record<string, string | null>>({});
 const [loaded, setLoaded] = createStore({ value: false });
 
-fetchAllEmoji()
-  .then((map) => {
-    setEmojiUrls(map);
-    setLoaded("value", true);
-  })
-  .catch(() => setLoaded("value", true));
+let emojiLoadPromise: Promise<void> | null = null;
+
+// `emoji.list` can be several megabytes for workspaces with many custom emoji.
+// Start it shortly after the initial page load so custom emoji in messages are
+// available without competing with bootstrap, while emoji interactions can
+// still request it immediately.
+export function loadCustomEmoji(): Promise<void> {
+  if (!emojiLoadPromise) {
+    emojiLoadPromise = fetchAllEmoji()
+      .then((map) => {
+        setEmojiUrls(map);
+      })
+      .catch(() => {
+        // Emoji remain usable through their standard Unicode fallbacks.
+      })
+      .finally(() => setLoaded("value", true));
+  }
+  return emojiLoadPromise;
+}
+
+function prefetchCustomEmoji() {
+  // Give the browser a small window to paint the app before this large
+  // response starts competing for network and parsing time.
+  window.setTimeout(() => void loadCustomEmoji(), 250);
+}
+
+if (document.readyState === "complete") prefetchCustomEmoji();
+else window.addEventListener("load", prefetchCustomEmoji, { once: true });
 
 export function emojiUrl(name: string): string | null | undefined {
   if (name in emojiUrls) return emojiUrls[name];

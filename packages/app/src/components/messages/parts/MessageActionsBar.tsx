@@ -1,9 +1,8 @@
 import type { Message } from "@slock/slack-api";
-import { Icon, Menu } from "@slock/ui";
+import { Icon, Menu, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import { store } from "../../../lib/store";
-import EmojiPicker from "../../composer/popovers/EmojiPicker";
+import FloatingEmojiPicker from "./FloatingEmojiPicker";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
 export default function MessageActionsBar(props: {
@@ -15,39 +14,18 @@ export default function MessageActionsBar(props: {
   onEditRequest: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
-  const [pickerPos, setPickerPos] = createSignal({ left: 0, top: 0 });
   const [moreOpen, setMoreOpen] = createSignal(false);
-  const [moreFlipUp, setMoreFlipUp] = createSignal(false);
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let pickerWrapRef: HTMLDivElement | undefined;
-  let moreBtnRef: HTMLButtonElement | undefined;
-
-  // The picker's own size (see EmojiPicker.css) plus a little breathing room.
-  // It's portalled to <body> and fixed-positioned (like UserHoverCard) rather
-  // than absolutely positioned inside the message row, because message lists
-  // (and especially the narrow thread panel) scroll with overflow: auto,
-  // which clips any in-flow popup that would otherwise spill outside them.
-  const PickerWidth = 320;
-  const PickerHeight = 400;
-  const MoreMenuHeight = 220;
 
   const togglePicker = () => {
-    if (!pickerOpen() && pickerWrapRef) {
-      const rect = pickerWrapRef.getBoundingClientRect();
-      const flipUp = rect.bottom + PickerHeight > window.innerHeight;
-      const left = Math.min(rect.right - PickerWidth, window.innerWidth - PickerWidth - 8);
-      setPickerPos({
-        left: Math.max(8, left),
-        top: flipUp ? rect.top - PickerHeight : rect.bottom + 4,
-      });
-    }
     setPickerOpen(!pickerOpen());
   };
 
   const toggleMore = () => {
-    if (!moreOpen() && moreBtnRef) {
-      const rect = moreBtnRef.getBoundingClientRect();
-      setMoreFlipUp(rect.bottom + MoreMenuHeight > window.innerHeight);
-    }
+    // client.appCommands can be several megabytes. Fetch it only after the
+    // user asks for this overflow menu, not while the page is loading.
+    store.resources.loadMessageShortcuts();
     setMoreOpen(!moreOpen());
   };
 
@@ -68,73 +46,79 @@ export default function MessageActionsBar(props: {
   return (
     <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
       <div class="message-hover-picker-wrap" ref={pickerWrapRef}>
-        <button
-          class="message-hover-btn btn-reset flex-center"
-          onClick={togglePicker}
-          title="React"
-          type="button"
-        >
-          <Icon name="emoji" size={16} />
-        </button>
-        <Show when={pickerOpen()}>
-          <Portal>
-            <div
-              class="reaction-picker-full"
-              style={{ left: `${pickerPos().left}px`, top: `${pickerPos().top}px` }}
-            >
-              <EmojiPicker onClose={() => setPickerOpen(false)} onSelect={react} />
-            </div>
-          </Portal>
-        </Show>
+        <Tooltip content="React">
+          <button
+            aria-label="React"
+            class="message-hover-btn btn-reset flex-center"
+            onClick={togglePicker}
+            type="button"
+          >
+            <Icon name="emoji" size={16} />
+          </button>
+        </Tooltip>
+        <FloatingEmojiPicker
+          anchor={() => pickerWrapRef}
+          onClose={() => setPickerOpen(false)}
+          onSelect={react}
+          open={pickerOpen()}
+        />
       </div>
 
       <Show when={props.onOpenThread}>
-        <button
-          class="message-hover-btn btn-reset flex-center"
-          onClick={() => props.onOpenThread?.(threadRootTs())}
-          title="Reply in thread"
-          type="button"
-        >
-          <Icon name="threads" size={16} />
-        </button>
+        <Tooltip content="Reply in thread">
+          <button
+            aria-label="Reply in thread"
+            class="message-hover-btn btn-reset flex-center"
+            onClick={() => props.onOpenThread?.(threadRootTs())}
+            type="button"
+          >
+            <Icon name="threads" size={16} />
+          </button>
+        </Tooltip>
       </Show>
 
       <Show when={props.onReplyLink}>
-        <button
-          class="message-hover-btn btn-reset flex-center"
-          onClick={() => props.onReplyLink?.(props.msg)}
-          title="Reply"
-          type="button"
-        >
-          <Icon name="email-reply" size={16} />
-        </button>
+        <Tooltip content="Reply">
+          <button
+            aria-label="Reply"
+            class="message-hover-btn btn-reset flex-center"
+            onClick={() => props.onReplyLink?.(props.msg)}
+            type="button"
+          >
+            <Icon name="email-reply" size={16} />
+          </button>
+        </Tooltip>
       </Show>
 
-      <button
-        class="message-hover-btn btn-reset flex-center"
-        classList={{ active: isSaved() }}
-        onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
-        title={isSaved() ? "Remove from Later" : "Save for later"}
-        type="button"
-      >
-        <Icon name={isSaved() ? "bookmark-filled" : "bookmark"} size={15} />
-      </button>
+      <Tooltip content={isSaved() ? "Remove from Later" : "Save for later"}>
+        <button
+          aria-label={isSaved() ? "Remove from Later" : "Save for later"}
+          class="message-hover-btn btn-reset flex-center"
+          classList={{ active: isSaved() }}
+          onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
+          type="button"
+        >
+          <Icon name={isSaved() ? "bookmark-filled" : "bookmark"} size={15} />
+        </button>
+      </Tooltip>
 
       <Menu
+        align="end"
         class="message-hover-picker-wrap"
         onClose={() => setMoreOpen(false)}
         open={moreOpen()}
-        panelClass={`menu-panel message-more-menu${moreFlipUp() ? " flip-up" : ""}`}
+        panelClass="menu-panel message-more-menu"
         trigger={
-          <button
-            class="message-hover-btn btn-reset flex-center"
-            onClick={toggleMore}
-            ref={moreBtnRef}
-            title="More actions"
-            type="button"
-          >
-            <Icon name="ellipsis-vertical-filled" size={16} />
-          </button>
+          <Tooltip content="More actions">
+            <button
+              aria-label="More actions"
+              class="message-hover-btn btn-reset flex-center"
+              onClick={toggleMore}
+              type="button"
+            >
+              <Icon name="ellipsis-vertical-filled" size={16} />
+            </button>
+          </Tooltip>
         }
       >
         <MessageActionsMenuItems

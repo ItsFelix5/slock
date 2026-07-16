@@ -1,5 +1,6 @@
+// biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related DM row and sidebar skeleton exports.
 import type { DirectMessage } from "@slock/slack-api";
-import { Avatar, AvatarStack, Icon, InlineFeedback, Skeleton } from "@slock/ui";
+import { Avatar, AvatarStack, Icon, InlineFeedback, Skeleton, Tooltip } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
 
@@ -33,18 +34,21 @@ export function DmRow(props: { dm: DirectMessage }) {
             {(u) => <Avatar showPresence size="small" user={u()} />}
           </Show>
           <span class="sidebar-row-name truncate">{name()}</span>
+          {props.dm.mentions ? <span class="sidebar-badge">{props.dm.mentions}</span> : null}
         </button>
-        <button
-          class="sidebar-row-close btn-reset flex-center text-muted"
-          onClick={(e) => {
-            e.stopPropagation();
-            store.dms.closeDmConversation(props.dm.id);
-          }}
-          title="Close conversation"
-          type="button"
-        >
-          <Icon name="close" size={12} />
-        </button>
+        <Tooltip content="Close conversation">
+          <button
+            aria-label="Close conversation"
+            class="sidebar-row-close btn-reset flex-center text-muted"
+            onClick={(e) => {
+              e.stopPropagation();
+              void store.dms.closeDmConversation(props.dm.id);
+            }}
+            type="button"
+          >
+            <Icon name="close" size={12} />
+          </button>
+        </Tooltip>
         <InlineFeedback class="sidebar-row-feedback" feedback={actionFeedback.get(props.dm.id)} />
       </div>
     </Show>

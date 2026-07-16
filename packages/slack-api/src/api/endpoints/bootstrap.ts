@@ -45,12 +45,16 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   );
 
   const rawIms: any[] = boot.ims ?? [];
+  // Slack only flips is_open to true once a client has locally "opened" the
+  // conversation, but a DM can already have real unread activity (per client.counts)
+  // before that happens — e.g. someone's first message to you. Surface it either way.
   const oneToOneDms: DirectMessage[] = rawIms
-    .filter((im) => im.is_open && im.user)
+    .filter((im) => im.user && (im.is_open || unreadMap[im.id]))
     .map((im) => ({
       id: im.id,
       lastActivity:
         latestByIm.get(im.id) || im.updated || (im.created ? im.created * 1000 : undefined),
+      mentions: unreadMap[im.id]?.mentions || undefined,
       unread: !!unreadMap[im.id]?.unread,
       userId: im.user,
     }));

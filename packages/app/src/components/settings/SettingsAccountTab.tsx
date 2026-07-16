@@ -8,6 +8,7 @@ export default function SettingsAccountTab() {
   const [domain] = createResource(getWorkspaceDomain);
 
   async function handleLogout() {
+    // biome-ignore lint/suspicious/noAlert: Logging out requires explicit confirmation.
     if (!confirm("Log out? You'll need to paste a fresh request from devtools to reconnect.")) {
       return;
     }

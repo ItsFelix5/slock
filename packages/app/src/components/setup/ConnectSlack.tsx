@@ -10,6 +10,15 @@ function firstMatch(text: string, patterns: RegExp[]): string | undefined {
   }
 }
 
+function extractSlackSession(cookieHeader: string): string | undefined {
+  for (const part of cookieHeader.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1 || part.slice(0, eq).trim() !== "d") continue;
+    const value = part.slice(eq + 1).trim();
+    if (value.startsWith("xoxd-") && !/[;\s]/.test(value)) return value;
+  }
+}
+
 function unescapeJs(value: string): string {
   return value.replace(/\\(.)/g, "$1");
 }
@@ -87,6 +96,10 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
           "Couldn't find a cookie header. Make sure devtools copied the request with headers included (Copy as cURL includes them by default).",
         );
       }
+      const slackSession = extractSlackSession(cookie);
+      if (!slackSession) {
+        throw new Error("Couldn't find Slack's d session cookie in that request.");
+      }
 
       const bodyRaw = firstMatch(text, [
         /--data(?:-raw|-binary)?\s+\$?'((?:[^'\\]|\\.)*)'/,
@@ -108,7 +121,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
           const body = unescapeJs(bodyRaw);
           if (body.trim().startsWith("{")) {
             try {
-              token = JSON.parse(body).token;
+              ({ token } = JSON.parse(body));
             } catch {
               // not valid JSON; fall through to the "no token" error below
             }
@@ -128,7 +141,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
         );
       }
 
-      const result = await submitAuthRequest({ cookie: cookie.trim(), domain, route, token });
+      const result = await submitAuthRequest({ domain, route, slackSession, token });
       if (!result.ok) throw result.error;
       props.onConnected();
     } catch (e) {

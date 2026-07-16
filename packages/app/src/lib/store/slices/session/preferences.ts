@@ -9,7 +9,10 @@ import {
 } from "@slock/slack-api";
 import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
-import * as frecency from "../../../frecency";
+import {
+  emojiUseScore as calculateEmojiUseScore,
+  frecencyScore as calculateFrecencyScore,
+} from "../../../frecency";
 import { actionFeedback } from "../feedback";
 
 // Escapes regex metacharacters in a user-typed keyword before building a
@@ -140,8 +143,8 @@ export function createPreferencesSlice(deps: {
     return !!until && until > Date.now();
   }
 
-  const frecencyScore = (id: string) => frecency.frecencyScore(deps.userPrefs(), id);
-  const emojiUseScore = (name: string) => frecency.emojiUseScore(deps.userPrefs(), name);
+  const frecencyScore = (id: string) => calculateFrecencyScore(deps.userPrefs(), id);
+  const emojiUseScore = (name: string) => calculateEmojiUseScore(deps.userPrefs(), name);
 
   async function snoozeDnd(minutes: number) {
     const until = Date.now() + minutes * 60_000;

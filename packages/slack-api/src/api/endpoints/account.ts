@@ -1,24 +1,74 @@
+// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: Account APIs share request and mapping helpers that are clearer when kept together.
 import type { ProfileFieldDef, User } from "../../types";
-import { mapUser } from "../mappers";
+import { mapBot, mapUser } from "../mappers";
 import { callSlack, callSlackEdge } from "../relay";
 
-export async function fetchUser(id: string): Promise<User | null> {
+type UserRequest = {
+  reject: (reason?: unknown) => void;
+  resolve: (user: User | null) => void;
+};
+
+const pendingUserRequests = new Map<string, UserRequest[]>();
+let userBatchScheduled = false;
+// Keep JSON request bodies comfortably below the relay/server limit even when
+// a channel or search result renders thousands of previously unseen authors.
+const MAX_USERS_PER_BATCH = 100;
+
+function cachedUserForId(data: any, id: string): any | undefined {
+  if (data.users?.[id]) return data.users[id];
+  if (Array.isArray(data.results)) return data.results.find((user) => user.id === id);
+  if (Array.isArray(data.users)) return data.users.find((user) => user.id === id);
+  return data.user?.id === id ? data.user : undefined;
+}
+
+async function flushUserBatch(): Promise<void> {
+  userBatchScheduled = false;
+  const requests = new Map(pendingUserRequests);
+  pendingUserRequests.clear();
+  const ids = [...requests.keys()];
+  if (!ids.length) return;
+
+  for (let start = 0; start < ids.length; start += MAX_USERS_PER_BATCH) {
+    const batchIds = ids.slice(start, start + MAX_USERS_PER_BATCH);
+    try {
+      // The cache endpoint accepts the IDs it should refresh as a timestamp map;
+      // zero deliberately requests the complete current record.
+      const data = await callSlackEdge("users/info", {
+        include_profile_only_users: true,
+        updated_ids: Object.fromEntries(batchIds.map((id) => [id, 0])),
+      });
+      for (const id of batchIds) {
+        const user = data.ok ? cachedUserForId(data, id) : undefined;
+        for (const request of requests.get(id) ?? []) request.resolve(user ? mapUser(user) : null);
+      }
+    } catch (error) {
+      for (const id of batchIds) {
+        for (const request of requests.get(id) ?? []) request.reject(error);
+      }
+    }
+  }
+}
+
+export function fetchUser(id: string): Promise<User | null> {
+  // A message can contain only bot_id/app_id, without the inline bot_profile
+  // that normally supplies its display name and avatar. Bot IDs are not valid
+  // inputs to the users cache endpoint, so resolve them through bots.info.
+  if (id.startsWith("B")) {
+    return callSlack("bots.info", { bot: id }).then((data) =>
+      data.ok && data.bot?.id ? mapBot(data.bot) : null,
+    );
+  }
   // The normal Web API users.info endpoint is restricted on Enterprise Grid.
-  // The cache endpoint accepts the ids it should refresh as a timestamp map;
-  // zero deliberately requests the complete current record.
-  const data = await callSlackEdge("users/info", {
-    include_profile_only_users: true,
-    updated_ids: { [id]: 0 },
+  // Coalesce all requests issued in this event-loop turn into one cache call.
+  return new Promise((resolve, reject) => {
+    const requests = pendingUserRequests.get(id) ?? [];
+    requests.push({ reject, resolve });
+    pendingUserRequests.set(id, requests);
+    if (userBatchScheduled) return;
+    userBatchScheduled = true;
+    queueMicrotask(() => void flushUserBatch());
   });
-  if (!data.ok) return null;
-  // Cache responses have appeared as both an id-keyed `users` object and a
-  // result array. Retain `user` as a fallback for compatible relay responses.
-  const raw =
-    data.users?.[id] ??
-    data.results?.find((user: any) => user.id === id) ??
-    data.users?.find?.((user: any) => user.id === id) ??
-    data.user;
-  return raw ? mapUser(raw) : null;
 }
 
 // team.profile.get's field *definitions* (label/ordering) are workspace-wide and

@@ -1,13 +1,12 @@
 - Mpdm
-- Like these things popping out the sections
-- threads in activity
+- activity
 - channel tabs
 - canvas
 - video player
-- invalidate typing after message or smth 
 - You aren't a member of D0BHHDXTECQ in activity
-- dms ping
-- fix wtf claude did with "feedback"
 - Dates
 - Move dms
 - search.autocomplete has search history ({suggestions:{text[]}}) and
+- zoom acting up
+- Half italic emojis
+- hidden channels

@@ -1,199 +1,215 @@
 import type { ActivityItem } from "@slock/slack-api";
+import { Icon, type IconName, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { store } from "../../../lib/store";
-import ActivityRow, { type ActivityRow as ActivityRowData, rowTarget } from "./ActivityRow";
+import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
-type ReadState = "all" | "unread" | "read";
+type ReadState = "all" | "unread" | "read" | "reacted";
 
-const TAG_FILTERS: { key: Tag; label: string }[] = [
-  { key: "mention", label: "Mentions" },
-  { key: "dm", label: "Direct messages" },
-  { key: "keyword", label: "Pingwords" },
-  { key: "thread_reply", label: "Threads" },
-  { key: "channel_mention", label: "@channel & @here" },
-  { key: "usergroup_mention", label: "Usergroups" },
-  { key: "channel_all", label: "Channels set to notify on all messages" },
-  { key: "reaction", label: "Reactions" },
-  { key: "app", label: "Apps" },
+const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
+  { icon: "mentions", key: "mention", label: "Mentions" },
+  { icon: "direct-messages", key: "dm", label: "Direct messages" },
+  { icon: "sparkles", key: "keyword", label: "Pingwords" },
+  { icon: "threads", key: "thread_reply", label: "Threads" },
+  { icon: "megaphone", key: "channel_mention", label: "@channel and @here" },
+  { icon: "user-groups", key: "usergroup_mention", label: "Usergroups" },
+  { icon: "notifications-all-new-posts", key: "channel_all", label: "All channel posts" },
+  { icon: "emoji", key: "reaction", label: "Reactions" },
+  { icon: "apps", key: "app", label: "Apps" },
 ];
 
 const READ_STATES: { key: ReadState; label: string }[] = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
   { key: "read", label: "Read" },
+  { key: "reacted", label: "Reacted" },
 ];
 
+function latestItem(row: ActivityRowData) {
+  return row.items[0];
+}
+
 export default function ActivityView() {
-  const [selectedTags, setSelectedTags] = createSignal<Set<Tag>>(new Set());
+  const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
   onMount(() => store.activity.ensureActivityLoaded());
 
-  const toggleTag = (tag: Tag) => {
-    setSelectedTags((prev) => {
-      const next = new Set(prev);
-      if (next.has(tag)) next.delete(tag);
-      else next.add(tag);
-      return next;
-    });
-  };
-
-  const filteredItems = createMemo(() => {
-    const sorted = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
-    const tags = selectedTags();
-    const kw = keyword().trim().toLowerCase();
-    const read = readState();
-
-    return sorted.filter((item) => {
-      if (tags.size > 0) {
-        const itemTags: Tag[] = [item.kind];
-        if (store.users.userById(item.userId)?.isBot) itemTags.push("app");
-        if (!itemTags.some((t) => tags.has(t))) return false;
-      }
-      if (kw && !item.text.toLowerCase().includes(kw)) return false;
-      const unread = store.activity.isActivityItemUnread(item);
-      if (read === "unread" && !unread) return false;
-      if (read === "read" && unread) return false;
-      return true;
-    });
-  });
-
-  // Consecutive replies to the same thread collapse into a single row (keyed
-  // at the position of their most recent reply) so a busy thread reads like a
-  // thread instead of a wall of near-identical "replied in #x" lines.
   const rows = createMemo<ActivityRowData[]>(() => {
     const groups = new Map<string, ActivityRowData>();
     const ordered: ActivityRowData[] = [];
-    for (const item of filteredItems()) {
-      if (item.kind === "thread_reply") {
-        const key = `thread:${item.channelId}:${item.threadTs ?? item.ts}`;
-        let row = groups.get(key);
-        if (!row) {
-          row = { isThread: true, items: [], key };
-          groups.set(key, row);
-          ordered.push(row);
-        }
-        row.items.push(item);
-      } else {
+    const items = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
+    for (const item of items) {
+      const threadTs = item.threadTs ?? (item.kind === "thread_reply" ? item.ts : undefined);
+      if (!threadTs) {
         ordered.push({ isThread: false, items: [item], key: `single:${item.id}` });
+        continue;
       }
+      const key = `thread:${item.channelId}:${threadTs}`;
+      let row = groups.get(key);
+      if (!row) {
+        row = { isThread: true, items: [], key };
+        groups.set(key, row);
+        ordered.push(row);
+      }
+      row.items.push(item);
     }
     return ordered;
   });
 
-  const unreadRows = createMemo(() =>
-    rows().filter((r) => r.items.some(store.activity.isActivityItemUnread)),
+  const statusFor = (row: ActivityRowData): Exclude<ReadState, "all"> => {
+    const latest = latestItem(row);
+    if (store.activity.isActivityItemReacted(latest)) return "reacted";
+    if (store.activity.isActivityItemUnread(latest)) return "unread";
+    return "read";
+  };
+
+  const tagAndSearchRows = createMemo(() => {
+    const tag = selectedTag();
+    const query = keyword().trim().toLowerCase();
+    return rows().filter((row) => {
+      if (tag !== "all") {
+        const matches = row.items.some((item) => {
+          if (item.kind === tag) return true;
+          return tag === "app" && !!store.users.userById(item.userId)?.isBot;
+        });
+        if (!matches) return false;
+      }
+      return !query || row.items.some((item) => item.text.toLowerCase().includes(query));
+    });
+  });
+
+  const statusCounts = createMemo(() => {
+    const counts: Record<Exclude<ReadState, "all">, number> = {
+      reacted: 0,
+      read: 0,
+      unread: 0,
+    };
+    for (const row of tagAndSearchRows()) counts[statusFor(row)] += 1;
+    return counts;
+  });
+
+  const visibleRows = createMemo(() => {
+    const state = readState();
+    if (state === "all") return tagAndSearchRows();
+    return tagAndSearchRows().filter((row) => statusFor(row) === state);
+  });
+
+  const selectedTagLabel = createMemo(
+    () => TAG_FILTERS.find((filter) => filter.key === selectedTag())?.label ?? "All activity",
   );
 
   const goTo = (channelId: string, ts: string) => store.viewState.openChannelPeek(channelId, ts);
 
-  const markRowRead = (channelId: string, ts: string) =>
-    store.activity.markActivityItemRead(channelId, ts);
-
-  // Scoped to whatever's currently filtered/visible, not every activity item
-  // that's ever landed here — so "Mark all as read" while filtered to
-  // "Reactions" doesn't also silently clear unread mentions out of view.
-  const markVisibleAsRead = () => {
-    for (const item of filteredItems())
-      store.activity.markActivityItemRead(item.channelId, item.ts);
-  };
-
-  // Triage flow: mark the topmost unread row read, then jump straight to
-  // whatever is now next in the unread queue so you can blast through activity.
-  const readAndNext = () => {
-    const current = unreadRows()[0];
-    if (!current) return;
-    const target = rowTarget(current);
-    store.activity.markActivityItemRead(target.channelId, current.items[0].ts);
-    const next = unreadRows()[0];
-    if (next) goTo(rowTarget(next).channelId, rowTarget(next).ts);
-  };
-
   return (
-    <div class="activity-view sidebar-view-panel">
-      <div class="activity-view-header flex-between">
-        <h2>Activity</h2>
-        <div class="activity-header-actions flex-align-center">
-          <button
-            class="activity-read-next btn-reset flex-align-center text-xs"
-            disabled={unreadRows().length === 0}
-            onClick={readAndNext}
-            type="button"
-          >
-            Read &amp; next
-            <Show when={unreadRows().length > 0}>
-              <span class="activity-read-next-count">{unreadRows().length}</span>
-            </Show>
-          </button>
-          <button
-            class="activity-mark-read btn-reset chip"
-            onClick={markVisibleAsRead}
-            type="button"
-          >
-            Mark all as read
-          </button>
+    <div class="activity-view">
+      <div class="activity-view-header flex-align-center">
+        <div>
+          <h2>Activity</h2>
+          <div class="activity-view-subtitle">Catch up without losing the conversation.</div>
         </div>
-      </div>
-
-      <div class="activity-toolbar flex-align-center">
-        <input
-          class="activity-search"
-          onInput={(e) => setKeyword(e.currentTarget.value)}
-          placeholder="Filter by keyword"
-          type="text"
-          value={keyword()}
-        />
-
-        <div class="activity-read-toggle">
-          <For each={READ_STATES}>
-            {(r) => (
-              <button
-                class="btn-reset"
-                classList={{ active: readState() === r.key }}
-                onClick={() => setReadState(r.key)}
-                type="button"
-              >
-                {r.label}
-              </button>
-            )}
-          </For>
-        </div>
-      </div>
-
-      <div class="activity-tag-filters flex-align-center">
-        <For each={TAG_FILTERS}>
-          {(f) => (
-            <button
-              class="activity-tag-chip btn-reset chip"
-              classList={{ active: selectedTags().has(f.key) }}
-              onClick={() => toggleTag(f.key)}
-              type="button"
-            >
-              {f.label}
-            </button>
-          )}
-        </For>
-        <Show when={selectedTags().size > 0}>
-          <button
-            class="activity-tag-clear btn-reset link-action"
-            onClick={() => setSelectedTags(new Set())}
-            type="button"
-          >
-            Clear
-          </button>
+        <Show when={statusCounts().unread > 0}>
+          <span class="activity-header-count">{statusCounts().unread} new</span>
         </Show>
       </div>
 
+      <div class="activity-toolbar">
+        <div class="activity-search-wrap flex-align-center">
+          <Icon name="search" size={15} />
+          <input
+            class="activity-search"
+            onInput={(event) => setKeyword(event.currentTarget.value)}
+            placeholder="Search activity"
+            type="search"
+            value={keyword()}
+          />
+        </div>
+
+        <div aria-label="Activity status" class="activity-read-toggle" role="tablist">
+          <For each={READ_STATES}>
+            {(state) => {
+              const count = () =>
+                state.key === "all"
+                  ? tagAndSearchRows().length
+                  : statusCounts()[state.key as Exclude<ReadState, "all">];
+              return (
+                <button
+                  aria-selected={readState() === state.key}
+                  class="btn-reset"
+                  classList={{ active: readState() === state.key }}
+                  onClick={() => setReadState(state.key)}
+                  role="tab"
+                  type="button"
+                >
+                  {state.label}
+                  <Show when={count() > 0}>
+                    <span>{count()}</span>
+                  </Show>
+                </button>
+              );
+            }}
+          </For>
+        </div>
+
+        <div class="activity-type-filter">
+          <span class="activity-type-filter-label">{selectedTagLabel()}</span>
+          <div aria-label="Activity type" class="activity-type-icons" role="toolbar">
+            <Tooltip content="All activity">
+              <button
+                aria-label="All activity"
+                aria-pressed={selectedTag() === "all"}
+                class="activity-type-button btn-reset flex-center"
+                classList={{ active: selectedTag() === "all" }}
+                onClick={() => setSelectedTag("all")}
+                type="button"
+              >
+                <Icon name="list-view" size={17} />
+              </button>
+            </Tooltip>
+            <For each={TAG_FILTERS}>
+              {(filter) => (
+                <Tooltip content={filter.label}>
+                  <button
+                    aria-label={filter.label}
+                    aria-pressed={selectedTag() === filter.key}
+                    class="activity-type-button btn-reset flex-center"
+                    classList={{ active: selectedTag() === filter.key }}
+                    onClick={() => setSelectedTag(filter.key)}
+                    type="button"
+                  >
+                    <Icon name={filter.icon} size={17} />
+                  </button>
+                </Tooltip>
+              )}
+            </For>
+          </div>
+        </div>
+      </div>
+
       <Show
-        fallback={<div class="activity-empty empty-state">Nothing here yet.</div>}
-        when={rows().length > 0}
+        fallback={
+          <div class="activity-empty empty-state">
+            <Icon name="check-circle" size={28} />
+            <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
+          </div>
+        }
+        when={visibleRows().length > 0}
       >
-        <For each={rows()}>
-          {(row) => <ActivityRow onMarkRead={markRowRead} onOpen={goTo} row={row} />}
-        </For>
+        <div class="activity-list">
+          <For each={visibleRows()}>
+            {(row) => (
+              <ActivityRow
+                onOpen={goTo}
+                onReacted={store.activity.markActivityItemsReacted}
+                onSeen={store.activity.markActivityItemsRead}
+                row={row}
+              />
+            )}
+          </For>
+        </div>
       </Show>
     </div>
   );

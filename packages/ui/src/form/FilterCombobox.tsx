@@ -27,6 +27,7 @@ export default function FilterCombobox(props: {
   const [remoteItems, setRemoteItems] = createSignal<ComboItem[]>([]);
   const [searching, setSearching] = createSignal(false);
   const [pickedLabel, setPickedLabel] = createSignal<string | undefined>(undefined);
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0;

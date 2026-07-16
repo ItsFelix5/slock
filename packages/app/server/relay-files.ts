@@ -1,4 +1,4 @@
-import { type Credentials, cors } from "./relay-core.ts";
+import { type Credentials, cors, slackCookieHeader } from "./relay-core.ts";
 
 const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 
@@ -17,7 +17,7 @@ export async function fileProxyResponse(
     return new Response("host not allowed", { headers: cors, status: 403 });
   }
   if (!creds) return new Response("not configured", { headers: cors, status: 401 });
-  const fileRes = await fetch(parsed, { headers: { cookie: creds.cookie } });
+  const fileRes = await fetch(parsed, { headers: { cookie: slackCookieHeader(creds) } });
   if (!(fileRes.ok && fileRes.body)) {
     return new Response("failed to fetch file", { headers: cors, status: 502 });
   }

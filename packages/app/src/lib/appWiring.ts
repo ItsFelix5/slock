@@ -50,12 +50,6 @@ export function wireAppState(deps: AppWiringDeps) {
     const view = viewState.activeView();
     if (view) void pinned.ensurePinsLoaded(view.id);
   });
-  let wasOnActivity = false;
-  createEffect(() => {
-    const isActivity = viewState.nav() === "activity";
-    if (wasOnActivity && !isActivity) activity.markActivityRead();
-    wasOnActivity = isActivity;
-  });
   unread.wireReadTracking({
     activeView: viewState.activeView,
     messagesByChannel: messages.messagesByChannel,

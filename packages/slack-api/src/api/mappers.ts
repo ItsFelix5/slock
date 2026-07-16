@@ -1,5 +1,9 @@
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive raw-Slack-payload-to-app-type translation layer; splitting it would scatter the mapping logic across files that all need to stay in sync with the same wire format.
 import type { Attachment, Message, MessageKind, SlackFile, User } from "../types";
 import { fileProxyUrl } from "./relay";
+
+const SLACK_USER_ID = "USLACK";
+const SLACK_AVATAR_URL = "/slack-logo.svg";
 
 function colorFromHex(hex: string | undefined) {
   return hex ? `#${hex}` : "#616061";
@@ -26,25 +30,27 @@ function avatarUrlFromHash(raw: any): string | undefined {
 }
 
 export function mapUser(raw: any): User {
+  const isSlack = raw.id === SLACK_USER_ID;
   const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
   const rawFields = raw.profile?.fields ?? {};
   const customFields = Object.keys(rawFields)
     .map((id) => ({ alt: rawFields[id]?.alt || undefined, id, value: rawFields[id]?.value ?? "" }))
     .filter((f) => f.value);
-  const avatarUrl: string | undefined =
-    raw.profile?.image_192 ||
-    raw.profile?.image_72 ||
-    raw.profile?.image_48 ||
-    avatarUrlFromHash(raw);
+  const avatarUrl: string | undefined = isSlack
+    ? SLACK_AVATAR_URL
+    : raw.profile?.image_192 ||
+      raw.profile?.image_72 ||
+      raw.profile?.image_48 ||
+      avatarUrlFromHash(raw);
   return {
-    avatarColor: colorFromHex(raw.color),
+    avatarColor: isSlack ? "transparent" : colorFromHex(raw.color),
     avatarUrl,
     customFields: customFields.length ? customFields : undefined,
     email: raw.profile?.email || undefined,
     id: raw.id,
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
     // Slack's API never sets is_bot for it — flag it by id instead.
-    isBot: !!raw.is_bot || raw.id === "USLACKBOT",
+    isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
     name,
     phone: raw.profile?.phone || undefined,
     presence: raw.presence === "away" ? "away" : "active",
@@ -57,6 +63,18 @@ export function mapUser(raw: any): User {
   };
 }
 
+export function mapBot(raw: any): User {
+  const rawIcon = raw.icons?.image_72 ?? raw.icons?.image_48 ?? raw.icons?.image_36;
+  return {
+    avatarColor: "#616061",
+    avatarUrl: rawIcon ? fileProxyUrl(rawIcon) : undefined,
+    id: raw.id,
+    isBot: true,
+    name: raw.name,
+    presence: "active",
+  };
+}
+
 // Shared by client.counts (REST, boot) and badge_counts_updated (gateway, live) —
 // both hand back the same per-conversation shape, just wrapped in a different
 // envelope. Field names are our best understanding of that (undocumented) shape;
@@ -65,9 +83,18 @@ export function mapUser(raw: any): User {
 // should ever fail bootstrap or drop a socket message over.
 function parseCountGroup(g: any): { id: string; unread: boolean; mentions: number } | null {
   if (!g?.id) return null;
-  const mentions = Number(g.mention_count ?? g.mention_count_display ?? 0) || 0;
-  const unreadCount = Number(g.unread_count_display ?? g.unread_count ?? 0) || 0;
-  const unread = !!(g.has_unreads ?? g.is_unread ?? (unreadCount > 0 || mentions > 0));
+  // Slack's raw counters/has_unreads flag can include activity it deliberately
+  // omits from the sidebar (join/leave messages, for example). Prefer the
+  // display counters whenever they are present so our unread styling mirrors
+  // Slack's UI instead of lighting up every conversation with raw activity.
+  const mentions = Number(g.mention_count_display ?? g.mention_count ?? 0) || 0;
+  const rawUnreadCount = g.unread_count_display ?? g.unread_count;
+  const hasUnreadCount = rawUnreadCount !== undefined && rawUnreadCount !== null;
+  const unreadCount = Number(rawUnreadCount) || 0;
+  const fallbackFlag = g.is_unread ?? g.has_unreads;
+  const unreadFromFlag =
+    fallbackFlag === true || fallbackFlag === 1 || fallbackFlag === "true" || fallbackFlag === "1";
+  const unread = mentions > 0 || (hasUnreadCount ? unreadCount > 0 : unreadFromFlag);
   return { id: g.id, mentions, unread };
 }
 
@@ -159,10 +186,12 @@ export const HIDE_SUBTYPES = new Set([
 function mapFile(f: any): SlackFile {
   const mimetype: string | undefined = f.mimetype;
   return {
-    duration: f.duration,
+    // Voice messages report length as duration_ms; other files (if ever) as duration.
+    duration: f.duration ?? (typeof f.duration_ms === "number" ? f.duration_ms / 1000 : undefined),
     filetype: f.filetype,
     height: f.thumb_360_h ?? f.original_h,
     id: f.id,
+    isAudio: !!mimetype?.startsWith("audio/"),
     isImage: !!mimetype?.startsWith("image/"),
     isVideo: !!mimetype?.startsWith("video/"),
     mimetype,
@@ -174,11 +203,14 @@ function mapFile(f: any): SlackFile {
       return raw ? fileProxyUrl(raw) : undefined;
     })(),
     title: f.title,
+    transcriptionHasMore: f.transcription?.preview?.has_more,
+    transcriptionPreview: f.transcription?.preview?.content,
     // Kept unproxied: used both as a top-level download-link href (a plain
     // navigation, which does send Slack's SameSite cookie) and as an <img>/
     // <video> subresource src (which doesn't) — callers that need the latter
     // wrap it with fileProxyUrl themselves.
     urlPrivate: f.url_private,
+    waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
     width: f.thumb_360_w ?? f.original_w,
   };
 }
@@ -187,13 +219,20 @@ function mapAttachment(a: any): Attachment {
   return {
     authorIcon: a.author_icon ? fileProxyUrl(a.author_icon) : undefined,
     authorName: a.author_name,
+    blocks: a.blocks,
+    channelId: a.channel_id,
     color: a.color,
+    fallback: a.fallback,
     fields: a.fields,
+    files: Array.isArray(a.files) ? a.files.map(mapFile) : undefined,
     footer: a.footer,
     footerIcon: a.footer_icon ? fileProxyUrl(a.footer_icon) : undefined,
+    fromUrl: a.from_url,
     id: a.id,
     imageUrl: a.image_url ? fileProxyUrl(a.image_url) : undefined,
     isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
+    postedAt: a.ts ? `${formatDay(a.ts)} at ${formatTime(a.ts)}` : undefined,
+    pretext: a.pretext,
     text: a.text,
     title: a.title,
     titleLink: a.title_link,
@@ -210,11 +249,21 @@ export function mapMessage(m: any): Message {
   return {
     attachments: Array.isArray(m.attachments) ? m.attachments.map(mapAttachment) : undefined,
     blocks: m.blocks,
-    botIcon:
-      subtype === "bot_message" && (m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36)
-        ? fileProxyUrl(m.icons?.image_48 ?? m.icons?.image_72 ?? m.icons?.image_36)
-        : undefined,
-    botName: subtype === "bot_message" ? m.username : undefined,
+    // Slack nests modern bot avatars inside bot_profile.icons; old message
+    // payloads instead put them at the top-level icons field.
+    botIcon: (() => {
+      const icon =
+        m.bot_profile?.icons?.image_72 ??
+        m.bot_profile?.icons?.image_48 ??
+        m.bot_profile?.icons?.image_36 ??
+        m.icons?.image_72 ??
+        m.icons?.image_48 ??
+        m.icons?.image_36;
+      return icon ? fileProxyUrl(icon) : undefined;
+    })(),
+    botId: m.bot_id,
+    botName:
+      m.bot_profile?.name ?? (subtype === "bot_message" || m.bot_id ? m.username : undefined),
     day: formatDay(m.ts),
     edited: !!m.edited,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
@@ -230,6 +279,7 @@ export function mapMessage(m: any): Message {
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
     text: m.text,
+    threadRoot: m.root ? mapMessage(m.root) : undefined,
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     time: formatTime(m.ts),
     ts: m.ts,

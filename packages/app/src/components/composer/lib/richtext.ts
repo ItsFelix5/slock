@@ -24,6 +24,11 @@ export function createDividerElement(): HTMLHRElement {
   hr.className = "composer-divider";
   return hr;
 }
+export function createComposerBlockSeparator(): HTMLBRElement {
+  const br = document.createElement("br");
+  br.className = "composer-block-separator";
+  return br;
+}
 function unescapeEntities(text: string): string {
   return text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
@@ -175,21 +180,24 @@ function appendPlainSegment(frag: DocumentFragment, text: string) {
     frag.lastChild.nodeName !== "HR";
   const flush = () => {
     if (current.length === 0) return;
-    if (needsSeparator()) frag.appendChild(document.createElement("br"));
-    const joined = current.join("\n");
+    if (needsSeparator()) frag.appendChild(createComposerBlockSeparator());
     if (currentIsQuote) {
-      const bq = document.createElement("blockquote");
-      bq.className = "composer-quote";
-      appendLinesWithBreaks(bq, joined);
-      frag.appendChild(bq);
+      current.forEach((line, index) => {
+        if (index > 0) frag.appendChild(createComposerBlockSeparator());
+        const bq = document.createElement("blockquote");
+        bq.className = "composer-quote";
+        appendInline(bq, line);
+        if (!bq.childNodes.length) bq.appendChild(document.createElement("br"));
+        frag.appendChild(bq);
+      });
     } else {
-      appendLinesWithBreaks(frag, joined);
+      appendLinesWithBreaks(frag, current.join("\n"));
     }
     current = [];
   };
   const appendBlock = (el: HTMLElement) => {
     flush();
-    if (needsSeparator()) frag.appendChild(document.createElement("br"));
+    if (needsSeparator()) frag.appendChild(createComposerBlockSeparator());
     frag.appendChild(el);
   };
   for (const line of lines) {

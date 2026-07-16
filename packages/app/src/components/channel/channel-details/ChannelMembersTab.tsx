@@ -1,5 +1,5 @@
 import type { User } from "@slock/slack-api";
-import { Avatar, Icon, SegmentedControl } from "@slock/ui";
+import { Avatar, Icon, SegmentedControl, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import {
   inviteUsersToChannel,
@@ -137,6 +137,7 @@ export default function ChannelMembersTab(props: {
   };
 
   const removeMember = async (user: User) => {
+    // biome-ignore lint/suspicious/noAlert: Removing a member requires explicit confirmation.
     if (!confirm(`Remove ${user.name} from #${props.channelName}?`)) return;
     if (await removeUserFromChannel(props.channelId, user.id)) {
       setPagedMembers((prev) => ({
@@ -213,14 +214,16 @@ export default function ChannelMembersTab(props: {
                 </Show>
               </button>
               <Show when={u.id !== store.users.currentUser()?.id}>
-                <button
-                  class="channel-details-member-remove btn-reset flex-center"
-                  onClick={() => removeMember(u)}
-                  title="Remove from channel"
-                  type="button"
-                >
-                  <Icon name="close-filled" size={14} />
-                </button>
+                <Tooltip content="Remove from channel">
+                  <button
+                    aria-label="Remove from channel"
+                    class="channel-details-member-remove btn-reset flex-center"
+                    onClick={() => removeMember(u)}
+                    type="button"
+                  >
+                    <Icon name="close-filled" size={14} />
+                  </button>
+                </Tooltip>
               </Show>
             </div>
           )}

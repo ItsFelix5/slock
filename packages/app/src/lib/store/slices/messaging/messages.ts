@@ -8,7 +8,7 @@ import {
   toggleReaction,
 } from "@slock/slack-api";
 import { produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import { actionFeedback, composerFeedbackKey } from "../feedback";
 import type { MessageLocation, ThreadRef, View } from "../types";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
@@ -21,6 +21,7 @@ export { REMINDER_OPTIONS } from "./messageLinks";
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;
   pushActivity: (item: ActivityItem) => void;
+  recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
   clearChannelUnread: (channelId: string) => void;
   setLastReadByChannel: (channelId: string, ts: number) => void;
   setUnreadDividerTs: (channelId: string, ts: number) => void;
@@ -42,6 +43,7 @@ export function createMessagesSlice(deps: {
     loadOlderMessages,
     hasMoreHistory,
     isLoadingHistory,
+    ensureChannelMessage,
   } = history;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
@@ -130,6 +132,7 @@ export function createMessagesSlice(deps: {
         kind: "reaction",
         reactionName: name,
         text: msg.text,
+        threadTs: msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined),
         time: Date.now(),
         ts,
         userId,
@@ -188,9 +191,10 @@ export function createMessagesSlice(deps: {
       } else {
         setThreadMessages(location.key, resolvePending);
       }
+      deps.recordActivityEngagement(channelId, realTs, threadTs);
     } catch (err) {
       console.error("Failed to send message", err);
-      actionFeedback.flash(key, "Failed to send.", "error");
+      actionFeedback.flash(composerFeedbackKey(key), "Failed to send.", "error");
       removeMessage(location, optimistic.ts);
     }
   }
@@ -257,12 +261,17 @@ export function createMessagesSlice(deps: {
     patchMessage(channelId, msg.ts, { reactions: nextReactions });
     try {
       await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
+      if (!alreadyReacted) {
+        const threadTs = msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined);
+        deps.recordActivityEngagement(channelId, msg.ts, threadTs);
+      }
     } catch (err) {
       console.error("Failed to toggle reaction", err);
       patchMessage(channelId, msg.ts, { reactions: previousReactions });
     }
   }
   return {
+    ensureChannelMessage,
     findAllMessageLocations,
     hasMoreHistory,
     isLoadingHistory,

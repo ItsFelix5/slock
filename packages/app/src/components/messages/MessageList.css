@@ -2,6 +2,7 @@
 .message-list {
   flex: 1;
   padding-bottom: 12px;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 .message-list-skeleton {
@@ -34,7 +35,7 @@
   color: var(--text-secondary);
 }
 .message-divider {
-  margin: 12px 20px;
+  margin: 0px 20px;
   text-align: center;
 }
 .message-divider::before,
@@ -51,11 +52,11 @@
 .day-divider::after {
   background: var(--border);
 }
-.unread-divider {
+.message-divider.unread-divider {
   color: var(--danger);
 }
-.unread-divider::before,
-.unread-divider::after {
+.message-divider.unread-divider::before,
+.message-divider.unread-divider::after {
   background: var(--danger);
 }
 .message-divider span {
@@ -68,9 +69,26 @@
   gap: 10px;
   padding: 2px 20px 2px 16px;
 }
-.compact-mode .message-row {
+.message-row-group {
+  position: relative;
+}
+.message-row-group > .reply-reference-row {
+  margin-top: 0;
+}
+.message-row-group:hover {
+  background: var(--hover-bg);
+}
+.message-row-group:hover .message-row {
+  background: transparent;
+}
+[data-message-size="0"] .message-row {
   padding-top: 0;
   padding-bottom: 0;
+}
+
+[data-message-size="2"] .message-row {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 .message-row:hover {
   background: var(--hover-bg);
@@ -126,39 +144,17 @@
   z-index: 6;
 }
 .menu-panel.message-more-menu {
-  top: 32px;
-  right: 0;
-  left: auto;
   z-index: 5;
   min-width: 190px;
 }
-.message-more-menu.flip-up {
-  top: auto;
-  bottom: 32px;
-}
-.message-more-item-wrap {
-  position: relative;
-}
 .menu-panel.message-more-submenu {
-  top: 0;
-  right: calc(100% + 4px);
-  left: auto;
   z-index: 6;
   min-width: 150px;
-  margin-top: 0;
 }
 .menu-panel.message-shortcuts-menu {
-  top: 0;
-  right: calc(100% + 4px);
-  left: auto;
   z-index: 6;
   min-width: 220px;
   max-width: 260px;
-  margin-top: 0;
-}
-.message-shortcuts-menu.flip-up {
-  top: auto;
-  bottom: 0;
 }
 .message-shortcuts-menu .search-input {
   margin-bottom: 4px;
@@ -177,7 +173,17 @@
   padding-top: 0;
   padding-bottom: 0;
 }
+.message-text.message-emoji-only {
+  font-size: 32px;
+  line-height: 1.2;
+}
+.message-text.message-emoji-only .emoji-img {
+  width: 36px;
+  height: 36px;
+  vertical-align: -7px;
+}
 .message-avatar {
+  position: relative;
   flex-shrink: 0;
   width: 36px;
   height: 36px;
@@ -188,11 +194,23 @@
   color: var(--text-on-accent);
   border-radius: var(--radius-6);
 }
-.compact-mode .message-avatar {
+[data-message-size="0"] .message-avatar {
   width: 22px;
   height: 22px;
   margin-top: 1px;
   font-size: 11px;
+}
+
+[data-message-size="2"] .message-avatar {
+  width: 40px;
+  height: 40px;
+}
+.message-avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .message-avatar-spacer {
   flex-shrink: 0;

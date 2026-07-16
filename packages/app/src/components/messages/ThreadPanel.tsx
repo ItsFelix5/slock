@@ -1,5 +1,5 @@
 import type { Message } from "@slock/slack-api";
-import { Icon, PanelHeader, ResizeHandle, TypingIndicator } from "@slock/ui";
+import { Icon, PanelHeader, ResizeHandle, Tooltip, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import Composer from "../composer/Composer";
@@ -17,8 +17,8 @@ export default function ThreadPanel() {
   const [replyTarget, setReplyTarget] = createSignal<{ ts: string; permalink: string } | null>(
     null,
   );
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let messagesRef: HTMLDivElement | undefined;
-
   const messages = createMemo(() => {
     const t = thread();
     if (!t) return [];
@@ -39,10 +39,30 @@ export default function ThreadPanel() {
   };
   const jumpToReplyTarget = () => jumpToMessage(replyTarget()?.ts ?? "");
   const cancelReply = () => setReplyTarget(null);
+  const openThreadMessageInChannel = () => {
+    const t = thread();
+    if (t) store.viewState.openChannelMessage(t.channelId, t.ts);
+  };
 
   createEffect(() => {
     thread();
     setReplyTarget(null);
+  });
+
+  // Opening a thread via a specific reply (e.g. from Later) resolves to the
+  // thread root, so once that reply loads in, scroll to and flash it rather
+  // than leaving the reader at the top of the thread.
+  // Track the navigation request itself, rather than just its timestamps. A
+  // Later item can be clicked again while this thread is already open; that
+  // creates a fresh ThreadRef with the same values and should jump again.
+  let handledHighlightRequest: ReturnType<typeof thread> = null;
+  createEffect(() => {
+    const t = thread();
+    if (!t?.highlightTs) return;
+    if (handledHighlightRequest === t) return;
+    if (!messages().some((m) => m.ts === t.highlightTs)) return;
+    handledHighlightRequest = t;
+    queueMicrotask(() => jumpToMessage(t.highlightTs ?? ""));
   });
 
   const channelName = createMemo(() => {
@@ -85,27 +105,42 @@ export default function ThreadPanel() {
           <PanelHeader onClose={store.viewState.closeThread}>
             <div class="thread-panel-header-info flex-align-center">
               <div class="thread-panel-title">Thread</div>
-              <div class="thread-panel-subtitle">#{channelName()}</div>
               <button
-                class="thread-panel-subscribe-btn btn-reset icon-btn icon-action"
-                classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
-                onClick={toggleSubscription}
-                title={
+                aria-label={`View thread message in #${channelName()}`}
+                class="thread-panel-subtitle btn-reset"
+                onClick={openThreadMessageInChannel}
+                type="button"
+              >
+                #{channelName()}
+              </button>
+              <Tooltip
+                content={
                   store.messages.isThreadSubscribed(t().ts)
                     ? "Unfollow thread"
                     : "Get notified about new replies"
                 }
-                type="button"
               >
-                <Icon
-                  name={
+                <button
+                  aria-label={
                     store.messages.isThreadSubscribed(t().ts)
-                      ? "notifications-check"
-                      : "notifications"
+                      ? "Unfollow thread"
+                      : "Get notified about new replies"
                   }
-                  size={16}
-                />
-              </button>
+                  class="thread-panel-subscribe-btn btn-reset flex-center"
+                  classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
+                  onClick={toggleSubscription}
+                  type="button"
+                >
+                  <Icon
+                    name={
+                      store.messages.isThreadSubscribed(t().ts)
+                        ? "notifications-check"
+                        : "notifications"
+                    }
+                    size={16}
+                  />
+                </button>
+              </Tooltip>
             </div>
           </PanelHeader>
           <div class="thread-panel-messages" ref={messagesRef}>
@@ -121,14 +156,16 @@ export default function ThreadPanel() {
           <Show when={replyTarget()}>
             <div class="thread-reply-preview flex-align-center">
               <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
-              <button
-                class="thread-reply-preview-cancel btn-reset flex-center"
-                onClick={cancelReply}
-                title="Cancel reply"
-                type="button"
-              >
-                <Icon name="close" size={12} />
-              </button>
+              <Tooltip content="Cancel reply">
+                <button
+                  aria-label="Cancel reply"
+                  class="thread-reply-preview-cancel btn-reset flex-center"
+                  onClick={cancelReply}
+                  type="button"
+                >
+                  <Icon name="close" size={12} />
+                </button>
+              </Tooltip>
             </div>
           </Show>
           <Composer

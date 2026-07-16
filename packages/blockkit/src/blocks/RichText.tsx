@@ -4,14 +4,15 @@ import type {
   RichTextSection,
   RichTextSubBlock,
 } from "@slock/slack-api";
-import { For, Show } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 import { formatSlackDateTokens } from "../dateFormat";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import { Mention } from "../mrkdwn";
+import { Link, Mention, UsergroupMention } from "../mrkdwn";
 import { parseUserProfileLink } from "../userProfileLink";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
+  // biome-ignore lint/style/useDestructuring: Reading the Solid prop preserves its reactive getter.
   const el = props.el;
   switch (el.type) {
     case "text": {
@@ -36,9 +37,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       return userId ? (
         <Mention id={userId} kind="user" label={el.text} />
       ) : (
-        <a class="bk-link" href={el.url} rel="noopener noreferrer" target="_blank">
-          {el.text ? <EmojiText text={el.text} /> : el.url}
-        </a>
+        <Link label={el.text} url={el.url} />
       );
     }
     case "emoji": {
@@ -50,7 +49,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
     case "channel":
       return <Mention id={el.channel_id} kind="channel" />;
     case "usergroup":
-      return <span class="bk-mention bk-mention-static">@{el.usergroup_id}</span>;
+      return <UsergroupMention id={el.usergroup_id} />;
     case "broadcast":
       return <span class="bk-mention bk-mention-broadcast">@{el.range}</span>;
     case "color":
@@ -62,9 +61,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       );
     case "date":
       return el.url ? (
-        <a class="bk-link" href={el.url} rel="noopener noreferrer" target="_blank">
-          {formatSlackDateTokens(el.format, el.timestamp, el.fallback)}
-        </a>
+        <Link label={formatSlackDateTokens(el.format, el.timestamp, el.fallback)} url={el.url} />
       ) : (
         formatSlackDateTokens(el.format, el.timestamp, el.fallback)
       );
@@ -77,22 +74,30 @@ function RichTextInline(props: { elements: RichTextInlineElement[] }) {
   return <For each={props.elements}>{(el) => <RichTextLeaf el={el} />}</For>;
 }
 
-function RichTextSectionView(props: { section: RichTextSection }) {
+function RichTextSectionView(props: { section: RichTextSection; trailing?: JSX.Element }) {
   return (
     <div class="bk-rt-section">
       <RichTextInline elements={props.section.elements} />
+      {props.trailing}
     </div>
   );
 }
 
-export default function RichText(props: { block: RichTextBlockType }) {
+export default function RichText(props: { block: RichTextBlockType; trailing?: JSX.Element }) {
   return (
     <div class="bk-rich-text">
       <For each={props.block.elements}>
-        {(sub: RichTextSubBlock) => {
+        {(sub: RichTextSubBlock, index) => {
           switch (sub.type) {
             case "rich_text_section":
-              return <RichTextSectionView section={sub} />;
+              return (
+                <RichTextSectionView
+                  section={sub}
+                  trailing={
+                    index() === props.block.elements.length - 1 ? props.trailing : undefined
+                  }
+                />
+              );
             case "rich_text_quote":
               return (
                 <blockquote class="bk-quote">

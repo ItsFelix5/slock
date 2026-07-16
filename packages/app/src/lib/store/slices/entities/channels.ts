@@ -266,6 +266,26 @@ export function createChannelsSlice(deps: {
     await refetchSections();
   }
 
+  async function removeDmFromSidebar(dmId: string): Promise<boolean> {
+    const current = sections() ?? [];
+    const list = current.length > 0 ? current : ((await refetchSections()) ?? []);
+    const dmSection =
+      list.find((s) => s.type === "direct_messages" && s.channelIds.includes(dmId)) ??
+      list.find((s) => s.type === "direct_messages") ??
+      list.find((s) => s.id === "sm1");
+    if (!dmSection) {
+      actionFeedback.flash(dmId, "Failed to close conversation.", "error");
+      return false;
+    }
+    const ok = await apiUpdateSectionChannels(dmSection.id, { removeChannelIds: [dmId] });
+    if (!ok) {
+      actionFeedback.flash(dmId, "Failed to close conversation.", "error");
+      return false;
+    }
+    await refetchSections();
+    return true;
+  }
+
   // ---- channel directory: browse ----
 
   async function searchBrowsableChannels(query: string) {
@@ -288,6 +308,7 @@ export function createChannelsSlice(deps: {
     patchChannel,
     renameChannelSection,
     reorderChannelSection,
+    removeDmFromSidebar,
     setChannelSectionSidebar,
     searchBrowsableChannels,
     sections,

@@ -1,4 +1,4 @@
-import type { ActivityItem, Channel, Message, User } from "@slock/slack-api";
+import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
 import { fetchMentions, markChannelRead } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
@@ -84,9 +84,15 @@ export function createActivitySlice(deps: {
   lastReadByChannel: Record<string, number>;
   setLastReadByChannel: (channelId: string, ts: number) => void;
   patchChannel: (id: string, patch: Partial<Channel>) => void;
+  patchDm: (id: string, patch: Partial<DirectMessage>) => void;
 }) {
   const [activityItems, setActivityItems] = createStore<ActivityItem[]>([]);
   const [activityLoaded, setActivityLoaded] = createSignal(false);
+  const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean>>({});
+  const [reactedActivityIds, setReactedActivityIds] = createStore<Record<string, boolean>>({});
+  const [engagements, setEngagements] = createSignal<
+    { channelId: string; threadTs?: string; time: number; ts: string }[]
+  >([]);
   // Gateway badge updates are aggregate counts, without the message data that
   // backs activityItems. Keep their notification state separately so a live
   // update still lights the bell before the activity feed has been fetched.
@@ -138,7 +144,30 @@ export function createActivitySlice(deps: {
     }
   }
 
+  function engagementCoversItem(
+    engagement: { channelId: string; threadTs?: string; time: number; ts: string },
+    item: ActivityItem,
+  ) {
+    if (engagement.channelId !== item.channelId) return false;
+    if (engagement.ts === item.ts) return true;
+    if (engagement.threadTs) {
+      return (
+        (item.threadTs === engagement.threadTs || item.ts === engagement.threadTs) &&
+        item.time <= engagement.time
+      );
+    }
+    return !item.threadTs && item.time <= engagement.time;
+  }
+
+  function isActivityItemReacted(item: ActivityItem): boolean {
+    return (
+      !!reactedActivityIds[item.id] ||
+      engagements().some((entry) => engagementCoversItem(entry, item))
+    );
+  }
+
   function isActivityItemUnread(item: ActivityItem): boolean {
+    if (readActivityIds[item.id] || isActivityItemReacted(item)) return false;
     return item.time > (deps.lastReadByChannel[item.channelId] ?? 0);
   }
 
@@ -159,33 +188,38 @@ export function createActivitySlice(deps: {
       activityItems.some((i) => GLOW_KINDS.has(i.kind) && isActivityItemUnread(i)),
   );
 
-  // Advances each represented channel's *real* Slack read cursor up through the
-  // latest activity item in it — the same effect as actually reading that
-  // message in the channel, and (unlike a single "now" cutoff) never marks
-  // later, still-unread messages in that channel as read.
-  function markActivityRead() {
+  function markActivityItemsRead(items: readonly ActivityItem[]) {
     const latestTsByChannel = new Map<string, string>();
-    for (const item of activityItems) {
+    for (const item of items) {
       if (!isActivityItemUnread(item)) continue;
+      setReadActivityIds(item.id, true);
       const prev = latestTsByChannel.get(item.channelId);
       if (!prev || parseFloat(item.ts) > parseFloat(prev))
         latestTsByChannel.set(item.channelId, item.ts);
     }
     for (const [channelId, ts] of latestTsByChannel) {
       deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
-      deps.patchChannel(channelId, { mentions: 0 });
+      if (channelId.startsWith("D")) deps.patchDm(channelId, { mentions: 0 });
+      else deps.patchChannel(channelId, { mentions: 0 });
       markChannelRead(channelId, ts).catch(() => {});
     }
   }
 
-  // Same as markActivityRead but scoped to a single channel/ts — used by the
-  // Activity view's per-row and "read & next" actions so marking one item
-  // doesn't also clear other still-unread items in the same channel.
-  function markActivityItemRead(channelId: string, ts: string) {
+  function markActivityItemsReacted(items: readonly ActivityItem[]) {
+    for (const item of items) setReactedActivityIds(item.id, true);
+  }
+
+  function recordActivityEngagement(channelId: string, ts: string, threadTs?: string) {
     const time = parseFloat(ts) * 1000;
-    if (time <= (deps.lastReadByChannel[channelId] ?? 0)) return;
-    deps.setLastReadByChannel(channelId, time);
-    markChannelRead(channelId, ts).catch(() => {});
+    if (!Number.isFinite(time)) return;
+    setEngagements((current) => {
+      const index = current.findIndex(
+        (entry) => entry.channelId === channelId && entry.threadTs === threadTs,
+      );
+      if (index === -1) return [...current, { channelId, threadTs, time, ts }];
+      if (current[index].time >= time) return current;
+      return current.map((entry, i) => (i === index ? { channelId, threadTs, time, ts } : entry));
+    });
   }
 
   return {
@@ -193,10 +227,12 @@ export function createActivitySlice(deps: {
     ensureActivityLoaded,
     hasUnreadGlow,
     hasUnreadPing,
+    isActivityItemReacted,
     isActivityItemUnread,
-    markActivityItemRead,
-    markActivityRead,
+    markActivityItemsReacted,
+    markActivityItemsRead,
     pushActivity,
+    recordActivityEngagement,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
   };

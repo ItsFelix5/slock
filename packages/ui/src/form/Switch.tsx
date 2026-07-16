@@ -1,3 +1,4 @@
+import Tooltip from "../overlay/Tooltip";
 import "./Switch.css";
 
 export interface SwitchProps {
@@ -9,15 +10,17 @@ export interface SwitchProps {
 
 export default function Switch(props: SwitchProps) {
   return (
-    <button
-      class="switch"
-      classList={{ disabled: props.disabled, on: props.checked }}
-      disabled={props.disabled}
-      onClick={() => props.onChange(!props.checked)}
-      title={props.title}
-      type="button"
-    >
-      <span class="switch-knob" />
-    </button>
+    <Tooltip content={props.title}>
+      <button
+        aria-label={props.title}
+        class="switch"
+        classList={{ disabled: props.disabled, on: props.checked }}
+        disabled={props.disabled}
+        onClick={() => props.onChange(!props.checked)}
+        type="button"
+      >
+        <span class="switch-knob" />
+      </button>
+    </Tooltip>
   );
 }

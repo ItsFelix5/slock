@@ -7,9 +7,11 @@ import {
   ResizeHandle,
   useEscapeClose,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
 import EmojiPicker from "../composer/popovers/EmojiPicker";
+import "../settings/Settings.css";
+import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
 import {
   blurOnEnter,
@@ -19,8 +21,6 @@ import {
   MIN_WIDTH,
 } from "./userProfileOptions";
 import { createLocalTime } from "./userProfileTime";
-import "../settings/Settings.css";
-import "./UserProfile.css";
 export default function UserProfile() {
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [nameInput, setNameInput] = createSignal("");
@@ -121,9 +121,17 @@ export default function UserProfile() {
             <InlineFeedback
               class="user-profile-feedback"
               feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
+              priority={2}
             />
             <div class="user-profile-avatar flex-center" style={{ background: u().avatarColor }}>
-              <img alt="?" class="img-cover" src={u().avatarUrl} />
+              <span aria-hidden="true">?</span>
+              <img
+                alt=""
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+                src={u().avatarUrl}
+              />
               <button
                 class="user-profile-presence"
                 classList={{ away: u().presence === "away" }}
@@ -171,8 +179,10 @@ export default function UserProfile() {
               when={!isSelf()}
             >
               <h2 class="user-profile-name">
-                {u().name}
-                {u().isBot ? " (bot)" : ""}
+                <span class="user-profile-name-label">
+                  {u().name}
+                  {u().isBot ? " (bot)" : ""}
+                </span>
                 <Show when={u().pronouns}>
                   <span class="pronouns">({u().pronouns})</span>
                 </Show>
@@ -217,7 +227,7 @@ export default function UserProfile() {
                         onClick={() => setEmojiOpen(!emojiOpen())}
                         type="button"
                       >
-                        <Show fallback="🙂" when={statusEmoji()}>
+                        <Show fallback="⛔" when={statusEmoji()}>
                           <EmojiText text={statusEmoji()} />
                         </Show>
                       </button>
@@ -244,9 +254,9 @@ export default function UserProfile() {
                   onChange={(e) => setStatusExpiration(Number(e.currentTarget.value))}
                   value={statusExpiration()}
                 >
-                  {EXPIRATION_OPTIONS.map((opt) => (
-                    <option value={opt.seconds}>{opt.label}</option>
-                  ))}
+                  <For each={EXPIRATION_OPTIONS}>
+                    {(opt) => <option value={opt.seconds}>{opt.label}</option>}
+                  </For>
                 </select>
                 <div class="settings-status-actions flex-align-center">
                   <button

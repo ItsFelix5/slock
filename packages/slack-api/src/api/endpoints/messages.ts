@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { ActivityItem, Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
 import { callSlack, getWorkspaceDomain } from "../relay";
@@ -33,6 +34,31 @@ export async function fetchReplies(channelId: string, threadTs: string): Promise
   return messages
     .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
     .map(mapMessage);
+}
+
+// Fetches the single message a pasted permalink points at, for hover previews.
+// Thread replies aren't visible to conversations.history, so those are looked
+// up via conversations.replies on the thread root instead.
+export async function fetchPermalinkMessage(
+  channelId: string,
+  messageTs: string,
+  threadTs: string,
+): Promise<Message | undefined> {
+  if (threadTs !== messageTs) {
+    const replies = await fetchReplies(channelId, threadTs);
+    return replies.find((m) => m.ts === messageTs);
+  }
+  const data = await callSlack("conversations.history", {
+    channel: channelId,
+    inclusive: "true",
+    latest: messageTs,
+    limit: "1",
+    oldest: messageTs,
+  });
+  if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
+  const messages: any[] = data.messages ?? [];
+  const raw = messages.find((m) => m.ts === messageTs);
+  return raw && !HIDE_SUBTYPES.has(raw.subtype) ? mapMessage(raw) : undefined;
 }
 
 export async function postMessage(
@@ -184,6 +210,21 @@ export async function addReminder(text: string, time: string) {
   return data;
 }
 
+// Reminders tied to a specific message use the item_type/item_id/ts/date_due
+// shape (matches Slack's own message-reminder menu) rather than the free-text
+// text/time form `/remind` uses — this links the reminder to the message
+// itself instead of just embedding a permalink in reminder text.
+export async function addMessageReminder(channelId: string, ts: string, dateDue: number) {
+  const data = await callSlack("reminders.add", {
+    date_due: String(dateDue),
+    item_id: channelId,
+    item_type: "message",
+    ts,
+  });
+  if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
+  return data;
+}
+
 export interface SearchResult {
   channelId: string;
   channelName: string;
@@ -227,6 +268,7 @@ export async function fetchMentions(selfUserId: string): Promise<ActivityItem[]>
     id: `${m.channel?.id}-${m.ts}`,
     kind: "mention" as const,
     text: m.text ?? "",
+    threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     time: parseFloat(m.ts) * 1000,
     ts: m.ts,
     userId: m.user,

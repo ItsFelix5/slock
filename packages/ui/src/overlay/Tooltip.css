@@ -1,0 +1,18 @@
+.tooltip-anchor {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.tooltip-bubble {
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  pointer-events: none;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-tooltip);
+}

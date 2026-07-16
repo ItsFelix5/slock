@@ -10,6 +10,7 @@ const MAX_WIDTH = 420;
 const FEED_DEFAULT_WIDTH = 420;
 const FEED_MIN_WIDTH = 340;
 const FEED_MAX_WIDTH = 640;
+const SLACK_USER_ID = "USLACK";
 export default function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
   const [dmsOpen, setDmsOpen] = createSignal(true);
@@ -61,6 +62,10 @@ export default function Sidebar() {
       store.unread.unreadChannelIds,
       store.channels.isChannelStarred,
       store.channels.isChannelLeft,
+      (id) => {
+        const view = store.viewState.activeView();
+        return view?.kind === "channel" && view.id === id;
+      },
     ),
   );
   const startRename = (cat: Category) => {
@@ -109,17 +114,25 @@ export default function Sidebar() {
     setDropTarget(null);
   };
   const filteredDms = createMemo(() =>
-    store.dms
-      .directMessages()
-      .filter((dm) => !unreadsOnly() || !!store.unread.unreadChannelIds[dm.id]),
+    store.dms.directMessages().filter((dm) => {
+      const view = store.viewState.activeView();
+      const isOpen = view?.kind === "dm" && view.id === dm.id;
+      return isOpen || !unreadsOnly() || !!store.unread.unreadChannelIds[dm.id];
+    }),
   );
   // A multi-person DM (memberIds instead of a single userId) is never a bot
   // DM, so it always sorts into people.
   const peopleDms = createMemo(() =>
-    filteredDms().filter((dm) => !(dm.userId && store.users.userById(dm.userId)?.isBot)),
+    filteredDms().filter(
+      (dm) =>
+        !dm.userId || (dm.userId !== SLACK_USER_ID && !store.users.userById(dm.userId)?.isBot),
+    ),
   );
   const appDms = createMemo(() =>
-    filteredDms().filter((dm) => dm.userId && store.users.userById(dm.userId)?.isBot),
+    filteredDms().filter(
+      (dm) =>
+        !!dm.userId && (dm.userId === SLACK_USER_ID || store.users.userById(dm.userId)?.isBot),
+    ),
   );
   return (
     <SidebarView
@@ -137,8 +150,8 @@ export default function Sidebar() {
         expandedSectionIds,
         draggingSectionId,
         dropTarget,
-        FEED_MAX_WIDTH,
-        FEED_MIN_WIDTH,
+        feedMaxWidth: FEED_MAX_WIDTH,
+        feedMinWidth: FEED_MIN_WIDTH,
         feedMode,
         feedWidth,
         handleSectionDragEnd,
@@ -148,8 +161,8 @@ export default function Sidebar() {
         handleSectionDrop,
         hasUnreadGlow: store.activity.hasUnreadGlow,
         hasUnreadPing: store.activity.hasUnreadPing,
-        MAX_WIDTH,
-        MIN_WIDTH,
+        maxWidth: MAX_WIDTH,
+        minWidth: MIN_WIDTH,
         nav: store.viewState.nav,
         openUserProfile: store.users.openUserProfile,
         peopleDms,

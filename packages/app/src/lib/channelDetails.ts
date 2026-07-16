@@ -1,9 +1,12 @@
 import {
   type ChannelDetails,
   type ChannelMembersPage,
+  type ChannelPostingPrefs,
+  type ChannelPostingPrefsPatch,
   fetchChannelDetails,
   fetchChannelManagerIds,
   fetchChannelMembers,
+  fetchChannelPostingPrefs,
   inviteToChannel,
   removeFromChannel,
   renameChannel,
@@ -68,6 +71,12 @@ function setup() {
     );
   }
 
+  function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs | null> {
+    return withFeedback(id, "Failed to load posting permissions.", null, () =>
+      fetchChannelPostingPrefs(id),
+    );
+  }
+
   function renameChannelById(id: string, name: string): Promise<boolean> {
     return withFeedback(id, "Failed to rename channel.", false, async () => {
       const finalName = await renameChannel(id, name);
@@ -105,18 +114,24 @@ function setup() {
     });
   }
 
-  function updateChannelPostingPrefs(
+  async function updateChannelPostingPrefs(
     id: string,
-    opts: {
-      postingRestrictedToManagers: boolean;
-      threadsRestrictedToManagers: boolean;
-      allowChannelMentions: boolean;
-    },
+    patch: ChannelPostingPrefsPatch,
   ): Promise<boolean> {
-    return withFeedback(id, "Failed to update posting permissions.", false, async () => {
-      await setChannelPostingPrefs(id, opts);
+    try {
+      await setChannelPostingPrefs(id, patch);
       return true;
-    });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update posting permissions.";
+      actionFeedback.flash(
+        id,
+        message === "not_permitted"
+          ? "Slack denied this change. A workspace or organization policy may restrict who can edit posting permissions."
+          : message,
+        "error",
+      );
+      return false;
+    }
   }
 
   function updateChannelRetention(id: string, days: number | null): Promise<boolean> {
@@ -143,6 +158,7 @@ function setup() {
     loadChannelDetails,
     loadChannelManagerIds,
     loadChannelMembers,
+    loadChannelPostingPrefs,
     openChannelDetails,
     removeUserFromChannel,
     renameChannelById,
@@ -161,6 +177,7 @@ export const {
   loadChannelDetails,
   loadChannelMembers,
   loadChannelManagerIds,
+  loadChannelPostingPrefs,
   renameChannelById,
   updateChannelTopic,
   updateChannelPurpose,

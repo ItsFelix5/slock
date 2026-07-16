@@ -92,7 +92,7 @@ export default function ChannelDetails() {
               <div class="channel-details-card flex-col">
                 <Show when={!details.loading}>
                   <div class="channel-details-load-error">
-                    <InlineFeedback feedback={actionFeedback.get(id())} />
+                    <InlineFeedback feedback={actionFeedback.get(id())} priority={2} />
                   </div>
                 </Show>
               </div>
@@ -122,6 +122,7 @@ export default function ChannelDetails() {
                 <InlineFeedback
                   class="channel-details-feedback"
                   feedback={actionFeedback.get(d().id)}
+                  priority={2}
                 />
 
                 <div class="channel-details-body flex-col">

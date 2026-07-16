@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/style/noExcessiveLinesPerFile: Sidebar layout and interaction states form one cohesive stylesheet. */
 .sidebar {
   position: relative;
   flex-shrink: 0;
@@ -160,11 +161,6 @@
   height: 14px;
   place-items: center;
   font-size: 10px;
-  transition: transform 0.1s;
-}
-
-.sidebar-caret.collapsed {
-  transform: rotate(-90deg);
 }
 
 .sidebar-section-rename-input {
@@ -180,7 +176,6 @@
 }
 
 .sidebar-section-menu-wrap {
-  position: relative;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -205,9 +200,6 @@
 }
 
 .menu-panel.sidebar-section-menu {
-  top: 24px;
-  right: 0;
-  left: auto;
   min-width: 240px;
 }
 
@@ -222,16 +214,19 @@
   position: relative;
 }
 
-.sidebar-row-close {
+.sidebar-row-wrap > .tooltip-anchor {
   position: absolute;
   top: 50%;
   right: 10px;
+  transform: translateY(-50%);
+}
+
+.sidebar-row-close {
   display: none;
   width: 20px;
   height: 20px;
   color: var(--text-secondary);
   border-radius: var(--radius-4);
-  transform: translateY(-50%);
 }
 
 .sidebar-row-wrap:hover .sidebar-row-close {
@@ -297,4 +292,8 @@
   color: var(--text-on-accent);
   background: var(--badge-bg);
   border-radius: var(--radius-9);
+}
+
+.sidebar-row-wrap:hover .sidebar-badge {
+  display: none;
 }

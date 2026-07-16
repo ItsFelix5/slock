@@ -1,19 +1,17 @@
-import { Icon, Overlay, useEscapeClose } from "@slock/ui";
+import { Icon, Overlay, Tooltip, useEscapeClose } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import SettingsAccountTab from "./SettingsAccountTab";
 import SettingsAppearanceTab from "./SettingsAppearanceTab";
 import SettingsDebugTab from "./SettingsDebugTab";
 import SettingsNotificationsTab from "./SettingsNotificationsTab";
-import SettingsShortcutsTab from "./SettingsShortcutsTab";
 import "./Settings.css";
 
-type Tab = "account" | "notifications" | "appearance" | "shortcuts" | "debugging";
+type Tab = "account" | "notifications" | "appearance" | "debugging";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "account", label: "Account" },
   { key: "notifications", label: "Notifications" },
   { key: "appearance", label: "Appearance" },
-  { key: "shortcuts", label: "Shortcuts" },
   { key: "debugging", label: "Debugging" },
 ];
 
@@ -25,14 +23,16 @@ export default function Settings(props: { onClose: () => void }) {
   return (
     <Overlay onClose={props.onClose}>
       <div class="settings-card modal-card">
-        <button
-          class="panel-close-btn floating"
-          onClick={props.onClose}
-          title="Close"
-          type="button"
-        >
-          <Icon name="close" size={12} />
-        </button>
+        <Tooltip content="Close">
+          <button
+            aria-label="Close"
+            class="panel-close-btn floating"
+            onClick={props.onClose}
+            type="button"
+          >
+            <Icon name="close" size={12} />
+          </button>
+        </Tooltip>
 
         <div class="settings-nav flex-col">
           <For each={TABS}>
@@ -60,10 +60,6 @@ export default function Settings(props: { onClose: () => void }) {
 
           <Show when={tab() === "appearance"}>
             <SettingsAppearanceTab />
-          </Show>
-
-          <Show when={tab() === "shortcuts"}>
-            <SettingsShortcutsTab />
           </Show>
 
           <Show when={tab() === "debugging"}>

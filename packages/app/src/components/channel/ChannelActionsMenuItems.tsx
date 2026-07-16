@@ -98,6 +98,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           class="menu-item danger"
           onClick={() => {
             props.onClose();
+            // biome-ignore lint/suspicious/noAlert: Leaving a channel requires explicit confirmation.
             if (confirm(`Leave #${props.channelTitle}?`))
               store.channels.leaveCurrentChannel(props.channelId);
           }}

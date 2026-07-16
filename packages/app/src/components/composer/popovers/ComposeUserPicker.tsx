@@ -5,13 +5,14 @@ import { store } from "../../../lib/store";
 import "./ComposeUserPicker.css";
 
 export default function ComposeUserPicker(props: {
+  excludeUserIds?: string[];
+  includeCurrentUser?: boolean;
   onSelect: (userId: string) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = createSignal("");
   const [remoteResults, setRemoteResults] = createSignal<User[]>([]);
   const [searching, setSearching] = createSignal(false);
-  let rootRef: HTMLDivElement | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0;
 
@@ -22,9 +23,15 @@ export default function ComposeUserPicker(props: {
     onCleanup(() => clearTimeout(debounceTimer));
   });
 
+  const excludedUserIds = createMemo(() => new Set(props.excludeUserIds ?? []));
+
   const localUsers = createMemo(() => {
-    const me = store.users.currentUser()?.id;
-    return store.users.knownUsers().filter((u) => u.id !== me);
+    const me = store.users.currentUser();
+    const users = new Map(store.users.knownUsers().map((user) => [user.id, user]));
+    if (props.includeCurrentUser && me) users.set(me.id, me);
+    return [...users.values()].filter(
+      (user) => !excludedUserIds().has(user.id) && (props.includeCurrentUser || user.id !== me?.id),
+    );
   });
 
   const onInput = (value: string) => {
@@ -39,8 +46,10 @@ export default function ComposeUserPicker(props: {
     setSearching(true);
     const id = ++requestId;
     debounceTimer = setTimeout(async () => {
-      const me = store.users.currentUser()?.id;
-      const found = await store.users.searchUsers(q, me);
+      const me = props.includeCurrentUser ? undefined : store.users.currentUser()?.id;
+      const found = (await store.users.searchUsers(q, me)).filter(
+        (user) => !excludedUserIds().has(user.id),
+      );
       if (id === requestId) {
         setRemoteResults(found);
         setSearching(false);
@@ -68,7 +77,7 @@ export default function ComposeUserPicker(props: {
   });
 
   return (
-    <div class="compose-picker" ref={rootRef}>
+    <div class="compose-picker">
       <input
         autofocus
         class="compose-picker-input"

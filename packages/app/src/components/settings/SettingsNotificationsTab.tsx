@@ -1,6 +1,6 @@
 import { Icon, InlineFeedback, Switch } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
-import { store, actionFeedback, channelDisplayName } from "../../lib/store";
+import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "./Settings.css";
 
 export default function SettingsNotificationsTab() {
@@ -72,7 +72,7 @@ export default function SettingsNotificationsTab() {
                   <span class="settings-list-row-name flex-align-center">
                     {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
-                  <InlineFeedback feedback={actionFeedback.get(c.id)} />
+                  <InlineFeedback feedback={actionFeedback.get(c.id)} priority={2} />
                   <button
                     class="settings-list-row-action btn-reset text-muted"
                     onClick={() => store.preferences.toggleMuteChannel(c.id)}

@@ -1,6 +1,7 @@
 import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
 import { Icon, ZoomableImage } from "@slock/ui";
-import { For, Show } from "solid-js";
+import { For, Match, Switch } from "solid-js";
+import AudioFile from "./AudioFile";
 import "./MessageFiles.css";
 
 function formatSize(bytes: number | undefined): string {
@@ -15,54 +16,54 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
     <div class="message-files">
       <For each={props.files}>
         {(file) => (
-          <Show
+          <Switch
             fallback={
-              <Show
-                fallback={
-                  <a
-                    class="message-file-card flex-align-center"
-                    href={file.urlPrivate}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <Icon name="code-block" size={20} />
-                    <span class="message-file-info">
-                      <span class="message-file-name">{file.title || file.name}</span>
-                      <span class="message-file-meta">
-                        {file.filetype?.toUpperCase()} {formatSize(file.size)}
-                      </span>
-                    </span>
-                  </a>
-                }
-                when={file.isVideo}
+              <a
+                class="message-file-card flex-align-center"
+                href={file.urlPrivate}
+                rel="noopener noreferrer"
+                target="_blank"
               >
-                <video
-                  aria-label={file.title || file.name}
-                  class="message-file-video"
-                  controls
-                  height={file.height}
-                  poster={file.thumbUrl}
-                  preload="metadata"
-                  width={file.width}
-                >
-                  <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
-                  Your browser does not support the video tag.
-                </video>
-              </Show>
+                <Icon name="code-block" size={20} />
+                <span class="message-file-info">
+                  <span class="message-file-name">{file.title || file.name}</span>
+                  <span class="message-file-meta">
+                    {file.filetype?.toUpperCase()} {formatSize(file.size)}
+                  </span>
+                </span>
+              </a>
             }
-            when={file.isImage ? file.thumbUrl : undefined}
           >
-            {(thumb) => (
-              <ZoomableImage
-                alt={file.title || file.name}
-                class="message-file-image"
-                fullSrc={fileProxyUrl(file.urlPrivate)}
+            <Match when={file.isImage ? file.thumbUrl : undefined}>
+              {(thumb) => (
+                <ZoomableImage
+                  alt={file.title || file.name}
+                  class="message-file-image"
+                  fullSrc={fileProxyUrl(file.urlPrivate)}
+                  height={file.height}
+                  src={thumb()}
+                  width={file.width}
+                />
+              )}
+            </Match>
+            <Match when={file.isVideo}>
+              <video
+                aria-label={file.title || file.name}
+                class="message-file-video"
+                controls
                 height={file.height}
-                src={thumb()}
+                poster={file.thumbUrl}
+                preload="metadata"
                 width={file.width}
-              />
-            )}
-          </Show>
+              >
+                <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
+                Your browser does not support the video tag.
+              </video>
+            </Match>
+            <Match when={file.isAudio}>
+              <AudioFile file={file} />
+            </Match>
+          </Switch>
         )}
       </For>
     </div>

@@ -1,6 +1,6 @@
+// biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
 import { WebSocket } from "ws";
-import type { Credentials } from "./relay-core.js";
-import { callSlack } from "./relay-core.js";
+import { type Credentials, callSlack, slackCookieHeader } from "./relay-core.js";
 
 export type ClientSocket = { send(data: string): void };
 
@@ -75,7 +75,7 @@ function stopFallbackPolling(state: ConnectionState) {
 }
 
 function buildGatewayUrl(current: Credentials) {
-  const enterpriseId = current.route.split(":")[0];
+  const [enterpriseId] = current.route.split(":");
   const gatewayTeamId = `T${enterpriseId.slice(1)}`;
   const shard = 1 + Math.floor(Math.random() * 3);
   const params = new URLSearchParams({
@@ -97,7 +97,7 @@ function connectGateway(state: ConnectionState) {
   if (state.closed) return;
   try {
     const socket = new WebSocket(buildGatewayUrl(state.creds), {
-      headers: { cookie: state.creds.cookie },
+      headers: { cookie: slackCookieHeader(state.creds) },
     });
     state.gatewaySocket = socket;
 

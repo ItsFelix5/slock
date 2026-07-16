@@ -1,0 +1,66 @@
+.context-actions-card {
+  width: min(480px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 48px));
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal-lg);
+}
+
+.context-actions-header {
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.context-actions-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.context-actions-header p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.context-actions-content {
+  padding: 6px 20px 16px;
+  overflow-y: auto;
+}
+
+.context-actions-content section + section {
+  margin-top: 16px;
+}
+
+.context-actions-content h3 {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.context-actions-row {
+  gap: 16px;
+  padding: 9px 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.context-actions-row:last-child {
+  border-bottom: none;
+}
+
+.context-actions-row kbd {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}

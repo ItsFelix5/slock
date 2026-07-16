@@ -1,13 +1,14 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Icon, InlineFeedback } from "@slock/ui";
+import { Icon, InlineFeedback, Tooltip } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
-import { store, actionFeedback, channelDisplayName } from "../../lib/store";
+import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "./LaterView.css";
 
 export default function LaterView() {
   onMount(() => store.later.ensureLaterLoaded());
 
-  const goTo = (channelId: string, ts: string) => store.viewState.openChannelPeek(channelId, ts);
+  const goTo = (channelId: string, ts: string, highlightTs?: string) =>
+    store.viewState.openChannelPeek(channelId, ts, highlightTs);
 
   return (
     <div class="later-view sidebar-view-panel">
@@ -27,7 +28,10 @@ export default function LaterView() {
               <div class="later-item">
                 <button
                   class="later-main btn-reset"
-                  onClick={() => goTo(item.channelId, item.ts)}
+                  onClick={() => {
+                    const rootTs = msg()?.threadTs;
+                    goTo(item.channelId, rootTs ?? item.ts, rootTs ? item.ts : undefined);
+                  }}
                   type="button"
                 >
                   <div class="later-channel">#{channelDisplayName(channel(), item.channelId)}</div>
@@ -44,15 +48,21 @@ export default function LaterView() {
                     </Show>
                   </div>
                 </button>
-                <button
-                  class="later-remove btn-reset icon-btn icon-action text-accent"
-                  onClick={() => store.later.toggleSaveForLater(item.channelId, item.ts)}
-                  title="Remove from Later"
-                  type="button"
-                >
-                  <Icon name="bookmark-filled" size={16} />
-                </button>
-                <InlineFeedback class="later-feedback" feedback={actionFeedback.get(item.ts)} />
+                <Tooltip content="Remove from Later">
+                  <button
+                    aria-label="Remove from Later"
+                    class="later-remove btn-reset icon-btn icon-action text-accent"
+                    onClick={() => store.later.toggleSaveForLater(item.channelId, item.ts)}
+                    type="button"
+                  >
+                    <Icon name="bookmark-filled" size={16} />
+                  </button>
+                </Tooltip>
+                <InlineFeedback
+                  class="later-feedback"
+                  feedback={actionFeedback.get(item.ts)}
+                  priority={2}
+                />
               </div>
             );
           }}

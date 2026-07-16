@@ -1,4 +1,4 @@
-import { Icon, InlineFeedback, Menu, ResizeHandle, SegmentedControl } from "@slock/ui";
+import { Icon, InlineFeedback, Menu, ResizeHandle, SegmentedControl, Tooltip } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
 import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
@@ -6,7 +6,6 @@ import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections from "./rows/SidebarDmSections";
 import { SidebarSkeleton } from "./rows/SidebarRows";
 import SidebarToolbar from "./SidebarToolbar";
-import "./Sidebar.css";
 
 export default function SidebarView({ context }: { context: any }) {
   const {
@@ -15,10 +14,10 @@ export default function SidebarView({ context }: { context: any }) {
     setFeedWidth,
     width,
     setWidth,
-    FEED_MIN_WIDTH,
-    FEED_MAX_WIDTH,
-    MIN_WIDTH,
-    MAX_WIDTH,
+    feedMinWidth,
+    feedMaxWidth,
+    minWidth,
+    maxWidth,
     currentUser,
     openUserProfile,
     searchOpen,
@@ -71,8 +70,8 @@ export default function SidebarView({ context }: { context: any }) {
     >
       <ResizeHandle
         direction={1}
-        max={feedMode() ? FEED_MAX_WIDTH : MAX_WIDTH}
-        min={feedMode() ? FEED_MIN_WIDTH : MIN_WIDTH}
+        max={feedMode() ? feedMaxWidth : maxWidth}
+        min={feedMode() ? feedMinWidth : minWidth}
         setWidth={feedMode() ? setFeedWidth : setWidth}
         side="right"
         width={feedMode() ? feedWidth : width}
@@ -193,16 +192,19 @@ export default function SidebarView({ context }: { context: any }) {
                         <button
                           aria-label={`Collapse ${cat.name}`}
                           class="sidebar-caret btn-reset"
-                          classList={{ collapsed: collapsed().has(cat.id) }}
                           onClick={() => toggleCategory(cat.id)}
                           type="button"
                         >
-                          <Show
-                            fallback={<Icon name="caret-down-filled" size={10} />}
-                            when={cat.sidebar !== "all" && expandedSectionIds().has(cat.id)}
-                          >
-                            <Icon name="channel-section" size={12} />
-                          </Show>
+                          <Icon
+                            name={
+                              collapsed().has(cat.id)
+                                ? "caret-right-filled"
+                                : cat.sidebar === "all" || !expandedSectionIds().has(cat.id)
+                                  ? "section"
+                                  : "caret-down-filled"
+                            }
+                            size={12}
+                          />
                         </button>
                         <button
                           class="btn-reset text-muted text-sm"
@@ -219,28 +221,30 @@ export default function SidebarView({ context }: { context: any }) {
                     />
                     <Show when={cat.custom && renamingId() !== cat.id}>
                       <Menu
+                        align="end"
                         class="sidebar-section-menu-wrap"
                         onClose={() => setSectionMenuOpen(null)}
                         open={sectionMenuOpen() === cat.id}
                         panelClass="menu-panel sidebar-section-menu"
                         trigger={
-                          <button
-                            class="sidebar-section-menu-btn btn-reset icon-btn icon-action"
-                            onClick={() =>
-                              setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
-                            }
-                            title="Section options"
-                            type="button"
-                          >
-                            <Icon name="ellipsis-vertical-filled" size={14} />
-                          </button>
+                          <Tooltip content="Section options">
+                            <button
+                              aria-label="Section options"
+                              class="sidebar-section-menu-btn btn-reset icon-btn icon-action"
+                              onClick={() =>
+                                setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
+                              }
+                              type="button"
+                            >
+                              <Icon name="ellipsis-vertical-filled" size={14} />
+                            </button>
+                          </Tooltip>
                         }
                       >
                         <button class="menu-item" onClick={() => startRename(cat)} type="button">
                           Rename
                         </button>
                         <div class="sidebar-section-filter">
-                          <span class="text-dim text-sm">Show</span>
                           <SegmentedControl>
                             <button
                               class="segmented-control-btn"
@@ -282,6 +286,7 @@ export default function SidebarView({ context }: { context: any }) {
                           onClick={() => {
                             setSectionMenuOpen(null);
                             if (
+                              // biome-ignore lint/suspicious/noAlert: Deleting a section requires explicit confirmation.
                               confirm(
                                 `Delete section "${cat.name}"? Its channels won't be removed from the workspace.`,
                               )
@@ -296,9 +301,13 @@ export default function SidebarView({ context }: { context: any }) {
                       </Menu>
                     </Show>
                   </div>
-                  <div style={{ display: collapsed().has(cat.id) ? "none" : "block" }}>
+                  <div>
                     <For each={cat.channels}>
-                      {(ch) => <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />}
+                      {(ch) => (
+                        <Show when={!collapsed().has(cat.id) || (ch.mentions ?? 0) > 0}>
+                          <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />
+                        </Show>
+                      )}
                     </For>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import { type JSX, onMount, Show } from "solid-js";
 import { useClickOutside } from "../useClickOutside";
 import { useEscapeClose } from "../useEscapeClose";
+import { clamp } from "./floating/viewportClamp";
 import "./MenuButton.css";
 import "./ContextMenu.css";
 
@@ -53,6 +54,7 @@ function ContextMenuPanel(props: {
   setRef: (el: HTMLDivElement) => void;
   children: JSX.Element;
 }) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let ref: HTMLDivElement | undefined;
 
   // Clamped to the viewport once we know the panel's real size — starts at
@@ -61,8 +63,8 @@ function ContextMenuPanel(props: {
     if (!ref) return;
     props.setRef(ref);
     const rect = ref.getBoundingClientRect();
-    const left = Math.max(8, Math.min(props.x, window.innerWidth - rect.width - 8));
-    const top = Math.max(8, Math.min(props.y, window.innerHeight - rect.height - 8));
+    const left = clamp(props.x, 8, window.innerWidth - rect.width - 8);
+    const top = clamp(props.y, 8, window.innerHeight - rect.height - 8);
     ref.style.left = `${left}px`;
     ref.style.top = `${top}px`;
   });

@@ -11,9 +11,8 @@ export const ADDABLE_CHANNEL_TABS: { type: ChannelTabType; label: string; icon: 
   { icon: "pin-filled", label: "Pinned", type: "pinned" },
 ];
 
-// actionFeedback is a single flat keyspace shared by lots of unrelated
-// features (e.g. plain channel ids are also the composer's send-error key) —
-// namespaced so a tab-sync failure doesn't show up in the composer.
+// Keep tab-sync feedback separate from general channel actions so one cannot
+// replace the other while both are in flight.
 export function channelTabsFeedbackKey(channelId: string): string {
   return `channel-tabs:${channelId}`;
 }

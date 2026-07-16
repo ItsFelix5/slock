@@ -28,8 +28,14 @@ export default function SidebarDmSections(props: {
               Direct messages
             </button>
           </div>
-          <div style={{ display: props.dmsOpen() ? "block" : "none" }}>
-            <For each={props.peopleDms()}>{(dm) => <DmRow dm={dm} />}</For>
+          <div>
+            <For each={props.peopleDms()}>
+              {(dm) => (
+                <Show when={props.dmsOpen() || (dm.mentions ?? 0) > 0}>
+                  <DmRow dm={dm} />
+                </Show>
+              )}
+            </For>
           </div>
         </div>
       </Show>
@@ -47,8 +53,14 @@ export default function SidebarDmSections(props: {
               Apps
             </button>
           </div>
-          <div style={{ display: props.appsOpen() ? "block" : "none" }}>
-            <For each={props.appDms()}>{(dm) => <DmRow dm={dm} />}</For>
+          <div>
+            <For each={props.appDms()}>
+              {(dm) => (
+                <Show when={props.appsOpen() || (dm.mentions ?? 0) > 0}>
+                  <DmRow dm={dm} />
+                </Show>
+              )}
+            </For>
           </div>
         </div>
       </Show>

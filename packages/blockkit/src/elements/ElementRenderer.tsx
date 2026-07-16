@@ -1,10 +1,15 @@
 import type { BlockElement } from "@slock/slack-api";
 import { Show } from "solid-js";
+import type { BlockActionContext } from "../BlockKit";
 import Button from "./Button";
 import ImageElement from "./ImageElement";
 import Overflow from "./Overflow";
 
-export default function ElementRenderer(props: { el: BlockElement }) {
+export default function ElementRenderer(props: {
+  blockId?: string;
+  context?: BlockActionContext;
+  el: BlockElement;
+}) {
   return (
     <Show
       fallback={
@@ -24,7 +29,7 @@ export default function ElementRenderer(props: { el: BlockElement }) {
       }
       when={props.el.type === "button"}
     >
-      <Button el={props.el as any} />
+      <Button blockId={props.blockId} context={props.context} el={props.el as any} />
     </Show>
   );
 }

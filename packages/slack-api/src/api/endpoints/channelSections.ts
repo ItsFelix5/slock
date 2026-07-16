@@ -1,6 +1,8 @@
+// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { ChannelSection } from "../../types";
 import { extractChannelSections } from "../mappers";
 import { callSlack } from "../relay";
+
 export async function fetchSections(): Promise<ChannelSection[]> {
   try {
     const data = await callSlack("users.channelSections.list");

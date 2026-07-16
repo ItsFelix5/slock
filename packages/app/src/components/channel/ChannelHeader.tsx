@@ -1,10 +1,11 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Icon, InlineFeedback, Menu } from "@slock/ui";
+import { Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { ADDABLE_CHANNEL_TABS, channelTabsFeedbackKey } from "../../lib/channelTabMeta";
 import { actionFeedback, store } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
+import "./ChannelHeader.css";
 import {
   availableChannelTabs,
   channelTitle,
@@ -16,7 +17,6 @@ import {
   openCurrentDmProfile,
   searchCurrentConversation,
 } from "./channelHeaderState";
-import "./ChannelHeader.css";
 
 export default function ChannelHeader() {
   const [moreOpen, setMoreOpen] = createSignal(false);
@@ -51,15 +51,17 @@ export default function ChannelHeader() {
             open={starMenuOpen()}
             panelClass="channel-header-star-menu popover flex-col"
             trigger={
-              <button
-                class="channel-header-star btn-reset icon-btn sm icon-action text-dim"
-                classList={{ active: isStarred() }}
-                onClick={() => setStarMenuOpen(!starMenuOpen())}
-                title="Move to…"
-                type="button"
-              >
-                <Icon name={isStarred() ? "star-filled" : "section"} size={16} />
-              </button>
+              <Tooltip content="Move to…">
+                <button
+                  aria-label="Move to…"
+                  class="channel-header-star btn-reset icon-btn sm icon-action text-dim"
+                  classList={{ active: isStarred() }}
+                  onClick={() => setStarMenuOpen(!starMenuOpen())}
+                  type="button"
+                >
+                  <Icon name={isStarred() ? "star-filled" : "section"} size={16} />
+                </button>
+              </Tooltip>
             }
           >
             <div class="channel-header-star-menu-label menu-label">Move to</div>
@@ -150,9 +152,11 @@ export default function ChannelHeader() {
           {channelTitle()}
         </button>
         <Show when={channelTopic()}>
-          <span class="channel-header-topic truncate text-dim text-sm">
-            <Mrkdwn text={channelTopic()} />
-          </span>
+          <Tooltip content={channelTopic()}>
+            <span class="channel-header-topic truncate text-dim text-sm">
+              <Mrkdwn text={channelTopic()} />
+            </span>
+          </Tooltip>
         </Show>
         <Show when={store.viewState.activeView()?.id}>
           {(id) => (
@@ -160,30 +164,35 @@ export default function ChannelHeader() {
           )}
         </Show>
         <div class="channel-header-actions">
-          <button
-            class="channel-header-btn btn-reset icon-btn md icon-action"
-            onClick={searchCurrentConversation}
-            title="Search in conversation"
-            type="button"
-          >
-            <Icon name="search" size={16} />
-          </button>
+          <Tooltip content="Search in conversation">
+            <button
+              aria-label="Search in conversation"
+              class="channel-header-btn btn-reset icon-btn md icon-action"
+              onClick={searchCurrentConversation}
+              type="button"
+            >
+              <Icon name="search" size={16} />
+            </button>
+          </Tooltip>
           <Show when={store.viewState.activeView()}>
             {(v) => (
               <Menu
+                align="end"
                 class="channel-header-more-wrap"
                 onClose={() => setMoreOpen(false)}
                 open={moreOpen()}
                 panelClass="menu-panel channel-header-menu"
                 trigger={
-                  <button
-                    class="channel-header-btn btn-reset icon-btn md icon-action"
-                    onClick={() => setMoreOpen(!moreOpen())}
-                    title="More"
-                    type="button"
-                  >
-                    <Icon name="ellipsis-vertical-filled" size={16} />
-                  </button>
+                  <Tooltip content="More">
+                    <button
+                      aria-label="More"
+                      class="channel-header-btn btn-reset icon-btn md icon-action"
+                      onClick={() => setMoreOpen(!moreOpen())}
+                      type="button"
+                    >
+                      <Icon name="ellipsis-vertical-filled" size={16} />
+                    </button>
+                  </Tooltip>
                 }
               >
                 <ChannelActionsMenuItems
@@ -228,15 +237,16 @@ export default function ChannelHeader() {
                       <Icon name={meta.icon} size={14} />
                       {meta.label}
                     </button>
-                    <button
-                      aria-label={`Remove ${meta.label} tab`}
-                      class="channel-header-tab-remove btn-reset icon-btn text-dim"
-                      onClick={() => store.channelTabs.removeChannelTab(id(), type)}
-                      title={`Remove ${meta.label} tab`}
-                      type="button"
-                    >
-                      <Icon name="close-filled" size={11} />
-                    </button>
+                    <Tooltip content={`Remove ${meta.label} tab`}>
+                      <button
+                        aria-label={`Remove ${meta.label} tab`}
+                        class="channel-header-tab-remove btn-reset icon-btn text-dim"
+                        onClick={() => store.channelTabs.removeChannelTab(id(), type)}
+                        type="button"
+                      >
+                        <Icon name="close-filled" size={11} />
+                      </button>
+                    </Tooltip>
                   </span>
                 );
               }}
@@ -248,15 +258,16 @@ export default function ChannelHeader() {
                 open={addTabOpen()}
                 panelClass="channel-header-tab-add-menu popover flex-col"
                 trigger={
-                  <button
-                    aria-label="Add a tab"
-                    class="channel-header-tab-add btn-reset icon-btn text-dim"
-                    onClick={() => setAddTabOpen(!addTabOpen())}
-                    title="Add a tab"
-                    type="button"
-                  >
-                    <Icon name="plus-filled" size={12} />
-                  </button>
+                  <Tooltip content="Add a tab">
+                    <button
+                      aria-label="Add a tab"
+                      class="channel-header-tab-add btn-reset icon-btn text-dim"
+                      onClick={() => setAddTabOpen(!addTabOpen())}
+                      type="button"
+                    >
+                      <Icon name="plus-filled" size={12} />
+                    </button>
+                  </Tooltip>
                 }
               >
                 <For each={availableChannelTabs(id())}>

@@ -80,6 +80,28 @@ export function getCachedWorkspaceDomain(): string | null {
   return cachedDomainValue;
 }
 
+// Same idea as getWorkspaceDomain, for the current team id — needed to
+// submit a block action. Shares /config's response, seeded by the same
+// boot-time getConfig() call.
+let cachedTeamIdValue: string | null = null;
+let workspaceTeamId: Promise<string | null> | null = null;
+export function getWorkspaceTeamId(): Promise<string | null> {
+  if (cachedTeamIdValue) return Promise.resolve(cachedTeamIdValue);
+  if (!workspaceTeamId) {
+    workspaceTeamId = fetch("/config")
+      .then((res) => res.json())
+      .then((data) => {
+        cachedTeamIdValue = (data.teamId as string | null) ?? null;
+        return cachedTeamIdValue;
+      })
+      .catch((err) => {
+        workspaceTeamId = null;
+        throw err;
+      });
+  }
+  return workspaceTeamId;
+}
+
 // A user's Enterprise Grid team profile link — works cross-workspace within
 // the same Grid org, unlike a plain channel permalink. On a Grid workspace
 // like this one, `domain` from /config is already the "*.enterprise.slack.com"
@@ -99,19 +121,22 @@ export function userProfileUrl(domain: string, userId: string): string {
 // people using the same deployment at once. Still seeds the workspace-domain
 // cache above when it has a domain to offer, since App only ever mounts
 // after this resolves once.
-export async function getConfig(): Promise<{ domain: string | null; configured: boolean }> {
+export async function getConfig(): Promise<{
+  domain: string | null;
+  configured: boolean;
+  teamId: string | null;
+}> {
   const res = await fetch("/config");
   const data = await res.json();
   if (data.domain) cachedDomainValue = data.domain;
+  if (data.teamId) cachedTeamIdValue = data.teamId;
   return data;
 }
 
-// Submits a request pasted from devtools (see server/parse-auth-request.ts)
-// so the relay can extract a token/cookie/route from it. The server sets
-// those as an httpOnly cookie directly on the response — page JS never sees
-// the raw token/cookie, and there's nothing left for the client to store or
-// restore itself (the cookie persists in the browser regardless of the
-// server process's lifetime).
+// Submits the credentials extracted from the pasted devtools request. Only
+// Slack's `d` session value is included, not the rest of the browser's Slack
+// cookies. The server persists it in an httpOnly cookie directly on the
+// response, so page JS has nothing left to store or restore itself.
 export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch("/auth", {
     body: JSON.stringify(raw),
@@ -126,6 +151,8 @@ export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; er
 export async function logout(): Promise<void> {
   workspaceDomain = null;
   cachedDomainValue = null;
+  workspaceTeamId = null;
+  cachedTeamIdValue = null;
   await fetch("/auth/logout", { method: "POST" }).catch(() => {
     // best-effort — worst case the user just sees stale state until reload
   });

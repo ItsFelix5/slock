@@ -1,6 +1,6 @@
-import { Icon, InlineFeedback } from "@slock/ui";
-import { createSignal, For, onCleanup, Show } from "solid-js";
-import { actionFeedback, store } from "../../lib/store";
+import { FloatingPanel, Icon, InlineFeedback, Tooltip } from "@slock/ui";
+import { createSignal, For, onCleanup } from "solid-js";
+import { actionFeedback, store } from "../../../lib/store";
 import "./DndButton.css";
 
 const OPEN_DELAY = 350;
@@ -21,6 +21,8 @@ const DURATIONS = [
 // panel is never clipped by an ancestor's overflow.
 export default function DndButton() {
   const [open, setOpen] = createSignal(false);
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+  let wrapRef: HTMLFieldSetElement | undefined;
   let openTimer: ReturnType<typeof setTimeout> | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -32,6 +34,7 @@ export default function DndButton() {
     clearTimeout(openTimer);
     closeTimer = setTimeout(() => setOpen(false), CLOSE_DELAY);
   };
+  const cancelClose = () => clearTimeout(closeTimer);
 
   onCleanup(() => {
     clearTimeout(openTimer);
@@ -51,34 +54,45 @@ export default function DndButton() {
       onFocus={scheduleOpen}
       onMouseEnter={scheduleOpen}
       onMouseLeave={scheduleClose}
+      ref={wrapRef}
     >
-      <button
-        class="sidebar-global-search-btn btn-reset icon-btn icon-action"
-        onClick={() => {
-          clearTimeout(openTimer);
-          setOpen(false);
-          if (store.preferences.isDndActive()) store.preferences.endDnd();
-          else store.preferences.snoozeDnd(60);
-        }}
-        title={
+      <Tooltip
+        content={
           store.preferences.isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"
         }
-        type="button"
       >
-        <Icon name={store.preferences.isDndActive() ? "moon-filled" : "moon"} size={16} />
-      </button>
+        <button
+          aria-label={
+            store.preferences.isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"
+          }
+          class="sidebar-global-search-btn btn-reset icon-btn icon-action"
+          onClick={() => {
+            clearTimeout(openTimer);
+            setOpen(false);
+            if (store.preferences.isDndActive()) store.preferences.endDnd();
+            else store.preferences.snoozeDnd(60);
+          }}
+          type="button"
+        >
+          <Icon name={store.preferences.isDndActive() ? "moon-filled" : "moon"} size={16} />
+        </button>
+      </Tooltip>
       <InlineFeedback class="dnd-btn-feedback" feedback={actionFeedback.get("dnd")} />
-      <Show when={open()}>
-        <div class="menu-panel dnd-duration-panel">
-          <For each={DURATIONS}>
-            {(d) => (
-              <button class="menu-item" onClick={() => pick(d.minutes)} type="button">
-                {d.label}
-              </button>
-            )}
-          </For>
-        </div>
-      </Show>
+      <FloatingPanel
+        anchor={() => wrapRef}
+        class="menu-panel dnd-duration-panel"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+        open={open()}
+      >
+        <For each={DURATIONS}>
+          {(d) => (
+            <button class="menu-item" onClick={() => pick(d.minutes)} type="button">
+              {d.label}
+            </button>
+          )}
+        </For>
+      </FloatingPanel>
     </fieldset>
   );
 }

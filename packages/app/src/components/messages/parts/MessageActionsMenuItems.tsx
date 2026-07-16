@@ -17,11 +17,7 @@ export interface MessageActionsMenuItemsProps {
 export default function MessageActionsMenuItems(props: MessageActionsMenuItemsProps) {
   const [remindOpen, setRemindOpen] = createSignal(false);
   const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
-  const [shortcutsFlipUp, setShortcutsFlipUp] = createSignal(false);
   const [shortcutQuery, setShortcutQuery] = createSignal("");
-  let shortcutsBtnRef: HTMLButtonElement | undefined;
-
-  const ShortcutsMenuHeight = 280;
 
   const filteredShortcuts = createMemo(() => {
     const all: MessageShortcut[] = store.resources.messageShortcuts() ?? [];
@@ -31,10 +27,6 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
   });
 
   const toggleShortcuts = () => {
-    if (!shortcutsOpen() && shortcutsBtnRef) {
-      const rect = shortcutsBtnRef.getBoundingClientRect();
-      setShortcutsFlipUp(rect.bottom + ShortcutsMenuHeight > window.innerHeight);
-    }
     if (shortcutsOpen()) setShortcutQuery("");
     setShortcutsOpen(!shortcutsOpen());
   };
@@ -72,14 +64,22 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     store.messages.markMessageUnread(props.channelId, props.msg.ts);
   };
 
+  const isInThread = (channelId: string, ts: string) =>
+    !!props.threadTs &&
+    channelId === props.channelId &&
+    (ts === props.threadTs ||
+      (store.messages.threadMessages[props.threadTs]?.some((m) => m.ts === ts) ?? false));
+
   const copyText = () => {
     close();
-    navigator.clipboard.writeText(parseReplyLink(props.msg.text)?.rest ?? props.msg.text);
+    navigator.clipboard.writeText(
+      parseReplyLink(props.msg.text, isInThread)?.rest ?? props.msg.text,
+    );
   };
 
-  const remind = (time: string) => {
+  const remind = (dateDue: number) => {
     close();
-    store.messages.remindAboutMessage(props.channelId, props.msg.ts, time);
+    store.messages.remindAboutMessage(props.channelId, props.msg.ts, dateDue);
   };
 
   const runShortcut = (shortcut: MessageShortcut) => {
@@ -94,6 +94,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const requestDelete = () => {
     close();
+    // biome-ignore lint/suspicious/noAlert: Deleting a message requires explicit confirmation.
     if (confirm("Delete this message?"))
       store.messages.deleteMessageAt(props.channelId, props.msg.ts);
   };
@@ -119,6 +120,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         onClose={() => setRemindOpen(false)}
         open={remindOpen()}
         panelClass="menu-panel message-more-submenu"
+        placement="left"
         trigger={
           <button class="menu-item" onClick={() => setRemindOpen(!remindOpen())} type="button">
             <Icon name="clock" size={15} />
@@ -128,7 +130,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
       >
         <For each={REMINDER_OPTIONS}>
           {(opt) => (
-            <button class="menu-item" onClick={() => remind(opt.time)} type="button">
+            <button class="menu-item" onClick={() => remind(opt.dateDue())} type="button">
               {opt.label}
             </button>
           )}
@@ -150,9 +152,10 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
             setShortcutQuery("");
           }}
           open={shortcutsOpen()}
-          panelClass={`menu-panel message-shortcuts-menu${shortcutsFlipUp() ? " flip-up" : ""}`}
+          panelClass="menu-panel message-shortcuts-menu"
+          placement="left"
           trigger={
-            <button class="menu-item" onClick={toggleShortcuts} ref={shortcutsBtnRef} type="button">
+            <button class="menu-item" onClick={toggleShortcuts} type="button">
               <Icon name="apps" size={15} />
               More message shortcuts
             </button>

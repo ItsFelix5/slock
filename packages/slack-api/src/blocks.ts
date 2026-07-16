@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: Block Kit types intentionally mirror Slack's wire schema.
 // Slack Block Kit types — trimmed to what a message-rendering client needs.
 // Unknown/unsupported block or element types still type-check via the `type: string`
 // fallback members below, so the renderer can show a graceful placeholder instead of crashing.

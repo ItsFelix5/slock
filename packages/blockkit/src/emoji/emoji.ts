@@ -4,7 +4,13 @@ import { nameToEmoji } from "gemoji";
 // unicode glyph, sourced from GitHub's gemoji dataset — the same shortcode
 // conventions Slack's own emoji picker originally borrowed from. ~1900 entries,
 // vs. the ~140 this used to be hand-maintained as.
-const STANDARD_EMOJI: Record<string, string> = nameToEmoji;
+// Slack has a few legacy names that are not present in gemoji's GitHub-style
+// alias table. Keep those compatibility aliases alongside the generated map.
+const STANDARD_EMOJI: Record<string, string> = {
+  ...nameToEmoji,
+  brokenheart: "💔",
+  spiral_calendar_pad: "🗓️",
+};
 
 // For emoji newer than gemoji's alias table (or ZWJ sequences), Slack falls
 // back to naming the shortcode after its raw codepoint(s) in hex, e.g.
@@ -15,7 +21,9 @@ const HEX_CODEPOINTS_RE = /^[0-9a-f]{1,6}(-[0-9a-f]{1,6})*$/i;
 
 export function hexCodepointsToEmoji(hex: string): string | undefined {
   if (!HEX_CODEPOINTS_RE.test(hex)) return;
-  return String.fromCodePoint(...hex.split("-").map((cp) => parseInt(cp, 16)));
+  const codepoints = hex.split("-").map((cp) => parseInt(cp, 16));
+  if (codepoints.some((cp) => cp > 0x10ffff)) return;
+  return String.fromCodePoint(...codepoints);
 }
 
 export function resolveStandardEmoji(name: string): string | undefined {

@@ -35,6 +35,18 @@ export type { ZoomableImageProps } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
 export type { ContextMenuProps } from "./overlay/ContextMenu";
 export { default as ContextMenu } from "./overlay/ContextMenu";
+export type {
+  FloatingAlign,
+  FloatingPanelProps,
+  HorizontalPlacement,
+  Placement,
+  VerticalPlacement,
+} from "./overlay/floating/FloatingPanel";
+export {
+  default as FloatingPanel,
+  resolveHorizontalPlacement,
+  resolveVerticalPlacement,
+} from "./overlay/floating/FloatingPanel";
 export { default as Menu, type MenuProps } from "./overlay/Menu";
 export type { MenuButtonProps } from "./overlay/MenuButton";
 export { default as MenuButton } from "./overlay/MenuButton";
@@ -42,27 +54,28 @@ export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
 export type { PopoverProps } from "./overlay/Popover";
 export { default as Popover } from "./overlay/Popover";
+export type { TooltipProps } from "./overlay/Tooltip";
+export { default as Tooltip } from "./overlay/Tooltip";
 export { useContextMenu } from "./overlay/useContextMenu";
 export {
   activePreset,
   applyPreset,
-  compactMode,
   getEffectiveColor,
   logDeletedMessages,
+  type MessageSize,
+  messageSize,
   resetThemeColor,
   resetThemeColors,
-  setCompactMode,
   setLogDeletedMessages,
-  setTheme,
+  setMessageSize,
   setThemeColors,
   THEME_COLOR_KEYS,
   THEME_COLOR_LABELS,
   THEME_PRESETS,
-  type Theme,
   type ThemeColors,
   type ThemePreset,
-  theme,
   themeColors,
 } from "./theme";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
+export { useHoverIntent } from "./useHoverIntent";

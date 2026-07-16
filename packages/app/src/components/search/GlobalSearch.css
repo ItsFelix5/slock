@@ -44,14 +44,10 @@
   padding: 4px 8px;
   font-size: 13px;
   color: var(--text-primary);
-  color-scheme: dark;
+  color-scheme: light dark;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-6);
-}
-
-:root.theme-light .global-search-date {
-  color-scheme: light;
 }
 
 .global-search-filter-chips {

@@ -8,14 +8,18 @@ function isOutside(target: ClickOutsideTarget, e: MouseEvent): boolean {
   return !!el && !el.contains(e.target as Node);
 }
 
-// Accepts either a CSS selector (kept for compatibility with existing call sites) or a
-// ref-accessor function — the latter is needed when multiple instances of the same
-// component (e.g. several per-item menus, or two simultaneous comboboxes) are mounted at
-// once and must not cross-trigger each other's close handler.
-export function useClickOutside(target: ClickOutsideTarget, onClose: () => void) {
+// Accepts either a single target or a list of targets (kept for compatibility with
+// existing call sites). A list is needed once a panel is Portal-rendered elsewhere in the
+// DOM (e.g. via FloatingPanel) — the click then has to be outside the trigger *and* the
+// portaled panel to count as "outside".
+export function useClickOutside(
+  target: ClickOutsideTarget | ClickOutsideTarget[],
+  onClose: () => void,
+) {
   onMount(() => {
+    const targets = Array.isArray(target) ? target : [target];
     const handler = (e: MouseEvent) => {
-      if (isOutside(target, e)) onClose();
+      if (targets.every((t) => isOutside(t, e))) onClose();
     };
     document.addEventListener("mousedown", handler, true);
     onCleanup(() => document.removeEventListener("mousedown", handler, true));

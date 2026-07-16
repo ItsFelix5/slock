@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related author and avatar button exports.
 export function MessageAvatarButton(props: { color?: string; src?: string; onClick: () => void }) {
   return (
     <button
@@ -6,7 +7,15 @@ export function MessageAvatarButton(props: { color?: string; src?: string; onCli
       style={{ background: props.color ?? "#616061" }}
       type="button"
     >
-      <img alt="?" class="img-cover" src={props.src} />
+      <span aria-hidden="true">?</span>
+      <img
+        alt=""
+        class="message-avatar-img"
+        onError={(event) => {
+          event.currentTarget.style.display = "none";
+        }}
+        src={props.src}
+      />
     </button>
   );
 }

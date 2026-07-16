@@ -6,7 +6,7 @@ import {
   fetchProfileFieldDefs,
   fetchUserPrefs,
 } from "@slock/slack-api";
-import { createResource, createRoot } from "solid-js";
+import { createResource, createRoot, createSignal } from "solid-js";
 import { createAppActions } from "../appActions";
 import { wireAppState } from "../appWiring";
 import { createRunMessageShortcut } from "./runMessageShortcut";
@@ -14,9 +14,10 @@ import { createStoreSlices } from "./storeSlices";
 
 export { channelDisplayName } from "./slices/channelDisplayName";
 export { dmDisplayName } from "./slices/dmDisplayName";
-export { actionFeedback } from "./slices/feedback";
+export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
+export type { ChannelMessageTarget, MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 declare global {
   interface Window {
@@ -31,7 +32,11 @@ declare global {
 
 function setup() {
   const [bootstrap] = createResource(fetchBootstrap);
-  const [messageShortcuts] = createResource(fetchMessageShortcuts);
+  const [messageShortcutsRequested, setMessageShortcutsRequested] = createSignal(false);
+  const [messageShortcuts] = createResource(messageShortcutsRequested, async (requested) =>
+    requested ? fetchMessageShortcuts() : [],
+  );
+  const loadMessageShortcuts = () => setMessageShortcutsRequested(true);
   const [profileFieldDefs] = createResource(fetchProfileFieldDefs);
   const runMessageShortcutAt = createRunMessageShortcut();
   const [userPrefs] = createResource(fetchUserPrefs);
@@ -39,6 +44,7 @@ function setup() {
   const {
     viewState,
     users,
+    usergroups,
     typing,
     channels,
     preferences,
@@ -79,6 +85,7 @@ function setup() {
     typing,
     unread: { ...unread, markAllAsRead },
     users,
+    usergroups,
     viewState: {
       ...viewState,
       ...actions,
@@ -86,18 +93,12 @@ function setup() {
     resources: {
       bootstrap,
       messageShortcuts,
+      loadMessageShortcuts,
       profileFieldDefs,
       runMessageShortcutAt,
     },
   };
-  globalThis.slock = {
-    bootstrap,
-    messageShortcuts,
-    profileFieldDefs,
-    slices,
-    store,
-    userPrefs,
-  };
+  globalThis.slock = store;
   return store;
 }
 export const store = createRoot(setup);

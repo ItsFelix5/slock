@@ -28,6 +28,14 @@
   border-radius: var(--radius-12);
 }
 
+.user-profile-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .user-profile-presence {
   position: absolute;
   right: 2px;
@@ -44,9 +52,17 @@
 }
 
 .user-profile-name {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
   margin: 12px 0 0;
   font-size: 19px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.user-profile-name-label {
+  flex-shrink: 0;
 }
 
 .user-profile-title {
@@ -124,10 +140,14 @@
 }
 
 .pronouns {
+  min-width: 0;
+  overflow: hidden;
   margin-left: 4px;
   font-size: 0.9em;
   font-weight: 400;
   color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Self-view identity fields: plain inputs that read as text until focused,

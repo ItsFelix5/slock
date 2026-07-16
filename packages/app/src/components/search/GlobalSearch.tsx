@@ -1,6 +1,14 @@
 import type { BrowsableChannel, Channel, DirectMessage, User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
-import { Avatar, AvatarStack, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
+import {
+  Avatar,
+  AvatarStack,
+  fuzzySearch,
+  Icon,
+  Overlay,
+  Tooltip,
+  useEscapeClose,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { dmDisplayName, store } from "../../lib/store";
 import "./GlobalSearch.css";
@@ -225,9 +233,16 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             type="text"
             value={query()}
           />
-          <button class="panel-close-btn" onClick={props.onClose} title="Close" type="button">
-            <Icon name="close" size={12} />
-          </button>
+          <Tooltip content="Close">
+            <button
+              aria-label="Close"
+              class="panel-close-btn"
+              onClick={props.onClose}
+              type="button"
+            >
+              <Icon name="close" size={12} />
+            </button>
+          </Tooltip>
         </div>
         <div class="global-search-results">
           <Show

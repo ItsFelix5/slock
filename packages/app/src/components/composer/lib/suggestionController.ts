@@ -1,4 +1,4 @@
-import { emojiUrl } from "@slock/blockkit";
+import { emojiUrl, loadCustomEmoji } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
 import { fuzzySearch } from "@slock/ui";
@@ -172,6 +172,7 @@ export function createSuggestionController(opts: SuggestionOptions) {
     const q = trigger.query.toLowerCase();
     const reqId = ++suggestRequestId;
     if (trigger.kind === "command" || trigger.kind === "emoji") {
+      if (trigger.kind === "emoji") void loadCustomEmoji();
       opts.setSuggest(createStaticSuggestion(trigger.kind, trigger.start, q));
       return;
     }

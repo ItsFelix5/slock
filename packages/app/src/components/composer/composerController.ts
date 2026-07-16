@@ -2,7 +2,13 @@ import { uploadFile } from "@slock/slack-api";
 import { useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onMount } from "solid-js";
 import { encodeReplyLink } from "../../lib/replyLink";
-import { actionFeedback, channelDisplayName, dmDisplayName, store } from "../../lib/store";
+import {
+  actionFeedback,
+  channelDisplayName,
+  composerFeedbackKey,
+  dmDisplayName,
+  store,
+} from "../../lib/store";
 import { createComposerKeyHandler } from "./composerKeyboard";
 import { drafts, draftsReady, persistDraft } from "./lib/drafts";
 import { createEditorCommands } from "./lib/editor/editorCommands";
@@ -39,6 +45,7 @@ export function createComposerController(props: ComposerProps) {
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let fileInputRef: HTMLInputElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
   const linkPreviews = createLinkPreviewController(text);
@@ -179,7 +186,7 @@ export function createComposerController(props: ComposerProps) {
       props.replyTo?.onSent();
     } catch (err) {
       console.error("Failed to send", err);
-      actionFeedback.flash(feedbackKey(), "Failed to send.", "error");
+      actionFeedback.flash(composerFeedbackKey(feedbackKey()), "Failed to send.", "error");
     } finally {
       setSending(false);
     }

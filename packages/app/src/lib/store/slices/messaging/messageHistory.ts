@@ -1,8 +1,9 @@
 import type { Message } from "@slock/slack-api";
-import { fetchHistory, fetchReplies } from "@slock/slack-api";
+import { fetchHistory, fetchPermalinkMessage, fetchReplies } from "@slock/slack-api";
 import { createEffect } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { ThreadRef, View } from "../types";
+import { mergeMessages } from "./merge/messageMerge";
 
 export function createMessageHistory(deps: {
   activeView: () => View | null;
@@ -21,9 +22,10 @@ export function createMessageHistory(deps: {
     if (!view) return;
     if (loadedChannels.has(view.id)) return;
     loadedChannels.add(view.id);
+    setHistoryMeta(view.id, { hasMore: true, loading: true });
     fetchHistory(view.id)
       .then(({ messages, hasMore, nextCursor }) => {
-        setMessagesByChannel(view.id, messages);
+        setMessagesByChannel(view.id, (existing = []) => mergeMessages(existing, messages));
         historyCursor.set(view.id, nextCursor);
         setHistoryMeta(view.id, { hasMore, loading: false });
       })
@@ -63,17 +65,26 @@ export function createMessageHistory(deps: {
     setHistoryMeta(channelId, "loading", true);
     try {
       const { messages: older, hasMore, nextCursor } = await fetchHistory(channelId, cursor);
-      setMessagesByChannel(channelId, (existing = []) => {
-        const existingIds = new Set(existing.map((m) => m.id));
-        return [...older.filter((m) => !existingIds.has(m.id)), ...existing];
-      });
+      setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, older));
       historyCursor.set(channelId, nextCursor);
       setHistoryMeta(channelId, { hasMore, loading: false });
     } catch {
       setHistoryMeta(channelId, "loading", false);
     }
   }
+  async function ensureChannelMessage(channelId: string, ts: string) {
+    if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
+    try {
+      const message = await fetchPermalinkMessage(channelId, ts, ts);
+      if (!message) return false;
+      setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, [message]));
+      return true;
+    } catch {
+      return false;
+    }
+  }
   return {
+    ensureChannelMessage,
     hasMoreHistory,
     historyCursor,
     historyMeta,

@@ -4,6 +4,7 @@ import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "./context";
 import { formatSlackDateTokens } from "./dateFormat";
 import EmojiText from "./emoji/EmojiText";
+import { decodeTextEntities } from "./entities";
 import { parseUserProfileLink } from "./userProfileLink";
 
 // Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
@@ -13,15 +14,15 @@ import { parseUserProfileLink } from "./userProfileLink";
 
 type InlineNode =
   | { t: "text"; text: string }
-  | { t: "bold"; text: string }
-  | { t: "italic"; text: string }
-  | { t: "strike"; text: string }
+  | { t: "bold"; nodes: InlineNode[] }
+  | { t: "italic"; nodes: InlineNode[] }
+  | { t: "strike"; nodes: InlineNode[] }
   | { t: "code"; text: string }
   | { t: "link"; url: string; label?: string }
   | { t: "userlink"; id: string; label?: string; url: string }
   | { t: "user"; id: string }
   | { t: "channel"; id: string; label?: string }
-  | { t: "usergroup"; id: string }
+  | { t: "usergroup"; id: string; label?: string }
   | { t: "broadcast"; range: string }
   | {
       t: "date";
@@ -36,11 +37,7 @@ type BlockNode =
   | { t: "quote"; nodes: InlineNode[] }
   | { t: "codeblock"; text: string };
 
-function unescapeEntities(text: string): string {
-  return text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-}
-
-const INLINE_RE = /`([^`]+)`|<([^<>]*)>|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
+const INLINE_RE = /`([^`]+)`|<([^<>]*)>|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
 
 function parseToken(token: string): InlineNode {
   if (token.startsWith("@")) {
@@ -52,8 +49,8 @@ function parseToken(token: string): InlineNode {
     return { id, label, t: "channel" };
   }
   if (token.startsWith("!subteam^")) {
-    const [id] = token.slice("!subteam^".length).split("|");
-    return { id, t: "usergroup" };
+    const [id, label] = token.slice("!subteam^".length).split("|");
+    return { id, label, t: "usergroup" };
   }
   if (token.startsWith("!date^")) {
     const [main, fallback] = token.slice("!date^".length).split("|");
@@ -79,18 +76,18 @@ function parseInline(text: string): InlineNode[] {
     if (index > lastIndex)
       nodes.push({
         t: "text",
-        text: unescapeEntities(text.slice(lastIndex, index)),
+        text: text.slice(lastIndex, index),
       });
-    const [, code, token, bold, italic, strike] = match;
-    if (code !== undefined) nodes.push({ t: "code", text: unescapeEntities(code) });
+    const [, code, token, doubleBold, bold, italic, strike] = match;
+    if (code !== undefined) nodes.push({ t: "code", text: decodeTextEntities(code) });
     else if (token !== undefined) nodes.push(parseToken(token));
-    else if (bold !== undefined) nodes.push({ t: "bold", text: unescapeEntities(bold) });
-    else if (italic !== undefined) nodes.push({ t: "italic", text: unescapeEntities(italic) });
-    else if (strike !== undefined) nodes.push({ t: "strike", text: unescapeEntities(strike) });
+    else if (doubleBold !== undefined || bold !== undefined)
+      nodes.push({ nodes: parseInline(doubleBold ?? bold), t: "bold" });
+    else if (italic !== undefined) nodes.push({ nodes: parseInline(italic), t: "italic" });
+    else if (strike !== undefined) nodes.push({ nodes: parseInline(strike), t: "strike" });
     lastIndex = index + match[0].length;
   }
-  if (lastIndex < text.length)
-    nodes.push({ t: "text", text: unescapeEntities(text.slice(lastIndex)) });
+  if (lastIndex < text.length) nodes.push({ t: "text", text: text.slice(lastIndex) });
   return nodes;
 }
 
@@ -132,7 +129,7 @@ function parseMrkdwn(text: string): BlockNode[] {
     if (index > lastIndex) blocks.push(...parseLinesAndQuotes(text.slice(lastIndex, index)));
     blocks.push({
       t: "codeblock",
-      text: unescapeEntities(match[1].replace(/^\n/, "").replace(/\n$/, "")),
+      text: decodeTextEntities(match[1].replace(/^\n/, "").replace(/\n$/, "")),
     });
     lastIndex = index + match[0].length;
   }
@@ -144,15 +141,28 @@ function formatDate(node: Extract<InlineNode, { t: "date" }>): string {
   return formatSlackDateTokens(node.format, node.timestamp, node.fallback);
 }
 
+export function Link(props: { url: string; label?: string }) {
+  const resolver = useBlockKitResolver();
+  const url = () => decodeTextEntities(props.url);
+  const anchor = (
+    <a class="bk-link" href={url()} rel="noopener noreferrer" target="_blank">
+      {props.label ? <EmojiText text={props.label} /> : url()}
+    </a>
+  );
+  return resolver.wrapLink?.(url(), anchor) ?? anchor;
+}
+
 export function Mention(props: { id: string; kind: "user" | "channel"; label?: string }) {
   const resolver = useBlockKitResolver();
   const isUser = props.kind === "user";
   const user = () => (isUser ? resolver.resolveUser(props.id) : undefined);
   const channel = () => (isUser ? undefined : resolver.resolveChannel(props.id));
   const name = () =>
-    isUser
-      ? (user()?.name ?? props.label ?? props.id)
-      : (channel()?.name ?? props.label ?? props.id);
+    decodeTextEntities(
+      isUser
+        ? (user()?.name ?? props.label ?? props.id)
+        : (channel()?.name ?? props.label ?? props.id),
+    );
   const isPrivate = () => !isUser && channel()?.isPrivate !== false;
   // Only true once we've actually resolved the channel and know it's private
   // and we're not in it — never true while unresolved, so this can't flash.
@@ -164,7 +174,7 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
     else resolver.onChannelClick(props.id);
   };
 
-  return (
+  const trigger = (
     <button
       class="bk-mention"
       classList={{
@@ -181,6 +191,17 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
       {name()}
     </button>
   );
+
+  return isUser
+    ? (resolver.wrapUserMention?.(props.id, trigger) ?? trigger)
+    : (resolver.wrapChannelMention?.(props.id, trigger) ?? trigger);
+}
+
+export function UsergroupMention(props: { id: string; label?: string }) {
+  const resolver = useBlockKitResolver();
+  const name = () =>
+    decodeTextEntities(props.label ?? resolver.resolveUsergroup(props.id)?.name ?? `@${props.id}`);
+  return <span class="bk-mention bk-mention-static">{name()}</span>;
 }
 
 function InlineNodeView(props: { node: InlineNode }) {
@@ -191,29 +212,25 @@ function InlineNodeView(props: { node: InlineNode }) {
     case "bold":
       return (
         <strong>
-          <EmojiText text={n.text} />
+          <InlineList nodes={n.nodes} />
         </strong>
       );
     case "italic":
       return (
         <em>
-          <EmojiText text={n.text} />
+          <InlineList nodes={n.nodes} />
         </em>
       );
     case "strike":
       return (
         <s>
-          <EmojiText text={n.text} />
+          <InlineList nodes={n.nodes} />
         </s>
       );
     case "code":
       return <code class="bk-inline-code">{n.text}</code>;
     case "link":
-      return (
-        <a class="bk-link" href={n.url} rel="noopener noreferrer" target="_blank">
-          {n.label ? <EmojiText text={n.label} /> : n.url}
-        </a>
-      );
+      return <Link label={n.label} url={n.url} />;
     case "userlink":
       return <Mention id={n.id} kind="user" label={n.label} />;
     case "user":
@@ -221,17 +238,11 @@ function InlineNodeView(props: { node: InlineNode }) {
     case "channel":
       return <Mention id={n.id} kind="channel" label={n.label} />;
     case "usergroup":
-      return <span class="bk-mention bk-mention-static">@{n.id}</span>;
+      return <UsergroupMention id={n.id} label={n.label} />;
     case "broadcast":
       return <span class="bk-mention bk-mention-broadcast">@{n.range}</span>;
     case "date":
-      return n.url ? (
-        <a class="bk-link" href={n.url} rel="noopener noreferrer" target="_blank">
-          {formatDate(n)}
-        </a>
-      ) : (
-        formatDate(n)
-      );
+      return n.url ? <Link label={formatDate(n)} url={n.url} /> : formatDate(n);
   }
 }
 

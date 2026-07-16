@@ -42,6 +42,7 @@ const LENS_ZOOM = 5;
 
 function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }) {
   useEscapeClose(props.onClose);
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let imgRef: HTMLImageElement | undefined;
   const [lens, setLens] = createSignal<{ x: number; y: number } | null>(null);
 

@@ -1,7 +1,7 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
-import type { Nav, ThreadRef, View } from "../types";
+import type { ChannelMessageTarget, Nav, ThreadRef, View } from "../types";
 
 interface NavSnapshot {
   nav: Nav;
@@ -14,16 +14,16 @@ interface NavSnapshot {
 // to tell channel and DM URLs apart without a /channel/ or /dm/ segment.
 function parseNavPath(url: URL): NavSnapshot {
   const segs = url.pathname.split("/").filter(Boolean);
-  if (segs[0] === "search") return { nav: "search", thread: null, view: null };
+  const [firstSegment] = segs;
+  if (firstSegment === "search") return { nav: "search", thread: null, view: null };
 
   let nav: Nav = "home";
-  const first = segs[0];
-  if (first === "activity" || first === "later") {
-    nav = first;
+  if (firstSegment === "activity" || firstSegment === "later") {
+    nav = firstSegment;
     segs.shift();
   }
 
-  const id = segs[0];
+  const [id] = segs;
   const view: View | null = id ? { id, kind: id.startsWith("D") ? "dm" : "channel" } : null;
 
   const ts = url.searchParams.get("t");
@@ -57,14 +57,19 @@ export function createViewStateSlice(deps: {
   const [searchScreenQuery, setSearchScreenQuery] = createSignal("");
   const [searchScreenFilters, setSearchScreenFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
   const [activeThread, setActiveThread] = createSignal<ThreadRef | null>(null);
+  const [channelMessageTarget, setChannelMessageTarget] = createSignal<ChannelMessageTarget | null>(
+    null,
+  );
 
   const activeView = createMemo<View | null>(() => {
     const explicit = selected();
     if (explicit) return explicit;
     const data = deps.bootstrap();
     if (!data) return null;
-    if (data.channels[0]) return { id: data.channels[0].id, kind: "channel" };
-    if (data.directMessages[0]) return { id: data.directMessages[0].id, kind: "dm" };
+    const [firstChannel] = data.channels;
+    if (firstChannel) return { id: firstChannel.id, kind: "channel" };
+    const [firstDirectMessage] = data.directMessages;
+    if (firstDirectMessage) return { id: firstDirectMessage.id, kind: "dm" };
     return null;
   });
 
@@ -82,6 +87,7 @@ export function createViewStateSlice(deps: {
   }
 
   function applyNavSnapshot(snap: NavSnapshot) {
+    setChannelMessageTarget(null);
     setSelected(snap.view ?? null);
     setNav(snap.nav ?? "home");
     setActiveThread(snap.thread ?? null);
@@ -115,11 +121,13 @@ export function createViewStateSlice(deps: {
   return {
     activeThread,
     activeView,
+    channelMessageTarget,
     nav,
     searchScreenFilters,
     searchScreenQuery,
     selected,
     setActiveThread,
+    setChannelMessageTarget,
     setNav,
     setSearchScreenFilters,
     setSearchScreenQuery,

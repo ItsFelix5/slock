@@ -1,8 +1,89 @@
-import { closestListItem, placeCaretAtEnd, placeCaretAtStart, placeCaretInText } from "../richtext";
+import {
+  closestListItem,
+  createComposerBlockSeparator,
+  placeCaretAtEnd,
+  placeCaretAtStart,
+  placeCaretInText,
+} from "../richtext";
 import { HEADING_TAG_RE } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
 export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () => void) {
+  function handleBackspaceOnQuote(): boolean {
+    const el = ref.get();
+    const sel = window.getSelection();
+    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+    let n: Node | null = startContainer;
+    while (n && n !== el && n.nodeName !== "BLOCKQUOTE") n = n.parentNode;
+    if (!n || n === el) return false;
+    const quote = n as HTMLQuoteElement;
+
+    let childOffset = startOffset;
+    if (startContainer !== quote) {
+      let topLevel = startContainer;
+      while (topLevel.parentNode && topLevel.parentNode !== quote) {
+        topLevel = topLevel.parentNode;
+      }
+      childOffset = Array.prototype.indexOf.call(quote.childNodes, topLevel);
+      if (childOffset < 0) return false;
+    }
+
+    let previousBreak = -1;
+    for (let i = 0; i < childOffset; i++) {
+      if (quote.childNodes[i].nodeName === "BR") previousBreak = i;
+    }
+    const beforeCaret = document.createRange();
+    beforeCaret.setStart(quote, previousBreak + 1);
+    beforeCaret.setEnd(startContainer, startOffset);
+    const beforeContents = beforeCaret.cloneContents();
+    if (
+      (beforeContents.textContent ?? "").replace(/\u200B/g, "").length > 0 ||
+      beforeContents.querySelector("img")
+    )
+      return false;
+
+    const breaks = quote.querySelectorAll(":scope > br");
+    if (breaks.length === 0 || (breaks.length === 1 && quote.childNodes.length === 1)) {
+      const marker = document.createTextNode("");
+      const replacement = document.createDocumentFragment();
+      replacement.appendChild(marker);
+      while (quote.firstChild) replacement.appendChild(quote.firstChild);
+      quote.replaceWith(replacement);
+      placeCaretInText(marker, 0);
+      syncFromDom();
+      return true;
+    }
+
+    let nextBreak = -1;
+    for (let i = childOffset; i < quote.childNodes.length; i++) {
+      if (quote.childNodes[i].nodeName === "BR") {
+        nextBreak = i;
+        break;
+      }
+    }
+    const children = Array.from(quote.childNodes);
+    const currentLineEnd = nextBreak < 0 ? children.length : nextBreak;
+    const replacement = document.createDocumentFragment();
+    if (previousBreak >= 0) {
+      const beforeQuote = quote.cloneNode(false) as HTMLQuoteElement;
+      beforeQuote.append(...children.slice(0, previousBreak));
+      if (!beforeQuote.childNodes.length) beforeQuote.appendChild(document.createElement("br"));
+      replacement.append(beforeQuote, createComposerBlockSeparator());
+    }
+    const marker = document.createTextNode("");
+    replacement.append(marker, ...children.slice(previousBreak + 1, currentLineEnd));
+    if (nextBreak >= 0) {
+      const afterQuote = quote.cloneNode(false) as HTMLQuoteElement;
+      afterQuote.append(...children.slice(nextBreak + 1));
+      if (!afterQuote.childNodes.length) afterQuote.appendChild(document.createElement("br"));
+      replacement.append(createComposerBlockSeparator(), afterQuote);
+    }
+    quote.replaceWith(replacement);
+    placeCaretInText(marker, 0);
+    syncFromDom();
+    return true;
+  }
   function handleShiftEnterInHeader(): boolean {
     const el = ref.get();
     const sel = window.getSelection();
@@ -127,6 +208,7 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
   return {
     handleBackspaceOnDivider,
     handleBackspaceOnHeading,
+    handleBackspaceOnQuote,
     handleShiftEnterInHeader,
     handleShiftEnterInList,
     normalizeStrayEmptyBlock,

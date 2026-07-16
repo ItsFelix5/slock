@@ -1,5 +1,5 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { InlineFeedback, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
+import { InlineFeedback, Overlay, PanelHeader, Tooltip, useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./PinnedPanel.css";
@@ -61,17 +61,20 @@ export default function PinnedPanel() {
                         >
                           <Mrkdwn text={msg().text} />
                         </button>
-                        <button
-                          class="pinned-panel-unpin"
-                          onClick={() => id() && unpin(id(), pin.ts)}
-                          title="Unpin"
-                          type="button"
-                        >
-                          Unpin
-                        </button>
+                        <Tooltip content="Unpin">
+                          <button
+                            aria-label="Unpin"
+                            class="pinned-panel-unpin"
+                            onClick={() => id() && unpin(id(), pin.ts)}
+                            type="button"
+                          >
+                            Unpin
+                          </button>
+                        </Tooltip>
                         <InlineFeedback
                           class="pinned-panel-feedback"
                           feedback={actionFeedback.get(pin.ts)}
+                          priority={2}
                         />
                       </div>
                     )}

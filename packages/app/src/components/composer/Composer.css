@@ -96,13 +96,7 @@
   color: var(--text-primary);
   background: var(--active-bg);
 }
-.composer-tools-wrap {
-  position: relative;
-}
 .menu-panel.composer-tools-menu {
-  top: auto;
-  bottom: 36px;
-  left: 0;
   min-width: 190px;
 }
 .composer-mention-popover {
@@ -165,13 +159,14 @@
   min-width: 0;
 }
 .menu-panel.composer-suggest-popover {
+  position: absolute;
   top: auto;
   right: 0;
   bottom: 100%;
   left: 0;
+  z-index: 10;
   min-width: 220px;
   max-height: 280px;
-  margin-top: 0;
   margin-bottom: 6px;
   overflow-y: auto;
 }

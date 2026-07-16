@@ -1,4 +1,4 @@
-import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon } from "@slock/ui";
+import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For } from "solid-js";
 import "./Settings.css";
 import "./SettingsDebugTab.css";
@@ -30,15 +30,17 @@ export default function SettingsDebugTab() {
         <div class="debug-icon-grid">
           <For each={filtered()}>
             {(name) => (
-              <button
-                class="debug-icon-cell btn-reset flex-col"
-                onClick={() => copy(name, name)}
-                title={name}
-                type="button"
-              >
-                <Icon name={copiedKey() === name ? "check" : name} size={20} />
-                <span class="debug-icon-cell-name">{name}</span>
-              </button>
+              <Tooltip content={name}>
+                <button
+                  aria-label={name}
+                  class="debug-icon-cell btn-reset flex-col"
+                  onClick={() => copy(name, name)}
+                  type="button"
+                >
+                  <Icon name={copiedKey() === name ? "check" : name} size={20} />
+                  <span class="debug-icon-cell-name">{name}</span>
+                </button>
+              </Tooltip>
             )}
           </For>
         </div>

@@ -1,3 +1,4 @@
+import { batch } from "solid-js";
 import { isDmId } from "./dmId";
 import { EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 import type { Nav, View } from "./store/slices/types";
@@ -20,11 +21,14 @@ export function createAppActions(deps: AppActionsDeps) {
   const { dms, realtime, setActiveView, setActiveViewImplRef, unread, viewState } = deps;
 
   setActiveViewImplRef.current = (view: View) => {
-    viewState.setActiveThread(null);
-    viewState.setSelected(view);
-    viewState.setNav("home");
-    unread.clearChannelUnread(view.id);
-    if (view.kind === "dm" && dms.closedDmIds[view.id]) dms.setClosedDmIds(view.id, false);
+    batch(() => {
+      viewState.setActiveThread(null);
+      viewState.setChannelMessageTarget(null);
+      viewState.setSelected(view);
+      viewState.setNav("home");
+      unread.clearChannelUnread(view.id);
+      if (view.kind === "dm" && dms.closedDmIds[view.id]) dms.setClosedDmIds(view.id, false);
+    });
   };
 
   function setNavView(next: Nav) {
@@ -33,8 +37,8 @@ export function createAppActions(deps: AppActionsDeps) {
     if (next === "activity") void deps.activity.ensureActivityLoaded();
   }
 
-  function openThread(channelId: string, ts: string) {
-    viewState.setActiveThread({ channelId, ts });
+  function openThread(channelId: string, ts: string, highlightTs?: string) {
+    viewState.setActiveThread({ channelId, highlightTs, ts });
   }
 
   function closeThread() {
@@ -43,11 +47,25 @@ export function createAppActions(deps: AppActionsDeps) {
     viewState.setActiveThread(null);
   }
 
-  function openChannelPeek(channelId: string, ts: string) {
+  function openChannelPeek(channelId: string, ts: string, highlightTs?: string) {
     const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
     viewState.setSelected({ id: channelId, kind });
     unread.clearChannelUnread(channelId);
-    openThread(channelId, ts);
+    openThread(channelId, ts, highlightTs);
+  }
+
+  function openChannelMessage(channelId: string, ts: string) {
+    const kind = dms.dmById(channelId) ? "dm" : "channel";
+    // Batched so effects reacting to channelMessageTarget never observe the
+    // in-between state where setActiveView has cleared it but the real
+    // target hasn't landed yet — that gap was enough to make MessageList's
+    // positioning effect think it already handled this view, breaking the
+    // jump to a message that isn't loaded yet.
+    batch(() => {
+      closeThread();
+      setActiveView({ id: channelId, kind });
+      viewState.setChannelMessageTarget({ channelId, ts });
+    });
   }
 
   function openMessageSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {
@@ -56,5 +74,13 @@ export function createAppActions(deps: AppActionsDeps) {
     setNavView("search");
   }
 
-  return { closeThread, openChannelPeek, openMessageSearch, openThread, setActiveView, setNavView };
+  return {
+    closeThread,
+    openChannelMessage,
+    openChannelPeek,
+    openMessageSearch,
+    openThread,
+    setActiveView,
+    setNavView,
+  };
 }

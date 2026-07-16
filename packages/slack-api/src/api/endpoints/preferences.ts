@@ -105,14 +105,17 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
         .map((word: string) => word.trim())
         .filter(Boolean)
     : [];
-  // `global_keywords` is Slack's canonical pingword setting. Retain the
-  // previous key only as a fallback for old or incomplete pref payloads.
-  const highlightWords: string[] = hasGlobalKeywords
-    ? globalKeywords
-    : (prefs.highlight_words ?? "")
+  // `users.prefs.setNotifications` rejects keyword changes for some Slack
+  // sessions/workspaces. Keep Slock's list in the ordinary prefs blob, whose
+  // read and write APIs work consistently, while still importing Slack's
+  // canonical global list when no Slock list has been saved yet.
+  const hasHighlightWords = typeof prefs.highlight_words === "string";
+  const highlightWords: string[] = hasHighlightWords
+    ? prefs.highlight_words
         .split(",")
         .map((word: string) => word.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+    : globalKeywords;
   const globalNotifications = {
     channelsInActivity: notificationGlobal.global_channels_in_activity !== false,
     desktop: notificationGlobal.global_desktop ?? "mentions_dms",
@@ -162,12 +165,11 @@ export async function setMutedChannels(channelIds: string[]): Promise<void> {
 }
 
 export async function setHighlightWords(words: string[]): Promise<void> {
-  const data = await callSlack("users.prefs.setNotifications", {
-    global: "true",
-    name: "keywords",
+  const data = await callSlack("users.prefs.set", {
+    name: "highlight_words",
     value: words.join(","),
   });
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.setNotifications failed");
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setDesktopNotificationsEnabled(enabled: boolean): Promise<void> {

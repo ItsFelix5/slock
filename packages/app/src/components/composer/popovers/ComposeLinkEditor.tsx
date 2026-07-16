@@ -10,7 +10,9 @@ export default function ComposeLinkEditor(props: {
   onClose: () => void;
 }) {
   const [label, setLabel] = createSignal(props.currentLabel ?? "");
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let inputRef: HTMLInputElement | undefined;
 
   useEscapeClose(props.onClose);
