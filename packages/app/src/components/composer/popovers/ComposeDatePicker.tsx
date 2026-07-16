@@ -1,6 +1,6 @@
-import { formatSlackDate } from "@slock/blockkit";
-import { Button, useClickOutside, useEscapeClose } from "@slock/ui";
-import { For } from "solid-js";
+import { DATE_FORMAT_OPTIONS, DEFAULT_DATE_FORMAT, formatSlackDateTokens } from "@slock/blockkit";
+import { Button, Icon, useClickOutside, useEscapeClose } from "@slock/ui";
+import { createSignal, For, Show } from "solid-js";
 
 function nextHour(): Date {
   const d = new Date();
@@ -36,58 +36,96 @@ const PRESETS: { label: string; date: () => Date }[] = [
   { date: nextMondayAt9, label: "Next Monday at 9 AM" },
 ];
 
-// Picks a moment in time for a <!date^…> token — the one composer "block"
-// that can't be typed inline, since it needs an actual calendar/time input.
+// Picks a moment in time for a <!date^…> token, then a display format for
+// it — the one composer "block" that can't be typed inline, since it needs
+// an actual calendar/time input plus Slack's own date-format picker step.
 export default function ComposeDatePicker(props: {
-  onSelect: (timestamp: number) => void;
+  onSelect: (timestamp: number, format: string) => void;
   onClose: () => void;
 }) {
   let inputRef: HTMLInputElement | undefined;
+  const [pickedDate, setPickedDate] = createSignal<Date | null>(null);
 
-  useEscapeClose(props.onClose);
+  useEscapeClose(() => (pickedDate() ? setPickedDate(null) : props.onClose()));
   useClickOutside(".compose-date-picker", props.onClose);
-
-  const pick = (d: Date) => props.onSelect(Math.floor(d.getTime() / 1000));
 
   const insertCustom = () => {
     if (!inputRef?.value) return;
     const d = new Date(inputRef.value);
-    if (!Number.isNaN(d.getTime())) pick(d);
+    if (!Number.isNaN(d.getTime())) setPickedDate(d);
   };
 
   return (
     <div class="compose-date-picker">
-      <For each={PRESETS}>
-        {(preset) => (
-          <button
-            class="compose-date-row menu-item"
-            onClick={() => pick(preset.date())}
-            type="button"
-          >
-            <span>{preset.label}</span>
-            <span class="compose-date-preview">
-              {formatSlackDate(Math.floor(preset.date().getTime() / 1000))}
-            </span>
-          </button>
+      <Show
+        fallback={
+          <>
+            <For each={PRESETS}>
+              {(preset) => (
+                <button
+                  class="compose-date-row menu-item"
+                  onClick={() => setPickedDate(preset.date())}
+                  type="button"
+                >
+                  <span>{preset.label}</span>
+                  <span class="compose-date-preview">
+                    {formatSlackDateTokens(DEFAULT_DATE_FORMAT, dateToTs(preset.date()))}
+                  </span>
+                </button>
+              )}
+            </For>
+            <div class="compose-date-custom">
+              <input
+                class="compose-date-input input-reset"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    insertCustom();
+                  }
+                }}
+                ref={inputRef}
+                type="datetime-local"
+                value={toLocalInputValue(nextHour())}
+              />
+              <Button onClick={insertCustom} size="sm" type="button" variant="primary">
+                Next
+              </Button>
+            </div>
+          </>
+        }
+        when={pickedDate()}
+      >
+        {(date) => (
+          <>
+            <button
+              class="compose-date-back menu-item btn-reset flex-align-center"
+              onClick={() => setPickedDate(null)}
+              type="button"
+            >
+              <Icon name="arrow-left" size={14} />
+              Choose a different time
+            </button>
+            <For each={DATE_FORMAT_OPTIONS}>
+              {(option) => (
+                <button
+                  class="compose-date-row menu-item"
+                  onClick={() => props.onSelect(dateToTs(date()), option.format)}
+                  type="button"
+                >
+                  <span>{option.label}</span>
+                  <span class="compose-date-preview">
+                    {formatSlackDateTokens(option.format, dateToTs(date()))}
+                  </span>
+                </button>
+              )}
+            </For>
+          </>
         )}
-      </For>
-      <div class="compose-date-custom">
-        <input
-          class="compose-date-input input-reset"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              insertCustom();
-            }
-          }}
-          ref={inputRef}
-          type="datetime-local"
-          value={toLocalInputValue(nextHour())}
-        />
-        <Button onClick={insertCustom} size="sm" type="button" variant="primary">
-          Insert
-        </Button>
-      </div>
+      </Show>
     </div>
   );
+}
+
+function dateToTs(d: Date): number {
+  return Math.floor(d.getTime() / 1000);
 }

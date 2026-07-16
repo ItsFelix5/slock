@@ -149,9 +149,9 @@ export default function Composer(props: ComposerProps) {
             <div class="composer-mention-popover">
               <ComposeDatePicker
                 onClose={() => setDateOpen(false)}
-                onSelect={(ts) => {
+                onSelect={(ts, format) => {
                   editor.restoreSelection();
-                  editor.insertDateChipAtCaret(ts);
+                  editor.insertDateChipAtCaret(ts, format);
                   setDateOpen(false);
                 }}
               />

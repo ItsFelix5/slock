@@ -133,6 +133,13 @@
   color: var(--text-dim);
   white-space: nowrap;
 }
+.compose-date-back {
+  width: 100%;
+  margin-bottom: 4px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
 .compose-date-custom {
   display: flex;
   gap: 6px;
