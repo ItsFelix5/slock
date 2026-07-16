@@ -30,7 +30,7 @@ export default function ReplyReferenceRow(props: {
               fallback={
                 <span class="reply-reference-avatar reply-reference-bot">
                   <Show fallback="🤖" when={msg().botIcon}>
-                    {(icon) => <img alt="" src={icon()} />}
+                    {(icon) => <img alt="" class="img-cover" src={icon()} />}
                   </Show>
                 </span>
               }

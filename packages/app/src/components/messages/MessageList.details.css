@@ -38,12 +38,6 @@
   background: var(--hover-bg);
   border-radius: 3px;
 }
-.message-text {
-  font-size: 15px;
-  line-height: 1.46;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
 .message-edited {
   font-size: 11px;
   color: var(--text-dim);

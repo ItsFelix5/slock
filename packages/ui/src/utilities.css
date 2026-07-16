@@ -79,23 +79,6 @@
   border-radius: 8px;
   box-shadow: var(--shadow-popover);
 }
-.popover-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  padding: 7px 10px;
-  font-size: 13px;
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: none;
-  border-radius: 5px;
-}
-.popover-item:hover {
-  background: var(--hover-bg);
-}
 .menu-label {
   padding: 4px 10px;
   font-size: 11px;
@@ -175,6 +158,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.img-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .truncate-lines {
   display: -webkit-box;

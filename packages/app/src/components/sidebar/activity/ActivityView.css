@@ -1,8 +1,3 @@
-.activity-view {
-  flex: 1;
-  padding: 24px 28px;
-  overflow-y: auto;
-}
 .activity-view-header {
   margin-bottom: 12px;
 }

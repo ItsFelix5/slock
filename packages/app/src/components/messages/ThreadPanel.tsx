@@ -87,7 +87,7 @@ export default function ThreadPanel() {
               <div class="thread-panel-title">Thread</div>
               <div class="thread-panel-subtitle">#{channelName()}</div>
               <button
-                class="thread-panel-subscribe-btn btn-reset flex-center"
+                class="thread-panel-subscribe-btn btn-reset icon-btn icon-action"
                 classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
                 onClick={toggleSubscription}
                 title={

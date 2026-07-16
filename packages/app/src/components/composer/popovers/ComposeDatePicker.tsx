@@ -60,7 +60,7 @@ export default function ComposeDatePicker(props: {
       <For each={PRESETS}>
         {(preset) => (
           <button
-            class="compose-date-row popover-item"
+            class="compose-date-row menu-item"
             onClick={() => pick(preset.date())}
             type="button"
           >

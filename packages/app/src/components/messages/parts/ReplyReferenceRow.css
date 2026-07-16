@@ -33,12 +33,6 @@
   border-radius: 4px;
 }
 
-.reply-reference-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .reply-reference-name {
   flex-shrink: 0;
   font-weight: 600;

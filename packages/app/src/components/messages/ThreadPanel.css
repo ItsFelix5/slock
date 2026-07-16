@@ -25,16 +25,8 @@
 }
 
 .thread-panel-subscribe-btn {
-  flex-shrink: 0;
   width: 28px;
   height: 28px;
-  color: var(--text-secondary);
-  border-radius: 6px;
-}
-
-.thread-panel-subscribe-btn:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .thread-panel-subscribe-btn.subscribed {

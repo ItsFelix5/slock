@@ -31,6 +31,7 @@
   --mention-self-text: #e0a72d;
   --mention-inaccessible-bg: rgba(148, 158, 168, 0.16);
   --mention-inaccessible-text: #8b96a3;
+  --link-color: #1d9bd1;
   --shadow-tooltip: 0 4px 14px rgba(0, 0, 0, 0.35);
   --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.4);
   --shadow-modal-lg: 0 16px 40px rgba(0, 0, 0, 0.4);

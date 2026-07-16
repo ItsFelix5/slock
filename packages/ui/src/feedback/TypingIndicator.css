@@ -31,12 +31,6 @@
   animation-delay: 0.3s;
 }
 
-.typing-indicator-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @keyframes typing-bounce {
   0%,
   60%,

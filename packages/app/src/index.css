@@ -52,7 +52,7 @@ button {
   z-index: 200;
   padding: 6px 12px;
   font-size: 13px;
-  color: #fff;
+  color: var(--text-on-accent);
   text-align: center;
   background: var(--danger);
 }

@@ -64,7 +64,7 @@ export default function ChannelHeader() {
           >
             <div class="channel-header-star-menu-label menu-label">Move to</div>
             <button
-              class="channel-header-menu-item popover-item"
+              class="channel-header-menu-item menu-item"
               onClick={() => {
                 const v = store.viewState.activeView();
                 if (v) store.channels.toggleChannelStar(v.id);
@@ -81,7 +81,7 @@ export default function ChannelHeader() {
             <For each={store.channels.sections()?.filter((s) => s.type === "standard")}>
               {(s) => (
                 <button
-                  class="channel-header-menu-item popover-item"
+                  class="channel-header-menu-item menu-item"
                   onClick={() => {
                     const v = store.viewState.activeView();
                     if (v)
@@ -105,7 +105,7 @@ export default function ChannelHeader() {
             <Show
               fallback={
                 <button
-                  class="channel-header-menu-item popover-item"
+                  class="channel-header-menu-item menu-item"
                   onClick={() => setAddingSection(true)}
                   type="button"
                 >
@@ -262,7 +262,7 @@ export default function ChannelHeader() {
                 <For each={availableChannelTabs(id())}>
                   {(t) => (
                     <button
-                      class="channel-header-menu-item popover-item"
+                      class="channel-header-menu-item menu-item"
                       onClick={() => {
                         store.channelTabs.addChannelTab(id(), t.type);
                         setAddTabOpen(false);

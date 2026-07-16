@@ -9,6 +9,12 @@
   background: var(--main-bg);
 }
 
+.sidebar-view-panel {
+  flex: 1;
+  padding: 24px 28px;
+  overflow-y: auto;
+}
+
 .sidebar-top {
   flex-shrink: 0;
   gap: 8px;
@@ -37,16 +43,8 @@
 }
 
 .sidebar-global-search-btn {
-  flex-shrink: 0;
   width: 28px;
   height: 28px;
-  color: var(--text-secondary);
-  border-radius: 6px;
-}
-
-.sidebar-global-search-btn:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .sidebar-global-search-btn.active {

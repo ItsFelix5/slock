@@ -20,14 +20,6 @@
 .composer-input em {
   font-style: italic;
 }
-.composer-input code {
-  padding: 1px 5px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 0.9em;
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
 .composer-chip {
   display: inline-flex;
   align-items: center;
@@ -59,7 +51,7 @@
   vertical-align: middle;
 }
 .composer-link {
-  color: #1d9bd1;
+  color: var(--link-color);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
@@ -120,12 +112,6 @@
   padding: 0;
   background: none;
   border: none;
-}
-.composer-quote {
-  padding: 2px 0 2px 12px;
-  margin: 2px 0;
-  color: var(--text-secondary);
-  border-left: 3px solid var(--border-strong);
 }
 .composer-list {
   padding-left: 22px;

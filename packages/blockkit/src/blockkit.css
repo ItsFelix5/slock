@@ -14,7 +14,8 @@
   flex: 1;
   min-width: 0;
 }
-.bk-section-text {
+.bk-section-text,
+.message-text {
   font-size: 15px;
   line-height: 1.46;
   word-break: break-word;
@@ -145,7 +146,8 @@
   font-style: italic;
   color: var(--text-dim);
 }
-.bk-quote {
+.bk-quote,
+.composer-quote {
   padding: 2px 0 2px 12px;
   margin: 2px 0;
   color: var(--text-secondary);
@@ -162,7 +164,9 @@
   border: 1px solid var(--border);
   border-radius: 6px;
 }
-.bk-inline-code {
+.bk-inline-code,
+.bk-rt-code,
+.composer-input code {
   padding: 1px 5px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 0.9em;
@@ -171,7 +175,7 @@
   border-radius: 4px;
 }
 .bk-link {
-  color: #1d9bd1;
+  color: var(--link-color);
   text-decoration: none;
 }
 .bk-link:hover {
@@ -254,14 +258,6 @@
 }
 .bk-rt-strike {
   text-decoration: line-through;
-}
-.bk-rt-code {
-  padding: 1px 5px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 0.9em;
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
 }
 .bk-rt-highlight {
   background: rgba(255, 214, 89, 0.35);

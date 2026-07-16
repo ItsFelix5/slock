@@ -28,12 +28,6 @@
   border-radius: 12px;
 }
 
-.user-profile-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .user-profile-presence {
   position: absolute;
   right: 2px;

@@ -113,7 +113,7 @@ export default function ActivityView() {
   };
 
   return (
-    <div class="activity-view">
+    <div class="activity-view sidebar-view-panel">
       <div class="activity-view-header flex-between">
         <h2>Activity</h2>
         <div class="activity-header-actions flex-align-center">
