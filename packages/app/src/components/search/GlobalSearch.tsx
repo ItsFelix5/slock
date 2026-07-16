@@ -1,8 +1,8 @@
-import type { BrowsableChannel, Channel, User } from "@slock/slack-api";
+import type { BrowsableChannel, Channel, DirectMessage, User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
-import { Avatar, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
+import { Avatar, AvatarStack, fuzzySearch, Icon, Overlay, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { store } from "../../lib/store";
+import { dmDisplayName, store } from "../../lib/store";
 import "./GlobalSearch.css";
 
 interface JumpChannel {
@@ -11,12 +11,16 @@ interface JumpChannel {
   name: string;
   private: boolean;
 }
-type Row = { kind: "channel"; data: JumpChannel } | { kind: "person"; data: User };
+type Row =
+  | { kind: "channel"; data: JumpChannel }
+  | { kind: "person"; data: User }
+  | { kind: "dm"; data: DirectMessage };
 type Candidate = { row: Row; name: string; id: string };
 type SearchItem =
   | { kind: "message-search" }
   | { kind: "channel"; data: JumpChannel }
-  | { kind: "person"; data: User };
+  | { kind: "person"; data: User }
+  | { kind: "dm"; data: DirectMessage };
 export default function GlobalSearch(props: { onClose: () => void }) {
   const [query, setQuery] = createSignal("");
   const [remotePeople, setRemotePeople] = createSignal<User[]>([]);
@@ -70,6 +74,19 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     for (const u of remotePeople()) merged.set(u.id, u);
     return [...merged.values()].slice(0, 20);
   });
+  // Multi-person DMs have no single person to find them through the way a
+  // regular DM's other participant does — this is their only way back into
+  // search once closed from the sidebar.
+  const mpdmResults = createMemo<DirectMessage[]>(() => {
+    const q = query().trim();
+    if (!q) return [];
+    const mpdms = store.dms.directMessages().filter((dm) => dm.memberIds);
+    return fuzzySearch(mpdms, {
+      frequency: (dm) => store.preferences.frecencyScore(dm.id),
+      query: q,
+      text: (dm) => dmDisplayName(dm, store.users.userById),
+    });
+  });
   const runPeopleSearch = () => {
     clearTimeout(peopleDebounce);
     const q = query().trim();
@@ -105,6 +122,13 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       ...peopleResults().map(
         (u): Candidate => ({ id: u.id, name: u.name, row: { data: u, kind: "person" } }),
       ),
+      ...mpdmResults().map(
+        (dm): Candidate => ({
+          id: dm.id,
+          name: dmDisplayName(dm, store.users.userById),
+          row: { data: dm, kind: "dm" },
+        }),
+      ),
     ];
     const ranked = fuzzySearch(candidates, {
       frequency: (c) => store.preferences.frecencyScore(c.id),
@@ -137,6 +161,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     else store.dms.openDmWithUser(userId);
     props.onClose();
   };
+  const goToDm = (dm: DirectMessage) => {
+    store.viewState.setActiveView({ id: dm.id, kind: "dm" });
+    props.onClose();
+  };
   const goToMessageSearch = () => {
     store.viewState.openMessageSearch(query());
     props.onClose();
@@ -150,6 +178,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     }
     if (item.kind === "channel") {
       goToChannel(item.data);
+      return;
+    }
+    if (item.kind === "dm") {
+      goToDm(item.data);
       return;
     }
     goToPerson(item.data.id);
@@ -189,7 +221,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
                 else activateItem(index);
               }
             }}
-            placeholder="Search channels, people…"
+            placeholder="Search channels, people, conversations…"
             type="text"
             value={query()}
           />
@@ -235,6 +267,24 @@ export default function GlobalSearch(props: { onClose: () => void }) {
                         {c.private ? <Icon name="lock" size={13} /> : "#"}
                       </span>
                       {c.name}
+                    </button>
+                  );
+                }
+                if (row.kind === "dm") {
+                  const dm = row.data;
+                  const members = (dm.memberIds ?? [])
+                    .map((id) => store.users.userById(id))
+                    .filter((m) => m !== undefined);
+                  return (
+                    <button
+                      class="global-search-result global-search-jump btn-reset flex-align-center"
+                      classList={{ active: activeIndex() === itemIndex() }}
+                      onClick={() => goToDm(dm)}
+                      onMouseEnter={() => setActiveIndex(itemIndex())}
+                      type="button"
+                    >
+                      <AvatarStack size="small" users={members} />
+                      {dmDisplayName(dm, store.users.userById)}
                     </button>
                   );
                 }
