@@ -19,7 +19,7 @@
   width: 5px;
   height: 5px;
   background: var(--text-dim);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   animation: typing-bounce 1.2s infinite ease-in-out;
 }
 

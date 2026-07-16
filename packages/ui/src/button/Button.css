@@ -7,7 +7,7 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   transition: all 0.15s ease-in-out;
 }
 
@@ -30,7 +30,7 @@
 /* Icon buttons */
 .btn-icon {
   padding: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .btn-icon.btn-sm {

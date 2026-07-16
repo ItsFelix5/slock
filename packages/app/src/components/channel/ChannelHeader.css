@@ -118,14 +118,14 @@
   font-weight: 600;
   color: var(--text-primary);
   background: var(--hover-bg);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .channel-header-tab-real {
   gap: 6px;
   padding: 5px 10px;
   color: var(--text-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .channel-header-tab-real:hover {
@@ -142,7 +142,7 @@
   gap: 6px;
   padding: 5px 6px 5px 10px;
   color: var(--text-secondary);
-  border-radius: 6px 0 0 6px;
+  border-radius: var(--radius-6) 0 0 var(--radius-6);
 }
 
 .channel-header-tab-btn:hover {
@@ -153,7 +153,7 @@
 .channel-header-tab-remove {
   width: 22px;
   height: 26px;
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-6) var(--radius-6) 0;
   opacity: 0;
 }
 
@@ -194,5 +194,5 @@
   padding: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }

@@ -28,7 +28,7 @@
   color: var(--mention-text);
   user-select: none;
   background: var(--mention-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 .composer-chip-link {
   color: var(--mention-inaccessible-text);
@@ -85,7 +85,7 @@
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 .compose-link-input::placeholder {
   color: var(--text-dim);
@@ -106,7 +106,7 @@
   white-space: pre-wrap;
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .composer-pre code {
   padding: 0;

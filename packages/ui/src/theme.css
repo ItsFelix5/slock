@@ -29,12 +29,37 @@
   --mention-self-rgb: 224, 167, 45;
   --mention-self-bg: rgba(var(--mention-self-rgb), 0.22);
   --mention-self-text: #e0a72d;
-  --mention-inaccessible-bg: rgba(148, 158, 168, 0.16);
+  --mention-inaccessible-rgb: 148, 158, 168;
+  --mention-inaccessible-bg: rgba(var(--mention-inaccessible-rgb), 0.16);
+  --mention-inaccessible-hover-bg: rgba(var(--mention-inaccessible-rgb), 0.28);
   --mention-inaccessible-text: #8b96a3;
   --link-color: #1d9bd1;
+  --highlight-bg: rgba(255, 214, 89, 0.35);
   --shadow-tooltip: 0 4px 14px rgba(0, 0, 0, 0.35);
   --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.4);
   --shadow-modal-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --shadow-hovercard: 0 8px 26px rgba(0, 0, 0, 0.32);
+  --swatch-ring: rgba(0, 0, 0, 0.2);
+  --color-field-ring: rgba(127, 127, 127, 0.35);
+  --scrim-weak: rgba(0, 0, 0, 0.18);
+  --zoomable-lens-border: rgba(255, 255, 255, 0.85);
+  --zoomable-lens-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --bk-button-primary: #2b7a4b;
+  --bk-button-danger: #8f3527;
+
+  --radius-3: 3px;
+  --radius-4: 4px;
+  --radius-5: 5px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-9: 9px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --radius-round: 50%;
+  --radius-pill: 999px;
 }
 
 :root.theme-light {

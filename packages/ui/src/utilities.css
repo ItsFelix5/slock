@@ -76,7 +76,7 @@
   padding: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-popover);
 }
 .menu-label {
@@ -113,7 +113,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .chip {
   padding: 4px 10px;
@@ -123,7 +123,7 @@
   white-space: nowrap;
   background: none;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .chip:hover {
   color: var(--text-primary);
@@ -187,7 +187,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .panel-close-btn:hover {
   color: var(--text-primary);
@@ -203,7 +203,7 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .icon-action {
   color: var(--text-secondary);
@@ -236,5 +236,5 @@
   height: 36px;
 }
 .icon-btn.circular {
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }

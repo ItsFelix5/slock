@@ -56,7 +56,7 @@
   width: 20px;
   height: 20px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 .bk-image-block {
   display: flex;
@@ -68,13 +68,13 @@
   max-width: 360px;
   max-height: 360px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .bk-image-el {
   max-width: 240px;
   max-height: 120px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 .bk-image-block-title {
   font-size: 13px;
@@ -97,20 +97,20 @@
   cursor: pointer;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .bk-button:hover {
   border-color: var(--text-dim);
 }
 .bk-button--primary {
   color: var(--text-on-accent);
-  background: #2b7a4b;
-  border-color: #2b7a4b;
+  background: var(--bk-button-primary);
+  border-color: var(--bk-button-primary);
 }
 .bk-button--danger {
   color: var(--text-on-accent);
-  background: #8f3527;
-  border-color: #8f3527;
+  background: var(--bk-button-danger);
+  border-color: var(--bk-button-danger);
 }
 .bk-overflow-wrap {
   position: relative;
@@ -125,7 +125,7 @@
   color: var(--text-secondary);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .bk-overflow-btn:hover {
   color: var(--text-primary);
@@ -162,7 +162,7 @@
   white-space: pre-wrap;
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 .bk-inline-code,
 .bk-rt-code,
@@ -172,7 +172,7 @@
   font-size: 0.9em;
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 .bk-link {
   color: var(--link-color);
@@ -191,7 +191,7 @@
   cursor: pointer;
   background: var(--mention-bg);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 .bk-mention:hover {
   background: rgba(var(--mention-rgb), 0.3);
@@ -228,7 +228,7 @@
   background: var(--mention-inaccessible-bg);
 }
 .bk-mention-link:hover {
-  background: rgba(148, 158, 168, 0.28);
+  background: var(--mention-inaccessible-hover-bg);
 }
 .bk-color-swatch {
   display: inline-flex;
@@ -240,7 +240,7 @@
   width: 12px;
   height: 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }
 .bk-rich-text {
   font-size: 15px;
@@ -260,8 +260,8 @@
   text-decoration: line-through;
 }
 .bk-rt-highlight {
-  background: rgba(255, 214, 89, 0.35);
-  border-radius: 3px;
+  background: var(--highlight-bg);
+  border-radius: var(--radius-3);
 }
 .bk-rt-list {
   margin: 2px 0;

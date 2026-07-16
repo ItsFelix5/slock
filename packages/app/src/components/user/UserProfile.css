@@ -25,7 +25,7 @@
   font-size: 28px;
   font-weight: 700;
   color: var(--text-on-accent);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 
 .user-profile-presence {
@@ -36,7 +36,7 @@
   height: 14px;
   background: var(--presence-active);
   border: 2px solid var(--main-bg);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .user-profile-presence.away {
@@ -79,7 +79,7 @@
   color: var(--text-on-accent);
   background: var(--accent);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .user-profile-message-btn:hover {
@@ -149,7 +149,7 @@
   color: var(--text-primary);
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .user-profile-name-input {

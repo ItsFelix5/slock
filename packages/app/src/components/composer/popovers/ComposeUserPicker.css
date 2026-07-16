@@ -7,7 +7,7 @@
   padding: 6px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   box-shadow: var(--shadow-popover);
 }
 
@@ -19,7 +19,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .compose-picker-list {
@@ -32,7 +32,7 @@
   width: 100%;
   padding: 6px 8px;
   text-align: left;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .compose-picker-row:hover {
