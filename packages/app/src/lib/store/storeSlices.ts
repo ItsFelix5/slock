@@ -15,6 +15,7 @@ import { createChannelTabsSlice } from "./slices/session/channelTabs";
 import { createCommandsSlice } from "./slices/session/commands";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
+import { createModalsSlice } from "./slices/session/modals";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
 import { createViewStateSlice } from "./slices/session/viewState";
@@ -66,12 +67,14 @@ export function createStoreSlices({
     bootstrap,
     closeUserProfile: users.closeUserProfile,
     removeDmFromSidebar: channels.removeDmFromSidebar,
+    removeDmsFromSidebar: channels.removeDmsFromSidebar,
     setActiveView,
     unreadChannelIds: unread.unreadChannelIds,
   });
   patchDmImplRef.current = dms.patchDm;
   const pinned = createPinnedSlice();
   const canvas = createCanvasSlice();
+  const modals = createModalsSlice();
   const messages = createMessagesSlice({
     activeThread: viewState.activeThread,
     activeView: viewState.activeView,
@@ -102,6 +105,7 @@ export function createStoreSlices({
     matchingHighlightWord: preferences.matchingHighlightWord,
     mergeIncomingMessage: messages.mergeIncomingMessage,
     messagesByChannel: messages.messagesByChannel,
+    openModalView: modals.openView,
     patchChannel: channels.patchChannel,
     patchDm: dms.patchDm,
     patchMessage: messages.patchMessage,
@@ -129,6 +133,7 @@ export function createStoreSlices({
     dms,
     later,
     messages,
+    modals,
     pinned,
     preferences,
     realtime,

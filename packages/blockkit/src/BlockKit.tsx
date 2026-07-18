@@ -5,6 +5,7 @@ import Context from "./blocks/Context";
 import Divider from "./blocks/Divider";
 import Header from "./blocks/Header";
 import Image from "./blocks/Image";
+import Input from "./blocks/Input";
 import RichText from "./blocks/RichText";
 import Section from "./blocks/Section";
 import "./blockkit.css";
@@ -41,6 +42,9 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
       </Match>
       <Match when={props.block.type === "actions"}>
         <Actions block={props.block as any} context={props.context} />
+      </Match>
+      <Match when={props.block.type === "input"}>
+        <Input block={props.block as any} />
       </Match>
       <Match when={props.block.type === "rich_text"}>
         <RichText block={props.block as any} trailing={props.trailing} />

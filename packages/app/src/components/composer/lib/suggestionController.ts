@@ -43,7 +43,7 @@ function createStaticSuggestion(
     return items.length > 0 ? { active: 0, items, kind, start } : null;
   }
   const entries = allEmojiEntries();
-  const ranked = query ? searchEmoji(entries, query) : frequentEmoji(entries, 8);
+  const ranked = query ? searchEmoji(entries, query) : frequentEmoji(entries);
   const items: EmojiSuggestItem[] = ranked
     .slice(0, 8)
     .map((e) => ({ kind: "emoji", name: e.name, unicode: e.unicode }));

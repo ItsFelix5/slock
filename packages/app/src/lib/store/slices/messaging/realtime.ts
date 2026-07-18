@@ -1,4 +1,11 @@
-import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
+import type {
+  ActivityItem,
+  Channel,
+  DirectMessage,
+  Message,
+  ModalView,
+  User,
+} from "@slock/slack-api";
 import { mapMessage, parseBadgeCounts } from "@slock/slack-api";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { isDmId } from "../../../dmId";
@@ -30,6 +37,7 @@ export function createRealtimeSlice(deps: {
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   isChannelNotifyAll: (id: string) => boolean;
   matchingHighlightWord: (text: string) => string | undefined;
+  openModalView: (view: ModalView) => void;
   pushActivity: (item: ActivityItem) => void;
   recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
   setGatewayActivityBadgeCounts: (activity: any) => void;
@@ -279,6 +287,9 @@ export function createRealtimeSlice(deps: {
           for (const id of ids) deps.invalidateUser(id);
           break;
         }
+        case "view_opened":
+          if (payload.view_type === "modal" && payload.view) deps.openModalView(payload.view);
+          break;
         default:
           break;
       }

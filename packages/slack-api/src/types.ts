@@ -230,7 +230,7 @@ export interface MessageShortcut {
 }
 
 export interface ActivityItem {
-  broadcastRange?: "channel" | "here";
+  broadcastRange?: "channel" | "here" | "everyone";
   channelId: string;
   id: string;
   kind:

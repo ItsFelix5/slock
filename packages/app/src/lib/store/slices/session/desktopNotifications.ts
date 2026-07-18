@@ -75,7 +75,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
       };
     }
 
-    // Skip the boot-time batch (fetchMentions history, gateway-reconnect
+    // Skip the boot-time batch (activity feed history, gateway-reconnect
     // replay) — only items that land after this effect is already live
     // should ever pop a notification.
     let lastSeenTs = Date.now();

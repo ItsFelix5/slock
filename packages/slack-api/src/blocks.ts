@@ -272,3 +272,24 @@ export type Block =
   | InputBlock
   | RichTextBlock
   | UnknownBlock;
+
+// --- modal/home views (views.open / view_opened gateway event) ---
+
+export interface ModalView {
+  app_id?: string;
+  blocks: Block[];
+  callback_id?: string;
+  clear_on_close?: boolean;
+  close?: TextObject | null;
+  external_id?: string;
+  hash?: string;
+  id: string;
+  notify_on_close?: boolean;
+  previous_view_id?: string | null;
+  private_metadata?: string;
+  root_view_id?: string;
+  submit?: TextObject | null;
+  team_id?: string;
+  title: TextObject;
+  type: "modal" | "home" | string;
+}

@@ -10,7 +10,7 @@ export default function SidebarToolbar(props: any) {
       <div class="sidebar-top flex-align-center">
         <Show
           fallback={
-            <div class="sidebar-me sidebar-me-skeleton">
+            <div class="sidebar-me sidebar-me-skeleton flex-align-center">
               <Skeleton height={32} radius={8} width={32} />
               <Skeleton height={14} width={90} />
             </div>

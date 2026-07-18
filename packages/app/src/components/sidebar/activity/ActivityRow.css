@@ -1,7 +1,7 @@
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .activity-item-wrap {
@@ -12,8 +12,8 @@
 .activity-item {
   position: relative;
   min-width: 0;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   transition:
     background 120ms ease,
     border-color 120ms ease;
@@ -22,13 +22,12 @@
 .activity-item:hover,
 .activity-item:focus-within {
   background: var(--hover-bg);
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .activity-item-thread {
-  margin: 3px 0;
   background: rgba(255, 255, 255, 0.025);
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .activity-item.unread {
@@ -36,7 +35,7 @@
 }
 
 .activity-item.unread.pinging {
-  border-color: rgba(var(--accent-rgb), 0.28);
+  border-color: rgba(var(--accent-rgb), 0.32);
 }
 
 .activity-item.reacted {
@@ -45,13 +44,13 @@
 
 .activity-item-summary {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   align-items: flex-start;
   width: 100%;
   min-width: 0;
-  padding: 11px 38px 10px 16px;
+  padding: 6px 30px 6px 10px;
   text-align: left;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .activity-item-summary:focus-visible,
@@ -66,9 +65,9 @@
 
 .activity-item-avatar {
   display: flex;
-  flex: 0 0 28px;
+  flex: 0 0 22px;
   justify-content: center;
-  min-height: 28px;
+  min-height: 22px;
 }
 
 .activity-body {
@@ -81,7 +80,7 @@
   display: block;
   padding-right: 2px;
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.3;
 }
 
 .activity-item.unread .activity-headline {
@@ -93,14 +92,15 @@
   color: var(--text-primary);
 }
 
-.activity-verb,
-.activity-channel {
-  margin-left: 4px;
-  font-weight: 400;
-  color: var(--text-secondary);
+.activity-kind-icon {
+  margin-right: 3px;
+  color: var(--text-dim);
+  vertical-align: -2px;
 }
 
 .activity-channel {
+  margin-left: 4px;
+  font-weight: 400;
   color: var(--mention-text);
 }
 
@@ -143,30 +143,30 @@
 
 .activity-snippet {
   display: -webkit-box;
-  margin-top: 3px;
+  margin-top: 1px;
   overflow: hidden;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 
 .activity-time {
-  display: block;
-  margin-top: 5px;
+  margin-left: 6px;
   font-size: 10px;
   color: var(--text-dim);
+  white-space: nowrap;
 }
 
 .activity-react-toggle {
   position: absolute;
-  top: 12px;
-  right: 10px;
+  top: 7px;
+  right: 6px;
   z-index: 1;
-  width: 25px;
-  height: 25px;
+  width: 21px;
+  height: 21px;
   color: var(--text-dim);
   opacity: 0.45;
   border-radius: 6px;
@@ -189,8 +189,8 @@
 
 .activity-unread-dot {
   position: absolute;
-  top: 21px;
-  left: 5px;
+  top: 14px;
+  left: 3px;
   z-index: 1;
   width: 6px;
   height: 6px;

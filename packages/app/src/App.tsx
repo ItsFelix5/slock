@@ -1,5 +1,6 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
+import { fetchPermalinkMessage } from "@slock/slack-api";
 import { TypingIndicator } from "@slock/ui";
 import { createMemo, onCleanup, onMount, Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
@@ -13,6 +14,7 @@ import ContextActions from "./components/context-actions/ContextActions";
 import MessageList from "./components/messages/MessageList";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
 import ThreadPanel from "./components/messages/ThreadPanel";
+import ViewModal from "./components/modals/ViewModal";
 import MessageSearchView from "./components/search/MessageSearchView";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
@@ -78,8 +80,16 @@ function App() {
     if (!target) return;
 
     event.preventDefault();
-    store.viewState.setActiveView({ id: target.channelId, kind: "channel" });
-    store.viewState.openThread(target.channelId, target.threadTs);
+    // Probe the message before navigating — a link to a channel we can't read
+    // (private, not a member) would otherwise switch views only to land on a
+    // dead end. Silently ignoring the click beats opening a broken channel.
+    fetchPermalinkMessage(target.channelId, target.messageTs, target.threadTs)
+      .then((message) => {
+        if (!message) return;
+        store.viewState.setActiveView({ id: target.channelId, kind: "channel" });
+        store.viewState.openThread(target.channelId, target.threadTs);
+      })
+      .catch(() => {});
   };
 
   onMount(() => {
@@ -125,6 +135,7 @@ function App() {
         <PinnedPanel />
         <CanvasPanel />
         <ContextActions />
+        <ViewModal />
       </div>
     </BlockKitResolverContext.Provider>
   );

@@ -15,6 +15,7 @@ import { createMessageHistory } from "./messageHistory";
 import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./messageLinks";
 import { findMessageLocations } from "./messageLocations";
 import { createMessageStatusActions } from "./messageStatusActions";
+import { createReactionEvents } from "./reactionEvents";
 
 export { REMINDER_OPTIONS } from "./messageLinks";
 
@@ -42,6 +43,8 @@ export function createMessagesSlice(deps: {
     loadedThreads,
     loadOlderMessages,
     hasMoreHistory,
+    hasHistoryError,
+    hasThreadError,
     isLoadingHistory,
     ensureChannelMessage,
   } = history;
@@ -92,53 +95,12 @@ export function createMessagesSlice(deps: {
       setThreadMessages(location.key, produce(remove));
     }
   }
-  function applyReactionEvent(
-    channel: string,
-    ts: string,
-    name: string,
-    userId: string,
-    added: boolean,
-  ) {
-    const locations = findAllMessageLocations(channel, ts);
-    if (locations.length === 0) return;
-    const msg = locations[0].list.find((m) => m.ts === ts);
-    if (!msg) return;
-    const reactions = msg.reactions ?? [];
-    const existing = reactions.find((r) => r.name === name);
-    let next: typeof reactions;
-    if (added) {
-      next = existing
-        ? reactions.map((r) =>
-            r.name === name ? { ...r, count: r.count + 1, users: [...r.users, userId] } : r,
-          )
-        : [...reactions, { count: 1, name, users: [userId] }];
-    } else if (existing) {
-      next = reactions
-        .map((r) =>
-          r.name === name
-            ? { ...r, count: r.count - 1, users: r.users.filter((u) => u !== userId) }
-            : r,
-        )
-        .filter((r) => r.count > 0);
-    } else {
-      next = reactions;
-    }
-    patchMessage(channel, ts, { reactions: next });
-    const me = deps.currentUser();
-    if (added && me && msg.userId === me.id && userId !== me.id) {
-      deps.pushActivity({
-        channelId: channel,
-        id: `rx-${channel}-${ts}-${name}-${userId}-${Date.now()}`,
-        kind: "reaction",
-        reactionName: name,
-        text: msg.text,
-        threadTs: msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined),
-        time: Date.now(),
-        ts,
-        userId,
-      });
-    }
-  }
+  const { applyReactionEvent } = createReactionEvents({
+    currentUser: deps.currentUser,
+    findAllMessageLocations,
+    patchMessage,
+    pushActivity: deps.pushActivity,
+  });
   async function sendMessage(
     channelId: string,
     text: string,
@@ -273,7 +235,9 @@ export function createMessagesSlice(deps: {
   return {
     ensureChannelMessage,
     findAllMessageLocations,
+    hasHistoryError,
     hasMoreHistory,
+    hasThreadError,
     isLoadingHistory,
     loadedChannels,
     loadedThreads,

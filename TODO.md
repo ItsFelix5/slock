@@ -10,3 +10,5 @@
 - zoom acting up
 - Half italic emojis
 - hidden channels
+- mail
+- edit pinggroups

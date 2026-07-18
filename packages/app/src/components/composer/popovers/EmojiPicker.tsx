@@ -12,14 +12,11 @@ import {
 } from "solid-js";
 import {
   allEmojiEntries,
-  EMOJI_CATEGORY_ORDER,
   frequentEmoji,
   type EmojiEntry as PickerEntry,
   searchEmoji,
 } from "../../../lib/emojiSearch";
 import "./EmojiPicker.css";
-
-const FREQUENT_LIMIT = 24;
 
 // Workspaces can have tens of thousands of custom emoji, so rendering every
 // entry's DOM node up front (as a plain <For>) is what made the picker take
@@ -32,10 +29,9 @@ const BUTTON_SIZE = 32;
 const GRID_GAP = 2;
 const CHUNK_ROWS = 6;
 const CHUNK_SIZE = COLS * CHUNK_ROWS;
-const LABEL_HEIGHT = 28;
 const OVERSCAN_PX = 400;
 
-type Block = { kind: "label"; text: string } | { kind: "chunk"; entries: PickerEntry[] };
+type Block = { kind: "chunk"; entries: PickerEntry[] };
 
 function rowsBlockHeight(count: number): number {
   const rows = Math.ceil(count / COLS);
@@ -43,16 +39,13 @@ function rowsBlockHeight(count: number): number {
 }
 
 function blockHeight(block: Block): number {
-  return block.kind === "label" ? LABEL_HEIGHT : rowsBlockHeight(block.entries.length);
+  return rowsBlockHeight(block.entries.length);
 }
 
-// `label` is optional so search results can be rendered as one flat run of
-// chunks with no category headers — see `blocks` below.
-function buildBlocks(sections: { label?: string; entries: PickerEntry[] }[]): Block[] {
+function buildBlocks(sections: { entries: PickerEntry[] }[]): Block[] {
   const blocks: Block[] = [];
   for (const section of sections) {
     if (!section.entries.length) continue;
-    if (section.label) blocks.push({ kind: "label", text: section.label });
     for (let i = 0; i < section.entries.length; i += CHUNK_SIZE) {
       blocks.push({ entries: section.entries.slice(i, i + CHUNK_SIZE), kind: "chunk" });
     }
@@ -88,41 +81,15 @@ export default function EmojiPicker(props: {
   // picked before.
   const frequent = createMemo(() => {
     if (query().trim()) return [];
-    return frequentEmoji(allEntries(), FREQUENT_LIMIT);
-  });
-
-  // Browsing (no query) stays grouped by category so scrolling through the
-  // full set is navigable. Searching drops the grouping entirely and returns
-  // one flat list ranked by name-similarity to the query, then usage — a
-  // dead-on match in "Custom" shouldn't get stranded below weaker matches
-  // just because "Smileys" sorts first in category order.
-  const groups = createMemo(() => {
-    if (query().trim()) return [];
-    const byCategory = new Map<string, PickerEntry[]>();
-    for (const e of allEntries()) {
-      const list = byCategory.get(e.category) ?? [];
-      list.push(e);
-      byCategory.set(e.category, list);
-    }
-    return EMOJI_CATEGORY_ORDER.filter((label) => byCategory.has(label)).map((label) => ({
-      entries: byCategory.get(label) ?? [],
-      label,
-    }));
+    return frequentEmoji(allEntries());
   });
 
   const searchResults = createMemo(() => searchEmoji(allEntries(), query()));
 
-  const isEmpty = createMemo(
-    () =>
-      frequent().length === 0 &&
-      searchResults().length === 0 &&
-      groups().every((g) => g.entries.length === 0),
-  );
+  const isEmpty = createMemo(() => frequent().length === 0 && searchResults().length === 0);
 
   const blocks = createMemo(() =>
-    query().trim()
-      ? buildBlocks([{ entries: searchResults() }])
-      : buildBlocks([{ entries: frequent(), label: "Frequently used" }, ...groups()]),
+    buildBlocks([{ entries: frequent() }, { entries: searchResults() }]),
   );
 
   const blockLayout = createMemo(() => {
@@ -194,17 +161,13 @@ export default function EmojiPicker(props: {
         <Show fallback={<div class="emoji-picker-empty">No emoji found</div>} when={!isEmpty()}>
           <div style={{ height: `${visible().topSpacer}px` }} />
           <For each={visible().list}>
-            {(item) =>
-              item.block.kind === "label" ? (
-                <div class="emoji-picker-category-label">{item.block.text}</div>
-              ) : (
-                <div class="emoji-picker-grid">
-                  <For each={item.block.entries}>
-                    {(entry) => <EmojiButton entry={entry} onSelect={props.onSelect} />}
-                  </For>
-                </div>
-              )
-            }
+            {(item) => (
+              <div class="emoji-picker-grid">
+                <For each={item.block.entries}>
+                  {(entry) => <EmojiButton entry={entry} onSelect={props.onSelect} />}
+                </For>
+              </div>
+            )}
           </For>
           <div style={{ height: `${visible().bottomSpacer}px` }} />
         </Show>

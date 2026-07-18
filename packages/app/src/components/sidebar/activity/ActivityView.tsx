@@ -3,20 +3,25 @@ import { Icon, type IconName, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
+import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read" | "reacted";
 
 const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
-  { icon: "mentions", key: "mention", label: "Mentions" },
-  { icon: "direct-messages", key: "dm", label: "Direct messages" },
-  { icon: "sparkles", key: "keyword", label: "Pingwords" },
-  { icon: "threads", key: "thread_reply", label: "Threads" },
-  { icon: "megaphone", key: "channel_mention", label: "@channel and @here" },
-  { icon: "user-groups", key: "usergroup_mention", label: "Usergroups" },
-  { icon: "notifications-all-new-posts", key: "channel_all", label: "All channel posts" },
-  { icon: "emoji", key: "reaction", label: "Reactions" },
+  { icon: ACTIVITY_KIND_ICONS.mention, key: "mention", label: "Mentions" },
+  { icon: ACTIVITY_KIND_ICONS.dm, key: "dm", label: "Direct messages" },
+  { icon: ACTIVITY_KIND_ICONS.keyword, key: "keyword", label: "Pingwords" },
+  { icon: ACTIVITY_KIND_ICONS.thread_reply, key: "thread_reply", label: "Threads" },
+  {
+    icon: ACTIVITY_KIND_ICONS.channel_mention,
+    key: "channel_mention",
+    label: "@channel and @here",
+  },
+  { icon: ACTIVITY_KIND_ICONS.usergroup_mention, key: "usergroup_mention", label: "Usergroups" },
+  { icon: ACTIVITY_KIND_ICONS.channel_all, key: "channel_all", label: "All channel posts" },
+  { icon: ACTIVITY_KIND_ICONS.reaction, key: "reaction", label: "Reactions" },
   { icon: "apps", key: "app", label: "Apps" },
 ];
 
@@ -106,16 +111,6 @@ export default function ActivityView() {
 
   return (
     <div class="activity-view">
-      <div class="activity-view-header flex-align-center">
-        <div>
-          <h2>Activity</h2>
-          <div class="activity-view-subtitle">Catch up without losing the conversation.</div>
-        </div>
-        <Show when={statusCounts().unread > 0}>
-          <span class="activity-header-count">{statusCounts().unread} new</span>
-        </Show>
-      </div>
-
       <div class="activity-toolbar">
         <div class="activity-search-wrap flex-align-center">
           <Icon name="search" size={15} />
@@ -155,7 +150,6 @@ export default function ActivityView() {
         </div>
 
         <div class="activity-type-filter">
-          <span class="activity-type-filter-label">{selectedTagLabel()}</span>
           <div aria-label="Activity type" class="activity-type-icons" role="toolbar">
             <Tooltip content="All activity">
               <button

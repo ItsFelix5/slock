@@ -13,22 +13,12 @@
 .emoji-picker-search {
   flex-shrink: 0;
   padding: 8px;
-  border-bottom: 1px solid var(--border);
 }
 
 .emoji-picker-body {
   flex: 1;
-  padding: 6px 8px 10px;
+  padding: 0px 8px 10px;
   overflow-y: auto;
-}
-
-.emoji-picker-category-label {
-  margin: 10px 4px 4px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .emoji-picker-grid {
@@ -38,8 +28,6 @@
 }
 
 .emoji-picker-btn {
-  width: 32px;
-  height: 32px;
   font-size: 19px;
   border-radius: var(--radius-6);
 }

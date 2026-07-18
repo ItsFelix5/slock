@@ -143,42 +143,51 @@ export default function ThreadPanel() {
               </Tooltip>
             </div>
           </PanelHeader>
-          <div class="thread-panel-messages" ref={messagesRef}>
-            <MessageRows
+          <Show
+            fallback={
+              <div class="thread-panel-error text-dim">
+                Can't load this thread — you may not have access to it.
+              </div>
+            }
+            when={!(store.messages.hasThreadError(t().ts) && messages().length === 0)}
+          >
+            <div class="thread-panel-messages" ref={messagesRef}>
+              <MessageRows
+                channelId={t().channelId}
+                messages={messages()}
+                onJumpToMessage={jumpToMessage}
+                onReplyLink={startReply}
+                threadTs={t().ts}
+              />
+            </div>
+            <TypingIndicator names={typingNames()} />
+            <Show when={replyTarget()}>
+              <div class="thread-reply-preview flex-align-center">
+                <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
+                <Tooltip content="Cancel reply">
+                  <button
+                    aria-label="Cancel reply"
+                    class="thread-reply-preview-cancel btn-reset flex-center"
+                    onClick={cancelReply}
+                    type="button"
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                </Tooltip>
+              </div>
+            </Show>
+            <Composer
               channelId={t().channelId}
-              messages={messages()}
-              onJumpToMessage={jumpToMessage}
-              onReplyLink={startReply}
+              placeholder="Reply…"
+              replyTo={(() => {
+                const rt = replyTarget();
+                return rt
+                  ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
+                  : undefined;
+              })()}
               threadTs={t().ts}
             />
-          </div>
-          <TypingIndicator names={typingNames()} />
-          <Show when={replyTarget()}>
-            <div class="thread-reply-preview flex-align-center">
-              <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
-              <Tooltip content="Cancel reply">
-                <button
-                  aria-label="Cancel reply"
-                  class="thread-reply-preview-cancel btn-reset flex-center"
-                  onClick={cancelReply}
-                  type="button"
-                >
-                  <Icon name="close" size={12} />
-                </button>
-              </Tooltip>
-            </div>
           </Show>
-          <Composer
-            channelId={t().channelId}
-            placeholder="Reply…"
-            replyTo={(() => {
-              const rt = replyTarget();
-              return rt
-                ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
-                : undefined;
-            })()}
-            threadTs={t().ts}
-          />
         </div>
       )}
     </Show>

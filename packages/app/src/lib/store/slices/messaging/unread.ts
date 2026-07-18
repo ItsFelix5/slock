@@ -1,6 +1,6 @@
 import type { Channel, DirectMessage, Message } from "@slock/slack-api";
-import { fetchLastReadByChannel, markChannelRead } from "@slock/slack-api";
-import { createEffect, createResource } from "solid-js";
+import { markChannelRead } from "@slock/slack-api";
+import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { View } from "../types";
 
@@ -11,7 +11,13 @@ import type { View } from "../types";
 export function createUnreadSlice(deps: {
   patchChannel: (id: string, patch: Partial<Channel>) => void;
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
-  bootstrap: () => { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
+  bootstrap: () =>
+    | {
+        channels: Channel[];
+        directMessages: DirectMessage[];
+        lastReadByChannel: Record<string, number>;
+      }
+    | undefined;
 }) {
   const [unreadChannelIds, setUnreadChannelIds] = createStore<Record<string, boolean>>({});
 
@@ -29,21 +35,21 @@ export function createUnreadSlice(deps: {
   // Per-channel real Slack read cursors (client.counts' last_read) rather than a
   // single locally-invented "activity read at" timestamp — an activity item is
   // unread if its ts is past the *account's own* read cursor for that channel,
-  // the same signal Slack's real unread badges use.
+  // the same signal Slack's real unread badges use. Sourced from the same
+  // bootstrap client.counts call above rather than a second fetch.
   const [lastReadByChannel, setLastReadByChannel] = createStore<Record<string, number>>({});
-  const [lastReadByChannelResource] = createResource(fetchLastReadByChannel);
   // Where the "new messages" divider line sits — frozen at the read cursor's
   // position from *before* the current visit marks everything read, so it
   // doesn't vanish the instant you open the channel. Reset when you leave so
   // the next visit re-anchors to whatever's unread by then.
   const [unreadDividerTs, setUnreadDividerTs] = createStore<Record<string, number>>({});
 
-  let lastReadSeeded = false;
+  const [lastReadSeeded, setLastReadSeeded] = createSignal(false);
   createEffect(() => {
-    const data = lastReadByChannelResource();
-    if (!data || lastReadSeeded) return;
-    lastReadSeeded = true;
-    for (const [id, ts] of Object.entries(data)) setLastReadByChannel(id, ts);
+    const data = deps.bootstrap();
+    if (!data || lastReadSeeded()) return;
+    setLastReadSeeded(true);
+    for (const [id, ts] of Object.entries(data.lastReadByChannel)) setLastReadByChannel(id, ts);
   });
 
   function clearChannelUnread(channelId: string) {
@@ -76,7 +82,7 @@ export function createUnreadSlice(deps: {
       // Read cursors haven't arrived yet — anchoring now would treat "unknown"
       // as "read nothing" (0) and plant the divider above the oldest loaded
       // message. Wait, without latching, so this fires for real once loaded.
-      if (lastReadByChannelResource.loading) return;
+      if (!lastReadSeeded()) return;
       if (dividerAnchoredChannels.has(id)) return;
       // Wait for the channel's own history too — deciding "caught up" below
       // needs the actual last message, not an empty list that hasn't loaded yet.
@@ -142,7 +148,6 @@ export function createUnreadSlice(deps: {
   return {
     clearChannelUnread,
     lastReadByChannel,
-    lastReadByChannelResource,
     setLastReadByChannel,
     setUnreadChannelIds,
     setUnreadDividerTs,

@@ -3,6 +3,7 @@ import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { channelDisplayName, isPingingActivity, store } from "../../../lib/store";
+import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import "./ActivityRow.css";
 import "./ActivityThread.css";
 
@@ -20,17 +21,17 @@ export function rowTarget(row: ActivityRow) {
 function verbFor(item: ActivityItem): string {
   switch (item.kind) {
     case "mention":
-      return "mentioned you in";
+      return "mentioned you";
     case "dm":
       return "sent you a message";
     case "keyword":
-      return item.matchedKeyword ? `said “${item.matchedKeyword}” in` : "used a pingword in";
+      return item.matchedKeyword ? `said “${item.matchedKeyword}”` : "used pingword";
     case "thread_reply":
       return "replied in";
     case "channel_mention":
       return `mentioned @${item.broadcastRange ?? "channel"} in`;
     case "usergroup_mention":
-      return "mentioned your group in";
+      return "mentioned usergroup";
     case "channel_all":
       return "posted in";
     default:
@@ -233,10 +234,16 @@ export default function ActivityRow(props: {
           </span>
           <span class="activity-body">
             <span class="activity-headline">
+              <Tooltip content={verbFor(latest())}>
+                <Icon
+                  class="activity-kind-icon"
+                  name={ACTIVITY_KIND_ICONS[latest().kind]}
+                  size={12}
+                />
+              </Tooltip>
               <Show fallback={<strong>{user()?.name ?? "Someone"}</strong>} when={isThreadGroup()}>
                 <strong>{formatInteractorNames(replierIds())}</strong>
               </Show>
-              <span class="activity-verb">{verbFor(latest())}</span>
               <Show when={latest().kind !== "dm"}>
                 <span class="activity-channel">
                   #{channelDisplayName(channel(), latest().channelId)}
@@ -255,13 +262,13 @@ export default function ActivityRow(props: {
                   <Icon name="check" size={11} /> Reacted
                 </span>
               </Show>
+              <span class="activity-time">{formatTime(latest().time)}</span>
             </span>
             <Show when={!isThreadGroup()}>
               <span class="activity-snippet">
                 <Mrkdwn text={latest().text} />
               </span>
             </Show>
-            <span class="activity-time">{formatTime(latest().time)}</span>
           </span>
         </button>
 

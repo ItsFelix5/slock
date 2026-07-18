@@ -13,7 +13,7 @@ export function createMessageHistory(deps: {
   const loadedChannels = new Set<string>();
   const historyCursor = new Map<string, string | undefined>();
   const [historyMeta, setHistoryMeta] = createStore<
-    Record<string, { hasMore: boolean; loading: boolean }>
+    Record<string, { hasMore: boolean; loading: boolean; error?: boolean }>
   >({});
   const [threadMessages, setThreadMessages] = createStore<Record<string, Message[]>>({});
   const loadedThreads = new Set<string>();
@@ -31,20 +31,24 @@ export function createMessageHistory(deps: {
       })
       .catch(() => {
         loadedChannels.delete(view.id);
+        setHistoryMeta(view.id, { hasMore: false, loading: false, error: true });
       });
   });
+  const [threadErrors, setThreadErrors] = createStore<Record<string, boolean>>({});
   createEffect(() => {
     const thread = deps.activeThread();
     if (!thread) return;
     const key = thread.ts;
     if (loadedThreads.has(key)) return;
     loadedThreads.add(key);
+    setThreadErrors(key, false);
     fetchReplies(thread.channelId, thread.ts)
       .then((messages) => {
         setThreadMessages(key, messages);
       })
       .catch(() => {
         loadedThreads.delete(key);
+        setThreadErrors(key, true);
       });
   });
   function hasMoreHistory(channelId: string) {
@@ -72,6 +76,12 @@ export function createMessageHistory(deps: {
       setHistoryMeta(channelId, "loading", false);
     }
   }
+  function hasHistoryError(channelId: string) {
+    return historyMeta[channelId]?.error ?? false;
+  }
+  function hasThreadError(ts: string) {
+    return threadErrors[ts] ?? false;
+  }
   async function ensureChannelMessage(channelId: string, ts: string) {
     if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
     try {
@@ -85,7 +95,9 @@ export function createMessageHistory(deps: {
   }
   return {
     ensureChannelMessage,
+    hasHistoryError,
     hasMoreHistory,
+    hasThreadError,
     historyCursor,
     historyMeta,
     isLoadingHistory,

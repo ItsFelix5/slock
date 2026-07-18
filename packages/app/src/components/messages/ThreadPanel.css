@@ -46,6 +46,12 @@
   overflow-y: auto;
 }
 
+.thread-panel-error {
+  flex: 1;
+  padding: 20px 16px;
+  font-size: 13px;
+}
+
 .thread-reply-preview {
   flex-shrink: 0;
   gap: 8px;

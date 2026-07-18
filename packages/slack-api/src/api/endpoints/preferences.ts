@@ -212,19 +212,3 @@ export async function endDndSnooze(): Promise<void> {
   const data = await callSlack("dnd.endSnooze");
   if (!data.ok) throw new Error(data.error ?? "dnd.endSnooze failed");
 }
-
-// The account's real per-conversation read cursors (client.counts), used to tell
-// whether an activity/mention item has actually been read rather than tracking
-// a single locally-invented "activity read at" timestamp.
-export async function fetchLastReadByChannel(): Promise<Record<string, number>> {
-  const data = await callSlack("client.counts");
-  const lastReadByChannel: Record<string, number> = {};
-  if (!data.ok) return lastReadByChannel;
-  for (const list of [data.channels, data.ims, data.mpims]) {
-    for (const c of list ?? []) {
-      const ts = parseFloat(c.last_read);
-      if (ts) lastReadByChannel[c.id] = ts * 1000;
-    }
-  }
-  return lastReadByChannel;
-}

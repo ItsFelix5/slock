@@ -1,5 +1,5 @@
 import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
-import { fetchMentions, markChannelRead } from "@slock/slack-api";
+import { fetchActivityFeed, markChannelRead } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 
@@ -131,16 +131,21 @@ export function createActivitySlice(deps: {
       return;
     }
     try {
-      const items = await fetchMentions(me.id);
+      const items = await fetchActivityFeed();
       setActivityItems(
         produce((list) => {
           const seen = new Set(list.map((i) => i.id));
-          for (const item of items) if (!seen.has(item.id)) list.push(item);
+          // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply
+          // in a thread you're in) can legitimately point at your own message
+          // — the feed itself doesn't filter those out, so do it here rather
+          // than showing your own posts back to you as activity.
+          for (const item of items)
+            if (!seen.has(item.id) && item.userId !== me.id) list.push(item);
           list.sort((a, b) => b.time - a.time);
         }),
       );
     } catch {
-      // search endpoint may not be available on every workspace; live events still populate this list
+      // undocumented endpoint may not be available on every workspace; live events still populate this list
     }
   }
 

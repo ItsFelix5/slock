@@ -1,4 +1,4 @@
-import { Skeleton } from "@slock/ui";
+import { Icon, Skeleton } from "@slock/ui";
 import { createEffect, createMemo, For, Show } from "solid-js";
 import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./MessageList.css";
@@ -194,18 +194,31 @@ export default function MessageList() {
         <Show when={store.viewState.activeView()}>
           {(v) => (
             <>
-              <Show when={store.messages.hasMoreHistory(v().id)}>
-                <div class="message-list-loading-older">
-                  <Show when={store.messages.isLoadingHistory(v().id)}>
-                    Loading earlier messages…
-                  </Show>
-                </div>
-              </Show>
-              <Show when={!store.messages.hasMoreHistory(v().id)}>
-                <div class="message-list-intro">
-                  <div class="message-list-intro-icon flex-center">#</div>
-                  <h2>{channelName()}</h2>
-                </div>
+              <Show
+                fallback={
+                  <div class="message-list-intro">
+                    <div class="message-list-intro-icon flex-center">
+                      <Icon name="lock" size={26} />
+                    </div>
+                    <h2>Can't load this conversation</h2>
+                    <p>You may not have access to it.</p>
+                  </div>
+                }
+                when={!(store.messages.hasHistoryError(v().id) && messages().length === 0)}
+              >
+                <Show when={store.messages.hasMoreHistory(v().id)}>
+                  <div class="message-list-loading-older">
+                    <Show when={store.messages.isLoadingHistory(v().id)}>
+                      Loading earlier messages…
+                    </Show>
+                  </div>
+                </Show>
+                <Show when={!store.messages.hasMoreHistory(v().id)}>
+                  <div class="message-list-intro">
+                    <div class="message-list-intro-icon flex-center">#</div>
+                    <h2>{channelName()}</h2>
+                  </div>
+                </Show>
               </Show>
               <MessageRows
                 channelId={v().id}

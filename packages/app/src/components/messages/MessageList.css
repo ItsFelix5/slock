@@ -72,9 +72,6 @@
 .message-row-group {
   position: relative;
 }
-.message-row-group > .reply-reference-row {
-  margin-top: 0;
-}
 .message-row-group:hover {
   background: var(--hover-bg);
 }

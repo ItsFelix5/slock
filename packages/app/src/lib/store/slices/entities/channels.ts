@@ -80,6 +80,10 @@ export function createChannelsSlice(deps: {
     }
     const discovered = discoveredChannels.find((c) => c.id === id);
     if (discovered) return discovered;
+    // Bootstrap hasn't resolved yet, so we can't tell a genuinely external
+    // channel apart from one of this account's own that just hasn't loaded —
+    // wait rather than wrongly treating it as external and hitting Flaron.
+    if (!deps.bootstrap()) return;
     if (!pendingChannels.has(id)) {
       pendingChannels.add(id);
       fetchFlaronChannel(id)
@@ -266,23 +270,38 @@ export function createChannelsSlice(deps: {
     await refetchSections();
   }
 
-  async function removeDmFromSidebar(dmId: string): Promise<boolean> {
+  // Batched so closing several DMs at once (e.g. dormant-DM auto-close) costs one
+  // bulkUpdate per section plus one refetch, instead of a round-trip pair per DM.
+  async function removeDmsFromSidebar(dmIds: string[]): Promise<Set<string>> {
+    const removed = new Set<string>();
+    if (dmIds.length === 0) return removed;
     const current = sections() ?? [];
     const list = current.length > 0 ? current : ((await refetchSections()) ?? []);
-    const dmSection =
-      list.find((s) => s.type === "direct_messages" && s.channelIds.includes(dmId)) ??
-      list.find((s) => s.type === "direct_messages") ??
-      list.find((s) => s.id === "sm1");
-    if (!dmSection) {
+    const fallback =
+      list.find((s) => s.type === "direct_messages") ?? list.find((s) => s.id === "sm1");
+    const idsBySection = new Map<string, string[]>();
+    for (const dmId of dmIds) {
+      const section =
+        list.find((s) => s.type === "direct_messages" && s.channelIds.includes(dmId)) ?? fallback;
+      if (!section) continue;
+      idsBySection.set(section.id, [...(idsBySection.get(section.id) ?? []), dmId]);
+    }
+    await Promise.all(
+      [...idsBySection.entries()].map(async ([sectionId, ids]) => {
+        const ok = await apiUpdateSectionChannels(sectionId, { removeChannelIds: ids });
+        if (ok) for (const id of ids) removed.add(id);
+      }),
+    );
+    if (removed.size > 0) await refetchSections();
+    return removed;
+  }
+
+  async function removeDmFromSidebar(dmId: string): Promise<boolean> {
+    const removed = await removeDmsFromSidebar([dmId]);
+    if (!removed.has(dmId)) {
       actionFeedback.flash(dmId, "Failed to close conversation.", "error");
       return false;
     }
-    const ok = await apiUpdateSectionChannels(dmSection.id, { removeChannelIds: [dmId] });
-    if (!ok) {
-      actionFeedback.flash(dmId, "Failed to close conversation.", "error");
-      return false;
-    }
-    await refetchSections();
     return true;
   }
 
@@ -309,6 +328,7 @@ export function createChannelsSlice(deps: {
     renameChannelSection,
     reorderChannelSection,
     removeDmFromSidebar,
+    removeDmsFromSidebar,
     setChannelSectionSidebar,
     searchBrowsableChannels,
     sections,

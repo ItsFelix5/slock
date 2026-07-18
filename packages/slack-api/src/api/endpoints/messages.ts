@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import type { ActivityItem, Message } from "../../types";
+import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
 import { callSlack, getWorkspaceDomain } from "../relay";
 
@@ -249,27 +249,6 @@ export async function searchMessages(
     channelId: m.channel?.id,
     channelName: m.channel?.name,
     text: m.text ?? "",
-    ts: m.ts,
-    userId: m.user,
-  }));
-}
-
-export async function fetchMentions(selfUserId: string): Promise<ActivityItem[]> {
-  const data = await callSlack("search.messages", {
-    count: "40",
-    query: `<@${selfUserId}>`,
-    sort: "timestamp",
-    sort_dir: "desc",
-  });
-  if (!data.ok) return [];
-  const matches: any[] = data.messages?.matches ?? [];
-  return matches.map((m) => ({
-    channelId: m.channel?.id,
-    id: `${m.channel?.id}-${m.ts}`,
-    kind: "mention" as const,
-    text: m.text ?? "",
-    threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
-    time: parseFloat(m.ts) * 1000,
     ts: m.ts,
     userId: m.user,
   }));

@@ -12,6 +12,7 @@ export function createDmsSlice(deps: {
   closeUserProfile: () => void;
   unreadChannelIds: Record<string, boolean>;
   removeDmFromSidebar: (dmId: string) => Promise<boolean>;
+  removeDmsFromSidebar: (dmIds: string[]) => Promise<Set<string>>;
   activeView: () => View | null;
   setActiveView: (view: View) => void;
 }) {
@@ -43,17 +44,22 @@ export function createDmsSlice(deps: {
 
   // Mirrors Slack's own "dormant" DM cleanup: a DM nobody has touched in a week
   // quietly closes itself (still reachable again via compose/search) so the
-  // sidebar doesn't accumulate every one-off conversation forever.
-  function autoCloseInactiveDms() {
+  // sidebar doesn't accumulate every one-off conversation forever. Batched into
+  // one removal request rather than one round-trip pair per stale DM.
+  async function autoCloseInactiveDms() {
     const now = Date.now();
     const view = deps.activeView();
-    for (const dm of directMessages()) {
-      if (view?.kind === "dm" && view.id === dm.id) continue;
-      if (deps.unreadChannelIds[dm.id]) continue;
-      const last = dmLastActivity[dm.id];
-      if (!last || now - last < DM_AUTO_CLOSE_MS) continue;
-      void closeDmConversation(dm.id);
-    }
+    const staleIds = directMessages()
+      .filter((dm) => {
+        if (view?.kind === "dm" && view.id === dm.id) return false;
+        if (deps.unreadChannelIds[dm.id]) return false;
+        const last = dmLastActivity[dm.id];
+        return !!last && now - last >= DM_AUTO_CLOSE_MS;
+      })
+      .map((dm) => dm.id);
+    if (staleIds.length === 0) return;
+    const removed = await deps.removeDmsFromSidebar(staleIds);
+    for (const id of removed) setClosedDmIds(id, true);
   }
 
   createEffect(() => {

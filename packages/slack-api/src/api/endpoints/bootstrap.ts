@@ -6,6 +6,7 @@ export interface Bootstrap {
   channels: Channel[];
   currentUser: User;
   directMessages: DirectMessage[];
+  lastReadByChannel: Record<string, number>;
   starredChannelIds: string[];
 }
 
@@ -26,6 +27,16 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   if (!boot?.ok) throw new Error(boot?.error ?? "client.userBoot failed");
 
   const unreadMap = buildUnreadMap(counts);
+
+  // Per-conversation real Slack read cursors, from the same client.counts response
+  // already fetched above for unread state — no need for a second round trip.
+  const lastReadByChannel: Record<string, number> = {};
+  for (const list of [counts?.channels, counts?.ims, counts?.mpims]) {
+    for (const c of list ?? []) {
+      const ts = parseFloat(c.last_read);
+      if (ts) lastReadByChannel[c.id] = ts * 1000;
+    }
+  }
 
   const rawChannels: any[] = boot.channels ?? [];
   const channels: Channel[] = rawChannels
@@ -90,5 +101,5 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
     .filter(Boolean);
 
-  return { channels, currentUser, directMessages, starredChannelIds };
+  return { channels, currentUser, directMessages, lastReadByChannel, starredChannelIds };
 }
