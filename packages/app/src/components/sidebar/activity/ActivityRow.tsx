@@ -1,7 +1,7 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
-import { createMemo, createSignal, For, onMount, Show, untrack } from "solid-js";
+import { createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { channelDisplayName, isPingingActivity, store } from "../../../lib/store";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import "./ActivityRow.css";
@@ -110,11 +110,6 @@ export default function ActivityRow(props: {
     if (!list) return;
     return list.slice(-Math.min(bundled.unreadCount ?? 1, list.length));
   });
-  onMount(() => {
-    const bundled = bundledItem();
-    if (bundled) store.messages.ensureThreadRepliesLoaded(bundled.channelId, threadTs());
-  });
-
   const replierIds = createMemo(() => {
     const seen = new Set<string>();
     const ids: string[] = [];

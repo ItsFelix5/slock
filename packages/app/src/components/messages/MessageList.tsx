@@ -1,9 +1,9 @@
 import { Icon, Skeleton } from "@slock/ui";
-import { createEffect, createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, For, onCleanup, Show } from "solid-js";
 import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
-import { jumpToMessageInContainer } from "./scrollAnchor";
+import { isScrolledToBottom, jumpToMessageInContainer, scrollToBottom } from "./scrollAnchor";
 
 const NEAR_BOTTOM_PX = 120;
 const NEAR_TOP_PX = 200;
@@ -61,6 +61,7 @@ export default function MessageList() {
   // scrollTop untouched (which would visually yank the view down as content is
   // inserted above it).
   let olderPageAnchor: { scrollHeight: number; scrollTop: number } | null = null;
+  let shouldFollowBottom = true;
 
   const messages = createMemo(() => {
     const v = store.viewState.activeView();
@@ -138,22 +139,37 @@ export default function MessageList() {
         if (!scrollRef) return;
         const divider = scrollRef.querySelector<HTMLElement>(".unread-divider");
         if (divider) divider.scrollIntoView({ block: "center" });
-        else scrollRef.scrollTop = scrollRef.scrollHeight;
+        else scrollToBottom(scrollRef);
+        shouldFollowBottom = isScrolledToBottom(scrollRef);
       });
       return;
     }
 
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
-    if (nearBottom) {
+    if (shouldFollowBottom || nearBottom) {
       queueMicrotask(() => {
-        if (scrollRef) scrollRef.scrollTop = scrollRef.scrollHeight;
+        if (!scrollRef) return;
+        scrollToBottom(scrollRef);
+        shouldFollowBottom = isScrolledToBottom(scrollRef);
       });
     }
+  });
+
+  createEffect(() => {
+    messages();
+    const el = scrollRef;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (shouldFollowBottom) scrollToBottom(el);
+    });
+    for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) observer.observe(row);
+    onCleanup(() => observer.disconnect());
   });
 
   function handleScroll() {
     const el = scrollRef;
     const view = store.viewState.activeView();
+    if (el) shouldFollowBottom = isScrolledToBottom(el, NEAR_BOTTOM_PX);
     if (!(el && view) || el.scrollTop > NEAR_TOP_PX) return;
     if (!store.messages.hasMoreHistory(view.id) || store.messages.isLoadingHistory(view.id)) return;
     olderPageAnchor = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop };

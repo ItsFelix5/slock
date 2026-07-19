@@ -23,9 +23,7 @@ export function loadCustomEmoji(): Promise<void> {
       .then((map) => {
         emojiUrls = map;
       })
-      .catch(() => {
-        // Emoji remain usable through their standard Unicode fallbacks.
-      })
+      .catch(() => { })
       .finally(() => setLoaded("value", true));
   }
   return emojiLoadPromise;

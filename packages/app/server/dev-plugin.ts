@@ -82,6 +82,7 @@ export function slackRelayPlugin(): Plugin {
             url.searchParams,
             creds,
             false,
+            req.headers["accept-encoding"]?.toString() ?? null,
             {
               buffer: () => readBodyBuffer(req),
               json: async () => {

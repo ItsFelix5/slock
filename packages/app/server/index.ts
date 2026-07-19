@@ -43,6 +43,7 @@ Bun.serve<{ creds: Credentials | null }>({
       url.searchParams,
       creds,
       url.protocol === "https:",
+      req.headers.get("accept-encoding"),
       {
         buffer: async () => new Uint8Array(await req.arrayBuffer()),
         json: () => req.json().catch(() => ({})),

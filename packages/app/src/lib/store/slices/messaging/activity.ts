@@ -149,7 +149,7 @@ export function createActivitySlice(deps: {
         // in a thread you're in) can legitimately point at your own message
         // — the feed itself doesn't filter those out, so do it here rather
         // than showing your own posts back to you as activity.
-        if (seen.has(item.id) || item.userId === me.id) continue;
+        if (seen.has(item.id) || !item.userId || item.userId === me.id) continue;
         seen.add(item.id);
         setActivityItems(
           produce((list) => {

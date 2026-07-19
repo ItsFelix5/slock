@@ -1,11 +1,17 @@
 import type { Message } from "@slock/slack-api";
 import { Icon, PanelHeader, ResizeHandle, Tooltip, TypingIndicator } from "@slock/ui";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import MessageRows from "./MessageRows";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
-import { captureScrollAnchor, jumpToMessageInContainer, restoreScrollAnchor } from "./scrollAnchor";
+import {
+  captureScrollAnchor,
+  isScrolledToBottom,
+  jumpToMessageInContainer,
+  restoreScrollAnchor,
+  scrollToBottom,
+} from "./scrollAnchor";
 import "./ThreadPanel.css";
 
 const DEFAULT_WIDTH = 380;
@@ -57,13 +63,52 @@ export default function ThreadPanel() {
   // Later item can be clicked again while this thread is already open; that
   // creates a fresh ThreadRef with the same values and should jump again.
   let handledHighlightRequest: ReturnType<typeof thread> = null;
+  let highlightedRequestJustHandled: ReturnType<typeof thread> = null;
   createEffect(() => {
     const t = thread();
     if (!t?.highlightTs) return;
     if (handledHighlightRequest === t) return;
     if (!messages().some((m) => m.ts === t.highlightTs)) return;
     handledHighlightRequest = t;
+    highlightedRequestJustHandled = t;
     queueMicrotask(() => jumpToMessage(t.highlightTs ?? ""));
+  });
+
+  let lastThreadTs: string | undefined;
+  let shouldFollowBottom = true;
+  createEffect(() => {
+    const t = thread();
+    const msgs = messages();
+    const switchedThread = t?.ts !== lastThreadTs;
+    lastThreadTs = t?.ts;
+    if (switchedThread) shouldFollowBottom = true;
+    if (!(t && messagesRef && msgs.length > 0)) return;
+
+    if (highlightedRequestJustHandled === t) {
+      highlightedRequestJustHandled = null;
+      shouldFollowBottom = false;
+      return;
+    }
+    if (t.highlightTs && handledHighlightRequest !== t) return;
+
+    if (shouldFollowBottom) {
+      queueMicrotask(() => {
+        if (!messagesRef) return;
+        scrollToBottom(messagesRef);
+        shouldFollowBottom = isScrolledToBottom(messagesRef);
+      });
+    }
+  });
+
+  createEffect(() => {
+    messages();
+    const el = messagesRef;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (shouldFollowBottom) scrollToBottom(el);
+    });
+    for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) observer.observe(row);
+    onCleanup(() => observer.disconnect());
   });
 
   const channelName = createMemo(() => {
@@ -85,6 +130,10 @@ export default function ThreadPanel() {
 
   function jumpToMessage(ts: string) {
     if (messagesRef) jumpToMessageInContainer(messagesRef, ts);
+  }
+
+  function handleMessagesScroll() {
+    if (messagesRef) shouldFollowBottom = isScrolledToBottom(messagesRef);
   }
 
   // Dragging the resize handle rewraps message text on every pointermove, which
@@ -162,7 +211,7 @@ export default function ThreadPanel() {
             }
             when={!(store.messages.hasThreadError(t().ts) && messages().length === 0)}
           >
-            <div class="thread-panel-messages" ref={messagesRef}>
+            <div class="thread-panel-messages" onScroll={handleMessagesScroll} ref={messagesRef}>
               <MessageRows
                 channelId={t().channelId}
                 messages={messages()}

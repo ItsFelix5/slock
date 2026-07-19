@@ -43,7 +43,15 @@ function activityKindFor(type: string): ActivityItem["kind"] | undefined {
   }
 }
 
-type FeedEntry = Omit<ActivityItem, "text">;
+type FeedEntry = Omit<ActivityItem, "text"> & { text?: string };
+
+function rawMessageText(message: any): string | undefined {
+  return typeof message?.text === "string" ? message.text : undefined;
+}
+
+function rawMessageUserId(message: any): string | undefined {
+  return message?.user ?? message?.author_user_id ?? message?.bot_id ?? undefined;
+}
 
 // Each feed entry only carries ids (channel/ts/reactor), never the message
 // body — fetchActivityMessages below resolves those ids with one batched
@@ -67,15 +75,23 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
   if (raw.item.type === "thread_v2") {
     const thread = raw.item.bundle_info?.payload?.thread_entry;
     if (!thread) return;
+    const latestMessage =
+      thread.latest_message ?? thread.latest_msg ?? thread.message ?? raw.item.message;
     return {
       channelId: thread.channel_id,
       id: raw.key,
       kind,
+      text: rawMessageText(latestMessage),
       threadTs: thread.thread_ts,
       time,
       ts: thread.latest_ts,
       unreadCount: thread.unread_msg_count,
-      userId: "",
+      userId:
+        thread.latest_user_id ??
+        thread.latest_reply_user_id ??
+        thread.user_id ??
+        rawMessageUserId(latestMessage) ??
+        "",
     };
   }
   const { message } = raw.item;
@@ -93,6 +109,7 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     threadTs: message.thread_ts && message.thread_ts !== message.ts ? message.thread_ts : undefined,
     time,
     ts: message.ts,
+    text: rawMessageText(message),
     userId: message.author_user_id ?? "",
   };
 }
@@ -205,7 +222,7 @@ export function resolveActivityEntry(
   const msg = batchedMessages?.get(`${entry.channelId}:${entry.ts}`);
   return {
     ...entry,
-    text: msg?.text ?? "",
+    text: msg?.text ?? entry.text ?? "",
     // message_reaction entries never carry thread_ts from the feed itself
     // (unlike at_user/dm/keyword, which do) — the fetched message is the
     // only source for it, needed so a reply you post in that thread later

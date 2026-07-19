@@ -5,6 +5,16 @@ interface ScrollAnchor {
   offset: number;
 }
 
+const BOTTOM_EPSILON_PX = 2;
+
+export function isScrolledToBottom(container: HTMLElement, thresholdPx = BOTTOM_EPSILON_PX) {
+  return container.scrollHeight - container.scrollTop - container.clientHeight <= thresholdPx;
+}
+
+export function scrollToBottom(container: HTMLElement) {
+  container.scrollTop = container.scrollHeight;
+}
+
 /** Topmost message row still (partially) below the container's visible top —
  * the row a reader's eye is actually on, used to keep that spot stable across
  * a layout change instead of leaving scrollTop as a raw pixel offset. */

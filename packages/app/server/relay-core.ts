@@ -1,4 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Relay payloads preserve Slack's wire field names.
+import { emojiImageUrl, emojiListResponse } from "./relay-emoji.ts";
 import { fileProxyResponse, fileUploadProxyResponse } from "./relay-files.ts";
 import { unfurlResponse } from "./relay-unfurl.ts";
 
@@ -122,6 +123,7 @@ export async function callSlack(
   }
 }
 export const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
+
 function authResponse(raw: string, secure: boolean): Response {
   try {
     const parsed = JSON.parse(raw);
@@ -203,6 +205,7 @@ export async function routeRelayRequest(
   searchParams: URLSearchParams,
   creds: Credentials | null,
   secure: boolean,
+  acceptEncoding: string | null,
   body: {
     json(): Promise<Record<string, unknown>>;
     text(): Promise<string>;
@@ -224,6 +227,15 @@ export async function routeRelayRequest(
     const slackMethod = pathname.slice("/slack-edge/".length);
     if (!slackMethod) return new Response("missing method", { status: 400 });
     return slackEdgeRelayResponse(slackMethod, await body.json(), creds);
+  }
+  if (method === "GET" && pathname === "/emoji") {
+    return emojiListResponse(creds, callSlack, acceptEncoding);
+  }
+  if (method === "GET" && pathname === "/emoji-image") {
+    const url = await emojiImageUrl(searchParams.get("name"), creds, callSlack);
+    const res = await fileProxyResponse(url, creds);
+    res.headers.set("vary", "Cookie");
+    return res;
   }
   if (method === "GET" && pathname === "/file") {
     return fileProxyResponse(searchParams.get("url"), creds);

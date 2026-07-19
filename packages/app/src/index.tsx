@@ -1,8 +1,8 @@
 /* @refresh reload */
 import { getConfig } from "@slock/slack-api";
 import { render } from "solid-js/web";
-import "./index.css";
 import ConnectSlack from "./components/setup/ConnectSlack";
+import "./index.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing #root element");
@@ -22,6 +22,9 @@ async function main(mountPoint: HTMLElement) {
 
   const { default: App } = await import("./App");
   render(() => <App />, mountPoint);
+  window.onkeydown = (e) => {
+    if (e.key === "F2" && import.meta.hot) import.meta.hot?.send('manual:reload')
+  }
 }
 
 main(root);

@@ -7,22 +7,16 @@ let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
 export function fetchAllEmoji(): Promise<Record<string, string>> {
   if (!emojiMapPromise) {
-    emojiMapPromise = callSlack("emoji.list").then((data) => {
-      if (!data.ok) return {};
-      const raw: Record<string, string> = data.emoji ?? {};
-      const resolved: Record<string, string> = {};
-      for (const name of Object.keys(raw)) {
-        let value = raw[name];
-        let hops = 0;
-        while (typeof value === "string" && value.startsWith("alias:") && hops < 5) {
-          value = raw[value.slice("alias:".length)];
-          hops++;
+    emojiMapPromise = fetch("/emoji")
+      .then((res) => res.text())
+      .then((text) => {
+        const names = text ? text.split("\n") : [];
+        const resolved: Record<string, string> = {};
+        for (const name of names) {
+          resolved[name] = `/emoji-image?name=${encodeURIComponent(name)}`;
         }
-        if (typeof value === "string" && value.startsWith("http"))
-          resolved[name] = fileProxyUrl(value);
-      }
-      return resolved;
-    });
+        return resolved;
+      });
   }
   return emojiMapPromise;
 }

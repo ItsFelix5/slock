@@ -7,3 +7,5 @@
 - Move dms
 - search.autocomplete has search history ({suggestions:{text[]}}) and
 - mail & pdf
+- don't require loading everything after
+- virtual scroll?
