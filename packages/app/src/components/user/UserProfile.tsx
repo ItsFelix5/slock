@@ -38,6 +38,9 @@ export default function UserProfile() {
     return id ? store.users.userById(id) : undefined;
   });
   const isSelf = createMemo(() => user()?.id === store.users.currentUser()?.id);
+  const botBio = createMemo(() =>
+    user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
+  );
   createEffect(
     on(store.users.profileUserId, (id) => {
       const me = store.users.currentUser();
@@ -196,6 +199,9 @@ export default function UserProfile() {
                 <Show when={u().statusEmoji}>{(emoji) => <EmojiText text={emoji()} />}</Show>
                 {u().statusText}
               </p>
+            </Show>
+            <Show when={botBio()}>
+              <p class="user-profile-bio text-muted">{botBio()}</p>
             </Show>
             <Show when={localTime()}>
               <p class="user-profile-meta text-muted text-sm">

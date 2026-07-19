@@ -30,7 +30,7 @@ export function createStoreSlices({
 }) {
   const viewState = createViewStateSlice({ bootstrap });
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
-  const usergroups = createUsergroupsSlice();
+  const usergroups = createUsergroupsSlice({ currentUser: users.currentUser });
   const typing = createTypingSlice({ userById: users.userById });
   const setActiveViewImplRef: { current: (view: View) => void } = { current: () => {} };
   const setActiveView = (view: View) => setActiveViewImplRef.current(view);

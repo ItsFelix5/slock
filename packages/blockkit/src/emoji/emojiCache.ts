@@ -3,7 +3,12 @@ import { createStore } from "solid-js/store";
 
 // One bulk fetch instead of a network round-trip per unique emoji name — cheaper
 // and means reactions/messages never show a loading flicker after the first paint.
-const [emojiUrls, setEmojiUrls] = createStore<Record<string, string | null>>({});
+// Plain object, not a Solid store: workspaces can have tens of thousands of
+// custom emoji, and this map is only ever written once in bulk, so per-key
+// fine-grained reactivity would just mean Solid allocating a signal for every
+// single name the moment anything iterates the full list (e.g. the emoji
+// picker's search index) — `loaded` below is the only reactive signal needed.
+let emojiUrls: Record<string, string | null> = {};
 const [loaded, setLoaded] = createStore({ value: false });
 
 let emojiLoadPromise: Promise<void> | null = null;
@@ -16,7 +21,7 @@ export function loadCustomEmoji(): Promise<void> {
   if (!emojiLoadPromise) {
     emojiLoadPromise = fetchAllEmoji()
       .then((map) => {
-        setEmojiUrls(map);
+        emojiUrls = map;
       })
       .catch(() => {
         // Emoji remain usable through their standard Unicode fallbacks.

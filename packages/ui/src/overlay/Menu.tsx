@@ -17,10 +17,13 @@ export interface MenuProps {
 
 // Thin structural wrapper around a trigger + a click-outside/Escape-closeable panel,
 // positioned via FloatingPanel (auto-flip + viewport clamp on both axes). Nesting a
-// <Menu> inside another <Menu>'s children works for free for the trigger/root part —
-// the inner instance's own root ref is contained within the outer's root ref — and the
-// portaled panels are covered too since useClickOutside checks both the root and panel
-// refs of each instance.
+// <Menu> inside another <Menu>'s children works for the trigger/root part for free —
+// the inner instance's own root ref is contained within the outer's root ref. The
+// portaled panel is covered too, but only because FloatingPanel portals into the
+// nearest ancestor panel (via FloatingMountContext) instead of always into
+// document.body — otherwise a click inside a nested panel would land in a DOM
+// subtree the outer instance's useClickOutside can't see, reading as "outside"
+// and closing the whole stack before the click's own handler ever runs.
 export default function Menu(props: MenuProps) {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;

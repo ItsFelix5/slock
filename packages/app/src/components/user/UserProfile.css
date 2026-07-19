@@ -76,6 +76,12 @@
   font-size: 14px;
 }
 
+.user-profile-bio {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .user-profile-meta {
   margin: 10px 0 0;
 }

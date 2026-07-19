@@ -60,6 +60,7 @@ export function createRealtimeSlice(deps: {
     name: string,
     userId: string,
     added: boolean,
+    itemUserId?: string,
   ) => void;
 }) {
   const [rtmConnected, setRtmConnected] = createSignal(false);
@@ -247,6 +248,7 @@ export function createRealtimeSlice(deps: {
               payload.reaction,
               payload.user,
               payload.type === "reaction_added",
+              payload.item_user,
             );
           }
           break;

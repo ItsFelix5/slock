@@ -4,7 +4,16 @@
 // live in an httpOnly cookie the browser set once when the devtools paste was
 // submitted (see submitAuthRequest below) — it auto-attaches to every
 // same-origin request, including this one, so there's no creds plumbing here.
-export async function callSlack(method: string, params: Record<string, string> = {}): Promise<any> {
+type PendingSlackCall<T = any> = {
+  method: string;
+  params: Record<string, string>;
+  resolve: (data: T) => void;
+  reject: (err: unknown) => void;
+};
+let pendingSlackCalls: PendingSlackCall[] = [];
+let slackBatchScheduled = false;
+
+async function postSlack<T = any>(method: string, params: Record<string, string> = {}): Promise<T> {
   const res = await fetch(`/slack/${method}`, {
     body: JSON.stringify(params),
     headers: { "content-type": "application/json" },
@@ -13,13 +22,57 @@ export async function callSlack(method: string, params: Record<string, string> =
   return res.json();
 }
 
+async function flushSlackBatch() {
+  const batch = pendingSlackCalls;
+  pendingSlackCalls = [];
+  slackBatchScheduled = false;
+  if (batch.length === 1) {
+    const [call] = batch;
+    try {
+      call.resolve(await postSlack(call.method, call.params));
+    } catch (err) {
+      call.reject(err);
+    }
+    return;
+  }
+  try {
+    const res = await fetch("/slack/batch", {
+      body: JSON.stringify({
+        calls: batch.map(({ method, params }) => ({ method, params })),
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const data = await res.json();
+    const results: unknown[] = data.results ?? [];
+    batch.forEach((call, i) => {
+      call.resolve(results[i] ?? { error: "batch_failed", ok: false });
+    });
+  } catch (err) {
+    for (const call of batch) call.reject(err);
+  }
+}
+
+export function callSlack<T = any>(
+  method: string,
+  params: Record<string, string> = {},
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    pendingSlackCalls.push({ method, params, reject, resolve });
+    if (!slackBatchScheduled) {
+      slackBatchScheduled = true;
+      queueMicrotask(flushSlackBatch);
+    }
+  });
+}
+
 // Same relay, but for Slack's Edge API cache service — a different host with
 // JSON params (arrays allowed), used where Enterprise Grid blocks the regular
 // Web API method (e.g. channel membership).
-export async function callSlackEdge(
+export async function callSlackEdge<T = any>(
   method: string,
   params: Record<string, unknown> = {},
-): Promise<any> {
+): Promise<T> {
   const res = await fetch(`/slack-edge/${method}`, {
     body: JSON.stringify(params),
     headers: { "content-type": "application/json" },

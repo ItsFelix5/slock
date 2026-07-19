@@ -1,4 +1,7 @@
-import type { Channel } from "@slock/slack-api";
+import type { Channel, ChannelSection, DirectMessage, User } from "@slock/slack-api";
+import type { createKeyedFeedback } from "@slock/ui";
+import type { Accessor, Setter } from "solid-js";
+import type { Nav } from "../../lib/store";
 
 export interface Category {
   channels: Channel[];
@@ -7,6 +10,66 @@ export interface Category {
   name: string;
   reorderable: boolean;
   sidebar: "hid" | "active" | "all";
+}
+
+type KeyedFeedback = ReturnType<typeof createKeyedFeedback>;
+
+export interface SidebarContext {
+  actionFeedback: KeyedFeedback;
+  appDms: Accessor<DirectMessage[]>;
+  appsOpen: Accessor<boolean>;
+  bootstrap: { loading: boolean };
+  categories: Accessor<Category[]>;
+  collapsed: Accessor<Set<string>>;
+  commitRename: () => void;
+  currentUser: Accessor<User | undefined>;
+  deleteChannelSection: (sectionId: string) => Promise<void>;
+  dmsOpen: Accessor<boolean>;
+  expandedSectionIds: Accessor<Set<string>>;
+  draggingSectionId: Accessor<string | null>;
+  dropTarget: Accessor<{ id: string; before: boolean } | null>;
+  feedMaxWidth: number;
+  feedMinWidth: number;
+  feedMode: Accessor<boolean>;
+  feedWidth: Accessor<number>;
+  handleSectionDragEnd: () => void;
+  handleSectionDragLeave: (id: string) => void;
+  handleSectionDragOver: (e: DragEvent, id: string) => void;
+  handleSectionDragStart: (e: DragEvent, id: string) => void;
+  handleSectionDrop: (e: DragEvent) => void;
+  hasUnreadActivity: Accessor<boolean>;
+  unreadPingCount: Accessor<number>;
+  maxWidth: number;
+  minWidth: number;
+  nav: Accessor<Nav>;
+  openUserProfile: (id: string) => void;
+  peopleDms: Accessor<DirectMessage[]>;
+  renameValue: Accessor<string>;
+  renamingId: Accessor<string | null>;
+  setRenamingId: Setter<string | null>;
+  searchOpen: Accessor<boolean>;
+  sectionMenuOpen: Accessor<string | null>;
+  setAppsOpen: Setter<boolean>;
+  setDmsOpen: Setter<boolean>;
+  showAllInCategory: (id: string) => void;
+  setFeedWidth: Setter<number>;
+  setNavView: (next: Nav) => void;
+  setRenameValue: Setter<string>;
+  setSearchOpen: Setter<boolean>;
+  setSectionMenuOpen: Setter<string | null>;
+  setChannelSectionSidebar: (
+    sectionId: string,
+    sidebar: ChannelSection["sidebar"],
+  ) => Promise<void>;
+  setSettingsOpen: Setter<boolean>;
+  settingsOpen: Accessor<boolean>;
+  setUnreadsOnly: Setter<boolean>;
+  setWidth: Setter<number>;
+  startRename: (cat: Category) => void;
+  toggleCategory: (id: string) => void;
+  unreadChannelIds: Record<string, boolean>;
+  unreadsOnly: Accessor<boolean>;
+  width: Accessor<number>;
 }
 export function buildCategories(
   allChannels: Channel[],
@@ -25,13 +88,16 @@ export function buildCategories(
   isChannelStarred: (id: string) => boolean,
   isChannelLeft: (id: string) => boolean,
   isChannelOpen: (id: string) => boolean,
+  isChannelMuted: (id: string) => boolean,
 ): Category[] {
   const visibleChannels = allChannels.filter((c) => !isChannelLeft(c.id));
   // Bootstrap's `unread` value is only an initial snapshot. The reactive map
   // is seeded from it, then receives both additions and clears from Slack and
   // local read actions; consulting the snapshot here would make a cleared
-  // unread impossible to remove from filtered sections.
-  const isUnread = (c: Channel) => !!unreadChannelIds[c.id];
+  // unread impossible to remove from filtered sections. A muted channel
+  // never counts as "unread" for filtering purposes, even with unread
+  // messages, so it drops out of unread-only views instead of lingering.
+  const isUnread = (c: Channel) => !!unreadChannelIds[c.id] && !isChannelMuted(c.id);
   const matches = (c: Channel, sectionId: string, sidebar: Category["sidebar"]) => {
     // Opening a channel clears its unread state. Keep it in the sidebar even
     // when that would otherwise make it disappear from a filtered section.

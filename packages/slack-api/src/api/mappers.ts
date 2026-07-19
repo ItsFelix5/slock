@@ -1,9 +1,158 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive raw-Slack-payload-to-app-type translation layer; splitting it would scatter the mapping logic across files that all need to stay in sync with the same wire format.
-import type { Attachment, Message, MessageKind, SlackFile, User } from "../types";
+// biome-ignore-all lint/style/noExcessiveLinesPerFile lint/style/useNamingConvention: One cohesive raw-Slack-payload-to-app-type translation layer; raw interfaces intentionally mirror Slack snake_case wire fields.
+import type { Block } from "../blocks";
+import type { Attachment, Message, MessageKind, Reaction, SlackFile, User } from "../types";
 import { fileProxyUrl } from "./relay";
 
 const SLACK_USER_ID = "USLACK";
 const SLACK_AVATAR_URL = "/slack-logo.svg";
+
+// Raw wire shapes below are our best understanding of Slack's (partly
+// undocumented) payloads — deliberately all-optional so a missing/renamed
+// field degrades to `undefined` through the mappers' existing `??`/`||`
+// fallbacks instead of throwing.
+export interface RawUserProfile {
+  api_app_id?: string;
+  avatar_hash?: string;
+  bot_id?: string;
+  display_name?: string;
+  email?: string;
+  fields?: Record<string, { alt?: string; value?: string } | undefined>;
+  image_192?: string;
+  image_48?: string;
+  image_72?: string;
+  phone?: string;
+  pronouns?: string;
+  real_name?: string;
+  status_emoji?: string;
+  status_text?: string;
+  team?: string;
+  title?: string;
+}
+
+export interface RawUser {
+  color?: string;
+  id: string;
+  is_bot?: boolean;
+  name?: string;
+  presence?: string;
+  profile?: RawUserProfile;
+  real_name?: string;
+  team_id?: string;
+  tz?: string;
+  tz_label?: string;
+  tz_offset?: number;
+}
+
+export interface RawBot {
+  app_id?: string;
+  icons?: { image_36?: string; image_48?: string; image_72?: string };
+  id: string;
+  name?: string;
+}
+
+export interface RawCountGroup {
+  has_unreads?: boolean | number | string;
+  id?: string;
+  is_unread?: boolean | number | string;
+  last_read?: string;
+  latest?: string;
+  mention_count?: number;
+  mention_count_display?: number;
+  unread_count?: number | null;
+  unread_count_display?: number | null;
+}
+
+export interface RawCounts {
+  channels?: RawCountGroup[];
+  ims?: RawCountGroup[];
+  mpims?: RawCountGroup[];
+  ok?: boolean;
+}
+
+export interface RawFile {
+  audio_wave_samples?: number[];
+  duration?: number;
+  duration_ms?: number;
+  filetype?: string;
+  id: string;
+  mimetype?: string;
+  name?: string;
+  original_h?: number;
+  original_w?: number;
+  permalink?: string;
+  size?: number;
+  thumb_160?: string;
+  thumb_360?: string;
+  thumb_360_h?: number;
+  thumb_360_w?: number;
+  thumb_720?: string;
+  title?: string;
+  transcription?: { preview?: { content?: string; has_more?: boolean } };
+  url_private?: string;
+}
+
+export interface RawAttachment {
+  author_icon?: string;
+  author_name?: string;
+  blocks?: Block[];
+  channel_id?: string;
+  color?: string;
+  fallback?: string;
+  fields?: { short?: boolean; title: string; value: string }[];
+  files?: RawFile[];
+  footer?: string;
+  footer_icon?: string;
+  from_url?: string;
+  id?: number;
+  image_url?: string;
+  is_msg_unfurl?: boolean;
+  is_reply_unfurl?: boolean;
+  pretext?: string;
+  text?: string;
+  title?: string;
+  title_link?: string;
+  ts?: string;
+  video_height?: number;
+  video_url?: string;
+  video_width?: number;
+}
+
+export interface RawMessage {
+  attachments?: RawAttachment[];
+  blocks?: Block[];
+  bot_id?: string;
+  bot_profile?: {
+    icons?: { image_36?: string; image_48?: string; image_72?: string };
+    name?: string;
+  };
+  edited?: unknown;
+  files?: RawFile[];
+  icons?: { image_36?: string; image_48?: string; image_72?: string };
+  is_ephemeral?: boolean;
+  latest_reply?: string;
+  reactions?: Reaction[];
+  reply_count?: number;
+  reply_users?: string[];
+  root?: RawMessage;
+  subscribed?: boolean;
+  subtype?: string;
+  text?: string;
+  thread_ts?: string;
+  ts: string;
+  user?: string;
+  username?: string;
+}
+
+export interface RawChannelSection {
+  channel_ids?: string[];
+  channel_ids_page?: { channel_ids?: string[] };
+  channel_section_id?: string;
+  channels?: string[];
+  id?: string;
+  name?: string;
+  sidebar?: string;
+  type?: string;
+}
 
 function colorFromHex(hex: string | undefined) {
   return hex ? `#${hex}` : "#616061";
@@ -22,14 +171,14 @@ function tzLabelFromOffset(seconds: number | undefined): string | undefined {
 // The self object in client.userBoot (unlike regular users.list members) carries no
 // profile.image_* URLs at all — just an avatar_hash — so the current user's own avatar
 // has to be built from Slack's CDN URL convention instead of read off the profile directly.
-function avatarUrlFromHash(raw: any): string | undefined {
+function avatarUrlFromHash(raw: RawUser): string | undefined {
   const hash = raw.profile?.avatar_hash;
   const team = raw.profile?.team ?? raw.team_id;
   if (!(hash && team)) return;
   return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
 }
 
-export function mapUser(raw: any): User {
+export function mapUser(raw: RawUser): User {
   const isSlack = raw.id === SLACK_USER_ID;
   const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
   const rawFields = raw.profile?.fields ?? {};
@@ -43,15 +192,17 @@ export function mapUser(raw: any): User {
       raw.profile?.image_48 ||
       avatarUrlFromHash(raw);
   return {
+    appId: raw.profile?.api_app_id || undefined,
     avatarColor: isSlack ? "transparent" : colorFromHex(raw.color),
     avatarUrl,
+    botId: raw.profile?.bot_id || undefined,
     customFields: customFields.length ? customFields : undefined,
     email: raw.profile?.email || undefined,
     id: raw.id,
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
     // Slack's API never sets is_bot for it — flag it by id instead.
     isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
-    name,
+    name: name ?? "",
     phone: raw.profile?.phone || undefined,
     presence: raw.presence === "away" ? "away" : "active",
     pronouns: raw.profile?.pronouns || undefined,
@@ -63,14 +214,16 @@ export function mapUser(raw: any): User {
   };
 }
 
-export function mapBot(raw: any): User {
+export function mapBot(raw: RawBot): User {
   const rawIcon = raw.icons?.image_72 ?? raw.icons?.image_48 ?? raw.icons?.image_36;
   return {
+    appId: raw.app_id || undefined,
     avatarColor: "#616061",
     avatarUrl: rawIcon ? fileProxyUrl(rawIcon) : undefined,
+    botId: raw.id,
     id: raw.id,
     isBot: true,
-    name: raw.name,
+    name: raw.name ?? "",
     presence: "active",
   };
 }
@@ -81,7 +234,9 @@ export function mapBot(raw: any): User {
 // anything that doesn't match just falls through to "not unread" for that entry
 // rather than throwing, since this is read-only enhancement, not something that
 // should ever fail bootstrap or drop a socket message over.
-function parseCountGroup(g: any): { id: string; unread: boolean; mentions: number } | null {
+function parseCountGroup(
+  g: RawCountGroup,
+): { id: string; unread: boolean; mentions: number } | null {
   if (!g?.id) return null;
   // Slack's raw counters/has_unreads flag can include activity it deliberately
   // omits from the sidebar (join/leave messages, for example). Prefer the
@@ -98,7 +253,9 @@ function parseCountGroup(g: any): { id: string; unread: boolean; mentions: numbe
   return { id: g.id, mentions, unread };
 }
 
-function mapCountGroups(groups: any[]): Record<string, { unread: boolean; mentions: number }> {
+function mapCountGroups(
+  groups: RawCountGroup[],
+): Record<string, { unread: boolean; mentions: number }> {
   const map: Record<string, { unread: boolean; mentions: number }> = {};
   for (const g of groups) {
     const parsed = parseCountGroup(g);
@@ -107,7 +264,9 @@ function mapCountGroups(groups: any[]): Record<string, { unread: boolean; mentio
   return map;
 }
 
-export function buildUnreadMap(counts: any): Record<string, { unread: boolean; mentions: number }> {
+export function buildUnreadMap(
+  counts: RawCounts | undefined,
+): Record<string, { unread: boolean; mentions: number }> {
   if (!counts?.ok) return {};
   return mapCountGroups([
     ...(counts.channels ?? []),
@@ -120,7 +279,7 @@ export function buildUnreadMap(counts: any): Record<string, { unread: boolean; m
 // but we've seen it both nested under a top-level "badges" object and flattened
 // at the top level, so check both rather than betting on one.
 export function parseBadgeCounts(
-  payload: any,
+  payload: (RawCounts & { badges?: RawCounts }) | undefined,
 ): Record<string, { unread: boolean; mentions: number }> {
   const source = payload?.badges ?? payload ?? {};
   return mapCountGroups([
@@ -183,7 +342,7 @@ export const HIDE_SUBTYPES = new Set([
   "reply_broadcast",
 ]);
 
-function mapFile(f: any): SlackFile {
+function mapFile(f: RawFile): SlackFile {
   const mimetype: string | undefined = f.mimetype;
   return {
     // Voice messages report length as duration_ms; other files (if ever) as duration.
@@ -209,13 +368,13 @@ function mapFile(f: any): SlackFile {
     // navigation, which does send Slack's SameSite cookie) and as an <img>/
     // <video> subresource src (which doesn't) — callers that need the latter
     // wrap it with fileProxyUrl themselves.
-    urlPrivate: f.url_private,
+    urlPrivate: f.url_private ?? "",
     waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
     width: f.thumb_360_w ?? f.original_w,
   };
 }
 
-function mapAttachment(a: any): Attachment {
+function mapAttachment(a: RawAttachment): Attachment {
   return {
     authorIcon: a.author_icon ? fileProxyUrl(a.author_icon) : undefined,
     authorName: a.author_name,
@@ -243,7 +402,7 @@ function mapAttachment(a: any): Attachment {
   };
 }
 
-export function mapMessage(m: any): Message {
+export function mapMessage(m: RawMessage): Message {
   const subtype: string | undefined = m.subtype;
   const kind: MessageKind = subtype && SYSTEM_SUBTYPES.has(subtype) ? "system" : "normal";
   return {
@@ -278,7 +437,7 @@ export function mapMessage(m: any): Message {
     reactions: m.reactions,
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
-    text: m.text,
+    text: m.text ?? "",
     threadRoot: m.root ? mapMessage(m.root) : undefined,
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     time: formatTime(m.ts),
@@ -287,15 +446,17 @@ export function mapMessage(m: any): Message {
   };
 }
 
-export function extractChannelSections(data: any):
-  | {
-      id: string;
-      name: string;
-      channelIds: string[];
-      sidebar: "hid" | "active" | "all";
-      type: string;
-    }[]
-  | null {
+interface ChannelSectionSummary {
+  channelIds: string[];
+  id: string;
+  name: string;
+  sidebar: "hid" | "active" | "all";
+  type: string;
+}
+
+export function extractChannelSections(
+  data: { channel_sections?: RawChannelSection[] } | undefined,
+): ChannelSectionSummary[] | null {
   const raw = data?.channel_sections;
   if (!Array.isArray(raw)) return null;
   // Slack always includes built-in pseudo-sections alongside real ones —
@@ -309,12 +470,12 @@ export function extractChannelSections(data: any):
   // section *membership* (move a channel in/out) must filter to "standard"
   // themselves, since that operation is meaningless for the pseudo-sections.
   return raw
-    .map((s: any) => ({
+    .map((s) => ({
       channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
       id: s.channel_section_id ?? s.id ?? s.name,
       name: s.name ?? "Section",
-      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : "hid",
+      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : ("hid" as const),
       type: s.type ?? "standard",
     }))
-    .filter((s: any) => s.id);
+    .filter((s): s is ChannelSectionSummary => !!s.id);
 }

@@ -3,6 +3,7 @@ import { createEffect, createMemo, For, Show } from "solid-js";
 import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
+import { jumpToMessageInContainer } from "./scrollAnchor";
 
 const NEAR_BOTTOM_PX = 120;
 const NEAR_TOP_PX = 200;
@@ -111,6 +112,10 @@ export default function MessageList() {
       // we've fetched. Pull a few more pages so it lands with some read
       // context above it instead of pinned to the top of an arbitrary page.
       const anchor = store.unread.unreadDividerTsForChannel(view.id);
+      // Not anchored yet — wait rather than landing early, since treating
+      // "unknown" as "already loaded" here would skip backfilling far enough
+      // back to ever contain the real divider position.
+      if (anchor === undefined) return;
       const readCursorNotYetLoaded = parseFloat(msgs[0].ts) * 1000 > anchor;
       const attempts = backfillAttempts[view.id] ?? 0;
       if (
@@ -156,11 +161,7 @@ export default function MessageList() {
   }
 
   function jumpToMessage(ts: string) {
-    const el = scrollRef?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("message-flash");
-    setTimeout(() => el.classList.remove("message-flash"), 1500);
+    if (scrollRef) jumpToMessageInContainer(scrollRef, ts);
   }
 
   createEffect(() => {
@@ -208,9 +209,7 @@ export default function MessageList() {
               >
                 <Show when={store.messages.hasMoreHistory(v().id)}>
                   <div class="message-list-loading-older">
-                    <Show when={store.messages.isLoadingHistory(v().id)}>
-                      Loading earlier messages…
-                    </Show>
+                    <Show when={store.messages.isLoadingHistory(v().id)}>Loading messages…</Show>
                   </div>
                 </Show>
                 <Show when={!store.messages.hasMoreHistory(v().id)}>

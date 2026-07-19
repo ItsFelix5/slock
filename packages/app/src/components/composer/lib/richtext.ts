@@ -1,4 +1,4 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to rich-text transformations.
+// biome-ignore-all lint/performance/useTopLevelRegex lint/style/noExcessiveLinesPerFile: These expressions are local to one cohesive rich-text transformation module.
 import {
   DEFAULT_DATE_FORMAT,
   emojiUrl,

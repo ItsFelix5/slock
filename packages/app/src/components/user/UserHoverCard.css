@@ -105,6 +105,13 @@
   gap: 6px;
 }
 
+.user-hovercard-bio {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 .user-hovercard-meta {
   gap: 6px;
 }

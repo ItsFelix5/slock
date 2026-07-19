@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: Keys intentionally match ActivityItem kind strings.
 import type { ActivityItem } from "@slock/slack-api";
 import type { IconName } from "@slock/ui";
 

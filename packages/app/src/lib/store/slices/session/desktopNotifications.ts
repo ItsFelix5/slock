@@ -53,7 +53,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     isChannelMuted: (id: string) => boolean;
     isDndActive: () => boolean;
     activeView: () => { kind: string; id: string } | null;
-    openChannelPeek: (channelId: string, ts: string) => void;
+    openChannelPeek: (channelId: string, ts: string, highlightTs?: string) => void;
   }) {
     if (!supported) return;
 
@@ -70,7 +70,11 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
       });
       notification.onclick = () => {
         window.focus();
-        deps.openChannelPeek(item.channelId, item.threadTs ?? item.ts);
+        deps.openChannelPeek(
+          item.channelId,
+          item.threadTs ?? item.ts,
+          item.threadTs ? item.ts : undefined,
+        );
         notification.close();
       };
     }

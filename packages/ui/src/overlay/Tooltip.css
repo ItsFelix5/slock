@@ -1,6 +1,7 @@
 .tooltip-anchor {
   display: inline-flex;
   max-width: 100%;
+  vertical-align: middle;
 }
 
 .tooltip-bubble {

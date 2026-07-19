@@ -80,7 +80,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
                 class="zoomable-image-lens"
                 style={{
                   "background-image": `url(${props.src})`,
-                  "background-position": `-${pos().x * LENS_ZOOM - LENS_SIZE / 2}px -${pos().y * LENS_ZOOM - LENS_SIZE / 2}px`,
+                  "background-position": `${LENS_SIZE / 2 - pos().x * LENS_ZOOM}px ${LENS_SIZE / 2 - pos().y * LENS_ZOOM}px`,
                   "background-size": `${(rect()?.width ?? 0) * LENS_ZOOM}px ${(rect()?.height ?? 0) * LENS_ZOOM}px`,
                   height: `${LENS_SIZE}px`,
                   left: `${pos().x - LENS_SIZE / 2}px`,

@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive channel entity slice with shared optimistic section state.
 import type { BrowsableChannel, Channel, ChannelSection } from "@slock/slack-api";
 import {
   createSection as apiCreateSection,
@@ -62,22 +63,29 @@ export function createChannelsSlice(deps: {
     setChannelPatches(id, { ...channelPatches[id], ...patch });
   }
 
+  // conversations.info resolves public channels fine even when we're not a
+  // member; it only fails for private channels we're not in, which is the
+  // one case Flaron (an external, unauthenticated lookup) is for.
+  async function discoverChannel(id: string) {
+    let channel: Channel | null;
+    try {
+      const details = await fetchChannelDetails(id);
+      channel = {
+        id: details.id,
+        name: details.name,
+        private: details.private,
+        topic: details.topic,
+        unread: false,
+      };
+    } catch {
+      channel = await fetchFlaronChannel(id);
+    }
+    if (channel) setDiscoveredChannels(produce((list) => list.push(channel)));
+  }
+
   function channelById(id: string): Channel | undefined {
     const known = channels().find((c) => c.id === id);
-    if (known) {
-      // client.userBoot can omit topic metadata for a channel. Resolve it lazily
-      // from the authenticated conversations.info response when the UI asks for
-      // that channel, then patch the reactive channel snapshot.
-      if (!(known.topic || channelDetailsRequested.has(id))) {
-        channelDetailsRequested.add(id);
-        fetchChannelDetails(id)
-          .then((details) => {
-            if (details.topic) patchChannel(id, { topic: details.topic });
-          })
-          .catch(() => {});
-      }
-      return known;
-    }
+    if (known) return known;
     const discovered = discoveredChannels.find((c) => c.id === id);
     if (discovered) return discovered;
     // Bootstrap hasn't resolved yet, so we can't tell a genuinely external
@@ -86,14 +94,29 @@ export function createChannelsSlice(deps: {
     if (!deps.bootstrap()) return;
     if (!pendingChannels.has(id)) {
       pendingChannels.add(id);
-      fetchFlaronChannel(id)
-        .then((channel) => {
-          if (channel) setDiscoveredChannels(produce((list) => list.push(channel)));
-        })
-        .catch(() => {
-          pendingChannels.delete(id);
-        });
+      discoverChannel(id).catch(() => {
+        pendingChannels.delete(id);
+      });
     }
+  }
+
+  // client.userBoot can omit topic metadata for a channel. Resolve it lazily
+  // from the authenticated conversations.info response, then patch the
+  // reactive channel snapshot. Only called from the couple of places that
+  // actually display a topic (channel header, #mention hover card) - not
+  // from channelById itself, which is called for every channel referenced
+  // anywhere in the UI (message lists, activity feed, etc.) and would
+  // otherwise fire a conversations.info burst for channels that never show
+  // their topic.
+  function ensureChannelTopic(id: string): void {
+    const known = channels().find((c) => c.id === id);
+    if (!known || known.topic || channelDetailsRequested.has(id)) return;
+    channelDetailsRequested.add(id);
+    fetchChannelDetails(id)
+      .then((details) => {
+        if (details.topic) patchChannel(id, { topic: details.topic });
+      })
+      .catch(() => {});
   }
 
   function isChannelMember(id: string): boolean {
@@ -318,6 +341,7 @@ export function createChannelsSlice(deps: {
     channels,
     createChannelSection,
     deleteChannelSection,
+    ensureChannelTopic,
     isChannelLeft,
     isChannelMember,
     isChannelStarred,

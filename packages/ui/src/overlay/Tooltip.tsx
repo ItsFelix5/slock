@@ -6,6 +6,7 @@ import "./Tooltip.css";
 export interface TooltipProps {
   align?: "start" | "center" | "end";
   children: JSX.Element;
+  class?: string;
   content: JSX.Element;
   disabled?: boolean;
   placement?: VerticalPlacement;
@@ -21,7 +22,7 @@ export default function Tooltip(props: TooltipProps) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the actual interactive control is whatever's passed as children
     <span
-      class="tooltip-anchor"
+      class={`tooltip-anchor${props.class ? ` ${props.class}` : ""}`}
       onFocusIn={() => showable() && scheduleOpen()}
       onFocusOut={scheduleClose}
       onMouseEnter={() => showable() && scheduleOpen()}

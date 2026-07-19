@@ -3,12 +3,7 @@
 - channel tabs
 - canvas
 - video player
-- You aren't a member of D0BHHDXTECQ in activity
 - Dates
 - Move dms
 - search.autocomplete has search history ({suggestions:{text[]}}) and
-- zoom acting up
-- Half italic emojis
-- hidden channels
-- mail
-- edit pinggroups
+- mail & pdf

@@ -10,6 +10,8 @@ export {
   formatSlackDateTokens,
 } from "./dateFormat";
 export { default as EmojiText } from "./emoji/EmojiText";
+export type { StandardEmoji } from "./emoji/emoji";
+export { standardEmojiEntries } from "./emoji/emoji";
 // Used both internally (EmojiText) and directly by apps/web's EmojiPicker, so these
 // need to be public API, not just internal implementation details.
 export { customEmojiNames, emojiUrl, isEmojiLoaded, loadCustomEmoji } from "./emoji/emojiCache";

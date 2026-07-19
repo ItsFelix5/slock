@@ -56,14 +56,18 @@ export function createAppActions(deps: AppActionsDeps) {
 
   function openChannelMessage(channelId: string, ts: string) {
     const kind = dms.dmById(channelId) ? "dm" : "channel";
-    // Batched so effects reacting to channelMessageTarget never observe the
-    // in-between state where setActiveView has cleared it but the real
-    // target hasn't landed yet — that gap was enough to make MessageList's
-    // positioning effect think it already handled this view, breaking the
-    // jump to a message that isn't loaded yet.
+    // "View in channel" — jumps the main list to the message without closing
+    // the thread panel, so this can't go through setActiveView (it clears
+    // activeThread as part of a normal channel switch). Batched so effects
+    // reacting to channelMessageTarget never observe the in-between state
+    // where the view has switched but the real target hasn't landed yet —
+    // that gap was enough to make MessageList's positioning effect think it
+    // already handled this view, breaking the jump to a message that isn't
+    // loaded yet.
     batch(() => {
-      closeThread();
-      setActiveView({ id: channelId, kind });
+      viewState.setSelected({ id: channelId, kind });
+      unread.clearChannelUnread(channelId);
+      if (kind === "dm" && dms.closedDmIds[channelId]) dms.setClosedDmIds(channelId, false);
       viewState.setChannelMessageTarget({ channelId, ts });
     });
   }

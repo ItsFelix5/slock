@@ -3,6 +3,7 @@ import {
   setPresence as apiSetPresence,
   setProfileFields as apiSetProfileFields,
   setStatus as apiSetStatus,
+  fetchAppDescription,
   fetchUser,
   searchDirectory,
 } from "@slock/slack-api";
@@ -18,6 +19,10 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
   );
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
   const [profileUserId, setProfileUserId] = createSignal<string | null>(null);
+  // Keyed by app id (not user id) — every bot user of the same app shares one
+  // description, so this dedupes the apps.profile.get fetch across them.
+  const [botBios, setBotBios] = createStore<Record<string, string>>({});
+  const pendingBotBios = new Set<string>();
 
   // Every user ever resolved this session — via userById's lazy fetchUser,
   // searchUsers' remote matches, or an invalidateUser refresh. There's no bootstrap
@@ -95,6 +100,21 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
     return { ...base, ...(presence ? { presence } : {}), ...(status ?? {}) };
   }
 
+  function botBio(appId: string | undefined, botId: string | undefined): string | undefined {
+    if (!(appId && botId)) return;
+    const known = botBios[appId];
+    if (known || pendingBotBios.has(appId)) return known;
+    pendingBotBios.add(appId);
+    fetchAppDescription(appId, botId)
+      .then((description) => {
+        if (description) setBotBios(appId, description);
+      })
+      .catch(() => {
+        pendingBotBios.delete(appId);
+      });
+    return known;
+  }
+
   function openUserProfile(id: string) {
     setProfileUserId(id);
   }
@@ -168,6 +188,7 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
   }
 
   return {
+    botBio,
     clearMyStatus,
     closeUserProfile,
     currentUser,

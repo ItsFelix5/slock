@@ -82,23 +82,44 @@ async function parseSlackResponse(res: Response): Promise<any> {
   }
 }
 
+const SLACK_CALL_TIMEOUT_MS = 15_000;
+
+function slackRequestBody(method: string, params: Record<string, string>, token: string) {
+  if (method === "messages.list" && params.message_ids) {
+    const body = new FormData();
+    body.append("token", token);
+    for (const [key, value] of Object.entries(params)) body.append(key, value);
+    return { body, headers: {} };
+  }
+  const body = new URLSearchParams({ token, ...params });
+  return {
+    body: body.toString(),
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+  };
+}
+
 export async function callSlack(
   method: string,
   params: Record<string, string>,
   creds: Credentials | null,
 ): Promise<any> {
   if (!creds) return { error: "not_configured", ok: false };
-  const body = new URLSearchParams({ token: creds.token, ...params });
+  const { body, headers } = slackRequestBody(method, params, creds.token);
   const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
-  const res = await fetch(url, {
-    body: body.toString(),
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-      cookie: slackCookieHeader(creds),
-    },
-    method: "POST",
-  });
-  return parseSlackResponse(res);
+  try {
+    const res = await fetch(url, {
+      body,
+      headers: {
+        ...headers,
+        cookie: slackCookieHeader(creds),
+      },
+      method: "POST",
+      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
+    });
+    return parseSlackResponse(res);
+  } catch {
+    return { error: "upstream_timeout", ok: false };
+  }
 }
 export const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
 function authResponse(raw: string, secure: boolean): Response {
@@ -134,6 +155,19 @@ async function slackRelayResponse(
   const data = await callSlack(method, params, creds);
   return new Response(JSON.stringify(data), { headers: cors });
 }
+// The browser-side callSlack coalesces every call issued within the same
+// microtask (e.g. the handful of independent boot-time fetches) into one of
+// these instead of one relay round trip each — the calls themselves still
+// hit Slack individually (in parallel), only the browser<->relay hop shrinks.
+async function slackBatchRelayResponse(
+  calls: { method: string; params?: Record<string, string> }[],
+  creds: Credentials | null,
+): Promise<Response> {
+  const results = await Promise.all(
+    calls.map((call) => callSlack(call.method, call.params ?? {}, creds)),
+  );
+  return new Response(JSON.stringify({ results }), { headers: cors });
+}
 async function callSlackEdge(
   method: string,
   params: Record<string, unknown>,
@@ -141,14 +175,19 @@ async function callSlackEdge(
 ) {
   if (!creds) return { error: "not_configured", ok: false };
   const [enterpriseId] = creds.route.split(":");
-  const res = await fetch(`https://edgeapi.slack.com/cache/${enterpriseId}/${method}`, {
-    // Cache endpoints use the same browser-session credentials, including the
-    // enterprise token, regardless of the resource being requested.
-    body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
-    headers: { "content-type": "application/json", cookie: slackCookieHeader(creds) },
-    method: "POST",
-  });
-  return parseSlackResponse(res);
+  try {
+    const res = await fetch(`https://edgeapi.slack.com/cache/${enterpriseId}/${method}`, {
+      // Cache endpoints use the same browser-session credentials, including the
+      // enterprise token, regardless of the resource being requested.
+      body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
+      headers: { "content-type": "application/json", cookie: slackCookieHeader(creds) },
+      method: "POST",
+      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
+    });
+    return parseSlackResponse(res);
+  } catch {
+    return { error: "upstream_timeout", ok: false };
+  }
 }
 async function slackEdgeRelayResponse(
   method: string,
@@ -170,6 +209,12 @@ export async function routeRelayRequest(
     buffer(): Promise<Uint8Array>;
   },
 ): Promise<Response | null> {
+  if (method === "POST" && pathname === "/slack/batch") {
+    const payload = (await body.json()) as {
+      calls?: { method: string; params?: Record<string, string> }[];
+    };
+    return slackBatchRelayResponse(payload.calls ?? [], creds);
+  }
   if (method === "POST" && pathname.startsWith("/slack/")) {
     const slackMethod = pathname.slice("/slack/".length);
     if (!slackMethod) return new Response("missing method", { status: 400 });

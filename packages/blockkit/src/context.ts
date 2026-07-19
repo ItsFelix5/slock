@@ -18,6 +18,7 @@ export interface BlockKitMentionInfo {
 export interface BlockKitResolver {
   onChannelClick(id: string): void;
   onUserClick(id: string): void;
+  onUsergroupClick(id: string): void;
   resolveChannel(id: string): BlockKitMentionInfo | undefined;
   resolveUser(id: string): BlockKitMentionInfo | undefined;
   resolveUsergroup(id: string): BlockKitMentionInfo | undefined;
@@ -30,11 +31,14 @@ export interface BlockKitResolver {
   wrapLink?(url: string, trigger: JSX.Element): JSX.Element;
   // Same as wrapChannelMention, for @user mentions.
   wrapUserMention?(id: string, trigger: JSX.Element): JSX.Element;
+  // Same as wrapChannelMention, for @usergroup mentions.
+  wrapUsergroupMention?(id: string, trigger: JSX.Element): JSX.Element;
 }
 
 const defaultNoopResolver: BlockKitResolver = {
   onChannelClick: () => {},
   onUserClick: () => {},
+  onUsergroupClick: () => {},
   resolveChannel: () => undefined,
   resolveUser: () => undefined,
   resolveUsergroup: () => undefined,

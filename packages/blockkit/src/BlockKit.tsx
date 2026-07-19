@@ -1,4 +1,13 @@
-import type { Block } from "@slock/slack-api";
+import type {
+  ActionsBlock,
+  Block,
+  ContextBlock,
+  HeaderBlock,
+  ImageBlock,
+  InputBlock,
+  RichTextBlock,
+  SectionBlock,
+} from "@slock/slack-api";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
 import Actions from "./blocks/Actions";
 import Context from "./blocks/Context";
@@ -26,28 +35,28 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
   return (
     <Switch fallback={<div class="bk-unsupported">[unsupported block: {props.block.type}]</div>}>
       <Match when={props.block.type === "section"}>
-        <Section block={props.block as any} context={props.context} />
+        <Section block={props.block as SectionBlock} context={props.context} />
       </Match>
       <Match when={props.block.type === "divider"}>
         <Divider />
       </Match>
       <Match when={props.block.type === "header"}>
-        <Header block={props.block as any} />
+        <Header block={props.block as HeaderBlock} />
       </Match>
       <Match when={props.block.type === "context"}>
-        <Context block={props.block as any} />
+        <Context block={props.block as ContextBlock} />
       </Match>
       <Match when={props.block.type === "image"}>
-        <Image block={props.block as any} />
+        <Image block={props.block as ImageBlock} />
       </Match>
       <Match when={props.block.type === "actions"}>
-        <Actions block={props.block as any} context={props.context} />
+        <Actions block={props.block as ActionsBlock} context={props.context} />
       </Match>
       <Match when={props.block.type === "input"}>
-        <Input block={props.block as any} />
+        <Input block={props.block as InputBlock} />
       </Match>
       <Match when={props.block.type === "rich_text"}>
-        <RichText block={props.block as any} trailing={props.trailing} />
+        <RichText block={props.block as RichTextBlock} trailing={props.trailing} />
       </Match>
     </Switch>
   );
@@ -62,7 +71,7 @@ export default function BlockKit(props: {
     const { blocks } = props;
     const lastBlock = blocks.at(-1);
     if (lastBlock?.type !== "rich_text") return false;
-    const { elements } = lastBlock as any;
+    const { elements } = lastBlock as RichTextBlock;
     return elements.at(-1)?.type === "rich_text_section";
   };
 

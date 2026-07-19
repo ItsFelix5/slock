@@ -1,5 +1,5 @@
 import type { Channel, DirectMessage, User } from "../../types";
-import { buildUnreadMap, mapUser } from "../mappers";
+import { buildUnreadMap, mapUser, type RawCounts, type RawUser } from "../mappers";
 import { callSlack } from "../relay";
 
 export interface Bootstrap {
@@ -8,6 +8,41 @@ export interface Bootstrap {
   directMessages: DirectMessage[];
   lastReadByChannel: Record<string, number>;
   starredChannelIds: string[];
+}
+
+interface RawBootChannel {
+  id: string;
+  is_channel?: boolean;
+  is_group?: boolean;
+  is_private?: boolean;
+  name?: string;
+  topic?: string | { value?: string };
+}
+
+interface RawBootIm {
+  created?: number;
+  id: string;
+  is_open?: boolean;
+  updated?: number;
+  user?: string;
+}
+
+interface RawBootMpim {
+  created?: number;
+  id: string;
+  is_open?: boolean;
+  members?: string[];
+  updated?: number;
+}
+
+interface RawBoot {
+  channels?: RawBootChannel[];
+  error?: string;
+  ims?: RawBootIm[];
+  mpims?: RawBootMpim[];
+  ok?: boolean;
+  self?: RawUser;
+  starred?: (string | { channel?: string; id?: string })[];
 }
 
 export async function fetchBootstrap(): Promise<Bootstrap> {
@@ -21,8 +56,8 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   // live directory search), so it only added latency without actually removing any
   // of those fetches.
   const [boot, counts] = await Promise.all([
-    callSlack("client.userBoot"),
-    callSlack("client.counts").catch(() => ({ ok: false })),
+    callSlack<RawBoot>("client.userBoot"),
+    callSlack<RawCounts>("client.counts").catch((): RawCounts => ({ ok: false })),
   ]);
   if (!boot?.ok) throw new Error(boot?.error ?? "client.userBoot failed");
 
@@ -33,29 +68,31 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   const lastReadByChannel: Record<string, number> = {};
   for (const list of [counts?.channels, counts?.ims, counts?.mpims]) {
     for (const c of list ?? []) {
-      const ts = parseFloat(c.last_read);
-      if (ts) lastReadByChannel[c.id] = ts * 1000;
+      const ts = parseFloat(c.last_read ?? "");
+      if (ts && c.id) lastReadByChannel[c.id] = ts * 1000;
     }
   }
 
-  const rawChannels: any[] = boot.channels ?? [];
+  const rawChannels: RawBootChannel[] = boot.channels ?? [];
   const channels: Channel[] = rawChannels
     .filter((c) => c.is_channel || c.is_group)
     .map((c) => ({
       id: c.id,
       mentions: unreadMap[c.id]?.mentions || undefined,
-      name: c.name,
+      name: c.name ?? c.id,
       private: !!c.is_private,
       topic: typeof c.topic === "string" ? c.topic : (c.topic?.value ?? ""),
       unread: !!unreadMap[c.id]?.unread,
     }));
 
-  const countsIms: any[] = counts?.ims ?? [];
+  const countsIms = counts?.ims ?? [];
   const latestByIm = new Map(
-    countsIms.map((c) => [c.id, parseFloat(c.latest) * 1000 || undefined]),
+    countsIms
+      .filter((c): c is typeof c & { id: string } => !!c.id)
+      .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
 
-  const rawIms: any[] = boot.ims ?? [];
+  const rawIms: RawBootIm[] = boot.ims ?? [];
   // Slack only flips is_open to true once a client has locally "opened" the
   // conversation, but a DM can already have real unread activity (per client.counts)
   // before that happens — e.g. someone's first message to you. Surface it either way.
@@ -77,29 +114,32 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   // here. Modeled as a DirectMessage with memberIds instead of a single
   // userId so the rest of the app (sidebar, unread tracking, activity
   // classification) already understands it without a parallel code path.
-  const countsMpims: any[] = counts?.mpims ?? [];
+  const countsMpims = counts?.mpims ?? [];
   const latestByMpim = new Map(
-    countsMpims.map((c) => [c.id, parseFloat(c.latest) * 1000 || undefined]),
+    countsMpims
+      .filter((c): c is typeof c & { id: string } => !!c.id)
+      .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
-  const rawMpims: any[] = boot.mpims ?? [];
+  const rawMpims: RawBootMpim[] = boot.mpims ?? [];
   const multiPersonDms: DirectMessage[] = rawMpims
     .filter((g) => g.is_open && Array.isArray(g.members))
     .map((g) => ({
       id: g.id,
       lastActivity:
         latestByMpim.get(g.id) || g.updated || (g.created ? g.created * 1000 : undefined),
-      memberIds: (g.members as string[]).filter((id) => id !== boot.self?.id),
+      memberIds: (g.members ?? []).filter((id) => id !== boot.self?.id),
       unread: !!unreadMap[g.id]?.unread,
     }));
 
   const directMessages: DirectMessage[] = [...oneToOneDms, ...multiPersonDms];
 
+  if (!boot.self) throw new Error("client.userBoot response missing self");
   const currentUser = mapUser(boot.self);
 
-  const rawStarred: any[] = boot.starred ?? [];
+  const rawStarred: (string | { channel?: string; id?: string })[] = boot.starred ?? [];
   const starredChannelIds: string[] = rawStarred
     .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
-    .filter(Boolean);
+    .filter((id): id is string => !!id);
 
   return { channels, currentUser, directMessages, lastReadByChannel, starredChannelIds };
 }

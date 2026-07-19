@@ -37,6 +37,7 @@ export function createReactionEvents(deps: {
     name: string,
     userId: string,
     added: boolean,
+    itemUserId?: string,
   ) {
     const locations = deps.findAllMessageLocations(channel, ts);
     const msg = locations[0]?.list.find((m) => m.ts === ts);
@@ -69,9 +70,10 @@ export function createReactionEvents(deps: {
       if (msg.userId === me.id) pushReactionActivity(channel, ts, name, userId, msg);
       return;
     }
-    // Message isn't loaded locally (channel not currently open) — only
-    // reactions on your own messages are activity-worthy, so fetch it just to
-    // check ownership rather than dropping the event entirely.
+    // Message isn't loaded locally (channel not currently open). The gateway
+    // event already tells us who owns the item, so only fetch the full
+    // message (for text/threadTs) when it's actually ours to report.
+    if (itemUserId !== undefined && itemUserId !== me.id) return;
     fetchPermalinkMessage(channel, ts, ts)
       .then((fetched) => {
         if (fetched && fetched.userId === me.id)

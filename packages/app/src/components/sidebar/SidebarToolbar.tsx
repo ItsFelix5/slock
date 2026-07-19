@@ -3,8 +3,19 @@ import { Show } from "solid-js";
 import GlobalSearch from "../search/GlobalSearch";
 import Settings from "../settings/Settings";
 import DndButton from "./dnd/DndButton";
+import type { SidebarContext } from "./sidebarCategories";
 
-export default function SidebarToolbar(props: any) {
+type SidebarToolbarProps = Pick<
+  SidebarContext,
+  | "currentUser"
+  | "openUserProfile"
+  | "searchOpen"
+  | "setSearchOpen"
+  | "setSettingsOpen"
+  | "settingsOpen"
+>;
+
+export default function SidebarToolbar(props: SidebarToolbarProps) {
   return (
     <>
       <div class="sidebar-top flex-align-center">

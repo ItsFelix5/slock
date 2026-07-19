@@ -2,7 +2,7 @@
 .composer {
   flex-shrink: 0;
   padding: 4px 4px 4px 8px;
-  margin: 0 10px 10px;
+  margin: 10px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-16);
@@ -65,10 +65,13 @@
   padding-right: 26px;
   margin-top: 0;
 }
-.composer-link-preview-remove {
+.composer-link-preview-remove-anchor {
   position: absolute;
   top: 6px;
   right: 6px;
+}
+
+.composer-link-preview-remove {
   width: 20px;
   height: 20px;
   font-size: 11px;

@@ -1,6 +1,6 @@
 import type { ActivityItem } from "@slock/slack-api";
 import { Icon, type IconName, Tooltip } from "@slock/ui";
-import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
@@ -41,7 +41,12 @@ export default function ActivityView() {
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
-  onMount(() => store.activity.ensureActivityLoaded());
+  // On a hard refresh landing straight on /activity, the sidebar mounts
+  // before the bootstrap fetch resolves `currentUser`, so a one-shot onMount
+  // would race it and never retry. Re-run once the user becomes available.
+  createEffect(() => {
+    if (store.users.currentUser()) store.activity.ensureActivityLoaded();
+  });
 
   const rows = createMemo<ActivityRowData[]>(() => {
     const groups = new Map<string, ActivityRowData>();
@@ -106,8 +111,6 @@ export default function ActivityView() {
   const selectedTagLabel = createMemo(
     () => TAG_FILTERS.find((filter) => filter.key === selectedTag())?.label ?? "All activity",
   );
-
-  const goTo = (channelId: string, ts: string) => store.viewState.openChannelPeek(channelId, ts);
 
   return (
     <div class="activity-view">
@@ -196,7 +199,6 @@ export default function ActivityView() {
           <For each={visibleRows()}>
             {(row) => (
               <ActivityRow
-                onOpen={goTo}
                 onReacted={store.activity.markActivityItemsReacted}
                 onSeen={store.activity.markActivityItemsRead}
                 row={row}

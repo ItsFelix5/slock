@@ -42,7 +42,7 @@ export function createUnreadSlice(deps: {
   // position from *before* the current visit marks everything read, so it
   // doesn't vanish the instant you open the channel. Reset when you leave so
   // the next visit re-anchors to whatever's unread by then.
-  const [unreadDividerTs, setUnreadDividerTs] = createStore<Record<string, number>>({});
+  const [unreadDividerTs, setUnreadDividerTs] = createStore<Record<string, number | undefined>>({});
 
   const [lastReadSeeded, setLastReadSeeded] = createSignal(false);
   createEffect(() => {
@@ -96,7 +96,11 @@ export function createUnreadSlice(deps: {
       // up — use a sentinel no message can ever cross, so a message sent or
       // received *during* this visit (including your own) never gets mistaken
       // for "new since last time" and grows a divider above it.
-      const hasUnreadGap = !!latest && parseFloat(latest.ts) * 1000 > lastRead;
+      // lastRead of 0 means Slack has no read cursor at all (channel never
+      // opened before) rather than "read nothing yet" — treat that as caught
+      // up too, so a first-ever open lands on the newest message instead of
+      // backfilling all the way to the channel's start looking for a divider.
+      const hasUnreadGap = !!latest && lastRead > 0 && parseFloat(latest.ts) * 1000 > lastRead;
       const anchor = hasUnreadGap ? lastRead : Infinity;
       setUnreadDividerTs(id, anchor);
       if (import.meta.env.DEV) {
@@ -114,12 +118,16 @@ export function createUnreadSlice(deps: {
 
     // Drop the divider anchor for a channel once you leave it, so the next
     // visit re-anchors to whatever's unread by then instead of reusing a stale
-    // (now fully-read) position.
+    // (now fully-read) position. This clears strictly at leave-time — a moment
+    // that never overlaps with the *next* visit's anchor computation — which is
+    // what lets the mark-as-read effect below use unreadDividerTs's own
+    // undefined/defined state as its gate instead of assuming effect order.
     let previousActiveChannelId: string | undefined;
     createEffect(() => {
       const id = readDeps.activeView()?.id;
       if (previousActiveChannelId && previousActiveChannelId !== id) {
         dividerAnchoredChannels.delete(previousActiveChannelId);
+        setUnreadDividerTs(previousActiveChannelId, undefined);
       }
       previousActiveChannelId = id;
     });
@@ -130,10 +138,20 @@ export function createUnreadSlice(deps: {
     // channel's message list changes, so this also covers a new message
     // arriving while you're already looking at it (the way the real client
     // keeps a channel "seen" live), not just the initial switch.
+    //
+    // Gated on unreadDividerTs already being anchored for this visit: Solid
+    // doesn't guarantee the anchor effect above runs first just because it was
+    // registered first (verified — they can race), and if this effect wins the
+    // race it stamps lastReadByChannel with the *current* latest message before
+    // the anchor effect reads it, making every message look already-read and
+    // permanently hiding the divider. Reading unreadDividerTs here creates a
+    // real reactive dependency, so once the anchor effect sets it this effect
+    // reruns on its own — no ordering assumption needed.
     const lastMarkedReadTs: Record<string, string> = {};
     createEffect(() => {
       const view = readDeps.activeView();
       if (!view) return;
+      if (unreadDividerTs[view.id] === undefined) return;
       const list = readDeps.messagesByChannel[view.id];
       const latest = list?.[list.length - 1];
       if (!latest || latest.id.startsWith("pending-")) return;

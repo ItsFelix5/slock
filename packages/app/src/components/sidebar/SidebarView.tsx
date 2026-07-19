@@ -6,8 +6,9 @@ import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections from "./rows/SidebarDmSections";
 import { SidebarSkeleton } from "./rows/SidebarRows";
 import SidebarToolbar from "./SidebarToolbar";
+import type { SidebarContext } from "./sidebarCategories";
 
-export default function SidebarView({ context }: { context: any }) {
+export default function SidebarView({ context }: { context: SidebarContext }) {
   const {
     feedMode,
     feedWidth,
@@ -28,8 +29,8 @@ export default function SidebarView({ context }: { context: any }) {
     setNavView,
     unreadsOnly,
     setUnreadsOnly,
-    hasUnreadGlow,
-    hasUnreadPing,
+    hasUnreadActivity,
+    unreadPingCount,
     bootstrap,
     categories,
     collapsed,
@@ -99,7 +100,7 @@ export default function SidebarView({ context }: { context: any }) {
           type="button"
         >
           <Icon name="home" size={16} />
-          <Show fallback="Home" when={unreadsOnly()}>
+          <Show fallback="Channels" when={unreadsOnly()}>
             Unread
           </Show>
         </button>
@@ -107,15 +108,16 @@ export default function SidebarView({ context }: { context: any }) {
           class="sidebar-nav-btn btn-reset flex-col"
           classList={{
             active: nav() === "activity",
-            "has-glow": hasUnreadGlow(),
           }}
           onClick={() => setNavView("activity")}
           type="button"
         >
           <Icon name="notifications" size={16} />
           Activity
-          <Show when={hasUnreadPing()}>
-            <span class="sidebar-ping-dot" />
+          <Show when={hasUnreadActivity()}>
+            <span class="sidebar-ping-dot" classList={{ "has-count": unreadPingCount() > 0 }}>
+              <Show when={unreadPingCount() > 0}>{unreadPingCount()}</Show>
+            </span>
           </Show>
         </button>
         <button

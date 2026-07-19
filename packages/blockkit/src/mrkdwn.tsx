@@ -18,6 +18,7 @@ type InlineNode =
   | { t: "italic"; nodes: InlineNode[] }
   | { t: "strike"; nodes: InlineNode[] }
   | { t: "code"; text: string }
+  | { t: "emoji"; name: string }
   | { t: "link"; url: string; label?: string }
   | { t: "userlink"; id: string; label?: string; url: string }
   | { t: "user"; id: string }
@@ -37,7 +38,11 @@ type BlockNode =
   | { t: "quote"; nodes: InlineNode[] }
   | { t: "codeblock"; text: string };
 
-const INLINE_RE = /`([^`]+)`|<([^<>]*)>|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
+// Emoji shortcode is matched as one atomic token, ahead of bold/italic, so
+// the underscores inside names like :slightly_smiling_face: never get eaten
+// by the italic rule (`_..._`) and leave the shortcode half-italicized/broken.
+const INLINE_RE =
+  /`([^`]+)`|<([^<>]*)>|:([a-z0-9_+-]+):|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
 
 function parseToken(token: string): InlineNode {
   if (token.startsWith("@")) {
@@ -78,9 +83,10 @@ function parseInline(text: string): InlineNode[] {
         t: "text",
         text: text.slice(lastIndex, index),
       });
-    const [, code, token, doubleBold, bold, italic, strike] = match;
+    const [, code, token, emoji, doubleBold, bold, italic, strike] = match;
     if (code !== undefined) nodes.push({ t: "code", text: decodeTextEntities(code) });
     else if (token !== undefined) nodes.push(parseToken(token));
+    else if (emoji !== undefined) nodes.push({ name: emoji, t: "emoji" });
     else if (doubleBold !== undefined || bold !== undefined)
       nodes.push({ nodes: parseInline(doubleBold ?? bold), t: "bold" });
     else if (italic !== undefined) nodes.push({ nodes: parseInline(italic), t: "italic" });
@@ -199,9 +205,19 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
 
 export function UsergroupMention(props: { id: string; label?: string }) {
   const resolver = useBlockKitResolver();
-  const name = () =>
-    decodeTextEntities(props.label ?? resolver.resolveUsergroup(props.id)?.name ?? `@${props.id}`);
-  return <span class="bk-mention bk-mention-static">{name()}</span>;
+  const info = () => resolver.resolveUsergroup(props.id);
+  const name = () => decodeTextEntities(props.label ?? info()?.name ?? `@${props.id}`);
+  const trigger = (
+    <button
+      class="bk-mention"
+      classList={{ "bk-mention-self": !!info()?.isSelf }}
+      onClick={() => resolver.onUsergroupClick(props.id)}
+      type="button"
+    >
+      {name()}
+    </button>
+  );
+  return resolver.wrapUsergroupMention?.(props.id, trigger) ?? trigger;
 }
 
 function InlineNodeView(props: { node: InlineNode }) {
@@ -229,6 +245,8 @@ function InlineNodeView(props: { node: InlineNode }) {
       );
     case "code":
       return <code class="bk-inline-code">{n.text}</code>;
+    case "emoji":
+      return <EmojiText text={`:${n.name}:`} />;
     case "link":
       return <Link label={n.label} url={n.url} />;
     case "userlink":
@@ -258,7 +276,9 @@ export default function Mrkdwn(props: { text: string }): JSX.Element {
         <Show
           fallback={
             <Show
-              fallback={<pre class="bk-codeblock">{(b as any).text}</pre>}
+              fallback={
+                <pre class="bk-codeblock">{(b as Extract<BlockNode, { t: "codeblock" }>).text}</pre>
+              }
               when={b.t === "quote"}
             >
               <blockquote class="bk-quote">

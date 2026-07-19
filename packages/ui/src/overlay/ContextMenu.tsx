@@ -1,6 +1,7 @@
 import { type JSX, onMount, Show } from "solid-js";
 import { useClickOutside } from "../useClickOutside";
 import { useEscapeClose } from "../useEscapeClose";
+import { FloatingMountContext } from "./floating/floatingMountContext";
 import { clamp } from "./floating/viewportClamp";
 import "./MenuButton.css";
 import "./ContextMenu.css";
@@ -75,7 +76,9 @@ function ContextMenuPanel(props: {
       ref={ref}
       style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >
-      {props.children}
+      <FloatingMountContext.Provider value={() => ref}>
+        {props.children}
+      </FloatingMountContext.Provider>
     </div>
   );
 }

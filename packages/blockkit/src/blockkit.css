@@ -90,7 +90,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 14px;
+  padding: 4px 8px;
   font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
@@ -214,7 +214,6 @@
 .bk-mention:hover {
   background: rgba(var(--mention-rgb), 0.3);
 }
-.bk-mention-static,
 .bk-mention-broadcast {
   cursor: default;
 }

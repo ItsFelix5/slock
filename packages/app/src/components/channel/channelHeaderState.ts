@@ -11,9 +11,9 @@ export const channelTitle = () => {
 export const channelTopic = () => {
   const view = store.viewState.activeView();
   if (!view) return "";
-  return view.kind === "channel"
-    ? (store.channels.channelById(view.id)?.topic ?? "")
-    : "Direct message";
+  if (view.kind !== "channel") return "Direct message";
+  store.channels.ensureChannelTopic(view.id);
+  return store.channels.channelById(view.id)?.topic ?? "";
 };
 export const isPrivateChannel = () => {
   const view = store.viewState.activeView();

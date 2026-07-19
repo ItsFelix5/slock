@@ -1,5 +1,6 @@
-import { type JSX, onCleanup, onMount, Show } from "solid-js";
+import { type JSX, onCleanup, onMount, Show, useContext } from "solid-js";
 import { Portal } from "solid-js/web";
+import { FloatingMountContext } from "./floatingMountContext";
 import { clamp } from "./viewportClamp";
 
 export type VerticalPlacement = "top" | "bottom";
@@ -65,6 +66,7 @@ export interface FloatingPanelProps {
 export default function FloatingPanel(props: FloatingPanelProps) {
   let panel: HTMLDivElement | undefined;
   let frame: number | undefined;
+  const parentMount = useContext(FloatingMountContext);
 
   const position = () => {
     const anchorElement = props.anchor();
@@ -124,7 +126,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
 
   return (
     <Show when={props.open && props.anchor()}>
-      <Portal>
+      <Portal mount={parentMount?.() ?? document.body}>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: floating panels may use pointer entry/exit to preserve hover intent */}
         <div
           class={props.class}
@@ -143,7 +145,9 @@ export default function FloatingPanel(props: FloatingPanelProps) {
             visibility: "hidden",
           }}
         >
-          {props.children}
+          <FloatingMountContext.Provider value={() => panel}>
+            {props.children}
+          </FloatingMountContext.Provider>
         </div>
       </Portal>
     </Show>

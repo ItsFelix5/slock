@@ -95,7 +95,6 @@
 .activity-kind-icon {
   margin-right: 3px;
   color: var(--text-dim);
-  vertical-align: -2px;
 }
 
 .activity-channel {
@@ -160,11 +159,14 @@
   white-space: nowrap;
 }
 
-.activity-react-toggle {
+.activity-react-toggle-anchor {
   position: absolute;
   top: 7px;
   right: 6px;
   z-index: 1;
+}
+
+.activity-react-toggle {
   width: 21px;
   height: 21px;
   color: var(--text-dim);

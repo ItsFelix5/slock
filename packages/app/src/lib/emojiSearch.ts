@@ -1,6 +1,5 @@
-import { customEmojiNames, emojiUrl } from "@slock/blockkit";
+import { customEmojiNames, emojiUrl, standardEmojiEntries } from "@slock/blockkit";
 import { fuzzySearch } from "@slock/ui";
-import { EMOJI_CATEGORIES } from "./emojiCategories";
 import { store } from "./store";
 
 export interface EmojiEntry {
@@ -9,14 +8,12 @@ export interface EmojiEntry {
   unicode?: string;
 }
 
-const STANDARD_EMOJI_ENTRIES: EmojiEntry[] = EMOJI_CATEGORIES.flatMap((group) =>
-  group.entries.map(
-    (e): EmojiEntry => ({
-      name: e.names[0],
-      searchText: [...e.names, ...e.tags, e.description].join(" ").toLowerCase(),
-      unicode: e.emoji,
-    }),
-  ),
+const STANDARD_EMOJI_ENTRIES: EmojiEntry[] = standardEmojiEntries().map(
+  (e): EmojiEntry => ({
+    name: e.name,
+    searchText: [e.name, ...e.aliases].join(" ").replace(/[_-]/g, " "),
+    unicode: e.unicode,
+  }),
 );
 
 const STANDARD_EMOJI_BY_NAME = new Map(STANDARD_EMOJI_ENTRIES.map((e) => [e.name, e.unicode]));

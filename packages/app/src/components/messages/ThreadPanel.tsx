@@ -5,6 +5,7 @@ import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import MessageRows from "./MessageRows";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
+import { captureScrollAnchor, jumpToMessageInContainer, restoreScrollAnchor } from "./scrollAnchor";
 import "./ThreadPanel.css";
 
 const DEFAULT_WIDTH = 380;
@@ -83,11 +84,21 @@ export default function ThreadPanel() {
   }
 
   function jumpToMessage(ts: string) {
-    const el = messagesRef?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("message-flash");
-    setTimeout(() => el.classList.remove("message-flash"), 1500);
+    if (messagesRef) jumpToMessageInContainer(messagesRef, ts);
+  }
+
+  // Dragging the resize handle rewraps message text on every pointermove, which
+  // otherwise leaves scrollTop as a stale pixel offset and visibly yanks the
+  // reader's spot around. Re-pin whichever row they were looking at instead.
+  function setWidthAnchored(w: number) {
+    const el = messagesRef;
+    if (!el) {
+      setWidth(w);
+      return;
+    }
+    const anchor = captureScrollAnchor(el);
+    setWidth(w);
+    restoreScrollAnchor(el, anchor);
   }
 
   return (
@@ -98,7 +109,7 @@ export default function ThreadPanel() {
             direction={-1}
             max={MAX_WIDTH}
             min={MIN_WIDTH}
-            setWidth={setWidth}
+            setWidth={setWidthAnchored}
             side="left"
             width={width}
           />

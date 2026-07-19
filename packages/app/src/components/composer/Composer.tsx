@@ -86,7 +86,7 @@ export default function Composer(props: ComposerProps) {
             {(preview) => (
               <div class="composer-link-preview">
                 <AttachmentCard attachment={linkPreviewToAttachment(preview)} />
-                <Tooltip content="Remove preview">
+                <Tooltip class="composer-link-preview-remove-anchor" content="Remove preview">
                   <button
                     aria-label="Remove preview"
                     class="composer-link-preview-remove btn-reset flex-center"

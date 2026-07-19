@@ -1,5 +1,4 @@
 // biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
-import { WebSocket } from "ws";
 import { type Credentials, callSlack, slackCookieHeader } from "./relay-core.js";
 
 export type ClientSocket = { send(data: string): void };

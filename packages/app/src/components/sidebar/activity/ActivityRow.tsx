@@ -1,11 +1,17 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
-import type { ActivityItem, Message } from "@slock/slack-api";
+import type { ActivityItem } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createMemo, createSignal, For, onMount, Show, untrack } from "solid-js";
 import { channelDisplayName, isPingingActivity, store } from "../../../lib/store";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import "./ActivityRow.css";
 import "./ActivityThread.css";
+import {
+  formatTime,
+  ThreadActivityMessage,
+  ThreadBundleMessage,
+  ThreadRootMessage,
+} from "./activityThreadMessage";
 
 export interface ActivityRow {
   isThread: boolean;
@@ -18,112 +24,46 @@ export function rowTarget(row: ActivityRow) {
   return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
 }
 
-function verbFor(item: ActivityItem): string {
-  switch (item.kind) {
-    case "mention":
-      return "mentioned you";
-    case "dm":
-      return "sent you a message";
-    case "keyword":
-      return item.matchedKeyword ? `said “${item.matchedKeyword}”` : "used pingword";
-    case "thread_reply":
-      return "replied in";
-    case "channel_mention":
-      return `mentioned @${item.broadcastRange ?? "channel"} in`;
-    case "usergroup_mention":
-      return "mentioned usergroup";
-    case "channel_all":
-      return "posted in";
-    default:
-      return "reacted to your message in";
+// Reaction/mention items on a plain channel message aren't a thread at all —
+// open them in the channel, scrolled to the real message, instead of a
+// single-message thread panel that reads as a fake thread. Only actual
+// thread replies (which don't render inline in the channel) open the
+// thread panel, highlighted on the specific reply.
+function navigateToItem(item: ActivityItem) {
+  if (item.threadTs) {
+    store.viewState.openChannelPeek(item.channelId, item.threadTs, item.ts);
+  } else {
+    store.viewState.openChannelMessage(item.channelId, item.ts);
   }
 }
 
-function formatTime(time: number) {
-  return new Date(time).toLocaleString([], {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function ThreadActivityMessage(props: { item: ActivityItem; onOpen: () => void }) {
-  const user = createMemo(() => store.users.userById(props.item.userId));
-  const unread = createMemo(() => store.activity.isActivityItemUnread(props.item));
-  return (
-    <button
-      class="activity-thread-message btn-reset"
-      classList={{ unread: unread() }}
-      onClick={props.onOpen}
-      type="button"
-    >
-      <span class="activity-thread-avatar">
-        <Show when={user()}>
-          {(person) => (
-            <Avatar
-              size="small"
-              user={{ ...person(), avatarColor: person().avatarColor ?? "#616061" }}
-            />
-          )}
-        </Show>
-      </span>
-      <span class="activity-thread-message-body">
-        <span class="activity-thread-message-head flex-align-center">
-          <strong>{user()?.name ?? "Someone"}</strong>
-          <Show when={props.item.kind === "reaction" && props.item.reactionName}>
-            <span class="activity-thread-event">
-              reacted <EmojiText text={`:${props.item.reactionName}:`} />
-            </span>
-          </Show>
-          <span class="activity-thread-message-time">{formatTime(props.item.time)}</span>
-        </span>
-        <span class="activity-thread-message-text">
-          <Mrkdwn text={props.item.text} />
-        </span>
-      </span>
-    </button>
-  );
-}
-
-function ThreadRootMessage(props: { message: Message; onOpen: () => void }) {
-  const user = createMemo(() => store.users.userById(props.message.userId));
-  return (
-    <button
-      class="activity-thread-message activity-thread-root btn-reset"
-      onClick={props.onOpen}
-      type="button"
-    >
-      <span class="activity-thread-avatar">
-        <Show when={user()}>
-          {(person) => (
-            <Avatar
-              size="small"
-              user={{ ...person(), avatarColor: person().avatarColor ?? "#616061" }}
-            />
-          )}
-        </Show>
-      </span>
-      <span class="activity-thread-message-body">
-        <span class="activity-thread-message-head flex-align-center">
-          <strong>{user()?.name ?? "Someone"}</strong>
-          <span class="activity-thread-event">started the thread</span>
-        </span>
-        <span class="activity-thread-message-text">
-          <Mrkdwn text={props.message.text} />
-        </span>
-      </span>
-    </button>
-  );
+function verbFor(item: ActivityItem): string {
+  switch (item.kind) {
+    case "mention":
+      return "Mentioned you";
+    case "dm":
+      return "Sent you a message";
+    case "keyword":
+      return item.matchedKeyword ? `Said “${item.matchedKeyword}”` : "Used a pingword";
+    case "thread_reply":
+      return "Replied in a thread";
+    case "channel_mention":
+      return `Mentioned @${item.broadcastRange ?? "channel"}`;
+    case "usergroup_mention":
+      return "Mentioned your usergroup";
+    case "channel_all":
+      return "Posted in a channel you follow";
+    default:
+      return "Reacted to your message";
+  }
 }
 
 export default function ActivityRow(props: {
   row: ActivityRow;
-  onOpen: (channelId: string, ts: string) => void;
   onReacted: (items: readonly ActivityItem[]) => void;
   onSeen: (items: readonly ActivityItem[]) => void;
 }) {
   const [expanded, setExpanded] = createSignal(false);
-  let wrapRef: HTMLElement | undefined;
-  let seenTimer: number | undefined;
   const latest = createMemo(() => props.row.items[0]);
   const user = createMemo(() => store.users.userById(latest().userId));
   const channel = createMemo(() => store.channels.channelById(latest().channelId));
@@ -132,7 +72,18 @@ export default function ActivityRow(props: {
   const isPinging = createMemo(() => isPingingActivity(latest()));
   const isThreadGroup = createMemo(() => props.row.isThread && props.row.items.length > 1);
   const orderedItems = createMemo(() => [...props.row.items].reverse());
-  const olderItems = createMemo(() => orderedItems().slice(0, -1));
+  // Frozen at first read (untrack) so items don't collapse out from under the
+  // user mid-view once markActivityItemsRead fires; a genuinely new reply
+  // still surfaces because it changes props.row.items itself.
+  const visibleStartIndex = createMemo(() => {
+    const items = orderedItems();
+    return untrack(() => {
+      const idx = items.findIndex((item) => store.activity.isActivityItemUnread(item));
+      return idx === -1 ? items.length - 1 : idx;
+    });
+  });
+  const olderItems = createMemo(() => orderedItems().slice(0, visibleStartIndex()));
+  const visibleItems = createMemo(() => orderedItems().slice(visibleStartIndex()));
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
   const rootMessage = createMemo(() =>
     store.messages.messagesByChannel[latest().channelId]?.find(
@@ -144,6 +95,25 @@ export default function ActivityRow(props: {
     return !!root && !props.row.items.some((item) => item.ts === root.ts);
   });
   const hiddenMessageCount = createMemo(() => olderItems().length + (hasSeparateRoot() ? 1 : 0));
+
+  // Slack bundles an entire burst of unread thread replies into a single
+  // feed entry — only its latest ts is exposed, so this one ActivityItem can
+  // stand in for many actual messages. Fetch the real replies so all of them
+  // can be shown instead of just the one.
+  const bundledItem = createMemo(() =>
+    props.row.items.find((item) => item.kind === "thread_reply" && (item.unreadCount ?? 0) > 1),
+  );
+  const bundleMessages = createMemo(() => {
+    const bundled = bundledItem();
+    if (!bundled) return;
+    const list = store.messages.threadMessages[threadTs()];
+    if (!list) return;
+    return list.slice(-Math.min(bundled.unreadCount ?? 1, list.length));
+  });
+  onMount(() => {
+    const bundled = bundledItem();
+    if (bundled) store.messages.ensureThreadRepliesLoaded(bundled.channelId, threadTs());
+  });
 
   const replierIds = createMemo(() => {
     const seen = new Set<string>();
@@ -169,35 +139,21 @@ export default function ActivityRow(props: {
 
   const openRow = () => {
     props.onSeen(props.row.items);
-    props.onOpen(latest().channelId, rowTarget(props.row).ts);
+    navigateToItem(latest());
   };
 
-  onMount(() => {
-    if (!wrapRef) return;
-    if (typeof IntersectionObserver === "undefined") {
-      props.onSeen(props.row.items);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          seenTimer = window.setTimeout(() => props.onSeen(props.row.items), 500);
-        } else if (seenTimer !== undefined) {
-          window.clearTimeout(seenTimer);
-          seenTimer = undefined;
-        }
-      },
-      { root: wrapRef.closest(".activity-view"), threshold: 0.25 },
-    );
-    observer.observe(wrapRef);
-    onCleanup(() => {
-      observer.disconnect();
-      if (seenTimer !== undefined) window.clearTimeout(seenTimer);
-    });
-  });
+  const openMessage = (item: ActivityItem) => {
+    props.onSeen(props.row.items);
+    navigateToItem(item);
+  };
+
+  const openThreadTs = (ts: string) => {
+    props.onSeen(props.row.items);
+    store.viewState.openChannelPeek(latest().channelId, threadTs(), ts);
+  };
 
   return (
-    <article class="activity-item-wrap" ref={(element) => (wrapRef = element)}>
+    <article class="activity-item-wrap">
       <div
         class="activity-item"
         classList={{
@@ -286,19 +242,42 @@ export default function ActivityRow(props: {
               </button>
             </Show>
             <Show when={expanded() && hasSeparateRoot() ? rootMessage() : undefined}>
-              {(root) => <ThreadRootMessage message={root()} onOpen={openRow} />}
+              {(root) => (
+                <ThreadRootMessage message={root()} onOpen={() => openThreadTs(root().ts)} />
+              )}
             </Show>
             <Show when={expanded()}>
               <For each={olderItems()}>
-                {(item) => <ThreadActivityMessage item={item} onOpen={openRow} />}
+                {(item) => <ThreadActivityMessage item={item} onOpen={() => openMessage(item)} />}
               </For>
             </Show>
-            <ThreadActivityMessage item={latest()} onOpen={openRow} />
+            <For each={visibleItems()}>
+              {(item) => (
+                <Show
+                  fallback={<ThreadActivityMessage item={item} onOpen={() => openMessage(item)} />}
+                  when={item === bundledItem() ? bundleMessages() : undefined}
+                >
+                  {(messages) => (
+                    <For each={messages()}>
+                      {(message) => (
+                        <ThreadBundleMessage
+                          message={message}
+                          onOpen={() => openThreadTs(message.ts)}
+                        />
+                      )}
+                    </For>
+                  )}
+                </Show>
+              )}
+            </For>
           </div>
         </Show>
       </div>
 
-      <Tooltip content={isReacted() ? "Reacted" : "Move to Reacted"}>
+      <Tooltip
+        class="activity-react-toggle-anchor"
+        content={isReacted() ? "Reacted" : "Move to Reacted"}
+      >
         <button
           aria-label="Move to Reacted"
           class="activity-react-toggle btn-reset flex-center"

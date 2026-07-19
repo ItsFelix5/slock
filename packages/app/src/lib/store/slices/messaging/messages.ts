@@ -47,6 +47,7 @@ export function createMessagesSlice(deps: {
     hasThreadError,
     isLoadingHistory,
     ensureChannelMessage,
+    ensureThreadRepliesLoaded,
   } = history;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
@@ -234,6 +235,7 @@ export function createMessagesSlice(deps: {
   }
   return {
     ensureChannelMessage,
+    ensureThreadRepliesLoaded,
     findAllMessageLocations,
     hasHistoryError,
     hasMoreHistory,

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
-import { WebSocketServer } from "ws";
+import { acceptUpgrade } from "./dev-websocket.ts";
 import { parseCredsCookie, routeRelayRequest } from "./relay-core.ts";
 import {
   handleClientDisconnect,
@@ -43,11 +43,19 @@ async function sendWebResponse(res: ServerResponse, response: Response) {
     res.end();
     return;
   }
+  // A client that disconnects mid-download (nav away, aborted fetch) makes
+  // res.write() throw/error — swallow it and stop, don't let it bubble.
+  res.on("error", () => {});
   const reader = response.body.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    res.write(value);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (res.destroyed) break;
+      res.write(value);
+    }
+  } catch {
+    // client went away mid-stream
   }
   res.end();
 }
@@ -60,49 +68,64 @@ export function slackRelayPlugin(): Plugin {
   return {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const url = new URL(req.url ?? "/", "http://internal");
-        const creds = parseCredsCookie(req.headers.cookie ?? null);
+        // A dropped connection (client aborts an upload/nav away mid-request)
+        // rejects readBody's promise; Vite's connect stack won't catch that
+        // rejection from an async middleware, so an uncaught one here takes
+        // down the whole dev server process. Keep everything inside this try.
+        try {
+          const url = new URL(req.url ?? "/", "http://internal");
+          const creds = parseCredsCookie(req.headers.cookie ?? null);
 
-        const relayRes = await routeRelayRequest(
-          req.method ?? "GET",
-          url.pathname,
-          url.searchParams,
-          creds,
-          false,
-          {
-            buffer: () => readBodyBuffer(req),
-            json: async () => {
-              const raw = await readBody(req);
-              try {
-                return raw ? JSON.parse(raw) : {};
-              } catch {
-                return {};
-              }
+          const relayRes = await routeRelayRequest(
+            req.method ?? "GET",
+            url.pathname,
+            url.searchParams,
+            creds,
+            false,
+            {
+              buffer: () => readBodyBuffer(req),
+              json: async () => {
+                const raw = await readBody(req);
+                try {
+                  return raw ? JSON.parse(raw) : {};
+                } catch {
+                  return {};
+                }
+              },
+              text: () => readBody(req),
             },
-            text: () => readBody(req),
-          },
-        );
-        if (relayRes) {
-          await sendWebResponse(res, relayRes);
-          return;
+          );
+          if (relayRes) {
+            await sendWebResponse(res, relayRes);
+            return;
+          }
+
+          next();
+        } catch (err) {
+          if (res.headersSent || res.destroyed) return;
+          console.warn("slock-slack-relay middleware error:", err);
+          res.statusCode = 500;
+          res.end();
         }
-
-        next();
       });
 
-      const wss = new WebSocketServer({ noServer: true });
-      wss.on("connection", (ws, req: IncomingMessage) => {
-        const creds = parseCredsCookie(req.headers.cookie ?? null);
-        ws.send(statusMessage(false));
-        handleClientOpen(ws, creds);
-        ws.on("message", (raw) => handleClientMessage(String(raw), ws));
-        ws.on("close", () => handleClientDisconnect(ws));
-      });
-
-      server.httpServer?.on("upgrade", (req, socket, head) => {
+      server.httpServer?.on("upgrade", (req, socket) => {
         const { pathname } = new URL(req.url ?? "/", "http://internal");
         if (pathname !== "/ws") return; // let Vite's own HMR upgrade handler take it
-        wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+        const key = req.headers["sec-websocket-key"];
+        if (typeof key !== "string") {
+          socket.destroy();
+          return;
+        }
+        const creds = parseCredsCookie(req.headers.cookie ?? null);
+        const client = acceptUpgrade(
+          socket,
+          key,
+          (raw, c) => handleClientMessage(raw, c),
+          (c) => handleClientDisconnect(c),
+        );
+        client.send(statusMessage(false));
+        handleClientOpen(client, creds);
       });
     },
     name: "slock-slack-relay",

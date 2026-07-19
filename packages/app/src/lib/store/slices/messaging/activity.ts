@@ -1,5 +1,10 @@
 import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
-import { fetchActivityFeed, markChannelRead } from "@slock/slack-api";
+import {
+  fetchActivityFeedEntries,
+  fetchActivityMessages,
+  markChannelRead,
+  resolveActivityEntry,
+} from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 
@@ -96,20 +101,20 @@ export function createActivitySlice(deps: {
   // Gateway badge updates are aggregate counts, without the message data that
   // backs activityItems. Keep their notification state separately so a live
   // update still lights the bell before the activity feed has been fetched.
+  const [gatewayPingCount, setGatewayPingCount] = createSignal(0);
   const [gatewayHasUnreadGlow, setGatewayHasUnreadGlow] = createSignal(false);
-  const [gatewayHasUnreadPing, setGatewayHasUnreadPing] = createSignal(false);
 
   function setGatewayActivityBadgeCounts(activity: any) {
-    const count = (key: string) => Number(activity?.[key] ?? 0) > 0;
-    setGatewayHasUnreadPing(
-      count("at_user") || count("dm") || count("keyword") || count("list_user_mentioned"),
+    const count = (key: string) => Number(activity?.[key] ?? 0);
+    setGatewayPingCount(
+      count("at_user") + count("dm") + count("keyword") + count("list_user_mentioned"),
     );
     setGatewayHasUnreadGlow(
-      count("at_user_group") ||
-        count("at_channel") ||
-        count("at_everyone") ||
-        count("channel") ||
-        count("thread_v2"),
+      count("at_user_group") > 0 ||
+        count("at_channel") > 0 ||
+        count("at_everyone") > 0 ||
+        count("channel") > 0 ||
+        count("thread_v2") > 0,
     );
   }
 
@@ -131,19 +136,28 @@ export function createActivitySlice(deps: {
       return;
     }
     try {
-      const items = await fetchActivityFeed();
-      setActivityItems(
-        produce((list) => {
-          const seen = new Set(list.map((i) => i.id));
-          // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply
-          // in a thread you're in) can legitimately point at your own message
-          // — the feed itself doesn't filter those out, so do it here rather
-          // than showing your own posts back to you as activity.
-          for (const item of items)
-            if (!seen.has(item.id) && item.userId !== me.id) list.push(item);
-          list.sort((a, b) => b.time - a.time);
-        }),
-      );
+      const entries = await fetchActivityFeedEntries();
+      const seen = new Set(activityItems.map((i) => i.id));
+      const pending = entries.filter((entry) => !seen.has(entry.id));
+      // One batched messages.list call fetches every entry's message body up
+      // front (grouped by channel) instead of using per-entry history/replies
+      // lookups.
+      const batchedMessages = await fetchActivityMessages(pending);
+      for (const entry of pending) {
+        const item = resolveActivityEntry(entry, batchedMessages);
+        // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply
+        // in a thread you're in) can legitimately point at your own message
+        // — the feed itself doesn't filter those out, so do it here rather
+        // than showing your own posts back to you as activity.
+        if (seen.has(item.id) || item.userId === me.id) continue;
+        seen.add(item.id);
+        setActivityItems(
+          produce((list) => {
+            list.push(item);
+            list.sort((a, b) => b.time - a.time);
+          }),
+        );
+      }
     } catch {
       // undocumented endpoint may not be available on every workspace; live events still populate this list
     }
@@ -178,19 +192,23 @@ export function createActivitySlice(deps: {
 
   const unreadActivityCount = createMemo(() => activityItems.filter(isActivityItemUnread).length);
 
-  // Bell states, from most to least urgent: a red dot for things addressed
-  // straight at the user (direct pings, DMs), a plain glow for activity that's
-  // relevant but not personally directed (thread replies, @channel/@here/usergroup
-  // pings, channels set to notify on every post), and nothing at all for reactions.
-  const hasUnreadPing = createMemo(
-    () =>
-      gatewayHasUnreadPing() ||
-      activityItems.some((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)),
+  // Bell states: a plain dot for any unread activity that's relevant but not
+  // personally directed (thread replies, @channel/@here/usergroup pings, channels
+  // set to notify on every post), with a count only for things addressed
+  // straight at the user (direct pings, DMs) — and nothing at all for reactions.
+  const unreadPingCount = createMemo(() =>
+    Math.max(
+      gatewayPingCount(),
+      activityItems.filter((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)).length,
+    ),
   );
-  const hasUnreadGlow = createMemo(
+  const hasUnreadActivity = createMemo(
     () =>
+      unreadPingCount() > 0 ||
       gatewayHasUnreadGlow() ||
-      activityItems.some((i) => GLOW_KINDS.has(i.kind) && isActivityItemUnread(i)),
+      activityItems.some(
+        (i) => (PING_KINDS.has(i.kind) || GLOW_KINDS.has(i.kind)) && isActivityItemUnread(i),
+      ),
   );
 
   function markActivityItemsRead(items: readonly ActivityItem[]) {
@@ -230,8 +248,7 @@ export function createActivitySlice(deps: {
   return {
     activityItems,
     ensureActivityLoaded,
-    hasUnreadGlow,
-    hasUnreadPing,
+    hasUnreadActivity,
     isActivityItemReacted,
     isActivityItemUnread,
     markActivityItemsReacted,
@@ -240,5 +257,6 @@ export function createActivitySlice(deps: {
     recordActivityEngagement,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
+    unreadPingCount,
   };
 }

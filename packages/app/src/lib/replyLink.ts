@@ -52,8 +52,8 @@ export function parseReplyLink(
     const urlMatch = PERMALINK_RE.exec(bracketed[1]);
     if (!urlMatch) return null;
     const [, channelId, digits] = urlMatch;
+    const [, , label] = bracketed;
     const ts = `${digits.slice(0, -6)}.${digits.slice(-6)}`;
-    const label = bracketed[2];
     const bare = isBareLabel(label);
     if (!(bare || isInThread?.(channelId, ts))) return null;
     const remainder = text.slice(bracketed[0].length);

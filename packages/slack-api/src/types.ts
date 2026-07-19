@@ -7,8 +7,12 @@ interface UserCustomField {
 }
 
 export interface User {
+  // Only present for bot users — the parent app's id and classic bot id,
+  // needed together to look up the app's description (see fetchAppDescription).
+  appId?: string;
   avatarColor: string;
   avatarUrl?: string;
+  botId?: string;
   customFields?: UserCustomField[];
   email?: string;
   id: string;
@@ -31,6 +35,18 @@ export interface Usergroup {
   // label here so message renderers can display it without knowing that API
   // distinction.
   name: string;
+}
+
+export interface UsergroupDetails {
+  channelIds: string[];
+  createdBy?: string;
+  dateCreate?: number;
+  description: string;
+  handle: string;
+  id: string;
+  memberCount: number;
+  memberIds: string[];
+  title: string;
 }
 
 export interface ProfileFieldDef {
@@ -252,6 +268,11 @@ export interface ActivityItem {
   threadTs?: string;
   time: number;
   ts: string;
+  // For kind "thread_reply": Slack bundles every unread reply since your last
+  // visit into a single feed entry, only ever exposing the latest one's ts —
+  // this is bundle_info's own count of how many replies that single entry
+  // actually represents, so callers can go fetch the rest.
+  unreadCount?: number;
   usergroupId?: string;
   userId: string;
 }

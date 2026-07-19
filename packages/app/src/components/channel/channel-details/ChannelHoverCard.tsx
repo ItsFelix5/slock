@@ -1,5 +1,5 @@
 import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
-import { createMemo, type JSX, Show } from "solid-js";
+import { createEffect, createMemo, type JSX, Show } from "solid-js";
 import { channelDisplayName, store } from "../../../lib/store";
 import "./ChannelHoverCard.css";
 
@@ -15,6 +15,13 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
   const channel = createMemo(() => store.channels.channelById(props.channelId));
   const isMember = createMemo(() => store.channels.isChannelMember(props.channelId));
   const name = () => channelDisplayName(channel(), props.channelId);
+
+  // Only resolve the topic once the card is actually shown — every #mention in
+  // every rendered message links here, so fetching on mount would fire a
+  // conversations.info burst for channels the user never hovers over.
+  createEffect(() => {
+    if (open()) store.channels.ensureChannelTopic(props.channelId);
+  });
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real controls are the mention button and the card's own buttons

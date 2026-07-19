@@ -19,12 +19,16 @@ import MessageSearchView from "./components/search/MessageSearchView";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
+import UsergroupDetails from "./components/usergroup/UsergroupDetails";
+import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
 import { parseSlackPermalink } from "./lib/slackPermalink";
 import { channelDisplayName, store } from "./lib/store";
+import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
   onChannelClick: (id) => store.viewState.setActiveView({ id, kind: "channel" }),
   onUserClick: store.users.openUserProfile,
+  onUsergroupClick: openUsergroupDetails,
   resolveChannel: (id) => {
     const channel = store.channels.channelById(id);
     return channel
@@ -39,7 +43,12 @@ const blockKitResolver: BlockKitResolver = {
     const user = store.users.userById(id);
     return user ? { isSelf: id === store.users.currentUser()?.id, name: user.name } : undefined;
   },
-  resolveUsergroup: (id) => store.usergroups.usergroupById(id),
+  resolveUsergroup: (id) => {
+    const usergroup = store.usergroups.usergroupById(id);
+    return usergroup
+      ? { isSelf: store.usergroups.isSelfMember(id), name: usergroup.name }
+      : undefined;
+  },
   wrapChannelMention: (id, trigger) => (
     <ChannelHoverCard channelId={id}>{trigger}</ChannelHoverCard>
   ),
@@ -58,6 +67,9 @@ const blockKitResolver: BlockKitResolver = {
     );
   },
   wrapUserMention: (id, trigger) => <UserHoverCard userId={id}>{trigger}</UserHoverCard>,
+  wrapUsergroupMention: (id, trigger) => (
+    <UsergroupHoverCard usergroupId={id}>{trigger}</UsergroupHoverCard>
+  ),
 };
 
 function App() {
@@ -131,6 +143,7 @@ function App() {
         </div>
         <ThreadPanel />
         <UserProfile />
+        <UsergroupDetails />
         <ChannelDetails />
         <PinnedPanel />
         <CanvasPanel />

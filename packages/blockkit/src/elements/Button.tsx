@@ -34,8 +34,6 @@ export default function Button(props: {
       buttonText: props.el.text.text,
       channelId: ctx.channelId,
       messageTs: ctx.messageTs,
-      style: props.el.style,
-      threadTs: ctx.threadTs,
       value: props.el.value,
     })
       .catch(() => flashUnsupported())
