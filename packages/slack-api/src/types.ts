@@ -67,6 +67,8 @@ export interface SlackFile {
   id: string;
   isAudio?: boolean;
   isImage: boolean;
+  isMail?: boolean;
+  isPdf?: boolean;
   isVideo?: boolean;
   mimetype?: string;
   name: string;

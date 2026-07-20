@@ -23,8 +23,8 @@ async function main(mountPoint: HTMLElement) {
   const { default: App } = await import("./App");
   render(() => <App />, mountPoint);
   window.onkeydown = (e) => {
-    if (e.key === "F2" && import.meta.hot) import.meta.hot?.send('manual:reload')
-  }
+    if (e.key === "F2" && import.meta.hot) import.meta.hot?.send("manual:reload");
+  };
 }
 
 main(root);

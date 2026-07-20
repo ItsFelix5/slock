@@ -352,6 +352,8 @@ function mapFile(f: RawFile): SlackFile {
     id: f.id,
     isAudio: !!mimetype?.startsWith("audio/"),
     isImage: !!mimetype?.startsWith("image/"),
+    isMail: mimetype === "message/rfc822" || f.filetype === "eml",
+    isPdf: mimetype === "application/pdf" || f.filetype === "pdf",
     isVideo: !!mimetype?.startsWith("video/"),
     mimetype,
     name: f.name ?? "file",

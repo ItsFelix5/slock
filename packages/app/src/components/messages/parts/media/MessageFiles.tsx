@@ -1,7 +1,8 @@
 import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
-import { Icon, ZoomableImage } from "@slock/ui";
+import { Icon, type IconName, ZoomableImage } from "@slock/ui";
 import { For, Match, Switch } from "solid-js";
 import AudioFile from "./AudioFile";
+import FileViewerTrigger from "./FileViewer";
 import "./MessageFiles.css";
 
 function formatSize(bytes: number | undefined): string {
@@ -9,6 +10,20 @@ function formatSize(bytes: number | undefined): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function FileCardInfo(props: { file: SlackFile; icon: IconName }) {
+  return (
+    <>
+      <Icon name={props.icon} size={20} />
+      <span class="message-file-info">
+        <span class="message-file-name">{props.file.title || props.file.name}</span>
+        <span class="message-file-meta">
+          {props.file.filetype?.toUpperCase()} {formatSize(props.file.size)}
+        </span>
+      </span>
+    </>
+  );
 }
 
 export default function MessageFiles(props: { files: SlackFile[] }) {
@@ -24,13 +39,7 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <Icon name="code-block" size={20} />
-                <span class="message-file-info">
-                  <span class="message-file-name">{file.title || file.name}</span>
-                  <span class="message-file-meta">
-                    {file.filetype?.toUpperCase()} {formatSize(file.size)}
-                  </span>
-                </span>
+                <FileCardInfo file={file} icon="file" />
               </a>
             }
           >
@@ -62,6 +71,16 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
             </Match>
             <Match when={file.isAudio}>
               <AudioFile file={file} />
+            </Match>
+            <Match when={file.isPdf}>
+              <FileViewerTrigger file={file} kind="pdf">
+                <FileCardInfo file={file} icon="pdf-file" />
+              </FileViewerTrigger>
+            </Match>
+            <Match when={file.isMail}>
+              <FileViewerTrigger file={file} kind="mail">
+                <FileCardInfo file={file} icon="email" />
+              </FileViewerTrigger>
             </Match>
           </Switch>
         )}

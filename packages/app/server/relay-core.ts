@@ -1,7 +1,28 @@
 // biome-ignore-all lint/style/useNamingConvention: Relay payloads preserve Slack's wire field names.
+import { gzipSync } from "node:zlib";
 import { emojiImageUrl, emojiListResponse } from "./relay-emoji.ts";
 import { fileProxyResponse, fileUploadProxyResponse } from "./relay-files.ts";
+import { trimSlackResponse } from "./relay-trim.ts";
 import { unfurlResponse } from "./relay-unfurl.ts";
+
+// Shared by every text/JSON response this relay sends — gzips when the
+// client says it accepts it (every browser does; this mostly matters for
+// the odd non-browser caller) instead of shipping raw JSON, which for
+// something like client.userBoot is easily 70-90% smaller compressed.
+export function compressedResponse(
+  body: string,
+  headers: Record<string, string>,
+  acceptEncoding: string | null,
+): Response {
+  const withVary = {
+    ...headers,
+    vary: headers.vary ? `${headers.vary}, Accept-Encoding` : "Accept-Encoding",
+  };
+  if (acceptEncoding?.split(",").some((part) => part.trim().startsWith("gzip"))) {
+    return new Response(gzipSync(body), { headers: { ...withVary, "content-encoding": "gzip" } });
+  }
+  return new Response(body, { headers: withVary });
+}
 
 export type Credentials = { domain: string; token: string; route: string; slackSession: string };
 type AuthPayload = Credentials;
@@ -117,7 +138,7 @@ export async function callSlack(
       method: "POST",
       signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
     });
-    return parseSlackResponse(res);
+    return trimSlackResponse(method, await parseSlackResponse(res));
   } catch {
     return { error: "upstream_timeout", ok: false };
   }
@@ -153,9 +174,10 @@ async function slackRelayResponse(
   method: string,
   params: Record<string, string>,
   creds: Credentials | null,
+  acceptEncoding: string | null,
 ): Promise<Response> {
   const data = await callSlack(method, params, creds);
-  return new Response(JSON.stringify(data), { headers: cors });
+  return compressedResponse(JSON.stringify(data), cors, acceptEncoding);
 }
 // The browser-side callSlack coalesces every call issued within the same
 // microtask (e.g. the handful of independent boot-time fetches) into one of
@@ -164,11 +186,12 @@ async function slackRelayResponse(
 async function slackBatchRelayResponse(
   calls: { method: string; params?: Record<string, string> }[],
   creds: Credentials | null,
+  acceptEncoding: string | null,
 ): Promise<Response> {
   const results = await Promise.all(
     calls.map((call) => callSlack(call.method, call.params ?? {}, creds)),
   );
-  return new Response(JSON.stringify({ results }), { headers: cors });
+  return compressedResponse(JSON.stringify({ results }), cors, acceptEncoding);
 }
 async function callSlackEdge(
   method: string,
@@ -195,9 +218,10 @@ async function slackEdgeRelayResponse(
   method: string,
   params: Record<string, unknown>,
   creds: Credentials | null,
+  acceptEncoding: string | null,
 ): Promise<Response> {
   const data = await callSlackEdge(method, params, creds);
-  return new Response(JSON.stringify(data), { headers: cors });
+  return compressedResponse(JSON.stringify(data), cors, acceptEncoding);
 }
 export async function routeRelayRequest(
   method: string,
@@ -216,17 +240,22 @@ export async function routeRelayRequest(
     const payload = (await body.json()) as {
       calls?: { method: string; params?: Record<string, string> }[];
     };
-    return slackBatchRelayResponse(payload.calls ?? [], creds);
+    return slackBatchRelayResponse(payload.calls ?? [], creds, acceptEncoding);
   }
   if (method === "POST" && pathname.startsWith("/slack/")) {
     const slackMethod = pathname.slice("/slack/".length);
     if (!slackMethod) return new Response("missing method", { status: 400 });
-    return slackRelayResponse(slackMethod, (await body.json()) as Record<string, string>, creds);
+    return slackRelayResponse(
+      slackMethod,
+      (await body.json()) as Record<string, string>,
+      creds,
+      acceptEncoding,
+    );
   }
   if (method === "POST" && pathname.startsWith("/slack-edge/")) {
     const slackMethod = pathname.slice("/slack-edge/".length);
     if (!slackMethod) return new Response("missing method", { status: 400 });
-    return slackEdgeRelayResponse(slackMethod, await body.json(), creds);
+    return slackEdgeRelayResponse(slackMethod, await body.json(), creds, acceptEncoding);
   }
   if (method === "GET" && pathname === "/emoji") {
     return emojiListResponse(creds, callSlack, acceptEncoding);

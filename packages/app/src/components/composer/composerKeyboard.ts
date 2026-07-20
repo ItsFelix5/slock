@@ -1,4 +1,5 @@
 import type { EditorCommands } from "./lib/editor/editorCommands";
+import { handleMarkShortcut } from "./lib/editor/markShortcuts";
 import type { SuggestState } from "./lib/suggestTypes";
 
 export function createComposerKeyHandler(deps: {
@@ -61,29 +62,6 @@ export function createComposerKeyHandler(deps: {
       e.preventDefault();
       return;
     }
-    const mod = e.metaKey || e.ctrlKey;
-    if (mod && !e.altKey && !e.shiftKey) {
-      if (e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        deps.editor.applyMark("bold");
-        return;
-      }
-      if (e.key.toLowerCase() === "i") {
-        e.preventDefault();
-        deps.editor.applyMark("italic");
-        return;
-      }
-    }
-    if (mod && e.shiftKey && !e.altKey) {
-      if (e.key.toLowerCase() === "x") {
-        e.preventDefault();
-        deps.editor.applyMark("strike");
-        return;
-      }
-      if (e.key.toLowerCase() === "c") {
-        e.preventDefault();
-        deps.editor.applyMark("code");
-      }
-    }
+    handleMarkShortcut(e, deps.editor);
   };
 }

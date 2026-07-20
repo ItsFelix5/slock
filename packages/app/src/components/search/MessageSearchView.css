@@ -21,6 +21,27 @@
   border-bottom: 1px solid var(--border);
 }
 
+.message-search-suggestions {
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.message-search-suggestion {
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border-radius: var(--radius-round);
+}
+
+.message-search-suggestion:hover {
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
+
 .message-search-results {
   flex: 1;
   max-width: 720px;

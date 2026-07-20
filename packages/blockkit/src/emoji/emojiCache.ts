@@ -23,7 +23,7 @@ export function loadCustomEmoji(): Promise<void> {
       .then((map) => {
         emojiUrls = map;
       })
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoaded("value", true));
   }
   return emojiLoadPromise;

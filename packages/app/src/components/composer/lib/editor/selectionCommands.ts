@@ -1,27 +1,35 @@
-import { mrkdwnToFragment, placeCaretAtEnd } from "../richtext";
+import { type InlineDialect, MRKDWN_DIALECT, mrkdwnToFragment, placeCaretAtEnd } from "../richtext";
 import { fragmentToMrkdwn } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
 // Caret/selection plumbing and draft-loading for the composer's
 // contentEditable node — the part of editorCommands.ts that doesn't touch
-// block formatting or line triggers (see blockCommands.ts for those).
+// block formatting or line triggers (see blockCommands.ts for those). Also
+// reused by the canvas editor with the markdown dialect instead of mrkdwn
+// (see richtext.ts's InlineDialect) — everything below is otherwise
+// text-syntax-agnostic.
 export function createSelectionCommands(
   ref: EditorRefHandle,
-  opts: { setText: (v: string) => void; resetLinkPreviews: () => void },
+  opts: {
+    setText: (v: string) => void;
+    resetLinkPreviews: () => void;
+    dialect?: InlineDialect;
+  },
 ) {
   let savedRange: Range | null = null;
+  const dialect = opts.dialect ?? MRKDWN_DIALECT;
 
   function syncFromDom() {
     const el = ref.get();
     if (!el) return;
-    opts.setText(fragmentToMrkdwn(el));
+    opts.setText(fragmentToMrkdwn(el, dialect));
   }
 
   function loadDraftIntoEditor(value: string) {
     const el = ref.get();
     if (!el) return;
     el.innerHTML = "";
-    el.appendChild(mrkdwnToFragment(value));
+    el.appendChild(mrkdwnToFragment(value, dialect));
   }
 
   function clearEditor() {

@@ -1,5 +1,5 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { type SearchResult, searchMessages } from "@slock/slack-api";
+import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "@slock/slack-api";
 import { FilterCombobox, Icon, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
@@ -20,8 +20,11 @@ export default function MessageSearchView() {
   const [sort, setSort] = createSignal<SortMode>("relevant");
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
+  const [suggestions, setSuggestions] = createSignal<string[]>([]);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0;
+  let suggestDebounce: ReturnType<typeof setTimeout> | undefined;
+  let suggestRequestId = 0;
   const filtersActive = createMemo(() => hasActiveFilters(filters()));
   const runSearch = () => {
     clearTimeout(debounceTimer);
@@ -43,8 +46,27 @@ export default function MessageSearchView() {
       }
     }, 300);
   };
+  const runAutocomplete = () => {
+    clearTimeout(suggestDebounce);
+    const q = query().trim();
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    const id = ++suggestRequestId;
+    suggestDebounce = setTimeout(async () => {
+      const found = await fetchSearchAutocomplete(q);
+      if (id === suggestRequestId) setSuggestions(found);
+    }, 150);
+  };
   const runHistorySearch = (q: string) => {
     setQuery(q);
+    setSuggestions([]);
+    runSearch();
+  };
+  const applySuggestion = (q: string) => {
+    setQuery(q);
+    setSuggestions([]);
     runSearch();
   };
   onMount(() => {
@@ -52,7 +74,10 @@ export default function MessageSearchView() {
     setFilters(store.viewState.searchScreenFilters());
     runSearch();
   });
-  onCleanup(() => clearTimeout(debounceTimer));
+  onCleanup(() => {
+    clearTimeout(debounceTimer);
+    clearTimeout(suggestDebounce);
+  });
   const patchFilters = (patch: Partial<SearchFilters>) => {
     setFilters({ ...filters(), ...patch });
     runSearch();
@@ -94,6 +119,7 @@ export default function MessageSearchView() {
           onInput={(e) => {
             setQuery(e.currentTarget.value);
             runSearch();
+            runAutocomplete();
           }}
           placeholder="Search every message…"
           type="text"
@@ -110,6 +136,22 @@ export default function MessageSearchView() {
           </button>
         </Tooltip>
       </div>
+      <Show when={suggestions().length > 0}>
+        <div class="message-search-suggestions flex-align-center">
+          <For each={suggestions()}>
+            {(s) => (
+              <button
+                class="message-search-suggestion btn-reset flex-align-center"
+                onClick={() => applySuggestion(s)}
+                type="button"
+              >
+                <Icon class="text-dim" name="search" size={12} />
+                {s}
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
       <div class="global-search-filters message-search-filters">
         <div class="global-search-filter-row">
           <span class="global-search-filter-label">From</span>

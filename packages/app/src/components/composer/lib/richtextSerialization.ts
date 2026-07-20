@@ -2,18 +2,19 @@
 import { DEFAULT_DATE_FORMAT, formatSlackDateTokens } from "@slock/blockkit";
 import { type Block, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
 import { serializeLinkElement } from "./linkChip";
+import { type InlineDialect, MRKDWN_DIALECT } from "./richtext";
 export const HEADING_TAG_RE = /^H[1-6]$/;
 function wrapNonEmpty(inner: string, marker: string): string {
   return inner ? `${marker}${inner}${marker}` : "";
 }
-function serializeChildren(node: Node): string {
+function serializeChildren(node: Node, dialect: InlineDialect): string {
   let out = "";
-  for (const child of Array.from(node.childNodes)) out += serializeNode(child);
+  for (const child of Array.from(node.childNodes)) out += serializeNode(child, dialect);
   return out;
 }
-function serializeNode(node: Node): string {
+function serializeNode(node: Node, dialect: InlineDialect): string {
   if (node.nodeType === Node.TEXT_NODE) {
-    return (node.textContent ?? "").replace(/\u200B/g, "").replace(/\u00A0/g, " ");
+    return (node.textContent ?? "").replace(/​/g, "").replace(/ /g, " ");
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
   const el = node as HTMLElement;
@@ -35,7 +36,7 @@ function serializeNode(node: Node): string {
   }
   if (HEADING_TAG_RE.test(el.tagName)) {
     const level = Number(el.tagName[1]);
-    const inner = serializeChildren(el).replace(/\n$/, "");
+    const inner = serializeChildren(el, dialect).replace(/\n$/, "");
     return inner.trim() ? `${"#".repeat(level)} ${inner}\n` : "";
   }
   switch (el.tagName) {
@@ -43,43 +44,46 @@ function serializeNode(node: Node): string {
       return "\n";
     case "DIV":
     case "P":
-      return `${serializeChildren(el)}\n`;
+      return `${serializeChildren(el, dialect)}\n`;
     case "B":
     case "STRONG":
-      return wrapNonEmpty(serializeChildren(el), "*");
+      return wrapNonEmpty(serializeChildren(el, dialect), dialect.bold);
     case "I":
     case "EM":
-      return wrapNonEmpty(serializeChildren(el), "_");
+      return wrapNonEmpty(serializeChildren(el, dialect), dialect.italic);
     case "S":
     case "STRIKE":
     case "DEL":
-      return wrapNonEmpty(serializeChildren(el), "~");
+      return wrapNonEmpty(serializeChildren(el, dialect), dialect.strike);
     case "CODE":
-      return wrapNonEmpty(serializeChildren(el), "`");
+      return wrapNonEmpty(serializeChildren(el, dialect), "`");
     case "HR":
       return "---\n";
     case "PRE":
-      return `\`\`\`\n${serializeChildren(el).replace(/\n$/, "")}\n\`\`\``;
+      return `\`\`\`\n${serializeChildren(el, dialect).replace(/\n$/, "")}\n\`\`\``;
     case "BLOCKQUOTE":
-      return serializeChildren(el)
+      return serializeChildren(el, dialect)
         .replace(/\n$/, "")
         .split("\n")
-        .map((l) => `&gt; ${l}`)
+        .map((l) => `${dialect.quotePrefix} ${l}`)
         .join("\n");
     case "UL":
       return Array.from(el.children)
-        .map((li) => `• ${serializeChildren(li).replace(/\n$/, "")}`)
+        .map((li) => `• ${serializeChildren(li, dialect).replace(/\n$/, "")}`)
         .join("\n");
     case "OL":
       return Array.from(el.children)
-        .map((li, i) => `${i + 1}. ${serializeChildren(li).replace(/\n$/, "")}`)
+        .map((li, i) => `${i + 1}. ${serializeChildren(li, dialect).replace(/\n$/, "")}`)
         .join("\n");
     default:
-      return serializeChildren(el);
+      return serializeChildren(el, dialect);
   }
 }
-export function fragmentToMrkdwn(root: HTMLElement): string {
-  return serializeChildren(root).replace(/\n+$/, "");
+export function fragmentToMrkdwn(
+  root: HTMLElement,
+  dialect: InlineDialect = MRKDWN_DIALECT,
+): string {
+  return serializeChildren(root, dialect).replace(/\n+$/, "");
 }
 export function fragmentToBlocks(root: HTMLElement): Block[] | null {
   if (
@@ -104,7 +108,7 @@ export function fragmentToBlocks(root: HTMLElement): Block[] | null {
       flush();
       blocks.push({ type: "divider" });
     } else {
-      run += serializeNode(child);
+      run += serializeNode(child, MRKDWN_DIALECT);
     }
   }
   flush();

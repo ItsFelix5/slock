@@ -1,12 +1,11 @@
-import { gzipSync } from "node:zlib";
-import type { Credentials } from "./relay-core.ts";
+import { type Credentials, compressedResponse } from "./relay-core.ts";
 
 const EMOJI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const EMOJI_LIST_HEADERS = {
   "access-control-allow-origin": "*",
   "cache-control": "private, max-age=86400",
   "content-type": "text/plain; charset=utf-8",
-  vary: "Cookie, Accept-Encoding",
+  vary: "Cookie",
 };
 
 type SlackCaller = (
@@ -83,13 +82,7 @@ export async function emojiListResponse(
   acceptEncoding: string | null,
 ): Promise<Response> {
   const data = await loadEmojiData(creds, callSlack);
-  const body = data.names.join("\n");
-  if (acceptEncoding?.split(",").some((part) => part.trim().startsWith("gzip"))) {
-    return new Response(gzipSync(body), {
-      headers: { ...EMOJI_LIST_HEADERS, "content-encoding": "gzip" },
-    });
-  }
-  return new Response(body, { headers: EMOJI_LIST_HEADERS });
+  return compressedResponse(data.names.join("\n"), EMOJI_LIST_HEADERS, acceptEncoding);
 }
 
 export async function emojiImageUrl(

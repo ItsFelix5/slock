@@ -18,17 +18,42 @@
   flex: 1;
 }
 
-.canvas-panel-editor {
+.canvas-panel-toolbar {
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.canvas-toolbar-btn {
+  width: 28px;
+  height: 28px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-6);
+}
+
+.canvas-toolbar-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.canvas-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+.canvas-panel-editor.composer-input {
   flex: 1;
+  min-height: 0;
+  max-height: none;
   padding: 16px;
-  font-family: inherit;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
-  resize: none;
   outline: none;
   background: var(--composer-bg);
-  border: none;
 }
 
 .canvas-panel-footer {

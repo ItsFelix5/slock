@@ -1,9 +1,14 @@
 import { Icon, Skeleton } from "@slock/ui";
-import { createEffect, createMemo, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
-import { isScrolledToBottom, jumpToMessageInContainer, scrollToBottom } from "./scrollAnchor";
+import {
+  FLASH_MS,
+  isScrolledToBottom,
+  jumpToMessageInContainer,
+  scrollToBottom,
+} from "./scrollAnchor";
 
 const NEAR_BOTTOM_PX = 120;
 const NEAR_TOP_PX = 200;
@@ -62,6 +67,11 @@ export default function MessageList() {
   // inserted above it).
   let olderPageAnchor: { scrollHeight: number; scrollTop: number } | null = null;
   let shouldFollowBottom = true;
+  // The message a same-view "jump to" (e.g. a reply reference click) is
+  // currently targeting — fed to MessageRows so its row stays mounted even
+  // when virtualization would otherwise have windowed it out, since
+  // jumpToMessageInContainer below needs to find it via querySelector.
+  const [pinnedJumpTs, setPinnedJumpTs] = createSignal<string | null>(null);
 
   const messages = createMemo(() => {
     const v = store.viewState.activeView();
@@ -177,7 +187,14 @@ export default function MessageList() {
   }
 
   function jumpToMessage(ts: string) {
-    if (scrollRef) jumpToMessageInContainer(scrollRef, ts);
+    if (!scrollRef) return;
+    setPinnedJumpTs(ts);
+    queueMicrotask(() => {
+      if (scrollRef) jumpToMessageInContainer(scrollRef, ts);
+    });
+    setTimeout(() => {
+      if (pinnedJumpTs() === ts) setPinnedJumpTs(null);
+    }, FLASH_MS + 100);
   }
 
   createEffect(() => {
@@ -240,6 +257,9 @@ export default function MessageList() {
                 messages={messages()}
                 onJumpToMessage={jumpToMessage}
                 onOpenThread={(ts) => store.viewState.openThread(v().id, ts)}
+                pinnedTs={pinnedJumpTs}
+                scrollContainer={() => scrollRef}
+                virtualize
               />
             </>
           )}
