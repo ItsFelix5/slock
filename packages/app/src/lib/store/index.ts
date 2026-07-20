@@ -17,6 +17,7 @@ export { dmDisplayName } from "./slices/dmDisplayName";
 export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
+export { isUnreadDividerBoundary } from "./slices/messaging/unread";
 export type { ChannelMessageTarget, MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 declare global {

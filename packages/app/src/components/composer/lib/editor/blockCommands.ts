@@ -283,8 +283,13 @@ export function createBlockCommands(
     return true;
   }
   return {
+    applyCodeBlock,
+    applyHeader,
+    applyList,
     applyMark,
+    applyQuote,
     insertDateChipAtCaret,
+    insertDividerAtCaret,
     insertLineBreak,
     insertMentionChipAtCaret,
     insertPlainTextAtCaret,

@@ -10,8 +10,59 @@ import { channelDisplayName, store } from "../../../lib/store";
 import { createLinkChip, createLinkSpan } from "./linkChip";
 import { HEADING_TAG_RE } from "./richtextSerialization";
 
-const INLINE_RE = /`([^`]+)`|<([^<>]*)>|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~|:([a-zA-Z0-9_+-]+):/g;
-const QUOTE_LINE_RE = /^&gt;\s?/;
+// Slack messages and mentions use mrkdwn (single-char *bold*/~strike~); Slack
+// canvases store real markdown (**bold**/~~strike~~) instead — everything
+// else here (headers, quotes, lists, dividers, code fences, the <...> token
+// syntax for mentions/channels/dates/links) is identical between the two, so
+// only the inline mark delimiters need to vary per caller.
+export interface InlineDialect {
+  bold: string;
+  italic: string;
+  strike: string;
+  // Slack chat text HTML-entity-escapes its blockquote marker (`&gt;`) along
+  // with the rest of the text's `<`/`>`/`&`; a canvas's markdown document is
+  // plain text with no such escaping, so its quotes use a literal `>`.
+  quotePrefix: string;
+}
+export const MRKDWN_DIALECT: InlineDialect = {
+  bold: "*",
+  italic: "_",
+  quotePrefix: "&gt;",
+  strike: "~",
+};
+export const MARKDOWN_DIALECT: InlineDialect = {
+  bold: "**",
+  italic: "_",
+  quotePrefix: ">",
+  strike: "~~",
+};
+
+function escapeRegExpLiteral(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function buildInlineRegex(dialect: InlineDialect): RegExp {
+  const bold = escapeRegExpLiteral(dialect.bold);
+  const italic = escapeRegExpLiteral(dialect.italic);
+  const strike = escapeRegExpLiteral(dialect.strike);
+  const boldChar = escapeRegExpLiteral(dialect.bold[0]);
+  const italicChar = escapeRegExpLiteral(dialect.italic[0]);
+  const strikeChar = escapeRegExpLiteral(dialect.strike[0]);
+  return new RegExp(
+    `\`([^\`]+)\`|<([^<>]*)>|${bold}([^${boldChar}\\n]+)${bold}|${italic}([^${italicChar}\\n]+)${italic}|${strike}([^${strikeChar}\\n]+)${strike}|:([a-zA-Z0-9_+-]+):`,
+    "g",
+  );
+}
+const DIALECT_INLINE_RE = new Map<InlineDialect, RegExp>([
+  [MRKDWN_DIALECT, buildInlineRegex(MRKDWN_DIALECT)],
+  [MARKDOWN_DIALECT, buildInlineRegex(MARKDOWN_DIALECT)],
+]);
+function buildQuoteLineRegex(dialect: InlineDialect): RegExp {
+  return new RegExp(`^${escapeRegExpLiteral(dialect.quotePrefix)}\\s?`);
+}
+const DIALECT_QUOTE_RE = new Map<InlineDialect, RegExp>([
+  [MRKDWN_DIALECT, buildQuoteLineRegex(MRKDWN_DIALECT)],
+  [MARKDOWN_DIALECT, buildQuoteLineRegex(MARKDOWN_DIALECT)],
+]);
 const HEADER_LINE_RE = /^(#{1,6}) (.*)$/;
 const CODE_FENCE_RE = /```([\s\S]*?)```/g;
 export function createHeaderElement(level = 3): HTMLHeadingElement {
@@ -132,9 +183,10 @@ function appendToken(parent: Node, token: string) {
   }
   appendText(parent, `<${token}>`);
 }
-function appendInline(parent: Node, text: string) {
+function appendInline(parent: Node, text: string, dialect: InlineDialect) {
   let lastIndex = 0;
-  for (const match of text.matchAll(INLINE_RE)) {
+  const re = DIALECT_INLINE_RE.get(dialect) ?? buildInlineRegex(dialect);
+  for (const match of text.matchAll(re)) {
     const index = match.index ?? 0;
     if (index > lastIndex) appendText(parent, unescapeEntities(text.slice(lastIndex, index)));
     const [, code, token, bold, italic, strike, emojiName] = match;
@@ -163,14 +215,14 @@ function appendInline(parent: Node, text: string) {
   }
   if (lastIndex < text.length) appendText(parent, unescapeEntities(text.slice(lastIndex)));
 }
-function appendLinesWithBreaks(parent: Node, text: string) {
+function appendLinesWithBreaks(parent: Node, text: string, dialect: InlineDialect) {
   const lines = text.split("\n");
   lines.forEach((line, i) => {
     if (i > 0) parent.appendChild(document.createElement("br"));
-    appendInline(parent, line);
+    appendInline(parent, line, dialect);
   });
 }
-function appendPlainSegment(frag: DocumentFragment, text: string) {
+function appendPlainSegment(frag: DocumentFragment, text: string, dialect: InlineDialect) {
   const lines = text.split("\n");
   let current: string[] = [];
   let currentIsQuote = false;
@@ -186,12 +238,12 @@ function appendPlainSegment(frag: DocumentFragment, text: string) {
         if (index > 0) frag.appendChild(createComposerBlockSeparator());
         const bq = document.createElement("blockquote");
         bq.className = "composer-quote";
-        appendInline(bq, line);
+        appendInline(bq, line, dialect);
         if (!bq.childNodes.length) bq.appendChild(document.createElement("br"));
         frag.appendChild(bq);
       });
     } else {
-      appendLinesWithBreaks(frag, current.join("\n"));
+      appendLinesWithBreaks(frag, current.join("\n"), dialect);
     }
     current = [];
   };
@@ -208,24 +260,28 @@ function appendPlainSegment(frag: DocumentFragment, text: string) {
     const header = HEADER_LINE_RE.exec(line);
     if (header) {
       const h = createHeaderElement(header[1].length);
-      appendInline(h, header[2]);
+      appendInline(h, header[2], dialect);
       appendBlock(h);
       continue;
     }
-    const isQuote = QUOTE_LINE_RE.test(line);
+    const quoteRe = DIALECT_QUOTE_RE.get(dialect) ?? buildQuoteLineRegex(dialect);
+    const isQuote = quoteRe.test(line);
     if (isQuote !== currentIsQuote && current.length > 0) flush();
     currentIsQuote = isQuote;
-    current.push(isQuote ? line.replace(QUOTE_LINE_RE, "") : line);
+    current.push(isQuote ? line.replace(quoteRe, "") : line);
   }
   flush();
 }
-export function mrkdwnToFragment(text: string): DocumentFragment {
+export function mrkdwnToFragment(
+  text: string,
+  dialect: InlineDialect = MRKDWN_DIALECT,
+): DocumentFragment {
   const frag = document.createDocumentFragment();
   if (!text) return frag;
   let lastIndex = 0;
   for (const match of text.matchAll(CODE_FENCE_RE)) {
     const index = match.index ?? 0;
-    if (index > lastIndex) appendPlainSegment(frag, text.slice(lastIndex, index));
+    if (index > lastIndex) appendPlainSegment(frag, text.slice(lastIndex, index), dialect);
     if (frag.lastChild) frag.appendChild(document.createElement("br"));
     const pre = document.createElement("pre");
     pre.className = "composer-pre";
@@ -233,7 +289,7 @@ export function mrkdwnToFragment(text: string): DocumentFragment {
     frag.appendChild(pre);
     lastIndex = index + match[0].length;
   }
-  if (lastIndex < text.length) appendPlainSegment(frag, text.slice(lastIndex));
+  if (lastIndex < text.length) appendPlainSegment(frag, text.slice(lastIndex), dialect);
   return frag;
 }
 function closestElement(node: Node, tagName: string, stopAt: HTMLElement): HTMLElement | null {

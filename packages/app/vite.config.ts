@@ -3,22 +3,22 @@ import solid from "vite-plugin-solid";
 
 function manualReload(): Plugin {
   return {
-    name: 'manual-reload',
-    apply: 'serve',
+    name: "manual-reload",
+    apply: "serve",
 
     configureServer(server) {
-      server.ws.on('manual:reload', () => {
+      server.ws.on("manual:reload", () => {
         server.ws.send({
-          type: 'full-reload',
-        })
-      })
+          type: "full-reload",
+        });
+      });
     },
 
     // Suppress automatic HMR updates after files are saved.
     handleHotUpdate() {
-      return []
+      return [];
     },
-  }
+  };
 }
 
 export default defineConfig(async ({ command }) => ({

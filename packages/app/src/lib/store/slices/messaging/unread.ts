@@ -4,6 +4,19 @@ import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { View } from "../types";
 
+// The "new messages" divider's boundary condition — shared by MessageRow.tsx
+// (checking a single row) and MessageRows.tsx (scanning for that row's index)
+// so the arithmetic lives in exactly one place.
+export function isUnreadDividerBoundary(
+  ts: string,
+  prevTs: string | undefined,
+  anchor: number,
+): boolean {
+  return (
+    parseFloat(ts) * 1000 > anchor && (prevTs === undefined || parseFloat(prevTs) * 1000 <= anchor)
+  );
+}
+
 // client.counts' mention badge is only fetched once at boot (see bootstrap's
 // buildUnreadMap) and never refreshed, so left alone it goes stale the moment
 // a mention arrives or gets read during the session — keep it in sync locally

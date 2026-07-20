@@ -253,3 +253,14 @@ export async function searchMessages(
     userId: m.user,
   }));
 }
+
+// Slack's own query-completion suggestions (e.g. finishing a partial word,
+// or a modifier like "from:") — distinct from searchHistory's locally-
+// remembered past queries, which this is shown alongside rather than in
+// place of.
+export async function fetchSearchAutocomplete(query: string): Promise<string[]> {
+  if (!query.trim()) return [];
+  const data = await callSlack("search.autocomplete", { query });
+  if (!data.ok) return [];
+  return (data.suggestions?.text as string[] | undefined) ?? [];
+}

@@ -1,0 +1,71 @@
+.file-viewer-card {
+  width: 900px;
+  max-width: 94vw;
+  height: 85vh;
+  overflow: hidden;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-10);
+  box-shadow: var(--shadow-modal);
+}
+
+.file-viewer-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-viewer-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
+
+.file-viewer-loading {
+  flex: 1;
+}
+
+.file-viewer-mail {
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-viewer-mail-headers {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-viewer-mail-subject {
+  margin-bottom: 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.file-viewer-mail-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.file-viewer-mail-frame {
+  background: #fff;
+}
+
+.file-viewer-mail-text {
+  flex: 1;
+  padding: 16px;
+  margin: 0;
+  overflow: auto;
+  font-family: inherit;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.file-viewer-mail-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

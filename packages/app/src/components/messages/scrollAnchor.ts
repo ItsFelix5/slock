@@ -1,4 +1,4 @@
-const FLASH_MS = 1500;
+export const FLASH_MS = 1500;
 
 interface ScrollAnchor {
   el: HTMLElement;
