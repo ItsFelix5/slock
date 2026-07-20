@@ -9,9 +9,30 @@
   box-shadow: var(--shadow-modal);
 }
 
+.canvas-panel-header-info {
+  gap: 8px;
+  min-width: 0;
+}
+
 .canvas-panel-title {
+  overflow: hidden;
   font-size: 14px;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-panel-file-link {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  color: var(--text-dim);
+  border-radius: var(--radius-6);
+}
+
+.canvas-panel-file-link:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
 .canvas-panel-loading {

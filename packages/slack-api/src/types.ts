@@ -66,6 +66,9 @@ export interface SlackFile {
   height?: number;
   id: string;
   isAudio?: boolean;
+  // Slack's own filetype for a canvas shared/linked as a file — a legacy
+  // name from when Canvas was built on the Quip acquisition.
+  isCanvas?: boolean;
   isImage: boolean;
   isMail?: boolean;
   isPdf?: boolean;

@@ -1,35 +1,102 @@
-import { Icon, InlineFeedback, Overlay, PanelHeader, Tooltip, useEscapeClose } from "@slock/ui";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import {
+  Icon,
+  type IconName,
+  InlineFeedback,
+  Overlay,
+  PanelHeader,
+  Tooltip,
+  useEscapeClose,
+} from "@slock/ui";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "../composer/Composer.css";
+import type { EditorCommands } from "../composer/lib/editor/editorCommands";
 import { createEditorCommands } from "../composer/lib/editor/editorCommands";
 import { handleMarkShortcut } from "../composer/lib/editor/markShortcuts";
 import { MARKDOWN_DIALECT } from "../composer/lib/richtext";
 import "./CanvasPanel.css";
 
-const MARK_TOOLS = [
-  { icon: "bold", mark: "bold", title: "Bold (Ctrl+B)" },
-  { icon: "italic", mark: "italic", title: "Italic (Ctrl+I)" },
-  { icon: "strikethrough", mark: "strike", title: "Strikethrough (Ctrl+Shift+X)" },
-  { icon: "code", mark: "code", title: "Inline code (Ctrl+Shift+C)" },
-] as const;
+type ToolbarTool = { icon: IconName; title: string; onClick: () => void };
 
-const HEADING_TOOLS = [
-  { icon: "heading-1", level: 1, title: "Heading 1" },
-  { icon: "heading-2", level: 2, title: "Heading 2" },
-  { icon: "heading-3", level: 3, title: "Heading 3" },
-] as const;
+// Grouped into three `<For>` runs (marks, headings, block formats) so the
+// dividers between them stay meaningful, but all rendered through the one
+// ToolbarButton below instead of five near-identical Tooltip+button blocks.
+function toolbarGroups(editor: EditorCommands): ToolbarTool[][] {
+  return [
+    [
+      { icon: "bold", onClick: () => editor.applyMark("bold"), title: "Bold (Ctrl+B)" },
+      { icon: "italic", onClick: () => editor.applyMark("italic"), title: "Italic (Ctrl+I)" },
+      {
+        icon: "strikethrough",
+        onClick: () => editor.applyMark("strike"),
+        title: "Strikethrough (Ctrl+Shift+X)",
+      },
+      {
+        icon: "code",
+        onClick: () => editor.applyMark("code"),
+        title: "Inline code (Ctrl+Shift+C)",
+      },
+    ],
+    [
+      { icon: "heading-1", onClick: () => editor.applyHeader(1), title: "Heading 1" },
+      { icon: "heading-2", onClick: () => editor.applyHeader(2), title: "Heading 2" },
+      { icon: "heading-3", onClick: () => editor.applyHeader(3), title: "Heading 3" },
+    ],
+    [
+      {
+        icon: "bulleted-list",
+        onClick: () => editor.applyList(false),
+        title: "Bulleted list",
+      },
+      { icon: "numbered-list", onClick: () => editor.applyList(true), title: "Numbered list" },
+      { icon: "quote", onClick: () => editor.applyQuote(), title: "Quote" },
+      { icon: "code-block", onClick: () => editor.applyCodeBlock(), title: "Code block" },
+      { icon: "divider", onClick: () => editor.insertDividerAtCaret(), title: "Divider" },
+    ],
+  ];
+}
+
+// A plain click blurs the editor and collapses its selection before onClick
+// fires, so applyMark/applyHeader etc. would find nothing selected to act on.
+function preserveSelection(e: MouseEvent) {
+  e.preventDefault();
+}
+
+function ToolbarButton(props: ToolbarTool) {
+  return (
+    <Tooltip content={props.title}>
+      <button
+        aria-label={props.title}
+        class="canvas-toolbar-btn btn-reset flex-center"
+        onClick={props.onClick}
+        onMouseDown={preserveSelection}
+        type="button"
+      >
+        <Icon name={props.icon} size={15} />
+      </button>
+    </Tooltip>
+  );
+}
 
 export default function CanvasPanel() {
-  const channelId = store.canvas.openCanvasChannelId;
-  useEscapeClose(store.canvas.closeChannelCanvas);
+  const open = store.canvas.openCanvas;
+  useEscapeClose(store.canvas.closeCanvas);
 
   const fileId = () => {
-    const id = channelId();
-    return id ? store.canvas.canvasByChannel[id]?.fileId : undefined;
+    const o = open();
+    if (!o) return;
+    return o.kind === "channel" ? store.canvas.canvasByChannel[o.channelId]?.fileId : o.fileId;
   };
+  const title = createMemo(() => {
+    const o = open();
+    if (!o) return "";
+    return o.kind === "channel"
+      ? `#${channelDisplayName(store.channels.channelById(o.channelId), o.channelId)}`
+      : o.title;
+  });
 
   const [content, { mutate }] = createResource(fileId, store.canvas.loadCanvasContent);
+  const [fileUrl] = createResource(fileId, store.canvas.loadCanvasFileUrl);
   const [saving, setSaving] = createSignal(false);
   const [dirty, setDirty] = createSignal(false);
   const [text, setText] = createSignal("");
@@ -108,19 +175,28 @@ export default function CanvasPanel() {
     }
   };
 
-  // Every toolbar button needs this: a plain click blurs the editor and
-  // collapses its selection before onClick fires, so applyMark/applyHeader
-  // etc. would find nothing selected to act on.
-  const preserveSelection = (e: MouseEvent) => e.preventDefault();
-
   return (
-    <Show when={channelId()}>
-      {(id) => (
-        <Overlay onClose={store.canvas.closeChannelCanvas}>
+    <Show when={open()}>
+      {(_open) => (
+        <Overlay onClose={store.canvas.closeCanvas}>
           <div class="canvas-panel-card flex-col">
-            <PanelHeader onClose={store.canvas.closeChannelCanvas}>
-              <div class="canvas-panel-title">
-                Canvas · #{channelDisplayName(store.channels.channelById(id()), id())}
+            <PanelHeader onClose={store.canvas.closeCanvas}>
+              <div class="canvas-panel-header-info flex-align-center">
+                <div class="canvas-panel-title">Canvas · {title()}</div>
+                <Show when={fileUrl()}>
+                  {(url) => (
+                    <Tooltip content="Open the underlying file">
+                      <a
+                        class="canvas-panel-file-link btn-reset flex-center"
+                        href={url()}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        <Icon name="open-in-tab" size={15} />
+                      </a>
+                    </Tooltip>
+                  )}
+                </Show>
               </div>
             </PanelHeader>
             <Show
@@ -130,93 +206,16 @@ export default function CanvasPanel() {
               when={!content.loading}
             >
               <div class="canvas-panel-toolbar flex-align-center">
-                <For each={MARK_TOOLS}>
-                  {(tool) => (
-                    <Tooltip content={tool.title}>
-                      <button
-                        aria-label={tool.title}
-                        class="canvas-toolbar-btn btn-reset flex-center"
-                        onClick={() => editor.applyMark(tool.mark)}
-                        onMouseDown={preserveSelection}
-                        type="button"
-                      >
-                        <Icon name={tool.icon} size={15} />
-                      </button>
-                    </Tooltip>
+                <For each={toolbarGroups(editor)}>
+                  {(group, i) => (
+                    <>
+                      <Show when={i() > 0}>
+                        <span class="canvas-toolbar-divider" />
+                      </Show>
+                      <For each={group}>{(tool) => <ToolbarButton {...tool} />}</For>
+                    </>
                   )}
                 </For>
-                <span class="canvas-toolbar-divider" />
-                <For each={HEADING_TOOLS}>
-                  {(tool) => (
-                    <Tooltip content={tool.title}>
-                      <button
-                        aria-label={tool.title}
-                        class="canvas-toolbar-btn btn-reset flex-center"
-                        onClick={() => editor.applyHeader(tool.level)}
-                        onMouseDown={preserveSelection}
-                        type="button"
-                      >
-                        <Icon name={tool.icon} size={15} />
-                      </button>
-                    </Tooltip>
-                  )}
-                </For>
-                <span class="canvas-toolbar-divider" />
-                <Tooltip content="Bulleted list">
-                  <button
-                    aria-label="Bulleted list"
-                    class="canvas-toolbar-btn btn-reset flex-center"
-                    onClick={() => editor.applyList(false)}
-                    onMouseDown={preserveSelection}
-                    type="button"
-                  >
-                    <Icon name="bulleted-list" size={15} />
-                  </button>
-                </Tooltip>
-                <Tooltip content="Numbered list">
-                  <button
-                    aria-label="Numbered list"
-                    class="canvas-toolbar-btn btn-reset flex-center"
-                    onClick={() => editor.applyList(true)}
-                    onMouseDown={preserveSelection}
-                    type="button"
-                  >
-                    <Icon name="numbered-list" size={15} />
-                  </button>
-                </Tooltip>
-                <Tooltip content="Quote">
-                  <button
-                    aria-label="Quote"
-                    class="canvas-toolbar-btn btn-reset flex-center"
-                    onClick={() => editor.applyQuote()}
-                    onMouseDown={preserveSelection}
-                    type="button"
-                  >
-                    <Icon name="quote" size={15} />
-                  </button>
-                </Tooltip>
-                <Tooltip content="Code block">
-                  <button
-                    aria-label="Code block"
-                    class="canvas-toolbar-btn btn-reset flex-center"
-                    onClick={() => editor.applyCodeBlock()}
-                    onMouseDown={preserveSelection}
-                    type="button"
-                  >
-                    <Icon name="code-block" size={15} />
-                  </button>
-                </Tooltip>
-                <Tooltip content="Divider">
-                  <button
-                    aria-label="Divider"
-                    class="canvas-toolbar-btn btn-reset flex-center"
-                    onClick={() => editor.insertDividerAtCaret()}
-                    onMouseDown={preserveSelection}
-                    type="button"
-                  >
-                    <Icon name="divider" size={15} />
-                  </button>
-                </Tooltip>
               </div>
               {/* biome-ignore lint/a11y/useSemanticElements: rich-text formatting needs a real contenteditable, not <textarea> */}
               <div

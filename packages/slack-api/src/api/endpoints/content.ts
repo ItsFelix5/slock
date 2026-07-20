@@ -51,20 +51,35 @@ export async function fetchSaved(): Promise<SavedItem[]> {
     .filter((it): it is SavedItem => !!it.channelId && !!it.ts);
 }
 
+// Shared by fetchCanvas (reads the content) and fetchCanvasFileUrl (just
+// needs the link) — both start from the same files.info lookup for the
+// canvas's backing file.
+async function resolveCanvasFileUrl(fileId: string): Promise<string | null> {
+  const info = await callSlack("files.info", { file: fileId });
+  if (!info.ok) return null;
+  const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
+  return downloadUrl ? fileProxyUrl(downloadUrl) : null;
+}
+
 // Reading a canvas's actual document content back out isn't something we can
 // fully verify without live testing against a real canvas — best-effort: fetch
 // the backing file's content through the cookie-authenticated file proxy.
 export async function fetchCanvas(fileId: string): Promise<string | null> {
-  const info = await callSlack("files.info", { file: fileId });
-  if (!info.ok) return null;
-  const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
-  if (!downloadUrl) return null;
+  const url = await resolveCanvasFileUrl(fileId);
+  if (!url) return null;
   try {
-    const res = await fetch(fileProxyUrl(downloadUrl));
+    const res = await fetch(url);
     return await res.text();
   } catch {
     return null;
   }
+}
+
+// A direct, navigable link to the canvas's backing file — same cookie-proxied
+// URL fetchCanvas reads from, exposed so the UI can offer "open as a file"
+// (new tab, copy link, download) instead of only the in-app rich editor.
+export function fetchCanvasFileUrl(fileId: string): Promise<string | null> {
+  return resolveCanvasFileUrl(fileId);
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {

@@ -19,7 +19,7 @@ import {
 } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../lib/replyLink";
-import { actionFeedback, store } from "../../lib/store";
+import { actionFeedback, isUnreadDividerBoundary, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import { MessageAvatarButton } from "./MessageAuthorButtons";
@@ -119,8 +119,7 @@ export default function MessageRow(props: MessageRowProps) {
     if (props.threadTs && !p) return false;
     const anchor = store.unread.unreadDividerTsForChannel(props.channelId);
     if (anchor == null) return false;
-    if (parseFloat(msg.ts) * 1000 <= anchor) return false;
-    return !p || parseFloat(p.ts) * 1000 <= anchor;
+    return isUnreadDividerBoundary(msg.ts, p?.ts, anchor);
   };
   const showRepliesDivider = () => !!props.threadTs && !prev() && (msg.replyCount ?? 0) > 0;
   const isInThread = (channelId: string, ts: string) =>

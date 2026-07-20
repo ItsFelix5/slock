@@ -1,6 +1,7 @@
 import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
 import { Icon, type IconName, ZoomableImage } from "@slock/ui";
 import { For, Match, Switch } from "solid-js";
+import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
 import FileViewerTrigger from "./FileViewer";
 import "./MessageFiles.css";
@@ -81,6 +82,15 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
               <FileViewerTrigger file={file} kind="mail">
                 <FileCardInfo file={file} icon="email" />
               </FileViewerTrigger>
+            </Match>
+            <Match when={file.isCanvas}>
+              <button
+                class="message-file-card flex-align-center btn-reset"
+                onClick={() => store.canvas.openFileCanvas(file.id, file.title || file.name)}
+                type="button"
+              >
+                <FileCardInfo file={file} icon="open-in-canvas" />
+              </button>
             </Match>
           </Switch>
         )}

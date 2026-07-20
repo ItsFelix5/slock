@@ -1,6 +1,6 @@
 import type { Message } from "@slock/slack-api";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { store } from "../../lib/store";
+import { isUnreadDividerBoundary, store } from "../../lib/store";
 import MessageRow from "./MessageRow";
 import { estimateMessageHeight } from "./parts/estimateMessageHeight";
 
@@ -10,20 +10,24 @@ import { estimateMessageHeight } from "./parts/estimateMessageHeight";
 // busy channel to a few screens' worth of DOM instead of its entire history.
 const OVERSCAN_PX = 1200;
 
+// -1 for "no divider to show" — either there's no read cursor yet, or the
+// sentinel (Infinity) meaning "already caught up" (see unread.ts). Shared by
+// the dev-only debug log below and VirtualizedRows' pinning so a divider row
+// is never scanned for twice.
+function findUnreadDividerIndex(messages: Message[], channelId: string): number {
+  const anchor = store.unread.unreadDividerTsForChannel(channelId);
+  if (anchor == null || !Number.isFinite(anchor)) return -1;
+  return messages.findIndex((msg, index) =>
+    isUnreadDividerBoundary(msg.ts, messages[index - 1]?.ts, anchor),
+  );
+}
+
 function debugUnreadDivider(channelId: string, messages: Message[]) {
   if (!import.meta.env.DEV) return;
   const anchor = store.unread.unreadDividerTsForChannel(channelId);
   const [first] = messages;
   const latest = messages[messages.length - 1];
-  const boundaryIndex =
-    anchor == null || !Number.isFinite(anchor)
-      ? -1
-      : messages.findIndex((msg, index) => {
-          const prev = messages[index - 1];
-          return (
-            parseFloat(msg.ts) * 1000 > anchor && (!prev || parseFloat(prev.ts) * 1000 <= anchor)
-          );
-        });
+  const boundaryIndex = findUnreadDividerIndex(messages, channelId);
   const reason =
     anchor == null
       ? "no-anchor"
@@ -160,17 +164,7 @@ function VirtualizedRows(props: MessageRowsProps) {
       start = start === undefined ? i : Math.min(start, i);
       end = end === undefined ? i : Math.max(end, i);
     };
-    const anchor = store.unread.unreadDividerTsForChannel(props.channelId);
-    if (typeof anchor === "number") {
-      mark(
-        msgs.findIndex((m, i) => {
-          const prev = msgs[i - 1];
-          return (
-            parseFloat(m.ts) * 1000 > anchor && (!prev || parseFloat(prev.ts) * 1000 <= anchor)
-          );
-        }),
-      );
-    }
+    mark(findUnreadDividerIndex(msgs, props.channelId));
     const target = store.viewState.channelMessageTarget();
     if (target?.channelId === props.channelId) mark(msgs.findIndex((m) => m.ts === target.ts));
     const extraTs = props.pinnedTs?.();
