@@ -2,7 +2,7 @@ import type { Message, MessageShortcut } from "@slock/slack-api";
 import { fuzzySearch, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
-import { REMINDER_OPTIONS, store } from "../../../lib/store";
+import { actionFeedback, REMINDER_OPTIONS, store } from "../../../lib/store";
 
 export interface MessageActionsMenuItemsProps {
   channelId: string;
@@ -70,11 +70,16 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     (ts === props.threadTs ||
       (store.messages.threadMessages[props.threadTs]?.some((m) => m.ts === ts) ?? false));
 
-  const copyText = () => {
+  const copyText = async () => {
     close();
-    navigator.clipboard.writeText(
-      parseReplyLink(props.msg.text, isInThread)?.rest ?? props.msg.text,
-    );
+    try {
+      await navigator.clipboard.writeText(
+        parseReplyLink(props.msg.text, isInThread)?.rest ?? props.msg.text,
+      );
+      actionFeedback.flash(props.msg.ts, "Text copied.");
+    } catch {
+      actionFeedback.flash(props.msg.ts, "Couldn’t copy the message text.", "error");
+    }
   };
 
   const remind = (dateDue: number) => {
@@ -105,7 +110,12 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         <Icon name="link" size={15} />
         Copy link
       </button>
-      <button class="menu-item" onClick={togglePin} type="button">
+      <button
+        class="menu-item"
+        disabled={store.pinned.isPinPending(props.channelId, props.msg.ts)}
+        onClick={togglePin}
+        type="button"
+      >
         <Icon name="pin" size={15} />
         {isPinned() ? "Unpin from channel" : "Pin to channel"}
       </button>
@@ -144,6 +154,18 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         <Icon name="text" size={15} />
         Copy text
       </button>
+      <Show when={store.resources.messageShortcuts.loading}>
+        <div aria-live="polite" class="menu-item disabled">
+          <Icon name="apps" size={15} />
+          Loading message shortcuts…
+        </div>
+      </Show>
+      <Show when={store.resources.messageShortcuts.error}>
+        <button class="menu-item" onClick={store.resources.retryMessageShortcuts} type="button">
+          <Icon name="refresh" size={15} />
+          Retry message shortcuts
+        </button>
+      </Show>
       <Show when={store.resources.messageShortcuts()?.length}>
         <Menu
           class="message-more-item-wrap"

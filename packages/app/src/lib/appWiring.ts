@@ -43,6 +43,7 @@ export function wireAppState(deps: AppWiringDeps) {
         .map((channel) => channel.id),
     clearUnread: unread.clearChannelUnread,
     dmIds: () => dms.directMessages().map((dm) => dm.id),
+    setChannelRead: unread.setChannelRead,
     setLastRead: unread.setLastReadByChannel,
   });
 
@@ -53,6 +54,8 @@ export function wireAppState(deps: AppWiringDeps) {
   unread.wireReadTracking({
     activeView: viewState.activeView,
     messagesByChannel: messages.messagesByChannel,
+    activeThread: viewState.activeThread,
+    threadMessages: messages.threadMessages,
   });
   desktopNotifications.wireNotifications({
     activeView: viewState.activeView,

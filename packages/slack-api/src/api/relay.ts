@@ -87,77 +87,80 @@ export async function callSlackEdge<T = any>(
 // request like an <img>/<video> src, only to same-site/top-level navigation.
 // This proxies the request server-side instead, using the cookie the relay
 // holds for the caller (see fileProxyResponse in server/relay-core.ts).
-// Legacy message attachments can also carry third-party icon/image URLs (e.g.
-// a bot integration's own avatar host) that were never behind Slack's cookie
-// in the first place — those still hotlink fine, and the server's own host
-// allowlist would 403 them anyway, so only rewrite URLs on Slack's domains.
 const SLACK_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
 
 export function fileProxyUrl(url: string): string {
+  let parsed: URL;
   try {
-    if (!SLACK_FILE_HOSTS.some((re) => re.test(new URL(url).hostname))) return url;
+    parsed = new URL(url);
   } catch {
     return url;
   }
-  return `/file?url=${encodeURIComponent(url)}`;
+  if (SLACK_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
+    return `/file?url=${encodeURIComponent(url)}`;
+  }
+  // Legacy message attachments can carry third-party icon/image URLs (e.g.
+  // GitHub's integration footer icon, hosted on slack.github.com) that were
+  // never behind Slack's cookie. Those can't just hotlink though: many send
+  // `Cross-Origin-Resource-Policy: same-origin`, which blocks the browser
+  // from loading them as a direct <img>/<video> src regardless of CORS. Route
+  // them through the unauthenticated external media proxy instead — it never
+  // sees or forwards the Slack cookie, unlike /file above.
+  if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+    return `/media-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
 }
 
-// The workspace domain (e.g. "hackclub.slack.com") lives in the same cookie
-// as the rest of the credentials, which page JS can't read directly (it's
-// httpOnly) — fetched once from the server, which can, and cached since it
-// never changes at runtime. `cachedDomainValue` mirrors the resolved promise
-// synchronously — index.tsx's boot-time getConfig() call (made before the
-// composer can even mount) already seeds it, so anything that needs the
-// domain synchronously (e.g. serializing a composer chip) can just read it.
-let cachedDomainValue: string | null = null;
-let workspaceDomain: Promise<string> | null = null;
-export function getWorkspaceDomain(): Promise<string> {
-  if (cachedDomainValue) return Promise.resolve(cachedDomainValue);
-  if (!workspaceDomain) {
-    workspaceDomain = fetch("/config")
-      .then((res) => res.json())
-      .then((data) => {
-        cachedDomainValue = data.domain as string;
-        return cachedDomainValue;
-      })
-      .catch((err) => {
-        workspaceDomain = null;
-        throw err;
-      });
+// The workspace domain (e.g. "hackclub.slack.com") and team id live in a
+// small non-HttpOnly cookie the server sets alongside the real (HttpOnly)
+// credentials cookie on login — see slock_info in server/relay-auth.ts. Page
+// JS can read it directly, no relay round trip needed.
+type SlockInfo = { domain: string; teamId: string | null };
+let cachedInfo: SlockInfo | null | undefined;
+const INFO_COOKIE_RE = /(?:^|; )slock_info=([^;]*)/;
+
+function readInfoCookie(): SlockInfo | null {
+  const match = document.cookie.match(INFO_COOKIE_RE);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(match[1]));
+    return typeof parsed?.domain === "string" ? parsed : null;
+  } catch {
+    return null;
   }
-  return workspaceDomain;
+}
+
+function info(): SlockInfo | null {
+  if (cachedInfo === undefined) cachedInfo = readInfoCookie();
+  return cachedInfo;
+}
+
+// True once the server has credentials for this browser — checked at boot to
+// decide whether to show the connect-to-Slack screen. Cheap to call on every
+// render since it just reads document.cookie.
+export function isConfigured(): boolean {
+  return info() !== null;
+}
+
+export function getWorkspaceDomain(): Promise<string> {
+  return Promise.resolve(info()?.domain ?? "");
 }
 
 export function getCachedWorkspaceDomain(): string | null {
-  return cachedDomainValue;
+  return info()?.domain ?? null;
 }
 
 // Same idea as getWorkspaceDomain, for the current team id — needed to
-// submit a block action. Shares /config's response, seeded by the same
-// boot-time getConfig() call.
-let cachedTeamIdValue: string | null = null;
-let workspaceTeamId: Promise<string | null> | null = null;
+// submit a block action.
 export function getWorkspaceTeamId(): Promise<string | null> {
-  if (cachedTeamIdValue) return Promise.resolve(cachedTeamIdValue);
-  if (!workspaceTeamId) {
-    workspaceTeamId = fetch("/config")
-      .then((res) => res.json())
-      .then((data) => {
-        cachedTeamIdValue = (data.teamId as string | null) ?? null;
-        return cachedTeamIdValue;
-      })
-      .catch((err) => {
-        workspaceTeamId = null;
-        throw err;
-      });
-  }
-  return workspaceTeamId;
+  return Promise.resolve(info()?.teamId ?? null);
 }
 
 // A user's Enterprise Grid team profile link — works cross-workspace within
 // the same Grid org, unlike a plain channel permalink. On a Grid workspace
-// like this one, `domain` from /config is already the "*.enterprise.slack.com"
+// like this one, `domain` from the slock_info cookie is already the "*.enterprise.slack.com"
 // hostname (that's what's in the browser's address bar), so this only adds
 // the ".enterprise" hop for workspaces where it's still the plain
 // "*.slack.com" form — never both, which would produce a malformed
@@ -165,25 +168,6 @@ export function getWorkspaceTeamId(): Promise<string | null> {
 export function userProfileUrl(domain: string, userId: string): string {
   const sub = domain.replace(SLACK_DOMAIN_SUFFIX_RE, "");
   return `https://${sub}.enterprise.slack.com/team/${userId}`;
-}
-
-// Unlike getWorkspaceDomain, this is never cached — it's polled by the
-// connect-to-slack screen while waiting for credentials, and used once at
-// boot to decide whether to show that screen at all. Reads only the current
-// request's own cookie server-side, so it stays correct with many different
-// people using the same deployment at once. Still seeds the workspace-domain
-// cache above when it has a domain to offer, since App only ever mounts
-// after this resolves once.
-export async function getConfig(): Promise<{
-  domain: string | null;
-  configured: boolean;
-  teamId: string | null;
-}> {
-  const res = await fetch("/config");
-  const data = await res.json();
-  if (data.domain) cachedDomainValue = data.domain;
-  if (data.teamId) cachedTeamIdValue = data.teamId;
-  return data;
 }
 
 // Submits the credentials extracted from the pasted devtools request. Only
@@ -202,10 +186,7 @@ export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; er
 // Tells the server to clear the credentials cookie. Caller is expected to
 // reload/re-render into ConnectSlack afterward.
 export async function logout(): Promise<void> {
-  workspaceDomain = null;
-  cachedDomainValue = null;
-  workspaceTeamId = null;
-  cachedTeamIdValue = null;
+  cachedInfo = undefined;
   await fetch("/auth/logout", { method: "POST" }).catch(() => {
     // best-effort — worst case the user just sees stale state until reload
   });

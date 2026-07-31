@@ -5,6 +5,7 @@ import SettingsAppearanceTab from "./SettingsAppearanceTab";
 import SettingsDebugTab from "./SettingsDebugTab";
 import SettingsNotificationsTab from "./SettingsNotificationsTab";
 import "./Settings.css";
+import "./Settings.responsive.css";
 
 type Tab = "account" | "notifications" | "appearance" | "debugging";
 
@@ -21,7 +22,7 @@ export default function Settings(props: { onClose: () => void }) {
   const [tab, setTab] = createSignal<Tab>("notifications");
 
   return (
-    <Overlay onClose={props.onClose}>
+    <Overlay ariaLabel="Settings" onClose={props.onClose}>
       <div class="settings-card modal-card">
         <Tooltip content="Close">
           <button
@@ -38,6 +39,7 @@ export default function Settings(props: { onClose: () => void }) {
           <For each={TABS}>
             {(t) => (
               <button
+                aria-pressed={tab() === t.key}
                 class="settings-nav-btn btn-reset"
                 classList={{ active: tab() === t.key }}
                 onClick={() => setTab(t.key)}

@@ -62,8 +62,9 @@ export default function ComposeDatePicker(props: {
         fallback={
           <>
             <For each={PRESETS}>
-              {(preset) => (
+              {(preset, index) => (
                 <button
+                  autofocus={index() === 0}
                   class="compose-date-row menu-item"
                   onClick={() => setPickedDate(preset.date())}
                   type="button"
@@ -77,6 +78,7 @@ export default function ComposeDatePicker(props: {
             </For>
             <div class="compose-date-custom">
               <input
+                aria-label="Custom date and time"
                 class="compose-date-input input-reset"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -99,6 +101,7 @@ export default function ComposeDatePicker(props: {
         {(date) => (
           <>
             <button
+              autofocus
               class="compose-date-back menu-item btn-reset flex-align-center"
               onClick={() => setPickedDate(null)}
               type="button"

@@ -1,7 +1,8 @@
 // Production entry point: one process serving the built static client plus
 // the Slack relay (see relay-core.ts) on a single port. There's no Vite here
 // (that's dev-only, see dev-plugin.ts) — just static files and the relay.
-import { type Credentials, parseCredsCookie, routeRelayRequest } from "./relay-core";
+import { type Credentials, parseCredsCookie } from "./relay-auth";
+import { routeRelayRequest } from "./relay-core";
 import {
   handleClientDisconnect,
   handleClientMessage,

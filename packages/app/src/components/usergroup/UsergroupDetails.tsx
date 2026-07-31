@@ -1,11 +1,15 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to the save operation.
-import { InlineFeedback, PanelHeader, ResizeHandle, useEscapeClose } from "@slock/ui";
+import { Button, InlineFeedback, PanelHeader, ResizeHandle, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
 import {
   closeUsergroupDetails,
+  loadUsergroupDetails,
   saveUsergroupProfile,
   usergroupDetailsId,
+  usergroupDetailsLoadError,
+  usergroupDetailsLoading,
+  usergroupMutationPending,
 } from "../../lib/usergroupDetails";
 import UsergroupChannelsTab from "./UsergroupChannelsTab";
 import "./UsergroupDetails.css";
@@ -34,7 +38,7 @@ export default function UsergroupDetails() {
   const [handleInput, setHandleInput] = createSignal("");
   const [descriptionInput, setDescriptionInput] = createSignal("");
 
-  useEscapeClose(closeUsergroupDetails);
+  useEscapeClose(closeUsergroupDetails, () => !!usergroupDetailsId());
 
   const details = createMemo(() => {
     const id = usergroupDetailsId();
@@ -80,6 +84,7 @@ export default function UsergroupDetails() {
         <div class="usergroup-details-panel" style={{ width: `${width()}px` }}>
           <ResizeHandle
             direction={-1}
+            label="Resize pinggroup panel"
             max={MAX_WIDTH}
             min={MIN_WIDTH}
             setWidth={setWidth}
@@ -87,15 +92,53 @@ export default function UsergroupDetails() {
             width={width}
           />
           <PanelHeader onClose={closeUsergroupDetails} title="Pinggroup" />
-          <div class="usergroup-details-body flex-col">
+          <div
+            aria-busy={usergroupDetailsLoading() || usergroupMutationPending()}
+            class="usergroup-details-body flex-col"
+          >
             <InlineFeedback
               class="usergroup-details-feedback"
               feedback={actionFeedback.get(id())}
               priority={2}
             />
+            <Show when={details() && usergroupDetailsLoading()}>
+              <div class="usergroup-details-load-notice text-dim text-sm" role="status">
+                Refreshing pinggroup details…
+              </div>
+            </Show>
+            <Show when={details() && usergroupDetailsLoadError()}>
+              <div
+                class="usergroup-details-load-notice usergroup-details-load-warning"
+                role="alert"
+              >
+                <span>Couldn’t refresh pinggroup details.</span>
+                <Button onClick={() => loadUsergroupDetails(id())} size="sm">
+                  Try again
+                </Button>
+              </div>
+            </Show>
+            <Show when={usergroupMutationPending()}>
+              <div class="usergroup-details-load-notice text-dim text-sm" role="status">
+                Saving pinggroup changes…
+              </div>
+            </Show>
             <Show
               fallback={
-                <p class="usergroup-details-meta usergroup-details-tab-content">Loading…</p>
+                <Show
+                  fallback={
+                    <div class="usergroup-details-load-state flex-col" role="alert">
+                      <span>Couldn’t load pinggroup details.</span>
+                      <Button onClick={() => loadUsergroupDetails(id())} size="sm">
+                        Try again
+                      </Button>
+                    </div>
+                  }
+                  when={!usergroupDetailsLoadError()}
+                >
+                  <p class="usergroup-details-meta usergroup-details-tab-content" role="status">
+                    Loading pinggroup details…
+                  </p>
+                </Show>
               }
               when={details()}
             >
@@ -105,6 +148,7 @@ export default function UsergroupDetails() {
                     <For each={TABS}>
                       {(t) => (
                         <button
+                          aria-pressed={tab() === t.key}
                           class="usergroup-details-tab btn-reset flex-align-center"
                           classList={{ active: tab() === t.key }}
                           onClick={() => setTab(t.key)}
@@ -130,6 +174,7 @@ export default function UsergroupDetails() {
                         </label>
                         <input
                           class="usergroup-details-input"
+                          disabled={usergroupMutationPending()}
                           id="usergroup-details-name"
                           onBlur={saveName}
                           onInput={(e) => setNameInput(e.currentTarget.value)}
@@ -146,6 +191,7 @@ export default function UsergroupDetails() {
                           <span class="usergroup-details-handle-prefix">@</span>
                           <input
                             class="usergroup-details-input"
+                            disabled={usergroupMutationPending()}
                             id="usergroup-details-handle"
                             onBlur={saveHandle}
                             onInput={(e) => setHandleInput(e.currentTarget.value)}
@@ -161,6 +207,7 @@ export default function UsergroupDetails() {
                         </label>
                         <textarea
                           class="usergroup-details-input usergroup-details-textarea"
+                          disabled={usergroupMutationPending()}
                           id="usergroup-details-description"
                           onBlur={saveDescription}
                           onInput={(e) => setDescriptionInput(e.currentTarget.value)}
@@ -172,11 +219,19 @@ export default function UsergroupDetails() {
                   </Show>
 
                   <Show when={tab() === "members"}>
-                    <UsergroupMembersTab memberIds={d().memberIds} usergroupId={d().id} />
+                    <UsergroupMembersTab
+                      disabled={usergroupMutationPending()}
+                      memberIds={d().memberIds}
+                      usergroupId={d().id}
+                    />
                   </Show>
 
                   <Show when={tab() === "channels"}>
-                    <UsergroupChannelsTab channelIds={d().channelIds} usergroupId={d().id} />
+                    <UsergroupChannelsTab
+                      channelIds={d().channelIds}
+                      disabled={usergroupMutationPending()}
+                      usergroupId={d().id}
+                    />
                   </Show>
                 </>
               )}

@@ -1,19 +1,28 @@
 import { getWorkspaceDomain, logout } from "@slock/slack-api";
 import { Avatar, Button } from "@slock/ui";
-import { createResource, Show } from "solid-js";
+import { createResource, createSignal, Show } from "solid-js";
 import { store } from "../../lib/store";
 import "./Settings.css";
 
 export default function SettingsAccountTab() {
-  const [domain] = createResource(getWorkspaceDomain);
+  const [domain, { refetch }] = createResource(getWorkspaceDomain);
+  const [loggingOut, setLoggingOut] = createSignal(false);
+  const [logoutError, setLogoutError] = createSignal<string>();
 
   async function handleLogout() {
     // biome-ignore lint/suspicious/noAlert: Logging out requires explicit confirmation.
     if (!confirm("Log out? You'll need to paste a fresh request from devtools to reconnect.")) {
       return;
     }
-    await logout();
-    location.reload();
+    setLogoutError(undefined);
+    setLoggingOut(true);
+    try {
+      await logout();
+      location.reload();
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : "Couldn’t log out. Try again.");
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -27,7 +36,18 @@ export default function SettingsAccountTab() {
               <Avatar size="medium" user={user()} />
               <div>
                 <div class="settings-row-label">{user().name}</div>
-                <div class="settings-row-hint text-dim">{domain() ?? "…"}</div>
+                <div class="settings-row-hint text-dim">
+                  {domain.loading
+                    ? "Loading workspace…"
+                    : domain.error
+                      ? "Workspace unavailable"
+                      : (domain() ?? "Unknown workspace")}
+                </div>
+                <Show when={domain.error}>
+                  <Button onClick={() => refetch()} size="sm" variant="ghost">
+                    Retry workspace details
+                  </Button>
+                </Show>
               </div>
             </div>
           </div>
@@ -40,9 +60,16 @@ export default function SettingsAccountTab() {
           Disconnects this browser and server from Slack. You'll need to paste a fresh request from
           devtools to reconnect.
         </div>
-        <Button onClick={handleLogout} variant="danger">
-          Log out
+        <Button disabled={loggingOut()} onClick={handleLogout} variant="danger">
+          {loggingOut() ? "Logging out…" : "Log out"}
         </Button>
+        <Show when={logoutError()}>
+          {(message) => (
+            <div class="settings-account-error" role="alert">
+              {message()}
+            </div>
+          )}
+        </Show>
       </div>
     </>
   );

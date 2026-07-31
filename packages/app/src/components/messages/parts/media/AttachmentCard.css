@@ -81,6 +81,16 @@
   border-radius: var(--radius-6);
 }
 
+.attachment-image {
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.attachment-video {
+  height: auto;
+}
+
 .attachment-footer {
   gap: 6px;
   margin-top: 6px;

@@ -28,7 +28,8 @@ export default function DndButton() {
 
   const scheduleOpen = () => {
     clearTimeout(closeTimer);
-    if (!store.preferences.isDndActive()) openTimer = setTimeout(() => setOpen(true), OPEN_DELAY);
+    if (!(store.preferences.isDndActive() || store.preferences.hasDndStatusError()))
+      openTimer = setTimeout(() => setOpen(true), OPEN_DELAY);
   };
   const scheduleClose = () => {
     clearTimeout(openTimer);
@@ -42,6 +43,7 @@ export default function DndButton() {
   });
 
   const pick = (minutes: number) => {
+    if (store.preferences.isDndPending()) return;
     clearTimeout(openTimer);
     setOpen(false);
     store.preferences.snoozeDnd(minutes);
@@ -49,7 +51,9 @@ export default function DndButton() {
 
   return (
     <fieldset
+      aria-busy={store.preferences.isDndPending()}
       class="dnd-btn-wrap"
+      disabled={store.preferences.isDndPending()}
       onBlur={scheduleClose}
       onFocus={scheduleOpen}
       onMouseEnter={scheduleOpen}
@@ -58,18 +62,28 @@ export default function DndButton() {
     >
       <Tooltip
         content={
-          store.preferences.isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"
+          store.preferences.hasDndStatusError()
+            ? "Retry Do Not Disturb status"
+            : store.preferences.isDndActive()
+              ? "Turn off Do Not Disturb"
+              : "Turn on Do Not Disturb"
         }
       >
         <button
           aria-label={
-            store.preferences.isDndActive() ? "Turn off Do Not Disturb" : "Turn on Do Not Disturb"
+            store.preferences.hasDndStatusError()
+              ? "Retry Do Not Disturb status"
+              : store.preferences.isDndActive()
+                ? "Turn off Do Not Disturb"
+                : "Turn on Do Not Disturb"
           }
           class="sidebar-global-search-btn btn-reset icon-btn icon-action"
+          disabled={store.preferences.isDndPending()}
           onClick={() => {
             clearTimeout(openTimer);
             setOpen(false);
-            if (store.preferences.isDndActive()) store.preferences.endDnd();
+            if (store.preferences.hasDndStatusError()) store.preferences.retryDndStatus();
+            else if (store.preferences.isDndActive()) store.preferences.endDnd();
             else store.preferences.snoozeDnd(60);
           }}
           type="button"

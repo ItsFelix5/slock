@@ -5,7 +5,11 @@ import { addUsergroupChannels, removeUsergroupChannel } from "../../lib/usergrou
 import ComposeChannelPicker from "../composer/popovers/ComposeChannelPicker";
 import "./UsergroupDetails.css";
 
-export default function UsergroupChannelsTab(props: { usergroupId: string; channelIds: string[] }) {
+export default function UsergroupChannelsTab(props: {
+  channelIds: string[];
+  disabled: boolean;
+  usergroupId: string;
+}) {
   const [query, setQuery] = createSignal("");
   const [addingChannel, setAddingChannel] = createSignal(false);
 
@@ -22,11 +26,13 @@ export default function UsergroupChannelsTab(props: { usergroupId: string; chann
   });
 
   const addChannel = async (channelId: string) => {
+    if (props.disabled) return;
     setAddingChannel(false);
     await addUsergroupChannels(props.usergroupId, [channelId]);
   };
 
   const removeChannel = async (id: string, name: string) => {
+    if (props.disabled) return;
     // biome-ignore lint/suspicious/noAlert: Removing a default channel requires explicit confirmation.
     if (!confirm(`Remove #${name} as a default channel for this pinggroup?`)) return;
     await removeUsergroupChannel(props.usergroupId, id);
@@ -37,6 +43,7 @@ export default function UsergroupChannelsTab(props: { usergroupId: string; chann
       <div class="usergroup-details-list-bar">
         <input
           class="usergroup-details-input"
+          disabled={props.disabled}
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Find channels"
           type="text"
@@ -44,6 +51,7 @@ export default function UsergroupChannelsTab(props: { usergroupId: string; chann
         />
         <button
           class="usergroup-details-add-btn btn-reset flex-align-center"
+          disabled={props.disabled}
           onClick={() => setAddingChannel(true)}
           type="button"
         >
@@ -85,6 +93,7 @@ export default function UsergroupChannelsTab(props: { usergroupId: string; chann
                 <button
                   aria-label="Remove channel"
                   class="usergroup-details-row-remove btn-reset flex-center"
+                  disabled={props.disabled}
                   onClick={() => removeChannel(id, channelDisplayName(channel, id))}
                   type="button"
                 >

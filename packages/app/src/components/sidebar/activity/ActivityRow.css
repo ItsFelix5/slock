@@ -119,14 +119,13 @@
   border-radius: 999px;
 }
 
-.activity-reaction {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 5px;
-  margin-left: 5px;
-  vertical-align: middle;
-  background: var(--active-bg);
-  border-radius: 999px;
+.activity-reaction-slot {
+  padding: 0 30px 6px 38px;
+  margin-top: -2px;
+}
+
+.activity-reaction-slot .reaction-row {
+  margin-top: 0;
 }
 
 .activity-reacted-label {

@@ -1,5 +1,5 @@
 import type { ActivityItem } from "@slock/slack-api";
-import { Icon, type IconName, Tooltip } from "@slock/ui";
+import { Button, Icon, type IconName, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
@@ -53,7 +53,14 @@ export default function ActivityView() {
     const ordered: ActivityRowData[] = [];
     const items = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
     for (const item of items) {
-      const threadTs = item.threadTs ?? (item.kind === "thread_reply" ? item.ts : undefined);
+      // Reactions carry threadTs purely so read-tracking can match a later
+      // reply to them (see resolveActivityEntry) — they never belong in the
+      // thread's grouped timeline. A reaction is always its own row, shown
+      // as a single message with its reaction inline.
+      const threadTs =
+        item.kind === "reaction"
+          ? undefined
+          : (item.threadTs ?? (item.kind === "thread_reply" ? item.ts : undefined));
       if (!threadTs) {
         ordered.push({ isThread: false, items: [item], key: `single:${item.id}` });
         continue;
@@ -113,7 +120,7 @@ export default function ActivityView() {
   );
 
   return (
-    <div class="activity-view">
+    <div aria-busy={store.activity.activityLoading()} class="activity-view">
       <div class="activity-toolbar">
         <div class="activity-search-wrap flex-align-center">
           <Icon name="search" size={15} />
@@ -187,25 +194,75 @@ export default function ActivityView() {
       </div>
 
       <Show
-        fallback={
-          <div class="activity-empty empty-state">
-            <Icon name="check-circle" size={28} />
-            <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
-          </div>
+        when={
+          !(store.activity.activityLoaded() || store.activity.activityLoadError()) &&
+          rows().length === 0
         }
-        when={visibleRows().length > 0}
       >
-        <div class="activity-list">
-          <For each={visibleRows()}>
-            {(row) => (
-              <ActivityRow
-                onReacted={store.activity.markActivityItemsReacted}
-                onSeen={store.activity.markActivityItemsRead}
-                row={row}
-              />
-            )}
-          </For>
+        <div class="activity-load-state empty-state" role="status">
+          Loading activity…
         </div>
+      </Show>
+
+      <Show when={store.activity.activityLoadError() && rows().length === 0}>
+        <div class="activity-load-state activity-load-error empty-state" role="alert">
+          <span>Couldn’t load activity.</span>
+          <Button onClick={store.activity.ensureActivityLoaded} size="sm">
+            Try again
+          </Button>
+        </div>
+      </Show>
+
+      <Show when={store.activity.activityLoading() && rows().length > 0}>
+        <div class="activity-load-notice text-dim text-sm" role="status">
+          Refreshing activity…
+        </div>
+      </Show>
+
+      <Show when={store.activity.activityLoadError() && rows().length > 0}>
+        <div class="activity-load-notice activity-load-warning" role="alert">
+          <span>Couldn’t refresh activity.</span>
+          <Button onClick={store.activity.ensureActivityLoaded} size="sm">
+            Try again
+          </Button>
+        </div>
+      </Show>
+
+      <Show when={store.activity.activityReadSyncError()}>
+        <div class="activity-load-notice activity-load-warning" role="alert">
+          <span>Couldn’t sync your read state.</span>
+          <Button
+            disabled={store.activity.activityReadSyncPending()}
+            onClick={store.activity.retryActivityReadSync}
+            size="sm"
+          >
+            {store.activity.activityReadSyncPending() ? "Retrying…" : "Try again"}
+          </Button>
+        </div>
+      </Show>
+
+      <Show when={store.activity.activityLoaded() || rows().length > 0}>
+        <Show
+          fallback={
+            <div class="activity-empty empty-state">
+              <Icon name="check-circle" size={28} />
+              <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
+            </div>
+          }
+          when={visibleRows().length > 0}
+        >
+          <div class="activity-list">
+            <For each={visibleRows()}>
+              {(row) => (
+                <ActivityRow
+                  onReacted={store.activity.markActivityItemsReacted}
+                  onSeen={store.activity.markActivityItemsRead}
+                  row={row}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
       </Show>
     </div>
   );

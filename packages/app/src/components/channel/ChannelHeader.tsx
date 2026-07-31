@@ -23,20 +23,41 @@ export default function ChannelHeader() {
   const [starMenuOpen, setStarMenuOpen] = createSignal(false);
   const [addingSection, setAddingSection] = createSignal(false);
   const [newSectionName, setNewSectionName] = createSignal("");
+  const [creatingSection, setCreatingSection] = createSignal(false);
   const [addTabOpen, setAddTabOpen] = createSignal(false);
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+  let newSectionInputRef: HTMLInputElement | undefined;
+  const placementPending = () => {
+    const view = store.viewState.activeView();
+    return view?.kind === "channel" && store.channels.isChannelPlacementPending(view.id);
+  };
+  const runPlacement = async (action: (channelId: string) => Promise<boolean>) => {
+    const view = store.viewState.activeView();
+    if (view?.kind !== "channel") return;
+    if (await action(view.id)) setStarMenuOpen(false);
+  };
   createEffect(() => {
     const v = store.viewState.activeView();
     if (v?.kind === "channel") store.canvas.ensureCanvasChecked(v.id);
   });
   const submitNewSectionFromStar = async () => {
     const name = newSectionName().trim();
-    setAddingSection(false);
-    setNewSectionName("");
-    if (!name) return;
+    if (!name || creatingSection() || store.channels.isSectionStructurePending()) return;
     const v = store.viewState.activeView();
-    const created = await store.channels.createChannelSection(name, v?.id ?? name);
-    if (created && v) store.channels.moveChannelToSection(v.id, created.id);
-    setStarMenuOpen(false);
+    setCreatingSection(true);
+    try {
+      const created = await store.channels.createChannelSection(name, v?.id ?? name);
+      if (!created) {
+        queueMicrotask(() => newSectionInputRef?.focus());
+        return;
+      }
+      if (v) await store.channels.moveChannelToSection(v.id, created.id);
+      setAddingSection(false);
+      setNewSectionName("");
+      setStarMenuOpen(false);
+    } finally {
+      setCreatingSection(false);
+    }
   };
   return (
     <div class="channel-header">
@@ -64,13 +85,13 @@ export default function ChannelHeader() {
               </Tooltip>
             }
           >
-            <div class="channel-header-star-menu-label menu-label">Move to</div>
+            <div aria-live="polite" class="channel-header-star-menu-label menu-label" role="status">
+              {creatingSection() ? "Creating section…" : placementPending() ? "Moving…" : "Move to"}
+            </div>
             <button
               class="channel-header-menu-item menu-item"
-              onClick={() => {
-                const v = store.viewState.activeView();
-                if (v) store.channels.toggleChannelStar(v.id);
-              }}
+              disabled={placementPending() || store.channels.isSectionStructurePending()}
+              onClick={() => void runPlacement(store.channels.toggleChannelStar)}
               type="button"
             >
               <span class="channel-header-menu-check" style="color: var(--mention-self-text);">
@@ -84,14 +105,15 @@ export default function ChannelHeader() {
               {(s) => (
                 <button
                   class="channel-header-menu-item menu-item"
-                  onClick={() => {
-                    const v = store.viewState.activeView();
-                    if (v)
+                  disabled={placementPending() || store.channels.isSectionStructurePending()}
+                  onClick={() =>
+                    void runPlacement((channelId) =>
                       store.channels.moveChannelToSection(
-                        v.id,
+                        channelId,
                         currentSectionId() === s.id ? null : s.id,
-                      );
-                  }}
+                      ),
+                    )
+                  }
                   type="button"
                 >
                   <span class="channel-header-menu-check">
@@ -108,6 +130,7 @@ export default function ChannelHeader() {
               fallback={
                 <button
                   class="channel-header-menu-item menu-item"
+                  disabled={placementPending() || store.channels.isSectionStructurePending()}
                   onClick={() => setAddingSection(true)}
                   type="button"
                 >
@@ -117,18 +140,22 @@ export default function ChannelHeader() {
               when={addingSection()}
             >
               <input
+                aria-busy={creatingSection()}
                 autofocus
                 class="channel-header-star-menu-input search-input"
+                disabled={creatingSection()}
                 onBlur={submitNewSectionFromStar}
                 onInput={(e) => setNewSectionName(e.currentTarget.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") submitNewSectionFromStar();
                   if (e.key === "Escape") {
+                    e.preventDefault();
                     setAddingSection(false);
                     setNewSectionName("");
                   }
                 }}
                 placeholder="Section name"
+                ref={newSectionInputRef}
                 value={newSectionName()}
               />
             </Show>
@@ -241,6 +268,7 @@ export default function ChannelHeader() {
                       <button
                         aria-label={`Remove ${meta.label} tab`}
                         class="channel-header-tab-remove btn-reset icon-btn text-dim"
+                        disabled={store.channelTabs.isPending()}
                         onClick={() => store.channelTabs.removeChannelTab(id(), type)}
                         type="button"
                       >
@@ -262,6 +290,7 @@ export default function ChannelHeader() {
                     <button
                       aria-label="Add a tab"
                       class="channel-header-tab-add btn-reset icon-btn text-dim"
+                      disabled={store.channelTabs.isPending()}
                       onClick={() => setAddTabOpen(!addTabOpen())}
                       type="button"
                     >
@@ -274,6 +303,7 @@ export default function ChannelHeader() {
                   {(t) => (
                     <button
                       class="channel-header-menu-item menu-item"
+                      disabled={store.channelTabs.isPending()}
                       onClick={() => {
                         store.channelTabs.addChannelTab(id(), t.type);
                         setAddTabOpen(false);

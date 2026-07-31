@@ -1,14 +1,8 @@
-import { cors } from "./relay-core.ts";
+import { cors } from "./relay-auth.ts";
+import { isPrivateHost } from "./relay-files.ts";
 
-const PRIVATE_HOST_RE = /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0|\[?::1\]?)$/i;
-const PRIVATE_172_HOST_RE = /^172\.(\d+)\./;
 const TITLE_TAG_RE = /<title[^>]*>([^<]*)<\/title>/i;
 const HEAD_END_RE = /<\/head>/i;
-function isPrivateHost(hostname: string): boolean {
-  if (PRIVATE_HOST_RE.test(hostname)) return true;
-  const m = PRIVATE_172_HOST_RE.exec(hostname);
-  return !!m && Number(m[1]) >= 16 && Number(m[1]) <= 31;
-}
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&amp;/g, "&")

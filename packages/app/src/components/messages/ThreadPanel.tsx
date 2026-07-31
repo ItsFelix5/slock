@@ -1,5 +1,5 @@
 import type { Message } from "@slock/slack-api";
-import { Icon, PanelHeader, ResizeHandle, Tooltip, TypingIndicator } from "@slock/ui";
+import { Button, Icon, PanelHeader, ResizeHandle, Tooltip, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import Composer from "../composer/Composer";
@@ -26,6 +26,7 @@ export default function ThreadPanel() {
   );
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let messagesRef: HTMLDivElement | undefined;
+  let cancelJump: (() => void) | undefined;
   const messages = createMemo(() => {
     const t = thread();
     if (!t) return [];
@@ -53,8 +54,11 @@ export default function ThreadPanel() {
 
   createEffect(() => {
     thread();
+    cancelJump?.();
+    cancelJump = undefined;
     setReplyTarget(null);
   });
+  onCleanup(() => cancelJump?.());
 
   // Opening a thread via a specific reply (e.g. from Later) resolves to the
   // thread root, so once that reply loads in, scroll to and flash it rather
@@ -121,6 +125,7 @@ export default function ThreadPanel() {
     const t = thread();
     if (!t) return;
     const permalink = await store.messages.prepareReplyLink(t.channelId, msg.ts, t.ts);
+    if (thread() !== t) return;
     if (!permalink) {
       actionFeedback.flash(msg.ts, "Failed to prepare reply link.", "error");
       return;
@@ -129,7 +134,9 @@ export default function ThreadPanel() {
   }
 
   function jumpToMessage(ts: string) {
-    if (messagesRef) jumpToMessageInContainer(messagesRef, ts);
+    if (!messagesRef) return;
+    cancelJump?.();
+    cancelJump = jumpToMessageInContainer(messagesRef, ts);
   }
 
   function handleMessagesScroll() {
@@ -156,6 +163,7 @@ export default function ThreadPanel() {
         <div class="thread-panel" style={{ width: `${width()}px` }}>
           <ResizeHandle
             direction={-1}
+            label="Resize thread panel"
             max={MAX_WIDTH}
             min={MIN_WIDTH}
             setWidth={setWidthAnchored}
@@ -188,6 +196,10 @@ export default function ThreadPanel() {
                   }
                   class="thread-panel-subscribe-btn btn-reset flex-center"
                   classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
+                  disabled={
+                    messages().length === 0 ||
+                    store.messages.isThreadSubscriptionPending(t().channelId, t().ts)
+                  }
                   onClick={toggleSubscription}
                   type="button"
                 >
@@ -203,51 +215,63 @@ export default function ThreadPanel() {
               </Tooltip>
             </div>
           </PanelHeader>
-          <Show
-            fallback={
-              <div class="thread-panel-error text-dim">
-                Can't load this thread — you may not have access to it.
-              </div>
-            }
-            when={!(store.messages.hasThreadError(t().ts) && messages().length === 0)}
-          >
-            <div class="thread-panel-messages" onScroll={handleMessagesScroll} ref={messagesRef}>
-              <MessageRows
-                channelId={t().channelId}
-                messages={messages()}
-                onJumpToMessage={jumpToMessage}
-                onReplyLink={startReply}
-                threadTs={t().ts}
-              />
+          <Show when={store.messages.isLoadingThread(t().ts) && messages().length === 0}>
+            <div class="thread-panel-status text-dim" role="status">
+              Loading thread…
             </div>
-            <TypingIndicator names={typingNames()} />
-            <Show when={replyTarget()}>
-              <div class="thread-reply-preview flex-align-center">
-                <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
-                <Tooltip content="Cancel reply">
-                  <button
-                    aria-label="Cancel reply"
-                    class="thread-reply-preview-cancel btn-reset flex-center"
-                    onClick={cancelReply}
-                    type="button"
-                  >
-                    <Icon name="close" size={12} />
-                  </button>
-                </Tooltip>
-              </div>
-            </Show>
-            <Composer
+          </Show>
+          <Show when={store.messages.hasThreadError(t().ts)}>
+            <div class="thread-panel-error" role="alert">
+              <span>Couldn’t load this thread.</span>
+              <Button
+                onClick={() => store.messages.ensureThreadRepliesLoaded(t().channelId, t().ts)}
+                size="sm"
+              >
+                Try again
+              </Button>
+            </div>
+          </Show>
+          <div
+            aria-busy={store.messages.isLoadingThread(t().ts)}
+            class="thread-panel-messages"
+            onScroll={handleMessagesScroll}
+            ref={messagesRef}
+          >
+            <MessageRows
               channelId={t().channelId}
-              placeholder="Reply…"
-              replyTo={(() => {
-                const rt = replyTarget();
-                return rt
-                  ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
-                  : undefined;
-              })()}
+              messages={messages()}
+              onJumpToMessage={jumpToMessage}
+              onReplyLink={startReply}
               threadTs={t().ts}
             />
+          </div>
+          <TypingIndicator names={typingNames()} />
+          <Show when={replyTarget()}>
+            <div class="thread-reply-preview flex-align-center">
+              <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
+              <Tooltip content="Cancel reply">
+                <button
+                  aria-label="Cancel reply"
+                  class="thread-reply-preview-cancel btn-reset flex-center"
+                  onClick={cancelReply}
+                  type="button"
+                >
+                  <Icon name="close" size={12} />
+                </button>
+              </Tooltip>
+            </div>
           </Show>
+          <Composer
+            channelId={t().channelId}
+            placeholder="Reply…"
+            replyTo={(() => {
+              const rt = replyTarget();
+              return rt
+                ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
+                : undefined;
+            })()}
+            threadTs={t().ts}
+          />
         </div>
       )}
     </Show>

@@ -1,5 +1,4 @@
 Important rules:
-- Check your code with `bun check`
 - A folder may not have over 10 files at its root
 - All UI components that don't directly interact with slack should be in the UI package
 - NEVER duplicate code, create reusable components
@@ -7,7 +6,8 @@ Important rules:
 - Use good, consistent not ai looking css
 - Don't add comments that state the obvious
 - Don't mess with dev servers (there always is one running) or chromium only to test if it works
-- Ask instead of giving up
 - Never touch git 
 - Very few things should be locally stored. Almost everything can go through slack servers.
 - This relay is multi-tenant and shouldn't store anything
+- Prefer adding debugs or ASKING instead of doing stupid shit, never guess on what request to use.
+- Common sense

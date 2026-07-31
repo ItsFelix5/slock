@@ -7,8 +7,8 @@ import {
   postMessage,
   toggleReaction,
 } from "@slock/slack-api";
-import { produce } from "solid-js/store";
-import { actionFeedback, composerFeedbackKey } from "../feedback";
+import { createStore, produce } from "solid-js/store";
+import { actionFeedback } from "../feedback";
 import type { MessageLocation, ThreadRef, View } from "../types";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
@@ -16,6 +16,7 @@ import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./message
 import { findMessageLocations } from "./messageLocations";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
+import { restoreFailedReaction } from "./reactions/reactionRollback";
 
 export { REMINDER_OPTIONS } from "./messageLinks";
 
@@ -27,6 +28,8 @@ export function createMessagesSlice(deps: {
   setLastReadByChannel: (channelId: string, ts: number) => void;
   setUnreadDividerTs: (channelId: string, ts: number) => void;
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
+  setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
+  syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   activeView: () => View | null;
   activeThread: () => ThreadRef | null;
 }) {
@@ -37,16 +40,22 @@ export function createMessagesSlice(deps: {
   const {
     messagesByChannel,
     setMessagesByChannel,
+    reactionMessages,
+    setReactionMessages,
     loadedChannels,
     threadMessages,
     setThreadMessages,
     loadedThreads,
     loadOlderMessages,
+    loadRecentHistory,
     hasMoreHistory,
+    hasOlderHistoryError,
     hasHistoryError,
     hasThreadError,
     isLoadingHistory,
+    isLoadingThread,
     ensureChannelMessage,
+    ensureReactedMessage,
     ensureThreadRepliesLoaded,
   } = history;
   const statusActions = createMessageStatusActions({
@@ -54,8 +63,10 @@ export function createMessagesSlice(deps: {
     messagesByChannel,
     patchMessage: (channelId, ts, patch) => patchMessage(channelId, ts, patch),
     setLastReadByChannel: deps.setLastReadByChannel,
+    setChannelRead: deps.setChannelRead,
     setUnreadChannelIds: deps.setUnreadChannelIds,
     setUnreadDividerTs: deps.setUnreadDividerTs,
+    syncChannelRead: deps.syncChannelRead,
     threadMessages,
   });
   const mergeActions = createMessageMergeActions({
@@ -63,38 +74,31 @@ export function createMessagesSlice(deps: {
     setMessagesByChannel: (channelId, update) => setMessagesByChannel(channelId, update),
   });
   const findAllMessageLocations = (channelId: string, ts: string) =>
-    findMessageLocations(messagesByChannel, threadMessages, channelId, ts);
+    findMessageLocations(messagesByChannel, threadMessages, reactionMessages, channelId, ts);
+  const setStore = {
+    channel: setMessagesByChannel,
+    reaction: setReactionMessages,
+    thread: setThreadMessages,
+  } as const;
   function patchMessage(channelId: string, ts: string, patch: Partial<Message>) {
     for (const { location } of findAllMessageLocations(channelId, ts)) {
-      if (location.store === "channel") {
-        setMessagesByChannel(
-          location.key,
-          produce((list) => {
-            const msg = list.find((m) => m.ts === ts);
-            if (msg) Object.assign(msg, patch);
-          }),
-        );
-      } else {
-        setThreadMessages(
-          location.key,
-          produce((list) => {
-            const msg = list.find((m) => m.ts === ts);
-            if (msg) Object.assign(msg, patch);
-          }),
-        );
-      }
+      setStore[location.store](
+        location.key,
+        produce((list) => {
+          const msg = list.find((m) => m.ts === ts);
+          if (msg) Object.assign(msg, patch);
+        }),
+      );
     }
   }
   function removeMessage(location: MessageLocation, ts: string) {
-    const remove = (list: Message[]) => {
-      const idx = list.findIndex((m) => m.ts === ts);
-      if (idx !== -1) list.splice(idx, 1);
-    };
-    if (location.store === "channel") {
-      setMessagesByChannel(location.key, produce(remove));
-    } else {
-      setThreadMessages(location.key, produce(remove));
-    }
+    setStore[location.store](
+      location.key,
+      produce((list) => {
+        const idx = list.findIndex((m) => m.ts === ts);
+        if (idx !== -1) list.splice(idx, 1);
+      }),
+    );
   }
   const { applyReactionEvent } = createReactionEvents({
     currentUser: deps.currentUser,
@@ -102,6 +106,12 @@ export function createMessagesSlice(deps: {
     patchMessage,
     pushActivity: deps.pushActivity,
   });
+  const [reactionPending, setReactionPending] = createStore<Record<string, boolean>>({});
+  const reactionPendingKey = (channelId: string, ts: string, emojiName: string) =>
+    `${channelId}:${ts}:${emojiName}`;
+  function isReactionPending(channelId: string, ts: string, emojiName: string): boolean {
+    return !!reactionPending[reactionPendingKey(channelId, ts, emojiName)];
+  }
   async function sendMessage(
     channelId: string,
     text: string,
@@ -157,13 +167,13 @@ export function createMessagesSlice(deps: {
       deps.recordActivityEngagement(channelId, realTs, threadTs);
     } catch (err) {
       console.error("Failed to send message", err);
-      actionFeedback.flash(composerFeedbackKey(key), "Failed to send.", "error");
       removeMessage(location, optimistic.ts);
+      throw err;
     }
   }
   async function editMessageText(channelId: string, ts: string, text: string, blocks?: unknown) {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     try {
       await editMessage(channelId, ts, trimmed, blocks);
       patchMessage(channelId, ts, {
@@ -171,9 +181,11 @@ export function createMessagesSlice(deps: {
         edited: true,
         text: trimmed,
       });
+      return true;
     } catch (err) {
       console.error("Failed to edit message", err);
       actionFeedback.flash(ts, "Failed to edit message.", "error");
+      return false;
     }
   }
   async function broadcastThreadReply(channelId: string, ts: string) {
@@ -200,10 +212,13 @@ export function createMessagesSlice(deps: {
   }
   async function reactToMessage(channelId: string, msg: Message, emojiName: string) {
     const me = deps.currentUser();
-    if (!me) return;
+    const pendingKey = reactionPendingKey(channelId, msg.ts, emojiName);
+    if (!me || reactionPending[pendingKey]) return;
+    setReactionPending(pendingKey, true);
     const previousReactions = msg.reactions;
     const reactions = previousReactions ?? [];
     const existing = reactions.find((r) => r.name === emojiName);
+    const existingIndex = reactions.findIndex((r) => r.name === emojiName);
     const alreadyReacted = !!existing?.users.includes(me.id);
     let nextReactions: typeof reactions;
     if (alreadyReacted) {
@@ -230,20 +245,38 @@ export function createMessagesSlice(deps: {
       }
     } catch (err) {
       console.error("Failed to toggle reaction", err);
-      patchMessage(channelId, msg.ts, { reactions: previousReactions });
+      actionFeedback.flash(msg.ts, "Failed to update reaction.", "error");
+      const current = findAllMessageLocations(channelId, msg.ts)[0]?.list.find(
+        (candidate) => candidate.ts === msg.ts,
+      )?.reactions;
+      patchMessage(channelId, msg.ts, {
+        reactions: restoreFailedReaction(current, emojiName, existing, existingIndex),
+      });
+    } finally {
+      setReactionPending(
+        produce((pending) => {
+          delete pending[pendingKey];
+        }),
+      );
     }
   }
   return {
     ensureChannelMessage,
+    ensureReactedMessage,
     ensureThreadRepliesLoaded,
     findAllMessageLocations,
+    reactionMessages,
     hasHistoryError,
     hasMoreHistory,
+    hasOlderHistoryError,
     hasThreadError,
     isLoadingHistory,
+    isLoadingThread,
+    isReactionPending,
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
+    loadRecentHistory,
     messagesByChannel,
     patchMessage,
     removeMessage,

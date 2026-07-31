@@ -48,7 +48,7 @@ function buildInlineRegex(dialect: InlineDialect): RegExp {
   const italicChar = escapeRegExpLiteral(dialect.italic[0]);
   const strikeChar = escapeRegExpLiteral(dialect.strike[0]);
   return new RegExp(
-    `\`([^\`]+)\`|<([^<>]*)>|${bold}([^${boldChar}\\n]+)${bold}|${italic}([^${italicChar}\\n]+)${italic}|${strike}([^${strikeChar}\\n]+)${strike}|:([a-zA-Z0-9_+-]+):`,
+    `\`([^\`]+)\`|<([^<>]*)>|${bold}([^${boldChar}\\n]+)${bold}|${italic}([^${italicChar}\\n]+)${italic}|${strike}([^${strikeChar}\\n]+)${strike}|:([a-zA-Z0-9_+'-]+):`,
     "g",
   );
 }
@@ -271,6 +271,27 @@ function appendPlainSegment(frag: DocumentFragment, text: string, dialect: Inlin
     current.push(isQuote ? line.replace(quoteRe, "") : line);
   }
   flush();
+}
+// A canvas's backing file is a real HTML document (Slack's own export of
+// the canvas, not markdown), so loading it needs actual HTML parsing rather
+// than mrkdwnToFragment's markdown-token scanning — otherwise every tag
+// shows up as visible text instead of being rendered. It's still content
+// fetched from a file, though, so script/style/event-handler/javascript:
+// vectors get stripped before it ever touches the editor's DOM.
+export function htmlToFragment(html: string): DocumentFragment {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  for (const el of doc.body.querySelectorAll("script, style")) el.remove();
+  for (const el of doc.body.querySelectorAll("*")) {
+    for (const attr of Array.from(el.attributes)) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith("on") || (name === "href" && /^\s*javascript:/i.test(attr.value))) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  }
+  const frag = document.createDocumentFragment();
+  frag.append(...Array.from(doc.body.childNodes));
+  return frag;
 }
 export function mrkdwnToFragment(
   text: string,

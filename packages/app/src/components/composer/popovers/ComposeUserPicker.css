@@ -35,7 +35,8 @@
   border-radius: var(--radius-6);
 }
 
-.compose-picker-row:hover {
+.compose-picker-row:hover,
+.compose-picker-row.active {
   background: var(--hover-bg);
 }
 

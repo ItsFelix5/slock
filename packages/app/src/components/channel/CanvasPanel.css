@@ -1,12 +1,8 @@
 .canvas-panel-card {
-  width: 640px;
-  max-width: 92vw;
-  height: 70vh;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-10);
-  box-shadow: var(--shadow-modal);
 }
 
 .canvas-panel-header-info {
@@ -39,10 +35,18 @@
   flex: 1;
 }
 
+.canvas-panel-load-error {
+  flex: 1;
+  gap: 12px;
+}
+
 .canvas-panel-toolbar {
   flex-shrink: 0;
   gap: 2px;
+  width: 100%;
+  max-width: 900px;
   padding: 6px 10px;
+  margin: 0 auto;
   border-bottom: 1px solid var(--border);
 }
 
@@ -69,7 +73,11 @@
   flex: 1;
   min-height: 0;
   max-height: none;
-  padding: 16px;
+  width: 100%;
+  max-width: 900px;
+  padding: 24px 16px;
+  margin: 0 auto;
+  overflow-y: auto;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
@@ -78,7 +86,10 @@
 }
 
 .canvas-panel-footer {
+  width: 100%;
+  max-width: 900px;
   padding: 10px 14px;
+  margin: 0 auto;
   border-top: 1px solid var(--border);
 }
 

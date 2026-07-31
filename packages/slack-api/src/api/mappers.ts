@@ -85,7 +85,16 @@ export interface RawFile {
   thumb_360?: string;
   thumb_360_h?: number;
   thumb_360_w?: number;
+  thumb_480?: string;
+  thumb_480_h?: number;
+  thumb_480_w?: number;
   thumb_720?: string;
+  thumb_720_h?: number;
+  thumb_720_w?: number;
+  // A ~30-byte base64 JPEG (no data: prefix) Slack generates for every
+  // image upload — used as a blurred placeholder while the real thumbnail
+  // (chosen below) loads in.
+  thumb_tiny?: string;
   title?: string;
   transcription?: { preview?: { content?: string; has_more?: boolean } };
   url_private?: string;
@@ -104,7 +113,9 @@ export interface RawAttachment {
   footer_icon?: string;
   from_url?: string;
   id?: number;
+  image_height?: number;
   image_url?: string;
+  image_width?: number;
   is_msg_unfurl?: boolean;
   is_reply_unfurl?: boolean;
   pretext?: string;
@@ -344,11 +355,28 @@ export const HIDE_SUBTYPES = new Set([
 
 function mapFile(f: RawFile): SlackFile {
   const mimetype: string | undefined = f.mimetype;
+  // Pick one thumb size and use *its* dimensions, not a mismatched pair
+  // (e.g. the thumb_720 image URL with thumb_360's width/height) — that
+  // reserves the wrong box in the DOM before the image loads, causing a
+  // layout jump once the real (differently-proportioned) image lands.
+  // Prefers the largest available so retina displays stay crisp at our
+  // ~360px-wide render size (see MessageFiles.css).
+  const thumb =
+    (f.thumb_720 && f.thumb_720_w && f.thumb_720_h
+      ? { h: f.thumb_720_h, url: f.thumb_720, w: f.thumb_720_w }
+      : undefined) ??
+    (f.thumb_480 && f.thumb_480_w && f.thumb_480_h
+      ? { h: f.thumb_480_h, url: f.thumb_480, w: f.thumb_480_w }
+      : undefined) ??
+    (f.thumb_360 && f.thumb_360_w && f.thumb_360_h
+      ? { h: f.thumb_360_h, url: f.thumb_360, w: f.thumb_360_w }
+      : undefined) ??
+    (f.thumb_160 ? { h: f.original_h, url: f.thumb_160, w: f.original_w } : undefined);
   return {
     // Voice messages report length as duration_ms; other files (if ever) as duration.
     duration: f.duration ?? (typeof f.duration_ms === "number" ? f.duration_ms / 1000 : undefined),
     filetype: f.filetype,
-    height: f.thumb_360_h ?? f.original_h,
+    height: thumb?.h ?? f.original_h,
     id: f.id,
     isAudio: !!mimetype?.startsWith("audio/"),
     isCanvas: f.filetype === "quip" || f.filetype === "canvas",
@@ -360,10 +388,8 @@ function mapFile(f: RawFile): SlackFile {
     name: f.name ?? "file",
     permalink: f.permalink,
     size: f.size,
-    thumbUrl: (() => {
-      const raw = f.thumb_720 ?? f.thumb_360 ?? f.thumb_160;
-      return raw ? fileProxyUrl(raw) : undefined;
-    })(),
+    thumbTiny: f.thumb_tiny,
+    thumbUrl: thumb ? fileProxyUrl(thumb.url) : undefined,
     title: f.title,
     transcriptionHasMore: f.transcription?.preview?.has_more,
     transcriptionPreview: f.transcription?.preview?.content,
@@ -373,7 +399,7 @@ function mapFile(f: RawFile): SlackFile {
     // wrap it with fileProxyUrl themselves.
     urlPrivate: f.url_private ?? "",
     waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
-    width: f.thumb_360_w ?? f.original_w,
+    width: thumb?.w ?? f.original_w,
   };
 }
 
@@ -391,7 +417,9 @@ function mapAttachment(a: RawAttachment): Attachment {
     footerIcon: a.footer_icon ? fileProxyUrl(a.footer_icon) : undefined,
     fromUrl: a.from_url,
     id: a.id,
+    imageHeight: a.image_height,
     imageUrl: a.image_url ? fileProxyUrl(a.image_url) : undefined,
+    imageWidth: a.image_width,
     isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
     postedAt: a.ts ? `${formatDay(a.ts)} at ${formatTime(a.ts)}` : undefined,
     pretext: a.pretext,

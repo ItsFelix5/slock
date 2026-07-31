@@ -2,9 +2,9 @@
 .settings-card {
   position: relative;
   flex-direction: row;
-  width: 620px;
-  height: 85vh;
-  max-height: 650px;
+  width: min(620px, calc(100vw - 32px));
+  height: min(85dvh, 650px);
+  max-height: calc(100dvh - 32px);
   border-radius: var(--radius-12);
   box-shadow: var(--shadow-modal-lg);
 }
@@ -75,6 +75,12 @@
 .settings-row-hint {
   margin-bottom: 8px;
   font-size: 12px;
+}
+
+.settings-account-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--danger);
 }
 
 .settings-size-control {
@@ -171,8 +177,13 @@
   border-radius: var(--radius-6);
 }
 
-.settings-status-clear:hover {
+.settings-status-clear:hover:not(:disabled) {
   background: var(--active-bg);
+}
+
+.settings-status-clear:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .settings-add-row {
@@ -216,9 +227,15 @@
   font-size: 12px;
 }
 
-.settings-list-row-action:hover {
+.settings-list-row-action:hover:not(:disabled) {
   color: var(--text-primary);
   text-decoration: underline;
+}
+
+.settings-list-row-action:disabled {
+  color: var(--text-dim);
+  text-decoration: none;
+  cursor: wait;
 }
 
 .settings-add-row .settings-list-row-action {

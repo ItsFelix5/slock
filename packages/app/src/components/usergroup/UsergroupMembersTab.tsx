@@ -6,7 +6,11 @@ import { addUsergroupMembers, removeUsergroupMember } from "../../lib/usergroupD
 import ComposeUserPicker from "../composer/popovers/ComposeUserPicker";
 import "./UsergroupDetails.css";
 
-export default function UsergroupMembersTab(props: { usergroupId: string; memberIds: string[] }) {
+export default function UsergroupMembersTab(props: {
+  disabled: boolean;
+  usergroupId: string;
+  memberIds: string[];
+}) {
   const [query, setQuery] = createSignal("");
   const [addingPeople, setAddingPeople] = createSignal(false);
 
@@ -21,11 +25,13 @@ export default function UsergroupMembersTab(props: { usergroupId: string; member
   });
 
   const addMember = async (userId: string) => {
+    if (props.disabled) return;
     setAddingPeople(false);
     await addUsergroupMembers(props.usergroupId, [userId]);
   };
 
   const removeMember = async (user: User) => {
+    if (props.disabled) return;
     // biome-ignore lint/suspicious/noAlert: Removing a member requires explicit confirmation.
     if (!confirm(`Remove ${user.name} from this pinggroup?`)) return;
     await removeUsergroupMember(props.usergroupId, user.id);
@@ -36,6 +42,7 @@ export default function UsergroupMembersTab(props: { usergroupId: string; member
       <div class="usergroup-details-list-bar">
         <input
           class="usergroup-details-input"
+          disabled={props.disabled}
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Find members"
           type="text"
@@ -43,6 +50,7 @@ export default function UsergroupMembersTab(props: { usergroupId: string; member
         />
         <button
           class="usergroup-details-add-btn btn-reset flex-align-center"
+          disabled={props.disabled}
           onClick={() => setAddingPeople(true)}
           type="button"
         >
@@ -74,6 +82,7 @@ export default function UsergroupMembersTab(props: { usergroupId: string; member
                 <button
                   aria-label="Remove from pinggroup"
                   class="usergroup-details-row-remove btn-reset flex-center"
+                  disabled={props.disabled}
                   onClick={() => removeMember(u)}
                   type="button"
                 >

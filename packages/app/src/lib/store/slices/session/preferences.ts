@@ -29,10 +29,16 @@ export function createPreferencesSlice(deps: {
   userPrefs: () => UserPrefs | undefined;
 }) {
   const [mutedChannelIds, setMutedChannelIds] = createStore<Record<string, boolean>>({});
+  const [mutePendingByChannel, setMutePendingByChannel] = createStore<Record<string, boolean>>({});
   const [notifyAllChannelIds, setNotifyAllChannelIds] = createStore<Record<string, boolean>>({});
+  const [notifyAllPendingByChannel, setNotifyAllPendingByChannel] = createStore<
+    Record<string, boolean>
+  >({});
   const [highlightWords, setHighlightWordsSignal] = createSignal<string[]>([]);
+  const [highlightWordsPending, setHighlightWordsPending] = createSignal(false);
   const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(null);
-  const [dndStatus] = createResource(fetchDndStatus);
+  const [dndPending, setDndPending] = createSignal(false);
+  const [dndStatus, { refetch: refetchDndStatus }] = createResource(fetchDndStatus);
 
   let mutePrefsSeeded = false;
   createEffect(() => {
@@ -44,7 +50,25 @@ export function createPreferencesSlice(deps: {
     setHighlightWordsSignal(prefs.highlightWords);
   });
 
+  function preferencesReady(): boolean {
+    return deps.userPrefs() !== undefined;
+  }
+
+  function requirePreferences(feedbackKey: string): boolean {
+    if (preferencesReady()) return true;
+    actionFeedback.flash(
+      feedbackKey,
+      "Preferences are unavailable. Try loading them again.",
+      "error",
+    );
+    return false;
+  }
+
   createEffect(() => {
+    if (dndStatus.error) {
+      actionFeedback.flash("dnd", "Couldn’t load Do Not Disturb status. Click to retry.", "error");
+      return;
+    }
     const status = dndStatus();
     if (status !== undefined) setDndSnoozedUntil(status);
   });
@@ -68,16 +92,30 @@ export function createPreferencesSlice(deps: {
     return !!mutedChannelIds[channelId];
   }
 
-  async function toggleMuteChannel(channelId: string) {
+  function isAnyMutePending(): boolean {
+    return Object.values(mutePendingByChannel).some(Boolean);
+  }
+
+  function isMutePending(channelId: string): boolean {
+    return !preferencesReady() || isAnyMutePending() || !!mutePendingByChannel[channelId];
+  }
+
+  async function toggleMuteChannel(channelId: string): Promise<boolean> {
+    if (!requirePreferences(channelId) || isMutePending(channelId)) return false;
     const next = !isChannelMuted(channelId);
+    setMutePendingByChannel(channelId, true);
     setMutedChannelIds(channelId, next);
     const allMuted = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
     try {
       await setMutedChannels(allMuted);
+      return true;
     } catch (err) {
       console.error("Failed to set channel mute preference", err);
       actionFeedback.flash(channelId, "Failed to update mute setting.", "error");
       setMutedChannelIds(channelId, !next);
+      return false;
+    } finally {
+      setMutePendingByChannel(channelId, false);
     }
   }
 
@@ -85,37 +123,58 @@ export function createPreferencesSlice(deps: {
     return !!notifyAllChannelIds[channelId];
   }
 
-  async function persistHighlightWords(words: string[]) {
+  function isHighlightWordsPending(): boolean {
+    return !preferencesReady() || highlightWordsPending();
+  }
+
+  async function persistHighlightWords(words: string[]): Promise<boolean> {
+    if (!requirePreferences("pingwords") || highlightWordsPending()) return false;
     const previous = highlightWords();
+    setHighlightWordsPending(true);
     setHighlightWordsSignal(words);
     try {
       await setHighlightWordsApi(words);
+      return true;
     } catch (err) {
       console.error("Failed to set pingwords", err);
       actionFeedback.flash("pingwords", "Failed to update pingwords.", "error");
       setHighlightWordsSignal(previous);
+      return false;
+    } finally {
+      setHighlightWordsPending(false);
     }
   }
 
-  async function addHighlightWord(word: string) {
+  function addHighlightWord(word: string): Promise<boolean> {
     const trimmed = word.trim();
-    if (!trimmed || highlightWords().some((w) => w.toLowerCase() === trimmed.toLowerCase())) return;
-    await persistHighlightWords([...highlightWords(), trimmed]);
+    if (!trimmed || highlightWords().some((w) => w.toLowerCase() === trimmed.toLowerCase()))
+      return Promise.resolve(false);
+    return persistHighlightWords([...highlightWords(), trimmed]);
   }
 
-  async function removeHighlightWord(word: string) {
-    await persistHighlightWords(highlightWords().filter((wordToRemove) => wordToRemove !== word));
+  function removeHighlightWord(word: string): Promise<boolean> {
+    return persistHighlightWords(highlightWords().filter((wordToRemove) => wordToRemove !== word));
   }
 
-  async function toggleNotifyAllChannel(channelId: string) {
+  function isNotifyAllPending(channelId: string): boolean {
+    return !preferencesReady() || !!notifyAllPendingByChannel[channelId];
+  }
+
+  async function toggleNotifyAllChannel(channelId: string): Promise<boolean> {
+    if (!requirePreferences(channelId) || isNotifyAllPending(channelId)) return false;
     const next = !isChannelNotifyAll(channelId);
+    setNotifyAllPendingByChannel(channelId, true);
     setNotifyAllChannelIds(channelId, next);
     try {
       await setChannelNotifyAll(channelId, next);
+      return true;
     } catch (err) {
       console.error("Failed to set channel notification preference", err);
       actionFeedback.flash(channelId, "Failed to update notification preference.", "error");
       setNotifyAllChannelIds(channelId, !next);
+      return false;
+    } finally {
+      setNotifyAllPendingByChannel(channelId, false);
     }
   }
 
@@ -146,23 +205,56 @@ export function createPreferencesSlice(deps: {
   const frecencyScore = (id: string) => calculateFrecencyScore(deps.userPrefs(), id);
   const emojiUseScore = (name: string) => calculateEmojiUseScore(deps.userPrefs(), name);
 
-  async function snoozeDnd(minutes: number) {
-    const until = Date.now() + minutes * 60_000;
-    setDndSnoozedUntil(until);
+  function isDndPending(): boolean {
+    return dndPending() || dndStatus.loading;
+  }
+
+  function hasDndStatusError(): boolean {
+    return !!dndStatus.error;
+  }
+
+  async function retryDndStatus(): Promise<void> {
     try {
-      await setDndSnooze(minutes);
-    } catch (err) {
-      console.error("Failed to set DND snooze", err);
-      actionFeedback.flash("dnd", "Failed to enable Do Not Disturb.", "error");
+      await refetchDndStatus();
+    } catch {
+      // The resource effect refreshes the actionable feedback.
     }
   }
 
-  async function endDnd() {
+  async function snoozeDnd(minutes: number): Promise<boolean> {
+    if (dndPending()) return false;
+    const previous = dndSnoozedUntil();
+    const until = Date.now() + minutes * 60_000;
+    setDndPending(true);
+    setDndSnoozedUntil(until);
+    try {
+      await setDndSnooze(minutes);
+      return true;
+    } catch (err) {
+      console.error("Failed to set DND snooze", err);
+      actionFeedback.flash("dnd", "Failed to enable Do Not Disturb.", "error");
+      setDndSnoozedUntil(previous);
+      return false;
+    } finally {
+      setDndPending(false);
+    }
+  }
+
+  async function endDnd(): Promise<boolean> {
+    if (dndPending()) return false;
+    const previous = dndSnoozedUntil();
+    setDndPending(true);
     setDndSnoozedUntil(null);
     try {
       await endDndSnooze();
+      return true;
     } catch (err) {
       console.error("Failed to end DND snooze", err);
+      actionFeedback.flash("dnd", "Failed to disable Do Not Disturb.", "error");
+      setDndSnoozedUntil(previous);
+      return false;
+    } finally {
+      setDndPending(false);
     }
   }
 
@@ -173,14 +265,21 @@ export function createPreferencesSlice(deps: {
     emojiUseScore,
     frecencyScore,
     highlightWords,
+    hasDndStatusError,
     isChannelMuted,
     isChannelNotifyAll,
     isDndActive,
+    isDndPending,
+    isHighlightWordsPending,
+    isMutePending,
+    isNotifyAllPending,
     matchingHighlightWord,
     mutedChannels,
     notifyAllChannelIds,
     notifyAllChannels,
+    preferencesReady,
     removeHighlightWord,
+    retryDndStatus,
     snoozeDnd,
     toggleMuteChannel,
     toggleNotifyAllChannel,

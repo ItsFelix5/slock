@@ -75,7 +75,8 @@
   border-radius: var(--radius-6);
 }
 
-.filter-combobox-item:hover {
+.filter-combobox-item:hover,
+.filter-combobox-item.active {
   background: var(--hover-bg);
 }
 

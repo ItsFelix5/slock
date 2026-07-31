@@ -22,14 +22,25 @@ export type OpenCanvas =
 export function createCanvasSlice() {
   const [canvasByChannel, setCanvasByChannel] = createStore<Record<string, CanvasInfo | null>>({});
   const [openCanvas, setOpenCanvas] = createSignal<OpenCanvas | null>(null);
+  const canvasChecks = new Map<string, Promise<void>>();
 
-  async function ensureCanvasChecked(channelId: string) {
-    if (channelId in canvasByChannel) return;
-    try {
-      setCanvasByChannel(channelId, await fetchChannelCanvasInfo(channelId));
-    } catch {
-      setCanvasByChannel(channelId, null);
-    }
+  function ensureCanvasChecked(channelId: string): Promise<void> {
+    if (channelId in canvasByChannel) return Promise.resolve();
+    const existing = canvasChecks.get(channelId);
+    if (existing) return existing;
+
+    const request = fetchChannelCanvasInfo(channelId)
+      .then((canvas) => setCanvasByChannel(channelId, canvas))
+      .catch((err) => {
+        // Leave the channel unchecked so opening its menu or returning to it can
+        // retry. Caching a transport/API failure as null permanently hides a
+        // canvas that may exist.
+        console.error("Failed to check for channel canvas", err);
+        actionFeedback.flash(channelId, "Couldn’t check for a channel canvas.", "error");
+      })
+      .finally(() => canvasChecks.delete(channelId));
+    canvasChecks.set(channelId, request);
+    return request;
   }
 
   function openChannelCanvas(channelId: string) {
@@ -44,8 +55,14 @@ export function createCanvasSlice() {
     setOpenCanvas(null);
   }
 
-  async function loadCanvasContent(fileId: string): Promise<string> {
-    return (await fetchCanvas(fileId)) ?? "";
+  async function loadCanvasContent(fileId: string): Promise<string | null> {
+    try {
+      return (await fetchCanvas(fileId)) ?? "";
+    } catch (err) {
+      console.error("Failed to load canvas", err);
+      actionFeedback.flash(fileId, "Failed to load canvas.", "error");
+      return null;
+    }
   }
 
   // A real, navigable URI to the canvas's own backing file (open in a new
@@ -54,12 +71,14 @@ export function createCanvasSlice() {
     return fetchCanvasFileUrl(fileId);
   }
 
-  async function saveChannelCanvas(fileId: string, markdown: string) {
+  async function saveChannelCanvas(fileId: string, markdown: string): Promise<boolean> {
     try {
       await saveCanvas(fileId, markdown);
+      return true;
     } catch (err) {
       console.error("Failed to save canvas", err);
       actionFeedback.flash(fileId, "Failed to save canvas.", "error");
+      return false;
     }
   }
 

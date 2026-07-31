@@ -1,5 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { MessageShortcut } from "../../types";
+import { getOrCreateRetryablePromise } from "../cache/retryablePromiseCache";
 import { callSlack, fileProxyUrl, getWorkspaceTeamId } from "../relay";
 
 // client.appCommands' `app_actions` list mixes every action any installed
@@ -11,7 +12,7 @@ export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
   const data = await callSlack("client.appCommands", {
     _x_reason: "app-commands-conditional-fetching",
   });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "client.appCommands failed");
   const apps: any[] = data.app_actions ?? [];
   const shortcuts: MessageShortcut[] = [];
   for (const app of apps) {
@@ -58,14 +59,11 @@ export async function runMessageShortcut(
 // instead, and cached since it never changes at runtime.
 const botAppInfoCache = new Map<string, Promise<{ appId: string } | null>>();
 function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
-  let cached = botAppInfoCache.get(botId);
-  if (!cached) {
-    cached = callSlack("bots.info", { bot: botId }).then((data) =>
-      data.ok && data.bot?.app_id ? { appId: data.bot.app_id } : null,
-    );
-    botAppInfoCache.set(botId, cached);
-  }
-  return cached;
+  return getOrCreateRetryablePromise(botAppInfoCache, botId, async () => {
+    const data = await callSlack("bots.info", { bot: botId });
+    if (!data.ok) throw new Error(data.error ?? "bots.info failed");
+    return data.bot?.app_id ? { appId: data.bot.app_id } : null;
+  });
 }
 
 // Powers the app "About" flyout Slack's own client shows for a bot user.
@@ -76,16 +74,16 @@ function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
 // changes at runtime, and every bot user of the same app shares one description.
 const appDescriptionCache = new Map<string, Promise<string | undefined>>();
 export function fetchAppDescription(appId: string, botId: string): Promise<string | undefined> {
-  let cached = appDescriptionCache.get(appId);
-  if (!cached) {
-    cached = getWorkspaceTeamId()
-      .then((teamId) =>
-        callSlack("apps.profile.get", { app: appId, bot: botId, bot_home_team: teamId ?? "" }),
-      )
-      .then((data) => (data.ok ? data.app_profile?.desc || undefined : undefined));
-    appDescriptionCache.set(appId, cached);
-  }
-  return cached;
+  return getOrCreateRetryablePromise(appDescriptionCache, appId, async () => {
+    const teamId = await getWorkspaceTeamId();
+    const data = await callSlack("apps.profile.get", {
+      app: appId,
+      bot: botId,
+      bot_home_team: teamId ?? "",
+    });
+    if (!data.ok) throw new Error(data.error ?? "apps.profile.get failed");
+    return data.app_profile?.desc || undefined;
+  });
 }
 
 // Dispatches a Block Kit button click. Reverse-engineered from a live capture

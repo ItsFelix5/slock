@@ -1,7 +1,8 @@
 .connect-slack {
   width: 100vw;
-  height: 100vh;
+  height: 100%;
   padding: 20px;
+  overflow-y: auto;
   background: var(--main-bg);
 }
 
@@ -64,8 +65,20 @@
   border-color: var(--accent);
 }
 
+.connect-slack-input:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .connect-slack-error {
+  min-height: 18px;
   margin: 0;
   font-size: 13px;
   color: var(--danger);
+}
+
+@media (max-height: 650px) {
+  .connect-slack {
+    align-items: flex-start;
+  }
 }

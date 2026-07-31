@@ -28,9 +28,7 @@ export default function ContextMenu(props: ContextMenuProps) {
       if (props.open) props.onClose();
     },
   );
-  useEscapeClose(() => {
-    if (props.open) props.onClose();
-  });
+  useEscapeClose(props.onClose, () => props.open);
 
   return (
     <Show when={props.open}>

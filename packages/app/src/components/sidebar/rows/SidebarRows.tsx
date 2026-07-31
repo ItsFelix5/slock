@@ -40,6 +40,7 @@ export function DmRow(props: { dm: DirectMessage }) {
           <button
             aria-label="Close conversation"
             class="sidebar-row-close btn-reset flex-center text-muted"
+            disabled={store.dms.isCloseDmPending(props.dm.id)}
             onClick={(e) => {
               e.stopPropagation();
               void store.dms.closeDmConversation(props.dm.id);

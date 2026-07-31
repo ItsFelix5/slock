@@ -1,4 +1,5 @@
 import {
+  Button,
   Icon,
   type IconName,
   InlineFeedback,
@@ -7,13 +8,23 @@ import {
   Tooltip,
   useEscapeClose,
 } from "@slock/ui";
-import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "../composer/Composer.css";
 import type { EditorCommands } from "../composer/lib/editor/editorCommands";
 import { createEditorCommands } from "../composer/lib/editor/editorCommands";
 import { handleMarkShortcut } from "../composer/lib/editor/markShortcuts";
 import { MARKDOWN_DIALECT } from "../composer/lib/richtext";
+import { createCanvasEditorLoadTracker } from "./canvas/canvasEditorLoadTracker";
+import { createCanvasSaveController } from "./canvas/canvasSaveController";
 import "./CanvasPanel.css";
 
 type ToolbarTool = { icon: IconName; title: string; onClick: () => void };
@@ -80,7 +91,6 @@ function ToolbarButton(props: ToolbarTool) {
 
 export default function CanvasPanel() {
   const open = store.canvas.openCanvas;
-  useEscapeClose(store.canvas.closeCanvas);
 
   const fileId = () => {
     const o = open();
@@ -95,7 +105,7 @@ export default function CanvasPanel() {
       : o.title;
   });
 
-  const [content, { mutate }] = createResource(fileId, store.canvas.loadCanvasContent);
+  const [content, { mutate, refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
   const [fileUrl] = createResource(fileId, store.canvas.loadCanvasFileUrl);
   const [saving, setSaving] = createSignal(false);
   const [dirty, setDirty] = createSignal(false);
@@ -115,27 +125,53 @@ export default function CanvasPanel() {
   // loading — reacting to every content() change would also fire right
   // after our own save() below (mutate() updates it to the just-saved
   // text), which would wipe the caret position for no reason.
-  let loadedFileId: string | undefined;
+  const editorLoadTracker = createCanvasEditorLoadTracker();
   createEffect(() => {
-    if (content.loading) return;
     const id = fileId();
-    if (id === loadedFileId) return;
-    loadedFileId = id;
-    const value = content() ?? "";
-    setText(value);
+    const value = content();
+    const shouldLoad = editorLoadTracker.shouldLoad(id, !content.loading && value != null);
+    if (!shouldLoad || value == null) return;
+    editor.loadHtmlIntoEditor(value);
+    editor.syncFromDom();
     setDirty(false);
-    editor.loadDraftIntoEditor(value);
   });
 
-  const save = async () => {
-    const id = fileId();
-    if (!id) return;
-    setSaving(true);
-    await store.canvas.saveChannelCanvas(id, text());
-    mutate(text());
-    setDirty(false);
-    setSaving(false);
+  const { flush, save } = createCanvasSaveController({
+    dirty,
+    fileId,
+    onSaved: mutate,
+    persist: store.canvas.saveChannelCanvas,
+    setDirty,
+    setSaving,
+    text,
+  });
+
+  const close = async () => {
+    if (await flush()) store.canvas.closeCanvas();
   };
+
+  useEscapeClose(
+    () => void close(),
+    () => !!open(),
+  );
+
+  // Debounced autosave: every keystroke clears and reschedules this, so a
+  // save only actually fires ~1.2s after typing stops (same pattern as
+  // composer draft persistence, see drafts.ts). Also fires (harmlessly,
+  // since dirty() is false) when a canvas switch resets dirty — clearing
+  // unconditionally up front is what stops a stale timer from a *previous*
+  // canvas surviving into the newly loaded one.
+  let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(() => {
+    text();
+    const isDirty = dirty();
+    const isSaving = saving();
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = isDirty && !isSaving ? setTimeout(save, 1200) : undefined;
+  });
+  onCleanup(() => {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+  });
 
   const onInput = () => {
     editor.normalizeStrayEmptyBlock();
@@ -178,9 +214,9 @@ export default function CanvasPanel() {
   return (
     <Show when={open()}>
       {(_open) => (
-        <Overlay onClose={store.canvas.closeCanvas}>
+        <Overlay ariaLabel={`Canvas: ${title()}`} onClose={() => void close()}>
           <div class="canvas-panel-card flex-col">
-            <PanelHeader onClose={store.canvas.closeCanvas}>
+            <PanelHeader onClose={() => void close()}>
               <div class="canvas-panel-header-info flex-align-center">
                 <div class="canvas-panel-title">Canvas · {title()}</div>
                 <Show when={fileUrl()}>
@@ -199,12 +235,19 @@ export default function CanvasPanel() {
                 </Show>
               </div>
             </PanelHeader>
-            <Show
-              fallback={
-                <div class="canvas-panel-loading flex-center text-dim text-sm">Loading canvas…</div>
-              }
-              when={!content.loading}
-            >
+            <Show when={content.loading}>
+              <div class="canvas-panel-loading flex-center text-dim text-sm">Loading canvas…</div>
+            </Show>
+            <Show when={!content.loading && content() === null}>
+              <div class="canvas-panel-load-error flex-center flex-col" role="alert">
+                <span>Couldn’t load this canvas.</span>
+                <InlineFeedback feedback={actionFeedback.get(fileId() ?? "")} priority={2} />
+                <Button onClick={() => refetch()} size="sm">
+                  Try again
+                </Button>
+              </div>
+            </Show>
+            <Show when={!content.loading && content() !== null}>
               <div class="canvas-panel-toolbar flex-align-center">
                 <For each={toolbarGroups(editor)}>
                   {(group, i) => (

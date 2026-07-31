@@ -13,6 +13,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     supported ? Notification.permission : "denied",
   );
   const [enabled, setEnabled] = createSignal(false);
+  const [pending, setPending] = createSignal(false);
 
   let seeded = false;
   createEffect(() => {
@@ -22,17 +23,32 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     setEnabled(supported && prefs.desktopNotificationsEnabled);
   });
 
-  function setNotificationsEnabled(next: boolean) {
+  async function setNotificationsEnabled(next: boolean): Promise<void> {
+    if (pending()) return;
+    if (!deps.userPrefs()) {
+      actionFeedback.flash(
+        "desktop-notifications",
+        "Preferences are unavailable. Try loading them again.",
+        "error",
+      );
+      return;
+    }
+    const previous = enabled();
+    setPending(true);
     setEnabled(next);
-    setDesktopNotificationsEnabledApi(next).catch((err) => {
+    try {
+      await setDesktopNotificationsEnabledApi(next);
+    } catch (err) {
       console.error("Failed to set desktop notification preference", err);
       actionFeedback.flash(
         "desktop-notifications",
         "Failed to update desktop notifications.",
         "error",
       );
-      setEnabled(!next);
-    });
+      setEnabled(previous);
+    } finally {
+      setPending(false);
+    }
   }
 
   async function requestPermission() {
@@ -108,6 +124,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
 
   return {
     enabled,
+    isPending: pending,
     permission,
     requestPermission,
     setNotificationsEnabled,

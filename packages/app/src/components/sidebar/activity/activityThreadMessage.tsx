@@ -1,5 +1,4 @@
-import { EmojiText, Mrkdwn } from "@slock/blockkit";
-import type { ActivityItem, Message } from "@slock/slack-api";
+import { Mrkdwn } from "@slock/blockkit";
 import { Avatar } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
 import { store } from "../../../lib/store";
@@ -11,7 +10,7 @@ export function formatTime(time: number) {
   });
 }
 
-function ThreadMessageRow(props: {
+export function ThreadMessageRow(props: {
   eventLabel?: JSX.Element;
   isRoot?: boolean;
   onOpen: () => void;
@@ -53,49 +52,5 @@ function ThreadMessageRow(props: {
         </span>
       </span>
     </button>
-  );
-}
-
-export function ThreadActivityMessage(props: { item: ActivityItem; onOpen: () => void }) {
-  const unread = createMemo(() => store.activity.isActivityItemUnread(props.item));
-  return (
-    <ThreadMessageRow
-      eventLabel={
-        props.item.kind === "reaction" && props.item.reactionName ? (
-          <>
-            reacted <EmojiText text={`:${props.item.reactionName}:`} />
-          </>
-        ) : undefined
-      }
-      onOpen={props.onOpen}
-      text={props.item.text}
-      time={props.item.time}
-      unread={unread()}
-      userId={props.item.userId}
-    />
-  );
-}
-
-export function ThreadRootMessage(props: { message: Message; onOpen: () => void }) {
-  return (
-    <ThreadMessageRow
-      eventLabel="started the thread"
-      isRoot
-      onOpen={props.onOpen}
-      text={props.message.text}
-      userId={props.message.userId}
-    />
-  );
-}
-
-export function ThreadBundleMessage(props: { message: Message; onOpen: () => void }) {
-  return (
-    <ThreadMessageRow
-      onOpen={props.onOpen}
-      text={props.message.text}
-      time={parseFloat(props.message.ts) * 1000}
-      unread
-      userId={props.message.userId}
-    />
   );
 }

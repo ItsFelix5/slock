@@ -1,5 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
-import { type Credentials, callSlack, slackCookieHeader } from "./relay-core.js";
+import { type Credentials, slackCookieHeader } from "./relay-auth.js";
+import { callSlack } from "./relay-core.js";
 
 export type ClientSocket = { send(data: string): void };
 
@@ -9,7 +10,9 @@ type ConnectionState = {
   gatewaySocket: WebSocket | null;
   gatewayConnected: boolean;
   gatewayRetryDelay: number;
+  gatewayRetryTimer: ReturnType<typeof setTimeout> | null;
   fallbackTimer: ReturnType<typeof setInterval> | null;
+  fallbackPollRunning: boolean;
   watchedChannels: Set<string>;
   watchedThreads: Map<string, string>;
   closed: boolean;
@@ -37,31 +40,37 @@ export function statusMessage(connected: boolean): string {
 function startFallbackPolling(state: ConnectionState) {
   if (state.fallbackTimer) return;
   state.fallbackTimer = setInterval(async () => {
-    for (const channel of state.watchedChannels) {
-      try {
-        const data = await callSlack(
-          "conversations.history",
-          { channel, limit: "60" },
-          state.creds,
-        );
-        if (data.ok)
-          send(state, { channel, messages: data.messages ?? [], type: "_history_snapshot" });
-      } catch {
-        // transient network error; next tick retries
+    if (state.closed || state.fallbackPollRunning) return;
+    state.fallbackPollRunning = true;
+    try {
+      for (const channel of state.watchedChannels) {
+        try {
+          const data = await callSlack(
+            "conversations.history",
+            { channel, limit: "60" },
+            state.creds,
+          );
+          if (data.ok)
+            send(state, { channel, messages: data.messages ?? [], type: "_history_snapshot" });
+        } catch {
+          // transient network error; next tick retries
+        }
       }
-    }
-    for (const [ts, channel] of state.watchedThreads) {
-      try {
-        const data = await callSlack(
-          "conversations.replies",
-          { channel, limit: "200", ts },
-          state.creds,
-        );
-        if (data.ok)
-          send(state, { channel, messages: data.messages ?? [], ts, type: "_replies_snapshot" });
-      } catch {
-        // transient network error; next tick retries
+      for (const [ts, channel] of state.watchedThreads) {
+        try {
+          const data = await callSlack(
+            "conversations.replies",
+            { channel, limit: "200", ts },
+            state.creds,
+          );
+          if (data.ok)
+            send(state, { channel, messages: data.messages ?? [], ts, type: "_replies_snapshot" });
+        } catch {
+          // transient network error; next tick retries
+        }
       }
+    } finally {
+      state.fallbackPollRunning = false;
     }
   }, 4000);
 }
@@ -92,8 +101,18 @@ function buildGatewayUrl(current: Credentials) {
   return `wss://wss-primary.slack.com/?${params}`;
 }
 
+function scheduleGatewayReconnect(state: ConnectionState) {
+  if (state.closed || state.gatewayRetryTimer) return;
+  const delay = state.gatewayRetryDelay;
+  state.gatewayRetryDelay = Math.min(delay * 2, GATEWAY_MAX_RETRY_DELAY);
+  state.gatewayRetryTimer = setTimeout(() => {
+    state.gatewayRetryTimer = null;
+    connectGateway(state);
+  }, delay);
+}
+
 function connectGateway(state: ConnectionState) {
-  if (state.closed) return;
+  if (state.closed || state.gatewaySocket) return;
   try {
     const socket = new WebSocket(buildGatewayUrl(state.creds), {
       headers: { cookie: slackCookieHeader(state.creds) },
@@ -109,6 +128,7 @@ function connectGateway(state: ConnectionState) {
     });
 
     socket.addEventListener("message", (event) => {
+      if (state.gatewaySocket !== socket) return;
       try {
         const payload = JSON.parse(String(event.data));
         if (payload.type && payload.type !== "pong" && payload.type !== "reconnect_url")
@@ -125,8 +145,8 @@ function connectGateway(state: ConnectionState) {
       sendStatus(state);
       if (state.closed) return;
       startFallbackPolling(state);
-      setTimeout(() => connectGateway(state), state.gatewayRetryDelay);
-      state.gatewayRetryDelay = Math.min(state.gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
+      if (socket.readyState !== WebSocket.CLOSED) socket.close();
+      scheduleGatewayReconnect(state);
     };
     socket.addEventListener("close", onDown);
     socket.addEventListener("error", onDown);
@@ -144,8 +164,7 @@ function connectGateway(state: ConnectionState) {
     console.warn("Failed to connect to Slack gateway, retrying:", err);
     if (state.closed) return;
     startFallbackPolling(state);
-    setTimeout(() => connectGateway(state), state.gatewayRetryDelay);
-    state.gatewayRetryDelay = Math.min(state.gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
+    scheduleGatewayReconnect(state);
   }
 }
 
@@ -155,8 +174,10 @@ export function handleClientOpen(socket: ClientSocket, creds: Credentials | null
     closed: false,
     creds,
     fallbackTimer: null,
+    fallbackPollRunning: false,
     gatewayConnected: false,
     gatewayRetryDelay: 2000,
+    gatewayRetryTimer: null,
     gatewaySocket: null,
     socket,
     watchedChannels: new Set(),
@@ -171,6 +192,8 @@ export function handleClientDisconnect(socket: ClientSocket): void {
   if (!state) return;
   state.closed = true;
   state.gatewaySocket?.close();
+  if (state.gatewayRetryTimer) clearTimeout(state.gatewayRetryTimer);
+  state.gatewayRetryTimer = null;
   stopFallbackPolling(state);
   connections.delete(socket);
 }

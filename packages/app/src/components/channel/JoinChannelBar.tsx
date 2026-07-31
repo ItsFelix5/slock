@@ -14,11 +14,12 @@ export default function JoinChannelBar(props: { channelId: string }) {
       <InlineFeedback feedback={actionFeedback.get(props.channelId)} priority={2} />
       <button
         class="join-channel-bar-btn btn-reset flex-align-center"
+        disabled={store.channels.isJoinPending(props.channelId)}
         onClick={() => store.channels.joinChannelById(props.channelId)}
         type="button"
       >
         <Icon name="plus" size={14} />
-        Join channel
+        {store.channels.isJoinPending(props.channelId) ? "Joining…" : "Join channel"}
       </button>
     </div>
   );

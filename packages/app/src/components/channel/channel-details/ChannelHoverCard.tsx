@@ -1,3 +1,4 @@
+import { Mrkdwn } from "@slock/blockkit";
 import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
 import { createEffect, createMemo, type JSX, Show } from "solid-js";
 import { channelDisplayName, store } from "../../../lib/store";
@@ -54,7 +55,7 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
 
               <Show when={c().topic}>
                 <div class="channel-hovercard-topic text-muted text-sm truncate-lines">
-                  {c().topic}
+                  <Mrkdwn text={c().topic ?? ""} />
                 </div>
               </Show>
 

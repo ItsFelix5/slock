@@ -1,7 +1,7 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import { TypingIndicator } from "@slock/ui";
+import { Button, ConnectionStatus, InlineFeedback, TypingIndicator } from "@slock/ui";
 import { createMemo, onCleanup, onMount, Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelHeader from "./components/channel/ChannelHeader";
@@ -21,8 +21,12 @@ import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
 import UsergroupDetails from "./components/usergroup/UsergroupDetails";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
-import { parseSlackPermalink } from "./lib/slackPermalink";
-import { channelDisplayName, store } from "./lib/store";
+import {
+  createSlackPermalinkOpener,
+  navigateToSlackPermalink,
+  parseSlackPermalink,
+} from "./lib/slackPermalink";
+import { actionFeedback, channelDisplayName, store } from "./lib/store";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
@@ -73,6 +77,18 @@ const blockKitResolver: BlockKitResolver = {
 };
 
 function App() {
+  const permalinkOpener = createSlackPermalinkOpener({
+    navigate: (target) => navigateToSlackPermalink(target, store.viewState),
+    onError: (error) => {
+      console.error("Failed to open Slack permalink", error);
+      actionFeedback.flash("navigation", "Couldn’t open that message. Try again.", "error");
+    },
+    onUnavailable: () =>
+      actionFeedback.flash("navigation", "That message is unavailable.", "error"),
+    probe: async (target) =>
+      !!(await fetchPermalinkMessage(target.channelId, target.messageTs, target.threadTs)),
+  });
+
   const openSlackPermalink = (event: MouseEvent) => {
     if (
       event.defaultPrevented ||
@@ -84,6 +100,8 @@ function App() {
     )
       return;
 
+    permalinkOpener.invalidate();
+
     const element = event.target instanceof Element ? event.target : null;
     const anchor = element?.closest("a[href]") as HTMLAnchorElement | null;
     if (!anchor) return;
@@ -92,21 +110,20 @@ function App() {
     if (!target) return;
 
     event.preventDefault();
+    actionFeedback.clear("navigation");
     // Probe the message before navigating — a link to a channel we can't read
     // (private, not a member) would otherwise switch views only to land on a
-    // dead end. Silently ignoring the click beats opening a broken channel.
-    fetchPermalinkMessage(target.channelId, target.messageTs, target.threadTs)
-      .then((message) => {
-        if (!message) return;
-        store.viewState.setActiveView({ id: target.channelId, kind: "channel" });
-        store.viewState.openThread(target.channelId, target.threadTs);
-      })
-      .catch(() => {});
+    // dead end. A newer primary click invalidates this probe so a slow response
+    // cannot unexpectedly pull the user away from their newer destination.
+    void permalinkOpener.open(target);
   };
 
   onMount(() => {
     document.addEventListener("click", openSlackPermalink);
-    onCleanup(() => document.removeEventListener("click", openSlackPermalink));
+    onCleanup(() => {
+      permalinkOpener.invalidate();
+      document.removeEventListener("click", openSlackPermalink);
+    });
   });
 
   const unjoinedChannelId = () => {
@@ -123,33 +140,54 @@ function App() {
 
   return (
     <BlockKitResolverContext.Provider value={blockKitResolver}>
-      <div class="app">
-        <Show when={store.resources.bootstrap.error}>
-          <div class="app-bootstrap-error">
-            Failed to load: {String(store.resources.bootstrap.error)}
-          </div>
-        </Show>
-        <Sidebar />
+      <Show
+        fallback={
+          <main class="app-bootstrap-error flex-center flex-col" role="alert">
+            <h1>Couldn’t load your workspace</h1>
+            <p>Check your connection and try again. Your local settings are unchanged.</p>
+            <Button
+              disabled={store.resources.bootstrap.loading}
+              onClick={() => void store.resources.retryBootstrap()}
+              variant="primary"
+            >
+              {store.resources.bootstrap.loading ? "Retrying…" : "Try again"}
+            </Button>
+          </main>
+        }
+        when={!store.resources.bootstrap.error}
+      >
+        <ConnectionStatus
+          onRetry={store.realtime.retryConnection}
+          state={store.realtime.connectionState()}
+        />
+        <div class="app">
+          <InlineFeedback
+            class="app-navigation-feedback"
+            feedback={actionFeedback.get("navigation")}
+            priority={2}
+          />
+          <Sidebar />
 
-        <div class="main-panel">
-          <Show fallback={<MessageSearchView />} when={store.viewState.nav() !== "search"}>
-            <ChannelHeader />
-            <MessageList />
-            <TypingIndicator names={typingNames()} />
-            <Show fallback={<Composer />} when={unjoinedChannelId()}>
-              {(channelId) => <JoinChannelBar channelId={channelId()} />}
+          <div class="main-panel">
+            <Show fallback={<MessageSearchView />} when={store.viewState.nav() !== "search"}>
+              <ChannelHeader />
+              <MessageList />
+              <TypingIndicator names={typingNames()} />
+              <Show fallback={<Composer />} when={unjoinedChannelId()}>
+                {(channelId) => <JoinChannelBar channelId={channelId()} />}
+              </Show>
             </Show>
-          </Show>
+          </div>
+          <ThreadPanel />
+          <UserProfile />
+          <UsergroupDetails />
+          <ChannelDetails />
+          <PinnedPanel />
+          <CanvasPanel />
+          <ContextActions />
+          <ViewModal />
         </div>
-        <ThreadPanel />
-        <UserProfile />
-        <UsergroupDetails />
-        <ChannelDetails />
-        <PinnedPanel />
-        <CanvasPanel />
-        <ContextActions />
-        <ViewModal />
-      </div>
+      </Show>
     </BlockKitResolverContext.Provider>
   );
 }

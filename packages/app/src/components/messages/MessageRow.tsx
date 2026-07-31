@@ -32,7 +32,7 @@ import MessageFiles from "./parts/media/MessageFiles";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 
-const EMOJI_SHORTCODE_RE = /:([a-z0-9_+-]+):/gi;
+const EMOJI_SHORTCODE_RE = /:([a-z0-9_+'-]+):/gi;
 const USER_PROFILE_ID_RE = /^[UW]/;
 const MAX_ENLARGED_EMOJI = 25;
 
@@ -115,8 +115,11 @@ export default function MessageRow(props: MessageRowProps) {
     return !p || p.day !== msg.day;
   };
   const showUnreadDivider = () => {
+    // Thread replies have no read cursor of their own — unreadDividerTsForChannel
+    // is anchored to the *channel's* cursor, which has nothing to do with
+    // whether this thread has been opened before, so never show it here.
+    if (props.threadTs) return false;
     const p = prev();
-    if (props.threadTs && !p) return false;
     const anchor = store.unread.unreadDividerTsForChannel(props.channelId);
     if (anchor == null) return false;
     return isUnreadDividerBoundary(msg.ts, p?.ts, anchor);
@@ -208,7 +211,7 @@ export default function MessageRow(props: MessageRowProps) {
           compact: sameAuthorAsPrev(),
           deleted: msg.deleted,
           ephemeral: msg.isEphemeral,
-          saved: store.later.isSavedForLater(msg.ts),
+          saved: store.later.isSavedForLater(props.channelId, msg.ts),
         }}
       >
         <Show when={replyRef()}>
@@ -294,7 +297,12 @@ export default function MessageRow(props: MessageRowProps) {
               <MessageMeta
                 displayName={displayName}
                 isPinned={isPinned}
-                message={{ ...msg, isSaved: store.later.isSavedForLater(msg.ts) } as Message}
+                message={
+                  {
+                    ...msg,
+                    isSaved: store.later.isSavedForLater(props.channelId, msg.ts),
+                  } as Message
+                }
                 onOpenUser={() => {
                   const id = profileUserId();
                   if (id) store.users.openUserProfile(id);
@@ -310,14 +318,15 @@ export default function MessageRow(props: MessageRowProps) {
                   editing={{
                     initialText: replyRef()?.rest ?? msg.text,
                     onCancel: () => setIsEditing(false),
-                    onSave: (text, blocks) => {
-                      store.messages.editMessageText(
+                    onSave: async (text, blocks) => {
+                      const saved = await store.messages.editMessageText(
                         props.channelId,
                         msg.ts,
                         (replyRef()?.prefix ?? "") + text,
                         blocks,
                       );
-                      setIsEditing(false);
+                      if (saved) setIsEditing(false);
+                      return saved;
                     },
                   }}
                 />
@@ -365,6 +374,9 @@ export default function MessageRow(props: MessageRowProps) {
             <Show when={msg.reactions?.length ? msg.reactions : undefined}>
               {(reactions) => (
                 <ReactionRow
+                  isPending={(name) =>
+                    store.messages.isReactionPending(props.channelId, msg.ts, name)
+                  }
                   onToggle={(name) => store.messages.reactToMessage(props.channelId, msg, name)}
                   reactions={reactions()}
                 />

@@ -1,15 +1,12 @@
-import type { ActivityItem, Channel, DirectMessage, Message, User } from "@slock/slack-api";
+import type { ActivityItem, Message, User } from "@slock/slack-api";
 import {
   fetchActivityFeedEntries,
-  fetchActivityMessages,
-  markChannelRead,
+  fetchMessagesByIds,
   resolveActivityEntry,
 } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-
-const BROADCAST_RE = /<!(channel|here)>/;
-const SUBTEAM_RE = /<!subteam\^([^|>]+)/;
+import { createActivityReadSync } from "./activity/activityReadSync";
 
 // Which activity kinds represent a real, personally-addressed ping (direct
 // @mention, DM, a custom pingword) versus ambient activity that's relevant
@@ -30,71 +27,36 @@ export function isPingingActivity(item: ActivityItem): boolean {
   return PING_KINDS.has(item.kind);
 }
 
-// Priority order matters: a direct @mention always wins over the channel's
-// broader notification settings, down to "notify on every post" as the catch-all.
-// Kept as a pure function (no store closure) since it's only ever invoked from
-// the realtime message handler, which already has all the inputs on hand.
-export function classifyIncomingActivity(
-  channel: string,
-  ts: string,
-  msg: Message,
-  meId: string,
-  threadRelevant: boolean,
-  threadTs: string | undefined,
-  ctx: {
-    isDirectMessage: (channelId: string) => boolean;
-    isNotifyAll: (channelId: string) => boolean;
-    matchingHighlightWord: (text: string) => string | undefined;
+type ActivityApi = {
+  fetchActivityFeedEntries: typeof fetchActivityFeedEntries;
+  fetchMessagesByIds: typeof fetchMessagesByIds;
+  resolveActivityEntry: typeof resolveActivityEntry;
+};
+
+const DEFAULT_ACTIVITY_API: ActivityApi = {
+  fetchActivityFeedEntries,
+  fetchMessagesByIds,
+  resolveActivityEntry,
+};
+
+export function createActivitySlice(
+  deps: {
+    currentUser: () => User | undefined;
+    lastReadByChannel: Record<string, number>;
+    setLastReadByChannel: (channelId: string, ts: number) => void;
+    clearChannelUnread: (channelId: string) => void;
+    syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   },
-): ActivityItem | null {
-  const text = msg.text ?? "";
-  const time = parseFloat(ts) * 1000;
-  const base = { channelId: channel, text, threadTs, time, ts, userId: msg.userId };
-
-  if (text.includes(`<@${meId}>`)) return { ...base, id: `mn-${channel}-${ts}`, kind: "mention" };
-  if (ctx.isDirectMessage(channel)) return { ...base, id: `dm-${channel}-${ts}`, kind: "dm" };
-
-  // A custom "pingword" — pings you like an @mention wherever it appears,
-  // even in a channel you'd otherwise get no activity from at all.
-  const matchedKeyword = ctx.matchingHighlightWord(text);
-  if (matchedKeyword)
-    return { ...base, id: `kw-${channel}-${ts}`, kind: "keyword", matchedKeyword };
-
-  const broadcast = text.match(BROADCAST_RE);
-  if (broadcast)
-    return {
-      ...base,
-      broadcastRange: broadcast[1] as "channel" | "here",
-      id: `cb-${channel}-${ts}`,
-      kind: "channel_mention",
-    };
-
-  const subteam = text.match(SUBTEAM_RE);
-  if (subteam)
-    return {
-      ...base,
-      id: `ug-${channel}-${ts}`,
-      kind: "usergroup_mention",
-      usergroupId: subteam[1],
-    };
-
-  if (threadRelevant) return { ...base, id: `th-${channel}-${ts}`, kind: "thread_reply" };
-  if (ctx.isNotifyAll(channel)) return { ...base, id: `ca-${channel}-${ts}`, kind: "channel_all" };
-
-  return null;
-}
-
-export function createActivitySlice(deps: {
-  currentUser: () => User | undefined;
-  lastReadByChannel: Record<string, number>;
-  setLastReadByChannel: (channelId: string, ts: number) => void;
-  patchChannel: (id: string, patch: Partial<Channel>) => void;
-  patchDm: (id: string, patch: Partial<DirectMessage>) => void;
-}) {
+  apiOverrides: Partial<ActivityApi> = {},
+) {
+  const api = { ...DEFAULT_ACTIVITY_API, ...apiOverrides };
   const [activityItems, setActivityItems] = createStore<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = createSignal(false);
   const [activityLoaded, setActivityLoaded] = createSignal(false);
+  const [activityLoadError, setActivityLoadError] = createSignal(false);
   const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean>>({});
   const [reactedActivityIds, setReactedActivityIds] = createStore<Record<string, boolean>>({});
+  const activityReadSync = createActivityReadSync(deps.syncChannelRead);
   const [engagements, setEngagements] = createSignal<
     { channelId: string; threadTs?: string; time: number; ts: string }[]
   >([]);
@@ -127,29 +89,28 @@ export function createActivitySlice(deps: {
     );
   }
 
+  // Activity items are exclusively sourced from this feed — Slack computes
+  // membership (e.g. which usergroups you're actually in) server-side, which
+  // a client-side guess at message text could never get right. Safe to call
+  // repeatedly (on view mount and on every live badge update) since entries
+  // are deduped by id; an in-flight guard just avoids overlapping fetches.
   async function ensureActivityLoaded() {
-    if (activityLoaded()) return;
-    setActivityLoaded(true);
+    if (activityLoading()) return;
     const me = deps.currentUser();
-    if (!me) {
-      setActivityLoaded(false);
-      return;
-    }
+    if (!me) return;
+    setActivityLoading(true);
+    setActivityLoadError(false);
     try {
-      const entries = await fetchActivityFeedEntries();
+      const entries = await api.fetchActivityFeedEntries();
       const seen = new Set(activityItems.map((i) => i.id));
       const pending = entries.filter((entry) => !seen.has(entry.id));
-      // One batched messages.list call fetches every entry's message body up
-      // front (grouped by channel) instead of using per-entry history/replies
-      // lookups.
-      const batchedMessages = await fetchActivityMessages(pending);
-      for (const entry of pending) {
-        const item = resolveActivityEntry(entry, batchedMessages);
+      const push = (entry: (typeof pending)[number], batch?: Map<string, Message>) => {
+        const item = api.resolveActivityEntry(entry, batch);
         // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply
         // in a thread you're in) can legitimately point at your own message
         // — the feed itself doesn't filter those out, so do it here rather
         // than showing your own posts back to you as activity.
-        if (seen.has(item.id) || !item.userId || item.userId === me.id) continue;
+        if (seen.has(item.id) || !item.userId || item.userId === me.id) return;
         seen.add(item.id);
         setActivityItems(
           produce((list) => {
@@ -157,9 +118,29 @@ export function createActivitySlice(deps: {
             list.sort((a, b) => b.time - a.time);
           }),
         );
-      }
-    } catch {
-      // undocumented endpoint may not be available on every workspace; live events still populate this list
+      };
+      // Reactions never carry a body or thread_ts from the feed, and other
+      // kinds sometimes arrive without text — those need messages.list.
+      // Anything the feed already fully describes renders now, so a slow
+      // channel's fetch never holds up the whole view.
+      const needsMessage = (entry: (typeof pending)[number]) =>
+        entry.kind === "reaction" || !entry.text;
+      for (const entry of pending) if (!needsMessage(entry)) push(entry);
+      const toFetch = pending.filter(needsMessage);
+      // Stream the rest in as each messages.list batch resolves, then backfill
+      // any whose message never came back (still worth a row from feed data).
+      await api.fetchMessagesByIds(toFetch, (batch) => {
+        for (const entry of toFetch)
+          if (!seen.has(entry.id) && batch.has(`${entry.channelId}:${entry.ts}`))
+            push(entry, batch);
+      });
+      for (const entry of toFetch) if (!seen.has(entry.id)) push(entry);
+      setActivityLoaded(true);
+    } catch (err) {
+      console.error("Failed to load activity", err);
+      setActivityLoadError(true);
+    } finally {
+      setActivityLoading(false);
     }
   }
 
@@ -186,6 +167,10 @@ export function createActivitySlice(deps: {
   }
 
   function isActivityItemUnread(item: ActivityItem): boolean {
+    // Reactions are a nice-to-know, not a ping — they never light the bell
+    // (not in PING_KINDS/GLOW_KINDS), so they shouldn't sit in the "Unread"
+    // filter forever either.
+    if (item.kind === "reaction") return false;
     if (readActivityIds[item.id] || isActivityItemReacted(item)) return false;
     return item.time > (deps.lastReadByChannel[item.channelId] ?? 0);
   }
@@ -222,9 +207,25 @@ export function createActivitySlice(deps: {
     }
     for (const [channelId, ts] of latestTsByChannel) {
       deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
-      if (channelId.startsWith("D")) deps.patchDm(channelId, { mentions: 0 });
-      else deps.patchChannel(channelId, { mentions: 0 });
-      markChannelRead(channelId, ts).catch(() => {});
+      // Same clear used everywhere else a channel gets marked read, so the
+      // sidebar's unread dot/mentions badge doesn't linger just because this
+      // particular read happened via the Activity feed instead of visiting
+      // the channel directly.
+      deps.clearChannelUnread(channelId);
+      void activityReadSync.request(channelId, ts);
+    }
+    // The gateway's aggregate activity_v2 counts only change on the next
+    // badge_counts_updated push, which may never come (e.g. a thread reply's
+    // badge isn't tied to any channel read cursor we advance above) — so once
+    // everything actually loaded in the feed is read, drop the stale gateway
+    // count too, or the bell dot outlives the unread it was lit for.
+    if (
+      !activityItems.some(
+        (i) => (PING_KINDS.has(i.kind) || GLOW_KINDS.has(i.kind)) && isActivityItemUnread(i),
+      )
+    ) {
+      setGatewayPingCount(0);
+      setGatewayHasUnreadGlow(false);
     }
   }
 
@@ -247,6 +248,11 @@ export function createActivitySlice(deps: {
 
   return {
     activityItems,
+    activityLoaded,
+    activityLoading,
+    activityLoadError,
+    activityReadSyncError: activityReadSync.error,
+    activityReadSyncPending: activityReadSync.isPending,
     ensureActivityLoaded,
     hasUnreadActivity,
     isActivityItemReacted,
@@ -255,6 +261,7 @@ export function createActivitySlice(deps: {
     markActivityItemsRead,
     pushActivity,
     recordActivityEngagement,
+    retryActivityReadSync: activityReadSync.retry,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,

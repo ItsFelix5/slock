@@ -1,0 +1,127 @@
+import { createVirtualizer } from "@tanstack/solid-virtual";
+import type { ScrollToOptions } from "@tanstack/virtual-core";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import MessageRow from "./MessageRow";
+import type { MessageRowsProps } from "./MessageRows";
+import { estimateMessageHeight } from "./parts/estimateMessageHeight";
+
+// Imperative handle handed up to MessageList.tsx (see props.onApi) — it owns
+// scroll-landing decisions (unread divider, jump-to-message, initial open)
+// but needs the virtualizer to actually move to an index that may currently
+// be far outside the rendered window.
+export interface VirtualRowsApi {
+  scrollToIndex: (index: number, opts?: ScrollToOptions) => void;
+  // Total content height — MessageList.tsx watches this to notice a
+  // late-arriving embed/image growing an already-rendered row (not just a
+  // new message being appended) so it can keep following the bottom.
+  totalSize: () => number;
+}
+
+export default function VirtualizedRows(props: MessageRowsProps) {
+  // Cached so estimateSize (called in a hot measurement loop) doesn't force a
+  // layout read of clientWidth on every call; refreshed only on real resizes.
+  const [width, setWidth] = createSignal(props.scrollContainer?.()?.clientWidth ?? 640);
+  onMount(() => {
+    const el = props.scrollContainer?.();
+    if (!el) return;
+    setWidth(el.clientWidth);
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    onCleanup(() => ro.disconnect());
+  });
+
+  const virtualizer = createVirtualizer({
+    estimateSize: (index) =>
+      estimateMessageHeight(props.messages[index], props.messages[index - 1], width()),
+    getItemKey: (index) => props.messages[index]?.ts ?? index,
+    getScrollElement: () => props.scrollContainer?.() ?? null,
+    overscan: 8,
+    // The virtualized rows sit below a variable-height header (loading
+    // indicator / channel intro) inside the same scroll container; without
+    // this the virtualizer treats item offsets as starting at scrollTop 0, so
+    // scrollToIndex and range math drift by the header's height.
+    get scrollMargin() {
+      return props.scrollMargin ?? 0;
+    },
+    // "end" anchoring gives us two things for free, both driven by item keys
+    // rather than raw scrollHeight math: prepending older history keeps
+    // whatever's on screen visually still (it re-anchors on the key that was
+    // at the top of the viewport), and a resize of an already-at-the-bottom
+    // row (an image/embed finishing load) keeps the view pinned to the
+    // bottom. followOnAppend covers the third case — a genuinely new
+    // trailing message arriving while already at the bottom.
+    anchorTo: "end",
+    followOnAppend: "auto",
+    // How close to the bottom still counts as "at the bottom" for the above
+    // two behaviors — matches the old hand-rolled NEAR_BOTTOM_PX threshold.
+    scrollEndThreshold: 120,
+    get count() {
+      return props.messages.length;
+    },
+  });
+
+  props.onApi?.({
+    scrollToIndex: (index, opts) => virtualizer.scrollToIndex(index, opts),
+    totalSize: () => virtualizer.getTotalSize(),
+  });
+
+  return (
+    <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative", width: "100%" }}>
+      <For each={virtualizer.getVirtualItems()}>
+        {(item) => (
+          <Show when={item && props.messages[item.index]}>
+            {(message) => (
+              <div
+                data-index={item.index}
+                ref={(el) => {
+                  // Set explicitly (not just left to the data-index JSX
+                  // binding above) so there's no ambiguity about whether
+                  // it's applied before this ref runs — measureElement
+                  // reads it immediately via indexFromElement, and if it's
+                  // ever missing/stale that call silently no-ops (wrong
+                  // index resolves to -1, which resizeItem guards on) and,
+                  // worse, collapses this row's elementsCache entry onto
+                  // whatever key -1 last resolved to, permanently losing
+                  // this row's own ResizeObserver subscription. That's
+                  // what was pinning every row at its raw text-estimate
+                  // height regardless of its real (image/embed) content.
+                  el.dataset.index = String(item.index);
+                  virtualizer.measureElement(el);
+                  // Solid refs (unlike React's) never fire again with `null`
+                  // on unmount, so without this the virtualizer's own
+                  // ResizeObserver only notices a scrolled-away row went
+                  // stale the next time *any* observed row happens to
+                  // resize — onCleanup makes that immediate instead of an
+                  // incidental, unbounded-delay sweep.
+                  onCleanup(() => virtualizer.measureElement(null));
+                }}
+                style={{
+                  left: 0,
+                  position: "absolute",
+                  top: 0,
+                  // item.start is measured from the scroll container's top
+                  // (it includes scrollMargin); subtract it back out to place
+                  // the row within this container, which itself sits at
+                  // scrollMargin.
+                  transform: `translateY(${item.start - (props.scrollMargin ?? 0)}px)`,
+                  width: "100%",
+                }}
+              >
+                <MessageRow
+                  channelId={props.channelId}
+                  index={() => item.index}
+                  message={message()}
+                  messages={props.messages}
+                  onJumpToMessage={props.onJumpToMessage}
+                  onOpenThread={props.onOpenThread}
+                  onReplyLink={props.onReplyLink}
+                  threadTs={props.threadTs}
+                />
+              </div>
+            )}
+          </Show>
+        )}
+      </For>
+    </div>
+  );
+}

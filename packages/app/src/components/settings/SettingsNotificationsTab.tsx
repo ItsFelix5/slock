@@ -1,22 +1,36 @@
-import { Icon, InlineFeedback, Switch } from "@slock/ui";
+import { Button, Icon, InlineFeedback, Switch } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "./Settings.css";
+import "./SettingsNotificationsTab.css";
 
 export default function SettingsNotificationsTab() {
   const [newWord, setNewWord] = createSignal("");
 
-  const submitNewWord = (event: Event) => {
+  const submitNewWord = async (event: Event) => {
     event.preventDefault();
     const word = newWord().trim();
     if (!word) return;
-    store.preferences.addHighlightWord(word);
-    setNewWord("");
+    if (await store.preferences.addHighlightWord(word)) setNewWord("");
   };
 
   return (
     <>
       <h2>Notifications</h2>
+
+      <Show when={store.resources.userPrefs.error}>
+        <div class="settings-preferences-error flex-between" role="alert">
+          <span>Couldn’t load your saved preferences. Changes are disabled to protect them.</span>
+          <Button
+            disabled={store.resources.userPrefs.loading}
+            onClick={() => void store.resources.retryUserPrefs()}
+            size="sm"
+            variant="ghost"
+          >
+            {store.resources.userPrefs.loading ? "Retrying…" : "Try again"}
+          </Button>
+        </div>
+      </Show>
 
       <Show when={store.desktopNotifications.supported}>
         <div class="settings-section">
@@ -33,6 +47,7 @@ export default function SettingsNotificationsTab() {
                   fallback={
                     <button
                       class="settings-list-row-action btn-reset text-muted"
+                      disabled={!store.preferences.preferencesReady()}
                       onClick={store.desktopNotifications.requestPermission}
                       type="button"
                     >
@@ -48,7 +63,11 @@ export default function SettingsNotificationsTab() {
             >
               <Switch
                 checked={store.desktopNotifications.enabled()}
+                disabled={
+                  !store.preferences.preferencesReady() || store.desktopNotifications.isPending()
+                }
                 onChange={store.desktopNotifications.setNotificationsEnabled}
+                title="Desktop notifications"
               />
             </Show>
           </div>
@@ -75,6 +94,7 @@ export default function SettingsNotificationsTab() {
                   <InlineFeedback feedback={actionFeedback.get(c.id)} priority={2} />
                   <button
                     class="settings-list-row-action btn-reset text-muted"
+                    disabled={store.preferences.isMutePending(c.id)}
                     onClick={() => store.preferences.toggleMuteChannel(c.id)}
                     type="button"
                   >
@@ -107,8 +127,10 @@ export default function SettingsNotificationsTab() {
                   <span class="settings-list-row-name flex-align-center">
                     {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
+                  <InlineFeedback feedback={actionFeedback.get(c.id)} priority={2} />
                   <button
                     class="settings-list-row-action btn-reset text-muted"
+                    disabled={store.preferences.isNotifyAllPending(c.id)}
                     onClick={() => store.preferences.toggleNotifyAllChannel(c.id)}
                     type="button"
                   >
@@ -130,6 +152,7 @@ export default function SettingsNotificationsTab() {
         <form class="settings-add-row flex-align-center" onSubmit={submitNewWord}>
           <input
             class="search-input"
+            disabled={store.preferences.isHighlightWordsPending()}
             onInput={(event) => setNewWord(event.currentTarget.value)}
             placeholder="Add a word or phrase"
             type="text"
@@ -137,7 +160,7 @@ export default function SettingsNotificationsTab() {
           />
           <button
             class="settings-list-row-action btn-reset text-muted"
-            disabled={!newWord().trim()}
+            disabled={!newWord().trim() || store.preferences.isHighlightWordsPending()}
             type="submit"
           >
             Add
@@ -155,6 +178,7 @@ export default function SettingsNotificationsTab() {
                   <span class="settings-list-row-name">{word}</span>
                   <button
                     class="settings-list-row-action btn-reset text-muted"
+                    disabled={store.preferences.isHighlightWordsPending()}
                     onClick={() => store.preferences.removeHighlightWord(word)}
                     type="button"
                   >

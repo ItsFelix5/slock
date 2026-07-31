@@ -1,55 +1,98 @@
 import type { Message } from "@slock/slack-api";
-import { fetchHistory, fetchPermalinkMessage, fetchReplies } from "@slock/slack-api";
-import { createEffect } from "solid-js";
+import { fetchHistory, fetchHistoryAround, fetchReplies } from "@slock/slack-api";
+import { createEffect, untrack } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { ThreadRef, View } from "../types";
+import { createRequestEpochs } from "./history/requestEpoch";
 import { mergeMessages } from "./merge/messageMerge";
 
-// Bounds how many 60-message pages ensureChannelMessage will page through
-// looking for a target ts before giving up — a thread root nobody's opened
-// in ages shouldn't backfill the whole channel.
-const ENSURE_MESSAGE_MAX_BACKFILL = 10;
+type HistoryMeta = {
+  anchored?: boolean;
+  hasMore: boolean;
+  initialError?: boolean;
+  loading: boolean;
+  olderError?: boolean;
+};
 
-export function createMessageHistory(deps: {
-  activeView: () => View | null;
-  activeThread: () => ThreadRef | null;
-}) {
+type MessageHistoryApi = {
+  fetchHistory: typeof fetchHistory;
+  fetchHistoryAround: typeof fetchHistoryAround;
+  fetchReplies: typeof fetchReplies;
+};
+
+const DEFAULT_HISTORY_API: MessageHistoryApi = { fetchHistory, fetchHistoryAround, fetchReplies };
+
+export function createMessageHistory(
+  deps: {
+    activeView: () => View | null;
+    activeThread: () => ThreadRef | null;
+  },
+  api: MessageHistoryApi = DEFAULT_HISTORY_API,
+) {
   const [messagesByChannel, setMessagesByChannel] = createStore<Record<string, Message[]>>({});
   const loadedChannels = new Set<string>();
   const historyCursor = new Map<string, string | undefined>();
-  const [historyMeta, setHistoryMeta] = createStore<
-    Record<string, { hasMore: boolean; loading: boolean; error?: boolean }>
-  >({});
+  const [historyMeta, setHistoryMeta] = createStore<Record<string, HistoryMeta>>({});
+  const windowEpochs = createRequestEpochs();
   const [threadMessages, setThreadMessages] = createStore<Record<string, Message[]>>({});
+  // Reacted messages surfaced in the activity feed, keyed by `channel:ts`.
+  // Kept apart from the channel window (which ensureChannelMessage rebuilds as
+  // a permalink island) so viewing the feed neither disturbs an open channel
+  // nor lets sibling reaction items clobber each other; reaction toggles and
+  // gateway events still reach these via patchMessage (see findMessageLocations).
+  const [reactionMessages, setReactionMessages] = createStore<Record<string, Message[]>>({});
   const loadedThreads = new Set<string>();
+  async function loadRecentHistory(channelId: string) {
+    const replaceAnchoredWindow = historyMeta[channelId]?.anchored === true;
+    const epoch = windowEpochs.begin(channelId);
+    loadedChannels.add(channelId);
+    setHistoryMeta(channelId, {
+      anchored: false,
+      hasMore: true,
+      initialError: false,
+      loading: true,
+      olderError: false,
+    });
+    try {
+      const { messages, hasMore, nextCursor } = await api.fetchHistory(channelId);
+      if (!windowEpochs.isCurrent(channelId, epoch)) return;
+      setMessagesByChannel(channelId, (existing = []) =>
+        replaceAnchoredWindow ? messages : mergeMessages(existing, messages),
+      );
+      historyCursor.set(channelId, nextCursor);
+      setHistoryMeta(channelId, { hasMore, loading: false });
+    } catch {
+      if (!windowEpochs.isCurrent(channelId, epoch)) return;
+      loadedChannels.delete(channelId);
+      setHistoryMeta(channelId, { hasMore: true, initialError: true, loading: false });
+    }
+  }
   createEffect(() => {
     const view = deps.activeView();
     if (!view) return;
-    if (loadedChannels.has(view.id)) return;
-    loadedChannels.add(view.id);
-    setHistoryMeta(view.id, { hasMore: true, loading: true });
-    fetchHistory(view.id)
-      .then(({ messages, hasMore, nextCursor }) => {
-        setMessagesByChannel(view.id, (existing = []) => mergeMessages(existing, messages));
-        historyCursor.set(view.id, nextCursor);
-        setHistoryMeta(view.id, { hasMore, loading: false });
-      })
-      .catch(() => {
-        loadedChannels.delete(view.id);
-        setHistoryMeta(view.id, { hasMore: false, loading: false, error: true });
-      });
+    // Re-fetches on every switch to a channel whose loaded window is a
+    // permalink-jumped island rather than the live tail (see
+    // ensureChannelMessage) — leaving and re-entering the channel is how you
+    // get back to "now", the same way Slack's own permalink view works.
+    const alreadyAtPresent =
+      loadedChannels.has(view.id) && !untrack(() => historyMeta[view.id]?.anchored);
+    if (alreadyAtPresent) return;
+    loadRecentHistory(view.id);
   });
-  const [threadErrors, setThreadErrors] = createStore<Record<string, boolean>>({});
+  const [threadMeta, setThreadMeta] = createStore<
+    Record<string, { error: boolean; loading: boolean }>
+  >({});
   async function ensureThreadRepliesLoaded(channelId: string, ts: string) {
-    if (loadedThreads.has(ts)) return;
+    if (loadedThreads.has(ts) || threadMeta[ts]?.loading) return;
     loadedThreads.add(ts);
-    setThreadErrors(ts, false);
+    setThreadMeta(ts, { error: false, loading: true });
     try {
-      const messages = await fetchReplies(channelId, ts);
-      setThreadMessages(ts, messages);
+      const messages = await api.fetchReplies(channelId, ts);
+      setThreadMessages(ts, (existing = []) => mergeMessages(existing, messages));
+      setThreadMeta(ts, { error: false, loading: false });
     } catch {
       loadedThreads.delete(ts);
-      setThreadErrors(ts, true);
+      setThreadMeta(ts, { error: true, loading: false });
     }
   }
   createEffect(() => {
@@ -72,57 +115,111 @@ export function createMessageHistory(deps: {
       setHistoryMeta(channelId, "hasMore", false);
       return;
     }
+    const epoch = windowEpochs.current(channelId);
     setHistoryMeta(channelId, "loading", true);
+    setHistoryMeta(channelId, "olderError", false);
     try {
-      const { messages: older, hasMore, nextCursor } = await fetchHistory(channelId, cursor);
+      const { messages: older, hasMore, nextCursor } = await api.fetchHistory(channelId, cursor);
+      if (!windowEpochs.isCurrent(channelId, epoch)) return;
       setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, older));
       historyCursor.set(channelId, nextCursor);
       setHistoryMeta(channelId, { hasMore, loading: false });
     } catch {
+      if (!windowEpochs.isCurrent(channelId, epoch)) return;
       setHistoryMeta(channelId, "loading", false);
+      setHistoryMeta(channelId, "olderError", true);
     }
   }
   function hasHistoryError(channelId: string) {
-    return historyMeta[channelId]?.error ?? false;
+    return historyMeta[channelId]?.initialError ?? false;
+  }
+  function hasOlderHistoryError(channelId: string) {
+    return historyMeta[channelId]?.olderError ?? false;
   }
   function hasThreadError(ts: string) {
-    return threadErrors[ts] ?? false;
+    return threadMeta[ts]?.error ?? false;
   }
+  function isLoadingThread(ts: string) {
+    return threadMeta[ts]?.loading ?? false;
+  }
+  // Jumping to a message that isn't in the loaded window fetches a bounded
+  // page around it (same `latest`+`inclusive` history request Slack's own
+  // client makes for a permalink) rather than a zero-width `oldest===latest`
+  // lookup, which Slack's API doesn't reliably resolve to the exact message.
+  // This *replaces* the loaded window instead of merging into it — merging
+  // would sort the old page in right next to whatever was already loaded,
+  // making an unfetched gap of possibly months of messages look contiguous.
+  // Re-anchors the channel the same way Slack's own permalink view does;
+  // loadRecentHistory (above) is what brings you back to "now".
   async function ensureChannelMessage(channelId: string, ts: string) {
     if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
+    const epoch = windowEpochs.begin(channelId);
+    const previous = historyMeta[channelId];
+    setHistoryMeta(channelId, {
+      anchored: previous?.anchored,
+      hasMore: previous?.hasMore ?? true,
+      initialError: false,
+      loading: true,
+      olderError: false,
+    });
     try {
-      const message = await fetchPermalinkMessage(channelId, ts, ts);
-      if (message) {
-        setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, [message]));
-        return true;
+      const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
+      if (!windowEpochs.isCurrent(channelId, epoch)) return false;
+      if (!messages.some((message) => message.ts === ts)) {
+        void loadRecentHistory(channelId);
+        return false;
       }
+      setMessagesByChannel(channelId, messages);
+      historyCursor.set(channelId, nextCursor);
+      setHistoryMeta(channelId, {
+        anchored: true,
+        hasMore,
+        initialError: false,
+        loading: false,
+        olderError: false,
+      });
+      loadedChannels.add(channelId);
+      return true;
     } catch (err) {
-      console.error("Permalink lookup failed, falling back to paging history", err);
+      console.error("Failed to fetch history around message", err);
+      if (windowEpochs.isCurrent(channelId, epoch)) void loadRecentHistory(channelId);
+      return false;
     }
-    // The exact-ts permalink lookup can come back empty depending on how Slack
-    // handles the oldest===latest range — page through older history the same
-    // way scroll-triggered pagination does, until the target turns up or we
-    // run out of history to fetch.
-    for (let i = 0; i < ENSURE_MESSAGE_MAX_BACKFILL && hasMoreHistory(channelId); i++) {
-      await loadOlderMessages(channelId);
-      if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
+  }
+  // The channel window almost never holds an old reacted message, and merging
+  // it in would misplace it in an open channel — fetch just that one message
+  // (inclusive `latest`, limit 1) into the reaction cache instead.
+  async function ensureReactedMessage(channelId: string, ts: string) {
+    const key = `${channelId}:${ts}`;
+    if (reactionMessages[key]) return;
+    try {
+      const { messages } = await api.fetchHistoryAround(channelId, ts, 1);
+      const message = messages.find((m) => m.ts === ts);
+      if (message) setReactionMessages(key, [message]);
+    } catch (err) {
+      console.error("Failed to fetch reacted message", err);
     }
-    return false;
   }
   return {
     ensureChannelMessage,
+    ensureReactedMessage,
     ensureThreadRepliesLoaded,
     hasHistoryError,
     hasMoreHistory,
+    hasOlderHistoryError,
     hasThreadError,
     historyCursor,
     historyMeta,
     isLoadingHistory,
+    isLoadingThread,
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
+    loadRecentHistory,
     messagesByChannel,
+    reactionMessages,
     setMessagesByChannel,
+    setReactionMessages,
     setThreadMessages,
     threadMessages,
   };

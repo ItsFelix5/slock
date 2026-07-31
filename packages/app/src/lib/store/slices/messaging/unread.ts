@@ -1,8 +1,10 @@
 import type { Channel, DirectMessage, Message } from "@slock/slack-api";
-import { markChannelRead } from "@slock/slack-api";
+import { markChannelRead, markThreadRead } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { View } from "../types";
+import { actionFeedback } from "../feedback";
+import type { ThreadRef, View } from "../types";
+import { createLatestValueSync } from "./readSync/latestValueSync";
 
 // The "new messages" divider's boundary condition — shared by MessageRow.tsx
 // (checking a single row) and MessageRows.tsx (scanning for that row's index)
@@ -14,6 +16,18 @@ export function isUnreadDividerBoundary(
 ): boolean {
   return (
     parseFloat(ts) * 1000 > anchor && (prevTs === undefined || parseFloat(prevTs) * 1000 <= anchor)
+  );
+}
+
+// The unread divider's row index within `messages` for a given read-cursor
+// anchor (see isUnreadDividerBoundary) — used by MessageList.tsx to land on
+// it by index (virtualizer.scrollToIndex) rather than by querying the DOM.
+// -1 for "no divider to show" — either there's no read cursor yet, or the
+// sentinel (Infinity) meaning "already caught up" (see unreadDividerTsForChannel).
+export function findUnreadDividerIndex(messages: Message[], anchor: number | undefined): number {
+  if (anchor == null || !Number.isFinite(anchor)) return -1;
+  return messages.findIndex((msg, index) =>
+    isUnreadDividerBoundary(msg.ts, messages[index - 1]?.ts, anchor),
   );
 }
 
@@ -65,6 +79,45 @@ export function createUnreadSlice(deps: {
     for (const [id, ts] of Object.entries(data.lastReadByChannel)) setLastReadByChannel(id, ts);
   });
 
+  const channelReadSync = createLatestValueSync<{ channelId: string; ts: string }>({
+    key: (cursor) => cursor.channelId,
+    onError: (cursor, error) => {
+      console.error("Failed to sync channel read cursor", error);
+      actionFeedback.flash(cursor.channelId, "Couldn’t sync read state.", "error");
+    },
+    version: (cursor) => parseFloat(cursor.ts),
+    write: async (cursor) => {
+      await markChannelRead(cursor.channelId, cursor.ts);
+    },
+  });
+  const threadReadSync = createLatestValueSync<{
+    channelId: string;
+    threadTs: string;
+    ts: string;
+  }>({
+    key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
+    onError: (cursor, error) => {
+      console.error("Failed to sync thread read cursor", error);
+      actionFeedback.flash(cursor.threadTs, "Couldn’t sync thread read state.", "error");
+    },
+    version: (cursor) => parseFloat(cursor.ts),
+    write: async (cursor) => {
+      await markThreadRead(cursor.channelId, cursor.threadTs, cursor.ts);
+    },
+  });
+
+  function syncChannelRead(channelId: string, ts: string): Promise<boolean> {
+    return channelReadSync.requestLatest({ channelId, ts });
+  }
+
+  function setChannelRead(channelId: string, ts: string): Promise<boolean> {
+    return channelReadSync.force({ channelId, ts });
+  }
+
+  function syncThreadRead(channelId: string, threadTs: string, ts: string): Promise<boolean> {
+    return threadReadSync.requestLatest({ channelId, threadTs, ts });
+  }
+
   function clearChannelUnread(channelId: string) {
     setUnreadChannelIds(channelId, false);
     if (channelId.startsWith("D")) deps.patchDm(channelId, { mentions: 0 });
@@ -81,6 +134,8 @@ export function createUnreadSlice(deps: {
   function wireReadTracking(readDeps: {
     activeView: () => View | null;
     messagesByChannel: Record<string, Message[]>;
+    activeThread: () => ThreadRef | null;
+    threadMessages: Record<string, Message[]>;
   }) {
     // Snapshots where the "new messages" divider sits, once per visit to a
     // channel — keyed only on the active channel id, *not* on the message list,
@@ -116,17 +171,6 @@ export function createUnreadSlice(deps: {
       const hasUnreadGap = !!latest && lastRead > 0 && parseFloat(latest.ts) * 1000 > lastRead;
       const anchor = hasUnreadGap ? lastRead : Infinity;
       setUnreadDividerTs(id, anchor);
-      if (import.meta.env.DEV) {
-        console.debug("[slock unread anchor]", {
-          anchor,
-          channelId: id,
-          firstTs: list[0]?.ts,
-          hasUnreadGap,
-          lastRead,
-          latestTs: latest?.ts,
-          messageCount: list.length,
-        });
-      }
     });
 
     // Drop the divider anchor for a channel once you leave it, so the next
@@ -172,7 +216,28 @@ export function createUnreadSlice(deps: {
       lastMarkedReadTs[view.id] = latest.ts;
       clearChannelUnread(view.id);
       setLastReadByChannel(view.id, parseFloat(latest.ts) * 1000);
-      markChannelRead(view.id, latest.ts).catch(() => {});
+      void syncChannelRead(view.id, latest.ts).then((synced) => {
+        if (!synced && lastMarkedReadTs[view.id] === latest.ts) delete lastMarkedReadTs[view.id];
+      });
+    });
+
+    // Mirrors the channel effect above, but for the thread's own read cursor
+    // — conversations.mark (above) never clears a thread's badge, only
+    // subscriptions.thread.mark does. Reruns on new replies arriving while
+    // the thread is already open, same as the channel case.
+    const lastMarkedThreadReadTs: Record<string, string> = {};
+    createEffect(() => {
+      const thread = readDeps.activeThread();
+      if (!thread) return;
+      const list = readDeps.threadMessages[thread.ts];
+      const latest = list?.[list.length - 1];
+      if (!latest || latest.id.startsWith("pending-")) return;
+      if (lastMarkedThreadReadTs[thread.ts] === latest.ts) return;
+      lastMarkedThreadReadTs[thread.ts] = latest.ts;
+      void syncThreadRead(thread.channelId, thread.ts, latest.ts).then((synced) => {
+        if (!synced && lastMarkedThreadReadTs[thread.ts] === latest.ts)
+          delete lastMarkedThreadReadTs[thread.ts];
+      });
     });
   }
 
@@ -180,8 +245,11 @@ export function createUnreadSlice(deps: {
     clearChannelUnread,
     lastReadByChannel,
     setLastReadByChannel,
+    setChannelRead,
     setUnreadChannelIds,
     setUnreadDividerTs,
+    syncChannelRead,
+    syncThreadRead,
     unreadChannelIds,
     unreadDividerTs,
     unreadDividerTsForChannel,

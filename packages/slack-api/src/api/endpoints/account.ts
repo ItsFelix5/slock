@@ -38,8 +38,9 @@ async function flushUserBatch(): Promise<void> {
         include_profile_only_users: true,
         updated_ids: Object.fromEntries(batchIds.map((id) => [id, 0])),
       });
+      if (!data.ok) throw new Error(data.error ?? "edge users/info failed");
       for (const id of batchIds) {
-        const user = data.ok ? cachedUserForId(data, id) : undefined;
+        const user = cachedUserForId(data, id);
         for (const request of requests.get(id) ?? []) request.resolve(user ? mapUser(user) : null);
       }
     } catch (error) {
@@ -55,9 +56,10 @@ export function fetchUser(id: string): Promise<User | null> {
   // that normally supplies its display name and avatar. Bot IDs are not valid
   // inputs to the users cache endpoint, so resolve them through bots.info.
   if (id.startsWith("B")) {
-    return callSlack("bots.info", { bot: id }).then((data) =>
-      data.ok && data.bot?.id ? mapBot(data.bot) : null,
-    );
+    return callSlack("bots.info", { bot: id }).then((data) => {
+      if (!data.ok) throw new Error(data.error ?? "bots.info failed");
+      return data.bot?.id ? mapBot(data.bot) : null;
+    });
   }
   // The normal Web API users.info endpoint is restricted on Enterprise Grid.
   // Coalesce all requests issued in this event-loop turn into one cache call.
@@ -73,20 +75,17 @@ export function fetchUser(id: string): Promise<User | null> {
 
 // team.profile.get's field *definitions* (label/ordering) are workspace-wide and
 // separate from each user's field *values* (see mapUser's customFields) — fetched
-// once and joined against a user's values at render time. Some workspaces restrict
-// this to admins, so a failure degrades to "no custom fields shown".
+// once and joined against a user's values at render time. Failures must stay
+// distinguishable from a workspace that genuinely has no custom fields so the UI
+// can offer a retry instead of silently hiding profile data.
 export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
-  try {
-    const data = await callSlack("team.profile.get");
-    if (!data.ok) return [];
-    const fields: any[] = data.profile?.fields ?? [];
-    return fields
-      .filter((f) => !f.is_hidden)
-      .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
-      .map((f) => ({ id: f.id, label: f.label }));
-  } catch {
-    return [];
-  }
+  const data = await callSlack("team.profile.get");
+  if (!data.ok) throw new Error(data.error ?? "team.profile.get failed");
+  const fields: any[] = data.profile?.fields ?? [];
+  return fields
+    .filter((f) => !f.is_hidden)
+    .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
+    .map((f) => ({ id: f.id, label: f.label }));
 }
 
 export async function setStatus(text: string, emoji: string, expiration: number): Promise<void> {
@@ -138,7 +137,7 @@ export async function searchDirectory(
     module: "people",
     query: q,
   });
-  if (!data.ok) return { truncated: false, users: [] };
+  if (!data.ok) throw new Error(data.error ?? "search.modules.people failed");
   const items: any[] = data.items ?? [];
   return {
     truncated: (data.pagination?.total_count ?? items.length) > items.length,

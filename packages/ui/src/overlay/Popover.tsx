@@ -23,9 +23,7 @@ export default function Popover(props: PopoverProps) {
   useClickOutside([() => rootRef, () => panelRef], () => {
     if (props.open) props.onClose();
   });
-  useEscapeClose(() => {
-    if (props.open) props.onClose();
-  });
+  useEscapeClose(props.onClose, () => props.open);
 
   return (
     <div class={`popover-root ${props.class || ""}`} ref={rootRef}>

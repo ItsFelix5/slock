@@ -1,6 +1,7 @@
 import type { UserPrefs } from "@slock/slack-api";
 import { setSearchHistory as setSearchHistoryApi } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
+import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
 
 const MAX_ENTRIES = 15;
 
@@ -9,6 +10,7 @@ const MAX_ENTRIES = 15;
 // so history follows the account across devices instead of staying per-browser.
 export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const [searchHistory, setSearchHistory] = createSignal<string[]>([]);
+  const runMutation = createSerialMutationQueue();
 
   let seeded = false;
   createEffect(() => {
@@ -20,7 +22,10 @@ export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | un
 
   function persist(next: string[]) {
     setSearchHistory(next);
-    setSearchHistoryApi(next).catch((err) => {
+    // Keep searches usable during a preferences outage, but never overwrite
+    // the server-backed history from an uninitialized empty base.
+    if (!deps.userPrefs()) return;
+    runMutation(() => setSearchHistoryApi(next)).catch((err) => {
       console.error("Failed to sync search history", err);
     });
   }

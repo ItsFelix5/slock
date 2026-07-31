@@ -1,8 +1,8 @@
-import type { User, Usergroup, UsergroupDetails } from "@slock/slack-api";
+import type { Usergroup, UsergroupDetails } from "@slock/slack-api";
 import { fetchUsergroup, fetchUsergroupDetails } from "@slock/slack-api";
 import { createStore } from "solid-js/store";
 
-export function createUsergroupsSlice(deps: { currentUser: () => User | undefined }) {
+export function createUsergroupsSlice(deps: { selfUsergroupIds: () => string[] }) {
   const [usergroups, setUsergroups] = createStore<Record<string, Usergroup>>({});
   const pendingUsergroups = new Set<string>();
 
@@ -53,13 +53,11 @@ export function createUsergroupsSlice(deps: { currentUser: () => User | undefine
       .finally(() => pendingUsergroupDetails.delete(id));
   }
 
-  // Lazily fetches membership (piggybacking on ensureUsergroupDetails' cache)
-  // so a @usergroup mention can render with the "pings you" highlight once
-  // we know the viewer is in it.
+  // client.userBoot's subteams.self already lists every group the viewer
+  // belongs to, so a @usergroup mention can get the "pings you" highlight
+  // without a network round trip per group.
   function isSelfMember(id: string): boolean {
-    ensureUsergroupDetails(id);
-    const me = deps.currentUser();
-    return !!me && (usergroupDetails[id]?.memberIds.includes(me.id) ?? false);
+    return deps.selfUsergroupIds().includes(id);
   }
 
   return {

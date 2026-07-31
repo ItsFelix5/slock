@@ -45,13 +45,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       return unicode ? <span class="emoji">{unicode}</span> : <EmojiText text={`:${el.name}:`} />;
     }
     case "user":
-      return <Mention id={el.user_id} kind="user" />;
+      return el.user_id ? <Mention id={el.user_id} kind="user" /> : null;
     case "channel":
-      return <Mention id={el.channel_id} kind="channel" />;
+      return el.channel_id ? <Mention id={el.channel_id} kind="channel" /> : null;
     case "usergroup":
-      return <UsergroupMention id={el.usergroup_id} />;
+      return el.usergroup_id ? <UsergroupMention id={el.usergroup_id} /> : null;
     case "broadcast":
-      return <span class="bk-mention bk-mention-broadcast">@{el.range}</span>;
+      return <span class="bk-mention bk-mention-broadcast">@{el.range.split("|")[0]}</span>;
     case "color":
       return (
         <span class="bk-color-swatch">

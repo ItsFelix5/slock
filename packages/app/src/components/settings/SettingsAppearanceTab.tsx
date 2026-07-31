@@ -59,7 +59,7 @@ export default function SettingsAppearanceTab() {
         <Switch
           checked={logDeletedMessages()}
           onChange={setLogDeletedMessages}
-          title="Toggle logging deleted messages"
+          title="Log deleted messages"
         />
       </div>
 

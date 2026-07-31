@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: Formatter keys are Slack's documented date tokens.
 // Renders Slack's `<!date^ts^{format}|fallback>` format-token mini-language —
 // used both to display a date node (mrkdwn.tsx) and to preview each format
 // option in the composer's date picker before it's inserted, so the two never

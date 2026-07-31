@@ -1,4 +1,4 @@
-import { uploadFile } from "@slock/slack-api";
+import { uploadFiles } from "@slock/slack-api";
 import { useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onMount } from "solid-js";
 import { encodeReplyLink } from "../../lib/replyLink";
@@ -10,26 +10,17 @@ import {
   store,
 } from "../../lib/store";
 import { createComposerKeyHandler } from "./composerKeyboard";
-import { drafts, draftsReady, persistDraft } from "./lib/drafts";
+import type { ComposerProps } from "./composerTypes";
+import { createSlashCommandSuggestionState } from "./lib/commands/slashCommandSuggestions";
+import { clearPersistedDraft, createComposerDraftState } from "./lib/drafts";
 import { createEditorCommands } from "./lib/editor/editorCommands";
 import { createRunTool, FORMAT_TOOLS } from "./lib/formatTools";
 import { createLinkPreviewController } from "./lib/linkPreviews";
 import { placeCaretAtEnd } from "./lib/richtext";
 import { fragmentToBlocks } from "./lib/richtextSerialization";
+import { createPendingFileState, draftCacheKey, submitComposerPayload } from "./lib/submission";
 import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
-
-export type ComposerProps = {
-  channelId?: string;
-  threadTs?: string;
-  placeholder?: string;
-  replyTo?: { permalink: string; onSent: () => void };
-  editing?: {
-    initialText: string;
-    onSave: (text: string, blocks?: unknown) => void;
-    onCancel: () => void;
-  };
-};
 
 export function createComposerController(props: ComposerProps) {
   const [text, setText] = createSignal("");
@@ -41,9 +32,9 @@ export function createComposerController(props: ComposerProps) {
     url: string;
     label?: string;
   } | null>(null);
-  const [pendingFiles, setPendingFiles] = createSignal<File[]>([]);
   const [dragOver, setDragOver] = createSignal(false);
   const [sending, setSending] = createSignal(false);
+  const [retryingDraft, setRetryingDraft] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let fileInputRef: HTMLInputElement | undefined;
@@ -64,7 +55,10 @@ export function createComposerController(props: ComposerProps) {
     () => suggestPopoverRef,
     () => setSuggest(null),
   );
-  useEscapeClose(() => setSuggest(null));
+  useEscapeClose(
+    () => setSuggest(null),
+    () => suggest() !== null,
+  );
   createEffect(() => {
     const s = suggest();
     if (!(s && suggestPopoverRef)) return;
@@ -76,30 +70,36 @@ export function createComposerController(props: ComposerProps) {
     }
   });
   const targetChannelId = () => props.channelId ?? store.viewState.activeView()?.id;
-  const draftKey = () => (props.threadTs ? `thread:${props.threadTs}` : targetChannelId());
+  const draftKey = () => {
+    const channelId = targetChannelId();
+    return channelId ? draftCacheKey(channelId, props.threadTs) : undefined;
+  };
   const feedbackKey = () => props.threadTs ?? targetChannelId() ?? "";
   const disabled = () => !targetChannelId() || sending();
-  let loadedDraftKey: string | undefined;
-  createEffect(() => {
-    if (props.editing || !draftsReady()) return;
-    const key = draftKey();
-    if (key === loadedDraftKey) return;
-    loadedDraftKey = key;
-    const value = (key && drafts[key]) || "";
-    setText(value);
-    editor.loadDraftIntoEditor(value);
-    linkPreviews.reset();
+  const pendingFileState = createPendingFileState({
+    disabled: () => sending() || !!props.editing,
+    draftKey,
   });
-  createEffect(() => {
-    if (props.editing || !draftsReady()) return;
-    const key = draftKey();
-    const channelId = targetChannelId();
-    if (!(key && channelId)) return;
-    const value = text();
-    if (value.trim()) drafts[key] = value;
-    else delete drafts[key];
-    persistDraft(channelId, props.threadTs, value);
+  const pendingFiles = pendingFileState.files;
+  const composerDrafts = createComposerDraftState({
+    channelId: targetChannelId,
+    editing: () => !!props.editing,
+    key: draftKey,
+    loadIntoEditor: editor.loadDraftIntoEditor,
+    resetPreviews: linkPreviews.reset,
+    setText,
+    text,
+    threadTs: () => props.threadTs,
   });
+  const retryDraftSync = async () => {
+    if (retryingDraft()) return;
+    setRetryingDraft(true);
+    try {
+      await composerDrafts.retrySync();
+    } finally {
+      setRetryingDraft(false);
+    }
+  };
   onMount(() => {
     if (!props.editing) return;
     setText(props.editing.initialText);
@@ -125,19 +125,16 @@ export function createComposerController(props: ComposerProps) {
     setToolsOpen,
   });
   const canSend = createMemo(() => {
-    if (sending()) return false;
+    if (sending() || !targetChannelId()) return false;
     if (pendingFiles().length > 0) return true;
     return Boolean(text().trim());
   });
+  const slashCommandSuggestions = createSlashCommandSuggestionState(text);
   const availableTools = createMemo(() =>
     props.editing ? FORMAT_TOOLS.filter((t) => t.kind !== "attach") : FORMAT_TOOLS,
   );
-  const addFiles = (fileList: FileList | File[]) => {
-    setPendingFiles([...pendingFiles(), ...Array.from(fileList)]);
-  };
-  const removeFile = (index: number) => {
-    setPendingFiles(pendingFiles().filter((_, i) => i !== index));
-  };
+  const addFiles = pendingFileState.add;
+  const removeFile = pendingFileState.remove;
   const submit = async (e: Event) => {
     e.preventDefault();
     editor.linkifyAll();
@@ -152,41 +149,47 @@ export function createComposerController(props: ComposerProps) {
     const suppressUnfurl = linkPreviews.shouldSuppressUnfurl();
     if (props.editing) {
       if (!trimmed) return;
-      props.editing.onSave(trimmed, blocks);
+      setSending(true);
+      try {
+        await props.editing.onSave(trimmed, blocks);
+      } finally {
+        setSending(false);
+      }
       return;
     }
     const id = targetChannelId();
-    if (!(id && canSend())) return;
+    const submittedDraftKey = draftKey();
+    if (!(id && submittedDraftKey && canSend())) return;
     const files = pendingFiles();
+    const completeSubmission = (clearFiles: boolean) => {
+      clearPersistedDraft(id, props.threadTs);
+      if (draftKey() === submittedDraftKey) {
+        editor.clearEditor();
+      }
+      if (clearFiles) pendingFileState.clear(submittedDraftKey);
+      props.replyTo?.onSent();
+    };
     setSending(true);
     try {
-      if (files.length === 0) {
-        if (blocks && blocks.length > 0) {
-          editor.clearEditor();
-          await store.messages.sendMessage(id, outgoing, props.threadTs, blocks, suppressUnfurl);
-          props.replyTo?.onSent();
-          return;
-        }
-        if (isSlashAttempt) {
-          editor.clearEditor();
-          const handled = await store.commands.handleSlashCommand(id, props.threadTs, trimmed);
-          if (handled) return;
-        }
-        await store.messages.sendMessage(id, outgoing, props.threadTs, undefined, suppressUnfurl);
-        editor.clearEditor();
-        props.replyTo?.onSent();
-        return;
-      }
-      setPendingFiles([]);
-      editor.clearEditor();
-      await uploadFile(id, files[0], props.threadTs, outgoing || undefined);
-      for (const file of files.slice(1)) {
-        await uploadFile(id, file, props.threadTs);
-      }
-      props.replyTo?.onSent();
+      await submitComposerPayload({
+        blocks: blocks && blocks.length > 0 ? blocks : undefined,
+        files,
+        isSlashAttempt,
+        onSuccess: completeSubmission,
+        runCommand: () => store.commands.handleSlashCommand(id, props.threadTs, trimmed),
+        sendMessage: (messageBlocks) =>
+          store.messages.sendMessage(id, outgoing, props.threadTs, messageBlocks, suppressUnfurl),
+        uploadFiles: () => uploadFiles(id, files, props.threadTs, outgoing || undefined),
+      });
     } catch (err) {
       console.error("Failed to send", err);
-      actionFeedback.flash(composerFeedbackKey(feedbackKey()), "Failed to send.", "error");
+      actionFeedback.flash(
+        composerFeedbackKey(feedbackKey()),
+        files.length > 0
+          ? "Couldn’t upload. Your message and files are ready to retry."
+          : "Couldn’t send. Your message is ready to retry.",
+        "error",
+      );
     } finally {
       setSending(false);
     }
@@ -203,7 +206,10 @@ export function createComposerController(props: ComposerProps) {
   });
   const onInput = () => {
     editor.normalizeStrayEmptyBlock();
-    if (editor.maybeApplyLineTrigger()) return;
+    if (editor.maybeApplyLineTrigger()) {
+      composerDrafts.cacheLocal();
+      return;
+    }
     editor.maybeLinkifyTypedUrl();
     editor.syncFromDom();
     const editorEl = editor.getRef();
@@ -211,6 +217,7 @@ export function createComposerController(props: ComposerProps) {
     const ctx = editor.currentTextContext();
     if (ctx) suggestions.updateSuggestions(ctx.node.textContent ?? "", ctx.offset);
     else setSuggest(null);
+    composerDrafts.cacheLocal();
   };
   const onPaste = (e: ClipboardEvent) => {
     const files = e.clipboardData?.files;
@@ -224,6 +231,7 @@ export function createComposerController(props: ComposerProps) {
     if (pasted) {
       editor.insertPlainTextAtCaret(pasted);
       editor.linkifyAll();
+      composerDrafts.cacheLocal();
     }
   };
   const onEditorClick = (e: MouseEvent) => {
@@ -249,6 +257,7 @@ export function createComposerController(props: ComposerProps) {
     dateOpen,
     disabled,
     dragOver,
+    draftSyncError: composerDrafts.syncError,
     editor,
     feedbackKey,
     getEditorRef: editor.getRef,
@@ -263,13 +272,15 @@ export function createComposerController(props: ComposerProps) {
     pendingFiles,
     placeholder,
     removeFile,
+    retryDraftSync,
+    retryingDraft,
     runTool,
     sending,
+    ...slashCommandSuggestions,
     setDateOpen,
     setDragOver,
     setLinkEditor,
     setMentionOpen,
-    setPendingFiles,
     setSuggest,
     setSuggestPopoverRef: (el: HTMLDivElement) => {
       suggestPopoverRef = el;

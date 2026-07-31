@@ -2,4 +2,5 @@
 // biome-ignore-all lint/performance/noReExportAll: The package intentionally aggregates its public modules.
 export * from "./api";
 export * from "./blocks";
+export * from "./contentTypes";
 export * from "./types";

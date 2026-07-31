@@ -6,8 +6,30 @@
   border: none;
 }
 
+.zoomable-image-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .zoomable-image {
   display: block;
+}
+
+.zoomable-image-unavailable {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(240px, 100%);
+  min-height: 120px;
+  gap: 8px;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-6);
 }
 
 .zoomable-image-spyglass-area {
@@ -23,6 +45,77 @@
   user-select: none;
   object-fit: contain;
   border-radius: var(--radius-4);
+}
+
+.zoomable-image-full-loading {
+  visibility: hidden;
+}
+
+.zoomable-image-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  box-shadow: var(--shadow-modal);
+}
+
+.zoomable-image-close:hover {
+  background: var(--hover-bg);
+}
+
+.zoomable-image-loading,
+.zoomable-image-error {
+  padding: 16px;
+  color: var(--text-secondary);
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-8);
+  box-shadow: var(--shadow-modal);
+}
+
+.zoomable-image-loading {
+  position: absolute;
+}
+
+.zoomable-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  text-align: center;
+}
+
+.zoomable-image-error-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.zoomable-image-action {
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.zoomable-image-action:hover {
+  text-decoration: underline;
 }
 
 .zoomable-image-lens {

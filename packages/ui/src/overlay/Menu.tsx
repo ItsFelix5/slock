@@ -1,7 +1,8 @@
-import type { JSX } from "solid-js";
+import { createEffect, type JSX, onCleanup } from "solid-js";
 import { useClickOutside } from "../useClickOutside";
 import { useEscapeClose } from "../useEscapeClose";
 import FloatingPanel, { type FloatingAlign, type Placement } from "./floating/FloatingPanel";
+import { menuNavigationIndex } from "./floating/menuNavigation";
 import "./MenuButton.css";
 
 export interface MenuProps {
@@ -28,24 +29,88 @@ export default function Menu(props: MenuProps) {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
+  let restoreAfterKeyboardAction = false;
+
+  const trigger = () =>
+    rootRef?.querySelector<HTMLElement>(
+      "button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+    );
+  const focusTrigger = () => {
+    const element = trigger();
+    if (element?.isConnected) element.focus();
+  };
+  const menuItems = () =>
+    [...(panelRef?.querySelectorAll<HTMLElement>(".menu-item:not([disabled])") ?? [])].filter(
+      (element) =>
+        element.closest("[data-menu-panel]") === panelRef && element.getClientRects().length > 0,
+    );
+  const focusMenuItem = (index: number) => queueMicrotask(() => menuItems()[index]?.focus());
+
+  const onRootKeyDown = (event: KeyboardEvent) => {
+    if (!props.open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const items = menuItems();
+    focusMenuItem(event.key === "ArrowDown" ? 0 : items.length - 1);
+  };
+
+  const onPanelKeyDown = (event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    const { target } = event;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    )
+      return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      props.onClose();
+      queueMicrotask(focusTrigger);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") restoreAfterKeyboardAction = true;
+    const items = menuItems();
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    const next = menuNavigationIndex(event.key, current < 0 ? null : current, items.length);
+    if (next === undefined) return;
+    event.preventDefault();
+    event.stopPropagation();
+    focusMenuItem(next);
+  };
 
   useClickOutside([() => rootRef, () => panelRef], () => {
     if (props.open) props.onClose();
   });
-  useEscapeClose(() => {
-    if (props.open) props.onClose();
+  useEscapeClose(props.onClose, () => props.open);
+
+  createEffect(() => {
+    const isOpen = props.open;
+    const triggerElement = trigger();
+    triggerElement?.setAttribute("aria-expanded", String(isOpen));
+    triggerElement?.setAttribute("aria-haspopup", "true");
+    if (!isOpen) return;
+    onCleanup(() => {
+      if (restoreAfterKeyboardAction) queueMicrotask(focusTrigger);
+      restoreAfterKeyboardAction = false;
+    });
   });
 
   return (
-    <div class={props.class} ref={rootRef}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: delegates Arrow key entry from the caller-provided interactive trigger without wrapping or cloning it
+    <div class={props.class} onKeyDown={onRootKeyDown} ref={rootRef}>
       {props.trigger}
       <FloatingPanel
         align={props.align ?? "start"}
         anchor={() => rootRef}
         class={props.panelClass}
+        onKeyDown={onPanelKeyDown}
         open={props.open}
         panelRef={(element) => {
           panelRef = element;
+          if (element) element.dataset.menuPanel = "";
         }}
         placement={props.placement ?? "bottom"}
       >

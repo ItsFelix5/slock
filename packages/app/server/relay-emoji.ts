@@ -1,4 +1,5 @@
-import { type Credentials, compressedResponse } from "./relay-core.ts";
+import { compressedResponse } from "./http/compressedResponse.ts";
+import type { Credentials } from "./relay-auth.ts";
 
 const EMOJI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const EMOJI_LIST_HEADERS = {

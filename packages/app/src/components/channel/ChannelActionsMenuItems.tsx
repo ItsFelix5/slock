@@ -1,7 +1,7 @@
 import { Icon } from "@slock/ui";
 import { createMemo, onMount, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
-import { store } from "../../lib/store";
+import { actionFeedback, store } from "../../lib/store";
 
 export interface ChannelActionsMenuItemsProps {
   channelId: string;
@@ -24,6 +24,15 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
   const run = (fn: () => void) => {
     props.onClose();
     fn();
+  };
+
+  const copyConversationLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${location.origin}/#${props.channelId}`);
+      actionFeedback.flash(props.channelId, "Link copied.");
+    } catch {
+      actionFeedback.flash(props.channelId, "Couldn’t copy the link.", "error");
+    }
   };
 
   return (
@@ -56,6 +65,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
       </button>
       <button
         class="menu-item"
+        disabled={store.preferences.isMutePending(props.channelId)}
         onClick={() => run(() => store.preferences.toggleMuteChannel(props.channelId))}
         type="button"
       >
@@ -64,6 +74,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
       </button>
       <button
         class="menu-item"
+        disabled={store.preferences.isNotifyAllPending(props.channelId)}
         onClick={() => run(() => store.preferences.toggleNotifyAllChannel(props.channelId))}
         type="button"
       >
@@ -83,19 +94,14 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           View canvas
         </button>
       </Show>
-      <button
-        class="menu-item"
-        onClick={() =>
-          run(() => navigator.clipboard.writeText(`${location.origin}/#${props.channelId}`))
-        }
-        type="button"
-      >
+      <button class="menu-item" onClick={() => run(copyConversationLink)} type="button">
         <Icon name="link" size={15} />
         {props.isDm ? "Copy link to conversation" : "Copy link to channel"}
       </button>
       <Show when={!props.isDm}>
         <button
           class="menu-item danger"
+          disabled={store.channels.isLeavePending(props.channelId)}
           onClick={() => {
             props.onClose();
             // biome-ignore lint/suspicious/noAlert: Leaving a channel requires explicit confirmation.

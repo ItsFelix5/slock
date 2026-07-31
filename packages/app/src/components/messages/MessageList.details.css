@@ -107,9 +107,13 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-12);
 }
-.reaction-pill:hover {
+.reaction-pill:hover:not(:disabled) {
   cursor: pointer;
   border-color: var(--text-dim);
+}
+.reaction-pill:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 .reaction-pill.mine {
   color: var(--text-primary);

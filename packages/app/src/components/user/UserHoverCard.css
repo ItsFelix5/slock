@@ -105,13 +105,6 @@
   gap: 6px;
 }
 
-.user-hovercard-bio {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
 .user-hovercard-meta {
   gap: 6px;
 }
@@ -132,7 +125,12 @@
   border-radius: var(--radius-8);
 }
 
-.user-hovercard-btn:hover {
+.user-hovercard-btn:hover:not(:disabled) {
   background: var(--hover-bg);
   border-color: var(--text-dim);
+}
+
+.user-hovercard-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }

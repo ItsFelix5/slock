@@ -1,8 +1,19 @@
-import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
+import { createDebouncedRequest } from "../debouncedRequest";
 import { fuzzySearch } from "../fuzzy";
-import { useClickOutside } from "../useClickOutside";
-import "./FilterCombobox.css";
 import Icon from "../media/Icon";
+import { useClickOutside } from "../useClickOutside";
+import { useEscapeClose } from "../useEscapeClose";
+import "./FilterCombobox.css";
+import { listNavigationIndex, scrollActiveListOption } from "./listNavigation";
 
 export interface ComboItem {
   id: string;
@@ -26,17 +37,46 @@ export default function FilterCombobox(props: {
   const [query, setQuery] = createSignal("");
   const [remoteItems, setRemoteItems] = createSignal<ComboItem[]>([]);
   const [searching, setSearching] = createSignal(false);
+  const [searchError, setSearchError] = createSignal(false);
   const [pickedLabel, setPickedLabel] = createSignal<string | undefined>(undefined);
+  const [activeIndex, setActiveIndex] = createSignal<number | null>(0);
+  const listboxId = createUniqueId();
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  let requestId = 0;
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+  let triggerRef: HTMLButtonElement | undefined;
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+  let listRef: HTMLDivElement | undefined;
+  const remoteRequest = createDebouncedRequest(
+    (query) => props.remoteSearch?.(query) ?? Promise.resolve([]),
+    {
+      onError: () => setSearchError(true),
+      onPendingChange: setSearching,
+      onReset: () => {
+        setRemoteItems([]);
+        setSearchError(false);
+      },
+      onResult: setRemoteItems,
+    },
+  );
+  onCleanup(remoteRequest.dispose);
 
+  const close = (restoreFocus = false) => {
+    if (!open()) return;
+    setOpen(false);
+    setQuery("");
+    setActiveIndex(0);
+    remoteRequest.run("");
+    if (restoreFocus)
+      queueMicrotask(() =>
+        (triggerRef?.isConnected ? triggerRef : rootRef?.querySelector("button"))?.focus(),
+      );
+  };
   useClickOutside(
     () => rootRef,
-    () => setOpen(false),
+    () => close(),
   );
-  onCleanup(() => clearTimeout(debounceTimer));
+  useEscapeClose(() => close(true), open);
 
   const selectedLabel = createMemo(
     () => pickedLabel() ?? props.items.find((i) => i.id === props.value)?.label,
@@ -58,31 +98,43 @@ export default function FilterCombobox(props: {
 
   const onInput = (value: string) => {
     setQuery(value);
-    if (!props.remoteSearch) return;
-    clearTimeout(debounceTimer);
-    const q = value.trim();
-    if (!q) {
-      setRemoteItems([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const id = ++requestId;
-    debounceTimer = setTimeout(async () => {
-      const found = await props.remoteSearch?.(q);
-      if (id === requestId) {
-        setRemoteItems(found ?? []);
-        setSearching(false);
-      }
-    }, 250);
+    setActiveIndex(0);
+    if (props.remoteSearch) remoteRequest.run(value);
   };
 
   const pick = (item: ComboItem) => {
     setPickedLabel(item.label);
     props.onSelect(item.id);
-    setOpen(false);
-    setQuery("");
-    setRemoteItems([]);
+    close(true);
+  };
+  createEffect(() => {
+    const count = filtered().length;
+    const current = activeIndex();
+    if (count === 0) setActiveIndex(null);
+    else if (current === null || current >= count) setActiveIndex(0);
+  });
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
+  const activeOptionId = () => {
+    const index = activeIndex();
+    return index === null ? undefined : optionId(index);
+  };
+  createEffect(() => {
+    activeIndex();
+    scrollActiveListOption(() => listRef);
+  });
+  const onKeyDown = (event: KeyboardEvent) => {
+    const next = listNavigationIndex(event.key, activeIndex(), filtered().length);
+    if (next !== undefined) {
+      event.preventDefault();
+      setActiveIndex(next);
+      return;
+    }
+    if (event.key !== "Enter" || event.isComposing) return;
+    const index = activeIndex();
+    const item = index === null ? undefined : filtered()[index];
+    if (!item) return;
+    event.preventDefault();
+    pick(item);
   };
 
   return (
@@ -90,44 +142,83 @@ export default function FilterCombobox(props: {
       <Show
         fallback={
           <button
-            class="filter-combobox-chip"
-            onClick={() => {
-              setPickedLabel(undefined);
-              props.onSelect(undefined);
-            }}
+            aria-expanded={open()}
+            aria-haspopup="listbox"
+            class="filter-combobox-trigger"
+            onClick={() => (open() ? close() : setOpen(true))}
+            ref={triggerRef}
             type="button"
           >
-            {selectedLabel()}{" "}
-            <span class="filter-combobox-clear">
-              <Icon name="close" size={12} />
-            </span>
+            {props.placeholder}
           </button>
         }
         when={selectedLabel()}
       >
-        <button class="filter-combobox-trigger" onClick={() => setOpen(!open())} type="button">
-          {props.placeholder}
+        <button
+          class="filter-combobox-chip"
+          onClick={() => {
+            setPickedLabel(undefined);
+            props.onSelect(undefined);
+          }}
+          type="button"
+        >
+          {selectedLabel()}{" "}
+          <span class="filter-combobox-clear">
+            <Icon name="close" size={12} />
+          </span>
         </button>
       </Show>
       <Show when={open() && !props.value}>
         <div class="filter-combobox-menu">
           <input
+            aria-activedescendant={activeOptionId()}
+            aria-autocomplete="list"
+            aria-controls={listboxId}
+            aria-expanded={true}
+            aria-label={`Filter ${props.placeholder}`}
             autofocus
+            autocomplete="off"
             class="filter-combobox-input search-input"
             onInput={(e) => onInput(e.currentTarget.value)}
+            onKeyDown={onKeyDown}
             placeholder="Type to filter…"
+            role="combobox"
+            spellcheck={false}
             type="text"
             value={query()}
           />
-          <div class="filter-combobox-list">
+          <div
+            aria-busy={searching()}
+            aria-label={`${props.placeholder} suggestions`}
+            class="filter-combobox-list"
+            id={listboxId}
+            ref={listRef}
+            role="listbox"
+          >
             <For
               each={filtered()}
               fallback={
-                <div class="filter-combobox-empty">{searching() ? "Searching…" : "No matches"}</div>
+                <div class="filter-combobox-empty" role="status">
+                  {searching()
+                    ? "Searching…"
+                    : searchError()
+                      ? "Couldn’t load suggestions"
+                      : "No matches"}
+                </div>
               }
             >
-              {(item) => (
-                <button class="filter-combobox-item" onClick={() => pick(item)} type="button">
+              {(item, index) => (
+                <button
+                  aria-selected={activeIndex() === index()}
+                  class="filter-combobox-item"
+                  classList={{ active: activeIndex() === index() }}
+                  id={optionId(index())}
+                  onClick={() => pick(item)}
+                  onMouseEnter={() => setActiveIndex(index())}
+                  role="option"
+                  tabIndex={-1}
+                  type="button"
+                >
                   {item.label}
                 </button>
               )}

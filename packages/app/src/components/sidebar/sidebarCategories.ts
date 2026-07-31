@@ -21,9 +21,9 @@ export interface SidebarContext {
   bootstrap: { loading: boolean };
   categories: Accessor<Category[]>;
   collapsed: Accessor<Set<string>>;
-  commitRename: () => void;
+  commitRename: () => Promise<void>;
   currentUser: Accessor<User | undefined>;
-  deleteChannelSection: (sectionId: string) => Promise<void>;
+  deleteChannelSection: (sectionId: string) => Promise<boolean>;
   dmsOpen: Accessor<boolean>;
   expandedSectionIds: Accessor<Set<string>>;
   draggingSectionId: Accessor<string | null>;
@@ -41,14 +41,24 @@ export interface SidebarContext {
   unreadPingCount: Accessor<number>;
   maxWidth: number;
   minWidth: number;
+  canMoveSection: (sectionId: string, direction: -1 | 1) => boolean;
+  moveSection: (sectionId: string, direction: -1 | 1) => void;
   nav: Accessor<Nav>;
   openUserProfile: (id: string) => void;
   peopleDms: Accessor<DirectMessage[]>;
+  preferencesError: Accessor<unknown>;
+  preferencesLoading: Accessor<boolean>;
   renameValue: Accessor<string>;
   renamingId: Accessor<string | null>;
+  retryPreferences: () => Promise<unknown>;
+  retrySections: () => Promise<unknown>;
   setRenamingId: Setter<string | null>;
   searchOpen: Accessor<boolean>;
   sectionMenuOpen: Accessor<string | null>;
+  sectionsError: Accessor<unknown>;
+  sectionsLoading: Accessor<boolean>;
+  isSectionSidebarPending: (sectionId: string) => boolean;
+  sectionStructurePending: Accessor<boolean>;
   setAppsOpen: Setter<boolean>;
   setDmsOpen: Setter<boolean>;
   showAllInCategory: (id: string) => void;
@@ -60,7 +70,7 @@ export interface SidebarContext {
   setChannelSectionSidebar: (
     sectionId: string,
     sidebar: ChannelSection["sidebar"],
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   setSettingsOpen: Setter<boolean>;
   settingsOpen: Accessor<boolean>;
   setUnreadsOnly: Setter<boolean>;
@@ -79,6 +89,7 @@ export function buildCategories(
         name: string;
         channelIds: string[];
         sidebar: "hid" | "active" | "all";
+        sort?: "recent";
         type: string;
       }[]
     | undefined,
@@ -123,10 +134,12 @@ export function buildCategories(
   for (const s of standardSecs) {
     const ids = s.channelIds.filter((id) => !claimed.has(id));
     for (const id of ids) claimed.add(id);
-    standardChannelsById.set(
-      s.id,
-      ids.map((id) => byId.get(id)).filter((c): c is Channel => !!c),
-    );
+    const channels = ids.map((id) => byId.get(id)).filter((c): c is Channel => !!c);
+    // Slack's channel_ids order is always the manual drag order. A section
+    // set to sort by recent activity instead shows its channels ranked by
+    // their own last activity, live, rather than that static server order.
+    if (s.sort === "recent") channels.sort((a, b) => (b.lastActivity ?? 0) - (a.lastActivity ?? 0));
+    standardChannelsById.set(s.id, channels);
   }
   const result: Category[] = [];
   const pushStarred = (id: string, reorderable: boolean, sidebar: Category["sidebar"] = "all") => {

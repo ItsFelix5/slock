@@ -77,6 +77,9 @@ export interface SlackFile {
   name: string;
   permalink?: string;
   size?: number;
+  // Tiny base64 JPEG (no data: prefix) — a blurred placeholder shown while
+  // thumbUrl loads in.
+  thumbTiny?: string;
   thumbUrl?: string;
   title?: string;
   // Slack's speech-to-text preview for voice messages — truncated, with
@@ -110,7 +113,9 @@ export interface Attachment {
   // Permalink to the unfurled message, for the "View message" link.
   fromUrl?: string;
   id?: number;
+  imageHeight?: number;
   imageUrl?: string;
+  imageWidth?: number;
   // Set when this attachment is Slack's own auto-unfurl of a permalink found
   // in the message text, with `ts` identifying which message it unfurled —
   // used to suppress the redundant native unfurl of our own reply-link.
@@ -182,6 +187,7 @@ export interface CanvasInfo {
 export interface Channel {
   canvas?: CanvasInfo;
   id: string;
+  lastActivity?: number;
   mentions?: number;
   name: string;
   private: boolean;
@@ -217,6 +223,12 @@ export interface ChannelMembersPage {
   nextCursor?: string;
 }
 
+export interface MemberPermissionsPatch {
+  invite?: boolean;
+  setPurpose?: boolean;
+  setTopic?: boolean;
+}
+
 export interface BrowsableChannel {
   id: string;
   memberCount?: number;
@@ -232,6 +244,8 @@ export interface ChannelSection {
   // Sidebar display preference returned by users.channelSections.list.
   // "hid" (and Slack's older "hide" spelling) means unread-only.
   sidebar: "hid" | "active" | "all";
+  // From the users.prefs "channel_sections" blob; unset means manual order.
+  sort?: "recent";
   // "standard" is a real user-created section; everything else is one of
   // Slack's fixed built-in pseudo-sections ("stars", "channels",
   // "direct_messages", ...). Membership operations (move channel into
@@ -248,51 +262,4 @@ export interface MessageShortcut {
   description?: string;
   icon?: string;
   name: string;
-}
-
-export interface ActivityItem {
-  broadcastRange?: "channel" | "here" | "everyone";
-  channelId: string;
-  id: string;
-  kind:
-    | "mention"
-    | "reaction"
-    | "dm"
-    | "thread_reply"
-    | "channel_mention"
-    | "usergroup_mention"
-    | "channel_all"
-    | "keyword";
-  // The pingword that matched, for kind "keyword" — surfaced from
-  // all_notifications_prefs.global.global_keywords.
-  matchedKeyword?: string;
-  reactionName?: string;
-  text: string;
-  // Root ts of the thread this happened in, when different from `ts` (e.g. a
-  // thread_reply's own message ts vs. the parent it replied to).
-  threadTs?: string;
-  time: number;
-  ts: string;
-  // For kind "thread_reply": Slack bundles every unread reply since your last
-  // visit into a single feed entry, only ever exposing the latest one's ts —
-  // this is bundle_info's own count of how many replies that single entry
-  // actually represents, so callers can go fetch the rest.
-  unreadCount?: number;
-  usergroupId?: string;
-  userId: string;
-}
-
-export interface SavedItem {
-  channelId: string;
-  ts: string;
-}
-
-// A client-side stand-in for a Slack unfurl, shown in the composer before
-// send — see fetchLinkPreview.
-export interface LinkPreview {
-  description?: string;
-  imageUrl?: string;
-  siteName?: string;
-  title?: string;
-  url: string;
 }

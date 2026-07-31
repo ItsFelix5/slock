@@ -85,6 +85,7 @@ function trimUserBoot(data: any): any {
     ok: data.ok,
     self: trimUser(data.self),
     starred: Array.isArray(data.starred) ? data.starred.map(trimStarred) : data.starred,
+    subteams: Array.isArray(data.subteams?.self) ? { self: data.subteams.self } : undefined,
   };
 }
 

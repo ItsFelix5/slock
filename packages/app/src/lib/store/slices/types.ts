@@ -10,4 +10,7 @@ export type ChannelMessageTarget = { channelId: string; ts: string };
 // Where a given Message lives in the store, so actions (edit/delete/react) can
 // patch the right list — a message can appear in a channel's history and/or a thread's
 // replies.
-export type MessageLocation = { store: "channel"; key: string } | { store: "thread"; key: string };
+export type MessageLocation =
+  | { store: "channel"; key: string }
+  | { store: "thread"; key: string }
+  | { store: "reaction"; key: string };

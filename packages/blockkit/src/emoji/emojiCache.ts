@@ -9,7 +9,9 @@ import { createStore } from "solid-js/store";
 // single name the moment anything iterates the full list (e.g. the emoji
 // picker's search index) — `loaded` below is the only reactive signal needed.
 let emojiUrls: Record<string, string | null> = {};
-const [loaded, setLoaded] = createStore({ value: false });
+const [loadState, setLoadState] = createStore<{
+  value: "idle" | "loading" | "loaded" | "error";
+}>({ value: "idle" });
 
 let emojiLoadPromise: Promise<void> | null = null;
 
@@ -19,12 +21,16 @@ let emojiLoadPromise: Promise<void> | null = null;
 // still request it immediately.
 export function loadCustomEmoji(): Promise<void> {
   if (!emojiLoadPromise) {
+    setLoadState("value", "loading");
     emojiLoadPromise = fetchAllEmoji()
       .then((map) => {
         emojiUrls = map;
+        setLoadState("value", "loaded");
       })
-      .catch(() => {})
-      .finally(() => setLoaded("value", true));
+      .catch(() => {
+        emojiLoadPromise = null;
+        setLoadState("value", "error");
+      });
   }
   return emojiLoadPromise;
 }
@@ -40,13 +46,23 @@ else window.addEventListener("load", prefetchCustomEmoji, { once: true });
 
 export function emojiUrl(name: string): string | null | undefined {
   if (name in emojiUrls) return emojiUrls[name];
-  return loaded.value ? null : undefined;
+  return loadState.value === "loaded" ? null : undefined;
 }
 
 export function customEmojiNames(): string[] {
+  // biome-ignore lint/suspicious/noUnusedExpressions: This reactive read invalidates consumers when the plain bulk map is replaced.
+  loadState.value;
   return Object.keys(emojiUrls);
 }
 
 export function isEmojiLoaded(): boolean {
-  return loaded.value;
+  return loadState.value === "loaded";
+}
+
+export function isEmojiLoading(): boolean {
+  return loadState.value === "loading";
+}
+
+export function hasEmojiLoadError(): boolean {
+  return loadState.value === "error";
 }

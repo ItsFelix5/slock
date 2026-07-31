@@ -1,16 +1,8 @@
-import type {
-  ActivityItem,
-  Channel,
-  DirectMessage,
-  Message,
-  ModalView,
-  User,
-} from "@slock/slack-api";
-import { mapMessage, parseBadgeCounts } from "@slock/slack-api";
-import { createEffect, createSignal, onCleanup } from "solid-js";
-import { isDmId } from "../../../dmId";
+import type { Channel, DirectMessage, Message, ModalView, User } from "@slock/slack-api";
+import { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "@slock/slack-api";
+import { createEffect } from "solid-js";
 import type { MessageLocation, ThreadRef, View } from "../types";
-import { classifyIncomingActivity } from "./activity";
+import { createRealtimeConnection } from "./connection/realtimeConnection";
 import { mergeMessages } from "./merge/messageMerge";
 
 function wsUrl() {
@@ -35,12 +27,10 @@ export function createRealtimeSlice(deps: {
   setClosedDmIds: (id: string, closed: boolean) => void;
   ensureDm: (channelId: string, userId: string) => void;
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
-  isChannelNotifyAll: (id: string) => boolean;
-  matchingHighlightWord: (text: string) => string | undefined;
   openModalView: (view: ModalView) => void;
-  pushActivity: (item: ActivityItem) => void;
   recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
   setGatewayActivityBadgeCounts: (activity: any) => void;
+  refreshActivityFeed: () => void;
   messagesByChannel: Record<string, Message[]>;
   setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
   threadMessages: Record<string, Message[]>;
@@ -63,13 +53,8 @@ export function createRealtimeSlice(deps: {
     itemUserId?: string,
   ) => void;
 }) {
-  const [rtmConnected, setRtmConnected] = createSignal(false);
-  let socket: WebSocket | null = null;
-  let reconnectDelay = 1000;
-  const MaxReconnectDelay = 20000;
-
   function send(payload: unknown) {
-    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(payload));
+    return connection.send(payload);
   }
   function handleIncomingMessage(payload: any) {
     const { channel, subtype, ts } = payload;
@@ -114,7 +99,6 @@ export function createRealtimeSlice(deps: {
     }
     const me = deps.currentUser();
     const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
-    let threadRelevant = false;
     deps.clearTyping(channel, isThreadReply ? payload.thread_ts : undefined, msg.userId);
     if (isThreadReply) {
       if (deps.loadedThreads.has(payload.thread_ts)) {
@@ -128,14 +112,7 @@ export function createRealtimeSlice(deps: {
         deps.patchMessage(channel, payload.thread_ts, {
           replyCount: (parentMsg.replyCount ?? 0) + 1,
         });
-        if (me && parentMsg.userId === me.id) threadRelevant = true;
       }
-      if (
-        me &&
-        !threadRelevant &&
-        deps.threadMessages[payload.thread_ts]?.some((m) => m.userId === me.id)
-      )
-        threadRelevant = true;
       if (subtype === "thread_broadcast" && deps.loadedChannels.has(channel)) {
         deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
           deps.mergeIncomingMessage(existing, msg),
@@ -158,154 +135,127 @@ export function createRealtimeSlice(deps: {
     } else if (channel.startsWith("D") && me && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
       deps.setDmLastActivity(channel, Date.now());
+    } else if (deps.channels().some((c) => c.id === channel)) {
+      deps.patchChannel(channel, { lastActivity: Date.now() });
     }
-    if (me && msg.userId !== me.id) {
-      const activity = classifyIncomingActivity(
-        channel,
-        ts,
-        msg,
-        me.id,
-        threadRelevant,
-        isThreadReply ? payload.thread_ts : undefined,
-        {
-          // A regular DM ("D..." id) is recognized without needing local
-          // data; a multi-person DM shares private channels' "G..." id
-          // namespace, so that case still needs the loaded-dms fallback.
-          isDirectMessage: (id) =>
-            isDmId(id, (candidate) => deps.allDirectMessages().some((d) => d.id === candidate)),
-          isNotifyAll: deps.isChannelNotifyAll,
-          matchingHighlightWord: deps.matchingHighlightWord,
-        },
-      );
-      if (activity) {
-        deps.pushActivity(activity);
-        if (activity.kind === "mention") {
-          const current = deps.channels().find((c) => c.id === channel)?.mentions ?? 0;
-          deps.patchChannel(channel, { mentions: current + 1 });
-        } else if (activity.kind === "dm") {
-          const current = deps.allDirectMessages().find((d) => d.id === channel)?.mentions ?? 0;
-          deps.patchDm(channel, { mentions: current + 1 });
-        }
-      }
-    } else if (me && msg.userId === me.id) {
+    // Activity items themselves come exclusively from activity.feed (see
+    // ensureActivityLoaded/refreshActivityFeed) rather than guessed from raw
+    // message text here — engagement tracking (did I reply to this?) is the
+    // only thing this handler still needs to record locally.
+    if (me && msg.userId === me.id) {
       deps.recordActivityEngagement(channel, ts, isThreadReply ? payload.thread_ts : undefined);
     }
   }
-  function connectSocket() {
-    socket = new WebSocket(wsUrl());
-    socket.addEventListener("open", () => {
-      reconnectDelay = 1000;
+  function handleRawMessage(raw: string) {
+    let payload: any;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    switch (payload.type) {
+      case "_status":
+        connection.setGatewayConnected(!!payload.connected);
+        break;
+      case "_history_snapshot":
+        if (deps.loadedChannels.has(payload.channel)) {
+          const fresh = (payload.messages ?? [])
+            .filter((m: any) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
+            .map(mapMessage)
+            .reverse();
+          deps.setMessagesByChannel(payload.channel, (existing: Message[] = []) =>
+            mergeMessages(existing, fresh),
+          );
+        }
+        break;
+      case "_replies_snapshot":
+        if (deps.loadedThreads.has(payload.ts)) {
+          const fresh = (payload.messages ?? [])
+            .filter((m: any) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
+            .map(mapMessage);
+          deps.setThreadMessages(payload.ts, (existing: Message[] = []) =>
+            mergeMessages(existing, fresh),
+          );
+        }
+        break;
+      case "message":
+        handleIncomingMessage(payload);
+        break;
+      case "reaction_added":
+      case "reaction_removed":
+        if (!(payload.item?.channel && payload.item?.ts)) break;
+        if (payload.user === deps.currentUser()?.id) {
+          if (payload.type === "reaction_added") {
+            deps.recordActivityEngagement(payload.item.channel, payload.item.ts);
+          }
+        } else {
+          deps.applyReactionEvent(
+            payload.item.channel,
+            payload.item.ts,
+            payload.reaction,
+            payload.user,
+            payload.type === "reaction_added",
+            payload.item_user,
+          );
+        }
+        break;
+      case "presence_change": {
+        const presence = payload.presence === "away" ? "away" : "active";
+        const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
+        for (const id of ids) deps.setPresenceOverrides(id, presence);
+        break;
+      }
+      case "user_typing": {
+        if (payload.channel && payload.user && payload.user !== deps.currentUser()?.id) {
+          deps.recordTyping(payload.channel, payload.thread_ts, payload.user);
+        }
+        break;
+      }
+      case "badge_counts_updated": {
+        for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
+          if (!unread) deps.setUnreadChannelIds(id, false);
+          if (id.startsWith("D")) deps.patchDm(id, { mentions });
+          else deps.patchChannel(id, { mentions });
+        }
+        deps.setGatewayActivityBadgeCounts(payload.activity_v2);
+        // The gateway only pushes aggregate counts, never the entries
+        // themselves — refetch activity.feed so the Activity list catches
+        // up with whatever just changed those counts.
+        deps.refreshActivityFeed();
+        break;
+      }
+      case "channel_marked": {
+        // Sent when Slack advances this account's read cursor, including from
+        // another client. The event's zero counts are authoritative, even if
+        // we did not receive the corresponding conversations.mark response.
+        if (!payload.channel) break;
+        deps.setUnreadChannelIds(payload.channel, false);
+        deps.patchChannel(payload.channel, { mentions: 0 });
+        const readTs = Number(payload.ts) * 1000;
+        if (Number.isFinite(readTs)) deps.setLastReadByChannel(payload.channel, readTs);
+        break;
+      }
+      case "user_invalidated": {
+        const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
+        for (const id of ids) deps.invalidateUser(id);
+        break;
+      }
+      case "view_opened":
+        if (payload.view_type === "modal" && payload.view) deps.openModalView(payload.view);
+        break;
+      default:
+        break;
+    }
+  }
+  const connection = createRealtimeConnection({
+    onMessage: handleRawMessage,
+    onOpen: () => {
       for (const channel of deps.loadedChannels) send({ channel, type: "watch_channel" });
       const thread = deps.activeThread();
       if (thread) send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
-    });
-    socket.addEventListener("message", (event) => {
-      let payload: any;
-      try {
-        payload = JSON.parse(event.data);
-      } catch {
-        return;
-      }
-      switch (payload.type) {
-        case "_status":
-          setRtmConnected(!!payload.connected);
-          break;
-        case "_history_snapshot":
-          if (deps.loadedChannels.has(payload.channel)) {
-            const fresh = (payload.messages ?? [])
-              .filter((m: any) => m.type === "message" && !m.subtype)
-              .map(mapMessage)
-              .reverse();
-            deps.setMessagesByChannel(payload.channel, (existing: Message[] = []) =>
-              mergeMessages(existing, fresh),
-            );
-          }
-          break;
-        case "_replies_snapshot":
-          if (deps.loadedThreads.has(payload.ts)) {
-            const fresh = (payload.messages ?? [])
-              .filter((m: any) => m.type === "message")
-              .map(mapMessage);
-            deps.setThreadMessages(payload.ts, (existing: Message[] = []) =>
-              mergeMessages(existing, fresh),
-            );
-          }
-          break;
-        case "message":
-          handleIncomingMessage(payload);
-          break;
-        case "reaction_added":
-        case "reaction_removed":
-          if (!(payload.item?.channel && payload.item?.ts)) break;
-          if (payload.user === deps.currentUser()?.id) {
-            if (payload.type === "reaction_added") {
-              deps.recordActivityEngagement(payload.item.channel, payload.item.ts);
-            }
-          } else {
-            deps.applyReactionEvent(
-              payload.item.channel,
-              payload.item.ts,
-              payload.reaction,
-              payload.user,
-              payload.type === "reaction_added",
-              payload.item_user,
-            );
-          }
-          break;
-        case "presence_change": {
-          const presence = payload.presence === "away" ? "away" : "active";
-          const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
-          for (const id of ids) deps.setPresenceOverrides(id, presence);
-          break;
-        }
-        case "user_typing": {
-          if (payload.channel && payload.user && payload.user !== deps.currentUser()?.id) {
-            deps.recordTyping(payload.channel, payload.thread_ts, payload.user);
-          }
-          break;
-        }
-        case "badge_counts_updated": {
-          for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
-            if (!unread) deps.setUnreadChannelIds(id, false);
-            if (id.startsWith("D")) deps.patchDm(id, { mentions });
-            else deps.patchChannel(id, { mentions });
-          }
-          deps.setGatewayActivityBadgeCounts(payload.activity_v2);
-          break;
-        }
-        case "channel_marked": {
-          // Sent when Slack advances this account's read cursor, including from
-          // another client. The event's zero counts are authoritative, even if
-          // we did not receive the corresponding conversations.mark response.
-          if (!payload.channel) break;
-          deps.setUnreadChannelIds(payload.channel, false);
-          deps.patchChannel(payload.channel, { mentions: 0 });
-          const readTs = Number(payload.ts) * 1000;
-          if (Number.isFinite(readTs)) deps.setLastReadByChannel(payload.channel, readTs);
-          break;
-        }
-        case "user_invalidated": {
-          const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
-          for (const id of ids) deps.invalidateUser(id);
-          break;
-        }
-        case "view_opened":
-          if (payload.view_type === "modal" && payload.view) deps.openModalView(payload.view);
-          break;
-        default:
-          break;
-      }
-    });
-    const reconnect = () => {
-      socket = null;
-      setTimeout(connectSocket, reconnectDelay);
-      reconnectDelay = Math.min(reconnectDelay * 1.7, MaxReconnectDelay);
-    };
-    socket.addEventListener("close", reconnect);
-    socket.addEventListener("error", () => socket?.close());
-  }
-  connectSocket();
-  onCleanup(() => socket?.close());
+    },
+    url: wsUrl,
+  });
   createEffect(() => {
     const view = deps.activeView();
     if (view) send({ channel: view.id, type: "watch_channel" });
@@ -314,5 +264,10 @@ export function createRealtimeSlice(deps: {
     const thread = deps.activeThread();
     if (thread) send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
   });
-  return { rtmConnected, send };
+  return {
+    connectionState: connection.connectionState,
+    retryConnection: connection.retry,
+    rtmConnected: connection.rtmConnected,
+    send,
+  };
 }

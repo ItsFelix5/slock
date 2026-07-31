@@ -5,37 +5,75 @@ import {
 } from "@slock/slack-api";
 import { createRoot, createSignal } from "solid-js";
 import { actionFeedback, store } from "./store";
+import { createSerialMutationQueue } from "./store/mutations/serialMutationQueue";
 
 // Pinggroup-details panel state and actions, kept out of the main store the
 // same way channelDetails.ts is — it only touches the rest of the app
 // through store.usergroups.
 function setup() {
   const [usergroupDetailsId, setUsergroupDetailsId] = createSignal<string | null>(null);
+  const [usergroupDetailsLoading, setUsergroupDetailsLoading] = createSignal(false);
+  const [usergroupDetailsLoadError, setUsergroupDetailsLoadError] = createSignal(false);
+  const [usergroupMutationPending, setUsergroupMutationPending] = createSignal(false);
+  let loadEpoch = 0;
+  let pendingMutationCount = 0;
+  const runMutation = createSerialMutationQueue();
+
+  async function loadUsergroupDetails(id: string): Promise<boolean> {
+    const epoch = ++loadEpoch;
+    setUsergroupDetailsLoading(true);
+    setUsergroupDetailsLoadError(false);
+    try {
+      const details = await store.usergroups.refreshUsergroupDetails(id);
+      if (!details) throw new Error("Pinggroup details are unavailable.");
+      return true;
+    } catch (err) {
+      if (epoch !== loadEpoch || usergroupDetailsId() !== id) return false;
+      setUsergroupDetailsLoadError(true);
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load pinggroup details.",
+        "error",
+      );
+      return false;
+    } finally {
+      if (epoch === loadEpoch) setUsergroupDetailsLoading(false);
+    }
+  }
 
   function openUsergroupDetails(id: string) {
     setUsergroupDetailsId(id);
-    store.usergroups.refreshUsergroupDetails(id).catch(() => {
-      actionFeedback.flash(id, "Failed to load pinggroup details.", "error");
-    });
+    void loadUsergroupDetails(id);
   }
 
   function closeUsergroupDetails() {
+    loadEpoch++;
+    setUsergroupDetailsLoading(false);
+    setUsergroupDetailsLoadError(false);
     setUsergroupDetailsId(null);
   }
 
-  async function withFeedback(
+  function withFeedback(
     id: string,
     fallbackMessage: string,
     action: () => Promise<void>,
   ): Promise<boolean> {
-    try {
-      await action();
-      await store.usergroups.refreshUsergroupDetails(id);
-      return true;
-    } catch (err) {
-      actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
-      return false;
-    }
+    pendingMutationCount++;
+    setUsergroupMutationPending(true);
+    return runMutation(async () => {
+      try {
+        await action();
+        const details = await store.usergroups.refreshUsergroupDetails(id);
+        if (!details) throw new Error("Pinggroup details are unavailable.");
+        return true;
+      } catch (err) {
+        actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
+        return false;
+      } finally {
+        pendingMutationCount--;
+        setUsergroupMutationPending(pendingMutationCount > 0);
+      }
+    });
   }
 
   function saveUsergroupProfile(
@@ -83,11 +121,15 @@ function setup() {
     addUsergroupChannels,
     addUsergroupMembers,
     closeUsergroupDetails,
+    loadUsergroupDetails,
     openUsergroupDetails,
     removeUsergroupChannel,
     removeUsergroupMember,
     saveUsergroupProfile,
     usergroupDetailsId,
+    usergroupDetailsLoadError,
+    usergroupDetailsLoading,
+    usergroupMutationPending,
   };
 }
 
@@ -95,9 +137,13 @@ export const {
   addUsergroupChannels,
   addUsergroupMembers,
   closeUsergroupDetails,
+  loadUsergroupDetails,
   openUsergroupDetails,
   removeUsergroupChannel,
   removeUsergroupMember,
   saveUsergroupProfile,
   usergroupDetailsId,
+  usergroupDetailsLoadError,
+  usergroupDetailsLoading,
+  usergroupMutationPending,
 } = createRoot(setup);

@@ -1,5 +1,5 @@
-import { emojiUrl, loadCustomEmoji } from "@slock/blockkit";
-import { Tooltip, useEscapeClose } from "@slock/ui";
+import { emojiUrl, hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
+import { Button, Tooltip, useEscapeClose } from "@slock/ui";
 import {
   createEffect,
   createMemo,
@@ -17,6 +17,7 @@ import {
   searchEmoji,
 } from "../../../lib/emojiSearch";
 import "./EmojiPicker.css";
+import { prioritizeEmojiEntries } from "./emoji/emojiPickerEntries";
 
 // Workspaces can have tens of thousands of custom emoji, so rendering every
 // entry's DOM node up front (as a plain <For>) is what made the picker take
@@ -79,18 +80,16 @@ export default function EmojiPicker(props: {
   // With no search, lead with whatever Slack's own emoji-use counts (from
   // users.prefs.get, see store.ts's emojiUseScore) say has actually been
   // picked before.
-  const frequent = createMemo(() => {
-    if (query().trim()) return [];
-    return frequentEmoji(allEntries());
+  const visibleEntries = createMemo(() => {
+    const entries = allEntries();
+    if (query().trim()) return searchEmoji(entries, query());
+    const frequent = frequentEmoji(entries);
+    return prioritizeEmojiEntries(entries, frequent);
   });
 
-  const searchResults = createMemo(() => searchEmoji(allEntries(), query()));
+  const isEmpty = createMemo(() => visibleEntries().length === 0);
 
-  const isEmpty = createMemo(() => frequent().length === 0 && searchResults().length === 0);
-
-  const blocks = createMemo(() =>
-    buildBlocks([{ entries: frequent() }, { entries: searchResults() }]),
-  );
+  const blocks = createMemo(() => buildBlocks([{ entries: visibleEntries() }]));
 
   const blockLayout = createMemo(() => {
     let top = 0;
@@ -153,6 +152,19 @@ export default function EmojiPicker(props: {
           value={query()}
         />
       </div>
+      <Show when={isEmojiLoading()}>
+        <div class="emoji-picker-notice" role="status">
+          Loading workspace emoji…
+        </div>
+      </Show>
+      <Show when={hasEmojiLoadError()}>
+        <div class="emoji-picker-notice emoji-picker-error" role="alert">
+          <span>Couldn’t load workspace emoji.</span>
+          <Button onClick={() => void loadCustomEmoji()} size="sm" variant="ghost">
+            Try again
+          </Button>
+        </div>
+      </Show>
       <div
         class="emoji-picker-body"
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}

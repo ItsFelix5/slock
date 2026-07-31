@@ -1,6 +1,6 @@
 import { BlockKit, decodeTextEntities, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
-import { ZoomableImage } from "@slock/ui";
+import { VideoPlayer, ZoomableImage } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { channelDisplayName, store } from "../../../../lib/store";
 import MessageFiles from "./MessageFiles";
@@ -28,7 +28,7 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
         <Show when={a.authorName}>
           <div class="attachment-author flex-align-center">
             <Show when={a.authorIcon}>
-              {(icon) => <img alt="" class="attachment-author-icon" src={icon()} />}
+              {(icon) => <img alt="" class="attachment-author-icon" loading="lazy" src={icon()} />}
             </Show>
             <Mrkdwn text={a.authorName ?? ""} />
           </div>
@@ -90,20 +90,26 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
         </Show>
         <Show when={a.videoUrl}>
           {(url) => (
-            <video
-              aria-label={a.title || "Embedded video"}
+            <VideoPlayer
+              ariaLabel={a.title || "Embedded video"}
               class="attachment-video"
-              controls
               height={a.videoHeight}
+              openHref={url()}
               src={url()}
-              style={{ height: "auto", "max-width": "100%" }}
               width={a.videoWidth}
-              preload="metadata"
             />
           )}
         </Show>
         <Show when={!a.videoUrl && a.imageUrl}>
-          {(url) => <ZoomableImage alt="" class="attachment-image" src={url()} />}
+          {(url) => (
+            <ZoomableImage
+              alt=""
+              class="attachment-image"
+              height={a.imageHeight}
+              src={url()}
+              width={a.imageWidth}
+            />
+          )}
         </Show>
         <Show when={a.files?.length ? a.files : undefined}>
           {(files) => <MessageFiles files={files()} />}
@@ -113,7 +119,9 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
             <Show when={a.footer}>
               <div class="attachment-footer flex-align-center text-dim text-xs">
                 <Show when={a.footerIcon}>
-                  {(icon) => <img alt="" class="attachment-footer-icon" src={icon()} />}
+                  {(icon) => (
+                    <img alt="" class="attachment-footer-icon" loading="lazy" src={icon()} />
+                  )}
                 </Show>
                 <Mrkdwn text={a.footer ?? ""} />
               </div>

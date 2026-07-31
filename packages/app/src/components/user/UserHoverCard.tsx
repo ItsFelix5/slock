@@ -1,4 +1,4 @@
-import { EmojiText } from "@slock/blockkit";
+import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
@@ -74,8 +74,12 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                       <span class="pronouns">({u().pronouns})</span>
                     </Show>
                   </div>
-                  <Show when={u().title}>
-                    <div class="user-hovercard-title text-muted text-sm">{u().title}</div>
+                  <Show when={u().title || botBio()}>
+                    <div class="user-hovercard-title text-muted text-sm">
+                      <Show fallback={<Mrkdwn text={botBio() ?? ""} />} when={u().title}>
+                        {u().title}
+                      </Show>
+                    </div>
                   </Show>
                 </div>
               </div>
@@ -85,10 +89,6 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                   <Show when={u().statusEmoji}>{(emoji) => <EmojiText text={emoji()} />}</Show>
                   <span>{u().statusText}</span>
                 </div>
-              </Show>
-
-              <Show when={botBio()}>
-                <p class="user-hovercard-bio text-muted text-sm">{botBio()}</p>
               </Show>
 
               <Show when={localTime()}>
@@ -117,6 +117,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                 >
                   <button
                     class="user-hovercard-btn btn-reset flex-center"
+                    disabled={store.dms.isOpenDmPending(u().id)}
                     onClick={() => {
                       close();
                       store.dms.openDmWithUser(u().id);

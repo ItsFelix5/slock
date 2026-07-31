@@ -1,5 +1,5 @@
 import { type ButtonElement, runBlockAction } from "@slock/slack-api";
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 
@@ -11,6 +11,7 @@ export default function Button(props: {
   const [unsupported, setUnsupported] = createSignal(false);
   const [pending, setPending] = createSignal(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let active = true;
   const canDispatch = () => !!(props.context?.botId && props.el.action_id);
 
   const flashUnsupported = () => {
@@ -36,9 +37,18 @@ export default function Button(props: {
       messageTs: ctx.messageTs,
       value: props.el.value,
     })
-      .catch(() => flashUnsupported())
-      .finally(() => setPending(false));
+      .catch(() => {
+        if (active) flashUnsupported();
+      })
+      .finally(() => {
+        if (active) setPending(false);
+      });
   };
+
+  onCleanup(() => {
+    active = false;
+    clearTimeout(timer);
+  });
 
   return props.el.url ? (
     <a

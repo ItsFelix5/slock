@@ -1,6 +1,6 @@
 import { BkText, BlockKit } from "@slock/blockkit";
 import { Button, Icon, Overlay, Tooltip, useEscapeClose } from "@slock/ui";
-import { Show } from "solid-js";
+import { createUniqueId, Show } from "solid-js";
 import { store } from "../../lib/store";
 import "./ViewModal.css";
 
@@ -10,16 +10,16 @@ import "./ViewModal.css";
 // read-only viewer: Submit has nowhere real to send data, and is disabled
 // rather than pretending to succeed.
 export default function ViewModal() {
-  useEscapeClose(store.modals.closeAllViews);
-
   const view = () => store.modals.topView();
   const canGoBack = () => store.modals.viewStack().length > 1;
+  const titleId = createUniqueId();
+  useEscapeClose(store.modals.closeAllViews, () => !!view());
 
   return (
     <Show when={view()}>
       {(v) => (
-        <Overlay onClose={store.modals.closeAllViews}>
-          <div aria-modal="true" class="view-modal-card modal-card" role="dialog">
+        <Overlay ariaLabelledBy={titleId} onClose={store.modals.closeAllViews}>
+          <div class="view-modal-card modal-card">
             <div class="view-modal-header flex-between">
               <div class="view-modal-title flex-between">
                 <Show when={canGoBack()}>
@@ -34,7 +34,7 @@ export default function ViewModal() {
                     </button>
                   </Tooltip>
                 </Show>
-                <h2>
+                <h2 id={titleId}>
                   <BkText text={v().title} />
                 </h2>
               </div>

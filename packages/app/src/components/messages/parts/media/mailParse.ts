@@ -1,8 +1,7 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to mail parsing.
-// A deliberately small .eml (RFC 822) reader: enough to show a message's
-// From/To/Subject/Date and its plain-text or HTML body. It doesn't walk
-// nested multipart trees or pull out attachments — those would need a much
-// larger MIME implementation for a feature that's just "preview this email."
+// A small .eml (RFC 822/MIME) reader for previewing headers and text bodies.
+// Attachments are deliberately ignored, but nested multipart bodies are
+// traversed because multipart/mixed > multipart/alternative is commonplace.
 export interface ParsedMail {
   bodyHtml?: string;
   bodyText?: string;
@@ -12,72 +11,119 @@ export interface ParsedMail {
   to?: string;
 }
 
-function decodeBody(body: string, partHeaders: string): string {
-  if (/content-transfer-encoding:\s*base64/i.test(partHeaders)) {
-    try {
-      return atob(body.replace(/\s+/g, ""));
-    } catch {
-      return body;
+interface MimePart {
+  body: string;
+  headers: Record<string, string>;
+}
+
+function splitPart(raw: string): MimePart {
+  const headerEnd = raw.indexOf("\n\n");
+  const headerBlock = headerEnd === -1 ? raw : raw.slice(0, headerEnd);
+  const body = headerEnd === -1 ? "" : raw.slice(headerEnd + 2);
+  const headers: Record<string, string> = {};
+  for (const line of headerBlock.replace(/\n[ \t]+/g, " ").split("\n")) {
+    const separator = line.indexOf(":");
+    if (separator === -1) continue;
+    const key = line.slice(0, separator).trim().toLowerCase();
+    if (!(key in headers)) headers[key] = line.slice(separator + 1).trim();
+  }
+  return { body, headers };
+}
+
+function bytesFromBase64(value: string): Uint8Array {
+  return Uint8Array.from(atob(value.replace(/\s+/g, "")), (character) => character.charCodeAt(0));
+}
+
+function bytesFromQuotedPrintable(value: string): Uint8Array {
+  const unfolded = value.replace(/=\n/g, "");
+  const bytes: number[] = [];
+  for (let index = 0; index < unfolded.length; index += 1) {
+    const hex = unfolded.slice(index + 1, index + 3);
+    if (unfolded[index] === "=" && /^[\dA-Fa-f]{2}$/.test(hex)) {
+      bytes.push(Number.parseInt(hex, 16));
+      index += 2;
+    } else {
+      bytes.push(unfolded.charCodeAt(index));
     }
   }
-  if (/content-transfer-encoding:\s*quoted-printable/i.test(partHeaders)) {
-    return body
-      .replace(/=\r?\n/g, "")
-      .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
+  return Uint8Array.from(bytes);
+}
+
+function decodeBytes(bytes: Uint8Array, charset = "utf-8"): string {
+  try {
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    return new TextDecoder().decode(bytes);
+  }
+}
+
+function decodeBody(body: string, headers: Record<string, string>): string {
+  const contentType = headers["content-type"] ?? "";
+  const charset = /charset\s*=\s*(?:"([^"]+)"|([^;\s]+))/i.exec(contentType);
+  const encoding = headers["content-transfer-encoding"]?.toLowerCase();
+  try {
+    if (encoding === "base64")
+      return decodeBytes(bytesFromBase64(body), charset?.[1] ?? charset?.[2]);
+    if (encoding === "quoted-printable")
+      return decodeBytes(bytesFromQuotedPrintable(body), charset?.[1] ?? charset?.[2]);
+  } catch {
+    // A malformed transfer encoding should still leave the raw body readable.
   }
   return body.trim();
 }
 
+function decodeHeader(value: string | undefined): string | undefined {
+  if (!value) return;
+  return value.replace(
+    /=\?([^?]+)\?([bq])\?([^?]*)\?=/gi,
+    (_match, charset: string, encoding: string, encoded: string) => {
+      try {
+        const bytes =
+          encoding.toLowerCase() === "b"
+            ? bytesFromBase64(encoded)
+            : bytesFromQuotedPrintable(encoded.replace(/_/g, " "));
+        return decodeBytes(bytes, charset);
+      } catch {
+        return encoded;
+      }
+    },
+  );
+}
+
+function boundaryFrom(contentType: string): string | undefined {
+  const match = /boundary\s*=\s*(?:"([^"]+)"|([^;\s]+))/i.exec(contentType);
+  return match?.[1] ?? match?.[2];
+}
+
+function collectBodies(part: MimePart, parsed: ParsedMail, depth = 0) {
+  if (depth > 8 || /attachment/i.test(part.headers["content-disposition"] ?? "")) return;
+  const contentType = part.headers["content-type"] ?? "text/plain";
+  const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
+  const boundary = boundaryFrom(contentType);
+  if (mediaType.startsWith("multipart/") && boundary) {
+    const chunks = part.body.split(`--${boundary}`).slice(1);
+    for (const chunk of chunks) {
+      if (chunk.startsWith("--")) break;
+      collectBodies(splitPart(chunk.replace(/^\n/, "").replace(/\n$/, "")), parsed, depth + 1);
+    }
+    return;
+  }
+
+  if (mediaType === "text/html" && !parsed.bodyHtml)
+    parsed.bodyHtml = decodeBody(part.body, part.headers);
+  else if (mediaType === "text/plain" && !parsed.bodyText)
+    parsed.bodyText = decodeBody(part.body, part.headers);
+}
+
 export function parseEml(raw: string): ParsedMail {
   const normalized = raw.replace(/\r\n/g, "\n");
-  const headerEnd = normalized.indexOf("\n\n");
-  const headerBlock = headerEnd === -1 ? normalized : normalized.slice(0, headerEnd);
-  const rest = headerEnd === -1 ? "" : normalized.slice(headerEnd + 2);
-
-  // Continuation lines (folded headers) start with whitespace — join them
-  // back onto the header line they belong to before parsing.
-  const unfolded = headerBlock.replace(/\n[ \t]+/g, " ");
-  const headers: Record<string, string> = {};
-  for (const line of unfolded.split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx === -1) continue;
-    const key = line.slice(0, idx).trim().toLowerCase();
-    if (key in headers) continue;
-    headers[key] = line.slice(idx + 1).trim();
-  }
-
-  const contentType = (headers["content-type"] ?? "").toLowerCase();
-  const boundaryMatch = /boundary="?([^";]+)"?/i.exec(contentType);
-  let bodyText: string | undefined;
-  let bodyHtml: string | undefined;
-
-  if (boundaryMatch) {
-    const boundary = boundaryMatch[1];
-    const parts = rest.split(`--${boundary}`).slice(1, -1);
-    for (const part of parts) {
-      const partHeaderEnd = part.indexOf("\n\n");
-      if (partHeaderEnd === -1) continue;
-      const partHeaders = part.slice(0, partHeaderEnd).toLowerCase();
-      const partBody = part.slice(partHeaderEnd + 2);
-      if (partHeaders.includes("text/html") && !bodyHtml) {
-        bodyHtml = decodeBody(partBody, partHeaders);
-      } else if (partHeaders.includes("text/plain") && !bodyText) {
-        bodyText = decodeBody(partBody, partHeaders);
-      }
-    }
-  } else {
-    const transferEncoding = headers["content-transfer-encoding"] ?? "";
-    const decoded = decodeBody(rest, `${contentType}\n${transferEncoding}`);
-    if (contentType.includes("text/html")) bodyHtml = decoded;
-    else bodyText = decoded;
-  }
-
-  return {
-    bodyHtml,
-    bodyText,
-    date: headers.date,
-    from: headers.from,
-    subject: headers.subject,
-    to: headers.to,
+  const root = splitPart(normalized);
+  const parsed: ParsedMail = {
+    date: decodeHeader(root.headers.date),
+    from: decodeHeader(root.headers.from),
+    subject: decodeHeader(root.headers.subject),
+    to: decodeHeader(root.headers.to),
   };
+  collectBodies(root, parsed);
+  return parsed;
 }

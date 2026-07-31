@@ -1,4 +1,5 @@
 import { addMessageReminder, getPermalink } from "@slock/slack-api";
+import { actionFeedback } from "../feedback";
 
 function inMinutes(minutes: number): number {
   return Math.floor(Date.now() / 1000) + minutes * 60;
@@ -30,8 +31,10 @@ export async function copyMessageLink(channelId: string, ts: string) {
     const link = await getPermalink(channelId, ts);
     if (!link) throw new Error("no permalink");
     await navigator.clipboard.writeText(link);
+    actionFeedback.flash(ts, "Link copied.");
   } catch (err) {
     console.error("Failed to get permalink", err);
+    actionFeedback.flash(ts, "Couldn’t copy the message link.", "error");
   }
 }
 
@@ -51,7 +54,9 @@ export async function prepareReplyLink(
 export async function remindAboutMessage(channelId: string, ts: string, dateDue: number) {
   try {
     await addMessageReminder(channelId, ts, dateDue);
+    actionFeedback.flash(ts, "Reminder set.");
   } catch (err) {
     console.error("Failed to set reminder", err);
+    actionFeedback.flash(ts, "Couldn’t set the reminder.", "error");
   }
 }

@@ -1,11 +1,16 @@
 import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon, Tooltip } from "@slock/ui";
-import { createMemo, createSignal, For } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import "./Settings.css";
 import "./SettingsDebugTab.css";
 
 export default function SettingsDebugTab() {
   const [query, setQuery] = createSignal("");
-  const [copiedKey, copy] = createCopyFeedback();
+  const [copyError, setCopyError] = createSignal(false);
+  const [copiedKey, copy] = createCopyFeedback(1200, () => setCopyError(true));
+  const copyIconName = (name: string) => {
+    setCopyError(false);
+    void copy(name, name);
+  };
 
   const filtered = createMemo(() =>
     fuzzySearch(ICON_NAMES, { query: query(), text: (name) => name }),
@@ -20,6 +25,11 @@ export default function SettingsDebugTab() {
         <div class="settings-row-hint text-dim">
           {ICON_NAMES.length} icons available. Click one to copy its name.
         </div>
+        <Show when={copyError()}>
+          <div class="settings-account-error" role="alert">
+            Couldn’t copy to the clipboard.
+          </div>
+        </Show>
         <input
           class="settings-status-input debug-icon-search"
           onInput={(e) => setQuery(e.currentTarget.value)}
@@ -34,7 +44,7 @@ export default function SettingsDebugTab() {
                 <button
                   aria-label={name}
                   class="debug-icon-cell btn-reset flex-col"
-                  onClick={() => copy(name, name)}
+                  onClick={() => copyIconName(name)}
                   type="button"
                 >
                   <Icon name={copiedKey() === name ? "check" : name} size={20} />

@@ -117,6 +117,12 @@
   overflow-y: auto;
 }
 
+.global-search-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .global-search-result {
   gap: 8px;
   width: 100%;
@@ -154,8 +160,8 @@
   text-align: center;
 }
 
-.global-search-empty,
-.global-search-hint {
+.global-search-hint,
+.global-search-status {
   padding: 18px 16px;
   line-height: 1.4;
 }

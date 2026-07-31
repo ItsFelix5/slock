@@ -1,5 +1,6 @@
 import { customEmojiNames, emojiUrl, standardEmojiEntries } from "@slock/blockkit";
 import { fuzzySearch } from "@slock/ui";
+import { mergeEmojiEntries } from "../components/composer/popovers/emoji/emojiPickerEntries";
 import { store } from "./store";
 
 export interface EmojiEntry {
@@ -29,7 +30,7 @@ function customEmojiEntries(): EmojiEntry[] {
 }
 
 export function allEmojiEntries(): EmojiEntry[] {
-  return [...customEmojiEntries(), ...STANDARD_EMOJI_ENTRIES];
+  return mergeEmojiEntries(customEmojiEntries(), STANDARD_EMOJI_ENTRIES);
 }
 
 export function searchEmoji(entries: EmojiEntry[], query: string): EmojiEntry[] {

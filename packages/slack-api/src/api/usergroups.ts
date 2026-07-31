@@ -9,7 +9,9 @@ function mapUsergroup(raw: any): Usergroup | undefined {
   return { id: raw.id, name: label.startsWith("@") ? label : `@${label}` };
 }
 
-function mapUsergroupDetails(raw: any): UsergroupDetails | undefined {
+// memberIds isn't filled in here — usergroups/info only carries a count, not
+// the member list (see fetchUsergroupMemberIds) — callers merge it in after.
+function mapUsergroupDetails(raw: any): Omit<UsergroupDetails, "memberIds"> | undefined {
   if (typeof raw?.id !== "string") return;
   return {
     channelIds: Array.isArray(raw.prefs?.channels) ? raw.prefs.channels : [],
@@ -18,15 +20,14 @@ function mapUsergroupDetails(raw: any): UsergroupDetails | undefined {
     description: raw.description ?? "",
     handle: raw.handle ?? "",
     id: raw.id,
-    memberCount: Number(raw.user_count ?? raw.users?.length ?? 0),
-    memberIds: Array.isArray(raw.users) ? raw.users : [],
+    memberCount: Number(raw.user_count ?? 0),
     title: raw.name ?? raw.handle ?? "",
   };
 }
 
 type UsergroupRequest = {
   reject: (reason?: unknown) => void;
-  resolve: (usergroup: Usergroup | null) => void;
+  resolve: (raw: any | undefined) => void;
 };
 
 const pendingUsergroupRequests = new Map<string, UsergroupRequest[]>();
@@ -51,8 +52,8 @@ async function flushUsergroupBatch(): Promise<void> {
     try {
       const data = await callSlackEdge("usergroups/info", { ids: batchIds });
       for (const id of batchIds) {
-        const usergroup = data.ok ? mapUsergroup(cachedUsergroupForId(data, id)) : undefined;
-        for (const request of requests.get(id) ?? []) request.resolve(usergroup ?? null);
+        const raw = data.ok ? cachedUsergroupForId(data, id) : undefined;
+        for (const request of requests.get(id) ?? []) request.resolve(raw);
       }
     } catch (error) {
       for (const id of batchIds) {
@@ -62,9 +63,13 @@ async function flushUsergroupBatch(): Promise<void> {
   }
 }
 
-// Rich-text usergroup elements contain only an ID. Coalesce requests issued
-// while a message list renders into Edge cache batches, mirroring user lookup.
-export function fetchUsergroup(id: string): Promise<Usergroup | null> {
+// Coalesce requests issued while a message list renders (each @usergroup
+// mention resolves independently) into Edge cache batches, mirroring user
+// lookup. The raw object already carries everything the details panel needs
+// too (description, handle, prefs.channels, user_count) — see
+// fetchUsergroupDetails — so both the light mention lookup and the rich
+// details fetch share this one batched call instead of hitting Slack twice.
+function fetchUsergroupRaw(id: string): Promise<any | undefined> {
   return new Promise((resolve, reject) => {
     const requests = pendingUsergroupRequests.get(id) ?? [];
     requests.push({ reject, resolve });
@@ -75,36 +80,23 @@ export function fetchUsergroup(id: string): Promise<Usergroup | null> {
   });
 }
 
-// Slack has no per-id usergroup lookup for the full record (description,
-// members, default channels) — only the edge mention cache above, which
-// omits them. usergroups.list is the same call the real client makes to
-// populate its usergroup directory, so this pulls the whole workspace list
-// and picks out the one requested.
-//
-// ensureUsergroupDetails guards against refetching a *cached* id, but several
-// distinct @usergroup mentions can still resolve on the same render (e.g. a
-// message pinging multiple groups), each requesting a different id before
-// any of them are cached — without sharing the in-flight list request, that
-// fans out into one identical usergroups.list call per id.
-let pendingListRequest: Promise<any> | null = null;
-function fetchUsergroupsList(): Promise<any> {
-  if (!pendingListRequest) {
-    pendingListRequest = callSlack("usergroups.list", {
-      include_count: "true",
-      include_users: "true",
-    }).finally(() => {
-      pendingListRequest = null;
-    });
-  }
-  return pendingListRequest;
+export function fetchUsergroup(id: string): Promise<Usergroup | null> {
+  return fetchUsergroupRaw(id).then((raw) => mapUsergroup(raw) ?? null);
+}
+
+// usergroups/info (above) has no member list, only a count — Slack's edge
+// mention cache is optimized for rendering @mentions, not membership. The
+// dedicated usergroups.users.list Web API call fills that one gap.
+async function fetchUsergroupMemberIds(id: string): Promise<string[]> {
+  const data = await callSlack("usergroups.users.list", { usergroup: id });
+  if (!data.ok) throw new Error(data.error ?? "usergroups.users.list failed");
+  return Array.isArray(data.users) ? data.users : [];
 }
 
 export async function fetchUsergroupDetails(id: string): Promise<UsergroupDetails | null> {
-  const data = await fetchUsergroupsList();
-  if (!data.ok) throw new Error(data.error ?? "usergroups.list failed");
-  const raw: any[] = data.usergroups ?? [];
-  const found = raw.find((group) => group.id === id);
-  return found ? (mapUsergroupDetails(found) ?? null) : null;
+  const [raw, memberIds] = await Promise.all([fetchUsergroupRaw(id), fetchUsergroupMemberIds(id)]);
+  const mapped = mapUsergroupDetails(raw);
+  return mapped ? { ...mapped, memberIds } : null;
 }
 
 export async function updateUsergroupProfile(

@@ -1,4 +1,4 @@
-import { Icon, Overlay, Tooltip } from "@slock/ui";
+import { Icon, Overlay, Tooltip, useEscapeClose } from "@slock/ui";
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import "./ContextActions.css";
 
@@ -47,18 +47,17 @@ export default function ContextActions() {
         const target = event.target instanceof Element ? event.target : document.activeElement;
         setComposerContext(Boolean(target?.closest(".composer")));
         setOpen((value) => !value);
-      } else if (event.key === "Escape" && open()) {
-        setOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     onCleanup(() => window.removeEventListener("keydown", onKeyDown));
   });
+  useEscapeClose(() => setOpen(false), open);
 
   return (
     <Show when={open()}>
-      <Overlay onClose={() => setOpen(false)}>
-        <div aria-modal="true" class="context-actions-card modal-card" role="dialog">
+      <Overlay ariaLabel="Context actions" onClose={() => setOpen(false)}>
+        <div class="context-actions-card modal-card">
           <div class="context-actions-header flex-between">
             <div>
               <h2>Context actions</h2>

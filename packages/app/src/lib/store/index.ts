@@ -17,7 +17,7 @@ export { dmDisplayName } from "./slices/dmDisplayName";
 export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
-export { isUnreadDividerBoundary } from "./slices/messaging/unread";
+export { findUnreadDividerIndex, isUnreadDividerBoundary } from "./slices/messaging/unread";
 export type { ChannelMessageTarget, MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 declare global {
@@ -32,16 +32,42 @@ declare global {
 }
 
 function setup() {
-  const [bootstrap] = createResource(fetchBootstrap);
+  const [bootstrap, { refetch: refetchBootstrap }] = createResource(fetchBootstrap);
+  async function retryBootstrap(): Promise<void> {
+    try {
+      await refetchBootstrap();
+    } catch {
+      // The resource keeps the error available to the full-screen retry UI.
+    }
+  }
   const [messageShortcutsRequested, setMessageShortcutsRequested] = createSignal(false);
-  const [messageShortcuts] = createResource(messageShortcutsRequested, async (requested) =>
-    requested ? fetchMessageShortcuts() : [],
+  const [messageShortcuts, { refetch: refetchMessageShortcuts }] = createResource(
+    messageShortcutsRequested,
+    async (requested) => (requested ? fetchMessageShortcuts() : []),
   );
   const loadMessageShortcuts = () => setMessageShortcutsRequested(true);
-  const [profileFieldDefs] = createResource(fetchProfileFieldDefs);
+  const retryMessageShortcuts = () =>
+    void Promise.resolve(refetchMessageShortcuts()).catch(() => {});
+  const [profileFieldDefs, { refetch: refetchProfileFieldDefs }] =
+    createResource(fetchProfileFieldDefs);
+  async function retryProfileFieldDefs(): Promise<void> {
+    try {
+      await refetchProfileFieldDefs();
+    } catch {
+      // The profile panel reads the resource error and keeps retry available.
+    }
+  }
   const runMessageShortcutAt = createRunMessageShortcut();
-  const [userPrefs] = createResource(fetchUserPrefs);
-  const slices = createStoreSlices({ bootstrap, userPrefs });
+  const [userPrefs, { mutate: mutateUserPrefs, refetch: refetchUserPrefs }] =
+    createResource(fetchUserPrefs);
+  async function retryUserPrefs(): Promise<void> {
+    try {
+      await refetchUserPrefs();
+    } catch {
+      // The resource exposes the error to retry UIs.
+    }
+  }
+  const slices = createStoreSlices({ bootstrap, userPrefs, mutateUserPrefs });
   const {
     viewState,
     users,
@@ -98,7 +124,12 @@ function setup() {
       messageShortcuts,
       loadMessageShortcuts,
       profileFieldDefs,
+      retryBootstrap,
+      retryMessageShortcuts,
+      retryProfileFieldDefs,
+      retryUserPrefs,
       runMessageShortcutAt,
+      userPrefs,
     },
   };
   globalThis.slock = store;

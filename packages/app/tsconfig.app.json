@@ -5,6 +5,7 @@
     "types": ["vite/client"]
   },
   "extends": "../../tsconfig.base.json",
+  "exclude": ["src/**/*.test.ts"],
   "include": ["src/**/*", "src/**/*.json"],
   "references": [{ "path": "../ui" }, { "path": "../slack-api" }, { "path": "../blockkit" }]
 }

@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { acceptUpgrade } from "./dev-websocket.ts";
-import { parseCredsCookie, routeRelayRequest } from "./relay-core.ts";
+import { parseCredsCookie } from "./relay-auth.ts";
+import { routeRelayRequest } from "./relay-core.ts";
 import {
   handleClientDisconnect,
   handleClientMessage,
@@ -37,8 +38,15 @@ function readBodyBuffer(req: IncomingMessage): Promise<Buffer> {
 async function sendWebResponse(res: ServerResponse, response: Response) {
   res.statusCode = response.status;
   response.headers.forEach((value, key) => {
+    // Set-Cookie is special-cased by the Fetch spec: multiple instances are
+    // never comma-joined, so forEach yields one ("set-cookie", value) pair
+    // per cookie. res.setHeader would overwrite on each call and silently
+    // drop all but the last cookie — use getSetCookie() and set them together.
+    if (key === "set-cookie") return;
     res.setHeader(key, value);
   });
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length > 0) res.setHeader("set-cookie", cookies);
   if (!response.body) {
     res.end();
     return;

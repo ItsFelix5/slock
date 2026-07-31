@@ -74,7 +74,10 @@ export default function InlineFeedback(props: InlineFeedbackProps) {
   return (
     <Show when={visibleFeedback()}>
       {(f) => (
-        <span class={`inline-feedback inline-feedback-${f().kind} ${props.class ?? ""}`}>
+        <span
+          class={`inline-feedback inline-feedback-${f().kind} ${props.class ?? ""}`}
+          role={f().kind === "error" ? "alert" : "status"}
+        >
           {f().text}
         </span>
       )}

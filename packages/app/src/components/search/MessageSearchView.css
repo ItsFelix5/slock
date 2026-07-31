@@ -49,6 +49,13 @@
   overflow-y: auto;
 }
 
+.message-search-error {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
 .message-search-result {
   margin-bottom: 4px;
 }

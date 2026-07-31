@@ -1,5 +1,5 @@
 import type { Bootstrap, DirectMessage, UserPrefs } from "@slock/slack-api";
-import type { Resource } from "solid-js";
+import type { Resource, Setter } from "solid-js";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -24,13 +24,17 @@ import type { View } from "./slices/types";
 export function createStoreSlices({
   bootstrap,
   userPrefs,
+  mutateUserPrefs,
 }: {
   bootstrap: Resource<Bootstrap>;
   userPrefs: Resource<UserPrefs>;
+  mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
   const viewState = createViewStateSlice({ bootstrap });
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
-  const usergroups = createUsergroupsSlice({ currentUser: users.currentUser });
+  const usergroups = createUsergroupsSlice({
+    selfUsergroupIds: () => bootstrap()?.selfUsergroupIds ?? [],
+  });
   const typing = createTypingSlice({ userById: users.userById });
   const setActiveViewImplRef: { current: (view: View) => void } = { current: () => {} };
   const setActiveView = (view: View) => setActiveViewImplRef.current(view);
@@ -45,6 +49,8 @@ export function createStoreSlices({
     activeView: viewState.activeView,
     bootstrap,
     setActiveView,
+    userPrefs,
+    mutateUserPrefs,
   });
   const preferences = createPreferencesSlice({
     channels: channels.channels,
@@ -52,11 +58,11 @@ export function createStoreSlices({
   });
   const unread = createUnreadSlice({ bootstrap, patchChannel: channels.patchChannel, patchDm });
   const activity = createActivitySlice({
+    clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     lastReadByChannel: unread.lastReadByChannel,
-    patchChannel: channels.patchChannel,
-    patchDm,
     setLastReadByChannel: unread.setLastReadByChannel,
+    syncChannelRead: unread.syncChannelRead,
   });
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
   const searchHistory = createSearchHistorySlice({ userPrefs });
@@ -66,6 +72,7 @@ export function createStoreSlices({
     activeView: viewState.activeView,
     bootstrap,
     closeUserProfile: users.closeUserProfile,
+    currentUser: users.currentUser,
     removeDmFromSidebar: channels.removeDmFromSidebar,
     removeDmsFromSidebar: channels.removeDmsFromSidebar,
     setActiveView,
@@ -83,8 +90,10 @@ export function createStoreSlices({
     pushActivity: activity.pushActivity,
     recordActivityEngagement: activity.recordActivityEngagement,
     setLastReadByChannel: unread.setLastReadByChannel,
+    setChannelRead: unread.setChannelRead,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     setUnreadDividerTs: unread.setUnreadDividerTs,
+    syncChannelRead: unread.syncChannelRead,
   });
   const realtime = createRealtimeSlice({
     activeThread: viewState.activeThread,
@@ -99,19 +108,17 @@ export function createStoreSlices({
     findAllMessageLocations: messages.findAllMessageLocations,
     insertMessageInOrder: messages.insertMessageInOrder,
     invalidateUser: users.invalidateUser,
-    isChannelNotifyAll: preferences.isChannelNotifyAll,
     loadedChannels: messages.loadedChannels,
     loadedThreads: messages.loadedThreads,
-    matchingHighlightWord: preferences.matchingHighlightWord,
     mergeIncomingMessage: messages.mergeIncomingMessage,
     messagesByChannel: messages.messagesByChannel,
     openModalView: modals.openView,
     patchChannel: channels.patchChannel,
     patchDm: dms.patchDm,
     patchMessage: messages.patchMessage,
-    pushActivity: activity.pushActivity,
     recordActivityEngagement: activity.recordActivityEngagement,
     recordTyping: typing.recordTyping,
+    refreshActivityFeed: activity.ensureActivityLoaded,
     setGatewayActivityBadgeCounts: activity.setGatewayActivityBadgeCounts,
     setClosedDmIds: dms.setClosedDmIds,
     setDmLastActivity: dms.setDmLastActivity,

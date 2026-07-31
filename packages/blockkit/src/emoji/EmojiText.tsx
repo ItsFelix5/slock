@@ -4,7 +4,7 @@ import { resolveStandardEmoji } from "./emoji";
 import { emojiUrl } from "./emojiCache";
 import "./EmojiText.css";
 
-const EMOJI_RE = /:([a-z0-9_+-]+):/gi;
+const EMOJI_RE = /:([a-z0-9_+'-]+):/gi;
 
 type Part = { type: "text"; value: string } | { type: "emoji"; name: string };
 

@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: Draft payloads preserve Slack's wire field names.
 import { callSlack } from "../relay";
 
 export type DraftEntry = { channelId: string; threadTs?: string; text: string };
@@ -12,7 +13,7 @@ function draftKey(channelId: string, threadTs?: string): string {
 
 export async function fetchDrafts(): Promise<DraftEntry[]> {
   const data = await callSlack("drafts.list", { is_active: "true", limit: "100" });
-  if (data.ok === false) return [];
+  if (data.ok === false) throw new Error(data.error ?? "drafts.list failed");
   const drafts: any[] = data.drafts ?? [];
   return drafts.map((d) => {
     const dest = d.destinations?.[0] ?? {};
@@ -34,10 +35,11 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
 
   if (!text.trim()) {
     if (existing) {
-      await callSlack("drafts.delete", {
+      const data = await callSlack("drafts.delete", {
         client_last_updated_ts: String(Date.now() / 1000),
         draft_id: existing.draftId,
       });
+      if (data.ok === false) throw new Error(data.error ?? "drafts.delete failed");
       draftState.delete(key);
     }
     return;
@@ -55,6 +57,8 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
   };
   if (existing) params.draft_id = existing.draftId;
   const data = await callSlack("drafts.create", params);
+  if (data.ok === false) throw new Error(data.error ?? "drafts.create failed");
   const draftId = data.draft?.id ?? data.id;
-  if (data.ok !== false && draftId) draftState.set(key, { clientMsgId, draftId });
+  if (!draftId) throw new Error("drafts.create returned no draft id");
+  draftState.set(key, { clientMsgId, draftId });
 }

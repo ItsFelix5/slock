@@ -4,9 +4,31 @@
   padding-bottom: 12px;
   overflow-x: hidden;
   overflow-y: auto;
+  /* MessageRows.tsx already compensates scrollTop precisely for height
+     corrections above the viewport (it knows exactly which row changed and
+     by how much) — leaving the browser's own heuristic scroll anchoring on
+     double-applies a second, slightly different correction for the same
+     event, which is what was jittering. */
+  overflow-anchor: none;
 }
 .message-list-skeleton {
   padding-top: 32px;
+}
+.message-list-loading-older {
+  padding: 10px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.message-list-load-error {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
 }
 .message-skeleton-lines {
   gap: 6px;
@@ -33,6 +55,18 @@
   margin: 0;
   font-size: 14px;
   color: var(--text-secondary);
+}
+.message-list-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.message-list-error .message-list-intro-icon,
+.message-list-error h2,
+.message-list-error p {
+  margin-bottom: 0;
 }
 .message-divider {
   margin: 0px 20px;
@@ -126,9 +160,13 @@
   color: var(--text-secondary);
   border-radius: var(--radius-6);
 }
-.message-hover-btn:hover {
+.message-hover-btn:hover:not(:disabled) {
   color: var(--text-primary);
   background: var(--hover-bg);
+}
+.message-hover-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 .message-hover-btn.active {
   color: var(--accent);

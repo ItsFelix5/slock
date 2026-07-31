@@ -8,6 +8,7 @@ import {
   fetchChannelMembers,
   fetchChannelPostingPrefs,
   inviteToChannel,
+  type MemberPermissionsPatch,
   removeFromChannel,
   renameChannel,
   setChannelPostingPrefs,
@@ -55,26 +56,47 @@ function setup() {
     return withFeedback(id, "Failed to load channel details.", null, () => fetchChannelDetails(id));
   }
 
-  function loadChannelMembers(
+  async function loadChannelMembers(
     id: string,
     filter: "everyone" | "apps",
     cursor?: string,
   ): Promise<ChannelMembersPage> {
-    return withFeedback(id, "Failed to load members.", { members: [] }, () =>
-      fetchChannelMembers(id, filter, cursor),
-    );
+    try {
+      return await fetchChannelMembers(id, filter, cursor);
+    } catch (err) {
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load members.",
+        "error",
+      );
+      throw err;
+    }
   }
 
-  function loadChannelManagerIds(id: string): Promise<string[]> {
-    return withFeedback(id, "Failed to load channel managers.", [], () =>
-      fetchChannelManagerIds(id),
-    );
+  async function loadChannelManagerIds(id: string): Promise<string[]> {
+    try {
+      return await fetchChannelManagerIds(id);
+    } catch (err) {
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load channel managers.",
+        "error",
+      );
+      throw err;
+    }
   }
 
-  function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs | null> {
-    return withFeedback(id, "Failed to load posting permissions.", null, () =>
-      fetchChannelPostingPrefs(id),
-    );
+  async function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs> {
+    try {
+      return await fetchChannelPostingPrefs(id);
+    } catch (err) {
+      actionFeedback.flash(
+        id,
+        err instanceof Error ? err.message : "Failed to load posting permissions.",
+        "error",
+      );
+      throw err;
+    }
   }
 
   function renameChannelById(id: string, name: string): Promise<boolean> {
@@ -141,12 +163,9 @@ function setup() {
     });
   }
 
-  function updateMemberPermissions(
-    id: string,
-    perms: { invite: boolean; setPurpose: boolean; setTopic: boolean },
-  ): Promise<boolean> {
+  function updateMemberPermissions(id: string, patch: MemberPermissionsPatch): Promise<boolean> {
     return withFeedback(id, "Failed to update member permissions.", false, async () => {
-      await setMemberPermissions(id, perms);
+      await setMemberPermissions(id, patch);
       return true;
     });
   }

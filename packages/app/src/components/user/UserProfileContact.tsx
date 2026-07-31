@@ -9,6 +9,7 @@ export default function UserProfileContact(props: {
   customFields: CustomField[];
   editableFields: ProfileFieldDef[];
   values: Record<string, string>;
+  isSavingField: (id: string) => boolean;
   setValue: (id: string, value: string) => void;
   saveField: (id: string) => void;
   onKeyDown: (event: KeyboardEvent) => void;
@@ -49,6 +50,7 @@ export default function UserProfileContact(props: {
                   </label>
                   <input
                     class="user-profile-field-input"
+                    disabled={props.isSavingField(field.id)}
                     id={`profile-field-${field.id}`}
                     onBlur={() => props.saveField(field.id)}
                     onInput={(event) => props.setValue(field.id, event.currentTarget.value)}

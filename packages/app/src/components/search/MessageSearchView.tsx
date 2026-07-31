@@ -1,6 +1,6 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "@slock/slack-api";
-import { FilterCombobox, Icon, Tooltip } from "@slock/ui";
+import { Button, createDebouncedRequest, FilterCombobox, Icon, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
   buildSearchQuery,
@@ -10,63 +10,59 @@ import {
   type SortMode,
   sortParams,
 } from "../../lib/searchQuery";
-import { store } from "../../lib/store";
+import { dmDisplayName, store } from "../../lib/store";
 import "./GlobalSearch.css";
 import "./MessageSearchView.css";
 import { HAS_TOGGLES, SORT_OPTIONS } from "./messageSearchOptions";
+import { navigateToSearchResult } from "./searchResultNavigation";
 export default function MessageSearchView() {
   const [query, setQuery] = createSignal("");
   const [filters, setFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
   const [sort, setSort] = createSignal<SortMode>("relevant");
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
+  const [searchError, setSearchError] = createSignal(false);
   const [suggestions, setSuggestions] = createSignal<string[]>([]);
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  let requestId = 0;
-  let suggestDebounce: ReturnType<typeof setTimeout> | undefined;
-  let suggestRequestId = 0;
   const filtersActive = createMemo(() => hasActiveFilters(filters()));
-  const runSearch = () => {
-    clearTimeout(debounceTimer);
-    const composed = buildSearchQuery(query(), filters());
-    if (!composed.trim()) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const id = ++requestId;
-    debounceTimer = setTimeout(async () => {
-      const { sort: s, sortDir } = sortParams(sort());
-      const found = await searchMessages(composed, { sort: s, sortDir });
-      if (id === requestId) {
+  const searchRequest = createDebouncedRequest(
+    (composed) => {
+      const { sort: selectedSort, sortDir } = sortParams(sort());
+      return searchMessages(composed, { sort: selectedSort, sortDir });
+    },
+    {
+      delay: 300,
+      onError: () => setSearchError(true),
+      onPendingChange: setLoading,
+      onReset: () => {
+        setResults([]);
+        setSearchError(false);
+      },
+      onResult: (found) => {
         setResults(found);
-        setLoading(false);
         store.searchHistory.recordSearch(query());
-      }
-    }, 300);
+      },
+    },
+  );
+  const autocompleteRequest = createDebouncedRequest(fetchSearchAutocomplete, {
+    delay: 150,
+    onReset: () => setSuggestions([]),
+    onResult: setSuggestions,
+  });
+  const runSearch = () => {
+    const composed = buildSearchQuery(query(), filters());
+    searchRequest.run(composed);
   };
   const runAutocomplete = () => {
-    clearTimeout(suggestDebounce);
-    const q = query().trim();
-    if (!q) {
-      setSuggestions([]);
-      return;
-    }
-    const id = ++suggestRequestId;
-    suggestDebounce = setTimeout(async () => {
-      const found = await fetchSearchAutocomplete(q);
-      if (id === suggestRequestId) setSuggestions(found);
-    }, 150);
+    autocompleteRequest.run(query());
   };
   const runHistorySearch = (q: string) => {
     setQuery(q);
-    setSuggestions([]);
+    autocompleteRequest.run("");
     runSearch();
   };
   const applySuggestion = (q: string) => {
     setQuery(q);
-    setSuggestions([]);
+    autocompleteRequest.run("");
     runSearch();
   };
   onMount(() => {
@@ -75,8 +71,8 @@ export default function MessageSearchView() {
     runSearch();
   });
   onCleanup(() => {
-    clearTimeout(debounceTimer);
-    clearTimeout(suggestDebounce);
+    searchRequest.dispose();
+    autocompleteRequest.dispose();
   });
   const patchFilters = (patch: Partial<SearchFilters>) => {
     setFilters({ ...filters(), ...patch });
@@ -105,8 +101,7 @@ export default function MessageSearchView() {
       })),
     );
   const goToMessage = (r: SearchResult) => {
-    store.viewState.setActiveView({ id: r.channelId, kind: "channel" });
-    store.viewState.openThread(r.channelId, r.ts);
+    navigateToSearchResult(r, store.viewState);
   };
   const canSearch = createMemo(() => !!query().trim() || filtersActive());
   return (
@@ -299,28 +294,46 @@ export default function MessageSearchView() {
             when={!loading()}
           >
             <Show
-              fallback={<div class="global-search-empty empty-state">No matches.</div>}
-              when={results().length > 0}
+              fallback={
+                <div class="message-search-error empty-state" role="alert">
+                  <span>Couldn’t search messages.</span>
+                  <Button onClick={runSearch} size="sm">
+                    Try again
+                  </Button>
+                </div>
+              }
+              when={!searchError()}
             >
-              <For each={results()}>
-                {(r) => {
-                  const user = () => store.users.userById(r.userId);
-                  return (
-                    <button
-                      class="global-search-result message-search-result btn-reset"
-                      onClick={() => goToMessage(r)}
-                      type="button"
-                    >
-                      <div class="global-search-result-meta text-muted text-sm">
-                        {user()?.name ?? "Someone"} in #{r.channelName ?? r.channelId}
-                      </div>
-                      <div class="global-search-result-snippet">
-                        <Mrkdwn text={r.text} />
-                      </div>
-                    </button>
-                  );
-                }}
-              </For>
+              <Show
+                fallback={<div class="global-search-empty empty-state">No matches.</div>}
+                when={results().length > 0}
+              >
+                <For each={results()}>
+                  {(r) => {
+                    const user = () => (r.userId ? store.users.userById(r.userId) : undefined);
+                    const channelLabel = () => {
+                      const dm = store.dms.dmById(r.channelId);
+                      if (dm) return dmDisplayName(dm, store.users.userById);
+                      if (r.channelName?.startsWith("mpdm-")) store.dms.ensureMpdm(r.channelId);
+                      return `#${r.channelName ?? r.channelId}`;
+                    };
+                    return (
+                      <button
+                        class="global-search-result message-search-result btn-reset"
+                        onClick={() => goToMessage(r)}
+                        type="button"
+                      >
+                        <div class="global-search-result-meta text-muted text-sm">
+                          {user()?.name ?? "Someone"} in {channelLabel()}
+                        </div>
+                        <div class="global-search-result-snippet">
+                          <Mrkdwn text={r.text} />
+                        </div>
+                      </button>
+                    );
+                  }}
+                </For>
+              </Show>
             </Show>
           </Show>
         </Show>

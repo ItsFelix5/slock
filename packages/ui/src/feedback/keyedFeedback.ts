@@ -32,9 +32,20 @@ export function createKeyedFeedback(ttlMs = 3000) {
     );
   }
 
+  function clear(key: string) {
+    clearTimeout(timers.get(key));
+    timers.delete(key);
+    setState((state) => {
+      if (!(key in state)) return state;
+      const next = { ...state };
+      delete next[key];
+      return next;
+    });
+  }
+
   function get(key: string): Feedback | undefined {
     return state()[key];
   }
 
-  return { flash, get };
+  return { clear, flash, get };
 }

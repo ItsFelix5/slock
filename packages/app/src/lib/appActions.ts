@@ -47,15 +47,26 @@ export function createAppActions(deps: AppActionsDeps) {
     viewState.setActiveThread(null);
   }
 
-  function openChannelPeek(channelId: string, ts: string, highlightTs?: string) {
+  function openChannelPeek(
+    channelId: string,
+    ts: string,
+    highlightTs?: string,
+    options?: { keepNav?: boolean },
+  ) {
     const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
     viewState.setSelected({ id: channelId, kind });
+    // Later and desktop notifications jump out of whatever feed they were
+    // clicked from — without this the sidebar stays stuck on that feed while
+    // the channel/thread opens behind it. Activity opts out (keepNav) so
+    // browsing the feed and opening items doesn't keep bouncing you back to
+    // the channel list.
+    if (!options?.keepNav) viewState.setNav("home");
     unread.clearChannelUnread(channelId);
     openThread(channelId, ts, highlightTs);
   }
 
-  function openChannelMessage(channelId: string, ts: string) {
-    const kind = dms.dmById(channelId) ? "dm" : "channel";
+  function openChannelMessage(channelId: string, ts: string, options?: { keepNav?: boolean }) {
+    const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
     // "View in channel" — jumps the main list to the message without closing
     // the thread panel, so this can't go through setActiveView (it clears
     // activeThread as part of a normal channel switch). Batched so effects
@@ -66,6 +77,7 @@ export function createAppActions(deps: AppActionsDeps) {
     // loaded yet.
     batch(() => {
       viewState.setSelected({ id: channelId, kind });
+      if (!options?.keepNav) viewState.setNav("home");
       unread.clearChannelUnread(channelId);
       if (kind === "dm" && dms.closedDmIds[channelId]) dms.setClosedDmIds(channelId, false);
       viewState.setChannelMessageTarget({ channelId, ts });

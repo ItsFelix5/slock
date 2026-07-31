@@ -1,8 +1,9 @@
-import { Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
+import { Button, Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { actionFeedback, composerFeedbackKey } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
-import { type ComposerProps, createComposerController } from "./composerController";
+import { createComposerController } from "./composerController";
+import type { ComposerProps } from "./composerTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
 import { linkPreviewToAttachment } from "./lib/textDetection";
 import ComposeDatePicker from "./popovers/ComposeDatePicker";
@@ -42,15 +43,24 @@ export default function Composer(props: ComposerProps) {
     onEditorClick,
     setSuggestPopoverRef,
     getFileInputRef,
+    canSend,
+    sending,
+    draftSyncError,
+    retryDraftSync,
+    retryingDraft,
+    retrySlashCommandSuggestions,
+    slashCommandSuggestionsError,
+    slashCommandSuggestionsLoading,
   } = createComposerController(props);
   return (
     <form
+      aria-busy={sending()}
       class="composer"
       classList={{ "composer-editing": !!props.editing, "drag-over": dragOver() }}
       onDragLeave={() => setDragOver(false)}
       onDragOver={(e) => {
         e.preventDefault();
-        if (!props.editing && targetChannelId()) setDragOver(true);
+        if (!(props.editing || sending()) && targetChannelId()) setDragOver(true);
       }}
       onDrop={(e) => {
         e.preventDefault();
@@ -67,8 +77,9 @@ export default function Composer(props: ComposerProps) {
                 {file.name}
                 <Tooltip content="Remove">
                   <button
-                    aria-label="Remove"
+                    aria-label={`Remove ${file.name}`}
                     class="btn-reset"
+                    disabled={sending()}
                     onClick={() => removeFile(i())}
                     type="button"
                   >
@@ -90,6 +101,7 @@ export default function Composer(props: ComposerProps) {
                   <button
                     aria-label="Remove preview"
                     class="composer-link-preview-remove btn-reset flex-center"
+                    disabled={sending()}
                     onClick={() => linkPreviews.dismissLinkPreview(preview.url)}
                     type="button"
                   >
@@ -107,6 +119,32 @@ export default function Composer(props: ComposerProps) {
           feedback={actionFeedback.get(composerFeedbackKey(feedbackKey()))}
         />
       </Show>
+      <Show when={!props.editing && draftSyncError()}>
+        <div class="composer-draft-warning flex-between" role="alert">
+          <span>Draft sync is unavailable. Keep this tab open until it is saved.</span>
+          <Button
+            disabled={retryingDraft()}
+            onClick={() => void retryDraftSync()}
+            size="sm"
+            variant="ghost"
+          >
+            {retryingDraft() ? "Retrying…" : "Retry now"}
+          </Button>
+        </div>
+      </Show>
+      <Show when={!props.editing && slashCommandSuggestionsLoading()}>
+        <div class="composer-capability-notice" role="status">
+          Loading slash-command suggestions…
+        </div>
+      </Show>
+      <Show when={!props.editing && slashCommandSuggestionsError()}>
+        <div class="composer-capability-notice composer-capability-error flex-between" role="alert">
+          <span>Couldn’t load slash-command suggestions. Commands can still be typed.</span>
+          <Button onClick={() => void retrySlashCommandSuggestions()} size="sm" variant="ghost">
+            Try again
+          </Button>
+        </div>
+      </Show>
       <div class="composer-row">
         <div class="composer-tools-wrap">
           <Menu
@@ -120,6 +158,7 @@ export default function Composer(props: ComposerProps) {
                   aria-label="Add formatting or a block"
                   class="composer-tool btn-reset flex-center flex-shrink-0"
                   classList={{ active: toolsOpen() }}
+                  disabled={disabled()}
                   onClick={() => setToolsOpen(!toolsOpen())}
                   onMouseDown={(e) => e.preventDefault()}
                   type="button"
@@ -219,6 +258,7 @@ export default function Composer(props: ComposerProps) {
         </div>
         <input
           class="composer-file-input"
+          disabled={disabled()}
           multiple
           onChange={(e) => {
             if (e.currentTarget.files?.length) addFiles(e.currentTarget.files);
@@ -227,6 +267,32 @@ export default function Composer(props: ComposerProps) {
           ref={getFileInputRef}
           type="file"
         />
+        <Show when={sending()}>
+          <span class="composer-send-status" role="status">
+            {props.editing
+              ? "Saving…"
+              : pendingFiles().length > 0
+                ? `Uploading ${pendingFiles().length === 1 ? "file" : `${pendingFiles().length} files`}…`
+                : "Sending…"}
+          </span>
+        </Show>
+        <button
+          aria-label={
+            sending()
+              ? props.editing
+                ? "Saving changes"
+                : "Sending message"
+              : props.editing
+                ? "Save changes"
+                : "Send message"
+          }
+          class="composer-send btn-reset flex-center flex-shrink-0"
+          disabled={!canSend()}
+          title={props.editing ? "Save changes" : "Send message"}
+          type="submit"
+        >
+          <Icon name={sending() ? "send" : "send-filled"} size={16} />
+        </button>
       </div>
     </form>
   );

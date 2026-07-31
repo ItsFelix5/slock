@@ -1,3 +1,4 @@
+import { Mrkdwn } from "@slock/blockkit";
 import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
 import { createEffect, createMemo, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
@@ -52,7 +53,7 @@ export default function UsergroupHoverCard(props: { usergroupId: string; childre
 
               <Show when={d().description}>
                 <div class="usergroup-hovercard-desc text-muted text-sm truncate-lines">
-                  {d().description}
+                  <Mrkdwn text={d().description ?? ""} />
                 </div>
               </Show>
 

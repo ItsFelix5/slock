@@ -1,5 +1,6 @@
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
+import { sectionMoveTarget } from "../../lib/store/slices/entities/mutations/sectionOrder";
 import SidebarView from "./SidebarView";
 import { buildCategories, type Category } from "./sidebarCategories";
 import "./Sidebar.css";
@@ -74,13 +75,21 @@ export default function Sidebar() {
     setRenamingId(cat.id);
     setRenameValue(cat.name);
   };
-  const commitRename = () => {
+  const commitRename = async () => {
+    if (store.channels.isSectionStructurePending()) return;
     const id = renamingId();
     const name = renameValue().trim();
-    setRenamingId(null);
-    if (id && name) store.channels.renameChannelSection(id, name);
+    if (!(id && name)) {
+      setRenamingId(null);
+      return;
+    }
+    if (await store.channels.renameChannelSection(id, name)) setRenamingId(null);
   };
   const handleSectionDragStart = (e: DragEvent, id: string) => {
+    if (store.channels.isSectionStructurePending()) {
+      e.preventDefault();
+      return;
+    }
     setDraggingSectionId(id);
     e.dataTransfer?.setData("text/plain", id);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
@@ -100,7 +109,12 @@ export default function Sidebar() {
     const target = dropTarget();
     setDraggingSectionId(null);
     setDropTarget(null);
-    if (!(draggedId && target) || draggedId === target.id) return;
+    if (
+      !(draggedId && target) ||
+      draggedId === target.id ||
+      store.channels.isSectionStructurePending()
+    )
+      return;
     const otherReorderableIds = categories()
       .filter((c) => c.reorderable && c.id !== draggedId)
       .map((c) => c.id);
@@ -108,11 +122,27 @@ export default function Sidebar() {
     const nextSectionId = target.before
       ? target.id
       : (otherReorderableIds[targetIndex + 1] ?? null);
-    store.channels.reorderChannelSection(draggedId, nextSectionId);
+    void store.channels.reorderChannelSection(draggedId, nextSectionId);
   };
   const handleSectionDragEnd = () => {
     setDraggingSectionId(null);
     setDropTarget(null);
+  };
+  const sectionMoveTargetFor = (id: string, direction: -1 | 1) =>
+    sectionMoveTarget(
+      categories()
+        .filter((category) => category.reorderable)
+        .map((category) => category.id),
+      id,
+      direction,
+    );
+  const canMoveSection = (id: string, direction: -1 | 1) =>
+    sectionMoveTargetFor(id, direction) !== undefined;
+  const moveSection = (id: string, direction: -1 | 1) => {
+    const target = sectionMoveTargetFor(id, direction);
+    if (target === undefined || store.channels.isSectionStructurePending()) return;
+    setSectionMenuOpen(null);
+    void store.channels.reorderChannelSection(id, target);
   };
   const filteredDms = createMemo(() =>
     store.dms.directMessages().filter((dm) => {
@@ -140,6 +170,7 @@ export default function Sidebar() {
     appDms,
     appsOpen,
     bootstrap: store.resources.bootstrap,
+    canMoveSection,
     categories,
     collapsed,
     commitRename,
@@ -162,14 +193,23 @@ export default function Sidebar() {
     unreadPingCount: store.activity.unreadPingCount,
     maxWidth: MAX_WIDTH,
     minWidth: MIN_WIDTH,
+    moveSection,
     nav: store.viewState.nav,
     openUserProfile: store.users.openUserProfile,
     peopleDms,
+    preferencesError: () => store.resources.userPrefs.error,
+    preferencesLoading: () => store.resources.userPrefs.loading,
+    isSectionSidebarPending: store.channels.isSectionSidebarPending,
     renameValue,
     renamingId,
+    retryPreferences: store.resources.retryUserPrefs,
+    retrySections: store.channels.retrySections,
     setRenamingId,
     searchOpen,
     sectionMenuOpen,
+    sectionsError: store.channels.sectionsError,
+    sectionsLoading: store.channels.sectionsLoading,
+    sectionStructurePending: store.channels.isSectionStructurePending,
     setAppsOpen,
     setDmsOpen,
     showAllInCategory,

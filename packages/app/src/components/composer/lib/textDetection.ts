@@ -59,6 +59,6 @@ export function detectMentionTrigger(
     kind = "userlink";
     token = token.slice(1);
   }
-  if (kind === "emoji" && !/^[a-z0-9_+-]*$/i.test(token)) return null;
+  if (kind === "emoji" && !/^[a-z0-9_+'-]*$/i.test(token)) return null;
   return { kind, query: token, start: idx };
 }

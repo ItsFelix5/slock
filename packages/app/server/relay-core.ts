@@ -1,94 +1,20 @@
 // biome-ignore-all lint/style/useNamingConvention: Relay payloads preserve Slack's wire field names.
-import { gzipSync } from "node:zlib";
+import { compressedResponse } from "./http/compressedResponse.ts";
+import {
+  authResponse,
+  type Credentials,
+  cors,
+  logoutResponse,
+  slackCookieHeader,
+} from "./relay-auth.ts";
 import { emojiImageUrl, emojiListResponse } from "./relay-emoji.ts";
-import { fileProxyResponse, fileUploadProxyResponse } from "./relay-files.ts";
+import {
+  externalMediaProxyResponse,
+  fileProxyResponse,
+  fileUploadProxyResponse,
+} from "./relay-files.ts";
 import { trimSlackResponse } from "./relay-trim.ts";
 import { unfurlResponse } from "./relay-unfurl.ts";
-
-// Shared by every text/JSON response this relay sends — gzips when the
-// client says it accepts it (every browser does; this mostly matters for
-// the odd non-browser caller) instead of shipping raw JSON, which for
-// something like client.userBoot is easily 70-90% smaller compressed.
-export function compressedResponse(
-  body: string,
-  headers: Record<string, string>,
-  acceptEncoding: string | null,
-): Response {
-  const withVary = {
-    ...headers,
-    vary: headers.vary ? `${headers.vary}, Accept-Encoding` : "Accept-Encoding",
-  };
-  if (acceptEncoding?.split(",").some((part) => part.trim().startsWith("gzip"))) {
-    return new Response(gzipSync(body), { headers: { ...withVary, "content-encoding": "gzip" } });
-  }
-  return new Response(body, { headers: withVary });
-}
-
-export type Credentials = { domain: string; token: string; route: string; slackSession: string };
-type AuthPayload = Credentials;
-const CREDS_COOKIE = "slock_creds";
-const INVALID_SLACK_SESSION_RE = /[;\s]/;
-
-function extractSlackSession(cookieHeader: string): string | null {
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1 || part.slice(0, eq).trim() !== "d") continue;
-    const value = part.slice(eq + 1).trim();
-    return value.startsWith("xoxd-") && !INVALID_SLACK_SESSION_RE.test(value) ? value : null;
-  }
-  return null;
-}
-
-function isAuthPayload(value: unknown): value is AuthPayload {
-  if (!(value && typeof value === "object")) return false;
-  const payload = value as Partial<AuthPayload>;
-  return (
-    typeof payload.domain === "string" &&
-    payload.domain.length > 0 &&
-    typeof payload.token === "string" &&
-    payload.token.length > 0 &&
-    typeof payload.route === "string" &&
-    payload.route.length > 0 &&
-    typeof payload.slackSession === "string" &&
-    payload.slackSession.startsWith("xoxd-") &&
-    !INVALID_SLACK_SESSION_RE.test(payload.slackSession)
-  );
-}
-
-export function slackCookieHeader(creds: Credentials): string {
-  return `d=${creds.slackSession}`;
-}
-
-export function encodeCredsCookie(creds: Credentials, secure: boolean): string {
-  const value = encodeURIComponent(JSON.stringify(creds));
-  const flags = ["HttpOnly", "SameSite=Strict", "Path=/", "Max-Age=34560000"];
-  if (secure) flags.push("Secure");
-  return `${CREDS_COOKIE}=${value}; ${flags.join("; ")}`;
-}
-export function parseCredsCookie(cookieHeader: string | null): Credentials | null {
-  if (!cookieHeader) return null;
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() !== CREDS_COOKIE) continue;
-    try {
-      const parsed = JSON.parse(decodeURIComponent(part.slice(eq + 1).trim()));
-      if (isAuthPayload(parsed)) return parsed;
-      // Migrate credentials saved before Slock stopped retaining the entire
-      // copied Slack Cookie header. /config rewrites this canonical value.
-      const slackSession =
-        typeof parsed?.cookie === "string" ? extractSlackSession(parsed.cookie) : null;
-      const migrated = { ...parsed, slackSession };
-      if (isAuthPayload(migrated)) {
-        const { domain, route, token } = migrated;
-        return { domain, route, slackSession: migrated.slackSession, token };
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
 
 async function parseSlackResponse(res: Response): Promise<any> {
   const text = await res.text();
@@ -106,7 +32,11 @@ async function parseSlackResponse(res: Response): Promise<any> {
 
 const SLACK_CALL_TIMEOUT_MS = 15_000;
 
-function slackRequestBody(method: string, params: Record<string, string>, token: string) {
+function slackRequestBody(
+  method: string,
+  params: Record<string, string>,
+  token: string,
+): { body: FormData | string; headers: Record<string, string> } {
   if (method === "messages.list" && params.message_ids) {
     const body = new FormData();
     body.append("token", token);
@@ -142,33 +72,6 @@ export async function callSlack(
   } catch {
     return { error: "upstream_timeout", ok: false };
   }
-}
-export const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
-
-function authResponse(raw: string, secure: boolean): Response {
-  try {
-    const parsed = JSON.parse(raw);
-    if (!isAuthPayload(parsed)) throw new Error("Invalid Slack credentials.");
-    const { domain, route, slackSession, token } = parsed;
-    const creds = { domain, route, slackSession, token };
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...cors, "set-cookie": encodeCredsCookie(creds, secure) },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Couldn't parse that request.";
-    return new Response(JSON.stringify({ error: message, ok: false }), {
-      headers: cors,
-      status: 400,
-    });
-  }
-}
-function logoutResponse(): Response {
-  return new Response(JSON.stringify({ ok: true }), {
-    headers: {
-      ...cors,
-      "set-cookie": `${CREDS_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
-    },
-  });
 }
 async function slackRelayResponse(
   method: string,
@@ -276,11 +179,11 @@ export async function routeRelayRequest(
       searchParams.get("filename"),
     );
   }
+  if (method === "GET" && pathname === "/media-proxy") {
+    return externalMediaProxyResponse(searchParams.get("url"));
+  }
   if (method === "GET" && pathname === "/unfurl") {
     return unfurlResponse(searchParams.get("url"));
-  }
-  if (method === "GET" && pathname === "/config") {
-    return configResponse(creds, secure);
   }
   if (method === "POST" && pathname === "/auth") {
     const raw = await body.text();
@@ -291,18 +194,4 @@ export async function routeRelayRequest(
     return logoutResponse();
   }
   return null;
-}
-export function configResponse(creds: Credentials | null, secure = false): Response {
-  return new Response(
-    JSON.stringify({
-      configured: creds !== null,
-      domain: creds?.domain ?? null,
-      // `route` is "T..." on a plain workspace, "E...:T..." on Enterprise
-      // Grid — the team id is always its last segment.
-      teamId: creds ? (creds.route.split(":").at(-1) ?? null) : null,
-    }),
-    {
-      headers: creds ? { ...cors, "set-cookie": encodeCredsCookie(creds, secure) } : cors,
-    },
-  );
 }

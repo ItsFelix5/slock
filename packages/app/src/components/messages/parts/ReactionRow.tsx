@@ -16,6 +16,7 @@ function reactorNames(users: string[]) {
 }
 
 export default function ReactionRow(props: {
+  isPending?: (name: string) => boolean;
   reactions: Reaction[];
   onToggle: (name: string) => void;
 }) {
@@ -30,8 +31,10 @@ export default function ReactionRow(props: {
           return (
             <Tooltip content={`${reactorNames(r.users)} reacted with :${r.name}:`}>
               <button
+                aria-busy={props.isPending?.(r.name) ?? false}
                 class="reaction-pill btn-reset flex-align-center"
                 classList={{ mine: mine() }}
+                disabled={props.isPending?.(r.name) ?? false}
                 onClick={() => props.onToggle(r.name)}
                 type="button"
               >

@@ -15,6 +15,7 @@ import { actionFeedback } from "../feedback";
 // than localStorage, so it follows the account across devices.
 export function createChannelTabsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const [channelTabs, setChannelTabs] = createSignal<Record<string, ChannelTabType[]>>({});
+  const [pending, setPending] = createSignal(false);
 
   let seeded = false;
   createEffect(() => {
@@ -31,19 +32,36 @@ export function createChannelTabsSlice(deps: { userPrefs: () => UserPrefs | unde
     setChannelTabs(next);
   });
 
-  function persist(changedChannelId: string, next: Record<string, ChannelTabType[]>) {
+  async function persist(
+    changedChannelId: string,
+    next: Record<string, ChannelTabType[]>,
+  ): Promise<void> {
+    if (pending()) return;
+    if (!deps.userPrefs()) {
+      actionFeedback.flash(
+        channelTabsFeedbackKey(changedChannelId),
+        "Preferences are unavailable. Try loading them again.",
+        "error",
+      );
+      return;
+    }
     const previous = channelTabs();
+    setPending(true);
     setChannelTabs(next);
     const payload: Record<string, { type: string }[]> = {};
     for (const [channelId, types] of Object.entries(next)) {
       if (types.length) payload[channelId] = types.map((type) => ({ type }));
     }
-    setChannelTabsApi(payload).catch((err) => {
+    try {
+      await setChannelTabsApi(payload);
+    } catch (err) {
       console.error("Failed to sync channel tabs", err);
       setChannelTabs(previous);
       const message = err instanceof Error ? err.message : "Failed to save tab changes.";
       actionFeedback.flash(channelTabsFeedbackKey(changedChannelId), message, "error");
-    });
+    } finally {
+      setPending(false);
+    }
   }
 
   function tabsForChannel(channelId: string): ChannelTabType[] {
@@ -73,5 +91,12 @@ export function createChannelTabsSlice(deps: { userPrefs: () => UserPrefs | unde
     persist(channelId, { ...channelTabs(), [channelId]: next });
   }
 
-  return { addChannelTab, channelTabs, moveChannelTab, removeChannelTab, tabsForChannel };
+  return {
+    addChannelTab,
+    channelTabs,
+    isPending: pending,
+    moveChannelTab,
+    removeChannelTab,
+    tabsForChannel,
+  };
 }

@@ -1,0 +1,35 @@
+.video-player-error {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 360px;
+  min-height: 120px;
+  max-width: 100%;
+  gap: 8px;
+  padding: 16px;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+}
+
+.video-player-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.video-player-action {
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.video-player-action:hover {
+  text-decoration: underline;
+}

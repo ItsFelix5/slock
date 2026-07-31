@@ -10,11 +10,33 @@
 }
 
 .file-viewer-title {
+  min-width: 0;
   overflow: hidden;
   font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.file-viewer-header-main {
+  display: flex;
+  flex: 1;
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+}
+
+.file-viewer-open-link {
+  flex-shrink: 0;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.file-viewer-open-link:hover {
+  text-decoration: underline;
 }
 
 .file-viewer-frame {
@@ -23,8 +45,27 @@
   border: none;
 }
 
-.file-viewer-loading {
+.file-viewer-frame-wrap {
+  position: relative;
   flex: 1;
+  min-height: 0;
+}
+
+.file-viewer-pdf-frame {
+  height: 100%;
+}
+
+.file-viewer-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--main-bg);
+}
+
+.file-viewer-error {
+  flex: 1;
+  gap: 12px;
+  color: var(--text-secondary);
 }
 
 .file-viewer-mail {

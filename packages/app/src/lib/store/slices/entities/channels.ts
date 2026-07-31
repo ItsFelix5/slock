@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive channel entity slice with shared optimistic section state.
-import type { BrowsableChannel, Channel, ChannelSection } from "@slock/slack-api";
+import type { BrowsableChannel, Channel, ChannelSection, UserPrefs } from "@slock/slack-api";
 import {
   createSection as apiCreateSection,
   deleteSection as apiDeleteSection,
@@ -15,15 +15,20 @@ import {
   leaveChannel,
   toggleStar,
 } from "@slock/slack-api";
-import { createEffect, createMemo, createResource, createSignal } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, type Setter } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 import type { View } from "../types";
+import { removeSectionChannelsBatched } from "./mutations/sectionChannelRemovals";
+import { reorderSections } from "./mutations/sectionOrder";
+import { setSectionSidebarPreference } from "./mutations/sectionSidebarPrefs";
 
 export function createChannelsSlice(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;
   activeView: () => View | null;
   setActiveView: (view: View) => void;
+  userPrefs: () => UserPrefs | undefined;
+  mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
   // Channels resolved only for display purposes (e.g. a #channel mention link
@@ -32,12 +37,19 @@ export function createChannelsSlice(deps: {
   // the sidebar via `channels()`.
   const [discoveredChannels, setDiscoveredChannels] = createStore<Channel[]>([]);
   const pendingChannels = new Set<string>();
+  const channelDiscoveryMisses = new Map<string, number>();
+  const channelDiscoveryRetryMs = 30_000;
   const channelDetailsRequested = new Set<string>();
   // Local edits (rename, topic) on top of the immutable bootstrap snapshot,
   // applied when `channels()` assembles its list.
   const [channelPatches, setChannelPatches] = createStore<Record<string, Partial<Channel>>>({});
   const [leftChannelIds, setLeftChannelIds] = createStore<Record<string, boolean>>({});
+  const [joinPendingIds, setJoinPendingIds] = createStore<Record<string, boolean>>({});
+  const [leavePendingIds, setLeavePendingIds] = createStore<Record<string, boolean>>({});
   const [starredChannelIds, setStarredChannelIds] = createStore<Record<string, boolean>>({});
+  const [placementPendingByChannel, setPlacementPendingByChannel] = createStore<
+    Record<string, boolean>
+  >({});
   let starredSeeded = false;
   const [browsableChannels, setBrowsableChannels] = createSignal<BrowsableChannel[]>([]);
 
@@ -66,7 +78,7 @@ export function createChannelsSlice(deps: {
   // conversations.info resolves public channels fine even when we're not a
   // member; it only fails for private channels we're not in, which is the
   // one case Flaron (an external, unauthenticated lookup) is for.
-  async function discoverChannel(id: string) {
+  async function discoverChannel(id: string): Promise<boolean> {
     let channel: Channel | null;
     try {
       const details = await fetchChannelDetails(id);
@@ -80,7 +92,9 @@ export function createChannelsSlice(deps: {
     } catch {
       channel = await fetchFlaronChannel(id);
     }
-    if (channel) setDiscoveredChannels(produce((list) => list.push(channel)));
+    if (!channel) return false;
+    setDiscoveredChannels(produce((list) => list.push(channel)));
+    return true;
   }
 
   function channelById(id: string): Channel | undefined {
@@ -92,11 +106,17 @@ export function createChannelsSlice(deps: {
     // channel apart from one of this account's own that just hasn't loaded —
     // wait rather than wrongly treating it as external and hitting Flaron.
     if (!deps.bootstrap()) return;
+    const missedAt = channelDiscoveryMisses.get(id);
+    if (missedAt && Date.now() - missedAt < channelDiscoveryRetryMs) return;
     if (!pendingChannels.has(id)) {
       pendingChannels.add(id);
-      discoverChannel(id).catch(() => {
-        pendingChannels.delete(id);
-      });
+      discoverChannel(id)
+        .then((found) => {
+          if (found) channelDiscoveryMisses.delete(id);
+          else channelDiscoveryMisses.set(id, Date.now());
+        })
+        .catch(() => channelDiscoveryMisses.set(id, Date.now()))
+        .finally(() => pendingChannels.delete(id));
     }
   }
 
@@ -116,7 +136,7 @@ export function createChannelsSlice(deps: {
       .then((details) => {
         if (details.topic) patchChannel(id, { topic: details.topic });
       })
-      .catch(() => {});
+      .catch(() => channelDetailsRequested.delete(id));
   }
 
   function isChannelMember(id: string): boolean {
@@ -127,19 +147,39 @@ export function createChannelsSlice(deps: {
     return !!leftChannelIds[channelId];
   }
 
-  async function joinChannelById(channelId: string) {
+  function isJoinPending(channelId: string): boolean {
+    return !!joinPendingIds[channelId];
+  }
+
+  function isLeavePending(channelId: string): boolean {
+    return !!leavePendingIds[channelId];
+  }
+
+  async function joinChannelById(channelId: string): Promise<boolean> {
+    if (isJoinPending(channelId)) return false;
+    setJoinPendingIds(channelId, true);
     try {
       const channel = await joinChannel(channelId);
-      setExtraChannels(produce((list) => list.push(channel)));
+      setExtraChannels(
+        produce((list) => {
+          if (!list.some((candidate) => candidate.id === channel.id)) list.push(channel);
+        }),
+      );
       setLeftChannelIds(channelId, false);
       deps.setActiveView({ id: channel.id, kind: "channel" });
+      return true;
     } catch (err) {
       console.error("Failed to join channel", err);
       actionFeedback.flash(channelId, "Failed to join channel.", "error");
+      return false;
+    } finally {
+      setJoinPendingIds(channelId, false);
     }
   }
 
-  async function leaveCurrentChannel(channelId: string) {
+  async function leaveCurrentChannel(channelId: string): Promise<boolean> {
+    if (isLeavePending(channelId)) return false;
+    setLeavePendingIds(channelId, true);
     try {
       await leaveChannel(channelId);
       setLeftChannelIds(channelId, true);
@@ -147,159 +187,333 @@ export function createChannelsSlice(deps: {
         const next = channels().find((c) => c.id !== channelId && !isChannelLeft(c.id));
         if (next) deps.setActiveView({ id: next.id, kind: "channel" });
       }
+      return true;
     } catch (err) {
       console.error("Failed to leave channel", err);
       actionFeedback.flash(channelId, "Failed to leave channel.", "error");
+      return false;
+    } finally {
+      setLeavePendingIds(channelId, false);
     }
   }
 
   // ---- sections ----
 
-  const [sections, { refetch: refetchSections, mutate: mutateSections }] =
+  const [rawSections, { refetch: refetchSections, mutate: mutateSections }] =
     createResource(fetchSections);
+  const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
+  const [sectionSidebarPendingById, setSectionSidebarPendingById] = createStore<
+    Record<string, boolean>
+  >({});
+  async function refreshSections(): Promise<ChannelSection[] | null | undefined> {
+    try {
+      return await refetchSections();
+    } catch {
+      // The resource retains its error for the sidebar's retry state. Callers
+      // should not become unhandled rejected event promises just because the
+      // follow-up refresh after a successful mutation failed.
+    }
+  }
+  // Neither a section's `sort` nor its `sidebar` filter is carried reliably by
+  // users.channelSections.list — both live in the separate users.prefs
+  // "channel_sections" blob — so merge them in here rather than teaching every
+  // section resource consumer about two sources.
+  const sections = createMemo<ChannelSection[] | undefined>(() => {
+    const list = rawSections();
+    if (!list) return list;
+    const prefs = deps.userPrefs();
+    const sectionSort = prefs?.sectionSort ?? {};
+    const sectionSidebar = prefs?.sectionSidebar ?? {};
+    return list.map((s) => {
+      const sort = sectionSort[s.id];
+      const sidebar = sectionSidebar[s.id] ?? s.sidebar;
+      if (!sort && sidebar === s.sidebar) return s;
+      return { ...s, sidebar, ...(sort ? { sort } : {}) };
+    });
+  });
 
   async function createChannelSection(
     name: string,
     feedbackKey = name,
   ): Promise<{ id: string; name: string } | null> {
-    const created = await apiCreateSection(name);
-    if (!created) {
+    if (sectionStructurePending()) return null;
+    setSectionStructurePending(true);
+    try {
+      const created = await apiCreateSection(name);
+      if (!created) {
+        actionFeedback.flash(feedbackKey, "Failed to create section.", "error");
+        return null;
+      }
+      await refreshSections();
+      return created;
+    } catch (err) {
+      console.error("Failed to create section", err);
       actionFeedback.flash(feedbackKey, "Failed to create section.", "error");
       return null;
+    } finally {
+      setSectionStructurePending(false);
     }
-    await refetchSections();
-    return created;
   }
 
-  async function renameChannelSection(sectionId: string, name: string) {
-    const ok = await apiRenameSection(sectionId, name);
-    if (!ok) {
+  async function renameChannelSection(sectionId: string, name: string): Promise<boolean> {
+    if (sectionStructurePending()) return false;
+    setSectionStructurePending(true);
+    try {
+      if (await apiRenameSection(sectionId, name)) {
+        await refreshSections();
+        return true;
+      }
       actionFeedback.flash(sectionId, "Failed to rename section.", "error");
-      return;
+      return false;
+    } catch (err) {
+      console.error("Failed to rename section", err);
+      actionFeedback.flash(sectionId, "Failed to rename section.", "error");
+      return false;
+    } finally {
+      setSectionStructurePending(false);
     }
-    await refetchSections();
   }
 
-  async function deleteChannelSection(sectionId: string) {
-    const ok = await apiDeleteSection(sectionId);
-    if (!ok) {
+  async function deleteChannelSection(sectionId: string): Promise<boolean> {
+    if (sectionStructurePending()) return false;
+    setSectionStructurePending(true);
+    try {
+      if (await apiDeleteSection(sectionId)) {
+        await refreshSections();
+        return true;
+      }
       actionFeedback.flash(sectionId, "Failed to delete section.", "error");
-      return;
+      return false;
+    } catch (err) {
+      console.error("Failed to delete section", err);
+      actionFeedback.flash(sectionId, "Failed to delete section.", "error");
+      return false;
+    } finally {
+      setSectionStructurePending(false);
     }
-    await refetchSections();
   }
 
-  async function setChannelSectionSidebar(sectionId: string, sidebar: ChannelSection["sidebar"]) {
-    const current = sections() ?? [];
-    const section = current.find((candidate) => candidate.id === sectionId);
-    if (!section || section.sidebar === sidebar) return;
-    mutateSections(
-      current.map((candidate) =>
-        candidate.id === sectionId ? { ...candidate, sidebar } : candidate,
-      ),
-    );
-    if (!(await apiSetSectionSidebar(sectionId, sidebar))) {
-      actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
-      mutateSections(current);
-      return;
+  function isSectionSidebarPending(sectionId: string): boolean {
+    return !!sectionSidebarPendingById[sectionId];
+  }
+
+  async function setChannelSectionSidebar(
+    sectionId: string,
+    sidebar: ChannelSection["sidebar"],
+  ): Promise<boolean> {
+    const section = (sections() ?? []).find((candidate) => candidate.id === sectionId);
+    if (
+      !section ||
+      section.sidebar === sidebar ||
+      sectionStructurePending() ||
+      isSectionSidebarPending(sectionId)
+    )
+      return false;
+    // The filter lives in the users.prefs "channel_sections" blob, so drive the
+    // optimistic update through there — mutating rawSections would be undone by
+    // the next refetch, which doesn't carry the sidebar value.
+    const prev = deps.userPrefs();
+    if (!prev) {
+      actionFeedback.flash(
+        sectionId,
+        "Preferences are unavailable. Try loading them again.",
+        "error",
+      );
+      return false;
     }
-    await refetchSections();
+    const previousSidebar = prev.sectionSidebar[sectionId];
+    setSectionSidebarPendingById(sectionId, true);
+    actionFeedback.clear(sectionId);
+    deps.mutateUserPrefs((current) =>
+      current ? setSectionSidebarPreference(current, sectionId, sidebar) : current,
+    );
+    const rollback = () =>
+      deps.mutateUserPrefs((current) =>
+        current ? setSectionSidebarPreference(current, sectionId, previousSidebar) : current,
+      );
+    try {
+      if (await apiSetSectionSidebar(sectionId, sidebar)) return true;
+      actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
+      rollback();
+      return false;
+    } catch (err) {
+      console.error("Failed to update section filter", err);
+      actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
+      rollback();
+      return false;
+    } finally {
+      setSectionSidebarPendingById(sectionId, false);
+    }
   }
 
   // Moves `sectionId` to sit directly above `nextSectionId` (or to the
   // bottom of the list when null). Reordered optimistically so a drag feels
   // instant; rolled back if the server call fails.
-  async function reorderChannelSection(sectionId: string, nextSectionId: string | null) {
+  async function reorderChannelSection(
+    sectionId: string,
+    nextSectionId: string | null,
+  ): Promise<boolean> {
+    if (sectionStructurePending()) return false;
     const current = sections() ?? [];
-    const moved = current.find((s) => s.id === sectionId);
-    if (!moved) return;
-    const without = current.filter((s) => s.id !== sectionId);
-    const insertAt = nextSectionId ? without.findIndex((s) => s.id === nextSectionId) : -1;
-    const target = insertAt === -1 ? without.length : insertAt;
-    const optimistic: ChannelSection[] = [
-      ...without.slice(0, target),
-      moved,
-      ...without.slice(target),
-    ];
+    const optimistic = reorderSections(current, sectionId, nextSectionId);
+    if (!optimistic) return false;
+    setSectionStructurePending(true);
     mutateSections(optimistic);
-
-    const ok = await apiReorderSection(sectionId, nextSectionId);
-    if (!ok) {
+    try {
+      if (await apiReorderSection(sectionId, nextSectionId)) {
+        await refreshSections();
+        return true;
+      }
       actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
       mutateSections(current);
-      return;
+      return false;
+    } catch (err) {
+      console.error("Failed to reorder section", err);
+      actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
+      mutateSections(current);
+      return false;
+    } finally {
+      setSectionStructurePending(false);
     }
-    await refetchSections();
   }
 
   function isChannelStarred(channelId: string): boolean {
     return !!starredChannelIds[channelId];
   }
 
-  async function toggleChannelStar(channelId: string) {
+  function isChannelPlacementPending(channelId: string): boolean {
+    return !!placementPendingByChannel[channelId];
+  }
+
+  async function toggleChannelStar(channelId: string): Promise<boolean> {
+    if (isChannelPlacementPending(channelId)) return false;
     const currentlyStarred = isChannelStarred(channelId);
+    const changesSectionMembership = !currentlyStarred;
+    if (changesSectionMembership && sectionStructurePending()) return false;
+    setPlacementPendingByChannel(channelId, true);
+    if (changesSectionMembership) setSectionStructurePending(true);
     setStarredChannelIds(channelId, !currentlyStarred);
+    let starUpdated = false;
     try {
       await toggleStar(channelId, currentlyStarred);
-    } catch (err) {
-      console.error("Failed to toggle star", err);
-      actionFeedback.flash(channelId, "Failed to update star.", "error");
-      setStarredChannelIds(channelId, currentlyStarred);
-      return;
-    }
-    // Starred and sectioned are mutually exclusive in the real client — starring a
-    // channel pulls it out of whatever section it was in.
-    if (!currentlyStarred) {
+      starUpdated = true;
+      if (currentlyStarred) return true;
+
+      // Starred and sectioned are mutually exclusive in the real client — starring a
+      // channel pulls it out of whatever section it was in.
       const from = (sections() ?? []).find(
-        (s) => s.type === "standard" && s.channelIds.includes(channelId),
+        (section) => section.type === "standard" && section.channelIds.includes(channelId),
       );
-      if (from) {
-        await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
-        await refetchSections();
+      if (from && !(await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] }))) {
+        actionFeedback.flash(
+          channelId,
+          "Starred, but couldn’t remove the channel from its previous section.",
+          "error",
+        );
+        return false;
       }
+      if (from) await refreshSections();
+      return true;
+    } catch (err) {
+      if (starUpdated) {
+        console.error("Failed to remove starred channel from its section", err);
+        actionFeedback.flash(
+          channelId,
+          "Starred, but couldn’t remove the channel from its previous section.",
+          "error",
+        );
+      } else {
+        console.error("Failed to toggle star", err);
+        actionFeedback.flash(channelId, "Failed to update star.", "error");
+        setStarredChannelIds(channelId, currentlyStarred);
+      }
+      return false;
+    } finally {
+      setPlacementPendingByChannel(channelId, false);
+      if (changesSectionMembership) setSectionStructurePending(false);
     }
   }
 
   // Slack's bulkUpdate is scoped to one section at a time, so moving a channel
   // between two custom sections is a remove-then-insert pair rather than one call.
-  async function moveChannelToSection(channelId: string, targetSectionId: string | null) {
+  async function moveChannelToSection(
+    channelId: string,
+    targetSectionId: string | null,
+  ): Promise<boolean> {
+    if (isChannelPlacementPending(channelId) || sectionStructurePending()) return false;
+    setPlacementPendingByChannel(channelId, true);
+    setSectionStructurePending(true);
     const current = sections() ?? [];
     const from = current.find(
       (s) => s.type === "standard" && s.channelIds.includes(channelId) && s.id !== targetSectionId,
     );
-    if (from) {
-      const ok = await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
-      if (!ok) {
-        actionFeedback.flash(channelId, "Failed to move channel.", "error");
-        return;
+    let removedFromSource = false;
+    let insertedIntoTarget = false;
+    try {
+      if (from) {
+        const ok = await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
+        if (!ok) {
+          actionFeedback.flash(channelId, "Failed to move channel.", "error");
+          return false;
+        }
+        removedFromSource = true;
       }
-    }
-    if (targetSectionId) {
-      const ok = await apiUpdateSectionChannels(targetSectionId, { insertChannelIds: [channelId] });
-      if (!ok) {
-        actionFeedback.flash(channelId, "Failed to move channel.", "error");
-        return;
-      }
-      // Starred and sectioned are mutually exclusive in the real client — a channel
-      // moved into a section drops out of Starred.
-      if (isChannelStarred(channelId)) {
-        setStarredChannelIds(channelId, false);
-        toggleStar(channelId, true).catch((err) => {
-          console.error("Failed to unstar channel", err);
-          setStarredChannelIds(channelId, true);
+      if (targetSectionId) {
+        const ok = await apiUpdateSectionChannels(targetSectionId, {
+          insertChannelIds: [channelId],
         });
+        if (!ok) {
+          if (from) await apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
+          actionFeedback.flash(channelId, "Failed to move channel.", "error");
+          await refreshSections();
+          return false;
+        }
+        insertedIntoTarget = true;
+        // Starred and sectioned are mutually exclusive in the real client — a channel
+        // moved into a section drops out of Starred.
+        if (isChannelStarred(channelId)) {
+          setStarredChannelIds(channelId, false);
+          try {
+            await toggleStar(channelId, true);
+          } catch (err) {
+            console.error("Failed to unstar channel", err);
+            setStarredChannelIds(channelId, true);
+            actionFeedback.flash(
+              channelId,
+              "Moved, but couldn’t remove the channel from Starred.",
+              "error",
+            );
+            await refreshSections();
+            return false;
+          }
+        }
       }
+      await refreshSections();
+      return true;
+    } catch (err) {
+      console.error("Failed to move channel", err);
+      if (removedFromSource && !insertedIntoTarget && from) {
+        try {
+          await apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
+        } catch (rollbackError) {
+          console.error("Failed to restore channel to its previous section", rollbackError);
+        }
+      }
+      actionFeedback.flash(channelId, "Failed to move channel.", "error");
+      await refreshSections();
+      return false;
+    } finally {
+      setPlacementPendingByChannel(channelId, false);
+      setSectionStructurePending(false);
     }
-    await refetchSections();
   }
 
   // Batched so closing several DMs at once (e.g. dormant-DM auto-close) costs one
   // bulkUpdate per section plus one refetch, instead of a round-trip pair per DM.
   async function removeDmsFromSidebar(dmIds: string[]): Promise<Set<string>> {
-    const removed = new Set<string>();
-    if (dmIds.length === 0) return removed;
+    if (dmIds.length === 0) return new Set();
     const current = sections() ?? [];
-    const list = current.length > 0 ? current : ((await refetchSections()) ?? []);
+    const list = current.length > 0 ? current : ((await refreshSections()) ?? []);
     const fallback =
       list.find((s) => s.type === "direct_messages") ?? list.find((s) => s.id === "sm1");
     const idsBySection = new Map<string, string[]>();
@@ -309,13 +523,16 @@ export function createChannelsSlice(deps: {
       if (!section) continue;
       idsBySection.set(section.id, [...(idsBySection.get(section.id) ?? []), dmId]);
     }
-    await Promise.all(
-      [...idsBySection.entries()].map(async ([sectionId, ids]) => {
-        const ok = await apiUpdateSectionChannels(sectionId, { removeChannelIds: ids });
-        if (ok) for (const id of ids) removed.add(id);
-      }),
+    const removed = await removeSectionChannelsBatched(
+      [...idsBySection.entries()],
+      (sectionId, ids) =>
+        apiUpdateSectionChannels(sectionId, {
+          removeChannelIds: ids,
+        }),
+      (sectionId, error) =>
+        console.error(`Failed to remove conversations from section ${sectionId}`, error),
     );
-    if (removed.size > 0) await refetchSections();
+    if (removed.size > 0) await refreshSections();
     return removed;
   }
 
@@ -344,7 +561,12 @@ export function createChannelsSlice(deps: {
     ensureChannelTopic,
     isChannelLeft,
     isChannelMember,
+    isChannelPlacementPending,
     isChannelStarred,
+    isJoinPending,
+    isLeavePending,
+    isSectionSidebarPending,
+    isSectionStructurePending: sectionStructurePending,
     joinChannelById,
     leaveCurrentChannel,
     moveChannelToSection,
@@ -353,9 +575,12 @@ export function createChannelsSlice(deps: {
     reorderChannelSection,
     removeDmFromSidebar,
     removeDmsFromSidebar,
+    retrySections: refreshSections,
     setChannelSectionSidebar,
     searchBrowsableChannels,
     sections,
+    sectionsError: () => rawSections.error,
+    sectionsLoading: () => rawSections.loading,
     toggleChannelStar,
   };
 }

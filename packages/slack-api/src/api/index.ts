@@ -9,12 +9,13 @@ export * from "./endpoints/content";
 export * from "./endpoints/drafts";
 export * from "./endpoints/messages";
 export * from "./endpoints/preferences";
-export { mapMessage, parseBadgeCounts } from "./mappers";
+export * from "./endpoints/threads";
+export { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "./mappers";
 export {
   fileProxyUrl,
   getCachedWorkspaceDomain,
-  getConfig,
   getWorkspaceDomain,
+  isConfigured,
   logout,
   submitAuthRequest,
   userProfileUrl,

@@ -17,6 +17,16 @@
   margin-bottom: 8px;
 }
 
+.user-profile-fields-warning {
+  gap: 10px;
+  padding: 8px 10px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.08);
+  border-radius: var(--radius-6);
+}
+
 .user-profile-avatar {
   position: relative;
   width: 72px;
@@ -51,6 +61,15 @@
   background: var(--text-dim);
 }
 
+button.user-profile-presence {
+  cursor: pointer;
+}
+
+button.user-profile-presence:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .user-profile-name {
   display: flex;
   align-items: baseline;
@@ -76,12 +95,6 @@
   font-size: 14px;
 }
 
-.user-profile-bio {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
 .user-profile-meta {
   margin: 10px 0 0;
 }
@@ -104,8 +117,13 @@
   border-radius: var(--radius-6);
 }
 
-.user-profile-message-btn:hover {
+.user-profile-message-btn:hover:not(:disabled) {
   background: var(--accent-hover);
+}
+
+.user-profile-message-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .user-profile-section {
@@ -217,4 +235,12 @@
   outline: none;
   background: var(--hover-bg);
   border-color: var(--accent);
+}
+
+.user-profile-name-input:disabled,
+.user-profile-title-input:disabled,
+.user-profile-pronouns-input:disabled,
+.user-profile-field-input:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }

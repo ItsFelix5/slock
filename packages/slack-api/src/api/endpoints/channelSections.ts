@@ -4,20 +4,16 @@ import { extractChannelSections } from "../mappers";
 import { callSlack } from "../relay";
 
 export async function fetchSections(): Promise<ChannelSection[]> {
-  try {
-    const data = await callSlack("users.channelSections.list");
-    if (!data.ok) return [];
-    const sections = extractChannelSections(data);
-    return (sections ?? []).map((s) => ({
-      channelIds: s.channelIds,
-      id: s.id,
-      name: s.name,
-      sidebar: s.sidebar,
-      type: s.type,
-    }));
-  } catch {
-    return [];
-  }
+  const data = await callSlack("users.channelSections.list");
+  if (!data.ok) throw new Error(data.error ?? "users.channelSections.list failed");
+  const sections = extractChannelSections(data);
+  return (sections ?? []).map((s) => ({
+    channelIds: s.channelIds,
+    id: s.id,
+    name: s.name,
+    sidebar: s.sidebar,
+    type: s.type,
+  }));
 }
 export async function createSection(name: string): Promise<{ id: string; name: string } | null> {
   const data = await callSlack("users.channelSections.create", {

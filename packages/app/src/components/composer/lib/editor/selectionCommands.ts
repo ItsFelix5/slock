@@ -1,4 +1,10 @@
-import { type InlineDialect, MRKDWN_DIALECT, mrkdwnToFragment, placeCaretAtEnd } from "../richtext";
+import {
+  htmlToFragment,
+  type InlineDialect,
+  MRKDWN_DIALECT,
+  mrkdwnToFragment,
+  placeCaretAtEnd,
+} from "../richtext";
 import { fragmentToMrkdwn } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
@@ -30,6 +36,15 @@ export function createSelectionCommands(
     if (!el) return;
     el.innerHTML = "";
     el.appendChild(mrkdwnToFragment(value, dialect));
+  }
+
+  // Canvas content comes back as a real HTML document rather than the
+  // markdown source loadDraftIntoEditor expects — see htmlToFragment.
+  function loadHtmlIntoEditor(html: string) {
+    const el = ref.get();
+    if (!el) return;
+    el.innerHTML = "";
+    el.appendChild(htmlToFragment(html));
   }
 
   function clearEditor() {
@@ -81,6 +96,7 @@ export function createSelectionCommands(
     currentTextContext,
     focusEditor,
     loadDraftIntoEditor,
+    loadHtmlIntoEditor,
     restoreSelection,
     saveSelection,
     syncFromDom,

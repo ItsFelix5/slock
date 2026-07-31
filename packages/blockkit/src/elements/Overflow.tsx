@@ -1,12 +1,14 @@
 import type { OverflowElement } from "@slock/slack-api";
 import { Icon, Menu } from "@slock/ui";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
 
 export default function Overflow(props: { el: OverflowElement }) {
   const [open, setOpen] = createSignal(false);
   const [unsupported, setUnsupported] = createSignal(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
+
+  onCleanup(() => clearTimeout(timer));
 
   return (
     <Menu

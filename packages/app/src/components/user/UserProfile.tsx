@@ -1,5 +1,6 @@
-import { EmojiText } from "@slock/blockkit";
+import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import {
+  Button,
   Icon,
   InlineFeedback,
   PanelHeader,
@@ -13,6 +14,7 @@ import EmojiPicker from "../composer/popovers/EmojiPicker";
 import "../settings/Settings.css";
 import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
+import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
 import {
   blurOnEnter,
   DEFAULT_WIDTH,
@@ -32,7 +34,9 @@ export default function UserProfile() {
   const [statusExpiration, setStatusExpiration] = createSignal(0);
   const [emojiOpen, setEmojiOpen] = createSignal(false);
   const [savingStatus, setSavingStatus] = createSignal(false);
-  useEscapeClose(store.users.closeUserProfile);
+  const [savingPresence, setSavingPresence] = createSignal(false);
+  const [savingProfileFields, setSavingProfileFields] = createSignal<Record<string, boolean>>({});
+  useEscapeClose(store.users.closeUserProfile, () => !!store.users.profileUserId());
   const user = createMemo(() => {
     const id = store.users.profileUserId();
     return id ? store.users.userById(id) : undefined;
@@ -52,30 +56,49 @@ export default function UserProfile() {
       setTitleInput(me.title ?? "");
       setPronounsInput(me.pronouns ?? "");
       const defs = store.resources.profileFieldDefs() ?? [];
-      const valueById = new Map((me.customFields ?? []).map((f) => [f.id, f.value]));
-      setCustomFieldInputs(Object.fromEntries(defs.map((d) => [d.id, valueById.get(d.id) ?? ""])));
+      setCustomFieldInputs(mergeMissingProfileFieldValues({}, defs, me.customFields ?? []));
     }),
   );
-  const saveName = async () => {
+  createEffect(
+    on(store.resources.profileFieldDefs, (defs) => {
+      const me = store.users.currentUser();
+      if (!(defs && me && user()?.id === me.id)) return;
+      setCustomFieldInputs((current) =>
+        mergeMissingProfileFieldValues(current, defs, me.customFields ?? []),
+      );
+    }),
+  );
+  const saveProfileField = async (key: string, save: () => Promise<boolean>) => {
+    if (savingProfileFields()[key]) return;
+    setSavingProfileFields((current) => ({ ...current, [key]: true }));
+    try {
+      await save();
+    } finally {
+      setSavingProfileFields((current) => ({ ...current, [key]: false }));
+    }
+  };
+  const saveName = () => {
     const v = nameInput().trim();
     if (!v || v === user()?.name) return;
-    await store.users.updateMyProfile({ displayName: v });
+    return saveProfileField("name", () => store.users.updateMyProfile({ displayName: v }));
   };
-  const saveTitle = async () => {
+  const saveTitle = () => {
     const v = titleInput().trim();
     if (v === (user()?.title ?? "")) return;
-    await store.users.updateMyProfile({ title: v });
+    return saveProfileField("title", () => store.users.updateMyProfile({ title: v }));
   };
-  const savePronouns = async () => {
+  const savePronouns = () => {
     const v = pronounsInput().trim();
     if (v === (user()?.pronouns ?? "")) return;
-    await store.users.updateMyProfile({ pronouns: v });
+    return saveProfileField("pronouns", () => store.users.updateMyProfile({ pronouns: v }));
   };
-  const saveCustomField = async (id: string) => {
+  const saveCustomField = (id: string) => {
     const v = (customFieldInputs()[id] ?? "").trim();
     const current = user()?.customFields?.find((f) => f.id === id)?.value ?? "";
     if (v === current) return;
-    await store.users.updateMyProfile({ customFields: { [id]: v } });
+    return saveProfileField(`custom:${id}`, () =>
+      store.users.updateMyProfile({ customFields: { [id]: v } }),
+    );
   };
   const statusExpirationTimestamp = (): number => {
     const sel = statusExpiration();
@@ -84,14 +107,38 @@ export default function UserProfile() {
     return Math.floor(Date.now() / 1000) + sel;
   };
   const saveStatus = async () => {
+    if (savingStatus()) return;
+    setEmojiOpen(false);
     setSavingStatus(true);
-    await store.users.updateMyStatus(statusText(), statusEmoji(), statusExpirationTimestamp());
-    setSavingStatus(false);
+    try {
+      await store.users.updateMyStatus(statusText(), statusEmoji(), statusExpirationTimestamp());
+    } finally {
+      setSavingStatus(false);
+    }
   };
   const clearStatus = async () => {
-    setStatusText("");
-    setStatusEmoji("");
-    await store.users.clearMyStatus();
+    if (savingStatus()) return;
+    setEmojiOpen(false);
+    setSavingStatus(true);
+    try {
+      if (await store.users.clearMyStatus()) {
+        setStatusText("");
+        setStatusEmoji("");
+        setStatusExpiration(0);
+      }
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+  const togglePresence = async () => {
+    if (savingPresence()) return;
+    const next = user()?.presence === "away" ? "auto" : "away";
+    setSavingPresence(true);
+    try {
+      await store.users.updateMyPresence(next);
+    } finally {
+      setSavingPresence(false);
+    }
   };
   const [now, setNow] = createSignal(Date.now());
   const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
@@ -113,6 +160,7 @@ export default function UserProfile() {
         <div class="user-profile-panel" style={{ width: `${width()}px` }}>
           <ResizeHandle
             direction={-1}
+            label="Resize profile panel"
             max={MAX_WIDTH}
             min={MIN_WIDTH}
             setWidth={setWidth}
@@ -135,15 +183,33 @@ export default function UserProfile() {
                 }}
                 src={u().avatarUrl}
               />
-              <button
-                class="user-profile-presence"
-                classList={{ away: u().presence === "away" }}
-                onClick={() =>
-                  isSelf() &&
-                  store.users.updateMyPresence(u().presence === "away" ? "auto" : "away")
+              <Show
+                fallback={
+                  <span
+                    aria-label={`${u().name} is ${u().presence}`}
+                    class="user-profile-presence"
+                    classList={{ away: u().presence === "away" }}
+                    role="img"
+                  />
                 }
-                type="button"
-              />
+                when={isSelf()}
+              >
+                <button
+                  aria-busy={savingPresence()}
+                  aria-label={
+                    savingPresence()
+                      ? "Updating presence"
+                      : u().presence === "away"
+                        ? "Set yourself active"
+                        : "Set yourself away"
+                  }
+                  class="user-profile-presence"
+                  classList={{ away: u().presence === "away" }}
+                  disabled={savingPresence()}
+                  onClick={togglePresence}
+                  type="button"
+                />
+              </Show>
             </div>
             <Show
               fallback={
@@ -151,6 +217,7 @@ export default function UserProfile() {
                   <input
                     aria-label="Display name"
                     class="user-profile-name-input"
+                    disabled={savingProfileFields().name}
                     onBlur={saveName}
                     onInput={(e) => setNameInput(e.currentTarget.value)}
                     onKeyDown={blurOnEnter}
@@ -160,6 +227,7 @@ export default function UserProfile() {
                   <input
                     aria-label="Title"
                     class="user-profile-title-input"
+                    disabled={savingProfileFields().title}
                     onBlur={saveTitle}
                     onInput={(e) => setTitleInput(e.currentTarget.value)}
                     onKeyDown={blurOnEnter}
@@ -170,6 +238,7 @@ export default function UserProfile() {
                   <input
                     aria-label="Pronouns"
                     class="user-profile-pronouns-input"
+                    disabled={savingProfileFields().pronouns}
                     onBlur={savePronouns}
                     onInput={(e) => setPronounsInput(e.currentTarget.value)}
                     onKeyDown={blurOnEnter}
@@ -190,8 +259,12 @@ export default function UserProfile() {
                   <span class="pronouns">({u().pronouns})</span>
                 </Show>
               </h2>
-              <Show when={u().title}>
-                <p class="user-profile-title text-muted">{u().title}</p>
+              <Show when={u().title || botBio()}>
+                <p class="user-profile-title text-muted">
+                  <Show fallback={<Mrkdwn text={botBio() ?? ""} />} when={u().title}>
+                    {u().title}
+                  </Show>
+                </p>
               </Show>
             </Show>
             <Show when={u().statusText}>
@@ -199,9 +272,6 @@ export default function UserProfile() {
                 <Show when={u().statusEmoji}>{(emoji) => <EmojiText text={emoji()} />}</Show>
                 {u().statusText}
               </p>
-            </Show>
-            <Show when={botBio()}>
-              <p class="user-profile-bio text-muted">{botBio()}</p>
             </Show>
             <Show when={localTime()}>
               <p class="user-profile-meta text-muted text-sm">
@@ -212,11 +282,12 @@ export default function UserProfile() {
               <div class="user-profile-actions">
                 <button
                   class="user-profile-message-btn flex-center"
+                  disabled={store.dms.isOpenDmPending(u().id)}
                   onClick={() => store.dms.openDmWithUser(u().id)}
                   type="button"
                 >
                   <Icon name="direct-messages-filled" size={15} />
-                  Message
+                  {store.dms.isOpenDmPending(u().id) ? "Opening…" : "Message"}
                 </button>
               </div>
             </Show>
@@ -230,6 +301,7 @@ export default function UserProfile() {
                     trigger={
                       <button
                         class="settings-status-emoji-btn btn-reset flex-center"
+                        disabled={savingStatus()}
                         onClick={() => setEmojiOpen(!emojiOpen())}
                         type="button"
                       >
@@ -249,6 +321,7 @@ export default function UserProfile() {
                   </Popover>
                   <input
                     class="settings-status-input"
+                    disabled={savingStatus()}
                     onInput={(e) => setStatusText(e.currentTarget.value)}
                     placeholder="What's your status?"
                     type="text"
@@ -257,6 +330,7 @@ export default function UserProfile() {
                 </div>
                 <select
                   class="settings-status-expiration"
+                  disabled={savingStatus()}
                   onChange={(e) => setStatusExpiration(Number(e.currentTarget.value))}
                   value={statusExpiration()}
                 >
@@ -276,6 +350,7 @@ export default function UserProfile() {
                   <Show when={statusText() || statusEmoji()}>
                     <button
                       class="settings-status-clear btn-reset"
+                      disabled={savingStatus()}
                       onClick={clearStatus}
                       type="button"
                     >
@@ -289,12 +364,26 @@ export default function UserProfile() {
               customFields={customFields()}
               editableFields={editableCustomFields()}
               isSelf={isSelf()}
+              isSavingField={(id) => !!savingProfileFields()[`custom:${id}`]}
               onKeyDown={blurOnEnter}
               saveField={saveCustomField}
               setValue={(id, value) => setCustomFieldInputs((prev) => ({ ...prev, [id]: value }))}
               user={u()}
               values={customFieldInputs()}
             />
+            <Show when={store.resources.profileFieldDefs.error}>
+              <div class="user-profile-fields-warning flex-between" role="alert">
+                <span>Additional profile fields are unavailable.</span>
+                <Button
+                  disabled={store.resources.profileFieldDefs.loading}
+                  onClick={() => void store.resources.retryProfileFieldDefs()}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {store.resources.profileFieldDefs.loading ? "Retrying…" : "Try again"}
+                </Button>
+              </div>
+            </Show>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
-import { Icon, type IconName, ZoomableImage } from "@slock/ui";
+import { Icon, type IconName, VideoPlayer, ZoomableImage } from "@slock/ui";
 import { For, Match, Switch } from "solid-js";
 import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
@@ -48,6 +48,7 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
               {(thumb) => (
                 <ZoomableImage
                   alt={file.title || file.name}
+                  blurSrc={file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined}
                   class="message-file-image"
                   fullSrc={fileProxyUrl(file.urlPrivate)}
                   height={file.height}
@@ -57,18 +58,15 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
               )}
             </Match>
             <Match when={file.isVideo}>
-              <video
-                aria-label={file.title || file.name}
+              <VideoPlayer
+                ariaLabel={file.title || file.name}
                 class="message-file-video"
-                controls
                 height={file.height}
+                openHref={file.urlPrivate}
                 poster={file.thumbUrl}
-                preload="metadata"
+                src={fileProxyUrl(file.urlPrivate)}
                 width={file.width}
-              >
-                <source src={fileProxyUrl(file.urlPrivate)} type={file.mimetype} />
-                Your browser does not support the video tag.
-              </video>
+              />
             </Match>
             <Match when={file.isAudio}>
               <AudioFile file={file} />

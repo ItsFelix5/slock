@@ -5,6 +5,11 @@
   border: none;
 }
 
+.dnd-btn-wrap:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .dnd-btn-feedback {
   position: absolute;
   top: 100%;

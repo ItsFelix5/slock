@@ -1,5 +1,5 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
 import type { ChannelMessageTarget, Nav, ThreadRef, View } from "../types";
 
@@ -87,10 +87,16 @@ export function createViewStateSlice(deps: {
   }
 
   function applyNavSnapshot(snap: NavSnapshot) {
-    setChannelMessageTarget(null);
-    setSelected(snap.view ?? null);
-    setNav(snap.nav ?? "home");
-    setActiveThread(snap.thread ?? null);
+    // Called from the raw `popstate` DOM listener, which Solid doesn't
+    // auto-batch (unlike JSX event handlers). Without batch(), each setter
+    // below would fire the history-sync effect on its own with a partial
+    // snapshot, pushing junk history entries and making back/forward loop.
+    batch(() => {
+      setChannelMessageTarget(null);
+      setSelected(snap.view ?? null);
+      setNav(snap.nav ?? "home");
+      setActiveThread(snap.thread ?? null);
+    });
   }
 
   if (typeof window !== "undefined") {

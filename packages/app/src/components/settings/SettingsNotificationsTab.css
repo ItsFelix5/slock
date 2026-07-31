@@ -1,0 +1,9 @@
+.settings-preferences-error {
+  gap: 12px;
+  padding: 9px 10px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--error-text);
+  background: var(--error-bg);
+  border-radius: var(--radius-6);
+}

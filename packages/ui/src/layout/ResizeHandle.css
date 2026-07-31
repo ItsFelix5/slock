@@ -4,7 +4,11 @@
   z-index: 10;
   width: 5px;
   height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
   cursor: col-resize;
+  touch-action: none;
 }
 
 .resize-handle.right {
@@ -16,7 +20,13 @@
 }
 
 .resize-handle:hover,
-.resize-handle:active {
+.resize-handle:active,
+.resize-handle:focus-visible {
   background: var(--accent);
   opacity: 0.6;
+}
+
+.resize-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

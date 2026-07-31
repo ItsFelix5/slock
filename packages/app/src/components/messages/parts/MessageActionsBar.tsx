@@ -36,7 +36,7 @@ export default function MessageActionsBar(props: {
     props.msg.isBroadcast && props.msg.threadTs ? props.msg.threadTs : props.msg.ts,
   );
 
-  const isSaved = createMemo(() => store.later.isSavedForLater(props.msg.ts));
+  const isSaved = createMemo(() => store.later.isSavedForLater(props.channelId, props.msg.ts));
 
   const react = (name: string) => {
     store.messages.reactToMessage(props.channelId, props.msg, name);
@@ -95,6 +95,10 @@ export default function MessageActionsBar(props: {
           aria-label={isSaved() ? "Remove from Later" : "Save for later"}
           class="message-hover-btn btn-reset flex-center"
           classList={{ active: isSaved() }}
+          disabled={
+            store.later.laterLoading() ||
+            store.later.isSaveForLaterPending(props.channelId, props.msg.ts)
+          }
           onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
           type="button"
         >

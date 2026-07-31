@@ -1,0 +1,29 @@
+@media (max-width: 560px) {
+  .settings-card {
+    flex-direction: column;
+    height: calc(100dvh - 24px);
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    gap: 4px;
+    width: 100%;
+    padding: 8px 44px 8px 8px;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .settings-nav-btn {
+    flex-shrink: 0;
+    text-align: center;
+  }
+
+  .settings-content {
+    padding: 16px;
+  }
+
+  .settings-size-control {
+    width: min(210px, 100%);
+  }
+}

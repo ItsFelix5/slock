@@ -17,7 +17,7 @@ type InlineNode =
   | { t: "bold"; nodes: InlineNode[] }
   | { t: "italic"; nodes: InlineNode[] }
   | { t: "strike"; nodes: InlineNode[] }
-  | { t: "code"; text: string }
+  | { t: "code"; nodes: InlineNode[] }
   | { t: "emoji"; name: string }
   | { t: "link"; url: string; label?: string }
   | { t: "userlink"; id: string; label?: string; url: string }
@@ -42,7 +42,7 @@ type BlockNode =
 // the underscores inside names like :slightly_smiling_face: never get eaten
 // by the italic rule (`_..._`) and leave the shortcode half-italicized/broken.
 const INLINE_RE =
-  /`([^`]+)`|<([^<>]*)>|:([a-z0-9_+-]+):|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
+  /`([^`]+)`|<([^<>]*)>|:([a-z0-9_+'-]+):|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~/g;
 
 function parseToken(token: string): InlineNode {
   if (token.startsWith("@")) {
@@ -63,7 +63,7 @@ function parseToken(token: string): InlineNode {
     return { fallback, format, t: "date", timestamp: Number(ts), url };
   }
   if (token.startsWith("!")) {
-    const range = token.slice(1);
+    const [range] = token.slice(1).split("|");
     if (range === "here" || range === "channel" || range === "everyone")
       return { range, t: "broadcast" };
     return { t: "text", text: `<${token}>` };
@@ -71,6 +71,24 @@ function parseToken(token: string): InlineNode {
   const [url, label] = token.split("|");
   const userId = parseUserProfileLink(url);
   return userId ? { id: userId, label, t: "userlink", url } : { label, t: "link", url };
+}
+
+// Backticks suppress bold/italic/strike formatting, but Slack still resolves
+// <url|label> link/mention/date tokens inside inline code (e.g. GitHub's
+// `<https://...|abc1234>` commit-hash links), so re-scan for those only.
+const CODE_TOKEN_RE = /<([^<>]*)>/g;
+
+function parseCodeInner(text: string): InlineNode[] {
+  const nodes: InlineNode[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(CODE_TOKEN_RE)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) nodes.push({ t: "text", text: text.slice(lastIndex, index) });
+    nodes.push(parseToken(match[1]));
+    lastIndex = index + match[0].length;
+  }
+  if (lastIndex < text.length) nodes.push({ t: "text", text: text.slice(lastIndex) });
+  return nodes;
 }
 
 function parseInline(text: string): InlineNode[] {
@@ -84,7 +102,7 @@ function parseInline(text: string): InlineNode[] {
         text: text.slice(lastIndex, index),
       });
     const [, code, token, emoji, doubleBold, bold, italic, strike] = match;
-    if (code !== undefined) nodes.push({ t: "code", text: decodeTextEntities(code) });
+    if (code !== undefined) nodes.push({ nodes: parseCodeInner(code), t: "code" });
     else if (token !== undefined) nodes.push(parseToken(token));
     else if (emoji !== undefined) nodes.push({ name: emoji, t: "emoji" });
     else if (doubleBold !== undefined || bold !== undefined)
@@ -244,7 +262,11 @@ function InlineNodeView(props: { node: InlineNode }) {
         </s>
       );
     case "code":
-      return <code class="bk-inline-code">{n.text}</code>;
+      return (
+        <code class="bk-inline-code">
+          <InlineList nodes={n.nodes} />
+        </code>
+      );
     case "emoji":
       return <EmojiText text={`:${n.name}:`} />;
     case "link":

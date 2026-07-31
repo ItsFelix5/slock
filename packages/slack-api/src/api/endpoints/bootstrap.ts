@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: Raw bootstrap payloads preserve Slack's wire field names.
 import type { Channel, DirectMessage, User } from "../../types";
 import { buildUnreadMap, mapUser, type RawCounts, type RawUser } from "../mappers";
 import { callSlack } from "../relay";
@@ -7,6 +8,7 @@ export interface Bootstrap {
   currentUser: User;
   directMessages: DirectMessage[];
   lastReadByChannel: Record<string, number>;
+  selfUsergroupIds: string[];
   starredChannelIds: string[];
 }
 
@@ -43,6 +45,7 @@ interface RawBoot {
   ok?: boolean;
   self?: RawUser;
   starred?: (string | { channel?: string; id?: string })[];
+  subteams?: { self?: string[] };
 }
 
 export async function fetchBootstrap(): Promise<Bootstrap> {
@@ -73,11 +76,21 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     }
   }
 
+  const latestByChannel = new Map(
+    (counts?.channels ?? [])
+      .filter((c): c is typeof c & { id: string } => !!c.id)
+      .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
+  );
+
   const rawChannels: RawBootChannel[] = boot.channels ?? [];
+  // client.userBoot also lists mpims here as regular private channels (is_channel: true,
+  // no is_mpim flag) — they're already modeled properly below as multiPersonDms, so drop
+  // the raw "mpdm-a--b--c" duplicate rather than letting it show up as a browsable channel.
   const channels: Channel[] = rawChannels
-    .filter((c) => c.is_channel || c.is_group)
+    .filter((c) => (c.is_channel || c.is_group) && !c.name?.startsWith("mpdm-"))
     .map((c) => ({
       id: c.id,
+      lastActivity: latestByChannel.get(c.id),
       mentions: unreadMap[c.id]?.mentions || undefined,
       name: c.name ?? c.id,
       private: !!c.is_private,
@@ -141,5 +154,14 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
     .filter((id): id is string => !!id);
 
-  return { channels, currentUser, directMessages, lastReadByChannel, starredChannelIds };
+  const selfUsergroupIds = boot.subteams?.self ?? [];
+
+  return {
+    channels,
+    currentUser,
+    directMessages,
+    lastReadByChannel,
+    selfUsergroupIds,
+    starredChannelIds,
+  };
 }

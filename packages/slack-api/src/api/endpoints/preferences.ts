@@ -1,4 +1,5 @@
 import { callSlack } from "../relay";
+import { resolveDesktopNotificationsEnabled } from "./preferences/desktopNotifications";
 
 export type UserPrefs = {
   emojiUse: Record<string, number>;
@@ -9,6 +10,8 @@ export type UserPrefs = {
   desktopNotificationsEnabled: boolean;
   searchHistory: string[];
   channelTabs: Record<string, { type: string }[]>;
+  sectionSort: Record<string, "recent">;
+  sectionSidebar: Record<string, "hid" | "active" | "all">;
   globalNotifications: {
     channelsInActivity: boolean;
     desktop: string;
@@ -43,29 +46,8 @@ export type UserPrefs = {
 // per-channel tab bar (Canvas/Pinned shortcuts under the channel header) —
 // unrelated to Slack's real, admin-only, unwritable `properties.tabs`.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
-  const empty: UserPrefs = {
-    channelFrecency: {},
-    channelTabs: {},
-    desktopNotificationsEnabled: true,
-    emojiUse: {},
-    highlightWords: [],
-    mutedChannels: [],
-    notifyAllChannels: [],
-    searchHistory: [],
-    globalNotifications: {
-      channelsInActivity: true,
-      desktop: "mentions_dms",
-      desktopPushEnabled: true,
-      keywords: [],
-      mpdmDesktop: "mentions_dms",
-      noTextInNotifications: false,
-      pushIdleWait: 0,
-      pushShowPreview: true,
-      threadsEverything: false,
-    },
-  };
   const data = await callSlack("users.prefs.get");
-  if (!data.ok) return empty;
+  if (!data.ok) throw new Error(data.error ?? "users.prefs.get failed");
   const prefs = data.prefs ?? {};
   const parse = (key: string) => {
     try {
@@ -90,7 +72,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     if (!existing || count > existing.count) channelFrecency[id] = { count, lastVisit };
   }
 
-  const mutedChannels: string[] = (prefs.muted_channels ?? "")
+  const mutedChannelsList: string[] = (prefs.muted_channels ?? "")
     .split(",")
     .map((id: string) => id.trim())
     .filter(Boolean);
@@ -98,6 +80,15 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
   const allNotifications = parse("all_notifications_prefs") ?? {};
   const notificationGlobal = allNotifications.global ?? {};
   const notificationOverrides = allNotifications.channels ?? {};
+  // The real client actually mutes a channel through this per-channel
+  // `muted` flag, not the legacy muted_channels list — merge both so a
+  // channel muted either way reads back as muted.
+  const mutedChannels = Array.from(
+    new Set([
+      ...mutedChannelsList,
+      ...Object.keys(notificationOverrides).filter((id) => notificationOverrides[id]?.muted),
+    ]),
+  );
   const hasGlobalKeywords = typeof notificationGlobal.global_keywords === "string";
   const globalKeywords = hasGlobalKeywords
     ? notificationGlobal.global_keywords
@@ -134,12 +125,30 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       notificationOverrides[id]?.mobile === "everything",
   );
 
-  const desktopNotificationsEnabled = globalNotifications.desktopPushEnabled;
+  const desktopNotificationsEnabled = resolveDesktopNotificationsEnabled(
+    prefs.slock_desktop_notifications,
+    globalNotifications.desktopPushEnabled,
+  );
   const parsedSearchHistory = parse("slock_search_history");
   const searchHistory: string[] = Array.isArray(parsedSearchHistory) ? parsedSearchHistory : [];
   const parsedChannelTabs = parse("slock_channel_tabs");
   const channelTabs: Record<string, { type: string }[]> =
     parsedChannelTabs && typeof parsedChannelTabs === "object" ? parsedChannelTabs : {};
+
+  // Per-section sidebar settings, keyed by channel_section_id. This blob is
+  // the real source of truth for both a section's filter (`sidebar`: "hid"
+  // unread-only / "active" / "all") and its `sort: "recent"` ordering —
+  // users.channelSections.list doesn't reliably carry either.
+  const parsedSectionPrefs = parse("channel_sections") ?? {};
+  const sectionSort: Record<string, "recent"> = {};
+  const sectionSidebar: Record<string, "hid" | "active" | "all"> = {};
+  if (parsedSectionPrefs && typeof parsedSectionPrefs === "object") {
+    for (const [id, value] of Object.entries<any>(parsedSectionPrefs)) {
+      if (value?.sort === "recent") sectionSort[id] = "recent";
+      if (value?.sidebar === "hid" || value?.sidebar === "active" || value?.sidebar === "all")
+        sectionSidebar[id] = value.sidebar;
+    }
+  }
 
   return {
     channelFrecency,
@@ -151,6 +160,8 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     mutedChannels,
     notifyAllChannels,
     searchHistory,
+    sectionSort,
+    sectionSidebar,
   };
 }
 
@@ -199,11 +210,13 @@ export async function setChannelTabs(entries: Record<string, { type: string }[]>
 // dnd.info is a documented public method — the account's real snooze deadline.
 export async function fetchDndStatus(): Promise<number | null> {
   const data = await callSlack("dnd.info");
-  if (!(data.ok && data.snooze_enabled && data.snooze_endtime)) return null;
+  if (!data.ok) throw new Error(data.error ?? "dnd.info failed");
+  if (!(data.snooze_enabled && data.snooze_endtime)) return null;
   return data.snooze_endtime * 1000;
 }
 
 export async function setDndSnooze(minutes: number): Promise<void> {
+  // biome-ignore lint/style/useNamingConvention: Slack expects the documented wire parameter.
   const data = await callSlack("dnd.setSnooze", { num_minutes: String(minutes) });
   if (!data.ok) throw new Error(data.error ?? "dnd.setSnooze failed");
 }

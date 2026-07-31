@@ -1,6 +1,6 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import type { LinkPreview, SavedItem } from "../../types";
+import type { LinkPreview, SavedItem } from "../../contentTypes";
 import { callSlack, fileProxyUrl } from "../relay";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
@@ -8,7 +8,10 @@ let emojiMapPromise: Promise<Record<string, string>> | null = null;
 export function fetchAllEmoji(): Promise<Record<string, string>> {
   if (!emojiMapPromise) {
     emojiMapPromise = fetch("/emoji")
-      .then((res) => res.text())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Emoji list failed (${res.status})`);
+        return res.text();
+      })
       .then((text) => {
         const names = text ? text.split("\n") : [];
         const resolved: Record<string, string> = {};
@@ -16,6 +19,10 @@ export function fetchAllEmoji(): Promise<Record<string, string>> {
           resolved[name] = `/emoji-image?name=${encodeURIComponent(name)}`;
         }
         return resolved;
+      })
+      .catch((error) => {
+        emojiMapPromise = null;
+        throw error;
       });
   }
   return emojiMapPromise;
@@ -25,7 +32,7 @@ export async function fetchSlashCommands(): Promise<
   { name: string; desc: string; icon: string | null }[]
 > {
   const data = await callSlack("commands.list");
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "commands.list failed");
   const commandsObj = data.commands ?? {};
   return Object.values<any>(commandsObj)
     .filter((c) => c?.name)
@@ -38,7 +45,7 @@ export async function fetchSlashCommands(): Promise<
 
 export async function fetchSaved(): Promise<SavedItem[]> {
   const data = await callSlack("saved.list", { limit: "40" });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "saved.list failed");
   // saved.list returns `saved_items`, each shaped like { item_id (the channel),
   // item_type: 'message', ts, ... } — item_id/ts sit at the top level, not nested.
   const items: any[] = data.saved_items ?? data.items ?? [];
@@ -56,7 +63,7 @@ export async function fetchSaved(): Promise<SavedItem[]> {
 // canvas's backing file.
 async function resolveCanvasFileUrl(fileId: string): Promise<string | null> {
   const info = await callSlack("files.info", { file: fileId });
-  if (!info.ok) return null;
+  if (!info.ok) throw new Error(info.error ?? "files.info failed");
   const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
   return downloadUrl ? fileProxyUrl(downloadUrl) : null;
 }
@@ -67,19 +74,22 @@ async function resolveCanvasFileUrl(fileId: string): Promise<string | null> {
 export async function fetchCanvas(fileId: string): Promise<string | null> {
   const url = await resolveCanvasFileUrl(fileId);
   if (!url) return null;
-  try {
-    const res = await fetch(url);
-    return await res.text();
-  } catch {
-    return null;
-  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Canvas download failed (${res.status})`);
+  return res.text();
 }
 
 // A direct, navigable link to the canvas's backing file — same cookie-proxied
 // URL fetchCanvas reads from, exposed so the UI can offer "open as a file"
 // (new tab, copy link, download) instead of only the in-app rich editor.
-export function fetchCanvasFileUrl(fileId: string): Promise<string | null> {
-  return resolveCanvasFileUrl(fileId);
+export async function fetchCanvasFileUrl(fileId: string): Promise<string | null> {
+  try {
+    return await resolveCanvasFileUrl(fileId);
+  } catch {
+    // The external-file action is optional; content loading reports its own
+    // failure and should not lose the whole panel over a missing shortcut.
+    return null;
+  }
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {
@@ -109,30 +119,44 @@ export async function runSlashCommand(
 // presigned URL — Slack doesn't grant our own origin CORS access to
 // files.slack.com — so it goes through our own same-origin relay instead,
 // which forwards it server-side where CORS doesn't apply.
-export async function uploadFile(
+export async function uploadFiles(
   channelId: string,
-  file: File,
+  files: File[],
   threadTs?: string,
   comment?: string,
 ): Promise<void> {
-  const reserve = await callSlack("files.getUploadURLExternal", {
-    filename: file.name,
-    length: String(file.size),
-  });
-  if (!reserve.ok) throw new Error(reserve.error ?? "files.getUploadURLExternal failed");
+  if (files.length === 0) return;
+  const uploaded: { id: string; title: string }[] = [];
+  for (const file of files) {
+    const reserve = await callSlack("files.getUploadURLExternal", {
+      filename: file.name,
+      length: String(file.size),
+    });
+    if (!reserve.ok) throw new Error(reserve.error ?? "files.getUploadURLExternal failed");
 
-  const uploadUrl = `/file-upload?url=${encodeURIComponent(reserve.upload_url)}&filename=${encodeURIComponent(file.name)}`;
-  const putRes = await fetch(uploadUrl, { body: file, method: "POST" });
-  if (!putRes.ok) throw new Error("file upload failed");
+    const uploadUrl = `/file-upload?url=${encodeURIComponent(reserve.upload_url)}&filename=${encodeURIComponent(file.name)}`;
+    const putRes = await fetch(uploadUrl, { body: file, method: "POST" });
+    if (!putRes.ok) throw new Error(`Failed to upload ${file.name}.`);
+    uploaded.push({ id: reserve.file_id, title: file.name });
+  }
 
   const completeParams: Record<string, string> = {
     channel_id: channelId,
-    files: JSON.stringify([{ id: reserve.file_id, title: file.name }]),
+    files: JSON.stringify(uploaded),
   };
   if (threadTs) completeParams.thread_ts = threadTs;
   if (comment) completeParams.initial_comment = comment;
   const complete = await callSlack("files.completeUploadExternal", completeParams);
   if (!complete.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
+}
+
+export function uploadFile(
+  channelId: string,
+  file: File,
+  threadTs?: string,
+  comment?: string,
+): Promise<void> {
+  return uploadFiles(channelId, [file], threadTs, comment);
 }
 
 // Client-side stand-in for Slack's own link unfurl, which only ever runs

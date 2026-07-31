@@ -23,6 +23,35 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
   };
 }
 
+// Fetches a bounded page of messages ending at (and including) `ts`, the same
+// `latest`+`inclusive` request Slack's own webapp makes when jumping to a
+// permalinked message — not a zero-width `oldest === latest` lookup, which
+// Slack's API doesn't reliably resolve to the exact message. The page doesn't
+// need to connect to whatever's already loaded further down the channel; it's
+// fine for the two to sit apart with a gap the reader can page through later.
+export async function fetchHistoryAround(
+  channelId: string,
+  ts: string,
+  limit = 28,
+): Promise<HistoryPage> {
+  const data = await callSlack("conversations.history", {
+    channel: channelId,
+    inclusive: "true",
+    latest: ts,
+    limit: String(limit),
+  });
+  if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
+  const messages: any[] = data.messages ?? [];
+  return {
+    hasMore: !!data.has_more,
+    messages: messages
+      .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
+      .map(mapMessage)
+      .reverse(),
+    nextCursor: data.response_metadata?.next_cursor || undefined,
+  };
+}
+
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
   const data = await callSlack("conversations.replies", {
     channel: channelId,
@@ -123,8 +152,10 @@ export async function toggleSaved(channelId: string, ts: string, remove: boolean
   return data;
 }
 
-export function markChannelRead(channelId: string, ts: string) {
-  return callSlack("conversations.mark", { channel: channelId, ts });
+export async function markChannelRead(channelId: string, ts: string) {
+  const data = await callSlack("conversations.mark", { channel: channelId, ts });
+  if (!data.ok) throw new Error(data.error ?? "conversations.mark failed");
+  return data;
 }
 
 export async function toggleStar(channelId: string, remove: boolean) {
@@ -135,7 +166,7 @@ export async function toggleStar(channelId: string, remove: boolean) {
 
 export async function fetchPins(channelId: string): Promise<string[]> {
   const data = await callSlack("pins.list", { channel: channelId });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   const items: any[] = data.items ?? [];
   return items.map((it) => it.message?.ts ?? it.created ?? it.channel).filter(Boolean);
 }
@@ -147,7 +178,7 @@ export interface PinnedMessage {
 
 export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
   const data = await callSlack("pins.list", { channel: channelId });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   const items: any[] = data.items ?? [];
   return items
     .filter((it) => it.type === "message" && it.message)
@@ -160,25 +191,6 @@ export async function togglePin(channelId: string, ts: string, remove: boolean) 
     timestamp: ts,
   });
   if (!data.ok) throw new Error(data.error ?? "pins.add/remove failed");
-  return data;
-}
-
-// Private endpoint behind the webapp's "Get notified about new replies" /
-// "Unfollow thread" thread-menu actions — conversations.replies exposes the
-// resulting state back as `subscribed` on the thread's root message.
-export async function toggleThreadSubscription(
-  channelId: string,
-  threadTs: string,
-  remove: boolean,
-) {
-  const data = await callSlack(
-    remove ? "subscriptions.thread.remove" : "subscriptions.thread.add",
-    {
-      channel: channelId,
-      thread_ts: threadTs,
-    },
-  );
-  if (!data.ok) throw new Error(data.error ?? "subscriptions.thread.add/remove failed");
   return data;
 }
 
@@ -229,6 +241,7 @@ export interface SearchResult {
   channelId: string;
   channelName: string;
   text: string;
+  threadTs?: string;
   ts: string;
   userId: string;
 }
@@ -243,15 +256,18 @@ export async function searchMessages(
     sort: opts?.sort ?? "timestamp",
     sort_dir: opts?.sortDir ?? "desc",
   });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "search.messages failed");
   const matches: any[] = data.messages?.matches ?? [];
-  return matches.map((m) => ({
-    channelId: m.channel?.id,
-    channelName: m.channel?.name,
-    text: m.text ?? "",
-    ts: m.ts,
-    userId: m.user,
-  }));
+  return matches
+    .filter((match) => !!(match?.channel?.id && match.ts))
+    .map((match) => ({
+      channelId: match.channel.id,
+      channelName: match.channel.name ?? match.channel.id,
+      text: match.text ?? "",
+      threadTs: match.thread_ts || undefined,
+      ts: match.ts,
+      userId: match.user ?? "",
+    }));
 }
 
 // Slack's own query-completion suggestions (e.g. finishing a partial word,

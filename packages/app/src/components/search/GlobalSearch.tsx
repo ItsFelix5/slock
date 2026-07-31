@@ -1,29 +1,19 @@
 import type { BrowsableChannel, Channel, DirectMessage, User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
 import {
-  Avatar,
-  AvatarStack,
+  createDebouncedRequest,
   fuzzySearch,
   Icon,
   Overlay,
   Tooltip,
   useEscapeClose,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createUniqueId, onCleanup } from "solid-js";
 import { dmDisplayName, store } from "../../lib/store";
 import "./GlobalSearch.css";
+import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
-interface JumpChannel {
-  id: string;
-  joined: boolean;
-  name: string;
-  private: boolean;
-}
-type Row =
-  | { kind: "channel"; data: JumpChannel }
-  | { kind: "person"; data: User }
-  | { kind: "dm"; data: DirectMessage };
-type Candidate = { row: Row; name: string; id: string };
+type Candidate = { row: GlobalSearchRow; name: string; id: string };
 type SearchItem =
   | { kind: "message-search" }
   | { kind: "channel"; data: JumpChannel }
@@ -34,14 +24,36 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const [remotePeople, setRemotePeople] = createSignal<User[]>([]);
   const [remoteChannels, setRemoteChannels] = createSignal<BrowsableChannel[]>([]);
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
-  let peopleDebounce: ReturnType<typeof setTimeout> | undefined;
-  let peopleRequestId = 0;
-  let channelDebounce: ReturnType<typeof setTimeout> | undefined;
-  let channelRequestId = 0;
+  const [peopleSearching, setPeopleSearching] = createSignal(false);
+  const [channelsSearching, setChannelsSearching] = createSignal(false);
+  const [peopleError, setPeopleError] = createSignal(false);
+  const [channelsError, setChannelsError] = createSignal(false);
+  const listboxId = createUniqueId();
   useEscapeClose(props.onClose);
+  const peopleRequest = createDebouncedRequest(
+    (q) => store.users.searchUsers(q, store.users.currentUser()?.id),
+    {
+      onError: () => setPeopleError(true),
+      onPendingChange: setPeopleSearching,
+      onReset: () => {
+        setPeopleError(false);
+        setRemotePeople([]);
+      },
+      onResult: setRemotePeople,
+    },
+  );
+  const channelRequest = createDebouncedRequest(fetchBrowsableChannels, {
+    onError: () => setChannelsError(true),
+    onPendingChange: setChannelsSearching,
+    onReset: () => {
+      setChannelsError(false);
+      setRemoteChannels([]);
+    },
+    onResult: setRemoteChannels,
+  });
   onCleanup(() => {
-    clearTimeout(peopleDebounce);
-    clearTimeout(channelDebounce);
+    peopleRequest.dispose();
+    channelRequest.dispose();
   });
   const hasQuery = createMemo(() => !!query().trim());
   const localChannelMatches = createMemo<Channel[]>(() => {
@@ -95,33 +107,13 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       text: (dm) => dmDisplayName(dm, store.users.userById),
     });
   });
-  const runPeopleSearch = () => {
-    clearTimeout(peopleDebounce);
-    const q = query().trim();
-    if (!q) {
-      setRemotePeople([]);
-      return;
-    }
-    const id = ++peopleRequestId;
-    peopleDebounce = setTimeout(async () => {
-      const found = await store.users.searchUsers(q, store.users.currentUser()?.id);
-      if (id === peopleRequestId) setRemotePeople(found);
-    }, 250);
+  const searchDirectories = (value: string) => {
+    setQuery(value);
+    setActiveIndex(value.trim() ? 0 : null);
+    peopleRequest.run(value);
+    channelRequest.run(value);
   };
-  const runChannelSearch = () => {
-    clearTimeout(channelDebounce);
-    const q = query().trim();
-    if (!q) {
-      setRemoteChannels([]);
-      return;
-    }
-    const id = ++channelRequestId;
-    channelDebounce = setTimeout(async () => {
-      const found = await fetchBrowsableChannels(q);
-      if (id === channelRequestId) setRemoteChannels(found);
-    }, 250);
-  };
-  const rows = createMemo<Row[]>(() => {
+  const rows = createMemo<GlobalSearchRow[]>(() => {
     if (!hasQuery()) return [];
     const candidates: Candidate[] = [
       ...channelResults().map(
@@ -149,6 +141,19 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const items = createMemo<SearchItem[]>(() => {
     if (!hasQuery()) return [];
     return [{ kind: "message-search" }, ...rows()];
+  });
+  const searching = () => peopleSearching() || channelsSearching();
+  const searchError = () => peopleError() || channelsError();
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
+  const activeOptionId = () => {
+    const index = activeIndex();
+    return index === null ? undefined : optionId(index);
+  };
+  const searchStatus = createMemo(() => {
+    if (searching()) return "Searching people and channels…";
+    if (searchError()) return "Some directory suggestions couldn’t be loaded.";
+    if (hasQuery() && rows().length === 0) return "No matching people or channels.";
+    return "";
   });
   createEffect(() => {
     const total = items().length;
@@ -202,19 +207,20 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     setActiveIndex(next);
   };
   return (
-    <Overlay onClose={props.onClose}>
+    <Overlay ariaLabel="Search Slack" onClose={props.onClose}>
       <div class="global-search-card modal-card">
         <div class="global-search-input-row flex-align-center">
           <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
           <input
+            aria-activedescendant={activeOptionId()}
+            aria-autocomplete="list"
+            aria-controls={listboxId}
+            aria-expanded={hasQuery()}
+            aria-label="Search channels, people, and conversations"
             autofocus
+            autocomplete="off"
             class="global-search-input input-reset"
-            onInput={(e) => {
-              setQuery(e.currentTarget.value);
-              setActiveIndex(e.currentTarget.value.trim() ? 0 : null);
-              runPeopleSearch();
-              runChannelSearch();
-            }}
+            onInput={(e) => searchDirectories(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
                 e.preventDefault();
@@ -222,6 +228,12 @@ export default function GlobalSearch(props: { onClose: () => void }) {
               } else if (e.key === "ArrowUp") {
                 e.preventDefault();
                 moveActive(-1);
+              } else if (e.key === "Home" && hasQuery()) {
+                e.preventDefault();
+                setActiveIndex(0);
+              } else if (e.key === "End" && hasQuery()) {
+                e.preventDefault();
+                setActiveIndex(items().length - 1);
               } else if (e.key === "Enter" && hasQuery()) {
                 e.preventDefault();
                 const index = activeIndex();
@@ -230,6 +242,8 @@ export default function GlobalSearch(props: { onClose: () => void }) {
               }
             }}
             placeholder="Search channels, people, conversations…"
+            role="combobox"
+            spellcheck={false}
             type="text"
             value={query()}
           />
@@ -244,85 +258,20 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             </button>
           </Tooltip>
         </div>
-        <div class="global-search-results">
-          <Show
-            fallback={
-              <div class="global-search-hint empty-state">
-                Jump to a channel or person. (Ctrl+K)
-              </div>
-            }
-            when={hasQuery()}
-          >
-            <button
-              class="global-search-result global-search-message-action btn-reset flex-align-center"
-              classList={{ active: activeIndex() === 0 }}
-              onClick={goToMessageSearch}
-              onMouseEnter={() => setActiveIndex(0)}
-              type="button"
-            >
-              <span class="global-search-jump-icon">
-                <Icon name="search" size={13} />
-              </span>
-              Search all messages for "{query()}"
-            </button>
-            <For each={rows()}>
-              {(row, index) => {
-                const itemIndex = () => index() + 1;
-                if (row.kind === "channel") {
-                  const c = row.data;
-                  return (
-                    <button
-                      class="global-search-result global-search-jump btn-reset flex-align-center"
-                      classList={{ active: activeIndex() === itemIndex() }}
-                      onClick={() => goToChannel(c)}
-                      onMouseEnter={() => setActiveIndex(itemIndex())}
-                      type="button"
-                    >
-                      <span class="global-search-jump-icon">
-                        {c.private ? <Icon name="lock" size={13} /> : "#"}
-                      </span>
-                      {c.name}
-                    </button>
-                  );
-                }
-                if (row.kind === "dm") {
-                  const dm = row.data;
-                  const members = (dm.memberIds ?? [])
-                    .map((id) => store.users.userById(id))
-                    .filter((m) => m !== undefined);
-                  return (
-                    <button
-                      class="global-search-result global-search-jump btn-reset flex-align-center"
-                      classList={{ active: activeIndex() === itemIndex() }}
-                      onClick={() => goToDm(dm)}
-                      onMouseEnter={() => setActiveIndex(itemIndex())}
-                      type="button"
-                    >
-                      <AvatarStack size="small" users={members} />
-                      {dmDisplayName(dm, store.users.userById)}
-                    </button>
-                  );
-                }
-                const u = row.data;
-                return (
-                  <button
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: activeIndex() === itemIndex() }}
-                    onClick={() => goToPerson(u.id)}
-                    onMouseEnter={() => setActiveIndex(itemIndex())}
-                    type="button"
-                  >
-                    <Avatar size="small" user={u} />
-                    {u.name}
-                  </button>
-                );
-              }}
-            </For>
-            <Show when={rows().length === 0}>
-              <div class="global-search-empty empty-state">Noting found :c</div>
-            </Show>
-          </Show>
-        </div>
+        <GlobalSearchResults
+          activeIndex={activeIndex()}
+          hasQuery={hasQuery()}
+          listboxId={listboxId}
+          onActiveIndex={setActiveIndex}
+          onChannel={goToChannel}
+          onDm={goToDm}
+          onMessageSearch={goToMessageSearch}
+          onPerson={goToPerson}
+          query={query()}
+          rows={rows()}
+          searching={searching()}
+          status={searchStatus()}
+        />
       </div>
     </Overlay>
   );

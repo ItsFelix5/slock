@@ -1,5 +1,6 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to request parsing.
 import { submitAuthRequest } from "@slock/slack-api";
+import { Button } from "@slock/ui";
 import { createSignal } from "solid-js";
 import "./ConnectSlack.css";
 
@@ -67,11 +68,18 @@ function extractMultipartField(
 }
 
 export default function ConnectSlack(props: { onConnected: () => void }) {
+  const [request, setRequest] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
+  const [submitting, setSubmitting] = createSignal(false);
 
-  async function validate(raw: string) {
-    if (!raw.trim()) return;
+  async function connect() {
+    const raw = request();
+    if (!raw.trim()) {
+      setError("Paste a copied Slack request first.");
+      return;
+    }
     setError(null);
+    setSubmitting(true);
 
     try {
       const text = raw
@@ -145,15 +153,23 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
       if (!result.ok) throw result.error;
       props.onConnected();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
     <div class="connect-slack flex-center">
-      <div class="connect-slack-card">
+      <form
+        class="connect-slack-card"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void connect();
+        }}
+      >
         <h1>Connect to Slack</h1>
-        <p class="connect-slack-intro">
+        <p class="connect-slack-intro" id="connect-slack-instructions">
           Slock needs a token and session cookie from a signed-in Slack tab. Grab both at once by
           copying a request out of devtools:
         </p>
@@ -166,14 +182,26 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
           <li>Paste it below.</li>
         </ol>
         <textarea
+          aria-describedby="connect-slack-instructions connect-slack-error"
+          autocomplete="off"
           class="connect-slack-input"
-          onInput={(e) => validate(e.currentTarget.value)}
+          disabled={submitting()}
+          onInput={(event) => {
+            setRequest(event.currentTarget.value);
+            setError(null);
+          }}
           placeholder="curl 'https://your-workspace.slack.com/api/...' -H ..."
           rows={8}
           spellcheck={false}
+          value={request()}
         />
-        {error() && <p class="connect-slack-error">{error()}</p>}
-      </div>
+        <Button disabled={submitting() || !request().trim()} type="submit" variant="primary">
+          {submitting() ? "Connecting…" : "Connect"}
+        </Button>
+        <p class="connect-slack-error" id="connect-slack-error" role="alert">
+          {error()}
+        </p>
+      </form>
     </div>
   );
 }

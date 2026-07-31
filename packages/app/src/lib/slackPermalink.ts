@@ -10,6 +10,59 @@ export interface SlackPermalinkTarget {
   threadTs: string;
 }
 
+export interface SlackPermalinkNavigator {
+  openChannelMessage: (channelId: string, ts: string) => void;
+  openChannelPeek: (channelId: string, threadTs: string, highlightTs?: string) => void;
+}
+
+export interface SlackPermalinkOpenerDeps {
+  navigate: (target: SlackPermalinkTarget) => void;
+  onError: (error: unknown) => void;
+  onUnavailable: () => void;
+  probe: (target: SlackPermalinkTarget) => Promise<boolean>;
+}
+
+/**
+ * Coordinates permalink probes so a slow response cannot override a newer
+ * click. Calling invalidate also makes cleanup and unrelated primary clicks
+ * explicitly cancel the pending navigation.
+ */
+export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
+  let requestId = 0;
+
+  function invalidate() {
+    requestId++;
+  }
+
+  async function open(target: SlackPermalinkTarget) {
+    const currentRequestId = ++requestId;
+    try {
+      const available = await deps.probe(target);
+      if (currentRequestId !== requestId) return;
+      if (!available) {
+        deps.onUnavailable();
+        return;
+      }
+      deps.navigate(target);
+    } catch (error) {
+      if (currentRequestId === requestId) deps.onError(error);
+    }
+  }
+
+  return { invalidate, open };
+}
+
+export function navigateToSlackPermalink(
+  target: SlackPermalinkTarget,
+  navigator: SlackPermalinkNavigator,
+) {
+  if (target.threadTs !== target.messageTs) {
+    navigator.openChannelPeek(target.channelId, target.threadTs, target.messageTs);
+    return;
+  }
+  navigator.openChannelMessage(target.channelId, target.messageTs);
+}
+
 /** Return the in-app destination represented by a Slack message permalink. */
 export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {
   let url: URL;

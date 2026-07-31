@@ -1,5 +1,5 @@
-import type { DirectMessage } from "@slock/slack-api";
-import { openDm } from "@slock/slack-api";
+import type { DirectMessage, User } from "@slock/slack-api";
+import { fetchChannelMembers, openDm } from "@slock/slack-api";
 import { createEffect, createMemo, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
@@ -10,6 +10,7 @@ const DM_AUTO_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 export function createDmsSlice(deps: {
   bootstrap: () => { directMessages: DirectMessage[] } | undefined;
   closeUserProfile: () => void;
+  currentUser: () => User | undefined;
   unreadChannelIds: Record<string, boolean>;
   removeDmFromSidebar: (dmId: string) => Promise<boolean>;
   removeDmsFromSidebar: (dmIds: string[]) => Promise<Set<string>>;
@@ -22,8 +23,11 @@ export function createDmsSlice(deps: {
   // Local edits (e.g. live mention-count updates) on top of the immutable bootstrap
   // snapshot, applied when `allDirectMessages()` assembles its list.
   const [dmPatches, setDmPatches] = createStore<Record<string, Partial<DirectMessage>>>({});
+  const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<string, boolean>>({});
+  const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<string, boolean>>({});
   let dmActivitySeeded = false;
   let autoCloseTimer: ReturnType<typeof setInterval> | null = null;
+  const pendingMpdms = new Set<string>();
 
   // All known DMs regardless of local close state, so reopening/lookups can still find them.
   const allDirectMessages = createMemo<DirectMessage[]>(() => {
@@ -92,31 +96,84 @@ export function createDmsSlice(deps: {
     setExtraDms(produce((list) => list.push({ id: channelId, unread: true, userId })));
   }
 
-  async function openDmWithUser(userId: string) {
-    const existing = allDirectMessages().find((d) => d.userId === userId);
-    if (existing && !closedDmIds[existing.id]) {
-      deps.setActiveView({ id: existing.id, kind: "dm" });
-      deps.closeUserProfile();
-      return;
+  // Search can surface a message from a multi-person DM the boot payload never sent
+  // (mpims are only included there while `is_open`, see fetchBootstrap) — this backfills
+  // it into extraDms from its member list so dmById/dmDisplayName resolve it normally
+  // instead of the caller falling back to Slack's raw "mpdm-alice--bob--carol-1" id.
+  async function ensureMpdm(channelId: string) {
+    if (allDirectMessages().some((d) => d.id === channelId) || pendingMpdms.has(channelId)) return;
+    pendingMpdms.add(channelId);
+    try {
+      const { members } = await fetchChannelMembers(channelId, "everyone");
+      const selfId = deps.currentUser()?.id;
+      const memberIds = members.map((u) => u.id).filter((id) => id !== selfId);
+      setExtraDms(produce((list) => list.push({ id: channelId, memberIds, unread: false })));
+    } catch {
+      pendingMpdms.delete(channelId);
     }
-    const channelId = await openDm(userId);
-    if (!channelId) {
-      actionFeedback.flash(userId, "Could not open a direct message with this user.", "error");
-      return;
-    }
-    if (existing) setClosedDmIds(channelId, false);
-    else setExtraDms(produce((list) => list.push({ id: channelId, unread: false, userId })));
-    deps.setActiveView({ id: channelId, kind: "dm" });
-    deps.closeUserProfile();
   }
 
-  async function closeDmConversation(dmId: string) {
-    if (!(await deps.removeDmFromSidebar(dmId))) return;
-    setClosedDmIds(dmId, true);
-    const view = deps.activeView();
-    if (view?.kind === "dm" && view.id === dmId) {
-      const next = directMessages().find((d) => d.id !== dmId);
-      if (next) deps.setActiveView({ id: next.id, kind: "dm" });
+  function isOpenDmPending(userId: string): boolean {
+    return !!openDmPendingByUser[userId];
+  }
+
+  function isCloseDmPending(dmId: string): boolean {
+    return !!closeDmPendingById[dmId];
+  }
+
+  async function openDmWithUser(userId: string): Promise<boolean> {
+    if (isOpenDmPending(userId)) return false;
+    setOpenDmPendingByUser(userId, true);
+    try {
+      const existing = allDirectMessages().find((d) => d.userId === userId);
+      if (existing && !closedDmIds[existing.id]) {
+        deps.setActiveView({ id: existing.id, kind: "dm" });
+        deps.closeUserProfile();
+        return true;
+      }
+      const channelId = await openDm(userId);
+      if (!channelId) {
+        actionFeedback.flash(userId, "Could not open a direct message with this user.", "error");
+        return false;
+      }
+      if (existing) setClosedDmIds(channelId, false);
+      else
+        setExtraDms(
+          produce((list) => {
+            if (!list.some((dm) => dm.id === channelId))
+              list.push({ id: channelId, unread: false, userId });
+          }),
+        );
+      deps.setActiveView({ id: channelId, kind: "dm" });
+      deps.closeUserProfile();
+      return true;
+    } catch (err) {
+      console.error("Failed to open direct message", err);
+      actionFeedback.flash(userId, "Could not open a direct message with this user.", "error");
+      return false;
+    } finally {
+      setOpenDmPendingByUser(userId, false);
+    }
+  }
+
+  async function closeDmConversation(dmId: string): Promise<boolean> {
+    if (isCloseDmPending(dmId)) return false;
+    setCloseDmPendingById(dmId, true);
+    try {
+      if (!(await deps.removeDmFromSidebar(dmId))) return false;
+      setClosedDmIds(dmId, true);
+      const view = deps.activeView();
+      if (view?.kind === "dm" && view.id === dmId) {
+        const next = directMessages().find((d) => d.id !== dmId);
+        if (next) deps.setActiveView({ id: next.id, kind: "dm" });
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to close direct message", err);
+      actionFeedback.flash(dmId, "Failed to close conversation.", "error");
+      return false;
+    } finally {
+      setCloseDmPendingById(dmId, false);
     }
   }
 
@@ -128,6 +185,9 @@ export function createDmsSlice(deps: {
     dmById,
     dmIdForUser,
     ensureDm,
+    ensureMpdm,
+    isCloseDmPending,
+    isOpenDmPending,
     openDmWithUser,
     patchDm,
     setClosedDmIds,

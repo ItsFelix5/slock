@@ -5,7 +5,10 @@ import { fuzzySearch } from "@slock/ui";
 import type { Setter } from "solid-js";
 import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../../lib/emojiSearch";
 import { store } from "../../../lib/store";
-import { slashCommandsGlobal } from "./drafts";
+import {
+  loadSlashCommandSuggestions,
+  slashCommandsGlobal,
+} from "./commands/slashCommandSuggestions";
 import {
   createChannelChip,
   createEmojiChip,
@@ -74,14 +77,17 @@ function updateUserSuggestions(
     start: trigger.start,
   });
   if (!query) return;
-  store.users.searchUsers(query, me).then((found) => {
-    if (requestId !== currentRequestId()) return;
-    const merged = new Map<string, User>(localUsers.map((u) => [u.id, u]));
-    for (const user of found) merged.set(user.id, user);
-    opts.setSuggest((prev) =>
-      prev?.kind === trigger.kind ? { ...prev, items: toItems([...merged.values()]) } : prev,
-    );
-  });
+  store.users
+    .searchUsers(query, me)
+    .then((found) => {
+      if (requestId !== currentRequestId()) return;
+      const merged = new Map<string, User>(localUsers.map((u) => [u.id, u]));
+      for (const user of found) merged.set(user.id, user);
+      opts.setSuggest((prev) =>
+        prev?.kind === trigger.kind ? { ...prev, items: toItems([...merged.values()]) } : prev,
+      );
+    })
+    .catch(() => {});
 }
 
 function updateChannelSuggestions(
@@ -102,14 +108,16 @@ function updateChannelSuggestions(
   const localChannels = store.channels.channels();
   opts.setSuggest({ active: 0, items: toItems(localChannels), kind: "channel", start });
   if (!query) return;
-  fetchBrowsableChannels(query).then((found) => {
-    if (requestId !== currentRequestId()) return;
-    const merged = new Map<string, ChannelCandidate>(localChannels.map((c) => [c.id, c]));
-    for (const channel of found) merged.set(channel.id, channel);
-    opts.setSuggest((prev) =>
-      prev?.kind === "channel" ? { ...prev, items: toItems([...merged.values()]) } : prev,
-    );
-  });
+  fetchBrowsableChannels(query)
+    .then((found) => {
+      if (requestId !== currentRequestId()) return;
+      const merged = new Map<string, ChannelCandidate>(localChannels.map((c) => [c.id, c]));
+      for (const channel of found) merged.set(channel.id, channel);
+      opts.setSuggest((prev) =>
+        prev?.kind === "channel" ? { ...prev, items: toItems([...merged.values()]) } : prev,
+      );
+    })
+    .catch(() => {});
 }
 
 function insertSuggestionItem(
@@ -172,6 +180,7 @@ export function createSuggestionController(opts: SuggestionOptions) {
     const q = trigger.query.toLowerCase();
     const reqId = ++suggestRequestId;
     if (trigger.kind === "command" || trigger.kind === "emoji") {
+      if (trigger.kind === "command") void loadSlashCommandSuggestions();
       if (trigger.kind === "emoji") void loadCustomEmoji();
       opts.setSuggest(createStaticSuggestion(trigger.kind, trigger.start, q));
       return;

@@ -1,4 +1,4 @@
-import { Avatar, Icon, Switch, Tooltip } from "@slock/ui";
+import { Avatar, Button, Icon, Switch, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import {
   loadChannelManagerIds,
@@ -12,24 +12,40 @@ import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import "../../settings/Settings.css";
 import "./ChannelDetails.css";
 import "./ChannelSettingsTab.css";
+import {
+  type AppliedPermissionChoice,
+  type AppliedRetentionChoice,
+  memberPermissionPatch,
+  retentionValue,
+} from "./settings/channelPolicy";
 
-export default function ChannelSettingsTab(props: { channelId: string; private: boolean }) {
+export default function ChannelSettingsTab(props: { channelId: string }) {
   // These are all channel-manager-only actions on the real Slack client (the
   // API calls themselves would just reject a non-manager), so the controls
   // below are read-only until this resolves the current user as a manager.
-  const [managerIds] = createResource(() => props.channelId, loadChannelManagerIds);
+  const [managerIds, { refetch: refetchManagerIds }] = createResource(
+    () => props.channelId,
+    loadChannelManagerIds,
+  );
   const isManager = createMemo(() => {
+    if (managerIds.error) return false;
     const me = store.users.currentUser()?.id;
     return !!me && (managerIds() ?? []).includes(me);
   });
 
-  const [postingPrefs] = createResource(() => props.channelId, loadChannelPostingPrefs);
+  const [postingPrefs, { refetch: refetchPostingPrefs }] = createResource(
+    () => props.channelId,
+    loadChannelPostingPrefs,
+  );
   const [postingRestricted, setPostingRestricted] = createSignal(false);
   const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<string[]>([]);
   const [threadsRestricted, setThreadsRestricted] = createSignal(false);
   const [allowChannelMentions, setAllowChannelMentions] = createSignal(true);
   const [savingPostingPrefs, setSavingPostingPrefs] = createSignal(false);
   const [addingPostingException, setAddingPostingException] = createSignal(false);
+
+  const retryManagerIds = () => void Promise.resolve(refetchManagerIds()).catch(() => {});
+  const retryPostingPrefs = () => void Promise.resolve(refetchPostingPrefs()).catch(() => {});
 
   createEffect(
     on(postingPrefs, (prefs) => {
@@ -48,23 +64,31 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
   // are the same "channel managers only" restriction as who_can_post/can_thread
   // above — inverted here so every switch in this tab reads the same way
   // ("Only channel managers can ___", on = restricted).
-  const [inviteRestricted, setInviteRestricted] = createSignal(false);
-  const [topicRestricted, setTopicRestricted] = createSignal(false);
-  const [purposeRestricted, setPurposeRestricted] = createSignal(false);
+  type PermissionChoice = "" | AppliedPermissionChoice;
+  const [invitePermission, setInvitePermission] = createSignal<PermissionChoice>("");
+  const [topicPermission, setTopicPermission] = createSignal<PermissionChoice>("");
+  const [purposePermission, setPurposePermission] = createSignal<PermissionChoice>("");
+  const [savingMemberPermissions, setSavingMemberPermissions] = createSignal(false);
 
   // Retention changes post a visible system message to the channel, so
   // unlike the other toggles this doesn't auto-commit on change — it needs
   // an explicit Save so flipping the switch or editing the day count doesn't
   // spam the channel with a message per change.
-  const [retentionEnabled, setRetentionEnabled] = createSignal(false);
+  type RetentionChoice = "" | AppliedRetentionChoice;
+  const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>("");
   const [retentionDays, setRetentionDays] = createSignal(90);
-  const [savedRetention, setSavedRetention] = createSignal({ days: 90, enabled: false });
+  const [savedRetention, setSavedRetention] = createSignal<{
+    choice: AppliedRetentionChoice;
+    days: number;
+  } | null>(null);
   const [savingRetention, setSavingRetention] = createSignal(false);
 
   const retentionDirty = createMemo(() => {
+    const choice = retentionChoice();
+    if (!choice) return false;
     const saved = savedRetention();
     return (
-      retentionEnabled() !== saved.enabled || (retentionEnabled() && retentionDays() !== saved.days)
+      !saved || choice !== saved.choice || (choice === "delete" && retentionDays() !== saved.days)
     );
   });
 
@@ -135,32 +159,39 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
   };
 
   const saveRetention = async () => {
-    const enabled = retentionEnabled();
+    const choice = retentionChoice();
+    if (!choice) return;
     const days = retentionDays();
     setSavingRetention(true);
-    const ok = await updateChannelRetention(props.channelId, enabled ? days : null);
-    if (ok) setSavedRetention({ days, enabled });
+    const ok = await updateChannelRetention(props.channelId, retentionValue(choice, days));
+    if (ok) setSavedRetention({ choice, days });
     setSavingRetention(false);
   };
 
-  const saveMemberPermissions = async (patch: {
-    inviteRestricted?: boolean;
-    topicRestricted?: boolean;
-    purposeRestricted?: boolean;
-  }) => {
-    const next = {
-      inviteRestricted: patch.inviteRestricted ?? inviteRestricted(),
-      purposeRestricted: patch.purposeRestricted ?? purposeRestricted(),
-      topicRestricted: patch.topicRestricted ?? topicRestricted(),
+  const saveMemberPermission = async (
+    permission: "invite" | "topic" | "purpose",
+    choice: PermissionChoice,
+  ) => {
+    if (!(choice && isManager() && !savingMemberPermissions())) return;
+    const current = {
+      invite: invitePermission(),
+      purpose: purposePermission(),
+      topic: topicPermission(),
     };
-    setInviteRestricted(next.inviteRestricted);
-    setTopicRestricted(next.topicRestricted);
-    setPurposeRestricted(next.purposeRestricted);
-    await updateMemberPermissions(props.channelId, {
-      invite: !next.inviteRestricted,
-      setPurpose: !next.purposeRestricted,
-      setTopic: !next.topicRestricted,
-    });
+    const setChoice =
+      permission === "invite"
+        ? setInvitePermission
+        : permission === "topic"
+          ? setTopicPermission
+          : setPurposePermission;
+    setChoice(choice);
+    setSavingMemberPermissions(true);
+    const ok = await updateMemberPermissions(
+      props.channelId,
+      memberPermissionPatch(permission, choice),
+    );
+    if (!ok) setChoice(current[permission]);
+    setSavingMemberPermissions(false);
   };
 
   const blurOnEnter = (e: KeyboardEvent) => {
@@ -169,6 +200,14 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
 
   return (
     <>
+      <Show when={managerIds.error}>
+        <div class="channel-details-settings-warning flex-between" role="alert">
+          <span>Couldn’t verify whether you manage this channel.</span>
+          <Button onClick={retryManagerIds} size="sm">
+            Try again
+          </Button>
+        </div>
+      </Show>
       <Show when={managerIds.state === "ready" && !isManager()}>
         <p class="channel-details-meta">Only channel managers can change these settings.</p>
       </Show>
@@ -178,10 +217,13 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
         <Show when={postingPrefs.loading}>
           <p class="channel-details-meta">Loading posting permissions…</p>
         </Show>
-        <Show when={postingPrefs.state === "ready" && !postingPrefs()}>
-          <p class="channel-details-meta">
-            Posting permissions couldn't be loaded, so these controls are disabled.
-          </p>
+        <Show when={postingPrefs.error}>
+          <div class="channel-details-settings-warning flex-between" role="alert">
+            <span>Posting permissions couldn’t be loaded.</span>
+            <Button onClick={retryPostingPrefs} size="sm">
+              Try again
+            </Button>
+          </div>
         </Show>
         <div class="settings-row">
           <div>
@@ -191,6 +233,7 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
             checked={postingRestricted()}
             disabled={!canEditPostingPrefs()}
             onChange={savePostingRestriction}
+            title="Only channel managers can post"
           />
         </div>
         <Show when={postingRestricted()}>
@@ -273,6 +316,7 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
             checked={threadsRestricted()}
             disabled={!canEditPostingPrefs()}
             onChange={saveThreadsRestriction}
+            title="Only channel managers can reply in threads"
           />
         </div>
         <div class="settings-row">
@@ -283,64 +327,108 @@ export default function ChannelSettingsTab(props: { channelId: string; private: 
             checked={allowChannelMentions()}
             disabled={!canEditPostingPrefs()}
             onChange={saveChannelMentions}
+            title="Allow @channel and @here mentions"
           />
         </div>
       </div>
 
       <div class="settings-section">
         <div class="settings-row-label">Member permissions</div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Only channel managers can invite others</div>
-          </div>
-          <Switch
-            checked={inviteRestricted()}
-            disabled={!isManager()}
-            onChange={(v) => saveMemberPermissions({ inviteRestricted: v })}
-          />
+        <p class="channel-details-meta">
+          Slack doesn’t expose the current values here. Choose an explicit policy to change only
+          that permission.
+        </p>
+        <div class="settings-row flex-between">
+          <label class="settings-row-label" for="channel-member-invite-permission">
+            Who can invite others
+          </label>
+          <select
+            class="channel-details-input channel-details-setting-select"
+            disabled={!isManager() || savingMemberPermissions()}
+            id="channel-member-invite-permission"
+            onChange={(event) =>
+              saveMemberPermission("invite", event.currentTarget.value as PermissionChoice)
+            }
+            value={invitePermission()}
+          >
+            <option disabled value="">
+              Choose a policy…
+            </option>
+            <option value="allow">All members</option>
+            <option value="restrict">Channel managers only</option>
+          </select>
         </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Only channel managers can change the topic</div>
-          </div>
-          <Switch
-            checked={topicRestricted()}
-            disabled={!isManager()}
-            onChange={(v) => saveMemberPermissions({ topicRestricted: v })}
-          />
+        <div class="settings-row flex-between">
+          <label class="settings-row-label" for="channel-member-topic-permission">
+            Who can change the topic
+          </label>
+          <select
+            class="channel-details-input channel-details-setting-select"
+            disabled={!isManager() || savingMemberPermissions()}
+            id="channel-member-topic-permission"
+            onChange={(event) =>
+              saveMemberPermission("topic", event.currentTarget.value as PermissionChoice)
+            }
+            value={topicPermission()}
+          >
+            <option disabled value="">
+              Choose a policy…
+            </option>
+            <option value="allow">All members</option>
+            <option value="restrict">Channel managers only</option>
+          </select>
         </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Only channel managers can change the description</div>
-          </div>
-          <Switch
-            checked={purposeRestricted()}
-            disabled={!isManager()}
-            onChange={(v) => saveMemberPermissions({ purposeRestricted: v })}
-          />
+        <div class="settings-row flex-between">
+          <label class="settings-row-label" for="channel-member-purpose-permission">
+            Who can change the description
+          </label>
+          <select
+            class="channel-details-input channel-details-setting-select"
+            disabled={!isManager() || savingMemberPermissions()}
+            id="channel-member-purpose-permission"
+            onChange={(event) =>
+              saveMemberPermission("purpose", event.currentTarget.value as PermissionChoice)
+            }
+            value={purposePermission()}
+          >
+            <option disabled value="">
+              Choose a policy…
+            </option>
+            <option value="allow">All members</option>
+            <option value="restrict">Channel managers only</option>
+          </select>
         </div>
       </div>
 
       <div class="settings-section">
         <div class="settings-row-label">Message retention</div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Automatically delete old messages</div>
-            <div class="settings-row-hint text-dim">
-              This posts a system message to the channel, so it isn't applied until you save.
-            </div>
-          </div>
-          <Switch
-            checked={retentionEnabled()}
-            disabled={!isManager()}
-            onChange={setRetentionEnabled}
-          />
+        <p class="channel-details-meta">
+          The current retention policy isn’t exposed here. Choose a policy to apply an explicit
+          change; saving posts a system message to the channel.
+        </p>
+        <div class="settings-row flex-between">
+          <label class="settings-row-label" for="channel-retention-policy">
+            New retention policy
+          </label>
+          <select
+            class="channel-details-input channel-details-setting-select"
+            disabled={!isManager() || savingRetention()}
+            id="channel-retention-policy"
+            onChange={(event) => setRetentionChoice(event.currentTarget.value as RetentionChoice)}
+            value={retentionChoice()}
+          >
+            <option disabled value="">
+              Choose a policy…
+            </option>
+            <option value="keep">Keep all messages</option>
+            <option value="delete">Delete messages after…</option>
+          </select>
         </div>
-        <Show when={retentionEnabled()}>
+        <Show when={retentionChoice() === "delete"}>
           <div class="channel-details-retention-row flex-align-center">
             <input
               class="channel-details-input channel-details-retention-input"
-              disabled={!isManager()}
+              disabled={!isManager() || savingRetention()}
               min="1"
               onInput={(e) => setRetentionDays(Number(e.currentTarget.value) || 1)}
               onKeyDown={blurOnEnter}

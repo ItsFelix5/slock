@@ -7,6 +7,7 @@ import type {
   Channel,
   ChannelDetails,
   ChannelMembersPage,
+  MemberPermissionsPatch,
 } from "../../types";
 import { mapUser } from "../mappers";
 import { callSlack, callSlackEdge } from "../relay";
@@ -43,10 +44,16 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
     module: "channels",
     query: q,
   });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "search.modules.channels failed");
   const items: any[] = data.items ?? [];
+  // search.modules.channels' index isn't scoped to browsable public/private channels the
+  // way conversations.list is — it also matches multi-person DMs by their raw "mpdm-a--b--c"
+  // name, which isn't a channel you can browse/join. is_mpim/is_im filter out flagged ones;
+  // the name check catches any the index doesn't flag.
   return items
-    .filter((c) => !(c.is_archived || c.is_member))
+    .filter(
+      (c) => !(c.is_archived || c.is_member || c.is_mpim || c.is_im || c.name?.startsWith("mpdm-")),
+    )
     .map((c) => ({
       id: c.id,
       memberCount: c.member_count,
@@ -57,6 +64,7 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
 }
 export async function fetchChannelCanvasInfo(channelId: string): Promise<CanvasInfo | null> {
   const data = await callSlack("conversations.info", { channel: channelId });
+  if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   const canvas = data?.channel?.properties?.canvas;
   return canvas?.file_id ? { fileId: canvas.file_id, isEmpty: !!canvas.is_empty } : null;
 }
@@ -257,15 +265,29 @@ export async function setChannelRetention(channelId: string, days: number | null
   });
   if (!data.ok) throw new Error(data.error ?? "conversations.setRetention failed");
 }
+export function serializeMemberPermissionsPatch(patch: MemberPermissionsPatch): {
+  is_allowed: boolean;
+  permission: string;
+}[] {
+  const permissions: { is_allowed: boolean; permission: string }[] = [];
+  if (patch.invite !== undefined) {
+    permissions.push({ is_allowed: patch.invite, permission: "INVITE_TO_CHANNEL" });
+  }
+  if (patch.setPurpose !== undefined) {
+    permissions.push({ is_allowed: patch.setPurpose, permission: "SET_CHANNEL_PURPOSE" });
+  }
+  if (patch.setTopic !== undefined) {
+    permissions.push({ is_allowed: patch.setTopic, permission: "SET_CHANNEL_TOPIC" });
+  }
+  return permissions;
+}
+
 export async function setMemberPermissions(
   channelId: string,
-  perms: { invite: boolean; setPurpose: boolean; setTopic: boolean },
+  patch: MemberPermissionsPatch,
 ): Promise<void> {
-  const permissions = [
-    { is_allowed: perms.invite, permission: "INVITE_TO_CHANNEL" },
-    { is_allowed: perms.setPurpose, permission: "SET_CHANNEL_PURPOSE" },
-    { is_allowed: perms.setTopic, permission: "SET_CHANNEL_TOPIC" },
-  ];
+  const permissions = serializeMemberPermissionsPatch(patch);
+  if (permissions.length === 0) return;
   const data = await callSlack("conversations.permissions.accountTypes.set", {
     account_type: "FULL_MEMBER",
     channel_id: channelId,

@@ -1,14 +1,16 @@
-import { Icon, InlineFeedback, Menu, ResizeHandle, SegmentedControl, Tooltip } from "@slock/ui";
+import { Button, Icon, InlineFeedback, ResizeHandle } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
+import { store } from "../../lib/store";
 import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections from "./rows/SidebarDmSections";
 import { SidebarSkeleton } from "./rows/SidebarRows";
+import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
 import type { SidebarContext } from "./sidebarCategories";
 
-export default function SidebarView({ context }: { context: SidebarContext }) {
+export default function SidebarView(props: { context: SidebarContext }) {
   const {
     feedMode,
     feedWidth,
@@ -44,17 +46,19 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
     commitRename,
     toggleCategory,
     showAllInCategory,
-    startRename,
-    sectionMenuOpen,
-    setSectionMenuOpen,
-    setChannelSectionSidebar,
-    deleteChannelSection,
+    retrySections,
+    sectionsError,
+    sectionsLoading,
+    sectionStructurePending,
     handleSectionDragStart,
     handleSectionDragOver,
     handleSectionDragLeave,
     handleSectionDrop,
     handleSectionDragEnd,
     peopleDms,
+    preferencesError,
+    preferencesLoading,
+    retryPreferences,
     dmsOpen,
     setDmsOpen,
     appDms,
@@ -62,7 +66,7 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
     setAppsOpen,
     unreadChannelIds,
     actionFeedback,
-  } = context;
+  } = props.context;
   return (
     <div
       class="sidebar flex-col"
@@ -71,6 +75,7 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
     >
       <ResizeHandle
         direction={1}
+        label="Resize sidebar"
         max={feedMode() ? feedMaxWidth : maxWidth}
         min={feedMode() ? feedMinWidth : minWidth}
         setWidth={feedMode() ? setFeedWidth : setWidth}
@@ -147,6 +152,32 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
       >
         <div class="sidebar-scroll">
           <Show fallback={<SidebarSkeleton />} when={!bootstrap.loading}>
+            <Show when={preferencesError()}>
+              <div class="sidebar-resource-error" role="alert">
+                <span>Couldn’t load preferences.</span>
+                <Button
+                  disabled={preferencesLoading()}
+                  onClick={() => void retryPreferences()}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {preferencesLoading() ? "Retrying…" : "Try again"}
+                </Button>
+              </div>
+            </Show>
+            <Show when={sectionsError()}>
+              <div class="sidebar-resource-error" role="alert">
+                <span>Couldn’t load custom sections.</span>
+                <Button
+                  disabled={sectionsLoading()}
+                  onClick={() => void retrySections()}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {sectionsLoading() ? "Retrying…" : "Try again"}
+                </Button>
+              </div>
+            </Show>
             <For each={categories()}>
               {(cat) => (
                 <div
@@ -166,8 +197,13 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
                   {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-to-reorder is a mouse-only convenience; the section's own menu (Rename/Delete) stays fully keyboard-reachable */}
                   <div
                     class="sidebar-section-header flex-align-center"
-                    classList={{ "sidebar-section-header-draggable": cat.reorderable }}
-                    draggable={cat.reorderable && renamingId() !== cat.id}
+                    classList={{
+                      "sidebar-section-header-draggable":
+                        cat.reorderable && !sectionStructurePending(),
+                    }}
+                    draggable={
+                      cat.reorderable && renamingId() !== cat.id && !sectionStructurePending()
+                    }
                     onDragEnd={handleSectionDragEnd}
                     onDragLeave={() => cat.reorderable && handleSectionDragLeave(cat.id)}
                     onDragOver={(e) => cat.reorderable && handleSectionDragOver(e, cat.id)}
@@ -177,14 +213,19 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
                     <Show
                       fallback={
                         <input
+                          aria-busy={sectionStructurePending()}
                           autofocus
                           class="sidebar-section-rename-input"
-                          onBlur={commitRename}
+                          onBlur={() => void commitRename()}
                           onInput={(e) => setRenameValue(e.currentTarget.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRename();
-                            if (e.key === "Escape") setRenamingId(null);
+                            if (e.key === "Enter") void commitRename();
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              setRenamingId(null);
+                            }
                           }}
+                          readOnly={sectionStructurePending()}
                           value={renameValue()}
                         />
                       }
@@ -222,91 +263,18 @@ export default function SidebarView({ context }: { context: SidebarContext }) {
                       feedback={actionFeedback.get(cat.id)}
                     />
                     <Show when={cat.custom && renamingId() !== cat.id}>
-                      <Menu
-                        align="end"
-                        class="sidebar-section-menu-wrap"
-                        onClose={() => setSectionMenuOpen(null)}
-                        open={sectionMenuOpen() === cat.id}
-                        panelClass="menu-panel sidebar-section-menu"
-                        trigger={
-                          <Tooltip content="Section options">
-                            <button
-                              aria-label="Section options"
-                              class="sidebar-section-menu-btn btn-reset icon-btn icon-action"
-                              onClick={() =>
-                                setSectionMenuOpen(sectionMenuOpen() === cat.id ? null : cat.id)
-                              }
-                              type="button"
-                            >
-                              <Icon name="ellipsis-vertical-filled" size={14} />
-                            </button>
-                          </Tooltip>
-                        }
-                      >
-                        <button class="menu-item" onClick={() => startRename(cat)} type="button">
-                          Rename
-                        </button>
-                        <div class="sidebar-section-filter">
-                          <SegmentedControl>
-                            <button
-                              class="segmented-control-btn"
-                              classList={{ active: cat.sidebar === "hid" }}
-                              onClick={() => {
-                                setSectionMenuOpen(null);
-                                setChannelSectionSidebar(cat.id, "hid");
-                              }}
-                              type="button"
-                            >
-                              Unread
-                            </button>
-                            <button
-                              class="segmented-control-btn"
-                              classList={{ active: cat.sidebar === "active" }}
-                              onClick={() => {
-                                setSectionMenuOpen(null);
-                                setChannelSectionSidebar(cat.id, "active");
-                              }}
-                              type="button"
-                            >
-                              Active
-                            </button>
-                            <button
-                              class="segmented-control-btn"
-                              classList={{ active: cat.sidebar === "all" }}
-                              onClick={() => {
-                                setSectionMenuOpen(null);
-                                setChannelSectionSidebar(cat.id, "all");
-                              }}
-                              type="button"
-                            >
-                              All
-                            </button>
-                          </SegmentedControl>
-                        </div>
-                        <button
-                          class="menu-item danger"
-                          onClick={() => {
-                            setSectionMenuOpen(null);
-                            if (
-                              // biome-ignore lint/suspicious/noAlert: Deleting a section requires explicit confirmation.
-                              confirm(
-                                `Delete section "${cat.name}"? Its channels won't be removed from the workspace.`,
-                              )
-                            ) {
-                              deleteChannelSection(cat.id);
-                            }
-                          }}
-                          type="button"
-                        >
-                          Delete section
-                        </button>
-                      </Menu>
+                      <SidebarSectionMenu cat={cat} context={props.context} />
                     </Show>
                   </div>
                   <div>
                     <For each={cat.channels}>
                       {(ch) => (
-                        <Show when={!collapsed().has(cat.id) || (ch.mentions ?? 0) > 0}>
+                        <Show
+                          when={
+                            !collapsed().has(cat.id) ||
+                            ((ch.mentions ?? 0) > 0 && !store.preferences.isChannelMuted(ch.id))
+                          }
+                        >
                           <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />
                         </Show>
                       )}

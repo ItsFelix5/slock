@@ -9,9 +9,31 @@ import {
 } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
+import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
 import { actionFeedback } from "../feedback";
 
-export function createUsersSlice(deps: { currentUserBase: () => User | undefined }) {
+type UsersApi = {
+  fetchAppDescription: typeof fetchAppDescription;
+  fetchUser: typeof fetchUser;
+  searchDirectory: typeof searchDirectory;
+  setPresence: typeof apiSetPresence;
+  setProfileFields: typeof apiSetProfileFields;
+  setStatus: typeof apiSetStatus;
+};
+
+const DEFAULT_USERS_API: UsersApi = {
+  fetchAppDescription,
+  fetchUser,
+  searchDirectory,
+  setPresence: apiSetPresence,
+  setProfileFields: apiSetProfileFields,
+  setStatus: apiSetStatus,
+};
+
+export function createUsersSlice(
+  deps: { currentUserBase: () => User | undefined },
+  api: UsersApi = DEFAULT_USERS_API,
+) {
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
   const pendingUsers = new Set<string>();
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
@@ -37,11 +59,13 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
     if (!known) {
       if (!pendingUsers.has(id)) {
         pendingUsers.add(id);
-        fetchUser(id)
+        api
+          .fetchUser(id)
           .then((user) => {
             if (user) setExtraUsers(id, user);
           })
-          .catch(() => {
+          .catch(() => {})
+          .finally(() => {
             pendingUsers.delete(id);
           });
       }
@@ -80,7 +104,7 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
       (u) => u.id !== excludeId && u.name.toLowerCase().includes(q),
     );
 
-    const { users: remote } = await searchDirectory(q);
+    const { users: remote } = await api.searchDirectory(q);
     for (const u of remote) {
       if (!local.has(u.id)) setExtraUsers(u.id, u);
     }
@@ -105,7 +129,8 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
     const known = botBios[appId];
     if (known || pendingBotBios.has(appId)) return known;
     pendingBotBios.add(appId);
-    fetchAppDescription(appId, botId)
+    api
+      .fetchAppDescription(appId, botId)
       .then((description) => {
         if (description) setBotBios(appId, description);
       })
@@ -123,67 +148,79 @@ export function createUsersSlice(deps: { currentUserBase: () => User | undefined
     setProfileUserId(null);
   }
 
-  async function updateMyStatus(text: string, emoji: string, expiration: number) {
-    setSelfStatusOverride((prev) => ({
-      ...prev,
-      statusEmoji: emoji || undefined,
-      statusText: text || undefined,
-    }));
+  async function updateMyStatus(text: string, emoji: string, expiration: number): Promise<boolean> {
     try {
-      await apiSetStatus(text, emoji, expiration);
+      await api.setStatus(text, emoji, expiration);
+      setSelfStatusOverride((prev) => ({
+        ...prev,
+        statusEmoji: emoji || undefined,
+        statusText: text || undefined,
+      }));
+      return true;
     } catch (err) {
       console.error("Failed to set status", err);
       actionFeedback.flash("me", "Failed to update status.", "error");
+      return false;
     }
   }
 
-  async function clearMyStatus() {
-    await updateMyStatus("", "", 0);
+  function clearMyStatus(): Promise<boolean> {
+    return updateMyStatus("", "", 0);
   }
 
-  async function updateMyProfile(fields: {
+  // Profile fields share users.profile.set, so serialize edits. Two quick
+  // blurs otherwise race at the network boundary and an older response can
+  // leave both Slack and the panel showing the wrong final value.
+  const runProfileMutation = createSerialMutationQueue();
+  function updateMyProfile(fields: {
     displayName?: string;
     title?: string;
     pronouns?: string;
     customFields?: Record<string, string>;
-  }) {
-    setSelfStatusOverride((prev) => {
-      const next: Partial<User> = { ...prev };
-      if (fields.displayName !== undefined) next.name = fields.displayName;
-      if (fields.title !== undefined) next.title = fields.title || undefined;
-      if (fields.pronouns !== undefined) next.pronouns = fields.pronouns || undefined;
-      if (fields.customFields) {
-        const merged = new Map(
-          (prev?.customFields ?? currentUser()?.customFields ?? []).map((f) => [f.id, f]),
+  }): Promise<boolean> {
+    return runProfileMutation(async (): Promise<boolean> => {
+      try {
+        await api.setProfileFields(fields);
+        setSelfStatusOverride((prev) => {
+          const next: Partial<User> = { ...prev };
+          if (fields.displayName !== undefined) next.name = fields.displayName;
+          if (fields.title !== undefined) next.title = fields.title || undefined;
+          if (fields.pronouns !== undefined) next.pronouns = fields.pronouns || undefined;
+          if (fields.customFields) {
+            const merged = new Map(
+              (prev?.customFields ?? currentUser()?.customFields ?? []).map((f) => [f.id, f]),
+            );
+            for (const [id, value] of Object.entries(fields.customFields)) {
+              if (value) merged.set(id, { id, value });
+              else merged.delete(id);
+            }
+            next.customFields = [...merged.values()];
+          }
+          return next;
+        });
+        return true;
+      } catch (err) {
+        console.error("Failed to update profile", err);
+        actionFeedback.flash(
+          "me",
+          err instanceof Error ? err.message : "Failed to update profile.",
+          "error",
         );
-        for (const [id, value] of Object.entries(fields.customFields)) {
-          if (value) merged.set(id, { id, value });
-          else merged.delete(id);
-        }
-        next.customFields = [...merged.values()];
+        return false;
       }
-      return next;
     });
-    try {
-      await apiSetProfileFields(fields);
-    } catch (err) {
-      console.error("Failed to update profile", err);
-      actionFeedback.flash(
-        "me",
-        err instanceof Error ? err.message : "Failed to update profile.",
-        "error",
-      );
-    }
   }
 
-  async function updateMyPresence(presence: "auto" | "away") {
-    const me = currentUser();
-    if (me) setPresenceOverrides(me.id, presence === "away" ? "away" : "active");
+  async function updateMyPresence(presence: "auto" | "away"): Promise<boolean> {
     try {
-      await apiSetPresence(presence);
+      await api.setPresence(presence);
+      const me = currentUser();
+      if (me) setPresenceOverrides(me.id, presence === "away" ? "away" : "active");
+      return true;
     } catch (err) {
       console.error("Failed to set presence", err);
       actionFeedback.flash("me", "Failed to update presence.", "error");
+      return false;
     }
   }
 

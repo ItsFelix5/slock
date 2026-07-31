@@ -14,7 +14,14 @@ export type { StandardEmoji } from "./emoji/emoji";
 export { standardEmojiEntries } from "./emoji/emoji";
 // Used both internally (EmojiText) and directly by apps/web's EmojiPicker, so these
 // need to be public API, not just internal implementation details.
-export { customEmojiNames, emojiUrl, isEmojiLoaded, loadCustomEmoji } from "./emoji/emojiCache";
+export {
+  customEmojiNames,
+  emojiUrl,
+  hasEmojiLoadError,
+  isEmojiLoaded,
+  isEmojiLoading,
+  loadCustomEmoji,
+} from "./emoji/emojiCache";
 export { decodeTextEntities } from "./entities";
 export { default as Mrkdwn, Mention } from "./mrkdwn";
 export { parseUserProfileLink } from "./userProfileLink";

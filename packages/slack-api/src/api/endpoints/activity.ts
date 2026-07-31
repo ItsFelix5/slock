@@ -1,5 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import type { ActivityItem, Message } from "../../types";
+import type { ActivityItem } from "../../contentTypes";
+import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
 import { callSlack } from "../relay";
 
@@ -54,7 +55,7 @@ function rawMessageUserId(message: any): string | undefined {
 }
 
 // Each feed entry only carries ids (channel/ts/reactor), never the message
-// body — fetchActivityMessages below resolves those ids with one batched
+// body — fetchMessagesByIds below resolves those ids with one batched
 // messages.list request grouped by channel.
 function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
   const kind = activityKindFor(raw.item?.type);
@@ -132,13 +133,14 @@ export async function fetchActivityFeedEntries(limit = 50): Promise<FeedEntry[]>
     types: ACTIVITY_FEED_TYPES,
     unread_only: "false",
   });
-  if (!data.ok) return [];
+  if (!data.ok) throw new Error(data.error ?? "activity.feed failed");
   return ((data.items ?? []) as any[])
     .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts) * 1000))
     .filter((entry): entry is FeedEntry => !!entry);
 }
 
 type MessageIdGroup = { channel: string; timestamps: string[] };
+type MessageRef = { channelId: string; ts: string };
 
 const MESSAGES_LIST_BATCH_SIZE = 25;
 
@@ -180,8 +182,13 @@ function rawMessagesFromMessagesListEntry(entry: any): any[] {
 // Slack's own Activity tab resolves every entry's message body with
 // messages.list: one form field named `message_ids` whose value is a JSON
 // array like [{channel, timestamps}]. Keyed by `channel:ts` since a channel
-// can appear with several timestamps.
-export async function fetchActivityMessages(entries: FeedEntry[]): Promise<Map<string, Message>> {
+// can appear with several timestamps. `onBatch` fires per resolved chunk with
+// just that chunk's messages, so callers can render each batch the moment it
+// lands instead of blocking on the slowest one.
+export async function fetchMessagesByIds(
+  entries: MessageRef[],
+  onBatch?: (batch: Map<string, Message>) => void,
+): Promise<Map<string, Message>> {
   const timestampsByChannel = new Map<string, Set<string>>();
   for (const entry of entries) {
     const set = timestampsByChannel.get(entry.channelId) ?? new Set<string>();
@@ -195,23 +202,30 @@ export async function fetchActivityMessages(entries: FeedEntry[]): Promise<Map<s
     timestamps: [...timestamps],
   }));
   const chunks = chunkMessageIds(messageGroups);
-  const results = await Promise.all(
-    chunks.map((messageIds) =>
-      callSlack("messages.list", { message_ids: JSON.stringify(messageIds) }),
-    ),
-  );
-  for (const data of results) {
-    if (!data.ok) {
-      console.error("messages.list failed while resolving activity", data);
-      continue;
-    }
-    for (const [channelId, entry] of Object.entries(data.messages_data ?? {}) as [string, any][]) {
-      for (const raw of rawMessagesFromMessagesListEntry(entry)) {
-        if (raw?.ts && !HIDE_SUBTYPES.has(raw.subtype))
-          byKey.set(`${channelId}:${raw.ts}`, mapMessage(raw));
+  const results = await Promise.allSettled(
+    chunks.map(async (messageIds) => {
+      const data = await callSlack("messages.list", { message_ids: JSON.stringify(messageIds) });
+      if (!data.ok) {
+        throw new Error(data.error ?? "messages.list failed while resolving activity");
       }
-    }
-  }
+      // Slack's response nests each channel's resolved messages under `messages`
+      // (an empty `messages_data` object comes back alongside it, unused).
+      const batch = new Map<string, Message>();
+      for (const [channelId, entry] of Object.entries(data.messages ?? {}) as [string, any][]) {
+        for (const raw of rawMessagesFromMessagesListEntry(entry)) {
+          if (raw?.ts && !HIDE_SUBTYPES.has(raw.subtype)) {
+            const key = `${channelId}:${raw.ts}`;
+            const message = mapMessage(raw);
+            batch.set(key, message);
+            byKey.set(key, message);
+          }
+        }
+      }
+      onBatch?.(batch);
+    }),
+  );
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
   return byKey;
 }
 

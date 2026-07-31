@@ -1,6 +1,6 @@
-import type { User } from "@slock/slack-api";
-import { Avatar, Icon, SegmentedControl, Tooltip } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import type { ChannelMembersPage, User } from "@slock/slack-api";
+import { Avatar, Button, Icon, SegmentedControl, Tooltip } from "@slock/ui";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import {
   inviteUsersToChannel,
   loadChannelManagerIds,
@@ -11,6 +11,7 @@ import {
 import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import "./ChannelDetails.css";
+import { createKeyedPageLoader } from "./keyedPageLoader";
 
 type PagedFilter = "everyone" | "apps";
 
@@ -37,8 +38,7 @@ export default function ChannelMembersTab(props: {
     apps: undefined,
     everyone: undefined,
   });
-  const [loadingMembers, setLoadingMembers] = createSignal(false);
-  const loadedPagedFilters = new Set<PagedFilter>();
+  const [pagedLoadVersion, setPagedLoadVersion] = createSignal(0);
 
   // Channel managers come from a completely different, non-paginated
   // endpoint (admin.roles.entity.listAssignments — see fetchChannelManagerIds)
@@ -46,45 +46,63 @@ export default function ChannelMembersTab(props: {
   // lookup rather than sharing the `pagedMembers` cache the edge API fills in.
   const [managerIds, setManagerIds] = createSignal<string[]>([]);
   const [loadingManagers, setLoadingManagers] = createSignal(false);
+  const [managerLoadError, setManagerLoadError] = createSignal(false);
   let managersLoaded = false;
 
   const [addingPeople, setAddingPeople] = createSignal(false);
+  const [inviting, setInviting] = createSignal(false);
+  const [removingMemberIds, setRemovingMemberIds] = createSignal<Set<string>>(new Set());
 
   // Switching between Everyone/Apps queries the same edge endpoint with a
   // different `filter` param. Results always land in that filter's own slot
   // (not "whichever filter is selected right now"), so a fetch that's still
   // in flight when the user switches away doesn't get dropped.
-  const loadMore = async (f: PagedFilter) => {
-    if (loadingMembers()) return;
-    setLoadingMembers(true);
-    const page = await loadChannelMembers(props.channelId, f, pagedCursors()[f]);
-    const known = new Set(pagedMembers()[f].map((u) => u.id));
-    setPagedMembers((prev) => ({
-      ...prev,
-      [f]: [...prev[f], ...page.members.filter((u) => !known.has(u.id))],
-    }));
-    setPagedCursors((prev) => ({ ...prev, [f]: page.nextCursor }));
-    setLoadingMembers(false);
+  const pagedLoader = createKeyedPageLoader<PagedFilter, ChannelMembersPage>({
+    load: (f) => loadChannelMembers(props.channelId, f, pagedCursors()[f]),
+    onResult: (f, page) => {
+      const known = new Set(pagedMembers()[f].map((u) => u.id));
+      setPagedMembers((prev) => ({
+        ...prev,
+        [f]: [...prev[f], ...page.members.filter((u) => !known.has(u.id))],
+      }));
+      setPagedCursors((prev) => ({ ...prev, [f]: page.nextCursor }));
+    },
+    onStateChange: () => setPagedLoadVersion((version) => version + 1),
+  });
+  const loadMore = (f: PagedFilter) => pagedLoader.load(f);
+  const isPagedLoading = (f: PagedFilter) => {
+    pagedLoadVersion();
+    return pagedLoader.isLoading(f);
+  };
+  const hasPagedLoadError = (f: PagedFilter) => {
+    pagedLoadVersion();
+    return pagedLoader.hasError(f);
   };
 
   const loadManagers = async () => {
     if (managersLoaded || loadingManagers()) return;
-    managersLoaded = true;
     setLoadingManagers(true);
-    setManagerIds(await loadChannelManagerIds(props.channelId));
-    setLoadingManagers(false);
+    setManagerLoadError(false);
+    try {
+      setManagerIds(await loadChannelManagerIds(props.channelId));
+      managersLoaded = true;
+    } catch {
+      managersLoaded = false;
+      setManagerLoadError(true);
+    } finally {
+      setLoadingManagers(false);
+    }
   };
 
-  createEffect(() => {
-    const f = filter();
-    if (f === "managers") {
-      loadManagers();
-      return;
-    }
-    if (loadedPagedFilters.has(f)) return;
-    loadedPagedFilters.add(f);
-    loadMore(f);
-  });
+  createEffect(
+    on(filter, (f) => {
+      if (f === "managers") {
+        void loadManagers();
+        return;
+      }
+      if (!pagedLoader.hasLoaded(f)) void loadMore(f);
+    }),
+  );
 
   const resolvedManagers = createMemo(() =>
     managerIds()
@@ -98,8 +116,22 @@ export default function ChannelMembersTab(props: {
   });
 
   const isLoading = createMemo(() =>
-    filter() === "managers" ? loadingManagers() : loadingMembers(),
+    filter() === "managers" ? loadingManagers() : isPagedLoading(filter() as PagedFilter),
   );
+  const loadError = createMemo(() =>
+    filter() === "managers" ? managerLoadError() : hasPagedLoadError(filter() as PagedFilter),
+  );
+
+  const retryLoad = () => {
+    const f = filter();
+    if (f === "managers") void loadManagers();
+    else void loadMore(f);
+  };
+  const loadErrorLabel = createMemo(() => {
+    if (filter() === "managers") return "channel managers";
+    if (filter() === "apps") return "apps";
+    return "members";
+  });
 
   const filteredMembers = createMemo(() => {
     const q = query().trim().toLowerCase();
@@ -121,31 +153,47 @@ export default function ChannelMembersTab(props: {
   });
 
   const addPerson = async (userId: string) => {
+    if (inviting()) return;
     setAddingPeople(false);
-    if (await inviteUsersToChannel(props.channelId, [userId])) {
-      const user = store.users.userById(userId);
-      if (user) {
-        setPagedMembers((prev) => ({
-          ...prev,
-          everyone: prev.everyone.some((u) => u.id === userId)
-            ? prev.everyone
-            : [user, ...prev.everyone],
-        }));
+    setInviting(true);
+    try {
+      if (await inviteUsersToChannel(props.channelId, [userId])) {
+        const user = store.users.userById(userId);
+        if (user) {
+          setPagedMembers((prev) => ({
+            ...prev,
+            everyone: prev.everyone.some((u) => u.id === userId)
+              ? prev.everyone
+              : [user, ...prev.everyone],
+          }));
+        }
+        props.onMembersChanged?.();
       }
-      props.onMembersChanged?.();
+    } finally {
+      setInviting(false);
     }
   };
 
   const removeMember = async (user: User) => {
+    if (removingMemberIds().has(user.id)) return;
     // biome-ignore lint/suspicious/noAlert: Removing a member requires explicit confirmation.
     if (!confirm(`Remove ${user.name} from #${props.channelName}?`)) return;
-    if (await removeUserFromChannel(props.channelId, user.id)) {
-      setPagedMembers((prev) => ({
-        apps: prev.apps.filter((u) => u.id !== user.id),
-        everyone: prev.everyone.filter((u) => u.id !== user.id),
-      }));
-      setManagerIds((prev) => prev.filter((id) => id !== user.id));
-      props.onMembersChanged?.();
+    setRemovingMemberIds((current) => new Set(current).add(user.id));
+    try {
+      if (await removeUserFromChannel(props.channelId, user.id)) {
+        setPagedMembers((prev) => ({
+          apps: prev.apps.filter((u) => u.id !== user.id),
+          everyone: prev.everyone.filter((u) => u.id !== user.id),
+        }));
+        setManagerIds((prev) => prev.filter((id) => id !== user.id));
+        props.onMembersChanged?.();
+      }
+    } finally {
+      setRemovingMemberIds((current) => {
+        const next = new Set(current);
+        next.delete(user.id);
+        return next;
+      });
     }
   };
 
@@ -155,6 +203,7 @@ export default function ChannelMembersTab(props: {
         <For each={MEMBER_FILTERS}>
           {(f) => (
             <button
+              aria-pressed={filter() === f.key}
               class="segmented-control-btn"
               classList={{ active: filter() === f.key }}
               onClick={() => setFilter(f.key)}
@@ -176,23 +225,36 @@ export default function ChannelMembersTab(props: {
         <Show when={filter() === "everyone"}>
           <button
             class="channel-details-add-btn btn-reset flex-align-center"
+            disabled={inviting()}
             onClick={() => setAddingPeople(true)}
             type="button"
           >
-            <Icon name="user-add" size={15} /> Add people
+            <Icon name="user-add" size={15} /> {inviting() ? "Adding…" : "Add people"}
           </button>
         </Show>
       </div>
       <Show when={addingPeople()}>
         <div class="channel-details-picker">
-          <ComposeUserPicker onClose={() => setAddingPeople(false)} onSelect={addPerson} />
+          <ComposeUserPicker
+            excludeUserIds={pagedMembers().everyone.map((user) => user.id)}
+            onClose={() => setAddingPeople(false)}
+            onSelect={addPerson}
+          />
+        </div>
+      </Show>
+      <Show when={loadError()}>
+        <div class="channel-details-members-error" role="alert">
+          <span>Couldn’t load {loadErrorLabel()}.</span>
+          <Button disabled={isLoading()} onClick={retryLoad} size="sm">
+            Try again
+          </Button>
         </div>
       </Show>
       <div class="channel-details-member-list flex-col">
         <For
           each={filteredMembers()}
           fallback={
-            <Show when={!isLoading()}>
+            <Show when={!(isLoading() || loadError())}>
               <p class="channel-details-empty">{emptyLabel()}</p>
             </Show>
           }
@@ -218,6 +280,7 @@ export default function ChannelMembersTab(props: {
                   <button
                     aria-label="Remove from channel"
                     class="channel-details-member-remove btn-reset flex-center"
+                    disabled={removingMemberIds().has(u.id)}
                     onClick={() => removeMember(u)}
                     type="button"
                   >
@@ -232,7 +295,12 @@ export default function ChannelMembersTab(props: {
           <div class="channel-details-member-placeholder">Loading…</div>
         </Show>
         <Show
-          when={filter() !== "managers" && pagedCursors()[filter() as PagedFilter] && !isLoading()}
+          when={
+            filter() !== "managers" &&
+            pagedCursors()[filter() as PagedFilter] &&
+            !isLoading() &&
+            !loadError()
+          }
         >
           <button
             class="channel-details-show-more btn-reset"
