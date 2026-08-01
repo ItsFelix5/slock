@@ -56,11 +56,17 @@ export default function MessageLinkHoverCard(props: {
           {(msg) => (
             <>
               <div class="message-link-hovercard-head flex-align-center">
-                <Show when={store.users.userById(msg().userId)}>
-                  {(u) => <Avatar size="small" user={u()} />}
-                </Show>
+                <Avatar
+                  size="small"
+                  user={{
+                    avatarColor: store.users.userById(msg().userId)?.avatarColor ?? "#616061",
+                    avatarUrl: msg().botIcon ?? store.users.userById(msg().userId)?.avatarUrl,
+                    id: msg().userId,
+                    name: msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown",
+                  }}
+                />
                 <span class="message-link-hovercard-name">
-                  {store.users.userById(msg().userId)?.name ?? msg().botName ?? "Unknown"}
+                  {msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown"}
                 </span>
               </div>
               <div class="message-link-hovercard-text text-sm truncate-lines">

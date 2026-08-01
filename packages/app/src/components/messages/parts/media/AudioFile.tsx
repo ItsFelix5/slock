@@ -1,4 +1,4 @@
-import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
+import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import "./AudioFile.css";
@@ -160,7 +160,7 @@ export default function AudioFile(props: { file: SlackFile }) {
         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
         preload="metadata"
         ref={audioRef}
-        src={fileProxyUrl(props.file.urlPrivate)}
+        src={resolveMediaUrl(props.file.urlPrivate)}
       />
       <Show when={props.file.transcriptionPreview}>
         {(text) => (

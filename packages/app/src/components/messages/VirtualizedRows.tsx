@@ -1,6 +1,8 @@
+import { logDeletedMessages, messageSize } from "@slock/ui";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { ScrollToOptions } from "@tanstack/virtual-core";
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { actionFeedback, store } from "../../lib/store";
 import MessageRow from "./MessageRow";
 import type { MessageRowsProps } from "./MessageRows";
 import { estimateMessageHeight } from "./parts/estimateMessageHeight";
@@ -11,6 +13,7 @@ import { estimateMessageHeight } from "./parts/estimateMessageHeight";
 // be far outside the rendered window.
 export interface VirtualRowsApi {
   scrollToIndex: (index: number, opts?: ScrollToOptions) => void;
+  itemSize: (index: number) => number | undefined;
   // Total content height — MessageList.tsx watches this to notice a
   // late-arriving embed/image growing an already-rendered row (not just a
   // new message being appended) so it can keep following the bottom.
@@ -32,7 +35,17 @@ export default function VirtualizedRows(props: MessageRowsProps) {
 
   const virtualizer = createVirtualizer({
     estimateSize: (index) =>
-      estimateMessageHeight(props.messages[index], props.messages[index - 1], width()),
+      estimateMessageHeight(props.messages[index], props.messages[index - 1], width(), {
+        channelId: props.channelId,
+        hasFeedback: !!actionFeedback.get(props.messages[index]?.ts ?? ""),
+        hasOpenThread: !!props.onOpenThread,
+        isPinned: store.pinned.isMessagePinned(props.channelId, props.messages[index]?.ts ?? ""),
+        messageSize: messageSize(),
+        messages: props.messages,
+        showDeleted: logDeletedMessages(),
+        threadTs: props.threadTs,
+        unreadDividerTs: store.unread.unreadDividerTsForChannel(props.channelId),
+      }),
     getItemKey: (index) => props.messages[index]?.ts ?? index,
     getScrollElement: () => props.scrollContainer?.() ?? null,
     overscan: 8,
@@ -50,8 +63,12 @@ export default function VirtualizedRows(props: MessageRowsProps) {
     // row (an image/embed finishing load) keeps the view pinned to the
     // bottom. followOnAppend covers the third case — a genuinely new
     // trailing message arriving while already at the bottom.
-    anchorTo: "end",
-    followOnAppend: "auto",
+    get anchorTo() {
+      return props.anchorTo ?? "end";
+    },
+    get followOnAppend() {
+      return props.followOnAppend ?? "auto";
+    },
     // How close to the bottom still counts as "at the bottom" for the above
     // two behaviors — matches the old hand-rolled NEAR_BOTTOM_PX threshold.
     scrollEndThreshold: 120,
@@ -61,6 +78,7 @@ export default function VirtualizedRows(props: MessageRowsProps) {
   });
 
   props.onApi?.({
+    itemSize: (index) => virtualizer.measurementsCache[index]?.size,
     scrollToIndex: (index, opts) => virtualizer.scrollToIndex(index, opts),
     totalSize: () => virtualizer.getTotalSize(),
   });

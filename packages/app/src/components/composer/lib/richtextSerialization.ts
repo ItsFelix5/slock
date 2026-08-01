@@ -3,7 +3,9 @@ import { DEFAULT_DATE_FORMAT, formatSlackDateTokens } from "@slock/blockkit";
 import { type Block, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
 import { serializeLinkElement } from "./linkChip";
 import { type InlineDialect, MRKDWN_DIALECT } from "./richtext";
+
 export const HEADING_TAG_RE = /^H[1-6]$/;
+
 function wrapNonEmpty(inner: string, marker: string): string {
   return inner ? `${marker}${inner}${marker}` : "";
 }

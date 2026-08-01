@@ -1,7 +1,7 @@
 import type { Message } from "@slock/slack-api";
 import { Button, Icon, PanelHeader, ResizeHandle, Tooltip, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { actionFeedback, channelDisplayName, store } from "../../../lib/store";
+import { actionFeedback, conversationDisplayName, store } from "../../../lib/store";
 import Composer from "../../composer/Composer";
 import MessageRows from "../MessageRows";
 import ReplyReferenceRow from "../parts/ReplyReferenceRow";
@@ -49,7 +49,7 @@ export default function ThreadPanel() {
   const cancelReply = () => setReplyTarget(null);
   const openThreadMessageInChannel = () => {
     const t = thread();
-    if (t) store.viewState.openChannelMessage(t.channelId, t.ts);
+    if (t) store.viewState.openChannelMessage(t.channelId, t.ts, { keepNav: true });
   };
 
   createEffect(() => {
@@ -118,7 +118,12 @@ export default function ThreadPanel() {
   const channelName = createMemo(() => {
     const t = thread();
     if (!t) return "";
-    return channelDisplayName(store.channels.channelById(t.channelId), t.channelId);
+    return conversationDisplayName(
+      t.channelId,
+      t.channelId.startsWith("D") ? undefined : store.channels.channelById(t.channelId),
+      store.dms.dmById(t.channelId),
+      store.users.userById,
+    );
   });
 
   async function startReply(msg: Message) {
@@ -174,12 +179,12 @@ export default function ThreadPanel() {
             <div class="thread-panel-header-info flex-align-center">
               <div class="thread-panel-title">Thread</div>
               <button
-                aria-label={`View thread message in #${channelName()}`}
+                aria-label={`View thread message in ${channelName()}`}
                 class="thread-panel-subtitle btn-reset"
                 onClick={openThreadMessageInChannel}
                 type="button"
               >
-                #{channelName()}
+                {channelName()}
               </button>
               <Tooltip
                 content={

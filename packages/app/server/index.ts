@@ -1,14 +1,13 @@
-// Production entry point: one process serving the built static client plus
-// the Slack relay (see relay-core.ts) on a single port. There's no Vite here
-// (that's dev-only, see dev-plugin.ts) — just static files and the relay.
-import { type Credentials, parseCredsCookie } from "./relay-auth";
-import { routeRelayRequest } from "./relay-core";
+// Production entry point: one process serves the built client and application
+// API on a single port. Vite remains development-only.
+import { routeApiRequest } from "./api";
+import { type Credentials, parseCredsCookie } from "./auth";
 import {
   handleClientDisconnect,
   handleClientMessage,
   handleClientOpen,
   statusMessage,
-} from "./relay-gateway";
+} from "./realtime";
 
 const PORT = 5174;
 const DIST_DIR = `${import.meta.dir}/../dist`;
@@ -38,7 +37,7 @@ Bun.serve<{ creds: Credentials | null }>({
       return new Response("upgrade failed", { status: 400 });
     }
 
-    const relayRes = await routeRelayRequest(
+    const apiResponse = await routeApiRequest(
       req.method,
       url.pathname,
       url.searchParams,
@@ -51,7 +50,7 @@ Bun.serve<{ creds: Credentials | null }>({
         text: () => req.text().catch(() => ""),
       },
     );
-    if (relayRes) return relayRes;
+    if (apiResponse) return apiResponse;
 
     if (req.method === "GET") {
       const asset = await serveStatic(url.pathname);

@@ -38,6 +38,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           channelId={props.channel.id}
           channelTitle={channelDisplayName(props.channel)}
           onClose={ctxMenu.close}
+          showMoveTo
         />
       </ContextMenu>
     </>

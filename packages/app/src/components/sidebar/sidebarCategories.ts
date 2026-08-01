@@ -6,6 +6,7 @@ import type { Nav } from "../../lib/store";
 export interface Category {
   channels: Channel[];
   custom: boolean;
+  filterable: boolean;
   id: string;
   name: string;
   reorderable: boolean;
@@ -25,7 +26,7 @@ export interface SidebarContext {
   currentUser: Accessor<User | undefined>;
   deleteChannelSection: (sectionId: string) => Promise<boolean>;
   dmsOpen: Accessor<boolean>;
-  expandedSectionIds: Accessor<Set<string>>;
+  toggledSectionFilterIds: Accessor<Set<string>>;
   draggingSectionId: Accessor<string | null>;
   dropTarget: Accessor<{ id: string; before: boolean } | null>;
   feedMaxWidth: number;
@@ -62,7 +63,7 @@ export interface SidebarContext {
   setAppsOpen: Setter<boolean>;
   setDmsOpen: Setter<boolean>;
   setUnreadDmsOpen: Setter<boolean>;
-  showAllInCategory: (id: string) => void;
+  toggleSectionFilter: (id: string) => void;
   setFeedWidth: Setter<number>;
   setNavView: (next: Nav) => void;
   setRenameValue: Setter<string>;
@@ -84,6 +85,16 @@ export interface SidebarContext {
   unreadsOnly: Accessor<boolean>;
   width: Accessor<number>;
 }
+
+export function sectionShowsAllChannels(
+  sidebar: Category["sidebar"],
+  unreadsOnly: boolean,
+  filterToggled: boolean,
+): boolean {
+  const filteredByDefault = unreadsOnly || sidebar !== "all";
+  return filterToggled ? filteredByDefault : !filteredByDefault;
+}
+
 export function buildCategories(
   allChannels: Channel[],
   sections: () =>
@@ -97,7 +108,7 @@ export function buildCategories(
       }[]
     | undefined,
   unreadsOnly: () => boolean,
-  expandedSectionIds: () => Set<string>,
+  toggledSectionFilterIds: () => Set<string>,
   unreadChannelIds: Record<string, boolean>,
   isChannelStarred: (id: string) => boolean,
   isChannelLeft: (id: string) => boolean,
@@ -116,25 +127,24 @@ export function buildCategories(
     // Opening a channel clears its unread state. Keep it in the sidebar even
     // when that would otherwise make it disappear from a filtered section.
     if (isChannelOpen(c.id)) return true;
-    // A section-name click is an explicit "show all" request, including
-    // while Home is otherwise in its unread-only mode.
-    if (expandedSectionIds().has(sectionId)) return true;
-    if (unreadsOnly()) return isUnread(c);
-    // "hid" and "active" are Slack's filtered sidebar modes. The API only
-    // gives us an active signal through the unread counts, so both restrict
-    // the initial list to those active/unread channels.
-    return sidebar === "all" || isUnread(c);
+    // The shared section-name action flips the section's effective filter:
+    // all -> unread, or unread/active -> all. It also inverts Home's global
+    // unread-only filter for this one section.
+    return (
+      sectionShowsAllChannels(sidebar, unreadsOnly(), toggledSectionFilterIds().has(sectionId)) ||
+      isUnread(c)
+    );
   };
   const byId = new Map(visibleChannels.map((c) => [c.id, c]));
   const starredIds = visibleChannels.filter((c) => isChannelStarred(c.id)).map((c) => c.id);
   const secs = sections() ?? [];
-  const standardSecs = secs.filter((s) => s.type === "standard");
+  const channelSecs = secs.filter((s) => s.type === "standard" || s.type === "usergroup");
   const usedForRest = new Set<string>(starredIds);
-  for (const s of standardSecs) for (const id of s.channelIds) usedForRest.add(id);
+  for (const s of channelSecs) for (const id of s.channelIds) usedForRest.add(id);
   const restChannels = visibleChannels.filter((c) => !usedForRest.has(c.id));
   const claimed = new Set<string>(starredIds);
-  const standardChannelsById = new Map<string, Channel[]>();
-  for (const s of standardSecs) {
+  const sectionChannelsById = new Map<string, Channel[]>();
+  for (const s of channelSecs) {
     const ids = s.channelIds.filter((id) => !claimed.has(id));
     for (const id of ids) claimed.add(id);
     const channels = ids.map((id) => byId.get(id)).filter((c): c is Channel => !!c);
@@ -142,7 +152,7 @@ export function buildCategories(
     // set to sort by recent activity instead shows its channels ranked by
     // their own last activity, live, rather than that static server order.
     if (s.sort === "recent") channels.sort((a, b) => (b.lastActivity ?? 0) - (a.lastActivity ?? 0));
-    standardChannelsById.set(s.id, channels);
+    sectionChannelsById.set(s.id, channels);
   }
   const result: Category[] = [];
   const pushStarred = (id: string, reorderable: boolean, sidebar: Category["sidebar"] = "all") => {
@@ -151,13 +161,29 @@ export function buildCategories(
       .map((cid) => byId.get(cid))
       .filter((c): c is Channel => !!c && matches(c, id, sidebar));
     if (list.length > 0 || !unreadsOnly())
-      result.push({ channels: list, custom: false, id, name: "Starred", reorderable, sidebar });
+      result.push({
+        channels: list,
+        custom: false,
+        filterable: false,
+        id,
+        name: "Starred",
+        reorderable,
+        sidebar,
+      });
   };
   const pushChannels = (id: string, reorderable: boolean, sidebar: Category["sidebar"] = "all") => {
     if (restChannels.length === 0) return;
     const list = restChannels.filter((channel) => matches(channel, id, sidebar));
     if (list.length > 0 || !unreadsOnly())
-      result.push({ channels: list, custom: false, id, name: "Channels", reorderable, sidebar });
+      result.push({
+        channels: list,
+        custom: false,
+        filterable: false,
+        id,
+        name: "Channels",
+        reorderable,
+        sidebar,
+      });
   };
   if (secs.length === 0) {
     pushStarred("__starred", false);
@@ -169,14 +195,15 @@ export function buildCategories(
       pushStarred(s.id, true, s.sidebar);
     } else if (s.type === "channels") {
       pushChannels(s.id, true, s.sidebar);
-    } else if (s.type === "standard") {
-      const list = (standardChannelsById.get(s.id) ?? []).filter((channel) =>
-        matches(channel, s.id, s.sidebar),
-      );
+    } else if (s.type === "standard" || s.type === "usergroup") {
+      const sectionChannels = sectionChannelsById.get(s.id) ?? [];
+      if (s.type === "usergroup" && sectionChannels.length === 0) continue;
+      const list = sectionChannels.filter((channel) => matches(channel, s.id, s.sidebar));
       if (list.length > 0 || !unreadsOnly())
         result.push({
           channels: list,
-          custom: true,
+          custom: s.type === "standard",
+          filterable: true,
           id: s.id,
           name: s.name,
           reorderable: true,

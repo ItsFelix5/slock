@@ -1,8 +1,9 @@
+import { Mrkdwn } from "@slock/blockkit";
 import {
   Button,
   Icon,
-  type IconName,
   InlineFeedback,
+  Menu,
   Overlay,
   PanelHeader,
   Tooltip,
@@ -13,13 +14,13 @@ import {
   createMemo,
   createResource,
   createSignal,
-  For,
+  Match,
   onCleanup,
   Show,
+  Switch,
 } from "solid-js";
-import { actionFeedback, channelDisplayName, store } from "../../lib/store";
+import { actionFeedback, store } from "../../lib/store";
 import "../composer/Composer.css";
-import type { EditorCommands } from "../composer/lib/editor/editorCommands";
 import { createEditorCommands } from "../composer/lib/editor/editorCommands";
 import { handleMarkShortcut } from "../composer/lib/editor/markShortcuts";
 import { MARKDOWN_DIALECT } from "../composer/lib/richtext";
@@ -27,82 +28,35 @@ import { createCanvasEditorLoadTracker } from "./canvas/canvasEditorLoadTracker"
 import { createCanvasSaveController } from "./canvas/canvasSaveController";
 import "./CanvasPanel.css";
 
-type ToolbarTool = { icon: IconName; title: string; onClick: () => void };
-
-// Grouped into three `<For>` runs (marks, headings, block formats) so the
-// dividers between them stay meaningful, but all rendered through the one
-// ToolbarButton below instead of five near-identical Tooltip+button blocks.
-function toolbarGroups(editor: EditorCommands): ToolbarTool[][] {
-  return [
-    [
-      { icon: "bold", onClick: () => editor.applyMark("bold"), title: "Bold (Ctrl+B)" },
-      { icon: "italic", onClick: () => editor.applyMark("italic"), title: "Italic (Ctrl+I)" },
-      {
-        icon: "strikethrough",
-        onClick: () => editor.applyMark("strike"),
-        title: "Strikethrough (Ctrl+Shift+X)",
-      },
-      {
-        icon: "code",
-        onClick: () => editor.applyMark("code"),
-        title: "Inline code (Ctrl+Shift+C)",
-      },
-    ],
-    [
-      { icon: "heading-1", onClick: () => editor.applyHeader(1), title: "Heading 1" },
-      { icon: "heading-2", onClick: () => editor.applyHeader(2), title: "Heading 2" },
-      { icon: "heading-3", onClick: () => editor.applyHeader(3), title: "Heading 3" },
-    ],
-    [
-      {
-        icon: "bulleted-list",
-        onClick: () => editor.applyList(false),
-        title: "Bulleted list",
-      },
-      { icon: "numbered-list", onClick: () => editor.applyList(true), title: "Numbered list" },
-      { icon: "quote", onClick: () => editor.applyQuote(), title: "Quote" },
-      { icon: "code-block", onClick: () => editor.applyCodeBlock(), title: "Code block" },
-      { icon: "divider", onClick: () => editor.insertDividerAtCaret(), title: "Divider" },
-    ],
-  ];
-}
-
-// A plain click blurs the editor and collapses its selection before onClick
-// fires, so applyMark/applyHeader etc. would find nothing selected to act on.
-function preserveSelection(e: MouseEvent) {
-  e.preventDefault();
-}
-
-function ToolbarButton(props: ToolbarTool) {
-  return (
-    <Tooltip content={props.title}>
-      <button
-        aria-label={props.title}
-        class="canvas-toolbar-btn btn-reset flex-center"
-        onClick={props.onClick}
-        onMouseDown={preserveSelection}
-        type="button"
-      >
-        <Icon name={props.icon} size={15} />
-      </button>
-    </Tooltip>
-  );
-}
-
 export default function CanvasPanel() {
   const open = store.canvas.openCanvas;
+  const channelId = () => {
+    const o = open();
+    return o?.kind === "channel" || o?.kind === "create" ? o.channelId : undefined;
+  };
 
   const fileId = () => {
     const o = open();
     if (!o) return;
-    return o.kind === "channel" ? store.canvas.canvasByChannel[o.channelId]?.fileId : o.fileId;
+    if (o.kind === "channel") return store.canvas.canvasByChannel[o.channelId]?.fileId;
+    return o.kind === "file" ? o.fileId : undefined;
   };
   const title = createMemo(() => {
     const o = open();
     if (!o) return "";
-    return o.kind === "channel"
-      ? `#${channelDisplayName(store.channels.channelById(o.channelId), o.channelId)}`
-      : o.title;
+    if (o.kind === "create") return "New canvas";
+    if (o.kind === "file") return o.title;
+    const fileId = store.canvas.canvasByChannel[o.channelId]?.fileId;
+    return (
+      store.canvas.canvasesByChannel[o.channelId]?.find((canvas) => canvas.fileId === fileId)
+        ?.title ?? "Untitled canvas"
+    );
+  });
+  const feedbackKey = () => fileId() ?? channelId() ?? "";
+
+  createEffect(() => {
+    const id = channelId();
+    if (id) void store.canvas.ensureCanvasChecked(id);
   });
 
   const [content, { mutate, refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
@@ -110,6 +64,12 @@ export default function CanvasPanel() {
   const [saving, setSaving] = createSignal(false);
   const [dirty, setDirty] = createSignal(false);
   const [text, setText] = createSignal("");
+  const [menuOpen, setMenuOpen] = createSignal(false);
+  const [newCanvasTitle, setNewCanvasTitle] = createSignal("");
+
+  createEffect(() => {
+    if (open()?.kind === "create") setNewCanvasTitle("");
+  });
 
   const editor = createEditorCommands({
     closeSuggestions: () => {},
@@ -150,6 +110,12 @@ export default function CanvasPanel() {
     if (await flush()) store.canvas.closeCanvas();
   };
 
+  const createCanvas = async () => {
+    const id = channelId();
+    if (!id) return;
+    await store.canvas.createCanvas(id, newCanvasTitle().trim() || "Untitled canvas");
+  };
+
   useEscapeClose(
     () => void close(),
     () => !!open(),
@@ -182,6 +148,11 @@ export default function CanvasPanel() {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (handleMarkShortcut(e, editor)) return;
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      save();
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       if (!(editor.handleShiftEnterInHeader() || editor.handleShiftEnterInList())) {
@@ -211,79 +182,153 @@ export default function CanvasPanel() {
     }
   };
 
+  const copyLink = async () => {
+    setMenuOpen(false);
+    const url = fileUrl();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      actionFeedback.flash(fileId() ?? "", "Link copied.");
+    } catch {
+      actionFeedback.flash(fileId() ?? "", "Couldn’t copy the link.", "error");
+    }
+  };
+
   return (
     <Show when={open()}>
       {(_open) => (
-        <Overlay ariaLabel={`Canvas: ${title()}`} onClose={() => void close()}>
+        <Overlay ariaLabel={title()} onClose={() => void close()}>
           <div class="canvas-panel-card flex-col">
             <PanelHeader onClose={() => void close()}>
               <div class="canvas-panel-header-info flex-align-center">
-                <div class="canvas-panel-title">Canvas · {title()}</div>
+                <div class="canvas-panel-title">
+                  <Mrkdwn text={title()} />
+                </div>
+                <Show when={saving()}>
+                  <span class="text-dim text-sm">Saving…</span>
+                </Show>
+                <InlineFeedback feedback={actionFeedback.get(feedbackKey())} />
                 <Show when={fileUrl()}>
                   {(url) => (
-                    <Tooltip content="Open the underlying file">
+                    <Menu
+                      align="end"
+                      onClose={() => setMenuOpen(false)}
+                      open={menuOpen()}
+                      panelClass="menu-panel canvas-panel-menu"
+                      trigger={
+                        <Tooltip content="More">
+                          <button
+                            aria-label="More"
+                            class="icon-btn sm icon-action"
+                            onClick={() => setMenuOpen(!menuOpen())}
+                            type="button"
+                          >
+                            <Icon name="ellipsis-horizontal-filled" size={15} />
+                          </button>
+                        </Tooltip>
+                      }
+                    >
                       <a
-                        class="canvas-panel-file-link btn-reset flex-center"
+                        class="menu-item"
                         href={url()}
+                        onClick={() => setMenuOpen(false)}
                         rel="noopener noreferrer"
                         target="_blank"
                       >
                         <Icon name="open-in-tab" size={15} />
+                        Open in new tab
                       </a>
-                    </Tooltip>
+                      <button class="menu-item" onClick={copyLink} type="button">
+                        <Icon name="link" size={15} />
+                        Copy link
+                      </button>
+                    </Menu>
                   )}
                 </Show>
               </div>
             </PanelHeader>
-            <Show when={content.loading}>
-              <div class="canvas-panel-loading flex-center text-dim text-sm">Loading canvas…</div>
+            <Show when={open()?.kind === "create" && channelId()}>
+              {(id) => (
+                <div class="canvas-panel-create flex-center flex-col">
+                  <div class="canvas-panel-create-icon flex-center">
+                    <Icon name="add-channel-canvas" size={30} />
+                  </div>
+                  <h2>Add a canvas</h2>
+                  <input
+                    autofocus
+                    class="canvas-panel-create-title search-input"
+                    disabled={store.canvas.canvasCreatingByChannel[id()]}
+                    onInput={(event) => setNewCanvasTitle(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void createCanvas();
+                    }}
+                    placeholder="Canvas title"
+                    value={newCanvasTitle()}
+                  />
+                  <InlineFeedback feedback={actionFeedback.get(id())} priority={2} />
+                  <Show
+                    fallback={
+                      <span class="text-dim text-sm">Join this channel to add a canvas.</span>
+                    }
+                    when={store.channels.isChannelMember(id())}
+                  >
+                    <Button
+                      disabled={store.canvas.canvasCreatingByChannel[id()]}
+                      onClick={() => void createCanvas()}
+                      variant="primary"
+                    >
+                      <Icon name="plus" size={15} />
+                      {store.canvas.canvasCreatingByChannel[id()] ? "Adding…" : "Add canvas"}
+                    </Button>
+                  </Show>
+                </div>
+              )}
             </Show>
-            <Show when={!content.loading && content() === null}>
-              <div class="canvas-panel-load-error flex-center flex-col" role="alert">
-                <span>Couldn’t load this canvas.</span>
-                <InlineFeedback feedback={actionFeedback.get(fileId() ?? "")} priority={2} />
-                <Button onClick={() => refetch()} size="sm">
-                  Try again
-                </Button>
-              </div>
+            <Show when={open()?.kind === "channel" && !fileId() && channelId()}>
+              {(id) => (
+                <Switch>
+                  <Match when={store.canvas.canvasCheckingByChannel[id()]}>
+                    <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
+                  </Match>
+                  <Match when={true}>
+                    <div class="canvas-panel-load-error flex-center flex-col" role="alert">
+                      <span>This canvas is unavailable.</span>
+                      <Button onClick={() => void store.canvas.ensureCanvasChecked(id())} size="sm">
+                        Try again
+                      </Button>
+                    </div>
+                  </Match>
+                </Switch>
+              )}
             </Show>
-            <Show when={!content.loading && content() !== null}>
-              <div class="canvas-panel-toolbar flex-align-center">
-                <For each={toolbarGroups(editor)}>
-                  {(group, i) => (
-                    <>
-                      <Show when={i() > 0}>
-                        <span class="canvas-toolbar-divider" />
-                      </Show>
-                      <For each={group}>{(tool) => <ToolbarButton {...tool} />}</For>
-                    </>
-                  )}
-                </For>
-              </div>
-              {/* biome-ignore lint/a11y/useSemanticElements: rich-text formatting needs a real contenteditable, not <textarea> */}
-              <div
-                aria-multiline="true"
-                class="canvas-panel-editor composer-input input-reset"
-                contentEditable
-                data-placeholder="Write something for this channel…"
-                onInput={onInput}
-                onKeyDown={onKeyDown}
-                onPaste={onPaste}
-                ref={editor.setRef}
-                role="textbox"
-                tabIndex={0}
-              />
-              <div class="canvas-panel-footer flex-between">
-                <InlineFeedback feedback={actionFeedback.get(fileId() ?? "")} />
-                <button
-                  class="canvas-panel-save btn-reset"
-                  disabled={saving() || !dirty()}
-                  onClick={save}
-                  type="button"
-                >
-                  {saving() ? "Saving…" : "Save"}
-                </button>
-              </div>
+            <Show when={fileId()}>
+              <Show when={content.loading}>
+                <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
+              </Show>
+              <Show when={!content.loading && content() === null}>
+                <div class="canvas-panel-load-error flex-center flex-col" role="alert">
+                  <span>Something went wrong.</span>
+                  <InlineFeedback feedback={actionFeedback.get(feedbackKey())} priority={2} />
+                  <Button onClick={() => refetch()} size="sm">
+                    Try again
+                  </Button>
+                </div>
+              </Show>
+              <Show when={!content.loading && content() !== null}>
+                {/* biome-ignore lint/a11y/useSemanticElements: rich-text formatting needs a real contenteditable, not <textarea> */}
+                <div
+                  aria-multiline="true"
+                  class="canvas-panel-editor composer-input input-reset"
+                  contentEditable
+                  data-placeholder="Write something for this channel…"
+                  onInput={onInput}
+                  onKeyDown={onKeyDown}
+                  onPaste={onPaste}
+                  ref={editor.setRef}
+                  role="textbox"
+                  tabIndex={0}
+                />
+              </Show>
             </Show>
           </div>
         </Overlay>

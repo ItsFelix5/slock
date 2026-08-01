@@ -64,8 +64,12 @@ export { default as Popover } from "./overlay/Popover";
 export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
 export {
+  activeFontPreset,
   activePreset,
   applyPreset,
+  DEFAULT_FONT,
+  type FontPreset,
+  FONT_PRESETS,
   getEffectiveColor,
   logDeletedMessages,
   type MessageSize,

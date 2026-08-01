@@ -1,8 +1,10 @@
-import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
+import { Mrkdwn } from "@slock/blockkit";
+import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { Icon, type IconName, VideoPlayer, ZoomableImage } from "@slock/ui";
-import { For, Match, Switch } from "solid-js";
+import { For, Match, Show, Switch } from "solid-js";
 import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
+import { constrainMediaDimensions } from "./estimateMediaHeight";
 import FileViewerTrigger from "./FileViewer";
 import "./MessageFiles.css";
 
@@ -13,12 +15,17 @@ function formatSize(bytes: number | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function FileCardInfo(props: { file: SlackFile; icon: IconName }) {
+function FileCardInfo(props: { file: SlackFile; icon: IconName; mrkdwnTitle?: boolean }) {
+  const name = () => props.file.title || props.file.name;
   return (
     <>
       <Icon name={props.icon} size={20} />
       <span class="message-file-info">
-        <span class="message-file-name">{props.file.title || props.file.name}</span>
+        <span class="message-file-name">
+          <Show fallback={name()} when={props.mrkdwnTitle}>
+            <Mrkdwn text={name()} />
+          </Show>
+        </span>
         <span class="message-file-meta">
           {props.file.filetype?.toUpperCase()} {formatSize(props.file.size)}
         </span>
@@ -45,17 +52,25 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
             }
           >
             <Match when={file.isImage ? file.thumbUrl : undefined}>
-              {(thumb) => (
-                <ZoomableImage
-                  alt={file.title || file.name}
-                  blurSrc={file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined}
-                  class="message-file-image"
-                  fullSrc={fileProxyUrl(file.urlPrivate)}
-                  height={file.height}
-                  src={thumb()}
-                  width={file.width}
-                />
-              )}
+              {(thumb) => {
+                const dimensions = () =>
+                  constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180);
+                return (
+                  <ZoomableImage
+                    alt={file.title || file.name}
+                    blurSrc={
+                      file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined
+                    }
+                    class="message-file-image"
+                    fullSrc={resolveMediaUrl(file.urlPrivate)}
+                    height={file.height}
+                    reservedHeight={dimensions().height}
+                    reservedWidth={dimensions().width}
+                    src={thumb()}
+                    width={file.width}
+                  />
+                );
+              }}
             </Match>
             <Match when={file.isVideo}>
               <VideoPlayer
@@ -64,7 +79,7 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                 height={file.height}
                 openHref={file.urlPrivate}
                 poster={file.thumbUrl}
-                src={fileProxyUrl(file.urlPrivate)}
+                src={resolveMediaUrl(file.urlPrivate)}
                 width={file.width}
               />
             </Match>
@@ -87,7 +102,7 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                 onClick={() => store.canvas.openFileCanvas(file.id, file.title || file.name)}
                 type="button"
               >
-                <FileCardInfo file={file} icon="open-in-canvas" />
+                <FileCardInfo file={file} icon="open-in-canvas" mrkdwnTitle />
               </button>
             </Match>
           </Switch>

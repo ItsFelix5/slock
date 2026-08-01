@@ -1,11 +1,14 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
-import { trimBot, trimUser } from "./slackEntities.ts";
+import { trimBot, trimMessage, trimUser } from "./slackEntities.ts";
 import { trimChannel, trimReadResponse } from "./slackReadResponse.ts";
 
 function trimMutation(method: string, data: any): any {
   if (method === "chat.postMessage") return { ok: true, ts: data.ts };
   if (method === "conversations.rename") {
     return { channel: { name: data.channel?.name }, ok: true };
+  }
+  if (method === "canvases.create" || method === "conversations.canvases.create") {
+    return { canvas_id: data.canvas_id, ok: true };
   }
   if (method === "conversations.join" || method === "conversations.create") {
     return { channel: trimChannel(data.channel), ok: true };
@@ -33,6 +36,7 @@ function trimMutation(method: string, data: any): any {
 const OK_ONLY_METHODS = new Set([
   "apps.actions.v2.execute",
   "blocks.actions",
+  "canvases.access.set",
   "canvases.edit",
   "channels.prefs.set",
   "chat.command",
@@ -95,6 +99,19 @@ export function trimSlackResponse(method: string, data: any): any {
     };
   }
   if (method === "conversations.info") return { channel: trimChannel(data.channel), ok: true };
+  if (method === "conversations.view") {
+    return {
+      channel: trimChannel(data.channel),
+      history: {
+        has_more: data.history?.has_more,
+        messages: Array.isArray(data.history?.messages)
+          ? data.history.messages.map(trimMessage)
+          : data.history?.messages,
+      },
+      ok: true,
+      users: Array.isArray(data.users) ? data.users.map(trimUser) : data.users,
+    };
+  }
   if (method === "channels.prefs.get") {
     const prefs = data.prefs ?? data;
     return {
@@ -205,6 +222,8 @@ export function trimSlackResponse(method: string, data: any): any {
   if (method === "files.info") {
     return {
       file: {
+        name: data.file?.name,
+        title: data.file?.title,
         url_private: data.file?.url_private,
         url_private_download: data.file?.url_private_download,
       },

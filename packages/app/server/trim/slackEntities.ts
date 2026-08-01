@@ -79,6 +79,9 @@ function trimFile(file: any): any {
     thumb_720: file.thumb_720,
     thumb_720_h: file.thumb_720_h,
     thumb_720_w: file.thumb_720_w,
+    thumb_800: file.thumb_800,
+    thumb_800_h: file.thumb_800_h,
+    thumb_800_w: file.thumb_800_w,
     thumb_tiny: file.thumb_tiny,
     title: file.title,
     transcription: file.transcription?.preview

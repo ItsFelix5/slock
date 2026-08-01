@@ -30,6 +30,7 @@ type SuggestionOptions = {
   setSuggest: Setter<SuggestState | null>;
   currentTextContext: () => { node: Text; offset: number } | null;
   syncFromDom: () => void;
+  includeCommands?: boolean;
 };
 
 type ChannelCandidate = { id: string; name: string; private: boolean };
@@ -174,6 +175,10 @@ export function createSuggestionController(opts: SuggestionOptions) {
   function updateSuggestions(value: string, cursor: number) {
     const trigger = detectMentionTrigger(value, cursor);
     if (!trigger) {
+      opts.setSuggest(null);
+      return;
+    }
+    if (trigger.kind === "command" && opts.includeCommands === false) {
       opts.setSuggest(null);
       return;
     }

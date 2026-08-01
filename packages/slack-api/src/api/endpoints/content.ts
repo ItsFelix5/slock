@@ -1,13 +1,13 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../contentTypes";
-import { callSlack, fileProxyUrl } from "../relay";
+import { callSlack, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
 export function fetchAllEmoji(): Promise<Record<string, string>> {
   if (!emojiMapPromise) {
-    emojiMapPromise = fetch("/emoji")
+    emojiMapPromise = fetch("/api/emoji")
       .then((res) => {
         if (!res.ok) throw new Error(`Emoji list failed (${res.status})`);
         return res.text();
@@ -16,7 +16,7 @@ export function fetchAllEmoji(): Promise<Record<string, string>> {
         const names = text ? text.split("\n") : [];
         const resolved: Record<string, string> = {};
         for (const name of names) {
-          resolved[name] = `/emoji-image?name=${encodeURIComponent(name)}`;
+          resolved[name] = `/api/emoji/${encodeURIComponent(name)}`;
         }
         return resolved;
       })
@@ -58,19 +58,51 @@ export async function fetchSaved(): Promise<SavedItem[]> {
     .filter((it): it is SavedItem => !!it.channelId && !!it.ts);
 }
 
-// Shared by fetchCanvas (reads the content) and fetchCanvasFileUrl (just
-// needs the link) — both start from the same files.info lookup for the
-// canvas's backing file.
+interface CanvasFileInfo {
+  title: string | null;
+  url: string | null;
+}
+
+const canvasFileInfoRequests = new Map<string, Promise<CanvasFileInfo>>();
+
+// Titles and backing URLs come from the same files.info payload. Keep that
+// lookup shared so asynchronously naming an unlabeled tab does not add another
+// request when the user immediately opens it.
+function resolveCanvasFileInfo(fileId: string): Promise<CanvasFileInfo> {
+  const existing = canvasFileInfoRequests.get(fileId);
+  if (existing) return existing;
+  const request = callSlack("files.info", { file: fileId })
+    .then((info) => {
+      if (!info.ok) throw new Error(info.error ?? "files.info failed");
+      const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
+      return {
+        title: info.file?.title?.trim() || info.file?.name?.trim() || null,
+        url: downloadUrl ? resolveMediaUrl(downloadUrl) : null,
+      };
+    })
+    .catch((error) => {
+      canvasFileInfoRequests.delete(fileId);
+      throw error;
+    });
+  canvasFileInfoRequests.set(fileId, request);
+  return request;
+}
+
 async function resolveCanvasFileUrl(fileId: string): Promise<string | null> {
-  const info = await callSlack("files.info", { file: fileId });
-  if (!info.ok) throw new Error(info.error ?? "files.info failed");
-  const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
-  return downloadUrl ? fileProxyUrl(downloadUrl) : null;
+  return (await resolveCanvasFileInfo(fileId)).url;
+}
+
+export async function fetchCanvasTitle(fileId: string): Promise<string | null> {
+  try {
+    return (await resolveCanvasFileInfo(fileId)).title;
+  } catch {
+    return null;
+  }
 }
 
 // Reading a canvas's actual document content back out isn't something we can
-// fully verify without live testing against a real canvas — best-effort: fetch
-// the backing file's content through the cookie-authenticated file proxy.
+// fully verify without live testing against a real canvas. Slack file URLs in
+// API responses are already signed application resource URLs.
 export async function fetchCanvas(fileId: string): Promise<string | null> {
   const url = await resolveCanvasFileUrl(fileId);
   if (!url) return null;
@@ -79,8 +111,7 @@ export async function fetchCanvas(fileId: string): Promise<string | null> {
   return res.text();
 }
 
-// A direct, navigable link to the canvas's backing file — same cookie-proxied
-// URL fetchCanvas reads from, exposed so the UI can offer "open as a file"
+// A direct, navigable link to the canvas's backing file, exposed so the UI can offer "open as a file"
 // (new tab, copy link, download) instead of only the in-app rich editor.
 export async function fetchCanvasFileUrl(fileId: string): Promise<string | null> {
   try {
@@ -113,12 +144,9 @@ export async function runSlashCommand(
   return null;
 }
 
-// Modern (non-deprecated) Slack upload flow: reserve an upload URL, then send
-// the raw bytes to it, then tell Slack to attach the finished upload to a
-// channel. The middle step can't be a direct browser POST to Slack's
-// presigned URL — Slack doesn't grant our own origin CORS access to
-// files.slack.com — so it goes through our own same-origin relay instead,
-// which forwards it server-side where CORS doesn't apply.
+// Modern Slack upload flow. The application server reserves the upload and
+// returns a scoped capability; the browser never receives or chooses an
+// upstream URL.
 export async function uploadFiles(
   channelId: string,
   files: File[],
@@ -128,16 +156,20 @@ export async function uploadFiles(
   if (files.length === 0) return;
   const uploaded: { id: string; title: string }[] = [];
   for (const file of files) {
-    const reserve = await callSlack("files.getUploadURLExternal", {
-      filename: file.name,
-      length: String(file.size),
+    const reserve = await fetch("/api/files/reserve", {
+      body: JSON.stringify({ filename: file.name, length: String(file.size) }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
-    if (!reserve.ok) throw new Error(reserve.error ?? "files.getUploadURLExternal failed");
+    const reservation = await reserve.json();
+    if (!(reserve.ok && reservation.ok)) {
+      throw new Error(reservation.error ?? "File reservation failed");
+    }
 
-    const uploadUrl = `/file-upload?url=${encodeURIComponent(reserve.upload_url)}&filename=${encodeURIComponent(file.name)}`;
+    const uploadUrl = `/api/files/upload/${reservation.upload_token}?filename=${encodeURIComponent(file.name)}`;
     const putRes = await fetch(uploadUrl, { body: file, method: "POST" });
     if (!putRes.ok) throw new Error(`Failed to upload ${file.name}.`);
-    uploaded.push({ id: reserve.file_id, title: file.name });
+    uploaded.push({ id: reservation.file_id, title: file.name });
   }
 
   const completeParams: Record<string, string> = {
@@ -146,7 +178,12 @@ export async function uploadFiles(
   };
   if (threadTs) completeParams.thread_ts = threadTs;
   if (comment) completeParams.initial_comment = comment;
-  const complete = await callSlack("files.completeUploadExternal", completeParams);
+  const completeRes = await fetch("/api/files/complete", {
+    body: JSON.stringify(completeParams),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+  const complete = await completeRes.json();
   if (!complete.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
 }
 
@@ -159,24 +196,8 @@ export function uploadFile(
   return uploadFiles(channelId, [file], threadTs, comment);
 }
 
-// Client-side stand-in for Slack's own link unfurl, which only ever runs
-// server-side after a message is posted — this lets the composer show a
-// preview of a pasted/typed link before send, the way Slack's real composer
-// does. Best-effort: any fetch/parse failure just means no preview, not an error.
-export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {
-  try {
-    const res = await fetch(`/unfurl?url=${encodeURIComponent(url)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!(data.title || data.description || data.imageUrl)) return null;
-    return {
-      description: data.description,
-      imageUrl: data.imageUrl,
-      siteName: data.siteName,
-      title: data.title,
-      url,
-    };
-  } catch {
-    return null;
-  }
+// Slack adds unfurls after send. The application server deliberately does not
+// retrieve caller-selected URLs, so there is no pre-send preview request.
+export function fetchLinkPreview(_url: string): Promise<LinkPreview | null> {
+  return Promise.resolve(null);
 }

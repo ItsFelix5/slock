@@ -1,0 +1,56 @@
+@import "./Composer.css";
+
+.mrkdwn-composer {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  overflow: visible;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-6);
+}
+
+.mrkdwn-composer:focus-within {
+  border-color: var(--accent);
+}
+
+.mrkdwn-composer.disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.mrkdwn-composer-input.composer-input {
+  min-width: 0;
+  min-height: 36px;
+  max-height: 120px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  word-break: break-word;
+  cursor: text;
+}
+
+.mrkdwn-composer.multiline .mrkdwn-composer-input {
+  min-height: 64px;
+}
+
+.mrkdwn-composer-input:focus {
+  outline: none;
+}
+
+.mrkdwn-composer-input:empty::before {
+  color: var(--text-dim);
+  pointer-events: none;
+  content: attr(data-placeholder);
+}
+
+.mrkdwn-composer > .composer-suggest-popover {
+  top: calc(100% + 4px);
+  right: 0;
+  bottom: auto;
+  left: 0;
+}

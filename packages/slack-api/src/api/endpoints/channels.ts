@@ -4,17 +4,21 @@
 import type {
   BrowsableChannel,
   CanvasInfo,
+  CanvasListItem,
   Channel,
   ChannelDetails,
   ChannelMembersPage,
   MemberPermissionsPatch,
 } from "../../types";
-import { mapUser } from "../mappers";
-import { callSlack, callSlackEdge } from "../relay";
+import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
+import { mapChannel, mapUser } from "../mappers";
+import { callSlack, callSlackEdge } from "../server";
+import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
 
 export {
   createSection,
   deleteSection,
+  fetchFreshSections,
   fetchSections,
   openDm,
   renameSection,
@@ -23,9 +27,38 @@ export {
   setSectionSidebar,
   updateSectionChannels,
 } from "./channels/sections";
+export {
+  type ConversationViewData,
+  fetchChannelCanvases,
+  fetchConversationView,
+} from "./conversationView";
 export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite";
+
+const MAX_CHANNELS_PER_BATCH = 100;
+
+function cachedChannelForId(data: any, id: string): any | undefined {
+  if (data.channels?.[id]) return data.channels[id];
+  if (Array.isArray(data.channels)) return data.channels.find((channel) => channel.id === id);
+  if (data.results?.[id]) return data.results[id];
+  if (Array.isArray(data.results)) return data.results.find((channel) => channel.id === id);
+  return data.channel?.id === id ? data.channel : undefined;
+}
+
+export const fetchChannel = createBatchedIdFetcher<Channel | null>(async (ids) => {
+  const data = await callSlackEdge("channels/info", {
+    updated_ids: Object.fromEntries(ids.map((id) => [id, 0])),
+  });
+  if (!data.ok) throw new Error(data.error ?? "edge channels/info failed");
+  return new Map(
+    ids.map((id) => {
+      const raw = cachedChannelForId(data, id);
+      return [id, raw?.id ? mapChannel(raw) : null];
+    }),
+  );
+}, MAX_CHANNELS_PER_BATCH);
+
 export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
-  const res = await fetch(`/channel-lookup?id=${encodeURIComponent(id)}`);
+  const res = await fetch(`/api/channels/discovery?id=${encodeURIComponent(id)}`);
   if (!res.ok) return null;
   const data = await res.json();
   return {
@@ -63,10 +96,42 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
     }));
 }
 export async function fetchChannelCanvasInfo(channelId: string): Promise<CanvasInfo | null> {
-  const data = await callSlack("conversations.info", { channel: channelId });
-  if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
-  const canvas = data?.channel?.properties?.canvas;
-  return canvas?.file_id ? { fileId: canvas.file_id, isEmpty: !!canvas.is_empty } : null;
+  const [canvas] = await fetchChannelCanvases(channelId);
+  return canvas ? { fileId: canvas.fileId, isEmpty: false } : null;
+}
+export async function createChannelCanvas(channelId: string, title?: string): Promise<CanvasInfo> {
+  const data = await callSlack("conversations.canvases.create", {
+    channel_id: channelId,
+    document_content: JSON.stringify({ markdown: "", type: "markdown" }),
+    ...(title ? { title } : {}),
+  });
+  if (!data.ok) {
+    invalidateConversationView(channelId);
+    throw new Error(data.error ?? "conversations.canvases.create failed");
+  }
+  if (!data.canvas_id) throw new Error("Canvas creation returned no canvas ID");
+  invalidateConversationView(channelId);
+  return { fileId: data.canvas_id, isEmpty: true };
+}
+export async function createSharedChannelCanvas(
+  channelId: string,
+  title: string,
+): Promise<CanvasListItem> {
+  const created = await callSlack("canvases.create", {
+    document_content: JSON.stringify({ markdown: "", type: "markdown" }),
+    title,
+  });
+  if (!created.ok) throw new Error(created.error ?? "canvases.create failed");
+  if (!created.canvas_id) throw new Error("Canvas creation returned no canvas ID");
+
+  const shared = await callSlack("canvases.access.set", {
+    access_level: "write",
+    canvas_id: created.canvas_id,
+    channel_ids: channelId,
+  });
+  if (!shared.ok) throw new Error(shared.error ?? "canvases.access.set failed");
+  invalidateConversationView(channelId);
+  return { fileId: created.canvas_id, title };
 }
 export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
   const data = await callSlack("conversations.info", {

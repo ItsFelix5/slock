@@ -1,7 +1,15 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile lint/style/useNamingConvention: One cohesive raw-Slack-payload-to-app-type translation layer; raw interfaces intentionally mirror Slack snake_case wire fields.
 import type { Block } from "../blocks";
-import type { Attachment, Message, MessageKind, Reaction, SlackFile, User } from "../types";
-import { fileProxyUrl } from "./relay";
+import type {
+  Attachment,
+  Channel,
+  Message,
+  MessageKind,
+  Reaction,
+  SlackFile,
+  User,
+} from "../types";
+import { resolveMediaUrl } from "./server";
 
 const SLACK_USER_ID = "USLACK";
 const SLACK_AVATAR_URL = "/slack-logo.svg";
@@ -50,6 +58,16 @@ export interface RawBot {
   name?: string;
 }
 
+export interface RawChannel {
+  id: string;
+  is_private?: boolean;
+  latest?: string;
+  name?: string;
+  topic?: string | { value?: string };
+  unread_count?: number;
+  unread_count_display?: number;
+}
+
 export interface RawCountGroup {
   has_unreads?: boolean | number | string;
   id?: string;
@@ -91,6 +109,9 @@ export interface RawFile {
   thumb_720?: string;
   thumb_720_h?: number;
   thumb_720_w?: number;
+  thumb_800?: string;
+  thumb_800_h?: number;
+  thumb_800_w?: number;
   // A ~30-byte base64 JPEG (no data: prefix) Slack generates for every
   // image upload — used as a blurred placeholder while the real thumbnail
   // (chosen below) loads in.
@@ -231,12 +252,23 @@ export function mapBot(raw: RawBot): User {
   return {
     appId: raw.app_id || undefined,
     avatarColor: "#616061",
-    avatarUrl: rawIcon ? fileProxyUrl(rawIcon) : undefined,
+    avatarUrl: rawIcon ? resolveMediaUrl(rawIcon) : undefined,
     botId: raw.id,
     id: raw.id,
     isBot: true,
     name: raw.name ?? "",
     presence: "active",
+  };
+}
+
+export function mapChannel(raw: RawChannel): Channel {
+  return {
+    id: raw.id,
+    lastActivity: raw.latest ? Number.parseFloat(raw.latest) * 1000 : undefined,
+    name: raw.name ?? raw.id,
+    private: !!raw.is_private,
+    topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
+    unread: (raw.unread_count_display ?? raw.unread_count ?? 0) > 0,
   };
 }
 
@@ -306,7 +338,7 @@ function formatTime(ts: string) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function formatDay(ts: string) {
+export function formatDay(ts: string) {
   const date = new Date(parseFloat(ts) * 1000);
   const today = new Date();
   const yesterday = new Date();
@@ -363,6 +395,9 @@ function mapFile(f: RawFile): SlackFile {
   // Prefers the largest available so retina displays stay crisp at our
   // ~360px-wide render size (see MessageFiles.css).
   const thumb =
+    (f.thumb_800 && f.thumb_800_w && f.thumb_800_h
+      ? { h: f.thumb_800_h, url: f.thumb_800, w: f.thumb_800_w }
+      : undefined) ??
     (f.thumb_720 && f.thumb_720_w && f.thumb_720_h
       ? { h: f.thumb_720_h, url: f.thumb_720, w: f.thumb_720_w }
       : undefined) ??
@@ -390,14 +425,14 @@ function mapFile(f: RawFile): SlackFile {
     permalink: f.permalink,
     size: f.size,
     thumbTiny: f.thumb_tiny,
-    thumbUrl: thumb ? fileProxyUrl(thumb.url) : undefined,
+    thumbUrl: thumb ? resolveMediaUrl(thumb.url) : undefined,
     title: f.title,
     transcriptionHasMore: f.transcription?.preview?.has_more,
     transcriptionPreview: f.transcription?.preview?.content,
     // Kept unproxied: used both as a top-level download-link href (a plain
     // navigation, which does send Slack's SameSite cookie) and as an <img>/
     // <video> subresource src (which doesn't) — callers that need the latter
-    // wrap it with fileProxyUrl themselves.
+    // pass it through resolveMediaUrl themselves.
     urlPrivate: f.url_private ?? "",
     waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
     width: thumb?.w ?? f.original_w,
@@ -406,7 +441,7 @@ function mapFile(f: RawFile): SlackFile {
 
 function mapAttachment(a: RawAttachment): Attachment {
   return {
-    authorIcon: a.author_icon ? fileProxyUrl(a.author_icon) : undefined,
+    authorIcon: a.author_icon ? resolveMediaUrl(a.author_icon) : undefined,
     authorName: a.author_name,
     blocks: a.blocks,
     channelId: a.channel_id,
@@ -415,11 +450,11 @@ function mapAttachment(a: RawAttachment): Attachment {
     fields: a.fields,
     files: Array.isArray(a.files) ? a.files.map(mapFile) : undefined,
     footer: a.footer,
-    footerIcon: a.footer_icon ? fileProxyUrl(a.footer_icon) : undefined,
+    footerIcon: a.footer_icon ? resolveMediaUrl(a.footer_icon) : undefined,
     fromUrl: a.from_url,
     id: a.id,
     imageHeight: a.image_height,
-    imageUrl: a.image_url ? fileProxyUrl(a.image_url) : undefined,
+    imageUrl: a.image_url ? resolveMediaUrl(a.image_url) : undefined,
     imageWidth: a.image_width,
     isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
     postedAt: a.ts ? `${formatDay(a.ts)} at ${formatTime(a.ts)}` : undefined,
@@ -429,7 +464,7 @@ function mapAttachment(a: RawAttachment): Attachment {
     titleLink: a.title_link,
     ts: a.ts,
     videoHeight: a.video_height,
-    videoUrl: a.video_url ? fileProxyUrl(a.video_url) : undefined,
+    videoUrl: a.video_url ? resolveMediaUrl(a.video_url) : undefined,
     videoWidth: a.video_width,
   };
 }
@@ -440,23 +475,23 @@ export function mapMessage(m: RawMessage): Message {
   return {
     attachments: Array.isArray(m.attachments) ? m.attachments.map(mapAttachment) : undefined,
     blocks: m.blocks,
-    // Slack nests modern bot avatars inside bot_profile.icons; old message
-    // payloads instead put them at the top-level icons field.
+    // A message-level icon is a deliberate per-message override. Fall back to
+    // the bot profile only when the message does not provide one.
     botIcon: (() => {
       const icon =
-        m.bot_profile?.icons?.image_72 ??
-        m.bot_profile?.icons?.image_48 ??
-        m.bot_profile?.icons?.image_36 ??
         m.icons?.image_72 ??
         m.icons?.image_48 ??
-        m.icons?.image_36;
-      return icon ? fileProxyUrl(icon) : undefined;
+        m.icons?.image_36 ??
+        m.bot_profile?.icons?.image_72 ??
+        m.bot_profile?.icons?.image_48 ??
+        m.bot_profile?.icons?.image_36;
+      return icon ? resolveMediaUrl(icon) : undefined;
     })(),
     botId: m.bot_id,
     // Legacy integrations and incoming webhooks can provide a custom author
     // without also setting subtype=bot_message or bot_id. In that shape the
     // top-level username is still the message's authoritative display name.
-    botName: m.bot_profile?.name ?? m.username,
+    botName: m.username ?? m.bot_profile?.name,
     day: formatDay(m.ts),
     edited: !!m.edited,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,

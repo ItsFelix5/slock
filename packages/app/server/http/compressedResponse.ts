@@ -1,6 +1,6 @@
 import { gzipSync } from "node:zlib";
 
-// Shared by every text/JSON response this relay sends — gzips when the
+// Shared by every text/JSON response the application server sends — gzips when the
 // client says it accepts it instead of shipping large raw payloads.
 export function compressedResponse(
   body: string,

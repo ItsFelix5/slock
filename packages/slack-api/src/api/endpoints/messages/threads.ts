@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import { callSlack } from "../../relay";
+import { callSlack } from "../../server";
 
 // Private endpoint behind the webapp's "Get notified about new replies" /
 // "Unfollow thread" thread-menu actions — conversations.replies exposes the

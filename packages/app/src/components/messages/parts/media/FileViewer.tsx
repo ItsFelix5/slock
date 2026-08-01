@@ -1,4 +1,4 @@
-import { fileProxyUrl, type SlackFile } from "@slock/slack-api";
+import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import {
   createResource,
@@ -103,7 +103,7 @@ function PdfBody(props: { file: SlackFile }) {
           class="file-viewer-frame file-viewer-pdf-frame"
           onError={() => setFailed(true)}
           onLoad={() => setLoaded(true)}
-          src={fileProxyUrl(props.file.urlPrivate)}
+          src={resolveMediaUrl(props.file.urlPrivate)}
           title={name()}
         />
         <Show when={!loaded()}>
@@ -123,7 +123,7 @@ function MailBody(props: { file: SlackFile }) {
     async (url) => {
       fetchController?.abort();
       fetchController = new AbortController();
-      const response = await fetch(fileProxyUrl(url), { signal: fetchController.signal });
+      const response = await fetch(resolveMediaUrl(url), { signal: fetchController.signal });
       if (!response.ok) throw new Error(`Email preview failed (${response.status})`);
       return response.text();
     },

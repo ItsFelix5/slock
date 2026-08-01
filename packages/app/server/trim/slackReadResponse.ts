@@ -1,4 +1,4 @@
-// biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
+// biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Read payload trimmers share the same recursive entity helpers.
 import { trimMessage, trimUser } from "./slackEntities.ts";
 
 export function trimChannel(channel: any): any {
@@ -16,6 +16,8 @@ export function trimChannel(channel: any): any {
     is_member: channel.is_member,
     is_mpim: channel.is_mpim,
     is_private: channel.is_private,
+    last_read: channel.last_read,
+    latest: channel.latest,
     member_count: channel.member_count,
     name: channel.name,
     num_members: channel.num_members,
@@ -27,6 +29,22 @@ export function trimChannel(channel: any): any {
                 is_empty: channel.properties.canvas.is_empty,
               }
             : undefined,
+          tabs: Array.isArray(channel.properties.tabs)
+            ? channel.properties.tabs.map((tab: any) => ({
+                data: { file_id: tab?.data?.file_id },
+                id: tab?.id,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabs,
+          tabz: Array.isArray(channel.properties.tabz)
+            ? channel.properties.tabz.map((tab: any) => ({
+                data: { file_id: tab?.data?.file_id },
+                id: tab?.id,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabz,
           channel_email_addresses: Array.isArray(channel.properties.channel_email_addresses)
             ? channel.properties.channel_email_addresses.map((entry: any) => ({
                 address: entry?.address,
@@ -36,6 +54,8 @@ export function trimChannel(channel: any): any {
       : undefined,
     purpose: trimText(channel.purpose),
     topic: trimText(channel.topic),
+    unread_count: channel.unread_count,
+    unread_count_display: channel.unread_count_display,
   };
 }
 
@@ -145,34 +165,84 @@ function trimActivityMessage(message: any): any {
   };
 }
 
+function findActivityMessageReference(value: any, depth = 0): any {
+  if (!(value && typeof value === "object") || depth > 5) return;
+  const channel = value.channel ?? value.channel_id;
+  const ts = value.ts ?? value.message_ts ?? value.latest_ts;
+  if (channel && ts) {
+    return {
+      ...value,
+      channel,
+      ts,
+      user: value.user ?? value.user_id ?? value.latest_user_id,
+    };
+  }
+  for (const nested of Object.values(value)) {
+    const message = findActivityMessageReference(nested, depth + 1);
+    if (message) return message;
+  }
+}
+
 function trimActivityItem(raw: any): any {
   const item = raw?.item ?? {};
-  const thread = item.bundle_info?.payload?.thread_entry;
+  const payload = item.bundle_info?.payload;
+  const thread = payload?.thread_entry;
+  const dmEntry = payload?.dm_entry;
+  const channelEntry = payload?.channel_entry;
+  const hasBundlePayload =
+    thread || dmEntry || channelEntry || payload?.message || payload?.latest_message;
+  const message = item.message ?? findActivityMessageReference(item);
   return {
     feed_ts: raw?.feed_ts,
     item: {
-      bundle_info: thread
+      bundle_info: hasBundlePayload
         ? {
             payload: {
-              thread_entry: {
-                channel_id: thread.channel_id,
-                latest_message: trimActivityMessage(thread.latest_message),
-                latest_msg: trimActivityMessage(thread.latest_msg),
-                latest_reply_actor_user_id: thread.latest_reply_actor_user_id,
-                latest_reply_user_id: thread.latest_reply_user_id,
-                latest_ts: thread.latest_ts,
-                latest_user_id: thread.latest_user_id,
-                message: trimActivityMessage(thread.message),
-                thread_ts: thread.thread_ts,
-                unread_msg_count: thread.unread_msg_count,
-                user_id: thread.user_id,
-              },
+              channel_entry: channelEntry
+                ? {
+                    ...trimActivityMessage(channelEntry),
+                    channel_id: channelEntry.channel_id,
+                    latest_message: trimActivityMessage(channelEntry.latest_message),
+                    latest_ts: channelEntry.latest_ts,
+                    latest_user_id: channelEntry.latest_user_id,
+                    message: trimActivityMessage(channelEntry.message),
+                    user_id: channelEntry.user_id,
+                  }
+                : undefined,
+              dm_entry: dmEntry
+                ? {
+                    latest_message: trimActivityMessage(dmEntry.latest_message),
+                  }
+                : undefined,
+              latest_message: trimActivityMessage(payload.latest_message),
+              message: trimActivityMessage(payload.message),
+              thread_entry: thread
+                ? {
+                    channel_id: thread.channel_id,
+                    latest_message: trimActivityMessage(thread.latest_message),
+                    latest_msg: trimActivityMessage(thread.latest_msg),
+                    latest_reply_actor_user_id: thread.latest_reply_actor_user_id,
+                    latest_reply_user_id: thread.latest_reply_user_id,
+                    latest_ts: thread.latest_ts,
+                    latest_user_id: thread.latest_user_id,
+                    message: trimActivityMessage(thread.message),
+                    thread_ts: thread.thread_ts,
+                    unread_msg_count: thread.unread_msg_count,
+                    user_id: thread.user_id,
+                  }
+                : undefined,
             },
           }
         : undefined,
-      message: trimActivityMessage(item.message),
+      channel: item.channel,
+      channel_id: item.channel_id,
+      latest_user_id: item.latest_user_id,
+      message: trimActivityMessage(message),
+      message_ts: item.message_ts,
       reaction: item.reaction ? { name: item.reaction.name, user: item.reaction.user } : undefined,
+      ts: item.ts,
       type: item.type,
+      user_id: item.user_id,
     },
     key: raw?.key,
   };
@@ -223,6 +293,9 @@ export function trimReadResponse(method: string, data: any): any | null {
     return {
       items: Array.isArray(data.items) ? data.items.map(trimActivityItem) : data.items,
       ok: true,
+      response_metadata: data.response_metadata
+        ? { next_cursor: data.response_metadata.next_cursor }
+        : undefined,
     };
   }
   if (method === "pins.list") return trimPins(data);

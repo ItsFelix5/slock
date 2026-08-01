@@ -6,13 +6,16 @@ import {
   renameSection as apiRenameSection,
   reorderSection as apiReorderSection,
   setSectionSidebar as apiSetSectionSidebar,
+  setUsergroupSectionOrderPreference as apiSetUsergroupSectionOrderPreference,
   updateSectionChannels as apiUpdateSectionChannels,
   fetchBrowsableChannels,
-  fetchChannelDetails,
-  fetchFlaronChannel,
+  fetchChannel,
+  fetchConversationView,
+  fetchFreshSections,
   fetchSections,
   joinChannel,
   leaveChannel,
+  setUsergroupSectionSidebarPreferences,
   toggleStar,
 } from "@slock/slack-api";
 import { createEffect, createMemo, createResource, createSignal, type Setter } from "solid-js";
@@ -21,14 +24,19 @@ import { actionFeedback } from "../feedback";
 import type { Nav, View } from "../types";
 import type { ChannelPlacementOutcome } from "./mutations/channelPlacementOutcome";
 import { removeSectionChannelsBatched } from "./mutations/sectionChannelRemovals";
-import { reorderSections } from "./mutations/sectionOrder";
-import { setSectionSidebarPreference } from "./mutations/sectionSidebarPrefs";
+import { applySectionOrder, reorderSections } from "./mutations/sectionOrder";
+import {
+  setSectionSidebarPreference,
+  setUsergroupSectionOrderPreference,
+  setUsergroupSectionSidebarPreference,
+} from "./mutations/sectionSidebarPrefs";
 
 export function createChannelsSlice(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;
   activeView: () => View | null;
   nav: () => Nav;
   setActiveView: (view: View) => void;
+  usergroupSections: () => ChannelSection[];
   userPrefs: () => UserPrefs | undefined;
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
@@ -77,23 +85,8 @@ export function createChannelsSlice(deps: {
     setChannelPatches(id, { ...channelPatches[id], ...patch });
   }
 
-  // conversations.info resolves public channels fine even when we're not a
-  // member; it only fails for private channels we're not in, which is the
-  // one case Flaron (an external, unauthenticated lookup) is for.
   async function discoverChannel(id: string): Promise<boolean> {
-    let channel: Channel | null;
-    try {
-      const details = await fetchChannelDetails(id);
-      channel = {
-        id: details.id,
-        name: details.name,
-        private: details.private,
-        topic: details.topic,
-        unread: false,
-      };
-    } catch {
-      channel = await fetchFlaronChannel(id);
-    }
+    const channel = await fetchChannel(id);
     if (!channel) return false;
     setDiscoveredChannels(produce((list) => list.push(channel)));
     return true;
@@ -102,9 +95,8 @@ export function createChannelsSlice(deps: {
   function channelById(id: string): Channel | undefined {
     const known = knownChannelById(id);
     if (known) return known;
-    // Bootstrap hasn't resolved yet, so we can't tell a genuinely external
-    // channel apart from one of this account's own that just hasn't loaded —
-    // wait rather than wrongly treating it as external and hitting Flaron.
+    // Bootstrap hasn't resolved yet, so we can't tell a genuinely unknown
+    // channel apart from one of this account's own that just hasn't loaded.
     if (!deps.bootstrap()) return;
     const missedAt = channelDiscoveryMisses.get(id);
     if (missedAt && Date.now() - missedAt < channelDiscoveryRetryMs) return;
@@ -138,9 +130,13 @@ export function createChannelsSlice(deps: {
     const known = channels().find((c) => c.id === id);
     if (!known || known.topic || channelDetailsRequested.has(id)) return;
     channelDetailsRequested.add(id);
-    fetchChannelDetails(id)
-      .then((details) => {
-        if (details.topic) patchChannel(id, { topic: details.topic });
+    fetchConversationView(id)
+      .then((view) => {
+        patchChannel(id, {
+          name: view.channel.name,
+          private: view.channel.private,
+          topic: view.channel.topic,
+        });
       })
       .catch(() => channelDetailsRequested.delete(id));
   }
@@ -205,9 +201,15 @@ export function createChannelsSlice(deps: {
 
   // ---- sections ----
 
+  let sectionsLoaded = false;
+  const loadSections = () => {
+    const load = sectionsLoaded ? fetchFreshSections : fetchSections;
+    sectionsLoaded = true;
+    return load();
+  };
   const [rawSections, { refetch: refetchSections, mutate: mutateSections }] = createResource(
     () => (deps.nav() === "home" ? true : undefined),
-    fetchSections,
+    loadSections,
   );
   const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
   const [sectionSidebarPendingById, setSectionSidebarPendingById] = createStore<
@@ -228,16 +230,34 @@ export function createChannelsSlice(deps: {
   // section resource consumer about two sources.
   const sections = createMemo<ChannelSection[] | undefined>(() => {
     const list = rawSections();
-    if (!list) return list;
+    const groupSections = deps.usergroupSections();
     const prefs = deps.userPrefs();
+    const visibleGroupSections = groupSections.map((section) => ({
+      ...section,
+      sidebar: prefs?.usergroupSectionSidebar[section.id] ?? section.sidebar,
+    }));
+    const usergroupOrder =
+      visibleGroupSections.length > 0 ? (prefs?.usergroupSectionOrder ?? []) : [];
+    if (!list)
+      return visibleGroupSections.length > 0
+        ? applySectionOrder(visibleGroupSections, usergroupOrder)
+        : list;
     const sectionSort = prefs?.sectionSort ?? {};
     const sectionSidebar = prefs?.sectionSidebar ?? {};
-    return list.map((s) => {
+    const personalSections = list.map((s) => {
       const sort = sectionSort[s.id];
       const sidebar = sectionSidebar[s.id] ?? s.sidebar;
       if (!sort && sidebar === s.sidebar) return s;
       return { ...s, sidebar, ...(sort ? { sort } : {}) };
     });
+    const personalIds = new Set(personalSections.map((section) => section.id));
+    return applySectionOrder(
+      [
+        ...personalSections,
+        ...visibleGroupSections.filter((section) => !personalIds.has(section.id)),
+      ],
+      usergroupOrder,
+    );
   });
 
   async function createChannelSection(
@@ -317,9 +337,8 @@ export function createChannelsSlice(deps: {
       isSectionSidebarPending(sectionId)
     )
       return false;
-    // The filter lives in the users.prefs "channel_sections" blob, so drive the
-    // optimistic update through there — mutating rawSections would be undone by
-    // the next refetch, which doesn't carry the sidebar value.
+    // Personal section filters live in Slack's channel_sections preference;
+    // synthesized user-group sections use Slock's own synced preference key.
     const prev = deps.userPrefs();
     if (!prev) {
       actionFeedback.flash(
@@ -329,18 +348,35 @@ export function createChannelsSlice(deps: {
       );
       return false;
     }
-    const previousSidebar = prev.sectionSidebar[sectionId];
+    const isUsergroupSection = section.type === "usergroup";
+    const previousSidebar = isUsergroupSection
+      ? prev.usergroupSectionSidebar[sectionId]
+      : prev.sectionSidebar[sectionId];
     setSectionSidebarPendingById(sectionId, true);
     actionFeedback.clear(sectionId);
     deps.mutateUserPrefs((current) =>
-      current ? setSectionSidebarPreference(current, sectionId, sidebar) : current,
+      current
+        ? isUsergroupSection
+          ? setUsergroupSectionSidebarPreference(current, sectionId, sidebar)
+          : setSectionSidebarPreference(current, sectionId, sidebar)
+        : current,
     );
     const rollback = () =>
       deps.mutateUserPrefs((current) =>
-        current ? setSectionSidebarPreference(current, sectionId, previousSidebar) : current,
+        current
+          ? isUsergroupSection
+            ? setUsergroupSectionSidebarPreference(current, sectionId, previousSidebar)
+            : setSectionSidebarPreference(current, sectionId, previousSidebar)
+          : current,
       );
     try {
-      if (await apiSetSectionSidebar(sectionId, sidebar)) return true;
+      const ok = isUsergroupSection
+        ? await setUsergroupSectionSidebarPreferences({
+            ...prev.usergroupSectionSidebar,
+            [sectionId]: sidebar,
+          })
+        : await apiSetSectionSidebar(sectionId, sidebar);
+      if (ok) return true;
       actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
       rollback();
       return false;
@@ -365,6 +401,46 @@ export function createChannelsSlice(deps: {
     const current = sections() ?? [];
     const optimistic = reorderSections(current, sectionId, nextSectionId);
     if (!optimistic) return false;
+    // Slack rejects users.channelSections.set when a synthesized user-group
+    // section participates in the order. Keep the existing shared reorder
+    // algorithm and persist only its resulting order through the same synced
+    // preference KV used by Slock's other client-owned settings.
+    if (current.some((section) => section.type === "usergroup")) {
+      const previousPrefs = deps.userPrefs();
+      if (!previousPrefs) {
+        actionFeedback.flash(
+          sectionId,
+          "Preferences are unavailable. Try loading them again.",
+          "error",
+        );
+        return false;
+      }
+      const nextOrder = optimistic.map((section) => section.id);
+      setSectionStructurePending(true);
+      actionFeedback.clear(sectionId);
+      deps.mutateUserPrefs((prefs) =>
+        prefs ? setUsergroupSectionOrderPreference(prefs, nextOrder) : prefs,
+      );
+      const rollback = () =>
+        deps.mutateUserPrefs((prefs) =>
+          prefs
+            ? setUsergroupSectionOrderPreference(prefs, previousPrefs.usergroupSectionOrder)
+            : prefs,
+        );
+      try {
+        if (await apiSetUsergroupSectionOrderPreference(nextOrder)) return true;
+        actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
+        rollback();
+        return false;
+      } catch (err) {
+        console.error("Failed to reorder section", err);
+        actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
+        rollback();
+        return false;
+      } finally {
+        setSectionStructurePending(false);
+      }
+    }
     setSectionStructurePending(true);
     mutateSections(optimistic);
     try {

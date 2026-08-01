@@ -1,4 +1,4 @@
-import { callSlack } from "../relay";
+import { callSlack } from "../server";
 import { fetchInitialData } from "./initialData";
 import { resolveDesktopNotificationsEnabled } from "./preferences/desktopNotifications";
 
@@ -14,6 +14,8 @@ export type UserPrefs = {
   channelTabs: Record<string, { type: string }[]>;
   sectionSort: Record<string, "recent">;
   sectionSidebar: Record<string, "hid" | "active" | "all">;
+  usergroupSectionOrder: string[];
+  usergroupSectionSidebar: Record<string, "hid" | "active" | "all">;
   globalNotifications: {
     channelsInActivity: boolean;
     desktop: string;
@@ -157,6 +159,18 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
         sectionSidebar[id] = value.sidebar;
     }
   }
+  const parsedUsergroupSectionSidebar = parse("slock_usergroup_section_sidebar") ?? {};
+  const usergroupSectionSidebar: Record<string, "hid" | "active" | "all"> = {};
+  if (parsedUsergroupSectionSidebar && typeof parsedUsergroupSectionSidebar === "object") {
+    for (const [id, value] of Object.entries(parsedUsergroupSectionSidebar)) {
+      if (value === "hid" || value === "active" || value === "all")
+        usergroupSectionSidebar[id] = value;
+    }
+  }
+  const parsedUsergroupSectionOrder = parse("slock_usergroup_section_order");
+  const usergroupSectionOrder: string[] = Array.isArray(parsedUsergroupSectionOrder)
+    ? parsedUsergroupSectionOrder.filter((id): id is string => typeof id === "string")
+    : [];
 
   return {
     channelFrecency,
@@ -171,7 +185,27 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     searchHistory,
     sectionSort,
     sectionSidebar,
+    usergroupSectionOrder,
+    usergroupSectionSidebar,
   };
+}
+
+export async function setUsergroupSectionOrderPreference(sectionIds: string[]): Promise<boolean> {
+  const data = await callSlack("users.prefs.set", {
+    name: "slock_usergroup_section_order",
+    value: JSON.stringify(sectionIds),
+  });
+  return !!data.ok;
+}
+
+export async function setUsergroupSectionSidebarPreferences(
+  entries: Record<string, "hid" | "active" | "all">,
+): Promise<boolean> {
+  const data = await callSlack("users.prefs.set", {
+    name: "slock_usergroup_section_sidebar",
+    value: JSON.stringify(entries),
+  });
+  return !!data.ok;
 }
 
 // This uses the same "prefs blob" mechanism the real webapp saves all of its

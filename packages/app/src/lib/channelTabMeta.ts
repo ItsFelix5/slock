@@ -1,10 +1,8 @@
 import type { IconName } from "@slock/ui";
 
-// The only tab type a user can freely add/remove/reorder in this app's own
-// tab bar. Kept to just one on purpose: things like Canvas aren't a good fit
-// here — a channel can have several, so a single toggleable entry can't
-// represent it — those instead just show up automatically when relevant
-// (see ChannelHeader/ChannelTabsTab), never as a manual add/remove choice.
+// Metadata for optional per-channel shortcuts saved in user preferences.
+// Canvas is deliberately separate: its compact header menu reflects the
+// channel's real Slack canvas instead of pretending it is a local preference.
 export type ChannelTabType = "pinned";
 
 export const ADDABLE_CHANNEL_TABS: { type: ChannelTabType; label: string; icon: IconName }[] = [

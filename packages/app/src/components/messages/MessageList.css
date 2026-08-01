@@ -14,6 +14,9 @@
 .message-list-skeleton {
   padding-top: 32px;
 }
+.message-list-rows-pending {
+  visibility: hidden;
+}
 .message-list-loading-older {
   padding: 10px 20px;
   font-size: 13px;

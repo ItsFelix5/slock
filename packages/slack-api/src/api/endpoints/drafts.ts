@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Draft payloads preserve Slack's wire field names.
-import { callSlack } from "../relay";
+import { callSlack } from "../server";
 
 export type DraftEntry = { channelId: string; threadTs?: string; text: string };
 

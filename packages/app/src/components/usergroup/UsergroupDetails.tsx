@@ -11,6 +11,7 @@ import {
   usergroupDetailsLoading,
   usergroupMutationPending,
 } from "../../lib/usergroupDetails";
+import MrkdwnComposer from "../composer/MrkdwnComposer";
 import UsergroupChannelsTab from "./UsergroupChannelsTab";
 import "./UsergroupDetails.css";
 import UsergroupMembersTab from "./UsergroupMembersTab";
@@ -205,12 +206,13 @@ export default function UsergroupDetails() {
                         <label class="usergroup-details-label" for="usergroup-details-description">
                           Description
                         </label>
-                        <textarea
-                          class="usergroup-details-input usergroup-details-textarea"
+                        <MrkdwnComposer
+                          ariaLabel="Description"
                           disabled={usergroupMutationPending()}
                           id="usergroup-details-description"
+                          multiline
                           onBlur={saveDescription}
-                          onInput={(e) => setDescriptionInput(e.currentTarget.value)}
+                          onInput={setDescriptionInput}
                           placeholder="Add a description"
                           value={descriptionInput()}
                         />
@@ -230,6 +232,7 @@ export default function UsergroupDetails() {
                     <UsergroupChannelsTab
                       channelIds={d().channelIds}
                       disabled={usergroupMutationPending()}
+                      sectionEnabled={d().isSection}
                       usergroupId={d().id}
                     />
                   </Show>

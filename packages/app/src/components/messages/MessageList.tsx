@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: History loading, virtualized positioning, and their shared DOM measurements form one scroll state machine.
 import { Button, Icon, Skeleton } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
 import {
@@ -19,6 +20,11 @@ import type { VirtualRowsApi } from "./VirtualizedRows";
 // with viewport height gives the fetch a head start proportional to how much
 // distance is left to cover before hitting bottom.
 const NEAR_TOP_VIEWPORT_FRACTION = 1.5;
+// A permalink/search jump owns a bounded island of history. Slack only gives
+// us a cursor toward older messages, so reaching the island's lower edge
+// returns to the live tail. Start that handoff shortly before the hard edge so
+// a fast wheel/flick does not leave the reader sitting against a dead end.
+const NEAR_BOTTOM_VIEWPORT_FRACTION = 0.75;
 // Cap on the older-history pages we'll fetch automatically to reach a read
 // cursor that's further back than what's loaded — bounds how much a channel
 // nobody's opened in weeks will pull in on open, rather than backfilling
@@ -60,11 +66,14 @@ export default function MessageList() {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let headerRef: HTMLDivElement | undefined;
   let lastViewId: string | undefined;
+  let lastScrollTop = 0;
+  let touchStartY: number | undefined;
   // Which view we've already performed the post-switch landing scroll for —
   // history usually finishes loading a tick after the switch itself, so this
   // stays unset (rather than being keyed off switchedView) until real messages
   // are on screen to land on.
   let positionedViewId: string | undefined;
+  let positioningEpoch = 0;
   let requestedMessageTarget: ReturnType<typeof store.viewState.channelMessageTarget> = null;
   let cancelPendingFlash: (() => void) | undefined;
   // Older-page fetches spent per view trying to backfill far enough to reach
@@ -75,6 +84,21 @@ export default function MessageList() {
   // below move to a row by index even when it's currently outside the
   // rendered window, instead of querying the DOM for it.
   const [virtualApi, setVirtualApi] = createSignal<VirtualRowsApi | null>(null);
+  const [followOnAppend, setFollowOnAppend] = createSignal<boolean | ScrollBehavior>("auto");
+  // A conversation is only made visible after its unread backfill and both
+  // virtualizer landing passes have completed. This prevents the initially
+  // loaded tail from painting first and visibly moving once older pages land.
+  const [readyViewId, setReadyViewId] = createSignal<string>();
+  // A divider near the end of a short unread tail cannot naturally reach the
+  // viewport top because the browser clamps at scrollHeight - clientHeight.
+  // Keep a full viewport of temporary tail space for the whole landing. Do
+  // not trim it to the measured shortage after scrolling: changing the scroll
+  // range under an active virtualizer landing is what caused the late snap.
+  // The tail is released as soon as the user starts scrolling.
+  const [landingSpace, setLandingSpace] = createSignal<{
+    height: number;
+    viewId: string;
+  }>();
   // Height of the header block (loading indicator / channel intro / error)
   // sitting above the virtualized rows. Handed to the virtualizer as its
   // scrollMargin so scroll landing stays accurate.
@@ -113,7 +137,17 @@ export default function MessageList() {
         const next = headerRef.offsetHeight;
         const delta = next - scrollMargin();
         if (delta === 0) return;
-        if (el.scrollTop > 0) el.scrollTop += delta;
+        if (el.scrollTop > 0) {
+          el.scrollTop += delta;
+          // The virtualizer tracks scrollTop itself via a native 'scroll'
+          // listener, which browsers dispatch asynchronously — so without
+          // this, the scrollMargin write below (which the virtualizer *does*
+          // react to synchronously) reaches it paired with a stale offset for
+          // one frame, and it computes the visible row range from that
+          // mismatched pair. Firing the event ourselves resyncs it before
+          // that happens, closing the gap that was showing as a flash/jump.
+          el.dispatchEvent(new Event("scroll"));
+        }
         setScrollMargin(next);
       },
     ),
@@ -138,7 +172,10 @@ export default function MessageList() {
     const switchedView = view?.id !== lastViewId;
     lastViewId = view?.id;
     if (switchedView) {
+      positioningEpoch += 1;
       positionedViewId = undefined;
+      lastScrollTop = 0;
+      setLandingSpace(undefined);
       cancelPendingFlash?.();
       cancelPendingFlash = undefined;
     }
@@ -151,6 +188,8 @@ export default function MessageList() {
     if (messageTarget?.channelId === view?.id) return;
 
     if (view && positionedViewId !== view.id && msgs.length > 0) {
+      const api = virtualApi();
+      if (!api) return;
       // The read cursor sits before every loaded message (nothing loaded is
       // "read" yet) — the true divider position is further back than what
       // we've fetched. Pull a few more pages so it lands with some read
@@ -162,17 +201,20 @@ export default function MessageList() {
       if (anchor === undefined) return;
       const readCursorNotYetLoaded = parseFloat(msgs[0].ts) * 1000 > anchor;
       const attempts = backfillAttempts[view.id] ?? 0;
-      if (
-        readCursorNotYetLoaded &&
-        attempts < MAX_BACKFILL_LOADS &&
-        store.messages.hasMoreHistory(view.id)
-      ) {
+      if (readCursorNotYetLoaded && store.messages.hasMoreHistory(view.id)) {
         if (store.messages.hasOlderHistoryError(view.id)) return;
-        if (!store.messages.isLoadingHistory(view.id)) {
-          backfillAttempts[view.id] = attempts + 1;
-          store.messages.loadOlderMessages(view.id);
+        // Keep all automatic catch-up pages under one loading state. If each
+        // page completes separately, the in-flow loading header repeatedly
+        // appears and disappears while the virtualizer anchors newly prepended
+        // rows, which looks like several loading windows jumping upward.
+        if (store.messages.isLoadingHistory(view.id)) return;
+        if (attempts < MAX_BACKFILL_LOADS) {
+          backfillAttempts[view.id] = MAX_BACKFILL_LOADS;
+          store.messages.loadOlderMessagesThrough(view.id, anchor, MAX_BACKFILL_LOADS);
+          return;
         }
-        return;
+        // The bounded catch-up was not enough; land on the oldest page we
+        // have instead of immediately starting another batch.
       }
 
       delete backfillAttempts[view.id];
@@ -180,24 +222,114 @@ export default function MessageList() {
       // Land on the unread divider (if the channel has one) rather than always
       // jumping to the newest loaded message — that's where a reader left off.
       const dividerIndex = findUnreadDividerIndex(msgs, anchor);
-      const unreadLandingIndex = resolveUnreadLandingIndex(dividerIndex, msgs.length);
-      queueMicrotask(() => {
+      const unreadLandingIndex = resolveUnreadLandingIndex(dividerIndex, msgs.length, {
+        unreadRowHeight: api.itemSize(dividerIndex),
+        viewportHeight: el.clientHeight,
+      });
+      const epoch = positioningEpoch;
+      setLandingSpace(
+        unreadLandingIndex >= 0 ? { height: el.clientHeight, viewId: view.id } : undefined,
+      );
+      const land = () => {
         if (!scrollRef) return;
-        const api = virtualApi();
-        if (unreadLandingIndex >= 0 && api)
-          api.scrollToIndex(unreadLandingIndex, { align: "start" });
+        if (unreadLandingIndex >= 0) api.scrollToIndex(unreadLandingIndex, { align: "start" });
         else scrollToBottom(scrollRef);
+      };
+      queueMicrotask(() => {
+        if (epoch !== positioningEpoch) return;
+        land();
+        // Give the virtualizer two frames to render and measure the target
+        // while it is still hidden. Its own scroll reconciliation keeps the
+        // target aligned as those estimates settle; importantly, we never
+        // mutate the temporary tail or start a competing second landing.
+        requestAnimationFrame(() => {
+          if (epoch !== positioningEpoch || positionedViewId !== view.id) return;
+          requestAnimationFrame(() => {
+            if (epoch !== positioningEpoch || positionedViewId !== view.id) return;
+            setReadyViewId(view.id);
+          });
+        });
       });
     }
   });
 
-  function handleScroll() {
+  async function loadNewerMessages(channelId: string) {
+    setFollowOnAppend(false);
+    try {
+      await store.messages.loadNewerMessages(channelId);
+    } finally {
+      requestAnimationFrame(() => setFollowOnAppend("auto"));
+    }
+  }
+
+  function handleScroll(preferredDirection?: "newer" | "older") {
     const el = scrollRef;
     const view = store.viewState.activeView();
-    if (!(el && view) || el.scrollTop > el.clientHeight * NEAR_TOP_VIEWPORT_FRACTION) return;
-    if (!store.messages.hasMoreHistory(view.id) || store.messages.isLoadingHistory(view.id)) return;
-    if (store.messages.hasOlderHistoryError(view.id)) return;
-    store.messages.loadOlderMessages(view.id);
+    if (!(el && view)) return;
+    const direction =
+      preferredDirection ??
+      (el.scrollTop > lastScrollTop ? "newer" : el.scrollTop < lastScrollTop ? "older" : undefined);
+    lastScrollTop = el.scrollTop;
+    // Scroll offsets are still being established while the initial rows are
+    // hidden. Do not mistake those programmatic changes for a request to load
+    // another page of history.
+    if (readyViewId() !== view.id) return;
+    if (store.messages.isLoadingHistory(view.id)) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom <= el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION;
+    if (
+      direction === "newer" &&
+      nearBottom &&
+      store.messages.hasNewerHistory(view.id) &&
+      !store.messages.hasNewerHistoryError(view.id)
+    ) {
+      void loadNewerMessages(view.id);
+      return;
+    }
+
+    const nearTop = el.scrollTop <= el.clientHeight * NEAR_TOP_VIEWPORT_FRACTION;
+    if (
+      direction !== "newer" &&
+      nearTop &&
+      store.messages.hasMoreHistory(view.id) &&
+      !store.messages.hasOlderHistoryError(view.id)
+    )
+      store.messages.loadOlderMessages(view.id);
+  }
+
+  function releaseLandingSpace() {
+    const view = store.viewState.activeView();
+    if (view && readyViewId() === view.id && landingSpace()?.viewId === view.id)
+      setLandingSpace(undefined);
+  }
+
+  function handleWheel(event: WheelEvent) {
+    releaseLandingSpace();
+    // A short anchored page may already be at its lower scroll clamp, in
+    // which case the browser emits no scroll event. Recheck after Solid has
+    // removed any temporary landing space so a downward wheel still loads.
+    const direction = event.deltaY > 0 ? "newer" : event.deltaY < 0 ? "older" : undefined;
+    if (direction) queueMicrotask(() => handleScroll(direction));
+  }
+
+  function handleTouchStart(event: TouchEvent) {
+    releaseLandingSpace();
+    touchStartY = event.touches[0]?.clientY;
+  }
+
+  function handleTouchEnd(event: TouchEvent) {
+    const endY = event.changedTouches[0]?.clientY;
+    const direction =
+      touchStartY === undefined || endY === undefined
+        ? undefined
+        : endY < touchStartY
+          ? "newer"
+          : endY > touchStartY
+            ? "older"
+            : undefined;
+    touchStartY = undefined;
+    if (direction) queueMicrotask(() => handleScroll(direction));
   }
 
   function jumpToMessage(ts: string) {
@@ -223,7 +355,9 @@ export default function MessageList() {
       positionedViewId = view.id;
       queueMicrotask(() => {
         if (store.viewState.channelMessageTarget() !== target) return;
+        setLandingSpace(undefined);
         jumpToMessage(target.ts);
+        setReadyViewId(view.id);
         store.viewState.setChannelMessageTarget(null);
       });
       return;
@@ -238,7 +372,14 @@ export default function MessageList() {
   });
 
   return (
-    <div class="message-list" onScroll={handleScroll} ref={scrollRef}>
+    <div
+      class="message-list"
+      onScroll={() => handleScroll()}
+      onTouchEnd={handleTouchEnd}
+      onTouchStart={handleTouchStart}
+      onWheel={handleWheel}
+      ref={scrollRef}
+    >
       <Show fallback={<MessageListSkeleton />} when={!store.resources.bootstrap.loading}>
         <Show when={store.viewState.activeView()}>
           {(v) => (
@@ -291,16 +432,34 @@ export default function MessageList() {
                   </Show>
                 </Show>
               </div>
-              <MessageRows
-                channelId={v().id}
-                messages={messages()}
-                onApi={setVirtualApi}
-                onJumpToMessage={jumpToMessage}
-                onOpenThread={(ts) => store.viewState.openThread(v().id, ts)}
-                scrollContainer={() => scrollRef}
-                scrollMargin={scrollMargin()}
-                virtualize
-              />
+              <div
+                aria-hidden={readyViewId() !== v().id}
+                classList={{ "message-list-rows-pending": readyViewId() !== v().id }}
+              >
+                <MessageRows
+                  anchorTo={landingSpace()?.viewId === v().id ? "start" : "end"}
+                  channelId={v().id}
+                  followOnAppend={followOnAppend()}
+                  messages={messages()}
+                  onApi={setVirtualApi}
+                  onJumpToMessage={jumpToMessage}
+                  onOpenThread={(ts) => store.viewState.openThread(v().id, ts)}
+                  scrollContainer={() => scrollRef}
+                  scrollMargin={scrollMargin()}
+                  virtualize
+                />
+                <Show when={store.messages.hasNewerHistoryError(v().id)}>
+                  <div class="message-list-load-error" role="alert">
+                    <span>Couldn’t load newer messages.</span>
+                    <Button onClick={() => void loadNewerMessages(v().id)} size="sm">
+                      Try again
+                    </Button>
+                  </div>
+                </Show>
+                <Show when={landingSpace()?.viewId === v().id}>
+                  <div aria-hidden="true" style={{ height: `${landingSpace()?.height ?? 0}px` }} />
+                </Show>
+              </div>
             </>
           )}
         </Show>

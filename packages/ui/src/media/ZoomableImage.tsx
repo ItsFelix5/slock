@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
 import Overlay from "../overlay/Overlay";
 import { useEscapeClose } from "../useEscapeClose";
 import Icon from "./Icon";
@@ -9,6 +9,8 @@ export interface ZoomableImageProps {
   class?: string;
   fullSrc?: string;
   height?: number;
+  reservedHeight?: number;
+  reservedWidth?: number;
   src: string;
   width?: number;
   // A tiny (often base64) low-res image shown behind the real one — since
@@ -30,21 +32,28 @@ export default function ZoomableImage(props: ZoomableImageProps) {
     ),
   );
 
+  const triggerStyle = (): JSX.CSSProperties | undefined => {
+    const style: JSX.CSSProperties = {};
+    if (props.blurSrc && !previewFailed()) {
+      style["background-image"] = `url(${props.blurSrc})`;
+      style["background-position"] = "center";
+      style["background-size"] = "cover";
+    }
+    if (props.reservedWidth && props.reservedHeight) {
+      style.width = `min(${props.reservedWidth}px, 100%)`;
+      style["aspect-ratio"] = `${props.reservedWidth} / ${props.reservedHeight}`;
+      style.overflow = "hidden";
+    }
+    return Object.keys(style).length ? style : undefined;
+  };
+
   return (
     <>
       <button
         aria-label={props.alt ? `Open image preview: ${props.alt}` : "Open image preview"}
         class="zoomable-image-trigger"
         onClick={() => setOpen(true)}
-        style={
-          props.blurSrc && !previewFailed()
-            ? {
-                "background-image": `url(${props.blurSrc})`,
-                "background-position": "center",
-                "background-size": "cover",
-              }
-            : undefined
-        }
+        style={triggerStyle()}
         type="button"
       >
         <Show
@@ -58,7 +67,7 @@ export default function ZoomableImage(props: ZoomableImageProps) {
         >
           <img
             alt={props.alt}
-            class={`zoomable-image ${props.class ?? ""}`}
+            class={`zoomable-image ${props.class ?? ""}${props.reservedWidth && props.reservedHeight ? " zoomable-image-framed" : ""}`}
             height={props.height}
             loading="lazy"
             onError={() => setPreviewFailed(true)}

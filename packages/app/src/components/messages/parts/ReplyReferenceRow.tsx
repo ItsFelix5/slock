@@ -58,22 +58,17 @@ export default function ReplyReferenceRow(props: {
       >
         {(msg) => (
           <>
-            <Show
-              fallback={
-                <span class="reply-reference-avatar reply-reference-bot">
-                  <Show fallback="🤖" when={msg().botIcon}>
-                    {(icon) => <img alt="" class="img-cover" src={icon()} />}
-                  </Show>
-                </span>
-              }
-              when={store.users.userById(msg().userId)}
-            >
-              <Show when={store.users.userById(msg().userId)}>
-                {(u) => <Avatar size="small" user={u()} />}
-              </Show>
-            </Show>
+            <Avatar
+              size="small"
+              user={{
+                avatarColor: store.users.userById(msg().userId)?.avatarColor ?? "#616061",
+                avatarUrl: msg().botIcon ?? store.users.userById(msg().userId)?.avatarUrl,
+                id: msg().userId,
+                name: msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown",
+              }}
+            />
             <span class="reply-reference-name">
-              {store.users.userById(msg().userId)?.name ?? msg().botName ?? "Unknown"}
+              {msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown"}
             </span>
             <span class="reply-reference-snippet">
               <Mrkdwn text={truncateSnippet(snippet(msg()))} />

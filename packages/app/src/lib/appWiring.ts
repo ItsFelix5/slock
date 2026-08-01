@@ -1,7 +1,6 @@
 import { createEffect } from "solid-js";
 import type { createAppActions } from "./appActions";
 import { createMarkAllAsRead } from "./store/markAllAsRead";
-import { channelDisplayName } from "./store/slices/channelDisplayName";
 import type { createStoreSlices } from "./store/storeSlices";
 
 type AppWiringDeps = Pick<
@@ -61,7 +60,7 @@ export function wireAppState(deps: AppWiringDeps) {
     activeView: viewState.activeView,
     activityItems: activity.activityItems,
     channelById: channels.channelById,
-    channelDisplayName,
+    dmById: dms.dmById,
     isChannelMuted: preferences.isChannelMuted,
     isDndActive: preferences.isDndActive,
     openChannelPeek: actions.openChannelPeek,

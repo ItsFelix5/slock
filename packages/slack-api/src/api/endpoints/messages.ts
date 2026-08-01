@@ -1,15 +1,56 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
+// biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Message operations share one public endpoint surface.
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { callSlack, getWorkspaceDomain } from "../relay";
+import { callSlack, getWorkspaceDomain } from "../server";
+import { type ConversationViewData, fetchConversationView } from "./conversationView";
 
-export type HistoryPage = { messages: Message[]; hasMore: boolean; nextCursor?: string };
+export type HistoryPage = {
+  messages: Message[];
+  hasMore: boolean;
+  nextCursor?: string;
+  view?: ConversationViewData;
+};
+
+export type NewerHistoryPage = {
+  hasMore: boolean;
+  messages: Message[];
+  nextOldest?: string;
+};
+
+const MICROSECONDS_PER_DAY = 86_400_000_000n;
+
+function timestampToMicroseconds(ts: string): bigint {
+  const [seconds = "0", fraction = ""] = ts.split(".");
+  return BigInt(seconds) * 1_000_000n + BigInt(fraction.padEnd(6, "0").slice(0, 6));
+}
+
+function microsecondsToTimestamp(value: bigint): string {
+  const seconds = value / 1_000_000n;
+  const fraction = String(value % 1_000_000n).padStart(6, "0");
+  return `${seconds}.${fraction}`;
+}
 
 // `cursor` (from a prior page's nextCursor) fetches the next page of messages
 // older than that page — conversations.history paginates backwards in time.
 export async function fetchHistory(channelId: string, cursor?: string): Promise<HistoryPage> {
+  if (!cursor) {
+    const view = await fetchConversationView(channelId);
+    return {
+      hasMore: view.hasMore,
+      messages: view.messages,
+      nextCursor:
+        view.hasMore && view.messages[0]?.ts ? `before:${view.messages[0].ts}` : undefined,
+      view,
+    };
+  }
+
   const params: Record<string, string> = { channel: channelId, limit: "60" };
-  if (cursor) params.cursor = cursor;
+  if (cursor.startsWith("before:")) {
+    params.inclusive = "false";
+    params.latest = cursor.slice("before:".length);
+  } else {
+    params.cursor = cursor;
+  }
   const data = await callSlack("conversations.history", params);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
@@ -50,6 +91,70 @@ export async function fetchHistoryAround(
       .reverse(),
     nextCursor: data.response_metadata?.next_cursor || undefined,
   };
+}
+
+// conversations.history always returns the newest messages inside a time
+// range, even when `oldest` is supplied. To get the messages immediately
+// after an old permalink (rather than jumping across the gap to today's
+// tail), probe a bounded range and shrink it whenever it contains more than
+// one page. Empty ranges grow exponentially, so long quiet periods still
+// take only a handful of requests.
+export async function fetchHistoryNewer(
+  channelId: string,
+  oldest: string,
+  limit = 60,
+): Promise<NewerHistoryPage> {
+  const oldestMicroseconds = timestampToMicroseconds(oldest);
+  // Leave a small allowance for client/server clock skew at the live edge.
+  const liveEdgeMicroseconds = BigInt(Date.now() + 60_000) * 1_000n;
+  const maximumSpan = liveEdgeMicroseconds - oldestMicroseconds;
+  if (maximumSpan <= 0n) return { hasMore: false, messages: [] };
+
+  let span = MICROSECONDS_PER_DAY < maximumSpan ? MICROSECONDS_PER_DAY : maximumSpan;
+  let knownEmptySpan = 0n;
+  let knownDenseSpan: bigint | undefined;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const upperMicroseconds = span < maximumSpan ? oldestMicroseconds + span : liveEdgeMicroseconds;
+    const data = await callSlack("conversations.history", {
+      channel: channelId,
+      inclusive: "false",
+      latest: microsecondsToTimestamp(upperMicroseconds),
+      limit: String(limit),
+      oldest,
+    });
+    if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
+    const rawMessages: any[] = data.messages ?? [];
+
+    if (data.has_more && span > 1n) {
+      knownDenseSpan = span;
+      span = (knownEmptySpan + span) / 2n;
+      if (span <= knownEmptySpan) span = knownEmptySpan + 1n;
+      continue;
+    }
+    if (rawMessages.length === 0 && span < maximumSpan) {
+      knownEmptySpan = span;
+      if (knownDenseSpan) {
+        span = (span + knownDenseSpan + 1n) / 2n;
+      } else {
+        const doubled = span * 2n;
+        span = doubled < maximumSpan ? doubled : maximumSpan;
+      }
+      continue;
+    }
+
+    return {
+      hasMore: upperMicroseconds < liveEdgeMicroseconds || !!data.has_more,
+      messages: rawMessages
+        .filter((message) => message.type === "message" && !HIDE_SUBTYPES.has(message.subtype))
+        .map(mapMessage)
+        .reverse(),
+      // Advance across hidden event subtypes too, otherwise an all-hidden
+      // page would leave the next request stuck on the same boundary.
+      nextOldest: rawMessages[0]?.ts,
+    };
+  }
+
+  throw new Error("Unable to find a bounded newer history page");
 }
 
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {

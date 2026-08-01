@@ -10,3 +10,21 @@ export function setSectionSidebarPreference(
   else sectionSidebar[sectionId] = sidebar;
   return { ...prefs, sectionSidebar };
 }
+
+export function setUsergroupSectionSidebarPreference(
+  prefs: UserPrefs,
+  sectionId: string,
+  sidebar: ChannelSection["sidebar"] | undefined,
+): UserPrefs {
+  const usergroupSectionSidebar = { ...prefs.usergroupSectionSidebar };
+  if (sidebar === undefined) delete usergroupSectionSidebar[sectionId];
+  else usergroupSectionSidebar[sectionId] = sidebar;
+  return { ...prefs, usergroupSectionSidebar };
+}
+
+export function setUsergroupSectionOrderPreference(
+  prefs: UserPrefs,
+  sectionIds: string[],
+): UserPrefs {
+  return { ...prefs, usergroupSectionOrder: sectionIds };
+}

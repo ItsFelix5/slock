@@ -3,10 +3,10 @@ import {
   type ChannelMembersPage,
   type ChannelPostingPrefs,
   type ChannelPostingPrefsPatch,
-  fetchChannelDetails,
   fetchChannelManagerIds,
   fetchChannelMembers,
   fetchChannelPostingPrefs,
+  fetchConversationView,
   inviteToChannel,
   type MemberPermissionsPatch,
   removeFromChannel,
@@ -53,7 +53,12 @@ function setup() {
   }
 
   function loadChannelDetails(id: string): Promise<ChannelDetails | null> {
-    return withFeedback(id, "Failed to load channel details.", null, () => fetchChannelDetails(id));
+    return withFeedback(
+      id,
+      "Failed to load channel details.",
+      null,
+      async () => (await fetchConversationView(id)).details,
+    );
   }
 
   async function loadChannelMembers(

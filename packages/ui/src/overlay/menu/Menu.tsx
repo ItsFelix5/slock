@@ -10,7 +10,9 @@ export interface MenuProps {
   children: JSX.Element;
   class?: string;
   onClose: () => void;
+  onOpen?: () => void;
   open: boolean;
+  openOnHover?: boolean;
   panelClass?: string;
   placement?: Placement;
   trigger: JSX.Element;
@@ -30,6 +32,23 @@ export default function Menu(props: MenuProps) {
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;
+  let hoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const cancelHoverClose = () => {
+    if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
+    hoverCloseTimer = undefined;
+  };
+  const openFromHover = () => {
+    if (!props.openOnHover) return;
+    cancelHoverClose();
+    props.onOpen?.();
+  };
+  const closeFromHover = () => {
+    if (!props.openOnHover) return;
+    cancelHoverClose();
+    hoverCloseTimer = setTimeout(props.onClose, 120);
+  };
+  onCleanup(cancelHoverClose);
 
   const trigger = () =>
     rootRef?.querySelector<HTMLElement>(
@@ -99,14 +118,22 @@ export default function Menu(props: MenuProps) {
   });
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: delegates Arrow key entry from the caller-provided interactive trigger without wrapping or cloning it
-    <div class={props.class} onKeyDown={onRootKeyDown} ref={rootRef}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: delegates keyboard and optional hover behavior to the caller-provided interactive trigger
+    <div
+      class={props.class}
+      onKeyDown={onRootKeyDown}
+      onMouseEnter={openFromHover}
+      onMouseLeave={closeFromHover}
+      ref={rootRef}
+    >
       {props.trigger}
       <FloatingPanel
         align={props.align ?? "start"}
         anchor={() => rootRef}
         class={props.panelClass}
         onKeyDown={onPanelKeyDown}
+        onMouseEnter={openFromHover}
+        onMouseLeave={closeFromHover}
         open={props.open}
         panelRef={(element) => {
           panelRef = element;

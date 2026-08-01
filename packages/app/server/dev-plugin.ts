@@ -1,14 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
+import { routeApiRequest } from "./api.ts";
+import { parseCredsCookie } from "./auth.ts";
 import { acceptUpgrade } from "./dev-websocket.ts";
-import { parseCredsCookie } from "./relay-auth.ts";
-import { routeRelayRequest } from "./relay-core.ts";
 import {
   handleClientDisconnect,
   handleClientMessage,
   handleClientOpen,
   statusMessage,
-} from "./relay-gateway.ts";
+} from "./realtime.ts";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -68,11 +68,9 @@ async function sendWebResponse(res: ServerResponse, response: Response) {
   res.end();
 }
 
-// Wires the Slack relay (see relay-core.ts) directly into Vite's own dev
-// server so `vite dev` is the only process needed in development — no
-// separate backend port, and no proxy config, since the browser only ever
-// talks to Vite's port.
-export function slackRelayPlugin(): Plugin {
+// Mounts the application API directly in Vite during development so the same
+// request handlers are used in development and production.
+export function appServerPlugin(): Plugin {
   return {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
@@ -84,7 +82,7 @@ export function slackRelayPlugin(): Plugin {
           const url = new URL(req.url ?? "/", "http://internal");
           const creds = parseCredsCookie(req.headers.cookie ?? null);
 
-          const relayRes = await routeRelayRequest(
+          const apiResponse = await routeApiRequest(
             req.method ?? "GET",
             url.pathname,
             url.searchParams,
@@ -104,15 +102,15 @@ export function slackRelayPlugin(): Plugin {
               text: () => readBody(req),
             },
           );
-          if (relayRes) {
-            await sendWebResponse(res, relayRes);
+          if (apiResponse) {
+            await sendWebResponse(res, apiResponse);
             return;
           }
 
           next();
         } catch (err) {
           if (res.headersSent || res.destroyed) return;
-          console.warn("slock-slack-relay middleware error:", err);
+          console.warn("slock API middleware error:", err);
           res.statusCode = 500;
           res.end();
         }
@@ -137,6 +135,6 @@ export function slackRelayPlugin(): Plugin {
         handleClientOpen(client, creds);
       });
     },
-    name: "slock-slack-relay",
+    name: "slock-app-server",
   };
 }

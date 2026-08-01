@@ -14,6 +14,34 @@
   border-radius: 0 var(--radius-6) var(--radius-6) 0;
 }
 
+.attachment-message-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.attachment-message-link:hover,
+.attachment-channel-link:hover {
+  text-decoration: underline;
+}
+
+.attachment-message-unfurl {
+  display: flex;
+  gap: 10px;
+  max-width: min(560px, 100%);
+  margin-top: 6px;
+}
+
+.attachment-message-avatar.message-avatar {
+  cursor: default;
+}
+
+.attachment-message-body {
+  min-width: 0;
+}
+
 .attachment-author {
   gap: 6px;
   margin-bottom: 2px;
@@ -45,6 +73,10 @@
   color: var(--text-secondary);
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+.attachment-message-body .attachment-text {
+  color: var(--text-primary);
 }
 
 .attachment-fields {
@@ -98,17 +130,13 @@
   color: var(--text-dim);
 }
 
+.attachment-channel-link {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
 .attachment-footer-icon {
   width: 14px;
   height: 14px;
   border-radius: var(--radius-3);
-}
-
-.attachment-view-message-link {
-  color: inherit;
-  text-decoration: none;
-}
-
-.attachment-view-message-link:hover {
-  text-decoration: underline;
 }

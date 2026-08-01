@@ -15,10 +15,12 @@ export function createEditorCommands(opts: {
   resetLinkPreviews: () => void;
   closeSuggestions: () => void;
   dialect?: InlineDialect;
+  allowBlockKit?: boolean;
 }) {
   const ref = createEditorRef();
   const selection = createSelectionCommands(ref, {
     dialect: opts.dialect,
+    allowBlockKit: opts.allowBlockKit,
     resetLinkPreviews: opts.resetLinkPreviews,
     setText: opts.setText,
   });

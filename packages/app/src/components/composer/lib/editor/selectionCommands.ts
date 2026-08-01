@@ -20,6 +20,7 @@ export function createSelectionCommands(
     setText: (v: string) => void;
     resetLinkPreviews: () => void;
     dialect?: InlineDialect;
+    allowBlockKit?: boolean;
   },
 ) {
   let savedRange: Range | null = null;
@@ -35,7 +36,7 @@ export function createSelectionCommands(
     const el = ref.get();
     if (!el) return;
     el.innerHTML = "";
-    el.appendChild(mrkdwnToFragment(value, dialect));
+    el.appendChild(mrkdwnToFragment(value, dialect, { allowBlockKit: opts.allowBlockKit ?? true }));
   }
 
   // Canvas content comes back as a real HTML document rather than the

@@ -44,6 +44,7 @@ export interface UsergroupDetails {
   description: string;
   handle: string;
   id: string;
+  isSection: boolean;
   memberCount: number;
   memberIds: string[];
   title: string;
@@ -90,6 +91,11 @@ export interface SlackFile {
   // Per-sample amplitude (0-100) Slack renders as the voice-message waveform.
   waveform?: number[];
   width?: number;
+}
+
+export interface CanvasListItem {
+  fileId: string;
+  title: string;
 }
 
 export interface Attachment {

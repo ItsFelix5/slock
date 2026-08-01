@@ -1,6 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import type { Usergroup, UsergroupDetails } from "../types";
-import { callSlack, callSlackEdge } from "./relay";
+import type { ChannelSection, Usergroup, UsergroupDetails } from "../types";
+import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
+import { callSlack, callSlackEdge } from "./server";
 
 function mapUsergroup(raw: any): Usergroup | undefined {
   if (typeof raw?.id !== "string") return;
@@ -13,25 +14,22 @@ function mapUsergroup(raw: any): Usergroup | undefined {
 // the member list (see fetchUsergroupMemberIds) — callers merge it in after.
 function mapUsergroupDetails(raw: any): Omit<UsergroupDetails, "memberIds"> | undefined {
   if (typeof raw?.id !== "string") return;
+  const channelIds = [raw.prefs?.channels, raw.prefs?.groups]
+    .flatMap((ids) => (Array.isArray(ids) ? ids : []))
+    .filter((id, index, ids): id is string => typeof id === "string" && ids.indexOf(id) === index);
   return {
-    channelIds: Array.isArray(raw.prefs?.channels) ? raw.prefs.channels : [],
+    channelIds,
     createdBy: raw.created_by || undefined,
     dateCreate: raw.date_create || undefined,
     description: raw.description ?? "",
     handle: raw.handle ?? "",
     id: raw.id,
+    isSection: !!raw.is_section,
     memberCount: Number(raw.user_count ?? 0),
     title: raw.name ?? raw.handle ?? "",
   };
 }
 
-type UsergroupRequest = {
-  reject: (reason?: unknown) => void;
-  resolve: (raw: any | undefined) => void;
-};
-
-const pendingUsergroupRequests = new Map<string, UsergroupRequest[]>();
-let usergroupBatchScheduled = false;
 const MAX_USERGROUPS_PER_BATCH = 100;
 
 function cachedUsergroupForId(data: any, id: string): any | undefined {
@@ -41,47 +39,31 @@ function cachedUsergroupForId(data: any, id: string): any | undefined {
   return data.usergroup?.id === id ? data.usergroup : undefined;
 }
 
-async function flushUsergroupBatch(): Promise<void> {
-  usergroupBatchScheduled = false;
-  const requests = new Map(pendingUsergroupRequests);
-  pendingUsergroupRequests.clear();
-  const ids = [...requests.keys()];
-
-  for (let start = 0; start < ids.length; start += MAX_USERGROUPS_PER_BATCH) {
-    const batchIds = ids.slice(start, start + MAX_USERGROUPS_PER_BATCH);
-    try {
-      const data = await callSlackEdge("usergroups/info", { ids: batchIds });
-      for (const id of batchIds) {
-        const raw = data.ok ? cachedUsergroupForId(data, id) : undefined;
-        for (const request of requests.get(id) ?? []) request.resolve(raw);
-      }
-    } catch (error) {
-      for (const id of batchIds) {
-        for (const request of requests.get(id) ?? []) request.reject(error);
-      }
-    }
-  }
-}
-
 // Coalesce requests issued while a message list renders (each @usergroup
 // mention resolves independently) into Edge cache batches, mirroring user
 // lookup. The raw object already carries everything the details panel needs
 // too (description, handle, prefs.channels, user_count) — see
 // fetchUsergroupDetails — so both the light mention lookup and the rich
 // details fetch share this one batched call instead of hitting Slack twice.
-function fetchUsergroupRaw(id: string): Promise<any | undefined> {
-  return new Promise((resolve, reject) => {
-    const requests = pendingUsergroupRequests.get(id) ?? [];
-    requests.push({ reject, resolve });
-    pendingUsergroupRequests.set(id, requests);
-    if (usergroupBatchScheduled) return;
-    usergroupBatchScheduled = true;
-    queueMicrotask(() => void flushUsergroupBatch());
-  });
-}
+const fetchUsergroupRaw = createBatchedIdFetcher<any | undefined>(async (ids) => {
+  const data = await callSlackEdge("usergroups/info", { ids });
+  return new Map(ids.map((id) => [id, data.ok ? cachedUsergroupForId(data, id) : undefined]));
+}, MAX_USERGROUPS_PER_BATCH);
 
 export function fetchUsergroup(id: string): Promise<Usergroup | null> {
   return fetchUsergroupRaw(id).then((raw) => mapUsergroup(raw) ?? null);
+}
+
+export async function fetchUsergroupChannelSection(id: string): Promise<ChannelSection | null> {
+  const details = mapUsergroupDetails(await fetchUsergroupRaw(id));
+  if (!details?.isSection) return null;
+  return {
+    channelIds: details.channelIds,
+    id: details.id,
+    name: details.title,
+    sidebar: "all",
+    type: "usergroup",
+  };
 }
 
 // usergroups/info (above) has no member list, only a count — Slack's edge
@@ -126,6 +108,14 @@ export async function setUsergroupMembers(id: string, userIds: string[]): Promis
 export async function setUsergroupChannels(id: string, channelIds: string[]): Promise<void> {
   const data = await callSlack("usergroups.update", {
     channels: channelIds.join(","),
+    usergroup: id,
+  });
+  if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");
+}
+
+export async function setUsergroupSectionEnabled(id: string, enabled: boolean): Promise<void> {
+  const data = await callSlack("usergroups.update", {
+    enable_section: String(enabled),
     usergroup: id,
   });
   if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");

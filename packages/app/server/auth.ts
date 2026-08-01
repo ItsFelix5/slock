@@ -1,5 +1,5 @@
-// biome-ignore-all lint/style/useNamingConvention: Relay payloads preserve Slack's wire field names.
-export const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
+// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
+export const jsonHeaders = { "content-type": "application/json" };
 
 export type Credentials = { domain: string; token: string; route: string; slackSession: string };
 type AuthPayload = Credentials;
@@ -7,9 +7,11 @@ const CREDS_COOKIE = "slock_creds";
 // Holds only the non-sensitive bits of Credentials (domain, teamId) — never
 // HttpOnly, so page JS can read the workspace domain/team id directly
 // instead of round-tripping through the server (see getWorkspaceDomain in
-// slack-api/src/api/relay.ts). The token/session/route stay in CREDS_COOKIE.
+// slack-api/src/api/server.ts). The token/session/route stay in CREDS_COOKIE.
 const INFO_COOKIE = "slock_info";
 const INVALID_SLACK_SESSION_RE = /[;\s]/;
+const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slack\.com$/i;
+const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\u0000-\u001f\u007f]+$/;
 
 function extractSlackSession(cookieHeader: string): string | null {
   for (const part of cookieHeader.split(";")) {
@@ -21,20 +23,40 @@ function extractSlackSession(cookieHeader: string): string | null {
   return null;
 }
 
-function isAuthPayload(value: unknown): value is AuthPayload {
-  if (!(value && typeof value === "object")) return false;
+function authPayloadError(value: unknown): string | null {
+  if (!(value && typeof value === "object")) return "Invalid credential payload.";
   const payload = value as Partial<AuthPayload>;
-  return (
-    typeof payload.domain === "string" &&
-    payload.domain.length > 0 &&
-    typeof payload.token === "string" &&
-    payload.token.length > 0 &&
-    typeof payload.route === "string" &&
-    payload.route.length > 0 &&
-    typeof payload.slackSession === "string" &&
-    payload.slackSession.startsWith("xoxd-") &&
-    !INVALID_SLACK_SESSION_RE.test(payload.slackSession)
-  );
+  if (typeof payload.domain !== "string" || !SLACK_DOMAIN_RE.test(payload.domain)) {
+    return "The copied request is not from a Slack workspace domain.";
+  }
+  if (
+    typeof payload.token !== "string" ||
+    !payload.token.startsWith("xoxc-") ||
+    payload.token.length > 8192 ||
+    !SAFE_CREDENTIAL_VALUE_RE.test(payload.token)
+  ) {
+    return "The copied request contains an invalid Slack token.";
+  }
+  if (
+    typeof payload.route !== "string" ||
+    payload.route.length > 512 ||
+    !SAFE_CREDENTIAL_VALUE_RE.test(payload.route)
+  ) {
+    return "The copied request contains an invalid slack_route value.";
+  }
+  if (
+    typeof payload.slackSession !== "string" ||
+    !payload.slackSession.startsWith("xoxd-") ||
+    payload.slackSession.length > 8192 ||
+    INVALID_SLACK_SESSION_RE.test(payload.slackSession)
+  ) {
+    return "The copied request contains an invalid Slack session cookie.";
+  }
+  return null;
+}
+
+function isAuthPayload(value: unknown): value is AuthPayload {
+  return authPayloadError(value) === null;
 }
 
 export function slackCookieHeader(creds: Credentials): string {
@@ -63,13 +85,13 @@ function encodeInfoCookie(creds: Credentials, secure: boolean): string {
 // Both cookies are always set/cleared together — set-cookie only allows one
 // cookie per header instance, so the caller has to append two.
 export function credsCookieHeaders(creds: Credentials, secure: boolean): Headers {
-  const headers = new Headers(cors);
+  const headers = new Headers(jsonHeaders);
   headers.append("set-cookie", encodeCredsCookie(creds, secure));
   headers.append("set-cookie", encodeInfoCookie(creds, secure));
   return headers;
 }
 export function clearedCredsCookieHeaders(): Headers {
-  const headers = new Headers(cors);
+  const headers = new Headers(jsonHeaders);
   headers.append("set-cookie", `${CREDS_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
   headers.append("set-cookie", `${INFO_COOKIE}=; SameSite=Strict; Path=/; Max-Age=0`);
   return headers;
@@ -104,7 +126,8 @@ export function parseCredsCookie(cookieHeader: string | null): Credentials | nul
 export function authResponse(raw: string, secure: boolean): Response {
   try {
     const parsed = JSON.parse(raw);
-    if (!isAuthPayload(parsed)) throw new Error("Invalid Slack credentials.");
+    const error = authPayloadError(parsed);
+    if (error) throw new Error(error);
     const { domain, route, slackSession, token } = parsed;
     const creds = { domain, route, slackSession, token };
     return new Response(JSON.stringify({ ok: true }), {
@@ -113,7 +136,7 @@ export function authResponse(raw: string, secure: boolean): Response {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Couldn't parse that request.";
     return new Response(JSON.stringify({ error: message, ok: false }), {
-      headers: cors,
+      headers: jsonHeaders,
       status: 400,
     });
   }

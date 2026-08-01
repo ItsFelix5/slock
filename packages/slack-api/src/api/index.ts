@@ -10,14 +10,14 @@ export * from "./endpoints/drafts";
 export * from "./endpoints/messages";
 export * from "./endpoints/messages/threads";
 export * from "./endpoints/preferences";
-export { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "./mappers";
+export { formatDay, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "./mappers";
 export {
-  fileProxyUrl,
   getCachedWorkspaceDomain,
   getWorkspaceDomain,
   isConfigured,
   logout,
+  resolveMediaUrl,
   submitAuthRequest,
   userProfileUrl,
-} from "./relay";
+} from "./server";
 export * from "./usergroups";

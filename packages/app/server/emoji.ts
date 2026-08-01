@@ -1,9 +1,8 @@
+import type { Credentials } from "./auth.ts";
 import { compressedResponse } from "./http/compressedResponse.ts";
-import type { Credentials } from "./relay-auth.ts";
 
 const EMOJI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const EMOJI_LIST_HEADERS = {
-  "access-control-allow-origin": "*",
   "cache-control": "private, max-age=86400",
   "content-type": "text/plain; charset=utf-8",
   vary: "Cookie",

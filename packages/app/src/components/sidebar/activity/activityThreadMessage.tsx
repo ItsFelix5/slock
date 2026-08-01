@@ -3,11 +3,10 @@ import { Avatar } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
 import { store } from "../../../lib/store";
 
+// Rows always sit under a day divider (see ActivityView's groupedVisibleRows),
+// so the date itself would be redundant here — just the clock time.
 export function formatTime(time: number) {
-  return new Date(time).toLocaleString([], {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return new Date(time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 export function ThreadMessageRow(props: {

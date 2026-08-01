@@ -50,6 +50,7 @@ export function createStoreSlices({
     bootstrap,
     nav: viewState.nav,
     setActiveView,
+    usergroupSections: usergroups.channelSections,
     userPrefs,
     mutateUserPrefs,
   });
@@ -76,6 +77,7 @@ export function createStoreSlices({
     },
     setLastReadByChannel: unread.setLastReadByChannel,
     syncChannelRead: unread.syncChannelRead,
+    syncThreadRead: unread.syncThreadRead,
   });
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
   const searchHistory = createSearchHistorySlice({ userPrefs });
@@ -98,6 +100,11 @@ export function createStoreSlices({
     activeView: viewState.activeView,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
+    onConversationView: (view) => {
+      channels.patchChannel(view.channel.id, view.channel);
+      users.cacheUsers(view.users);
+      canvas.cacheChannelCanvases(view.channel.id, view.canvases);
+    },
     pushActivity: activity.pushActivity,
     recordActivityEngagement: activity.recordActivityEngagement,
     setLastReadByChannel: unread.setLastReadByChannel,

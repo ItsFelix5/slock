@@ -1,55 +1,40 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: Account APIs share request and mapping helpers that are clearer when kept together.
 import type { ProfileFieldDef, User } from "../../types";
+import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapBot, mapUser } from "../mappers";
-import { callSlack, callSlackEdge } from "../relay";
+import { callSlack, callSlackEdge } from "../server";
 
-type UserRequest = {
-  reject: (reason?: unknown) => void;
-  resolve: (user: User | null) => void;
-};
-
-const pendingUserRequests = new Map<string, UserRequest[]>();
-let userBatchScheduled = false;
-// Keep JSON request bodies comfortably below the relay/server limit even when
+// Keep JSON request bodies comfortably below the server limit even when
 // a channel or search result renders thousands of previously unseen authors.
 const MAX_USERS_PER_BATCH = 100;
 
 function cachedUserForId(data: any, id: string): any | undefined {
   if (data.users?.[id]) return data.users[id];
   if (Array.isArray(data.results)) return data.results.find((user) => user.id === id);
+  if (data.results && typeof data.results === "object") {
+    if (data.results[id]) return data.results[id];
+    return Object.values<any>(data.results).find((user) => user?.id === id);
+  }
   if (Array.isArray(data.users)) return data.users.find((user) => user.id === id);
   return data.user?.id === id ? data.user : undefined;
 }
 
-async function flushUserBatch(): Promise<void> {
-  userBatchScheduled = false;
-  const requests = new Map(pendingUserRequests);
-  pendingUserRequests.clear();
-  const ids = [...requests.keys()];
-  if (!ids.length) return;
-
-  for (let start = 0; start < ids.length; start += MAX_USERS_PER_BATCH) {
-    const batchIds = ids.slice(start, start + MAX_USERS_PER_BATCH);
-    try {
-      // The cache endpoint accepts the IDs it should refresh as a timestamp map;
-      // zero deliberately requests the complete current record.
-      const data = await callSlackEdge("users/info", {
-        include_profile_only_users: true,
-        updated_ids: Object.fromEntries(batchIds.map((id) => [id, 0])),
-      });
-      if (!data.ok) throw new Error(data.error ?? "edge users/info failed");
-      for (const id of batchIds) {
-        const user = cachedUserForId(data, id);
-        for (const request of requests.get(id) ?? []) request.resolve(user ? mapUser(user) : null);
-      }
-    } catch (error) {
-      for (const id of batchIds) {
-        for (const request of requests.get(id) ?? []) request.reject(error);
-      }
-    }
-  }
-}
+const fetchCachedUser = createBatchedIdFetcher<User | null>(async (ids) => {
+  // The cache endpoint accepts the IDs it should refresh as a timestamp map;
+  // zero deliberately requests the complete current record.
+  const data = await callSlackEdge("users/info", {
+    include_profile_only_users: true,
+    updated_ids: Object.fromEntries(ids.map((id) => [id, 0])),
+  });
+  if (!data.ok) throw new Error(data.error ?? "edge users/info failed");
+  return new Map(
+    ids.map((id) => {
+      const user = cachedUserForId(data, id);
+      return [id, user ? mapUser(user) : null];
+    }),
+  );
+}, MAX_USERS_PER_BATCH);
 
 export function fetchUser(id: string): Promise<User | null> {
   // A message can contain only bot_id/app_id, without the inline bot_profile
@@ -63,14 +48,7 @@ export function fetchUser(id: string): Promise<User | null> {
   }
   // The normal Web API users.info endpoint is restricted on Enterprise Grid.
   // Coalesce all requests issued in this event-loop turn into one cache call.
-  return new Promise((resolve, reject) => {
-    const requests = pendingUserRequests.get(id) ?? [];
-    requests.push({ reject, resolve });
-    pendingUserRequests.set(id, requests);
-    if (userBatchScheduled) return;
-    userBatchScheduled = true;
-    queueMicrotask(() => void flushUserBatch());
-  });
+  return fetchCachedUser(id);
 }
 
 // team.profile.get's field *definitions* (label/ordering) are workspace-wide and

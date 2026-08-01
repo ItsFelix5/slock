@@ -1,7 +1,10 @@
 import {
+  activeFontPreset,
   activePreset,
   applyPreset,
   ColorField,
+  DEFAULT_FONT,
+  FONT_PRESETS,
   getEffectiveColor,
   logDeletedMessages,
   type MessageSize,
@@ -17,10 +20,18 @@ import {
   THEME_PRESETS,
   Tooltip,
 } from "@slock/ui";
-import { For } from "solid-js";
+import { createEffect, createSignal, For } from "solid-js";
 import "./Settings.css";
 
 export default function SettingsAppearanceTab() {
+  const [fontDraft, setFontDraft] = createSignal(getEffectiveColor("font"));
+  createEffect(() => setFontDraft(getEffectiveColor("font")));
+
+  function commitFont(value: string) {
+    const trimmed = value.trim();
+    setThemeColors({ font: trimmed || DEFAULT_FONT });
+  }
+
   return (
     <>
       <h2>Appearance</h2>
@@ -92,6 +103,54 @@ export default function SettingsAppearanceTab() {
               </Tooltip>
             )}
           </For>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-row-label">Font</div>
+        <div class="settings-row-hint text-dim">
+          Choose a font, or type any CSS font-family value below.
+        </div>
+        <div class="settings-preset-group">
+          <For each={FONT_PRESETS}>
+            {(preset) => (
+              <Tooltip content={preset.label}>
+                <button
+                  aria-label={preset.label}
+                  class="settings-preset-btn btn-reset flex-align-center"
+                  classList={{ active: activeFontPreset() === preset.id }}
+                  onClick={() => setThemeColors({ font: preset.value })}
+                  style={{ "font-family": preset.value }}
+                  type="button"
+                >
+                  {preset.label}
+                </button>
+              </Tooltip>
+            )}
+          </For>
+        </div>
+        <div class="settings-font-custom flex-align-center">
+          <input
+            aria-label="Custom font"
+            class="settings-status-input"
+            onChange={(e) => commitFont(e.currentTarget.value)}
+            onInput={(e) => setFontDraft(e.currentTarget.value)}
+            placeholder={DEFAULT_FONT}
+            spellcheck={false}
+            style={{ "font-family": fontDraft() }}
+            type="text"
+            value={fontDraft()}
+          />
+          <Tooltip content="Reset to default">
+            <button
+              aria-label="Reset font to default"
+              class="settings-status-clear btn-reset"
+              onClick={() => resetThemeColor("font")}
+              type="button"
+            >
+              Reset
+            </button>
+          </Tooltip>
         </div>
       </div>
 

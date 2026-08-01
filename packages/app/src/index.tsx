@@ -6,6 +6,7 @@ import "./index.css";
 
 async function main(mountPoint: HTMLElement) {
   if (!isConfigured()) {
+    document.title = "Connect to Slack";
     render(() => <ConnectSlack onConnected={() => location.reload()} />, mountPoint);
     return;
   }

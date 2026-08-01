@@ -1,4 +1,4 @@
-import type { ActivityItem } from "@slock/slack-api";
+import { type ActivityItem, formatDay } from "@slock/slack-api";
 import { Button, Icon, type IconName, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { store } from "../../../lib/store";
@@ -8,6 +8,12 @@ import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read" | "reacted";
+
+const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
+
+type ActivityListEntry =
+  | { day: string; kind: "divider" }
+  | { key: string; kind: "row"; row: ActivityRowData };
 
 const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
   { icon: ACTIVITY_KIND_ICONS.mention, key: "mention", label: "Mentions" },
@@ -120,12 +126,59 @@ export default function ActivityView() {
     return tagAndSearchRows().filter((row) => statusFor(row) === state);
   });
 
+  // Feed entries stay day-grouped even while unread items further down keep
+  // arriving from the gateway, so a divider is only ever inserted between two
+  // rows that actually land on different calendar days.
+  const groupedVisibleRows = createMemo<ActivityListEntry[]>(() => {
+    const entries: ActivityListEntry[] = [];
+    let lastDay: string | undefined;
+    for (const row of visibleRows()) {
+      const day = formatDay(latestItem(row).ts);
+      if (day !== lastDay) {
+        entries.push({ day, kind: "divider" });
+        lastDay = day;
+      }
+      entries.push({ key: row.key, kind: "row", row });
+    }
+    return entries;
+  });
+
   const selectedTagLabel = createMemo(
     () => TAG_FILTERS.find((filter) => filter.key === selectedTag())?.label ?? "All activity",
   );
 
+  let scrollRef: HTMLDivElement | undefined;
+
+  function handleScroll() {
+    const el = scrollRef;
+    if (
+      !el ||
+      el.scrollHeight - el.scrollTop - el.clientHeight >
+        el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION
+    )
+      return;
+    void store.activity.loadMoreActivity();
+  }
+
+  // A short result set (a narrow tag filter, a small workspace) can render
+  // without ever producing a scrollbar — handleScroll would then never fire,
+  // so top up the feed until it either fills the viewport or runs out.
+  createEffect(() => {
+    visibleRows();
+    const el = scrollRef;
+    if (!el || el.scrollHeight > el.clientHeight) return;
+    if (!(store.activity.activityLoaded() && store.activity.activityHasMore())) return;
+    if (store.activity.activityLoading() || store.activity.activityLoadingMore()) return;
+    void store.activity.loadMoreActivity();
+  });
+
   return (
-    <div aria-busy={store.activity.activityLoading()} class="activity-view">
+    <div
+      aria-busy={store.activity.activityLoading()}
+      class="activity-view"
+      onScroll={handleScroll}
+      ref={scrollRef}
+    >
       <div class="activity-toolbar">
         <div class="activity-search-wrap flex-align-center">
           <Icon name="search" size={15} />
@@ -218,12 +271,6 @@ export default function ActivityView() {
         </div>
       </Show>
 
-      <Show when={store.activity.activityLoading() && rows().length > 0}>
-        <div class="activity-load-notice text-dim text-sm" role="status">
-          Refreshing activity…
-        </div>
-      </Show>
-
       <Show when={store.activity.activityLoadError() && rows().length > 0}>
         <div class="activity-load-notice activity-load-warning" role="alert">
           <span>Couldn’t refresh activity.</span>
@@ -257,16 +304,37 @@ export default function ActivityView() {
           when={visibleRows().length > 0}
         >
           <div class="activity-list">
-            <For each={visibleRows()}>
-              {(row) => (
-                <ActivityRow
-                  onReacted={store.activity.markActivityItemsReacted}
-                  onSeen={store.activity.markActivityItemsRead}
-                  row={row}
-                />
-              )}
+            <For each={groupedVisibleRows()}>
+              {(entry) =>
+                entry.kind === "divider" ? (
+                  <div class="activity-day-divider message-divider day-divider flex-align-center text-center font-bold text-xs">
+                    <span>{entry.day}</span>
+                  </div>
+                ) : (
+                  <ActivityRow
+                    onReacted={store.activity.markActivityItemsReacted}
+                    onSeen={store.activity.markActivityItemsRead}
+                    row={entry.row}
+                  />
+                )
+              }
             </For>
           </div>
+
+          <Show when={store.activity.activityLoadingMore()}>
+            <div class="activity-load-notice text-dim text-sm" role="status">
+              Loading more…
+            </div>
+          </Show>
+
+          <Show when={store.activity.activityLoadMoreError()}>
+            <div class="activity-load-notice activity-load-warning" role="alert">
+              <span>Couldn’t load more activity.</span>
+              <Button onClick={store.activity.loadMoreActivity} size="sm">
+                Try again
+              </Button>
+            </div>
+          </Show>
         </Show>
       </Show>
     </div>

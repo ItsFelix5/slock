@@ -2,11 +2,11 @@ import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
 import { Button, ConnectionStatus, InlineFeedback, TypingIndicator } from "@slock/ui";
-import { createMemo, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
-import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
+import ChannelHeader from "./components/channel/ChannelHeader";
 import JoinChannelBar from "./components/channel/JoinChannelBar";
 import PinnedPanel from "./components/channel/PinnedPanel";
 import Composer from "./components/composer/Composer";
@@ -26,7 +26,7 @@ import {
   navigateToSlackPermalink,
   parseSlackPermalink,
 } from "./lib/navigation/slackPermalink";
-import { actionFeedback, channelDisplayName, store } from "./lib/store";
+import { actionFeedback, channelDisplayName, conversationDisplayName, store } from "./lib/store";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
@@ -34,13 +34,13 @@ const blockKitResolver: BlockKitResolver = {
   onUserClick: store.users.openUserProfile,
   onUsergroupClick: openUsergroupDetails,
   resolveChannel: (id) => {
-    const channel = store.channels.knownChannelById(id);
+    const channel = store.channels.channelById(id);
     return channel
       ? {
-          isMember: store.channels.isChannelMember(id),
-          isPrivate: channel.private,
-          name: channelDisplayName(channel),
-        }
+        isMember: store.channels.isChannelMember(id),
+        isPrivate: channel.private,
+        name: channelDisplayName(channel),
+      }
       : undefined;
   },
   resolveUser: (id) => {
@@ -77,6 +77,21 @@ const blockKitResolver: BlockKitResolver = {
 };
 
 function App() {
+  createEffect(() => {
+    const nav = store.viewState.nav();
+    const view = store.viewState.activeView();
+    document.title = {
+      activity: "Activity",
+      later: "Later",
+      search: "Search",
+    }[nav] || (view ? conversationDisplayName(
+      view.id,
+      view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
+      view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
+      store.users.userById,
+    ) : "") || "slock";
+  });
+
   const permalinkOpener = createSlackPermalinkOpener({
     navigate: (target) => navigateToSlackPermalink(target, store.viewState),
     onError: (error) => {
@@ -172,12 +187,17 @@ function App() {
             <Show fallback={<MessageSearchView />} when={store.viewState.nav() !== "search"}>
               <ChannelHeader />
               <MessageList />
-              <div class="typing-indicator-anchor">
-                <TypingIndicator names={typingNames()} />
-                <Show fallback={<Composer />} when={unjoinedChannelId()}>
-                  {(channelId) => <JoinChannelBar channelId={channelId()} />}
-                </Show>
-              </div>
+              <Show
+                fallback={
+                  <div class="typing-indicator-anchor">
+                    <TypingIndicator names={typingNames()} />
+                    <Composer />
+                  </div>
+                }
+                when={unjoinedChannelId()}
+              >
+                {(channelId) => <JoinChannelBar channelId={channelId()} />}
+              </Show>
             </Show>
           </div>
           <ThreadPanel />

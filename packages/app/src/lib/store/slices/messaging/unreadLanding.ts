@@ -1,8 +1,21 @@
-// The divider is already visible at the bottom when the newest message is the
-// only unread one. Returning -1 in that case lets the initial landing use the
-// exact browser bottom instead of scheduling a second virtualizer scroll to
-// the final row, which can visibly nudge an already-correct viewport as that
-// row is measured.
-export function resolveUnreadLandingIndex(dividerIndex: number, messageCount: number): number {
-  return dividerIndex >= 0 && dividerIndex < messageCount - 1 ? dividerIndex : -1;
+type UnreadLandingViewport = {
+  unreadRowHeight: number | undefined;
+  viewportHeight: number;
+};
+
+// When the divider belongs to the final row there is exactly one unread
+// message. A short final message is already fully visible at the ordinary
+// bottom position, so forcing enough trailing space to put it at the top only
+// creates a large, unnatural gap. A message taller than the viewport still
+// lands at the divider so the reader sees its beginning rather than its end.
+export function resolveUnreadLandingIndex(
+  dividerIndex: number,
+  messageCount: number,
+  viewport?: UnreadLandingViewport,
+): number {
+  if (dividerIndex < 0 || dividerIndex >= messageCount) return -1;
+  const isOnlyUnreadMessage = dividerIndex === messageCount - 1;
+  const unreadFitsViewport =
+    viewport?.unreadRowHeight !== undefined && viewport.unreadRowHeight <= viewport.viewportHeight;
+  return isOnlyUnreadMessage && unreadFitsViewport ? -1 : dividerIndex;
 }

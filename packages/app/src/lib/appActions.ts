@@ -55,11 +55,11 @@ export function createAppActions(deps: AppActionsDeps) {
   ) {
     const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
     viewState.setSelected({ id: channelId, kind });
-    // Later and desktop notifications jump out of whatever feed they were
-    // clicked from — without this the sidebar stays stuck on that feed while
-    // the channel/thread opens behind it. Activity opts out (keepNav) so
-    // browsing the feed and opening items doesn't keep bouncing you back to
-    // the channel list.
+    // Desktop notifications jump out of whatever feed was showing — without
+    // this the sidebar stays stuck on that feed while the channel/thread
+    // opens behind it. Later and Activity opt out (keepNav) so browsing the
+    // feed and opening items doesn't keep bouncing you back to the channel
+    // list.
     if (!options?.keepNav) viewState.setNav("home");
     unread.clearChannelUnread(channelId);
     openThread(channelId, ts, highlightTs);

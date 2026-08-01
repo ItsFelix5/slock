@@ -1,13 +1,6 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: Message rendering branches share state and interaction wiring that is clearer in one component.
 import { BlockKit, Mrkdwn } from "@slock/blockkit";
-import type {
-  Block,
-  Message,
-  RichTextBlock,
-  RichTextInlineElement,
-  RichTextSubBlock,
-  TextObject,
-} from "@slock/slack-api";
+import type { Message } from "@slock/slack-api";
 import {
   AvatarStack,
   ContextMenu,
@@ -18,8 +11,7 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { parseReplyLink } from "../../lib/replyLink";
-import { actionFeedback, isUnreadDividerBoundary, store } from "../../lib/store";
+import { actionFeedback, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import { MessageAvatarButton } from "./MessageAuthorButtons";
@@ -29,12 +21,11 @@ import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
 import AttachmentCard from "./parts/media/AttachmentCard";
 import MessageFiles from "./parts/media/MessageFiles";
+import { resolveMessageRenderState } from "./parts/messageRenderState";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 
-const EMOJI_SHORTCODE_RE = /:([a-z0-9_+'-]+):/gi;
 const USER_PROFILE_ID_RE = /^[UW]/;
-const MAX_ENLARGED_EMOJI = 25;
 const MESSAGE_CONTENT_ELEMENT_SELECTOR =
   "a, button, input, textarea, select, img, video, audio, canvas, svg, iframe, object, embed";
 
@@ -88,64 +79,6 @@ function isMessageBackgroundContextMenu(event: MouseEvent & { currentTarget: HTM
   return true;
 }
 
-function isEmojiOnlyMessage(text: string): boolean {
-  const count = emojiShortcodeCount(text);
-  return count !== undefined && count > 0 && count < MAX_ENLARGED_EMOJI;
-}
-
-function emojiShortcodeCount(text: string): number | undefined {
-  const emoji = text.match(EMOJI_SHORTCODE_RE);
-  return text.replace(EMOJI_SHORTCODE_RE, "").trim() ? undefined : (emoji?.length ?? 0);
-}
-
-function emojiOnlyRichTextCount(block: RichTextBlock): number | undefined {
-  let count = 0;
-  const addElements = (elements: RichTextInlineElement[]) => {
-    for (const element of elements) {
-      if (element.type === "emoji") count += 1;
-      else if (element.type === "text") {
-        const textCount = emojiShortcodeCount(element.text);
-        if (textCount === undefined) return false;
-        count += textCount;
-      } else return false;
-    }
-    return true;
-  };
-  const addSubBlock = (subBlock: RichTextSubBlock) => {
-    if (subBlock.type === "rich_text_list")
-      return subBlock.elements.every((section) => addElements(section.elements));
-    return addElements(subBlock.elements);
-  };
-
-  return block.elements.every(addSubBlock) ? count : undefined;
-}
-
-function emojiOnlyBlockMessage(blocks: Block[]): boolean {
-  let count = 0;
-  const addText = (text: TextObject | undefined) => {
-    if (!text) return false;
-    const textCount = emojiShortcodeCount(text.text);
-    if (textCount === undefined) return false;
-    count += textCount;
-    return true;
-  };
-
-  for (const block of blocks) {
-    if (block.type === "rich_text") {
-      const richTextCount = emojiOnlyRichTextCount(block as RichTextBlock);
-      if (richTextCount === undefined) return false;
-      count += richTextCount;
-    } else if (block.type === "section") {
-      const section = block as Extract<Block, { type: "section" }>;
-      if (section.accessory || section.fields?.length || !addText(section.text)) return false;
-    } else if (block.type === "header") {
-      if (!addText((block as Extract<Block, { type: "header" }>).text)) return false;
-    } else return false;
-  }
-
-  return count > 0 && count < MAX_ENLARGED_EMOJI;
-}
-
 export type MessageRowProps = {
   message: Message;
   messages: Message[];
@@ -158,33 +91,26 @@ export type MessageRowProps = {
 };
 
 export default function MessageRow(props: MessageRowProps) {
-  const msg = props.message;
+  const msg = () => props.message;
   const prev = () => props.messages[props.index() - 1];
-  const isThreadRoot = () => !!props.threadTs && msg.ts === props.threadTs;
-  const dayChanged = () => {
-    const p = prev();
-    if (isThreadRoot()) return msg.day !== "Today";
-    return !p || p.day !== msg.day;
-  };
-  const showUnreadDivider = () => {
-    // Thread replies have no read cursor of their own — unreadDividerTsForChannel
-    // is anchored to the *channel's* cursor, which has nothing to do with
-    // whether this thread has been opened before, so never show it here.
-    if (props.threadTs) return false;
-    const p = prev();
-    const anchor = store.unread.unreadDividerTsForChannel(props.channelId);
-    if (anchor == null) return false;
-    return isUnreadDividerBoundary(msg.ts, p?.ts, anchor);
-  };
-  const showRepliesDivider = () => !!props.threadTs && !prev() && (msg.replyCount ?? 0) > 0;
-  const isInThread = (channelId: string, ts: string) =>
-    !!props.threadTs &&
-    channelId === props.channelId &&
-    (ts === props.threadTs || props.messages.some((m) => m.ts === ts));
-  const replyRef = createMemo(() => parseReplyLink(msg.text, isInThread));
-  const messageText = () => replyRef()?.rest ?? msg.text;
-  const hasEnlargedEmojiOnlyText = () =>
-    msg.blocks?.length ? emojiOnlyBlockMessage(msg.blocks) : isEmojiOnlyMessage(messageText());
+  const isPinned = () => store.pinned.isMessagePinned(props.channelId, msg().ts);
+  const renderState = createMemo(() =>
+    resolveMessageRenderState(msg(), prev(), {
+      channelId: props.channelId,
+      hasOpenThread: !!props.onOpenThread,
+      isPinned: isPinned(),
+      messages: props.messages,
+      showDeleted: logDeletedMessages(),
+      threadTs: props.threadTs,
+      unreadDividerTs: store.unread.unreadDividerTsForChannel(props.channelId),
+    }),
+  );
+  const dayChanged = () => renderState().dayChanged;
+  const showUnreadDivider = () => renderState().showUnreadDivider;
+  const showRepliesDivider = () => renderState().showRepliesDivider;
+  const replyRef = () => renderState().replyRef;
+  const messageText = () => renderState().messageText;
+  const hasEnlargedEmojiOnlyText = () => renderState().hasEnlargedEmojiOnlyText;
   const referencedMessage = createMemo(() => {
     const ref = replyRef();
     if (!ref) return;
@@ -197,52 +123,43 @@ export default function MessageRow(props: MessageRowProps) {
   });
   const replyUnfurl = createMemo(() => {
     const ref = replyRef();
-    return ref ? msg.attachments?.find((a) => a.isMessageUnfurl && a.ts === ref.ts) : undefined;
+    return ref ? msg().attachments?.find((a) => a.isMessageUnfurl && a.ts === ref.ts) : undefined;
   });
-  const showThreadContext = createMemo(
-    () => !!(props.onOpenThread && msg.isBroadcast && msg.threadTs),
-  );
+  const showThreadContext = () => renderState().showThreadContext;
   const threadParent = createMemo(() =>
     showThreadContext()
-      ? (msg.threadRoot ??
-        props.messages.find((m) => m.ts === msg.threadTs) ??
+      ? (msg().threadRoot ??
+        props.messages.find((m) => m.ts === msg().threadTs) ??
         store.messages
-          .findAllMessageLocations(props.channelId, msg.threadTs ?? "")[0]
-          ?.list.find((m) => m.ts === msg.threadTs))
+          .findAllMessageLocations(props.channelId, msg().threadTs ?? "")[0]
+          ?.list.find((m) => m.ts === msg().threadTs))
       : undefined,
   );
-  const visibleAttachments = createMemo(() =>
-    msg.attachments?.filter((a) => !(a.isMessageUnfurl && a.ts === replyRef()?.ts)),
-  );
-  const isPinned = () => store.pinned.isMessagePinned(props.channelId, msg.ts);
-  const sameAuthorAsPrev = () => {
-    const p = prev();
-    return (
-      !!p &&
-      p.userId === msg.userId &&
-      !dayChanged() &&
-      p.kind === msg.kind &&
-      !isPinned() &&
-      !replyRef() &&
-      !showThreadContext()
-    );
-  };
-  const isSlackbot = () => msg.botName === "Slackbot";
+  const visibleAttachments = () => renderState().visibleAttachments;
+  const sameAuthorAsPrev = () => renderState().sameAuthorAsPrev;
+  const isSlackbot = () => msg().botName === "Slackbot";
   const profileUserId = () => {
-    const id = USER_PROFILE_ID_RE.test(msg.userId)
-      ? msg.userId
+    const id = USER_PROFILE_ID_RE.test(msg().userId)
+      ? msg().userId
       : isSlackbot()
         ? "USLACKBOT"
-        : msg.userId;
+        : msg().userId;
     return USER_PROFILE_ID_RE.test(id) ? id : undefined;
   };
-  const user = createMemo(() => (msg.userId ? store.users.userById(msg.userId) : undefined));
-  const displayName = () => user()?.name ?? msg.botName ?? "Unknown";
-  const avatarUrl = () => user()?.avatarUrl ?? msg.botIcon;
+  const user = createMemo(() => (msg().userId ? store.users.userById(msg().userId) : undefined));
+  // Apps posting via a user token set both `user` (the real poster) and
+  // bot_profile (the app's identity). When they're distinct, the real user's
+  // name/avatar wins — bot_profile is a fallback, not the poster. A message
+  // with only bot_id (no separate user) is a genuine bot post, so bot_profile
+  // still leads there; the [APP] badge covers both cases regardless.
+  const hasRealUser = () => !!msg().userId && msg().userId !== msg().botId;
+  const displayName = () =>
+    (hasRealUser() ? user()?.name : undefined) ?? msg().botName ?? "Unknown";
+  const avatarUrl = () => (hasRealUser() ? user()?.avatarUrl : undefined) ?? msg().botIcon;
   const [isEditing, setIsEditing] = createSignal(false);
   const ctxMenu = useContextMenu();
   return (
-    <Show when={!msg.deleted || logDeletedMessages()}>
+    <Show when={renderState().showMessage}>
       <Show when={dayChanged() || showUnreadDivider()}>
         <div
           class="message-divider flex-align-center text-center font-bold text-xs"
@@ -251,8 +168,8 @@ export default function MessageRow(props: MessageRowProps) {
           <span>
             {dayChanged()
               ? showUnreadDivider()
-                ? `${msg.day} · New messages`
-                : msg.day
+                ? `${msg().day} · New messages`
+                : msg().day
               : "New messages"}
           </span>
         </div>
@@ -261,9 +178,9 @@ export default function MessageRow(props: MessageRowProps) {
         class="message-row-group"
         classList={{
           compact: sameAuthorAsPrev(),
-          deleted: msg.deleted,
-          ephemeral: msg.isEphemeral,
-          saved: store.later.isSavedForLater(props.channelId, msg.ts),
+          deleted: msg().deleted,
+          ephemeral: msg().isEphemeral,
+          saved: store.later.isSavedForLater(props.channelId, msg().ts),
         }}
       >
         <Show when={replyRef()}>
@@ -277,24 +194,24 @@ export default function MessageRow(props: MessageRowProps) {
           <ReplyReferenceRow
             icon="threads"
             message={threadParent()}
-            onJump={() => props.onOpenThread?.(msg.threadTs ?? "")}
+            onJump={() => props.onOpenThread?.(msg().threadTs ?? "")}
           />
         </Show>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: right-click-to-open-context-menu is a mouse-only convenience alongside the row's own interactive children */}
         <div
           class="message-row"
-          data-message-ts={msg.ts}
+          data-message-ts={msg().ts}
           onContextMenu={(e) => {
-            if (msg.deleted || msg.isEphemeral || isEditing()) return;
+            if (msg().deleted || msg().isEphemeral || isEditing()) return;
             if (!isMessageBackgroundContextMenu(e)) return;
             store.resources.loadMessageShortcuts();
             ctxMenu.open(e);
           }}
         >
-          <Show when={!(msg.deleted || msg.isEphemeral)}>
+          <Show when={!(msg().deleted || msg().isEphemeral)}>
             <MessageActionsBar
               channelId={props.channelId}
-              msg={msg}
+              msg={msg()}
               onEditRequest={() => setIsEditing(true)}
               onOpenThread={props.onOpenThread}
               onReplyLink={props.onReplyLink}
@@ -308,7 +225,7 @@ export default function MessageRow(props: MessageRowProps) {
             >
               <MessageActionsMenuItems
                 channelId={props.channelId}
-                msg={msg}
+                msg={msg()}
                 onClose={ctxMenu.close}
                 onEditRequest={() => setIsEditing(true)}
                 threadTs={props.threadTs}
@@ -316,7 +233,7 @@ export default function MessageRow(props: MessageRowProps) {
             </ContextMenu>
           </Show>
           <Show
-            fallback={<div class="message-avatar-spacer">{msg.time.split(" ")[0]}</div>}
+            fallback={<div class="message-avatar-spacer">{msg().time.split(" ")[0]}</div>}
             when={!sameAuthorAsPrev()}
           >
             <Show
@@ -347,8 +264,8 @@ export default function MessageRow(props: MessageRowProps) {
                 isPinned={isPinned}
                 message={
                   {
-                    ...msg,
-                    isSaved: store.later.isSavedForLater(props.channelId, msg.ts),
+                    ...msg(),
+                    isSaved: store.later.isSavedForLater(props.channelId, msg().ts),
                   } as Message
                 }
                 onOpenUser={() => {
@@ -364,12 +281,12 @@ export default function MessageRow(props: MessageRowProps) {
                 <Composer
                   channelId={props.channelId}
                   editing={{
-                    initialText: replyRef()?.rest ?? msg.text,
+                    initialText: replyRef()?.rest ?? msg().text,
                     onCancel: () => setIsEditing(false),
                     onSave: async (text, blocks) => {
                       const saved = await store.messages.editMessageText(
                         props.channelId,
-                        msg.ts,
+                        msg().ts,
                         (replyRef()?.prefix ?? "") + text,
                         blocks,
                       );
@@ -382,68 +299,69 @@ export default function MessageRow(props: MessageRowProps) {
               when={!isEditing()}
             >
               <div
-                class={`message-text${msg.deleted ? " message-deleted-text" : ""}`}
+                class={`message-text${msg().deleted ? " message-deleted-text" : ""}`}
                 classList={{ "message-emoji-only": hasEnlargedEmojiOnlyText() }}
               >
                 <Show
                   fallback={
                     <>
                       <Mrkdwn text={messageText()} />
-                      <Show when={msg.edited}>
+                      <Show when={msg().edited}>
                         <span class="message-edited"> (edited)</span>
                       </Show>
                     </>
                   }
-                  when={!replyRef() && msg.blocks?.length ? msg.blocks : undefined}
+                  when={!replyRef() && msg().blocks?.length ? msg().blocks : undefined}
                 >
                   {(blocks) => (
                     <BlockKit
                       blocks={blocks()}
                       context={{
-                        botId: msg.botId,
+                        botId: msg().botId,
                         channelId: props.channelId,
-                        messageTs: msg.ts,
-                        threadTs: msg.threadTs,
+                        messageTs: msg().ts,
+                        threadTs: msg().threadTs,
                       }}
                       trailing={
-                        msg.edited ? <span class="message-edited"> (edited)</span> : undefined
+                        msg().edited ? <span class="message-edited"> (edited)</span> : undefined
                       }
                     />
                   )}
                 </Show>
               </div>
             </Show>
-            <Show when={msg.files?.length ? msg.files : undefined}>
+            <Show when={msg().files?.length ? msg().files : undefined}>
               {(files) => <MessageFiles files={files()} />}
             </Show>
             <Show when={visibleAttachments()?.length}>
               <For each={visibleAttachments()}>{(a) => <AttachmentCard attachment={a} />}</For>
             </Show>
-            <Show when={msg.reactions?.length ? msg.reactions : undefined}>
+            <Show when={msg().reactions?.length ? msg().reactions : undefined}>
               {(reactions) => (
                 <ReactionRow
+                  feedbackKey={msg().ts}
                   isPending={(name) =>
-                    store.messages.isReactionPending(props.channelId, msg.ts, name)
+                    store.messages.isReactionPending(props.channelId, msg().ts, name)
                   }
-                  onToggle={(name) => store.messages.reactToMessage(props.channelId, msg, name)}
+                  onToggle={(name) => store.messages.reactToMessage(props.channelId, msg(), name)}
                   reactions={reactions()}
                 />
               )}
             </Show>
             <InlineFeedback
               class="message-feedback"
-              feedback={actionFeedback.get(msg.ts)}
+              feedback={actionFeedback.get(msg().ts)}
               priority={props.threadTs ? 1 : 0}
             />
-            <Show when={props.onOpenThread && (msg.replyCount ?? 0) > 0}>
+            <Show when={props.onOpenThread && (msg().replyCount ?? 0) > 0}>
               <button
                 class="message-replies btn-reset flex-align-center"
-                onClick={() => props.onOpenThread?.(msg.ts)}
+                onClick={() => props.onOpenThread?.(msg().ts)}
                 type="button"
               >
                 <Show
                   fallback={<Icon name="threads" size={14} />}
-                  when={msg.replyUsers?.length ? msg.replyUsers : undefined}
+                  when={msg().replyUsers?.length ? msg().replyUsers : undefined}
                 >
                   {(users) => (
                     <Tooltip
@@ -469,10 +387,10 @@ export default function MessageRow(props: MessageRowProps) {
                   )}
                 </Show>
                 <span class="message-replies-count">
-                  {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+                  {msg().replyCount} {msg().replyCount === 1 ? "reply" : "replies"}
                 </span>
-                <Show when={msg.lastReplyLabel}>
-                  <span class="message-replies-last">Last reply {msg.lastReplyLabel}</span>
+                <Show when={msg().lastReplyLabel}>
+                  <span class="message-replies-last">Last reply {msg().lastReplyLabel}</span>
                 </Show>
               </button>
             </Show>
@@ -482,7 +400,7 @@ export default function MessageRow(props: MessageRowProps) {
       <Show when={showRepliesDivider()}>
         <div class="day-divider message-divider flex-align-center text-center font-bold text-xs">
           <span>
-            {msg.replyCount} {msg.replyCount === 1 ? "reply" : "replies"}
+            {msg().replyCount} {msg().replyCount === 1 ? "reply" : "replies"}
           </span>
         </div>
       </Show>

@@ -1,7 +1,7 @@
 import {
   type ContextBlock,
-  fileProxyUrl,
   type ImageElement,
+  resolveMediaUrl,
   type TextObject,
 } from "@slock/slack-api";
 import { For, Show } from "solid-js";
@@ -19,7 +19,7 @@ export default function Context(props: { block: ContextBlock }) {
             <img
               alt={(el as ImageElement).alt_text ?? ""}
               class="bk-context-image"
-              src={fileProxyUrl(
+              src={resolveMediaUrl(
                 (el as ImageElement).image_url ?? (el as ImageElement).slack_file?.url ?? "",
               )}
             />

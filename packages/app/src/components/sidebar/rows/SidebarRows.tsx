@@ -20,13 +20,18 @@ export function DmRow(props: { dm: DirectMessage }) {
     const v = store.viewState.activeView();
     return store.viewState.nav() === "home" && v?.kind === "dm" && v.id === props.dm.id;
   });
+  const muted = createMemo(() => store.preferences.isChannelMuted(props.dm.id));
 
   return (
     <Show when={ready()}>
       <div class="sidebar-row-wrap">
         <button
           class="sidebar-row btn-reset flex-align-center"
-          classList={{ active: isActive(), unread: !!store.unread.unreadChannelIds[props.dm.id] }}
+          classList={{
+            active: isActive(),
+            muted: muted(),
+            unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
+          }}
           onClick={() => store.viewState.setActiveView({ id: props.dm.id, kind: "dm" })}
           type="button"
         >
@@ -34,7 +39,9 @@ export function DmRow(props: { dm: DirectMessage }) {
             {(u) => <Avatar showPresence size="small" user={u()} />}
           </Show>
           <span class="sidebar-row-name truncate">{name()}</span>
-          {props.dm.mentions ? <span class="sidebar-badge">{props.dm.mentions}</span> : null}
+          {!muted() && props.dm.mentions ? (
+            <span class="sidebar-badge">{props.dm.mentions}</span>
+          ) : null}
         </button>
         <Tooltip content="Close conversation">
           <button

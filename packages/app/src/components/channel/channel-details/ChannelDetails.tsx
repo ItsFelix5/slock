@@ -18,6 +18,7 @@ import {
   updateChannelTopic,
 } from "../../../lib/channelDetails";
 import { actionFeedback, store } from "../../../lib/store";
+import MrkdwnComposer from "../../composer/MrkdwnComposer";
 import ChannelMembersTab from "./ChannelMembersTab";
 import "./ChannelDetails.css";
 import ChannelSettingsTab from "./ChannelSettingsTab";
@@ -232,16 +233,14 @@ export default function ChannelDetails() {
                       <label class="channel-details-label" for="channel-details-topic">
                         Topic
                       </label>
-                      <input
-                        aria-busy={savingTopic()}
-                        class="channel-details-input"
+                      <MrkdwnComposer
+                        ariaLabel="Topic"
+                        ariaBusy={savingTopic()}
                         disabled={savingTopic()}
                         id="channel-details-topic"
                         onBlur={saveTopic}
-                        onInput={(e) => setTopicInput(e.currentTarget.value)}
-                        onKeyDown={blurOnEnter}
+                        onInput={setTopicInput}
                         placeholder="Add a topic"
-                        type="text"
                         value={topicInput()}
                       />
                     </div>
@@ -249,13 +248,14 @@ export default function ChannelDetails() {
                       <label class="channel-details-label" for="channel-details-purpose">
                         Description
                       </label>
-                      <textarea
-                        aria-busy={savingPurpose()}
-                        class="channel-details-input channel-details-textarea"
+                      <MrkdwnComposer
+                        ariaLabel="Description"
+                        ariaBusy={savingPurpose()}
                         disabled={savingPurpose()}
                         id="channel-details-purpose"
+                        multiline
                         onBlur={savePurpose}
-                        onInput={(e) => setPurposeInput(e.currentTarget.value)}
+                        onInput={setPurposeInput}
                         placeholder="Add a description"
                         value={purposeInput()}
                       />

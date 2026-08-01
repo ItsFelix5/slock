@@ -1,5 +1,6 @@
 .zoomable-image-trigger {
   display: block;
+  width: fit-content;
   padding: 0;
   cursor: zoom-in;
   background: none;
@@ -13,6 +14,12 @@
 
 .zoomable-image {
   display: block;
+}
+
+.zoomable-image.zoomable-image-framed {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .zoomable-image-unavailable {

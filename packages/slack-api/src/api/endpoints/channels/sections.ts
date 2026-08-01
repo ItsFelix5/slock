@@ -1,16 +1,14 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { ChannelSection } from "../../../types";
 import { extractChannelSections } from "../../mappers";
-import { callSlack } from "../../relay";
+import { callSlack } from "../../server";
 import { fetchInitialData } from "../initialData";
 import {
   type PairedPreferenceValues,
   writePairedPreference,
 } from "../preferences/pairedPreferenceWrite";
 
-export async function fetchSections(): Promise<ChannelSection[]> {
-  const initial = await fetchInitialData();
-  const data = initial.sections ?? (await callSlack("users.channelSections.list"));
+function mapSections(data: any): ChannelSection[] {
   if (!data.ok) throw new Error(data.error ?? "users.channelSections.list failed");
   const sections = extractChannelSections(data);
   return (sections ?? []).map((s) => ({
@@ -20,6 +18,16 @@ export async function fetchSections(): Promise<ChannelSection[]> {
     sidebar: s.sidebar,
     type: s.type,
   }));
+}
+
+export async function fetchSections(): Promise<ChannelSection[]> {
+  const initial = await fetchInitialData();
+  const data = initial.sections ?? (await callSlack("users.channelSections.list"));
+  return mapSections(data);
+}
+
+export async function fetchFreshSections(): Promise<ChannelSection[]> {
+  return mapSections(await callSlack("users.channelSections.list"));
 }
 export async function createSection(name: string): Promise<{ id: string; name: string } | null> {
   const data = await callSlack("users.channelSections.create", {

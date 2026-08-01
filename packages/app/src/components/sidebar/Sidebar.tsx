@@ -25,9 +25,11 @@ export default function Sidebar() {
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
-  // Clicking a section name temporarily reveals all its store.channels.channels. The caret
-  // remains solely responsible for collapsing that section.
-  const [expandedSectionIds, setExpandedSectionIds] = createSignal<Set<string>>(new Set());
+  // The section name flips its all/unread filter. The caret remains solely
+  // responsible for collapsing the section.
+  const [toggledSectionFilterIds, setToggledSectionFilterIds] = createSignal<Set<string>>(
+    new Set(),
+  );
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
@@ -49,18 +51,18 @@ export default function Sidebar() {
     else next.add(id);
     setCollapsed(next);
   };
-  const showAllInCategory = (id: string) => {
-    const next = new Set(expandedSectionIds());
+  const toggleSectionFilter = (id: string) => {
+    const next = new Set(toggledSectionFilterIds());
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    setExpandedSectionIds(next);
+    setToggledSectionFilterIds(next);
   };
   const categories = createMemo<Category[]>(() =>
     buildCategories(
       store.channels.channels(),
       store.channels.sections,
       unreadsOnly,
-      expandedSectionIds,
+      toggledSectionFilterIds,
       store.unread.unreadChannelIds,
       store.channels.isChannelStarred,
       store.channels.isChannelLeft,
@@ -145,29 +147,29 @@ export default function Sidebar() {
     setSectionMenuOpen(null);
     void store.channels.reorderChannelSection(id, target);
   };
+  const isDmUnread = (dm: { id: string }) =>
+    !!store.unread.unreadChannelIds[dm.id] && !store.preferences.isChannelMuted(dm.id);
   const visibleDms = createMemo(() =>
     store.dms.directMessages().filter((dm) => {
       const view = store.viewState.activeView();
       const isOpen = view?.kind === "dm" && view.id === dm.id;
-      return isOpen || !unreadsOnly() || !!store.unread.unreadChannelIds[dm.id];
+      return isOpen || !unreadsOnly() || isDmUnread(dm);
     }),
   );
-  const unreadDms = createMemo(() =>
-    visibleDms().filter((dm) => !!store.unread.unreadChannelIds[dm.id]),
-  );
+  const unreadDms = createMemo(() => visibleDms().filter(isDmUnread));
   // A multi-person DM (memberIds instead of a single userId) is never a bot
   // DM, so it always sorts into people.
   const peopleDms = createMemo(() =>
     visibleDms().filter(
       (dm) =>
-        !store.unread.unreadChannelIds[dm.id] &&
+        !isDmUnread(dm) &&
         (!dm.userId || (dm.userId !== SLACK_USER_ID && !store.users.userById(dm.userId)?.isBot)),
     ),
   );
   const appDms = createMemo(() =>
     visibleDms().filter(
       (dm) =>
-        !store.unread.unreadChannelIds[dm.id] &&
+        !isDmUnread(dm) &&
         !!dm.userId &&
         (dm.userId === SLACK_USER_ID || store.users.userById(dm.userId)?.isBot),
     ),
@@ -184,7 +186,7 @@ export default function Sidebar() {
     currentUser: store.users.currentUser,
     deleteChannelSection: store.channels.deleteChannelSection,
     dmsOpen,
-    expandedSectionIds,
+    toggledSectionFilterIds,
     draggingSectionId,
     dropTarget,
     feedMaxWidth: FEED_MAX_WIDTH,
@@ -220,7 +222,7 @@ export default function Sidebar() {
     setAppsOpen,
     setDmsOpen,
     setUnreadDmsOpen,
-    showAllInCategory,
+    toggleSectionFilter,
     setFeedWidth,
     setNavView: store.viewState.setNavView,
     setRenameValue,

@@ -18,17 +18,9 @@
   white-space: nowrap;
 }
 
-.canvas-panel-file-link {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  color: var(--text-dim);
-  border-radius: var(--radius-6);
-}
-
-.canvas-panel-file-link:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
+.canvas-panel-menu {
+  z-index: 70;
+  min-width: 180px;
 }
 
 .canvas-panel-loading {
@@ -40,33 +32,41 @@
   gap: 12px;
 }
 
-.canvas-panel-toolbar {
-  flex-shrink: 0;
-  gap: 2px;
-  width: 100%;
-  max-width: 900px;
-  padding: 6px 10px;
+.canvas-panel-create {
+  flex: 1;
+  gap: 12px;
+  max-width: 440px;
+  padding: 32px;
   margin: 0 auto;
-  border-bottom: 1px solid var(--border);
+  text-align: center;
 }
 
-.canvas-toolbar-btn {
-  width: 28px;
-  height: 28px;
-  color: var(--text-secondary);
-  border-radius: var(--radius-6);
-}
-
-.canvas-toolbar-btn:hover {
-  color: var(--text-primary);
+.canvas-panel-create-icon {
+  width: 58px;
+  height: 58px;
+  color: var(--accent);
   background: var(--hover-bg);
+  border-radius: var(--radius-12);
 }
 
-.canvas-toolbar-divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 4px;
-  background: var(--border);
+.canvas-panel-create h2,
+.canvas-panel-create p {
+  margin: 0;
+}
+
+.canvas-panel-create-title {
+  width: 280px;
+  max-width: 100%;
+}
+
+.canvas-panel-create h2 {
+  font-size: 19px;
+}
+
+.canvas-panel-create p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
 }
 
 .canvas-panel-editor.composer-input {
@@ -83,30 +83,4 @@
   color: var(--text-primary);
   outline: none;
   background: var(--composer-bg);
-}
-
-.canvas-panel-footer {
-  width: 100%;
-  max-width: 900px;
-  padding: 10px 14px;
-  margin: 0 auto;
-  border-top: 1px solid var(--border);
-}
-
-.canvas-panel-save {
-  padding: 7px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-on-accent);
-  background: var(--accent);
-  border-radius: var(--radius-6);
-}
-
-.canvas-panel-save:disabled {
-  color: var(--text-dim);
-  background: var(--hover-bg);
-}
-
-.canvas-panel-save:not(:disabled):hover {
-  background: var(--accent-hover);
 }

@@ -1,6 +1,4 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to request parsing.
 import { submitAuthRequest } from "@slock/slack-api";
-import { Button } from "@slock/ui";
 import { createSignal } from "solid-js";
 import "./ConnectSlack.css";
 
@@ -68,19 +66,9 @@ function extractMultipartField(
 }
 
 export default function ConnectSlack(props: { onConnected: () => void }) {
-  const [request, setRequest] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
-  const [submitting, setSubmitting] = createSignal(false);
 
-  async function connect() {
-    const raw = request();
-    if (!raw.trim()) {
-      setError("Paste a copied Slack request first.");
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-
+  async function connect(raw: string) {
     try {
       const text = raw
         .trim()
@@ -154,19 +142,13 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
       props.onConnected();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSubmitting(false);
     }
   }
 
   return (
     <div class="connect-slack flex-center">
-      <form
+      <div
         class="connect-slack-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void connect();
-        }}
       >
         <h1>Connect to Slack</h1>
         <p class="connect-slack-intro" id="connect-slack-instructions">
@@ -185,23 +167,18 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
           aria-describedby="connect-slack-instructions connect-slack-error"
           autocomplete="off"
           class="connect-slack-input"
-          disabled={submitting()}
           onInput={(event) => {
-            setRequest(event.currentTarget.value);
             setError(null);
+            connect(event.currentTarget.value);
           }}
           placeholder="curl 'https://your-workspace.slack.com/api/...' -H ..."
           rows={8}
           spellcheck={false}
-          value={request()}
         />
-        <Button disabled={submitting() || !request().trim()} type="submit" variant="primary">
-          {submitting() ? "Connecting…" : "Connect"}
-        </Button>
         <p class="connect-slack-error" id="connect-slack-error" role="alert">
           {error()}
         </p>
-      </form>
+      </div>
     </div>
   );
 }

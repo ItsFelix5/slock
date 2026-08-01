@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { MessageShortcut } from "../../types";
 import { getOrCreateRetryablePromise } from "../cache/retryablePromiseCache";
-import { callSlack, fileProxyUrl, getWorkspaceTeamId } from "../relay";
+import { callSlack, getWorkspaceTeamId, resolveMediaUrl } from "../server";
 
 // client.appCommands' `app_actions` list mixes every action any installed
 // app registered — global shortcuts (composer lightning bolt) and
@@ -18,7 +18,7 @@ export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
   for (const app of apps) {
     const rawIcon =
       app.icons?.image_48 ?? app.icons?.image_72 ?? app.icons?.image_32 ?? app.icons?.image_64;
-    const icon = rawIcon ? fileProxyUrl(rawIcon) : undefined;
+    const icon = rawIcon ? resolveMediaUrl(rawIcon) : undefined;
     for (const action of app.actions ?? []) {
       if (action.type !== "message_action") continue;
       shortcuts.push({

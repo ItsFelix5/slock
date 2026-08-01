@@ -1,13 +1,11 @@
-// The browser can't call Slack directly (no way to attach its session cookie),
-// so methods go through the same-origin server. Calls stay independent: a slow
-// Slack method must not hold up unrelated work merely because both were issued
-// during the same browser microtask. App-level compositions have explicit
-// server endpoints instead (for example /api/bootstrap).
+// The browser talks only to the application's allowlisted operations. The
+// server owns the upstream Slack integration and rejects methods outside that
+// fixed contract.
 export async function callSlack<T = any>(
   method: string,
   params: Record<string, string> = {},
 ): Promise<T> {
-  const res = await fetch(`/slack/${method}`, {
+  const res = await fetch(`/api/operations/${method}`, {
     body: JSON.stringify(params),
     headers: { "content-type": "application/json" },
     method: "POST",
@@ -15,14 +13,13 @@ export async function callSlack<T = any>(
   return res.json();
 }
 
-// Same relay, but for Slack's Edge API cache service — a different host with
-// JSON params (arrays allowed), used where Enterprise Grid blocks the regular
-// Web API method (e.g. channel membership).
+// Enterprise Grid has a few operations backed by Slack's Edge API. These are
+// independently allowlisted by the application server.
 export async function callSlackEdge<T = any>(
   method: string,
   params: Record<string, unknown> = {},
 ): Promise<T> {
-  const res = await fetch(`/slack-edge/${method}`, {
+  const res = await fetch(`/api/edge-operations/${method}`, {
     body: JSON.stringify(params),
     headers: { "content-type": "application/json" },
     method: "POST",
@@ -30,42 +27,18 @@ export async function callSlackEdge<T = any>(
   return res.json();
 }
 
-// Every displayed Slack file (avatars, attachments, emoji, block-kit images)
-// has to go through here rather than hotlinking the raw URL: Slack sets its
-// session cookie SameSite, so it's never attached to a cross-site subresource
-// request like an <img>/<video> src, only to same-site/top-level navigation.
-// This proxies the request server-side instead, using the cookie the relay
-// holds for the caller (see fileProxyResponse in server/relay-core.ts).
-const SLACK_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
 
-export function fileProxyUrl(url: string): string {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return url;
-  }
-  if (SLACK_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
-    return `/file?url=${encodeURIComponent(url)}`;
-  }
-  // Legacy message attachments can carry third-party icon/image URLs (e.g.
-  // GitHub's integration footer icon, hosted on slack.github.com) that were
-  // never behind Slack's cookie. Those can't just hotlink though: many send
-  // `Cross-Origin-Resource-Policy: same-origin`, which blocks the browser
-  // from loading them as a direct <img>/<video> src regardless of CORS. Route
-  // them through the unauthenticated external media proxy instead — it never
-  // sees or forwards the Slack cookie, unlike /file above.
-  if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-    return `/media-proxy?url=${encodeURIComponent(url)}`;
-  }
+// Slack asset URLs are replaced by signed, same-origin resource URLs before
+// server responses reach the browser. Third-party URLs remain ordinary links.
+export function resolveMediaUrl(url: string): string {
   return url;
 }
 
 // The workspace domain (e.g. "hackclub.slack.com") and team id live in a
 // small non-HttpOnly cookie the server sets alongside the real (HttpOnly)
-// credentials cookie on login — see slock_info in server/relay-auth.ts. Page
-// JS can read it directly, no relay round trip needed.
+// credentials cookie on login — see slock_info in server/auth.ts. Page JS can
+// read it directly without another request.
 type SlockInfo = { domain: string; teamId: string | null };
 let cachedInfo: SlockInfo | null | undefined;
 const INFO_COOKIE_RE = /(?:^|; )slock_info=([^;]*)/;
@@ -124,7 +97,7 @@ export function userProfileUrl(domain: string, userId: string): string {
 // cookies. The server persists it in an httpOnly cookie directly on the
 // response, so page JS has nothing left to store or restore itself.
 export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch("/auth", {
+  const res = await fetch("/api/session", {
     body: JSON.stringify(raw),
     headers: { "content-type": "application/json" },
     method: "POST",
@@ -136,7 +109,7 @@ export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; er
 // reload/re-render into ConnectSlack afterward.
 export async function logout(): Promise<void> {
   cachedInfo = undefined;
-  await fetch("/auth/logout", { method: "POST" }).catch(() => {
+  await fetch("/api/session", { method: "DELETE" }).catch(() => {
     // best-effort — worst case the user just sees stale state until reload
   });
 }

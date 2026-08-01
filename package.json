@@ -12,7 +12,6 @@
     "build": "tsc -b && bun run --filter slock-web build",
     "start": "bun run --filter slock-web build && bun run --filter slock-web server",
     "preview": "bun run --filter slock-web preview",
-    "test": "bun test",
     "check": "biome check . && bun test && bun run build",
     "format": "biome check . --write"
   },

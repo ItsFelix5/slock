@@ -1,6 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads retain their wire field names.
+
+import { type Credentials, jsonHeaders } from "../auth.ts";
 import { compressedResponse } from "../http/compressedResponse.ts";
-import { type Credentials, cors } from "../relay-auth.ts";
 
 type SlackCaller = (
   method: string,
@@ -28,7 +29,7 @@ export async function bootstrapResponse(
   ]);
   return compressedResponse(
     JSON.stringify({ boot, counts, dnd, prefs, sections }),
-    cors,
+    jsonHeaders,
     acceptEncoding,
   );
 }

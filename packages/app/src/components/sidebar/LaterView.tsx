@@ -1,14 +1,14 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { Button, Icon, InlineFeedback, Tooltip } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
-import { actionFeedback, channelDisplayName, store } from "../../lib/store";
+import { actionFeedback, conversationDisplayName, store } from "../../lib/store";
 import "./LaterView.css";
 
 export default function LaterView() {
   onMount(() => store.later.ensureLaterLoaded());
 
   const goTo = (channelId: string, ts: string, highlightTs?: string) =>
-    store.viewState.openChannelPeek(channelId, ts, highlightTs);
+    store.viewState.openChannelPeek(channelId, ts, highlightTs, { keepNav: true });
 
   return (
     <div class="later-view sidebar-view-panel">
@@ -61,7 +61,14 @@ export default function LaterView() {
                   store.later.hasLaterMessageError(item.channelId, item.ts),
                 );
                 const msg = createMemo(() => store.later.laterMessages[key]);
-                const channel = createMemo(() => store.channels.channelById(item.channelId));
+                // channelById triggers a network discovery lookup for unknown
+                // ids — skip it for DM ids, which will never resolve as a channel.
+                const channel = createMemo(() =>
+                  item.channelId.startsWith("D")
+                    ? undefined
+                    : store.channels.channelById(item.channelId),
+                );
+                const dm = createMemo(() => store.dms.dmById(item.channelId));
                 return (
                   <div class="later-item">
                     <button
@@ -73,7 +80,12 @@ export default function LaterView() {
                       type="button"
                     >
                       <div class="later-channel">
-                        #{channelDisplayName(channel(), item.channelId)}
+                        {conversationDisplayName(
+                          item.channelId,
+                          channel(),
+                          dm(),
+                          store.users.userById,
+                        )}
                       </div>
                       <div class="later-snippet">
                         <Show

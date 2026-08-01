@@ -222,7 +222,12 @@ function appendLinesWithBreaks(parent: Node, text: string, dialect: InlineDialec
     appendInline(parent, line, dialect);
   });
 }
-function appendPlainSegment(frag: DocumentFragment, text: string, dialect: InlineDialect) {
+function appendPlainSegment(
+  frag: DocumentFragment,
+  text: string,
+  dialect: InlineDialect,
+  allowBlockKit: boolean,
+) {
   const lines = text.split("\n");
   let current: string[] = [];
   let currentIsQuote = false;
@@ -253,11 +258,11 @@ function appendPlainSegment(frag: DocumentFragment, text: string, dialect: Inlin
     frag.appendChild(el);
   };
   for (const line of lines) {
-    if (line === "---") {
+    if (allowBlockKit && line === "---") {
       appendBlock(createDividerElement());
       continue;
     }
-    const header = HEADER_LINE_RE.exec(line);
+    const header = allowBlockKit ? HEADER_LINE_RE.exec(line) : null;
     if (header) {
       const h = createHeaderElement(header[1].length);
       appendInline(h, header[2], dialect);
@@ -296,13 +301,16 @@ export function htmlToFragment(html: string): DocumentFragment {
 export function mrkdwnToFragment(
   text: string,
   dialect: InlineDialect = MRKDWN_DIALECT,
+  options: { allowBlockKit?: boolean } = {},
 ): DocumentFragment {
   const frag = document.createDocumentFragment();
   if (!text) return frag;
+  const allowBlockKit = options.allowBlockKit ?? true;
   let lastIndex = 0;
   for (const match of text.matchAll(CODE_FENCE_RE)) {
     const index = match.index ?? 0;
-    if (index > lastIndex) appendPlainSegment(frag, text.slice(lastIndex, index), dialect);
+    if (index > lastIndex)
+      appendPlainSegment(frag, text.slice(lastIndex, index), dialect, allowBlockKit);
     if (frag.lastChild) frag.appendChild(document.createElement("br"));
     const pre = document.createElement("pre");
     pre.className = "composer-pre";
@@ -310,7 +318,8 @@ export function mrkdwnToFragment(
     frag.appendChild(pre);
     lastIndex = index + match[0].length;
   }
-  if (lastIndex < text.length) appendPlainSegment(frag, text.slice(lastIndex), dialect);
+  if (lastIndex < text.length)
+    appendPlainSegment(frag, text.slice(lastIndex), dialect, allowBlockKit);
   return frag;
 }
 function closestElement(node: Node, tagName: string, stopAt: HTMLElement): HTMLElement | null {

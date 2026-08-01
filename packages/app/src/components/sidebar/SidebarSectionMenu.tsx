@@ -1,4 +1,5 @@
 import { Icon, Menu, SegmentedControl, Tooltip } from "@slock/ui";
+import { Show } from "solid-js";
 import type { Category, SidebarContext } from "./sidebarCategories";
 
 export default function SidebarSectionMenu(props: { cat: Category; context: SidebarContext }) {
@@ -51,30 +52,34 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
         </Tooltip>
       }
     >
-      <button
-        class="menu-item"
-        disabled={sectionStructurePending()}
-        onClick={() => startRename(props.cat)}
-        type="button"
-      >
-        Rename
-      </button>
-      <button
-        class="menu-item"
-        disabled={sectionStructurePending() || !canMoveSection(props.cat.id, -1)}
-        onClick={() => moveSection(props.cat.id, -1)}
-        type="button"
-      >
-        <Icon name="arrow-up" size={14} /> Move up
-      </button>
-      <button
-        class="menu-item"
-        disabled={sectionStructurePending() || !canMoveSection(props.cat.id, 1)}
-        onClick={() => moveSection(props.cat.id, 1)}
-        type="button"
-      >
-        <Icon name="arrow-down" size={14} /> Move down
-      </button>
+      <Show when={props.cat.custom}>
+        <button
+          class="menu-item"
+          disabled={sectionStructurePending()}
+          onClick={() => startRename(props.cat)}
+          type="button"
+        >
+          Rename
+        </button>
+      </Show>
+      <Show when={props.cat.reorderable}>
+        <button
+          class="menu-item"
+          disabled={sectionStructurePending() || !canMoveSection(props.cat.id, -1)}
+          onClick={() => moveSection(props.cat.id, -1)}
+          type="button"
+        >
+          <Icon name="arrow-up" size={14} /> Move up
+        </button>
+        <button
+          class="menu-item"
+          disabled={sectionStructurePending() || !canMoveSection(props.cat.id, 1)}
+          onClick={() => moveSection(props.cat.id, 1)}
+          type="button"
+        >
+          <Icon name="arrow-down" size={14} /> Move down
+        </button>
+      </Show>
       <div class="sidebar-section-filter">
         <SegmentedControl>
           <button
@@ -115,14 +120,16 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
           </button>
         </SegmentedControl>
       </div>
-      <button
-        class="menu-item danger"
-        disabled={sectionStructurePending()}
-        onClick={deleteSection}
-        type="button"
-      >
-        Delete section
-      </button>
+      <Show when={props.cat.custom}>
+        <button
+          class="menu-item danger"
+          disabled={sectionStructurePending()}
+          onClick={deleteSection}
+          type="button"
+        >
+          Delete section
+        </button>
+      </Show>
     </Menu>
   );
 }

@@ -6,34 +6,33 @@
 
 .typing-indicator {
   position: absolute;
-  bottom: calc(100% - 4px);
-  left: 12px;
+  top: -12px;
+  right: 10px;
   z-index: 3;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  max-width: calc(100% - 24px);
-  padding: 5px 10px;
-  font-size: 13px;
-  line-height: 1.2;
+  max-width: calc(100% - 20px);
+  font-size: 10px;
+  line-height: 10px;
   color: var(--text-secondary);
   pointer-events: none;
-  background: var(--composer-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-12);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .typing-indicator-dots {
   display: inline-flex;
   flex-shrink: 0;
-  gap: 3px;
+  gap: 2px;
   align-items: center;
 }
 
 .typing-indicator-dots span {
-  width: 5px;
-  height: 5px;
+  width: 3px;
+  height: 3px;
   background: var(--text-dim);
   border-radius: var(--radius-round);
   animation: typing-bounce 1.2s infinite ease-in-out;
@@ -59,7 +58,7 @@
     opacity: 0.5;
   }
   30% {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     opacity: 1;
   }
 }

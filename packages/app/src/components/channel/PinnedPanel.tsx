@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { Button, InlineFeedback, Overlay, PanelHeader, Tooltip, useEscapeClose } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { actionFeedback, channelDisplayName, dmDisplayName, store } from "../../lib/store";
+import { actionFeedback, conversationDisplayName, store } from "../../lib/store";
 import "./PinnedPanel.css";
 
 export default function PinnedPanel() {
@@ -15,15 +15,11 @@ export default function PinnedPanel() {
   const loading = () => !!store.pinned.pinnedMessagesLoading[channelId() ?? ""];
   const loadError = () => !!store.pinned.pinnedMessagesError[channelId() ?? ""];
 
-  // Generic conversation id — could be a channel or a DM, so every lookup here
-  // has to branch on which one it actually resolves to.
   const title = () => {
     const id = channelId();
     if (!id) return "";
-    const channel = store.channels.channelById(id);
-    if (channel) return `Pinned in #${channelDisplayName(channel)}`;
-    const dmName = dmDisplayName(store.dms.dmById(id), store.users.userById);
-    return `Pinned in ${dmName || "conversation"}`;
+    const channel = id.startsWith("D") ? undefined : store.channels.channelById(id);
+    return `Pinned in ${conversationDisplayName(id, channel, store.dms.dmById(id), store.users.userById)}`;
   };
 
   const goTo = (ts: string) => {

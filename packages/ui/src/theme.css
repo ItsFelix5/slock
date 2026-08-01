@@ -13,7 +13,8 @@
   --presence-active: #2eb67d;
   --hover-bg: rgba(255, 255, 255, 0.06);
   --active-bg: rgba(255, 255, 255, 0.1);
-  --badge-bg: #cd2553;
+  --badge-bg: #e5484d;
+  --badge-rgb: 229, 72, 77;
   --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --danger: #e0554a;
   --danger-rgb: 224, 85, 74;

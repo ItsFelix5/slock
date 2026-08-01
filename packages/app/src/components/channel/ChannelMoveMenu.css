@@ -1,0 +1,97 @@
+.channel-move-menu {
+  z-index: 12;
+  width: 248px;
+  max-height: min(420px, calc(100vh - 16px));
+}
+
+.channel-move-menu-heading {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 5px 10px 7px;
+}
+
+.channel-move-menu-heading .menu-label {
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.channel-move-menu-channel {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.channel-move-menu-status {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.channel-move-menu-destinations {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.channel-move-menu-destination[aria-current="true"] {
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
+
+.channel-move-menu-destination > span:not(.icon) {
+  min-width: 0;
+}
+
+.channel-move-menu-check {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.channel-move-menu-section-label {
+  padding-top: 9px;
+}
+
+.channel-move-menu-feedback {
+  padding: 6px 10px 2px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.channel-move-menu-trigger-caret {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+
+.channel-move-menu-form {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+}
+
+.channel-move-menu-input {
+  min-width: 0;
+  height: 30px;
+}
+
+.channel-move-menu-create {
+  flex-shrink: 0;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-on-accent);
+  cursor: pointer;
+  background: var(--accent);
+  border-radius: var(--radius-5);
+}
+
+.channel-move-menu-create:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

@@ -1,7 +1,6 @@
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .activity-item-wrap {
@@ -12,34 +11,30 @@
 .activity-item {
   position: relative;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease;
+  border-radius: var(--radius-8);
+  transition: background 120ms ease;
 }
 
 .activity-item:hover,
 .activity-item:focus-within {
   background: var(--hover-bg);
-  border-color: var(--border-strong);
-}
-
-.activity-item-thread {
-  background: rgba(255, 255, 255, 0.025);
-  border-color: var(--border-strong);
 }
 
 .activity-item.unread {
-  background: rgba(var(--accent-rgb), 0.07);
+  background: rgba(var(--accent-rgb), 0.06);
+}
+
+.activity-item.unread:hover,
+.activity-item.unread:focus-within {
+  background: rgba(var(--accent-rgb), 0.1);
 }
 
 .activity-item.unread.pinging {
-  border-color: rgba(var(--accent-rgb), 0.32);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .activity-item.reacted {
-  opacity: 0.78;
+  opacity: 0.72;
 }
 
 .activity-item-summary {
@@ -48,9 +43,9 @@
   align-items: flex-start;
   width: 100%;
   min-width: 0;
-  padding: 6px 30px 6px 10px;
+  padding: 8px 30px 8px 10px;
   text-align: left;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .activity-item-summary:focus-visible,
@@ -202,4 +197,12 @@
 .activity-unread-dot.unread {
   background: var(--accent);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.13);
+}
+
+.activity-day-divider {
+  margin: 16px 4px 6px;
+}
+
+.activity-day-divider:first-child {
+  margin-top: 2px;
 }

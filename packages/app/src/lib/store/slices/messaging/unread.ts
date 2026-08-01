@@ -230,8 +230,15 @@ export function createUnreadSlice(deps: {
       const thread = readDeps.activeThread();
       if (!thread) return;
       const list = readDeps.threadMessages[thread.ts];
-      const latest = list?.[list.length - 1];
-      if (!latest || latest.id.startsWith("pending-")) return;
+      // A deleted reply stays in the list as a tombstone (msg.deleted) rather
+      // than being removed, but no longer exists on Slack's side — marking it
+      // read 404s with message_not_found, permanently, since it can't ever be
+      // un-deleted. Walk back to the latest reply that's still real.
+      const latest = list?.findLast((m) => !m.deleted);
+      // A thread with no replies yet has only its root as `latest` (ts ===
+      // thread.ts) — Slack has no reply subscription to mark read at that
+      // point, and subscriptions.thread.mark answers with message_not_found.
+      if (!latest || latest.ts === thread.ts || latest.id.startsWith("pending-")) return;
       if (lastMarkedThreadReadTs[thread.ts] === latest.ts) return;
       lastMarkedThreadReadTs[thread.ts] = latest.ts;
       void syncThreadRead(thread.channelId, thread.ts, latest.ts).then((synced) => {

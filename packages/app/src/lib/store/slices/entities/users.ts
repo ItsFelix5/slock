@@ -54,6 +54,10 @@ export function createUsersSlice(
     return Object.values(extraUsers);
   }
 
+  function cacheUsers(users: User[]): void {
+    for (const user of users) setExtraUsers(user.id, user);
+  }
+
   function userById(id: string): User | undefined {
     const known = extraUsers[id];
     if (!known) {
@@ -226,6 +230,7 @@ export function createUsersSlice(
 
   return {
     botBio,
+    cacheUsers,
     clearMyStatus,
     closeUserProfile,
     currentUser,

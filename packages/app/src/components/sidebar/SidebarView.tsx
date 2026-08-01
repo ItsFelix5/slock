@@ -36,7 +36,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
     bootstrap,
     categories,
     collapsed,
-    expandedSectionIds,
+    toggledSectionFilterIds,
     draggingSectionId,
     dropTarget,
     renamingId,
@@ -45,7 +45,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
     setRenameValue,
     commitRename,
     toggleCategory,
-    showAllInCategory,
+    toggleSectionFilter,
     retrySections,
     sectionsError,
     sectionsLoading,
@@ -246,16 +246,17 @@ export default function SidebarView(props: { context: SidebarContext }) {
                             name={
                               collapsed().has(cat.id)
                                 ? "caret-right-filled"
-                                : cat.sidebar === "all" || !expandedSectionIds().has(cat.id)
-                                  ? "section"
-                                  : "caret-down-filled"
+                                : toggledSectionFilterIds().has(cat.id)
+                                  ? "caret-down-filled"
+                                  : "section"
                             }
                             size={12}
                           />
                         </button>
                         <button
+                          aria-label={`Toggle read channels in ${cat.name}`}
                           class="btn-reset text-muted text-sm"
-                          onClick={() => showAllInCategory(cat.id)}
+                          onClick={() => toggleSectionFilter(cat.id)}
                           type="button"
                         >
                           {cat.name}
@@ -266,7 +267,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
                       class="sidebar-section-feedback"
                       feedback={actionFeedback.get(cat.id)}
                     />
-                    <Show when={cat.custom && renamingId() !== cat.id}>
+                    <Show when={cat.filterable && renamingId() !== cat.id}>
                       <SidebarSectionMenu cat={cat} context={props.context} />
                     </Show>
                   </div>

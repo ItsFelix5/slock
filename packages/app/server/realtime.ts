@@ -1,6 +1,8 @@
 // biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
-import { type Credentials, slackCookieHeader } from "./relay-auth.js";
-import { callSlack } from "./relay-core.js";
+
+import { callSlack } from "./api.js";
+import { rewriteSlackAssetUrls } from "./assets.js";
+import { type Credentials, slackCookieHeader } from "./auth.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };
@@ -133,7 +135,7 @@ function connectGateway(state: ConnectionState) {
       try {
         const payload = JSON.parse(String(event.data));
         const trimmed = trimSlackGatewayPayload(payload);
-        if (trimmed) send(state, trimmed);
+        if (trimmed) send(state, rewriteSlackAssetUrls(trimmed, state.creds));
       } catch {
         // ignore malformed frames
       }

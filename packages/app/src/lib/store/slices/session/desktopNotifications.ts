@@ -1,6 +1,7 @@
-import type { ActivityItem, Channel, User, UserPrefs } from "@slock/slack-api";
+import type { ActivityItem, Channel, DirectMessage, User, UserPrefs } from "@slock/slack-api";
 import { setDesktopNotificationsEnabled as setDesktopNotificationsEnabledApi } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
+import { conversationDisplayName } from "../conversationDisplayName";
 import { actionFeedback } from "../feedback";
 import { PING_KINDS } from "../messaging/activity";
 
@@ -65,7 +66,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     activityItems: ActivityItem[];
     userById: (id: string) => User | undefined;
     channelById: (id: string) => Channel | undefined;
-    channelDisplayName: (channel: Channel | undefined, id: string) => string;
+    dmById: (id: string) => DirectMessage | undefined;
     isChannelMuted: (id: string) => boolean;
     isDndActive: () => boolean;
     activeView: () => { kind: string; id: string } | null;
@@ -78,7 +79,12 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
       const title =
         item.kind === "dm"
           ? (user?.name ?? "New message")
-          : `${user?.name ?? "Someone"} in #${deps.channelDisplayName(deps.channelById(item.channelId), item.channelId)}`;
+          : `${user?.name ?? "Someone"} in ${conversationDisplayName(
+              item.channelId,
+              item.channelId.startsWith("D") ? undefined : deps.channelById(item.channelId),
+              deps.dmById(item.channelId),
+              deps.userById,
+            )}`;
       const notification = new Notification(title, {
         body: item.text.slice(0, 200),
         icon: user?.avatarUrl,

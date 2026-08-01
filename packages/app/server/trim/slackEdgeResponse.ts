@@ -1,5 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
+
 import { trimUser } from "./slackEntities.ts";
+import { trimChannel } from "./slackReadResponse.ts";
 
 function trimUsergroup(group: any): any {
   if (!group || typeof group !== "object") return group;
@@ -9,8 +11,9 @@ function trimUsergroup(group: any): any {
     description: group.description,
     handle: group.handle,
     id: group.id,
+    is_section: group.is_section,
     name: group.name,
-    prefs: { channels: group.prefs?.channels },
+    prefs: { channels: group.prefs?.channels, groups: group.prefs?.groups },
     user_count: group.user_count,
   };
 }
@@ -22,10 +25,24 @@ function mapRecordValues(record: any, trim: (value: any) => any): any {
 
 export function trimSlackEdgeResponse(method: string, data: any): any {
   if (!data?.ok) return data;
+  if (method === "channels/info") {
+    return {
+      channel: data.channel ? trimChannel(data.channel) : undefined,
+      channels: Array.isArray(data.channels)
+        ? data.channels.map(trimChannel)
+        : mapRecordValues(data.channels, trimChannel),
+      ok: true,
+      results: Array.isArray(data.results)
+        ? data.results.map(trimChannel)
+        : mapRecordValues(data.results, trimChannel),
+    };
+  }
   if (method === "users/info") {
     return {
       ok: true,
-      results: Array.isArray(data.results) ? data.results.map(trimUser) : data.results,
+      results: Array.isArray(data.results)
+        ? data.results.map(trimUser)
+        : mapRecordValues(data.results, trimUser),
       user: data.user ? trimUser(data.user) : undefined,
       users: Array.isArray(data.users)
         ? data.users.map(trimUser)

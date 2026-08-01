@@ -2,7 +2,7 @@ import { Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
-import { channelDisplayName, isPingingActivity, store } from "../../../lib/store";
+import { conversationDisplayName, isPingingActivity, store } from "../../../lib/store";
 import ReactionRow from "../../messages/parts/ReactionRow";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import "./ActivityRow.css";
@@ -91,6 +91,14 @@ export default function ActivityRow(props: {
   const latest = createMemo(() => props.row.items[0]);
   const user = createMemo(() => store.users.userById(latest().userId));
   const channel = createMemo(() => store.channels.knownChannelById(latest().channelId));
+  const channelLabel = createMemo(() =>
+    conversationDisplayName(
+      latest().channelId,
+      channel(),
+      store.dms.dmById(latest().channelId),
+      store.users.userById,
+    ),
+  );
   const isUnread = createMemo(() => store.activity.isActivityItemUnread(latest()));
   const isReacted = createMemo(() => store.activity.isActivityItemReacted(latest()));
   const isPinging = createMemo(() => isPingingActivity(latest()));
@@ -277,13 +285,11 @@ export default function ActivityRow(props: {
                   size={12}
                 />
               </Tooltip>
-              <Show fallback={<strong>{user()?.name ?? "Someone"}</strong>} when={isThreadGroup()}>
-                <strong>{formatInteractorNames(replierIds())}</strong>
+              <Show when={!isThreadGroup()}>
+                <strong>{user()?.name ?? "Someone"}</strong>
               </Show>
               <Show when={latest().kind !== "dm"}>
-                <span class="activity-channel">
-                  #{channelDisplayName(channel(), latest().channelId)}
-                </span>
+                <span class="activity-channel">{channelLabel()}</span>
               </Show>
               <Show when={props.row.items.length > 1}>
                 <span class="activity-reply-count">{props.row.items.length}</span>
@@ -295,7 +301,7 @@ export default function ActivityRow(props: {
               </Show>
               <span class="activity-time">{formatTime(latest().time)}</span>
             </span>
-            <Show when={!(isThreadGroup() || matchingReaction())}>
+            <Show when={!isThreadGroup()}>
               <span class="activity-snippet">
                 <Mrkdwn text={latest().text} />
               </span>

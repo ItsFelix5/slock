@@ -1,5 +1,5 @@
-// biome-ignore-all lint/performance/noBarrelFile: These re-exports form this slice's public API.
-import type { ActivityItem, Message, User } from "@slock/slack-api";
+// biome-ignore-all lint/performance/noBarrelFile lint/style/noExcessiveLinesPerFile: These re-exports form one cohesive messaging slice API.
+import type { ActivityItem, ConversationViewData, Message, User } from "@slock/slack-api";
 import {
   broadcastReply,
   deleteMessage,
@@ -32,10 +32,12 @@ export function createMessagesSlice(deps: {
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   activeView: () => View | null;
   activeThread: () => ThreadRef | null;
+  onConversationView?: (view: ConversationViewData) => void;
 }) {
   const history = createMessageHistory({
     activeThread: deps.activeThread,
     activeView: deps.activeView,
+    onConversationView: deps.onConversationView,
   });
   const {
     messagesByChannel,
@@ -47,8 +49,12 @@ export function createMessagesSlice(deps: {
     setThreadMessages,
     loadedThreads,
     loadOlderMessages,
+    loadOlderMessagesThrough,
+    loadNewerMessages,
     loadRecentHistory,
     hasMoreHistory,
+    hasNewerHistory,
+    hasNewerHistoryError,
     hasOlderHistoryError,
     hasHistoryError,
     hasThreadError,
@@ -266,6 +272,8 @@ export function createMessagesSlice(deps: {
     reactionMessages,
     hasHistoryError,
     hasMoreHistory,
+    hasNewerHistory,
+    hasNewerHistoryError,
     hasOlderHistoryError,
     hasThreadError,
     isLoadingHistory,
@@ -274,6 +282,8 @@ export function createMessagesSlice(deps: {
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
+    loadOlderMessagesThrough,
+    loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
     patchMessage,

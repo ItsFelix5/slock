@@ -1,7 +1,7 @@
 // Vite's dev server runs on a plain node:http server, not Bun.serve, so we
 // can't use Bun's native `server.upgrade()`. This hand-rolls just enough of
 // RFC 6455 to accept a browser WebSocket connection: the handshake, and
-// single-frame (unfragmented) text messages, which is all the /ws relay
+// single-frame (unfragmented) text messages, which is all the /ws API
 // protocol ever sends in either direction.
 import { createHash } from "node:crypto";
 import type { Socket } from "node:net";

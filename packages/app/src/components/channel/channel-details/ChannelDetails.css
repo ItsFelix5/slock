@@ -99,11 +99,6 @@
   border-color: var(--accent);
 }
 
-.channel-details-textarea {
-  min-height: 60px;
-  resize: vertical;
-}
-
 .channel-details-value {
   margin: 0;
   font-size: 13px;

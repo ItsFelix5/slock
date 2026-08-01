@@ -47,7 +47,7 @@
 
 .thread-panel-messages {
   flex: 1;
-  padding-top: 10px;
+  padding: 10px 0 12px;
   overflow-x: hidden;
   overflow-y: auto;
 }

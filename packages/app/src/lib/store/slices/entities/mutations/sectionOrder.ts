@@ -1,5 +1,18 @@
 import type { ChannelSection } from "@slock/slack-api";
 
+export function applySectionOrder(
+  sections: ChannelSection[],
+  sectionIds: string[],
+): ChannelSection[] {
+  if (sectionIds.length === 0) return sections;
+  const byId = new Map(sections.map((section) => [section.id, section]));
+  const ordered = sectionIds
+    .map((id) => byId.get(id))
+    .filter((section): section is ChannelSection => !!section);
+  const placed = new Set(ordered.map((section) => section.id));
+  return [...ordered, ...sections.filter((section) => !placed.has(section.id))];
+}
+
 export function sectionMoveTarget(
   sectionIds: string[],
   sectionId: string,

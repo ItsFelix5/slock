@@ -114,11 +114,6 @@
   opacity: 0.55;
 }
 
-.usergroup-details-textarea {
-  min-height: 60px;
-  resize: vertical;
-}
-
 .usergroup-details-handle-wrap {
   gap: 6px;
 }
@@ -143,6 +138,27 @@
 .usergroup-details-list-bar {
   display: flex;
   gap: 8px;
+}
+
+.usergroup-details-section-setting {
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.usergroup-details-section-setting > .flex-col {
+  gap: 4px;
+}
+
+.usergroup-details-section-setting-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.usergroup-details-section-setting-hint {
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .usergroup-details-add-btn {

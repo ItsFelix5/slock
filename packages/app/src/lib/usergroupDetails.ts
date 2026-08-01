@@ -1,6 +1,7 @@
 import {
   setUsergroupChannels,
   setUsergroupMembers,
+  setUsergroupSectionEnabled,
   updateUsergroupProfile,
 } from "@slock/slack-api";
 import { createRoot, createSignal } from "solid-js";
@@ -117,6 +118,17 @@ function setup() {
     });
   }
 
+  function setUsergroupChannelSectionEnabled(id: string, enabled: boolean): Promise<boolean> {
+    return withFeedback(
+      id,
+      enabled ? "Failed to create the group section." : "Failed to remove the group section.",
+      () => setUsergroupSectionEnabled(id, enabled),
+    ).then(async (updated) => {
+      if (updated) await store.channels.retrySections();
+      return updated;
+    });
+  }
+
   return {
     addUsergroupChannels,
     addUsergroupMembers,
@@ -126,6 +138,7 @@ function setup() {
     removeUsergroupChannel,
     removeUsergroupMember,
     saveUsergroupProfile,
+    setUsergroupChannelSectionEnabled,
     usergroupDetailsId,
     usergroupDetailsLoadError,
     usergroupDetailsLoading,
@@ -142,6 +155,7 @@ export const {
   removeUsergroupChannel,
   removeUsergroupMember,
   saveUsergroupProfile,
+  setUsergroupChannelSectionEnabled,
   usergroupDetailsId,
   usergroupDetailsLoadError,
   usergroupDetailsLoading,

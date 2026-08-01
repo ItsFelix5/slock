@@ -1,13 +1,18 @@
-import { Icon, Tooltip } from "@slock/ui";
+import { Icon, Switch, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelDisplayName, store } from "../../lib/store";
-import { addUsergroupChannels, removeUsergroupChannel } from "../../lib/usergroupDetails";
+import {
+  addUsergroupChannels,
+  removeUsergroupChannel,
+  setUsergroupChannelSectionEnabled,
+} from "../../lib/usergroupDetails";
 import ComposeChannelPicker from "../composer/popovers/ComposeChannelPicker";
 import "./UsergroupDetails.css";
 
 export default function UsergroupChannelsTab(props: {
   channelIds: string[];
   disabled: boolean;
+  sectionEnabled: boolean;
   usergroupId: string;
 }) {
   const [query, setQuery] = createSignal("");
@@ -40,6 +45,24 @@ export default function UsergroupChannelsTab(props: {
 
   return (
     <div class="usergroup-details-tab-content flex-col">
+      <div class="usergroup-details-section-setting flex-between">
+        <div class="flex-col">
+          <span class="usergroup-details-section-setting-title">
+            Add group channels as a section in Home
+          </span>
+          <span class="usergroup-details-section-setting-hint text-dim">
+            {props.channelIds.length > 0
+              ? "Show these default channels together for group members."
+              : "Add at least one default channel to enable this section."}
+          </span>
+        </div>
+        <Switch
+          checked={props.sectionEnabled}
+          disabled={props.disabled || props.channelIds.length === 0}
+          onChange={(enabled) => void setUsergroupChannelSectionEnabled(props.usergroupId, enabled)}
+          title="Add group channels as a section in Home"
+        />
+      </div>
       <div class="usergroup-details-list-bar">
         <input
           class="usergroup-details-input"
