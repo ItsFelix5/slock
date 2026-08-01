@@ -1,5 +1,5 @@
 import type { ChannelMembersPage, User } from "@slock/slack-api";
-import { Avatar, Button, Icon, SegmentedControl, Tooltip } from "@slock/ui";
+import { Avatar, Button, createCopyFeedback, Icon, SegmentedControl, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import {
   inviteUsersToChannel,
@@ -8,7 +8,7 @@ import {
   type MemberFilter,
   removeUserFromChannel,
 } from "../../../lib/channelDetails";
-import { store } from "../../../lib/store";
+import { actionFeedback, store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import "./ChannelDetails.css";
 import { createKeyedPageLoader } from "./keyedPageLoader";
@@ -48,6 +48,10 @@ export default function ChannelMembersTab(props: {
   const [loadingManagers, setLoadingManagers] = createSignal(false);
   const [managerLoadError, setManagerLoadError] = createSignal(false);
   let managersLoaded = false;
+
+  const [copiedKey, copy] = createCopyFeedback(1200, () =>
+    actionFeedback.flash(props.channelId, "Couldn’t copy the member list.", "error"),
+  );
 
   const [addingPeople, setAddingPeople] = createSignal(false);
   const [inviting, setInviting] = createSignal(false);
@@ -222,6 +226,24 @@ export default function ChannelMembersTab(props: {
           type="text"
           value={query()}
         />
+        <Tooltip content="Copy members">
+          <button
+            aria-label="Copy members"
+            class="channel-details-add-btn btn-reset flex-center"
+            disabled={filteredMembers().length === 0}
+            onClick={() =>
+              void copy(
+                filteredMembers()
+                  .map((u) => `<@${u.id}>`)
+                  .join(" "),
+                "members",
+              )
+            }
+            type="button"
+          >
+            <Icon name={copiedKey() === "members" ? "check" : "copy"} size={15} />
+          </button>
+        </Tooltip>
         <Show when={filter() === "everyone"}>
           <button
             class="channel-details-add-btn btn-reset flex-align-center"
