@@ -80,7 +80,7 @@ export async function fileUploadProxyResponse(
     return new Response("host not allowed", { headers: cors, status: 403 });
   }
   const form = new FormData();
-  form.append("file", new Blob([body]), filename ?? "file");
+  form.append("file", new Blob([new Uint8Array(body)]), filename ?? "file");
   // Unlike the download side, the whole upload (send + response) happens
   // inside this one fetch() call, so the timeout has to cover the full
   // transfer rather than just connecting.
@@ -110,7 +110,13 @@ export async function fileUploadProxyResponse(
 // fileProxyResponse above, this is unauthenticated (no Slack cookie — never
 // send that to a non-Slack host) and open to any public host, so it's
 // restricted to SSRF-safe targets and image/video content only.
-export async function externalMediaProxyResponse(mediaUrl: string | null): Promise<Response> {
+export async function externalMediaProxyResponse(
+  mediaUrl: string | null,
+  fetchMedia: (
+    input: URL,
+    init?: RequestInit & { decompress?: boolean },
+  ) => Promise<Response> = fetch,
+): Promise<Response> {
   if (!mediaUrl) return new Response("missing url", { headers: cors, status: 400 });
   let parsed: URL;
   try {
@@ -128,9 +134,16 @@ export async function externalMediaProxyResponse(mediaUrl: string | null): Promi
   const connectTimer = setTimeout(() => controller.abort(), MEDIA_CONNECT_TIMEOUT_MS);
   let mediaRes: Response;
   try {
-    mediaRes = await fetch(parsed, {
+    mediaRes = await fetchMedia(parsed, {
       decompress: false,
-      headers: { "user-agent": "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)" },
+      headers: {
+        // Node-compatible fetch implementations transparently decompress the
+        // response body but can leave the upstream Content-Encoding header in
+        // place. Ask for the original bytes so the response never becomes an
+        // already-decoded PNG mislabeled as Brotli/zstd on its way to the browser.
+        "accept-encoding": "identity",
+        "user-agent": "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+      },
       signal: controller.signal,
     });
   } catch {
@@ -142,13 +155,11 @@ export async function externalMediaProxyResponse(mediaUrl: string | null): Promi
   if (!(mediaRes.ok && mediaRes.body && MEDIA_CONTENT_TYPE_RE.test(contentType))) {
     return new Response("failed to fetch media", { headers: cors, status: 502 });
   }
-  const contentEncoding = mediaRes.headers.get("content-encoding");
   return new Response(mediaRes.body, {
     headers: {
       "access-control-allow-origin": cors["access-control-allow-origin"],
       "cache-control": "public, max-age=3600",
       "content-type": contentType,
-      ...(contentEncoding ? { "content-encoding": contentEncoding } : {}),
     },
   });
 }

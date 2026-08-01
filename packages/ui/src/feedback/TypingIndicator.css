@@ -1,11 +1,27 @@
+.typing-indicator-anchor {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
 .typing-indicator {
+  position: absolute;
+  bottom: calc(100% - 4px);
+  left: 12px;
+  z-index: 3;
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 4px 16px;
+  max-width: calc(100% - 24px);
+  padding: 5px 10px;
   font-size: 13px;
   line-height: 1.2;
   color: var(--text-secondary);
+  pointer-events: none;
+  background: var(--composer-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .typing-indicator-dots {
@@ -31,6 +47,10 @@
   animation-delay: 0.3s;
 }
 
+.typing-indicator-label {
+  min-width: 0;
+}
+
 @keyframes typing-bounce {
   0%,
   60%,
@@ -41,5 +61,11 @@
   30% {
     transform: translateY(-3px);
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-indicator-dots span {
+    animation: none;
   }
 }

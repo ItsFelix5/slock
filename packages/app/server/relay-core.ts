@@ -1,5 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Relay payloads preserve Slack's wire field names.
 import { compressedResponse } from "./http/compressedResponse.ts";
+import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
+import { bootstrapResponse } from "./operations/bootstrap.ts";
 import {
   authResponse,
   type Credentials,
@@ -13,8 +15,9 @@ import {
   fileProxyResponse,
   fileUploadProxyResponse,
 } from "./relay-files.ts";
-import { trimSlackResponse } from "./relay-trim.ts";
 import { unfurlResponse } from "./relay-unfurl.ts";
+import { trimSlackEdgeResponse } from "./trim/slackEdgeResponse.ts";
+import { trimSlackResponse } from "./trim/slackResponse.ts";
 
 async function parseSlackResponse(res: Response): Promise<any> {
   const text = await res.text();
@@ -82,20 +85,6 @@ async function slackRelayResponse(
   const data = await callSlack(method, params, creds);
   return compressedResponse(JSON.stringify(data), cors, acceptEncoding);
 }
-// The browser-side callSlack coalesces every call issued within the same
-// microtask (e.g. the handful of independent boot-time fetches) into one of
-// these instead of one relay round trip each — the calls themselves still
-// hit Slack individually (in parallel), only the browser<->relay hop shrinks.
-async function slackBatchRelayResponse(
-  calls: { method: string; params?: Record<string, string> }[],
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-): Promise<Response> {
-  const results = await Promise.all(
-    calls.map((call) => callSlack(call.method, call.params ?? {}, creds)),
-  );
-  return compressedResponse(JSON.stringify({ results }), cors, acceptEncoding);
-}
 async function callSlackEdge(
   method: string,
   params: Record<string, unknown>,
@@ -112,7 +101,7 @@ async function callSlackEdge(
       method: "POST",
       signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
     });
-    return parseSlackResponse(res);
+    return trimSlackEdgeResponse(method, await parseSlackResponse(res));
   } catch {
     return { error: "upstream_timeout", ok: false };
   }
@@ -139,11 +128,13 @@ export async function routeRelayRequest(
     buffer(): Promise<Uint8Array>;
   },
 ): Promise<Response | null> {
-  if (method === "POST" && pathname === "/slack/batch") {
-    const payload = (await body.json()) as {
-      calls?: { method: string; params?: Record<string, string> }[];
-    };
-    return slackBatchRelayResponse(payload.calls ?? [], creds, acceptEncoding);
+  if (method === "GET" && pathname === "/api/bootstrap") {
+    return bootstrapResponse(
+      creds,
+      callSlack,
+      acceptEncoding,
+      searchParams.get("sections") === "true",
+    );
   }
   if (method === "POST" && pathname.startsWith("/slack/")) {
     const slackMethod = pathname.slice("/slack/".length);
@@ -184,6 +175,9 @@ export async function routeRelayRequest(
   }
   if (method === "GET" && pathname === "/unfurl") {
     return unfurlResponse(searchParams.get("url"));
+  }
+  if (method === "GET" && pathname === "/channel-lookup") {
+    return flaronChannelResponse(searchParams.get("id"));
   }
   if (method === "POST" && pathname === "/auth") {
     const raw = await body.text();

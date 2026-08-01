@@ -186,23 +186,8 @@ export function createMessageHistory(
       return false;
     }
   }
-  // The channel window almost never holds an old reacted message, and merging
-  // it in would misplace it in an open channel — fetch just that one message
-  // (inclusive `latest`, limit 1) into the reaction cache instead.
-  async function ensureReactedMessage(channelId: string, ts: string) {
-    const key = `${channelId}:${ts}`;
-    if (reactionMessages[key]) return;
-    try {
-      const { messages } = await api.fetchHistoryAround(channelId, ts, 1);
-      const message = messages.find((m) => m.ts === ts);
-      if (message) setReactionMessages(key, [message]);
-    } catch (err) {
-      console.error("Failed to fetch reacted message", err);
-    }
-  }
   return {
     ensureChannelMessage,
-    ensureReactedMessage,
     ensureThreadRepliesLoaded,
     hasHistoryError,
     hasMoreHistory,

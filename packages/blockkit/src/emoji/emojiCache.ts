@@ -15,10 +15,8 @@ const [loadState, setLoadState] = createStore<{
 
 let emojiLoadPromise: Promise<void> | null = null;
 
-// `emoji.list` can be several megabytes for workspaces with many custom emoji.
-// Start it shortly after the initial page load so custom emoji in messages are
-// available without competing with bootstrap, while emoji interactions can
-// still request it immediately.
+// `emoji.list` can be several megabytes for workspaces with many custom emoji,
+// so callers request it only when a custom-looking token or emoji UI needs it.
 export function loadCustomEmoji(): Promise<void> {
   if (!emojiLoadPromise) {
     setLoadState("value", "loading");
@@ -34,15 +32,6 @@ export function loadCustomEmoji(): Promise<void> {
   }
   return emojiLoadPromise;
 }
-
-function prefetchCustomEmoji() {
-  // Give the browser a small window to paint the app before this large
-  // response starts competing for network and parsing time.
-  window.setTimeout(() => void loadCustomEmoji(), 250);
-}
-
-if (document.readyState === "complete") prefetchCustomEmoji();
-else window.addEventListener("load", prefetchCustomEmoji, { once: true });
 
 export function emojiUrl(name: string): string | null | undefined {
   if (name in emojiUrls) return emojiUrls[name];

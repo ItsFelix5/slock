@@ -44,8 +44,6 @@ function hydrateDrafts(): Promise<boolean> {
   return request;
 }
 
-void hydrateDrafts();
-
 const draftSaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const draftSaveQueues = new Map<string, Promise<void>>();
 
@@ -117,6 +115,10 @@ export function createComposerDraftState(opts: {
 }) {
   let loadedKey: string | undefined;
   const persistenceGate = createDraftPersistenceGate();
+  createEffect(() => {
+    if (opts.editing() || !opts.channelId()) return;
+    void hydrateDrafts();
+  });
   createEffect(() => {
     if (opts.editing() || !draftsReady()) return;
     const key = opts.key();

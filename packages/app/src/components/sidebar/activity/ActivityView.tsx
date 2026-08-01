@@ -1,6 +1,6 @@
 import type { ActivityItem } from "@slock/slack-api";
 import { Button, Icon, type IconName, Tooltip } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
@@ -41,11 +41,16 @@ export default function ActivityView() {
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
-  // On a hard refresh landing straight on /activity, the sidebar mounts
-  // before the bootstrap fetch resolves `currentUser`, so a one-shot onMount
-  // would race it and never retry. Re-run once the user becomes available.
+  // On a hard refresh landing straight on /activity, wait for both identity
+  // and notification preferences. The latter determines which aggregate
+  // `channel` badges need to be hydrated as all-new-post rows. A failed prefs
+  // load still allows the server-authored activity feed to render.
   createEffect(() => {
-    if (store.users.currentUser()) store.activity.ensureActivityLoaded();
+    const currentUser = store.users.currentUser();
+    const preferencesSettled =
+      store.preferences.preferencesReady() || !!store.resources.userPrefs.error;
+    if (currentUser && preferencesSettled)
+      void untrack(() => store.activity.ensureActivityLoaded());
   });
 
   const rows = createMemo<ActivityRowData[]>(() => {

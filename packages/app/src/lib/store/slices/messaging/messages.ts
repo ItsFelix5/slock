@@ -55,7 +55,6 @@ export function createMessagesSlice(deps: {
     isLoadingHistory,
     isLoadingThread,
     ensureChannelMessage,
-    ensureReactedMessage,
     ensureThreadRepliesLoaded,
   } = history;
   const statusActions = createMessageStatusActions({
@@ -262,7 +261,6 @@ export function createMessagesSlice(deps: {
   }
   return {
     ensureChannelMessage,
-    ensureReactedMessage,
     ensureThreadRepliesLoaded,
     findAllMessageLocations,
     reactionMessages,
@@ -281,6 +279,7 @@ export function createMessagesSlice(deps: {
     patchMessage,
     removeMessage,
     setMessagesByChannel,
+    setReactionMessages,
     setThreadMessages,
     threadMessages,
     ...mergeActions,

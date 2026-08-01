@@ -9,7 +9,8 @@ import "./AttachmentCard.css";
 export default function AttachmentCard(props: { attachment: Attachment }) {
   const a = props.attachment;
   const bodyText = () => a.text || a.fallback;
-  const unfurlChannel = () => (a.channelId ? store.channels.channelById(a.channelId) : undefined);
+  const unfurlChannel = () =>
+    a.channelId ? store.channels.knownChannelById(a.channelId) : undefined;
   return (
     <>
       <Show when={a.pretext}>

@@ -1,32 +1,25 @@
 import type { DirectMessage, User } from "@slock/slack-api";
 import { fetchChannelMembers, openDm } from "@slock/slack-api";
-import { createEffect, createMemo, onCleanup } from "solid-js";
+import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 import type { View } from "../types";
-
-const DM_AUTO_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function createDmsSlice(deps: {
   bootstrap: () => { directMessages: DirectMessage[] } | undefined;
   closeUserProfile: () => void;
   currentUser: () => User | undefined;
-  unreadChannelIds: Record<string, boolean>;
   removeDmFromSidebar: (dmId: string) => Promise<boolean>;
-  removeDmsFromSidebar: (dmIds: string[]) => Promise<Set<string>>;
   activeView: () => View | null;
   setActiveView: (view: View) => void;
 }) {
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
   const [closedDmIds, setClosedDmIds] = createStore<Record<string, boolean>>({});
-  const [dmLastActivity, setDmLastActivity] = createStore<Record<string, number>>({});
   // Local edits (e.g. live mention-count updates) on top of the immutable bootstrap
   // snapshot, applied when `allDirectMessages()` assembles its list.
   const [dmPatches, setDmPatches] = createStore<Record<string, Partial<DirectMessage>>>({});
   const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<string, boolean>>({});
   const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<string, boolean>>({});
-  let dmActivitySeeded = false;
-  let autoCloseTimer: ReturnType<typeof setInterval> | null = null;
   const pendingMpdms = new Set<string>();
 
   // All known DMs regardless of local close state, so reopening/lookups can still find them.
@@ -45,40 +38,6 @@ export function createDmsSlice(deps: {
   const directMessages = createMemo<DirectMessage[]>(() =>
     allDirectMessages().filter((dm) => !closedDmIds[dm.id]),
   );
-
-  // Mirrors Slack's own "dormant" DM cleanup: a DM nobody has touched in a week
-  // quietly closes itself (still reachable again via compose/search) so the
-  // sidebar doesn't accumulate every one-off conversation forever. Batched into
-  // one removal request rather than one round-trip pair per stale DM.
-  async function autoCloseInactiveDms() {
-    const now = Date.now();
-    const view = deps.activeView();
-    const staleIds = directMessages()
-      .filter((dm) => {
-        if (view?.kind === "dm" && view.id === dm.id) return false;
-        if (deps.unreadChannelIds[dm.id]) return false;
-        const last = dmLastActivity[dm.id];
-        return !!last && now - last >= DM_AUTO_CLOSE_MS;
-      })
-      .map((dm) => dm.id);
-    if (staleIds.length === 0) return;
-    const removed = await deps.removeDmsFromSidebar(staleIds);
-    for (const id of removed) setClosedDmIds(id, true);
-  }
-
-  createEffect(() => {
-    const data = deps.bootstrap();
-    if (!data || dmActivitySeeded) return;
-    dmActivitySeeded = true;
-    for (const dm of data.directMessages) {
-      if (dm.lastActivity) setDmLastActivity(dm.id, dm.lastActivity);
-    }
-    autoCloseInactiveDms();
-    autoCloseTimer = setInterval(autoCloseInactiveDms, 60 * 60 * 1000);
-  });
-  onCleanup(() => {
-    if (autoCloseTimer) clearInterval(autoCloseTimer);
-  });
 
   function dmById(id: string): DirectMessage | undefined {
     return allDirectMessages().find((d) => d.id === id);
@@ -191,6 +150,5 @@ export function createDmsSlice(deps: {
     openDmWithUser,
     patchDm,
     setClosedDmIds,
-    setDmLastActivity,
   };
 }

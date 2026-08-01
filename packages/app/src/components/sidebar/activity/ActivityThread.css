@@ -59,13 +59,7 @@
   align-items: flex-start;
   justify-content: center;
   margin-left: -32px;
-  background: var(--main-bg);
   border-radius: 7px;
-}
-
-.activity-item-thread:hover .activity-thread-avatar,
-.activity-item-thread:focus-within .activity-thread-avatar {
-  background: color-mix(in srgb, var(--main-bg) 94%, white);
 }
 
 .activity-thread-message-body {

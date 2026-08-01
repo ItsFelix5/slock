@@ -1,12 +1,19 @@
-import type { ActivityItem, Message, User } from "@slock/slack-api";
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive activity state machine coordinates feed loading, badges, and read state.
+import type { ActivityItem, Channel, Message, User } from "@slock/slack-api";
 import {
   fetchActivityFeedEntries,
+  fetchHistory,
   fetchMessagesByIds,
   resolveActivityEntry,
 } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
+import {
+  createActivityFeedRefreshScheduler,
+  gatewayActivityCountsSnapshot,
+} from "./activity/activityFeedRefresh";
 import { createActivityReadSync } from "./activity/activityReadSync";
+import { fetchChannelActivityItems } from "./activity/channelActivity";
 
 // Which activity kinds represent a real, personally-addressed ping (direct
 // @mention, DM, a custom pingword) versus ambient activity that's relevant
@@ -23,26 +30,34 @@ const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "channel_all",
 ]);
 
+const LIVE_ACTIVITY_REFRESH_DELAY_MS = 250;
+
 export function isPingingActivity(item: ActivityItem): boolean {
   return PING_KINDS.has(item.kind);
 }
 
 type ActivityApi = {
   fetchActivityFeedEntries: typeof fetchActivityFeedEntries;
+  fetchHistory: typeof fetchHistory;
   fetchMessagesByIds: typeof fetchMessagesByIds;
   resolveActivityEntry: typeof resolveActivityEntry;
 };
 
 const DEFAULT_ACTIVITY_API: ActivityApi = {
   fetchActivityFeedEntries,
+  fetchHistory,
   fetchMessagesByIds,
   resolveActivityEntry,
 };
 
 export function createActivitySlice(
   deps: {
+    cacheResolvedMessages?: (messages: Map<string, Message>) => void;
+    channels?: () => readonly Channel[];
+    channelsInActivity?: () => boolean;
     currentUser: () => User | undefined;
     lastReadByChannel: Record<string, number>;
+    notifyAllChannelIds?: () => readonly string[];
     setLastReadByChannel: (channelId: string, ts: number) => void;
     clearChannelUnread: (channelId: string) => void;
     syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
@@ -65,9 +80,13 @@ export function createActivitySlice(
   // update still lights the bell before the activity feed has been fetched.
   const [gatewayPingCount, setGatewayPingCount] = createSignal(0);
   const [gatewayHasUnreadGlow, setGatewayHasUnreadGlow] = createSignal(false);
+  let lastGatewayActivityCountsSnapshot: string | undefined;
 
-  function setGatewayActivityBadgeCounts(activity: any) {
+  function setGatewayActivityBadgeCounts(activity: any): boolean {
     const count = (key: string) => Number(activity?.[key] ?? 0);
+    const nextSnapshot = gatewayActivityCountsSnapshot(activity);
+    const changed = nextSnapshot !== lastGatewayActivityCountsSnapshot;
+    lastGatewayActivityCountsSnapshot = nextSnapshot;
     setGatewayPingCount(
       count("at_user") + count("dm") + count("keyword") + count("list_user_mentioned"),
     );
@@ -78,6 +97,7 @@ export function createActivitySlice(
         count("channel") > 0 ||
         count("thread_v2") > 0,
     );
+    return changed;
   }
 
   function pushActivity(item: ActivityItem) {
@@ -89,29 +109,60 @@ export function createActivitySlice(
     );
   }
 
-  // Activity items are exclusively sourced from this feed — Slack computes
-  // membership (e.g. which usergroups you're actually in) server-side, which
-  // a client-side guess at message text could never get right. Safe to call
-  // repeatedly (on view mount and on every live badge update) since entries
-  // are deduped by id; an in-flight guard just avoids overlapping fetches.
+  // Slack computes addressed activity (e.g. usergroup membership) in its feed.
+  // The `channel` badge is aggregate-only, though, so notify-all channel posts
+  // are hydrated from unread channel history alongside it. Safe to call
+  // repeatedly since both sources are deduped; the in-flight guard avoids
+  // overlapping fetches.
   async function ensureActivityLoaded() {
     if (activityLoading()) return;
     const me = deps.currentUser();
     if (!me) return;
+    const channels = deps.channels?.() ?? [];
+    const notifyAllChannelIds = deps.notifyAllChannelIds?.() ?? [];
+    const channelsInActivity = deps.channelsInActivity?.() ?? true;
     setActivityLoading(true);
     setActivityLoadError(false);
     try {
-      const entries = await api.fetchActivityFeedEntries();
+      const [entries, channelItems] = await Promise.all([
+        api.fetchActivityFeedEntries(),
+        channelsInActivity
+          ? fetchChannelActivityItems({
+              channels,
+              currentUserId: me.id,
+              fetchHistory: api.fetchHistory,
+              lastReadByChannel: deps.lastReadByChannel,
+              notifyAllChannelIds,
+            })
+          : Promise.resolve([]),
+      ]);
       const seen = new Set(activityItems.map((i) => i.id));
+      const seenChannelPosts = new Set(
+        activityItems
+          .filter((item) => item.kind === "channel_all")
+          .map((item) => `${item.channelId}:${item.ts}`),
+      );
+      const addressedFeedPosts = new Set(
+        entries
+          .filter((entry) => entry.kind !== "reaction")
+          .map((entry) => `${entry.channelId}:${entry.ts}`),
+      );
       const pending = entries.filter((entry) => !seen.has(entry.id));
-      const push = (entry: (typeof pending)[number], batch?: Map<string, Message>) => {
-        const item = api.resolveActivityEntry(entry, batch);
+      const pushItem = (item: ActivityItem) => {
+        const channelPostKey = `${item.channelId}:${item.ts}`;
         // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply
         // in a thread you're in) can legitimately point at your own message
         // — the feed itself doesn't filter those out, so do it here rather
         // than showing your own posts back to you as activity.
-        if (seen.has(item.id) || !item.userId || item.userId === me.id) return;
+        if (
+          seen.has(item.id) ||
+          !item.userId ||
+          item.userId === me.id ||
+          (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey))
+        )
+          return;
         seen.add(item.id);
+        if (item.kind === "channel_all") seenChannelPosts.add(channelPostKey);
         setActivityItems(
           produce((list) => {
             list.push(item);
@@ -119,6 +170,10 @@ export function createActivitySlice(
           }),
         );
       };
+      const push = (entry: (typeof pending)[number], batch?: Map<string, Message>) =>
+        pushItem(api.resolveActivityEntry(entry, batch));
+      for (const item of channelItems)
+        if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
       // Reactions never carry a body or thread_ts from the feed, and other
       // kinds sometimes arrive without text — those need messages.list.
       // Anything the feed already fully describes renders now, so a slow
@@ -130,6 +185,7 @@ export function createActivitySlice(
       // Stream the rest in as each messages.list batch resolves, then backfill
       // any whose message never came back (still worth a row from feed data).
       await api.fetchMessagesByIds(toFetch, (batch) => {
+        deps.cacheResolvedMessages?.(batch);
         for (const entry of toFetch)
           if (!seen.has(entry.id) && batch.has(`${entry.channelId}:${entry.ts}`))
             push(entry, batch);
@@ -143,6 +199,18 @@ export function createActivitySlice(
       setActivityLoading(false);
     }
   }
+
+  // badge_counts_updated is noisy and Slack frequently sends identical
+  // snapshots in a burst. The aggregate counts are enough to drive the bell;
+  // only refresh the heavier feed after it has been opened once, and collapse
+  // a burst into one trailing request. If another real count change arrives
+  // while that request is running, keep exactly one follow-up refresh.
+  const requestActivityRefresh = createActivityFeedRefreshScheduler({
+    delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
+    isLoaded: activityLoaded,
+    isLoading: activityLoading,
+    refresh: ensureActivityLoaded,
+  });
 
   function engagementCoversItem(
     engagement: { channelId: string; threadTs?: string; time: number; ts: string },
@@ -261,6 +329,7 @@ export function createActivitySlice(
     markActivityItemsRead,
     pushActivity,
     recordActivityEngagement,
+    requestActivityRefresh,
     retryActivityReadSync: activityReadSync.retry,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,

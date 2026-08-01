@@ -1,6 +1,12 @@
 import { Button, Icon, Skeleton } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
-import { channelDisplayName, dmDisplayName, findUnreadDividerIndex, store } from "../../lib/store";
+import {
+  channelDisplayName,
+  dmDisplayName,
+  findUnreadDividerIndex,
+  resolveUnreadLandingIndex,
+  store,
+} from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
 import { flashMessageWhenRendered, scrollToBottom } from "./scrollAnchor";
@@ -174,10 +180,12 @@ export default function MessageList() {
       // Land on the unread divider (if the channel has one) rather than always
       // jumping to the newest loaded message — that's where a reader left off.
       const dividerIndex = findUnreadDividerIndex(msgs, anchor);
+      const unreadLandingIndex = resolveUnreadLandingIndex(dividerIndex, msgs.length);
       queueMicrotask(() => {
         if (!scrollRef) return;
         const api = virtualApi();
-        if (dividerIndex >= 0 && api) api.scrollToIndex(dividerIndex, { align: "start" });
+        if (unreadLandingIndex >= 0 && api)
+          api.scrollToIndex(unreadLandingIndex, { align: "start" });
         else scrollToBottom(scrollRef);
       });
     }

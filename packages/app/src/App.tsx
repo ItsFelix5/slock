@@ -13,7 +13,7 @@ import Composer from "./components/composer/Composer";
 import ContextActions from "./components/context-actions/ContextActions";
 import MessageList from "./components/messages/MessageList";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
-import ThreadPanel from "./components/messages/ThreadPanel";
+import ThreadPanel from "./components/messages/thread/ThreadPanel";
 import ViewModal from "./components/modals/ViewModal";
 import MessageSearchView from "./components/search/MessageSearchView";
 import Sidebar from "./components/sidebar/Sidebar";
@@ -25,7 +25,7 @@ import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
   parseSlackPermalink,
-} from "./lib/slackPermalink";
+} from "./lib/navigation/slackPermalink";
 import { actionFeedback, channelDisplayName, store } from "./lib/store";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
@@ -34,7 +34,7 @@ const blockKitResolver: BlockKitResolver = {
   onUserClick: store.users.openUserProfile,
   onUsergroupClick: openUsergroupDetails,
   resolveChannel: (id) => {
-    const channel = store.channels.channelById(id);
+    const channel = store.channels.knownChannelById(id);
     return channel
       ? {
           isMember: store.channels.isChannelMember(id),
@@ -172,10 +172,12 @@ function App() {
             <Show fallback={<MessageSearchView />} when={store.viewState.nav() !== "search"}>
               <ChannelHeader />
               <MessageList />
-              <TypingIndicator names={typingNames()} />
-              <Show fallback={<Composer />} when={unjoinedChannelId()}>
-                {(channelId) => <JoinChannelBar channelId={channelId()} />}
-              </Show>
+              <div class="typing-indicator-anchor">
+                <TypingIndicator names={typingNames()} />
+                <Show fallback={<Composer />} when={unjoinedChannelId()}>
+                  {(channelId) => <JoinChannelBar channelId={channelId()} />}
+                </Show>
+              </div>
             </Show>
           </div>
           <ThreadPanel />

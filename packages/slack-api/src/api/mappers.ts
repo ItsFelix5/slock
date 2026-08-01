@@ -150,6 +150,7 @@ export interface RawMessage {
   text?: string;
   thread_ts?: string;
   ts: string;
+  type?: string;
   user?: string;
   username?: string;
 }
@@ -452,8 +453,10 @@ export function mapMessage(m: RawMessage): Message {
       return icon ? fileProxyUrl(icon) : undefined;
     })(),
     botId: m.bot_id,
-    botName:
-      m.bot_profile?.name ?? (subtype === "bot_message" || m.bot_id ? m.username : undefined),
+    // Legacy integrations and incoming webhooks can provide a custom author
+    // without also setting subtype=bot_message or bot_id. In that shape the
+    // top-level username is still the message's authoritative display name.
+    botName: m.bot_profile?.name ?? m.username,
     day: formatDay(m.ts),
     edited: !!m.edited,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,

@@ -45,6 +45,9 @@ export default function UserProfile() {
   const botBio = createMemo(() =>
     user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
   );
+  createEffect(() => {
+    if (store.users.profileUserId()) store.resources.loadProfileFieldDefs();
+  });
   createEffect(
     on(store.users.profileUserId, (id) => {
       const me = store.users.currentUser();

@@ -88,6 +88,7 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
       ts: thread.latest_ts,
       unreadCount: thread.unread_msg_count,
       userId:
+        thread.latest_reply_actor_user_id ??
         thread.latest_user_id ??
         thread.latest_reply_user_id ??
         thread.user_id ??
@@ -111,7 +112,10 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     time,
     ts: message.ts,
     text: rawMessageText(message),
-    userId: message.author_user_id ?? "",
+    // Message-backed activity uses `user` for the actor in current payloads;
+    // some older shapes expose the same person as `author_user_id` instead.
+    // In particular, ordinary `channel` entries generally only carry `user`.
+    userId: rawMessageUserId(message) ?? "",
   };
 }
 

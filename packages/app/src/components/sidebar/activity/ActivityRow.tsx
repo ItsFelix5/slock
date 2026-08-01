@@ -90,7 +90,7 @@ export default function ActivityRow(props: {
   const [expanded, setExpanded] = createSignal(false);
   const latest = createMemo(() => props.row.items[0]);
   const user = createMemo(() => store.users.userById(latest().userId));
-  const channel = createMemo(() => store.channels.channelById(latest().channelId));
+  const channel = createMemo(() => store.channels.knownChannelById(latest().channelId));
   const isUnread = createMemo(() => store.activity.isActivityItemUnread(latest()));
   const isReacted = createMemo(() => store.activity.isActivityItemReacted(latest()));
   const isPinging = createMemo(() => isPingingActivity(latest()));
@@ -104,7 +104,7 @@ export default function ActivityRow(props: {
   // between the root and the activity feed's own (sparse) entries silently
   // goes missing.
   createEffect(() => {
-    if (!isThreadGroup()) return;
+    if (!(isThreadGroup() && expanded())) return;
     store.messages.ensureThreadRepliesLoaded(latest().channelId, threadTs());
   });
   const fullThread = createMemo(() => store.messages.threadMessages[threadTs()]);
@@ -176,6 +176,9 @@ export default function ActivityRow(props: {
   const olderEntries = createMemo(() => timeline().slice(0, visibleStartIndex()));
   const visibleEntries = createMemo(() => timeline().slice(visibleStartIndex()));
   const hiddenMessageCount = createMemo(() => olderEntries().length);
+  const earlierMessageCount = createMemo(() =>
+    Math.max(hiddenMessageCount(), (bundledItem()?.unreadCount ?? 1) - 1),
+  );
 
   const replierIds = createMemo(() => {
     const seen = new Set<string>();
@@ -199,13 +202,6 @@ export default function ActivityRow(props: {
     );
   };
 
-  // A reaction row only ever carries the one reactor that triggered it —
-  // fetch the actual message so the real aggregate (every reactor, real
-  // count) can be shown via the same ReactionRow pill used in the channel.
-  createEffect(() => {
-    if (latest().kind !== "reaction") return;
-    store.messages.ensureReactedMessage(latest().channelId, latest().ts);
-  });
   const reactedMessage = createMemo(() =>
     latest().kind === "reaction"
       ? store.messages.reactionMessages[`${latest().channelId}:${latest().ts}`]?.[0]
@@ -328,15 +324,15 @@ export default function ActivityRow(props: {
 
         <Show when={isThreadGroup()}>
           <div class="activity-thread-timeline">
-            <Show when={hiddenMessageCount() > 0 && !expanded()}>
+            <Show when={earlierMessageCount() > 0 && !expanded()}>
               <button
                 class="activity-read-more btn-reset"
                 onClick={() => setExpanded(true)}
                 type="button"
               >
                 <Icon name="history" size={13} />
-                Read {hiddenMessageCount()} earlier{" "}
-                {hiddenMessageCount() === 1 ? "message" : "messages"}
+                Read {earlierMessageCount()} earlier{" "}
+                {earlierMessageCount() === 1 ? "message" : "messages"}
               </button>
             </Show>
             <Show when={expanded()}>

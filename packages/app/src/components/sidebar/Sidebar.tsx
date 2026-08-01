@@ -14,6 +14,7 @@ const FEED_MAX_WIDTH = 640;
 const SLACK_USER_ID = "USLACK";
 export default function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
+  const [unreadDmsOpen, setUnreadDmsOpen] = createSignal(true);
   const [dmsOpen, setDmsOpen] = createSignal(true);
   const [appsOpen, setAppsOpen] = createSignal(true);
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
@@ -144,25 +145,31 @@ export default function Sidebar() {
     setSectionMenuOpen(null);
     void store.channels.reorderChannelSection(id, target);
   };
-  const filteredDms = createMemo(() =>
+  const visibleDms = createMemo(() =>
     store.dms.directMessages().filter((dm) => {
       const view = store.viewState.activeView();
       const isOpen = view?.kind === "dm" && view.id === dm.id;
       return isOpen || !unreadsOnly() || !!store.unread.unreadChannelIds[dm.id];
     }),
   );
+  const unreadDms = createMemo(() =>
+    visibleDms().filter((dm) => !!store.unread.unreadChannelIds[dm.id]),
+  );
   // A multi-person DM (memberIds instead of a single userId) is never a bot
   // DM, so it always sorts into people.
   const peopleDms = createMemo(() =>
-    filteredDms().filter(
+    visibleDms().filter(
       (dm) =>
-        !dm.userId || (dm.userId !== SLACK_USER_ID && !store.users.userById(dm.userId)?.isBot),
+        !store.unread.unreadChannelIds[dm.id] &&
+        (!dm.userId || (dm.userId !== SLACK_USER_ID && !store.users.userById(dm.userId)?.isBot)),
     ),
   );
   const appDms = createMemo(() =>
-    filteredDms().filter(
+    visibleDms().filter(
       (dm) =>
-        !!dm.userId && (dm.userId === SLACK_USER_ID || store.users.userById(dm.userId)?.isBot),
+        !store.unread.unreadChannelIds[dm.id] &&
+        !!dm.userId &&
+        (dm.userId === SLACK_USER_ID || store.users.userById(dm.userId)?.isBot),
     ),
   );
   const context = {
@@ -212,6 +219,7 @@ export default function Sidebar() {
     sectionStructurePending: store.channels.isSectionStructurePending,
     setAppsOpen,
     setDmsOpen,
+    setUnreadDmsOpen,
     showAllInCategory,
     setFeedWidth,
     setNavView: store.viewState.setNavView,
@@ -226,6 +234,8 @@ export default function Sidebar() {
     startRename,
     toggleCategory,
     unreadChannelIds: store.unread.unreadChannelIds,
+    unreadDms,
+    unreadDmsOpen,
     unreadsOnly,
     width,
   };

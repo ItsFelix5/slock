@@ -18,6 +18,7 @@ export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
 export { findUnreadDividerIndex, isUnreadDividerBoundary } from "./slices/messaging/unread";
+export { resolveUnreadLandingIndex } from "./slices/messaging/unreadLanding";
 export type { ChannelMessageTarget, MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 declare global {
@@ -48,10 +49,15 @@ function setup() {
   const loadMessageShortcuts = () => setMessageShortcutsRequested(true);
   const retryMessageShortcuts = () =>
     void Promise.resolve(refetchMessageShortcuts()).catch(() => {});
-  const [profileFieldDefs, { refetch: refetchProfileFieldDefs }] =
-    createResource(fetchProfileFieldDefs);
+  const [profileFieldDefsRequested, setProfileFieldDefsRequested] = createSignal(false);
+  const [profileFieldDefs, { refetch: refetchProfileFieldDefs }] = createResource(
+    profileFieldDefsRequested,
+    async (requested) => (requested ? fetchProfileFieldDefs() : []),
+  );
+  const loadProfileFieldDefs = () => setProfileFieldDefsRequested(true);
   async function retryProfileFieldDefs(): Promise<void> {
     try {
+      setProfileFieldDefsRequested(true);
       await refetchProfileFieldDefs();
     } catch {
       // The profile panel reads the resource error and keeps retry available.
@@ -123,6 +129,7 @@ function setup() {
       bootstrap,
       messageShortcuts,
       loadMessageShortcuts,
+      loadProfileFieldDefs,
       profileFieldDefs,
       retryBootstrap,
       retryMessageShortcuts,

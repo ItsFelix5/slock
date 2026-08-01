@@ -4,6 +4,10 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { ADDABLE_CHANNEL_TABS, channelTabsFeedbackKey } from "../../lib/channelTabMeta";
 import { actionFeedback, store } from "../../lib/store";
+import {
+  type ChannelPlacementOutcome,
+  isChannelPlacementApplied,
+} from "../../lib/store/slices/entities/mutations/channelPlacementOutcome";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
 import "./ChannelHeader.css";
 import {
@@ -31,10 +35,10 @@ export default function ChannelHeader() {
     const view = store.viewState.activeView();
     return view?.kind === "channel" && store.channels.isChannelPlacementPending(view.id);
   };
-  const runPlacement = async (action: (channelId: string) => Promise<boolean>) => {
+  const runPlacement = async (action: (channelId: string) => Promise<ChannelPlacementOutcome>) => {
     const view = store.viewState.activeView();
     if (view?.kind !== "channel") return;
-    if (await action(view.id)) setStarMenuOpen(false);
+    if (isChannelPlacementApplied(await action(view.id))) setStarMenuOpen(false);
   };
   createEffect(() => {
     const v = store.viewState.activeView();
@@ -51,7 +55,16 @@ export default function ChannelHeader() {
         queueMicrotask(() => newSectionInputRef?.focus());
         return;
       }
-      if (v) await store.channels.moveChannelToSection(v.id, created.id);
+      if (v) {
+        const outcome = await store.channels.moveChannelToSection(v.id, created.id);
+        if (!isChannelPlacementApplied(outcome)) {
+          actionFeedback.flash(
+            v.id,
+            `Created “${created.name}”, but couldn’t move this channel into it.`,
+            "error",
+          );
+        }
+      }
       setAddingSection(false);
       setNewSectionName("");
       setStarMenuOpen(false);

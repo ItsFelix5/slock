@@ -9,5 +9,5 @@
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "src/**/*.json"]
+  "include": ["src", "src/**/*.json", "../../types/css.d.ts"]
 }

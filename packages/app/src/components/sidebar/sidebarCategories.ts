@@ -61,6 +61,7 @@ export interface SidebarContext {
   sectionStructurePending: Accessor<boolean>;
   setAppsOpen: Setter<boolean>;
   setDmsOpen: Setter<boolean>;
+  setUnreadDmsOpen: Setter<boolean>;
   showAllInCategory: (id: string) => void;
   setFeedWidth: Setter<number>;
   setNavView: (next: Nav) => void;
@@ -78,6 +79,8 @@ export interface SidebarContext {
   startRename: (cat: Category) => void;
   toggleCategory: (id: string) => void;
   unreadChannelIds: Record<string, boolean>;
+  unreadDms: Accessor<DirectMessage[]>;
+  unreadDmsOpen: Accessor<boolean>;
   unreadsOnly: Accessor<boolean>;
   width: Accessor<number>;
 }

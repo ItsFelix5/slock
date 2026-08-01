@@ -32,8 +32,6 @@ export function loadSlashCommandSuggestions(): Promise<void> {
   return request;
 }
 
-void loadSlashCommandSuggestions();
-
 export function createSlashCommandSuggestionState(text: () => string) {
   const isSlashCommandDraft = () => text().trimStart().startsWith("/");
   return {

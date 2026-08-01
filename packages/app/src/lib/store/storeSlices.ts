@@ -48,6 +48,7 @@ export function createStoreSlices({
   const channels = createChannelsSlice({
     activeView: viewState.activeView,
     bootstrap,
+    nav: viewState.nav,
     setActiveView,
     userPrefs,
     mutateUserPrefs,
@@ -57,10 +58,22 @@ export function createStoreSlices({
     userPrefs,
   });
   const unread = createUnreadSlice({ bootstrap, patchChannel: channels.patchChannel, patchDm });
+  const cacheResolvedMessagesRef: {
+    current: (messages: Map<string, import("@slock/slack-api").Message>) => void;
+  } = { current: () => {} };
   const activity = createActivitySlice({
+    cacheResolvedMessages: (messages) => cacheResolvedMessagesRef.current(messages),
+    channels: channels.channels,
+    channelsInActivity: () => userPrefs()?.globalNotifications.channelsInActivity !== false,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     lastReadByChannel: unread.lastReadByChannel,
+    notifyAllChannelIds: () => {
+      const prefs = userPrefs();
+      return prefs?.globalNotifications.desktop === "everything"
+        ? channels.channels().map((channel) => channel.id)
+        : (prefs?.notifyAllChannels ?? []);
+    },
     setLastReadByChannel: unread.setLastReadByChannel,
     syncChannelRead: unread.syncChannelRead,
   });
@@ -74,9 +87,7 @@ export function createStoreSlices({
     closeUserProfile: users.closeUserProfile,
     currentUser: users.currentUser,
     removeDmFromSidebar: channels.removeDmFromSidebar,
-    removeDmsFromSidebar: channels.removeDmsFromSidebar,
     setActiveView,
-    unreadChannelIds: unread.unreadChannelIds,
   });
   patchDmImplRef.current = dms.patchDm;
   const pinned = createPinnedSlice();
@@ -95,6 +106,9 @@ export function createStoreSlices({
     setUnreadDividerTs: unread.setUnreadDividerTs,
     syncChannelRead: unread.syncChannelRead,
   });
+  cacheResolvedMessagesRef.current = (resolved) => {
+    for (const [key, message] of resolved) messages.setReactionMessages(key, [message]);
+  };
   const realtime = createRealtimeSlice({
     activeThread: viewState.activeThread,
     activeView: viewState.activeView,
@@ -118,10 +132,9 @@ export function createStoreSlices({
     patchMessage: messages.patchMessage,
     recordActivityEngagement: activity.recordActivityEngagement,
     recordTyping: typing.recordTyping,
-    refreshActivityFeed: activity.ensureActivityLoaded,
+    refreshActivityFeed: activity.requestActivityRefresh,
     setGatewayActivityBadgeCounts: activity.setGatewayActivityBadgeCounts,
     setClosedDmIds: dms.setClosedDmIds,
-    setDmLastActivity: dms.setDmLastActivity,
     setLastReadByChannel: unread.setLastReadByChannel,
     setMessagesByChannel: messages.setMessagesByChannel,
     setPresenceOverrides: users.setPresenceOverrides,

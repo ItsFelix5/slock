@@ -1,0 +1,58 @@
+.menu-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.menu-panel {
+  z-index: 10;
+  display: flex;
+  max-width: calc(100vw - 16px);
+  flex-direction: column;
+  padding: 4px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-8);
+  box-shadow: var(--shadow-popover);
+}
+
+.menu-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: var(--radius-5);
+}
+
+.menu-item:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+
+.menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.menu-item.danger {
+  color: var(--danger);
+}
+
+.menu-item .icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.menu-item-app-icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--radius-3);
+}

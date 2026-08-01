@@ -45,10 +45,6 @@
   white-space: nowrap;
 }
 
-.reply-reference-row:hover .reply-reference-name {
-  text-decoration: underline;
-}
-
 .reply-reference-snippet {
   min-width: 0;
   overflow: hidden;

@@ -2,6 +2,7 @@ import type { Channel, UserPrefs } from "@slock/slack-api";
 import {
   endDndSnooze,
   fetchDndStatus,
+  PairedPreferenceWriteError,
   setChannelNotifyAll,
   setDndSnooze,
   setHighlightWords as setHighlightWordsApi,
@@ -166,11 +167,17 @@ export function createPreferencesSlice(deps: {
     setNotifyAllPendingByChannel(channelId, true);
     setNotifyAllChannelIds(channelId, next);
     try {
-      await setChannelNotifyAll(channelId, next);
+      await setChannelNotifyAll(channelId, next, deps.userPrefs()?.channelNotifications[channelId]);
       return true;
     } catch (err) {
       console.error("Failed to set channel notification preference", err);
-      actionFeedback.flash(channelId, "Failed to update notification preference.", "error");
+      actionFeedback.flash(
+        channelId,
+        err instanceof PairedPreferenceWriteError && !err.rollbackComplete
+          ? "Slack only updated part of this notification setting. Reload to verify it."
+          : "Failed to update notification preference.",
+        "error",
+      );
       setNotifyAllChannelIds(channelId, !next);
       return false;
     } finally {

@@ -22,14 +22,13 @@ export function createRealtimeSlice(deps: {
   recordTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
   clearTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
   allDirectMessages: () => DirectMessage[];
-  setDmLastActivity: (id: string, ts: number) => void;
   closedDmIds: Record<string, boolean>;
   setClosedDmIds: (id: string, closed: boolean) => void;
   ensureDm: (channelId: string, userId: string) => void;
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   openModalView: (view: ModalView) => void;
   recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
-  setGatewayActivityBadgeCounts: (activity: any) => void;
+  setGatewayActivityBadgeCounts: (activity: any) => boolean;
   refreshActivityFeed: () => void;
   messagesByChannel: Record<string, Message[]>;
   setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
@@ -130,11 +129,9 @@ export function createRealtimeSlice(deps: {
       deps.setUnreadChannelIds(channel, true);
     }
     if (deps.allDirectMessages().some((d) => d.id === channel)) {
-      deps.setDmLastActivity(channel, Date.now());
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
     } else if (channel.startsWith("D") && me && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
-      deps.setDmLastActivity(channel, Date.now());
     } else if (deps.channels().some((c) => c.id === channel)) {
       deps.patchChannel(channel, { lastActivity: Date.now() });
     }
@@ -217,11 +214,11 @@ export function createRealtimeSlice(deps: {
           if (id.startsWith("D")) deps.patchDm(id, { mentions });
           else deps.patchChannel(id, { mentions });
         }
-        deps.setGatewayActivityBadgeCounts(payload.activity_v2);
+        const activityCountsChanged = deps.setGatewayActivityBadgeCounts(payload.activity_v2);
         // The gateway only pushes aggregate counts, never the entries
-        // themselves — refetch activity.feed so the Activity list catches
-        // up with whatever just changed those counts.
-        deps.refreshActivityFeed();
+        // themselves. Identical snapshots are common, so only a real count
+        // change should schedule a coalesced activity.feed refresh.
+        if (activityCountsChanged) deps.refreshActivityFeed();
         break;
       }
       case "channel_marked": {

@@ -1,7 +1,7 @@
-import { createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, For, Show } from "solid-js";
 import { decodeTextEntities } from "../entities";
 import { resolveStandardEmoji } from "./emoji";
-import { emojiUrl } from "./emojiCache";
+import { emojiUrl, loadCustomEmoji } from "./emojiCache";
 import "./EmojiText.css";
 
 const EMOJI_RE = /:([a-z0-9_+'-]+):/gi;
@@ -31,6 +31,9 @@ export default function EmojiText(props: { text: string }) {
         // standard unicode glyph so known emoji never flash as raw `:name:` text.
         const url = createMemo(() => emojiUrl(part.name));
         const unicode = resolveStandardEmoji(part.name);
+        createEffect(() => {
+          if (!unicode && url() === undefined) void loadCustomEmoji();
+        });
         return (
           <Show
             fallback={unicode ? <span class="emoji">{unicode}</span> : `:${part.name}:`}

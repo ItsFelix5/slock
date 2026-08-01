@@ -22,17 +22,17 @@ export {
   setChannelNotifyAll,
   setSectionSidebar,
   updateSectionChannels,
-} from "./channelSections";
+} from "./channels/sections";
+export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite";
 export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
-  const res = await fetch(`https://flaron.halceon.dev/channel/${encodeURIComponent(id)}`);
-  if (!(res.ok && res.headers.get("content-type")?.includes("application/json"))) return null;
+  const res = await fetch(`/channel-lookup?id=${encodeURIComponent(id)}`);
+  if (!res.ok) return null;
   const data = await res.json();
-  if (!data.name) return null;
   return {
-    id: data.id ?? id,
+    id: data.id,
     name: data.name,
-    private: !data.counts,
-    topic: data.topic ?? "",
+    private: data.private,
+    topic: data.topic,
     unread: false,
   };
 }

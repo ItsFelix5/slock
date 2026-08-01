@@ -36,6 +36,7 @@
   width: 20px;
   height: 20px;
   object-fit: contain;
+  margin: 0 4px
 }
 
 .emoji-picker-btn:hover {

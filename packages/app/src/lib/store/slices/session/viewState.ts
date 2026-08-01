@@ -9,6 +9,19 @@ interface NavSnapshot {
   view: View | null;
 }
 
+export function resolveActiveView(
+  nav: Nav,
+  selected: View | null,
+  data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
+): View | null {
+  if (selected) return selected;
+  if (nav !== "home" || !data) return null;
+  const [firstChannel] = data.channels;
+  if (firstChannel) return { id: firstChannel.id, kind: "channel" };
+  const [firstDirectMessage] = data.directMessages;
+  return firstDirectMessage ? { id: firstDirectMessage.id, kind: "dm" } : null;
+}
+
 // DM conversation ids are Slack "D..." ims (see bootstrap.ts); everything
 // else selectable (public/private channels) is a "C..." id. That's enough
 // to tell channel and DM URLs apart without a /channel/ or /dm/ segment.
@@ -62,15 +75,11 @@ export function createViewStateSlice(deps: {
   );
 
   const activeView = createMemo<View | null>(() => {
-    const explicit = selected();
-    if (explicit) return explicit;
-    const data = deps.bootstrap();
-    if (!data) return null;
-    const [firstChannel] = data.channels;
-    if (firstChannel) return { id: firstChannel.id, kind: "channel" };
-    const [firstDirectMessage] = data.directMessages;
-    if (firstDirectMessage) return { id: firstDirectMessage.id, kind: "dm" };
-    return null;
+    // Feed/search routes with no explicit conversation should not silently
+    // activate the first workspace channel behind the visible screen. Doing
+    // that made every conversation-owned effect (history, pins, canvas and
+    // read cursors) run during a hard reload of /activity.
+    return resolveActiveView(nav(), selected(), deps.bootstrap());
   });
 
   // ---- browser history integration (back/forward navigates views) ----

@@ -19,7 +19,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
   const user = createMemo(() => store.users.userById(props.userId));
   const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
   const botBio = createMemo(() =>
-    user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
+    open() && user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
   );
 
   const localTime = createLocalTime(user, Date.now);

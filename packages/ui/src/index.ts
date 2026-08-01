@@ -39,8 +39,6 @@ export type { VideoPlayerProps } from "./media/VideoPlayer";
 export { default as VideoPlayer } from "./media/VideoPlayer";
 export type { ZoomableImageProps } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
-export type { ContextMenuProps } from "./overlay/ContextMenu";
-export { default as ContextMenu } from "./overlay/ContextMenu";
 export type {
   FloatingAlign,
   FloatingPanelProps,
@@ -53,16 +51,18 @@ export {
   resolveHorizontalPlacement,
   resolveVerticalPlacement,
 } from "./overlay/floating/FloatingPanel";
-export { default as Menu, type MenuProps } from "./overlay/Menu";
-export type { MenuButtonProps } from "./overlay/MenuButton";
-export { default as MenuButton } from "./overlay/MenuButton";
+export type { ContextMenuProps } from "./overlay/menu/ContextMenu";
+export { default as ContextMenu } from "./overlay/menu/ContextMenu";
+export { default as Menu, type MenuProps } from "./overlay/menu/Menu";
+export type { MenuButtonProps } from "./overlay/menu/MenuButton";
+export { default as MenuButton } from "./overlay/menu/MenuButton";
+export { useContextMenu } from "./overlay/menu/useContextMenu";
 export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
 export type { PopoverProps } from "./overlay/Popover";
 export { default as Popover } from "./overlay/Popover";
 export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
-export { useContextMenu } from "./overlay/useContextMenu";
 export {
   activePreset,
   applyPreset,

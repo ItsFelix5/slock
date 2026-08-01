@@ -1,0 +1,109 @@
+// biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's gateway wire fields.
+import { trimMessage } from "./slackEntities.ts";
+
+function trimCounts(payload: any): any {
+  if (!payload || typeof payload !== "object") return payload;
+  const trimGroup = (group: any) => ({
+    has_unreads: group?.has_unreads,
+    id: group?.id,
+    is_unread: group?.is_unread,
+    mention_count: group?.mention_count,
+    mention_count_display: group?.mention_count_display,
+    unread_count: group?.unread_count,
+    unread_count_display: group?.unread_count_display,
+  });
+  return {
+    channels: Array.isArray(payload.channels) ? payload.channels.map(trimGroup) : payload.channels,
+    ims: Array.isArray(payload.ims) ? payload.ims.map(trimGroup) : payload.ims,
+    mpims: Array.isArray(payload.mpims) ? payload.mpims.map(trimGroup) : payload.mpims,
+  };
+}
+
+const ACTIVITY_COUNT_KEYS = [
+  "at_channel",
+  "at_everyone",
+  "at_user",
+  "at_user_group",
+  "channel",
+  "dm",
+  "keyword",
+  "list_user_mentioned",
+  "thread_v2",
+] as const;
+
+function trimActivityCounts(activity: any): any {
+  if (!activity || typeof activity !== "object") return activity;
+  return Object.fromEntries(ACTIVITY_COUNT_KEYS.map((key) => [key, activity[key]]));
+}
+
+function trimMessageEvent(payload: any): any {
+  return {
+    ...trimMessage(payload),
+    channel: payload.channel,
+    deleted_ts: payload.deleted_ts,
+    message: payload.message ? trimMessage(payload.message) : undefined,
+  };
+}
+
+export function trimSlackGatewayPayload(payload: any): any | null {
+  switch (payload?.type) {
+    case "message":
+      return trimMessageEvent(payload);
+    case "reaction_added":
+    case "reaction_removed":
+      return {
+        item: { channel: payload.item?.channel, ts: payload.item?.ts },
+        item_user: payload.item_user,
+        reaction: payload.reaction,
+        type: payload.type,
+        user: payload.user,
+      };
+    case "presence_change":
+      return {
+        presence: payload.presence,
+        type: payload.type,
+        user: payload.user,
+        users: payload.users,
+      };
+    case "user_typing":
+      return {
+        channel: payload.channel,
+        thread_ts: payload.thread_ts,
+        type: payload.type,
+        user: payload.user,
+      };
+    case "badge_counts_updated": {
+      const counts = trimCounts(payload);
+      return {
+        ...counts,
+        activity_v2: trimActivityCounts(payload.activity_v2),
+        badges: payload.badges ? trimCounts(payload.badges) : undefined,
+        type: payload.type,
+      };
+    }
+    case "channel_marked":
+      return { channel: payload.channel, ts: payload.ts, type: payload.type };
+    case "user_invalidated":
+      return { type: payload.type, user: payload.user, users: payload.users };
+    case "view_opened": {
+      const { view } = payload;
+      return {
+        type: payload.type,
+        view: view
+          ? {
+              blocks: view.blocks,
+              close: view.close,
+              id: view.id,
+              previous_view_id: view.previous_view_id,
+              submit: view.submit,
+              title: view.title,
+              type: view.type,
+            }
+          : undefined,
+        view_type: payload.view_type,
+      };
+    }
+    default:
+      return null;
+  }
+}

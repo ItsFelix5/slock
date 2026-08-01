@@ -4,7 +4,7 @@ import { store } from "../../lib/store";
 import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
-import SidebarDmSections from "./rows/SidebarDmSections";
+import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
 import { SidebarSkeleton } from "./rows/SidebarRows";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
@@ -64,6 +64,9 @@ export default function SidebarView(props: { context: SidebarContext }) {
     appDms,
     appsOpen,
     setAppsOpen,
+    unreadDms,
+    unreadDmsOpen,
+    setUnreadDmsOpen,
     unreadChannelIds,
     actionFeedback,
   } = props.context;
@@ -178,6 +181,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
                 </Button>
               </div>
             </Show>
+            <SidebarUnreadDmSection {...{ setUnreadDmsOpen, unreadDms, unreadDmsOpen }} />
             <For each={categories()}>
               {(cat) => (
                 <div

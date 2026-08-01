@@ -1,4 +1,5 @@
 import { callSlack } from "../relay";
+import { fetchInitialData } from "./initialData";
 import { resolveDesktopNotificationsEnabled } from "./preferences/desktopNotifications";
 
 export type UserPrefs = {
@@ -6,6 +7,7 @@ export type UserPrefs = {
   channelFrecency: Record<string, { count: number; lastVisit: number }>;
   mutedChannels: string[];
   notifyAllChannels: string[];
+  channelNotifications: Record<string, { desktop?: string; mobile?: string }>;
   highlightWords: string[];
   desktopNotificationsEnabled: boolean;
   searchHistory: string[];
@@ -46,7 +48,7 @@ export type UserPrefs = {
 // per-channel tab bar (Canvas/Pinned shortcuts under the channel header) —
 // unrelated to Slack's real, admin-only, unwritable `properties.tabs`.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
-  const data = await callSlack("users.prefs.get");
+  const data = (await fetchInitialData()).prefs;
   if (!data.ok) throw new Error(data.error ?? "users.prefs.get failed");
   const prefs = data.prefs ?? {};
   const parse = (key: string) => {
@@ -124,6 +126,12 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       notificationOverrides[id]?.desktop === "everything" ||
       notificationOverrides[id]?.mobile === "everything",
   );
+  const channelNotifications: UserPrefs["channelNotifications"] = {};
+  for (const [id, override] of Object.entries<any>(notificationOverrides)) {
+    const desktop = typeof override?.desktop === "string" ? override.desktop : undefined;
+    const mobile = typeof override?.mobile === "string" ? override.mobile : undefined;
+    if (desktop || mobile) channelNotifications[id] = { desktop, mobile };
+  }
 
   const desktopNotificationsEnabled = resolveDesktopNotificationsEnabled(
     prefs.slock_desktop_notifications,
@@ -152,6 +160,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
 
   return {
     channelFrecency,
+    channelNotifications,
     channelTabs,
     desktopNotificationsEnabled,
     emojiUse,
@@ -209,7 +218,7 @@ export async function setChannelTabs(entries: Record<string, { type: string }[]>
 
 // dnd.info is a documented public method — the account's real snooze deadline.
 export async function fetchDndStatus(): Promise<number | null> {
-  const data = await callSlack("dnd.info");
+  const data = (await fetchInitialData()).dnd;
   if (!data.ok) throw new Error(data.error ?? "dnd.info failed");
   if (!(data.snooze_enabled && data.snooze_endtime)) return null;
   return data.snooze_endtime * 1000;

@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Raw bootstrap payloads preserve Slack's wire field names.
 import type { Channel, DirectMessage, User } from "../../types";
 import { buildUnreadMap, mapUser, type RawCounts, type RawUser } from "../mappers";
-import { callSlack } from "../relay";
+import { fetchInitialData } from "./initialData";
 
 export interface Bootstrap {
   channels: Channel[];
@@ -58,10 +58,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   // (see store's searchUsers/userById, which already fetch users individually or via
   // live directory search), so it only added latency without actually removing any
   // of those fetches.
-  const [boot, counts] = await Promise.all([
-    callSlack<RawBoot>("client.userBoot"),
-    callSlack<RawCounts>("client.counts").catch((): RawCounts => ({ ok: false })),
-  ]);
+  const { boot, counts } = (await fetchInitialData()) as {
+    boot: RawBoot;
+    counts: RawCounts;
+  };
   if (!boot?.ok) throw new Error(boot?.error ?? "client.userBoot failed");
 
   const unreadMap = buildUnreadMap(counts);

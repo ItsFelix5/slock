@@ -18,10 +18,6 @@ body {
   background: var(--main-bg);
 }
 
-#root {
-  height: 100dvh;
-}
-
 button {
   font-family: inherit;
   cursor: pointer;

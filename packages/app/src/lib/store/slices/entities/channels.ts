@@ -18,7 +18,8 @@ import {
 import { createEffect, createMemo, createResource, createSignal, type Setter } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
-import type { View } from "../types";
+import type { Nav, View } from "../types";
+import type { ChannelPlacementOutcome } from "./mutations/channelPlacementOutcome";
 import { removeSectionChannelsBatched } from "./mutations/sectionChannelRemovals";
 import { reorderSections } from "./mutations/sectionOrder";
 import { setSectionSidebarPreference } from "./mutations/sectionSidebarPrefs";
@@ -26,6 +27,7 @@ import { setSectionSidebarPreference } from "./mutations/sectionSidebarPrefs";
 export function createChannelsSlice(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;
   activeView: () => View | null;
+  nav: () => Nav;
   setActiveView: (view: View) => void;
   userPrefs: () => UserPrefs | undefined;
   mutateUserPrefs: Setter<UserPrefs | undefined>;
@@ -98,10 +100,8 @@ export function createChannelsSlice(deps: {
   }
 
   function channelById(id: string): Channel | undefined {
-    const known = channels().find((c) => c.id === id);
+    const known = knownChannelById(id);
     if (known) return known;
-    const discovered = discoveredChannels.find((c) => c.id === id);
-    if (discovered) return discovered;
     // Bootstrap hasn't resolved yet, so we can't tell a genuinely external
     // channel apart from one of this account's own that just hasn't loaded —
     // wait rather than wrongly treating it as external and hitting Flaron.
@@ -118,6 +118,12 @@ export function createChannelsSlice(deps: {
         .catch(() => channelDiscoveryMisses.set(id, Date.now()))
         .finally(() => pendingChannels.delete(id));
     }
+  }
+
+  // Read-only lookup for dense lists such as Activity. Unlike channelById,
+  // this never turns rendering an unknown channel label into network I/O.
+  function knownChannelById(id: string): Channel | undefined {
+    return channels().find((c) => c.id === id) ?? discoveredChannels.find((c) => c.id === id);
   }
 
   // client.userBoot can omit topic metadata for a channel. Resolve it lazily
@@ -199,8 +205,10 @@ export function createChannelsSlice(deps: {
 
   // ---- sections ----
 
-  const [rawSections, { refetch: refetchSections, mutate: mutateSections }] =
-    createResource(fetchSections);
+  const [rawSections, { refetch: refetchSections, mutate: mutateSections }] = createResource(
+    () => (deps.nav() === "home" ? true : undefined),
+    fetchSections,
+  );
   const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
   const [sectionSidebarPendingById, setSectionSidebarPendingById] = createStore<
     Record<string, boolean>
@@ -385,11 +393,11 @@ export function createChannelsSlice(deps: {
     return !!placementPendingByChannel[channelId];
   }
 
-  async function toggleChannelStar(channelId: string): Promise<boolean> {
-    if (isChannelPlacementPending(channelId)) return false;
+  async function toggleChannelStar(channelId: string): Promise<ChannelPlacementOutcome> {
+    if (isChannelPlacementPending(channelId)) return "failed";
     const currentlyStarred = isChannelStarred(channelId);
     const changesSectionMembership = !currentlyStarred;
-    if (changesSectionMembership && sectionStructurePending()) return false;
+    if (changesSectionMembership && sectionStructurePending()) return "failed";
     setPlacementPendingByChannel(channelId, true);
     if (changesSectionMembership) setSectionStructurePending(true);
     setStarredChannelIds(channelId, !currentlyStarred);
@@ -397,7 +405,7 @@ export function createChannelsSlice(deps: {
     try {
       await toggleStar(channelId, currentlyStarred);
       starUpdated = true;
-      if (currentlyStarred) return true;
+      if (currentlyStarred) return "applied";
 
       // Starred and sectioned are mutually exclusive in the real client — starring a
       // channel pulls it out of whatever section it was in.
@@ -410,10 +418,10 @@ export function createChannelsSlice(deps: {
           "Starred, but couldn’t remove the channel from its previous section.",
           "error",
         );
-        return false;
+        return "applied-with-warning";
       }
       if (from) await refreshSections();
-      return true;
+      return "applied";
     } catch (err) {
       if (starUpdated) {
         console.error("Failed to remove starred channel from its section", err);
@@ -426,8 +434,9 @@ export function createChannelsSlice(deps: {
         console.error("Failed to toggle star", err);
         actionFeedback.flash(channelId, "Failed to update star.", "error");
         setStarredChannelIds(channelId, currentlyStarred);
+        return "failed";
       }
-      return false;
+      return "applied-with-warning";
     } finally {
       setPlacementPendingByChannel(channelId, false);
       if (changesSectionMembership) setSectionStructurePending(false);
@@ -439,8 +448,8 @@ export function createChannelsSlice(deps: {
   async function moveChannelToSection(
     channelId: string,
     targetSectionId: string | null,
-  ): Promise<boolean> {
-    if (isChannelPlacementPending(channelId) || sectionStructurePending()) return false;
+  ): Promise<ChannelPlacementOutcome> {
+    if (isChannelPlacementPending(channelId) || sectionStructurePending()) return "failed";
     setPlacementPendingByChannel(channelId, true);
     setSectionStructurePending(true);
     const current = sections() ?? [];
@@ -454,7 +463,7 @@ export function createChannelsSlice(deps: {
         const ok = await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
         if (!ok) {
           actionFeedback.flash(channelId, "Failed to move channel.", "error");
-          return false;
+          return "failed";
         }
         removedFromSource = true;
       }
@@ -466,7 +475,7 @@ export function createChannelsSlice(deps: {
           if (from) await apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
           actionFeedback.flash(channelId, "Failed to move channel.", "error");
           await refreshSections();
-          return false;
+          return "failed";
         }
         insertedIntoTarget = true;
         // Starred and sectioned are mutually exclusive in the real client — a channel
@@ -484,12 +493,12 @@ export function createChannelsSlice(deps: {
               "error",
             );
             await refreshSections();
-            return false;
+            return "applied-with-warning";
           }
         }
       }
       await refreshSections();
-      return true;
+      return "applied";
     } catch (err) {
       console.error("Failed to move channel", err);
       if (removedFromSource && !insertedIntoTarget && from) {
@@ -501,7 +510,7 @@ export function createChannelsSlice(deps: {
       }
       actionFeedback.flash(channelId, "Failed to move channel.", "error");
       await refreshSections();
-      return false;
+      return "failed";
     } finally {
       setPlacementPendingByChannel(channelId, false);
       setSectionStructurePending(false);
@@ -570,6 +579,7 @@ export function createChannelsSlice(deps: {
     joinChannelById,
     leaveCurrentChannel,
     moveChannelToSection,
+    knownChannelById,
     patchChannel,
     renameChannelSection,
     reorderChannelSection,

@@ -13,7 +13,11 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
   let anchorRef: HTMLSpanElement | undefined;
   const { cancelClose, close, open, scheduleClose, scheduleOpen } = useHoverIntent();
 
-  const channel = createMemo(() => store.channels.channelById(props.channelId));
+  const channel = createMemo(() =>
+    open()
+      ? store.channels.channelById(props.channelId)
+      : store.channels.knownChannelById(props.channelId),
+  );
   const isMember = createMemo(() => store.channels.isChannelMember(props.channelId));
   const name = () => channelDisplayName(channel(), props.channelId);
 
