@@ -55,7 +55,7 @@ export default function MessageMeta(props: {
           Only visible to you
         </span>
       </Show>
-      <Show when={msg.isSaved}>
+      <Show when={props.message.isSaved}>
         <span class="message-saved-badge">
           <Icon name="bookmark-filled" size={11} />
           Saved
