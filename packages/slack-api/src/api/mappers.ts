@@ -338,8 +338,8 @@ function formatTime(ts: string) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-export function formatDay(ts: string) {
-  const date = new Date(parseFloat(ts) * 1000);
+export function formatDayFromMs(ms: number) {
+  const date = new Date(ms);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
@@ -350,6 +350,10 @@ export function formatDay(ts: string) {
   if (sameDay(date, today)) return "Today";
   if (sameDay(date, yesterday)) return "Yesterday";
   return date.toLocaleDateString(undefined, { day: "numeric", month: "long", weekday: "long" });
+}
+
+export function formatDay(ts: string) {
+  return formatDayFromMs(parseFloat(ts) * 1000);
 }
 
 // Only a small, known set of subtypes are pure announcements — Slack embeds
@@ -543,7 +547,17 @@ export function extractChannelSections(
       channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
       id: s.channel_section_id ?? s.id ?? s.name,
       name: s.name ?? "Section",
-      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : ("hid" as const),
+      // A section Slack has never had a filter set on omits `sidebar`
+      // entirely (or sends something we don't recognize) — that means
+      // "showing everything", same as the built-in Channels/usergroup
+      // sections default to. Only "hid"/"hide" (its older spelling) should
+      // actually narrow to unread-only.
+      sidebar:
+        s.sidebar === "all" || s.sidebar === "active"
+          ? s.sidebar
+          : s.sidebar === "hid" || s.sidebar === "hide"
+            ? "hid"
+            : ("all" as const),
       type: s.type ?? "standard",
     }))
     .filter((s): s is ChannelSectionSummary => !!s.id);

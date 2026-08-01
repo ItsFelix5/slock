@@ -71,7 +71,7 @@ export function constrainMediaDimensions(
   if (!(width && height && width > 0 && height > 0))
     return { height: fallbackHeight, width: fallbackWidth };
   const scale = Math.min(1, maxWidth / width, maxHeight / height);
-  return { height: height * scale, width: width * scale };
+  return { height: Math.round(height * scale), width: Math.round(width * scale) };
 }
 
 function estimateFileHeight(file: SlackFile, wrapWidth: number): number {
@@ -148,9 +148,9 @@ export function estimateAttachmentHeight(
 ): number {
   const attachmentWidth = Math.min(433, wrapWidth);
   let height = 22;
+  if (attachment.isMessageUnfurl && attachment.fromUrl) height += 24;
   if (attachment.pretext)
     height += 6 + estimateMrkdwnHeight(attachment.pretext, wrapWidth, ATTACHMENT_LINE_HEIGHT);
-  if (attachment.isMessageUnfurl && attachment.fromUrl) height += 24;
   if (attachment.authorName) height += 18;
   if (attachment.title) height += 19;
   if (attachment.blocks?.length) height += estimateBlocksHeight(attachment.blocks, attachmentWidth);

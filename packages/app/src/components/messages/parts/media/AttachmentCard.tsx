@@ -1,6 +1,6 @@
 import { BlockKit, decodeTextEntities, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
-import { VideoPlayer, ZoomableImage } from "@slock/ui";
+import { Icon, VideoPlayer, ZoomableImage } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { conversationDisplayName, store } from "../../../../lib/store";
 import { MessageAuthorButton } from "../../MessageAuthorButtons";
@@ -114,6 +114,10 @@ function MessageUnfurl(props: { attachment: Attachment }) {
           store.users.userById,
         )
       : "";
+  const locationLabel = () => {
+    const label = location();
+    return label.startsWith("#") ? label.slice(1) : label;
+  };
   const openConversation = (event: MouseEvent) => {
     if (
       !a.channelId ||
@@ -132,54 +136,68 @@ function MessageUnfurl(props: { attachment: Attachment }) {
   };
 
   return (
-    <>
-      <Show when={a.fromUrl}>
-        {(url) => (
-          <a class="attachment-message-link" href={url()} rel="noopener noreferrer" target="_blank">
-            View message
-          </a>
-        )}
-      </Show>
-      <div class="attachment-message-unfurl">
-        <div class="attachment-message-avatar message-avatar flex-center">
-          <span aria-hidden="true">?</span>
+    <div
+      class="attachment-message-unfurl"
+      style={{
+        "--attachment-unfurl-color": a.color ? `#${a.color.replace("#", "")}` : "var(--text-dim)",
+      }}
+    >
+      <Show when={a.authorName}>
+        <div class="attachment-message-author flex-align-center">
           <Show when={a.authorIcon}>
-            {(icon) => <img alt="" class="message-avatar-img" loading="lazy" src={icon()} />}
-          </Show>
-        </div>
-        <div class="attachment-message-body">
-          <Show when={a.authorName || a.postedAt}>
-            <div class="message-meta">
-              <Show when={a.authorName}>
-                <MessageAuthorButton disabled name={a.authorName ?? ""} onClick={() => {}} />
-              </Show>
-              <Show when={a.postedAt}>
-                {(postedAt) => <span class="message-time">{postedAt()}</span>}
-              </Show>
-            </div>
-          </Show>
-          <AttachmentContent attachment={a} />
-          <Show when={a.channelId}>
-            {(channelId) => (
-              <div class="attachment-footer text-dim text-xs">
-                Posted in{" "}
-                <a
-                  class="attachment-channel-link"
-                  href={`/${channelId()}`}
-                  onClick={openConversation}
-                >
-                  {location()}
-                </a>
-              </div>
+            {(icon) => (
+              <img alt="" class="attachment-message-author-icon" loading="lazy" src={icon()} />
             )}
           </Show>
+          <MessageAuthorButton disabled name={a.authorName ?? ""} onClick={() => {}} />
         </div>
-      </div>
-    </>
+      </Show>
+      <AttachmentContent attachment={a} />
+      <Show when={a.channelId}>
+        {(channelId) => (
+          <div class="attachment-footer attachment-message-footer flex-align-center text-dim text-xs">
+            <span>Posted in</span>
+            <a
+              class="attachment-channel-link flex-align-center"
+              href={`/${channelId()}`}
+              onClick={openConversation}
+            >
+              <Show when={channel()?.private} fallback={channel() ? "#" : undefined}>
+                <Icon name="lock" size={11} />
+              </Show>
+              {locationLabel()}
+            </a>
+            <Show when={a.postedAt}>
+              {(postedAt) => (
+                <>
+                  <span aria-hidden="true">|</span>
+                  <span>{postedAt()}</span>
+                </>
+              )}
+            </Show>
+            <Show when={a.fromUrl}>
+              {(url) => (
+                <>
+                  <span aria-hidden="true">|</span>
+                  <a
+                    class="attachment-view-message-link"
+                    href={decodeTextEntities(url())}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    View message
+                  </a>
+                </>
+              )}
+            </Show>
+          </div>
+        )}
+      </Show>
+    </div>
   );
 }
 
-export default function AttachmentCard(props: { attachment: Attachment }) {
+export default function AttachmentCard(props: { attachment: Attachment; showPermalink?: boolean }) {
   const a = props.attachment;
   return (
     <>
@@ -188,6 +206,22 @@ export default function AttachmentCard(props: { attachment: Attachment }) {
           <div class="attachment-pretext">
             <Mrkdwn text={pretext()} />
           </div>
+        )}
+      </Show>
+      {/* Skip when channelId is set: MessageUnfurl's footer already renders this same
+          fromUrl as a "View message" link, so the raw URL here would just duplicate it. */}
+      <Show
+        when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}
+      >
+        {(url) => (
+          <a
+            class="attachment-message-link"
+            href={decodeTextEntities(url())}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {decodeTextEntities(url())}
+          </a>
         )}
       </Show>
       <Show

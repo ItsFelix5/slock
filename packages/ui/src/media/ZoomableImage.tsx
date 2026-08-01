@@ -88,13 +88,15 @@ export default function ZoomableImage(props: ZoomableImageProps) {
 }
 
 const LENS_SIZE = 500;
-const LENS_ZOOM = 5;
+const LENS_ZOOM_DEFAULT = 5;
+const LENS_ZOOM_STEP = 0.5;
 
 function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }) {
   useEscapeClose(props.onClose);
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let imgRef: HTMLImageElement | undefined;
   const [lens, setLens] = createSignal<{ x: number; y: number } | null>(null);
+  const [lensZoom, setLensZoom] = createSignal(LENS_ZOOM_DEFAULT);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
 
@@ -104,6 +106,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
       () => {
         setFailed(false);
         setLoading(true);
+        setLensZoom(LENS_ZOOM_DEFAULT);
       },
       { defer: true },
     ),
@@ -116,6 +119,12 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     });
+  };
+
+  const zoomLens = (e: WheelEvent) => {
+    if (!lens()) return;
+    e.preventDefault();
+    setLensZoom((z) => Math.max(LENS_ZOOM_STEP, z + (e.deltaY < 0 ? LENS_ZOOM_STEP : -LENS_ZOOM_STEP)));
   };
 
   return (
@@ -167,6 +176,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
           onMouseLeave={() => setLens(null)}
           onMouseMove={(e) => lens() && moveLens(e)}
           onMouseUp={() => setLens(null)}
+          onWheel={zoomLens}
         >
           <img
             alt={props.alt}
@@ -189,8 +199,8 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
                   class="zoomable-image-lens"
                   style={{
                     "background-image": `url(${props.src})`,
-                    "background-position": `${LENS_SIZE / 2 - pos().x * LENS_ZOOM}px ${LENS_SIZE / 2 - pos().y * LENS_ZOOM}px`,
-                    "background-size": `${(rect()?.width ?? 0) * LENS_ZOOM}px ${(rect()?.height ?? 0) * LENS_ZOOM}px`,
+                    "background-position": `${LENS_SIZE / 2 - pos().x * lensZoom()}px ${LENS_SIZE / 2 - pos().y * lensZoom()}px`,
+                    "background-size": `${(rect()?.width ?? 0) * lensZoom()}px ${(rect()?.height ?? 0) * lensZoom()}px`,
                     height: `${LENS_SIZE}px`,
                     left: `${pos().x - LENS_SIZE / 2}px`,
                     top: `${pos().y - LENS_SIZE / 2}px`,

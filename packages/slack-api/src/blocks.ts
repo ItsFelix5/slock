@@ -240,7 +240,10 @@ export interface RichTextPreformatted {
 
 export interface RichTextQuote {
   border?: number;
-  elements: RichTextInlineElement[];
+  // Slack can nest any sub-block here (e.g. a rich_text_list, for a bulleted
+  // list created while the caret is inside a blockquote), not just inline
+  // content — same union as a rich_text block's own top-level elements.
+  elements: (RichTextInlineElement | RichTextSubBlock)[];
   type: "rich_text_quote";
 }
 

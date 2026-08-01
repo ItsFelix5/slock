@@ -63,11 +63,11 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                     }
                     class="message-file-image"
                     fullSrc={resolveMediaUrl(file.urlPrivate)}
-                    height={file.height}
+                    height={dimensions().height}
                     reservedHeight={dimensions().height}
                     reservedWidth={dimensions().width}
                     src={thumb()}
-                    width={file.width}
+                    width={dimensions().width}
                   />
                 );
               }}

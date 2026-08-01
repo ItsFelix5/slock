@@ -91,7 +91,11 @@ export function sectionShowsAllChannels(
   unreadsOnly: boolean,
   filterToggled: boolean,
 ): boolean {
-  const filteredByDefault = unreadsOnly || sidebar !== "all";
+  // The global Unreads filter always wins: a section's own sidebar setting or
+  // its per-section filter toggle must never bring read channels back once
+  // the user has asked to see unreads only.
+  if (unreadsOnly) return false;
+  const filteredByDefault = sidebar !== "all";
   return filterToggled ? filteredByDefault : !filteredByDefault;
 }
 

@@ -6,9 +6,9 @@ import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
 import { SidebarSkeleton } from "./rows/SidebarRows";
+import type { SidebarContext } from "./sidebarCategories";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
-import type { SidebarContext } from "./sidebarCategories";
 
 export default function SidebarView(props: { context: SidebarContext }) {
   const {
@@ -237,7 +237,8 @@ export default function SidebarView(props: { context: SidebarContext }) {
                     >
                       <div class="sidebar-section-header-btn flex-align-center text-muted text-sm">
                         <button
-                          aria-label={`Collapse ${cat.name}`}
+                          aria-expanded={!collapsed().has(cat.id)}
+                          aria-label={`${collapsed().has(cat.id) ? "Expand" : "Collapse"} ${cat.name}`}
                           class="sidebar-caret btn-reset"
                           onClick={() => toggleCategory(cat.id)}
                           type="button"

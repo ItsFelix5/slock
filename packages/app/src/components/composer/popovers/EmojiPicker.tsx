@@ -30,7 +30,7 @@ const BUTTON_SIZE = 32;
 const GRID_GAP = 2;
 const CHUNK_ROWS = 6;
 const CHUNK_SIZE = COLS * CHUNK_ROWS;
-const OVERSCAN_PX = 400;
+const OVERSCAN_PX = 120;
 
 type Block = { kind: "chunk"; entries: PickerEntry[] };
 
@@ -63,11 +63,18 @@ export default function EmojiPicker(props: {
   let rootRef: HTMLDivElement | undefined;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let bodyRef: HTMLDivElement | undefined;
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+  let searchInputRef: HTMLInputElement | undefined;
 
   useEscapeClose(props.onClose);
 
   onMount(() => {
     void loadCustomEmoji();
+    // The `autofocus` attribute fires as soon as we mount, but FloatingPanel
+    // renders us with visibility:hidden until it finishes positioning itself
+    // one animation frame later — a hidden element can't take focus, so
+    // autofocus silently no-ops. Wait a frame past that before focusing.
+    requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
     const onDocClick = (e: MouseEvent) => {
       if (rootRef && !rootRef.contains(e.target as Node)) props.onClose();
     };
@@ -140,14 +147,22 @@ export default function EmojiPicker(props: {
     return { bottomSpacer, list: laid.slice(start, end), topSpacer };
   });
 
+  // The picker is keyboard-first: search stays focused no matter what you
+  // click on (emoji buttons, "Try again", scrollbar…) so typing always
+  // filters, the way Slack's own picker behaves. Buttons normally steal
+  // focus on mousedown, so we swallow that everywhere except the input.
+  const keepSearchFocused = (e: MouseEvent) => {
+    if (e.target !== searchInputRef) e.preventDefault();
+  };
+
   return (
-    <div class="emoji-picker" ref={rootRef}>
+    <div class="emoji-picker" onMouseDown={keepSearchFocused} ref={rootRef}>
       <div class="emoji-picker-search">
         <input
-          autofocus
           class="search-input"
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Search emoji…"
+          ref={searchInputRef}
           type="text"
           value={query()}
         />

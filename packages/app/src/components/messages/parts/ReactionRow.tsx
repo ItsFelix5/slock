@@ -31,14 +31,14 @@ export default function ReactionRow(props: {
           });
           const ctxMenu = useContextMenu();
 
-          const copyReaction = async () => {
+          const copyReactors = async () => {
             ctxMenu.close();
             try {
-              await navigator.clipboard.writeText(`:${r.name}:`);
-              if (props.feedbackKey) actionFeedback.flash(props.feedbackKey, "Reaction copied.");
+              await navigator.clipboard.writeText(r.users.map((id) => `<@${id}>`).join(" "));
+              if (props.feedbackKey) actionFeedback.flash(props.feedbackKey, "Reactors copied.");
             } catch {
               if (props.feedbackKey)
-                actionFeedback.flash(props.feedbackKey, "Couldn’t copy the reaction.", "error");
+                actionFeedback.flash(props.feedbackKey, "Couldn’t copy the reactors.", "error");
             }
           };
 
@@ -70,9 +70,9 @@ export default function ReactionRow(props: {
                 x={ctxMenu.x()}
                 y={ctxMenu.y()}
               >
-                <button class="menu-item" onClick={copyReaction} type="button">
-                  <Icon name="copy" size={15} />
-                  Copy reaction
+                <button class="menu-item" onClick={copyReactors} type="button">
+                  <Icon name="user-groups" size={15} />
+                  Copy reactors
                 </button>
               </ContextMenu>
             </>

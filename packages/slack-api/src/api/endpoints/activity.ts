@@ -6,9 +6,12 @@ import { HIDE_SUBTYPES, mapMessage } from "../mappers";
 import { callSlack } from "../server";
 
 // Feed types worth surfacing, mapped to our ActivityItem kinds below. Slack
-// also emits app/workflow feed types (list_record_assigned, saved_reminder,
-// external_channel_invite, ...) with no equivalent in our model — left out of
-// the request entirely rather than fetched and silently dropped.
+// also emits other app/workflow feed types (list_record_assigned,
+// saved_reminder, external_channel_invite, ...) with no equivalent in our
+// model — left out of the request entirely rather than fetched and silently
+// dropped. Adding an invalid value to `types` isn't just ignored: it appears
+// to fail the whole request, so don't add one here without confirming the
+// exact wire string real Slack sends first.
 const ACTIVITY_FEED_TYPES = [
   "at_user",
   "at_user_group",
@@ -20,6 +23,21 @@ const ACTIVITY_FEED_TYPES = [
   "dm",
   "channel",
 ].join(",");
+
+// Reverse of activityKindFor, for callers (the Activity view's category
+// filter) that want to fetch just one kind's page instead of the whole feed.
+// Every value here is already a confirmed-working ACTIVITY_FEED_TYPES entry —
+// see the "fails closed" warning above before adding a new one.
+export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = {
+  channel_all: ["channel"],
+  channel_mention: ["at_channel", "at_everyone"],
+  dm: ["dm"],
+  keyword: ["keyword"],
+  mention: ["at_user"],
+  reaction: ["message_reaction"],
+  thread_reply: ["thread_v2"],
+  usergroup_mention: ["at_user_group"],
+};
 
 function activityKindFor(type: string): ActivityItem["kind"] | undefined {
   switch (type) {
@@ -172,6 +190,7 @@ export interface ActivityFeedPage {
 export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
+  types: string = ACTIVITY_FEED_TYPES,
 ): Promise<ActivityFeedPage> {
   const params: Record<string, string> = {
     archive_only: "false",
@@ -182,7 +201,7 @@ export async function fetchActivityFeedEntries(
     mode: "chrono_v1",
     only_salesforce_channels: "false",
     priority_only: "false",
-    types: ACTIVITY_FEED_TYPES,
+    types,
     unread_only: "false",
   };
   if (cursor) params.cursor = cursor;

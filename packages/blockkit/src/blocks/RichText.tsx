@@ -1,6 +1,7 @@
 import type {
   RichTextBlock as RichTextBlockType,
   RichTextInlineElement,
+  RichTextList as RichTextListType,
   RichTextSection,
   RichTextSubBlock,
 } from "@slock/slack-api";
@@ -83,73 +84,104 @@ function RichTextSectionView(props: { section: RichTextSection; trailing?: JSX.E
   );
 }
 
+function RichTextListView(props: { list: RichTextListType }) {
+  return (
+    <Show
+      fallback={
+        <ul class="bk-rt-list" style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}>
+          <For each={props.list.elements}>
+            {(item) => (
+              <li>
+                <RichTextInline elements={item.elements} />
+              </li>
+            )}
+          </For>
+        </ul>
+      }
+      when={props.list.style === "ordered"}
+    >
+      <ol class="bk-rt-list" style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}>
+        <For each={props.list.elements}>
+          {(item) => (
+            <li>
+              <RichTextInline elements={item.elements} />
+            </li>
+          )}
+        </For>
+      </ol>
+    </Show>
+  );
+}
+
+const SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
+  "rich_text_section",
+  "rich_text_list",
+  "rich_text_preformatted",
+  "rich_text_quote",
+]);
+
+function SubBlockView(props: { sub: RichTextSubBlock }) {
+  // biome-ignore lint/style/useDestructuring: Reading the Solid prop preserves its reactive getter.
+  const sub = props.sub;
+  switch (sub.type) {
+    case "rich_text_section":
+      return <RichTextSectionView section={sub} />;
+    case "rich_text_quote":
+      return (
+        <blockquote class="bk-quote">
+          <QuoteContent elements={sub.elements} />
+        </blockquote>
+      );
+    case "rich_text_preformatted":
+      return (
+        <pre class="bk-codeblock">
+          <RichTextInline elements={sub.elements} />
+        </pre>
+      );
+    case "rich_text_list":
+      return <RichTextListView list={sub} />;
+    default:
+      return null;
+  }
+}
+
+// A rich_text_quote's elements are usually plain inline content, but Slack
+// nests full sub-blocks (most commonly a rich_text_list) directly inside
+// when e.g. a bulleted list is created while the caret is inside a
+// blockquote. Split the mixed array into inline runs and nested sub-blocks
+// so neither silently disappears.
+function QuoteContent(props: { elements: (RichTextInlineElement | RichTextSubBlock)[] }) {
+  const nodes: JSX.Element[] = [];
+  let run: RichTextInlineElement[] = [];
+  const flushRun = () => {
+    if (run.length === 0) return;
+    nodes.push(<RichTextInline elements={run} />);
+    run = [];
+  };
+  for (const el of props.elements) {
+    if (SUB_BLOCK_TYPES.has(el.type as RichTextSubBlock["type"])) {
+      flushRun();
+      nodes.push(<SubBlockView sub={el as RichTextSubBlock} />);
+    } else {
+      run.push(el as RichTextInlineElement);
+    }
+  }
+  flushRun();
+  return <>{nodes}</>;
+}
+
 export default function RichText(props: { block: RichTextBlockType; trailing?: JSX.Element }) {
   return (
     <div class="bk-rich-text">
       <For each={props.block.elements}>
         {(sub: RichTextSubBlock, index) => {
-          switch (sub.type) {
-            case "rich_text_section":
-              return (
-                <RichTextSectionView
-                  section={sub}
-                  trailing={
-                    index() === props.block.elements.length - 1 ? props.trailing : undefined
-                  }
-                />
-              );
-            case "rich_text_quote":
-              return (
-                <blockquote class="bk-quote">
-                  <RichTextInline elements={sub.elements} />
-                </blockquote>
-              );
-            case "rich_text_preformatted":
-              return (
-                <pre class="bk-codeblock">
-                  <RichTextInline elements={sub.elements} />
-                </pre>
-              );
-            case "rich_text_list":
-              return (
-                <Show
-                  fallback={
-                    <ul
-                      class="bk-rt-list"
-                      style={{
-                        "padding-left": `${16 + (sub.indent ?? 0) * 20}px`,
-                      }}
-                    >
-                      <For each={sub.elements}>
-                        {(item) => (
-                          <li>
-                            <RichTextInline elements={item.elements} />
-                          </li>
-                        )}
-                      </For>
-                    </ul>
-                  }
-                  when={sub.style === "ordered"}
-                >
-                  <ol
-                    class="bk-rt-list"
-                    style={{
-                      "padding-left": `${16 + (sub.indent ?? 0) * 20}px`,
-                    }}
-                  >
-                    <For each={sub.elements}>
-                      {(item) => (
-                        <li>
-                          <RichTextInline elements={item.elements} />
-                        </li>
-                      )}
-                    </For>
-                  </ol>
-                </Show>
-              );
-            default:
-              return null;
-          }
+          const isLastSection =
+            sub.type === "rich_text_section" && index() === props.block.elements.length - 1;
+          return isLastSection ? (
+            <RichTextSectionView section={sub} trailing={props.trailing} />
+          ) : (
+            <SubBlockView sub={sub} />
+          );
         }}
       </For>
     </div>

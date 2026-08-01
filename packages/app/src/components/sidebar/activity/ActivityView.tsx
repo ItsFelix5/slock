@@ -1,4 +1,4 @@
-import { type ActivityItem, formatDay } from "@slock/slack-api";
+import { ACTIVITY_KIND_FEED_TYPES, type ActivityItem, formatDayFromMs } from "@slock/slack-api";
 import { Button, Icon, type IconName, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { store } from "../../../lib/store";
@@ -40,6 +40,16 @@ const READ_STATES: { key: ReadState; label: string }[] = [
 
 function latestItem(row: ActivityRowData) {
   return row.items[0];
+}
+
+// Scopes activity.feed's `types` param to the selected category so paging
+// through a narrow filter (e.g. just Reactions) doesn't have to wade through
+// pages of every other kind first. "app" is a client-only split of dm items
+// (bot senders), so it shares dm's wire type rather than having its own.
+function feedTypesForTag(tag: Tag | "all"): string | undefined {
+  if (tag === "all") return;
+  if (tag === "app") return ACTIVITY_KIND_FEED_TYPES.dm.join(",");
+  return ACTIVITY_KIND_FEED_TYPES[tag].join(",");
 }
 
 export default function ActivityView() {
@@ -100,10 +110,11 @@ export default function ActivityView() {
     const query = keyword().trim().toLowerCase();
     return rows().filter((row) => {
       if (tag !== "all") {
-        const matches = row.items.some((item) => {
-          if (item.kind === tag) return true;
-          return tag === "app" && !!store.users.userById(item.userId)?.isBot;
-        });
+        const matches = row.items.some((item) =>
+          tag === "app"
+            ? item.kind === "dm" && !!store.users.userById(item.userId)?.isBot
+            : item.kind === tag,
+        );
         if (!matches) return false;
       }
       return !query || row.items.some((item) => item.text.toLowerCase().includes(query));
@@ -129,11 +140,17 @@ export default function ActivityView() {
   // Feed entries stay day-grouped even while unread items further down keep
   // arriving from the gateway, so a divider is only ever inserted between two
   // rows that actually land on different calendar days.
+  //
+  // Grouped by `time` (when the activity happened / was recorded in the
+  // feed), not `ts` (the underlying message's own timestamp) — rows are
+  // sorted by `time` above, and a reaction on an old message keeps its
+  // message's original `ts` while `time` reflects today. Grouping by `ts`
+  // there would print a stale day divider out of order with its neighbors.
   const groupedVisibleRows = createMemo<ActivityListEntry[]>(() => {
     const entries: ActivityListEntry[] = [];
     let lastDay: string | undefined;
     for (const row of visibleRows()) {
-      const day = formatDay(latestItem(row).ts);
+      const day = formatDayFromMs(latestItem(row).time);
       if (day !== lastDay) {
         entries.push({ day, kind: "divider" });
         lastDay = day;
@@ -147,6 +164,8 @@ export default function ActivityView() {
     () => TAG_FILTERS.find((filter) => filter.key === selectedTag())?.label ?? "All activity",
   );
 
+  const activeFeedTypes = createMemo(() => feedTypesForTag(selectedTag()));
+
   let scrollRef: HTMLDivElement | undefined;
 
   function handleScroll() {
@@ -157,7 +176,7 @@ export default function ActivityView() {
         el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION
     )
       return;
-    void store.activity.loadMoreActivity();
+    void store.activity.loadMoreActivity(activeFeedTypes());
   }
 
   // A short result set (a narrow tag filter, a small workspace) can render
@@ -167,9 +186,10 @@ export default function ActivityView() {
     visibleRows();
     const el = scrollRef;
     if (!el || el.scrollHeight > el.clientHeight) return;
-    if (!(store.activity.activityLoaded() && store.activity.activityHasMore())) return;
+    const types = activeFeedTypes();
+    if (!(store.activity.activityLoaded() && store.activity.activityHasMore(types))) return;
     if (store.activity.activityLoading() || store.activity.activityLoadingMore()) return;
-    void store.activity.loadMoreActivity();
+    void store.activity.loadMoreActivity(types);
   });
 
   return (
@@ -330,7 +350,7 @@ export default function ActivityView() {
           <Show when={store.activity.activityLoadMoreError()}>
             <div class="activity-load-notice activity-load-warning" role="alert">
               <span>Couldn’t load more activity.</span>
-              <Button onClick={store.activity.loadMoreActivity} size="sm">
+              <Button onClick={() => store.activity.loadMoreActivity(activeFeedTypes())} size="sm">
                 Try again
               </Button>
             </div>

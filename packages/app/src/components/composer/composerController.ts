@@ -229,7 +229,7 @@ export function createComposerController(props: ComposerProps) {
     e.preventDefault();
     const pasted = e.clipboardData?.getData("text/plain") ?? "";
     if (pasted) {
-      editor.insertPlainTextAtCaret(pasted);
+      editor.insertPastedTextAtCaret(pasted);
       editor.linkifyAll();
       composerDrafts.cacheLocal();
     }

@@ -183,6 +183,31 @@ function appendToken(parent: Node, token: string) {
   }
   appendText(parent, `<${token}>`);
 }
+function appendTextWithBreaks(parent: Node, text: string) {
+  const lines = text.split("\n");
+  lines.forEach((line, i) => {
+    if (i > 0) parent.appendChild(document.createElement("br"));
+    appendText(parent, line);
+  });
+}
+const PASTE_TOKEN_RE = /<([^<>]*)>/g;
+// Pasted clipboard text isn't mrkdwn source (no bold/italic/code fences to
+// parse) but it can carry Slack's `<@id>`/`<#id|name>`/`<url|label>` token
+// syntax — e.g. copied from another Slack composer, or from a "copy as
+// mention" action elsewhere in the app — so those still resolve to real
+// chips instead of showing up as literal angle-bracket text.
+export function pasteTextToFragment(text: string): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  let lastIndex = 0;
+  for (const match of text.matchAll(PASTE_TOKEN_RE)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) appendTextWithBreaks(frag, text.slice(lastIndex, index));
+    appendToken(frag, match[1]);
+    lastIndex = index + match[0].length;
+  }
+  if (lastIndex < text.length) appendTextWithBreaks(frag, text.slice(lastIndex));
+  return frag;
+}
 function appendInline(parent: Node, text: string, dialect: InlineDialect) {
   let lastIndex = 0;
   const re = DIALECT_INLINE_RE.get(dialect) ?? buildInlineRegex(dialect);

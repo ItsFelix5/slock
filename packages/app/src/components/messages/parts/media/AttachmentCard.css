@@ -20,6 +20,7 @@
   font-size: 14px;
   color: var(--link-color);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .attachment-message-link:hover,
@@ -28,18 +29,32 @@
 }
 
 .attachment-message-unfurl {
-  display: flex;
-  gap: 10px;
-  max-width: min(560px, 100%);
+  position: relative;
+  max-width: min(520px, 100%);
+  padding-left: 12px;
   margin-top: 6px;
 }
 
-.attachment-message-avatar.message-avatar {
-  cursor: default;
+.attachment-message-unfurl::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  content: "";
+  background: var(--attachment-unfurl-color, var(--text-dim));
+  border-radius: 999px;
 }
 
-.attachment-message-body {
-  min-width: 0;
+.attachment-message-author {
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.attachment-message-author-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-3);
 }
 
 .attachment-author {
@@ -75,7 +90,7 @@
   white-space: pre-wrap;
 }
 
-.attachment-message-body .attachment-text {
+.attachment-message-unfurl .attachment-text {
   color: var(--text-primary);
 }
 
@@ -131,8 +146,23 @@
 }
 
 .attachment-channel-link {
+  gap: 3px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.attachment-message-footer {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.attachment-view-message-link {
   color: var(--link-color);
   text-decoration: none;
+}
+
+.attachment-view-message-link:hover {
+  text-decoration: underline;
 }
 
 .attachment-footer-icon {

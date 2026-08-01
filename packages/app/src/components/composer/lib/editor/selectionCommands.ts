@@ -3,7 +3,9 @@ import {
   type InlineDialect,
   MRKDWN_DIALECT,
   mrkdwnToFragment,
+  pasteTextToFragment,
   placeCaretAtEnd,
+  placeCaretInText,
 } from "../richtext";
 import { fragmentToMrkdwn } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
@@ -37,6 +39,19 @@ export function createSelectionCommands(
     if (!el) return;
     el.innerHTML = "";
     el.appendChild(mrkdwnToFragment(value, dialect, { allowBlockKit: opts.allowBlockKit ?? true }));
+  }
+
+  function insertPastedTextAtCaret(text: string) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const frag = pasteTextToFragment(text);
+    const caretAnchor = document.createTextNode("");
+    frag.appendChild(caretAnchor);
+    range.insertNode(frag);
+    placeCaretInText(caretAnchor, 0);
+    syncFromDom();
   }
 
   // Canvas content comes back as a real HTML document rather than the
@@ -96,6 +111,7 @@ export function createSelectionCommands(
     clearEditor,
     currentTextContext,
     focusEditor,
+    insertPastedTextAtCaret,
     loadDraftIntoEditor,
     loadHtmlIntoEditor,
     restoreSelection,

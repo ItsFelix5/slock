@@ -28,7 +28,7 @@ function DmSection(props: {
               <Icon name={props.open() ? "caret-down-filled" : "caret-right-filled"} size={10} />
             </span>
             <span>{props.label}</span>
-            <Show when={count() > 0}>
+            <Show when={count() > 0 && !props.open()}>
               <span class="sidebar-badge" title={`${count()} unread conversations`}>
                 {count()}
               </span>

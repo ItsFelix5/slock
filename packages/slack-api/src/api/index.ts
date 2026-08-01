@@ -10,7 +10,7 @@ export * from "./endpoints/drafts";
 export * from "./endpoints/messages";
 export * from "./endpoints/messages/threads";
 export * from "./endpoints/preferences";
-export { formatDay, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "./mappers";
+export { formatDay, formatDayFromMs, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "./mappers";
 export {
   getCachedWorkspaceDomain,
   getWorkspaceDomain,

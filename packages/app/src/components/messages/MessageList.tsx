@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: History loading, virtualized positioning, and their shared DOM measurements form one scroll state machine.
-import { Button, Icon, Skeleton } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { Button, Icon } from "@slock/ui";
+import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import {
   channelDisplayName,
   dmDisplayName,
@@ -13,52 +13,14 @@ import MessageRows from "./MessageRows";
 import { flashMessageWhenRendered, scrollToBottom } from "./scrollAnchor";
 import type { VirtualRowsApi } from "./VirtualizedRows";
 
-// Fraction of the viewport height used as the "near top" trigger zone for
-// backfilling older history. A fixed pixel threshold felt fine on a slow
-// scroll but got outrun by a fast flick/wheel scroll, so the load would only
-// start once the user was already at the very top — a visible pause. Scaling
-// with viewport height gives the fetch a head start proportional to how much
-// distance is left to cover before hitting bottom.
-const NEAR_TOP_VIEWPORT_FRACTION = 1.5;
-// A permalink/search jump owns a bounded island of history. Slack only gives
-// us a cursor toward older messages, so reaching the island's lower edge
-// returns to the live tail. Start that handoff shortly before the hard edge so
-// a fast wheel/flick does not leave the reader sitting against a dead end.
-const NEAR_BOTTOM_VIEWPORT_FRACTION = 0.75;
+// Keep two viewports of history buffered in the direction of travel.
+const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
 // Cap on the older-history pages we'll fetch automatically to reach a read
 // cursor that's further back than what's loaded — bounds how much a channel
 // nobody's opened in weeks will pull in on open, rather than backfilling
 // forever. If the cursor is still out of reach after this many pages, we
 // land on whatever's loaded instead of chasing it further.
-const MAX_BACKFILL_LOADS = 5;
-
-// Placeholder rows shown in place of real history until store.resources.bootstrap resolves —
-// varied text widths so it reads as "text loading", not a repeated block.
-const SKELETON_ROWS = [
-  { lines: [92, 70], name: 60 },
-  { lines: [55], name: 80 },
-  { lines: [80, 40, 60], name: 70 },
-];
-
-function MessageListSkeleton() {
-  return (
-    <div aria-hidden="true" class="message-list-skeleton">
-      <For each={SKELETON_ROWS}>
-        {(row) => (
-          <div class="message-row">
-            <Skeleton height={36} radius={6} width={36} />
-            <div class="message-body">
-              <Skeleton height={13} width={row.name} />
-              <div class="message-skeleton-lines flex-col">
-                <For each={row.lines}>{(pct) => <Skeleton height={13} width={`${pct}%`} />}</For>
-              </div>
-            </div>
-          </div>
-        )}
-      </For>
-    </div>
-  );
-}
+const MAX_BACKFILL_LOADS = 5;//TODO
 
 export default function MessageList() {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
@@ -277,7 +239,7 @@ export default function MessageList() {
     if (store.messages.isLoadingHistory(view.id)) return;
 
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distanceFromBottom <= el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION;
+    const nearBottom = distanceFromBottom <= el.clientHeight * NEAR_HISTORY_EDGE_VIEWPORT_FRACTION;
     if (
       direction === "newer" &&
       nearBottom &&
@@ -288,7 +250,7 @@ export default function MessageList() {
       return;
     }
 
-    const nearTop = el.scrollTop <= el.clientHeight * NEAR_TOP_VIEWPORT_FRACTION;
+    const nearTop = el.scrollTop <= el.clientHeight * NEAR_HISTORY_EDGE_VIEWPORT_FRACTION;
     if (
       direction !== "newer" &&
       nearTop &&
@@ -380,7 +342,7 @@ export default function MessageList() {
       onWheel={handleWheel}
       ref={scrollRef}
     >
-      <Show fallback={<MessageListSkeleton />} when={!store.resources.bootstrap.loading}>
+      <Show when={!store.resources.bootstrap.loading}>
         <Show when={store.viewState.activeView()}>
           {(v) => (
             <>
@@ -419,7 +381,8 @@ export default function MessageList() {
                   <Show
                     when={
                       store.messages.hasMoreHistory(v().id) &&
-                      store.messages.isLoadingHistory(v().id)
+                      store.messages.isLoadingHistory(v().id) &&
+                      followOnAppend() !== false
                     }
                   >
                     <div class="message-list-loading-older">Loading messages…</div>
@@ -454,6 +417,11 @@ export default function MessageList() {
                     <Button onClick={() => void loadNewerMessages(v().id)} size="sm">
                       Try again
                     </Button>
+                  </div>
+                </Show>
+                <Show when={followOnAppend() === false}>
+                  <div aria-live="polite" class="message-list-loading-older">
+                    Loading messages…
                   </div>
                 </Show>
                 <Show when={landingSpace()?.viewId === v().id}>

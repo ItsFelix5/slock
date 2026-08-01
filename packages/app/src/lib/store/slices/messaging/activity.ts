@@ -77,6 +77,20 @@ export function createActivitySlice(
   const [activityLoadingMore, setActivityLoadingMore] = createSignal(false);
   const [activityLoadMoreError, setActivityLoadMoreError] = createSignal(false);
   let activityFeedCursor: string | undefined;
+  // A category filter in the Activity view (e.g. just "Reactions") can pass
+  // its Slack `types` wire value to loadMoreActivity so pagination only pulls
+  // that kind's pages instead of the whole feed. That's a distinct paginated
+  // sequence from the default unfiltered one, so it gets its own cursor/more
+  // state, keyed by the `types` string used — never mixed with
+  // activityFeedCursor/activityHasMore above.
+  const scopedActivityFeedCursors = new Map<string, string | undefined>();
+  const [scopedActivityHasMore, setScopedActivityHasMore] = createStore<Record<string, boolean>>(
+    {},
+  );
+
+  function activityHasMoreFor(types?: string): boolean {
+    return types ? (scopedActivityHasMore[types] ?? true) : activityHasMore();
+  }
   const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean>>({});
   const [reactedActivityIds, setReactedActivityIds] = createStore<Record<string, boolean>>({});
   const activityReadSync = createActivityReadSync(deps.syncChannelRead);
@@ -269,17 +283,30 @@ export function createActivitySlice(
   // Walks one older page of the feed in via the cursor from the previous
   // page. Channel-post hydration only ever covers the current unread
   // window, so — unlike the initial load — older pages are feed entries only.
-  async function loadMoreActivity() {
-    if (!activityLoaded() || activityLoading() || activityLoadingMore() || !activityHasMore())
+  // `types` narrows the request to one category's Slack wire type(s) (see
+  // ACTIVITY_KIND_FEED_TYPES) — pass it when the Activity view has a category
+  // filter active so paging in a narrow filter doesn't have to wade through
+  // pages of other kinds just to find a few more matching rows.
+  async function loadMoreActivity(types?: string) {
+    if (
+      !activityLoaded() ||
+      activityLoading() ||
+      activityLoadingMore() ||
+      !activityHasMoreFor(types)
+    )
       return;
     const me = deps.currentUser();
     if (!me) return;
     setActivityLoadingMore(true);
     setActivityLoadMoreError(false);
     try {
-      const { entries, nextCursor } = await api.fetchActivityFeedEntries(50, activityFeedCursor);
-      activityFeedCursor = nextCursor;
-      setActivityHasMore(!!nextCursor && entries.length > 0);
+      const cursor = types ? scopedActivityFeedCursors.get(types) : activityFeedCursor;
+      const { entries, nextCursor } = await api.fetchActivityFeedEntries(50, cursor, types);
+      if (types) scopedActivityFeedCursors.set(types, nextCursor);
+      else activityFeedCursor = nextCursor;
+      const hasMore = !!nextCursor && entries.length > 0;
+      if (types) setScopedActivityHasMore(types, hasMore);
+      else setActivityHasMore(hasMore);
       const seen = new Set(activityItems.map((i) => i.id));
       const seenChannelPosts = new Set(
         activityItems
@@ -436,7 +463,7 @@ export function createActivitySlice(
   }
 
   return {
-    activityHasMore,
+    activityHasMore: activityHasMoreFor,
     activityItems,
     activityLoaded,
     activityLoading,

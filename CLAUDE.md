@@ -9,6 +9,6 @@ Important rules:
 - Never touch git 
 - Very few things should be locally stored. Almost everything can go through slack servers.
 - The application server is multi-tenant and shouldn't store anything
-- Prefer adding debugs or ASKING instead of doing stupid shit, never guess on what request to use.
+- Prefer adding debugs or ASKING instead of doing stupid shit or guessing data based on nothing.
 - Common sense
 - Stop writing tests

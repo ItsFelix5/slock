@@ -1,7 +1,7 @@
 import { logDeletedMessages, messageSize } from "@slock/ui";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { ScrollToOptions } from "@tanstack/virtual-core";
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
 import MessageRow from "./MessageRow";
 import type { MessageRowsProps } from "./MessageRows";
@@ -33,19 +33,21 @@ export default function VirtualizedRows(props: MessageRowsProps) {
     onCleanup(() => ro.disconnect());
   });
 
+  const estimateRowSize = (index: number) =>
+    estimateMessageHeight(props.messages[index], props.messages[index - 1], width(), {
+      channelId: props.channelId,
+      hasFeedback: !!actionFeedback.get(props.messages[index]?.ts ?? ""),
+      hasOpenThread: !!props.onOpenThread,
+      isPinned: store.pinned.isMessagePinned(props.channelId, props.messages[index]?.ts ?? ""),
+      messageSize: messageSize(),
+      messages: props.messages,
+      showDeleted: logDeletedMessages(),
+      threadTs: props.threadTs,
+      unreadDividerTs: store.unread.unreadDividerTsForChannel(props.channelId),
+    });
+
   const virtualizer = createVirtualizer({
-    estimateSize: (index) =>
-      estimateMessageHeight(props.messages[index], props.messages[index - 1], width(), {
-        channelId: props.channelId,
-        hasFeedback: !!actionFeedback.get(props.messages[index]?.ts ?? ""),
-        hasOpenThread: !!props.onOpenThread,
-        isPinned: store.pinned.isMessagePinned(props.channelId, props.messages[index]?.ts ?? ""),
-        messageSize: messageSize(),
-        messages: props.messages,
-        showDeleted: logDeletedMessages(),
-        threadTs: props.threadTs,
-        unreadDividerTs: store.unread.unreadDividerTsForChannel(props.channelId),
-      }),
+    estimateSize: estimateRowSize,
     getItemKey: (index) => props.messages[index]?.ts ?? index,
     getScrollElement: () => props.scrollContainer?.() ?? null,
     overscan: 8,
@@ -75,6 +77,34 @@ export default function VirtualizedRows(props: MessageRowsProps) {
     get count() {
       return props.messages.length;
     },
+  });
+
+  let reactionLayouts = new Map<string, string>();
+  createEffect(() => {
+    const nextLayouts = new Map<string, string>();
+    for (const message of props.messages) {
+      const layout = (message.reactions ?? [])
+        .map((reaction) => {
+          const visibleAvatars = reaction.users
+            .slice(0, 3)
+            .filter((id) => store.users.userById(id) !== undefined).length;
+          return `${reaction.name}:${reaction.count}:${reaction.users.join(",")}:${visibleAvatars}`;
+        })
+        .join("|");
+      nextLayouts.set(message.ts, layout);
+
+      const previous = reactionLayouts.get(message.ts);
+      if (previous === undefined || previous === layout) continue;
+
+      queueMicrotask(() => {
+        const index = props.messages.findIndex((candidate) => candidate.ts === message.ts);
+        if (index < 0) return;
+        const key = virtualizer.options.getItemKey(index);
+        const element = virtualizer.elementsCache.get(key) as HTMLElement | undefined;
+        virtualizer.resizeItem(index, element?.offsetHeight ?? estimateRowSize(index));
+      });
+    }
+    reactionLayouts = nextLayouts;
   });
 
   props.onApi?.({

@@ -334,7 +334,18 @@ export default function MessageRow(props: MessageRowProps) {
               {(files) => <MessageFiles files={files()} />}
             </Show>
             <Show when={visibleAttachments()?.length}>
-              <For each={visibleAttachments()}>{(a) => <AttachmentCard attachment={a} />}</For>
+              <For each={visibleAttachments()}>
+                {(a) => (
+                  <AttachmentCard
+                    attachment={a}
+                    showPermalink={
+                      !!a.fromUrl &&
+                      !msg().text.includes(a.fromUrl) &&
+                      !a.pretext?.includes(a.fromUrl)
+                    }
+                  />
+                )}
+              </For>
             </Show>
             <Show when={msg().reactions?.length ? msg().reactions : undefined}>
               {(reactions) => (
