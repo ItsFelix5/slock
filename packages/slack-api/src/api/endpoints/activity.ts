@@ -7,11 +7,12 @@ import { callSlack } from "../server";
 
 // Feed types worth surfacing, mapped to our ActivityItem kinds below. Slack
 // also emits other app/workflow feed types (list_record_assigned,
-// saved_reminder, external_channel_invite, ...) with no equivalent in our
-// model — left out of the request entirely rather than fetched and silently
-// dropped. Adding an invalid value to `types` isn't just ignored: it appears
-// to fail the whole request, so don't add one here without confirming the
-// exact wire string real Slack sends first.
+// quietly_added_to_channel, unjoined_channel_mention, bot_dm_bundle, ...) with
+// no equivalent in our model — left out of the request entirely rather than
+// fetched and silently dropped. Adding an invalid value to `types` isn't just
+// ignored: it appears to fail the whole request, so don't add one here
+// without confirming the exact wire string real Slack sends first (these were
+// confirmed from a captured real activity.feed request body).
 const ACTIVITY_FEED_TYPES = [
   "at_user",
   "at_user_group",
@@ -22,6 +23,10 @@ const ACTIVITY_FEED_TYPES = [
   "message_reaction",
   "dm",
   "channel",
+  "saved_reminder",
+  "internal_channel_invite",
+  "external_channel_invite",
+  "external_dm_invite",
 ].join(",");
 
 // Reverse of activityKindFor, for callers (the Activity view's category
@@ -30,11 +35,13 @@ const ACTIVITY_FEED_TYPES = [
 // see the "fails closed" warning above before adding a new one.
 export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = {
   channel_all: ["channel"],
+  channel_invite: ["internal_channel_invite", "external_channel_invite", "external_dm_invite"],
   channel_mention: ["at_channel", "at_everyone"],
   dm: ["dm"],
   keyword: ["keyword"],
   mention: ["at_user"],
   reaction: ["message_reaction"],
+  reminder: ["saved_reminder"],
   thread_reply: ["thread_v2"],
   usergroup_mention: ["at_user_group"],
 };
@@ -58,6 +65,12 @@ function activityKindFor(type: string): ActivityItem["kind"] | undefined {
       return "channel_all";
     case "message_reaction":
       return "reaction";
+    case "saved_reminder":
+      return "reminder";
+    case "internal_channel_invite":
+    case "external_channel_invite":
+    case "external_dm_invite":
+      return "channel_invite";
     default:
       return;
   }
@@ -134,7 +147,8 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     channelEntry?.latest_message ??
     channelEntry?.message ??
     channelEntry;
-  const sparseChannelId = raw.item.type === "channel" ? channelIdFromFeedKey(raw.key) : undefined;
+  const isSparseType = raw.item.type === "channel" || kind === "channel_invite";
+  const sparseChannelId = isSparseType ? channelIdFromFeedKey(raw.key) : undefined;
   const channelId =
     message?.channel ??
     channelEntry?.channel_id ??
@@ -147,7 +161,15 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     raw.item.message_ts ??
     raw.item.ts ??
     (sparseChannelId ? raw.feed_ts : undefined);
-  if (!(channelId && ts)) return;
+  if (!(channelId && ts)) {
+    // saved_reminder/*_invite were only just added to ACTIVITY_FEED_TYPES —
+    // their response shape isn't confirmed yet (only the request `types`
+    // strings are), so log instead of guessing further field names.
+    if (kind === "reminder" || kind === "channel_invite") {
+      console.debug(`[activity.feed] unmapped ${raw.item.type} entry`, JSON.stringify(raw));
+    }
+    return;
+  }
   return {
     broadcastRange:
       raw.item.type === "at_everyone"
@@ -191,6 +213,7 @@ export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
   types: string = ACTIVITY_FEED_TYPES,
+  unreadOnly = false,
 ): Promise<ActivityFeedPage> {
   const params: Record<string, string> = {
     archive_only: "false",
@@ -202,7 +225,7 @@ export async function fetchActivityFeedEntries(
     only_salesforce_channels: "false",
     priority_only: "false",
     types,
-    unread_only: "false",
+    unread_only: String(unreadOnly),
   };
   if (cursor) params.cursor = cursor;
   const data = await callSlack("activity.feed", params);

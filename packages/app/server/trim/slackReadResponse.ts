@@ -18,6 +18,7 @@ export function trimChannel(channel: any): any {
     is_private: channel.is_private,
     last_read: channel.last_read,
     latest: channel.latest,
+    members: Array.isArray(channel.members) ? channel.members : undefined,
     member_count: channel.member_count,
     name: channel.name,
     num_members: channel.num_members,
@@ -72,6 +73,7 @@ function trimUserBoot(data: any): any {
     id: group?.id,
     is_open: group?.is_open,
     members: group?.members,
+    name: group?.name,
     updated: group?.updated,
   });
   return {

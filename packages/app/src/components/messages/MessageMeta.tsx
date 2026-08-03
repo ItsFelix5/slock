@@ -17,7 +17,7 @@ export default function MessageMeta(props: {
   return (
     <div class="message-meta">
       <Show
-        fallback={<MessageAuthorButton disabled name={props.displayName()} onClick={() => {}} />}
+        fallback={<MessageAuthorButton disabled name={props.displayName()} onClick={() => { }} />}
         when={props.userId}
       >
         {(userId) => (
@@ -55,7 +55,7 @@ export default function MessageMeta(props: {
           Only visible to you
         </span>
       </Show>
-      <Show when={msg.isSaved}>
+      <Show when={props.message.isSaved}>
         <span class="message-saved-badge">
           <Icon name="bookmark-filled" size={11} />
           Saved

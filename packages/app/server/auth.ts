@@ -71,7 +71,7 @@ export function encodeCredsCookie(creds: Credentials, secure: boolean): string {
 }
 // `route` is "T..." on a plain workspace, "E...:T..." on Enterprise Grid —
 // the team id is always its last segment.
-function teamIdFromRoute(route: string): string | null {
+export function teamIdFromRoute(route: string): string | null {
   return route.split(":").at(-1) ?? null;
 }
 function encodeInfoCookie(creds: Credentials, secure: boolean): string {

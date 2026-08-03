@@ -84,3 +84,20 @@ button {
   min-width: 0;
   background: var(--main-bg);
 }
+
+/* Applied (see panelWantsFullscreen) once a resizable side panel (thread,
+   profile, usergroup details) would squeeze the message list down to an
+   unreadable sliver — the panel takes over the whole viewport instead. */
+.thread-panel.panel-fullscreen,
+.user-profile-panel.panel-fullscreen,
+.usergroup-details-panel.panel-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  width: 100% !important;
+  border-left: none;
+}
+
+.panel-fullscreen .resize-handle {
+  display: none;
+}

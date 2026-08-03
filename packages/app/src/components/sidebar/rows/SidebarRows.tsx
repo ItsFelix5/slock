@@ -35,7 +35,7 @@ export function DmRow(props: { dm: DirectMessage }) {
           onClick={() => store.viewState.setActiveView({ id: props.dm.id, kind: "dm" })}
           type="button"
         >
-          <Show fallback={<AvatarStack size="small" users={members()} />} when={user()}>
+          <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>
             {(u) => <Avatar showPresence size="small" user={u()} />}
           </Show>
           <span class="sidebar-row-name truncate">{name()}</span>

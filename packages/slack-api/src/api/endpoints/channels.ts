@@ -133,6 +133,16 @@ export async function createSharedChannelCanvas(
   invalidateConversationView(channelId);
   return { fileId: created.canvas_id, title };
 }
+// Bootstrap only seeds lastReadByChannel for conversations client.counts
+// happens to include. An old/closed DM the Activity feed still surfaces
+// history for can be absent from that response, leaving no cursor to compare
+// against — this is the on-demand fallback for that gap, mirroring the same
+// last_read field bootstrap.ts reads from client.counts.
+export async function fetchChannelLastRead(channelId: string): Promise<number> {
+  const data = await callSlack("conversations.info", { channel: channelId });
+  if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
+  return (parseFloat(data.channel?.last_read ?? "") || 0) * 1000;
+}
 export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
   const data = await callSlack("conversations.info", {
     channel: channelId,

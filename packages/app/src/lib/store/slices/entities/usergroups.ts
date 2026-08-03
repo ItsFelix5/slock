@@ -55,7 +55,7 @@ export function createUsergroupsSlice(deps: { selfUsergroupIds: () => string[] }
               channelIds: details.channelIds,
               id: details.id,
               name: details.title,
-              sidebar: "all",
+              sidebar: "hid",
               type: "usergroup",
             }
           : null,

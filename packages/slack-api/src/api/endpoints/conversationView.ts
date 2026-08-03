@@ -60,14 +60,20 @@ async function loadConversationView(channelId: string): Promise<ConversationView
   if (!data.ok) throw new Error(data.error ?? "conversations.view failed");
   const rawMessages: any[] = data.history?.messages ?? [];
   const rawUsers: any[] = data.users ?? [];
-  const canvases = mapCanvasTabs(data.channel);
+  // DMs have no topic/purpose/canvas, so conversations.view omits `channel`
+  // entirely for them — only channels/groups get one back.
+  const canvases = data.channel ? mapCanvasTabs(data.channel) : [];
   return {
     canvases,
-    channel: {
-      ...mapChannel(data.channel),
-      canvas: canvases[0] ? { fileId: canvases[0].fileId, isEmpty: false } : undefined,
-    },
-    details: mapChannelDetails(data.channel),
+    channel: data.channel
+      ? {
+          ...mapChannel(data.channel),
+          canvas: canvases[0] ? { fileId: canvases[0].fileId, isEmpty: false } : undefined,
+        }
+      : { id: channelId, name: channelId, private: true, topic: "", unread: false },
+    details: data.channel
+      ? mapChannelDetails(data.channel)
+      : { created: 0, id: channelId, name: channelId, private: true, purpose: "", topic: "" },
     hasMore: !!data.history?.has_more,
     messages: rawMessages
       .filter((message) => message.type === "message" && !HIDE_SUBTYPES.has(message.subtype))

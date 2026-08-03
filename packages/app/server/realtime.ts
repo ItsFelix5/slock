@@ -2,7 +2,7 @@
 
 import { callSlack } from "./api.js";
 import { rewriteSlackAssetUrls } from "./assets.js";
-import { type Credentials, slackCookieHeader } from "./auth.js";
+import { type Credentials, slackCookieHeader, teamIdFromRoute } from "./auth.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };
@@ -87,7 +87,7 @@ function stopFallbackPolling(state: ConnectionState) {
 
 function buildGatewayUrl(current: Credentials) {
   const [enterpriseId] = current.route.split(":");
-  const gatewayTeamId = `T${enterpriseId.slice(1)}`;
+  const gatewayTeamId = teamIdFromRoute(current.route) ?? enterpriseId;
   const shard = 1 + Math.floor(Math.random() * 3);
   const params = new URLSearchParams({
     batch_presence_aware: "1",

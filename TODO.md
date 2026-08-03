@@ -1,11 +1,8 @@
 - scroll jank
-- responses don't seem to render correctly always <like|link text> iirc
 - channel section filtering actually saving
 - Implement invitations and reminders in activity
-- Remove send message button
 - Composer block quote deletion per line should act like a character
 - You should be able to select and copy and paste composer text like you should
-- Unsaving doesn't remove "Saved" indicator next to username
 - Response/reply links staying on message mentions
 {
               "type": "message_mention",
@@ -34,10 +31,10 @@
 - I actively see a ping in a channel and a dm from Slack in my message list but its not in activity
 - Initial scroll sometimes only just shows like one message and blank space under it
 - Failed to sync channel read cursor Error: channel_not_found?
-- add a copy button like with reactions to the members tab of a channel
 - Fix Channels and usergroup sections just being expanded by default while the rest isn't
 - Message compactness slider is dogshit
 - Fix whatever is going on with canvases, this isn't serious
-- Opening the emoji picker doesn't focus search
-- Fix jumpyness in search
+- Opening the emoji picker doesn't focus searchm 
 - Improve speed (especially network is blocking, reduce on that)
+- skip long threads in activity
+- search mpdm

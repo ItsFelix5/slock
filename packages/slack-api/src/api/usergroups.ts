@@ -61,7 +61,7 @@ export async function fetchUsergroupChannelSection(id: string): Promise<ChannelS
     channelIds: details.channelIds,
     id: details.id,
     name: details.title,
-    sidebar: "all",
+    sidebar: "hid",
     type: "usergroup",
   };
 }

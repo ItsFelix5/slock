@@ -32,7 +32,10 @@ export type { FuzzyMatch, FuzzySearchOptions } from "./fuzzy";
 export { fuzzyMatch, fuzzySearch } from "./fuzzy";
 export type { PanelHeaderProps } from "./layout/PanelHeader";
 export { default as PanelHeader } from "./layout/PanelHeader";
+export { panelWantsFullscreen } from "./layout/panelWidth";
 export { default as ResizeHandle } from "./layout/ResizeHandle";
+export type { ConstrainedImageProps } from "./media/ConstrainedImage";
+export { default as ConstrainedImage } from "./media/ConstrainedImage";
 export type { IconName } from "./media/Icon";
 export { default as Icon, ICON_NAMES } from "./media/Icon";
 export type { VideoPlayerProps } from "./media/VideoPlayer";
@@ -68,8 +71,8 @@ export {
   activePreset,
   applyPreset,
   DEFAULT_FONT,
-  type FontPreset,
   FONT_PRESETS,
+  type FontPreset,
   getEffectiveColor,
   logDeletedMessages,
   type MessageSize,

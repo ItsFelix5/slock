@@ -1,6 +1,6 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
-import { Icon, type IconName, VideoPlayer, ZoomableImage } from "@slock/ui";
+import { ConstrainedImage, Icon, type IconName, VideoPlayer } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
 import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
@@ -54,9 +54,9 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
             <Match when={file.isImage ? file.thumbUrl : undefined}>
               {(thumb) => {
                 const dimensions = () =>
-                  constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180);
+                  constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180, true);
                 return (
-                  <ZoomableImage
+                  <ConstrainedImage
                     alt={file.title || file.name}
                     blurSrc={
                       file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined
@@ -64,8 +64,6 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                     class="message-file-image"
                     fullSrc={resolveMediaUrl(file.urlPrivate)}
                     height={dimensions().height}
-                    reservedHeight={dimensions().height}
-                    reservedWidth={dimensions().width}
                     src={thumb()}
                     width={dimensions().width}
                   />

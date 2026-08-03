@@ -25,6 +25,7 @@ export interface MessageRenderState {
   hasEnlargedEmojiOnlyText: boolean;
   messageText: string;
   replyRef: ReturnType<typeof parseReplyLink>;
+  repliesDividerDay: string | undefined;
   sameAuthorAsPrev: boolean;
   showMessage: boolean;
   showRepliesDivider: boolean;
@@ -95,7 +96,19 @@ export function resolveMessageRenderState(
   context: MessageRenderContext,
 ): MessageRenderState {
   const isThreadRoot = !!context.threadTs && message.ts === context.threadTs;
-  const dayChanged = isThreadRoot ? message.day !== "Today" : !prev || prev.day !== message.day;
+  // The reply immediately after the root gets its date folded into the
+  // "N replies" divider below instead of getting its own day-divider right
+  // underneath it — otherwise a thread whose root is from a previous day
+  // but whose only reply came in today shows two divider bars back-to-back.
+  const isFirstReply = !!context.threadTs && !!prev && prev.ts === context.threadTs;
+  const dayChangedRaw = isThreadRoot ? message.day !== "Today" : !prev || prev.day !== message.day;
+  const dayChanged = isFirstReply ? false : dayChangedRaw;
+  const showRepliesDivider = isThreadRoot && !prev && (message.replyCount ?? 0) > 0;
+  const firstReply = showRepliesDivider
+    ? context.messages[context.messages.findIndex((candidate) => candidate.ts === message.ts) + 1]
+    : undefined;
+  const repliesDividerDay =
+    firstReply && firstReply.day !== message.day ? firstReply.day : undefined;
   const showUnreadDivider =
     !context.threadTs &&
     context.unreadDividerTs != null &&
@@ -112,7 +125,7 @@ export function resolveMessageRenderState(
     prev.userId === message.userId &&
     prev.botName === message.botName &&
     prev.botIcon === message.botIcon &&
-    !dayChanged &&
+    !dayChangedRaw &&
     prev.kind === message.kind &&
     !context.isPinned &&
     !replyRef &&
@@ -128,9 +141,10 @@ export function resolveMessageRenderState(
         })(),
     messageText,
     replyRef,
+    repliesDividerDay,
     sameAuthorAsPrev,
     showMessage: !message.deleted || context.showDeleted,
-    showRepliesDivider: !!context.threadTs && !prev && (message.replyCount ?? 0) > 0,
+    showRepliesDivider,
     showThreadContext,
     showUnreadDivider,
     visibleAttachments: message.attachments?.filter(

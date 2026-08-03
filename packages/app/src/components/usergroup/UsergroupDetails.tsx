@@ -1,6 +1,14 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to the save operation.
-import { Button, InlineFeedback, PanelHeader, ResizeHandle, useEscapeClose } from "@slock/ui";
+import {
+  Button,
+  InlineFeedback,
+  PanelHeader,
+  panelWantsFullscreen,
+  ResizeHandle,
+  useEscapeClose,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { sidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import {
   closeUsergroupDetails,
@@ -34,6 +42,7 @@ const blurOnEnter = (event: KeyboardEvent) => {
 
 export default function UsergroupDetails() {
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
+  const isFullscreen = createMemo(() => panelWantsFullscreen(sidebarWidth(), width()));
   const [tab, setTab] = createSignal<Tab>("about");
   const [nameInput, setNameInput] = createSignal("");
   const [handleInput, setHandleInput] = createSignal("");
@@ -82,7 +91,11 @@ export default function UsergroupDetails() {
   return (
     <Show when={usergroupDetailsId()}>
       {(id) => (
-        <div class="usergroup-details-panel" style={{ width: `${width()}px` }}>
+        <div
+          class="usergroup-details-panel"
+          classList={{ "panel-fullscreen": isFullscreen() }}
+          style={{ width: `${width()}px` }}
+        >
           <ResizeHandle
             direction={-1}
             label="Resize pinggroup panel"

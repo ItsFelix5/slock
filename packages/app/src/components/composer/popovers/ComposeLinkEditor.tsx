@@ -8,8 +8,10 @@ export default function ComposeLinkEditor(props: {
   url: string;
   currentLabel?: string;
   onClose: () => void;
+  onSync: () => void;
 }) {
   const [label, setLabel] = createSignal(props.currentLabel ?? "");
+  let currentEl = props.linkEl;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
@@ -24,13 +26,15 @@ export default function ComposeLinkEditor(props: {
   const save = () => {
     const text = label().trim();
     if (text) {
-      replaceLinkElement(props.linkEl, props.url, text);
+      currentEl = replaceLinkElement(currentEl, props.url, text);
+      props.onSync();
     }
   };
 
   const unlink = () => {
-    const text = unlinkElement(props.linkEl);
+    const text = unlinkElement(currentEl);
     placeCaretInText(text, text.length);
+    props.onSync();
     props.onClose();
   };
 
@@ -43,9 +47,13 @@ export default function ComposeLinkEditor(props: {
       role="dialog"
       tabIndex={-1}
     >
+      <label class="compose-link-label" for="compose-link-input">
+        Text to display
+      </label>
       <input
         autofocus
         class="compose-link-input input-reset"
+        id="compose-link-input"
         onInput={(e) => {
           setLabel(e.currentTarget.value);
           save();
@@ -56,13 +64,16 @@ export default function ComposeLinkEditor(props: {
             props.onClose();
           }
         }}
-        placeholder="Display text (optional)"
+        placeholder={props.url}
         ref={inputRef}
         type="text"
         value={label()}
       />
-      <div class="compose-link-buttons">
-        <Button onClick={unlink} size="sm" type="button" variant="secondary">
+      <div class="compose-link-footer">
+        <span class="compose-link-url" title={props.url}>
+          {props.url}
+        </span>
+        <Button onClick={unlink} size="sm" type="button" variant="ghost">
           Unlink
         </Button>
       </div>

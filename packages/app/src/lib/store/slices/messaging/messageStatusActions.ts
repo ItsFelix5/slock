@@ -45,6 +45,29 @@ export function createMessageStatusActions(deps: {
       );
     }
   }
+  // One-way, unlike toggleThreadSubscribed: callers that only know a thread's
+  // ts from the activity feed (e.g. a thread_reply row) never have its root
+  // message loaded, so isThreadSubscribed would read as false and a toggle
+  // would subscribe instead of unsubscribe.
+  async function unsubscribeFromThread(channelId: string, ts: string) {
+    const pendingKey = subscriptionPendingKey(channelId, ts);
+    if (threadSubscriptionPending[pendingKey]) return;
+    setThreadSubscriptionPending(pendingKey, true);
+    patchMessage(channelId, ts, { isSubscribed: false });
+    try {
+      await toggleThreadSubscription(channelId, ts, true);
+    } catch (err) {
+      console.error("Failed to unsubscribe from thread", err);
+      actionFeedback.flash(ts, "Failed to unsubscribe from thread.", "error");
+      patchMessage(channelId, ts, { isSubscribed: true });
+    } finally {
+      setThreadSubscriptionPending(
+        produce((pending) => {
+          delete pending[pendingKey];
+        }),
+      );
+    }
+  }
   async function markCurrentChannelRead(channelId: string): Promise<boolean> {
     const list = messagesByChannel[channelId];
     const latest = list?.[list.length - 1]?.ts ?? (Date.now() / 1000).toFixed(6);
@@ -74,5 +97,6 @@ export function createMessageStatusActions(deps: {
     markCurrentChannelRead,
     markMessageUnread,
     toggleThreadSubscribed,
+    unsubscribeFromThread,
   };
 }

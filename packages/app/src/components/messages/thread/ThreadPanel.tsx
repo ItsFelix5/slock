@@ -1,6 +1,15 @@
 import type { Message } from "@slock/slack-api";
-import { Button, Icon, PanelHeader, ResizeHandle, Tooltip, TypingIndicator } from "@slock/ui";
+import {
+  Button,
+  Icon,
+  PanelHeader,
+  panelWantsFullscreen,
+  ResizeHandle,
+  Tooltip,
+  TypingIndicator,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { sidebarWidth } from "../../../lib/sidebarWidth";
 import { actionFeedback, conversationDisplayName, store } from "../../../lib/store";
 import Composer from "../../composer/Composer";
 import MessageRows from "../MessageRows";
@@ -21,6 +30,7 @@ const MAX_WIDTH = 640;
 export default function ThreadPanel() {
   const thread = store.viewState.activeThread;
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
+  const isFullscreen = createMemo(() => panelWantsFullscreen(sidebarWidth(), width()));
   const [replyTarget, setReplyTarget] = createSignal<{ ts: string; permalink: string } | null>(
     null,
   );
@@ -165,7 +175,11 @@ export default function ThreadPanel() {
   return (
     <Show when={thread()}>
       {(t) => (
-        <div class="thread-panel" style={{ width: `${width()}px` }}>
+        <div
+          class="thread-panel"
+          classList={{ "panel-fullscreen": isFullscreen() }}
+          style={{ width: `${width()}px` }}
+        >
           <ResizeHandle
             direction={-1}
             label="Resize thread panel"

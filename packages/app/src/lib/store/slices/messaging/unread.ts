@@ -97,7 +97,7 @@ export function createUnreadSlice(deps: {
   }>({
     key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
     onError: (cursor, error) => {
-      console.error("Failed to sync thread read cursor", error);
+      console.error("Failed to sync thread read cursor", cursor, error);
       actionFeedback.flash(cursor.threadTs, "Couldn’t sync thread read state.", "error");
     },
     version: (cursor) => parseFloat(cursor.ts),
@@ -230,6 +230,11 @@ export function createUnreadSlice(deps: {
       const thread = readDeps.activeThread();
       if (!thread) return;
       const list = readDeps.threadMessages[thread.ts];
+      // Only followed threads have Slack-side subscription read state. Calling
+      // subscriptions.thread.mark for an unfollowed thread has no cursor to
+      // advance and Slack answers with message_not_found.
+      const root = list?.find((m) => m.ts === thread.ts);
+      if (!root?.isSubscribed) return;
       // A deleted reply stays in the list as a tombstone (msg.deleted) rather
       // than being removed, but no longer exists on Slack's side — marking it
       // read 404s with message_not_found, permanently, since it can't ever be

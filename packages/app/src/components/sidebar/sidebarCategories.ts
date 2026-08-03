@@ -175,7 +175,7 @@ export function buildCategories(
         sidebar,
       });
   };
-  const pushChannels = (id: string, reorderable: boolean, sidebar: Category["sidebar"] = "all") => {
+  const pushChannels = (id: string, reorderable: boolean, sidebar: Category["sidebar"] = "hid") => {
     if (restChannels.length === 0) return;
     const list = restChannels.filter((channel) => matches(channel, id, sidebar));
     if (list.length > 0 || !unreadsOnly())
@@ -198,7 +198,11 @@ export function buildCategories(
     if (s.type === "stars") {
       pushStarred(s.id, true, s.sidebar);
     } else if (s.type === "channels") {
-      pushChannels(s.id, true, s.sidebar);
+      // This pseudo-section has no menu to set its own filter (filterable is
+      // false below), so whatever stale/default value Slack's wire happens to
+      // carry for it is never something the user actually chose — always
+      // default to unread-only instead of trusting it.
+      pushChannels(s.id, true);
     } else if (s.type === "standard" || s.type === "usergroup") {
       const sectionChannels = sectionChannelsById.get(s.id) ?? [];
       if (s.type === "usergroup" && sectionChannels.length === 0) continue;

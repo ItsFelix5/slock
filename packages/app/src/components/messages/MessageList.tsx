@@ -36,6 +36,11 @@ export default function MessageList() {
   // are on screen to land on.
   let positionedViewId: string | undefined;
   let positioningEpoch = 0;
+  // Set only while landing on an unread divider (anchorTo "start" doesn't
+  // self-correct for growth the way "end" does — see the reactive re-land
+  // effect below). Cleared once the user scrolls or a new view is landed on.
+  let landingTarget: { epoch: number; viewId: string; index: number } | undefined;
+  let revealTimer: ReturnType<typeof setTimeout> | undefined;
   let requestedMessageTarget: ReturnType<typeof store.viewState.channelMessageTarget> = null;
   let cancelPendingFlash: (() => void) | undefined;
   // Older-page fetches spent per view trying to backfill far enough to reach
@@ -122,6 +127,43 @@ export default function MessageList() {
     return dmDisplayName(store.dms.dmById(v.id), store.users.userById);
   });
 
+  // Re-lands on the unread divider and reveals the view once the virtualizer's
+  // measured total size has gone quiet — called once up front and then again
+  // every time `totalSize` changes. Rows measure in one at a time as they
+  // mount (each with its own real height replacing its estimate), and
+  // re-anchoring on every single one of those ticks was fighting that
+  // process: interrupting a `scrollToIndex` mid-flight changed which rows the
+  // virtualizer considered "in range" to measure next, so only one row a
+  // frame ever finished — the rest sat stuck at their pre-measurement offset.
+  // Debouncing lets the whole batch settle first and corrects position once.
+  function scheduleReveal(viewId: string, epoch: number, index: number) {
+    clearTimeout(revealTimer);
+    revealTimer = setTimeout(() => {
+      if (epoch !== positioningEpoch || positionedViewId !== viewId) return;
+      const api = virtualApi();
+      if (!(api && scrollRef)) return;
+      if (index >= 0) api.scrollToIndex(index, { align: "start" });
+      else scrollToBottom(scrollRef);
+      setReadyViewId(viewId);
+    }, 120);
+  }
+  onCleanup(() => clearTimeout(revealTimer));
+
+  // Driven entirely by the virtualizer's own totalSize signal — it only runs
+  // when something really resized, never on a timer/frame loop.
+  createEffect(
+    on(
+      () => virtualApi()?.totalSize(),
+      () => {
+        if (!landingTarget) return;
+        const { epoch, viewId, index } = landingTarget;
+        if (epoch !== positioningEpoch || positionedViewId !== viewId) return;
+        scheduleReveal(viewId, epoch, index);
+      },
+      { defer: true },
+    ),
+  );
+
   // Jump to the newest message whenever the channel changes or its history first
   // loads — without this the list sits at its natural scroll position (the top,
   // i.e. the oldest loaded message) instead of where a chat view is expected to open.
@@ -138,6 +180,7 @@ export default function MessageList() {
       positionedViewId = undefined;
       lastScrollTop = 0;
       setLandingSpace(undefined);
+      landingTarget = undefined;
       cancelPendingFlash?.();
       cancelPendingFlash = undefined;
     }
@@ -184,33 +227,24 @@ export default function MessageList() {
       // Land on the unread divider (if the channel has one) rather than always
       // jumping to the newest loaded message — that's where a reader left off.
       const dividerIndex = findUnreadDividerIndex(msgs, anchor);
+      const dividerStart = api.itemStart(dividerIndex);
+      const unreadContentHeight =
+        dividerStart === undefined ? undefined : api.totalSize() - dividerStart;
       const unreadLandingIndex = resolveUnreadLandingIndex(dividerIndex, msgs.length, {
-        unreadRowHeight: api.itemSize(dividerIndex),
+        unreadContentHeight,
         viewportHeight: el.clientHeight,
       });
       const epoch = positioningEpoch;
       setLandingSpace(
         unreadLandingIndex >= 0 ? { height: el.clientHeight, viewId: view.id } : undefined,
       );
-      const land = () => {
-        if (!scrollRef) return;
+      landingTarget =
+        unreadLandingIndex >= 0 ? { epoch, index: unreadLandingIndex, viewId: view.id } : undefined;
+      queueMicrotask(() => {
+        if (epoch !== positioningEpoch || !scrollRef) return;
         if (unreadLandingIndex >= 0) api.scrollToIndex(unreadLandingIndex, { align: "start" });
         else scrollToBottom(scrollRef);
-      };
-      queueMicrotask(() => {
-        if (epoch !== positioningEpoch) return;
-        land();
-        // Give the virtualizer two frames to render and measure the target
-        // while it is still hidden. Its own scroll reconciliation keeps the
-        // target aligned as those estimates settle; importantly, we never
-        // mutate the temporary tail or start a competing second landing.
-        requestAnimationFrame(() => {
-          if (epoch !== positioningEpoch || positionedViewId !== view.id) return;
-          requestAnimationFrame(() => {
-            if (epoch !== positioningEpoch || positionedViewId !== view.id) return;
-            setReadyViewId(view.id);
-          });
-        });
+        scheduleReveal(view.id, epoch, unreadLandingIndex);
       });
     }
   });
@@ -262,8 +296,10 @@ export default function MessageList() {
 
   function releaseLandingSpace() {
     const view = store.viewState.activeView();
-    if (view && readyViewId() === view.id && landingSpace()?.viewId === view.id)
+    if (view && readyViewId() === view.id && landingSpace()?.viewId === view.id) {
       setLandingSpace(undefined);
+      landingTarget = undefined;
+    }
   }
 
   function handleWheel(event: WheelEvent) {

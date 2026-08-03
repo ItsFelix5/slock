@@ -4,11 +4,13 @@ import type { IconName } from "@slock/ui";
 
 export const ACTIVITY_KIND_ICONS: Record<ActivityItem["kind"], IconName> = {
   channel_all: "notifications-all-new-posts",
+  channel_invite: "email-invite",
   channel_mention: "megaphone",
   dm: "direct-messages",
   keyword: "sparkles",
   mention: "mentions",
   reaction: "emoji",
+  reminder: "reminder",
   thread_reply: "threads",
   usergroup_mention: "user-groups",
 };

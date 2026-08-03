@@ -13,12 +13,16 @@ export interface Bootstrap {
 }
 
 interface RawBootChannel {
+  created?: number;
   id: string;
   is_channel?: boolean;
   is_group?: boolean;
+  is_mpim?: boolean;
   is_private?: boolean;
+  members?: string[];
   name?: string;
   topic?: string | { value?: string };
+  updated?: number;
 }
 
 interface RawBootIm {
@@ -34,6 +38,7 @@ interface RawBootMpim {
   id: string;
   is_open?: boolean;
   members?: string[];
+  name?: string;
   updated?: number;
 }
 
@@ -83,11 +88,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   );
 
   const rawChannels: RawBootChannel[] = boot.channels ?? [];
-  // client.userBoot also lists mpims here as regular private channels (is_channel: true,
-  // no is_mpim flag) — they're already modeled properly below as multiPersonDms, so drop
-  // the raw "mpdm-a--b--c" duplicate rather than letting it show up as a browsable channel.
+  // Some userBoot responses include MPIMs in channels as well as mpims. Keep them out of
+  // channel sections and merge them into the direct-message model below.
   const channels: Channel[] = rawChannels
-    .filter((c) => (c.is_channel || c.is_group) && !c.name?.startsWith("mpdm-"))
+    .filter((c) => (c.is_channel || c.is_group) && !c.is_mpim && !c.name?.startsWith("mpdm-"))
     .map((c) => ({
       id: c.id,
       lastActivity: latestByChannel.get(c.id),
@@ -133,14 +137,28 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       .filter((c): c is typeof c & { id: string } => !!c.id)
       .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
-  const rawMpims: RawBootMpim[] = boot.mpims ?? [];
-  const multiPersonDms: DirectMessage[] = rawMpims
+  const rawMpimsById = new Map<string, RawBootMpim>(
+    (boot.mpims ?? []).map((mpim) => [mpim.id, mpim]),
+  );
+  for (const channel of rawChannels) {
+    if (!channel.is_mpim) continue;
+    rawMpimsById.set(channel.id, {
+      created: channel.created,
+      id: channel.id,
+      is_open: true,
+      members: channel.members,
+      name: channel.name,
+      updated: channel.updated,
+    });
+  }
+  const multiPersonDms: DirectMessage[] = [...rawMpimsById.values()]
     .filter((g) => g.is_open && Array.isArray(g.members))
     .map((g) => ({
       id: g.id,
       lastActivity:
         latestByMpim.get(g.id) || g.updated || (g.created ? g.created * 1000 : undefined),
       memberIds: (g.members ?? []).filter((id) => id !== boot.self?.id),
+      name: g.name,
       unread: !!unreadMap[g.id]?.unread,
     }));
 

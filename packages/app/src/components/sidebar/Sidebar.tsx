@@ -1,4 +1,5 @@
-import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import { sectionMoveTarget } from "../../lib/store/slices/entities/mutations/sectionOrder";
 import SidebarView from "./SidebarView";
@@ -22,6 +23,7 @@ export default function Sidebar() {
   const feedMode = createMemo(
     () => store.viewState.nav() === "later" || store.viewState.nav() === "activity",
   );
+  createEffect(() => setSharedSidebarWidth(feedMode() ? feedWidth() : width()));
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);

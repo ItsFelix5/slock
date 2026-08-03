@@ -5,10 +5,12 @@ import {
   InlineFeedback,
   PanelHeader,
   Popover,
+  panelWantsFullscreen,
   ResizeHandle,
   useEscapeClose,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { sidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import EmojiPicker from "../composer/popovers/EmojiPicker";
 import "../settings/Settings.css";
@@ -25,6 +27,7 @@ import {
 import { createLocalTime } from "./userProfileTime";
 export default function UserProfile() {
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
+  const isFullscreen = createMemo(() => panelWantsFullscreen(sidebarWidth(), width()));
   const [nameInput, setNameInput] = createSignal("");
   const [titleInput, setTitleInput] = createSignal("");
   const [pronounsInput, setPronounsInput] = createSignal("");
@@ -160,7 +163,11 @@ export default function UserProfile() {
   return (
     <Show when={user()}>
       {(u) => (
-        <div class="user-profile-panel" style={{ width: `${width()}px` }}>
+        <div
+          class="user-profile-panel"
+          classList={{ "panel-fullscreen": isFullscreen() }}
+          style={{ width: `${width()}px` }}
+        >
           <ResizeHandle
             direction={-1}
             label="Resize profile panel"

@@ -103,7 +103,7 @@ export default function GlobalSearchResults(props: {
                     tabIndex={-1}
                     type="button"
                   >
-                    <AvatarStack size="small" users={members} />
+                    <AvatarStack max={3} size="small" users={members} />
                     {dmDisplayName(dm, store.users.userById)}
                   </button>
                 );
