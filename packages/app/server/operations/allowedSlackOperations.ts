@@ -26,7 +26,6 @@ export const SLACK_OPERATIONS = new Set([
   "conversations.setPurpose",
   "conversations.setRetention",
   "conversations.setTopic",
-  "conversations.view",
   "dnd.endSnooze",
   "dnd.setSnooze",
   "drafts.create",

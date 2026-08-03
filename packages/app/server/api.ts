@@ -12,6 +12,7 @@ import { compressedResponse } from "./http/compressedResponse.ts";
 import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
 import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
+import { conversationViewRoutes } from "./routes/conversationView.ts";
 import { messageActionRoutes } from "./routes/messageActions.ts";
 import { messageRoutes } from "./routes/messages.ts";
 import { matchRoute, type Route } from "./routes/router.ts";
@@ -20,7 +21,12 @@ import { callSlack, callSlackEdge } from "./slackClient.ts";
 
 // Purpose-built routes, populated per resource area as operations migrate off
 // the generic /api/operations/:method passthrough below.
-const ROUTES: Route[] = [...messageActionRoutes, ...messageRoutes, ...threadRoutes];
+const ROUTES: Route[] = [
+  ...messageActionRoutes,
+  ...messageRoutes,
+  ...threadRoutes,
+  ...conversationViewRoutes,
+];
 
 async function slackOperationResponse(
   method: string,

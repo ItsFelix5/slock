@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
-import { trimBot, trimMessage, trimUser } from "./slackEntities.ts";
+import { trimBot, trimUser } from "./slackEntities.ts";
 import { trimChannel, trimReadResponse } from "./slackReadResponse.ts";
 
 function trimMutation(method: string, data: any): any {
@@ -83,19 +83,6 @@ export function trimSlackResponse(method: string, data: any): any {
     };
   }
   if (method === "conversations.info") return { channel: trimChannel(data.channel), ok: true };
-  if (method === "conversations.view") {
-    return {
-      channel: trimChannel(data.channel),
-      history: {
-        has_more: data.history?.has_more,
-        messages: Array.isArray(data.history?.messages)
-          ? data.history.messages.map(trimMessage)
-          : data.history?.messages,
-      },
-      ok: true,
-      users: Array.isArray(data.users) ? data.users.map(trimUser) : data.users,
-    };
-  }
   if (method === "channels.prefs.get") {
     const prefs = data.prefs ?? data;
     return {
