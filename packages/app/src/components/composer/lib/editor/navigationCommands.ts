@@ -43,6 +43,25 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     )
       return false;
 
+    // Caret sits at the very start of a line inside the quote. On any line
+    // but the first, backspace should do exactly what it does everywhere
+    // else in the editor: delete the newline and merge into the end of the
+    // previous line, staying inside the same quote — not peel the line back
+    // out into its own unquoted paragraph.
+    if (previousBreak >= 0) {
+      quote.childNodes[previousBreak].remove();
+      const r = document.createRange();
+      r.setStart(quote, previousBreak);
+      r.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      syncFromDom();
+      return true;
+    }
+
+    // On the first line there's no previous line inside the quote to merge
+    // into, so pull just this line back out in front of it instead — the
+    // same "merge into what precedes the block" backspace does elsewhere.
     const breaks = quote.querySelectorAll(":scope > br");
     if (breaks.length === 0 || (breaks.length === 1 && quote.childNodes.length === 1)) {
       const marker = document.createTextNode("");
@@ -56,7 +75,7 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     }
 
     let nextBreak = -1;
-    for (let i = childOffset; i < quote.childNodes.length; i++) {
+    for (let i = 0; i < quote.childNodes.length; i++) {
       if (quote.childNodes[i].nodeName === "BR") {
         nextBreak = i;
         break;
@@ -64,21 +83,13 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     }
     const children = Array.from(quote.childNodes);
     const currentLineEnd = nextBreak < 0 ? children.length : nextBreak;
-    const replacement = document.createDocumentFragment();
-    if (previousBreak >= 0) {
-      const beforeQuote = quote.cloneNode(false) as HTMLQuoteElement;
-      beforeQuote.append(...children.slice(0, previousBreak));
-      if (!beforeQuote.childNodes.length) beforeQuote.appendChild(document.createElement("br"));
-      replacement.append(beforeQuote, createComposerBlockSeparator());
-    }
     const marker = document.createTextNode("");
-    replacement.append(marker, ...children.slice(previousBreak + 1, currentLineEnd));
-    if (nextBreak >= 0) {
-      const afterQuote = quote.cloneNode(false) as HTMLQuoteElement;
-      afterQuote.append(...children.slice(nextBreak + 1));
-      if (!afterQuote.childNodes.length) afterQuote.appendChild(document.createElement("br"));
-      replacement.append(createComposerBlockSeparator(), afterQuote);
-    }
+    const replacement = document.createDocumentFragment();
+    replacement.append(marker, ...children.slice(0, currentLineEnd));
+    const afterQuote = quote.cloneNode(false) as HTMLQuoteElement;
+    afterQuote.append(...children.slice(nextBreak + 1));
+    if (!afterQuote.childNodes.length) afterQuote.appendChild(document.createElement("br"));
+    replacement.append(createComposerBlockSeparator(), afterQuote);
     quote.replaceWith(replacement);
     placeCaretInText(marker, 0);
     syncFromDom();

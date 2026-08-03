@@ -1,7 +1,6 @@
 - scroll jank
 - channel section filtering actually saving
 - Implement invitations and reminders in activity
-- Composer block quote deletion per line should act like a character
 - You should be able to select and copy and paste composer text like you should
 - Feedback ux (especially the copied link/reactors sucks and changes scroll)
 - Everything should be keyboard accessible, from shortcuts to ctrl+z on EVERYTHING to improving ctrl+k and making sure ctrl+/ is up to date
