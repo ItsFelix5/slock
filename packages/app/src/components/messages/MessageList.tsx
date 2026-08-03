@@ -162,7 +162,11 @@ export default function MessageList() {
       // back to ever contain the real divider position.
       if (anchor === undefined) return;
       const readCursorNotYetLoaded = parseFloat(msgs[0].ts) * 1000 > anchor;
-      const attempts = backfillAttempts[view.id] ?? 0;
+      // Only ever a sentinel, not an incrementing count: the one bounded
+      // catch-up call below already walks up to MAX_BACKFILL_LOADS pages
+      // itself, so there's only ever one "attempt" per view to gate on.
+      const alreadyAttempted = (backfillAttempts[view.id] ?? 0) >= MAX_BACKFILL_LOADS;
+      let gaveUpBackfill = false;
       if (readCursorNotYetLoaded && store.messages.hasMoreHistory(view.id)) {
         if (store.messages.hasOlderHistoryError(view.id)) return;
         // Keep all automatic catch-up pages under one loading state. If each
@@ -170,20 +174,24 @@ export default function MessageList() {
         // appears and disappears while the virtualizer anchors newly prepended
         // rows, which looks like several loading windows jumping upward.
         if (store.messages.isLoadingHistory(view.id)) return;
-        if (attempts < MAX_BACKFILL_LOADS) {
+        if (!alreadyAttempted) {
           backfillAttempts[view.id] = MAX_BACKFILL_LOADS;
           store.messages.loadOlderMessagesThrough(view.id, anchor, MAX_BACKFILL_LOADS);
           return;
         }
-        // The bounded catch-up was not enough; land on the oldest page we
-        // have instead of immediately starting another batch.
+        // The bounded catch-up wasn't enough to reach the real read cursor.
+        // Landing on the unread divider below would resolve to the oldest
+        // message of whatever we did manage to load — an arbitrary spot deep
+        // in history with even more unloaded history above it — so land on
+        // the newest messages instead, same as a channel with no unread at all.
+        gaveUpBackfill = true;
       }
 
       delete backfillAttempts[view.id];
       positionedViewId = view.id;
       // Land on the unread divider (if the channel has one) rather than always
       // jumping to the newest loaded message — that's where a reader left off.
-      const dividerIndex = findUnreadDividerIndex(msgs, anchor);
+      const dividerIndex = gaveUpBackfill ? -1 : findUnreadDividerIndex(msgs, anchor);
       const unreadLandingIndex = resolveUnreadLandingIndex(dividerIndex, msgs.length, {
         unreadRowHeight: api.itemSize(dividerIndex),
         viewportHeight: el.clientHeight,
