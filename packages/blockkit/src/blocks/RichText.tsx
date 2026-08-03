@@ -66,6 +66,8 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       ) : (
         formatSlackDateTokens(el.format, el.timestamp, el.fallback)
       );
+    case "message_mention":
+      return <Link label={el.text} url={el.url} />;
     default:
       return null;
   }
