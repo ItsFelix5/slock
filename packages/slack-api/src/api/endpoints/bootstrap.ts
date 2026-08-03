@@ -134,8 +134,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
   const rawMpims: RawBootMpim[] = boot.mpims ?? [];
+  // Same is_open caveat as oneToOneDms above — a group DM with real unread
+  // activity needs to surface even before it's been locally "opened".
   const multiPersonDms: DirectMessage[] = rawMpims
-    .filter((g) => g.is_open && Array.isArray(g.members))
+    .filter((g) => Array.isArray(g.members) && (g.is_open || unreadMap[g.id]))
     .map((g) => ({
       id: g.id,
       lastActivity:

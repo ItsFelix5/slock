@@ -6,7 +6,6 @@
 - Everything should be keyboard accessible, from shortcuts to ctrl+z on EVERYTHING to improving ctrl+k and making sure ctrl+/ is up to date
 - Avoid optimistic updates but max ux
 - channel search button should show files & links page + search bar  (conversations.searchLinks + search.modules.files?)
-- groups should show up in dms section
 - better uploads (cropping perhaps even???)
 - generally improve UI/UX across the app a LOT
 - clean up codebase
