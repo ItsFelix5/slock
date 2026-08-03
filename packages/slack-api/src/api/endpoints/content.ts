@@ -1,7 +1,7 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../contentTypes";
-import { apiGet, callSlack, resolveMediaUrl } from "../server";
+import { apiGet, apiPut, callSlack, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
@@ -62,13 +62,12 @@ const canvasFileInfoRequests = new Map<string, Promise<CanvasFileInfo>>();
 function resolveCanvasFileInfo(fileId: string): Promise<CanvasFileInfo> {
   const existing = canvasFileInfoRequests.get(fileId);
   if (existing) return existing;
-  const request = callSlack("files.info", { file: fileId })
+  const request = apiGet(`/api/canvases/${fileId}/file-info`)
     .then((info) => {
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
-      const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
       return {
-        title: info.file?.title?.trim() || info.file?.name?.trim() || null,
-        url: downloadUrl ? resolveMediaUrl(downloadUrl) : null,
+        title: info.title,
+        url: info.url ? resolveMediaUrl(info.url) : null,
       };
     })
     .catch((error) => {
@@ -115,10 +114,7 @@ export async function fetchCanvasFileUrl(fileId: string): Promise<string | null>
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {
-  const changes = JSON.stringify([
-    { document_content: { markdown, type: "markdown" }, operation: "replace" },
-  ]);
-  const data = await callSlack("canvases.edit", { canvas_id: fileId, changes });
+  const data = await apiPut(`/api/canvases/${fileId}`, { markdown });
   if (!data.ok) throw new Error(data.error ?? "canvases.edit failed");
 }
 

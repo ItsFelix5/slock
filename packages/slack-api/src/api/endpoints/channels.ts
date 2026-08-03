@@ -12,7 +12,7 @@ import type {
 } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapChannel, mapUser } from "../mappers";
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut, callSlack } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "../server";
 import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
 
 export {
@@ -82,38 +82,22 @@ export async function fetchChannelCanvasInfo(channelId: string): Promise<CanvasI
   return canvas ? { fileId: canvas.fileId, isEmpty: false } : null;
 }
 export async function createChannelCanvas(channelId: string, title?: string): Promise<CanvasInfo> {
-  const data = await callSlack("conversations.canvases.create", {
-    channel_id: channelId,
-    document_content: JSON.stringify({ markdown: "", type: "markdown" }),
-    ...(title ? { title } : {}),
-  });
+  const data = await apiPost(`/api/channels/${channelId}/canvas`, title ? { title } : {});
   if (!data.ok) {
     invalidateConversationView(channelId);
     throw new Error(data.error ?? "conversations.canvases.create failed");
   }
-  if (!data.canvas_id) throw new Error("Canvas creation returned no canvas ID");
   invalidateConversationView(channelId);
-  return { fileId: data.canvas_id, isEmpty: true };
+  return { fileId: data.canvasId, isEmpty: true };
 }
 export async function createSharedChannelCanvas(
   channelId: string,
   title: string,
 ): Promise<CanvasListItem> {
-  const created = await callSlack("canvases.create", {
-    document_content: JSON.stringify({ markdown: "", type: "markdown" }),
-    title,
-  });
-  if (!created.ok) throw new Error(created.error ?? "canvases.create failed");
-  if (!created.canvas_id) throw new Error("Canvas creation returned no canvas ID");
-
-  const shared = await callSlack("canvases.access.set", {
-    access_level: "write",
-    canvas_id: created.canvas_id,
-    channel_ids: channelId,
-  });
-  if (!shared.ok) throw new Error(shared.error ?? "canvases.access.set failed");
+  const data = await apiPost("/api/canvases", { channelId, title });
+  if (!data.ok) throw new Error(data.error ?? "canvases.create failed");
   invalidateConversationView(channelId);
-  return { fileId: created.canvas_id, title };
+  return { fileId: data.canvasId, title };
 }
 export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
   const data = await apiGet(`/api/channels/${channelId}`);

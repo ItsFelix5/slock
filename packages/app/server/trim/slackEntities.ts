@@ -55,7 +55,7 @@ export function trimUser(user: any): any {
   };
 }
 
-function trimFile(file: any): any {
+export function trimFile(file: any): any {
   if (!file || typeof file !== "object") return file;
   return {
     audio_wave_samples: file.audio_wave_samples,

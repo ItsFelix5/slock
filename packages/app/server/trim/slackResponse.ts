@@ -26,9 +26,6 @@ export function trimChannelSections(data: any): any {
 }
 
 function trimMutation(method: string, data: any): any {
-  if (method === "canvases.create" || method === "conversations.canvases.create") {
-    return { canvas_id: data.canvas_id, ok: true };
-  }
   if (method === "files.getUploadURLExternal") {
     return { file_id: data.file_id, ok: true, upload_url: data.upload_url };
   }
@@ -41,8 +38,6 @@ function trimMutation(method: string, data: any): any {
 const OK_ONLY_METHODS = new Set([
   "apps.actions.v2.execute",
   "blocks.actions",
-  "canvases.access.set",
-  "canvases.edit",
   "chat.command",
   "drafts.delete",
   "dnd.endSnooze",
@@ -139,17 +134,6 @@ export function trimSlackResponse(method: string, data: any): any {
         }))
       : items;
     return data.saved_items ? { ok: true, saved_items: trimmed } : { items: trimmed, ok: true };
-  }
-  if (method === "files.info") {
-    return {
-      file: {
-        name: data.file?.name,
-        title: data.file?.title,
-        url_private: data.file?.url_private,
-        url_private_download: data.file?.url_private_download,
-      },
-      ok: true,
-    };
   }
   if (method === "drafts.list") {
     return {
