@@ -10,7 +10,9 @@ export interface ActivityItem {
     | "channel_mention"
     | "usergroup_mention"
     | "channel_all"
-    | "keyword";
+    | "keyword"
+    | "reminder"
+    | "channel_invite";
   // The pingword that matched, for kind "keyword" — surfaced from
   // all_notifications_prefs.global.global_keywords.
   matchedKeyword?: string;

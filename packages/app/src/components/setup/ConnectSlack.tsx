@@ -147,9 +147,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
 
   return (
     <div class="connect-slack flex-center">
-      <div
-        class="connect-slack-card"
-      >
+      <div class="connect-slack-card">
         <h1>Connect to Slack</h1>
         <p class="connect-slack-intro" id="connect-slack-instructions">
           Slock needs a token and session cookie from a signed-in Slack tab. Grab both at once by

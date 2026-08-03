@@ -17,3 +17,5 @@
 - Initial scroll sometimes only just shows like one message and blank space under it
 - Fix Channels and usergroup sections just being expanded by default while the rest isn't
 - Improve speed (especially network is blocking, reduce on that)
+- skip long threads in activity
+- search mpdm

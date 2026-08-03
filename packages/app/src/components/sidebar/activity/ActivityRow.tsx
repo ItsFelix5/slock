@@ -4,6 +4,7 @@ import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { conversationDisplayName, isPingingActivity, store } from "../../../lib/store";
 import ReactionRow from "../../messages/parts/ReactionRow";
+import { ActivityRowActions } from "./ActivityRowActions";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import "./ActivityRow.css";
 import "./ActivityThread.css";
@@ -27,11 +28,8 @@ export function rowTarget(row: ActivityRow) {
   return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
 }
 
-// Reaction/mention items on a plain channel message aren't a thread at all —
-// open them in the channel, scrolled to the real message, instead of a
-// single-message thread panel that reads as a fake thread. Only actual
-// thread replies (which don't render inline in the channel) open the
-// thread panel, highlighted on the specific reply.
+// Reaction/mention items on a plain channel message open in the channel, while real thread
+// replies open their thread panel highlighted on the specific reply.
 function navigateToItem(item: ActivityItem) {
   if (item.threadTs) {
     store.viewState.openChannelPeek(item.channelId, item.threadTs, item.ts, { keepNav: true });
@@ -77,6 +75,10 @@ function verbFor(item: ActivityItem): string {
       return "Mentioned your usergroup";
     case "channel_all":
       return "Posted in a channel you follow";
+    case "reminder":
+      return "Reminded you";
+    case "channel_invite":
+      return "Invited you";
     default:
       return "Reacted to your message";
   }
@@ -270,8 +272,8 @@ export default function ActivityRow(props: {
             >
               <Tooltip content={formatInteractorNames(replierIds())}>
                 <AvatarStack
+                  max={3}
                   users={replierIds()
-                    .slice(0, 3)
                     .map((id) => store.users.userById(id))
                     .filter((person) => person !== undefined)}
                 />
@@ -351,20 +353,16 @@ export default function ActivityRow(props: {
         </Show>
       </div>
 
-      <Tooltip
-        class="activity-react-toggle-anchor"
-        content={isReacted() ? "Reacted" : "Move to Reacted"}
-      >
-        <button
-          aria-label="Move to Reacted"
-          class="activity-react-toggle btn-reset flex-center"
-          classList={{ active: isReacted() }}
-          onClick={() => props.onReacted(props.row.items)}
-          type="button"
-        >
-          <Icon name={isReacted() ? "check-circle-filled" : "check-circle"} size={17} />
-        </button>
-      </Tooltip>
+      <ActivityRowActions
+        isReacted={isReacted()}
+        isThread={isThreadGroup()}
+        onReact={() => props.onReacted(props.row.items)}
+        onUnsubscribe={() => store.messages.unsubscribeFromThread(latest().channelId, threadTs())}
+        unsubscribePending={store.messages.isThreadSubscriptionPending(
+          latest().channelId,
+          threadTs(),
+        )}
+      />
       <span class="activity-unread-dot" classList={{ unread: isUnread() }} />
     </article>
   );

@@ -86,7 +86,8 @@ export function createMessageHistory(
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.delete(channelId);
       setHistoryMeta(channelId, { anchored: false, hasMore, hasNewer: false, loading: false });
-    } catch {
+    } catch (err) {
+      console.error("Failed to load channel history", channelId, err);
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
       if (!replaceAnchoredWindow) loadedChannels.delete(channelId);
       setHistoryMeta(channelId, {

@@ -20,6 +20,10 @@ const ACTIVITY_FEED_TYPES = [
   "message_reaction",
   "dm",
   "channel",
+  "saved_reminder",
+  "internal_channel_invite",
+  "external_channel_invite",
+  "external_dm_invite",
 ].join(",");
 
 function trimActivityMessage(message: any): any {
@@ -128,6 +132,7 @@ export const activityRoutes: Route[] = [
     const limit = ctx.searchParams.get("limit") ?? "50";
     const cursor = ctx.searchParams.get("cursor") ?? undefined;
     const types = ctx.searchParams.get("types") ?? ACTIVITY_FEED_TYPES;
+    const unreadOnly = ctx.searchParams.get("unreadOnly") === "true";
     const data = await callSlack(
       "activity.feed",
       {
@@ -140,7 +145,7 @@ export const activityRoutes: Route[] = [
         only_salesforce_channels: "false",
         priority_only: "false",
         types,
-        unread_only: "false",
+        unread_only: unreadOnly ? "true" : "false",
         ...(cursor ? { cursor } : {}),
       },
       ctx.creds,

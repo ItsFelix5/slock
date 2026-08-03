@@ -8,7 +8,14 @@ import {
   Tooltip,
   useEscapeClose,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, createUniqueId, onCleanup } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  onCleanup,
+  untrack,
+} from "solid-js";
 import { dmDisplayName, store } from "../../lib/store";
 import "./GlobalSearch.css";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
@@ -23,6 +30,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const [query, setQuery] = createSignal("");
   const [remotePeople, setRemotePeople] = createSignal<User[]>([]);
   const [remoteChannels, setRemoteChannels] = createSignal<BrowsableChannel[]>([]);
+  // Frozen snapshot of results: written exactly once per query, only once
+  // both local and remote data have fully settled, so the visible list never
+  // shuffles or grows after it's already on screen.
+  const [committedRows, setCommittedRows] = createSignal<GlobalSearchRow[]>([]);
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
   const [peopleSearching, setPeopleSearching] = createSignal(false);
   const [channelsSearching, setChannelsSearching] = createSignal(false);
@@ -33,6 +44,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const peopleRequest = createDebouncedRequest(
     (q) => store.users.searchUsers(q, store.users.currentUser()?.id),
     {
+      delay: 100,
       onError: () => setPeopleError(true),
       onPendingChange: setPeopleSearching,
       onReset: () => {
@@ -43,6 +55,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     },
   );
   const channelRequest = createDebouncedRequest(fetchBrowsableChannels, {
+    delay: 100,
     onError: () => setChannelsError(true),
     onPendingChange: setChannelsSearching,
     onReset: () => {
@@ -65,18 +78,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       text: (c) => c.name,
     });
   });
-  const channelResults = createMemo<JumpChannel[]>(() => {
-    const q = query().trim().toLowerCase();
-    if (!q) return [];
-    const joined = localChannelMatches().map(
-      (c): JumpChannel => ({ id: c.id, joined: true, name: c.name, private: c.private }),
-    );
-    const joinedIds = new Set(joined.map((c) => c.id));
-    const remote = remoteChannels()
-      .filter((c) => !joinedIds.has(c.id))
-      .map((c): JumpChannel => ({ id: c.id, joined: false, name: c.name, private: c.private }));
-    return [...joined, ...remote].slice(0, 20);
-  });
   const localPeopleMatches = createMemo<User[]>(() => {
     const q = query().trim();
     if (!q) return [];
@@ -85,14 +86,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       store.users.knownUsers().filter((u) => u.id !== me),
       { frequency: (u) => store.preferences.frecencyScore(u.id), query: q, text: (u) => u.name },
     );
-  });
-  const peopleResults = createMemo<User[]>(() => {
-    const q = query().trim().toLowerCase();
-    if (!q) return [];
-    const merged = new Map<string, User>();
-    for (const u of localPeopleMatches()) merged.set(u.id, u);
-    for (const u of remotePeople()) merged.set(u.id, u);
-    return [...merged.values()].slice(0, 20);
   });
   // Multi-person DMs have no single person to find them through the way a
   // regular DM's other participant does — this is their only way back into
@@ -110,18 +103,45 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const searchDirectories = (value: string) => {
     setQuery(value);
     setActiveIndex(value.trim() ? 0 : null);
+    // Clear the frozen result set right away so a new query never briefly
+    // shows the previous query's (now mismatched) results.
+    setCommittedRows([]);
     peopleRequest.run(value);
     channelRequest.run(value);
   };
-  const rows = createMemo<GlobalSearchRow[]>(() => {
+  const computedRows = createMemo<GlobalSearchRow[]>(() => {
     if (!hasQuery()) return [];
+    const joinedIds = new Set(localChannelMatches().map((c) => c.id));
+    const knownIds = new Set(localPeopleMatches().map((u) => u.id));
     const candidates: Candidate[] = [
-      ...channelResults().map(
-        (c): Candidate => ({ id: c.id, name: c.name, row: { data: c, kind: "channel" } }),
+      ...localChannelMatches().map(
+        (c): Candidate => ({
+          id: c.id,
+          name: c.name,
+          row: {
+            data: { id: c.id, joined: true, name: c.name, private: c.private },
+            kind: "channel",
+          },
+        }),
       ),
-      ...peopleResults().map(
+      ...remoteChannels()
+        .filter((c) => !joinedIds.has(c.id))
+        .map(
+          (c): Candidate => ({
+            id: c.id,
+            name: c.name,
+            row: {
+              data: { id: c.id, joined: false, name: c.name, private: c.private },
+              kind: "channel",
+            },
+          }),
+        ),
+      ...localPeopleMatches().map(
         (u): Candidate => ({ id: u.id, name: u.name, row: { data: u, kind: "person" } }),
       ),
+      ...remotePeople()
+        .filter((u) => !knownIds.has(u.id))
+        .map((u): Candidate => ({ id: u.id, name: u.name, row: { data: u, kind: "person" } })),
       ...mpdmResults().map(
         (dm): Candidate => ({
           id: dm.id,
@@ -138,6 +158,11 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     });
     return ranked.slice(0, 8).map((c) => c.row);
   });
+  createEffect(() => {
+    if (!query().trim() || peopleSearching() || channelsSearching()) return;
+    setCommittedRows(untrack(computedRows));
+  });
+  const rows = committedRows;
   const items = createMemo<SearchItem[]>(() => {
     if (!hasQuery()) return [];
     return [{ kind: "message-search" }, ...rows()];
@@ -150,10 +175,11 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     return index === null ? undefined : optionId(index);
   };
   const searchStatus = createMemo(() => {
+    if (!hasQuery()) return "";
+    if (rows().length > 0) return "";
     if (searching()) return "Searching people and channels…";
     if (searchError()) return "Some directory suggestions couldn’t be loaded.";
-    if (hasQuery() && rows().length === 0) return "No matching people or channels.";
-    return "";
+    return "No matching people or channels.";
   });
   createEffect(() => {
     const total = items().length;
@@ -207,7 +233,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     setActiveIndex(next);
   };
   return (
-    <Overlay ariaLabel="Search Slack" onClose={props.onClose}>
+    <Overlay align="top" ariaLabel="Search Slack" onClose={props.onClose}>
       <div class="global-search-card modal-card">
         <div class="global-search-input-row flex-align-center">
           <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />

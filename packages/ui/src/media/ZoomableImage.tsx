@@ -124,7 +124,9 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
   const zoomLens = (e: WheelEvent) => {
     if (!lens()) return;
     e.preventDefault();
-    setLensZoom((z) => Math.max(LENS_ZOOM_STEP, z + (e.deltaY < 0 ? LENS_ZOOM_STEP : -LENS_ZOOM_STEP)));
+    setLensZoom((z) =>
+      Math.max(LENS_ZOOM_STEP, z + (e.deltaY < 0 ? LENS_ZOOM_STEP : -LENS_ZOOM_STEP)),
+    );
   };
 
   return (

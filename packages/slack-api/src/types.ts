@@ -205,6 +205,7 @@ export interface DirectMessage {
   id: string;
   lastActivity?: number;
   mentions?: number;
+  name?: string;
   unread: boolean;
   // Exactly one of these is set: userId for a regular 1:1 DM, memberIds
   // (everyone but the current user) for a multi-person DM.

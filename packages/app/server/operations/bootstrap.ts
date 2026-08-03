@@ -24,6 +24,7 @@ function trimUserBoot(data: any): any {
     id: group?.id,
     is_open: group?.is_open,
     members: group?.members,
+    name: group?.name,
     updated: group?.updated,
   });
   return {

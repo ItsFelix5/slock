@@ -322,6 +322,7 @@ export default function Composer(props: ComposerProps) {
                 currentLabel={le().label}
                 linkEl={le().el}
                 onClose={() => setLinkEditor(null)}
+                onSync={editor.syncFromDom}
                 url={le().url}
               />
             )}

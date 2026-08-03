@@ -90,7 +90,10 @@ function RichTextListView(props: { list: RichTextListType }) {
   return (
     <Show
       fallback={
-        <ul class="bk-rt-list" style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}>
+        <ul
+          class="bk-rt-list"
+          style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}
+        >
           <For each={props.list.elements}>
             {(item) => (
               <li>

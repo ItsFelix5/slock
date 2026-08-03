@@ -549,15 +549,9 @@ export function extractChannelSections(
       name: s.name ?? "Section",
       // A section Slack has never had a filter set on omits `sidebar`
       // entirely (or sends something we don't recognize) — that means
-      // "showing everything", same as the built-in Channels/usergroup
-      // sections default to. Only "hid"/"hide" (its older spelling) should
-      // actually narrow to unread-only.
-      sidebar:
-        s.sidebar === "all" || s.sidebar === "active"
-          ? s.sidebar
-          : s.sidebar === "hid" || s.sidebar === "hide"
-            ? "hid"
-            : ("all" as const),
+      // unread-only, same as the built-in Channels/usergroup sections
+      // default to. "hide" is just the older spelling of "hid".
+      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : ("hid" as const),
       type: s.type ?? "standard",
     }))
     .filter((s): s is ChannelSectionSummary => !!s.id);

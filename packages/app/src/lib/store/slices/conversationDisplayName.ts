@@ -4,9 +4,8 @@ import { dmDisplayName } from "./dmDisplayName";
 
 // An id sourced from the activity feed, desktop notifications, saved-for-later,
 // a thread, or a message unfurl isn't guaranteed to be a real channel — it can
-// be a DM's id (thread replies, mentions, and reactions all happen in DMs
-// too). channelDisplayName alone can't resolve those: DMs carry no `name` and
-// live in a separate store, so it silently falls back to the bare id. Use
+// be a DM's id (thread replies, mentions, and reactions all happen in DMs too).
+// channelDisplayName alone can't resolve those because DMs live in a separate store. Use
 // this instead of re-deriving the channel/DM branch at each display site.
 export function conversationDisplayName(
   id: string,
@@ -14,6 +13,6 @@ export function conversationDisplayName(
   dm: DirectMessage | undefined,
   userById: (id: string) => User | undefined,
 ): string {
-  if (id.startsWith("D")) return dmDisplayName(dm, userById) || id;
+  if (dm) return dmDisplayName(dm, userById) || id;
   return `#${channelDisplayName(channel, id)}`;
 }

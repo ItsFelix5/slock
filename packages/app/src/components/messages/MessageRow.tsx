@@ -393,9 +393,9 @@ export default function MessageRow(props: MessageRowProps) {
                     >
                       <AvatarStack
                         users={users()
-                          .slice(0, 5)
                           .map((id) => store.users.userById(id))
                           .filter((u) => u !== undefined)}
+                        max={3}
                       />
                     </Tooltip>
                   )}
@@ -415,6 +415,7 @@ export default function MessageRow(props: MessageRowProps) {
         <div class="day-divider message-divider flex-align-center text-center font-bold text-xs">
           <span>
             {msg().replyCount} {msg().replyCount === 1 ? "reply" : "replies"}
+            {renderState().repliesDividerDay ? ` · ${renderState().repliesDividerDay}` : ""}
           </span>
         </div>
       </Show>

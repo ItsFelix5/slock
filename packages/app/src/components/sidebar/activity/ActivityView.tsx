@@ -10,6 +10,9 @@ type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read" | "reacted";
 
 const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
+// Caps the auto top-up effect's consecutive fetches per filter combo — see
+// its comment below for why an unbounded version can loop forever.
+const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
 
 type ActivityListEntry =
   | { day: string; kind: "divider" }
@@ -28,6 +31,8 @@ const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
   { icon: ACTIVITY_KIND_ICONS.usergroup_mention, key: "usergroup_mention", label: "Usergroups" },
   { icon: ACTIVITY_KIND_ICONS.channel_all, key: "channel_all", label: "All channel posts" },
   { icon: ACTIVITY_KIND_ICONS.reaction, key: "reaction", label: "Reactions" },
+  { icon: ACTIVITY_KIND_ICONS.reminder, key: "reminder", label: "Reminders" },
+  { icon: ACTIVITY_KIND_ICONS.channel_invite, key: "channel_invite", label: "Invitations" },
   { icon: "apps", key: "app", label: "Apps" },
 ];
 
@@ -165,6 +170,9 @@ export default function ActivityView() {
   );
 
   const activeFeedTypes = createMemo(() => feedTypesForTag(selectedTag()));
+  // Mirrors Slack's own `unread_only` param for its "Unread" tab, so that
+  // page of the feed is filtered server-side instead of client-only.
+  const activeUnreadOnly = createMemo(() => readState() === "unread");
 
   let scrollRef: HTMLDivElement | undefined;
 
@@ -176,20 +184,36 @@ export default function ActivityView() {
         el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION
     )
       return;
-    void store.activity.loadMoreActivity(activeFeedTypes());
+    void store.activity.loadMoreActivity(activeFeedTypes(), activeUnreadOnly());
   }
 
   // A short result set (a narrow tag filter, a small workspace) can render
   // without ever producing a scrollbar — handleScroll would then never fire,
-  // so top up the feed until it either fills the viewport or runs out.
+  // so top up the feed until it either fills the viewport or runs out. Some
+  // filters (readState "read"/"reacted") have no server-side equivalent, so
+  // a page can come back non-empty from Slack yet still add zero visible
+  // rows once filtered client-side — that would otherwise never trip
+  // `activityHasMore` false and this effect would keep re-firing forever.
+  // Cap consecutive attempts per filter combo so it gives up instead.
+  let topUpKey: string | undefined;
+  let topUpAttempts = 0;
   createEffect(() => {
     visibleRows();
+    const types = activeFeedTypes();
+    const unreadOnly = activeUnreadOnly();
+    const key = `${selectedTag()}|${readState()}|${keyword()}`;
+    if (key !== topUpKey) {
+      topUpKey = key;
+      topUpAttempts = 0;
+    }
     const el = scrollRef;
     if (!el || el.scrollHeight > el.clientHeight) return;
-    const types = activeFeedTypes();
-    if (!(store.activity.activityLoaded() && store.activity.activityHasMore(types))) return;
+    if (!(store.activity.activityLoaded() && store.activity.activityHasMore(types, unreadOnly)))
+      return;
     if (store.activity.activityLoading() || store.activity.activityLoadingMore()) return;
-    void store.activity.loadMoreActivity(types);
+    if (topUpAttempts >= MAX_AUTO_TOP_UP_ATTEMPTS) return;
+    topUpAttempts++;
+    void store.activity.loadMoreActivity(types, unreadOnly);
   });
 
   return (
@@ -350,7 +374,12 @@ export default function ActivityView() {
           <Show when={store.activity.activityLoadMoreError()}>
             <div class="activity-load-notice activity-load-warning" role="alert">
               <span>Couldn’t load more activity.</span>
-              <Button onClick={() => store.activity.loadMoreActivity(activeFeedTypes())} size="sm">
+              <Button
+                onClick={() =>
+                  store.activity.loadMoreActivity(activeFeedTypes(), activeUnreadOnly())
+                }
+                size="sm"
+              >
                 Try again
               </Button>
             </div>

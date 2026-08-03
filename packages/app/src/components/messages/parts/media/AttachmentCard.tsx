@@ -1,15 +1,18 @@
 import { BlockKit, decodeTextEntities, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
-import { Icon, VideoPlayer, ZoomableImage } from "@slock/ui";
+import { ConstrainedImage, Icon, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { conversationDisplayName, store } from "../../../../lib/store";
 import { MessageAuthorButton } from "../../MessageAuthorButtons";
+import { constrainMediaDimensions } from "./estimateMediaHeight";
 import MessageFiles from "./MessageFiles";
 import "./AttachmentCard.css";
 
 function AttachmentContent(props: { attachment: Attachment }) {
   const a = props.attachment;
   const bodyText = () => a.text || a.fallback;
+  const imageDimensions = () =>
+    constrainMediaDimensions(a.imageWidth, a.imageHeight, 240, 200, 240, 160, true);
   return (
     <>
       <Show when={a.title}>
@@ -81,14 +84,12 @@ function AttachmentContent(props: { attachment: Attachment }) {
       </Show>
       <Show when={!a.videoUrl && a.imageUrl}>
         {(url) => (
-          <ZoomableImage
+          <ConstrainedImage
             alt=""
             class="attachment-image"
-            height={a.imageHeight}
-            reservedHeight={a.imageWidth && a.imageHeight ? undefined : 160}
-            reservedWidth={a.imageWidth && a.imageHeight ? undefined : 240}
+            height={imageDimensions().height}
             src={url()}
-            width={a.imageWidth}
+            width={imageDimensions().width}
           />
         )}
       </Show>
@@ -103,7 +104,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
   const a = props.attachment;
   const channel = () =>
     a.channelId && !a.channelId.startsWith("D")
-      ? store.channels.knownChannelById(a.channelId)
+      ? store.channels.channelById(a.channelId)
       : undefined;
   const location = () =>
     a.channelId
@@ -210,9 +211,7 @@ export default function AttachmentCard(props: { attachment: Attachment; showPerm
       </Show>
       {/* Skip when channelId is set: MessageUnfurl's footer already renders this same
           fromUrl as a "View message" link, so the raw URL here would just duplicate it. */}
-      <Show
-        when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}
-      >
+      <Show when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}>
         {(url) => (
           <a
             class="attachment-message-link"

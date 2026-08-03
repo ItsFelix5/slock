@@ -52,6 +52,7 @@
 .activity-thread-message:focus-visible,
 .activity-read-more:focus-visible,
 .activity-react-toggle:focus-visible,
+.activity-unsubscribe-toggle:focus-visible,
 .activity-type-button:focus-visible,
 .activity-read-toggle button:focus-visible {
   outline: 2px solid var(--accent);
@@ -153,14 +154,17 @@
   white-space: nowrap;
 }
 
-.activity-react-toggle-anchor {
+.activity-row-actions {
   position: absolute;
   top: 7px;
   right: 6px;
   z-index: 1;
+  display: flex;
+  gap: 2px;
 }
 
-.activity-react-toggle {
+.activity-react-toggle,
+.activity-unsubscribe-toggle {
   width: 21px;
   height: 21px;
   color: var(--text-dim);
@@ -169,12 +173,15 @@
 }
 
 .activity-item-wrap:hover .activity-react-toggle,
+.activity-item-wrap:hover .activity-unsubscribe-toggle,
 .activity-react-toggle:focus-visible,
+.activity-unsubscribe-toggle:focus-visible,
 .activity-react-toggle.active {
   opacity: 1;
 }
 
-.activity-react-toggle:hover {
+.activity-react-toggle:hover,
+.activity-unsubscribe-toggle:hover {
   color: var(--text-primary);
   background: var(--active-bg);
 }

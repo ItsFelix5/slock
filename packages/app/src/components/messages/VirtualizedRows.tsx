@@ -14,6 +14,10 @@ import { estimateMessageHeight } from "./parts/estimateMessageHeight";
 export interface VirtualRowsApi {
   scrollToIndex: (index: number, opts?: ScrollToOptions) => void;
   itemSize: (index: number) => number | undefined;
+  // Offset from the top of the content to the start of a row — used to
+  // measure how tall everything from a given row to the end still is
+  // (totalSize() - itemStart(index)).
+  itemStart: (index: number) => number | undefined;
   // Total content height — MessageList.tsx watches this to notice a
   // late-arriving embed/image growing an already-rendered row (not just a
   // new message being appended) so it can keep following the bottom.
@@ -109,6 +113,7 @@ export default function VirtualizedRows(props: MessageRowsProps) {
 
   props.onApi?.({
     itemSize: (index) => virtualizer.measurementsCache[index]?.size,
+    itemStart: (index) => virtualizer.measurementsCache[index]?.start,
     scrollToIndex: (index, opts) => virtualizer.scrollToIndex(index, opts),
     totalSize: () => virtualizer.getTotalSize(),
   });

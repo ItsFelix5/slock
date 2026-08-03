@@ -2,6 +2,7 @@
 import type { ActivityItem, Channel, FeedEntry, Message, User } from "@slock/slack-api";
 import {
   fetchActivityFeedEntries,
+  fetchChannelLastRead,
   fetchHistory,
   fetchHistoryAround,
   fetchMessagesByIds,
@@ -23,7 +24,13 @@ import { fetchChannelActivityItems } from "./activity/channelActivity";
 // app messages). Shared between the sidebar bell's two-tier urgency and the
 // Activity view's own pinging/ambient filter and row styling, so the
 // definition lives in one place.
-export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword"]);
+export const PING_KINDS = new Set<ActivityItem["kind"]>([
+  "mention",
+  "dm",
+  "keyword",
+  "reminder",
+  "channel_invite",
+]);
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
   "channel_mention",
@@ -39,6 +46,7 @@ export function isPingingActivity(item: ActivityItem): boolean {
 
 type ActivityApi = {
   fetchActivityFeedEntries: typeof fetchActivityFeedEntries;
+  fetchChannelLastRead: typeof fetchChannelLastRead;
   fetchHistory: typeof fetchHistory;
   fetchHistoryAround: typeof fetchHistoryAround;
   fetchMessagesByIds: typeof fetchMessagesByIds;
@@ -47,6 +55,7 @@ type ActivityApi = {
 
 const DEFAULT_ACTIVITY_API: ActivityApi = {
   fetchActivityFeedEntries,
+  fetchChannelLastRead,
   fetchHistory,
   fetchHistoryAround,
   fetchMessagesByIds,
@@ -78,18 +87,26 @@ export function createActivitySlice(
   const [activityLoadMoreError, setActivityLoadMoreError] = createSignal(false);
   let activityFeedCursor: string | undefined;
   // A category filter in the Activity view (e.g. just "Reactions") can pass
-  // its Slack `types` wire value to loadMoreActivity so pagination only pulls
-  // that kind's pages instead of the whole feed. That's a distinct paginated
-  // sequence from the default unfiltered one, so it gets its own cursor/more
-  // state, keyed by the `types` string used — never mixed with
-  // activityFeedCursor/activityHasMore above.
+  // its Slack `types` wire value, and/or the real `unread_only` flag Slack's
+  // own client sends for its "Unread" tab, to loadMoreActivity so pagination
+  // only pulls matching pages instead of the whole feed. Each distinct
+  // (types, unreadOnly) combo is its own paginated sequence, so it gets its
+  // own cursor/more state, keyed by a combined scope string — never mixed
+  // with activityFeedCursor/activityHasMore above (the default unfiltered
+  // load used for badges/bell counts).
   const scopedActivityFeedCursors = new Map<string, string | undefined>();
   const [scopedActivityHasMore, setScopedActivityHasMore] = createStore<Record<string, boolean>>(
     {},
   );
 
-  function activityHasMoreFor(types?: string): boolean {
-    return types ? (scopedActivityHasMore[types] ?? true) : activityHasMore();
+  function activityFeedScopeKey(types?: string, unreadOnly?: boolean): string | undefined {
+    if (!(types || unreadOnly)) return;
+    return `${types ?? ""}${unreadOnly ? "|unread" : ""}`;
+  }
+
+  function activityHasMoreFor(types?: string, unreadOnly?: boolean): boolean {
+    const scopeKey = activityFeedScopeKey(types, unreadOnly);
+    return scopeKey ? (scopedActivityHasMore[scopeKey] ?? true) : activityHasMore();
   }
   const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean>>({});
   const [reactedActivityIds, setReactedActivityIds] = createStore<Record<string, boolean>>({});
@@ -267,6 +284,7 @@ export function createActivitySlice(
         if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       setActivityLoaded(true);
+      void backfillMissingReadCursors(activityItems);
     } catch (err) {
       console.error("Failed to load activity", err);
       setActivityLoadError(true);
@@ -286,13 +304,17 @@ export function createActivitySlice(
   // `types` narrows the request to one category's Slack wire type(s) (see
   // ACTIVITY_KIND_FEED_TYPES) — pass it when the Activity view has a category
   // filter active so paging in a narrow filter doesn't have to wade through
-  // pages of other kinds just to find a few more matching rows.
-  async function loadMoreActivity(types?: string) {
+  // pages of other kinds just to find a few more matching rows. `unreadOnly`
+  // mirrors Slack's own `unread_only` param for its "Unread" tab, so that
+  // filter is server-side too instead of paging through read history that
+  // never contributes a visible row.
+  async function loadMoreActivity(types?: string, unreadOnly?: boolean) {
+    const scopeKey = activityFeedScopeKey(types, unreadOnly);
     if (
       !activityLoaded() ||
       activityLoading() ||
       activityLoadingMore() ||
-      !activityHasMoreFor(types)
+      !activityHasMoreFor(types, unreadOnly)
     )
       return;
     const me = deps.currentUser();
@@ -300,12 +322,17 @@ export function createActivitySlice(
     setActivityLoadingMore(true);
     setActivityLoadMoreError(false);
     try {
-      const cursor = types ? scopedActivityFeedCursors.get(types) : activityFeedCursor;
-      const { entries, nextCursor } = await api.fetchActivityFeedEntries(50, cursor, types);
-      if (types) scopedActivityFeedCursors.set(types, nextCursor);
+      const cursor = scopeKey ? scopedActivityFeedCursors.get(scopeKey) : activityFeedCursor;
+      const { entries, nextCursor } = await api.fetchActivityFeedEntries(
+        50,
+        cursor,
+        types,
+        unreadOnly,
+      );
+      if (scopeKey) scopedActivityFeedCursors.set(scopeKey, nextCursor);
       else activityFeedCursor = nextCursor;
       const hasMore = !!nextCursor && entries.length > 0;
-      if (types) setScopedActivityHasMore(types, hasMore);
+      if (scopeKey) setScopedActivityHasMore(scopeKey, hasMore);
       else setActivityHasMore(hasMore);
       const seen = new Set(activityItems.map((i) => i.id));
       const seenChannelPosts = new Set(
@@ -316,6 +343,7 @@ export function createActivitySlice(
       const pending = entries.filter((entry) => !seen.has(entry.id));
       const { push } = createEntryPusher(me, seen, seenChannelPosts);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
+      void backfillMissingReadCursors(activityItems);
     } catch (err) {
       console.error("Failed to load more activity", err);
       setActivityLoadMoreError(true);
@@ -372,6 +400,37 @@ export function createActivitySlice(
     // unreadCount on the bundle; trust it whenever the feed provides it.
     if (item.kind === "thread_reply" && item.unreadCount !== undefined) return item.unreadCount > 0;
     return item.time > (deps.lastReadByChannel[item.channelId] ?? 0);
+  }
+
+  // lastReadByChannel is only ever seeded from client.counts (bootstrap) and
+  // live gateway events for channels those happen to cover. An old, closed DM
+  // can drop out of client.counts entirely while activity.feed still returns
+  // its history — leaving no cursor to compare against, so every such item
+  // reads as "unread since the dawn of time". Once a page of activity items
+  // loads, backfill a real cursor for any channel missing one so those rows
+  // settle to their true read state instead of defaulting to unread.
+  const attemptedReadCursorBackfill = new Set<string>();
+
+  function needsReadCursorBackfill(item: ActivityItem): boolean {
+    if (item.kind === "reaction") return false;
+    if (item.kind === "thread_reply" && item.unreadCount !== undefined) return false;
+    return deps.lastReadByChannel[item.channelId] === undefined;
+  }
+
+  async function backfillMissingReadCursors(items: readonly ActivityItem[]) {
+    const channelIds = new Set(items.filter(needsReadCursorBackfill).map((i) => i.channelId));
+    const toFetch = [...channelIds].filter((id) => !attemptedReadCursorBackfill.has(id));
+    for (const id of toFetch) attemptedReadCursorBackfill.add(id);
+    await Promise.all(
+      toFetch.map(async (channelId) => {
+        try {
+          deps.setLastReadByChannel(channelId, await api.fetchChannelLastRead(channelId));
+        } catch {
+          // Leave it out of the attempted set so the next feed refresh retries.
+          attemptedReadCursorBackfill.delete(channelId);
+        }
+      }),
+    );
   }
 
   const unreadActivityCount = createMemo(() => activityItems.filter(isActivityItemUnread).length);

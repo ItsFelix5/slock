@@ -14,9 +14,13 @@
   margin-left: -6px;
 }
 
-.avatar-stack-extra {
-  margin-left: 4px;
-  font-size: 12px;
+.avatar-stack-overflow {
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.52);
+  color: var(--text-primary);
+  font-size: 9px;
   font-weight: 600;
-  color: var(--text-secondary);
+  line-height: 1;
 }

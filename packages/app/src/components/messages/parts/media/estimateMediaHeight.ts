@@ -67,11 +67,16 @@ export function constrainMediaDimensions(
   maxHeight: number,
   fallbackWidth: number,
   fallbackHeight: number,
+  allowUpscale = false,
 ): { width: number; height: number } {
   if (!(width && height && width > 0 && height > 0))
     return { height: fallbackHeight, width: fallbackWidth };
-  const scale = Math.min(1, maxWidth / width, maxHeight / height);
-  return { height: Math.round(height * scale), width: Math.round(width * scale) };
+  const scale = Math.min(maxWidth / width, maxHeight / height);
+  const constrainedScale = allowUpscale ? scale : Math.min(1, scale);
+  return {
+    height: Math.round(height * constrainedScale),
+    width: Math.round(width * constrainedScale),
+  };
 }
 
 function estimateFileHeight(file: SlackFile, wrapWidth: number): number {
@@ -84,6 +89,7 @@ function estimateFileHeight(file: SlackFile, wrapWidth: number): number {
       FILE_IMAGE_MAX_HEIGHT,
       maxWidth,
       UNKNOWN_FILE_IMAGE_HEIGHT,
+      true,
     ).height;
   if (file.isVideo)
     return constrainMediaDimensions(
@@ -170,6 +176,7 @@ export function estimateAttachmentHeight(
         ATTACHMENT_IMAGE_MAX_HEIGHT,
         Math.min(ATTACHMENT_IMAGE_MAX_WIDTH, attachmentWidth),
         UNKNOWN_ATTACHMENT_IMAGE_HEIGHT,
+        true,
       ).height;
   else if (attachment.imageUrl)
     height +=
