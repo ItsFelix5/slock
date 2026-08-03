@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Read payload trimmers share the same recursive entity helpers.
-import { trimMessage, trimUser } from "./slackEntities.ts";
+import { trimUser } from "./slackEntities.ts";
 
 export function trimChannel(channel: any): any {
   if (!channel || typeof channel !== "object") return channel;
@@ -131,27 +131,6 @@ function trimUserPrefs(data: any): any {
   };
 }
 
-function trimHistory(data: any): any {
-  return {
-    has_more: data.has_more,
-    messages: Array.isArray(data.messages) ? data.messages.map(trimMessage) : data.messages,
-    ok: true,
-    response_metadata: data.response_metadata
-      ? { next_cursor: data.response_metadata.next_cursor }
-      : undefined,
-  };
-}
-
-function trimMessagesListEntry(entry: any): any {
-  if (Array.isArray(entry)) return entry.map(trimMessage);
-  if (!(entry && typeof entry === "object")) return entry;
-  if (entry.ts) return trimMessage(entry);
-  if (entry.messages !== undefined) return { messages: trimMessagesListEntry(entry.messages) };
-  return Object.fromEntries(
-    Object.entries(entry).map(([key, value]) => [key, trimMessagesListEntry(value)]),
-  );
-}
-
 function trimActivityMessage(message: any): any {
   if (!message || typeof message !== "object") return message;
   return {
@@ -270,11 +249,6 @@ export function trimReadResponse(method: string, data: any): any | null {
   if (method === "client.userBoot") return trimUserBoot(data);
   if (method === "client.counts") return trimCounts(data);
   if (method === "users.prefs.get") return trimUserPrefs(data);
-  if (method === "conversations.history" || method === "conversations.replies")
-    return trimHistory(data);
-  if (method === "messages.list") {
-    return { messages: trimMessagesListEntry(data.messages), ok: true };
-  }
   if (method === "activity.feed") {
     return {
       items: Array.isArray(data.items) ? data.items.map(trimActivityItem) : data.items,

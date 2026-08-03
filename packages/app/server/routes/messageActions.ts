@@ -1,5 +1,10 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { errorResponse, jsonResponse, okResponse } from "../http/jsonResponse.ts";
+import {
+  errorResponse,
+  jsonResponse,
+  okResponse,
+  slackErrorResponse,
+} from "../http/jsonResponse.ts";
 import { fetchSlack } from "../slackClient.ts";
 import { trimMessage } from "../trim/slackEntities.ts";
 import { type Route, type RouteCtx, route } from "./router.ts";
@@ -10,13 +15,7 @@ async function mutate(
   ctx: RouteCtx,
 ): Promise<Response> {
   const data = await fetchSlack(slackMethod, params, ctx.creds);
-  if (!data.ok) {
-    return jsonResponse(
-      { error: data.error ?? slackMethod, ok: false },
-      ctx.creds,
-      ctx.acceptEncoding,
-    );
-  }
+  if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds, ctx.acceptEncoding);
   return okResponse(ctx.creds, ctx.acceptEncoding);
 }
 
@@ -47,13 +46,7 @@ export const messageActionRoutes: Route[] = [
   ),
   route("GET", "/api/channels/:id/pins", async (ctx) => {
     const data = await fetchSlack("pins.list", { channel: ctx.params.id }, ctx.creds);
-    if (!data.ok) {
-      return jsonResponse(
-        { error: data.error ?? "pins.list", ok: false },
-        ctx.creds,
-        ctx.acceptEncoding,
-      );
-    }
+    if (!data.ok) return slackErrorResponse(data, "pins.list", ctx.creds, ctx.acceptEncoding);
     const items: any[] = Array.isArray(data.items) ? data.items : [];
     return jsonResponse(
       {
@@ -89,13 +82,7 @@ export const messageActionRoutes: Route[] = [
   ),
   route("GET", "/api/saved", async (ctx) => {
     const data = await fetchSlack("saved.list", { limit: "40" }, ctx.creds);
-    if (!data.ok) {
-      return jsonResponse(
-        { error: data.error ?? "saved.list", ok: false },
-        ctx.creds,
-        ctx.acceptEncoding,
-      );
-    }
+    if (!data.ok) return slackErrorResponse(data, "saved.list", ctx.creds, ctx.acceptEncoding);
     // saved.list returns `saved_items`, each shaped like { item_id (the
     // channel), item_type: 'message', ts, ... } — item_id/ts sit at the top
     // level, not nested.

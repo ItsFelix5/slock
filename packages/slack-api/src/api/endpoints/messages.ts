@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Message operations share one public endpoint surface.
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { apiDelete, apiGet, apiPost, callSlack, getWorkspaceDomain } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, callSlack, getWorkspaceDomain } from "../server";
 import { type ConversationViewData, fetchConversationView } from "./conversationView";
 
 export type HistoryPage = {
@@ -44,14 +44,14 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
     };
   }
 
-  const params: Record<string, string> = { channel: channelId, limit: "60" };
+  const query = new URLSearchParams();
   if (cursor.startsWith("before:")) {
-    params.inclusive = "false";
-    params.latest = cursor.slice("before:".length);
+    query.set("inclusive", "false");
+    query.set("latest", cursor.slice("before:".length));
   } else {
-    params.cursor = cursor;
+    query.set("cursor", cursor);
   }
-  const data = await callSlack("conversations.history", params);
+  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   return {
@@ -75,12 +75,8 @@ export async function fetchHistoryAround(
   ts: string,
   limit = 28,
 ): Promise<HistoryPage> {
-  const data = await callSlack("conversations.history", {
-    channel: channelId,
-    inclusive: "true",
-    latest: ts,
-    limit: String(limit),
-  });
+  const query = new URLSearchParams({ inclusive: "true", latest: ts, limit: String(limit) });
+  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   return {
@@ -115,13 +111,13 @@ export async function fetchHistoryNewer(
   let knownDenseSpan: bigint | undefined;
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const upperMicroseconds = span < maximumSpan ? oldestMicroseconds + span : liveEdgeMicroseconds;
-    const data = await callSlack("conversations.history", {
-      channel: channelId,
+    const query = new URLSearchParams({
       inclusive: "false",
       latest: microsecondsToTimestamp(upperMicroseconds),
       limit: String(limit),
       oldest,
     });
+    const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
     if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
     const rawMessages: any[] = data.messages ?? [];
 
@@ -158,11 +154,7 @@ export async function fetchHistoryNewer(
 }
 
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
-  const data = await callSlack("conversations.replies", {
-    channel: channelId,
-    limit: "200",
-    ts: threadTs,
-  });
+  const data = await apiGet(`/api/channels/${channelId}/threads/${threadTs}/messages`);
   if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
   const messages: any[] = data.messages ?? [];
   return messages
@@ -182,13 +174,13 @@ export async function fetchPermalinkMessage(
     const replies = await fetchReplies(channelId, threadTs);
     return replies.find((m) => m.ts === messageTs);
   }
-  const data = await callSlack("conversations.history", {
-    channel: channelId,
+  const query = new URLSearchParams({
     inclusive: "true",
     latest: messageTs,
     limit: "1",
     oldest: messageTs,
   });
+  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   const raw = messages.find((m) => m.ts === messageTs);
@@ -202,37 +194,36 @@ export async function postMessage(
   blocks?: unknown,
   suppressUnfurl?: boolean,
 ) {
-  const params: Record<string, string> = { channel: channelId, text };
-  if (threadTs) params.thread_ts = threadTs;
-  if (blocks) params.blocks = JSON.stringify(blocks);
+  const body: Record<string, unknown> = { text };
+  if (threadTs) body.threadTs = threadTs;
+  if (blocks) body.blocks = blocks;
   // Slack's own link unfurl is all-or-nothing for the whole message — there's
   // no documented way to suppress just one link — so dismissing any preview
   // in the composer turns it off for the message as a whole.
-  if (suppressUnfurl) {
-    params.unfurl_links = "false";
-    params.unfurl_media = "false";
-  }
-  const data = await callSlack("chat.postMessage", params);
+  if (suppressUnfurl) body.suppressUnfurl = true;
+  const data = await apiPost(`/api/channels/${channelId}/messages`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
   return data;
 }
 
 export async function editMessage(channelId: string, ts: string, text: string, blocks?: unknown) {
-  const params: Record<string, string> = { channel: channelId, text, ts };
-  if (blocks) params.blocks = JSON.stringify(blocks);
-  const data = await callSlack("chat.update", params);
+  const body: Record<string, unknown> = { text };
+  if (blocks) body.blocks = blocks;
+  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
 
 export async function broadcastReply(channelId: string, ts: string) {
-  const data = await callSlack("chat.update", { channel: channelId, reply_broadcast: "true", ts });
+  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, {
+    replyBroadcast: true,
+  });
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
 
 export async function deleteMessage(channelId: string, ts: string) {
-  const data = await callSlack("chat.delete", { channel: channelId, ts });
+  const data = await apiDelete(`/api/channels/${channelId}/messages/${ts}`);
   if (!data.ok) throw new Error(data.error ?? "chat.delete failed");
   return data;
 }
@@ -252,7 +243,7 @@ export async function toggleSaved(channelId: string, ts: string, remove: boolean
 }
 
 export async function markChannelRead(channelId: string, ts: string) {
-  const data = await callSlack("conversations.mark", { channel: channelId, ts });
+  const data = await apiPost(`/api/channels/${channelId}/read`, { ts });
   if (!data.ok) throw new Error(data.error ?? "conversations.mark failed");
   return data;
 }

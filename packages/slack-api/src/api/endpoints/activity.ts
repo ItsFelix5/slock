@@ -3,7 +3,7 @@
 import type { ActivityItem } from "../../contentTypes";
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { callSlack } from "../server";
+import { apiPost, callSlack } from "../server";
 
 // Feed types worth surfacing, mapped to our ActivityItem kinds below. Slack
 // also emits other app/workflow feed types (list_record_assigned,
@@ -278,7 +278,7 @@ export async function fetchMessagesByIds(
   const chunks = chunkMessageIds(messageGroups);
   const results = await Promise.allSettled(
     chunks.map(async (messageIds) => {
-      const data = await callSlack("messages.list", { message_ids: JSON.stringify(messageIds) });
+      const data = await apiPost("/api/messages/lookup", { messageIds });
       if (!data.ok) {
         throw new Error(data.error ?? "messages.list failed while resolving activity");
       }

@@ -3,7 +3,6 @@ import { trimBot, trimMessage, trimUser } from "./slackEntities.ts";
 import { trimChannel, trimReadResponse } from "./slackReadResponse.ts";
 
 function trimMutation(method: string, data: any): any {
-  if (method === "chat.postMessage") return { ok: true, ts: data.ts };
   if (method === "conversations.rename") {
     return { channel: { name: data.channel?.name }, ok: true };
   }
@@ -40,12 +39,9 @@ const OK_ONLY_METHODS = new Set([
   "canvases.edit",
   "channels.prefs.set",
   "chat.command",
-  "chat.delete",
-  "chat.update",
   "conversations.invite",
   "conversations.kick",
   "conversations.leave",
-  "conversations.mark",
   "conversations.permissions.accountTypes.set",
   "conversations.setPurpose",
   "conversations.setRetention",
@@ -256,7 +252,6 @@ export function trimSlackResponse(method: string, data: any): any {
     };
   }
   if (
-    method === "chat.postMessage" ||
     method === "conversations.rename" ||
     method === "conversations.join" ||
     method === "conversations.create" ||

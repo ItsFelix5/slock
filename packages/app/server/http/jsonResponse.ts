@@ -24,3 +24,13 @@ export function okResponse(creds: Credentials | null, acceptEncoding: string | n
 export function errorResponse(error: string, status: number): Response {
   return new Response(JSON.stringify({ error, ok: false }), { headers: jsonHeaders, status });
 }
+
+// A failed Slack call is still HTTP 200 (matches Slack's own ok:false convention).
+export function slackErrorResponse(
+  data: { error?: string },
+  fallback: string,
+  creds: Credentials | null,
+  acceptEncoding: string | null,
+): Response {
+  return jsonResponse({ error: data.error ?? fallback, ok: false }, creds, acceptEncoding);
+}
