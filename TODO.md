@@ -2,7 +2,6 @@
 - responses don't seem to render correctly always <like|link text> iirc
 - channel section filtering actually saving
 - Implement invitations and reminders in activity
-- Remove send message button
 - Composer block quote deletion per line should act like a character
 - You should be able to select and copy and paste composer text like you should
 - Response/reply links staying on message mentions

@@ -43,7 +43,6 @@ export default function Composer(props: ComposerProps) {
     onEditorClick,
     setSuggestPopoverRef,
     getFileInputRef,
-    canSend,
     sending,
     draftSyncError,
     retryDraftSync,
@@ -276,23 +275,6 @@ export default function Composer(props: ComposerProps) {
                 : "Sending…"}
           </span>
         </Show>
-        <button
-          aria-label={
-            sending()
-              ? props.editing
-                ? "Saving changes"
-                : "Sending message"
-              : props.editing
-                ? "Save changes"
-                : "Send message"
-          }
-          class="composer-send btn-reset flex-center flex-shrink-0"
-          disabled={!canSend()}
-          title={props.editing ? "Save changes" : "Send message"}
-          type="submit"
-        >
-          <Icon name={sending() ? "send" : "send-filled"} size={16} />
-        </button>
       </div>
     </form>
   );
