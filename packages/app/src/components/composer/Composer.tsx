@@ -1,5 +1,5 @@
 import { Button, Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
-import { For, Show } from "solid-js";
+import { For, onCleanup, Show } from "solid-js";
 import { actionFeedback, composerFeedbackKey } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
 import { createComposerController } from "./composerController";
@@ -10,6 +10,14 @@ import ComposeDatePicker from "./popovers/ComposeDatePicker";
 import ComposeLinkEditor from "./popovers/ComposeLinkEditor";
 import ComposeUserPicker from "./popovers/ComposeUserPicker";
 import "./Composer.css";
+
+function FileChipThumbnail(props: { file: File }) {
+  if (!props.file.type.startsWith("image/")) return null;
+  const url = URL.createObjectURL(props.file);
+  onCleanup(() => URL.revokeObjectURL(url));
+  return <img alt="" class="composer-file-chip-thumb" src={url} />;
+}
+
 export default function Composer(props: ComposerProps) {
   const {
     toolsOpen,
@@ -73,6 +81,7 @@ export default function Composer(props: ComposerProps) {
           <For each={pendingFiles()}>
             {(file, i) => (
               <span class="composer-file-chip flex-align-center">
+                <FileChipThumbnail file={file} />
                 {file.name}
                 <Tooltip content="Remove">
                   <button
