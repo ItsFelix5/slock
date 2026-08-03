@@ -1,23 +1,8 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import {
-  errorResponse,
-  jsonResponse,
-  okResponse,
-  slackErrorResponse,
-} from "../http/jsonResponse.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
 import { fetchSlack } from "../slackClient.ts";
 import { trimMessage } from "../trim/slackEntities.ts";
-import { type Route, type RouteCtx, route } from "./router.ts";
-
-async function mutate(
-  slackMethod: string,
-  params: Record<string, string>,
-  ctx: RouteCtx,
-): Promise<Response> {
-  const data = await fetchSlack(slackMethod, params, ctx.creds);
-  if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds, ctx.acceptEncoding);
-  return okResponse(ctx.creds, ctx.acceptEncoding);
-}
+import { mutate, type Route, route } from "./router.ts";
 
 export const messageActionRoutes: Route[] = [
   route("POST", "/api/messages/:channel/:ts/reactions", async (ctx) => {

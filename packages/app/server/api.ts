@@ -15,11 +15,12 @@ import { bootstrapResponse } from "./operations/bootstrap.ts";
 import { messageActionRoutes } from "./routes/messageActions.ts";
 import { messageRoutes } from "./routes/messages.ts";
 import { matchRoute, type Route } from "./routes/router.ts";
+import { threadRoutes } from "./routes/threads.ts";
 import { callSlack, callSlackEdge } from "./slackClient.ts";
 
 // Purpose-built routes, populated per resource area as operations migrate off
 // the generic /api/operations/:method passthrough below.
-const ROUTES: Route[] = [...messageActionRoutes, ...messageRoutes];
+const ROUTES: Route[] = [...messageActionRoutes, ...messageRoutes, ...threadRoutes];
 
 async function slackOperationResponse(
   method: string,

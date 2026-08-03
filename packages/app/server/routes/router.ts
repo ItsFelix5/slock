@@ -1,4 +1,6 @@
 import type { Credentials } from "../auth.ts";
+import { okResponse, slackErrorResponse } from "../http/jsonResponse.ts";
+import { fetchSlack } from "../slackClient.ts";
 
 export type BodyReader = {
   json(): Promise<Record<string, unknown>>;
@@ -28,6 +30,18 @@ function splitPath(pathname: string): string[] {
 // `path` uses `:name` segments for params, e.g. "/api/channels/:id/messages".
 export function route(method: string, path: string, handler: Route["handler"]): Route {
   return { handler, method, segments: splitPath(path) };
+}
+
+// Shared shape for the many routes that just call one Slack method and report
+// back ok/error with no payload of their own (reactions, pins, stars, ...).
+export async function mutate(
+  slackMethod: string,
+  params: Record<string, string>,
+  ctx: RouteCtx,
+): Promise<Response> {
+  const data = await fetchSlack(slackMethod, params, ctx.creds);
+  if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds, ctx.acceptEncoding);
+  return okResponse(ctx.creds, ctx.acceptEncoding);
 }
 
 function matchSegments(segments: string[], parts: string[]): Record<string, string> | null {
