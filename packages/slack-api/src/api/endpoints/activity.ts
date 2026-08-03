@@ -3,26 +3,7 @@
 import type { ActivityItem } from "../../contentTypes";
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { apiPost, callSlack } from "../server";
-
-// Feed types worth surfacing, mapped to our ActivityItem kinds below. Slack
-// also emits other app/workflow feed types (list_record_assigned,
-// saved_reminder, external_channel_invite, ...) with no equivalent in our
-// model — left out of the request entirely rather than fetched and silently
-// dropped. Adding an invalid value to `types` isn't just ignored: it appears
-// to fail the whole request, so don't add one here without confirming the
-// exact wire string real Slack sends first.
-const ACTIVITY_FEED_TYPES = [
-  "at_user",
-  "at_user_group",
-  "at_channel",
-  "at_everyone",
-  "keyword",
-  "thread_v2",
-  "message_reaction",
-  "dm",
-  "channel",
-].join(",");
+import { apiGet, apiPost } from "../server";
 
 // Reverse of activityKindFor, for callers (the Activity view's category
 // filter) that want to fetch just one kind's page instead of the whole feed.
@@ -190,22 +171,12 @@ export interface ActivityFeedPage {
 export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
-  types: string = ACTIVITY_FEED_TYPES,
+  types?: string,
 ): Promise<ActivityFeedPage> {
-  const params: Record<string, string> = {
-    archive_only: "false",
-    automations_only: "false",
-    exclude_automations: "false",
-    is_activity_inbox: "true",
-    limit: String(limit),
-    mode: "chrono_v1",
-    only_salesforce_channels: "false",
-    priority_only: "false",
-    types,
-    unread_only: "false",
-  };
-  if (cursor) params.cursor = cursor;
-  const data = await callSlack("activity.feed", params);
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set("cursor", cursor);
+  if (types) query.set("types", types);
+  const data = await apiGet(`/api/activity?${query}`);
   if (!data.ok) throw new Error(data.error ?? "activity.feed failed");
   const entries = ((data.items ?? []) as any[])
     .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts) * 1000))
