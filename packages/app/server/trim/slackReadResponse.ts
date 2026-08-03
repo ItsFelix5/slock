@@ -169,24 +169,6 @@ function trimActivityItem(raw: any): any {
   };
 }
 
-function trimSearchMessages(data: any): any {
-  const matches = data.messages?.matches;
-  return {
-    messages: {
-      matches: Array.isArray(matches)
-        ? matches.map((match: any) => ({
-            channel: { id: match?.channel?.id, name: match?.channel?.name },
-            text: match?.text,
-            thread_ts: match?.thread_ts,
-            ts: match?.ts,
-            user: match?.user,
-          }))
-        : matches,
-    },
-    ok: true,
-  };
-}
-
 export function trimReadResponse(method: string, data: any): any | null {
   if (method === "client.userBoot") return trimUserBoot(data);
   if (method === "client.counts") return trimCounts(data);
@@ -200,6 +182,5 @@ export function trimReadResponse(method: string, data: any): any | null {
         : undefined,
     };
   }
-  if (method === "search.messages") return trimSearchMessages(data);
   return null;
 }

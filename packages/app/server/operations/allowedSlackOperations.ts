@@ -4,8 +4,6 @@ export const SLACK_OPERATIONS = new Set([
   "commands.list",
   "dnd.endSnooze",
   "dnd.setSnooze",
-  "search.autocomplete",
-  "search.messages",
   "users.prefs.set",
 ]);
 

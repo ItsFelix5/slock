@@ -43,9 +43,6 @@ export function trimSlackResponse(method: string, data: any): any {
   if (!data?.ok) return data;
   const readResponse = trimReadResponse(method, data);
   if (readResponse) return readResponse;
-  if (method === "search.autocomplete") {
-    return { ok: true, suggestions: { text: data.suggestions?.text } };
-  }
   if (method === "users.channelSections.list") return trimChannelSections(data);
   if (method === "commands.list") {
     const commands = data.commands ?? {};

@@ -22,6 +22,7 @@ import { draftRoutes } from "./routes/drafts.ts";
 import { messageActionRoutes } from "./routes/messageActions.ts";
 import { messageRoutes } from "./routes/messages.ts";
 import { matchRoute, type Route } from "./routes/router.ts";
+import { searchRoutes } from "./routes/search.ts";
 import { sectionRoutes } from "./routes/sections.ts";
 import { threadRoutes } from "./routes/threads.ts";
 import { usergroupRoutes } from "./routes/usergroups.ts";
@@ -45,6 +46,7 @@ const ROUTES: Route[] = [
   ...accountRoutes,
   ...usergroupRoutes,
   ...appRoutes,
+  ...searchRoutes,
 ];
 
 async function slackOperationResponse(

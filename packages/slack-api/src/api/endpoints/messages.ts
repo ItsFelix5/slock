@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Message operations share one public endpoint surface.
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { apiDelete, apiGet, apiPatch, apiPost, callSlack, getWorkspaceDomain } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, getWorkspaceDomain } from "../server";
 import { type ConversationViewData, fetchConversationView } from "./conversationView";
 
 export type HistoryPage = {
@@ -334,24 +334,12 @@ export async function searchMessages(
   query: string,
   opts?: { sort?: "score" | "timestamp"; sortDir?: "asc" | "desc" },
 ): Promise<SearchResult[]> {
-  const data = await callSlack("search.messages", {
-    count: "40",
-    query,
-    sort: opts?.sort ?? "timestamp",
-    sort_dir: opts?.sortDir ?? "desc",
-  });
+  const params = new URLSearchParams({ query });
+  if (opts?.sort) params.set("sort", opts.sort);
+  if (opts?.sortDir) params.set("sortDir", opts.sortDir);
+  const data = await apiGet(`/api/search/messages?${params}`);
   if (!data.ok) throw new Error(data.error ?? "search.messages failed");
-  const matches: any[] = data.messages?.matches ?? [];
-  return matches
-    .filter((match) => !!(match?.channel?.id && match.ts))
-    .map((match) => ({
-      channelId: match.channel.id,
-      channelName: match.channel.name ?? match.channel.id,
-      text: match.text ?? "",
-      threadTs: match.thread_ts || undefined,
-      ts: match.ts,
-      userId: match.user ?? "",
-    }));
+  return data.results ?? [];
 }
 
 // Slack's own query-completion suggestions (e.g. finishing a partial word,
@@ -360,7 +348,7 @@ export async function searchMessages(
 // place of.
 export async function fetchSearchAutocomplete(query: string): Promise<string[]> {
   if (!query.trim()) return [];
-  const data = await callSlack("search.autocomplete", { query });
+  const data = await apiGet(`/api/search/autocomplete?query=${encodeURIComponent(query)}`);
   if (!data.ok) return [];
-  return (data.suggestions?.text as string[] | undefined) ?? [];
+  return data.suggestions ?? [];
 }
