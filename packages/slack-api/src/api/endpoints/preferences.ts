@@ -1,4 +1,4 @@
-import { callSlack } from "../server";
+import { apiDelete, apiPut } from "../server";
 import { fetchInitialData } from "./initialData";
 import { resolveDesktopNotificationsEnabled } from "./preferences/desktopNotifications";
 
@@ -191,62 +191,41 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
 }
 
 export async function setUsergroupSectionOrderPreference(sectionIds: string[]): Promise<boolean> {
-  const data = await callSlack("users.prefs.set", {
-    name: "slock_usergroup_section_order",
-    value: JSON.stringify(sectionIds),
-  });
+  const data = await apiPut("/api/preferences/usergroup-section-order", { sectionIds });
   return !!data.ok;
 }
 
 export async function setUsergroupSectionSidebarPreferences(
   entries: Record<string, "hid" | "active" | "all">,
 ): Promise<boolean> {
-  const data = await callSlack("users.prefs.set", {
-    name: "slock_usergroup_section_sidebar",
-    value: JSON.stringify(entries),
-  });
+  const data = await apiPut("/api/preferences/usergroup-section-sidebar", { entries });
   return !!data.ok;
 }
 
 // This uses the same "prefs blob" mechanism the real webapp saves all of its
 // local settings through, not a documented api.slack.com method.
 export async function setMutedChannels(channelIds: string[]): Promise<void> {
-  const data = await callSlack("users.prefs.set", {
-    name: "muted_channels",
-    value: channelIds.join(","),
-  });
+  const data = await apiPut("/api/preferences/muted-channels", { channelIds });
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setHighlightWords(words: string[]): Promise<void> {
-  const data = await callSlack("users.prefs.set", {
-    name: "highlight_words",
-    value: words.join(","),
-  });
+  const data = await apiPut("/api/preferences/highlight-words", { words });
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setDesktopNotificationsEnabled(enabled: boolean): Promise<void> {
-  const data = await callSlack("users.prefs.set", {
-    name: "slock_desktop_notifications",
-    value: enabled ? "on" : "off",
-  });
+  const data = await apiPut("/api/preferences/desktop-notifications", { enabled });
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setSearchHistory(queries: string[]): Promise<void> {
-  const data = await callSlack("users.prefs.set", {
-    name: "slock_search_history",
-    value: JSON.stringify(queries),
-  });
+  const data = await apiPut("/api/preferences/search-history", { queries });
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
 export async function setChannelTabs(entries: Record<string, { type: string }[]>): Promise<void> {
-  const data = await callSlack("users.prefs.set", {
-    name: "slock_channel_tabs",
-    value: JSON.stringify(entries),
-  });
+  const data = await apiPut("/api/preferences/channel-tabs", { entries });
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 
@@ -259,12 +238,11 @@ export async function fetchDndStatus(): Promise<number | null> {
 }
 
 export async function setDndSnooze(minutes: number): Promise<void> {
-  // biome-ignore lint/style/useNamingConvention: Slack expects the documented wire parameter.
-  const data = await callSlack("dnd.setSnooze", { num_minutes: String(minutes) });
+  const data = await apiPut("/api/dnd/snooze", { minutes });
   if (!data.ok) throw new Error(data.error ?? "dnd.setSnooze failed");
 }
 
 export async function endDndSnooze(): Promise<void> {
-  const data = await callSlack("dnd.endSnooze");
+  const data = await apiDelete("/api/dnd/snooze");
   if (!data.ok) throw new Error(data.error ?? "dnd.endSnooze failed");
 }

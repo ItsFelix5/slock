@@ -31,13 +31,7 @@ function trimMutation(method: string, data: any): any {
   return { ok: true };
 }
 
-const OK_ONLY_METHODS = new Set([
-  "chat.command",
-  "dnd.endSnooze",
-  "dnd.setSnooze",
-  "files.completeUploadExternal",
-  "users.prefs.set",
-]);
+const OK_ONLY_METHODS = new Set(["chat.command", "files.completeUploadExternal"]);
 
 export function trimSlackResponse(method: string, data: any): any {
   if (!data?.ok) return data;
