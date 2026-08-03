@@ -13,6 +13,7 @@ import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
 import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
 import { accountRoutes } from "./routes/account.ts";
+import { appRoutes } from "./routes/apps.ts";
 import { canvasRoutes } from "./routes/canvases.ts";
 import { channelDirectoryRoutes } from "./routes/channelDirectory.ts";
 import { channelRoutes } from "./routes/channels.ts";
@@ -43,6 +44,7 @@ const ROUTES: Route[] = [
   ...draftRoutes,
   ...accountRoutes,
   ...usergroupRoutes,
+  ...appRoutes,
 ];
 
 async function slackOperationResponse(

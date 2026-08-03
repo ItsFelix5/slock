@@ -32,8 +32,6 @@ function trimMutation(method: string, data: any): any {
 }
 
 const OK_ONLY_METHODS = new Set([
-  "apps.actions.v2.execute",
-  "blocks.actions",
   "chat.command",
   "dnd.endSnooze",
   "dnd.setSnooze",
@@ -49,30 +47,6 @@ export function trimSlackResponse(method: string, data: any): any {
     return { ok: true, suggestions: { text: data.suggestions?.text } };
   }
   if (method === "users.channelSections.list") return trimChannelSections(data);
-  if (method === "client.appCommands") {
-    return {
-      app_actions: Array.isArray(data.app_actions)
-        ? data.app_actions.map((app: any) => ({
-            actions: Array.isArray(app?.actions)
-              ? app.actions.map((action: any) => ({
-                  action_id: action?.action_id,
-                  desc: action?.desc,
-                  description: action?.description,
-                  name: action?.name,
-                  type: action?.type,
-                }))
-              : app?.actions,
-            app_id: app?.app_id,
-            app_name: app?.app_name,
-            icons: app?.icons,
-          }))
-        : data.app_actions,
-      ok: true,
-    };
-  }
-  if (method === "apps.profile.get") {
-    return { app_profile: { desc: data.app_profile?.desc }, ok: true };
-  }
   if (method === "commands.list") {
     const commands = data.commands ?? {};
     return {

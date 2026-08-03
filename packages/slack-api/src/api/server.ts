@@ -104,12 +104,6 @@ export function getCachedWorkspaceDomain(): string | null {
   return info()?.domain ?? null;
 }
 
-// Same idea as getWorkspaceDomain, for the current team id — needed to
-// submit a block action.
-export function getWorkspaceTeamId(): Promise<string | null> {
-  return Promise.resolve(info()?.teamId ?? null);
-}
-
 // A user's Enterprise Grid team profile link — works cross-workspace within
 // the same Grid org, unlike a plain channel permalink. On a Grid workspace
 // like this one, `domain` from the slock_info cookie is already the "*.enterprise.slack.com"
