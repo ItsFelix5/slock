@@ -1,5 +1,4 @@
 - scroll jank
-- responses don't seem to render correctly always <like|link text> iirc
 - channel section filtering actually saving
 - Implement invitations and reminders in activity
 - Composer block quote deletion per line should act like a character

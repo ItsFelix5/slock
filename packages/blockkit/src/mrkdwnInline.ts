@@ -28,31 +28,39 @@ export type InlineNode =
 const INLINE_RE =
   /`([^`]+)`|<([^<>]*)>|:([a-z0-9_+'-]+):|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|(?<![\p{L}\p{N}])_([^\n]+?)_(?![\p{L}\p{N}])|~([^~\n]+)~/giu;
 
+// Link/mention labels can themselves contain a literal "|" (a price, a
+// range, ...), so only the first "|" in a token is the field separator —
+// `token.split("|")` would silently truncate a label at its own pipe.
+function splitOnce(text: string, sep: string): [string, string | undefined] {
+  const index = text.indexOf(sep);
+  return index === -1 ? [text, undefined] : [text.slice(0, index), text.slice(index + sep.length)];
+}
+
 function parseToken(token: string): InlineNode {
   if (token.startsWith("@")) {
-    const [id] = token.slice(1).split("|");
+    const [id] = splitOnce(token.slice(1), "|");
     return { id, t: "user" };
   }
   if (token.startsWith("#")) {
-    const [id, label] = token.slice(1).split("|");
+    const [id, label] = splitOnce(token.slice(1), "|");
     return { id, label, t: "channel" };
   }
   if (token.startsWith("!subteam^")) {
-    const [id, label] = token.slice("!subteam^".length).split("|");
+    const [id, label] = splitOnce(token.slice("!subteam^".length), "|");
     return { id, label, t: "usergroup" };
   }
   if (token.startsWith("!date^")) {
-    const [main, fallback] = token.slice("!date^".length).split("|");
+    const [main, fallback] = splitOnce(token.slice("!date^".length), "|");
     const [ts, format, url] = main.split("^");
     return { fallback, format, t: "date", timestamp: Number(ts), url };
   }
   if (token.startsWith("!")) {
-    const [range] = token.slice(1).split("|");
+    const [range] = splitOnce(token.slice(1), "|");
     if (range === "here" || range === "channel" || range === "everyone")
       return { range, t: "broadcast" };
     return { t: "text", text: `<${token}>` };
   }
-  const [url, label] = token.split("|");
+  const [url, label] = splitOnce(token, "|");
   const userId = parseUserProfileLink(url);
   return userId ? { id: userId, label, t: "userlink", url } : { label, t: "link", url };
 }
