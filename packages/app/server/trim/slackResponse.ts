@@ -31,29 +31,13 @@ function trimMutation(method: string, data: any): any {
   return { ok: true };
 }
 
-const OK_ONLY_METHODS = new Set(["chat.command", "files.completeUploadExternal"]);
+const OK_ONLY_METHODS = new Set(["files.completeUploadExternal"]);
 
 export function trimSlackResponse(method: string, data: any): any {
   if (!data?.ok) return data;
   const readResponse = trimReadResponse(method, data);
   if (readResponse) return readResponse;
   if (method === "users.channelSections.list") return trimChannelSections(data);
-  if (method === "commands.list") {
-    const commands = data.commands ?? {};
-    return {
-      commands: Object.fromEntries(
-        Object.entries(commands).map(([key, command]: [string, any]) => [
-          key,
-          {
-            desc: command?.desc,
-            icons: { image_32: command?.icons?.image_32 },
-            name: command?.name,
-          },
-        ]),
-      ),
-      ok: true,
-    };
-  }
   if (method === "dnd.info") {
     return {
       ok: true,

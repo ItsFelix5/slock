@@ -1,7 +1,6 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../contentTypes";
-import { apiGet, apiPut, callSlack, resolveMediaUrl } from "../server";
+import { apiGet, apiPost, apiPut, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
@@ -31,16 +30,9 @@ export function fetchAllEmoji(): Promise<Record<string, string>> {
 export async function fetchSlashCommands(): Promise<
   { name: string; desc: string; icon: string | null }[]
 > {
-  const data = await callSlack("commands.list");
+  const data = await apiGet("/api/commands");
   if (!data.ok) throw new Error(data.error ?? "commands.list failed");
-  const commandsObj = data.commands ?? {};
-  return Object.values<any>(commandsObj)
-    .filter((c) => c?.name)
-    .map((c) => ({
-      desc: c.desc || "",
-      icon: c.icons?.image_32 || null,
-      name: c.name.replace(/^\//, ""),
-    }));
+  return data.commands ?? [];
 }
 
 export async function fetchSaved(): Promise<SavedItem[]> {
@@ -123,10 +115,7 @@ export async function runSlashCommand(
   command: string,
   text: string,
 ): Promise<string | null> {
-  // Best-effort: there's no documented public method for dispatching a slash
-  // command from a client — this mirrors the internal call the real webapp
-  // makes, which we can't fully verify without live testing.
-  const data = await callSlack("chat.command", { channel: channelId, command, text });
+  const data = await apiPost("/api/commands/run", { channelId, command, text });
   if (!data.ok) return data.error ?? "Command not supported by this client.";
   return null;
 }

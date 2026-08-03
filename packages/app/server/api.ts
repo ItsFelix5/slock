@@ -18,6 +18,7 @@ import { appRoutes } from "./routes/apps.ts";
 import { canvasRoutes } from "./routes/canvases.ts";
 import { channelDirectoryRoutes } from "./routes/channelDirectory.ts";
 import { channelRoutes } from "./routes/channels.ts";
+import { commandRoutes } from "./routes/commands.ts";
 import { conversationViewRoutes } from "./routes/conversationView.ts";
 import { draftRoutes } from "./routes/drafts.ts";
 import { messageActionRoutes } from "./routes/messageActions.ts";
@@ -51,6 +52,7 @@ const ROUTES: Route[] = [
   ...searchRoutes,
   ...preferenceRoutes,
   ...activityRoutes,
+  ...commandRoutes,
 ];
 
 async function slackOperationResponse(
