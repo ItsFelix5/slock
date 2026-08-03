@@ -11,6 +11,7 @@ export default function MessageMeta(props: {
   displayName: () => string;
   isPinned: () => boolean;
   onOpenUser: () => void;
+  showBroadcastBadge?: () => boolean;
   userId?: string;
 }) {
   const msg = props.message;
@@ -65,6 +66,12 @@ export default function MessageMeta(props: {
         <span class="message-pinned-badge">
           <Icon name="pin-filled" size={11} />
           Pinned
+        </span>
+      </Show>
+      <Show when={props.showBroadcastBadge?.()}>
+        <span class="message-broadcast-badge">
+          <Icon name="channel" size={11} />
+          Also sent to channel
         </span>
       </Show>
     </div>

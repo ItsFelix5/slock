@@ -137,6 +137,7 @@ export default function MessageRow(props: MessageRowProps) {
   );
   const visibleAttachments = () => renderState().visibleAttachments;
   const sameAuthorAsPrev = () => renderState().sameAuthorAsPrev;
+  const showBroadcastBadge = () => renderState().showBroadcastBadge;
   const isSlackbot = () => msg().botName === "Slackbot";
   const profileUserId = () => {
     const id = USER_PROFILE_ID_RE.test(msg().userId)
@@ -177,6 +178,7 @@ export default function MessageRow(props: MessageRowProps) {
       <div
         class="message-row-group"
         classList={{
+          broadcast: showBroadcastBadge(),
           compact: sameAuthorAsPrev(),
           deleted: msg().deleted,
           ephemeral: msg().isEphemeral,
@@ -262,6 +264,7 @@ export default function MessageRow(props: MessageRowProps) {
               <MessageMeta
                 displayName={displayName}
                 isPinned={isPinned}
+                showBroadcastBadge={showBroadcastBadge}
                 message={
                   {
                     ...msg(),

@@ -27,6 +27,7 @@ export interface MessageRenderState {
   replyRef: ReturnType<typeof parseReplyLink>;
   sameAuthorAsPrev: boolean;
   showMessage: boolean;
+  showBroadcastBadge: boolean;
   showRepliesDivider: boolean;
   showThreadContext: boolean;
   showUnreadDivider: boolean;
@@ -107,6 +108,11 @@ export function resolveMessageRenderState(
   const replyRef = parseReplyLink(message.text, isInThread);
   const messageText = replyRef?.rest ?? message.text;
   const showThreadContext = context.hasOpenThread && !!message.isBroadcast && !!message.threadTs;
+  // The complementary case: viewed from inside the thread panel itself
+  // (where showThreadContext never fires, since there's no "open thread"
+  // callback to jump to), a broadcast reply gets a small badge instead so
+  // it's still clear this reply also went out to the channel.
+  const showBroadcastBadge = !context.hasOpenThread && !!message.isBroadcast && !!message.threadTs;
   const sameAuthorAsPrev =
     !!prev &&
     prev.userId === message.userId &&
@@ -116,7 +122,8 @@ export function resolveMessageRenderState(
     prev.kind === message.kind &&
     !context.isPinned &&
     !replyRef &&
-    !showThreadContext;
+    !showThreadContext &&
+    !showBroadcastBadge;
 
   return {
     dayChanged,
@@ -129,6 +136,7 @@ export function resolveMessageRenderState(
     messageText,
     replyRef,
     sameAuthorAsPrev,
+    showBroadcastBadge,
     showMessage: !message.deleted || context.showDeleted,
     showRepliesDivider: !!context.threadTs && !prev && (message.replyCount ?? 0) > 0,
     showThreadContext,

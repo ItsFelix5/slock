@@ -13,7 +13,6 @@
 - better composer
 - ?hca/ht status (ploogin?)
 - user last seen
-- sent to channel
 - no scroll bar, but proper channel navigation (yesterday, the beginning etc)
 - Threads in activity show more than unread, i see my own message
 - I actively see a ping in a channel and a dm from Slack in my message list but its not in activity
