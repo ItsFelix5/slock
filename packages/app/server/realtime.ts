@@ -1,8 +1,9 @@
 // biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
 
-import { callSlack } from "./api.js";
 import { rewriteSlackAssetUrls } from "./assets.js";
 import { type Credentials, slackCookieHeader, teamIdFromRoute } from "./auth.js";
+import { trimHistory } from "./routes/messages.js";
+import { callSlack } from "./slackClient.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };
@@ -53,8 +54,12 @@ function startFallbackPolling(state: ConnectionState) {
             { channel, limit: "60" },
             state.creds,
           );
-          if (data.ok)
-            send(state, { channel, messages: data.messages ?? [], type: "_history_snapshot" });
+          if (data.ok) {
+            const trimmed = rewriteSlackAssetUrls(trimHistory(data), state.creds) as {
+              messages?: unknown[];
+            };
+            send(state, { channel, messages: trimmed.messages ?? [], type: "_history_snapshot" });
+          }
         } catch {
           // transient network error; next tick retries
         }
@@ -66,8 +71,17 @@ function startFallbackPolling(state: ConnectionState) {
             { channel, limit: "200", ts },
             state.creds,
           );
-          if (data.ok)
-            send(state, { channel, messages: data.messages ?? [], ts, type: "_replies_snapshot" });
+          if (data.ok) {
+            const trimmed = rewriteSlackAssetUrls(trimHistory(data), state.creds) as {
+              messages?: unknown[];
+            };
+            send(state, {
+              channel,
+              messages: trimmed.messages ?? [],
+              ts,
+              type: "_replies_snapshot",
+            });
+          }
         } catch {
           // transient network error; next tick retries
         }

@@ -2,130 +2,58 @@
 
 import {
   namedSlackAssetResponse,
-  rewriteSlackAssetUrls,
   slackAssetResponse,
   slackUploadResponse,
   uploadCapability,
 } from "./assets.ts";
-import {
-  authResponse,
-  type Credentials,
-  jsonHeaders,
-  logoutResponse,
-  slackCookieHeader,
-} from "./auth.ts";
+import { authResponse, type Credentials, jsonHeaders, logoutResponse } from "./auth.ts";
 import { emojiImageUrl, emojiListResponse } from "./emoji.ts";
-import { compressedResponse } from "./http/compressedResponse.ts";
+import { jsonResponse } from "./http/jsonResponse.ts";
 import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
-import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
-import { trimSlackEdgeResponse } from "./trim/slackEdgeResponse.ts";
-import { trimSlackResponse } from "./trim/slackResponse.ts";
+import { accountRoutes } from "./routes/account.ts";
+import { activityRoutes } from "./routes/activity.ts";
+import { appRoutes } from "./routes/apps.ts";
+import { canvasRoutes } from "./routes/canvases.ts";
+import { channelDirectoryRoutes } from "./routes/channelDirectory.ts";
+import { channelRoutes } from "./routes/channels.ts";
+import { commandRoutes } from "./routes/commands.ts";
+import { conversationViewRoutes } from "./routes/conversationView.ts";
+import { draftRoutes } from "./routes/drafts.ts";
+import { messageActionRoutes } from "./routes/messageActions.ts";
+import { messageRoutes } from "./routes/messages.ts";
+import { preferenceRoutes } from "./routes/preferences.ts";
+import { matchRoute, type Route } from "./routes/router.ts";
+import { searchRoutes } from "./routes/search.ts";
+import { sectionRoutes } from "./routes/sections.ts";
+import { threadRoutes } from "./routes/threads.ts";
+import { usergroupRoutes } from "./routes/usergroups.ts";
+import { callSlack } from "./slackClient.ts";
 
-async function parseSlackResponse(res: Response): Promise<any> {
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    const retryAfter = res.headers.get("retry-after");
-    return {
-      error: res.status === 429 ? "rate_limited" : "upstream_invalid_response",
-      ok: false,
-      ...(retryAfter ? { retry_after: retryAfter } : {}),
-    };
-  }
-}
+// Purpose-built routes, one group per resource area.
+// channelDirectoryRoutes comes before channelRoutes so its literal
+// "/api/channels/browse" and "/api/channels/lookup" paths match before
+// channelRoutes' "/api/channels/:id" catch-all would otherwise swallow them
+// as a channel id.
+const ROUTES: Route[] = [
+  ...messageActionRoutes,
+  ...messageRoutes,
+  ...threadRoutes,
+  ...conversationViewRoutes,
+  ...channelDirectoryRoutes,
+  ...channelRoutes,
+  ...sectionRoutes,
+  ...canvasRoutes,
+  ...draftRoutes,
+  ...accountRoutes,
+  ...usergroupRoutes,
+  ...appRoutes,
+  ...searchRoutes,
+  ...preferenceRoutes,
+  ...activityRoutes,
+  ...commandRoutes,
+];
 
-const SLACK_CALL_TIMEOUT_MS = 15_000;
-
-function slackRequestBody(
-  method: string,
-  params: Record<string, string>,
-  token: string,
-): { body: FormData | string; headers: Record<string, string> } {
-  if (method === "conversations.view" || (method === "messages.list" && params.message_ids)) {
-    const body = new FormData();
-    body.append("token", token);
-    for (const [key, value] of Object.entries(params)) {
-      if (key !== "token") body.append(key, value);
-    }
-    return { body, headers: {} };
-  }
-  const body = new URLSearchParams({ token });
-  for (const [key, value] of Object.entries(params)) {
-    if (key !== "token") body.append(key, value);
-  }
-  return {
-    body: body.toString(),
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-  };
-}
-
-export async function callSlack(
-  method: string,
-  params: Record<string, string>,
-  creds: Credentials | null,
-): Promise<any> {
-  if (!creds) return { error: "not_configured", ok: false };
-  const { body, headers } = slackRequestBody(method, params, creds.token);
-  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
-  try {
-    const res = await fetch(url, {
-      body,
-      headers: {
-        ...headers,
-        cookie: slackCookieHeader(creds),
-      },
-      method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
-    });
-    return rewriteSlackAssetUrls(trimSlackResponse(method, await parseSlackResponse(res)), creds);
-  } catch {
-    return { error: "upstream_timeout", ok: false };
-  }
-}
-async function slackOperationResponse(
-  method: string,
-  params: Record<string, string>,
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-): Promise<Response> {
-  const data = await callSlack(method, params, creds);
-  return compressedResponse(JSON.stringify(data), jsonHeaders, acceptEncoding);
-}
-async function callSlackEdge(
-  method: string,
-  params: Record<string, unknown>,
-  creds: Credentials | null,
-) {
-  if (!creds) return { error: "not_configured", ok: false };
-  const [enterpriseId] = creds.route.split(":");
-  try {
-    const res = await fetch(`https://edgeapi.slack.com/cache/${enterpriseId}/${method}`, {
-      // Cache endpoints use the same browser-session credentials, including the
-      // enterprise token, regardless of the resource being requested.
-      body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
-      headers: { "content-type": "application/json", cookie: slackCookieHeader(creds) },
-      method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
-    });
-    return rewriteSlackAssetUrls(
-      trimSlackEdgeResponse(method, await parseSlackResponse(res)),
-      creds,
-    );
-  } catch {
-    return { error: "upstream_timeout", ok: false };
-  }
-}
-async function slackEdgeOperationResponse(
-  method: string,
-  params: Record<string, unknown>,
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-): Promise<Response> {
-  const data = await callSlackEdge(method, params, creds);
-  return compressedResponse(JSON.stringify(data), jsonHeaders, acceptEncoding);
-}
 export async function routeApiRequest(
   method: string,
   pathname: string,
@@ -139,28 +67,19 @@ export async function routeApiRequest(
     buffer(): Promise<Uint8Array>;
   },
 ): Promise<Response | null> {
+  const matched = matchRoute(ROUTES, method, pathname);
+  if (matched) {
+    return matched.route.handler({
+      acceptEncoding,
+      body,
+      creds,
+      params: matched.params,
+      searchParams,
+      secure,
+    });
+  }
   if (method === "GET" && pathname === "/api/bootstrap") {
-    return bootstrapResponse(
-      creds,
-      callSlack,
-      acceptEncoding,
-      searchParams.get("sections") === "true",
-    );
-  }
-  if (method === "POST" && pathname.startsWith("/api/operations/")) {
-    const slackMethod = pathname.slice("/api/operations/".length);
-    if (!SLACK_OPERATIONS.has(slackMethod)) return new Response("not found", { status: 404 });
-    return slackOperationResponse(
-      slackMethod,
-      (await body.json()) as Record<string, string>,
-      creds,
-      acceptEncoding,
-    );
-  }
-  if (method === "POST" && pathname.startsWith("/api/edge-operations/")) {
-    const slackMethod = pathname.slice("/api/edge-operations/".length);
-    if (!SLACK_EDGE_OPERATIONS.has(slackMethod)) return new Response("not found", { status: 404 });
-    return slackEdgeOperationResponse(slackMethod, await body.json(), creds, acceptEncoding);
+    return bootstrapResponse(creds, acceptEncoding, searchParams.get("sections") === "true");
   }
   if (method === "GET" && pathname === "/api/emoji") {
     return emojiListResponse(creds, callSlack, acceptEncoding);
@@ -212,12 +131,13 @@ export async function routeApiRequest(
     );
   }
   if (method === "POST" && pathname === "/api/files/complete") {
-    return slackOperationResponse(
+    const data = await callSlack(
       "files.completeUploadExternal",
       (await body.json()) as Record<string, string>,
       creds,
-      acceptEncoding,
     );
+    if (!data.ok) return jsonResponse(data, creds, acceptEncoding);
+    return jsonResponse({ ok: true }, creds, acceptEncoding);
   }
   if (method === "GET" && pathname === "/api/channels/discovery") {
     return flaronChannelResponse(searchParams.get("id"));

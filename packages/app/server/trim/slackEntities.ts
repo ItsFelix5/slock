@@ -55,7 +55,7 @@ export function trimUser(user: any): any {
   };
 }
 
-function trimFile(file: any): any {
+export function trimFile(file: any): any {
   if (!file || typeof file !== "object") return file;
   return {
     audio_wave_samples: file.audio_wave_samples,
@@ -170,6 +170,19 @@ export function trimMessage(message: any): any {
   };
 }
 
+// Shared by bootstrap.ts's client.counts trim and slackGatewayPayload.ts's
+// badge_counts_updated trim — both trim the same channels/ims/mpims group
+// arrays, just with slightly different per-group field sets (the gateway
+// push omits last_read/latest, which its one consumer never reads, to keep
+// this very-frequent event small).
+export function trimCountGroups(data: any, trimGroup: (group: any) => any): any {
+  return {
+    channels: Array.isArray(data?.channels) ? data.channels.map(trimGroup) : data?.channels,
+    ims: Array.isArray(data?.ims) ? data.ims.map(trimGroup) : data?.ims,
+    mpims: Array.isArray(data?.mpims) ? data.mpims.map(trimGroup) : data?.mpims,
+  };
+}
+
 export function trimBot(bot: any): any {
   if (!bot || typeof bot !== "object") return bot;
   return {
@@ -177,5 +190,87 @@ export function trimBot(bot: any): any {
     icons: trimIcons(bot.icons),
     id: bot.id,
     name: bot.name,
+  };
+}
+
+export function trimChannel(channel: any): any {
+  if (!channel || typeof channel !== "object") return channel;
+  const trimText = (value: any) =>
+    typeof value === "string" || !value ? value : { value: value.value };
+  return {
+    created: channel.created,
+    creator: channel.creator,
+    id: channel.id,
+    is_archived: channel.is_archived,
+    is_channel: channel.is_channel,
+    is_group: channel.is_group,
+    is_im: channel.is_im,
+    is_member: channel.is_member,
+    is_mpim: channel.is_mpim,
+    is_private: channel.is_private,
+    last_read: channel.last_read,
+    latest: channel.latest,
+    members: Array.isArray(channel.members) ? channel.members : undefined,
+    member_count: channel.member_count,
+    name: channel.name,
+    num_members: channel.num_members,
+    properties: channel.properties
+      ? {
+          canvas: channel.properties.canvas
+            ? {
+                file_id: channel.properties.canvas.file_id,
+                is_empty: channel.properties.canvas.is_empty,
+              }
+            : undefined,
+          tabs: Array.isArray(channel.properties.tabs)
+            ? channel.properties.tabs.map((tab: any) => ({
+                data: { file_id: tab?.data?.file_id },
+                id: tab?.id,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabs,
+          tabz: Array.isArray(channel.properties.tabz)
+            ? channel.properties.tabz.map((tab: any) => ({
+                data: { file_id: tab?.data?.file_id },
+                id: tab?.id,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabz,
+          channel_email_addresses: Array.isArray(channel.properties.channel_email_addresses)
+            ? channel.properties.channel_email_addresses.map((entry: any) => ({
+                address: entry?.address,
+              }))
+            : channel.properties.channel_email_addresses,
+        }
+      : undefined,
+    purpose: trimText(channel.purpose),
+    topic: trimText(channel.topic),
+    unread_count: channel.unread_count,
+    unread_count_display: channel.unread_count_display,
+  };
+}
+
+// Shared by routes/sections.ts's GET /api/sections and bootstrap.ts's
+// conditional sections fan-out — both call users.channelSections.list
+// directly via callSlack and trim its response the same way.
+export function trimChannelSections(data: any): any {
+  return {
+    channel_sections: Array.isArray(data.channel_sections)
+      ? data.channel_sections.map((section: any) => ({
+          channel_ids: section?.channel_ids,
+          channel_ids_page: section?.channel_ids_page
+            ? { channel_ids: section.channel_ids_page.channel_ids }
+            : undefined,
+          channel_section_id: section?.channel_section_id,
+          channels: section?.channels,
+          id: section?.id,
+          name: section?.name,
+          sidebar: section?.sidebar,
+          type: section?.type,
+        }))
+      : data.channel_sections,
+    ok: true,
   };
 }

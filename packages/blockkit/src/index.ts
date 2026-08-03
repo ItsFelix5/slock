@@ -24,4 +24,5 @@ export {
 } from "./emoji/emojiCache";
 export { decodeTextEntities } from "./entities";
 export { default as Mrkdwn, Mention } from "./mrkdwn";
+export { stripTrackingParams } from "./urlCleanup";
 export { parseUserProfileLink } from "./userProfileLink";

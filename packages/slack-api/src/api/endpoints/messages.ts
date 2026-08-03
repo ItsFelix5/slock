@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Message operations share one public endpoint surface.
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { callSlack, getWorkspaceDomain } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, getWorkspaceDomain } from "../server";
 import { type ConversationViewData, fetchConversationView } from "./conversationView";
 
 export type HistoryPage = {
@@ -44,14 +44,14 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
     };
   }
 
-  const params: Record<string, string> = { channel: channelId, limit: "60" };
+  const query = new URLSearchParams();
   if (cursor.startsWith("before:")) {
-    params.inclusive = "false";
-    params.latest = cursor.slice("before:".length);
+    query.set("inclusive", "false");
+    query.set("latest", cursor.slice("before:".length));
   } else {
-    params.cursor = cursor;
+    query.set("cursor", cursor);
   }
-  const data = await callSlack("conversations.history", params);
+  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   return {
@@ -75,12 +75,8 @@ export async function fetchHistoryAround(
   ts: string,
   limit = 28,
 ): Promise<HistoryPage> {
-  const data = await callSlack("conversations.history", {
-    channel: channelId,
-    inclusive: "true",
-    latest: ts,
-    limit: String(limit),
-  });
+  const query = new URLSearchParams({ inclusive: "true", latest: ts, limit: String(limit) });
+  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   return {
@@ -115,13 +111,13 @@ export async function fetchHistoryNewer(
   let knownDenseSpan: bigint | undefined;
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const upperMicroseconds = span < maximumSpan ? oldestMicroseconds + span : liveEdgeMicroseconds;
-    const data = await callSlack("conversations.history", {
-      channel: channelId,
+    const query = new URLSearchParams({
       inclusive: "false",
       latest: microsecondsToTimestamp(upperMicroseconds),
       limit: String(limit),
       oldest,
     });
+    const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
     if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
     const rawMessages: any[] = data.messages ?? [];
 
@@ -158,11 +154,7 @@ export async function fetchHistoryNewer(
 }
 
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
-  const data = await callSlack("conversations.replies", {
-    channel: channelId,
-    limit: "200",
-    ts: threadTs,
-  });
+  const data = await apiGet(`/api/channels/${channelId}/threads/${threadTs}/messages`);
   if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
   const messages: any[] = data.messages ?? [];
   return messages
@@ -182,13 +174,13 @@ export async function fetchPermalinkMessage(
     const replies = await fetchReplies(channelId, threadTs);
     return replies.find((m) => m.ts === messageTs);
   }
-  const data = await callSlack("conversations.history", {
-    channel: channelId,
+  const query = new URLSearchParams({
     inclusive: "true",
     latest: messageTs,
     limit: "1",
     oldest: messageTs,
   });
+  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   const messages: any[] = data.messages ?? [];
   const raw = messages.find((m) => m.ts === messageTs);
@@ -202,78 +194,72 @@ export async function postMessage(
   blocks?: unknown,
   suppressUnfurl?: boolean,
 ) {
-  const params: Record<string, string> = { channel: channelId, text };
-  if (threadTs) params.thread_ts = threadTs;
-  if (blocks) params.blocks = JSON.stringify(blocks);
+  const body: Record<string, unknown> = { text };
+  if (threadTs) body.threadTs = threadTs;
+  if (blocks) body.blocks = blocks;
   // Slack's own link unfurl is all-or-nothing for the whole message — there's
   // no documented way to suppress just one link — so dismissing any preview
   // in the composer turns it off for the message as a whole.
-  if (suppressUnfurl) {
-    params.unfurl_links = "false";
-    params.unfurl_media = "false";
-  }
-  const data = await callSlack("chat.postMessage", params);
+  if (suppressUnfurl) body.suppressUnfurl = true;
+  const data = await apiPost(`/api/channels/${channelId}/messages`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
   return data;
 }
 
 export async function editMessage(channelId: string, ts: string, text: string, blocks?: unknown) {
-  const params: Record<string, string> = { channel: channelId, text, ts };
-  if (blocks) params.blocks = JSON.stringify(blocks);
-  const data = await callSlack("chat.update", params);
+  const body: Record<string, unknown> = { text };
+  if (blocks) body.blocks = blocks;
+  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
 
 export async function broadcastReply(channelId: string, ts: string) {
-  const data = await callSlack("chat.update", { channel: channelId, reply_broadcast: "true", ts });
+  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, {
+    replyBroadcast: true,
+  });
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
 
 export async function deleteMessage(channelId: string, ts: string) {
-  const data = await callSlack("chat.delete", { channel: channelId, ts });
+  const data = await apiDelete(`/api/channels/${channelId}/messages/${ts}`);
   if (!data.ok) throw new Error(data.error ?? "chat.delete failed");
   return data;
 }
 
 export async function toggleReaction(channelId: string, ts: string, name: string, remove: boolean) {
-  const data = await callSlack(remove ? "reactions.remove" : "reactions.add", {
-    channel: channelId,
-    name,
-    timestamp: ts,
-  });
+  const path = `/api/messages/${channelId}/${ts}/reactions`;
+  const data = remove ? await apiDelete(path, { name }) : await apiPost(path, { name });
   if (!data.ok) throw new Error(data.error ?? "reactions failed");
   return data;
 }
 
 export async function toggleSaved(channelId: string, ts: string, remove: boolean) {
-  const data = await callSlack(remove ? "saved.delete" : "saved.add", {
-    item_id: channelId,
-    item_type: "message",
-    ts,
-  });
+  const path = `/api/messages/${channelId}/${ts}/save`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "saved.add/remove failed");
   return data;
 }
 
 export async function markChannelRead(channelId: string, ts: string) {
-  const data = await callSlack("conversations.mark", { channel: channelId, ts });
+  const data = await apiPost(`/api/channels/${channelId}/read`, { ts });
   if (!data.ok) throw new Error(data.error ?? "conversations.mark failed");
   return data;
 }
 
 export async function toggleStar(channelId: string, remove: boolean) {
-  const data = await callSlack(remove ? "stars.remove" : "stars.add", { channel: channelId });
+  const path = `/api/channels/${channelId}/star`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "stars.add/remove failed");
   return data;
 }
 
 export async function fetchPins(channelId: string): Promise<string[]> {
-  const data = await callSlack("pins.list", { channel: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   const items: any[] = data.items ?? [];
-  return items.map((it) => it.message?.ts ?? it.created ?? it.channel).filter(Boolean);
+  return items.map((it) => it.ts).filter(Boolean);
 }
 
 export interface PinnedMessage {
@@ -282,19 +268,17 @@ export interface PinnedMessage {
 }
 
 export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
-  const data = await callSlack("pins.list", { channel: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   const items: any[] = data.items ?? [];
   return items
-    .filter((it) => it.type === "message" && it.message)
-    .map((it) => ({ message: mapMessage(it.message), ts: it.message.ts }));
+    .filter((it) => it.message)
+    .map((it) => ({ message: mapMessage(it.message), ts: it.ts }));
 }
 
 export async function togglePin(channelId: string, ts: string, remove: boolean) {
-  const data = await callSlack(remove ? "pins.remove" : "pins.add", {
-    channel: channelId,
-    timestamp: ts,
-  });
+  const path = `/api/messages/${channelId}/${ts}/pin`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "pins.add/remove failed");
   return data;
 }
@@ -322,22 +306,17 @@ export async function getPermalink(
 }
 
 export async function addReminder(text: string, time: string) {
-  const data = await callSlack("reminders.add", { text, time });
+  const data = await apiPost("/api/reminders", { text, time });
   if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
   return data;
 }
 
-// Reminders tied to a specific message use the item_type/item_id/ts/date_due
-// shape (matches Slack's own message-reminder menu) rather than the free-text
+// Reminders tied to a specific message use the channelId/ts/dateDue shape
+// (matches Slack's own message-reminder menu) rather than the free-text
 // text/time form `/remind` uses — this links the reminder to the message
 // itself instead of just embedding a permalink in reminder text.
 export async function addMessageReminder(channelId: string, ts: string, dateDue: number) {
-  const data = await callSlack("reminders.add", {
-    date_due: String(dateDue),
-    item_id: channelId,
-    item_type: "message",
-    ts,
-  });
+  const data = await apiPost("/api/reminders", { channelId, dateDue, ts });
   if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
   return data;
 }
@@ -355,24 +334,12 @@ export async function searchMessages(
   query: string,
   opts?: { sort?: "score" | "timestamp"; sortDir?: "asc" | "desc" },
 ): Promise<SearchResult[]> {
-  const data = await callSlack("search.messages", {
-    count: "40",
-    query,
-    sort: opts?.sort ?? "timestamp",
-    sort_dir: opts?.sortDir ?? "desc",
-  });
+  const params = new URLSearchParams({ query });
+  if (opts?.sort) params.set("sort", opts.sort);
+  if (opts?.sortDir) params.set("sortDir", opts.sortDir);
+  const data = await apiGet(`/api/search/messages?${params}`);
   if (!data.ok) throw new Error(data.error ?? "search.messages failed");
-  const matches: any[] = data.messages?.matches ?? [];
-  return matches
-    .filter((match) => !!(match?.channel?.id && match.ts))
-    .map((match) => ({
-      channelId: match.channel.id,
-      channelName: match.channel.name ?? match.channel.id,
-      text: match.text ?? "",
-      threadTs: match.thread_ts || undefined,
-      ts: match.ts,
-      userId: match.user ?? "",
-    }));
+  return data.results ?? [];
 }
 
 // Slack's own query-completion suggestions (e.g. finishing a partial word,
@@ -381,7 +348,7 @@ export async function searchMessages(
 // place of.
 export async function fetchSearchAutocomplete(query: string): Promise<string[]> {
   if (!query.trim()) return [];
-  const data = await callSlack("search.autocomplete", { query });
+  const data = await apiGet(`/api/search/autocomplete?query=${encodeURIComponent(query)}`);
   if (!data.ok) return [];
-  return (data.suggestions?.text as string[] | undefined) ?? [];
+  return data.suggestions ?? [];
 }

@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { CanvasListItem, Channel, ChannelDetails, Message, User } from "../../types";
 import { HIDE_SUBTYPES, mapChannel, mapMessage, mapUser } from "../mappers";
-import { callSlack } from "../server";
+import { apiGet } from "../server";
 
 export interface ConversationViewData {
   canvases: CanvasListItem[];
@@ -43,20 +43,7 @@ function mapChannelDetails(channel: any): ChannelDetails {
 }
 
 async function loadConversationView(channelId: string): Promise<ConversationViewData> {
-  const data = await callSlack("conversations.view", {
-    canonical_avatars: "true",
-    channel: channelId,
-    count: "28",
-    ignore_replies: "true",
-    include_free_team_extra_messages: "true",
-    include_full_users: "true",
-    include_mutation_timestamps: "true",
-    include_stories: "true",
-    include_use_case: "true",
-    no_members: "true",
-    no_self: "true",
-    no_user_profile: "true",
-  });
+  const data = await apiGet(`/api/channels/${channelId}/view`);
   if (!data.ok) throw new Error(data.error ?? "conversations.view failed");
   const rawMessages: any[] = data.history?.messages ?? [];
   const rawUsers: any[] = data.users ?? [];

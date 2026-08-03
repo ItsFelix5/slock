@@ -211,9 +211,7 @@ export default function AttachmentCard(props: { attachment: Attachment; showPerm
       </Show>
       {/* Skip when channelId is set: MessageUnfurl's footer already renders this same
           fromUrl as a "View message" link, so the raw URL here would just duplicate it. */}
-      <Show
-        when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}
-      >
+      <Show when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}>
         {(url) => (
           <a
             class="attachment-message-link"

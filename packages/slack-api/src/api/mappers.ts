@@ -551,10 +551,7 @@ export function extractChannelSections(
       // entirely (or sends something we don't recognize) — that means
       // unread-only, same as the built-in Channels/usergroup sections
       // default to. "hide" is just the older spelling of "hid".
-      sidebar:
-        s.sidebar === "all" || s.sidebar === "active"
-          ? s.sidebar
-          : ("hid" as const),
+      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : ("hid" as const),
       type: s.type ?? "standard",
     }))
     .filter((s): s is ChannelSectionSummary => !!s.id);

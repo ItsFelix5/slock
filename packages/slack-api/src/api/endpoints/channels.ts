@@ -12,7 +12,7 @@ import type {
 } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapChannel, mapUser } from "../mappers";
-import { callSlack, callSlackEdge } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "../server";
 import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
 
 export {
@@ -36,25 +36,11 @@ export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite"
 
 const MAX_CHANNELS_PER_BATCH = 100;
 
-function cachedChannelForId(data: any, id: string): any | undefined {
-  if (data.channels?.[id]) return data.channels[id];
-  if (Array.isArray(data.channels)) return data.channels.find((channel) => channel.id === id);
-  if (data.results?.[id]) return data.results[id];
-  if (Array.isArray(data.results)) return data.results.find((channel) => channel.id === id);
-  return data.channel?.id === id ? data.channel : undefined;
-}
-
 export const fetchChannel = createBatchedIdFetcher<Channel | null>(async (ids) => {
-  const data = await callSlackEdge("channels/info", {
-    updated_ids: Object.fromEntries(ids.map((id) => [id, 0])),
-  });
+  const data = await apiPost("/api/channels/lookup", { ids });
   if (!data.ok) throw new Error(data.error ?? "edge channels/info failed");
-  return new Map(
-    ids.map((id) => {
-      const raw = cachedChannelForId(data, id);
-      return [id, raw?.id ? mapChannel(raw) : null];
-    }),
-  );
+  const channels: Record<string, any> = data.channels ?? {};
+  return new Map(ids.map((id) => [id, channels[id] ? mapChannel(channels[id]) : null]));
 }, MAX_CHANNELS_PER_BATCH);
 
 export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
@@ -72,11 +58,7 @@ export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
 export async function fetchBrowsableChannels(query: string): Promise<BrowsableChannel[]> {
   const q = query.trim();
   if (!q) return [];
-  const data = await callSlack("search.modules.channels", {
-    count: "40",
-    module: "channels",
-    query: q,
-  });
+  const data = await apiGet(`/api/channels/browse?query=${encodeURIComponent(q)}`);
   if (!data.ok) throw new Error(data.error ?? "search.modules.channels failed");
   const items: any[] = data.items ?? [];
   // search.modules.channels' index isn't scoped to browsable public/private channels the
@@ -100,38 +82,22 @@ export async function fetchChannelCanvasInfo(channelId: string): Promise<CanvasI
   return canvas ? { fileId: canvas.fileId, isEmpty: false } : null;
 }
 export async function createChannelCanvas(channelId: string, title?: string): Promise<CanvasInfo> {
-  const data = await callSlack("conversations.canvases.create", {
-    channel_id: channelId,
-    document_content: JSON.stringify({ markdown: "", type: "markdown" }),
-    ...(title ? { title } : {}),
-  });
+  const data = await apiPost(`/api/channels/${channelId}/canvas`, title ? { title } : {});
   if (!data.ok) {
     invalidateConversationView(channelId);
     throw new Error(data.error ?? "conversations.canvases.create failed");
   }
-  if (!data.canvas_id) throw new Error("Canvas creation returned no canvas ID");
   invalidateConversationView(channelId);
-  return { fileId: data.canvas_id, isEmpty: true };
+  return { fileId: data.canvasId, isEmpty: true };
 }
 export async function createSharedChannelCanvas(
   channelId: string,
   title: string,
 ): Promise<CanvasListItem> {
-  const created = await callSlack("canvases.create", {
-    document_content: JSON.stringify({ markdown: "", type: "markdown" }),
-    title,
-  });
-  if (!created.ok) throw new Error(created.error ?? "canvases.create failed");
-  if (!created.canvas_id) throw new Error("Canvas creation returned no canvas ID");
-
-  const shared = await callSlack("canvases.access.set", {
-    access_level: "write",
-    canvas_id: created.canvas_id,
-    channel_ids: channelId,
-  });
-  if (!shared.ok) throw new Error(shared.error ?? "canvases.access.set failed");
+  const data = await apiPost("/api/canvases", { channelId, title });
+  if (!data.ok) throw new Error(data.error ?? "canvases.create failed");
   invalidateConversationView(channelId);
-  return { fileId: created.canvas_id, title };
+  return { fileId: data.canvasId, title };
 }
 // Bootstrap only seeds lastReadByChannel for conversations client.counts
 // happens to include. An old/closed DM the Activity feed still surfaces
@@ -139,15 +105,12 @@ export async function createSharedChannelCanvas(
 // against — this is the on-demand fallback for that gap, mirroring the same
 // last_read field bootstrap.ts reads from client.counts.
 export async function fetchChannelLastRead(channelId: string): Promise<number> {
-  const data = await callSlack("conversations.info", { channel: channelId });
+  const data = await apiGet(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   return (parseFloat(data.channel?.last_read ?? "") || 0) * 1000;
 }
 export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
-  const data = await callSlack("conversations.info", {
-    channel: channelId,
-    include_num_members: "true",
-  });
+  const data = await apiGet(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   const c = data.channel;
   return {
@@ -167,13 +130,9 @@ export async function fetchChannelMembers(
   filter: "everyone" | "apps",
   marker?: string,
 ): Promise<ChannelMembersPage> {
-  const data = await callSlackEdge("users/list", {
-    channels: [channelId],
-    count: 50,
-    filter,
-    present_first: false,
-    ...(marker ? { marker } : {}),
-  });
+  const query = new URLSearchParams({ filter });
+  if (marker) query.set("marker", marker);
+  const data = await apiGet(`/api/channels/${channelId}/members?${query}`);
   if (!data.ok) throw new Error(data.error ?? "edge users/list failed");
   const results: any[] = data.results ?? [];
   return {
@@ -182,29 +141,25 @@ export async function fetchChannelMembers(
   };
 }
 export async function fetchChannelManagerIds(channelId: string): Promise<string[]> {
-  const data = await callSlack("admin.roles.entity.listAssignments", { entity_id: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/managers`);
   if (!data.ok) throw new Error(data.error ?? "admin.roles.entity.listAssignments failed");
-  const assignments: any[] = data.role_assignments ?? [];
-  return [...new Set(assignments.flatMap((a) => a.users ?? []))];
+  return data.userIds ?? [];
 }
 export async function inviteToChannel(channelId: string, userIds: string[]): Promise<void> {
-  const data = await callSlack("conversations.invite", {
-    channel: channelId,
-    users: userIds.join(","),
-  });
+  const data = await apiPost(`/api/channels/${channelId}/members`, { userIds });
   if (!data.ok) throw new Error(data.error ?? "conversations.invite failed");
 }
 export async function removeFromChannel(channelId: string, userId: string): Promise<void> {
-  const data = await callSlack("conversations.kick", { channel: channelId, user: userId });
+  const data = await apiDelete(`/api/channels/${channelId}/members/${userId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.kick failed");
 }
 export async function renameChannel(channelId: string, name: string): Promise<string> {
-  const data = await callSlack("conversations.rename", { channel: channelId, name });
+  const data = await apiPatch(`/api/channels/${channelId}`, { name });
   if (!data.ok) throw new Error(data.error ?? "conversations.rename failed");
   return data.channel?.name ?? name;
 }
 export async function setChannelPurpose(channelId: string, purpose: string): Promise<void> {
-  const data = await callSlack("conversations.setPurpose", { channel: channelId, purpose });
+  const data = await apiPut(`/api/channels/${channelId}/purpose`, { purpose });
   if (!data.ok) throw new Error(data.error ?? "conversations.setPurpose failed");
 }
 
@@ -317,7 +272,7 @@ export function serializeChannelPostingPrefsPatch(
 }
 
 export async function fetchChannelPostingPrefs(channelId: string): Promise<ChannelPostingPrefs> {
-  const data = await callSlack("channels.prefs.get", { channel_id: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/posting-prefs`);
   if (!data.ok) throw new Error(data.error ?? "channels.prefs.get failed");
   return parseChannelPostingPrefs(data.prefs ?? data);
 }
@@ -326,18 +281,13 @@ export async function setChannelPostingPrefs(
   channelId: string,
   patch: ChannelPostingPrefsPatch,
 ): Promise<void> {
-  const data = await callSlack("channels.prefs.set", {
-    channel_id: channelId,
-    prefs: JSON.stringify(serializeChannelPostingPrefsPatch(patch)),
+  const data = await apiPut(`/api/channels/${channelId}/posting-prefs`, {
+    prefs: serializeChannelPostingPrefsPatch(patch),
   });
   if (!data.ok) throw new Error(data.error ?? "channels.prefs.set failed");
 }
 export async function setChannelRetention(channelId: string, days: number | null): Promise<void> {
-  const data = await callSlack("conversations.setRetention", {
-    channel: channelId,
-    retention_duration: String(days ?? 0),
-    retention_type: days ? "1" : "0",
-  });
+  const data = await apiPut(`/api/channels/${channelId}/retention`, { days });
   if (!data.ok) throw new Error(data.error ?? "conversations.setRetention failed");
 }
 export function serializeMemberPermissionsPatch(patch: MemberPermissionsPatch): {
@@ -363,15 +313,11 @@ export async function setMemberPermissions(
 ): Promise<void> {
   const permissions = serializeMemberPermissionsPatch(patch);
   if (permissions.length === 0) return;
-  const data = await callSlack("conversations.permissions.accountTypes.set", {
-    account_type: "FULL_MEMBER",
-    channel_id: channelId,
-    permissions: JSON.stringify(permissions),
-  });
+  const data = await apiPut(`/api/channels/${channelId}/member-permissions`, { permissions });
   if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.set failed");
 }
 export async function joinChannel(channelId: string): Promise<Channel> {
-  const data = await callSlack("conversations.join", { channel: channelId });
+  const data = await apiPost(`/api/channels/${channelId}/join`);
   if (!data.ok) throw new Error(data.error ?? "conversations.join failed");
   const c = data.channel;
   return {
@@ -383,20 +329,17 @@ export async function joinChannel(channelId: string): Promise<Channel> {
   };
 }
 export async function createChannel(name: string, isPrivate: boolean): Promise<Channel> {
-  const data = await callSlack("conversations.create", {
-    is_private: isPrivate ? "true" : "false",
-    name,
-  });
+  const data = await apiPost("/api/channels", { isPrivate, name });
   if (!data.ok) throw new Error(data.error ?? "conversations.create failed");
   const c = data.channel;
   return { id: c.id, name: c.name, private: !!c.is_private, topic: "", unread: false };
 }
 export async function leaveChannel(channelId: string) {
-  const data = await callSlack("conversations.leave", { channel: channelId });
+  const data = await apiPost(`/api/channels/${channelId}/leave`);
   if (!data.ok) throw new Error(data.error ?? "conversations.leave failed");
   return data;
 }
 export async function setChannelTopic(channelId: string, topic: string): Promise<void> {
-  const data = await callSlack("conversations.setTopic", { channel: channelId, topic });
+  const data = await apiPut(`/api/channels/${channelId}/topic`, { topic });
   if (!data.ok) throw new Error(data.error ?? "conversations.setTopic failed");
 }

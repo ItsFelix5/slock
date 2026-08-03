@@ -137,6 +137,11 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       .filter((c): c is typeof c & { id: string } => !!c.id)
       .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
+  // Slack's userBoot sometimes only lists an mpim in `channels` (marked
+  // is_mpim, with real membership) and not in `mpims` at all — merge both
+  // sources by id so neither an mpim-only-in-channels nor an
+  // mpim-only-in-mpims entry gets dropped. A channels-sourced entry always
+  // has real membership, so it's treated as open.
   const rawMpimsById = new Map<string, RawBootMpim>(
     (boot.mpims ?? []).map((mpim) => [mpim.id, mpim]),
   );
@@ -151,8 +156,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       updated: channel.updated,
     });
   }
+  // Same is_open caveat as oneToOneDms above — a group DM with real unread
+  // activity needs to surface even before it's been locally "opened".
   const multiPersonDms: DirectMessage[] = [...rawMpimsById.values()]
-    .filter((g) => g.is_open && Array.isArray(g.members))
+    .filter((g) => Array.isArray(g.members) && (g.is_open || unreadMap[g.id]))
     .map((g) => ({
       id: g.id,
       lastActivity:

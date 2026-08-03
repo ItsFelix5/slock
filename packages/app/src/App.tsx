@@ -4,9 +4,9 @@ import { fetchPermalinkMessage } from "@slock/slack-api";
 import { Button, ConnectionStatus, InlineFeedback, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 import CanvasPanel from "./components/channel/CanvasPanel";
+import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
-import ChannelHeader from "./components/channel/ChannelHeader";
 import JoinChannelBar from "./components/channel/JoinChannelBar";
 import PinnedPanel from "./components/channel/PinnedPanel";
 import Composer from "./components/composer/Composer";
@@ -37,10 +37,10 @@ const blockKitResolver: BlockKitResolver = {
     const channel = store.channels.channelById(id);
     return channel
       ? {
-        isMember: store.channels.isChannelMember(id),
-        isPrivate: channel.private,
-        name: channelDisplayName(channel),
-      }
+          isMember: store.channels.isChannelMember(id),
+          isPrivate: channel.private,
+          name: channelDisplayName(channel),
+        }
       : undefined;
   },
   resolveUser: (id) => {
@@ -80,16 +80,21 @@ function App() {
   createEffect(() => {
     const nav = store.viewState.nav();
     const view = store.viewState.activeView();
-    document.title = {
-      activity: "Activity",
-      later: "Later",
-      search: "Search",
-    }[nav] || (view ? conversationDisplayName(
-      view.id,
-      view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
-      view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
-      store.users.userById,
-    ) : "") || "slock";
+    document.title =
+      {
+        activity: "Activity",
+        later: "Later",
+        search: "Search",
+      }[nav] ||
+      (view
+        ? conversationDisplayName(
+            view.id,
+            view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
+            view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
+            store.users.userById,
+          )
+        : "") ||
+      "slock";
   });
 
   const permalinkOpener = createSlackPermalinkOpener({

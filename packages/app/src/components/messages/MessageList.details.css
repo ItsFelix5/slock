@@ -69,7 +69,8 @@
 }
 .message-saved-badge,
 .message-pinned-badge,
-.message-ephemeral-badge {
+.message-ephemeral-badge,
+.message-broadcast-badge {
   display: inline-flex;
   gap: 3px;
   align-items: center;
@@ -88,7 +89,8 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
 }
-.message-ephemeral-badge {
+.message-ephemeral-badge,
+.message-broadcast-badge {
   color: var(--mention-self-text);
   background: var(--mention-self-bg);
 }

@@ -11,6 +11,7 @@ import {
   messageSize,
   resetThemeColor,
   resetThemeColors,
+  SegmentedControl,
   Switch,
   setLogDeletedMessages,
   setMessageSize,
@@ -22,6 +23,12 @@ import {
 } from "@slock/ui";
 import { createEffect, createSignal, For } from "solid-js";
 import "./Settings.css";
+
+const MESSAGE_SIZES: { value: MessageSize; label: string }[] = [
+  { label: "Compact", value: 0 },
+  { label: "Default", value: 1 },
+  { label: "Large", value: 2 },
+];
 
 export default function SettingsAppearanceTab() {
   const [fontDraft, setFontDraft] = createSignal(getEffectiveColor("font"));
@@ -41,23 +48,21 @@ export default function SettingsAppearanceTab() {
           <div class="settings-row-label">Message size</div>
           <div class="settings-row-hint text-dim">Compact, default, or large messages.</div>
         </div>
-        <div class="settings-size-control">
-          <input
-            aria-label="Message size"
-            class="settings-size-slider"
-            max="2"
-            min="0"
-            onInput={(event) => setMessageSize(Number(event.currentTarget.value) as MessageSize)}
-            step="1"
-            type="range"
-            value={messageSize()}
-          />
-          <div class="settings-size-labels text-dim" aria-hidden="true">
-            <span>Compact</span>
-            <span>Default</span>
-            <span>Large</span>
-          </div>
-        </div>
+        <SegmentedControl>
+          <For each={MESSAGE_SIZES}>
+            {(size) => (
+              <button
+                aria-pressed={messageSize() === size.value}
+                class="segmented-control-btn"
+                classList={{ active: messageSize() === size.value }}
+                onClick={() => setMessageSize(size.value)}
+                type="button"
+              >
+                {size.label}
+              </button>
+            )}
+          </For>
+        </SegmentedControl>
       </div>
 
       <div class="settings-row flex-between">

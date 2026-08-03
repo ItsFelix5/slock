@@ -1,39 +1,18 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: Account APIs share request and mapping helpers that are clearer when kept together.
 import type { ProfileFieldDef, User } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapBot, mapUser } from "../mappers";
-import { callSlack, callSlackEdge } from "../server";
+import { apiGet, apiPost, apiPut } from "../server";
 
 // Keep JSON request bodies comfortably below the server limit even when
 // a channel or search result renders thousands of previously unseen authors.
 const MAX_USERS_PER_BATCH = 100;
 
-function cachedUserForId(data: any, id: string): any | undefined {
-  if (data.users?.[id]) return data.users[id];
-  if (Array.isArray(data.results)) return data.results.find((user) => user.id === id);
-  if (data.results && typeof data.results === "object") {
-    if (data.results[id]) return data.results[id];
-    return Object.values<any>(data.results).find((user) => user?.id === id);
-  }
-  if (Array.isArray(data.users)) return data.users.find((user) => user.id === id);
-  return data.user?.id === id ? data.user : undefined;
-}
-
 const fetchCachedUser = createBatchedIdFetcher<User | null>(async (ids) => {
-  // The cache endpoint accepts the IDs it should refresh as a timestamp map;
-  // zero deliberately requests the complete current record.
-  const data = await callSlackEdge("users/info", {
-    include_profile_only_users: true,
-    updated_ids: Object.fromEntries(ids.map((id) => [id, 0])),
-  });
+  const data = await apiPost("/api/users/lookup", { ids });
   if (!data.ok) throw new Error(data.error ?? "edge users/info failed");
-  return new Map(
-    ids.map((id) => {
-      const user = cachedUserForId(data, id);
-      return [id, user ? mapUser(user) : null];
-    }),
-  );
+  const users: Record<string, any> = data.users ?? {};
+  return new Map(ids.map((id) => [id, users[id] ? mapUser(users[id]) : null]));
 }, MAX_USERS_PER_BATCH);
 
 export function fetchUser(id: string): Promise<User | null> {
@@ -41,7 +20,7 @@ export function fetchUser(id: string): Promise<User | null> {
   // that normally supplies its display name and avatar. Bot IDs are not valid
   // inputs to the users cache endpoint, so resolve them through bots.info.
   if (id.startsWith("B")) {
-    return callSlack("bots.info", { bot: id }).then((data) => {
+    return apiGet(`/api/bots/${id}`).then((data) => {
       if (!data.ok) throw new Error(data.error ?? "bots.info failed");
       return data.bot?.id ? mapBot(data.bot) : null;
     });
@@ -57,22 +36,19 @@ export function fetchUser(id: string): Promise<User | null> {
 // distinguishable from a workspace that genuinely has no custom fields so the UI
 // can offer a retry instead of silently hiding profile data.
 export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
-  const data = await callSlack("team.profile.get");
+  const data = await apiGet("/api/profile-fields");
   if (!data.ok) throw new Error(data.error ?? "team.profile.get failed");
-  const fields: any[] = data.profile?.fields ?? [];
-  return fields
-    .filter((f) => !f.is_hidden)
-    .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
-    .map((f) => ({ id: f.id, label: f.label }));
+  return data.fields ?? [];
 }
 
 export async function setStatus(text: string, emoji: string, expiration: number): Promise<void> {
-  const profile = JSON.stringify({
-    status_emoji: emoji,
-    status_expiration: expiration,
-    status_text: text,
+  const data = await apiPut("/api/profile", {
+    profile: {
+      status_emoji: emoji,
+      status_expiration: expiration,
+      status_text: text,
+    },
   });
-  const data = await callSlack("users.profile.set", { profile });
   if (!data.ok) throw new Error(data.error ?? "users.profile.set failed");
 }
 
@@ -91,34 +67,24 @@ export async function setProfileFields(fields: {
       Object.entries(fields.customFields).map(([id, value]) => [id, { alt: "", value }]),
     );
   }
-  const data = await callSlack("users.profile.set", { profile: JSON.stringify(profile) });
+  const data = await apiPut("/api/profile", { profile });
   if (!data.ok) throw new Error(data.error ?? "users.profile.set failed");
 }
 
 export async function setPresence(presence: "auto" | "away"): Promise<void> {
-  const data = await callSlack("users.setPresence", { presence });
+  const data = await apiPut("/api/presence", { presence });
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
 }
 
 // Org-wide member search via the same search.modules.people endpoint the real
 // web client's people search uses — a live per-query search, so a 100k-member
-// workspace never needs to be paged through and cached locally. Items come
-// back as full user objects (id, profile.display_name, image_*, …) that
-// mapUser already understands; deleted members are excluded server-side.
+// workspace never needs to be paged through and cached locally.
 export async function searchDirectory(
   query: string,
 ): Promise<{ users: User[]; truncated: boolean }> {
   const q = query.trim();
   if (!q) return { truncated: false, users: [] };
-  const data = await callSlack("search.modules.people", {
-    count: "30",
-    module: "people",
-    query: q,
-  });
+  const data = await apiGet(`/api/directory?query=${encodeURIComponent(q)}`);
   if (!data.ok) throw new Error(data.error ?? "search.modules.people failed");
-  const items: any[] = data.items ?? [];
-  return {
-    truncated: (data.pagination?.total_count ?? items.length) > items.length,
-    users: items.map(mapUser),
-  };
+  return { truncated: !!data.truncated, users: (data.users ?? []).map(mapUser) };
 }

@@ -1,4 +1,5 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to link parsing.
+import { stripTrackingParams } from "@slock/blockkit";
 import { createLinkSpan } from "../linkChip";
 import { placeCaretInText } from "../richtext";
 import type { EditorRefHandle } from "./editorRef";
@@ -29,7 +30,7 @@ function linkifyTextNode(node: Text, caretOffset: number | null, re: RegExp): bo
     const clean = raw.replace(/[),.!?;:'"]+$/, "");
     if (!clean) continue;
     if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
-    frag.appendChild(createLinkSpan(clean));
+    frag.appendChild(createLinkSpan(stripTrackingParams(clean)));
     const trailing = raw.slice(clean.length);
     if (trailing) frag.appendChild(document.createTextNode(trailing));
     last = idx + raw.length;

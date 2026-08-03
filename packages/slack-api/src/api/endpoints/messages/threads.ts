@@ -1,5 +1,4 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import { callSlack } from "../../server";
+import { apiDelete, apiPost } from "../../server";
 
 // Private endpoint behind the webapp's "Get notified about new replies" /
 // "Unfollow thread" thread-menu actions — conversations.replies exposes the
@@ -9,13 +8,8 @@ export async function toggleThreadSubscription(
   threadTs: string,
   remove: boolean,
 ) {
-  const data = await callSlack(
-    remove ? "subscriptions.thread.remove" : "subscriptions.thread.add",
-    {
-      channel: channelId,
-      thread_ts: threadTs,
-    },
-  );
+  const path = `/api/channels/${channelId}/threads/${threadTs}/subscription`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "subscriptions.thread.add/remove failed");
   return data;
 }
@@ -27,11 +21,7 @@ export async function toggleThreadSubscription(
 // clears that thread-specific state, mirroring toggleThreadSubscription's
 // shape (channel + thread_ts) above.
 export async function markThreadRead(channelId: string, threadTs: string, ts: string) {
-  const data = await callSlack("subscriptions.thread.mark", {
-    channel: channelId,
-    thread_ts: threadTs,
-    ts,
-  });
+  const data = await apiPost(`/api/channels/${channelId}/threads/${threadTs}/read`, { ts });
   if (!data.ok) throw new Error(data.error ?? "subscriptions.thread.mark failed");
   return data;
 }

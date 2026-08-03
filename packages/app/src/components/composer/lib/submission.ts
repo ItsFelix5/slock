@@ -42,6 +42,18 @@ export function createPendingFileState(opts: {
       if (opts.disabled()) return;
       store(files().filter((_, currentIndex) => currentIndex !== index));
     },
+    rename(index: number, name: string) {
+      if (opts.disabled()) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      store(
+        files().map((file, currentIndex) =>
+          currentIndex === index && trimmed !== file.name
+            ? new File([file], trimmed, { lastModified: file.lastModified, type: file.type })
+            : file,
+        ),
+      );
+    },
   };
 }
 

@@ -1,30 +1,31 @@
-// The browser talks only to the application's allowlisted operations. The
-// server owns the upstream Slack integration and rejects methods outside that
-// fixed contract.
-export async function callSlack<T = any>(
-  method: string,
-  params: Record<string, string> = {},
-): Promise<T> {
-  const res = await fetch(`/api/operations/${method}`, {
-    body: JSON.stringify(params),
-    headers: { "content-type": "application/json" },
-    method: "POST",
+// Purpose-built route transport: `path` is one of the app server's own
+// routes (e.g. "/api/channels/C123/messages"), never a raw Slack method name
+// — the server decides internally what Slack call(s) to make and returns
+// only the fields that route's caller needs.
+async function request<T = any>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    ...(body === undefined
+      ? {}
+      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
   });
   return res.json();
 }
 
-// Enterprise Grid has a few operations backed by Slack's Edge API. These are
-// independently allowlisted by the application server.
-export async function callSlackEdge<T = any>(
-  method: string,
-  params: Record<string, unknown> = {},
-): Promise<T> {
-  const res = await fetch(`/api/edge-operations/${method}`, {
-    body: JSON.stringify(params),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
-  return res.json();
+export function apiGet<T = any>(path: string): Promise<T> {
+  return request<T>("GET", path);
+}
+export function apiPost<T = any>(path: string, body: unknown = {}): Promise<T> {
+  return request<T>("POST", path, body);
+}
+export function apiPut<T = any>(path: string, body: unknown = {}): Promise<T> {
+  return request<T>("PUT", path, body);
+}
+export function apiPatch<T = any>(path: string, body: unknown = {}): Promise<T> {
+  return request<T>("PATCH", path, body);
+}
+export function apiDelete<T = any>(path: string, body?: unknown): Promise<T> {
+  return request<T>("DELETE", path, body);
 }
 
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
@@ -72,12 +73,6 @@ export function getWorkspaceDomain(): Promise<string> {
 
 export function getCachedWorkspaceDomain(): string | null {
   return info()?.domain ?? null;
-}
-
-// Same idea as getWorkspaceDomain, for the current team id — needed to
-// submit a block action.
-export function getWorkspaceTeamId(): Promise<string | null> {
-  return Promise.resolve(info()?.teamId ?? null);
 }
 
 // A user's Enterprise Grid team profile link — works cross-workspace within

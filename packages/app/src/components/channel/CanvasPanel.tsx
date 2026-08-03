@@ -290,12 +290,27 @@ export default function CanvasPanel() {
                   <Match when={store.canvas.canvasCheckingByChannel[id()]}>
                     <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
                   </Match>
-                  <Match when={true}>
+                  <Match when={store.canvas.canvasCheckErrorByChannel[id()]}>
                     <div class="canvas-panel-load-error flex-center flex-col" role="alert">
-                      <span>This canvas is unavailable.</span>
+                      <span>Couldn’t check for a channel canvas.</span>
                       <Button onClick={() => void store.canvas.ensureCanvasChecked(id())} size="sm">
                         Try again
                       </Button>
+                    </div>
+                  </Match>
+                  <Match when={true}>
+                    <div class="canvas-panel-load-error flex-center flex-col">
+                      <span class="text-dim text-sm">This channel doesn’t have a canvas yet.</span>
+                      <Show when={store.channels.isChannelMember(id())}>
+                        <Button
+                          onClick={() => store.canvas.openCanvasCreator(id())}
+                          size="sm"
+                          variant="primary"
+                        >
+                          <Icon name="plus" size={15} />
+                          Add canvas
+                        </Button>
+                      </Show>
                     </div>
                   </Match>
                 </Switch>

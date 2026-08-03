@@ -1,5 +1,4 @@
-// biome-ignore-all lint/style/useNamingConvention: Draft payloads preserve Slack's wire field names.
-import { callSlack } from "../server";
+import { apiDelete, apiGet, apiPut } from "../server";
 
 export type DraftEntry = { channelId: string; threadTs?: string; text: string };
 
@@ -12,20 +11,15 @@ function draftKey(channelId: string, threadTs?: string): string {
 }
 
 export async function fetchDrafts(): Promise<DraftEntry[]> {
-  const data = await callSlack("drafts.list", { is_active: "true", limit: "100" });
+  const data = await apiGet("/api/drafts");
   if (data.ok === false) throw new Error(data.error ?? "drafts.list failed");
   const drafts: any[] = data.drafts ?? [];
   return drafts.map((d) => {
-    const dest = d.destinations?.[0] ?? {};
-    draftState.set(draftKey(dest.channel_id, dest.thread_ts), {
-      clientMsgId: d.client_msg_id,
+    draftState.set(draftKey(d.channelId, d.threadTs), {
+      clientMsgId: d.clientMsgId,
       draftId: d.id,
     });
-    return {
-      channelId: dest.channel_id,
-      text: d.blocks?.[0]?.text?.text ?? "",
-      threadTs: dest.thread_ts,
-    };
+    return { channelId: d.channelId, text: d.text, threadTs: d.threadTs };
   });
 }
 
@@ -35,10 +29,7 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
 
   if (!text.trim()) {
     if (existing) {
-      const data = await callSlack("drafts.delete", {
-        client_last_updated_ts: String(Date.now() / 1000),
-        draft_id: existing.draftId,
-      });
+      const data = await apiDelete(`/api/drafts/${existing.draftId}`);
       if (data.ok === false) throw new Error(data.error ?? "drafts.delete failed");
       draftState.delete(key);
     }
@@ -46,19 +37,14 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
   }
 
   const clientMsgId = existing?.clientMsgId ?? crypto.randomUUID();
-  const destination: Record<string, string> = { channel_id: channelId };
-  if (threadTs) destination.thread_ts = threadTs;
-  const params: Record<string, string> = {
-    blocks: JSON.stringify([{ text: { text, type: "mrkdwn" }, type: "section" }]),
-    client_msg_id: clientMsgId,
-    destinations: JSON.stringify([destination]),
-    file_ids: "[]",
-    is_from_composer: "true",
-  };
-  if (existing) params.draft_id = existing.draftId;
-  const data = await callSlack("drafts.create", params);
+  const data = await apiPut("/api/drafts", {
+    channelId,
+    clientMsgId,
+    draftId: existing?.draftId,
+    text,
+    threadTs,
+  });
   if (data.ok === false) throw new Error(data.error ?? "drafts.create failed");
-  const draftId = data.draft?.id ?? data.id;
-  if (!draftId) throw new Error("drafts.create returned no draft id");
-  draftState.set(key, { clientMsgId, draftId });
+  if (!data.id) throw new Error("drafts.create returned no draft id");
+  draftState.set(key, { clientMsgId, draftId: data.id });
 }

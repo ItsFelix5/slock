@@ -6,9 +6,9 @@ import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
 import { SidebarSkeleton } from "./rows/SidebarRows";
-import type { SidebarContext } from "./sidebarCategories";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
+import type { SidebarContext } from "./sidebarCategories";
 
 export default function SidebarView(props: { context: SidebarContext }) {
   const {

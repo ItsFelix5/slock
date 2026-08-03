@@ -1,7 +1,6 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../contentTypes";
-import { callSlack, resolveMediaUrl } from "../server";
+import { apiGet, apiPost, apiPut, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
@@ -31,31 +30,15 @@ export function fetchAllEmoji(): Promise<Record<string, string>> {
 export async function fetchSlashCommands(): Promise<
   { name: string; desc: string; icon: string | null }[]
 > {
-  const data = await callSlack("commands.list");
+  const data = await apiGet("/api/commands");
   if (!data.ok) throw new Error(data.error ?? "commands.list failed");
-  const commandsObj = data.commands ?? {};
-  return Object.values<any>(commandsObj)
-    .filter((c) => c?.name)
-    .map((c) => ({
-      desc: c.desc || "",
-      icon: c.icons?.image_32 || null,
-      name: c.name.replace(/^\//, ""),
-    }));
+  return data.commands ?? [];
 }
 
 export async function fetchSaved(): Promise<SavedItem[]> {
-  const data = await callSlack("saved.list", { limit: "40" });
+  const data = await apiGet("/api/saved");
   if (!data.ok) throw new Error(data.error ?? "saved.list failed");
-  // saved.list returns `saved_items`, each shaped like { item_id (the channel),
-  // item_type: 'message', ts, ... } — item_id/ts sit at the top level, not nested.
-  const items: any[] = data.saved_items ?? data.items ?? [];
-  return items
-    .filter((it) => !it.item_type || it.item_type === "message")
-    .map((it) => ({
-      channelId: it.item_id ?? it.channel_id ?? it.channel,
-      ts: it.ts ?? it.message_ts,
-    }))
-    .filter((it): it is SavedItem => !!it.channelId && !!it.ts);
+  return data.items ?? [];
 }
 
 interface CanvasFileInfo {
@@ -71,13 +54,12 @@ const canvasFileInfoRequests = new Map<string, Promise<CanvasFileInfo>>();
 function resolveCanvasFileInfo(fileId: string): Promise<CanvasFileInfo> {
   const existing = canvasFileInfoRequests.get(fileId);
   if (existing) return existing;
-  const request = callSlack("files.info", { file: fileId })
+  const request = apiGet(`/api/canvases/${fileId}/file-info`)
     .then((info) => {
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
-      const downloadUrl = info.file?.url_private_download ?? info.file?.url_private;
       return {
-        title: info.file?.title?.trim() || info.file?.name?.trim() || null,
-        url: downloadUrl ? resolveMediaUrl(downloadUrl) : null,
+        title: info.title,
+        url: info.url ? resolveMediaUrl(info.url) : null,
       };
     })
     .catch((error) => {
@@ -124,10 +106,7 @@ export async function fetchCanvasFileUrl(fileId: string): Promise<string | null>
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {
-  const changes = JSON.stringify([
-    { document_content: { markdown, type: "markdown" }, operation: "replace" },
-  ]);
-  const data = await callSlack("canvases.edit", { canvas_id: fileId, changes });
+  const data = await apiPut(`/api/canvases/${fileId}`, { markdown });
   if (!data.ok) throw new Error(data.error ?? "canvases.edit failed");
 }
 
@@ -136,10 +115,7 @@ export async function runSlashCommand(
   command: string,
   text: string,
 ): Promise<string | null> {
-  // Best-effort: there's no documented public method for dispatching a slash
-  // command from a client — this mirrors the internal call the real webapp
-  // makes, which we can't fully verify without live testing.
-  const data = await callSlack("chat.command", { channel: channelId, command, text });
+  const data = await apiPost("/api/commands/run", { channelId, command, text });
   if (!data.ok) return data.error ?? "Command not supported by this client.";
   return null;
 }

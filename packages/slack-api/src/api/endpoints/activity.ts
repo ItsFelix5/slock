@@ -3,7 +3,7 @@
 import type { ActivityItem } from "../../contentTypes";
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { callSlack } from "../server";
+import { apiGet, apiPost } from "../server";
 
 // Feed types worth surfacing, mapped to our ActivityItem kinds below. Slack
 // also emits other app/workflow feed types (list_record_assigned,
@@ -215,20 +215,10 @@ export async function fetchActivityFeedEntries(
   types: string = ACTIVITY_FEED_TYPES,
   unreadOnly = false,
 ): Promise<ActivityFeedPage> {
-  const params: Record<string, string> = {
-    archive_only: "false",
-    automations_only: "false",
-    exclude_automations: "false",
-    is_activity_inbox: "true",
-    limit: String(limit),
-    mode: "chrono_v1",
-    only_salesforce_channels: "false",
-    priority_only: "false",
-    types,
-    unread_only: String(unreadOnly),
-  };
-  if (cursor) params.cursor = cursor;
-  const data = await callSlack("activity.feed", params);
+  const query = new URLSearchParams({ limit: String(limit), types });
+  if (cursor) query.set("cursor", cursor);
+  if (unreadOnly) query.set("unreadOnly", "true");
+  const data = await apiGet(`/api/activity?${query}`);
   if (!data.ok) throw new Error(data.error ?? "activity.feed failed");
   const entries = ((data.items ?? []) as any[])
     .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts) * 1000))
@@ -301,7 +291,7 @@ export async function fetchMessagesByIds(
   const chunks = chunkMessageIds(messageGroups);
   const results = await Promise.allSettled(
     chunks.map(async (messageIds) => {
-      const data = await callSlack("messages.list", { message_ids: JSON.stringify(messageIds) });
+      const data = await apiPost("/api/messages/lookup", { messageIds });
       if (!data.ok) {
         throw new Error(data.error ?? "messages.list failed while resolving activity");
       }

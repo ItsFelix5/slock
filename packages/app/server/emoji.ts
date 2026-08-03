@@ -8,7 +8,7 @@ const EMOJI_LIST_HEADERS = {
   vary: "Cookie",
 };
 
-type SlackCaller = (
+type SlackFetcher = (
   method: string,
   params: Record<string, string>,
   creds: Credentials | null,
@@ -54,7 +54,10 @@ function normalizeEmojiList(raw: Record<string, string>): EmojiCacheData {
   return { names, urls };
 }
 
-function loadEmojiData(creds: Credentials | null, callSlack: SlackCaller): Promise<EmojiCacheData> {
+function loadEmojiData(
+  creds: Credentials | null,
+  callSlack: SlackFetcher,
+): Promise<EmojiCacheData> {
   if (!creds) return Promise.resolve({ names: [], urls: {} });
   const key = emojiCacheKey(creds);
   const now = Date.now();
@@ -78,7 +81,7 @@ function loadEmojiData(creds: Credentials | null, callSlack: SlackCaller): Promi
 
 export async function emojiListResponse(
   creds: Credentials | null,
-  callSlack: SlackCaller,
+  callSlack: SlackFetcher,
   acceptEncoding: string | null,
 ): Promise<Response> {
   const data = await loadEmojiData(creds, callSlack);
@@ -88,7 +91,7 @@ export async function emojiListResponse(
 export async function emojiImageUrl(
   name: string | null,
   creds: Credentials | null,
-  callSlack: SlackCaller,
+  callSlack: SlackFetcher,
 ): Promise<string | null> {
   if (!name) return null;
   const data = await loadEmojiData(creds, callSlack);
