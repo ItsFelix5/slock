@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { MessageShortcut } from "../../types";
 import { getOrCreateRetryablePromise } from "../cache/retryablePromiseCache";
-import { callSlack, getWorkspaceTeamId, resolveMediaUrl } from "../server";
+import { apiGet, callSlack, getWorkspaceTeamId, resolveMediaUrl } from "../server";
 
 // client.appCommands' `app_actions` list mixes every action any installed
 // app registered — global shortcuts (composer lightning bolt) and
@@ -60,7 +60,7 @@ export async function runMessageShortcut(
 const botAppInfoCache = new Map<string, Promise<{ appId: string } | null>>();
 function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
   return getOrCreateRetryablePromise(botAppInfoCache, botId, async () => {
-    const data = await callSlack("bots.info", { bot: botId });
+    const data = await apiGet(`/api/bots/${botId}`);
     if (!data.ok) throw new Error(data.error ?? "bots.info failed");
     return data.bot?.app_id ? { appId: data.bot.app_id } : null;
   });

@@ -1,5 +1,4 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
-import { trimBot, trimUser } from "./slackEntities.ts";
 import { trimReadResponse } from "./slackReadResponse.ts";
 
 // Shared with routes/sections.ts's GET /api/sections — bootstrap.ts still
@@ -42,8 +41,6 @@ const OK_ONLY_METHODS = new Set([
   "usergroups.update",
   "usergroups.users.update",
   "users.prefs.set",
-  "users.profile.set",
-  "users.setPresence",
 ]);
 
 export function trimSlackResponse(method: string, data: any): any {
@@ -52,29 +49,6 @@ export function trimSlackResponse(method: string, data: any): any {
   if (readResponse) return readResponse;
   if (method === "search.autocomplete") {
     return { ok: true, suggestions: { text: data.suggestions?.text } };
-  }
-  if (method === "search.modules.people") {
-    return {
-      items: Array.isArray(data.items) ? data.items.map(trimUser) : data.items,
-      ok: true,
-      pagination: { total_count: data.pagination?.total_count },
-    };
-  }
-  if (method === "bots.info") return { bot: trimBot(data.bot), ok: true };
-  if (method === "team.profile.get") {
-    return {
-      ok: true,
-      profile: {
-        fields: Array.isArray(data.profile?.fields)
-          ? data.profile.fields.map((field: any) => ({
-              id: field?.id,
-              is_hidden: field?.is_hidden,
-              label: field?.label,
-              ordering: field?.ordering,
-            }))
-          : data.profile?.fields,
-      },
-    };
   }
   if (method === "users.channelSections.list") return trimChannelSections(data);
   if (method === "client.appCommands") {
@@ -116,20 +90,6 @@ export function trimSlackResponse(method: string, data: any): any {
       ),
       ok: true,
     };
-  }
-  if (method === "saved.list") {
-    const items = data.saved_items ?? data.items;
-    const trimmed = Array.isArray(items)
-      ? items.map((item: any) => ({
-          channel: item?.channel,
-          channel_id: item?.channel_id,
-          item_id: item?.item_id,
-          item_type: item?.item_type,
-          message_ts: item?.message_ts,
-          ts: item?.ts,
-        }))
-      : items;
-    return data.saved_items ? { ok: true, saved_items: trimmed } : { items: trimmed, ok: true };
   }
   if (method === "usergroups.users.list") return { ok: true, users: data.users };
   if (method === "dnd.info") {

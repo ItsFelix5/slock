@@ -3,7 +3,6 @@ export const SLACK_OPERATIONS = new Set([
   "apps.actions.v2.execute",
   "apps.profile.get",
   "blocks.actions",
-  "bots.info",
   "chat.command",
   "client.appCommands",
   "commands.list",
@@ -11,14 +10,10 @@ export const SLACK_OPERATIONS = new Set([
   "dnd.setSnooze",
   "search.autocomplete",
   "search.messages",
-  "search.modules.people",
-  "team.profile.get",
   "usergroups.update",
   "usergroups.users.list",
   "usergroups.users.update",
   "users.prefs.set",
-  "users.profile.set",
-  "users.setPresence",
 ]);
 
-export const SLACK_EDGE_OPERATIONS = new Set(["usergroups/info", "users/info"]);
+export const SLACK_EDGE_OPERATIONS = new Set(["usergroups/info"]);

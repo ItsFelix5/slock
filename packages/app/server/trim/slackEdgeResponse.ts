@@ -1,7 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
 
-import { trimUser } from "./slackEntities.ts";
-
 function trimUsergroup(group: any): any {
   if (!group || typeof group !== "object") return group;
   return {
@@ -24,18 +22,6 @@ function mapRecordValues(record: any, trim: (value: any) => any): any {
 
 export function trimSlackEdgeResponse(method: string, data: any): any {
   if (!data?.ok) return data;
-  if (method === "users/info") {
-    return {
-      ok: true,
-      results: Array.isArray(data.results)
-        ? data.results.map(trimUser)
-        : mapRecordValues(data.results, trimUser),
-      user: data.user ? trimUser(data.user) : undefined,
-      users: Array.isArray(data.users)
-        ? data.users.map(trimUser)
-        : mapRecordValues(data.users, trimUser),
-    };
-  }
   if (method === "usergroups/info") {
     return {
       ok: true,
