@@ -98,12 +98,7 @@ export async function routeApiRequest(
     });
   }
   if (method === "GET" && pathname === "/api/bootstrap") {
-    return bootstrapResponse(
-      creds,
-      callSlack,
-      acceptEncoding,
-      searchParams.get("sections") === "true",
-    );
+    return bootstrapResponse(creds, acceptEncoding, searchParams.get("sections") === "true");
   }
   if (method === "POST" && pathname.startsWith("/api/operations/")) {
     const slackMethod = pathname.slice("/api/operations/".length);

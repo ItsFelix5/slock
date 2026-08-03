@@ -170,6 +170,19 @@ export function trimMessage(message: any): any {
   };
 }
 
+// Shared by bootstrap.ts's client.counts trim and slackGatewayPayload.ts's
+// badge_counts_updated trim — both trim the same channels/ims/mpims group
+// arrays, just with slightly different per-group field sets (the gateway
+// push omits last_read/latest, which its one consumer never reads, to keep
+// this very-frequent event small).
+export function trimCountGroups(data: any, trimGroup: (group: any) => any): any {
+  return {
+    channels: Array.isArray(data?.channels) ? data.channels.map(trimGroup) : data?.channels,
+    ims: Array.isArray(data?.ims) ? data.ims.map(trimGroup) : data?.ims,
+    mpims: Array.isArray(data?.mpims) ? data.mpims.map(trimGroup) : data?.mpims,
+  };
+}
+
 export function trimBot(bot: any): any {
   if (!bot || typeof bot !== "object") return bot;
   return {

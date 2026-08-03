@@ -2,7 +2,8 @@
 
 import { rewriteSlackAssetUrls } from "./assets.js";
 import { type Credentials, slackCookieHeader } from "./auth.js";
-import { callSlack } from "./slackClient.js";
+import { trimHistory } from "./routes/messages.js";
+import { fetchSlack } from "./slackClient.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };
@@ -48,26 +49,39 @@ function startFallbackPolling(state: ConnectionState) {
     try {
       for (const channel of state.watchedChannels) {
         try {
-          const data = await callSlack(
+          const data = await fetchSlack(
             "conversations.history",
             { channel, limit: "60" },
             state.creds,
           );
-          if (data.ok)
-            send(state, { channel, messages: data.messages ?? [], type: "_history_snapshot" });
+          if (data.ok) {
+            const trimmed = rewriteSlackAssetUrls(trimHistory(data), state.creds) as {
+              messages?: unknown[];
+            };
+            send(state, { channel, messages: trimmed.messages ?? [], type: "_history_snapshot" });
+          }
         } catch {
           // transient network error; next tick retries
         }
       }
       for (const [ts, channel] of state.watchedThreads) {
         try {
-          const data = await callSlack(
+          const data = await fetchSlack(
             "conversations.replies",
             { channel, limit: "200", ts },
             state.creds,
           );
-          if (data.ok)
-            send(state, { channel, messages: data.messages ?? [], ts, type: "_replies_snapshot" });
+          if (data.ok) {
+            const trimmed = rewriteSlackAssetUrls(trimHistory(data), state.creds) as {
+              messages?: unknown[];
+            };
+            send(state, {
+              channel,
+              messages: trimmed.messages ?? [],
+              ts,
+              type: "_replies_snapshot",
+            });
+          }
         } catch {
           // transient network error; next tick retries
         }

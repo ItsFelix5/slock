@@ -1,9 +1,9 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
 import { trimReadResponse } from "./slackReadResponse.ts";
 
-// Shared with routes/sections.ts's GET /api/sections — bootstrap.ts still
-// calls this method through the auto-trimming callSlack path until Phase 18
-// moves it onto explicit fetchSlack + trim calls like everything else.
+// Shared by routes/sections.ts's GET /api/sections and bootstrap.ts's
+// conditional sections fan-out — both call users.channelSections.list
+// directly via fetchSlack and trim its response the same way.
 export function trimChannelSections(data: any): any {
   return {
     channel_sections: Array.isArray(data.channel_sections)
@@ -37,14 +37,6 @@ export function trimSlackResponse(method: string, data: any): any {
   if (!data?.ok) return data;
   const readResponse = trimReadResponse(method, data);
   if (readResponse) return readResponse;
-  if (method === "users.channelSections.list") return trimChannelSections(data);
-  if (method === "dnd.info") {
-    return {
-      ok: true,
-      snooze_enabled: data.snooze_enabled,
-      snooze_endtime: data.snooze_endtime,
-    };
-  }
   if (method === "files.getUploadURLExternal" || OK_ONLY_METHODS.has(method))
     return trimMutation(method, data);
   return data;

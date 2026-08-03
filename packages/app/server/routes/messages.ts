@@ -4,7 +4,7 @@ import { fetchSlack } from "../slackClient.ts";
 import { trimMessage } from "../trim/slackEntities.ts";
 import { type Route, route } from "./router.ts";
 
-function trimHistory(data: any): any {
+export function trimHistory(data: any): any {
   return {
     has_more: data.has_more,
     messages: Array.isArray(data.messages) ? data.messages.map(trimMessage) : data.messages,
