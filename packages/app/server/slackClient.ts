@@ -1,8 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { rewriteSlackAssetUrls } from "./assets.ts";
 import { type Credentials, slackCookieHeader } from "./auth.ts";
-import { trimSlackEdgeResponse } from "./trim/slackEdgeResponse.ts";
-import { trimSlackResponse } from "./trim/slackResponse.ts";
 
 async function parseSlackResponse(res: Response): Promise<any> {
   const text = await res.text();
@@ -43,12 +40,10 @@ function slackRequestBody(
   };
 }
 
-// Fetch + parse only, no trimming or asset-URL rewriting — purpose-built
-// route handlers (routes/*.ts) trim exactly the fields they need themselves,
-// then return through jsonResponse, which rewrites asset URLs once,
-// centrally. `callSlack` below is a thin, auto-trimming wrapper kept only for
-// operations that haven't migrated to a purpose route yet.
-export async function fetchSlack(
+// Fetch + parse only, no trimming or asset-URL rewriting — every route
+// handler (routes/*.ts) trims exactly the fields it needs itself, then
+// returns through jsonResponse, which rewrites asset URLs once, centrally.
+export async function callSlack(
   method: string,
   params: Record<string, string>,
   creds: Credentials | null,
@@ -71,17 +66,7 @@ export async function fetchSlack(
     return { error: "upstream_timeout", ok: false };
   }
 }
-export async function callSlack(
-  method: string,
-  params: Record<string, string>,
-  creds: Credentials | null,
-): Promise<any> {
-  return rewriteSlackAssetUrls(
-    trimSlackResponse(method, await fetchSlack(method, params, creds)),
-    creds,
-  );
-}
-export async function fetchSlackEdge(
+export async function callSlackEdge(
   method: string,
   params: Record<string, unknown>,
   creds: Credentials | null,
@@ -101,14 +86,4 @@ export async function fetchSlackEdge(
   } catch {
     return { error: "upstream_timeout", ok: false };
   }
-}
-export async function callSlackEdge(
-  method: string,
-  params: Record<string, unknown>,
-  creds: Credentials | null,
-): Promise<any> {
-  return rewriteSlackAssetUrls(
-    trimSlackEdgeResponse(method, await fetchSlackEdge(method, params, creds)),
-    creds,
-  );
 }

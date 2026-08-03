@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { teamIdFromRoute } from "../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { mutate, type Route, route } from "./router.ts";
 
 export const appRoutes: Route[] = [
@@ -9,7 +9,7 @@ export const appRoutes: Route[] = [
   // app registered — global shortcuts and per-message shortcuts share this
   // one list, distinguished only by `type`; we only care about "message_action".
   route("GET", "/api/message-shortcuts", async (ctx) => {
-    const data = await fetchSlack(
+    const data = await callSlack(
       "client.appCommands",
       { _x_reason: "app-commands-conditional-fetching" },
       ctx.creds,
@@ -67,7 +67,7 @@ export const appRoutes: Route[] = [
   route("GET", "/api/apps/:id/profile", async (ctx) => {
     const botId = ctx.searchParams.get("bot");
     if (!botId) return errorResponse("invalid_bot", 400);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "apps.profile.get",
       {
         app: ctx.params.id,

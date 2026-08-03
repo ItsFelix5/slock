@@ -250,3 +250,26 @@ export function trimChannel(channel: any): any {
     unread_count_display: channel.unread_count_display,
   };
 }
+
+// Shared by routes/sections.ts's GET /api/sections and bootstrap.ts's
+// conditional sections fan-out — both call users.channelSections.list
+// directly via callSlack and trim its response the same way.
+export function trimChannelSections(data: any): any {
+  return {
+    channel_sections: Array.isArray(data.channel_sections)
+      ? data.channel_sections.map((section: any) => ({
+          channel_ids: section?.channel_ids,
+          channel_ids_page: section?.channel_ids_page
+            ? { channel_ids: section.channel_ids_page.channel_ids }
+            : undefined,
+          channel_section_id: section?.channel_section_id,
+          channels: section?.channels,
+          id: section?.id,
+          name: section?.name,
+          sidebar: section?.sidebar,
+          type: section?.type,
+        }))
+      : data.channel_sections,
+    ok: true,
+  };
+}

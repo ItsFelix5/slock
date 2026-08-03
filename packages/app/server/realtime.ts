@@ -3,7 +3,7 @@
 import { rewriteSlackAssetUrls } from "./assets.js";
 import { type Credentials, slackCookieHeader } from "./auth.js";
 import { trimHistory } from "./routes/messages.js";
-import { fetchSlack } from "./slackClient.js";
+import { callSlack } from "./slackClient.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };
@@ -49,7 +49,7 @@ function startFallbackPolling(state: ConnectionState) {
     try {
       for (const channel of state.watchedChannels) {
         try {
-          const data = await fetchSlack(
+          const data = await callSlack(
             "conversations.history",
             { channel, limit: "60" },
             state.creds,
@@ -66,7 +66,7 @@ function startFallbackPolling(state: ConnectionState) {
       }
       for (const [ts, channel] of state.watchedThreads) {
         try {
-          const data = await fetchSlack(
+          const data = await callSlack(
             "conversations.replies",
             { channel, limit: "200", ts },
             state.creds,

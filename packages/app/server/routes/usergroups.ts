@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack, fetchSlackEdge } from "../slackClient.ts";
+import { callSlack, callSlackEdge } from "../slackClient.ts";
 import { mutate, type Route, route } from "./router.ts";
 
 function trimUsergroup(group: any): any {
@@ -32,7 +32,7 @@ export const usergroupRoutes: Route[] = [
   route("POST", "/api/usergroups/lookup", async (ctx) => {
     const { ids } = (await ctx.body.json()) as { ids?: string[] };
     if (!ids?.length) return errorResponse("invalid_ids", 400);
-    const data = await fetchSlackEdge("usergroups/info", { ids }, ctx.creds);
+    const data = await callSlackEdge("usergroups/info", { ids }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "edge usergroups/info", ctx.creds, ctx.acceptEncoding);
     }
@@ -54,7 +54,7 @@ export const usergroupRoutes: Route[] = [
   // usergroups/info only carries a member *count*, not the list — this fills
   // that one gap.
   route("GET", "/api/usergroups/:id/members", async (ctx) => {
-    const data = await fetchSlack("usergroups.users.list", { usergroup: ctx.params.id }, ctx.creds);
+    const data = await callSlack("usergroups.users.list", { usergroup: ctx.params.id }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "usergroups.users.list", ctx.creds, ctx.acceptEncoding);
     }

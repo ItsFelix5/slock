@@ -1,13 +1,13 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { type Route, route } from "./router.ts";
 
 const LEADING_SLASH_RE = /^\//;
 
 export const commandRoutes: Route[] = [
   route("GET", "/api/commands", async (ctx) => {
-    const data = await fetchSlack("commands.list", {}, ctx.creds);
+    const data = await callSlack("commands.list", {}, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "commands.list", ctx.creds, ctx.acceptEncoding);
     const commandsObj = data.commands ?? {};
     return jsonResponse(
@@ -36,7 +36,7 @@ export const commandRoutes: Route[] = [
       text?: string;
     };
     if (!(channelId && command)) return errorResponse("invalid_command", 400);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "chat.command",
       { channel: channelId, command, text: text ?? "" },
       ctx.creds,

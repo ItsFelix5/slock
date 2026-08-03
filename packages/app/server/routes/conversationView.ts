@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { trimChannel, trimMessage, trimUser } from "../trim/slackEntities.ts";
 import { type Route, route } from "./router.ts";
 
@@ -10,7 +10,7 @@ import { type Route, route } from "./router.ts";
 // caller-chosen params.
 export const conversationViewRoutes: Route[] = [
   route("GET", "/api/channels/:id/view", async (ctx) => {
-    const data = await fetchSlack(
+    const data = await callSlack(
       "conversations.view",
       {
         canonical_avatars: "true",

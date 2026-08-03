@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { trimMessage } from "../trim/slackEntities.ts";
 import { mutate, type Route, route } from "./router.ts";
 
@@ -30,7 +30,7 @@ export const messageActionRoutes: Route[] = [
     mutate("pins.remove", { channel: ctx.params.channel, timestamp: ctx.params.ts }, ctx),
   ),
   route("GET", "/api/channels/:id/pins", async (ctx) => {
-    const data = await fetchSlack("pins.list", { channel: ctx.params.id }, ctx.creds);
+    const data = await callSlack("pins.list", { channel: ctx.params.id }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "pins.list", ctx.creds, ctx.acceptEncoding);
     const items: any[] = Array.isArray(data.items) ? data.items : [];
     return jsonResponse(
@@ -66,7 +66,7 @@ export const messageActionRoutes: Route[] = [
     ),
   ),
   route("GET", "/api/saved", async (ctx) => {
-    const data = await fetchSlack("saved.list", { limit: "40" }, ctx.creds);
+    const data = await callSlack("saved.list", { limit: "40" }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "saved.list", ctx.creds, ctx.acceptEncoding);
     // saved.list returns `saved_items`, each shaped like { item_id (the
     // channel), item_type: 'message', ts, ... } — item_id/ts sit at the top

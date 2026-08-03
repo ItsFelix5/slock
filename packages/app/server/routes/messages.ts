@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { trimMessage } from "../trim/slackEntities.ts";
 import { type Route, route } from "./router.ts";
 
@@ -40,7 +40,7 @@ export const messageRoutes: Route[] = [
       const value = ctx.searchParams.get(key);
       if (value) params[key] = value;
     }
-    const data = await fetchSlack("conversations.history", params, ctx.creds);
+    const data = await callSlack("conversations.history", params, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.history", ctx.creds, ctx.acceptEncoding);
     }
@@ -48,7 +48,7 @@ export const messageRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/threads/:ts/messages", async (ctx) => {
-    const data = await fetchSlack(
+    const data = await callSlack(
       "conversations.replies",
       { channel: ctx.params.id, limit: "200", ts: ctx.params.ts },
       ctx.creds,
@@ -62,7 +62,7 @@ export const messageRoutes: Route[] = [
   route("POST", "/api/channels/:id/read", async (ctx) => {
     const { ts } = (await ctx.body.json()) as { ts?: string };
     if (!ts) return errorResponse("invalid_ts", 400);
-    const data = await fetchSlack("conversations.mark", { channel: ctx.params.id, ts }, ctx.creds);
+    const data = await callSlack("conversations.mark", { channel: ctx.params.id, ts }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.mark", ctx.creds, ctx.acceptEncoding);
     }
@@ -87,7 +87,7 @@ export const messageRoutes: Route[] = [
       params.unfurl_links = "false";
       params.unfurl_media = "false";
     }
-    const data = await fetchSlack("chat.postMessage", params, ctx.creds);
+    const data = await callSlack("chat.postMessage", params, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "chat.postMessage", ctx.creds, ctx.acceptEncoding);
     }
@@ -111,7 +111,7 @@ export const messageRoutes: Route[] = [
       params.text = body.text;
       if (body.blocks) params.blocks = JSON.stringify(body.blocks);
     }
-    const data = await fetchSlack("chat.update", params, ctx.creds);
+    const data = await callSlack("chat.update", params, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "chat.update", ctx.creds, ctx.acceptEncoding);
     }
@@ -119,7 +119,7 @@ export const messageRoutes: Route[] = [
   }),
 
   route("DELETE", "/api/channels/:id/messages/:ts", async (ctx) => {
-    const data = await fetchSlack(
+    const data = await callSlack(
       "chat.delete",
       { channel: ctx.params.id, ts: ctx.params.ts },
       ctx.creds,
@@ -137,7 +137,7 @@ export const messageRoutes: Route[] = [
       messageIds?: { channel: string; timestamps: string[] }[];
     };
     if (!messageIds?.length) return errorResponse("invalid_message_ids", 400);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "messages.list",
       { message_ids: JSON.stringify(messageIds) },
       ctx.creds,

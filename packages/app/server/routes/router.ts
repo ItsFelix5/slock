@@ -1,6 +1,6 @@
 import type { Credentials } from "../auth.ts";
 import { okResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 
 export type BodyReader = {
   json(): Promise<Record<string, unknown>>;
@@ -39,7 +39,7 @@ export async function mutate(
   params: Record<string, string>,
   ctx: RouteCtx,
 ): Promise<Response> {
-  const data = await fetchSlack(slackMethod, params, ctx.creds);
+  const data = await callSlack(slackMethod, params, ctx.creds);
   if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds, ctx.acceptEncoding);
   return okResponse(ctx.creds, ctx.acceptEncoding);
 }

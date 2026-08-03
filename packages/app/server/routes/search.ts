@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { type Route, route } from "./router.ts";
 
 export const searchRoutes: Route[] = [
@@ -13,7 +13,7 @@ export const searchRoutes: Route[] = [
     if (!query) return jsonResponse({ ok: true, results: [] }, ctx.creds, ctx.acceptEncoding);
     const sort = ctx.searchParams.get("sort") === "score" ? "score" : "timestamp";
     const sortDir = ctx.searchParams.get("sortDir") === "asc" ? "asc" : "desc";
-    const data = await fetchSlack(
+    const data = await callSlack(
       "search.messages",
       { count: "40", query, sort, sort_dir: sortDir },
       ctx.creds,
@@ -44,7 +44,7 @@ export const searchRoutes: Route[] = [
   route("GET", "/api/search/autocomplete", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ ok: true, suggestions: [] }, ctx.creds, ctx.acceptEncoding);
-    const data = await fetchSlack("search.autocomplete", { query }, ctx.creds);
+    const data = await callSlack("search.autocomplete", { query }, ctx.creds);
     if (!data.ok) return jsonResponse({ ok: true, suggestions: [] }, ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
       { ok: true, suggestions: data.suggestions?.text ?? [] },

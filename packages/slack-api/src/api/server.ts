@@ -1,36 +1,7 @@
-// The browser talks only to the application's allowlisted operations. The
-// server owns the upstream Slack integration and rejects methods outside that
-// fixed contract.
-export async function callSlack<T = any>(
-  method: string,
-  params: Record<string, string> = {},
-): Promise<T> {
-  const res = await fetch(`/api/operations/${method}`, {
-    body: JSON.stringify(params),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
-  return res.json();
-}
-
-// Enterprise Grid has a few operations backed by Slack's Edge API. These are
-// independently allowlisted by the application server.
-export async function callSlackEdge<T = any>(
-  method: string,
-  params: Record<string, unknown> = {},
-): Promise<T> {
-  const res = await fetch(`/api/edge-operations/${method}`, {
-    body: JSON.stringify(params),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
-  return res.json();
-}
-
-// Purpose-built route transport: unlike callSlack/callSlackEdge above, these
-// don't name a Slack method — `path` is one of the app server's own routes
-// (e.g. "/api/channels/C123/messages"), which decides internally what Slack
-// call(s) to make and returns only the fields that route's caller needs.
+// Purpose-built route transport: `path` is one of the app server's own
+// routes (e.g. "/api/channels/C123/messages"), never a raw Slack method name
+// — the server decides internally what Slack call(s) to make and returns
+// only the fields that route's caller needs.
 async function request<T = any>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,

@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack, fetchSlackEdge } from "../slackClient.ts";
+import { callSlack, callSlackEdge } from "../slackClient.ts";
 import { trimChannel, trimUser } from "../trim/slackEntities.ts";
 import { type Route, route } from "./router.ts";
 
@@ -17,7 +17,7 @@ export const channelDirectoryRoutes: Route[] = [
   route("POST", "/api/channels/lookup", async (ctx) => {
     const { ids } = (await ctx.body.json()) as { ids?: string[] };
     if (!ids?.length) return errorResponse("invalid_ids", 400);
-    const data = await fetchSlackEdge(
+    const data = await callSlackEdge(
       "channels/info",
       { updated_ids: Object.fromEntries(ids.map((id) => [id, 0])) },
       ctx.creds,
@@ -43,7 +43,7 @@ export const channelDirectoryRoutes: Route[] = [
   route("GET", "/api/channels/browse", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ items: [], ok: true }, ctx.creds, ctx.acceptEncoding);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "search.modules.channels",
       { count: "40", module: "channels", query },
       ctx.creds,
@@ -58,7 +58,7 @@ export const channelDirectoryRoutes: Route[] = [
   route("GET", "/api/channels/:id/members", async (ctx) => {
     const filter = ctx.searchParams.get("filter") === "apps" ? "apps" : "everyone";
     const marker = ctx.searchParams.get("marker") ?? undefined;
-    const data = await fetchSlackEdge(
+    const data = await callSlackEdge(
       "users/list",
       {
         channels: [ctx.params.id],
@@ -85,7 +85,7 @@ export const channelDirectoryRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/managers", async (ctx) => {
-    const data = await fetchSlack(
+    const data = await callSlack(
       "admin.roles.entity.listAssignments",
       { entity_id: ctx.params.id },
       ctx.creds,

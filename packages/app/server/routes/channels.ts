@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { trimChannel } from "../trim/slackEntities.ts";
 import { mutate, type Route, type RouteCtx, route } from "./router.ts";
 
@@ -8,7 +8,7 @@ export const channelRoutes: Route[] = [
   route("POST", "/api/channels", async (ctx) => {
     const { name, isPrivate } = (await ctx.body.json()) as { name?: string; isPrivate?: boolean };
     if (!name) return errorResponse("invalid_name", 400);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "conversations.create",
       { is_private: isPrivate ? "true" : "false", name },
       ctx.creds,
@@ -24,7 +24,7 @@ export const channelRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id", async (ctx) => {
-    const data = await fetchSlack(
+    const data = await callSlack(
       "conversations.info",
       { channel: ctx.params.id, include_num_members: "true" },
       ctx.creds,
@@ -42,7 +42,7 @@ export const channelRoutes: Route[] = [
   route("PATCH", "/api/channels/:id", async (ctx) => {
     const { name } = (await ctx.body.json()) as { name?: string };
     if (!name) return errorResponse("invalid_name", 400);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "conversations.rename",
       { channel: ctx.params.id, name },
       ctx.creds,
@@ -99,7 +99,7 @@ export const channelRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/posting-prefs", async (ctx) => {
-    const data = await fetchSlack("channels.prefs.get", { channel_id: ctx.params.id }, ctx.creds);
+    const data = await callSlack("channels.prefs.get", { channel_id: ctx.params.id }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "channels.prefs.get", ctx.creds, ctx.acceptEncoding);
     }
@@ -160,7 +160,7 @@ async function mutateChannel(
   params: Record<string, string>,
   ctx: RouteCtx,
 ): Promise<Response> {
-  const data = await fetchSlack(slackMethod, params, ctx.creds);
+  const data = await callSlack(slackMethod, params, ctx.creds);
   if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds, ctx.acceptEncoding);
   return jsonResponse(
     { channel: trimChannel(data.channel), ok: true },

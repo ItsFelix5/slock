@@ -1,12 +1,12 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
-import { trimChannelSections } from "../trim/slackResponse.ts";
+import { callSlack } from "../slackClient.ts";
+import { trimChannelSections } from "../trim/slackEntities.ts";
 import { mutate, type Route, route } from "./router.ts";
 
 export const sectionRoutes: Route[] = [
   route("GET", "/api/sections", async (ctx) => {
-    const data = await fetchSlack("users.channelSections.list", {}, ctx.creds);
+    const data = await callSlack("users.channelSections.list", {}, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "users.channelSections.list", ctx.creds, ctx.acceptEncoding);
     }
@@ -16,7 +16,7 @@ export const sectionRoutes: Route[] = [
   route("POST", "/api/sections", async (ctx) => {
     const { name } = (await ctx.body.json()) as { name?: string };
     if (!name) return errorResponse("invalid_name", 400);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "users.channelSections.create",
       { emoji: "", name, type: "standard" },
       ctx.creds,
@@ -111,7 +111,7 @@ export const sectionRoutes: Route[] = [
   route("POST", "/api/dms", async (ctx) => {
     const { userId } = (await ctx.body.json()) as { userId?: string };
     if (!userId) return errorResponse("invalid_user_id", 400);
-    const data = await fetchSlack("conversations.open", { users: userId }, ctx.creds);
+    const data = await callSlack("conversations.open", { users: userId }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.open", ctx.creds, ctx.acceptEncoding);
     }

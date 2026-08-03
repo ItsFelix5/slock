@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack, fetchSlackEdge } from "../slackClient.ts";
+import { callSlack, callSlackEdge } from "../slackClient.ts";
 import { trimBot, trimUser } from "../trim/slackEntities.ts";
 import { mutate, type Route, route } from "./router.ts";
 
@@ -19,7 +19,7 @@ export const accountRoutes: Route[] = [
   // Bot authors (message.bot_id/app_id, no inline bot_profile) aren't valid
   // input to the users cache endpoint below — resolved through bots.info instead.
   route("GET", "/api/bots/:id", async (ctx) => {
-    const data = await fetchSlack("bots.info", { bot: ctx.params.id }, ctx.creds);
+    const data = await callSlack("bots.info", { bot: ctx.params.id }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "bots.info", ctx.creds, ctx.acceptEncoding);
     return jsonResponse({ bot: trimBot(data.bot), ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
@@ -29,7 +29,7 @@ export const accountRoutes: Route[] = [
   route("POST", "/api/users/lookup", async (ctx) => {
     const { ids } = (await ctx.body.json()) as { ids?: string[] };
     if (!ids?.length) return errorResponse("invalid_ids", 400);
-    const data = await fetchSlackEdge(
+    const data = await callSlackEdge(
       "users/info",
       {
         include_profile_only_users: true,
@@ -58,7 +58,7 @@ export const accountRoutes: Route[] = [
   // team.profile.get's field *definitions* (label/ordering) are workspace-wide,
   // separate from each user's field *values*.
   route("GET", "/api/profile-fields", async (ctx) => {
-    const data = await fetchSlack("team.profile.get", {}, ctx.creds);
+    const data = await callSlack("team.profile.get", {}, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "team.profile.get", ctx.creds, ctx.acceptEncoding);
     }
@@ -93,7 +93,7 @@ export const accountRoutes: Route[] = [
   route("GET", "/api/directory", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ truncated: false, users: [] }, ctx.creds, ctx.acceptEncoding);
-    const data = await fetchSlack(
+    const data = await callSlack(
       "search.modules.people",
       { count: "30", module: "people", query },
       ctx.creds,

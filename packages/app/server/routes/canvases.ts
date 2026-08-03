@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { trimFile } from "../trim/slackEntities.ts";
 import { mutate, type Route, route } from "./router.ts";
 
@@ -8,7 +8,7 @@ export const canvasRoutes: Route[] = [
   // A channel's own single canvas tab.
   route("POST", "/api/channels/:id/canvas", async (ctx) => {
     const { title } = (await ctx.body.json()) as { title?: string };
-    const data = await fetchSlack(
+    const data = await callSlack(
       "conversations.canvases.create",
       {
         channel_id: ctx.params.id,
@@ -36,7 +36,7 @@ export const canvasRoutes: Route[] = [
   route("POST", "/api/canvases", async (ctx) => {
     const { title, channelId } = (await ctx.body.json()) as { title?: string; channelId?: string };
     if (!(title && channelId)) return errorResponse("invalid_canvas", 400);
-    const created = await fetchSlack(
+    const created = await callSlack(
       "canvases.create",
       { document_content: JSON.stringify({ markdown: "", type: "markdown" }), title },
       ctx.creds,
@@ -45,7 +45,7 @@ export const canvasRoutes: Route[] = [
       return slackErrorResponse(created, "canvases.create", ctx.creds, ctx.acceptEncoding);
     }
     if (!created.canvas_id) return errorResponse("canvas_creation_failed", 502);
-    const shared = await fetchSlack(
+    const shared = await callSlack(
       "canvases.access.set",
       { access_level: "write", canvas_id: created.canvas_id, channel_ids: channelId },
       ctx.creds,
@@ -69,7 +69,7 @@ export const canvasRoutes: Route[] = [
   // is files.info projected to just the title/download URL a canvas tab needs
   // — not the ~25-field trimFile used for message attachments.
   route("GET", "/api/canvases/:id/file-info", async (ctx) => {
-    const data = await fetchSlack("files.info", { file: ctx.params.id }, ctx.creds);
+    const data = await callSlack("files.info", { file: ctx.params.id }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "files.info", ctx.creds, ctx.acceptEncoding);
     }

@@ -2,9 +2,13 @@
 
 import type { Credentials } from "../auth.ts";
 import { jsonResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
-import { trimChannel, trimCountGroups, trimUser } from "../trim/slackEntities.ts";
-import { trimChannelSections } from "../trim/slackResponse.ts";
+import { callSlack } from "../slackClient.ts";
+import {
+  trimChannel,
+  trimChannelSections,
+  trimCountGroups,
+  trimUser,
+} from "../trim/slackEntities.ts";
 
 function trimUserBoot(data: any): any {
   if (!data.ok) return data;
@@ -92,12 +96,12 @@ export async function bootstrapResponse(
   includeSections: boolean,
 ): Promise<Response> {
   const [rawBoot, rawCounts, rawPrefs, rawDnd, rawSections] = await Promise.all([
-    fetchSlack("client.userBoot", {}, creds),
-    fetchSlack("client.counts", {}, creds).catch(() => ({ ok: false })),
-    fetchSlack("users.prefs.get", {}, creds),
-    fetchSlack("dnd.info", {}, creds),
+    callSlack("client.userBoot", {}, creds),
+    callSlack("client.counts", {}, creds).catch(() => ({ ok: false })),
+    callSlack("users.prefs.get", {}, creds),
+    callSlack("dnd.info", {}, creds),
     includeSections
-      ? fetchSlack("users.channelSections.list", {}, creds)
+      ? callSlack("users.channelSections.list", {}, creds)
       : Promise.resolve(undefined),
   ]);
   return jsonResponse(

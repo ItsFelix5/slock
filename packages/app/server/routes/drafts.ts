@@ -1,11 +1,11 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { mutate, type Route, route } from "./router.ts";
 
 export const draftRoutes: Route[] = [
   route("GET", "/api/drafts", async (ctx) => {
-    const data = await fetchSlack("drafts.list", { is_active: "true", limit: "100" }, ctx.creds);
+    const data = await callSlack("drafts.list", { is_active: "true", limit: "100" }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "drafts.list", ctx.creds, ctx.acceptEncoding);
     const drafts: any[] = Array.isArray(data.drafts) ? data.drafts : [];
     return jsonResponse(
@@ -50,7 +50,7 @@ export const draftRoutes: Route[] = [
       is_from_composer: "true",
     };
     if (body.draftId) params.draft_id = body.draftId;
-    const data = await fetchSlack("drafts.create", params, ctx.creds);
+    const data = await callSlack("drafts.create", params, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "drafts.create", ctx.creds, ctx.acceptEncoding);
     const draftId = data.draft?.id ?? data.id;
     if (!draftId) return errorResponse("draft_creation_failed", 502);

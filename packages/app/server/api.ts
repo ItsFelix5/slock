@@ -8,9 +8,8 @@ import {
 } from "./assets.ts";
 import { authResponse, type Credentials, jsonHeaders, logoutResponse } from "./auth.ts";
 import { emojiImageUrl, emojiListResponse } from "./emoji.ts";
-import { compressedResponse } from "./http/compressedResponse.ts";
+import { jsonResponse } from "./http/jsonResponse.ts";
 import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
-import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
 import { accountRoutes } from "./routes/account.ts";
 import { activityRoutes } from "./routes/activity.ts";
@@ -29,13 +28,13 @@ import { searchRoutes } from "./routes/search.ts";
 import { sectionRoutes } from "./routes/sections.ts";
 import { threadRoutes } from "./routes/threads.ts";
 import { usergroupRoutes } from "./routes/usergroups.ts";
-import { callSlack, callSlackEdge } from "./slackClient.ts";
+import { callSlack } from "./slackClient.ts";
 
-// Purpose-built routes, populated per resource area as operations migrate off
-// the generic /api/operations/:method passthrough below. channelDirectoryRoutes
-// comes before channelRoutes so its literal "/api/channels/browse" and
-// "/api/channels/lookup" paths match before channelRoutes' "/api/channels/:id"
-// catch-all would otherwise swallow them as a channel id.
+// Purpose-built routes, one group per resource area.
+// channelDirectoryRoutes comes before channelRoutes so its literal
+// "/api/channels/browse" and "/api/channels/lookup" paths match before
+// channelRoutes' "/api/channels/:id" catch-all would otherwise swallow them
+// as a channel id.
 const ROUTES: Route[] = [
   ...messageActionRoutes,
   ...messageRoutes,
@@ -55,24 +54,6 @@ const ROUTES: Route[] = [
   ...commandRoutes,
 ];
 
-async function slackOperationResponse(
-  method: string,
-  params: Record<string, string>,
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-): Promise<Response> {
-  const data = await callSlack(method, params, creds);
-  return compressedResponse(JSON.stringify(data), jsonHeaders, acceptEncoding);
-}
-async function slackEdgeOperationResponse(
-  method: string,
-  params: Record<string, unknown>,
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-): Promise<Response> {
-  const data = await callSlackEdge(method, params, creds);
-  return compressedResponse(JSON.stringify(data), jsonHeaders, acceptEncoding);
-}
 export async function routeApiRequest(
   method: string,
   pathname: string,
@@ -99,21 +80,6 @@ export async function routeApiRequest(
   }
   if (method === "GET" && pathname === "/api/bootstrap") {
     return bootstrapResponse(creds, acceptEncoding, searchParams.get("sections") === "true");
-  }
-  if (method === "POST" && pathname.startsWith("/api/operations/")) {
-    const slackMethod = pathname.slice("/api/operations/".length);
-    if (!SLACK_OPERATIONS.has(slackMethod)) return new Response("not found", { status: 404 });
-    return slackOperationResponse(
-      slackMethod,
-      (await body.json()) as Record<string, string>,
-      creds,
-      acceptEncoding,
-    );
-  }
-  if (method === "POST" && pathname.startsWith("/api/edge-operations/")) {
-    const slackMethod = pathname.slice("/api/edge-operations/".length);
-    if (!SLACK_EDGE_OPERATIONS.has(slackMethod)) return new Response("not found", { status: 404 });
-    return slackEdgeOperationResponse(slackMethod, await body.json(), creds, acceptEncoding);
   }
   if (method === "GET" && pathname === "/api/emoji") {
     return emojiListResponse(creds, callSlack, acceptEncoding);
@@ -165,12 +131,13 @@ export async function routeApiRequest(
     );
   }
   if (method === "POST" && pathname === "/api/files/complete") {
-    return slackOperationResponse(
+    const data = await callSlack(
       "files.completeUploadExternal",
       (await body.json()) as Record<string, string>,
       creds,
-      acceptEncoding,
     );
+    if (!data.ok) return jsonResponse(data, creds, acceptEncoding);
+    return jsonResponse({ ok: true }, creds, acceptEncoding);
   }
   if (method === "GET" && pathname === "/api/channels/discovery") {
     return flaronChannelResponse(searchParams.get("id"));

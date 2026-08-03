@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Slack payloads preserve Slack's wire field names; activity trimming shares recursive helpers.
 import { jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { fetchSlack } from "../slackClient.ts";
+import { callSlack } from "../slackClient.ts";
 import { type Route, route } from "./router.ts";
 
 // Feed types worth surfacing — Slack also emits other app/workflow feed types
@@ -128,7 +128,7 @@ export const activityRoutes: Route[] = [
     const limit = ctx.searchParams.get("limit") ?? "50";
     const cursor = ctx.searchParams.get("cursor") ?? undefined;
     const types = ctx.searchParams.get("types") ?? ACTIVITY_FEED_TYPES;
-    const data = await fetchSlack(
+    const data = await callSlack(
       "activity.feed",
       {
         archive_only: "false",
