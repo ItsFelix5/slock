@@ -12,6 +12,7 @@ import { compressedResponse } from "./http/compressedResponse.ts";
 import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
 import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
+import { channelRoutes } from "./routes/channels.ts";
 import { conversationViewRoutes } from "./routes/conversationView.ts";
 import { messageActionRoutes } from "./routes/messageActions.ts";
 import { messageRoutes } from "./routes/messages.ts";
@@ -26,6 +27,7 @@ const ROUTES: Route[] = [
   ...messageRoutes,
   ...threadRoutes,
   ...conversationViewRoutes,
+  ...channelRoutes,
 ];
 
 async function slackOperationResponse(

@@ -1,16 +1,10 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
-import { trimBot, trimUser } from "./slackEntities.ts";
-import { trimChannel, trimReadResponse } from "./slackReadResponse.ts";
+import { trimBot, trimChannel, trimUser } from "./slackEntities.ts";
+import { trimReadResponse } from "./slackReadResponse.ts";
 
 function trimMutation(method: string, data: any): any {
-  if (method === "conversations.rename") {
-    return { channel: { name: data.channel?.name }, ok: true };
-  }
   if (method === "canvases.create" || method === "conversations.canvases.create") {
     return { canvas_id: data.canvas_id, ok: true };
-  }
-  if (method === "conversations.join" || method === "conversations.create") {
-    return { channel: trimChannel(data.channel), ok: true };
   }
   if (method === "files.getUploadURLExternal") {
     return { file_id: data.file_id, ok: true, upload_url: data.upload_url };
@@ -37,15 +31,7 @@ const OK_ONLY_METHODS = new Set([
   "blocks.actions",
   "canvases.access.set",
   "canvases.edit",
-  "channels.prefs.set",
   "chat.command",
-  "conversations.invite",
-  "conversations.kick",
-  "conversations.leave",
-  "conversations.permissions.accountTypes.set",
-  "conversations.setPurpose",
-  "conversations.setRetention",
-  "conversations.setTopic",
   "drafts.delete",
   "dnd.endSnooze",
   "dnd.setSnooze",
@@ -80,22 +66,6 @@ export function trimSlackResponse(method: string, data: any): any {
     return {
       items: Array.isArray(data.items) ? data.items.map(trimChannel) : data.items,
       ok: true,
-    };
-  }
-  if (method === "conversations.info") return { channel: trimChannel(data.channel), ok: true };
-  if (method === "channels.prefs.get") {
-    const prefs = data.prefs ?? data;
-    return {
-      ok: true,
-      prefs:
-        prefs && typeof prefs === "object"
-          ? {
-              can_thread: prefs.can_thread,
-              enable_at_channel: prefs.enable_at_channel,
-              enable_at_here: prefs.enable_at_here,
-              who_can_post: prefs.who_can_post,
-            }
-          : prefs,
     };
   }
   if (method === "conversations.open") {
@@ -236,9 +206,6 @@ export function trimSlackResponse(method: string, data: any): any {
     };
   }
   if (
-    method === "conversations.rename" ||
-    method === "conversations.join" ||
-    method === "conversations.create" ||
     method === "files.getUploadURLExternal" ||
     method === "users.channelSections.create" ||
     method === "drafts.create" ||

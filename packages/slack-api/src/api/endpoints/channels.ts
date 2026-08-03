@@ -12,7 +12,7 @@ import type {
 } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapChannel, mapUser } from "../mappers";
-import { callSlack, callSlackEdge } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut, callSlack, callSlackEdge } from "../server";
 import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
 
 export {
@@ -134,10 +134,7 @@ export async function createSharedChannelCanvas(
   return { fileId: created.canvas_id, title };
 }
 export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
-  const data = await callSlack("conversations.info", {
-    channel: channelId,
-    include_num_members: "true",
-  });
+  const data = await apiGet(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   const c = data.channel;
   return {
@@ -178,23 +175,20 @@ export async function fetchChannelManagerIds(channelId: string): Promise<string[
   return [...new Set(assignments.flatMap((a) => a.users ?? []))];
 }
 export async function inviteToChannel(channelId: string, userIds: string[]): Promise<void> {
-  const data = await callSlack("conversations.invite", {
-    channel: channelId,
-    users: userIds.join(","),
-  });
+  const data = await apiPost(`/api/channels/${channelId}/members`, { userIds });
   if (!data.ok) throw new Error(data.error ?? "conversations.invite failed");
 }
 export async function removeFromChannel(channelId: string, userId: string): Promise<void> {
-  const data = await callSlack("conversations.kick", { channel: channelId, user: userId });
+  const data = await apiDelete(`/api/channels/${channelId}/members/${userId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.kick failed");
 }
 export async function renameChannel(channelId: string, name: string): Promise<string> {
-  const data = await callSlack("conversations.rename", { channel: channelId, name });
+  const data = await apiPatch(`/api/channels/${channelId}`, { name });
   if (!data.ok) throw new Error(data.error ?? "conversations.rename failed");
   return data.channel?.name ?? name;
 }
 export async function setChannelPurpose(channelId: string, purpose: string): Promise<void> {
-  const data = await callSlack("conversations.setPurpose", { channel: channelId, purpose });
+  const data = await apiPut(`/api/channels/${channelId}/purpose`, { purpose });
   if (!data.ok) throw new Error(data.error ?? "conversations.setPurpose failed");
 }
 
@@ -307,7 +301,7 @@ export function serializeChannelPostingPrefsPatch(
 }
 
 export async function fetchChannelPostingPrefs(channelId: string): Promise<ChannelPostingPrefs> {
-  const data = await callSlack("channels.prefs.get", { channel_id: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/posting-prefs`);
   if (!data.ok) throw new Error(data.error ?? "channels.prefs.get failed");
   return parseChannelPostingPrefs(data.prefs ?? data);
 }
@@ -316,18 +310,13 @@ export async function setChannelPostingPrefs(
   channelId: string,
   patch: ChannelPostingPrefsPatch,
 ): Promise<void> {
-  const data = await callSlack("channels.prefs.set", {
-    channel_id: channelId,
-    prefs: JSON.stringify(serializeChannelPostingPrefsPatch(patch)),
+  const data = await apiPut(`/api/channels/${channelId}/posting-prefs`, {
+    prefs: serializeChannelPostingPrefsPatch(patch),
   });
   if (!data.ok) throw new Error(data.error ?? "channels.prefs.set failed");
 }
 export async function setChannelRetention(channelId: string, days: number | null): Promise<void> {
-  const data = await callSlack("conversations.setRetention", {
-    channel: channelId,
-    retention_duration: String(days ?? 0),
-    retention_type: days ? "1" : "0",
-  });
+  const data = await apiPut(`/api/channels/${channelId}/retention`, { days });
   if (!data.ok) throw new Error(data.error ?? "conversations.setRetention failed");
 }
 export function serializeMemberPermissionsPatch(patch: MemberPermissionsPatch): {
@@ -353,15 +342,11 @@ export async function setMemberPermissions(
 ): Promise<void> {
   const permissions = serializeMemberPermissionsPatch(patch);
   if (permissions.length === 0) return;
-  const data = await callSlack("conversations.permissions.accountTypes.set", {
-    account_type: "FULL_MEMBER",
-    channel_id: channelId,
-    permissions: JSON.stringify(permissions),
-  });
+  const data = await apiPut(`/api/channels/${channelId}/member-permissions`, { permissions });
   if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.set failed");
 }
 export async function joinChannel(channelId: string): Promise<Channel> {
-  const data = await callSlack("conversations.join", { channel: channelId });
+  const data = await apiPost(`/api/channels/${channelId}/join`);
   if (!data.ok) throw new Error(data.error ?? "conversations.join failed");
   const c = data.channel;
   return {
@@ -373,20 +358,17 @@ export async function joinChannel(channelId: string): Promise<Channel> {
   };
 }
 export async function createChannel(name: string, isPrivate: boolean): Promise<Channel> {
-  const data = await callSlack("conversations.create", {
-    is_private: isPrivate ? "true" : "false",
-    name,
-  });
+  const data = await apiPost("/api/channels", { isPrivate, name });
   if (!data.ok) throw new Error(data.error ?? "conversations.create failed");
   const c = data.channel;
   return { id: c.id, name: c.name, private: !!c.is_private, topic: "", unread: false };
 }
 export async function leaveChannel(channelId: string) {
-  const data = await callSlack("conversations.leave", { channel: channelId });
+  const data = await apiPost(`/api/channels/${channelId}/leave`);
   if (!data.ok) throw new Error(data.error ?? "conversations.leave failed");
   return data;
 }
 export async function setChannelTopic(channelId: string, topic: string): Promise<void> {
-  const data = await callSlack("conversations.setTopic", { channel: channelId, topic });
+  const data = await apiPut(`/api/channels/${channelId}/topic`, { topic });
   if (!data.ok) throw new Error(data.error ?? "conversations.setTopic failed");
 }

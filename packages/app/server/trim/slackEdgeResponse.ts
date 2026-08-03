@@ -1,7 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
 
-import { trimUser } from "./slackEntities.ts";
-import { trimChannel } from "./slackReadResponse.ts";
+import { trimChannel, trimUser } from "./slackEntities.ts";
 
 function trimUsergroup(group: any): any {
   if (!group || typeof group !== "object") return group;

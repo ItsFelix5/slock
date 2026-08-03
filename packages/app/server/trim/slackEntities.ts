@@ -179,3 +179,61 @@ export function trimBot(bot: any): any {
     name: bot.name,
   };
 }
+
+export function trimChannel(channel: any): any {
+  if (!channel || typeof channel !== "object") return channel;
+  const trimText = (value: any) =>
+    typeof value === "string" || !value ? value : { value: value.value };
+  return {
+    created: channel.created,
+    creator: channel.creator,
+    id: channel.id,
+    is_archived: channel.is_archived,
+    is_channel: channel.is_channel,
+    is_group: channel.is_group,
+    is_im: channel.is_im,
+    is_member: channel.is_member,
+    is_mpim: channel.is_mpim,
+    is_private: channel.is_private,
+    last_read: channel.last_read,
+    latest: channel.latest,
+    member_count: channel.member_count,
+    name: channel.name,
+    num_members: channel.num_members,
+    properties: channel.properties
+      ? {
+          canvas: channel.properties.canvas
+            ? {
+                file_id: channel.properties.canvas.file_id,
+                is_empty: channel.properties.canvas.is_empty,
+              }
+            : undefined,
+          tabs: Array.isArray(channel.properties.tabs)
+            ? channel.properties.tabs.map((tab: any) => ({
+                data: { file_id: tab?.data?.file_id },
+                id: tab?.id,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabs,
+          tabz: Array.isArray(channel.properties.tabz)
+            ? channel.properties.tabz.map((tab: any) => ({
+                data: { file_id: tab?.data?.file_id },
+                id: tab?.id,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabz,
+          channel_email_addresses: Array.isArray(channel.properties.channel_email_addresses)
+            ? channel.properties.channel_email_addresses.map((entry: any) => ({
+                address: entry?.address,
+              }))
+            : channel.properties.channel_email_addresses,
+        }
+      : undefined,
+    purpose: trimText(channel.purpose),
+    topic: trimText(channel.topic),
+    unread_count: channel.unread_count,
+    unread_count_display: channel.unread_count_display,
+  };
+}

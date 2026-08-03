@@ -1,8 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
 import { fetchSlack } from "../slackClient.ts";
-import { trimMessage, trimUser } from "../trim/slackEntities.ts";
-import { trimChannel } from "../trim/slackReadResponse.ts";
+import { trimChannel, trimMessage, trimUser } from "../trim/slackEntities.ts";
 import { type Route, route } from "./router.ts";
 
 // The mounted channel view's initial load: channel metadata, the newest page
