@@ -12,6 +12,7 @@ import { compressedResponse } from "./http/compressedResponse.ts";
 import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
 import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
+import { channelDirectoryRoutes } from "./routes/channelDirectory.ts";
 import { channelRoutes } from "./routes/channels.ts";
 import { conversationViewRoutes } from "./routes/conversationView.ts";
 import { messageActionRoutes } from "./routes/messageActions.ts";
@@ -21,12 +22,16 @@ import { threadRoutes } from "./routes/threads.ts";
 import { callSlack, callSlackEdge } from "./slackClient.ts";
 
 // Purpose-built routes, populated per resource area as operations migrate off
-// the generic /api/operations/:method passthrough below.
+// the generic /api/operations/:method passthrough below. channelDirectoryRoutes
+// comes before channelRoutes so its literal "/api/channels/browse" and
+// "/api/channels/lookup" paths match before channelRoutes' "/api/channels/:id"
+// catch-all would otherwise swallow them as a channel id.
 const ROUTES: Route[] = [
   ...messageActionRoutes,
   ...messageRoutes,
   ...threadRoutes,
   ...conversationViewRoutes,
+  ...channelDirectoryRoutes,
   ...channelRoutes,
 ];
 

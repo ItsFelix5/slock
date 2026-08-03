@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
 
-import { trimChannel, trimUser } from "./slackEntities.ts";
+import { trimUser } from "./slackEntities.ts";
 
 function trimUsergroup(group: any): any {
   if (!group || typeof group !== "object") return group;
@@ -24,18 +24,6 @@ function mapRecordValues(record: any, trim: (value: any) => any): any {
 
 export function trimSlackEdgeResponse(method: string, data: any): any {
   if (!data?.ok) return data;
-  if (method === "channels/info") {
-    return {
-      channel: data.channel ? trimChannel(data.channel) : undefined,
-      channels: Array.isArray(data.channels)
-        ? data.channels.map(trimChannel)
-        : mapRecordValues(data.channels, trimChannel),
-      ok: true,
-      results: Array.isArray(data.results)
-        ? data.results.map(trimChannel)
-        : mapRecordValues(data.results, trimChannel),
-    };
-  }
   if (method === "users/info") {
     return {
       ok: true,
@@ -46,13 +34,6 @@ export function trimSlackEdgeResponse(method: string, data: any): any {
       users: Array.isArray(data.users)
         ? data.users.map(trimUser)
         : mapRecordValues(data.users, trimUser),
-    };
-  }
-  if (method === "users/list") {
-    return {
-      next_marker: data.next_marker,
-      ok: true,
-      results: Array.isArray(data.results) ? data.results.map(trimUser) : data.results,
     };
   }
   if (method === "usergroups/info") {

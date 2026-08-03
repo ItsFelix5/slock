@@ -12,7 +12,7 @@ import type {
 } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapChannel, mapUser } from "../mappers";
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut, callSlack, callSlackEdge } from "../server";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut, callSlack } from "../server";
 import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
 
 export {
@@ -36,25 +36,11 @@ export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite"
 
 const MAX_CHANNELS_PER_BATCH = 100;
 
-function cachedChannelForId(data: any, id: string): any | undefined {
-  if (data.channels?.[id]) return data.channels[id];
-  if (Array.isArray(data.channels)) return data.channels.find((channel) => channel.id === id);
-  if (data.results?.[id]) return data.results[id];
-  if (Array.isArray(data.results)) return data.results.find((channel) => channel.id === id);
-  return data.channel?.id === id ? data.channel : undefined;
-}
-
 export const fetchChannel = createBatchedIdFetcher<Channel | null>(async (ids) => {
-  const data = await callSlackEdge("channels/info", {
-    updated_ids: Object.fromEntries(ids.map((id) => [id, 0])),
-  });
+  const data = await apiPost("/api/channels/lookup", { ids });
   if (!data.ok) throw new Error(data.error ?? "edge channels/info failed");
-  return new Map(
-    ids.map((id) => {
-      const raw = cachedChannelForId(data, id);
-      return [id, raw?.id ? mapChannel(raw) : null];
-    }),
-  );
+  const channels: Record<string, any> = data.channels ?? {};
+  return new Map(ids.map((id) => [id, channels[id] ? mapChannel(channels[id]) : null]));
 }, MAX_CHANNELS_PER_BATCH);
 
 export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
@@ -72,11 +58,7 @@ export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
 export async function fetchBrowsableChannels(query: string): Promise<BrowsableChannel[]> {
   const q = query.trim();
   if (!q) return [];
-  const data = await callSlack("search.modules.channels", {
-    count: "40",
-    module: "channels",
-    query: q,
-  });
+  const data = await apiGet(`/api/channels/browse?query=${encodeURIComponent(q)}`);
   if (!data.ok) throw new Error(data.error ?? "search.modules.channels failed");
   const items: any[] = data.items ?? [];
   // search.modules.channels' index isn't scoped to browsable public/private channels the
@@ -154,13 +136,9 @@ export async function fetchChannelMembers(
   filter: "everyone" | "apps",
   marker?: string,
 ): Promise<ChannelMembersPage> {
-  const data = await callSlackEdge("users/list", {
-    channels: [channelId],
-    count: 50,
-    filter,
-    present_first: false,
-    ...(marker ? { marker } : {}),
-  });
+  const query = new URLSearchParams({ filter });
+  if (marker) query.set("marker", marker);
+  const data = await apiGet(`/api/channels/${channelId}/members?${query}`);
   if (!data.ok) throw new Error(data.error ?? "edge users/list failed");
   const results: any[] = data.results ?? [];
   return {
@@ -169,10 +147,9 @@ export async function fetchChannelMembers(
   };
 }
 export async function fetchChannelManagerIds(channelId: string): Promise<string[]> {
-  const data = await callSlack("admin.roles.entity.listAssignments", { entity_id: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/managers`);
   if (!data.ok) throw new Error(data.error ?? "admin.roles.entity.listAssignments failed");
-  const assignments: any[] = data.role_assignments ?? [];
-  return [...new Set(assignments.flatMap((a) => a.users ?? []))];
+  return data.userIds ?? [];
 }
 export async function inviteToChannel(channelId: string, userIds: string[]): Promise<void> {
   const data = await apiPost(`/api/channels/${channelId}/members`, { userIds });

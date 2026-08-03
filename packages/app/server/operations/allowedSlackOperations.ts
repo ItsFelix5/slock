@@ -1,6 +1,5 @@
 export const SLACK_OPERATIONS = new Set([
   "activity.feed",
-  "admin.roles.entity.listAssignments",
   "apps.actions.v2.execute",
   "apps.profile.get",
   "blocks.actions",
@@ -21,7 +20,6 @@ export const SLACK_OPERATIONS = new Set([
   "files.info",
   "search.autocomplete",
   "search.messages",
-  "search.modules.channels",
   "search.modules.people",
   "team.profile.get",
   "usergroups.update",
@@ -39,9 +37,4 @@ export const SLACK_OPERATIONS = new Set([
   "users.setPresence",
 ]);
 
-export const SLACK_EDGE_OPERATIONS = new Set([
-  "channels/info",
-  "usergroups/info",
-  "users/info",
-  "users/list",
-]);
+export const SLACK_EDGE_OPERATIONS = new Set(["usergroups/info", "users/info"]);

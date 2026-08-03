@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
-import { trimBot, trimChannel, trimUser } from "./slackEntities.ts";
+import { trimBot, trimUser } from "./slackEntities.ts";
 import { trimReadResponse } from "./slackReadResponse.ts";
 
 function trimMutation(method: string, data: any): any {
@@ -60,12 +60,6 @@ export function trimSlackResponse(method: string, data: any): any {
       items: Array.isArray(data.items) ? data.items.map(trimUser) : data.items,
       ok: true,
       pagination: { total_count: data.pagination?.total_count },
-    };
-  }
-  if (method === "search.modules.channels") {
-    return {
-      items: Array.isArray(data.items) ? data.items.map(trimChannel) : data.items,
-      ok: true,
     };
   }
   if (method === "conversations.open") {
@@ -187,14 +181,6 @@ export function trimSlackResponse(method: string, data: any): any {
           }))
         : data.drafts,
       ok: true,
-    };
-  }
-  if (method === "admin.roles.entity.listAssignments") {
-    return {
-      ok: true,
-      role_assignments: Array.isArray(data.role_assignments)
-        ? data.role_assignments.map((assignment: any) => ({ users: assignment?.users }))
-        : data.role_assignments,
     };
   }
   if (method === "usergroups.users.list") return { ok: true, users: data.users };
