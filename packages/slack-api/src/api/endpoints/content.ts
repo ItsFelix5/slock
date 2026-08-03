@@ -1,7 +1,7 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to content parsing.
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../contentTypes";
-import { callSlack, resolveMediaUrl } from "../server";
+import { apiGet, callSlack, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
@@ -44,18 +44,9 @@ export async function fetchSlashCommands(): Promise<
 }
 
 export async function fetchSaved(): Promise<SavedItem[]> {
-  const data = await callSlack("saved.list", { limit: "40" });
+  const data = await apiGet("/api/saved");
   if (!data.ok) throw new Error(data.error ?? "saved.list failed");
-  // saved.list returns `saved_items`, each shaped like { item_id (the channel),
-  // item_type: 'message', ts, ... } — item_id/ts sit at the top level, not nested.
-  const items: any[] = data.saved_items ?? data.items ?? [];
-  return items
-    .filter((it) => !it.item_type || it.item_type === "message")
-    .map((it) => ({
-      channelId: it.item_id ?? it.channel_id ?? it.channel,
-      ts: it.ts ?? it.message_ts,
-    }))
-    .filter((it): it is SavedItem => !!it.channelId && !!it.ts);
+  return data.items ?? [];
 }
 
 interface CanvasFileInfo {

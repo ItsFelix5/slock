@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Message operations share one public endpoint surface.
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
-import { callSlack, getWorkspaceDomain } from "../server";
+import { apiDelete, apiGet, apiPost, callSlack, getWorkspaceDomain } from "../server";
 import { type ConversationViewData, fetchConversationView } from "./conversationView";
 
 export type HistoryPage = {
@@ -238,21 +238,15 @@ export async function deleteMessage(channelId: string, ts: string) {
 }
 
 export async function toggleReaction(channelId: string, ts: string, name: string, remove: boolean) {
-  const data = await callSlack(remove ? "reactions.remove" : "reactions.add", {
-    channel: channelId,
-    name,
-    timestamp: ts,
-  });
+  const path = `/api/messages/${channelId}/${ts}/reactions`;
+  const data = remove ? await apiDelete(path, { name }) : await apiPost(path, { name });
   if (!data.ok) throw new Error(data.error ?? "reactions failed");
   return data;
 }
 
 export async function toggleSaved(channelId: string, ts: string, remove: boolean) {
-  const data = await callSlack(remove ? "saved.delete" : "saved.add", {
-    item_id: channelId,
-    item_type: "message",
-    ts,
-  });
+  const path = `/api/messages/${channelId}/${ts}/save`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "saved.add/remove failed");
   return data;
 }
@@ -264,16 +258,17 @@ export async function markChannelRead(channelId: string, ts: string) {
 }
 
 export async function toggleStar(channelId: string, remove: boolean) {
-  const data = await callSlack(remove ? "stars.remove" : "stars.add", { channel: channelId });
+  const path = `/api/channels/${channelId}/star`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "stars.add/remove failed");
   return data;
 }
 
 export async function fetchPins(channelId: string): Promise<string[]> {
-  const data = await callSlack("pins.list", { channel: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   const items: any[] = data.items ?? [];
-  return items.map((it) => it.message?.ts ?? it.created ?? it.channel).filter(Boolean);
+  return items.map((it) => it.ts).filter(Boolean);
 }
 
 export interface PinnedMessage {
@@ -282,19 +277,17 @@ export interface PinnedMessage {
 }
 
 export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
-  const data = await callSlack("pins.list", { channel: channelId });
+  const data = await apiGet(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   const items: any[] = data.items ?? [];
   return items
-    .filter((it) => it.type === "message" && it.message)
-    .map((it) => ({ message: mapMessage(it.message), ts: it.message.ts }));
+    .filter((it) => it.message)
+    .map((it) => ({ message: mapMessage(it.message), ts: it.ts }));
 }
 
 export async function togglePin(channelId: string, ts: string, remove: boolean) {
-  const data = await callSlack(remove ? "pins.remove" : "pins.add", {
-    channel: channelId,
-    timestamp: ts,
-  });
+  const path = `/api/messages/${channelId}/${ts}/pin`;
+  const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "pins.add/remove failed");
   return data;
 }
@@ -322,22 +315,17 @@ export async function getPermalink(
 }
 
 export async function addReminder(text: string, time: string) {
-  const data = await callSlack("reminders.add", { text, time });
+  const data = await apiPost("/api/reminders", { text, time });
   if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
   return data;
 }
 
-// Reminders tied to a specific message use the item_type/item_id/ts/date_due
-// shape (matches Slack's own message-reminder menu) rather than the free-text
+// Reminders tied to a specific message use the channelId/ts/dateDue shape
+// (matches Slack's own message-reminder menu) rather than the free-text
 // text/time form `/remind` uses — this links the reminder to the message
 // itself instead of just embedding a permalink in reminder text.
 export async function addMessageReminder(channelId: string, ts: string, dateDue: number) {
-  const data = await callSlack("reminders.add", {
-    date_due: String(dateDue),
-    item_id: channelId,
-    item_type: "message",
-    ts,
-  });
+  const data = await apiPost("/api/reminders", { channelId, dateDue, ts });
   if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
   return data;
 }

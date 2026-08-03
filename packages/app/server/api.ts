@@ -2,88 +2,24 @@
 
 import {
   namedSlackAssetResponse,
-  rewriteSlackAssetUrls,
   slackAssetResponse,
   slackUploadResponse,
   uploadCapability,
 } from "./assets.ts";
-import {
-  authResponse,
-  type Credentials,
-  jsonHeaders,
-  logoutResponse,
-  slackCookieHeader,
-} from "./auth.ts";
+import { authResponse, type Credentials, jsonHeaders, logoutResponse } from "./auth.ts";
 import { emojiImageUrl, emojiListResponse } from "./emoji.ts";
 import { compressedResponse } from "./http/compressedResponse.ts";
 import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
 import { SLACK_EDGE_OPERATIONS, SLACK_OPERATIONS } from "./operations/allowedSlackOperations.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
-import { trimSlackEdgeResponse } from "./trim/slackEdgeResponse.ts";
-import { trimSlackResponse } from "./trim/slackResponse.ts";
+import { messageActionRoutes } from "./routes/messageActions.ts";
+import { matchRoute, type Route } from "./routes/router.ts";
+import { callSlack, callSlackEdge } from "./slackClient.ts";
 
-async function parseSlackResponse(res: Response): Promise<any> {
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    const retryAfter = res.headers.get("retry-after");
-    return {
-      error: res.status === 429 ? "rate_limited" : "upstream_invalid_response",
-      ok: false,
-      ...(retryAfter ? { retry_after: retryAfter } : {}),
-    };
-  }
-}
+// Purpose-built routes, populated per resource area as operations migrate off
+// the generic /api/operations/:method passthrough below.
+const ROUTES: Route[] = [...messageActionRoutes];
 
-const SLACK_CALL_TIMEOUT_MS = 15_000;
-
-function slackRequestBody(
-  method: string,
-  params: Record<string, string>,
-  token: string,
-): { body: FormData | string; headers: Record<string, string> } {
-  if (method === "conversations.view" || (method === "messages.list" && params.message_ids)) {
-    const body = new FormData();
-    body.append("token", token);
-    for (const [key, value] of Object.entries(params)) {
-      if (key !== "token") body.append(key, value);
-    }
-    return { body, headers: {} };
-  }
-  const body = new URLSearchParams({ token });
-  for (const [key, value] of Object.entries(params)) {
-    if (key !== "token") body.append(key, value);
-  }
-  return {
-    body: body.toString(),
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-  };
-}
-
-export async function callSlack(
-  method: string,
-  params: Record<string, string>,
-  creds: Credentials | null,
-): Promise<any> {
-  if (!creds) return { error: "not_configured", ok: false };
-  const { body, headers } = slackRequestBody(method, params, creds.token);
-  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
-  try {
-    const res = await fetch(url, {
-      body,
-      headers: {
-        ...headers,
-        cookie: slackCookieHeader(creds),
-      },
-      method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
-    });
-    return rewriteSlackAssetUrls(trimSlackResponse(method, await parseSlackResponse(res)), creds);
-  } catch {
-    return { error: "upstream_timeout", ok: false };
-  }
-}
 async function slackOperationResponse(
   method: string,
   params: Record<string, string>,
@@ -92,30 +28,6 @@ async function slackOperationResponse(
 ): Promise<Response> {
   const data = await callSlack(method, params, creds);
   return compressedResponse(JSON.stringify(data), jsonHeaders, acceptEncoding);
-}
-async function callSlackEdge(
-  method: string,
-  params: Record<string, unknown>,
-  creds: Credentials | null,
-) {
-  if (!creds) return { error: "not_configured", ok: false };
-  const [enterpriseId] = creds.route.split(":");
-  try {
-    const res = await fetch(`https://edgeapi.slack.com/cache/${enterpriseId}/${method}`, {
-      // Cache endpoints use the same browser-session credentials, including the
-      // enterprise token, regardless of the resource being requested.
-      body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
-      headers: { "content-type": "application/json", cookie: slackCookieHeader(creds) },
-      method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
-    });
-    return rewriteSlackAssetUrls(
-      trimSlackEdgeResponse(method, await parseSlackResponse(res)),
-      creds,
-    );
-  } catch {
-    return { error: "upstream_timeout", ok: false };
-  }
 }
 async function slackEdgeOperationResponse(
   method: string,
@@ -139,6 +51,17 @@ export async function routeApiRequest(
     buffer(): Promise<Uint8Array>;
   },
 ): Promise<Response | null> {
+  const matched = matchRoute(ROUTES, method, pathname);
+  if (matched) {
+    return matched.route.handler({
+      acceptEncoding,
+      body,
+      creds,
+      params: matched.params,
+      searchParams,
+      secure,
+    });
+  }
   if (method === "GET" && pathname === "/api/bootstrap") {
     return bootstrapResponse(
       creds,

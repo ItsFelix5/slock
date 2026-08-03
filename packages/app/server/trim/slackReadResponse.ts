@@ -248,20 +248,6 @@ function trimActivityItem(raw: any): any {
   };
 }
 
-function trimPins(data: any): any {
-  return {
-    items: Array.isArray(data.items)
-      ? data.items.map((item: any) => ({
-          channel: item?.channel,
-          created: item?.created,
-          message: item?.message ? trimMessage(item.message) : undefined,
-          type: item?.type,
-        }))
-      : data.items,
-    ok: true,
-  };
-}
-
 function trimSearchMessages(data: any): any {
   const matches = data.messages?.matches;
   return {
@@ -298,7 +284,6 @@ export function trimReadResponse(method: string, data: any): any | null {
         : undefined,
     };
   }
-  if (method === "pins.list") return trimPins(data);
   if (method === "search.messages") return trimSearchMessages(data);
   return null;
 }

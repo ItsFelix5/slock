@@ -1,8 +1,8 @@
 // biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
 
-import { callSlack } from "./api.js";
 import { rewriteSlackAssetUrls } from "./assets.js";
 import { type Credentials, slackCookieHeader } from "./auth.js";
+import { callSlack } from "./slackClient.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };

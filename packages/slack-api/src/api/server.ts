@@ -27,6 +27,36 @@ export async function callSlackEdge<T = any>(
   return res.json();
 }
 
+// Purpose-built route transport: unlike callSlack/callSlackEdge above, these
+// don't name a Slack method — `path` is one of the app server's own routes
+// (e.g. "/api/channels/C123/messages"), which decides internally what Slack
+// call(s) to make and returns only the fields that route's caller needs.
+async function request<T = any>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    ...(body === undefined
+      ? {}
+      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+  });
+  return res.json();
+}
+
+export function apiGet<T = any>(path: string): Promise<T> {
+  return request<T>("GET", path);
+}
+export function apiPost<T = any>(path: string, body: unknown = {}): Promise<T> {
+  return request<T>("POST", path, body);
+}
+export function apiPut<T = any>(path: string, body: unknown = {}): Promise<T> {
+  return request<T>("PUT", path, body);
+}
+export function apiPatch<T = any>(path: string, body: unknown = {}): Promise<T> {
+  return request<T>("PATCH", path, body);
+}
+export function apiDelete<T = any>(path: string, body?: unknown): Promise<T> {
+  return request<T>("DELETE", path, body);
+}
+
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
 
 // Slack asset URLs are replaced by signed, same-origin resource URLs before
