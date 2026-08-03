@@ -10,10 +10,10 @@ export const SLACK_OPERATIONS = new Set([
   "dnd.setSnooze",
   "search.autocomplete",
   "search.messages",
-  "usergroups.update",
-  "usergroups.users.list",
-  "usergroups.users.update",
   "users.prefs.set",
 ]);
 
-export const SLACK_EDGE_OPERATIONS = new Set(["usergroups/info"]);
+// Empty until Phase 19 removes this passthrough route entirely — every edge
+// method (channels/info, users/list, users/info, usergroups/info) is now
+// served by its own purpose-built route instead.
+export const SLACK_EDGE_OPERATIONS = new Set<string>([]);

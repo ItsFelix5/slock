@@ -23,6 +23,7 @@ import { messageRoutes } from "./routes/messages.ts";
 import { matchRoute, type Route } from "./routes/router.ts";
 import { sectionRoutes } from "./routes/sections.ts";
 import { threadRoutes } from "./routes/threads.ts";
+import { usergroupRoutes } from "./routes/usergroups.ts";
 import { callSlack, callSlackEdge } from "./slackClient.ts";
 
 // Purpose-built routes, populated per resource area as operations migrate off
@@ -41,6 +42,7 @@ const ROUTES: Route[] = [
   ...canvasRoutes,
   ...draftRoutes,
   ...accountRoutes,
+  ...usergroupRoutes,
 ];
 
 async function slackOperationResponse(

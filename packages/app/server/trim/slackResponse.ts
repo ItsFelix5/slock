@@ -38,8 +38,6 @@ const OK_ONLY_METHODS = new Set([
   "dnd.endSnooze",
   "dnd.setSnooze",
   "files.completeUploadExternal",
-  "usergroups.update",
-  "usergroups.users.update",
   "users.prefs.set",
 ]);
 
@@ -91,7 +89,6 @@ export function trimSlackResponse(method: string, data: any): any {
       ok: true,
     };
   }
-  if (method === "usergroups.users.list") return { ok: true, users: data.users };
   if (method === "dnd.info") {
     return {
       ok: true,
