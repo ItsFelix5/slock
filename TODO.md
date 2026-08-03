@@ -14,7 +14,6 @@
 - ?hca/ht status (ploogin?)
 - user last seen
 - no scroll bar, but proper channel navigation (yesterday, the beginning etc)
-- Threads in activity show more than unread, i see my own message
 - I actively see a ping in a channel and a dm from Slack in my message list but its not in activity
 - Initial scroll sometimes only just shows like one message and blank space under it
 - Fix Channels and usergroup sections just being expanded by default while the rest isn't

@@ -148,6 +148,8 @@ export default function ActivityRow(props: {
   });
 
   function entryUnread(entry: TimelineEntry): boolean {
+    // Never your own reply — the fallbacks below only know position/timestamp.
+    if (entryUserId(entry) === store.users.currentUser()?.id) return false;
     if (entry.item) return store.activity.isActivityItemUnread(entry.item);
     const bundled = bundledItem();
     const list = fullThread();
