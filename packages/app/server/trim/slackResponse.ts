@@ -29,9 +29,6 @@ function trimMutation(method: string, data: any): any {
   if (method === "files.getUploadURLExternal") {
     return { file_id: data.file_id, ok: true, upload_url: data.upload_url };
   }
-  if (method === "drafts.create") {
-    return { draft: { id: data.draft?.id }, id: data.id, ok: true };
-  }
   return { ok: true };
 }
 
@@ -39,7 +36,6 @@ const OK_ONLY_METHODS = new Set([
   "apps.actions.v2.execute",
   "blocks.actions",
   "chat.command",
-  "drafts.delete",
   "dnd.endSnooze",
   "dnd.setSnooze",
   "files.completeUploadExternal",
@@ -135,24 +131,6 @@ export function trimSlackResponse(method: string, data: any): any {
       : items;
     return data.saved_items ? { ok: true, saved_items: trimmed } : { items: trimmed, ok: true };
   }
-  if (method === "drafts.list") {
-    return {
-      drafts: Array.isArray(data.drafts)
-        ? data.drafts.map((draft: any) => ({
-            blocks: draft?.blocks,
-            client_msg_id: draft?.client_msg_id,
-            destinations: Array.isArray(draft?.destinations)
-              ? draft.destinations.map((destination: any) => ({
-                  channel_id: destination?.channel_id,
-                  thread_ts: destination?.thread_ts,
-                }))
-              : draft?.destinations,
-            id: draft?.id,
-          }))
-        : data.drafts,
-      ok: true,
-    };
-  }
   if (method === "usergroups.users.list") return { ok: true, users: data.users };
   if (method === "dnd.info") {
     return {
@@ -161,11 +139,7 @@ export function trimSlackResponse(method: string, data: any): any {
       snooze_endtime: data.snooze_endtime,
     };
   }
-  if (
-    method === "files.getUploadURLExternal" ||
-    method === "drafts.create" ||
-    OK_ONLY_METHODS.has(method)
-  )
+  if (method === "files.getUploadURLExternal" || OK_ONLY_METHODS.has(method))
     return trimMutation(method, data);
   return data;
 }
