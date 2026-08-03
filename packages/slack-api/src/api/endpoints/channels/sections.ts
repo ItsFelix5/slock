@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { ChannelSection } from "../../../types";
 import { extractChannelSections } from "../../mappers";
-import { callSlack } from "../../server";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "../../server";
 import { fetchInitialData } from "../initialData";
 import {
   type PairedPreferenceValues,
@@ -22,19 +22,15 @@ function mapSections(data: any): ChannelSection[] {
 
 export async function fetchSections(): Promise<ChannelSection[]> {
   const initial = await fetchInitialData();
-  const data = initial.sections ?? (await callSlack("users.channelSections.list"));
+  const data = initial.sections ?? (await apiGet("/api/sections"));
   return mapSections(data);
 }
 
 export async function fetchFreshSections(): Promise<ChannelSection[]> {
-  return mapSections(await callSlack("users.channelSections.list"));
+  return mapSections(await apiGet("/api/sections"));
 }
 export async function createSection(name: string): Promise<{ id: string; name: string } | null> {
-  const data = await callSlack("users.channelSections.create", {
-    emoji: "",
-    name,
-    type: "standard",
-  });
+  const data = await apiPost("/api/sections", { name });
   if (!data.ok) return null;
   const created = data.channel_section ?? data;
   const id = created?.channel_section_id ?? created?.id;
@@ -42,51 +38,32 @@ export async function createSection(name: string): Promise<{ id: string; name: s
   return { id, name: created?.name ?? name };
 }
 export async function renameSection(sectionId: string, name: string): Promise<boolean> {
-  const data = await callSlack("users.channelSections.update", {
-    channel_section_id: sectionId,
-    name,
-  });
+  const data = await apiPatch(`/api/sections/${sectionId}`, { name });
   return !!data.ok;
 }
 export async function setSectionSidebar(
   sectionId: string,
   sidebar: "hid" | "active" | "all",
 ): Promise<boolean> {
-  const data = await callSlack("users.channelSections.update", {
-    channel_section_id: sectionId,
-    sidebar,
-  });
+  const data = await apiPatch(`/api/sections/${sectionId}`, { sidebar });
   return !!data.ok;
 }
 export async function deleteSection(sectionId: string): Promise<boolean> {
-  const data = await callSlack("users.channelSections.delete", { channel_section_id: sectionId });
+  const data = await apiDelete(`/api/sections/${sectionId}`);
   return !!data.ok;
 }
 export async function reorderSection(
   sectionId: string,
   nextSectionId: string | null,
 ): Promise<boolean> {
-  const data = await callSlack("users.channelSections.set", {
-    channel_section_id: sectionId,
-    ...(nextSectionId ? { next_channel_section_id: nextSectionId } : {}),
-  });
+  const data = await apiPut(`/api/sections/${sectionId}/order`, { nextSectionId });
   return !!data.ok;
 }
 export async function updateSectionChannels(
   sectionId: string,
   changes: { insertChannelIds?: string[]; removeChannelIds?: string[] },
 ): Promise<boolean> {
-  const insert = changes.insertChannelIds?.length
-    ? [{ channel_ids: changes.insertChannelIds, channel_section_id: sectionId }]
-    : [];
-  const remove = changes.removeChannelIds?.length
-    ? [{ channel_ids: changes.removeChannelIds, channel_section_id: sectionId }]
-    : [];
-  const data = await callSlack("users.channelSections.channels.bulkUpdate", {
-    _x_reason: "channel-sidebar-channel-drop",
-    insert: JSON.stringify(insert),
-    remove: JSON.stringify(remove),
-  });
+  const data = await apiPut(`/api/sections/${sectionId}/channels`, changes);
   return !!data.ok;
 }
 export async function setChannelNotifyAll(
@@ -101,17 +78,15 @@ export async function setChannelNotifyAll(
     mobile: previous.mobile ?? fallbackPrevious,
   };
   await writePairedPreference(value, previousValues, async (target, targetValue) => {
-    const result = await callSlack("users.prefs.setNotifications", {
-      channel_id: channelId,
-      global: "false",
-      name: target,
+    const result = await apiPut(`/api/channels/${channelId}/notifications`, {
+      target,
       value: targetValue,
     });
     return !!result.ok;
   });
 }
 export async function openDm(userId: string): Promise<string | null> {
-  const data = await callSlack("conversations.open", { users: userId });
+  const data = await apiPost("/api/dms", { userId });
   if (!data.ok) return null;
   return data.channel?.id ?? null;
 }

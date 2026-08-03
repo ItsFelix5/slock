@@ -2,23 +2,35 @@
 import { trimBot, trimUser } from "./slackEntities.ts";
 import { trimReadResponse } from "./slackReadResponse.ts";
 
+// Shared with routes/sections.ts's GET /api/sections — bootstrap.ts still
+// calls this method through the auto-trimming callSlack path until Phase 18
+// moves it onto explicit fetchSlack + trim calls like everything else.
+export function trimChannelSections(data: any): any {
+  return {
+    channel_sections: Array.isArray(data.channel_sections)
+      ? data.channel_sections.map((section: any) => ({
+          channel_ids: section?.channel_ids,
+          channel_ids_page: section?.channel_ids_page
+            ? { channel_ids: section.channel_ids_page.channel_ids }
+            : undefined,
+          channel_section_id: section?.channel_section_id,
+          channels: section?.channels,
+          id: section?.id,
+          name: section?.name,
+          sidebar: section?.sidebar,
+          type: section?.type,
+        }))
+      : data.channel_sections,
+    ok: true,
+  };
+}
+
 function trimMutation(method: string, data: any): any {
   if (method === "canvases.create" || method === "conversations.canvases.create") {
     return { canvas_id: data.canvas_id, ok: true };
   }
   if (method === "files.getUploadURLExternal") {
     return { file_id: data.file_id, ok: true, upload_url: data.upload_url };
-  }
-  if (method === "users.channelSections.create") {
-    const section = data.channel_section ?? data;
-    return {
-      channel_section: {
-        channel_section_id: section.channel_section_id,
-        id: section.id,
-        name: section.name,
-      },
-      ok: true,
-    };
   }
   if (method === "drafts.create") {
     return { draft: { id: data.draft?.id }, id: data.id, ok: true };
@@ -38,12 +50,7 @@ const OK_ONLY_METHODS = new Set([
   "files.completeUploadExternal",
   "usergroups.update",
   "usergroups.users.update",
-  "users.channelSections.channels.bulkUpdate",
-  "users.channelSections.delete",
-  "users.channelSections.set",
-  "users.channelSections.update",
   "users.prefs.set",
-  "users.prefs.setNotifications",
   "users.profile.set",
   "users.setPresence",
 ]);
@@ -62,9 +69,6 @@ export function trimSlackResponse(method: string, data: any): any {
       pagination: { total_count: data.pagination?.total_count },
     };
   }
-  if (method === "conversations.open") {
-    return { channel: { id: data.channel?.id }, ok: true };
-  }
   if (method === "bots.info") return { bot: trimBot(data.bot), ok: true };
   if (method === "team.profile.get") {
     return {
@@ -81,25 +85,7 @@ export function trimSlackResponse(method: string, data: any): any {
       },
     };
   }
-  if (method === "users.channelSections.list") {
-    return {
-      channel_sections: Array.isArray(data.channel_sections)
-        ? data.channel_sections.map((section: any) => ({
-            channel_ids: section?.channel_ids,
-            channel_ids_page: section?.channel_ids_page
-              ? { channel_ids: section.channel_ids_page.channel_ids }
-              : undefined,
-            channel_section_id: section?.channel_section_id,
-            channels: section?.channels,
-            id: section?.id,
-            name: section?.name,
-            sidebar: section?.sidebar,
-            type: section?.type,
-          }))
-        : data.channel_sections,
-      ok: true,
-    };
-  }
+  if (method === "users.channelSections.list") return trimChannelSections(data);
   if (method === "client.appCommands") {
     return {
       app_actions: Array.isArray(data.app_actions)
@@ -193,7 +179,6 @@ export function trimSlackResponse(method: string, data: any): any {
   }
   if (
     method === "files.getUploadURLExternal" ||
-    method === "users.channelSections.create" ||
     method === "drafts.create" ||
     OK_ONLY_METHODS.has(method)
   )
