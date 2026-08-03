@@ -33,9 +33,14 @@ export default function MessageSearchView() {
       delay: 300,
       onError: () => setSearchError(true),
       onPendingChange: setLoading,
+      // Fires on every keystroke, before the debounce delay even starts —
+      // clearing results here unconditionally is what made the list
+      // flash empty and pop back on every character typed. Only actually
+      // clearing it once the query itself is empty keeps whatever's on
+      // screen until the new search really has an answer to replace it with.
       onReset: () => {
-        setResults([]);
         setSearchError(false);
+        if (!canSearch()) setResults([]);
       },
       onResult: (found) => {
         setResults(found);
@@ -238,7 +243,7 @@ export default function MessageSearchView() {
           </Show>
         </div>
       </div>
-      <div class="message-search-results">
+      <div aria-busy={loading()} class="message-search-results">
         <Show
           fallback={
             <Show
@@ -291,7 +296,7 @@ export default function MessageSearchView() {
         >
           <Show
             fallback={<div class="global-search-hint empty-state">Searching messages…</div>}
-            when={!loading()}
+            when={!loading() || results().length > 0}
           >
             <Show
               fallback={
