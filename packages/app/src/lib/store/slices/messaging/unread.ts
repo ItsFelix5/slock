@@ -79,9 +79,17 @@ export function createUnreadSlice(deps: {
     for (const [id, ts] of Object.entries(data.lastReadByChannel)) setLastReadByChannel(id, ts);
   });
 
+  // Slack answers conversations.mark/subscriptions.thread.mark with
+  // channel_not_found once you've left the channel or closed the DM — routine
+  // whenever that happens while a read-mark from the visit is still in
+  // flight, not something the user needs an error toast about.
+  const isChannelGoneError = (error: unknown) =>
+    error instanceof Error && error.message === "channel_not_found";
+
   const channelReadSync = createLatestValueSync<{ channelId: string; ts: string }>({
     key: (cursor) => cursor.channelId,
     onError: (cursor, error) => {
+      if (isChannelGoneError(error)) return true;
       console.error("Failed to sync channel read cursor", error);
       actionFeedback.flash(cursor.channelId, "Couldn’t sync read state.", "error");
     },
@@ -97,6 +105,7 @@ export function createUnreadSlice(deps: {
   }>({
     key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
     onError: (cursor, error) => {
+      if (isChannelGoneError(error)) return true;
       console.error("Failed to sync thread read cursor", error);
       actionFeedback.flash(cursor.threadTs, "Couldn’t sync thread read state.", "error");
     },
