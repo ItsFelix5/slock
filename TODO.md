@@ -7,7 +7,7 @@
 - Avoid optimistic updates but max ux
 - channel search button should show files & links page + search bar  (conversations.searchLinks + search.modules.files?)
 - groups should show up in dms section
-- better uploads (file name editing, things like cropping perhaps even???)
+- better uploads (cropping perhaps even???)
 - generally improve UI/UX across the app a LOT
 - clean up codebase
 - better composer

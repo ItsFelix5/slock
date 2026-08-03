@@ -1,5 +1,5 @@
 import { Button, Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
-import { For, onCleanup, Show } from "solid-js";
+import { createSignal, For, onCleanup, Show } from "solid-js";
 import { actionFeedback, composerFeedbackKey } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
 import { createComposerController } from "./composerController";
@@ -16,6 +16,77 @@ function FileChipThumbnail(props: { file: File }) {
   const url = URL.createObjectURL(props.file);
   onCleanup(() => URL.revokeObjectURL(url));
   return <img alt="" class="composer-file-chip-thumb" src={url} />;
+}
+
+function FileChip(props: {
+  file: File;
+  disabled: boolean;
+  onRemove: () => void;
+  onRename: (name: string) => void;
+}) {
+  const [renaming, setRenaming] = createSignal(false);
+  const [draft, setDraft] = createSignal("");
+
+  const startRename = () => {
+    if (props.disabled) return;
+    setDraft(props.file.name);
+    setRenaming(true);
+  };
+  const commit = () => {
+    if (!renaming()) return;
+    setRenaming(false);
+    props.onRename(draft());
+  };
+
+  return (
+    <span class="composer-file-chip flex-align-center">
+      <FileChipThumbnail file={props.file} />
+      <Show
+        fallback={
+          <input
+            autofocus
+            class="composer-file-chip-rename-input"
+            onBlur={commit}
+            onInput={(e) => setDraft(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setRenaming(false);
+              }
+            }}
+            ref={(el) => requestAnimationFrame(() => el.select())}
+            value={draft()}
+          />
+        }
+        when={!renaming()}
+      >
+        <button
+          aria-label={`Rename ${props.file.name}`}
+          class="composer-file-chip-name btn-reset"
+          disabled={props.disabled}
+          onClick={startRename}
+          type="button"
+        >
+          {props.file.name}
+        </button>
+      </Show>
+      <Tooltip content="Remove">
+        <button
+          aria-label={`Remove ${props.file.name}`}
+          class="btn-reset"
+          disabled={props.disabled}
+          onClick={props.onRemove}
+          type="button"
+        >
+          <Icon name="close" size={12} />
+        </button>
+      </Tooltip>
+    </span>
+  );
 }
 
 export default function Composer(props: ComposerProps) {
@@ -44,6 +115,7 @@ export default function Composer(props: ComposerProps) {
     availableTools,
     addFiles,
     removeFile,
+    renameFile,
     submit,
     onKeyDown,
     onInput,
@@ -80,21 +152,12 @@ export default function Composer(props: ComposerProps) {
         <div class="composer-file-chips">
           <For each={pendingFiles()}>
             {(file, i) => (
-              <span class="composer-file-chip flex-align-center">
-                <FileChipThumbnail file={file} />
-                {file.name}
-                <Tooltip content="Remove">
-                  <button
-                    aria-label={`Remove ${file.name}`}
-                    class="btn-reset"
-                    disabled={sending()}
-                    onClick={() => removeFile(i())}
-                    type="button"
-                  >
-                    <Icon name="close" size={12} />
-                  </button>
-                </Tooltip>
-              </span>
+              <FileChip
+                disabled={sending()}
+                file={file}
+                onRemove={() => removeFile(i())}
+                onRename={(name) => renameFile(i(), name)}
+              />
             )}
           </For>
         </div>

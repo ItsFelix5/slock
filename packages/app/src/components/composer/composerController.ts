@@ -135,6 +135,7 @@ export function createComposerController(props: ComposerProps) {
   );
   const addFiles = pendingFileState.add;
   const removeFile = pendingFileState.remove;
+  const renameFile = pendingFileState.rename;
   const submit = async (e: Event) => {
     e.preventDefault();
     editor.linkifyAll();
@@ -272,6 +273,7 @@ export function createComposerController(props: ComposerProps) {
     pendingFiles,
     placeholder,
     removeFile,
+    renameFile,
     retryDraftSync,
     retryingDraft,
     runTool,
