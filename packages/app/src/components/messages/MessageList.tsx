@@ -20,7 +20,7 @@ const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
 // nobody's opened in weeks will pull in on open, rather than backfilling
 // forever. If the cursor is still out of reach after this many pages, we
 // land on whatever's loaded instead of chasing it further.
-const MAX_BACKFILL_LOADS = 5;//TODO
+const MAX_BACKFILL_LOADS = 5;
 
 export default function MessageList() {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
