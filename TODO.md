@@ -11,7 +11,6 @@
 - generally improve UI/UX across the app a LOT
 - clean up codebase
 - better composer
-- clear urls
 - ?hca/ht status (ploogin?)
 - user last seen
 - sent to channel

@@ -6,6 +6,7 @@ import { formatSlackDateTokens } from "./dateFormat";
 import EmojiText from "./emoji/EmojiText";
 import { decodeTextEntities } from "./entities";
 import { type InlineNode, parseInline } from "./mrkdwnInline";
+import { stripTrackingParams } from "./urlCleanup";
 
 // Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
 // cases around emphasis boundaries), but covers everything real workspaces actually send:
@@ -69,7 +70,7 @@ function formatDate(node: Extract<InlineNode, { t: "date" }>): string {
 
 export function Link(props: { url: string; label?: string }) {
   const resolver = useBlockKitResolver();
-  const url = () => decodeTextEntities(props.url);
+  const url = () => stripTrackingParams(decodeTextEntities(props.url));
   const anchor = (
     <a class="bk-link" href={url()} rel="noopener noreferrer" target="_blank">
       {props.label ? <EmojiText text={props.label} /> : url()}
