@@ -83,23 +83,6 @@
   color: var(--danger);
 }
 
-.settings-size-control {
-  flex-shrink: 0;
-  width: 210px;
-}
-
-.settings-size-slider {
-  width: 100%;
-  accent-color: var(--accent);
-}
-
-.settings-size-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2px;
-  font-size: 11px;
-}
-
 /* Status emoji picker */
 .settings-status-row {
   gap: 8px;
