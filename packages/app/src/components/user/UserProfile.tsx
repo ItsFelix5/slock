@@ -56,12 +56,16 @@ export default function UserProfile() {
       setCustomFieldInputs(mergeMissingProfileFieldValues({}, defs, me.customFields ?? []));
     }),
   );
+  // currentUser() (from client.userBoot) never carries custom field values for
+  // self — only the fully-fetched userById() does, same as for other people —
+  // so once that fetch resolves, backfill any fields still missing from the
+  // inputs the same way a late profileFieldDefs load already does.
   createEffect(
-    on(store.resources.profileFieldDefs, (defs) => {
+    on([store.resources.profileFieldDefs, user], ([defs, full]) => {
       const me = store.users.currentUser();
-      if (!(defs && me && user()?.id === me.id)) return;
+      if (!(defs && me && full?.id === me.id)) return;
       setCustomFieldInputs((current) =>
-        mergeMissingProfileFieldValues(current, defs, me.customFields ?? []),
+        mergeMissingProfileFieldValues(current, defs, full.customFields ?? []),
       );
     }),
   );

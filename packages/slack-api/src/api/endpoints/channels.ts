@@ -110,6 +110,7 @@ export async function fetchChannelDetails(channelId: string): Promise<ChannelDet
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   const c = data.channel;
   return {
+    archived: !!c.is_archived,
     created: c.created ?? 0,
     creatorId: c.creator || undefined,
     email: c.properties?.channel_email_addresses?.[0]?.address || undefined,
@@ -317,6 +318,7 @@ export async function joinChannel(channelId: string): Promise<Channel> {
   if (!data.ok) throw new Error(data.error ?? "conversations.join failed");
   const c = data.channel;
   return {
+    archived: false,
     id: c.id,
     name: c.name,
     private: !!c.is_private,
@@ -328,12 +330,31 @@ export async function createChannel(name: string, isPrivate: boolean): Promise<C
   const data = await apiPost("/api/channels", { isPrivate, name });
   if (!data.ok) throw new Error(data.error ?? "conversations.create failed");
   const c = data.channel;
-  return { id: c.id, name: c.name, private: !!c.is_private, topic: "", unread: false };
+  return {
+    archived: false,
+    id: c.id,
+    name: c.name,
+    private: !!c.is_private,
+    topic: "",
+    unread: false,
+  };
 }
 export async function leaveChannel(channelId: string) {
   const data = await apiPost(`/api/channels/${channelId}/leave`);
   if (!data.ok) throw new Error(data.error ?? "conversations.leave failed");
   return data;
+}
+export async function archiveChannel(channelId: string): Promise<void> {
+  const data = await apiPost(`/api/channels/${channelId}/archive`);
+  if (!data.ok) throw new Error(data.error ?? "conversations.archive failed");
+}
+export async function unarchiveChannel(channelId: string): Promise<void> {
+  const data = await apiPost(`/api/channels/${channelId}/unarchive`);
+  if (!data.ok) throw new Error(data.error ?? "conversations.unarchive failed");
+}
+export async function convertChannelToPrivate(channelId: string): Promise<void> {
+  const data = await apiPost(`/api/channels/${channelId}/convert-to-private`);
+  if (!data.ok) throw new Error(data.error ?? "conversations.convertToPrivate failed");
 }
 export async function closeDm(channelId: string) {
   const data = await apiPost(`/api/channels/${channelId}/close`);

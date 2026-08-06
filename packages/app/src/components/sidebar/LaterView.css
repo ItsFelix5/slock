@@ -37,8 +37,12 @@
 
 .later-feedback {
   position: absolute;
+  right: 12px;
   bottom: 2px;
   left: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .later-item:hover {

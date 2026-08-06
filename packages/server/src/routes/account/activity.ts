@@ -1,10 +1,10 @@
 // biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Slack payloads preserve Slack's wire field names; activity trimming shares recursive helpers.
 
-import { ACTIVITY_FEED_TYPES_PARAM } from "@slock/slack-api/content-types";
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
-import { trimActivityCounts } from "../trim/slackEntities.ts";
-import { type Route, route } from "./router.ts";
+import { ACTIVITY_FEED_TYPES_PARAM } from "@slock/slack-api";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { callSlack } from "../../slackClient.ts";
+import { trimActivityCounts } from "../../trim/slackEntities.ts";
+import { type Route, route } from "../router.ts";
 
 function trimActivityMessage(message: any): any {
   if (!message || typeof message !== "object") return message;

@@ -63,6 +63,14 @@ export function useShortcut(def: ShortcutDef) {
   });
 }
 
+// A bare key like "c" or "j" still reports e.key === "c" when Ctrl/Cmd/Alt
+// is held (that's what makes Ctrl+C etc. work at all) — every plain-letter
+// shortcut needs this guard or it hijacks the browser/OS binding on the same
+// key instead of letting it through.
+export function plainKey(...keys: string[]) {
+  return (e: KeyboardEvent) => keys.includes(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
 // Reactive so a help overlay can render the live set of currently-mounted
 // shortcuts instead of a hand-maintained list that can drift out of sync.
 export function shortcutsByScope(): Map<ShortcutScope, ShortcutDef[]> {

@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
-import { type Route, route } from "./router.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { callSlack } from "../../slackClient.ts";
+import { type Route, route } from "../router.ts";
 
 const LEADING_SLASH_RE = /^\//;
 

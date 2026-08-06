@@ -26,7 +26,6 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
   const copyConversationLink = async () => {
     try {
       await navigator.clipboard.writeText(`${location.origin}/#${props.channelId}`);
-      actionFeedback.flash(props.channelId, "Link copied.");
     } catch {
       actionFeedback.flash(props.channelId, "Couldn’t copy the link.", "error");
     }

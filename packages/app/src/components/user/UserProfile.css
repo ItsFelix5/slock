@@ -14,7 +14,10 @@
 
 .user-profile-feedback {
   display: block;
+  overflow: hidden;
   margin-bottom: 8px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .user-profile-fields-warning {

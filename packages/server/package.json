@@ -1,0 +1,20 @@
+{
+  "name": "slock-server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun --env-file=../../.env run src/index.ts"
+  },
+  "dependencies": {
+    "@slock/slack-api": "workspace:*"
+  },
+  "exports": {
+    "./dev-plugin": "./src/dev-plugin.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "bun-types": "^1.3.14",
+    "vite": "^8.1.1"
+  }
+}

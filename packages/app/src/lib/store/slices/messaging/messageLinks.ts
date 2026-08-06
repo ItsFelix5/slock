@@ -31,7 +31,6 @@ export async function copyMessageLink(channelId: string, ts: string) {
     const link = await getPermalink(channelId, ts);
     if (!link) throw new Error("no permalink");
     await navigator.clipboard.writeText(link);
-    actionFeedback.flash(ts, "Link copied.");
   } catch (err) {
     console.error("Failed to get permalink", err);
     actionFeedback.flash(ts, "Couldn’t copy the message link.", "error");

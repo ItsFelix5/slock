@@ -3,10 +3,12 @@ import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
 import { Button, ConnectionStatus, InlineFeedback, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
+import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
 import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
+import { isArchivedChannel } from "./components/channel/channelHeaderState";
 import JoinChannelBar from "./components/channel/JoinChannelBar";
 import PinnedPanel from "./components/channel/PinnedPanel";
 import Composer from "./components/composer/Composer";
@@ -194,10 +196,17 @@ function App() {
             <MessageList />
             <Show
               fallback={
-                <div class="typing-indicator-anchor">
-                  <TypingIndicator names={typingNames()} />
-                  <Composer />
-                </div>
+                <Show
+                  fallback={
+                    <div class="typing-indicator-anchor">
+                      <TypingIndicator names={typingNames()} />
+                      <Composer />
+                    </div>
+                  }
+                  when={isArchivedChannel()}
+                >
+                  <ArchivedChannelBar />
+                </Show>
               }
               when={unjoinedChannelId()}
             >

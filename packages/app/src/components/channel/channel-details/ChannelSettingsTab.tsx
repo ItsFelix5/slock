@@ -1,14 +1,13 @@
-import { Avatar, Button, Icon, Switch, Tooltip } from "@slock/ui";
-import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
+import { Button } from "@slock/ui";
+import { createMemo, createResource, createSignal, Show } from "solid-js";
 import {
   loadChannelManagerIds,
-  loadChannelPostingPrefs,
-  updateChannelPostingPrefs,
   updateChannelRetention,
   updateMemberPermissions,
 } from "../../../lib/channelDetails";
 import { store } from "../../../lib/store";
-import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
+import ChannelDangerZone from "./ChannelDangerZone";
+import ChannelPostingPermissions from "./ChannelPostingPermissions";
 import "../../settings/Settings.css";
 import "./ChannelDetails.css";
 import "./ChannelSettingsTab.css";
@@ -19,47 +18,28 @@ import {
   retentionValue,
 } from "./settings/channelPolicy";
 
-export default function ChannelSettingsTab(props: { channelId: string }) {
-  // These are all channel-manager-only actions on the real Slack client (the
-  // API calls themselves would just reject a non-manager), so the controls
-  // below are read-only until this resolves the current user as a manager.
-  const [managerIds, { refetch: refetchManagerIds }] = createResource(
-    () => props.channelId,
-    loadChannelManagerIds,
-  );
+export default function ChannelSettingsTab(props: {
+  archived: boolean;
+  channelId: string;
+  creatorId?: string;
+  onChanged?: () => void;
+  private: boolean;
+}) {
+  // admin.roles.entity.listAssignments (the source for managerIds) is an
+  // Enterprise Grid org-admin API — it 404s/errors on every normal
+  // workspace. Treat it as a bonus signal, not a requirement: workspace
+  // admins/owners and the channel's creator can always manage a channel on
+  // a non-Grid workspace, matching what Slack's own client falls back to.
+  const [managerIds] = createResource(() => props.channelId, loadChannelManagerIds);
   const isManager = createMemo(() => {
+    const me = store.users.currentUser();
+    if (!me) return false;
+    if (me.isWorkspaceAdmin) return true;
+    if (props.creatorId && me.id === props.creatorId) return true;
     if (managerIds.error) return false;
-    const me = store.users.currentUser()?.id;
-    return !!me && (managerIds() ?? []).includes(me);
+    return (managerIds() ?? []).includes(me.id);
   });
 
-  const [postingPrefs, { refetch: refetchPostingPrefs }] = createResource(
-    () => props.channelId,
-    loadChannelPostingPrefs,
-  );
-  const [postingRestricted, setPostingRestricted] = createSignal(false);
-  const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<string[]>([]);
-  const [threadsRestricted, setThreadsRestricted] = createSignal(false);
-  const [allowChannelMentions, setAllowChannelMentions] = createSignal(true);
-  const [savingPostingPrefs, setSavingPostingPrefs] = createSignal(false);
-  const [addingPostingException, setAddingPostingException] = createSignal(false);
-
-  const retryManagerIds = () => void Promise.resolve(refetchManagerIds()).catch(() => {});
-  const retryPostingPrefs = () => void Promise.resolve(refetchPostingPrefs()).catch(() => {});
-
-  createEffect(
-    on(postingPrefs, (prefs) => {
-      if (!prefs) return;
-      setPostingRestricted(prefs.postingRestrictedToManagers);
-      setPostingExceptionUserIds(prefs.postingExceptionUserIds);
-      setThreadsRestricted(prefs.threadsRestrictedToManagers);
-      setAllowChannelMentions(prefs.allowChannelMentions);
-    }),
-  );
-
-  const canEditPostingPrefs = createMemo(
-    () => !!postingPrefs() && isManager() && !savingPostingPrefs(),
-  );
   // conversations.permissions.accountTypes.set's FULL_MEMBER `is_allowed` flags
   // are the same "channel managers only" restriction as who_can_post/can_thread
   // above — inverted here so every switch in this tab reads the same way
@@ -83,80 +63,19 @@ export default function ChannelSettingsTab(props: { channelId: string }) {
   } | null>(null);
   const [savingRetention, setSavingRetention] = createSignal(false);
 
+  const retentionDaysValid = createMemo(
+    () => Number.isInteger(retentionDays()) && retentionDays() >= 1,
+  );
+
   const retentionDirty = createMemo(() => {
     const choice = retentionChoice();
     if (!choice) return false;
+    if (choice === "delete" && !retentionDaysValid()) return false;
     const saved = savedRetention();
     return (
       !saved || choice !== saved.choice || (choice === "delete" && retentionDays() !== saved.days)
     );
   });
-
-  const savePostingRestriction = async (restricted: boolean) => {
-    if (!canEditPostingPrefs()) return;
-    const previousRestricted = postingRestricted();
-    const previousExceptions = postingExceptionUserIds();
-    const nextExceptions = restricted ? previousExceptions : [];
-    setPostingRestricted(restricted);
-    setPostingExceptionUserIds(nextExceptions);
-    if (!restricted) setAddingPostingException(false);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      posting: { exceptionUserIds: nextExceptions, restrictedToManagers: restricted },
-    });
-    if (!ok) {
-      setPostingRestricted(previousRestricted);
-      setPostingExceptionUserIds(previousExceptions);
-    }
-    setSavingPostingPrefs(false);
-  };
-
-  const savePostingExceptions = async (next: string[]) => {
-    if (!canEditPostingPrefs()) return;
-    const previous = postingExceptionUserIds();
-    setPostingExceptionUserIds(next);
-    setAddingPostingException(false);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      posting: { exceptionUserIds: next, restrictedToManagers: true },
-    });
-    if (!ok) setPostingExceptionUserIds(previous);
-    setSavingPostingPrefs(false);
-  };
-
-  const addPostingException = (userId: string) => {
-    const current = postingExceptionUserIds();
-    if (current.length >= 100 || current.includes(userId)) return;
-    savePostingExceptions([...current, userId]);
-  };
-
-  const removePostingException = (userId: string) => {
-    savePostingExceptions(postingExceptionUserIds().filter((id) => id !== userId));
-  };
-
-  const saveThreadsRestriction = async (restricted: boolean) => {
-    if (!canEditPostingPrefs()) return;
-    const previous = threadsRestricted();
-    setThreadsRestricted(restricted);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      threadsRestrictedToManagers: restricted,
-    });
-    if (!ok) setThreadsRestricted(previous);
-    setSavingPostingPrefs(false);
-  };
-
-  const saveChannelMentions = async (enabled: boolean) => {
-    if (!canEditPostingPrefs()) return;
-    const previous = allowChannelMentions();
-    setAllowChannelMentions(enabled);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      allowChannelMentions: enabled,
-    });
-    if (!ok) setAllowChannelMentions(previous);
-    setSavingPostingPrefs(false);
-  };
 
   const saveRetention = async () => {
     const choice = retentionChoice();
@@ -200,137 +119,11 @@ export default function ChannelSettingsTab(props: { channelId: string }) {
 
   return (
     <>
-      <Show when={managerIds.error}>
-        <div class="channel-details-settings-warning flex-between" role="alert">
-          <span>Couldn’t verify whether you manage this channel.</span>
-          <Button onClick={retryManagerIds} size="sm">
-            Try again
-          </Button>
-        </div>
-      </Show>
-      <Show when={managerIds.state === "ready" && !isManager()}>
+      <Show when={!(managerIds.loading || isManager())}>
         <p class="channel-details-meta">Only channel managers can change these settings.</p>
       </Show>
 
-      <div class="settings-section">
-        <div class="settings-row-label">Posting permissions</div>
-        <Show when={postingPrefs.loading}>
-          <p class="channel-details-meta">Loading posting permissions…</p>
-        </Show>
-        <Show when={postingPrefs.error}>
-          <div class="channel-details-settings-warning flex-between" role="alert">
-            <span>Posting permissions couldn’t be loaded.</span>
-            <Button onClick={retryPostingPrefs} size="sm">
-              Try again
-            </Button>
-          </div>
-        </Show>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Only channel managers can post</div>
-          </div>
-          <Switch
-            checked={postingRestricted()}
-            disabled={!canEditPostingPrefs()}
-            onChange={savePostingRestriction}
-            title="Only channel managers can post"
-          />
-        </div>
-        <Show when={postingRestricted()}>
-          <div class="channel-details-exceptions">
-            <div class="channel-details-exceptions-header flex-align-center">
-              <div>
-                <div class="settings-row-label">Exceptions</div>
-                <div class="settings-row-hint text-dim">
-                  These people can post even when posting is restricted.
-                </div>
-              </div>
-              <button
-                class="channel-details-add-btn btn-reset flex-align-center"
-                disabled={!canEditPostingPrefs() || postingExceptionUserIds().length >= 100}
-                onClick={() => setAddingPostingException(true)}
-                type="button"
-              >
-                <Icon name="user-add" size={15} /> Add people
-              </button>
-            </div>
-            <Show
-              fallback={<p class="channel-details-meta">No exceptions.</p>}
-              when={postingExceptionUserIds().length > 0}
-            >
-              <div class="channel-details-exception-list flex-col">
-                <For each={postingExceptionUserIds()}>
-                  {(userId) => (
-                    <div class="channel-details-exception flex-align-center">
-                      <Show
-                        fallback={
-                          <span class="channel-details-exception-name truncate">{userId}</span>
-                        }
-                        when={store.users.userById(userId)}
-                      >
-                        {(user) => (
-                          <>
-                            <Avatar size="small" user={user()} />
-                            <span class="channel-details-exception-name truncate">
-                              {user().name}
-                            </span>
-                          </>
-                        )}
-                      </Show>
-                      <Tooltip content="Remove exception">
-                        <button
-                          aria-label="Remove exception"
-                          class="channel-details-exception-remove btn-reset flex-center"
-                          disabled={!canEditPostingPrefs()}
-                          onClick={() => removePostingException(userId)}
-                          type="button"
-                        >
-                          <Icon name="close-filled" size={14} />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  )}
-                </For>
-              </div>
-            </Show>
-            <Show when={postingExceptionUserIds().length >= 100}>
-              <p class="channel-details-meta">Slack allows up to 100 exceptions per channel.</p>
-            </Show>
-            <Show when={addingPostingException()}>
-              <div class="channel-details-picker">
-                <ComposeUserPicker
-                  excludeUserIds={postingExceptionUserIds()}
-                  includeCurrentUser
-                  onClose={() => setAddingPostingException(false)}
-                  onSelect={addPostingException}
-                />
-              </div>
-            </Show>
-          </div>
-        </Show>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Only channel managers can reply in threads</div>
-          </div>
-          <Switch
-            checked={threadsRestricted()}
-            disabled={!canEditPostingPrefs()}
-            onChange={saveThreadsRestriction}
-            title="Only channel managers can reply in threads"
-          />
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Allow @channel and @here mentions</div>
-          </div>
-          <Switch
-            checked={allowChannelMentions()}
-            disabled={!canEditPostingPrefs()}
-            onChange={saveChannelMentions}
-            title="Allow @channel and @here mentions"
-          />
-        </div>
-      </div>
+      <ChannelPostingPermissions channelId={props.channelId} isManager={isManager} />
 
       <div class="settings-section">
         <div class="settings-row-label">Member permissions</div>
@@ -427,26 +220,40 @@ export default function ChannelSettingsTab(props: { channelId: string }) {
         <Show when={retentionChoice() === "delete"}>
           <div class="channel-details-retention-row flex-align-center">
             <input
+              aria-invalid={!retentionDaysValid()}
               class="channel-details-input channel-details-retention-input"
               disabled={!isManager() || savingRetention()}
               min="1"
-              onInput={(e) => setRetentionDays(Number(e.currentTarget.value) || 1)}
+              onInput={(e) => setRetentionDays(Math.trunc(Number(e.currentTarget.value)))}
               onKeyDown={blurOnEnter}
               type="number"
-              value={retentionDays()}
+              value={Number.isNaN(retentionDays()) ? "" : retentionDays()}
             />
             <span class="channel-details-meta">days</span>
           </div>
+          <Show when={!retentionDaysValid()}>
+            <p class="channel-details-meta channel-details-retention-invalid">
+              Enter a whole number of days, 1 or greater.
+            </p>
+          </Show>
         </Show>
-        <button
-          class="settings-status-save channel-details-retention-save"
+        <Button
+          class="channel-details-retention-save"
           disabled={!(isManager() && retentionDirty()) || savingRetention()}
           onClick={saveRetention}
-          type="button"
+          variant="primary"
         >
           {savingRetention() ? "Saving…" : "Save retention"}
-        </button>
+        </Button>
       </div>
+
+      <ChannelDangerZone
+        archived={props.archived}
+        channelId={props.channelId}
+        isManager={isManager}
+        onChanged={props.onChanged}
+        private={props.private}
+      />
     </>
   );
 }

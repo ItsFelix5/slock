@@ -42,7 +42,6 @@ export default function ReactionRow(props: {
             ctxMenu.close();
             try {
               await navigator.clipboard.writeText(r.users.map((id) => `<@${id}>`).join(" "));
-              if (props.feedbackKey) actionFeedback.flash(props.feedbackKey, "Reactors copied.");
             } catch {
               if (props.feedbackKey)
                 actionFeedback.flash(props.feedbackKey, "Couldn’t copy the reactors.", "error");

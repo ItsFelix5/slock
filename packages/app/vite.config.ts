@@ -19,7 +19,7 @@ export default defineConfig(async ({ command }) => ({
   plugins: [
     solid(),
     manualReload(),
-    ...(command === "serve" ? [(await import("./server/dev-plugin.ts")).appServerPlugin()] : []),
+    ...(command === "serve" ? [(await import("slock-server/dev-plugin")).appServerPlugin()] : []),
   ],
   resolve: {
     dedupe: ["solid-js"],

@@ -188,7 +188,6 @@ export default function CanvasPanel() {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
-      actionFeedback.flash(fileId() ?? "", "Link copied.");
     } catch {
       actionFeedback.flash(fileId() ?? "", "Couldn’t copy the link.", "error");
     }

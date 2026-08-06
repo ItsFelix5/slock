@@ -1,5 +1,5 @@
 import type { Message } from "@slock/slack-api";
-import { useShortcut } from "@slock/ui";
+import { plainKey, useShortcut } from "@slock/ui";
 import { type Accessor, createEffect, createSignal } from "solid-js";
 import { store } from "../../lib/store";
 import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
@@ -127,8 +127,16 @@ export function createMessageFocus(
     scope: "messages",
   });
 
+  // All the single-key actions below only make sense while a message row
+  // genuinely has DOM focus (listFocused) — focusedTs itself never goes back
+  // to null just because focus moved elsewhere (it has to keep pointing at
+  // *some* message for roving-tabindex), so without the listFocused() check
+  // these kept firing anywhere else in the app, including "d" opening a
+  // delete confirmation for a message that isn't even visible anymore.
+  const messageActionEnabled = () => listFocused() && focusedTs() !== null;
+
   useShortcut({
-    enabled: () => focusedTs() !== null && (!!callbacks.onOpenThread || !!callbacks.onReplyLink),
+    enabled: () => messageActionEnabled() && (!!callbacks.onOpenThread || !!callbacks.onReplyLink),
     handler: () => {
       const msg = focusedMessage();
       if (!msg) return;
@@ -137,69 +145,69 @@ export function createMessageFocus(
     },
     keys: "r",
     label: "Reply",
-    match: (e) => e.key === "r",
+    match: plainKey("r"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => clickRowButton("React"),
     keys: "a",
     label: "Add a reaction",
-    match: (e) => e.key === "a",
+    match: plainKey("a"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.later.toggleSaveForLater(channelId(), ts);
     },
     keys: "s",
     label: "Save / unsave for later",
-    match: (e) => e.key === "s",
+    match: plainKey("s"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.pinned.togglePinMessage(channelId(), ts);
     },
     keys: "p",
     label: "Pin / unpin",
-    match: (e) => e.key === "p",
+    match: plainKey("p"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.messages.copyMessageLink(channelId(), ts);
     },
     keys: "c",
     label: "Copy link",
-    match: (e) => e.key === "c",
+    match: plainKey("c"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => {
       const msg = focusedMessage();
       if (msg) void copyMessageText(msg, isInThread);
     },
     keys: "y",
     label: "Copy text",
-    match: (e) => e.key === "y",
+    match: plainKey("y"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => {
       const msg = focusedMessage();
       const id = msg && resolveProfileUserId(msg);
@@ -207,52 +215,52 @@ export function createMessageFocus(
     },
     keys: "v",
     label: "View author's profile",
-    match: (e) => e.key === "v",
+    match: plainKey("v"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.messages.markMessageUnread(channelId(), ts);
     },
     keys: "u",
     label: "Mark unread",
-    match: (e) => e.key === "u",
+    match: plainKey("u"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: isOwnEditableMessage,
+    enabled: () => listFocused() && isOwnEditableMessage(),
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) startEdit(ts);
     },
     keys: "e",
     label: "Edit message",
-    match: (e) => e.key === "e",
+    match: plainKey("e"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: isOwnEditableMessage,
+    enabled: () => listFocused() && isOwnEditableMessage(),
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) confirmAndDeleteMessage(channelId(), ts);
     },
     keys: "d",
     label: "Delete message",
-    match: (e) => e.key === "d",
+    match: plainKey("d"),
     scope: "messages",
   });
 
   useShortcut({
-    enabled: () => focusedTs() !== null,
+    enabled: messageActionEnabled,
     handler: () => clickRowButton("More actions"),
     keys: ".",
     label: "More actions (remind me, also send to channel, app shortcuts, …)",
-    match: (e) => e.key === ".",
+    match: plainKey("."),
     scope: "messages",
   });
 

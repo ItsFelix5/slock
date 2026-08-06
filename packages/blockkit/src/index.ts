@@ -11,8 +11,12 @@ export {
 export {
   DATE_FORMAT_OPTIONS,
   DEFAULT_DATE_FORMAT,
+  formatDuration,
+  formatLastSeen,
   formatSlackDate,
   formatSlackDateTokens,
+  formatTime,
+  startOfDayMs,
   TIME_FORMAT_OPTIONS,
 } from "./dateFormat";
 export { default as EmojiText } from "./emoji/EmojiText";

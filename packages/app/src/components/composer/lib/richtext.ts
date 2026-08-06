@@ -262,14 +262,14 @@ function appendPlainSegment(
     if (current.length === 0) return;
     if (needsSeparator()) frag.appendChild(createComposerBlockSeparator());
     if (currentIsQuote) {
+      const bq = document.createElement("blockquote");
+      bq.className = "composer-quote";
       current.forEach((line, index) => {
-        if (index > 0) frag.appendChild(createComposerBlockSeparator());
-        const bq = document.createElement("blockquote");
-        bq.className = "composer-quote";
+        if (index > 0) bq.appendChild(document.createElement("br"));
         appendInline(bq, line, dialect);
-        if (!bq.childNodes.length) bq.appendChild(document.createElement("br"));
-        frag.appendChild(bq);
       });
+      if (!bq.childNodes.length) bq.appendChild(document.createElement("br"));
+      frag.appendChild(bq);
     } else {
       appendLinesWithBreaks(frag, current.join("\n"), dialect);
     }

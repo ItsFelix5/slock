@@ -91,7 +91,11 @@ export default function SettingsNotificationsTab() {
                   <span class="settings-list-row-name flex-align-center">
                     {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
-                  <InlineFeedback feedback={actionFeedback.get(c.id)} priority={2} />
+                  <InlineFeedback
+                    class="settings-list-row-feedback"
+                    feedback={actionFeedback.get(c.id)}
+                    priority={2}
+                  />
                   <button
                     class="settings-list-row-action btn-reset text-muted"
                     disabled={store.preferences.isMutePending(c.id)}
@@ -127,7 +131,11 @@ export default function SettingsNotificationsTab() {
                   <span class="settings-list-row-name flex-align-center">
                     {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
                   </span>
-                  <InlineFeedback feedback={actionFeedback.get(c.id)} priority={2} />
+                  <InlineFeedback
+                    class="settings-list-row-feedback"
+                    feedback={actionFeedback.get(c.id)}
+                    priority={2}
+                  />
                   <button
                     class="settings-list-row-action btn-reset text-muted"
                     disabled={store.preferences.isNotifyAllPending(c.id)}

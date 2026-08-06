@@ -10,7 +10,6 @@ export async function copyMessageText(
 ) {
   try {
     await navigator.clipboard.writeText(parseReplyLink(msg.text, isInThread)?.rest ?? msg.text);
-    actionFeedback.flash(msg.ts, "Text copied.");
   } catch {
     actionFeedback.flash(msg.ts, "Couldn’t copy the message text.", "error");
   }

@@ -44,7 +44,7 @@ function trimUserBoot(data: any): any {
   };
 }
 
-function trimCounts(data: any): any {
+function trimBootstrapCounts(data: any): any {
   return {
     notifications: trimActivityCounts(data.activity_v2),
     unreads: trimCountGroups(data, (group: any) => ({
@@ -142,7 +142,7 @@ export async function bootstrapResponse(
       .filter(([, data]) => data && !data.ok)
       .map(([name, data]) => [name, data.error ?? `${name} failed`]),
   );
-  const counts = rawCounts.ok ? trimCounts(rawCounts) : {};
+  const counts = rawCounts.ok ? trimBootstrapCounts(rawCounts) : {};
 
   return jsonResponse(
     {

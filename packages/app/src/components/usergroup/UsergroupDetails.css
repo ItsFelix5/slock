@@ -16,8 +16,17 @@
 }
 
 .usergroup-details-feedback {
+  position: absolute;
+  top: 49px;
+  left: 0;
+  right: 0;
   display: block;
-  padding: 8px 20px 0;
+  padding: 8px 20px;
+  background: var(--main-bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .usergroup-details-load-state {

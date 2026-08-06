@@ -1,3 +1,4 @@
+import { formatTime } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
@@ -8,7 +9,7 @@ import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import { activityVerb } from "./activityMetadata";
 import "./ActivityRow.css";
 import "./ActivityThread.css";
-import { ActivityMessageText, formatTime, ThreadMessageRow } from "./activityThreadMessage";
+import { ActivityMessageText, ThreadMessageRow } from "./activityThreadMessage";
 
 export interface ActivityRow {
   isThread: boolean;

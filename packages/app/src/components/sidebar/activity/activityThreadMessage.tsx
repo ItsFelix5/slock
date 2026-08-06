@@ -1,14 +1,8 @@
-import { Link, Mrkdwn } from "@slock/blockkit";
+import { formatTime, Link, Mrkdwn } from "@slock/blockkit";
 import { Avatar } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
-
-// Rows always sit under a day divider (see ActivityView's groupedVisibleRows),
-// so the date itself would be redundant here — just the clock time.
-export function formatTime(time: number) {
-  return new Date(time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
 
 // A pasted message permalink round-trips as a bare, un-bracketed URL in
 // `text` (see replyLink.ts) — Mrkdwn only autolinks Slack's `<url|label>`

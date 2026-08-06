@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
-import { type Route, route } from "./router.ts";
+import { jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { callSlack } from "../../slackClient.ts";
+import { type Route, route } from "../router.ts";
 
 export const searchRoutes: Route[] = [
   // search.messages has no next-page affordance in this client — the caller

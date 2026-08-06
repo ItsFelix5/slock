@@ -9,6 +9,7 @@ import "./ChannelHeader.css";
 import {
   channelTitle,
   channelTopic,
+  isArchivedChannel,
   isChannelView,
   isPrivateChannel,
   openCurrentDmProfile,
@@ -61,9 +62,15 @@ export default function ChannelHeader() {
             >
               {channelTitle()}
             </button>
+            <Show when={isArchivedChannel()}>
+              <span class="channel-header-archived-badge">Archived</span>
+            </Show>
           </div>
           <Show when={channelTopic()}>
-            <Tooltip class="channel-header-topic-wrap" content={channelTopic()}>
+            <Tooltip
+              class="channel-header-topic-wrap"
+              content={<Mrkdwn text={channelTopic()} />}
+            >
               <span class="channel-header-topic truncate text-dim text-sm">
                 <Mrkdwn text={channelTopic()} />
               </span>

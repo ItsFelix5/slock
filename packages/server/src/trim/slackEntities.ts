@@ -18,7 +18,10 @@ export function trimUser(user: any): any {
     color: user.color,
     deleted: user.deleted,
     id: user.id,
+    is_admin: user.is_admin,
     is_bot: user.is_bot,
+    is_owner: user.is_owner,
+    is_primary_owner: user.is_primary_owner,
     name: user.name,
     presence: user.presence,
     profile: {

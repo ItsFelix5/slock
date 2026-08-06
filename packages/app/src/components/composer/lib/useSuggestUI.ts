@@ -7,10 +7,7 @@ export function useSuggestUI(
   suggest: Accessor<SuggestState | null>,
   setSuggest: (value: SuggestState | null) => void,
 ) {
-  useClickOutside(
-    suggestPopoverRef,
-    () => setSuggest(null),
-  );
+  useClickOutside(suggestPopoverRef, () => setSuggest(null));
   useEscapeClose(
     () => setSuggest(null),
     () => suggest() !== null,

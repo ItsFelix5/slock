@@ -311,7 +311,13 @@ export default function ChannelDetails() {
                   </Show>
 
                   <Show when={tab() === "settings"}>
-                    <ChannelSettingsTab channelId={d().id} />
+                    <ChannelSettingsTab
+                      archived={d().archived}
+                      channelId={d().id}
+                      creatorId={d().creatorId}
+                      onChanged={refetch}
+                      private={d().private}
+                    />
                   </Show>
                 </div>
               </div>

@@ -44,8 +44,12 @@
 
 .pinned-panel-feedback {
   position: absolute;
+  right: 8px;
   bottom: 2px;
   left: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .pinned-panel-item:hover {

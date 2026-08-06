@@ -7,11 +7,15 @@ export default function JoinChannelBar(props: { channelId: string }) {
     channelDisplayName(store.channels.channelById(props.channelId), props.channelId);
 
   return (
-    <div class="join-channel-bar flex-between">
-      <div class="join-channel-bar-text">
+    <div class="channel-notice-bar flex-between">
+      <div class="channel-notice-bar-text">
         You aren't a member of <strong>#{name()}</strong>.
       </div>
-      <InlineFeedback feedback={actionFeedback.get(props.channelId)} priority={2} />
+      <InlineFeedback
+        class="channel-notice-bar-feedback"
+        feedback={actionFeedback.get(props.channelId)}
+        priority={2}
+      />
       <button
         class="join-channel-bar-btn btn-reset flex-align-center"
         disabled={store.channels.isJoinPending(props.channelId)}

@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { errorResponse } from "../http/jsonResponse.ts";
-import { mutate, type Route, type RouteCtx, route } from "./router.ts";
+import { errorResponse } from "../../http/jsonResponse.ts";
+import { mutate, type Route, type RouteCtx, route } from "../router.ts";
 
 // Slack's users.prefs.set is a generic name/value KV write - the account's
 // real local-usage-database mechanism the webapp itself uses for settings

@@ -17,6 +17,9 @@ export interface User {
   email?: string;
   id: string;
   isBot?: boolean;
+  // Owners and primary owners are always workspace admins too — collapsed
+  // into one flag since nothing in this app distinguishes the three.
+  isWorkspaceAdmin?: boolean;
   // Epoch ms of the last time we saw this user go active on presence — best
   // effort, tracked server-side since Slack's API exposes no such field.
   lastSeen?: number;
@@ -194,6 +197,7 @@ export interface CanvasInfo {
 }
 
 export interface Channel {
+  archived: boolean;
   canvas?: CanvasInfo;
   id: string;
   lastActivity?: number;
@@ -217,6 +221,7 @@ export interface DirectMessage {
 }
 
 export interface ChannelDetails {
+  archived: boolean;
   created: number;
   creatorId?: string;
   email?: string;

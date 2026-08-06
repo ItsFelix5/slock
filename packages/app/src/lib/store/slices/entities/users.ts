@@ -59,6 +59,10 @@ export function createUsersSlice(
   }
 
   function userById(id: string): User | undefined {
+    // Route self through currentUser() rather than the generic lookup below —
+    // that lookup hits the batched users/info endpoint, which never carries a
+    // real presence value and would show us as away until manually toggled.
+    if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
     if (!known) {
       if (!pendingUsers.has(id)) {
@@ -76,9 +80,8 @@ export function createUsersSlice(
       return;
     }
     const presence = presenceOverrides[id];
-    const selfOverride = id === deps.currentUserBase()?.id ? selfStatusOverride() : null;
-    if (!(presence || selfOverride)) return known;
-    return { ...known, ...(presence ? { presence } : {}), ...(selfOverride ?? {}) };
+    if (!presence) return known;
+    return { ...known, presence };
   }
 
   // The gateway sends this when a user's profile changes elsewhere (name, avatar,

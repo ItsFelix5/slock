@@ -1,4 +1,4 @@
-.join-channel-bar {
+.channel-notice-bar {
   flex-shrink: 0;
   gap: 12px;
   padding: 14px 16px;
@@ -8,13 +8,25 @@
   border-radius: var(--radius-18);
 }
 
-.join-channel-bar-text {
+.channel-notice-bar-text {
+  min-width: 0;
+  overflow: hidden;
   font-size: 14px;
   color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.join-channel-bar-text strong {
+.channel-notice-bar-text strong {
   color: var(--text-primary);
+}
+
+.channel-notice-bar-feedback {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .join-channel-bar-btn {

@@ -44,9 +44,11 @@ export default function ChannelMembersTab(props: {
   // endpoint (admin.roles.entity.listAssignments — see fetchChannelManagerIds)
   // that only returns ids, so they're resolved through the store's user
   // lookup rather than sharing the `pagedMembers` cache the edge API fills in.
+  // That endpoint is Enterprise Grid-only and errors on every normal
+  // workspace — treated as "no managers assigned" rather than a load
+  // failure, since there's nothing a retry could fix there.
   const [managerIds, setManagerIds] = createSignal<string[]>([]);
   const [loadingManagers, setLoadingManagers] = createSignal(false);
-  const [managerLoadError, setManagerLoadError] = createSignal(false);
   let managersLoaded = false;
 
   const [copiedKey, copy] = createCopyFeedback(1200, () =>
@@ -86,14 +88,12 @@ export default function ChannelMembersTab(props: {
   const loadManagers = async () => {
     if (managersLoaded || loadingManagers()) return;
     setLoadingManagers(true);
-    setManagerLoadError(false);
     try {
       setManagerIds(await loadChannelManagerIds(props.channelId));
-      managersLoaded = true;
     } catch {
-      managersLoaded = false;
-      setManagerLoadError(true);
+      setManagerIds([]);
     } finally {
+      managersLoaded = true;
       setLoadingManagers(false);
     }
   };
@@ -123,13 +123,12 @@ export default function ChannelMembersTab(props: {
     filter() === "managers" ? loadingManagers() : isPagedLoading(filter() as PagedFilter),
   );
   const loadError = createMemo(() =>
-    filter() === "managers" ? managerLoadError() : hasPagedLoadError(filter() as PagedFilter),
+    filter() === "managers" ? false : hasPagedLoadError(filter() as PagedFilter),
   );
 
   const retryLoad = () => {
     const f = filter();
-    if (f === "managers") void loadManagers();
-    else void loadMore(f);
+    if (f !== "managers") void loadMore(f);
   };
   const loadErrorLabel = createMemo(() => {
     if (filter() === "managers") return "channel managers";

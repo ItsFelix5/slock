@@ -16,6 +16,7 @@ export interface Bootstrap {
 interface RawBootChannel {
   created?: number;
   id: string;
+  is_archived?: boolean;
   is_channel?: boolean;
   is_group?: boolean;
   is_mpim?: boolean;
@@ -99,6 +100,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   const channels: Channel[] = rawChannels
     .filter((c) => (c.is_channel || c.is_group) && !c.is_mpim && !c.name?.startsWith("mpdm-"))
     .map((c) => ({
+      archived: !!c.is_archived,
       id: c.id,
       lastActivity: latestByChannel.get(c.id),
       mentions: unreadMap[c.id]?.mentions || undefined,
@@ -183,7 +185,12 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   const directMessages: DirectMessage[] = [...oneToOneDms, ...multiPersonDms];
 
   if (!boot.self) throw new Error("client.userBoot response missing self");
-  const currentUser = mapUser(boot.self);
+  // boot.self doesn't reliably carry a real presence field either, but unlike
+  // other users we know this one is active — the client is loaded right now.
+  const currentUser: User = {
+    ...mapUser(boot.self),
+    presence: boot.self.presence === "away" ? "away" : "active",
+  };
 
   const rawStarred: (string | { channel?: string; id?: string })[] = boot.starred ?? [];
   const starredChannelIds: string[] = rawStarred

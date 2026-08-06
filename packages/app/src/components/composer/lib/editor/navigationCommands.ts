@@ -1,5 +1,6 @@
 import {
   closestListItem,
+  createComposerBlockSeparator,
   placeCaretAtEnd,
   placeCaretAtStart,
   placeCaretInText,
@@ -7,97 +8,188 @@ import {
 import { HEADING_TAG_RE } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
+const ZWSP = "​";
+const BLOCK_NAMES = new Set(["BLOCKQUOTE", "PRE", "HR", "UL", "OL"]);
+
+function isBlockEl(n: Node | null): boolean {
+  return (
+    !!n &&
+    n.nodeType === Node.ELEMENT_NODE &&
+    (BLOCK_NAMES.has(n.nodeName) || HEADING_TAG_RE.test(n.nodeName))
+  );
+}
+function isSeparator(n: Node | null): n is HTMLElement {
+  return (
+    !!n &&
+    n.nodeType === Node.ELEMENT_NODE &&
+    (n as HTMLElement).classList.contains("composer-block-separator")
+  );
+}
+// a hidden block separator renders nothing on its own, it only looks like a
+// line break because the block next to it forces one. once a neighbouring
+// block is unwrapped into plain text a separator stranded between two plain
+// runs would collapse them onto one line while still serializing a newline,
+// so it has to become a real visible br
+function normalizeSeparator(sep: Node | null) {
+  if (isSeparator(sep) && !isBlockEl(sep.previousSibling) && !isBlockEl(sep.nextSibling)) {
+    sep.classList.remove("composer-block-separator");
+  }
+}
+// index of the top-level child of `block` the caret sits in (or -1 if the
+// caret isn't inside it)
+function topChildOffset(block: HTMLElement, startContainer: Node, startOffset: number): number {
+  if (startContainer === block) return startOffset;
+  let top = startContainer;
+  while (top.parentNode && top.parentNode !== block) top = top.parentNode;
+  return Array.prototype.indexOf.call(block.childNodes, top);
+}
+// split a block's children into lines at each top-level br. a lone trailing
+// br is the current line's filler, not an extra empty line, the same rule the
+// serializer uses when it strips one trailing newline
+function blockLines(block: HTMLElement): Node[][] {
+  const kids = Array.from(block.childNodes);
+  if (kids.length > 1 && kids[kids.length - 1].nodeName === "BR") kids.pop();
+  const lines: Node[][] = [[]];
+  for (const kid of kids) {
+    if (kid.nodeName === "BR") lines.push([]);
+    else lines[lines.length - 1].push(kid);
+  }
+  return lines;
+}
+
 export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () => void) {
-  function handleBackspaceOnQuote(): boolean {
+  // the caret must sit at the very start of its line inside `block`, nothing
+  // but ignorable empty text between the preceding line break and the caret
+  function caretAtLineStart(block: HTMLElement): boolean {
+    const sel = window.getSelection();
+    if (!sel?.isCollapsed || sel.rangeCount === 0) return false;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+    const childOffset = topChildOffset(block, startContainer, startOffset);
+    if (childOffset < 0) return false;
+    let prevBreak = -1;
+    for (let i = 0; i < childOffset; i++) {
+      if (block.childNodes[i].nodeName === "BR") prevBreak = i;
+    }
+    const before = document.createRange();
+    before.setStart(block, prevBreak + 1);
+    before.setEnd(startContainer, startOffset);
+    const frag = before.cloneContents();
+    return (frag.textContent ?? "").replace(/​/g, "").length === 0 && !frag.querySelector("img");
+  }
+  function caretLineIndex(block: HTMLElement, lineCount: number): number {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return 0;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+    const childOffset = Math.max(0, topChildOffset(block, startContainer, startOffset));
+    let breaks = 0;
+    for (let i = 0; i < childOffset; i++) {
+      if (block.childNodes[i].nodeName === "BR") breaks++;
+    }
+    return Math.min(breaks, lineCount - 1);
+  }
+  function closestBlock(match: (name: string) => boolean): HTMLElement | null {
     const el = ref.get();
     const sel = window.getSelection();
-    console.debug("[quote-backspace] enter", { html: el?.innerHTML });
-    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
-    const { startContainer, startOffset } = sel.getRangeAt(0);
-    let n: Node | null = startContainer;
-    while (n && n !== el && n.nodeName !== "BLOCKQUOTE") n = n.parentNode;
-    if (!n || n === el) {
-      console.debug("[quote-backspace] no blockquote ancestor");
-      return false;
-    }
-    const quote = n as HTMLQuoteElement;
+    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return null;
+    let n: Node | null = sel.getRangeAt(0).startContainer;
+    while (n && n !== el && !match(n.nodeName)) n = n.parentNode;
+    return n && n !== el ? (n as HTMLElement) : null;
+  }
+  function buildQuote(lines: Node[][]): HTMLElement {
+    const bq = document.createElement("blockquote");
+    bq.className = "composer-quote";
+    lines.forEach((line, i) => {
+      if (i > 0) bq.appendChild(document.createElement("br"));
+      for (const node of line) bq.appendChild(node);
+    });
+    if (!bq.childNodes.length) bq.appendChild(document.createElement("br"));
+    return bq;
+  }
 
-    let childOffset = startOffset;
-    if (startContainer !== quote) {
-      let topLevel = startContainer;
-      while (topLevel.parentNode && topLevel.parentNode !== quote) {
-        topLevel = topLevel.parentNode;
-      }
-      childOffset = Array.prototype.indexOf.call(quote.childNodes, topLevel);
-      if (childOffset < 0) return false;
-    }
+  // backspace at the start of a quoted line strips the quote off just that
+  // line and drops it as a plain line, exactly like deleting the leading `>`
+  // as a character. the lines above and below stay quoted
+  function handleBackspaceOnQuote(): boolean {
+    const quote = closestBlock((name) => name === "BLOCKQUOTE");
+    if (!(quote && caretAtLineStart(quote))) return false;
+    const lines = blockLines(quote);
+    const caret = caretLineIndex(quote, lines.length);
 
-    let previousBreak = -1;
-    for (let i = 0; i < childOffset; i++) {
-      if (quote.childNodes[i].nodeName === "BR") previousBreak = i;
-    }
-    const beforeCaret = document.createRange();
-    beforeCaret.setStart(quote, previousBreak + 1);
-    beforeCaret.setEnd(startContainer, startOffset);
-    const beforeContents = beforeCaret.cloneContents();
-    if (
-      (beforeContents.textContent ?? "").replace(/​/g, "").length > 0 ||
-      beforeContents.querySelector("img")
-    ) {
-      console.debug("[quote-backspace] not at line start", {
-        quoteHTML: quote.outerHTML,
-        beforeText: beforeContents.textContent,
-      });
-      return false;
-    }
-
-    // Caret is at the very start of a line inside the quote. Backspace pops
-    // the quote formatting off just that line and leaves its text behind as
-    // a plain line, the same way it would delete any other single character
-    // — it doesn't touch neighboring lines or merge them together.
-    const breaks = quote.querySelectorAll(":scope > br");
-    if (breaks.length === 0 || (breaks.length === 1 && quote.childNodes.length === 1)) {
-      const marker = document.createTextNode("");
-      const replacement = document.createDocumentFragment();
-      replacement.appendChild(marker);
-      while (quote.firstChild) replacement.appendChild(quote.firstChild);
-      quote.replaceWith(replacement);
-      placeCaretInText(marker, 0);
-      syncFromDom();
-      console.debug("[quote-backspace] single-line unwrap ->", { html: el.innerHTML });
-      return true;
-    }
-
-    let nextBreak = -1;
-    for (let i = childOffset; i < quote.childNodes.length; i++) {
-      if (quote.childNodes[i].nodeName === "BR") {
-        nextBreak = i;
-        break;
-      }
-    }
-    const children = Array.from(quote.childNodes);
-    const currentLineEnd = nextBreak < 0 ? children.length : nextBreak;
     const replacement = document.createDocumentFragment();
-    if (previousBreak >= 0) {
-      const beforeQuote = quote.cloneNode(false) as HTMLQuoteElement;
-      beforeQuote.append(...children.slice(0, previousBreak));
-      if (!beforeQuote.childNodes.length) beforeQuote.appendChild(document.createElement("br"));
-      replacement.append(beforeQuote, document.createElement("br"));
+    if (caret > 0) {
+      replacement.append(buildQuote(lines.slice(0, caret)), createComposerBlockSeparator());
     }
-    const marker = document.createTextNode("");
-    replacement.append(marker, ...children.slice(previousBreak + 1, currentLineEnd));
-    if (nextBreak >= 0) {
-      const afterQuote = quote.cloneNode(false) as HTMLQuoteElement;
-      afterQuote.append(...children.slice(nextBreak + 1));
-      if (!afterQuote.childNodes.length) afterQuote.appendChild(document.createElement("br"));
-      replacement.append(document.createElement("br"), afterQuote);
+    const popped = lines[caret];
+    const marker = document.createTextNode(popped.length ? "" : ZWSP);
+    replacement.appendChild(marker);
+    for (const node of popped) replacement.appendChild(node);
+    if (caret < lines.length - 1) {
+      replacement.append(createComposerBlockSeparator(), buildQuote(lines.slice(caret + 1)));
     }
     quote.replaceWith(replacement);
     placeCaretInText(marker, 0);
     syncFromDom();
-    console.debug("[quote-backspace] split ->", { html: el.innerHTML, previousBreak, nextBreak });
     return true;
   }
+
+  // backspace at the start of a heading or code block removes the block
+  // formatting and leaves the content behind as plain lines
+  function unwrapBlock(block: HTMLElement): boolean {
+    const before = block.previousSibling;
+    const after = block.nextSibling;
+    const frag = document.createDocumentFragment();
+    const marker = document.createTextNode("");
+    frag.appendChild(marker);
+    const lines = blockLines(block);
+    lines.forEach((line, i) => {
+      if (i > 0) frag.appendChild(document.createElement("br"));
+      for (const node of line) frag.appendChild(node);
+    });
+    block.replaceWith(frag);
+    normalizeSeparator(before);
+    normalizeSeparator(after);
+    placeCaretInText(marker, 0);
+    syncFromDom();
+    return true;
+  }
+  function handleBackspaceOnHeading(): boolean {
+    const heading = closestBlock((name) => HEADING_TAG_RE.test(name));
+    if (!(heading && caretAtLineStart(heading))) return false;
+    return unwrapBlock(heading);
+  }
+  function handleBackspaceOnCodeBlock(): boolean {
+    const pre = closestBlock((name) => name === "PRE");
+    if (!(pre && caretAtLineStart(pre))) return false;
+    return unwrapBlock(pre);
+  }
+  function handleBackspaceOnDivider(): boolean {
+    const el = ref.get();
+    const sel = window.getSelection();
+    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+    let hr: Node | null = null;
+    if (startContainer.nodeType === Node.TEXT_NODE) {
+      if (startOffset !== 0 || startContainer.parentNode !== el) return false;
+      let prev: Node | null = startContainer.previousSibling;
+      while (prev && prev.nodeType === Node.TEXT_NODE && !(prev as Text).length)
+        prev = prev.previousSibling;
+      if (prev?.nodeName === "HR") hr = prev;
+    } else if (startContainer === el) {
+      const candidate = el.childNodes[startOffset - 1];
+      if (candidate?.nodeName === "HR") hr = candidate;
+    }
+    if (!hr) return false;
+    const before = hr.previousSibling;
+    const after = hr.nextSibling;
+    const marker = document.createTextNode(ZWSP);
+    (hr as ChildNode).replaceWith(marker);
+    normalizeSeparator(before);
+    normalizeSeparator(after);
+    placeCaretInText(marker, 0);
+    syncFromDom();
+    return true;
+  }
+
   function handleShiftEnterInHeader(): boolean {
     const el = ref.get();
     const sel = window.getSelection();
@@ -146,94 +238,6 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
       li.after(newLi);
       placeCaretAtStart(newLi);
     }
-    syncFromDom();
-    return true;
-  }
-  function handleBackspaceOnHeading(): boolean {
-    const el = ref.get();
-    const sel = window.getSelection();
-    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
-    const { startContainer, startOffset } = sel.getRangeAt(0);
-    let n: Node | null = startContainer;
-    while (n && n !== el && !HEADING_TAG_RE.test(n.nodeName)) n = n.parentNode;
-    if (!n || n === el) return false;
-    const heading = n as HTMLElement;
-    const beforeCaret = document.createRange();
-    beforeCaret.selectNodeContents(heading);
-    beforeCaret.setEnd(startContainer, startOffset);
-    if (beforeCaret.toString().length > 0 || beforeCaret.cloneContents().querySelector("img"))
-      return false;
-    const before = heading.previousSibling;
-    const after = heading.nextSibling;
-    const frag = document.createDocumentFragment();
-    if (before) frag.appendChild(document.createElement("br"));
-    const marker = document.createTextNode("");
-    frag.appendChild(marker);
-    while (heading.firstChild) frag.appendChild(heading.firstChild);
-    if (after) frag.appendChild(document.createElement("br"));
-    heading.replaceWith(frag);
-    placeCaretInText(marker, 0);
-    syncFromDom();
-    return true;
-  }
-  function handleBackspaceOnCodeBlock(): boolean {
-    const el = ref.get();
-    const sel = window.getSelection();
-    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
-    const { startContainer, startOffset } = sel.getRangeAt(0);
-    let n: Node | null = startContainer;
-    while (n && n !== el && n.nodeName !== "PRE") n = n.parentNode;
-    if (!n || n === el) return false;
-    const pre = n as HTMLElement;
-    const beforeCaret = document.createRange();
-    beforeCaret.selectNodeContents(pre);
-    beforeCaret.setEnd(startContainer, startOffset);
-    if (beforeCaret.toString().length > 0 || beforeCaret.cloneContents().querySelector("img"))
-      return false;
-    const before = pre.previousSibling;
-    const after = pre.nextSibling;
-    console.debug("[pre-backspace]", {
-      preHTML: pre.outerHTML,
-      before: before && { name: before.nodeName, text: before.textContent },
-      after: after && { name: after.nodeName, text: after.textContent },
-      elHTMLBefore: el.innerHTML,
-    });
-    const frag = document.createDocumentFragment();
-    if (before) frag.appendChild(document.createElement("br"));
-    const marker = document.createTextNode("");
-    frag.appendChild(marker);
-    while (pre.firstChild) frag.appendChild(pre.firstChild);
-    if (after) frag.appendChild(document.createElement("br"));
-    pre.replaceWith(frag);
-    placeCaretInText(marker, 0);
-    syncFromDom();
-    console.debug("[pre-backspace] ->", { elHTMLAfter: el.innerHTML });
-    return true;
-  }
-  function handleBackspaceOnDivider(): boolean {
-    const el = ref.get();
-    const sel = window.getSelection();
-    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
-    const { startContainer, startOffset } = sel.getRangeAt(0);
-    let hr: Node | null = null;
-    if (startContainer.nodeType === Node.TEXT_NODE) {
-      if (startOffset !== 0 || startContainer.parentNode !== el) return false;
-      let prev: Node | null = startContainer.previousSibling;
-      while (prev && prev.nodeType === Node.TEXT_NODE && !(prev as Text).length)
-        prev = prev.previousSibling;
-      if (prev?.nodeName === "HR") hr = prev;
-    } else if (startContainer === el) {
-      const candidate = el.childNodes[startOffset - 1];
-      if (candidate?.nodeName === "HR") hr = candidate;
-    }
-    if (!hr) return false;
-    const br = document.createElement("br");
-    (hr as ChildNode).replaceWith(br);
-    const r = document.createRange();
-    r.setStartAfter(br);
-    r.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(r);
     syncFromDom();
     return true;
   }

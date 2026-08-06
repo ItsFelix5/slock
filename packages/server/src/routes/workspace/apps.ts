@@ -1,8 +1,8 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { teamIdFromRoute } from "../auth.ts";
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
-import { mutate, type Route, route } from "./router.ts";
+import { teamIdFromRoute } from "../../auth.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { callSlack } from "../../slackClient.ts";
+import { mutate, type Route, route } from "../router.ts";
 
 export const appRoutes: Route[] = [
   // client.appCommands' `app_actions` list mixes every action any installed

@@ -1,8 +1,10 @@
 import {
+  archiveChannel,
   type ChannelDetails,
   type ChannelMembersPage,
   type ChannelPostingPrefs,
   type ChannelPostingPrefsPatch,
+  convertChannelToPrivate,
   fetchChannelManagerIds,
   fetchChannelMembers,
   fetchChannelPostingPrefs,
@@ -16,6 +18,7 @@ import {
   setChannelRetention,
   setChannelTopic,
   setMemberPermissions,
+  unarchiveChannel,
 } from "@slock/slack-api";
 import { createRoot, createSignal } from "solid-js";
 import { actionFeedback, store } from "./store";
@@ -175,9 +178,35 @@ function setup() {
     });
   }
 
+  function archiveChannelById(id: string): Promise<boolean> {
+    return withFeedback(id, "Failed to archive channel.", false, async () => {
+      await archiveChannel(id);
+      store.channels.patchChannel(id, { archived: true });
+      return true;
+    });
+  }
+
+  function unarchiveChannelById(id: string): Promise<boolean> {
+    return withFeedback(id, "Failed to unarchive channel.", false, async () => {
+      await unarchiveChannel(id);
+      store.channels.patchChannel(id, { archived: false });
+      return true;
+    });
+  }
+
+  function convertChannelToPrivateById(id: string): Promise<boolean> {
+    return withFeedback(id, "Failed to convert channel to private.", false, async () => {
+      await convertChannelToPrivate(id);
+      store.channels.patchChannel(id, { private: true });
+      return true;
+    });
+  }
+
   return {
+    archiveChannelById,
     channelDetailsId,
     closeChannelDetails,
+    convertChannelToPrivateById,
     inviteUsersToChannel,
     loadChannelDetails,
     loadChannelManagerIds,
@@ -186,6 +215,7 @@ function setup() {
     openChannelDetails,
     removeUserFromChannel,
     renameChannelById,
+    unarchiveChannelById,
     updateChannelPostingPrefs,
     updateChannelPurpose,
     updateChannelRetention,
@@ -195,14 +225,17 @@ function setup() {
 }
 
 export const {
+  archiveChannelById,
   channelDetailsId,
   openChannelDetails,
   closeChannelDetails,
+  convertChannelToPrivateById,
   loadChannelDetails,
   loadChannelMembers,
   loadChannelManagerIds,
   loadChannelPostingPrefs,
   renameChannelById,
+  unarchiveChannelById,
   updateChannelTopic,
   updateChannelPurpose,
   inviteUsersToChannel,

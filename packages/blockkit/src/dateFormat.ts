@@ -240,3 +240,45 @@ export const TIME_FORMAT_OPTIONS = [
   { format: "{time}", label: "Hours and minutes" },
   { format: "{time_secs}", label: "Including seconds" },
 ];
+
+// Format a duration in seconds as mm:ss (used by AudioFile for waveform playback).
+export function formatDuration(seconds: number | undefined): string {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds ?? 0)) : 0;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+// Calculate start of day at midnight for a given timestamp (ms).
+// Used to compute relative time spans in activity/presence.
+export function startOfDayMs(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+// Format how long ago a user was last seen, relative to a given now timestamp (ms).
+// Returns strings like "just now", "5m ago", "yesterday at 3:00 PM", etc.
+export function formatLastSeen(seenAt: number, now: number): string {
+  const diffMs = now - seenAt;
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diffMs < minute) return "just now";
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)}m ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
+  const dayDiff = Math.round((startOfDayMs(now) - startOfDayMs(seenAt)) / day);
+  if (dayDiff === 1) {
+    const timeStr = new Date(seenAt).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    return `yesterday at ${timeStr}`;
+  }
+  if (dayDiff < 7) return `${dayDiff}d ago`;
+  return new Date(seenAt).toLocaleDateString([], { day: "numeric", month: "short" });
+}
+
+// Format a wall-clock time (hour:minute) in the viewer's locale.
+// Used in activity thread rows where dates are already grouped.
+export function formatTime(time: number): string {
+  return new Date(time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}

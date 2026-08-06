@@ -1,8 +1,8 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
-import { trimChannelSections } from "../trim/slackEntities.ts";
-import { mutate, type Route, route } from "./router.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { callSlack } from "../../slackClient.ts";
+import { trimChannelSections } from "../../trim/slackEntities.ts";
+import { mutate, type Route, route } from "../router.ts";
 
 export const sectionRoutes: Route[] = [
   route("GET", "/api/sections", async (ctx) => {

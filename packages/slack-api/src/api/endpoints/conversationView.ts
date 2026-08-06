@@ -30,6 +30,7 @@ function mapCanvasTabs(channel: any): CanvasListItem[] {
 
 function mapChannelDetails(channel: any): ChannelDetails {
   return {
+    archived: !!channel.is_archived,
     created: channel.created ?? 0,
     creatorId: channel.creator || undefined,
     email: channel.properties?.channel_email_addresses?.[0]?.address || undefined,
@@ -57,10 +58,25 @@ async function loadConversationView(channelId: string): Promise<ConversationView
           ...mapChannel(data.channel),
           canvas: canvases[0] ? { fileId: canvases[0].fileId, isEmpty: false } : undefined,
         }
-      : { id: channelId, name: channelId, private: true, topic: "", unread: false },
+      : {
+          archived: false,
+          id: channelId,
+          name: channelId,
+          private: true,
+          topic: "",
+          unread: false,
+        },
     details: data.channel
       ? mapChannelDetails(data.channel)
-      : { created: 0, id: channelId, name: channelId, private: true, purpose: "", topic: "" },
+      : {
+          archived: false,
+          created: 0,
+          id: channelId,
+          name: channelId,
+          private: true,
+          purpose: "",
+          topic: "",
+        },
     hasMore: !!data.history?.has_more,
     messages: rawMessages
       .filter((message) => message.type === "message" && !HIDE_SUBTYPES.has(message.subtype))

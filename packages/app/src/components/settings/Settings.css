@@ -204,6 +204,15 @@
   color: var(--text-primary);
 }
 
+.settings-list-row-feedback {
+  flex-shrink: 0;
+  max-width: 40%;
+  margin-left: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .settings-list-row-action {
   flex-shrink: 0;
   margin-left: 12px;

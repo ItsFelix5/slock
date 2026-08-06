@@ -52,7 +52,10 @@
 
 .channel-details-feedback {
   display: block;
+  overflow: hidden;
   padding: 8px 20px 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .channel-details-load-error {
@@ -285,4 +288,9 @@
 
 .channel-details-retention-save {
   margin-top: 10px;
+}
+
+.channel-details-retention-invalid {
+  margin-top: 4px;
+  color: var(--danger);
 }

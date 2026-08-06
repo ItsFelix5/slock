@@ -174,8 +174,13 @@
 }
 
 .sidebar-section-feedback {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
   margin-right: 4px;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .sidebar-caret {

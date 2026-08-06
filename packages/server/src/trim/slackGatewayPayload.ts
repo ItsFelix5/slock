@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's gateway wire fields.
 import { trimActivityCounts, trimCountGroups, trimMessage } from "./slackEntities.ts";
 
-function trimCounts(payload: any): any {
+function trimGatewayCounts(payload: any): any {
   if (!payload || typeof payload !== "object") return payload;
   return trimCountGroups(payload, (group: any) => ({
     has_unreads: group?.has_unreads,
@@ -51,11 +51,11 @@ export function trimSlackGatewayPayload(payload: any): any | null {
         user: payload.user,
       };
     case "badge_counts_updated": {
-      const counts = trimCounts(payload);
+      const counts = trimGatewayCounts(payload);
       return {
         ...counts,
         activity_v2: trimActivityCounts(payload.activity_v2),
-        badges: payload.badges ? trimCounts(payload.badges) : undefined,
+        badges: payload.badges ? trimGatewayCounts(payload.badges) : undefined,
         type: payload.type,
       };
     }

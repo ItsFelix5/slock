@@ -106,15 +106,15 @@ export default function UsergroupDetails() {
             width={width}
           />
           <PanelHeader onClose={closeUsergroupDetails} title="Pinggroup" />
+          <InlineFeedback
+            class="usergroup-details-feedback"
+            feedback={actionFeedback.get(id())}
+            priority={2}
+          />
           <div
             aria-busy={usergroupDetailsLoading() || usergroupMutationPending()}
             class="usergroup-details-body flex-col"
           >
-            <InlineFeedback
-              class="usergroup-details-feedback"
-              feedback={actionFeedback.get(id())}
-              priority={2}
-            />
             <Show when={details() && usergroupDetailsLoading()}>
               <div class="usergroup-details-load-notice text-dim text-sm" role="status">
                 Refreshing pinggroup details…

@@ -48,6 +48,16 @@
   white-space: nowrap;
 }
 
+.channel-header-archived-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-3);
+}
+
 .channel-header-title-btn {
   cursor: pointer;
 }
@@ -71,8 +81,12 @@
 }
 
 .channel-header-feedback {
+  flex-shrink: 1;
+  max-width: 220px;
+  overflow: hidden;
   margin-left: 8px;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .channel-header-actions {

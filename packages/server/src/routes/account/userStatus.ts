@@ -1,5 +1,5 @@
-import { errorResponse, jsonResponse } from "../http/jsonResponse.ts";
-import { type Route, route } from "./router.ts";
+import { errorResponse, jsonResponse } from "../../http/jsonResponse.ts";
+import { type Route, route } from "../router.ts";
 
 type UserStatus = "eligible" | "over_18" | "banned" | "unverified";
 

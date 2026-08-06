@@ -237,8 +237,9 @@ export function estimateMessageHeight(
   let contentHeight = usesBlocks
     ? estimateBlocksHeight(message.blocks ?? [], wrapWidth)
     : state.enlargedEmojiCount
-      ? Math.ceil(state.enlargedEmojiCount / Math.max(1, Math.floor(wrapWidth / ENLARGED_EMOJI_WIDTH))) *
-        EMOJI_ONLY_LINE_HEIGHT
+      ? Math.ceil(
+          state.enlargedEmojiCount / Math.max(1, Math.floor(wrapWidth / ENLARGED_EMOJI_WIDTH)),
+        ) * EMOJI_ONLY_LINE_HEIGHT
       : estimateMrkdwnHeight(`${state.messageText}${message.edited ? " (edited)" : ""}`, wrapWidth);
   contentHeight += estimateFilesHeight(message.files, wrapWidth);
   if (state.visibleAttachments?.length)

@@ -1,8 +1,8 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
-import { trimChannel } from "../trim/slackEntities.ts";
-import { mutate, type Route, type RouteCtx, route } from "./router.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { callSlack } from "../../slackClient.ts";
+import { trimChannel } from "../../trim/slackEntities.ts";
+import { mutate, type Route, type RouteCtx, route } from "../router.ts";
 
 export const channelRoutes: Route[] = [
   route("POST", "/api/channels", async (ctx) => {
@@ -138,6 +138,18 @@ export const channelRoutes: Route[] = [
 
   route("POST", "/api/channels/:id/leave", (ctx) =>
     mutate("conversations.leave", { channel: ctx.params.id }, ctx),
+  ),
+
+  route("POST", "/api/channels/:id/archive", (ctx) =>
+    mutate("conversations.archive", { channel: ctx.params.id }, ctx),
+  ),
+
+  route("POST", "/api/channels/:id/unarchive", (ctx) =>
+    mutate("conversations.unarchive", { channel: ctx.params.id }, ctx),
+  ),
+
+  route("POST", "/api/channels/:id/convert-to-private", (ctx) =>
+    mutate("conversations.convertToPrivate", { channel: ctx.params.id }, ctx),
   ),
 
   route("POST", "/api/channels/:id/close", (ctx) =>

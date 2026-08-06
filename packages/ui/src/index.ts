@@ -102,6 +102,7 @@ export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export { useHoverIntent } from "./useHoverIntent";
 export {
+  plainKey,
   type ShortcutDef,
   type ShortcutScope,
   shortcutsByScope,

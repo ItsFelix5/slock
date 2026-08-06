@@ -1,4 +1,4 @@
-import { useShortcut } from "@slock/ui";
+import { plainKey, useShortcut } from "@slock/ui";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
@@ -63,7 +63,7 @@ export default function Sidebar() {
     },
     keys: "j / k",
     label: "Move between list items (channels, activity, saved)",
-    match: (e) => e.key === "j" || e.key === "k" || e.key === "Home" || e.key === "End",
+    match: plainKey("j", "k", "Home", "End"),
     scope: "general",
   });
   const toggleCategory = (id: string) => {

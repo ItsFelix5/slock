@@ -1,5 +1,6 @@
 @import "./Composer.chips.css";
 .composer {
+  position: relative;
   flex-shrink: 0;
   padding: 4px 4px 4px 8px;
   margin: 0 10px 10px;
@@ -25,7 +26,18 @@
 }
 .composer-feedback {
   display: block;
-  padding: 4px 8px 0;
+  position: absolute;
+  bottom: 100%;
+  left: 8px;
+  right: 8px;
+  margin-bottom: 6px;
+  padding: 3px 8px;
+  background: var(--composer-bg);
+  border-radius: var(--radius-8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 .composer-draft-warning {
   gap: 8px;

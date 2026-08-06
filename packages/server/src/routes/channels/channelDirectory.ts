@@ -1,10 +1,10 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { teamIdFromRoute } from "../auth.ts";
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { lookupFlaronChannel } from "../lookup/flaronChannel.ts";
-import { callSlack, callSlackEdge } from "../slackClient.ts";
-import { trimChannel, trimUser } from "../trim/slackEntities.ts";
-import { type Route, route } from "./router.ts";
+import { teamIdFromRoute } from "../../auth.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { lookupFlaronChannel } from "../../lookup/flaronChannel.ts";
+import { callSlack, callSlackEdge } from "../../slackClient.ts";
+import { trimChannel, trimUser } from "../../trim/slackEntities.ts";
+import { type Route, route } from "../router.ts";
 
 function cachedChannelForId(data: any, id: string): any | undefined {
   if (data.channels?.[id]) return data.channels[id];
@@ -79,7 +79,11 @@ export const channelDirectoryRoutes: Route[] = [
     if (!Array.isArray(results)) {
       return slackErrorResponse(results, "edge channels/search", ctx.creds, ctx.acceptEncoding);
     }
-    return jsonResponse({ items: results.map(trimChannel), ok: true }, ctx.creds, ctx.acceptEncoding);
+    return jsonResponse(
+      { items: results.map(trimChannel), ok: true },
+      ctx.creds,
+      ctx.acceptEncoding,
+    );
   }),
 
   route("GET", "/api/channels/:id/members", async (ctx) => {

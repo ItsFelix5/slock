@@ -59,9 +59,12 @@
 }
 
 .channel-move-menu-feedback {
+  overflow: hidden;
   padding: 6px 10px 2px;
   font-size: 12px;
   line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .channel-move-menu-trigger-caret {

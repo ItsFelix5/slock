@@ -1,4 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
+import { extractSlackSession } from "@slock/slack-api";
+
 export const jsonHeaders = { "content-type": "application/json" };
 
 export type Credentials = { domain: string; token: string; route: string; slackSession: string };
@@ -9,20 +11,10 @@ const CREDS_COOKIE = "slock_creds";
 // instead of round-tripping through the server (see getWorkspaceDomain in
 // slack-api/src/api/server.ts). The token/session/route stay in CREDS_COOKIE.
 const INFO_COOKIE = "slock_info";
-const INVALID_SLACK_SESSION_RE = /[;\s]/;
 const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slack\.com$/i;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: validating credentials
 const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\x00-\x1f\x7f]+$/;
-
-function extractSlackSession(cookieHeader: string): string | null {
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1 || part.slice(0, eq).trim() !== "d") continue;
-    const value = part.slice(eq + 1).trim();
-    return value.startsWith("xoxd-") && !INVALID_SLACK_SESSION_RE.test(value) ? value : null;
-  }
-  return null;
-}
+const SESSION_INVALID_CHARS_RE = /[;\s]/;
 
 function authPayloadError(value: unknown): string | null {
   if (!(value && typeof value === "object")) return "Invalid credential payload.";
@@ -49,7 +41,7 @@ function authPayloadError(value: unknown): string | null {
     typeof payload.slackSession !== "string" ||
     !payload.slackSession.startsWith("xoxd-") ||
     payload.slackSession.length > 8192 ||
-    INVALID_SLACK_SESSION_RE.test(payload.slackSession)
+    SESSION_INVALID_CHARS_RE.test(payload.slackSession)
   ) {
     return "The copied request contains an invalid Slack session cookie.";
   }

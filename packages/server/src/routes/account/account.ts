@@ -1,10 +1,10 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { teamIdFromRoute } from "../auth.ts";
-import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
-import { getLastSeen } from "../presence/lastSeen.ts";
-import { callSlack, callSlackEdge } from "../slackClient.ts";
-import { trimBot, trimUser } from "../trim/slackEntities.ts";
-import { mutate, type Route, route } from "./router.ts";
+import { teamIdFromRoute } from "../../auth.ts";
+import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { getLastSeen } from "../../presence/lastSeen.ts";
+import { callSlack, callSlackEdge } from "../../slackClient.ts";
+import { trimBot, trimUser } from "../../trim/slackEntities.ts";
+import { mutate, type Route, route } from "../router.ts";
 
 function cachedUserForId(data: any, id: string): any | undefined {
   if (data.users?.[id]) return data.users[id];

@@ -76,14 +76,7 @@ const DOMAIN_TRACKING_PARAMS: { names: string[]; roots: string[] }[] = [
   { names: ["si"], roots: ["spotify"] },
   { names: ["s", "t", "cn", "ref_url"], roots: ["twitter", "x"] },
   {
-    names: [
-      "correlation_id",
-      "ref_campaign",
-      "ref_source",
-      "rdt",
-      "_branch_match_id",
-      "share_id",
-    ],
+    names: ["correlation_id", "ref_campaign", "ref_source", "rdt", "_branch_match_id", "share_id"],
     roots: ["reddit"],
   },
   { names: ["igshid", "igsh"], roots: ["instagram"] },

@@ -40,7 +40,10 @@ export interface RawUserProfile {
 export interface RawUser {
   color?: string;
   id: string;
+  is_admin?: boolean;
   is_bot?: boolean;
+  is_owner?: boolean;
+  is_primary_owner?: boolean;
   last_seen?: number;
   name?: string;
   presence?: string;
@@ -61,6 +64,7 @@ export interface RawBot {
 
 export interface RawChannel {
   id: string;
+  is_archived?: boolean;
   is_private?: boolean;
   latest?: string;
   name?: string;
@@ -236,10 +240,13 @@ export function mapUser(raw: RawUser): User {
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
     // Slack's API never sets is_bot for it — flag it by id instead.
     isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
+    isWorkspaceAdmin: !!(raw.is_admin || raw.is_owner || raw.is_primary_owner),
     lastSeen: raw.last_seen || undefined,
     name: name ?? "",
     phone: raw.profile?.phone || undefined,
-    presence: raw.presence === "away" ? "away" : "active",
+    // users/info (the batched lookup) never includes presence, so treat
+    // unknown as away — defaulting to active made every card look online.
+    presence: raw.presence === "active" ? "active" : "away",
     pronouns: raw.profile?.pronouns || undefined,
     statusEmoji: raw.profile?.status_emoji || undefined,
     statusText: raw.profile?.status_text || undefined,
@@ -265,6 +272,7 @@ export function mapBot(raw: RawBot): User {
 
 export function mapChannel(raw: RawChannel): Channel {
   return {
+    archived: !!raw.is_archived,
     id: raw.id,
     lastActivity: raw.latest ? Number.parseFloat(raw.latest) * 1000 : undefined,
     name: raw.name ?? raw.id,

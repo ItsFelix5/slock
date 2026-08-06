@@ -1,6 +1,5 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to command parsing.
 import {
-  createComposerBlockSeparator,
   createDateChip,
   createDividerElement,
   createHeaderElement,
@@ -122,33 +121,12 @@ export function createBlockCommands(
     opts.syncFromDom();
   }
   function applyQuote() {
-    const el = ref.get();
-    const sel = window.getSelection();
-    if (!(el && sel) || sel.rangeCount === 0) return;
-    opts.focusEditor();
-    const original = sel.getRangeAt(0);
-    const lineRange = expandRangeToLines(el, original);
-    const contents = lineRange?.extractContents() ?? document.createDocumentFragment();
-    const result = document.createDocumentFragment();
-    let quote = document.createElement("blockquote");
-    quote.className = "composer-quote";
-    result.appendChild(quote);
-    for (const node of Array.from(contents.childNodes)) {
-      if (node.nodeName === "BR") {
-        if (!quote.childNodes.length) quote.appendChild(document.createElement("br"));
-        result.appendChild(createComposerBlockSeparator());
-        quote = document.createElement("blockquote");
-        quote.className = "composer-quote";
-        result.appendChild(quote);
-      } else {
-        quote.appendChild(node);
-      }
-    }
-    if (!quote.childNodes.length) quote.appendChild(document.createElement("br"));
-    if (lineRange) lineRange.insertNode(result);
-    else original.insertNode(result);
-    placeCaretAtEnd(quote);
-    opts.syncFromDom();
+    wrapCurrentLinesInBlock((frag) => {
+      const quote = document.createElement("blockquote");
+      quote.className = "composer-quote";
+      quote.appendChild(frag);
+      return quote;
+    });
   }
   function applyList(ordered: boolean) {
     const el = ref.get();

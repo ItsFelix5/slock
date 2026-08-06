@@ -1,12 +1,8 @@
+import { formatDuration } from "@slock/blockkit";
 import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import "./AudioFile.css";
-
-function formatDuration(seconds: number | undefined): string {
-  const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds ?? 0)) : 0;
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
 
 // Slack ships one raw sample per ~0.4s of audio, so a longer message can carry
 // hundreds of values — far more than fit as individually visible bars. Fold
