@@ -204,13 +204,19 @@ export function createActivitySlice(
   // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply in a
   // thread you're in) can legitimately point at your own message — the feed
   // itself doesn't filter those out, so do it here rather than showing your
-  // own posts back to you as activity.
+  // own posts back to you as activity. Only those two kinds get this
+  // treatment, and only on a positive userId match: this used to also drop
+  // anything whose author never resolved (empty userId), which silently ate
+  // real pings (a mention/DM/keyword hit whose messages.list lookup failed
+  // or raced a not-yet-indexed message) instead of just showing them with an
+  // unknown author, the same fallback the rest of the app already uses.
+  const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>(["channel_all", "thread_reply"]);
   function createEntryPusher(me: User, seen: Set<string>, seenChannelPosts: Set<string>) {
     const pushItem = (item: ActivityItem) => {
       const channelPostKey = `${item.channelId}:${item.ts}`;
       if (
         seen.has(item.id) ||
-        (item.channelId && (!item.userId || item.userId === me.id)) ||
+        (OwnMessageFilteredKinds.has(item.kind) && item.userId === me.id) ||
         (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey))
       )
         return;
