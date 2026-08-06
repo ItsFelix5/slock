@@ -186,6 +186,19 @@ export default function MessageList() {
       const api = virtualApi();
       if (align !== "end") api?.scrollToIndex(index, { align });
       else if (scrollRef) scrollToBottom(scrollRef);
+      // landingSpace's only job is holding the scroll range open long enough
+      // for the divider-landing scrollToIndex above to actually reach "start"
+      // instead of clamping against a not-yet-fully-measured scrollHeight —
+      // once landed, it's dead weight. Previously it only cleared on the
+      // reader's first wheel/touch scroll, so a short unread tail that didn't
+      // need any further scrolling left a whole extra viewport of blank space
+      // sitting under it indefinitely. Dropping it here is safe: it only
+      // shrinks content below where we just scrolled to, so it never moves
+      // what's already on screen, and the browser's own scroll clamp takes
+      // over correctly from here — pinned at the divider if the real tail
+      // turned out longer than estimated, naturally settled at the bottom
+      // (showing the whole tail) if it turned out to fit after all.
+      if (landingSpace()?.viewId === viewId) setLandingSpace(undefined);
       dbg("reveal", {
         viewId,
         index,
