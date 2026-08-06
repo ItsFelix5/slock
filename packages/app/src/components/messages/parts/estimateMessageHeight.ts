@@ -19,7 +19,11 @@ import {
   estimateLineCount,
   estimateMrkdwnHeight,
 } from "./media/estimateMediaHeight";
-import { type MessageRenderContext, resolveMessageRenderState } from "./messageRenderState";
+import {
+  isRichTextSubBlock,
+  type MessageRenderContext,
+  resolveMessageRenderState,
+} from "./messageRenderState";
 
 const LINE_HEIGHT = 22;
 const META_HEIGHT = 20;
@@ -72,16 +76,42 @@ function textObjectLines(text: TextObject | undefined, wrapWidth: number): numbe
   return text ? estimateLineCount(text.text, wrapWidth) : 0;
 }
 
+// Mirrors QuoteContent in blockkit's RichText.tsx: a quote's elements are
+// usually plain inline content, but Slack nests a full sub-block (most often
+// a rich_text_list) directly inside when e.g. a bullet list is started while
+// the caret is inside a blockquote. Measure each inline run and nested block
+// on its own rather than feeding the whole mixed array through inlineText,
+// which doesn't know what a nested block is and would collapse it to a
+// single fallback line.
+function quoteContentHeight(
+  elements: (RichTextInlineElement | RichTextSubBlock)[],
+  wrapWidth: number,
+): number {
+  let height = 0;
+  let run: RichTextInlineElement[] = [];
+  const flushRun = () => {
+    if (!run.length) return;
+    height += Math.max(1, estimateLineCount(inlineText(run), wrapWidth)) * LINE_HEIGHT;
+    run = [];
+  };
+  for (const element of elements) {
+    if (isRichTextSubBlock(element)) {
+      flushRun();
+      height += richTextSubBlockHeight(element, wrapWidth);
+    } else {
+      run.push(element);
+    }
+  }
+  flushRun();
+  return height;
+}
+
 function richTextSubBlockHeight(subBlock: RichTextSubBlock, wrapWidth: number): number {
   switch (subBlock.type) {
     case "rich_text_section":
       return estimateLineCount(inlineText(subBlock.elements), wrapWidth) * LINE_HEIGHT;
     case "rich_text_quote":
-      return (
-        Math.max(1, estimateLineCount(inlineText(subBlock.elements), wrapWidth - 15)) *
-          LINE_HEIGHT +
-        8
-      );
+      return quoteContentHeight(subBlock.elements, wrapWidth - 15) + 8;
     case "rich_text_preformatted":
       return (
         Math.max(1, estimateLineCount(inlineText(subBlock.elements), wrapWidth - 20)) * 18 + 18

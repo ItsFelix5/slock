@@ -1,6 +1,14 @@
 // biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related DM row and sidebar skeleton exports.
 import type { DirectMessage } from "@slock/slack-api";
-import { Avatar, AvatarStack, Icon, InlineFeedback, Skeleton, Tooltip } from "@slock/ui";
+import {
+  Avatar,
+  AvatarStack,
+  Icon,
+  type IconName,
+  InlineFeedback,
+  Skeleton,
+  Tooltip,
+} from "@slock/ui";
 import type { JSX } from "solid-js";
 import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
@@ -10,7 +18,7 @@ import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
 // button and its expand/collapse semantics only live in one place.
 export function SidebarSectionCaretRow(props: {
   badge?: JSX.Element;
-  caretIcon?: string;
+  caretIcon?: IconName;
   caretSize?: number;
   label: string;
   labelAriaLabel?: string;

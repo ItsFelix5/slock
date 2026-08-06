@@ -1,20 +1,8 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
+import type { User } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
 import { Show } from "solid-js";
 import { store } from "../../lib/store";
-
-interface User {
-  id: string;
-  name: string;
-  pronouns?: string;
-  title?: string;
-  statusText?: string;
-  statusEmoji?: string;
-  presence?: string;
-  isBot?: boolean;
-  avatarUrl: string;
-  avatarColor: string;
-}
 
 interface UserProfileInfoProps {
   isSelf: () => boolean;
@@ -22,7 +10,7 @@ interface UserProfileInfoProps {
   user: () => User | undefined;
   botBio: () => string | undefined;
   lastSeenText: () => string | null;
-  localTime: () => string | undefined;
+  localTime: () => string | null;
   onTogglePresence: () => void;
   saveName: () => void;
   saveTitle: () => void;

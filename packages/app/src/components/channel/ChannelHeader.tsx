@@ -67,10 +67,7 @@ export default function ChannelHeader() {
             </Show>
           </div>
           <Show when={channelTopic()}>
-            <Tooltip
-              class="channel-header-topic-wrap"
-              content={<Mrkdwn text={channelTopic()} />}
-            >
+            <Tooltip class="channel-header-topic-wrap" content={<Mrkdwn text={channelTopic()} />}>
               <span class="channel-header-topic truncate text-dim text-sm">
                 <Mrkdwn text={channelTopic()} />
               </span>

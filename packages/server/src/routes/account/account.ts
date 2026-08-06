@@ -67,7 +67,8 @@ export const accountRoutes: Route[] = [
   // fetches it separately instead of paying that cost on every batched lookup.
   route("GET", "/api/users/:id/profile", async (ctx) => {
     const data = await callSlack("users.profile.get", { user: ctx.params.id }, ctx.creds);
-    if (!data.ok) return slackErrorResponse(data, "users.profile.get", ctx.creds, ctx.acceptEncoding);
+    if (!data.ok)
+      return slackErrorResponse(data, "users.profile.get", ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
       { ok: true, profile: trimProfile(data.profile) },
       ctx.creds,

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+    "types": ["node", "bun-types"],
+    // No DOM here (unlike the shared base config, which the browser app needs it
+    // for): bun-types quietly hands its own richer globals (e.g. WebSocket's
+    // {headers} constructor option) over to lib.dom's browser-only signatures
+    // the moment DOM is loaded, which doesn't exist server-side anyway.
+    "lib": ["ES2023"]
+  },
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"],
+  "references": [{ "path": "../slack-api" }]
+}
