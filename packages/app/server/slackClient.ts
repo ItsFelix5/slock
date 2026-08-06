@@ -22,7 +22,11 @@ function slackRequestBody(
   params: Record<string, string>,
   token: string,
 ): { body: FormData | string; headers: Record<string, string> } {
-  if (method === "conversations.view" || (method === "messages.list" && params.message_ids)) {
+  if (
+    method === "activity.markRead" ||
+    method === "conversations.view" ||
+    (method === "messages.list" && params.message_ids)
+  ) {
     const body = new FormData();
     body.append("token", token);
     for (const [key, value] of Object.entries(params)) {

@@ -1,11 +1,9 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to command parsing.
-import { store } from "../../../../lib/store";
 import {
   createComposerBlockSeparator,
   createDateChip,
   createDividerElement,
   createHeaderElement,
-  createMentionChip,
   expandRangeToLines,
   placeCaretAtEnd,
   placeCaretAtStart,
@@ -206,18 +204,6 @@ export function createBlockCommands(
     placeCaretInText(lastNode, lastNode.length);
     opts.syncFromDom();
   }
-  function insertMentionChipAtCaret(id: string) {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    const chip = createMentionChip(id, store.users.userById(id)?.name ?? id);
-    range.insertNode(chip);
-    const space = document.createTextNode(" ");
-    chip.after(space);
-    placeCaretInText(space, 1);
-    opts.syncFromDom();
-  }
   function insertDateChipAtCaret(timestamp: number, format?: string) {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -291,7 +277,6 @@ export function createBlockCommands(
     insertDateChipAtCaret,
     insertDividerAtCaret,
     insertLineBreak,
-    insertMentionChipAtCaret,
     insertPlainTextAtCaret,
     ...navigation,
     maybeApplyLineTrigger,

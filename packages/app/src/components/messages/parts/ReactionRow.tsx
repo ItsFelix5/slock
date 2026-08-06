@@ -1,6 +1,13 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Reaction } from "@slock/slack-api";
-import { AvatarStack, ContextMenu, Icon, Tooltip, useContextMenu } from "@slock/ui";
+import {
+  AvatarStack,
+  ContextMenu,
+  Icon,
+  openContextMenuFromKeyboard,
+  Tooltip,
+  useContextMenu,
+} from "@slock/ui";
 import { createMemo, For } from "solid-js";
 import { actionFeedback, store } from "../../../lib/store";
 
@@ -52,6 +59,7 @@ export default function ReactionRow(props: {
                   disabled={props.isPending?.(r.name) ?? false}
                   onClick={() => props.onToggle(r.name)}
                   onContextMenu={(e) => ctxMenu.open(e)}
+                  onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
                   type="button"
                 >
                   <EmojiText text={`:${r.name}:`} />

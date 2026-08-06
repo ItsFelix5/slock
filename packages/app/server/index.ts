@@ -2,6 +2,7 @@
 // API on a single port. Vite remains development-only.
 import { routeApiRequest } from "./api";
 import { type Credentials, parseCredsCookie } from "./auth";
+import { compressResponse } from "./http/compressedResponse";
 import {
   handleClientDisconnect,
   handleClientMessage,
@@ -50,14 +51,17 @@ Bun.serve<{ creds: Credentials | null }>({
         text: () => req.text().catch(() => ""),
       },
     );
-    if (apiResponse) return apiResponse;
+    if (apiResponse) return compressResponse(apiResponse, req.headers.get("accept-encoding"));
 
     if (req.method === "GET") {
       const asset = await serveStatic(url.pathname);
-      if (asset) return asset;
+      if (asset) return compressResponse(asset, req.headers.get("accept-encoding"));
     }
 
-    return new Response("not found", { status: 404 });
+    return compressResponse(
+      new Response("not found", { status: 404 }),
+      req.headers.get("accept-encoding"),
+    );
   },
   hostname: "0.0.0.0",
   port: PORT,

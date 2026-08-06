@@ -3,6 +3,7 @@ import type { Plugin } from "vite";
 import { routeApiRequest } from "./api.ts";
 import { parseCredsCookie } from "./auth.ts";
 import { acceptUpgrade } from "./dev-websocket.ts";
+import { compressResponse } from "./http/compressedResponse.ts";
 import {
   handleClientDisconnect,
   handleClientMessage,
@@ -103,7 +104,13 @@ export function appServerPlugin(): Plugin {
             },
           );
           if (apiResponse) {
-            await sendWebResponse(res, apiResponse);
+            await sendWebResponse(
+              res,
+              await compressResponse(
+                apiResponse,
+                req.headers["accept-encoding"]?.toString() ?? null,
+              ),
+            );
             return;
           }
 

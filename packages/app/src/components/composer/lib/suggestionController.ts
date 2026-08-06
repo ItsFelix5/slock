@@ -1,7 +1,7 @@
 import { emojiUrl, loadCustomEmoji } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
-import { fuzzySearch } from "@slock/ui";
+import { fuzzySearch, listNavigationIndex } from "@slock/ui";
 import type { Setter } from "solid-js";
 import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../../lib/emojiSearch";
 import { store } from "../../../lib/store";
@@ -31,6 +31,10 @@ type SuggestionOptions = {
   currentTextContext: () => { node: Text; offset: number } | null;
   syncFromDom: () => void;
   includeCommands?: boolean;
+  // Channel the message is being composed for, used to flag @mentions and
+  // #channel mentions of people/channels not in it. Omitted for mrkdwn
+  // fields that aren't tied to a channel (topic, purpose, etc).
+  channelId?: () => string | undefined;
 };
 
 type ChannelCandidate = { id: string; name: string; private: boolean };
@@ -62,6 +66,8 @@ function updateUserSuggestions(
   currentRequestId: () => number,
 ) {
   const me = store.users.currentUser()?.id;
+  const channelId = trigger.kind === "user" ? opts.channelId?.() : undefined;
+  const roster = channelId ? store.channels.channelMemberIds(channelId) : undefined;
   const toItems = (users: User[]): UserSuggestItem[] =>
     fuzzySearch(users, {
       frequency: (u) => store.preferences.frecencyScore(u.id),
@@ -69,7 +75,13 @@ function updateUserSuggestions(
       text: (u) => u.name,
     })
       .slice(0, 8)
-      .map((u) => ({ id: u.id, kind: "user", name: u.name, user: u }));
+      .map((u) => ({
+        id: u.id,
+        kind: "user",
+        name: u.name,
+        notInChannel: roster ? !roster.has(u.id) : false,
+        user: u,
+      }));
   const localUsers = store.users.knownUsers().filter((u) => u.id !== me);
   opts.setSuggest({
     active: 0,
@@ -77,6 +89,19 @@ function updateUserSuggestions(
     kind: trigger.kind,
     start: trigger.start,
   });
+  if (channelId && !roster) {
+    store.channels.ensureChannelRoster(channelId).then((resolved) => {
+      if (requestId !== currentRequestId() || !resolved) return;
+      opts.setSuggest((prev) =>
+        prev?.kind === trigger.kind
+          ? {
+              ...prev,
+              items: prev.items.map((item) => ({ ...item, notInChannel: !resolved.has(item.id) })),
+            }
+          : prev,
+      );
+    });
+  }
   if (!query) return;
   store.users
     .searchUsers(query, me)
@@ -105,7 +130,13 @@ function updateChannelSuggestions(
       text: (c) => c.name,
     })
       .slice(0, 8)
-      .map((c) => ({ id: c.id, kind: "channel", name: c.name, private: c.private }));
+      .map((c) => ({
+        id: c.id,
+        kind: "channel",
+        name: c.name,
+        notInChannel: !store.channels.isChannelMember(c.id),
+        private: c.private,
+      }));
   const localChannels = store.channels.channels();
   opts.setSuggest({ active: 0, items: toItems(localChannels), kind: "channel", start });
   if (!query) return;
@@ -168,8 +199,15 @@ export function createSuggestionController(opts: SuggestionOptions) {
   function moveActiveSuggestion(delta: number) {
     const s = opts.suggest();
     if (!s) return;
-    const n = s.items.length;
-    setActiveSuggestion((((s.active + delta) % n) + n) % n);
+    const next = listNavigationIndex(
+      delta > 0 ? "ArrowDown" : "ArrowUp",
+      s.active,
+      s.items.length,
+      {
+        wrap: true,
+      },
+    );
+    if (next !== undefined) setActiveSuggestion(next);
   }
 
   function updateSuggestions(value: string, cursor: number) {

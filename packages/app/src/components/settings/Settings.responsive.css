@@ -22,8 +22,4 @@
   .settings-content {
     padding: 16px;
   }
-
-  .settings-size-control {
-    width: min(210px, 100%);
-  }
 }

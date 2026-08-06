@@ -2,6 +2,28 @@ import { submitAuthRequest } from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import "./ConnectSlack.css";
 
+const SLACK_SESSION_INVALID_CHARS = /[;\s]/;
+const CONTENT_TYPE_BOUNDARY_CURL = /-H\s*['"]content-type:[^'"]*boundary=([^\s'";]+)['"]/i;
+const CONTENT_TYPE_BOUNDARY_JSON = /"content-type":\s*"[^"]*boundary=([^"\\]+)"/i;
+const NEWLINE_SPLIT = /\r?\n/;
+const BOUNDARY_MARKER = /^-{2,}(.+)$/;
+const UNESCAPE_CONTROL = /\\(r|n|t|\\|"|')/g;
+const FORM_DATA_DISPOSITION = /Content-Disposition:\s*form-data;\s*name="([^"]+)"/i;
+const CONTINUATION_JOIN = /\\\r?\n/g;
+const CARET_JOIN = /\^\r?\n/g;
+const BACKTICK_JOIN = /`\r?\n/g;
+const URL_MATCH = /https?:\/\/[^\s'"\\]+/;
+const MULTIPART_FIELD_END = /\r?\n--$/;
+const CURL_B_SINGLE = /-b\s+'([^']*)'/;
+const CURL_B_DOUBLE = /-b\s+"([^"]*)"/;
+const CURL_COOKIE = /-H\s*['"]cookie:\s*([^'"]*)['"]/i;
+const JSON_COOKIE = /"cookie":\s*"([^"]*)"/i;
+const DATA_CURL_SINGLE = /--data(?:-raw|-binary)?\s+\$?'((?:[^'\\]|\\.)*)'/;
+const DATA_CURL_DOUBLE = /--data(?:-raw|-binary)?\s+"((?:[^"\\]|\\.)*)"/;
+const DATA_D = /-d\s+'((?:[^'\\]|\\.)*)'/;
+const DATA_JSON = /"body":\s*"((?:[^"\\]|\\.)*)"/;
+const CONTENT_DISP = /content-disposition/i;
+
 function firstMatch(text: string, patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
     const found = text.match(pattern)?.[1];
@@ -14,7 +36,7 @@ function extractSlackSession(cookieHeader: string): string | undefined {
     const eq = part.indexOf("=");
     if (eq === -1 || part.slice(0, eq).trim() !== "d") continue;
     const value = part.slice(eq + 1).trim();
-    if (value.startsWith("xoxd-") && !/[;\s]/.test(value)) return value;
+    if (value.startsWith("xoxd-") && !SLACK_SESSION_INVALID_CHARS.test(value)) return value;
   }
 }
 
@@ -22,13 +44,8 @@ function unescapeJs(value: string): string {
   return value.replace(/\\(.)/g, "$1");
 }
 
-// Multipart bodies (file uploads, e.g. files.completeUploadExternal) contain
-// real CRLFs, which devtools represents as literal `\r\n` escape sequences
-// whether the copy format is bash's ANSI-C `$'...'` quoting or a JS string
-// literal — unlike unescapeJs, this has to turn those back into actual
-// control characters rather than just stripping the backslash.
-function unescapeControlChars(value: string): string {
-  return value.replace(/\\(r|n|t|\\|"|')/g, (_, c: string) => {
+function unescapeControlCharsImpl(value: string): string {
+  return value.replace(UNESCAPE_CONTROL, (_, c: string) => {
     if (c === "r") return "\r";
     if (c === "n") return "\n";
     if (c === "t") return "\t";
@@ -37,14 +54,10 @@ function unescapeControlChars(value: string): string {
 }
 
 function extractBoundary(text: string, unescapedBody: string): string | undefined {
-  const headerBoundary = firstMatch(text, [
-    /-H\s*['"]content-type:[^'"]*boundary=([^\s'";]+)['"]/i,
-    /"content-type":\s*"[^"]*boundary=([^"\\]+)"/i,
-  ]);
+  const headerBoundary = firstMatch(text, [CONTENT_TYPE_BOUNDARY_CURL, CONTENT_TYPE_BOUNDARY_JSON]);
   if (headerBoundary) return headerBoundary;
-  // Fall back to sniffing the body itself: its first line is always `--<boundary>`.
-  const firstLine = unescapedBody.split(/\r?\n/)[0] ?? "";
-  return firstLine.match(/^-{2,}(.+)$/)?.[1];
+  const firstLine = unescapedBody.split(NEWLINE_SPLIT)[0] ?? "";
+  return firstLine.match(BOUNDARY_MARKER)?.[1];
 }
 
 function extractMultipartField(
@@ -53,15 +66,12 @@ function extractMultipartField(
   fieldName: string,
 ): string | undefined {
   for (const part of body.split(`--${boundary}`)) {
-    const disposition = part.match(/Content-Disposition:\s*form-data;\s*name="([^"]+)"/i);
+    const disposition = part.match(FORM_DATA_DISPOSITION);
     if (disposition?.[1] !== fieldName) continue;
     const sepIndex = part.indexOf("\r\n\r\n");
     const valueStart = sepIndex === -1 ? part.indexOf("\n\n") + 2 : sepIndex + 4;
     if (valueStart <= 0) continue;
-    return part
-      .slice(valueStart)
-      .replace(/\r?\n--$/, "")
-      .trim();
+    return part.slice(valueStart).replace(MULTIPART_FIELD_END, "").trim();
   }
 }
 
@@ -72,21 +82,16 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
     try {
       const text = raw
         .trim()
-        .replace(/\\\r?\n/g, " ")
-        .replace(/\^\r?\n/g, " ")
-        .replace(/`\r?\n/g, " ");
+        .replace(CONTINUATION_JOIN, " ")
+        .replace(CARET_JOIN, " ")
+        .replace(BACKTICK_JOIN, " ");
 
-      const urlMatch = text.match(/https?:\/\/[^\s'"\\]+/);
+      const urlMatch = text.match(URL_MATCH);
       if (!urlMatch) throw new Error("Couldn't find a URL in that.");
       const url = new URL(urlMatch[0]);
       const domain = url.hostname;
 
-      const cookie = firstMatch(text, [
-        /-b\s+'([^']*)'/,
-        /-b\s+"([^"]*)"/,
-        /-H\s*['"]cookie:\s*([^'"]*)['"]/i,
-        /"cookie":\s*"([^"]*)"/i,
-      ]);
+      const cookie = firstMatch(text, [CURL_B_SINGLE, CURL_B_DOUBLE, CURL_COOKIE, JSON_COOKIE]);
       if (!cookie) {
         throw new Error(
           "Couldn't find a cookie header. Make sure devtools copied the request with headers included (Copy as cURL includes them by default).",
@@ -97,20 +102,12 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
         throw new Error("Couldn't find Slack's d session cookie in that request.");
       }
 
-      const bodyRaw = firstMatch(text, [
-        /--data(?:-raw|-binary)?\s+\$?'((?:[^'\\]|\\.)*)'/,
-        /--data(?:-raw|-binary)?\s+"((?:[^"\\]|\\.)*)"/,
-        /-d\s+'((?:[^'\\]|\\.)*)'/,
-        /"body":\s*"((?:[^"\\]|\\.)*)"/,
-      ]);
+      const bodyRaw = firstMatch(text, [DATA_CURL_SINGLE, DATA_CURL_DOUBLE, DATA_D, DATA_JSON]);
 
       let token = url.searchParams.get("token") ?? undefined;
       if (!token && bodyRaw) {
-        if (/content-disposition/i.test(bodyRaw)) {
-          // multipart/form-data (e.g. files.completeUploadExternal) — "Content-
-          // Disposition" is never escaped, so its presence is a reliable signal
-          // regardless of which devtools copy format produced the body.
-          const unescapedBody = unescapeControlChars(bodyRaw);
+        if (CONTENT_DISP.test(bodyRaw)) {
+          const unescapedBody = unescapeControlCharsImpl(bodyRaw);
           const boundary = extractBoundary(text, unescapedBody);
           if (boundary) token = extractMultipartField(unescapedBody, boundary, "token");
         } else {

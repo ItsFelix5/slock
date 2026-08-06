@@ -41,6 +41,7 @@ export interface RawUser {
   color?: string;
   id: string;
   is_bot?: boolean;
+  last_seen?: number;
   name?: string;
   presence?: string;
   profile?: RawUserProfile;
@@ -81,10 +82,10 @@ export interface RawCountGroup {
 }
 
 export interface RawCounts {
+  activity_v2?: Record<string, number>;
   channels?: RawCountGroup[];
   ims?: RawCountGroup[];
   mpims?: RawCountGroup[];
-  ok?: boolean;
 }
 
 export interface RawFile {
@@ -235,6 +236,7 @@ export function mapUser(raw: RawUser): User {
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
     // Slack's API never sets is_bot for it — flag it by id instead.
     isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
+    lastSeen: raw.last_seen || undefined,
     name: name ?? "",
     phone: raw.profile?.phone || undefined,
     presence: raw.presence === "away" ? "away" : "active",
@@ -311,7 +313,7 @@ function mapCountGroups(
 export function buildUnreadMap(
   counts: RawCounts | undefined,
 ): Record<string, { unread: boolean; mentions: number }> {
-  if (!counts?.ok) return {};
+  if (!counts) return {};
   return mapCountGroups([
     ...(counts.channels ?? []),
     ...(counts.mpims ?? []),

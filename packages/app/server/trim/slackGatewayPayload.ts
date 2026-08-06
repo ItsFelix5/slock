@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's gateway wire fields.
-import { trimCountGroups, trimMessage } from "./slackEntities.ts";
+import { trimActivityCounts, trimCountGroups, trimMessage } from "./slackEntities.ts";
 
 function trimCounts(payload: any): any {
   if (!payload || typeof payload !== "object") return payload;
@@ -12,23 +12,6 @@ function trimCounts(payload: any): any {
     unread_count: group?.unread_count,
     unread_count_display: group?.unread_count_display,
   }));
-}
-
-const ACTIVITY_COUNT_KEYS = [
-  "at_channel",
-  "at_everyone",
-  "at_user",
-  "at_user_group",
-  "channel",
-  "dm",
-  "keyword",
-  "list_user_mentioned",
-  "thread_v2",
-] as const;
-
-function trimActivityCounts(activity: any): any {
-  if (!activity || typeof activity !== "object") return activity;
-  return Object.fromEntries(ACTIVITY_COUNT_KEYS.map((key) => [key, activity[key]]));
 }
 
 function trimMessageEvent(payload: any): any {

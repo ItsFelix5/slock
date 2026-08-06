@@ -1,8 +1,53 @@
 // biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related DM row and sidebar skeleton exports.
 import type { DirectMessage } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, InlineFeedback, Skeleton, Tooltip } from "@slock/ui";
+import type { JSX } from "solid-js";
 import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
+
+// Shared by channel-category headers (label doubles as an unread filter
+// toggle) and the DM section headers (label is plain text) so the caret
+// button and its expand/collapse semantics only live in one place.
+export function SidebarSectionCaretRow(props: {
+  badge?: JSX.Element;
+  caretIcon?: string;
+  caretSize?: number;
+  label: string;
+  labelAriaLabel?: string;
+  onLabelClick?: () => void;
+  onToggleOpen: () => void;
+  open: boolean;
+}) {
+  return (
+    <div class="sidebar-section-header-btn flex-align-center text-muted text-sm">
+      <button
+        aria-expanded={props.open}
+        aria-label={`${props.open ? "Collapse" : "Expand"} ${props.label}`}
+        class="sidebar-caret btn-reset"
+        onClick={props.onToggleOpen}
+        type="button"
+      >
+        <Icon
+          name={props.caretIcon ?? (props.open ? "caret-down-filled" : "caret-right-filled")}
+          size={props.caretSize ?? 12}
+        />
+      </button>
+      <Show fallback={<span>{props.label}</span>} when={props.onLabelClick}>
+        {(onLabelClick) => (
+          <button
+            aria-label={props.labelAriaLabel}
+            class="btn-reset text-muted text-sm"
+            onClick={onLabelClick()}
+            type="button"
+          >
+            {props.label}
+          </button>
+        )}
+      </Show>
+      {props.badge}
+    </div>
+  );
+}
 
 export function DmRow(props: { dm: DirectMessage }) {
   const user = createMemo(() =>
@@ -32,6 +77,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             muted: muted(),
             unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
           }}
+          data-nav-row
           onClick={() => store.viewState.setActiveView({ id: props.dm.id, kind: "dm" })}
           type="button"
         >

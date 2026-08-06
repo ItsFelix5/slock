@@ -1,5 +1,5 @@
 import type { Bootstrap, DirectMessage, UserPrefs } from "@slock/slack-api";
-import type { Resource, Setter } from "solid-js";
+import { createEffect, type Resource, type Setter } from "solid-js";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -79,6 +79,7 @@ export function createStoreSlices({
     syncChannelRead: unread.syncChannelRead,
     syncThreadRead: unread.syncThreadRead,
   });
+  createEffect(() => activity.setGatewayActivityBadgeCounts(bootstrap()?.activityCounts));
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
   const searchHistory = createSearchHistorySlice({ userPrefs });
   const channelTabsSlice = createChannelTabsSlice({ userPrefs });
@@ -88,7 +89,6 @@ export function createStoreSlices({
     bootstrap,
     closeUserProfile: users.closeUserProfile,
     currentUser: users.currentUser,
-    removeDmFromSidebar: channels.removeDmFromSidebar,
     setActiveView,
   });
   patchDmImplRef.current = dms.patchDm;

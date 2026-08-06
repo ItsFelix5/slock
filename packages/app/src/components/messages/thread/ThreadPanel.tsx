@@ -13,6 +13,7 @@ import { sidebarWidth } from "../../../lib/sidebarWidth";
 import { actionFeedback, conversationDisplayName, store } from "../../../lib/store";
 import Composer from "../../composer/Composer";
 import MessageRows from "../MessageRows";
+import { createMessageFocus } from "../messageFocus";
 import ReplyReferenceRow from "../parts/ReplyReferenceRow";
 import {
   captureScrollAnchor,
@@ -42,6 +43,16 @@ export default function ThreadPanel() {
     if (!t) return [];
     return store.messages.threadMessages[t.ts] ?? [];
   });
+  const messageFocus = createMessageFocus(
+    messages,
+    () => null,
+    () => messagesRef,
+    () => thread()?.channelId ?? "",
+    {
+      onReplyLink: (msg) => void startReply(msg),
+      threadTs: () => thread()?.ts,
+    },
+  );
 
   const replyTargetMessage = createMemo(() => messages().find((m) => m.ts === replyTarget()?.ts));
 
@@ -253,14 +264,20 @@ export default function ThreadPanel() {
           <div
             aria-busy={store.messages.isLoadingThread(t().ts)}
             class="thread-panel-messages"
+            onFocusIn={messageFocus.onContainerFocusIn}
+            onFocusOut={messageFocus.onContainerFocusOut}
             onScroll={handleMessagesScroll}
             ref={messagesRef}
           >
             <MessageRows
               channelId={t().channelId}
+              editingTs={messageFocus.editingTs}
+              focusedTs={messageFocus.focusedTs}
               messages={messages()}
               onJumpToMessage={jumpToMessage}
               onReplyLink={startReply}
+              onStartEdit={messageFocus.onStartEdit}
+              onStopEdit={messageFocus.onStopEdit}
               threadTs={t().ts}
             />
           </div>

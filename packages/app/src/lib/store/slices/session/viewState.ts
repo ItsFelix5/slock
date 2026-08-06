@@ -1,5 +1,6 @@
 import type { Channel, DirectMessage } from "@slock/slack-api";
 import { batch, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { isDmId } from "../../../dmId";
 import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
 import type { ChannelMessageTarget, Nav, ThreadRef, View } from "../types";
 
@@ -14,7 +15,14 @@ export function resolveActiveView(
   selected: View | null,
   data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
 ): View | null {
-  if (selected) return selected;
+  if (selected) {
+    // parseNavPath guesses kind from the id alone, but mpim ids share private
+    // channels' "G..." namespace and can only be told apart once the dms list
+    // has loaded — reconcile against it here (see isDmId).
+    const isDm = isDmId(selected.id, (id) => !!data?.directMessages.some((d) => d.id === id));
+    const kind = isDm ? "dm" : "channel";
+    return kind === selected.kind ? selected : { id: selected.id, kind };
+  }
   if (nav !== "home" || !data) return null;
   const [firstChannel] = data.channels;
   if (firstChannel) return { id: firstChannel.id, kind: "channel" };

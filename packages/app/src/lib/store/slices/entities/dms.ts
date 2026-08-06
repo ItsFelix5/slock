@@ -1,5 +1,5 @@
 import type { DirectMessage, User } from "@slock/slack-api";
-import { fetchChannelMembers, openDm } from "@slock/slack-api";
+import { closeDm, fetchChannelMembers, openDm } from "@slock/slack-api";
 import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
@@ -9,7 +9,6 @@ export function createDmsSlice(deps: {
   bootstrap: () => { directMessages: DirectMessage[] } | undefined;
   closeUserProfile: () => void;
   currentUser: () => User | undefined;
-  removeDmFromSidebar: (dmId: string) => Promise<boolean>;
   activeView: () => View | null;
   setActiveView: (view: View) => void;
 }) {
@@ -119,7 +118,7 @@ export function createDmsSlice(deps: {
     if (isCloseDmPending(dmId)) return false;
     setCloseDmPendingById(dmId, true);
     try {
-      if (!(await deps.removeDmFromSidebar(dmId))) return false;
+      await closeDm(dmId);
       setClosedDmIds(dmId, true);
       const view = deps.activeView();
       if (view?.kind === "dm" && view.id === dmId) {

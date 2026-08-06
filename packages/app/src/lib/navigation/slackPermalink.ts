@@ -11,12 +11,17 @@ export interface SlackPermalinkTarget {
 }
 
 export interface SlackPermalinkNavigator {
-  openChannelMessage: (channelId: string, ts: string) => void;
-  openChannelPeek: (channelId: string, threadTs: string, highlightTs?: string) => void;
+  openChannelMessage: (channelId: string, ts: string, options?: { keepNav?: boolean }) => void;
+  openChannelPeek: (
+    channelId: string,
+    threadTs: string,
+    highlightTs?: string,
+    options?: { keepNav?: boolean },
+  ) => void;
 }
 
 export interface SlackPermalinkOpenerDeps {
-  navigate: (target: SlackPermalinkTarget) => void;
+  navigate: (target: SlackPermalinkTarget, options?: { keepNav?: boolean }) => void;
   onError: (error: unknown) => void;
   onUnavailable: () => void;
   probe: (target: SlackPermalinkTarget) => Promise<boolean>;
@@ -34,7 +39,7 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
     requestId++;
   }
 
-  async function open(target: SlackPermalinkTarget) {
+  async function open(target: SlackPermalinkTarget, options?: { keepNav?: boolean }) {
     const currentRequestId = ++requestId;
     try {
       const available = await deps.probe(target);
@@ -43,7 +48,7 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
         deps.onUnavailable();
         return;
       }
-      deps.navigate(target);
+      deps.navigate(target, options);
     } catch (error) {
       if (currentRequestId === requestId) deps.onError(error);
     }
@@ -55,12 +60,13 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
 export function navigateToSlackPermalink(
   target: SlackPermalinkTarget,
   navigator: SlackPermalinkNavigator,
+  options?: { keepNav?: boolean },
 ) {
   if (target.threadTs !== target.messageTs) {
-    navigator.openChannelPeek(target.channelId, target.threadTs, target.messageTs);
+    navigator.openChannelPeek(target.channelId, target.threadTs, target.messageTs, options);
     return;
   }
-  navigator.openChannelMessage(target.channelId, target.messageTs);
+  navigator.openChannelMessage(target.channelId, target.messageTs, options);
 }
 
 /** Return the in-app destination represented by a Slack message permalink. */

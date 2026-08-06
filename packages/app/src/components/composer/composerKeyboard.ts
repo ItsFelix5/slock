@@ -57,6 +57,7 @@ export function createComposerKeyHandler(deps: {
       !e.altKey &&
       (deps.editor.handleBackspaceOnQuote() ||
         deps.editor.handleBackspaceOnHeading() ||
+        deps.editor.handleBackspaceOnCodeBlock() ||
         deps.editor.handleBackspaceOnDivider())
     ) {
       e.preventDefault();

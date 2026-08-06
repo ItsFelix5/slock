@@ -38,11 +38,3 @@ export async function lookupFlaronChannel(
     return null;
   }
 }
-
-export async function flaronChannelResponse(id: string | null): Promise<Response> {
-  if (!id) return new Response("missing id", { status: 400 });
-  const channel = await lookupFlaronChannel(id);
-  return channel
-    ? Response.json(channel, { headers: { "cache-control": "private, max-age=300" } })
-    : new Response("channel not found", { status: 404 });
-}

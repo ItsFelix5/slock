@@ -165,6 +165,47 @@ export function createMessageHistory(
       setHistoryMeta(channelId, "olderError", true);
     }
   }
+  // Jumping to the beginning walks every remaining older page in one request
+  // chain instead of waiting for scroll events to trigger each one. The
+  // scroll-driven path (loadOlderMessages) depends on scrollHeight growing
+  // enough to fire another scroll event — a page that's entirely hidden
+  // subtypes (joins/leaves) adds no visible rows, so that never happens and
+  // hasMore is left stuck true. conversations.history's own has_more/
+  // next_cursor is trustworthy across however many requests that takes; a
+  // failure partway through just leaves the normal olderError retry state.
+  async function loadOlderMessagesToBeginning(channelId: string) {
+    if (!loadedChannels.has(channelId)) return;
+    const meta = historyMeta[channelId];
+    if (meta?.loading || meta?.hasMore === false) return;
+    let cursor = historyCursor.get(channelId);
+    if (!cursor) {
+      setHistoryMeta(channelId, "hasMore", false);
+      return;
+    }
+    const epoch = windowEpochs.current(channelId);
+    setHistoryMeta(channelId, "loading", true);
+    setHistoryMeta(channelId, "olderError", false);
+    try {
+      let hasMore = true;
+      while (cursor && hasMore) {
+        const {
+          messages: older,
+          hasMore: pageHasMore,
+          nextCursor,
+        } = await api.fetchHistory(channelId, cursor);
+        if (!windowEpochs.isCurrent(channelId, epoch)) return;
+        setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, older));
+        historyCursor.set(channelId, nextCursor);
+        cursor = nextCursor;
+        hasMore = pageHasMore;
+      }
+      setHistoryMeta(channelId, { hasMore, loading: false });
+    } catch {
+      if (!windowEpochs.isCurrent(channelId, epoch)) return;
+      setHistoryMeta(channelId, "loading", false);
+      setHistoryMeta(channelId, "olderError", true);
+    }
+  }
   async function loadNewerMessages(channelId: string) {
     if (!loadedChannels.has(channelId)) return;
     const meta = historyMeta[channelId];
@@ -315,6 +356,54 @@ export function createMessageHistory(
       return false;
     }
   }
+  // Jumping to a calendar date works like ensureChannelMessage — one bounded
+  // request via `latest`+`inclusive`, replacing the loaded window as a
+  // permalink-style island — except there's no exact message to require a
+  // match on, so it lands on whatever's closest to that date instead. Dates
+  // beyond "now" clamp to the live edge, which doubles as a "jump to today"
+  // request whenever fed today's date.
+  async function jumpToDate(channelId: string, dateMs: number) {
+    const epoch = windowEpochs.begin(channelId);
+    const previous = historyMeta[channelId];
+    setHistoryMeta(channelId, {
+      anchored: previous?.anchored,
+      hasMore: previous?.hasMore ?? true,
+      initialError: false,
+      loading: true,
+      newerError: false,
+      olderError: false,
+    });
+    const endOfDay = new Date(dateMs);
+    endOfDay.setHours(23, 59, 59, 999);
+    const latestMs = Math.min(endOfDay.getTime(), Date.now());
+    const ts = (latestMs / 1000).toFixed(6);
+    try {
+      const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
+      if (!windowEpochs.isCurrent(channelId, epoch)) return false;
+      if (messages.length === 0) {
+        void loadRecentHistory(channelId);
+        return false;
+      }
+      setMessagesByChannel(channelId, messages);
+      historyCursor.set(channelId, nextCursor);
+      newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
+      setHistoryMeta(channelId, {
+        anchored: true,
+        hasMore,
+        hasNewer: true,
+        initialError: false,
+        loading: false,
+        newerError: false,
+        olderError: false,
+      });
+      loadedChannels.add(channelId);
+      return true;
+    } catch (err) {
+      console.error("Failed to jump to date", channelId, err);
+      if (windowEpochs.isCurrent(channelId, epoch)) void loadRecentHistory(channelId);
+      return false;
+    }
+  }
   return {
     ensureChannelMessage,
     ensureThreadRepliesLoaded,
@@ -328,10 +417,12 @@ export function createMessageHistory(
     historyMeta,
     isLoadingHistory,
     isLoadingThread,
+    jumpToDate,
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
+    loadOlderMessagesToBeginning,
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,

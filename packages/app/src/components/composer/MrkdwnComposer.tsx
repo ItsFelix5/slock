@@ -1,10 +1,10 @@
-import { useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { createEditorCommands } from "./lib/editor/editorCommands";
 import { handleMarkShortcut } from "./lib/editor/markShortcuts";
 import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
+import { useSuggestUI } from "./lib/useSuggestUI";
 import "./MrkdwnComposer.css";
 
 export default function MrkdwnComposer(props: {
@@ -43,14 +43,7 @@ export default function MrkdwnComposer(props: {
     syncFromDom: editor.syncFromDom,
   });
 
-  useClickOutside(
-    () => suggestPopoverRef,
-    () => setSuggest(null),
-  );
-  useEscapeClose(
-    () => setSuggest(null),
-    () => suggest() !== null,
-  );
+  useSuggestUI(() => suggestPopoverRef, suggest, setSuggest);
 
   createEffect(() => {
     const { value } = props;
@@ -129,13 +122,15 @@ export default function MrkdwnComposer(props: {
         contentEditable={!props.disabled}
         data-placeholder={props.placeholder}
         id={props.id}
+        onCopy={(event) => editor.copySelection(event)}
+        onCut={(event) => editor.cutSelection(event)}
         onInput={onInput}
         onKeyDown={onKeyDown}
         onPaste={(event) => {
           event.preventDefault();
           const pasted = event.clipboardData?.getData("text/plain") ?? "";
           if (!pasted) return;
-          editor.insertPlainTextAtCaret(
+          editor.insertPastedTextAtCaret(
             props.multiline ? pasted : pasted.replace(/\s*\n\s*/g, " "),
           );
           editor.linkifyAll();

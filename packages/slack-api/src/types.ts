@@ -17,6 +17,9 @@ export interface User {
   email?: string;
   id: string;
   isBot?: boolean;
+  // Epoch ms of the last time we saw this user go active on presence — best
+  // effort, tracked server-side since Slack's API exposes no such field.
+  lastSeen?: number;
   name: string;
   phone?: string;
   presence: "active" | "away";

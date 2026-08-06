@@ -19,6 +19,13 @@ export type NewerHistoryPage = {
 
 const MICROSECONDS_PER_DAY = 86_400_000_000n;
 
+function processMessages(raw: any[]): Message[] {
+  return raw
+    .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
+    .map(mapMessage)
+    .reverse();
+}
+
 function timestampToMicroseconds(ts: string): bigint {
   const [seconds = "0", fraction = ""] = ts.split(".");
   return BigInt(seconds) * 1_000_000n + BigInt(fraction.padEnd(6, "0").slice(0, 6));
@@ -53,13 +60,9 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
   }
   const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
-  const messages: any[] = data.messages ?? [];
   return {
     hasMore: !!data.has_more,
-    messages: messages
-      .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
-      .map(mapMessage)
-      .reverse(),
+    messages: processMessages(data.messages ?? []),
     nextCursor: data.response_metadata?.next_cursor || undefined,
   };
 }
@@ -78,13 +81,9 @@ export async function fetchHistoryAround(
   const query = new URLSearchParams({ inclusive: "true", latest: ts, limit: String(limit) });
   const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
-  const messages: any[] = data.messages ?? [];
   return {
     hasMore: !!data.has_more,
-    messages: messages
-      .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
-      .map(mapMessage)
-      .reverse(),
+    messages: processMessages(data.messages ?? []),
     nextCursor: data.response_metadata?.next_cursor || undefined,
   };
 }
@@ -140,10 +139,7 @@ export async function fetchHistoryNewer(
 
     return {
       hasMore: upperMicroseconds < liveEdgeMicroseconds || !!data.has_more,
-      messages: rawMessages
-        .filter((message) => message.type === "message" && !HIDE_SUBTYPES.has(message.subtype))
-        .map(mapMessage)
-        .reverse(),
+      messages: processMessages(rawMessages),
       // Advance across hidden event subtypes too, otherwise an all-hidden
       // page would leave the next request stuck on the same boundary.
       nextOldest: rawMessages[0]?.ts,

@@ -1,9 +1,10 @@
 import type { User } from "@slock/slack-api";
-import { Avatar, Icon, Tooltip } from "@slock/ui";
+import { Avatar, Icon } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { store } from "../../lib/store";
 import { addUsergroupMembers, removeUsergroupMember } from "../../lib/usergroupDetails";
 import ComposeUserPicker from "../composer/popovers/ComposeUserPicker";
+import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
 
 export default function UsergroupMembersTab(props: {
@@ -78,17 +79,11 @@ export default function UsergroupMembersTab(props: {
                 <Avatar size="small" user={u} />
                 <span class="usergroup-details-row-name truncate">{u.name}</span>
               </button>
-              <Tooltip content="Remove from pinggroup">
-                <button
-                  aria-label="Remove from pinggroup"
-                  class="usergroup-details-row-remove btn-reset flex-center"
-                  disabled={props.disabled}
-                  onClick={() => removeMember(u)}
-                  type="button"
-                >
-                  <Icon name="close-filled" size={14} />
-                </button>
-              </Tooltip>
+              <RemoveRowButton
+                disabled={props.disabled}
+                label="Remove from pinggroup"
+                onClick={() => removeMember(u)}
+              />
             </div>
           )}
         </For>

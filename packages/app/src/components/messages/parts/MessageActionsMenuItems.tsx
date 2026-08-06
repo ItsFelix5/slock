@@ -1,8 +1,8 @@
 import type { Message, MessageShortcut } from "@slock/slack-api";
 import { fuzzySearch, Icon, Menu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { parseReplyLink } from "../../../lib/replyLink";
-import { actionFeedback, REMINDER_OPTIONS, store } from "../../../lib/store";
+import { REMINDER_OPTIONS, store } from "../../../lib/store";
+import { confirmAndDeleteMessage, copyMessageText } from "../messageActions";
 
 export interface MessageActionsMenuItemsProps {
   channelId: string;
@@ -70,16 +70,9 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     (ts === props.threadTs ||
       (store.messages.threadMessages[props.threadTs]?.some((m) => m.ts === ts) ?? false));
 
-  const copyText = async () => {
+  const copyText = () => {
     close();
-    try {
-      await navigator.clipboard.writeText(
-        parseReplyLink(props.msg.text, isInThread)?.rest ?? props.msg.text,
-      );
-      actionFeedback.flash(props.msg.ts, "Text copied.");
-    } catch {
-      actionFeedback.flash(props.msg.ts, "Couldn’t copy the message text.", "error");
-    }
+    void copyMessageText(props.msg, isInThread);
   };
 
   const remind = (dateDue: number) => {
@@ -99,9 +92,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const requestDelete = () => {
     close();
-    // biome-ignore lint/suspicious/noAlert: Deleting a message requires explicit confirmation.
-    if (confirm("Delete this message?"))
-      store.messages.deleteMessageAt(props.channelId, props.msg.ts);
+    confirmAndDeleteMessage(props.channelId, props.msg.ts);
   };
 
   return (

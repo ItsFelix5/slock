@@ -8,6 +8,7 @@ export const ACTIVITY_KIND_ICONS: Record<ActivityItem["kind"], IconName> = {
   channel_mention: "megaphone",
   dm: "direct-messages",
   keyword: "sparkles",
+  list: "list-view",
   mention: "mentions",
   reaction: "emoji",
   reminder: "reminder",

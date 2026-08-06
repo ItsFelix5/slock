@@ -25,7 +25,14 @@ export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
 export type { ComboItem } from "./form/FilterCombobox";
 export { default as FilterCombobox } from "./form/FilterCombobox";
-export { listNavigationIndex, scrollActiveListOption } from "./form/listNavigation";
+export {
+  createListboxActiveIndex,
+  gridNavigationIndex,
+  listNavigationIndex,
+  scrollActiveListOption,
+} from "./form/listNavigation";
+export type { SliderProps } from "./form/Slider";
+export { default as Slider } from "./form/Slider";
 export type { SwitchProps } from "./form/Switch";
 export { default as Switch } from "./form/Switch";
 export type { FuzzyMatch, FuzzySearchOptions } from "./fuzzy";
@@ -59,7 +66,7 @@ export { default as ContextMenu } from "./overlay/menu/ContextMenu";
 export { default as Menu, type MenuProps } from "./overlay/menu/Menu";
 export type { MenuButtonProps } from "./overlay/menu/MenuButton";
 export { default as MenuButton } from "./overlay/menu/MenuButton";
-export { useContextMenu } from "./overlay/menu/useContextMenu";
+export { openContextMenuFromKeyboard, useContextMenu } from "./overlay/menu/useContextMenu";
 export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
 export type { PopoverProps } from "./overlay/Popover";
@@ -76,7 +83,9 @@ export {
   getEffectiveColor,
   logDeletedMessages,
   type MessageSize,
+  type MessageSizeMetrics,
   messageSize,
+  messageSizeMetrics,
   resetThemeColor,
   resetThemeColors,
   setLogDeletedMessages,
@@ -92,3 +101,9 @@ export {
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export { useHoverIntent } from "./useHoverIntent";
+export {
+  type ShortcutDef,
+  type ShortcutScope,
+  shortcutsByScope,
+  useShortcut,
+} from "./useShortcut";

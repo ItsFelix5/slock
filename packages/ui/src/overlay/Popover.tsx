@@ -32,6 +32,7 @@ export default function Popover(props: PopoverProps) {
         align={props.align ?? "start"}
         anchor={() => rootRef}
         class={`popover ${props.panelClass || ""}`}
+        onScroll={props.onClose}
         open={props.open}
         panelRef={(element) => {
           panelRef = element;

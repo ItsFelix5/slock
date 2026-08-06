@@ -1,30 +1,22 @@
-import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import {
   Button,
-  Icon,
   InlineFeedback,
   PanelHeader,
-  Popover,
   panelWantsFullscreen,
   ResizeHandle,
   useEscapeClose,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import { sidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
-import EmojiPicker from "../composer/popovers/EmojiPicker";
 import "../settings/Settings.css";
 import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
+import UserProfileInfo from "./UserProfileInfo";
+import UserProfileStatus from "./UserProfileStatus";
 import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
-import {
-  blurOnEnter,
-  DEFAULT_WIDTH,
-  EXPIRATION_OPTIONS,
-  MAX_WIDTH,
-  MIN_WIDTH,
-} from "./userProfileOptions";
-import { createLocalTime } from "./userProfileTime";
+import { blurOnEnter, DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH } from "./userProfileOptions";
+import { createLastSeenText, createLocalTime } from "./userProfileTime";
 export default function UserProfile() {
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const isFullscreen = createMemo(() => panelWantsFullscreen(sidebarWidth(), width()));
@@ -35,7 +27,6 @@ export default function UserProfile() {
   const [statusText, setStatusText] = createSignal("");
   const [statusEmoji, setStatusEmoji] = createSignal("");
   const [statusExpiration, setStatusExpiration] = createSignal(0);
-  const [emojiOpen, setEmojiOpen] = createSignal(false);
   const [savingStatus, setSavingStatus] = createSignal(false);
   const [savingPresence, setSavingPresence] = createSignal(false);
   const [savingProfileFields, setSavingProfileFields] = createSignal<Record<string, boolean>>({});
@@ -114,7 +105,6 @@ export default function UserProfile() {
   };
   const saveStatus = async () => {
     if (savingStatus()) return;
-    setEmojiOpen(false);
     setSavingStatus(true);
     try {
       await store.users.updateMyStatus(statusText(), statusEmoji(), statusExpirationTimestamp());
@@ -124,7 +114,6 @@ export default function UserProfile() {
   };
   const clearStatus = async () => {
     if (savingStatus()) return;
-    setEmojiOpen(false);
     setSavingStatus(true);
     try {
       if (await store.users.clearMyStatus()) {
@@ -150,6 +139,7 @@ export default function UserProfile() {
   const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
   onCleanup(() => clearInterval(clockTimer));
   const localTime = createLocalTime(user, now);
+  const lastSeenText = createLastSeenText(user, now);
   const customFields = createMemo(() => {
     const defs = store.resources.profileFieldDefs();
     const values = user()?.customFields;
@@ -184,191 +174,38 @@ export default function UserProfile() {
               feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
               priority={2}
             />
-            <div class="user-profile-avatar flex-center" style={{ background: u().avatarColor }}>
-              <span aria-hidden="true">?</span>
-              <img
-                alt=""
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-                src={u().avatarUrl}
-              />
-              <Show
-                fallback={
-                  <span
-                    aria-label={`${u().name} is ${u().presence}`}
-                    class="user-profile-presence"
-                    classList={{ away: u().presence === "away" }}
-                    role="img"
-                  />
-                }
-                when={isSelf()}
-              >
-                <button
-                  aria-busy={savingPresence()}
-                  aria-label={
-                    savingPresence()
-                      ? "Updating presence"
-                      : u().presence === "away"
-                        ? "Set yourself active"
-                        : "Set yourself away"
-                  }
-                  class="user-profile-presence"
-                  classList={{ away: u().presence === "away" }}
-                  disabled={savingPresence()}
-                  onClick={togglePresence}
-                  type="button"
-                />
-              </Show>
-            </div>
-            <Show
-              fallback={
-                <div class="user-profile-edit-name">
-                  <input
-                    aria-label="Display name"
-                    class="user-profile-name-input"
-                    disabled={savingProfileFields().name}
-                    onBlur={saveName}
-                    onInput={(e) => setNameInput(e.currentTarget.value)}
-                    onKeyDown={blurOnEnter}
-                    type="text"
-                    value={nameInput()}
-                  />
-                  <input
-                    aria-label="Title"
-                    class="user-profile-title-input"
-                    disabled={savingProfileFields().title}
-                    onBlur={saveTitle}
-                    onInput={(e) => setTitleInput(e.currentTarget.value)}
-                    onKeyDown={blurOnEnter}
-                    placeholder="Title"
-                    type="text"
-                    value={titleInput()}
-                  />
-                  <input
-                    aria-label="Pronouns"
-                    class="user-profile-pronouns-input"
-                    disabled={savingProfileFields().pronouns}
-                    onBlur={savePronouns}
-                    onInput={(e) => setPronounsInput(e.currentTarget.value)}
-                    onKeyDown={blurOnEnter}
-                    placeholder="Pronouns"
-                    type="text"
-                    value={pronounsInput()}
-                  />
-                </div>
-              }
-              when={!isSelf()}
-            >
-              <h2 class="user-profile-name">
-                <span class="user-profile-name-label">
-                  {u().name}
-                  {u().isBot ? " (bot)" : ""}
-                </span>
-                <Show when={u().pronouns}>
-                  <span class="pronouns">({u().pronouns})</span>
-                </Show>
-              </h2>
-              <Show when={u().title || botBio()}>
-                <p class="user-profile-title text-muted">
-                  <Show fallback={<Mrkdwn text={botBio() ?? ""} />} when={u().title}>
-                    {u().title}
-                  </Show>
-                </p>
-              </Show>
-            </Show>
-            <Show when={u().statusText}>
-              <p class="user-profile-status flex-align-center">
-                <Show when={u().statusEmoji}>{(emoji) => <EmojiText text={emoji()} />}</Show>
-                {u().statusText}
-              </p>
-            </Show>
-            <Show when={localTime()}>
-              <p class="user-profile-meta text-muted text-sm">
-                {localTime()} local time{u().tzLabel ? ` (${u().tzLabel})` : ""}
-              </p>
-            </Show>
-            <Show when={!isSelf()}>
-              <div class="user-profile-actions">
-                <button
-                  class="user-profile-message-btn flex-center"
-                  disabled={store.dms.isOpenDmPending(u().id)}
-                  onClick={() => store.dms.openDmWithUser(u().id)}
-                  type="button"
-                >
-                  <Icon name="direct-messages-filled" size={15} />
-                  {store.dms.isOpenDmPending(u().id) ? "Opening…" : "Message"}
-                </button>
-              </div>
-            </Show>
+            <UserProfileInfo
+              blurOnEnter={blurOnEnter}
+              botBio={botBio}
+              isSavingPresence={savingPresence}
+              isSelf={isSelf}
+              lastSeenText={lastSeenText}
+              localTime={localTime}
+              nameInput={nameInput}
+              onTogglePresence={togglePresence}
+              pronounsInput={pronounsInput}
+              saveName={saveName}
+              savePronouns={savePronouns}
+              saveTitle={saveTitle}
+              savingProfileFields={savingProfileFields}
+              setNameInput={setNameInput}
+              setPronounsInput={setPronounsInput}
+              setTitleInput={setTitleInput}
+              titleInput={titleInput}
+              user={user}
+            />
             <Show when={isSelf()}>
-              <div class="user-profile-section">
-                <h3 class="user-profile-section-title">Status</h3>
-                <div class="settings-status-row flex-align-center">
-                  <Popover
-                    onClose={() => setEmojiOpen(false)}
-                    open={emojiOpen()}
-                    trigger={
-                      <button
-                        class="settings-status-emoji-btn btn-reset flex-center"
-                        disabled={savingStatus()}
-                        onClick={() => setEmojiOpen(!emojiOpen())}
-                        type="button"
-                      >
-                        <Show fallback="⛔" when={statusEmoji()}>
-                          <EmojiText text={statusEmoji()} />
-                        </Show>
-                      </button>
-                    }
-                  >
-                    <EmojiPicker
-                      onClose={() => setEmojiOpen(false)}
-                      onSelect={(name) => {
-                        setStatusEmoji(`:${name}:`);
-                        setEmojiOpen(false);
-                      }}
-                    />
-                  </Popover>
-                  <input
-                    class="settings-status-input"
-                    disabled={savingStatus()}
-                    onInput={(e) => setStatusText(e.currentTarget.value)}
-                    placeholder="What's your status?"
-                    type="text"
-                    value={statusText()}
-                  />
-                </div>
-                <select
-                  class="settings-status-expiration"
-                  disabled={savingStatus()}
-                  onChange={(e) => setStatusExpiration(Number(e.currentTarget.value))}
-                  value={statusExpiration()}
-                >
-                  <For each={EXPIRATION_OPTIONS}>
-                    {(opt) => <option value={opt.seconds}>{opt.label}</option>}
-                  </For>
-                </select>
-                <div class="settings-status-actions flex-align-center">
-                  <button
-                    class="settings-status-save btn-reset"
-                    disabled={savingStatus()}
-                    onClick={saveStatus}
-                    type="button"
-                  >
-                    {savingStatus() ? "Saving…" : "Save status"}
-                  </button>
-                  <Show when={statusText() || statusEmoji()}>
-                    <button
-                      class="settings-status-clear btn-reset"
-                      disabled={savingStatus()}
-                      onClick={clearStatus}
-                      type="button"
-                    >
-                      Clear
-                    </button>
-                  </Show>
-                </div>
-              </div>
+              <UserProfileStatus
+                clearStatus={clearStatus}
+                saveStatus={saveStatus}
+                setStatusEmoji={setStatusEmoji}
+                setStatusExpiration={setStatusExpiration}
+                setStatusText={setStatusText}
+                statusEmoji={statusEmoji}
+                statusExpiration={statusExpiration}
+                statusText={statusText}
+                savingStatus={savingStatus}
+              />
             </Show>
             <UserProfileContact
               customFields={customFields()}

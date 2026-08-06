@@ -1,5 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
+import { teamIdFromRoute } from "../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../http/jsonResponse.ts";
+import { getLastSeen } from "../presence/lastSeen.ts";
 import { callSlack, callSlackEdge } from "../slackClient.ts";
 import { trimBot, trimUser } from "../trim/slackEntities.ts";
 import { mutate, type Route, route } from "./router.ts";
@@ -40,13 +42,17 @@ export const accountRoutes: Route[] = [
     if (!data.ok) {
       return slackErrorResponse(data, "edge users/info", ctx.creds, ctx.acceptEncoding);
     }
+    const teamId = ctx.creds ? teamIdFromRoute(ctx.creds.route) : null;
     return jsonResponse(
       {
         ok: true,
         users: Object.fromEntries(
           ids.map((id) => {
             const user = cachedUserForId(data, id);
-            return [id, user ? trimUser(user) : null];
+            if (!user) return [id, null];
+            const trimmed = trimUser(user);
+            const lastSeen = teamId ? getLastSeen(teamId, id) : undefined;
+            return [id, lastSeen ? { ...trimmed, last_seen: lastSeen } : trimmed];
           }),
         ),
       },

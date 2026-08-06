@@ -2,8 +2,10 @@ import type { BrowsableChannel, Channel, DirectMessage, User } from "@slock/slac
 import { fetchBrowsableChannels } from "@slock/slack-api";
 import {
   createDebouncedRequest,
+  createListboxActiveIndex,
   fuzzySearch,
   Icon,
+  listNavigationIndex,
   Overlay,
   Tooltip,
   useEscapeClose,
@@ -34,7 +36,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   // both local and remote data have fully settled, so the visible list never
   // shuffles or grows after it's already on screen.
   const [committedRows, setCommittedRows] = createSignal<GlobalSearchRow[]>([]);
-  const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
   const [peopleSearching, setPeopleSearching] = createSignal(false);
   const [channelsSearching, setChannelsSearching] = createSignal(false);
   const [peopleError, setPeopleError] = createSignal(false);
@@ -169,26 +170,17 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   });
   const searching = () => peopleSearching() || channelsSearching();
   const searchError = () => peopleError() || channelsError();
-  const optionId = (index: number) => `${listboxId}-option-${index}`;
-  const activeOptionId = () => {
-    const index = activeIndex();
-    return index === null ? undefined : optionId(index);
-  };
+  const { activeIndex, setActiveIndex, activeOptionId } = createListboxActiveIndex(
+    () => items().length,
+    listboxId,
+    () => document.getElementById(listboxId) ?? undefined,
+  );
   const searchStatus = createMemo(() => {
     if (!hasQuery()) return "";
     if (rows().length > 0) return "";
     if (searching()) return "Searching people and channels…";
     if (searchError()) return "Some directory suggestions couldn’t be loaded.";
     return "No matching people or channels.";
-  });
-  createEffect(() => {
-    const total = items().length;
-    const current = activeIndex();
-    if (total === 0) {
-      if (current !== null) setActiveIndex(null);
-      return;
-    }
-    if (current === null || current > total - 1) setActiveIndex(0);
   });
   const goToChannel = (c: JumpChannel) => {
     store.viewState.setActiveView({ id: c.id, kind: "channel" });
@@ -225,12 +217,9 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     }
     goToPerson(item.data.id);
   };
-  const moveActive = (delta: number) => {
-    const total = items().length;
-    if (!total) return;
-    const current = activeIndex();
-    const next = current === null ? 0 : Math.max(0, Math.min(total - 1, current + delta));
-    setActiveIndex(next);
+  const moveActive = (key: string) => {
+    const next = listNavigationIndex(key, activeIndex(), items().length);
+    if (next !== undefined) setActiveIndex(next);
   };
   return (
     <Overlay align="top" ariaLabel="Search Slack" onClose={props.onClose}>
@@ -248,18 +237,12 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             class="global-search-input input-reset"
             onInput={(e) => searchDirectories(e.currentTarget.value)}
             onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                 e.preventDefault();
-                moveActive(1);
-              } else if (e.key === "ArrowUp") {
+                moveActive(e.key);
+              } else if ((e.key === "Home" || e.key === "End") && hasQuery()) {
                 e.preventDefault();
-                moveActive(-1);
-              } else if (e.key === "Home" && hasQuery()) {
-                e.preventDefault();
-                setActiveIndex(0);
-              } else if (e.key === "End" && hasQuery()) {
-                e.preventDefault();
-                setActiveIndex(items().length - 1);
+                moveActive(e.key);
               } else if (e.key === "Enter" && hasQuery()) {
                 e.preventDefault();
                 const index = activeIndex();

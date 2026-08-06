@@ -46,7 +46,7 @@ export function encodeReplyLink(permalink: string): string {
 export function parseReplyLink(
   text: string,
   isInThread?: (channelId: string, ts: string) => boolean,
-): { ts: string; channelId: string; rest: string; prefix: string } | null {
+): { ts: string; channelId: string; rest: string; prefix: string; url: string } | null {
   const bracketed = BRACKETED_LINK_RE.exec(text);
   if (bracketed) {
     const urlMatch = PERMALINK_RE.exec(bracketed[1]);
@@ -62,6 +62,7 @@ export function parseReplyLink(
       prefix: bracketed[0],
       rest: bare ? remainder : `${label}${remainder}`,
       ts,
+      url: bracketed[1],
     };
   }
 
@@ -71,5 +72,11 @@ export function parseReplyLink(
   if (!urlMatch) return null;
   const [, channelId, digits] = urlMatch;
   const ts = `${digits.slice(0, -6)}.${digits.slice(-6)}`;
-  return { channelId, prefix: bareLink[0], rest: text.slice(bareLink[0].length), ts };
+  return {
+    channelId,
+    prefix: bareLink[0],
+    rest: text.slice(bareLink[0].length),
+    ts,
+    url: bareLink[1],
+  };
 }

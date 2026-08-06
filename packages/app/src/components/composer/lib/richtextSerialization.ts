@@ -1,5 +1,5 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to serialization.
-import { DEFAULT_DATE_FORMAT, formatSlackDateTokens } from "@slock/blockkit";
+import { DEFAULT_DATE_FORMAT, formatSlackDate } from "@slock/blockkit";
 import { type Block, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
 import { serializeLinkElement } from "./linkChip";
 import { type InlineDialect, MRKDWN_DIALECT } from "./richtext";
@@ -33,7 +33,7 @@ function serializeNode(node: Node, dialect: InlineDialect): string {
   if (el.dataset.dateTs) {
     const timestamp = Number(el.dataset.dateTs);
     const format = el.dataset.dateFormat || DEFAULT_DATE_FORMAT;
-    const fallback = el.dataset.dateFallback || formatSlackDateTokens(format, timestamp);
+    const fallback = el.dataset.dateFallback || formatSlackDate(timestamp);
     return `<!date^${el.dataset.dateTs}^${format}|${fallback}>`;
   }
   if (HEADING_TAG_RE.test(el.tagName)) {

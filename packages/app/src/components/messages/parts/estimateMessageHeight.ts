@@ -12,7 +12,7 @@ import type {
   SectionBlock,
   TextObject,
 } from "@slock/slack-api";
-import type { MessageSize } from "@slock/ui";
+import { type MessageSize, messageSizeMetrics } from "@slock/ui";
 import {
   estimateAttachmentHeight,
   estimateFilesHeight,
@@ -25,13 +25,12 @@ const LINE_HEIGHT = 22;
 const META_HEIGHT = 20;
 const DIVIDER_HEIGHT = 15;
 const REPLY_REFERENCE_HEIGHT = 18;
-const EMOJI_ONLY_HEIGHT = 39;
+const EMOJI_ONLY_LINE_HEIGHT = 39;
+const ENLARGED_EMOJI_WIDTH = 40;
 const COMPACT_SPACER_HEIGHT = 16;
 const AVG_CHAR_WIDTH = 7.2;
 const GUTTER_WIDTH = 84;
 const DEFAULT_CONTAINER_WIDTH = 640;
-const ROW_PADDING_BY_SIZE: Record<MessageSize, number> = { 0: 0, 1: 4, 2: 20 };
-const AVATAR_HEIGHT_BY_SIZE: Record<MessageSize, number> = { 0: 23, 1: 38, 2: 42 };
 
 const BLOCK_GAP = 8;
 const HEADER_BLOCK_HEIGHT = 24;
@@ -237,8 +236,9 @@ export function estimateMessageHeight(
   const usesBlocks = !state.replyRef && !!message.blocks?.length;
   let contentHeight = usesBlocks
     ? estimateBlocksHeight(message.blocks ?? [], wrapWidth)
-    : state.hasEnlargedEmojiOnlyText
-      ? EMOJI_ONLY_HEIGHT
+    : state.enlargedEmojiCount
+      ? Math.ceil(state.enlargedEmojiCount / Math.max(1, Math.floor(wrapWidth / ENLARGED_EMOJI_WIDTH))) *
+        EMOJI_ONLY_LINE_HEIGHT
       : estimateMrkdwnHeight(`${state.messageText}${message.edited ? " (edited)" : ""}`, wrapWidth);
   contentHeight += estimateFilesHeight(message.files, wrapWidth);
   if (state.visibleAttachments?.length)
@@ -251,13 +251,16 @@ export function estimateMessageHeight(
   if (renderContext.hasFeedback) contentHeight += 22;
   if (renderContext.hasOpenThread && (message.replyCount ?? 0) > 0) contentHeight += 32;
 
+  // mirrors the CSS: a lead row's total vertical padding is rowPaddingY applied
+  // both above and below, and its minimum height is the avatar plus its own top margin.
+  const sizeMetrics = messageSizeMetrics(renderContext.messageSize);
   const bodyHeight = contentHeight + (state.sameAuthorAsPrev ? 0 : META_HEIGHT);
   const minimumContentHeight = state.sameAuthorAsPrev
     ? COMPACT_SPACER_HEIGHT
-    : AVATAR_HEIGHT_BY_SIZE[renderContext.messageSize];
+    : sizeMetrics.avatarSize + sizeMetrics.avatarMarginTop;
   const rowHeight =
     Math.max(bodyHeight, minimumContentHeight) +
-    (state.sameAuthorAsPrev ? 0 : ROW_PADDING_BY_SIZE[renderContext.messageSize]);
+    (state.sameAuthorAsPrev ? 0 : sizeMetrics.rowPaddingY * 2);
 
   let height = rowHeight;
   if (state.dayChanged || state.showUnreadDivider) height += DIVIDER_HEIGHT;

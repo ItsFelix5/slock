@@ -43,18 +43,6 @@ export const fetchChannel = createBatchedIdFetcher<Channel | null>(async (ids) =
   return new Map(ids.map((id) => [id, channels[id] ? mapChannel(channels[id]) : null]));
 }, MAX_CHANNELS_PER_BATCH);
 
-export async function fetchFlaronChannel(id: string): Promise<Channel | null> {
-  const res = await fetch(`/api/channels/discovery?id=${encodeURIComponent(id)}`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  return {
-    id: data.id,
-    name: data.name,
-    private: data.private,
-    topic: data.topic,
-    unread: false,
-  };
-}
 export async function fetchBrowsableChannels(query: string): Promise<BrowsableChannel[]> {
   const q = query.trim();
   if (!q) return [];
@@ -67,7 +55,15 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
   // the name check catches any the index doesn't flag.
   return items
     .filter(
-      (c) => !(c.is_archived || c.is_member || c.is_mpim || c.is_im || c.name?.startsWith("mpdm-")),
+      (c) =>
+        !(
+          c.is_archived ||
+          c.is_member ||
+          c.is_mpim ||
+          c.is_im ||
+          c.is_record_channel ||
+          c.name?.startsWith("mpdm-")
+        ),
     )
     .map((c) => ({
       id: c.id,
@@ -337,6 +333,11 @@ export async function createChannel(name: string, isPrivate: boolean): Promise<C
 export async function leaveChannel(channelId: string) {
   const data = await apiPost(`/api/channels/${channelId}/leave`);
   if (!data.ok) throw new Error(data.error ?? "conversations.leave failed");
+  return data;
+}
+export async function closeDm(channelId: string) {
+  const data = await apiPost(`/api/channels/${channelId}/close`);
+  if (!data.ok) throw new Error(data.error ?? "conversations.close failed");
   return data;
 }
 export async function setChannelTopic(channelId: string, topic: string): Promise<void> {

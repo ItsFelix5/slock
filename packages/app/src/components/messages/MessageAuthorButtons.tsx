@@ -1,4 +1,5 @@
 // biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related author and avatar button exports.
+import type { UserStatus } from "@slock/slack-api";
 export function MessageAvatarButton(props: { color?: string; src?: string; onClick: () => void }) {
   return (
     <button
@@ -23,10 +24,12 @@ export function MessageAuthorButton(props: {
   disabled: boolean;
   name: string;
   onClick: () => void;
+  status?: UserStatus;
 }) {
   return (
     <button
       class="message-author btn-reset"
+      classList={{ [`message-author-${props.status}`]: !!props.status }}
       disabled={props.disabled}
       onClick={props.onClick}
       type="button"

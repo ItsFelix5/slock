@@ -2,7 +2,7 @@ Important rules:
 - A folder may not have over 10 files at its root
 - All UI components that don't directly interact with slack should be in the UI package
 - NEVER duplicate code, create reusable components
-- Simplicity is good
+- Simplicity is good but keep it powerful
 - Use good, consistent not ai looking css
 - Don't add comments that state the obvious
 - Don't mess with dev servers (there always is one running) or chromium only to test if it works
@@ -12,3 +12,7 @@ Important rules:
 - Prefer adding debugs or ASKING instead of doing stupid shit or guessing data based on nothing.
 - Common sense
 - Stop writing tests
+- Comment only when you are recording something genuinely valuable that the code cannot convey by itself, so writing none is the default. Never narrate edits. 
+- When a comment grows past a sentence or two, stop and reconsider whether it earns its place, because it usually does not. The rare exception is a short block that captures knowledge someone would otherwise have to rediscover painfully, for example why a workaround is required by some external constraint.
+- Keep the mechanics casual: lowercased, US-keyboard characters only, punctuation kept to a minimum, no trailing period, closer to a jotted note than a wrapped paragraph.
+- Use bun 

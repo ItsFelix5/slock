@@ -10,8 +10,17 @@ import {
 } from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
+import { createMessageFocus } from "./messageFocus";
+import MessageListDateNav from "./parts/MessageListDateNav";
 import { flashMessageWhenRendered, scrollToBottom } from "./scrollAnchor";
 import type { VirtualRowsApi } from "./VirtualizedRows";
+
+// temporary: set localStorage.debugScroll="1" in the console to trace the
+// open/landing sequence. remove once the "messed up scroll on open" bug is found
+const dbg = (...args: unknown[]) => {
+  if (typeof localStorage !== "undefined" && localStorage.getItem("debugScroll"))
+    console.log("[scroll]", ...args);
+};
 
 // Keep two viewports of history buffered in the direction of travel.
 const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
@@ -36,10 +45,16 @@ export default function MessageList() {
   // are on screen to land on.
   let positionedViewId: string | undefined;
   let positioningEpoch = 0;
-  // Set only while landing on an unread divider (anchorTo "start" doesn't
-  // self-correct for growth the way "end" does — see the reactive re-land
-  // effect below). Cleared once the user scrolls or a new view is landed on.
-  let landingTarget: { epoch: number; viewId: string; index: number } | undefined;
+  // The row the initial open is landing on: a positive index for an unread
+  // divider (align "start"), or -1 for the ordinary newest-message bottom
+  // landing. Both need the reactive re-land effect below, because rows measure
+  // in one at a time after the first scroll — until the total settles, an
+  // estimate-based landing can be wildly off (a whole channel can estimate
+  // shorter than the viewport, making the first scrollToBottom a no-op that
+  // leaves you at the top). Cleared once the user scrolls or a new view lands.
+  let landingTarget:
+    | { epoch: number; viewId: string; index: number; align: "start" | "end" | "center" }
+    | undefined;
   let revealTimer: ReturnType<typeof setTimeout> | undefined;
   let requestedMessageTarget: ReturnType<typeof store.viewState.channelMessageTarget> = null;
   let cancelPendingFlash: (() => void) | undefined;
@@ -76,6 +91,13 @@ export default function MessageList() {
     if (!v) return [];
     return store.messages.messagesByChannel[v.id] ?? [];
   });
+  const activeChannelId = () => store.viewState.activeView()?.id ?? "";
+  const messageFocus = createMessageFocus(messages, virtualApi, () => scrollRef, activeChannelId, {
+    onOpenThread: (ts) => {
+      const v = store.viewState.activeView();
+      if (v) store.viewState.openThread(v.id, ts);
+    },
+  });
 
   // Keep scrollMargin in step with the header's real height. When the header
   // grows/shrinks (a load starting/finishing, reaching the channel top) it
@@ -104,6 +126,12 @@ export default function MessageList() {
         const next = headerRef.offsetHeight;
         const delta = next - scrollMargin();
         if (delta === 0) return;
+        dbg("scrollMargin nudge", {
+          from: scrollMargin(),
+          to: next,
+          delta,
+          scrollTop: el.scrollTop,
+        });
         if (el.scrollTop > 0) {
           el.scrollTop += delta;
           // The virtualizer tracks scrollTop itself via a native 'scroll'
@@ -127,7 +155,7 @@ export default function MessageList() {
     return dmDisplayName(store.dms.dmById(v.id), store.users.userById);
   });
 
-  // Re-lands on the unread divider and reveals the view once the virtualizer's
+  // Re-lands on the landing target and reveals the view once the virtualizer's
   // measured total size has gone quiet — called once up front and then again
   // every time `totalSize` changes. Rows measure in one at a time as they
   // mount (each with its own real height replacing its estimate), and
@@ -136,14 +164,39 @@ export default function MessageList() {
   // virtualizer considered "in range" to measure next, so only one row a
   // frame ever finished — the rest sat stuck at their pre-measurement offset.
   // Debouncing lets the whole batch settle first and corrects position once.
-  function scheduleReveal(viewId: string, epoch: number, index: number) {
+  //
+  // On settle, the divider case (align "start") safely re-issues scrollToIndex
+  // at the same index — it's the same row that's been in range measuring the
+  // whole time, so it doesn't disturb anything. The bottom case (align "end",
+  // last index) must NOT do that: re-targeting the virtualizer's own
+  // anchorTo:"end" pin (which already follows the bottom as rows measure in)
+  // narrows its render window back down and stalls further measurement — that
+  // was leaving the reveal stuck on a half-measured, way-too-small total. It
+  // only needs the one forced jump in the initial land (to get anything
+  // rendered/measuring at all); settling just needs a plain scrollTop write.
+  function scheduleReveal(
+    viewId: string,
+    epoch: number,
+    index: number,
+    align: "start" | "end" | "center",
+  ) {
     clearTimeout(revealTimer);
     revealTimer = setTimeout(() => {
       if (epoch !== positioningEpoch || positionedViewId !== viewId) return;
       const api = virtualApi();
-      if (!(api && scrollRef)) return;
-      if (index >= 0) api.scrollToIndex(index, { align: "start" });
-      else scrollToBottom(scrollRef);
+      if (align !== "end") api?.scrollToIndex(index, { align });
+      else if (scrollRef) scrollToBottom(scrollRef);
+      dbg("reveal", {
+        viewId,
+        index,
+        align,
+        scrollTop: scrollRef?.scrollTop,
+        scrollHeight: scrollRef?.scrollHeight,
+        clientHeight: scrollRef?.clientHeight,
+        itemStart: api?.itemStart(index),
+        itemSize: api?.itemSize(index),
+        totalSize: api?.totalSize(),
+      });
       setReadyViewId(viewId);
     }, 120);
   }
@@ -154,11 +207,12 @@ export default function MessageList() {
   createEffect(
     on(
       () => virtualApi()?.totalSize(),
-      () => {
+      (total) => {
         if (!landingTarget) return;
-        const { epoch, viewId, index } = landingTarget;
+        const { epoch, viewId, index, align } = landingTarget;
         if (epoch !== positioningEpoch || positionedViewId !== viewId) return;
-        scheduleReveal(viewId, epoch, index);
+        dbg("totalSize changed -> reschedule reveal", { viewId, index, align, total });
+        scheduleReveal(viewId, epoch, index, align);
       },
       { defer: true },
     ),
@@ -176,6 +230,7 @@ export default function MessageList() {
     const switchedView = view?.id !== lastViewId;
     lastViewId = view?.id;
     if (switchedView) {
+      dbg("switch view", { view: view?.id, msgs: msgs.length });
       positioningEpoch += 1;
       positionedViewId = undefined;
       lastScrollTop = 0;
@@ -242,17 +297,44 @@ export default function MessageList() {
         unreadContentHeight,
         viewportHeight: el.clientHeight,
       });
+      // Land the newest-message case on the last row via scrollToIndex too,
+      // rather than a raw scrollToBottom. scrollToBottom is a no-op whenever the
+      // still-being-measured total is shorter than the viewport, so it can't
+      // force the virtualizer to render/measure the bottom rows — it just sits
+      // at the top forever. scrollToIndex(last, "end") pulls the tail into the
+      // render window so measurement (and the reactive re-land) can converge.
+      const onDivider = unreadLandingIndex >= 0;
+      const landIndex = onDivider ? unreadLandingIndex : msgs.length - 1;
+      const align: "start" | "end" = onDivider ? "start" : "end";
       const epoch = positioningEpoch;
-      setLandingSpace(
-        unreadLandingIndex >= 0 ? { height: el.clientHeight, viewId: view.id } : undefined,
-      );
-      landingTarget =
-        unreadLandingIndex >= 0 ? { epoch, index: unreadLandingIndex, viewId: view.id } : undefined;
+      dbg("land decision", {
+        view: view.id,
+        msgs: msgs.length,
+        dividerIndex,
+        gaveUpBackfill,
+        estUnreadContentHeight: unreadContentHeight,
+        viewport: el.clientHeight,
+        landIndex,
+        align,
+        landing: onDivider ? "divider" : "bottom",
+        scrollMargin: scrollMargin(),
+        estTotalSize: api.totalSize(),
+      });
+      setLandingSpace(onDivider ? { height: el.clientHeight, viewId: view.id } : undefined);
+      landingTarget = { epoch, index: landIndex, viewId: view.id, align };
       queueMicrotask(() => {
         if (epoch !== positioningEpoch || !scrollRef) return;
-        if (unreadLandingIndex >= 0) api.scrollToIndex(unreadLandingIndex, { align: "start" });
-        else scrollToBottom(scrollRef);
-        scheduleReveal(view.id, epoch, unreadLandingIndex);
+        api.scrollToIndex(landIndex, { align });
+        dbg("initial land", {
+          landing: onDivider ? "divider" : "bottom",
+          index: landIndex,
+          align,
+          scrollTop: scrollRef.scrollTop,
+          scrollHeight: scrollRef.scrollHeight,
+          clientHeight: scrollRef.clientHeight,
+          itemStart: api.itemStart(landIndex),
+        });
+        scheduleReveal(view.id, epoch, landIndex, align);
       });
     }
   });
@@ -265,6 +347,26 @@ export default function MessageList() {
       requestAnimationFrame(() => setFollowOnAppend("auto"));
     }
   }
+
+  // handleScroll reads scrollHeight/clientHeight, which forces a synchronous
+  // layout right after the virtualizer has mutated the row DOM for the same
+  // event — doing that on every scroll event is the read-after-write thrash
+  // that was stuttering the list. Coalesce every trigger (native scroll, wheel
+  // and touch edge fallbacks) into one check per frame so the reflow happens
+  // at most once, after layout has settled.
+  let scrollCheckRaf = 0;
+  let pendingScrollDirection: "newer" | "older" | undefined;
+  function scheduleScrollCheck(direction?: "newer" | "older") {
+    if (direction) pendingScrollDirection = direction;
+    if (scrollCheckRaf) return;
+    scrollCheckRaf = requestAnimationFrame(() => {
+      scrollCheckRaf = 0;
+      const direction = pendingScrollDirection;
+      pendingScrollDirection = undefined;
+      handleScroll(direction);
+    });
+  }
+  onCleanup(() => scrollCheckRaf && cancelAnimationFrame(scrollCheckRaf));
 
   function handleScroll(preferredDirection?: "newer" | "older") {
     const el = scrollRef;
@@ -298,16 +400,23 @@ export default function MessageList() {
       nearTop &&
       store.messages.hasMoreHistory(view.id) &&
       !store.messages.hasOlderHistoryError(view.id)
-    )
+    ) {
+      dbg("loadOlder (near top)", {
+        scrollTop: el.scrollTop,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+      });
       store.messages.loadOlderMessages(view.id);
+    }
   }
 
   function releaseLandingSpace() {
     const view = store.viewState.activeView();
-    if (view && readyViewId() === view.id && landingSpace()?.viewId === view.id) {
-      setLandingSpace(undefined);
-      landingTarget = undefined;
-    }
+    if (!(view && readyViewId() === view.id)) return;
+    if (landingSpace()?.viewId === view.id) setLandingSpace(undefined);
+    // Stop the re-land effect once the user takes over scrolling, or it would
+    // keep snapping a bottom-landed view back down as later rows/embeds grow it.
+    if (landingTarget?.viewId === view.id) landingTarget = undefined;
   }
 
   function handleWheel(event: WheelEvent) {
@@ -316,7 +425,7 @@ export default function MessageList() {
     // which case the browser emits no scroll event. Recheck after Solid has
     // removed any temporary landing space so a downward wheel still loads.
     const direction = event.deltaY > 0 ? "newer" : event.deltaY < 0 ? "older" : undefined;
-    if (direction) queueMicrotask(() => handleScroll(direction));
+    if (direction) scheduleScrollCheck(direction);
   }
 
   function handleTouchStart(event: TouchEvent) {
@@ -335,7 +444,7 @@ export default function MessageList() {
             ? "older"
             : undefined;
     touchStartY = undefined;
-    if (direction) queueMicrotask(() => handleScroll(direction));
+    if (direction) scheduleScrollCheck(direction);
   }
 
   function jumpToMessage(ts: string) {
@@ -350,21 +459,83 @@ export default function MessageList() {
 
   onCleanup(() => cancelPendingFlash?.());
 
+  // Day currently at the top of the viewport, shown on the sticky date pill
+  // that replaces the scrollbar as the primary way to navigate history.
+  const visibleDay = createMemo(() => {
+    const index = virtualApi()?.topVisibleIndex();
+    if (index === undefined) return;
+    return messages()[index]?.day;
+  });
+
+  // Deliberate date/beginning jumps land the same way the initial-open
+  // effect above does: own positionedViewId so the ordinary unread/newest
+  // landing effect doesn't race it, then drive the same landingTarget/
+  // scheduleReveal settle loop. A single one-shot scrollToIndex isn't enough
+  // here — jumpToDate swaps in a whole new run of unmeasured (estimate-only)
+  // rows, and jumpToBeginning can prepend thousands of them; both need the
+  // same "wait for measurements to settle, then correct" treatment the
+  // codebase already built for the ordinary channel-open landing above.
+  function landAt(viewId: string, index: number) {
+    const epoch = positioningEpoch;
+    positionedViewId = viewId;
+    setLandingSpace(undefined);
+    landingTarget = { align: "start", epoch, index, viewId };
+    queueMicrotask(() => {
+      if (epoch !== positioningEpoch || store.viewState.activeView()?.id !== viewId) return;
+      virtualApi()?.scrollToIndex(index, { align: "start" });
+      scheduleReveal(viewId, epoch, index, "start");
+    });
+  }
+
+  function jumpToDate(dateMs: number) {
+    const view = store.viewState.activeView();
+    if (!view) return;
+    void store.messages.jumpToDate(view.id, dateMs).then((ok) => {
+      if (ok) landAt(view.id, 0);
+    });
+  }
+
+  // There's no Slack API call that returns "the first page of the channel"
+  // directly (conversations.history always answers relative to `latest`,
+  // newest-first), so reaching an arbitrarily old beginning means walking
+  // every older page via cursor. Land on whatever's loaded now, same as any
+  // other jump, then drive that walk explicitly (loadOlderMessagesToBeginning)
+  // rather than leaving it to scroll events — see that function for why.
+  function jumpToBeginning() {
+    const view = store.viewState.activeView();
+    if (!view) return;
+    landAt(view.id, 0);
+    void store.messages.loadOlderMessagesToBeginning(view.id);
+  }
+
   createEffect(() => {
     const target = store.viewState.channelMessageTarget();
     const view = store.viewState.activeView();
     if (!(target && view?.id === target.channelId)) return;
 
-    const message = messages().find((candidate) => candidate.ts === target.ts);
-    if (message) {
+    const index = messages().findIndex((candidate) => candidate.ts === target.ts);
+    if (index >= 0) {
       requestedMessageTarget = target;
+      // A message-link jump into a channel that isn't already open/ready needs
+      // the same wait-for-measurements-to-settle treatment as the ordinary
+      // open-channel landing above — otherwise the list is revealed the
+      // instant scrollToIndex is called, while rows around the target are
+      // still on their raw estimates, which visibly overlap/jump as each one
+      // measures in. A jump within an already-ready channel (e.g. clicking a
+      // reply reference) has nothing to wait for, so it skips straight to
+      // scrolling instead of hiding an already-visible view.
+      const coldOpen = readyViewId() !== view.id;
+      if (coldOpen) positioningEpoch += 1;
+      const epoch = positioningEpoch;
       positionedViewId = view.id;
+      if (coldOpen) landingTarget = { align: "center", epoch, index, viewId: view.id };
       queueMicrotask(() => {
-        if (store.viewState.channelMessageTarget() !== target) return;
+        if (epoch !== positioningEpoch || store.viewState.channelMessageTarget() !== target) return;
         setLandingSpace(undefined);
         jumpToMessage(target.ts);
-        setReadyViewId(view.id);
         store.viewState.setChannelMessageTarget(null);
+        if (coldOpen) scheduleReveal(view.id, epoch, index, "center");
+        else setReadyViewId(view.id);
       });
       return;
     }
@@ -380,16 +551,27 @@ export default function MessageList() {
   return (
     <div
       class="message-list"
-      onScroll={() => handleScroll()}
-      onTouchEnd={handleTouchEnd}
-      onTouchStart={handleTouchStart}
-      onWheel={handleWheel}
+      onFocusIn={messageFocus.onContainerFocusIn}
+      onFocusOut={messageFocus.onContainerFocusOut}
+      onScroll={() => scheduleScrollCheck()}
+      on:touchend={{ handleEvent: handleTouchEnd, passive: true }}
+      on:touchstart={{ handleEvent: handleTouchStart, passive: true }}
+      on:wheel={{ handleEvent: handleWheel, passive: true }}
       ref={scrollRef}
     >
       <Show when={!store.resources.bootstrap.loading}>
         <Show when={store.viewState.activeView()}>
           {(v) => (
             <>
+              <Show when={visibleDay()}>
+                {(day) => (
+                  <MessageListDateNav
+                    day={day()}
+                    onJumpToBeginning={jumpToBeginning}
+                    onJumpToDate={jumpToDate}
+                  />
+                )}
+              </Show>
               <div ref={headerRef}>
                 <Show
                   fallback={
@@ -446,11 +628,15 @@ export default function MessageList() {
                 <MessageRows
                   anchorTo={landingSpace()?.viewId === v().id ? "start" : "end"}
                   channelId={v().id}
+                  editingTs={messageFocus.editingTs}
+                  focusedTs={messageFocus.focusedTs}
                   followOnAppend={followOnAppend()}
                   messages={messages()}
                   onApi={setVirtualApi}
                   onJumpToMessage={jumpToMessage}
                   onOpenThread={(ts) => store.viewState.openThread(v().id, ts)}
+                  onStartEdit={messageFocus.onStartEdit}
+                  onStopEdit={messageFocus.onStopEdit}
                   scrollContainer={() => scrollRef}
                   scrollMargin={scrollMargin()}
                   virtualize

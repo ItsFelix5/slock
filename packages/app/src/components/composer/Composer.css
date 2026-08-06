@@ -168,59 +168,11 @@
 .menu-panel.composer-tools-menu {
   min-width: 190px;
 }
-.composer-mention-popover {
+.composer-date-popover {
   position: absolute;
   bottom: 36px;
   left: 0;
   z-index: 10;
-}
-.composer-mention-popover .compose-picker {
-  position: static;
-}
-.compose-date-picker {
-  width: 280px;
-  padding: 4px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
-  box-shadow: var(--shadow-popover);
-}
-.compose-date-row {
-  gap: 10px;
-  justify-content: space-between;
-  width: 100%;
-  text-align: left;
-}
-.compose-date-preview {
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-.compose-date-back {
-  width: 100%;
-  margin-bottom: 4px;
-  color: var(--text-dim);
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-}
-.compose-date-custom {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 6px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border);
-}
-.compose-date-input {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  font-family: inherit;
-  font-size: 12px;
-  color: var(--text-primary);
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-5);
 }
 .composer-input-wrap {
   position: relative;
@@ -234,7 +186,7 @@
   bottom: 100%;
   left: 0;
   z-index: 10;
-  min-width: 220px;
+  min-width: min(220px, 100%);
   max-height: 280px;
   margin-bottom: 6px;
   overflow-y: auto;

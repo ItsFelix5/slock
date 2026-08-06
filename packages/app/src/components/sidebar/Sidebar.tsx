@@ -1,4 +1,5 @@
-import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { useShortcut } from "@slock/ui";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import { sectionMoveTarget } from "../../lib/store/slices/entities/mutations/sectionOrder";
@@ -21,31 +22,49 @@ export default function Sidebar() {
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
   const feedMode = createMemo(
-    () => store.viewState.nav() === "later" || store.viewState.nav() === "activity",
+    () =>
+      store.viewState.nav() === "later" ||
+      store.viewState.nav() === "activity" ||
+      store.viewState.nav() === "search",
   );
   createEffect(() => setSharedSidebarWidth(feedMode() ? feedWidth() : width()));
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
-  // The section name flips its all/unread filter. The caret remains solely
-  // responsible for collapsing the section.
-  const [toggledSectionFilterIds, setToggledSectionFilterIds] = createSignal<Set<string>>(
-    new Set(),
-  );
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
   const [draggingSectionId, setDraggingSectionId] = createSignal<string | null>(null);
   const [dropTarget, setDropTarget] = createSignal<{ id: string; before: boolean } | null>(null);
-  onMount(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    onCleanup(() => window.removeEventListener("keydown", onKey));
+  useShortcut({
+    allowInInputs: true,
+    handler: () => setSearchOpen(true),
+    keys: "Ctrl/⌘ K",
+    label: "Jump to a channel or person",
+    match: (e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k",
+    scope: "general",
+  });
+  // Generic roving nav for any plain, non-virtualized list of real rows —
+  // sidebar channels/DMs, and (via the same data-nav-row marker) the
+  // Activity feed and Later views, which replace this list in "feed mode".
+  useShortcut({
+    allowRepeat: true,
+    enabled: () => !!document.activeElement?.closest("[data-nav-row]"),
+    handler: (e) => {
+      const rows = [...document.querySelectorAll<HTMLElement>("[data-nav-row]:not([disabled])")];
+      const current = rows.indexOf(document.activeElement as HTMLElement);
+      const next =
+        e.key === "Home"
+          ? rows[0]
+          : e.key === "End"
+            ? rows[rows.length - 1]
+            : rows[Math.max(0, Math.min(rows.length - 1, current + (e.key === "k" ? -1 : 1)))];
+      next?.focus();
+    },
+    keys: "j / k",
+    label: "Move between list items (channels, activity, saved)",
+    match: (e) => e.key === "j" || e.key === "k" || e.key === "Home" || e.key === "End",
+    scope: "general",
   });
   const toggleCategory = (id: string) => {
     const next = new Set(collapsed());
@@ -53,18 +72,12 @@ export default function Sidebar() {
     else next.add(id);
     setCollapsed(next);
   };
-  const toggleSectionFilter = (id: string) => {
-    const next = new Set(toggledSectionFilterIds());
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setToggledSectionFilterIds(next);
-  };
+  const toggleSectionFilter = (id: string) => store.channels.toggleSectionFilter(id);
   const categories = createMemo<Category[]>(() =>
     buildCategories(
       store.channels.channels(),
       store.channels.sections,
       unreadsOnly,
-      toggledSectionFilterIds,
       store.unread.unreadChannelIds,
       store.channels.isChannelStarred,
       store.channels.isChannelLeft,
@@ -188,7 +201,6 @@ export default function Sidebar() {
     currentUser: store.users.currentUser,
     deleteChannelSection: store.channels.deleteChannelSection,
     dmsOpen,
-    toggledSectionFilterIds,
     draggingSectionId,
     dropTarget,
     feedMaxWidth: FEED_MAX_WIDTH,

@@ -56,12 +56,14 @@ export default function MessageActionsBar(props: {
             <Icon name="emoji" size={16} />
           </button>
         </Tooltip>
-        <FloatingEmojiPicker
-          anchor={() => pickerWrapRef}
-          onClose={() => setPickerOpen(false)}
-          onSelect={react}
-          open={pickerOpen()}
-        />
+        <Show when={pickerOpen()}>
+          <FloatingEmojiPicker
+            anchor={() => pickerWrapRef}
+            onClose={() => setPickerOpen(false)}
+            onSelect={react}
+            open
+          />
+        </Show>
       </div>
 
       <Show when={props.onOpenThread}>

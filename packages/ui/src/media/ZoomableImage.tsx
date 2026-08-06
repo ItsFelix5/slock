@@ -58,7 +58,9 @@ export default function ZoomableImage(props: ZoomableImageProps) {
       >
         <Show
           fallback={
-            <span class="zoomable-image-unavailable">
+            <span
+              class={`zoomable-image-unavailable${props.reservedWidth && props.reservedHeight ? " zoomable-image-unavailable-framed" : ""}`}
+            >
               <Icon name="image-broken" size={22} />
               <span>Preview unavailable</span>
             </span>
@@ -90,6 +92,7 @@ export default function ZoomableImage(props: ZoomableImageProps) {
 const LENS_SIZE = 500;
 const LENS_ZOOM_DEFAULT = 5;
 const LENS_ZOOM_STEP = 0.5;
+const LENS_PAN_STEP = 24;
 
 function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }) {
   useEscapeClose(props.onClose);
@@ -127,6 +130,37 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
     setLensZoom((z) =>
       Math.max(LENS_ZOOM_STEP, z + (e.deltaY < 0 ? LENS_ZOOM_STEP : -LENS_ZOOM_STEP)),
     );
+  };
+
+  // Keyboard equivalent of the mouse-driven lens above: focusing the area
+  // centers it, arrow keys pan it (clamped to the image bounds), +/- zoom.
+  const focusLens = () => {
+    const rect = imgRef?.getBoundingClientRect();
+    if (!rect) return;
+    setLens((current) => current ?? { x: rect.width / 2, y: rect.height / 2 });
+  };
+
+  const nudgeLens = (dx: number, dy: number) => {
+    const rect = imgRef?.getBoundingClientRect();
+    if (!rect) return;
+    setLens((current) => {
+      const base = current ?? { x: rect.width / 2, y: rect.height / 2 };
+      return {
+        x: Math.max(0, Math.min(rect.width, base.x + dx)),
+        y: Math.max(0, Math.min(rect.height, base.y + dy)),
+      };
+    });
+  };
+
+  const handleLensKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "ArrowUp") nudgeLens(0, -LENS_PAN_STEP);
+    else if (e.key === "ArrowDown") nudgeLens(0, LENS_PAN_STEP);
+    else if (e.key === "ArrowLeft") nudgeLens(-LENS_PAN_STEP, 0);
+    else if (e.key === "ArrowRight") nudgeLens(LENS_PAN_STEP, 0);
+    else if (e.key === "+" || e.key === "=") setLensZoom((z) => z + LENS_ZOOM_STEP);
+    else if (e.key === "-") setLensZoom((z) => Math.max(LENS_ZOOM_STEP, z - LENS_ZOOM_STEP));
+    else return;
+    e.preventDefault();
   };
 
   return (
@@ -171,14 +205,20 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
         }
         when={!failed()}
       >
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: mouse-driven magnifier lens has no keyboard equivalent */}
         <div
+          aria-label="Magnify image. Arrow keys pan, plus and minus zoom."
           class="zoomable-image-spyglass-area"
+          onBlur={() => setLens(null)}
+          onFocus={focusLens}
+          onKeyDown={handleLensKeyDown}
           onMouseDown={moveLens}
           onMouseLeave={() => setLens(null)}
           onMouseMove={(e) => lens() && moveLens(e)}
           onMouseUp={() => setLens(null)}
           onWheel={zoomLens}
+          role="application"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: a 2D pan/zoom lens has no standard interactive ARIA role; it's a real keyboard control (arrow keys pan, +/- zoom) once focused
+          tabIndex={0}
         >
           <img
             alt={props.alt}

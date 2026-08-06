@@ -1,7 +1,7 @@
 import { logDeletedMessages, messageSize } from "@slock/ui";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { ScrollToOptions } from "@tanstack/virtual-core";
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
 import MessageRow from "./MessageRow";
 import type { MessageRowsProps } from "./MessageRows";
@@ -22,6 +22,9 @@ export interface VirtualRowsApi {
   // late-arriving embed/image growing an already-rendered row (not just a
   // new message being appended) so it can keep following the bottom.
   totalSize: () => number;
+  // Index of the row currently nearest the top of the viewport — drives the
+  // sticky date header showing which day is in view.
+  topVisibleIndex: () => number | undefined;
 }
 
 export default function VirtualizedRows(props: MessageRowsProps) {
@@ -83,6 +86,20 @@ export default function VirtualizedRows(props: MessageRowsProps) {
     },
   });
 
+  // this component never remounts on channel switch (parent Show isn't
+  // keyed), and tanstack-virtual only invalidates its measurement cache when
+  // count/getItemKey change identity - not when they return different
+  // values. same message count across two channels meant the old channel's
+  // row heights got reused for the new one until each row individually
+  // re-measured, causing overlap/gaps on switch. measure() forces a clean
+  // remeasure
+  createEffect(
+    on(
+      () => props.channelId,
+      () => virtualizer.measure(),
+    ),
+  );
+
   let reactionLayouts = new Map<string, string>();
   createEffect(() => {
     const nextLayouts = new Map<string, string>();
@@ -116,6 +133,17 @@ export default function VirtualizedRows(props: MessageRowsProps) {
     itemStart: (index) => virtualizer.measurementsCache[index]?.start,
     scrollToIndex: (index, opts) => virtualizer.scrollToIndex(index, opts),
     totalSize: () => virtualizer.getTotalSize(),
+    // getVirtualItems()[0] is the first *overscanned* row (overscan: 8 above),
+    // not the first one actually below the viewport's top edge — using it
+    // directly made the date pill show a day that had already scrolled out of
+    // view. item.start is in the same coordinate space as scrollTop (both
+    // measured from the scroll container's top, including scrollMargin), so
+    // find the first item whose bottom edge hasn't passed scrollTop yet.
+    topVisibleIndex: () => {
+      const scrollTop = props.scrollContainer?.()?.scrollTop ?? 0;
+      return virtualizer.getVirtualItems().find((item) => item.start + item.size > scrollTop)
+        ?.index;
+    },
   });
 
   return (
@@ -162,12 +190,16 @@ export default function VirtualizedRows(props: MessageRowsProps) {
               >
                 <MessageRow
                   channelId={props.channelId}
+                  editingTs={props.editingTs}
+                  focusedTs={props.focusedTs}
                   index={() => item.index}
                   message={message()}
                   messages={props.messages}
                   onJumpToMessage={props.onJumpToMessage}
                   onOpenThread={props.onOpenThread}
                   onReplyLink={props.onReplyLink}
+                  onStartEdit={props.onStartEdit}
+                  onStopEdit={props.onStopEdit}
                   threadTs={props.threadTs}
                 />
               </div>

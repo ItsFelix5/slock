@@ -1,7 +1,6 @@
 import type { DirectMessage } from "@slock/slack-api";
-import { Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { DmRow } from "./SidebarRows";
+import { DmRow, SidebarSectionCaretRow } from "./SidebarRows";
 
 function DmSection(props: {
   count?: () => number;
@@ -18,22 +17,18 @@ function DmSection(props: {
     <Show when={props.dms().length > 0 || props.showWhenEmpty?.()}>
       <div class="sidebar-section">
         <div class="sidebar-section-header flex-align-center">
-          <button
-            aria-expanded={props.open()}
-            class="sidebar-section-header-btn btn-reset flex-align-center text-muted text-sm"
-            onClick={() => props.setOpen(!props.open())}
-            type="button"
-          >
-            <span class="sidebar-caret">
-              <Icon name={props.open() ? "caret-down-filled" : "caret-right-filled"} size={10} />
-            </span>
-            <span>{props.label}</span>
-            <Show when={count() > 0 && !props.open()}>
-              <span class="sidebar-badge" title={`${count()} unread conversations`}>
-                {count()}
-              </span>
-            </Show>
-          </button>
+          <SidebarSectionCaretRow
+            badge={
+              <Show when={count() > 0 && !props.open()}>
+                <span class="sidebar-badge" title={`${count()} unread conversations`}>
+                  {count()}
+                </span>
+              </Show>
+            }
+            label={props.label}
+            onToggleOpen={() => props.setOpen(!props.open())}
+            open={props.open()}
+          />
         </div>
         <div>
           <For each={props.dms()}>

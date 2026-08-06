@@ -15,7 +15,6 @@ import MessageList from "./components/messages/MessageList";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
 import ThreadPanel from "./components/messages/thread/ThreadPanel";
 import ViewModal from "./components/modals/ViewModal";
-import MessageSearchView from "./components/search/MessageSearchView";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
@@ -98,7 +97,7 @@ function App() {
   });
 
   const permalinkOpener = createSlackPermalinkOpener({
-    navigate: (target) => navigateToSlackPermalink(target, store.viewState),
+    navigate: (target, options) => navigateToSlackPermalink(target, store.viewState, options),
     onError: (error) => {
       console.error("Failed to open Slack permalink", error);
       actionFeedback.flash("navigation", "Couldn’t open that message. Try again.", "error");
@@ -135,7 +134,9 @@ function App() {
     // (private, not a member) would otherwise switch views only to land on a
     // dead end. A newer primary click invalidates this probe so a slow response
     // cannot unexpectedly pull the user away from their newer destination.
-    void permalinkOpener.open(target);
+    const nav = store.viewState.nav();
+    const keepNav = nav === "later" || nav === "activity";
+    void permalinkOpener.open(target, { keepNav });
   };
 
   onMount(() => {
@@ -189,20 +190,18 @@ function App() {
           <Sidebar />
 
           <div class="main-panel">
-            <Show fallback={<MessageSearchView />} when={store.viewState.nav() !== "search"}>
-              <ChannelHeader />
-              <MessageList />
-              <Show
-                fallback={
-                  <div class="typing-indicator-anchor">
-                    <TypingIndicator names={typingNames()} />
-                    <Composer />
-                  </div>
-                }
-                when={unjoinedChannelId()}
-              >
-                {(channelId) => <JoinChannelBar channelId={channelId()} />}
-              </Show>
+            <ChannelHeader />
+            <MessageList />
+            <Show
+              fallback={
+                <div class="typing-indicator-anchor">
+                  <TypingIndicator names={typingNames()} />
+                  <Composer />
+                </div>
+              }
+              when={unjoinedChannelId()}
+            >
+              {(channelId) => <JoinChannelBar channelId={channelId()} />}
             </Show>
           </div>
           <ThreadPanel />

@@ -6,10 +6,9 @@ import type {
   RichTextSubBlock,
 } from "@slock/slack-api";
 import { For, type JSX, Show } from "solid-js";
-import { formatSlackDateTokens } from "../dateFormat";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import { Link, Mention, UsergroupMention } from "../mrkdwn";
+import { DateToken, Link, Mention, TimeAwareText, UsergroupMention } from "../mrkdwn";
 import { parseUserProfileLink } from "../userProfileLink";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
@@ -29,7 +28,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
             "bk-rt-strike": !!s?.strike,
           }}
         >
-          <EmojiText text={el.text} />
+          <TimeAwareText text={el.text} />
         </span>
       );
     }
@@ -61,10 +60,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
         </span>
       );
     case "date":
-      return el.url ? (
-        <Link label={formatSlackDateTokens(el.format, el.timestamp, el.fallback)} url={el.url} />
-      ) : (
-        formatSlackDateTokens(el.format, el.timestamp, el.fallback)
+      return (
+        <DateToken
+          fallback={el.fallback}
+          format={el.format}
+          timestamp={el.timestamp}
+          url={el.url}
+        />
       );
     case "message_mention":
       return <Link label={el.text} url={el.url} />;

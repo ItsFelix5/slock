@@ -10,14 +10,14 @@ export function createActivityReadSync(
   const error = () => Object.keys(failures).length > 0;
   const isPending = () => Object.keys(pending).length > 0;
 
-  async function request(channelId: string, ts: string) {
+  async function request(channelId: string, ts: string): Promise<boolean> {
     const epoch = (epochs.get(channelId) ?? 0) + 1;
     epochs.set(channelId, epoch);
     pendingCounts.set(channelId, (pendingCounts.get(channelId) ?? 0) + 1);
     setPending(channelId, true);
     try {
       const synced = await syncChannelRead(channelId, ts).catch(() => false);
-      if (epochs.get(channelId) !== epoch) return;
+      if (epochs.get(channelId) !== epoch) return false;
       if (synced) {
         setFailures(
           produce((current) => {
@@ -27,6 +27,7 @@ export function createActivityReadSync(
       } else {
         setFailures(channelId, ts);
       }
+      return synced;
     } finally {
       const remaining = (pendingCounts.get(channelId) ?? 1) - 1;
       if (remaining > 0) {

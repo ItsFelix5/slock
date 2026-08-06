@@ -8,7 +8,6 @@ import { suggestItemContent } from "./lib/suggestTypes";
 import { linkPreviewToAttachment } from "./lib/textDetection";
 import ComposeDatePicker from "./popovers/ComposeDatePicker";
 import ComposeLinkEditor from "./popovers/ComposeLinkEditor";
-import ComposeUserPicker from "./popovers/ComposeUserPicker";
 import "./Composer.css";
 
 function FileChipThumbnail(props: { file: File }) {
@@ -93,8 +92,6 @@ export default function Composer(props: ComposerProps) {
   const {
     toolsOpen,
     setToolsOpen,
-    mentionOpen,
-    setMentionOpen,
     dateOpen,
     setDateOpen,
     linkEditor,
@@ -120,9 +117,11 @@ export default function Composer(props: ComposerProps) {
     onKeyDown,
     onInput,
     onPaste,
+    onCopy,
+    onCut,
     onEditorClick,
     setSuggestPopoverRef,
-    getFileInputRef,
+    setFileInputRef,
     sending,
     draftSyncError,
     retryDraftSync,
@@ -253,20 +252,8 @@ export default function Composer(props: ComposerProps) {
               )}
             </For>
           </Menu>
-          <Show when={mentionOpen()}>
-            <div class="composer-mention-popover">
-              <ComposeUserPicker
-                onClose={() => setMentionOpen(false)}
-                onSelect={(id) => {
-                  editor.restoreSelection();
-                  editor.insertMentionChipAtCaret(id);
-                  setMentionOpen(false);
-                }}
-              />
-            </div>
-          </Show>
           <Show when={dateOpen()}>
-            <div class="composer-mention-popover">
+            <div class="composer-date-popover">
               <ComposeDatePicker
                 onClose={() => setDateOpen(false)}
                 onSelect={(ts, format) => {
@@ -289,6 +276,8 @@ export default function Composer(props: ComposerProps) {
             data-placeholder={dragOver() ? "Drop to attach" : placeholder()}
             onBlur={() => setSuggest(null)}
             onClick={onEditorClick}
+            onCopy={onCopy}
+            onCut={onCut}
             onInput={onInput}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
@@ -336,7 +325,7 @@ export default function Composer(props: ComposerProps) {
             if (e.currentTarget.files?.length) addFiles(e.currentTarget.files);
             e.currentTarget.value = "";
           }}
-          ref={getFileInputRef}
+          ref={setFileInputRef}
           type="file"
         />
         <Show when={sending()}>

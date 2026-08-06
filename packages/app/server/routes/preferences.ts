@@ -27,6 +27,14 @@ export const preferenceRoutes: Route[] = [
     return prefWrite("slock_usergroup_section_sidebar", JSON.stringify(entries), ctx);
   }),
 
+  route("PUT", "/api/preferences/channel-sections", async (ctx) => {
+    const { sections } = (await ctx.body.json()) as {
+      sections?: Record<string, Record<string, unknown>>;
+    };
+    if (!sections) return errorResponse("invalid_sections", 400);
+    return prefWrite("channel_sections", JSON.stringify(sections), ctx);
+  }),
+
   route("PUT", "/api/preferences/muted-channels", async (ctx) => {
     const { channelIds } = (await ctx.body.json()) as { channelIds?: string[] };
     if (!channelIds) return errorResponse("invalid_channel_ids", 400);

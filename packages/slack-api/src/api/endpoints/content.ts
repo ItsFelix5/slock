@@ -138,7 +138,7 @@ export async function uploadFiles(
       method: "POST",
     });
     const reservation = await reserve.json();
-    if (!(reserve.ok && reservation.ok)) {
+    if (!(reserve.ok && reservation.file_id && reservation.upload_token)) {
       throw new Error(reservation.error ?? "File reservation failed");
     }
 
@@ -160,7 +160,7 @@ export async function uploadFiles(
     method: "POST",
   });
   const complete = await completeRes.json();
-  if (!complete.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
+  if (!completeRes.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
 }
 
 export function uploadFile(

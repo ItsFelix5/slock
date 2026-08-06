@@ -4,13 +4,11 @@
 }
 .message-meta {
   display: flex;
+  gap: var(--message-meta-gap);
   align-items: baseline;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
-}
-[data-message-size="0"] .message-meta {
-  gap: 6px;
 }
 .message-author {
   font-family: inherit;
@@ -27,14 +25,33 @@
 .message-author:disabled:hover {
   text-decoration: none;
 }
+.message-author-unverified,
+.message-author-unverified:hover {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #001ba5;
+  text-decoration-thickness: 1px;
+}
+.message-author-over_18,
+.message-author-over_18:hover {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #d97706;
+  text-decoration-thickness: 1px;
+}
+.message-author-banned,
+.message-author-banned:hover {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #ff0000;
+  text-decoration-thickness: 1px;
+}
 .message-time {
-  margin-left: 6px;
   font-size: 12px;
   color: var(--text-dim);
 }
 .message-bot-badge {
   padding: 1px 4px;
-  margin-left: 6px;
   font-size: 10px;
   font-weight: 700;
   color: var(--text-dim);
@@ -57,9 +74,6 @@
 .message-row-group.saved {
   box-shadow: inset 2px 0 0 rgba(var(--accent-rgb), 0.5);
 }
-.message-row-group.broadcast {
-  background: rgba(var(--mention-self-rgb), 0.05);
-}
 .message-row-group.ephemeral {
   background: rgba(var(--mention-self-rgb), 0.05);
   box-shadow: inset 2px 0 0 rgba(var(--mention-self-rgb), 0.4);
@@ -75,7 +89,6 @@
   gap: 3px;
   align-items: center;
   padding: 1px 5px;
-  margin-left: 6px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -85,12 +98,12 @@
   color: var(--accent);
   background: rgba(var(--accent-rgb), 0.12);
 }
+.message-broadcast-badge,
 .message-pinned-badge {
   color: var(--text-secondary);
   background: var(--hover-bg);
 }
-.message-ephemeral-badge,
-.message-broadcast-badge {
+.message-ephemeral-badge {
   color: var(--mention-self-text);
   background: var(--mention-self-bg);
 }
@@ -175,7 +188,6 @@
   align-items: center;
   font-size: 14px;
   cursor: default;
-  margin-left: 4px;
 }
 .message-status-emoji .emoji-img {
   width: 16px;

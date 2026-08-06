@@ -83,6 +83,7 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
       <div class="sidebar-section-filter">
         <SegmentedControl>
           <button
+            aria-pressed={props.cat.sidebar === "hid"}
             class="segmented-control-btn"
             classList={{ active: props.cat.sidebar === "hid" }}
             disabled={filterDisabled()}
@@ -95,6 +96,7 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
             Unread
           </button>
           <button
+            aria-pressed={props.cat.sidebar === "active"}
             class="segmented-control-btn"
             classList={{ active: props.cat.sidebar === "active" }}
             disabled={filterDisabled()}
@@ -107,6 +109,7 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
             Active
           </button>
           <button
+            aria-pressed={props.cat.sidebar === "all"}
             class="segmented-control-btn"
             classList={{ active: props.cat.sidebar === "all" }}
             disabled={filterDisabled()}

@@ -49,3 +49,19 @@ export const BlockKitResolverContext = createContext<BlockKitResolver>(defaultNo
 export function useBlockKitResolver(): BlockKitResolver {
   return useContext(BlockKitResolverContext);
 }
+
+// Lets plain-text time mentions typed into a message (e.g. "3 seconds ago", "1pm")
+// resolve to a real instant — anchored to when the message was sent, read in the
+// sender's own timezone when a mention doesn't name one explicitly ("5pm UTC"
+// always means UTC regardless). Undefined outside a real chat message (a channel
+// topic, a bio, ...), which turns the feature off entirely.
+export interface TimeAnchor {
+  ms: number;
+  tz?: string;
+}
+
+export const TimeAnchorContext = createContext<TimeAnchor | undefined>(undefined);
+
+export function useTimeAnchor(): TimeAnchor | undefined {
+  return useContext(TimeAnchorContext);
+}

@@ -1,8 +1,8 @@
 import { createEffect, type JSX, onCleanup } from "solid-js";
+import { listNavigationIndex } from "../../form/listNavigation";
 import { useClickOutside } from "../../useClickOutside";
 import { useEscapeClose } from "../../useEscapeClose";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
-import { menuNavigationIndex } from "../floating/menuNavigation";
 import "./MenuButton.css";
 
 export interface MenuProps {
@@ -93,7 +93,9 @@ export default function Menu(props: MenuProps) {
     if (event.key === "Enter" || event.key === " ") restoreAfterKeyboardAction = true;
     const items = menuItems();
     const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = menuNavigationIndex(event.key, current < 0 ? null : current, items.length);
+    const next = listNavigationIndex(event.key, current < 0 ? null : current, items.length, {
+      wrap: true,
+    });
     if (next === undefined) return;
     event.preventDefault();
     event.stopPropagation();
@@ -134,6 +136,7 @@ export default function Menu(props: MenuProps) {
         onKeyDown={onPanelKeyDown}
         onMouseEnter={openFromHover}
         onMouseLeave={closeFromHover}
+        onScroll={props.onClose}
         open={props.open}
         panelRef={(element) => {
           panelRef = element;

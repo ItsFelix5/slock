@@ -16,6 +16,7 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--text-primary);
   background: var(--main-bg);
+  color-scheme: dark;
 }
 
 button {
@@ -87,17 +88,20 @@ button {
 
 /* Applied (see panelWantsFullscreen) once a resizable side panel (thread,
    profile, usergroup details) would squeeze the message list down to an
-   unreadable sliver — the panel takes over the whole viewport instead. */
+   unreadable sliver. The message list hides and the panel fills the rest of
+   the app in its place — the sidebar stays put either way. */
+.main-panel:has(~ .panel-fullscreen) {
+  display: none;
+}
+
 .thread-panel.panel-fullscreen,
 .user-profile-panel.panel-fullscreen,
 .usergroup-details-panel.panel-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 55;
-  width: 100% !important;
+  flex: 1;
+  min-width: 0;
   border-left: none;
 }
 
 .panel-fullscreen .resize-handle {
-  display: none;
+  z-index: 11;
 }

@@ -8,6 +8,7 @@ import "./ActivityView.css";
 
 type Tag = ActivityItem["kind"] | "app";
 type ReadState = "all" | "unread" | "read" | "reacted";
+type RowStatus = Exclude<ReadState, "all"> | "pending";
 
 const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
 // Caps the auto top-up effect's consecutive fetches per filter combo — see
@@ -33,6 +34,7 @@ const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
   { icon: ACTIVITY_KIND_ICONS.reaction, key: "reaction", label: "Reactions" },
   { icon: ACTIVITY_KIND_ICONS.reminder, key: "reminder", label: "Reminders" },
   { icon: ACTIVITY_KIND_ICONS.channel_invite, key: "channel_invite", label: "Invitations" },
+  { icon: ACTIVITY_KIND_ICONS.list, key: "list", label: "Lists" },
   { icon: "apps", key: "app", label: "Apps" },
 ];
 
@@ -103,9 +105,10 @@ export default function ActivityView() {
     return ordered;
   });
 
-  const statusFor = (row: ActivityRowData): Exclude<ReadState, "all"> => {
+  const statusFor = (row: ActivityRowData): RowStatus => {
     const latest = latestItem(row);
     if (store.activity.isActivityItemReacted(latest)) return "reacted";
+    if (store.activity.activityItemReadState(latest) === "pending") return "pending";
     if (store.activity.isActivityItemUnread(latest)) return "unread";
     return "read";
   };
@@ -132,7 +135,10 @@ export default function ActivityView() {
       read: 0,
       unread: 0,
     };
-    for (const row of tagAndSearchRows()) counts[statusFor(row)] += 1;
+    for (const row of tagAndSearchRows()) {
+      const status = statusFor(row);
+      if (status !== "pending") counts[status] += 1;
+    }
     return counts;
   });
 
@@ -174,6 +180,7 @@ export default function ActivityView() {
   // page of the feed is filtered server-side instead of client-only.
   const activeUnreadOnly = createMemo(() => readState() === "unread");
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid.js assigns via ref attribute
   let scrollRef: HTMLDivElement | undefined;
 
   function handleScroll() {

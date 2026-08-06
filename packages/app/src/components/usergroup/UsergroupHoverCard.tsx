@@ -39,6 +39,7 @@ export default function UsergroupHoverCard(props: { usergroupId: string; childre
         class="usergroup-hovercard"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
+        onScroll={close}
         open={open() && !!details()}
         placement="top"
         style={{ width: `${CARD_WIDTH}px` }}

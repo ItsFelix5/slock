@@ -4,6 +4,7 @@ import { buildUnreadMap, mapUser, type RawCounts, type RawUser } from "../mapper
 import { fetchInitialData } from "./initialData";
 
 export interface Bootstrap {
+  activityCounts: Record<string, number> | undefined;
   channels: Channel[];
   currentUser: User;
   directMessages: DirectMessage[];
@@ -21,6 +22,7 @@ interface RawBootChannel {
   is_private?: boolean;
   members?: string[];
   name?: string;
+  properties?: { has_custom_mpdm_name?: boolean };
   topic?: string | { value?: string };
   updated?: number;
 }
@@ -39,6 +41,7 @@ interface RawBootMpim {
   is_open?: boolean;
   members?: string[];
   name?: string;
+  properties?: { has_custom_mpdm_name?: boolean };
   updated?: number;
 }
 
@@ -46,6 +49,10 @@ interface RawBoot {
   channels?: RawBootChannel[];
   error?: string;
   ims?: RawBootIm[];
+  // Root-level array of conversation ids that are open, separate from the per-object
+  // is_open on ims/mpims — this is the only place a channels-sourced mpim's open
+  // state lives, since is_mpim channel entries don't carry is_open themselves.
+  is_open?: string[];
   mpims?: RawBootMpim[];
   ok?: boolean;
   self?: RawUser;
@@ -63,11 +70,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   // (see store's searchUsers/userById, which already fetch users individually or via
   // live directory search), so it only added latency without actually removing any
   // of those fetches.
-  const { boot, counts } = (await fetchInitialData()) as {
-    boot: RawBoot;
-    counts: RawCounts;
-  };
-  if (!boot?.ok) throw new Error(boot?.error ?? "client.userBoot failed");
+  const initial = await fetchInitialData();
+  if (initial.error?.bootstrap) throw new Error(initial.error.bootstrap);
+  const boot = initial as RawBoot;
+  const counts = { ...initial.unreads, activity_v2: initial.notifications } as RawCounts;
 
   const unreadMap = buildUnreadMap(counts);
 
@@ -140,8 +146,9 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   // Slack's userBoot sometimes only lists an mpim in `channels` (marked
   // is_mpim, with real membership) and not in `mpims` at all — merge both
   // sources by id so neither an mpim-only-in-channels nor an
-  // mpim-only-in-mpims entry gets dropped. A channels-sourced entry always
-  // has real membership, so it's treated as open.
+  // mpim-only-in-mpims entry gets dropped. is_mpim doesn't imply open, so
+  // look the channel's id up in the root is_open array rather than assuming true.
+  const openIds = new Set(boot.is_open ?? []);
   const rawMpimsById = new Map<string, RawBootMpim>(
     (boot.mpims ?? []).map((mpim) => [mpim.id, mpim]),
   );
@@ -150,9 +157,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     rawMpimsById.set(channel.id, {
       created: channel.created,
       id: channel.id,
-      is_open: true,
+      is_open: openIds.has(channel.id),
       members: channel.members,
       name: channel.name,
+      properties: channel.properties,
       updated: channel.updated,
     });
   }
@@ -165,7 +173,10 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       lastActivity:
         latestByMpim.get(g.id) || g.updated || (g.created ? g.created * 1000 : undefined),
       memberIds: (g.members ?? []).filter((id) => id !== boot.self?.id),
-      name: g.name,
+      // Slack always sets a group's `name` to an auto-generated "mpdm-a--b--c-1"
+      // slug built from usernames unless the conversation was explicitly renamed
+      // (has_custom_mpdm_name) — only trust it in the latter case.
+      name: g.properties?.has_custom_mpdm_name ? g.name : undefined,
       unread: !!unreadMap[g.id]?.unread,
     }));
 
@@ -182,6 +193,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   const selfUsergroupIds = boot.subteams?.self ?? [];
 
   return {
+    activityCounts: counts.activity_v2,
     channels,
     currentUser,
     directMessages,

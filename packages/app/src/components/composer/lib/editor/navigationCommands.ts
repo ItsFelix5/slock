@@ -1,6 +1,5 @@
 import {
   closestListItem,
-  createComposerBlockSeparator,
   placeCaretAtEnd,
   placeCaretAtStart,
   placeCaretInText,
@@ -12,11 +11,15 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
   function handleBackspaceOnQuote(): boolean {
     const el = ref.get();
     const sel = window.getSelection();
+    console.debug("[quote-backspace] enter", { html: el?.innerHTML });
     if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
     const { startContainer, startOffset } = sel.getRangeAt(0);
     let n: Node | null = startContainer;
     while (n && n !== el && n.nodeName !== "BLOCKQUOTE") n = n.parentNode;
-    if (!n || n === el) return false;
+    if (!n || n === el) {
+      console.debug("[quote-backspace] no blockquote ancestor");
+      return false;
+    }
     const quote = n as HTMLQuoteElement;
 
     let childOffset = startOffset;
@@ -38,30 +41,20 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     beforeCaret.setEnd(startContainer, startOffset);
     const beforeContents = beforeCaret.cloneContents();
     if (
-      (beforeContents.textContent ?? "").replace(/\u200B/g, "").length > 0 ||
+      (beforeContents.textContent ?? "").replace(/​/g, "").length > 0 ||
       beforeContents.querySelector("img")
-    )
+    ) {
+      console.debug("[quote-backspace] not at line start", {
+        quoteHTML: quote.outerHTML,
+        beforeText: beforeContents.textContent,
+      });
       return false;
-
-    // Caret sits at the very start of a line inside the quote. On any line
-    // but the first, backspace should do exactly what it does everywhere
-    // else in the editor: delete the newline and merge into the end of the
-    // previous line, staying inside the same quote — not peel the line back
-    // out into its own unquoted paragraph.
-    if (previousBreak >= 0) {
-      quote.childNodes[previousBreak].remove();
-      const r = document.createRange();
-      r.setStart(quote, previousBreak);
-      r.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(r);
-      syncFromDom();
-      return true;
     }
 
-    // On the first line there's no previous line inside the quote to merge
-    // into, so pull just this line back out in front of it instead — the
-    // same "merge into what precedes the block" backspace does elsewhere.
+    // Caret is at the very start of a line inside the quote. Backspace pops
+    // the quote formatting off just that line and leaves its text behind as
+    // a plain line, the same way it would delete any other single character
+    // — it doesn't touch neighboring lines or merge them together.
     const breaks = quote.querySelectorAll(":scope > br");
     if (breaks.length === 0 || (breaks.length === 1 && quote.childNodes.length === 1)) {
       const marker = document.createTextNode("");
@@ -71,11 +64,12 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
       quote.replaceWith(replacement);
       placeCaretInText(marker, 0);
       syncFromDom();
+      console.debug("[quote-backspace] single-line unwrap ->", { html: el.innerHTML });
       return true;
     }
 
     let nextBreak = -1;
-    for (let i = 0; i < quote.childNodes.length; i++) {
+    for (let i = childOffset; i < quote.childNodes.length; i++) {
       if (quote.childNodes[i].nodeName === "BR") {
         nextBreak = i;
         break;
@@ -83,16 +77,25 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     }
     const children = Array.from(quote.childNodes);
     const currentLineEnd = nextBreak < 0 ? children.length : nextBreak;
-    const marker = document.createTextNode("");
     const replacement = document.createDocumentFragment();
-    replacement.append(marker, ...children.slice(0, currentLineEnd));
-    const afterQuote = quote.cloneNode(false) as HTMLQuoteElement;
-    afterQuote.append(...children.slice(nextBreak + 1));
-    if (!afterQuote.childNodes.length) afterQuote.appendChild(document.createElement("br"));
-    replacement.append(createComposerBlockSeparator(), afterQuote);
+    if (previousBreak >= 0) {
+      const beforeQuote = quote.cloneNode(false) as HTMLQuoteElement;
+      beforeQuote.append(...children.slice(0, previousBreak));
+      if (!beforeQuote.childNodes.length) beforeQuote.appendChild(document.createElement("br"));
+      replacement.append(beforeQuote, document.createElement("br"));
+    }
+    const marker = document.createTextNode("");
+    replacement.append(marker, ...children.slice(previousBreak + 1, currentLineEnd));
+    if (nextBreak >= 0) {
+      const afterQuote = quote.cloneNode(false) as HTMLQuoteElement;
+      afterQuote.append(...children.slice(nextBreak + 1));
+      if (!afterQuote.childNodes.length) afterQuote.appendChild(document.createElement("br"));
+      replacement.append(document.createElement("br"), afterQuote);
+    }
     quote.replaceWith(replacement);
     placeCaretInText(marker, 0);
     syncFromDom();
+    console.debug("[quote-backspace] split ->", { html: el.innerHTML, previousBreak, nextBreak });
     return true;
   }
   function handleShiftEnterInHeader(): boolean {
@@ -173,6 +176,40 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     syncFromDom();
     return true;
   }
+  function handleBackspaceOnCodeBlock(): boolean {
+    const el = ref.get();
+    const sel = window.getSelection();
+    if (!(el && sel?.isCollapsed) || sel.rangeCount === 0) return false;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+    let n: Node | null = startContainer;
+    while (n && n !== el && n.nodeName !== "PRE") n = n.parentNode;
+    if (!n || n === el) return false;
+    const pre = n as HTMLElement;
+    const beforeCaret = document.createRange();
+    beforeCaret.selectNodeContents(pre);
+    beforeCaret.setEnd(startContainer, startOffset);
+    if (beforeCaret.toString().length > 0 || beforeCaret.cloneContents().querySelector("img"))
+      return false;
+    const before = pre.previousSibling;
+    const after = pre.nextSibling;
+    console.debug("[pre-backspace]", {
+      preHTML: pre.outerHTML,
+      before: before && { name: before.nodeName, text: before.textContent },
+      after: after && { name: after.nodeName, text: after.textContent },
+      elHTMLBefore: el.innerHTML,
+    });
+    const frag = document.createDocumentFragment();
+    if (before) frag.appendChild(document.createElement("br"));
+    const marker = document.createTextNode("");
+    frag.appendChild(marker);
+    while (pre.firstChild) frag.appendChild(pre.firstChild);
+    if (after) frag.appendChild(document.createElement("br"));
+    pre.replaceWith(frag);
+    placeCaretInText(marker, 0);
+    syncFromDom();
+    console.debug("[pre-backspace] ->", { elHTMLAfter: el.innerHTML });
+    return true;
+  }
   function handleBackspaceOnDivider(): boolean {
     const el = ref.get();
     const sel = window.getSelection();
@@ -217,6 +254,7 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     }
   }
   return {
+    handleBackspaceOnCodeBlock,
     handleBackspaceOnDivider,
     handleBackspaceOnHeading,
     handleBackspaceOnQuote,

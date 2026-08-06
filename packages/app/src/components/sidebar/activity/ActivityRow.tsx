@@ -1,4 +1,3 @@
-import { Mrkdwn } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
@@ -6,9 +5,10 @@ import { conversationDisplayName, isPingingActivity, store } from "../../../lib/
 import ReactionRow from "../../messages/parts/ReactionRow";
 import { ActivityRowActions } from "./ActivityRowActions";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
+import { activityVerb } from "./activityMetadata";
 import "./ActivityRow.css";
 import "./ActivityThread.css";
-import { formatTime, ThreadMessageRow } from "./activityThreadMessage";
+import { ActivityMessageText, formatTime, ThreadMessageRow } from "./activityThreadMessage";
 
 export interface ActivityRow {
   isThread: boolean;
@@ -26,16 +26,6 @@ interface TimelineEntry {
 export function rowTarget(row: ActivityRow) {
   const [latest] = row.items;
   return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
-}
-
-// Reaction/mention items on a plain channel message open in the channel, while real thread
-// replies open their thread panel highlighted on the specific reply.
-function navigateToItem(item: ActivityItem) {
-  if (item.threadTs) {
-    store.viewState.openChannelPeek(item.channelId, item.threadTs, item.ts, { keepNav: true });
-  } else {
-    store.viewState.openChannelMessage(item.channelId, item.ts, { keepNav: true });
-  }
 }
 
 function TimelineRow(props: {
@@ -59,31 +49,6 @@ function TimelineRow(props: {
   );
 }
 
-function verbFor(item: ActivityItem): string {
-  switch (item.kind) {
-    case "mention":
-      return "Mentioned you";
-    case "dm":
-      return "Sent you a message";
-    case "keyword":
-      return item.matchedKeyword ? `Said “${item.matchedKeyword}”` : "Used a pingword";
-    case "thread_reply":
-      return "Replied in a thread";
-    case "channel_mention":
-      return `Mentioned @${item.broadcastRange ?? "channel"}`;
-    case "usergroup_mention":
-      return "Mentioned your usergroup";
-    case "channel_all":
-      return "Posted in a channel you follow";
-    case "reminder":
-      return "Reminded you";
-    case "channel_invite":
-      return "Invited you";
-    default:
-      return "Reacted to your message";
-  }
-}
-
 export default function ActivityRow(props: {
   row: ActivityRow;
   onReacted: (items: readonly ActivityItem[]) => void;
@@ -92,22 +57,25 @@ export default function ActivityRow(props: {
   const [expanded, setExpanded] = createSignal(false);
   const latest = createMemo(() => props.row.items[0]);
   const user = createMemo(() => store.users.userById(latest().userId));
-  const channel = createMemo(() => store.channels.knownChannelById(latest().channelId));
-  const channelLabel = createMemo(() =>
-    conversationDisplayName(
+  const channel = createMemo(() => store.channels.channelById(latest().channelId));
+  const channelLabel = createMemo(() => {
+    if (!latest().channelId) return "Activity";
+    return conversationDisplayName(
       latest().channelId,
       channel(),
       store.dms.dmById(latest().channelId),
       store.users.userById,
-    ),
-  );
+    );
+  });
   const isUnread = createMemo(() => store.activity.isActivityItemUnread(latest()));
   const isReacted = createMemo(() => store.activity.isActivityItemReacted(latest()));
   const isPinging = createMemo(() => isPingingActivity(latest()));
+  const isListActivity = createMemo(() => latest().kind === "list");
+  const isStandaloneActivity = createMemo(() => !latest().channelId);
+  const showsActivityVerb = createMemo(() => isListActivity() || isStandaloneActivity());
   const isThreadGroup = createMemo(() => props.row.isThread);
   const orderedItems = createMemo(() => [...props.row.items].reverse());
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
-
   // The channel's own message cache only covers whatever page of history is
   // currently loaded, which almost never includes an arbitrary thread's root
   // for a channel the user hasn't opened — fetch the real thread so nothing
@@ -224,8 +192,16 @@ export default function ActivityRow(props: {
   );
 
   const openRow = () => {
+    const item = latest();
+    if (!item.channelId) return;
     props.onSeen(props.row.items);
-    navigateToItem(latest());
+    if (item.activityType === "quietly_added_to_channel") {
+      store.viewState.setSelected({ id: item.channelId, kind: "channel" });
+      return;
+    }
+    if (item.threadTs)
+      store.viewState.openChannelPeek(item.channelId, item.threadTs, item.ts, { keepNav: true });
+    else store.viewState.openChannelMessage(item.channelId, item.ts, { keepNav: true });
   };
 
   const openThreadTs = (ts: string) => {
@@ -255,7 +231,12 @@ export default function ActivityRow(props: {
           unread: isUnread(),
         }}
       >
-        <button class="activity-item-summary btn-reset" onClick={openRow} type="button">
+        <button
+          class="activity-item-summary btn-reset"
+          data-nav-row
+          onClick={openRow}
+          type="button"
+        >
           <span class="activity-item-avatar">
             <Show
               fallback={
@@ -282,17 +263,20 @@ export default function ActivityRow(props: {
           </span>
           <span class="activity-body">
             <span class="activity-headline">
-              <Tooltip content={verbFor(latest())}>
+              <Tooltip content={activityVerb(latest())}>
                 <Icon
                   class="activity-kind-icon"
                   name={ACTIVITY_KIND_ICONS[latest().kind]}
                   size={12}
                 />
               </Tooltip>
-              <Show when={!isThreadGroup()}>
+              <Show when={!(isThreadGroup() || isStandaloneActivity())}>
                 <strong>{user()?.name ?? "Someone"}</strong>
               </Show>
-              <Show when={latest().kind !== "dm"}>
+              <Show when={showsActivityVerb()}>
+                <span class="activity-channel">{activityVerb(latest())}</span>
+              </Show>
+              <Show when={latest().kind !== "dm" && !isStandaloneActivity()}>
                 <span class="activity-channel">{channelLabel()}</span>
               </Show>
               <Show when={props.row.items.length > 1}>
@@ -307,7 +291,7 @@ export default function ActivityRow(props: {
             </span>
             <Show when={!isThreadGroup()}>
               <span class="activity-snippet">
-                <Mrkdwn text={latest().text} />
+                <ActivityMessageText text={latest().text} />
               </span>
             </Show>
           </span>
@@ -337,6 +321,7 @@ export default function ActivityRow(props: {
             <Show when={earlierMessageCount() > 0 && !expanded()}>
               <button
                 class="activity-read-more btn-reset"
+                data-nav-row
                 onClick={() => setExpanded(true)}
                 type="button"
               >

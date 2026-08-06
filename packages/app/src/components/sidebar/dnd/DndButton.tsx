@@ -97,6 +97,7 @@ export default function DndButton() {
         class="menu-panel dnd-duration-panel"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
+        onScroll={() => setOpen(false)}
         open={open()}
       >
         <For each={DURATIONS}>

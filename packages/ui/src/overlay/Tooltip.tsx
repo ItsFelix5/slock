@@ -15,7 +15,7 @@ export interface TooltipProps {
 export default function Tooltip(props: TooltipProps) {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let anchorRef: HTMLSpanElement | undefined;
-  const { open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
 
   const showable = () => !props.disabled && props.content != null && props.content !== "";
 
@@ -34,6 +34,7 @@ export default function Tooltip(props: TooltipProps) {
         align={props.align ?? "center"}
         anchor={() => anchorRef}
         class="tooltip-bubble"
+        onScroll={close}
         open={open() && showable()}
         placement={props.placement ?? "top"}
       >

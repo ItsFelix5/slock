@@ -5,11 +5,12 @@ import {
   deleteSection as apiDeleteSection,
   renameSection as apiRenameSection,
   reorderSection as apiReorderSection,
-  setSectionSidebar as apiSetSectionSidebar,
+  setChannelSectionsPreference as apiSetChannelSectionsPreference,
   setUsergroupSectionOrderPreference as apiSetUsergroupSectionOrderPreference,
   updateSectionChannels as apiUpdateSectionChannels,
   fetchBrowsableChannels,
   fetchChannel,
+  fetchChannelMembers,
   fetchConversationView,
   fetchFreshSections,
   fetchSections,
@@ -23,7 +24,6 @@ import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 import type { Nav, View } from "../types";
 import type { ChannelPlacementOutcome } from "./mutations/channelPlacementOutcome";
-import { removeSectionChannelsBatched } from "./mutations/sectionChannelRemovals";
 import { applySectionOrder, reorderSections } from "./mutations/sectionOrder";
 import {
   setSectionSidebarPreference,
@@ -93,7 +93,8 @@ export function createChannelsSlice(deps: {
   }
 
   function channelById(id: string): Channel | undefined {
-    const known = knownChannelById(id);
+    const known =
+      channels().find((c) => c.id === id) ?? discoveredChannels.find((c) => c.id === id);
     if (known) return known;
     // Bootstrap hasn't resolved yet, so we can't tell a genuinely unknown
     // channel apart from one of this account's own that just hasn't loaded.
@@ -110,12 +111,6 @@ export function createChannelsSlice(deps: {
         .catch(() => channelDiscoveryMisses.set(id, Date.now()))
         .finally(() => pendingChannels.delete(id));
     }
-  }
-
-  // Read-only lookup for dense lists such as Activity. Unlike channelById,
-  // this never turns rendering an unknown channel label into network I/O.
-  function knownChannelById(id: string): Channel | undefined {
-    return channels().find((c) => c.id === id) ?? discoveredChannels.find((c) => c.id === id);
   }
 
   // client.userBoot can omit topic metadata for a channel. Resolve it lazily
@@ -143,6 +138,42 @@ export function createChannelsSlice(deps: {
 
   function isChannelMember(id: string): boolean {
     return channels().some((c) => c.id === id);
+  }
+
+  // Full member-id roster for a channel, used to flag "not in channel" on
+  // @mention suggestions. Fetched in full and cached per channel rather than
+  // per-user-checked, since Slack has no "is user X in channel Y" lookup.
+  const channelRosters = new Map<string, Set<string>>();
+  const rosterLoads = new Map<string, Promise<Set<string> | undefined>>();
+
+  function channelMemberIds(channelId: string): Set<string> | undefined {
+    return channelRosters.get(channelId);
+  }
+
+  function ensureChannelRoster(channelId: string): Promise<Set<string> | undefined> {
+    const cached = channelRosters.get(channelId);
+    if (cached) return Promise.resolve(cached);
+    const inFlight = rosterLoads.get(channelId);
+    if (inFlight) return inFlight;
+    const load = (async () => {
+      try {
+        const ids = new Set<string>();
+        let cursor: string | undefined;
+        do {
+          const page = await fetchChannelMembers(channelId, "everyone", cursor);
+          for (const member of page.members) ids.add(member.id);
+          cursor = page.nextCursor;
+        } while (cursor);
+        channelRosters.set(channelId, ids);
+        return ids;
+      } catch (err) {
+        console.error("Failed to load channel roster", err);
+      } finally {
+        rosterLoads.delete(channelId);
+      }
+    })();
+    rosterLoads.set(channelId, load);
+    return load;
   }
 
   function isChannelLeft(channelId: string): boolean {
@@ -375,7 +406,7 @@ export function createChannelsSlice(deps: {
             ...prev.usergroupSectionSidebar,
             [sectionId]: sidebar,
           })
-        : await apiSetSectionSidebar(sectionId, sidebar);
+        : await apiSetChannelSectionsPreference(deps.userPrefs()?.channelSections ?? {});
       if (ok) return true;
       actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
       rollback();
@@ -388,6 +419,14 @@ export function createChannelsSlice(deps: {
     } finally {
       setSectionSidebarPendingById(sectionId, false);
     }
+  }
+
+  // Clicking a section name flips it between showing every channel and the
+  // unread-only filter, persisting the choice like the section menu's control.
+  function toggleSectionFilter(sectionId: string) {
+    const section = (sections() ?? []).find((candidate) => candidate.id === sectionId);
+    if (!section) return;
+    void setChannelSectionSidebar(sectionId, section.sidebar === "all" ? "hid" : "all");
   }
 
   // Moves `sectionId` to sit directly above `nextSectionId` (or to the
@@ -593,43 +632,6 @@ export function createChannelsSlice(deps: {
     }
   }
 
-  // Batched so closing several DMs at once (e.g. dormant-DM auto-close) costs one
-  // bulkUpdate per section plus one refetch, instead of a round-trip pair per DM.
-  async function removeDmsFromSidebar(dmIds: string[]): Promise<Set<string>> {
-    if (dmIds.length === 0) return new Set();
-    const current = sections() ?? [];
-    const list = current.length > 0 ? current : ((await refreshSections()) ?? []);
-    const fallback =
-      list.find((s) => s.type === "direct_messages") ?? list.find((s) => s.id === "sm1");
-    const idsBySection = new Map<string, string[]>();
-    for (const dmId of dmIds) {
-      const section =
-        list.find((s) => s.type === "direct_messages" && s.channelIds.includes(dmId)) ?? fallback;
-      if (!section) continue;
-      idsBySection.set(section.id, [...(idsBySection.get(section.id) ?? []), dmId]);
-    }
-    const removed = await removeSectionChannelsBatched(
-      [...idsBySection.entries()],
-      (sectionId, ids) =>
-        apiUpdateSectionChannels(sectionId, {
-          removeChannelIds: ids,
-        }),
-      (sectionId, error) =>
-        console.error(`Failed to remove conversations from section ${sectionId}`, error),
-    );
-    if (removed.size > 0) await refreshSections();
-    return removed;
-  }
-
-  async function removeDmFromSidebar(dmId: string): Promise<boolean> {
-    const removed = await removeDmsFromSidebar([dmId]);
-    if (!removed.has(dmId)) {
-      actionFeedback.flash(dmId, "Failed to close conversation.", "error");
-      return false;
-    }
-    return true;
-  }
-
   // ---- channel directory: browse ----
 
   async function searchBrowsableChannels(query: string) {
@@ -640,9 +642,11 @@ export function createChannelsSlice(deps: {
   return {
     browsableChannels,
     channelById,
+    channelMemberIds,
     channels,
     createChannelSection,
     deleteChannelSection,
+    ensureChannelRoster,
     ensureChannelTopic,
     isChannelLeft,
     isChannelMember,
@@ -655,12 +659,9 @@ export function createChannelsSlice(deps: {
     joinChannelById,
     leaveCurrentChannel,
     moveChannelToSection,
-    knownChannelById,
     patchChannel,
     renameChannelSection,
     reorderChannelSection,
-    removeDmFromSidebar,
-    removeDmsFromSidebar,
     retrySections: refreshSections,
     setChannelSectionSidebar,
     searchBrowsableChannels,
@@ -668,5 +669,6 @@ export function createChannelsSlice(deps: {
     sectionsError: () => rawSections.error,
     sectionsLoading: () => rawSections.loading,
     toggleChannelStar,
+    toggleSectionFilter,
   };
 }

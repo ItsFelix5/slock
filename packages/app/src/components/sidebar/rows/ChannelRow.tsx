@@ -1,5 +1,5 @@
 import type { Channel } from "@slock/slack-api";
-import { ContextMenu, Icon, useContextMenu } from "@slock/ui";
+import { ContextMenu, Icon, openContextMenuFromKeyboard, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
 import { channelDisplayName, store } from "../../../lib/store";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
@@ -21,8 +21,10 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           muted: muted(),
           unread: props.unread && !muted(),
         }}
+        data-nav-row
         onClick={() => store.viewState.setActiveView({ id: props.channel.id, kind: "channel" })}
         onContextMenu={ctxMenu.open}
+        onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
         type="button"
       >
         <span class="sidebar-row-icon">

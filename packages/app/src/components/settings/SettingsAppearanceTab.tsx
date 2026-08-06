@@ -7,11 +7,10 @@ import {
   FONT_PRESETS,
   getEffectiveColor,
   logDeletedMessages,
-  type MessageSize,
   messageSize,
   resetThemeColor,
   resetThemeColors,
-  SegmentedControl,
+  Slider,
   Switch,
   setLogDeletedMessages,
   setMessageSize,
@@ -24,11 +23,7 @@ import {
 import { createEffect, createSignal, For } from "solid-js";
 import "./Settings.css";
 
-const MESSAGE_SIZES: { value: MessageSize; label: string }[] = [
-  { label: "Compact", value: 0 },
-  { label: "Default", value: 1 },
-  { label: "Large", value: 2 },
-];
+const MESSAGE_SIZE_LABELS = ["Compact", "Default", "Large"];
 
 export default function SettingsAppearanceTab() {
   const [fontDraft, setFontDraft] = createSignal(getEffectiveColor("font"));
@@ -48,21 +43,14 @@ export default function SettingsAppearanceTab() {
           <div class="settings-row-label">Message size</div>
           <div class="settings-row-hint text-dim">Compact, default, or large messages.</div>
         </div>
-        <SegmentedControl>
-          <For each={MESSAGE_SIZES}>
-            {(size) => (
-              <button
-                aria-pressed={messageSize() === size.value}
-                class="segmented-control-btn"
-                classList={{ active: messageSize() === size.value }}
-                onClick={() => setMessageSize(size.value)}
-                type="button"
-              >
-                {size.label}
-              </button>
-            )}
-          </For>
-        </SegmentedControl>
+        <Slider
+          ariaLabel="Message size"
+          labels={MESSAGE_SIZE_LABELS}
+          max={2}
+          min={0}
+          onChange={setMessageSize}
+          value={messageSize()}
+        />
       </div>
 
       <div class="settings-row flex-between">

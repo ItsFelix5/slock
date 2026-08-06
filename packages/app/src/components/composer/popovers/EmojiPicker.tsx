@@ -1,5 +1,5 @@
 import { emojiUrl, hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
-import { Button, Tooltip, useEscapeClose } from "@slock/ui";
+import { Button, gridNavigationIndex, Tooltip, useEscapeClose } from "@slock/ui";
 import {
   createEffect,
   createMemo,
@@ -60,8 +60,6 @@ export default function EmojiPicker(props: {
 }) {
   const [query, setQuery] = createSignal("");
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
-  let rootRef: HTMLDivElement | undefined;
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let bodyRef: HTMLDivElement | undefined;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let searchInputRef: HTMLInputElement | undefined;
@@ -75,11 +73,6 @@ export default function EmojiPicker(props: {
     // one animation frame later — a hidden element can't take focus, so
     // autofocus silently no-ops. Wait a frame past that before focusing.
     requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
-    const onDocClick = (e: MouseEvent) => {
-      if (rootRef && !rootRef.contains(e.target as Node)) props.onClose();
-    };
-    document.addEventListener("mousedown", onDocClick, true);
-    onCleanup(() => document.removeEventListener("mousedown", onDocClick, true));
   });
 
   const allEntries = createMemo(() => allEmojiEntries());
@@ -100,11 +93,13 @@ export default function EmojiPicker(props: {
 
   const blockLayout = createMemo(() => {
     let top = 0;
-    const laid: { block: Block; top: number; height: number }[] = [];
+    let startIndex = 0;
+    const laid: { block: Block; top: number; height: number; startIndex: number }[] = [];
     for (const block of blocks()) {
       const height = blockHeight(block);
-      laid.push({ block, height, top });
+      laid.push({ block, height, startIndex, top });
       top += height;
+      startIndex += block.entries.length;
     }
     return { laid, totalHeight: top };
   });
@@ -155,8 +150,49 @@ export default function EmojiPicker(props: {
     if (e.target !== searchInputRef) e.preventDefault();
   };
 
+  // Cells are fixed-size (COLS/BUTTON_SIZE/GRID_GAP), so unlike the message
+  // list's virtualizer, any index's scroll offset is exact — no measuring or
+  // waiting for a mount to settle before scrolling to it.
+  const scrollEmojiIndexIntoView = (index: number) => {
+    if (!bodyRef) return;
+    const rowTop = Math.floor(index / COLS) * (BUTTON_SIZE + GRID_GAP);
+    const rowBottom = rowTop + BUTTON_SIZE;
+    const viewTop = scrollTop();
+    const viewBottom = viewTop + viewportHeight();
+    const nextTop =
+      rowTop < viewTop ? rowTop : rowBottom > viewBottom ? rowBottom - viewportHeight() : viewTop;
+    if (nextTop === viewTop) return;
+    setScrollTop(nextTop);
+    bodyRef.scrollTop = nextTop;
+  };
+
+  const GridKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"];
+
+  const handleGridKeyDown = (e: KeyboardEvent) => {
+    if (!GridKeys.includes(e.key)) return;
+    const { target } = e;
+    const fromSearch = target === searchInputRef;
+    // Left/Right/Home/End on the search input are native text-cursor moves —
+    // only Up/Down (which a single-line input never uses) enter the grid.
+    if (fromSearch && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    const indexAttr = target instanceof HTMLElement ? target.dataset.emojiIndex : undefined;
+    const current = indexAttr === undefined ? null : Number(indexAttr);
+    const next = gridNavigationIndex(e.key, current, visibleEntries().length, COLS);
+    if (next === undefined) return;
+    e.preventDefault();
+    scrollEmojiIndexIntoView(next);
+    queueMicrotask(() =>
+      bodyRef?.querySelector<HTMLElement>(`[data-emoji-index="${next}"]`)?.focus(),
+    );
+  };
+
   return (
-    <div class="emoji-picker" onMouseDown={keepSearchFocused} ref={rootRef}>
+    <div
+      class="emoji-picker"
+      onKeyDown={handleGridKeyDown}
+      onMouseDown={keepSearchFocused}
+      role="none"
+    >
       <div class="emoji-picker-search">
         <input
           class="search-input"
@@ -191,7 +227,13 @@ export default function EmojiPicker(props: {
             {(item) => (
               <div class="emoji-picker-grid">
                 <For each={item.block.entries}>
-                  {(entry) => <EmojiButton entry={entry} onSelect={props.onSelect} />}
+                  {(entry, index) => (
+                    <EmojiButton
+                      entry={entry}
+                      index={item.startIndex + index()}
+                      onSelect={props.onSelect}
+                    />
+                  )}
                 </For>
               </div>
             )}
@@ -203,13 +245,18 @@ export default function EmojiPicker(props: {
   );
 }
 
-function EmojiButton(props: { entry: PickerEntry; onSelect: (name: string) => void }) {
+function EmojiButton(props: {
+  entry: PickerEntry;
+  index: number;
+  onSelect: (name: string) => void;
+}) {
   const url = createMemo(() => emojiUrl(props.entry.name));
   return (
     <Tooltip content={`:${props.entry.name}:`}>
       <button
         aria-label={`:${props.entry.name}:`}
         class="emoji-picker-btn btn-reset flex-center"
+        data-emoji-index={props.index}
         onClick={() => props.onSelect(props.entry.name)}
         type="button"
       >

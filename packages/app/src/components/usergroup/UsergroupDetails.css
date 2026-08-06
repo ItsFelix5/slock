@@ -222,7 +222,8 @@
   border-radius: var(--radius-6);
 }
 
-.usergroup-details-row:hover .usergroup-details-row-remove {
+.usergroup-details-row:hover .usergroup-details-row-remove,
+.usergroup-details-row:focus-within .usergroup-details-row-remove {
   display: flex;
 }
 

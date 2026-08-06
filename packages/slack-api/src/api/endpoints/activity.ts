@@ -1,80 +1,64 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive module for the undocumented activity feed endpoint and its entry mapping.
-import type { ActivityItem } from "../../contentTypes";
+import {
+  type ACTIVITY_FEED_TYPES,
+  ACTIVITY_FEED_TYPES_PARAM,
+  type ActivityItem,
+} from "../../contentTypes";
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
 import { apiGet, apiPost } from "../server";
 
-// Feed types worth surfacing, mapped to our ActivityItem kinds below. Slack
-// also emits other app/workflow feed types (list_record_assigned,
-// quietly_added_to_channel, unjoined_channel_mention, bot_dm_bundle, ...) with
-// no equivalent in our model — left out of the request entirely rather than
-// fetched and silently dropped. Adding an invalid value to `types` isn't just
-// ignored: it appears to fail the whole request, so don't add one here
-// without confirming the exact wire string real Slack sends first (these were
-// confirmed from a captured real activity.feed request body).
-const ACTIVITY_FEED_TYPES = [
-  "at_user",
-  "at_user_group",
-  "at_channel",
-  "at_everyone",
-  "keyword",
-  "thread_v2",
-  "message_reaction",
-  "dm",
-  "channel",
-  "saved_reminder",
-  "internal_channel_invite",
-  "external_channel_invite",
-  "external_dm_invite",
-].join(",");
+const ACTIVITY_TYPE_KINDS = {
+  at_channel: "channel_mention",
+  at_everyone: "channel_mention",
+  at_user: "mention",
+  at_user_group: "usergroup_mention",
+  bot_dm_bundle: "dm",
+  channel: "channel_all",
+  dm: "dm",
+  external_channel_invite: "channel_invite",
+  external_dm_invite: "channel_invite",
+  internal_channel_invite: "channel_invite",
+  keyword: "keyword",
+  list_approval_request: "list",
+  list_approval_reviewed: "list",
+  list_record_assigned: "list",
+  list_record_edited: "list",
+  list_todo_notification: "list",
+  list_user_mentioned: "list",
+  message_reaction: "reaction",
+  quietly_added_to_channel: "channel_invite",
+  saved_reminder: "reminder",
+  thread_v2: "thread_reply",
+  unjoined_channel_mention: "channel_mention",
+} as const satisfies Record<(typeof ACTIVITY_FEED_TYPES)[number], ActivityItem["kind"]>;
 
-// Reverse of activityKindFor, for callers (the Activity view's category
-// filter) that want to fetch just one kind's page instead of the whole feed.
-// Every value here is already a confirmed-working ACTIVITY_FEED_TYPES entry —
-// see the "fails closed" warning above before adding a new one.
-export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = {
-  channel_all: ["channel"],
-  channel_invite: ["internal_channel_invite", "external_channel_invite", "external_dm_invite"],
-  channel_mention: ["at_channel", "at_everyone"],
-  dm: ["dm"],
-  keyword: ["keyword"],
-  mention: ["at_user"],
-  reaction: ["message_reaction"],
-  reminder: ["saved_reminder"],
-  thread_reply: ["thread_v2"],
-  usergroup_mention: ["at_user_group"],
-};
-
-function activityKindFor(type: string): ActivityItem["kind"] | undefined {
-  switch (type) {
-    case "at_user":
-      return "mention";
-    case "dm":
-      return "dm";
-    case "keyword":
-      return "keyword";
-    case "thread_v2":
-      return "thread_reply";
-    case "at_channel":
-    case "at_everyone":
-      return "channel_mention";
-    case "at_user_group":
-      return "usergroup_mention";
-    case "channel":
-      return "channel_all";
-    case "message_reaction":
-      return "reaction";
-    case "saved_reminder":
-      return "reminder";
-    case "internal_channel_invite":
-    case "external_channel_invite":
-    case "external_dm_invite":
-      return "channel_invite";
-    default:
-      return;
-  }
+function activityKindFor(type: string): ActivityItem["kind"] {
+  return ACTIVITY_TYPE_KINDS[type as keyof typeof ACTIVITY_TYPE_KINDS] ?? "list";
 }
+
+export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = Object.entries(
+  ACTIVITY_TYPE_KINDS,
+).reduce<Record<ActivityItem["kind"], string[]>>(
+  (types, [type, kind]) => {
+    types[kind].push(type);
+    return types;
+  },
+  {
+    channel_all: [],
+    channel_invite: [],
+    channel_mention: [],
+    dm: [],
+    keyword: [],
+    list: [],
+    mention: [],
+    reaction: [],
+    reminder: [],
+    thread_reply: [],
+    usergroup_mention: [],
+  },
+);
 
 export type FeedEntry = Omit<ActivityItem, "text"> & { text?: string };
 
@@ -99,46 +83,53 @@ function channelIdFromFeedKey(key: unknown): string | undefined {
 // guaranteed, so fetchMessagesByIds below resolves missing bodies in one
 // batched messages.list request grouped by channel.
 function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
-  const kind = activityKindFor(raw.item?.type);
-  if (!kind) return;
+  const type = raw.item?.type;
+  if (typeof type !== "string") return;
+  const kind = activityKindFor(type);
   if (raw.item.type === "message_reaction") {
     const { message, reaction } = raw.item;
-    if (!(message && reaction)) return;
-    return {
-      channelId: message.channel,
-      id: raw.key,
-      kind,
-      reactionName: reaction.name,
-      time,
-      ts: message.ts,
-      userId: reaction.user,
-    };
+    if (message && reaction)
+      return {
+        activityType: type,
+        channelId: message.channel,
+        feedTs: String(raw.feed_ts),
+        id: raw.key,
+        kind,
+        reactionName: reaction.name,
+        time,
+        ts: message.ts,
+        userId: reaction.user,
+      };
   }
   if (raw.item.type === "thread_v2") {
     const thread = raw.item.bundle_info?.payload?.thread_entry;
-    if (!thread) return;
-    const latestMessage =
-      thread.latest_message ?? thread.latest_msg ?? thread.message ?? raw.item.message;
-    return {
-      channelId: thread.channel_id,
-      id: raw.key,
-      kind,
-      text: rawMessageText(latestMessage),
-      threadTs: thread.thread_ts,
-      time,
-      ts: thread.latest_ts,
-      unreadCount: thread.unread_msg_count,
-      userId:
-        thread.latest_reply_actor_user_id ??
-        thread.latest_user_id ??
-        thread.latest_reply_user_id ??
-        thread.user_id ??
-        rawMessageUserId(latestMessage) ??
-        "",
-    };
+    if (thread) {
+      const latestMessage =
+        thread.latest_message ?? thread.latest_msg ?? thread.message ?? raw.item.message;
+      return {
+        activityType: type,
+        channelId: thread.channel_id,
+        feedTs: String(raw.feed_ts),
+        id: raw.key,
+        kind,
+        text: rawMessageText(latestMessage),
+        threadTs: thread.thread_ts,
+        time,
+        ts: thread.latest_ts,
+        unreadCount: thread.unread_msg_count,
+        userId:
+          thread.latest_reply_actor_user_id ??
+          thread.latest_user_id ??
+          thread.latest_reply_user_id ??
+          thread.user_id ??
+          rawMessageUserId(latestMessage) ??
+          "",
+      };
+    }
   }
   const payload = raw.item.bundle_info?.payload;
   const channelEntry = payload?.channel_entry;
+  const quietlyAdded = raw.item.quietly_added_to_channel_payload;
   const message =
     raw.item.message ??
     payload?.message ??
@@ -152,25 +143,35 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
   const channelId =
     message?.channel ??
     channelEntry?.channel_id ??
+    quietlyAdded?.channel_id ??
     raw.item.channel_id ??
     raw.item.channel ??
+    raw.item.invite ??
     sparseChannelId;
   const ts =
     message?.ts ??
     channelEntry?.latest_ts ??
     raw.item.message_ts ??
     raw.item.ts ??
+    (quietlyAdded?.channel_id ? raw.feed_ts : undefined) ??
     (sparseChannelId ? raw.feed_ts : undefined);
   if (!(channelId && ts)) {
-    // saved_reminder/*_invite were only just added to ACTIVITY_FEED_TYPES —
-    // their response shape isn't confirmed yet (only the request `types`
-    // strings are), so log instead of guessing further field names.
-    if (kind === "reminder" || kind === "channel_invite") {
-      console.debug(`[activity.feed] unmapped ${raw.item.type} entry`, JSON.stringify(raw));
-    }
-    return;
+    const text = rawMessageText(message) ?? raw.item.activity_text;
+    const userId = rawMessageUserId(message) ?? raw.item?.user_id ?? "";
+    return {
+      activityType: type,
+      channelId: "",
+      feedTs: String(raw.feed_ts),
+      id: String(raw.key ?? `${type}:${raw.feed_ts}`),
+      kind,
+      text,
+      time,
+      ts: String(raw.item?.ts ?? raw.feed_ts ?? raw.key),
+      userId,
+    };
   }
   return {
+    activityType: type,
     broadcastRange:
       raw.item.type === "at_everyone"
         ? "everyone"
@@ -178,12 +179,14 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
           ? "channel"
           : undefined,
     channelId,
+    feedTs: String(raw.feed_ts),
     id: raw.key,
     kind,
     threadTs: message?.thread_ts && message.thread_ts !== ts ? message.thread_ts : undefined,
     time,
     ts,
-    text: rawMessageText(message),
+    text: rawMessageText(message) ?? raw.item.activity_text,
+    unread: typeof raw.is_unread === "boolean" ? raw.is_unread : undefined,
     // Message-backed activity uses `user` for the actor in current payloads;
     // some older shapes expose the same person as `author_user_id` instead.
     // In particular, ordinary `channel` entries generally only carry `user`.
@@ -193,6 +196,7 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
       channelEntry?.user_id ??
       raw.item.latest_user_id ??
       raw.item.user_id ??
+      quietlyAdded?.inviter_user_id ??
       "",
   };
 }
@@ -200,6 +204,17 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
 export interface ActivityFeedPage {
   entries: FeedEntry[];
   nextCursor?: string;
+}
+
+export async function fetchActivityBadgeCounts(): Promise<Record<string, number>> {
+  const data = await apiGet("/api/activity/counts");
+  if (!data.ok) throw new Error(data.error ?? "client.counts failed");
+  return data.activityCounts ?? {};
+}
+
+export async function markActivityRead(type: string, feedTs: string, key: string): Promise<void> {
+  const data = await apiPost("/api/activity/read", { feedTs, key, type });
+  if (!data.ok) throw new Error(data.error ?? "activity.markRead failed");
 }
 
 // Slack's own client-side Activity tab, undocumented and used here because
@@ -212,7 +227,7 @@ export interface ActivityFeedPage {
 export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
-  types: string = ACTIVITY_FEED_TYPES,
+  types: string = ACTIVITY_FEED_TYPES_PARAM,
   unreadOnly = false,
 ): Promise<ActivityFeedPage> {
   const query = new URLSearchParams({ limit: String(limit), types });
@@ -289,28 +304,31 @@ export async function fetchMessagesByIds(
     timestamps: [...timestamps],
   }));
   const chunks = chunkMessageIds(messageGroups);
-  const results = await Promise.allSettled(
-    chunks.map(async (messageIds) => {
-      const data = await apiPost("/api/messages/lookup", { messageIds });
-      if (!data.ok) {
-        throw new Error(data.error ?? "messages.list failed while resolving activity");
+  const resolveChunk = async (messageIds: MessageIdGroup[]): Promise<void> => {
+    const data = await apiPost("/api/messages/lookup", { messageIds });
+    if (!data.ok) {
+      if (data.error === "too_many_channels" && messageIds.length > 1) {
+        const middle = Math.ceil(messageIds.length / 2);
+        await resolveChunk(messageIds.slice(0, middle));
+        await resolveChunk(messageIds.slice(middle));
+        return;
       }
-      // Slack's response nests each channel's resolved messages under `messages`
-      // (an empty `messages_data` object comes back alongside it, unused).
-      const batch = new Map<string, Message>();
-      for (const [channelId, entry] of Object.entries(data.messages ?? {}) as [string, any][]) {
-        for (const raw of rawMessagesFromMessagesListEntry(entry)) {
-          if (raw?.ts && !HIDE_SUBTYPES.has(raw.subtype)) {
-            const key = `${channelId}:${raw.ts}`;
-            const message = mapMessage(raw);
-            batch.set(key, message);
-            byKey.set(key, message);
-          }
+      throw new Error(data.error ?? "messages.list failed while resolving activity");
+    }
+    const batch = new Map<string, Message>();
+    for (const [channelId, entry] of Object.entries(data.messages ?? {}) as [string, any][]) {
+      for (const raw of rawMessagesFromMessagesListEntry(entry)) {
+        if (raw?.ts && !HIDE_SUBTYPES.has(raw.subtype)) {
+          const key = `${channelId}:${raw.ts}`;
+          const message = mapMessage(raw);
+          batch.set(key, message);
+          byKey.set(key, message);
         }
       }
-      onBatch?.(batch);
-    }),
-  );
+    }
+    onBatch?.(batch);
+  };
+  const results = await Promise.allSettled(chunks.map(resolveChunk));
   const failed = results.find((result) => result.status === "rejected");
   if (failed?.status === "rejected") throw failed.reason;
   return byKey;

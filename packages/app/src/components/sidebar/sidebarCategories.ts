@@ -26,7 +26,6 @@ export interface SidebarContext {
   currentUser: Accessor<User | undefined>;
   deleteChannelSection: (sectionId: string) => Promise<boolean>;
   dmsOpen: Accessor<boolean>;
-  toggledSectionFilterIds: Accessor<Set<string>>;
   draggingSectionId: Accessor<string | null>;
   dropTarget: Accessor<{ id: string; before: boolean } | null>;
   feedMaxWidth: number;
@@ -89,14 +88,11 @@ export interface SidebarContext {
 export function sectionShowsAllChannels(
   sidebar: Category["sidebar"],
   unreadsOnly: boolean,
-  filterToggled: boolean,
 ): boolean {
-  // The global Unreads filter always wins: a section's own sidebar setting or
-  // its per-section filter toggle must never bring read channels back once
-  // the user has asked to see unreads only.
+  // The global Unreads filter always wins: a section's own sidebar setting must
+  // never bring read channels back once the user has asked to see unreads only.
   if (unreadsOnly) return false;
-  const filteredByDefault = sidebar !== "all";
-  return filterToggled ? filteredByDefault : !filteredByDefault;
+  return sidebar === "all";
 }
 
 export function buildCategories(
@@ -112,7 +108,6 @@ export function buildCategories(
       }[]
     | undefined,
   unreadsOnly: () => boolean,
-  toggledSectionFilterIds: () => Set<string>,
   unreadChannelIds: Record<string, boolean>,
   isChannelStarred: (id: string) => boolean,
   isChannelLeft: (id: string) => boolean,
@@ -127,17 +122,11 @@ export function buildCategories(
   // never counts as "unread" for filtering purposes, even with unread
   // messages, so it drops out of unread-only views instead of lingering.
   const isUnread = (c: Channel) => !!unreadChannelIds[c.id] && !isChannelMuted(c.id);
-  const matches = (c: Channel, sectionId: string, sidebar: Category["sidebar"]) => {
+  const matches = (c: Channel, sidebar: Category["sidebar"]) => {
     // Opening a channel clears its unread state. Keep it in the sidebar even
     // when that would otherwise make it disappear from a filtered section.
     if (isChannelOpen(c.id)) return true;
-    // The shared section-name action flips the section's effective filter:
-    // all -> unread, or unread/active -> all. It also inverts Home's global
-    // unread-only filter for this one section.
-    return (
-      sectionShowsAllChannels(sidebar, unreadsOnly(), toggledSectionFilterIds().has(sectionId)) ||
-      isUnread(c)
-    );
+    return sectionShowsAllChannels(sidebar, unreadsOnly()) || isUnread(c);
   };
   const byId = new Map(visibleChannels.map((c) => [c.id, c]));
   const starredIds = visibleChannels.filter((c) => isChannelStarred(c.id)).map((c) => c.id);
@@ -163,7 +152,7 @@ export function buildCategories(
     if (starredIds.length === 0) return;
     const list = starredIds
       .map((cid) => byId.get(cid))
-      .filter((c): c is Channel => !!c && matches(c, id, sidebar));
+      .filter((c): c is Channel => !!c && matches(c, sidebar));
     if (list.length > 0 || !unreadsOnly())
       result.push({
         channels: list,
@@ -177,7 +166,7 @@ export function buildCategories(
   };
   const pushChannels = (id: string, reorderable: boolean, sidebar: Category["sidebar"] = "hid") => {
     if (restChannels.length === 0) return;
-    const list = restChannels.filter((channel) => matches(channel, id, sidebar));
+    const list = restChannels.filter((channel) => matches(channel, sidebar));
     if (list.length > 0 || !unreadsOnly())
       result.push({
         channels: list,
@@ -198,15 +187,11 @@ export function buildCategories(
     if (s.type === "stars") {
       pushStarred(s.id, true, s.sidebar);
     } else if (s.type === "channels") {
-      // This pseudo-section has no menu to set its own filter (filterable is
-      // false below), so whatever stale/default value Slack's wire happens to
-      // carry for it is never something the user actually chose — always
-      // default to unread-only instead of trusting it.
-      pushChannels(s.id, true);
+      pushChannels(s.id, true, s.sidebar);
     } else if (s.type === "standard" || s.type === "usergroup") {
       const sectionChannels = sectionChannelsById.get(s.id) ?? [];
       if (s.type === "usergroup" && sectionChannels.length === 0) continue;
-      const list = sectionChannels.filter((channel) => matches(channel, s.id, s.sidebar));
+      const list = sectionChannels.filter((channel) => matches(channel, s.sidebar));
       if (list.length > 0 || !unreadsOnly())
         result.push({
           channels: list,

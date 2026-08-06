@@ -1,0 +1,107 @@
+.compose-date-picker {
+  width: 320px;
+  padding: 10px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-8);
+  box-shadow: var(--shadow-popover);
+}
+.compose-date-preview {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.compose-date-input {
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-5);
+}
+.compose-date-section {
+  margin-top: 8px;
+}
+.compose-date-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.compose-date-relative-btn {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-4);
+  place-items: center;
+}
+.compose-date-relative-btn:hover,
+.compose-date-relative-btn.active {
+  background: var(--active-bg);
+}
+.compose-date-option-list {
+  display: grid;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-5);
+}
+.compose-date-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 29px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+.compose-date-option:hover,
+.compose-date-option.active {
+  background: var(--hover-bg);
+}
+.compose-date-option.active {
+  color: var(--accent);
+}
+.compose-date-option-detail {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+.compose-date-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 8px 2px 0;
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.compose-date-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.compose-date-insert {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius-5);
+}
+.compose-date-insert:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

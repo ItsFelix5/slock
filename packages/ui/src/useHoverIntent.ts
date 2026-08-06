@@ -21,11 +21,18 @@ export function useHoverIntent(openDelay = 350, closeDelay = 160) {
     clearTimeout(closeTimer);
     setOpen(false);
   };
+  // Keyboard focus is a deliberate action, not a passing cursor — open right
+  // away instead of waiting out the hover-intent delay.
+  const openNow = () => {
+    clearTimeout(openTimer);
+    clearTimeout(closeTimer);
+    setOpen(true);
+  };
 
   onCleanup(() => {
     clearTimeout(openTimer);
     clearTimeout(closeTimer);
   });
 
-  return { cancelClose, close, open, scheduleClose, scheduleOpen };
+  return { cancelClose, close, open, openNow, scheduleClose, scheduleOpen };
 }

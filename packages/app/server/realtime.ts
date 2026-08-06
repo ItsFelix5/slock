@@ -2,8 +2,7 @@
 
 import { rewriteSlackAssetUrls } from "./assets.js";
 import { type Credentials, slackCookieHeader, teamIdFromRoute } from "./auth.js";
-import { trimHistory } from "./routes/messages.js";
-import { callSlack } from "./slackClient.js";
+import { recordSeenActive } from "./presence/lastSeen.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 export type ClientSocket = { send(data: string): void };
@@ -39,57 +38,6 @@ function sendStatus(state: ConnectionState) {
 
 export function statusMessage(connected: boolean): string {
   return JSON.stringify({ connected, type: "_status" });
-}
-
-function startFallbackPolling(state: ConnectionState) {
-  if (state.fallbackTimer) return;
-  state.fallbackTimer = setInterval(async () => {
-    if (state.closed || state.fallbackPollRunning) return;
-    state.fallbackPollRunning = true;
-    try {
-      for (const channel of state.watchedChannels) {
-        try {
-          const data = await callSlack(
-            "conversations.history",
-            { channel, limit: "60" },
-            state.creds,
-          );
-          if (data.ok) {
-            const trimmed = rewriteSlackAssetUrls(trimHistory(data), state.creds) as {
-              messages?: unknown[];
-            };
-            send(state, { channel, messages: trimmed.messages ?? [], type: "_history_snapshot" });
-          }
-        } catch {
-          // transient network error; next tick retries
-        }
-      }
-      for (const [ts, channel] of state.watchedThreads) {
-        try {
-          const data = await callSlack(
-            "conversations.replies",
-            { channel, limit: "200", ts },
-            state.creds,
-          );
-          if (data.ok) {
-            const trimmed = rewriteSlackAssetUrls(trimHistory(data), state.creds) as {
-              messages?: unknown[];
-            };
-            send(state, {
-              channel,
-              messages: trimmed.messages ?? [],
-              ts,
-              type: "_replies_snapshot",
-            });
-          }
-        } catch {
-          // transient network error; next tick retries
-        }
-      }
-    } finally {
-      state.fallbackPollRunning = false;
-    }
-  }, 4000);
 }
 
 function stopFallbackPolling(state: ConnectionState) {
@@ -148,6 +96,13 @@ function connectGateway(state: ConnectionState) {
       if (state.gatewaySocket !== socket) return;
       try {
         const payload = JSON.parse(String(event.data));
+        if (payload?.type === "presence_change" && payload.presence === "active") {
+          const teamId = teamIdFromRoute(state.creds.route);
+          if (teamId) {
+            const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
+            for (const id of ids) recordSeenActive(teamId, id);
+          }
+        }
         const trimmed = trimSlackGatewayPayload(payload);
         if (trimmed) send(state, rewriteSlackAssetUrls(trimmed, state.creds));
       } catch {
@@ -161,7 +116,6 @@ function connectGateway(state: ConnectionState) {
       state.gatewayConnected = false;
       sendStatus(state);
       if (state.closed) return;
-      startFallbackPolling(state);
       if (socket.readyState !== WebSocket.CLOSED) socket.close();
       scheduleGatewayReconnect(state);
     };
@@ -180,7 +134,6 @@ function connectGateway(state: ConnectionState) {
   } catch (err) {
     console.warn("Failed to connect to Slack gateway, retrying:", err);
     if (state.closed) return;
-    startFallbackPolling(state);
     scheduleGatewayReconnect(state);
   }
 }

@@ -1,15 +1,11 @@
-import { Icon, Overlay, Tooltip, useEscapeClose } from "@slock/ui";
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { Icon, Overlay, shortcutsByScope, Tooltip, useEscapeClose, useShortcut } from "@slock/ui";
+import { createSignal, For, Show } from "solid-js";
 import "./ContextActions.css";
 
 type Action = { keys: string; label: string };
 
-const GENERAL_ACTIONS: Action[] = [
-  { keys: "Ctrl/⌘ K", label: "Jump to a channel or person" },
-  { keys: "Ctrl/⌘ /", label: "Show context actions" },
-  { keys: "Escape", label: "Close the current panel or dialog" },
-];
-
+// The composer's own key handler (composerKeyboard.ts) owns these directly —
+// they're not global shortcuts, so they don't go through the shared registry.
 const COMPOSER_ACTIONS: Action[] = [
   { keys: "Enter", label: "Send message" },
   { keys: "Shift Enter", label: "Insert a new line" },
@@ -18,6 +14,10 @@ const COMPOSER_ACTIONS: Action[] = [
   { keys: "Ctrl/⌘ Shift X", label: "Strikethrough" },
   { keys: "Ctrl/⌘ Shift C", label: "Inline code" },
 ];
+
+// useEscapeClose is its own layered stack, not part of the shortcut registry,
+// so this one entry is still listed by hand.
+const ESCAPE_ACTION: Action = { keys: "Escape", label: "Close the current panel or dialog" };
 
 function ActionList(props: { actions: Action[] }) {
   return (
@@ -38,21 +38,22 @@ export default function ContextActions() {
   const [open, setOpen] = createSignal(false);
   const [composerContext, setComposerContext] = createSignal(false);
 
-  onMount(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const modifier = event.ctrlKey || event.metaKey;
-      if (modifier && !event.altKey && (event.key === "/" || event.code === "Slash")) {
-        event.preventDefault();
-        if (event.repeat) return;
-        const target = event.target instanceof Element ? event.target : document.activeElement;
-        setComposerContext(Boolean(target?.closest(".composer")));
-        setOpen((value) => !value);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    onCleanup(() => window.removeEventListener("keydown", onKeyDown));
+  useShortcut({
+    allowInInputs: true,
+    allowRepeat: false,
+    handler: (event) => {
+      const target = event.target instanceof Element ? event.target : document.activeElement;
+      setComposerContext(Boolean(target?.closest(".composer")));
+      setOpen((value) => !value);
+    },
+    keys: "Ctrl/⌘ /",
+    label: "Show context actions",
+    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "/" || e.code === "Slash"),
+    scope: "general",
   });
   useEscapeClose(() => setOpen(false), open);
+  const generalActions = () => [...(shortcutsByScope().get("general") ?? []), ESCAPE_ACTION];
+  const messageActions = () => shortcutsByScope().get("messages") ?? [];
 
   return (
     <Show when={open()}>
@@ -61,7 +62,6 @@ export default function ContextActions() {
           <div class="context-actions-header flex-between">
             <div>
               <h2>Context actions</h2>
-              <p>{composerContext() ? "Available while writing a message" : "Available here"}</p>
             </div>
             <Tooltip content="Close">
               <button
@@ -82,9 +82,15 @@ export default function ContextActions() {
                 <ActionList actions={COMPOSER_ACTIONS} />
               </section>
             </Show>
+            <Show when={messageActions().length > 0}>
+              <section>
+                <h3>Messages</h3>
+                <ActionList actions={messageActions()} />
+              </section>
+            </Show>
             <section>
               <h3>General</h3>
-              <ActionList actions={GENERAL_ACTIONS} />
+              <ActionList actions={generalActions()} />
             </section>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { batch } from "solid-js";
 import { isDmId } from "./dmId";
-import { EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
+import { buildSearchQuery, EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 import type { Nav, View } from "./store/slices/types";
 import type { createStoreSlices } from "./store/storeSlices";
 
@@ -85,8 +85,8 @@ export function createAppActions(deps: AppActionsDeps) {
   }
 
   function openMessageSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {
-    viewState.setSearchScreenQuery(query);
-    viewState.setSearchScreenFilters(filters);
+    viewState.setSearchScreenQuery(buildSearchQuery(query, filters));
+    viewState.setSearchScreenFilters(EMPTY_FILTERS);
     setNavView("search");
   }
 

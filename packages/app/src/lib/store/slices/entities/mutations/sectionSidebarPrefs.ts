@@ -6,9 +6,17 @@ export function setSectionSidebarPreference(
   sidebar: ChannelSection["sidebar"] | undefined,
 ): UserPrefs {
   const sectionSidebar = { ...prefs.sectionSidebar };
-  if (sidebar === undefined) delete sectionSidebar[sectionId];
-  else sectionSidebar[sectionId] = sidebar;
-  return { ...prefs, sectionSidebar };
+  const channelSections = { ...prefs.channelSections };
+  const entry = { ...channelSections[sectionId] };
+  if (sidebar === undefined) {
+    delete sectionSidebar[sectionId];
+    entry.sidebar = undefined;
+  } else {
+    sectionSidebar[sectionId] = sidebar;
+    entry.sidebar = sidebar;
+  }
+  channelSections[sectionId] = entry;
+  return { ...prefs, sectionSidebar, channelSections };
 }
 
 export function setUsergroupSectionSidebarPreference(

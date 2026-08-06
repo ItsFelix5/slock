@@ -12,25 +12,28 @@ export function jsonResponse(
   acceptEncoding: string | null,
   status?: number,
 ): Response {
-  const body = JSON.stringify(rewriteSlackAssetUrls(data, creds));
+  const normalized =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== "ok"))
+      : data;
+  const body = JSON.stringify(rewriteSlackAssetUrls(normalized, creds));
   if (status && status !== 200) return new Response(body, { headers: jsonHeaders, status });
   return compressedResponse(body, jsonHeaders, acceptEncoding);
 }
 
 export function okResponse(creds: Credentials | null, acceptEncoding: string | null): Response {
-  return jsonResponse({ ok: true }, creds, acceptEncoding);
+  return jsonResponse({}, creds, acceptEncoding);
 }
 
 export function errorResponse(error: string, status: number): Response {
-  return new Response(JSON.stringify({ error, ok: false }), { headers: jsonHeaders, status });
+  return new Response(JSON.stringify({ error }), { headers: jsonHeaders, status });
 }
 
-// A failed Slack call is still HTTP 200 (matches Slack's own ok:false convention).
 export function slackErrorResponse(
   data: { error?: string },
   fallback: string,
   creds: Credentials | null,
   acceptEncoding: string | null,
 ): Response {
-  return jsonResponse({ error: data.error ?? fallback, ok: false }, creds, acceptEncoding);
+  return jsonResponse({ error: data.error ?? fallback }, creds, acceptEncoding, 502);
 }

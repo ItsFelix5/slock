@@ -60,6 +60,7 @@ export interface FloatingPanelProps {
   open: boolean;
   panelRef?: (element: HTMLDivElement | undefined) => void;
   placement?: Placement;
+  onScroll?: () => void;
   style?: JSX.CSSProperties;
   viewportPadding?: number;
 }
@@ -120,10 +121,17 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     });
   };
 
+  // Capture-phase so we hear about scrolls on any ancestor, but that also
+  // catches scrolling inside the panel's own content — ignore those.
+  const handleScroll = (e: Event) => {
+    if (panel && e.target instanceof Node && panel.contains(e.target)) return;
+    props.onScroll?.();
+  };
+
   createEffect(() => {
     if (!props.open) return;
     window.addEventListener("resize", schedulePosition);
-    window.addEventListener("scroll", schedulePosition, true);
+    if (props.onScroll) window.addEventListener("scroll", handleScroll, true);
     onCleanup(() => {
       cancelAnimationFrame(frame ?? 0);
       resizeObserver?.disconnect();
@@ -131,7 +139,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
       panel = undefined;
       props.panelRef?.(undefined);
       window.removeEventListener("resize", schedulePosition);
-      window.removeEventListener("scroll", schedulePosition, true);
+      if (props.onScroll) window.removeEventListener("scroll", handleScroll, true);
     });
   });
 

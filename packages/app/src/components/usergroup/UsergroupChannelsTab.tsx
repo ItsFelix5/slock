@@ -1,4 +1,4 @@
-import { Icon, Switch, Tooltip } from "@slock/ui";
+import { Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelDisplayName, store } from "../../lib/store";
 import {
@@ -7,6 +7,7 @@ import {
   setUsergroupChannelSectionEnabled,
 } from "../../lib/usergroupDetails";
 import ComposeChannelPicker from "../composer/popovers/ComposeChannelPicker";
+import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
 
 export default function UsergroupChannelsTab(props: {
@@ -112,17 +113,11 @@ export default function UsergroupChannelsTab(props: {
                   {channelDisplayName(channel, id)}
                 </span>
               </button>
-              <Tooltip content="Remove channel">
-                <button
-                  aria-label="Remove channel"
-                  class="usergroup-details-row-remove btn-reset flex-center"
-                  disabled={props.disabled}
-                  onClick={() => removeChannel(id, channelDisplayName(channel, id))}
-                  type="button"
-                >
-                  <Icon name="close-filled" size={14} />
-                </button>
-              </Tooltip>
+              <RemoveRowButton
+                disabled={props.disabled}
+                label="Remove channel"
+                onClick={() => removeChannel(id, channelDisplayName(channel, id))}
+              />
             </div>
           )}
         </For>

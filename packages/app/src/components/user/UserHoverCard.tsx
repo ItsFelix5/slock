@@ -3,6 +3,7 @@ import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
 import { createLocalTime } from "./userProfileTime";
+import ViewProfileButton from "./ViewProfileButton";
 import "./UserHoverCard.css";
 
 const CARD_WIDTH = 300;
@@ -14,7 +15,7 @@ const CARD_WIDTH = 300;
 export default function UserHoverCard(props: { userId: string; children: JSX.Element }) {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let anchorRef: HTMLSpanElement | undefined;
-  const { cancelClose, close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const { cancelClose, close, open, openNow, scheduleClose, scheduleOpen } = useHoverIntent();
 
   const user = createMemo(() => store.users.userById(props.userId));
   const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
@@ -28,6 +29,11 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real controls are the buttons inside the children and the card
     <span
       class="user-hovercard-anchor"
+      onFocusIn={openNow}
+      onFocusOut={(e) => {
+        if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)))
+          close();
+      }}
       onMouseEnter={scheduleOpen}
       onMouseLeave={scheduleClose}
       ref={anchorRef}
@@ -39,6 +45,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
         class="user-hovercard"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
+        onScroll={close}
         open={open() && !!user()}
         placement="top"
         style={{ width: `${CARD_WIDTH}px` }}
@@ -102,16 +109,10 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
               <div class="user-hovercard-actions">
                 <Show
                   fallback={
-                    <button
-                      class="user-hovercard-btn btn-reset flex-center"
-                      onClick={() => {
-                        close();
-                        store.users.openUserProfile(u().id);
-                      }}
-                      type="button"
-                    >
-                      View profile
-                    </button>
+                    <ViewProfileButton
+                      onClose={close}
+                      onViewProfile={() => store.users.openUserProfile(u().id)}
+                    />
                   }
                   when={!isSelf()}
                 >
@@ -127,16 +128,10 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                     <Icon name="direct-messages-filled" size={14} />
                     Message
                   </button>
-                  <button
-                    class="user-hovercard-btn btn-reset flex-center"
-                    onClick={() => {
-                      close();
-                      store.users.openUserProfile(u().id);
-                    }}
-                    type="button"
-                  >
-                    View profile
-                  </button>
+                  <ViewProfileButton
+                    onClose={close}
+                    onViewProfile={() => store.users.openUserProfile(u().id)}
+                  />
                 </Show>
               </div>
             </>

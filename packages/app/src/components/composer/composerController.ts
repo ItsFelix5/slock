@@ -1,5 +1,4 @@
 import { uploadFiles } from "@slock/slack-api";
-import { useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onMount } from "solid-js";
 import { encodeReplyLink } from "../../lib/replyLink";
 import {
@@ -21,11 +20,11 @@ import { fragmentToBlocks } from "./lib/richtextSerialization";
 import { createPendingFileState, draftCacheKey, submitComposerPayload } from "./lib/submission";
 import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
+import { useSuggestUI } from "./lib/useSuggestUI";
 
 export function createComposerController(props: ComposerProps) {
   const [text, setText] = createSignal("");
   const [toolsOpen, setToolsOpen] = createSignal(false);
-  const [mentionOpen, setMentionOpen] = createSignal(false);
   const [dateOpen, setDateOpen] = createSignal(false);
   const [linkEditor, setLinkEditor] = createSignal<{
     el: HTMLElement;
@@ -36,7 +35,6 @@ export function createComposerController(props: ComposerProps) {
   const [sending, setSending] = createSignal(false);
   const [retryingDraft, setRetryingDraft] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let fileInputRef: HTMLInputElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
   const linkPreviews = createLinkPreviewController(text);
@@ -45,20 +43,15 @@ export function createComposerController(props: ComposerProps) {
     resetLinkPreviews: linkPreviews.reset,
     setText,
   });
+  const targetChannelId = () => props.channelId ?? store.viewState.activeView()?.id;
   const suggestions = createSuggestionController({
+    channelId: targetChannelId,
     currentTextContext: editor.currentTextContext,
     setSuggest,
     suggest,
     syncFromDom: editor.syncFromDom,
   });
-  useClickOutside(
-    () => suggestPopoverRef,
-    () => setSuggest(null),
-  );
-  useEscapeClose(
-    () => setSuggest(null),
-    () => suggest() !== null,
-  );
+  useSuggestUI(() => suggestPopoverRef, suggest, setSuggest);
   createEffect(() => {
     const s = suggest();
     if (!(s && suggestPopoverRef)) return;
@@ -69,7 +62,6 @@ export function createComposerController(props: ComposerProps) {
       activeButton.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   });
-  const targetChannelId = () => props.channelId ?? store.viewState.activeView()?.id;
   const draftKey = () => {
     const channelId = targetChannelId();
     return channelId ? draftCacheKey(channelId, props.threadTs) : undefined;
@@ -121,7 +113,6 @@ export function createComposerController(props: ComposerProps) {
     getFileInput: () => fileInputRef,
     saveSelection: editor.saveSelection,
     setDateOpen,
-    setMentionOpen,
     setToolsOpen,
   });
   const canSend = createMemo(() => {
@@ -235,6 +226,12 @@ export function createComposerController(props: ComposerProps) {
       composerDrafts.cacheLocal();
     }
   };
+  const onCopy = (e: ClipboardEvent) => {
+    editor.copySelection(e);
+  };
+  const onCut = (e: ClipboardEvent) => {
+    if (editor.cutSelection(e)) composerDrafts.cacheLocal();
+  };
   const onEditorClick = (e: MouseEvent) => {
     const target = (e.target as HTMLElement).closest<HTMLElement>(
       ".composer-link, .composer-link-chip",
@@ -262,10 +259,13 @@ export function createComposerController(props: ComposerProps) {
     editor,
     feedbackKey,
     getEditorRef: editor.getRef,
-    getFileInputRef: () => fileInputRef,
+    setFileInputRef: (el: HTMLInputElement) => {
+      fileInputRef = el;
+    },
     linkEditor,
     linkPreviews,
-    mentionOpen,
+    onCopy,
+    onCut,
     onEditorClick,
     onInput,
     onKeyDown,
@@ -282,7 +282,6 @@ export function createComposerController(props: ComposerProps) {
     setDateOpen,
     setDragOver,
     setLinkEditor,
-    setMentionOpen,
     setSuggest,
     setSuggestPopoverRef: (el: HTMLDivElement) => {
       suggestPopoverRef = el;

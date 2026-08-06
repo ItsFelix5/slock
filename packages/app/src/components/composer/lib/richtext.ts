@@ -2,6 +2,7 @@
 import {
   DEFAULT_DATE_FORMAT,
   emojiUrl,
+  formatSlackDate,
   formatSlackDateTokens,
   parseUserProfileLink,
 } from "@slock/blockkit";
@@ -112,18 +113,15 @@ export function createChannelChip(id: string, name: string): HTMLSpanElement {
   chip.textContent = `#${name}`;
   return chip;
 }
-export function createDateChip(
-  timestamp: number,
-  format = DEFAULT_DATE_FORMAT,
-  fallback?: string,
-): HTMLSpanElement {
+export function createDateChip(timestamp: number, format = DEFAULT_DATE_FORMAT): HTMLSpanElement {
   const chip = document.createElement("span");
   chip.className = "composer-chip composer-date-chip";
   chip.contentEditable = "false";
   chip.dataset.dateTs = String(timestamp);
   chip.dataset.dateFormat = format;
+  const fallback = formatSlackDate(timestamp);
   const rendered = formatSlackDateTokens(format, timestamp, fallback);
-  chip.dataset.dateFallback = fallback ?? rendered;
+  chip.dataset.dateFallback = fallback;
   chip.textContent = rendered;
   return chip;
 }
@@ -160,11 +158,11 @@ function appendToken(parent: Node, token: string) {
     return;
   }
   if (token.startsWith("!date^")) {
-    const [main, fallback] = token.slice("!date^".length).split("|");
+    const [main] = token.slice("!date^".length).split("|");
     const [ts, format] = main.split("^");
     const timestamp = Number(ts);
     if (Number.isFinite(timestamp)) {
-      parent.appendChild(createDateChip(timestamp, format, fallback));
+      parent.appendChild(createDateChip(timestamp, format));
       return;
     }
   }

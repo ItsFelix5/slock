@@ -1,0 +1,23 @@
+.media-frame {
+  max-width: min(360px, 100%);
+  margin-top: 4px;
+}
+
+.media-frame-toggle {
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 1px;
+  color: var(--text-dim);
+}
+
+.media-frame-toggle:hover {
+  color: var(--text-secondary);
+}
+
+.media-frame-title {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

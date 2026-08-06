@@ -56,10 +56,15 @@ export function flashMessageElement(el: HTMLElement) {
   };
 }
 
-/** Waits for a virtualized row to enter the DOM before highlighting it.
- * Returns a cancellation function so a channel switch cannot flash a row
- * from the conversation that replaced the original target. */
-export function flashMessageWhenRendered(container: HTMLElement, ts: string): () => void {
+/** Waits for a virtualized row to enter the DOM, then invokes `onFound` with
+ * it. Returns a cancellation function so a channel switch (or a later call
+ * for a different message) can't act on a row from the conversation that
+ * replaced the original target. */
+export function waitForMessageElement(
+  container: HTMLElement,
+  ts: string,
+  onFound: (element: HTMLElement) => void,
+): () => void {
   let observer: MutationObserver | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
@@ -71,20 +76,25 @@ export function flashMessageWhenRendered(container: HTMLElement, ts: string): ()
     observer?.disconnect();
     clearTimeout(timeout);
   };
-  const tryFlash = () => {
+  const tryFind = () => {
     if (stopped) return false;
     const element = container.querySelector<HTMLElement>(selector);
     if (!element) return false;
-    flashMessageElement(element);
+    onFound(element);
     stop();
     return true;
   };
 
-  if (tryFlash()) return stop;
-  observer = new MutationObserver(tryFlash);
+  if (tryFind()) return stop;
+  observer = new MutationObserver(tryFind);
   observer.observe(container, { childList: true, subtree: true });
   timeout = setTimeout(stop, FLASH_RENDER_TIMEOUT_MS);
   return stop;
+}
+
+/** Waits for a virtualized row to enter the DOM before highlighting it. */
+export function flashMessageWhenRendered(container: HTMLElement, ts: string): () => void {
+  return waitForMessageElement(container, ts, flashMessageElement);
 }
 
 /** Scrolls to a message and flashes it, then keeps it centered for a short

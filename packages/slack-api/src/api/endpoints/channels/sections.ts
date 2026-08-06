@@ -9,7 +9,8 @@ import {
 } from "../preferences/pairedPreferenceWrite";
 
 function mapSections(data: any): ChannelSection[] {
-  if (!data.ok) throw new Error(data.error ?? "users.channelSections.list failed");
+  if (data && !data.ok && !Array.isArray(data.channel_sections))
+    throw new Error(data.error ?? "users.channelSections.list failed");
   const sections = extractChannelSections(data);
   return (sections ?? []).map((s) => ({
     channelIds: s.channelIds,
@@ -20,10 +21,23 @@ function mapSections(data: any): ChannelSection[] {
   }));
 }
 
+function mapInitialSections(sections: Record<string, any>): ChannelSection[] {
+  return Object.entries(sections).map(([id, section]) => ({
+    channelIds: section.channel_ids ?? [],
+    id,
+    name: section.name ?? "Section",
+    sidebar:
+      section.filtering === "all" || section.filtering === "active" ? section.filtering : "hid",
+    type: section.type ?? "standard",
+  }));
+}
+
 export async function fetchSections(): Promise<ChannelSection[]> {
   const initial = await fetchInitialData();
-  const data = initial.sections ?? (await apiGet("/api/sections"));
-  return mapSections(data);
+  if (initial.error?.sections) throw new Error(initial.error.sections);
+  return initial.sections === undefined
+    ? mapSections(await apiGet("/api/sections"))
+    : mapInitialSections(initial.sections);
 }
 
 export async function fetchFreshSections(): Promise<ChannelSection[]> {

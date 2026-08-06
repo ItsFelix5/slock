@@ -6,6 +6,7 @@ import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
 import { constrainMediaDimensions } from "./estimateMediaHeight";
 import FileViewerTrigger from "./FileViewer";
+import MediaFrame from "./MediaFrame";
 import "./MessageFiles.css";
 
 function formatSize(bytes: number | undefined): string {
@@ -56,30 +57,34 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
                 const dimensions = () =>
                   constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180, true);
                 return (
-                  <ConstrainedImage
-                    alt={file.title || file.name}
-                    blurSrc={
-                      file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined
-                    }
-                    class="message-file-image"
-                    fullSrc={resolveMediaUrl(file.urlPrivate)}
-                    height={dimensions().height}
-                    src={thumb()}
-                    width={dimensions().width}
-                  />
+                  <MediaFrame title={file.title || file.name}>
+                    <ConstrainedImage
+                      alt={file.title || file.name}
+                      blurSrc={
+                        file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined
+                      }
+                      class="message-file-image"
+                      fullSrc={resolveMediaUrl(file.urlPrivate)}
+                      height={dimensions().height}
+                      src={thumb()}
+                      width={dimensions().width}
+                    />
+                  </MediaFrame>
                 );
               }}
             </Match>
             <Match when={file.isVideo}>
-              <VideoPlayer
-                ariaLabel={file.title || file.name}
-                class="message-file-video"
-                height={file.height}
-                openHref={file.urlPrivate}
-                poster={file.thumbUrl}
-                src={resolveMediaUrl(file.urlPrivate)}
-                width={file.width}
-              />
+              <MediaFrame title={file.title || file.name}>
+                <VideoPlayer
+                  ariaLabel={file.title || file.name}
+                  class="message-file-video"
+                  height={file.height}
+                  openHref={file.urlPrivate}
+                  poster={file.thumbUrl}
+                  src={resolveMediaUrl(file.urlPrivate)}
+                  width={file.width}
+                />
+              </MediaFrame>
             </Match>
             <Match when={file.isAudio}>
               <AudioFile file={file} />

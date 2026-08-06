@@ -11,7 +11,8 @@ const CREDS_COOKIE = "slock_creds";
 const INFO_COOKIE = "slock_info";
 const INVALID_SLACK_SESSION_RE = /[;\s]/;
 const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slack\.com$/i;
-const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\u0000-\u001f\u007f]+$/;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: validating credentials
+const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\x00-\x1f\x7f]+$/;
 
 function extractSlackSession(cookieHeader: string): string | null {
   for (const part of cookieHeader.split(";")) {
@@ -130,12 +131,12 @@ export function authResponse(raw: string, secure: boolean): Response {
     if (error) throw new Error(error);
     const { domain, route, slackSession, token } = parsed;
     const creds = { domain, route, slackSession, token };
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({}), {
       headers: credsCookieHeaders(creds, secure),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Couldn't parse that request.";
-    return new Response(JSON.stringify({ error: message, ok: false }), {
+    return new Response(JSON.stringify({ error: message }), {
       headers: jsonHeaders,
       status: 400,
     });

@@ -107,9 +107,43 @@ export function createSelectionCommands(
     return { node: node as Text, offset: sel.anchorOffset };
   }
 
+  // The default browser copy of a contentEditable selection reduces chips
+  // (mention/channel/date/link/emoji, all rendered as `contenteditable=false`
+  // spans carrying the real id in a data attribute) down to their visible
+  // text, so pasting "@lisa" back doesn't reconstruct a mention — it's just
+  // the literal characters. Serializing through the same mrkdwn/token
+  // pipeline used for submission means the special tokens survive (and
+  // insertPastedTextAtCaret already turns `<@id>` etc. back into chips on
+  // paste); plain formatting marks come back as literal `*`/`` ` `` too,
+  // which is what every markdown-aware editor does for plain-text copies.
+  function copySelection(e: ClipboardEvent): boolean {
+    const el = ref.get();
+    const sel = window.getSelection();
+    if (!(el && sel) || sel.rangeCount === 0 || sel.isCollapsed) return false;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) return false;
+    const container = document.createElement("div");
+    container.appendChild(range.cloneContents());
+    const text = fragmentToMrkdwn(container, dialect);
+    if (!(text && e.clipboardData)) return false;
+    e.clipboardData.setData("text/plain", text);
+    e.preventDefault();
+    return true;
+  }
+
+  function cutSelection(e: ClipboardEvent): boolean {
+    if (!copySelection(e)) return false;
+    const sel = window.getSelection();
+    sel?.getRangeAt(0).deleteContents();
+    syncFromDom();
+    return true;
+  }
+
   return {
     clearEditor,
+    copySelection,
     currentTextContext,
+    cutSelection,
     focusEditor,
     insertPastedTextAtCaret,
     loadDraftIntoEditor,

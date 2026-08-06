@@ -1,10 +1,17 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads retain their wire field names.
 export type InitialData = {
-  boot: any;
-  counts: any;
-  dnd: any;
-  prefs: any;
-  sections?: any;
+  channels?: any[];
+  error?: Record<string, string>;
+  ims?: any[];
+  mpims?: any[];
+  notifications?: any;
+  sections?: Record<string, any>;
+  self?: any;
+  snooze?: { endtime?: number } | null;
+  starred?: any[];
+  subteams?: { self?: string[] };
+  unreads?: any;
+  [key: string]: any;
 };
 
 let initialDataPromise: Promise<InitialData> | null = null;

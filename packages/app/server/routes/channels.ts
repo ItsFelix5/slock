@@ -140,6 +140,10 @@ export const channelRoutes: Route[] = [
     mutate("conversations.leave", { channel: ctx.params.id }, ctx),
   ),
 
+  route("POST", "/api/channels/:id/close", (ctx) =>
+    mutate("conversations.close", { channel: ctx.params.id }, ctx),
+  ),
+
   route("POST", "/api/channels/:id/members", async (ctx) => {
     const { userIds } = (await ctx.body.json()) as { userIds?: string[] };
     if (!userIds?.length) return errorResponse("invalid_user_ids", 400);

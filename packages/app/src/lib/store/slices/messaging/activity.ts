@@ -1,11 +1,13 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive activity state machine coordinates feed loading, badges, and read state.
 import type { ActivityItem, Channel, FeedEntry, Message, User } from "@slock/slack-api";
 import {
+  fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
   fetchChannelLastRead,
   fetchHistory,
   fetchHistoryAround,
   fetchMessagesByIds,
+  markActivityRead,
   resolveActivityEntry,
 } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
@@ -45,20 +47,26 @@ export function isPingingActivity(item: ActivityItem): boolean {
 }
 
 type ActivityApi = {
+  fetchActivityBadgeCounts: typeof fetchActivityBadgeCounts;
   fetchActivityFeedEntries: typeof fetchActivityFeedEntries;
   fetchChannelLastRead: typeof fetchChannelLastRead;
   fetchHistory: typeof fetchHistory;
   fetchHistoryAround: typeof fetchHistoryAround;
   fetchMessagesByIds: typeof fetchMessagesByIds;
+  markActivityRead: typeof markActivityRead;
   resolveActivityEntry: typeof resolveActivityEntry;
 };
 
+type ActivityItemReadState = "pending" | "read" | "unread";
+
 const DEFAULT_ACTIVITY_API: ActivityApi = {
+  fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
   fetchChannelLastRead,
   fetchHistory,
   fetchHistoryAround,
   fetchMessagesByIds,
+  markActivityRead,
   resolveActivityEntry,
 };
 
@@ -114,28 +122,17 @@ export function createActivitySlice(
   const [engagements, setEngagements] = createSignal<
     { channelId: string; threadTs?: string; time: number; ts: string }[]
   >([]);
-  // Gateway badge updates are aggregate counts, without the message data that
-  // backs activityItems. Keep their notification state separately so a live
-  // update still lights the bell before the activity feed has been fetched.
-  const [gatewayPingCount, setGatewayPingCount] = createSignal(0);
-  const [gatewayHasUnreadGlow, setGatewayHasUnreadGlow] = createSignal(false);
+  const [gatewayActivityCount, setGatewayActivityCount] = createSignal<number>();
   let lastGatewayActivityCountsSnapshot: string | undefined;
 
   function setGatewayActivityBadgeCounts(activity: any): boolean {
-    const count = (key: string) => Number(activity?.[key] ?? 0);
     const nextSnapshot = gatewayActivityCountsSnapshot(activity);
     const changed = nextSnapshot !== lastGatewayActivityCountsSnapshot;
     lastGatewayActivityCountsSnapshot = nextSnapshot;
-    setGatewayPingCount(
-      count("at_user") + count("dm") + count("keyword") + count("list_user_mentioned"),
-    );
-    setGatewayHasUnreadGlow(
-      count("at_user_group") > 0 ||
-        count("at_channel") > 0 ||
-        count("at_everyone") > 0 ||
-        count("channel") > 0 ||
-        count("thread_v2") > 0,
-    );
+    if (activity && typeof activity === "object")
+      setGatewayActivityCount(
+        Object.values(activity).reduce<number>((total, value) => total + (Number(value) || 0), 0),
+      );
     return changed;
   }
 
@@ -163,9 +160,11 @@ export function createActivitySlice(
     // Anything the feed already fully describes renders now, so a slow
     // channel's fetch never holds up the whole view.
     const needsMessage = (entry: FeedEntry) =>
-      entry.kind === "reaction" || !entry.text || !entry.userId;
+      (entry.kind === "reaction" || !entry.text || !entry.userId) &&
+      entry.activityType !== "quietly_added_to_channel";
     for (const entry of pending) if (!needsMessage(entry)) push(entry);
-    const toFetch = pending.filter(needsMessage);
+    const unresolved = pending.filter(needsMessage);
+    const toFetch = unresolved.filter((entry) => !!entry.channelId);
     // Stream the rest in as each messages.list batch resolves, then backfill
     // any whose message never came back (still worth a row from feed data).
     await api.fetchMessagesByIds(toFetch, (batch) => {
@@ -199,7 +198,7 @@ export function createActivitySlice(
       deps.cacheResolvedMessages?.(batch);
       push(entry, batch);
     }
-    for (const entry of toFetch) if (!seen.has(entry.id)) push(entry);
+    for (const entry of unresolved) if (!seen.has(entry.id)) push(entry);
   }
 
   // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply in a
@@ -211,8 +210,7 @@ export function createActivitySlice(
       const channelPostKey = `${item.channelId}:${item.ts}`;
       if (
         seen.has(item.id) ||
-        !item.userId ||
-        item.userId === me.id ||
+        (item.channelId && (!item.userId || item.userId === me.id)) ||
         (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey))
       )
         return;
@@ -353,13 +351,12 @@ export function createActivitySlice(
   }
 
   // badge_counts_updated is noisy and Slack frequently sends identical
-  // snapshots in a burst. The aggregate counts are enough to drive the bell;
-  // only refresh the heavier feed after it has been opened once, and collapse
-  // a burst into one trailing request. If another real count change arrives
-  // while that request is running, keep exactly one follow-up refresh.
+  // snapshots in a burst. Refresh the authoritative feed on real changes so
+  // activity is retained before its view is opened, while collapsing a burst
+  // into one trailing request. If another real count change arrives while
+  // that request is running, keep exactly one follow-up refresh.
   const requestActivityRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
-    isLoaded: activityLoaded,
     isLoading: activityLoading,
     refresh: refreshActivityFeed,
   });
@@ -386,32 +383,39 @@ export function createActivitySlice(
     );
   }
 
-  function isActivityItemUnread(item: ActivityItem): boolean {
+  function activityItemReadState(item: ActivityItem): ActivityItemReadState {
     // Reactions are a nice-to-know, not a ping — they never light the bell
     // (not in PING_KINDS/GLOW_KINDS), so they shouldn't sit in the "Unread"
     // filter forever either.
-    if (item.kind === "reaction") return false;
-    if (readActivityIds[item.id] || isActivityItemReacted(item)) return false;
+    if (item.kind === "reaction") return "read";
+    if (readActivityIds[item.id] || isActivityItemReacted(item)) return "read";
+    if (item.unread !== undefined) return item.unread ? "unread" : "read";
     // A thread reply's read state lives on Slack's own per-thread subscription
     // cursor, not the parent channel's last_read — replying in a thread never
     // advances the channel's cursor, so comparing against lastReadByChannel
     // would keep a thread you've genuinely read (here or in real Slack)
     // marked unread forever. Slack hands back that cursor's result directly as
     // unreadCount on the bundle; trust it whenever the feed provides it.
-    if (item.kind === "thread_reply" && item.unreadCount !== undefined) return item.unreadCount > 0;
-    return item.time > (deps.lastReadByChannel[item.channelId] ?? 0);
+    if (item.kind === "thread_reply" && item.unreadCount !== undefined)
+      return item.unreadCount > 0 ? "unread" : "read";
+    const lastRead = deps.lastReadByChannel[item.channelId];
+    if (item.channelId && lastRead === undefined) return "pending";
+    return item.time > (lastRead ?? 0) ? "unread" : "read";
+  }
+
+  function isActivityItemUnread(item: ActivityItem): boolean {
+    return activityItemReadState(item) === "unread";
   }
 
   // lastReadByChannel is only ever seeded from client.counts (bootstrap) and
   // live gateway events for channels those happen to cover. An old, closed DM
   // can drop out of client.counts entirely while activity.feed still returns
-  // its history — leaving no cursor to compare against, so every such item
-  // reads as "unread since the dawn of time". Once a page of activity items
-  // loads, backfill a real cursor for any channel missing one so those rows
-  // settle to their true read state instead of defaulting to unread.
+  // its history. Once a page of activity items loads, backfill a real cursor
+  // for every missing channel so the row can resolve from its neutral state.
   const attemptedReadCursorBackfill = new Set<string>();
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
+    if (!item.channelId) return false;
     if (item.kind === "reaction") return false;
     if (item.kind === "thread_reply" && item.unreadCount !== undefined) return false;
     return deps.lastReadByChannel[item.channelId] === undefined;
@@ -435,20 +439,14 @@ export function createActivitySlice(
 
   const unreadActivityCount = createMemo(() => activityItems.filter(isActivityItemUnread).length);
 
-  // Bell states: a plain dot for any unread activity that's relevant but not
-  // personally directed (thread replies, @channel/@here/usergroup pings, channels
-  // set to notify on every post), with a count only for things addressed
-  // straight at the user (direct pings, DMs) — and nothing at all for reactions.
-  const unreadPingCount = createMemo(() =>
-    Math.max(
-      gatewayPingCount(),
+  const unreadPingCount = createMemo(
+    () =>
+      gatewayActivityCount() ??
       activityItems.filter((i) => PING_KINDS.has(i.kind) && isActivityItemUnread(i)).length,
-    ),
   );
   const hasUnreadActivity = createMemo(
     () =>
       unreadPingCount() > 0 ||
-      gatewayHasUnreadGlow() ||
       activityItems.some(
         (i) => (PING_KINDS.has(i.kind) || GLOW_KINDS.has(i.kind)) && isActivityItemUnread(i),
       ),
@@ -458,8 +456,19 @@ export function createActivitySlice(
     const latestTsByChannel = new Map<string, string>();
     const latestByThread = new Map<string, { channelId: string; threadTs: string; ts: string }>();
     for (const item of items) {
-      if (!isActivityItemUnread(item)) continue;
+      if (activityItemReadState(item) === "read") continue;
+      if (item.activityType === "quietly_added_to_channel") {
+        void api
+          .markActivityRead(item.activityType, item.feedTs ?? item.ts, item.id)
+          .then(async () => {
+            setReadActivityIds(item.id, true);
+            setGatewayActivityBadgeCounts(await api.fetchActivityBadgeCounts());
+          })
+          .catch(() => {});
+        continue;
+      }
       setReadActivityIds(item.id, true);
+      if (!item.channelId) continue;
       if (item.kind === "thread_reply" && item.threadTs) {
         const key = `${item.channelId}:${item.threadTs}`;
         const prev = latestByThread.get(key);
@@ -482,26 +491,20 @@ export function createActivitySlice(
       // particular read happened via the Activity feed instead of visiting
       // the channel directly.
       deps.clearChannelUnread(channelId);
-      void activityReadSync.request(channelId, ts);
+      void activityReadSync.request(channelId, ts).then(async (synced) => {
+        if (!synced) return;
+        try {
+          setGatewayActivityBadgeCounts(await api.fetchActivityBadgeCounts());
+        } catch {
+          // the next gateway badge update or bootstrap refresh will retry
+        }
+      });
     }
     // Thread replies carry their own subscription read cursor on Slack's
     // side — advancing the channel cursor above does nothing for them, so
     // this is the only thing that actually clears their unread state there.
     for (const { channelId, threadTs, ts } of latestByThread.values())
       void deps.syncThreadRead(channelId, threadTs, ts);
-    // The gateway's aggregate activity_v2 counts only change on the next
-    // badge_counts_updated push, which may never come (e.g. a thread reply's
-    // badge isn't tied to any channel read cursor we advance above) — so once
-    // everything actually loaded in the feed is read, drop the stale gateway
-    // count too, or the bell dot outlives the unread it was lit for.
-    if (
-      !activityItems.some(
-        (i) => (PING_KINDS.has(i.kind) || GLOW_KINDS.has(i.kind)) && isActivityItemUnread(i),
-      )
-    ) {
-      setGatewayPingCount(0);
-      setGatewayHasUnreadGlow(false);
-    }
   }
 
   function markActivityItemsReacted(items: readonly ActivityItem[]) {
@@ -524,6 +527,7 @@ export function createActivitySlice(
   return {
     activityHasMore: activityHasMoreFor,
     activityItems,
+    activityItemReadState,
     activityLoaded,
     activityLoading,
     activityLoadError,

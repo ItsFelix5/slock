@@ -1,19 +1,11 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  createUniqueId,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createMemo, createSignal, createUniqueId, For, onCleanup, Show } from "solid-js";
 import { createDebouncedRequest } from "../debouncedRequest";
 import { fuzzySearch } from "../fuzzy";
 import Icon from "../media/Icon";
 import { useClickOutside } from "../useClickOutside";
 import { useEscapeClose } from "../useEscapeClose";
 import "./FilterCombobox.css";
-import { listNavigationIndex, scrollActiveListOption } from "./listNavigation";
+import { createListboxActiveIndex, listNavigationIndex } from "./listNavigation";
 
 export interface ComboItem {
   id: string;
@@ -39,7 +31,6 @@ export default function FilterCombobox(props: {
   const [searching, setSearching] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
   const [pickedLabel, setPickedLabel] = createSignal<string | undefined>(undefined);
-  const [activeIndex, setActiveIndex] = createSignal<number | null>(0);
   const listboxId = createUniqueId();
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
@@ -47,6 +38,11 @@ export default function FilterCombobox(props: {
   let triggerRef: HTMLButtonElement | undefined;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let listRef: HTMLDivElement | undefined;
+  const { activeIndex, setActiveIndex, optionId, activeOptionId } = createListboxActiveIndex(
+    () => filtered().length,
+    listboxId,
+    () => listRef,
+  );
   const remoteRequest = createDebouncedRequest(
     (query) => props.remoteSearch?.(query) ?? Promise.resolve([]),
     {
@@ -107,21 +103,6 @@ export default function FilterCombobox(props: {
     props.onSelect(item.id);
     close(true);
   };
-  createEffect(() => {
-    const count = filtered().length;
-    const current = activeIndex();
-    if (count === 0) setActiveIndex(null);
-    else if (current === null || current >= count) setActiveIndex(0);
-  });
-  const optionId = (index: number) => `${listboxId}-option-${index}`;
-  const activeOptionId = () => {
-    const index = activeIndex();
-    return index === null ? undefined : optionId(index);
-  };
-  createEffect(() => {
-    activeIndex();
-    scrollActiveListOption(() => listRef);
-  });
   const onKeyDown = (event: KeyboardEvent) => {
     const next = listNavigationIndex(event.key, activeIndex(), filtered().length);
     if (next !== undefined) {

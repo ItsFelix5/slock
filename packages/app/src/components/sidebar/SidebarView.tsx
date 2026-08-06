@@ -1,11 +1,12 @@
 import { Button, Icon, InlineFeedback, ResizeHandle } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
+import MessageSearchView from "../search/MessageSearchView";
 import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
-import { SidebarSkeleton } from "./rows/SidebarRows";
+import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/SidebarRows";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
 import type { SidebarContext } from "./sidebarCategories";
@@ -36,7 +37,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
     bootstrap,
     categories,
     collapsed,
-    toggledSectionFilterIds,
     draggingSectionId,
     dropTarget,
     renamingId,
@@ -149,6 +149,9 @@ export default function SidebarView(props: { context: SidebarContext }) {
             <Match when={nav() === "later"}>
               <LaterView />
             </Match>
+            <Match when={nav() === "search"}>
+              <MessageSearchView />
+            </Match>
           </Switch>
         }
         when={!feedMode()}
@@ -235,34 +238,20 @@ export default function SidebarView(props: { context: SidebarContext }) {
                       }
                       when={renamingId() !== cat.id}
                     >
-                      <div class="sidebar-section-header-btn flex-align-center text-muted text-sm">
-                        <button
-                          aria-expanded={!collapsed().has(cat.id)}
-                          aria-label={`${collapsed().has(cat.id) ? "Expand" : "Collapse"} ${cat.name}`}
-                          class="sidebar-caret btn-reset"
-                          onClick={() => toggleCategory(cat.id)}
-                          type="button"
-                        >
-                          <Icon
-                            name={
-                              collapsed().has(cat.id)
-                                ? "caret-right-filled"
-                                : toggledSectionFilterIds().has(cat.id)
-                                  ? "caret-down-filled"
-                                  : "section"
-                            }
-                            size={12}
-                          />
-                        </button>
-                        <button
-                          aria-label={`Toggle read channels in ${cat.name}`}
-                          class="btn-reset text-muted text-sm"
-                          onClick={() => toggleSectionFilter(cat.id)}
-                          type="button"
-                        >
-                          {cat.name}
-                        </button>
-                      </div>
+                      <SidebarSectionCaretRow
+                        caretIcon={
+                          collapsed().has(cat.id)
+                            ? "caret-right-filled"
+                            : cat.sidebar === "all"
+                              ? "caret-down-filled"
+                              : "section"
+                        }
+                        label={cat.name}
+                        labelAriaLabel={`Toggle read channels in ${cat.name}`}
+                        onLabelClick={() => toggleSectionFilter(cat.id)}
+                        onToggleOpen={() => toggleCategory(cat.id)}
+                        open={!collapsed().has(cat.id)}
+                      />
                     </Show>
                     <InlineFeedback
                       class="sidebar-section-feedback"

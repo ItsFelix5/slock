@@ -73,6 +73,7 @@ export default function LaterView() {
                   <div class="later-item">
                     <button
                       class="later-main btn-reset"
+                      data-nav-row
                       onClick={() => {
                         const rootTs = msg()?.threadTs;
                         goTo(item.channelId, rootTs ?? item.ts, rootTs ? item.ts : undefined);

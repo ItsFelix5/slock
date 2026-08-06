@@ -198,6 +198,20 @@
 .bk-link:hover {
   text-decoration: underline;
 }
+.bk-date {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-4);
+}
+.bk-date.bk-link:hover {
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
 .bk-mention {
   display: inline;
   padding: 0 3px;
@@ -209,6 +223,10 @@
   background: var(--mention-bg);
   border: none;
   border-radius: var(--radius-4);
+  /* it's a <button> for click-to-open-profile, but browsers make button
+     text unselectable by default — without this, dragging a selection
+     across a mention skips its text and breaks copying the message. */
+  user-select: text;
 }
 .bk-mention:hover {
   background: rgba(var(--mention-rgb), 0.3);

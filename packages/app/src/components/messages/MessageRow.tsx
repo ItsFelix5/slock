@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: Message rendering branches share state and interaction wiring that is clearer in one component.
-import { BlockKit, Mrkdwn } from "@slock/blockkit";
+import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
 import {
   AvatarStack,
@@ -10,7 +10,7 @@ import {
   Tooltip,
   useContextMenu,
 } from "@slock/ui";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
@@ -21,11 +21,10 @@ import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
 import AttachmentCard from "./parts/media/AttachmentCard";
 import MessageFiles from "./parts/media/MessageFiles";
-import { resolveMessageRenderState } from "./parts/messageRenderState";
+import { resolveMessageRenderState, resolveProfileUserId } from "./parts/messageRenderState";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 
-const USER_PROFILE_ID_RE = /^[UW]/;
 const MESSAGE_CONTENT_ELEMENT_SELECTOR =
   "a, button, input, textarea, select, img, video, audio, canvas, svg, iframe, object, embed";
 
@@ -88,6 +87,10 @@ export type MessageRowProps = {
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
   index: () => number;
+  focusedTs?: () => string | null;
+  editingTs?: () => string | null;
+  onStartEdit?: (ts: string) => void;
+  onStopEdit?: () => void;
 };
 
 export default function MessageRow(props: MessageRowProps) {
@@ -138,15 +141,7 @@ export default function MessageRow(props: MessageRowProps) {
   const visibleAttachments = () => renderState().visibleAttachments;
   const sameAuthorAsPrev = () => renderState().sameAuthorAsPrev;
   const showBroadcastBadge = () => renderState().showBroadcastBadge;
-  const isSlackbot = () => msg().botName === "Slackbot";
-  const profileUserId = () => {
-    const id = USER_PROFILE_ID_RE.test(msg().userId)
-      ? msg().userId
-      : isSlackbot()
-        ? "USLACKBOT"
-        : msg().userId;
-    return USER_PROFILE_ID_RE.test(id) ? id : undefined;
-  };
+  const profileUserId = () => resolveProfileUserId(msg());
   const user = createMemo(() => (msg().userId ? store.users.userById(msg().userId) : undefined));
   // Apps posting via a user token set both `user` (the real poster) and
   // bot_profile (the app's identity). When they're distinct, the real user's
@@ -157,8 +152,9 @@ export default function MessageRow(props: MessageRowProps) {
   const displayName = () =>
     (hasRealUser() ? user()?.name : undefined) ?? msg().botName ?? "Unknown";
   const avatarUrl = () => (hasRealUser() ? user()?.avatarUrl : undefined) ?? msg().botIcon;
-  const [isEditing, setIsEditing] = createSignal(false);
+  const isEditing = () => props.editingTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
+  const focused = () => props.focusedTs?.() === msg().ts;
   return (
     <Show when={renderState().showMessage}>
       <Show when={dayChanged() || showUnreadDivider()}>
@@ -178,10 +174,10 @@ export default function MessageRow(props: MessageRowProps) {
       <div
         class="message-row-group"
         classList={{
-          broadcast: showBroadcastBadge(),
           compact: sameAuthorAsPrev(),
           deleted: msg().deleted,
           ephemeral: msg().isEphemeral,
+          "is-first-message": props.index() === 0,
           saved: store.later.isSavedForLater(props.channelId, msg().ts),
         }}
       >
@@ -209,12 +205,13 @@ export default function MessageRow(props: MessageRowProps) {
             store.resources.loadMessageShortcuts();
             ctxMenu.open(e);
           }}
+          tabIndex={focused() ? 0 : -1}
         >
           <Show when={!(msg().deleted || msg().isEphemeral)}>
             <MessageActionsBar
               channelId={props.channelId}
               msg={msg()}
-              onEditRequest={() => setIsEditing(true)}
+              onEditRequest={() => props.onStartEdit?.(msg().ts)}
               onOpenThread={props.onOpenThread}
               onReplyLink={props.onReplyLink}
               threadTs={props.threadTs}
@@ -229,7 +226,7 @@ export default function MessageRow(props: MessageRowProps) {
                 channelId={props.channelId}
                 msg={msg()}
                 onClose={ctxMenu.close}
-                onEditRequest={() => setIsEditing(true)}
+                onEditRequest={() => props.onStartEdit?.(msg().ts)}
                 threadTs={props.threadTs}
               />
             </ContextMenu>
@@ -285,7 +282,7 @@ export default function MessageRow(props: MessageRowProps) {
                   channelId={props.channelId}
                   editing={{
                     initialText: replyRef()?.rest ?? msg().text,
-                    onCancel: () => setIsEditing(false),
+                    onCancel: () => props.onStopEdit?.(),
                     onSave: async (text, blocks) => {
                       const saved = await store.messages.editMessageText(
                         props.channelId,
@@ -293,7 +290,7 @@ export default function MessageRow(props: MessageRowProps) {
                         (replyRef()?.prefix ?? "") + text,
                         blocks,
                       );
-                      if (saved) setIsEditing(false);
+                      if (saved) props.onStopEdit?.();
                       return saved;
                     },
                   }}
@@ -305,32 +302,36 @@ export default function MessageRow(props: MessageRowProps) {
                 class={`message-text${msg().deleted ? " message-deleted-text" : ""}`}
                 classList={{ "message-emoji-only": hasEnlargedEmojiOnlyText() }}
               >
-                <Show
-                  fallback={
-                    <>
-                      <Mrkdwn text={messageText()} />
-                      <Show when={msg().edited}>
-                        <span class="message-edited"> (edited)</span>
-                      </Show>
-                    </>
-                  }
-                  when={!replyRef() && msg().blocks?.length ? msg().blocks : undefined}
+                <TimeAnchorContext.Provider
+                  value={{ ms: parseFloat(msg().ts) * 1000, tz: user()?.tz }}
                 >
-                  {(blocks) => (
-                    <BlockKit
-                      blocks={blocks()}
-                      context={{
-                        botId: msg().botId,
-                        channelId: props.channelId,
-                        messageTs: msg().ts,
-                        threadTs: msg().threadTs,
-                      }}
-                      trailing={
-                        msg().edited ? <span class="message-edited"> (edited)</span> : undefined
-                      }
-                    />
-                  )}
-                </Show>
+                  <Show
+                    fallback={
+                      <>
+                        <Mrkdwn text={messageText()} />
+                        <Show when={msg().edited}>
+                          <span class="message-edited"> (edited)</span>
+                        </Show>
+                      </>
+                    }
+                    when={!replyRef() && msg().blocks?.length ? msg().blocks : undefined}
+                  >
+                    {(blocks) => (
+                      <BlockKit
+                        blocks={blocks()}
+                        context={{
+                          botId: msg().botId,
+                          channelId: props.channelId,
+                          messageTs: msg().ts,
+                          threadTs: msg().threadTs,
+                        }}
+                        trailing={
+                          msg().edited ? <span class="message-edited"> (edited)</span> : undefined
+                        }
+                      />
+                    )}
+                  </Show>
+                </TimeAnchorContext.Provider>
               </div>
             </Show>
             <Show when={msg().files?.length ? msg().files : undefined}>

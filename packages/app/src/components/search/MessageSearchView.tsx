@@ -1,43 +1,35 @@
-import { Mrkdwn } from "@slock/blockkit";
 import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "@slock/slack-api";
-import { Button, createDebouncedRequest, FilterCombobox, Icon, Tooltip } from "@slock/ui";
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
-  buildSearchQuery,
-  EMPTY_FILTERS,
-  hasActiveFilters,
-  type SearchFilters,
-  type SortMode,
-  sortParams,
-} from "../../lib/searchQuery";
-import { dmDisplayName, store } from "../../lib/store";
+  createDebouncedRequest,
+  createListboxActiveIndex,
+  Icon,
+  listNavigationIndex,
+} from "@slock/ui";
+import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from "solid-js";
+import { store } from "../../lib/store";
 import "./GlobalSearch.css";
 import "./MessageSearchView.css";
-import { HAS_TOGGLES, SORT_OPTIONS } from "./messageSearchOptions";
+import MessageSearchResults from "./MessageSearchResults";
+import { type QuerySuggestion, querySuggestions, queryToken } from "./querySuggestions";
 import { navigateToSearchResult } from "./searchResultNavigation";
+
 export default function MessageSearchView() {
   const [query, setQuery] = createSignal("");
-  const [filters, setFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
-  const [sort, setSort] = createSignal<SortMode>("relevant");
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
-  const [suggestions, setSuggestions] = createSignal<string[]>([]);
-  const filtersActive = createMemo(() => hasActiveFilters(filters()));
+  const [remoteSuggestions, setRemoteSuggestions] = createSignal<string[]>([]);
+  const [cursor, setCursor] = createSignal(0);
+  const [dismissedSuggestionsFor, setDismissedSuggestionsFor] = createSignal<string>();
+  const suggestionListId = createUniqueId();
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+  let suggestionsListRef: HTMLDivElement | undefined;
   const searchRequest = createDebouncedRequest(
-    (composed) => {
-      const { sort: selectedSort, sortDir } = sortParams(sort());
-      return searchMessages(composed, { sort: selectedSort, sortDir });
-    },
+    (value) => searchMessages(value, { sort: "score", sortDir: "desc" }),
     {
       delay: 300,
       onError: () => setSearchError(true),
       onPendingChange: setLoading,
-      // Fires on every keystroke, before the debounce delay even starts —
-      // clearing results here unconditionally is what made the list
-      // flash empty and pop back on every character typed. Only actually
-      // clearing it once the query itself is empty keeps whatever's on
-      // screen until the new search really has an answer to replace it with.
       onReset: () => {
         setSearchError(false);
         if (!canSearch()) setResults([]);
@@ -50,299 +42,205 @@ export default function MessageSearchView() {
   );
   const autocompleteRequest = createDebouncedRequest(fetchSearchAutocomplete, {
     delay: 150,
-    onReset: () => setSuggestions([]),
-    onResult: setSuggestions,
+    onReset: () => setRemoteSuggestions([]),
+    onResult: setRemoteSuggestions,
   });
+  const updateQuery = (value: string, selectionStart = value.length) => {
+    setQuery(value);
+    setCursor(selectionStart);
+    setDismissedSuggestionsFor(undefined);
+    store.viewState.setSearchScreenQuery(value);
+  };
   const runSearch = () => {
-    const composed = buildSearchQuery(query(), filters());
-    searchRequest.run(composed);
+    searchRequest.run(query());
   };
   const runAutocomplete = () => {
     autocompleteRequest.run(query());
   };
   const runHistorySearch = (q: string) => {
-    setQuery(q);
+    updateQuery(q);
     autocompleteRequest.run("");
     runSearch();
   };
-  const applySuggestion = (q: string) => {
-    setQuery(q);
-    autocompleteRequest.run("");
+  const localSuggestions = createMemo<QuerySuggestion[]>(() =>
+    querySuggestions(
+      query(),
+      cursor(),
+      store.users.knownUsers(),
+      store.resources.bootstrap()?.channels ?? [],
+    ),
+  );
+  const suggestions = createMemo<QuerySuggestion[]>(() => {
+    const local = localSuggestions();
+    const localValues = new Set(local.map((item) => item.value));
+    return [
+      ...local,
+      ...remoteSuggestions()
+        .filter((value) => !localValues.has(value))
+        .map((value) => ({ id: `remote-${value}`, label: value, value })),
+    ].slice(0, 8);
+  });
+  const suggestionsOpen = createMemo(
+    () => suggestions().length > 0 && dismissedSuggestionsFor() !== query(),
+  );
+  const { activeIndex: activeSuggestion, setActiveIndex: setActiveSuggestion } =
+    createListboxActiveIndex(
+      () => suggestions().length,
+      suggestionListId,
+      () => suggestionsListRef,
+    );
+  const applySuggestion = (suggestion: QuerySuggestion) => {
+    const current = query();
+    const selection = cursor();
+    const token = queryToken(current, selection);
+    const complete = !suggestion.value.endsWith(":");
+    const next = suggestion.replaceToken
+      ? `${current.slice(0, token.start)}${suggestion.value}${complete ? " " : ""}${current.slice(token.end)}`
+      : suggestion.value;
+    const nextCursor = suggestion.replaceToken
+      ? token.start + suggestion.value.length + (complete ? 1 : 0)
+      : next.length;
+    updateQuery(next, nextCursor);
+    autocompleteRequest.run(next);
     runSearch();
   };
   onMount(() => {
-    setQuery(store.viewState.searchScreenQuery());
-    setFilters(store.viewState.searchScreenFilters());
+    const initialQuery = store.viewState.searchScreenQuery();
+    updateQuery(initialQuery);
     runSearch();
   });
   onCleanup(() => {
     searchRequest.dispose();
     autocompleteRequest.dispose();
   });
-  const patchFilters = (patch: Partial<SearchFilters>) => {
-    setFilters({ ...filters(), ...patch });
-    runSearch();
-  };
-  const channelItems = createMemo(() =>
-    (store.resources.bootstrap()?.channels ?? []).map((c) => ({
-      id: c.id,
-      label: `#${c.name}`,
-      score: store.preferences.frecencyScore(c.id),
-    })),
-  );
-  const userItems = createMemo(() =>
-    store.users.knownUsers().map((u) => ({
-      id: u.id,
-      label: u.name,
-      score: store.preferences.frecencyScore(u.id),
-    })),
-  );
-  const remoteUserSearch = (q: string) =>
-    store.users.searchUsers(q, store.users.currentUser()?.id).then((users) =>
-      users.map((u) => ({
-        id: u.id,
-        label: u.name,
-        score: store.preferences.frecencyScore(u.id),
-      })),
-    );
   const goToMessage = (r: SearchResult) => {
     navigateToSearchResult(r, store.viewState);
   };
-  const canSearch = createMemo(() => !!query().trim() || filtersActive());
+  const canSearch = createMemo(() => !!query().trim());
+  const optionId = (index: number) => `${suggestionListId}-option-${index}`;
+  const activeSuggestionId = () => {
+    const active = activeSuggestion();
+    return suggestionsOpen() && active !== null ? optionId(active) : undefined;
+  };
+  const moveSuggestion = (key: string) => {
+    const next = listNavigationIndex(key, activeSuggestion(), suggestions().length);
+    if (next !== undefined) setActiveSuggestion(next);
+  };
   return (
     <div class="message-search-view">
       <div class="message-search-header flex-align-center">
         <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
         <input
           autofocus
+          aria-activedescendant={activeSuggestionId()}
+          aria-autocomplete="list"
+          aria-controls={suggestionListId}
+          aria-expanded={suggestionsOpen()}
+          aria-label="Search every message"
+          autocomplete="off"
           class="global-search-input message-search-input input-reset"
           onInput={(e) => {
-            setQuery(e.currentTarget.value);
+            updateQuery(
+              e.currentTarget.value,
+              e.currentTarget.selectionStart ?? e.currentTarget.value.length,
+            );
             runSearch();
             runAutocomplete();
           }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" && suggestionsOpen()) {
+              e.preventDefault();
+              moveSuggestion(e.key);
+            } else if (e.key === "ArrowUp" && suggestionsOpen()) {
+              e.preventDefault();
+              moveSuggestion(e.key);
+            } else if (e.key === "Tab" && suggestionsOpen()) {
+              const selected = activeSuggestion();
+              const suggestion = selected === null ? undefined : suggestions()[selected];
+              if (!suggestion || e.isComposing) return;
+              e.preventDefault();
+              applySuggestion(suggestion);
+            } else if (e.key === "Enter" && !e.isComposing) {
+              e.preventDefault();
+              setDismissedSuggestionsFor(query());
+              runSearch();
+            } else if (e.key === "Escape") {
+              if (suggestionsOpen()) {
+                e.preventDefault();
+                setDismissedSuggestionsFor(query());
+              } else {
+                store.viewState.setNavView("home");
+              }
+            }
+          }}
+          onKeyUp={(e) => {
+            if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
+              setCursor(e.currentTarget.selectionStart ?? e.currentTarget.value.length);
+            }
+          }}
           placeholder="Search every message…"
+          role="combobox"
+          spellcheck={false}
           type="text"
           value={query()}
         />
-        <Tooltip content="Close search">
-          <button
-            aria-label="Close search"
-            class="panel-close-btn"
-            onClick={() => store.viewState.setNavView("home")}
-            type="button"
-          >
-            <Icon name="close" size={12} />
-          </button>
-        </Tooltip>
+        <span class="message-search-keyhint">esc</span>
       </div>
-      <Show when={suggestions().length > 0}>
-        <div class="message-search-suggestions flex-align-center">
+      <Show when={suggestionsOpen()}>
+        <div
+          aria-label="Search suggestions"
+          class="message-search-suggestions"
+          id={suggestionListId}
+          ref={suggestionsListRef}
+          role="listbox"
+        >
           <For each={suggestions()}>
-            {(s) => (
+            {(suggestion, index) => (
               <button
-                class="message-search-suggestion btn-reset flex-align-center"
-                onClick={() => applySuggestion(s)}
+                aria-selected={activeSuggestion() === index()}
+                class="message-search-suggestion btn-reset"
+                classList={{ active: activeSuggestion() === index() }}
+                id={optionId(index())}
+                onClick={() => applySuggestion(suggestion)}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setActiveSuggestion(index())}
+                role="option"
+                tabIndex={-1}
                 type="button"
               >
-                <Icon class="text-dim" name="search" size={12} />
-                {s}
+                <Icon
+                  class="text-dim"
+                  name={suggestion.replaceToken ? "filters" : "search"}
+                  size={13}
+                />
+                <span>{suggestion.label}</span>
+                <Show when={suggestion.description}>
+                  <span class="message-search-suggestion-description">
+                    {suggestion.description}
+                  </span>
+                </Show>
               </button>
             )}
           </For>
         </div>
       </Show>
-      <div class="global-search-filters message-search-filters">
-        <div class="global-search-filter-row">
-          <span class="global-search-filter-label">From</span>
-          <FilterCombobox
-            items={userItems()}
-            onSelect={(id) => patchFilters({ fromUserId: id })}
-            placeholder="anyone"
-            remoteSearch={remoteUserSearch}
-            value={filters().fromUserId}
-          />
-          <span class="global-search-filter-label">In</span>
-          <FilterCombobox
-            items={channelItems()}
-            onSelect={(id) => patchFilters({ inChannelId: id })}
-            placeholder="any channel"
-            value={filters().inChannelId}
-          />
-        </div>
-        <div class="global-search-filter-row">
-          <label class="global-search-filter-label" for="message-search-after">
-            After
-          </label>
-          <input
-            class="global-search-date"
-            id="message-search-after"
-            onInput={(e) => patchFilters({ after: e.currentTarget.value || undefined })}
-            type="date"
-            value={filters().after ?? ""}
-          />
-          <label class="global-search-filter-label" for="message-search-before">
-            Before
-          </label>
-          <input
-            class="global-search-date"
-            id="message-search-before"
-            onInput={(e) => patchFilters({ before: e.currentTarget.value || undefined })}
-            type="date"
-            value={filters().before ?? ""}
-          />
-        </div>
-        <div class="global-search-filter-chips">
-          <For each={HAS_TOGGLES}>
-            {(t) => (
-              <button
-                class="global-search-chip"
-                classList={{ active: !!filters()[t.key] }}
-                onClick={() =>
-                  patchFilters({
-                    [t.key]: !filters()[t.key],
-                  } as Partial<SearchFilters>)
-                }
-                type="button"
-              >
-                {t.label}
-              </button>
-            )}
-          </For>
-        </div>
-        <div class="global-search-filter-row">
-          <span class="global-search-filter-label">Sort</span>
-          <div class="global-search-sort">
-            <For each={SORT_OPTIONS}>
-              {(o) => (
-                <button
-                  class="global-search-sort-btn btn-reset"
-                  classList={{ active: sort() === o.key }}
-                  onClick={() => {
-                    setSort(o.key);
-                    runSearch();
-                  }}
-                  type="button"
-                >
-                  {o.label}
-                </button>
-              )}
-            </For>
-          </div>
-          <Show when={filtersActive()}>
-            <button
-              class="global-search-clear-filters btn-reset"
-              onClick={() => {
-                setFilters(EMPTY_FILTERS);
-                runSearch();
-              }}
-              type="button"
-            >
-              Clear filters
-            </button>
-          </Show>
-        </div>
+      <div class="message-search-help">
+        <span>
+          Try <kbd>from:</kbd> <kbd>in:</kbd> <kbd>has:link</kbd>
+        </span>
+        <span>
+          <kbd>tab</kbd> completes
+        </span>
       </div>
-      <div aria-busy={loading()} class="message-search-results">
-        <Show
-          fallback={
-            <Show
-              fallback={
-                <div class="global-search-hint empty-state">
-                  Type something, or set filters, to search every message.
-                </div>
-              }
-              when={store.searchHistory.searchHistory().length > 0}
-            >
-              <div class="message-search-history">
-                <div class="message-search-history-header">
-                  <span class="global-search-filter-label">Recent searches</span>
-                  <button
-                    class="global-search-clear-filters btn-reset"
-                    onClick={store.searchHistory.clearSearchHistory}
-                    type="button"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <For each={store.searchHistory.searchHistory()}>
-                  {(q) => (
-                    <div class="message-search-history-item">
-                      <button
-                        class="global-search-result message-search-history-query btn-reset flex-align-center"
-                        onClick={() => runHistorySearch(q)}
-                        type="button"
-                      >
-                        <Icon class="global-search-jump-icon" name="search" size={13} />
-                        {q}
-                      </button>
-                      <Tooltip content="Remove">
-                        <button
-                          aria-label="Remove"
-                          class="message-search-history-remove btn-reset icon-btn icon-action text-dim"
-                          onClick={() => store.searchHistory.removeSearchHistoryEntry(q)}
-                          type="button"
-                        >
-                          <Icon name="close" size={12} />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  )}
-                </For>
-              </div>
-            </Show>
-          }
-          when={canSearch()}
-        >
-          <Show
-            fallback={<div class="global-search-hint empty-state">Searching messages…</div>}
-            when={!loading() || results().length > 0}
-          >
-            <Show
-              fallback={
-                <div class="message-search-error empty-state" role="alert">
-                  <span>Couldn’t search messages.</span>
-                  <Button onClick={runSearch} size="sm">
-                    Try again
-                  </Button>
-                </div>
-              }
-              when={!searchError()}
-            >
-              <Show
-                fallback={<div class="global-search-empty empty-state">No matches.</div>}
-                when={results().length > 0}
-              >
-                <For each={results()}>
-                  {(r) => {
-                    const user = () => (r.userId ? store.users.userById(r.userId) : undefined);
-                    const channelLabel = () => {
-                      const dm = store.dms.dmById(r.channelId);
-                      if (dm) return dmDisplayName(dm, store.users.userById);
-                      if (r.channelName?.startsWith("mpdm-")) store.dms.ensureMpdm(r.channelId);
-                      return `#${r.channelName ?? r.channelId}`;
-                    };
-                    return (
-                      <button
-                        class="global-search-result message-search-result btn-reset"
-                        onClick={() => goToMessage(r)}
-                        type="button"
-                      >
-                        <div class="global-search-result-meta text-muted text-sm">
-                          {user()?.name ?? "Someone"} in {channelLabel()}
-                        </div>
-                        <div class="global-search-result-snippet">
-                          <Mrkdwn text={r.text} />
-                        </div>
-                      </button>
-                    );
-                  }}
-                </For>
-              </Show>
-            </Show>
-          </Show>
-        </Show>
-      </div>
+      <MessageSearchResults
+        canSearch={canSearch()}
+        loading={loading()}
+        onHistorySearch={runHistorySearch}
+        onResult={goToMessage}
+        onRetry={runSearch}
+        results={results()}
+        searchError={searchError()}
+      />
     </div>
   );
 }

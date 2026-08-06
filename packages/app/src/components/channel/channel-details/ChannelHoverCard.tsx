@@ -11,13 +11,9 @@ const CARD_WIDTH = 280;
 export default function ChannelHoverCard(props: { channelId: string; children: JSX.Element }) {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let anchorRef: HTMLSpanElement | undefined;
-  const { cancelClose, close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const { cancelClose, close, open, openNow, scheduleClose, scheduleOpen } = useHoverIntent();
 
-  const channel = createMemo(() =>
-    open()
-      ? store.channels.channelById(props.channelId)
-      : store.channels.knownChannelById(props.channelId),
-  );
+  const channel = createMemo(() => store.channels.channelById(props.channelId));
   const isMember = createMemo(() => store.channels.isChannelMember(props.channelId));
   const name = () => channelDisplayName(channel(), props.channelId);
 
@@ -32,6 +28,11 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real controls are the mention button and the card's own buttons
     <span
       class="channel-hovercard-anchor"
+      onFocusIn={openNow}
+      onFocusOut={(e) => {
+        if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)))
+          close();
+      }}
       onMouseEnter={scheduleOpen}
       onMouseLeave={scheduleClose}
       ref={anchorRef}
@@ -43,6 +44,7 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
         class="channel-hovercard"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
+        onScroll={close}
         open={open() && !!channel()}
         placement="top"
         style={{ width: `${CARD_WIDTH}px` }}

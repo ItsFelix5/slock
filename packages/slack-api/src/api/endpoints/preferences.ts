@@ -14,6 +14,10 @@ export type UserPrefs = {
   channelTabs: Record<string, { type: string }[]>;
   sectionSort: Record<string, "recent">;
   sectionSidebar: Record<string, "hid" | "active" | "all">;
+  // The raw "channel_sections" blob, kept whole (including fields we don't read
+  // like `c`) so a sidebar/sort write can merge into it and send it back intact
+  // via users.prefs.set rather than clobbering the other per-section state.
+  channelSections: Record<string, Record<string, unknown>>;
   usergroupSectionOrder: string[];
   usergroupSectionSidebar: Record<string, "hid" | "active" | "all">;
   globalNotifications: {
@@ -50,9 +54,9 @@ export type UserPrefs = {
 // per-channel tab bar (Canvas/Pinned shortcuts under the channel header) —
 // unrelated to Slack's real, admin-only, unwritable `properties.tabs`.
 export async function fetchUserPrefs(): Promise<UserPrefs> {
-  const data = (await fetchInitialData()).prefs;
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.get failed");
-  const prefs = data.prefs ?? {};
+  const data = await fetchInitialData();
+  if (data.error?.notification_prefs) throw new Error(data.error.notification_prefs);
+  const prefs = data;
   const parse = (key: string) => {
     try {
       const raw = prefs[key];
@@ -81,7 +85,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     .map((id: string) => id.trim())
     .filter(Boolean);
 
-  const allNotifications = parse("all_notifications_prefs") ?? {};
+  const allNotifications = parse("notification_prefs") ?? {};
   const notificationGlobal = allNotifications.global ?? {};
   const notificationOverrides = allNotifications.channels ?? {};
   // The real client actually mutes a channel through this per-channel
@@ -152,8 +156,10 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
   const parsedSectionPrefs = parse("channel_sections") ?? {};
   const sectionSort: Record<string, "recent"> = {};
   const sectionSidebar: Record<string, "hid" | "active" | "all"> = {};
+  const channelSections: Record<string, Record<string, unknown>> = {};
   if (parsedSectionPrefs && typeof parsedSectionPrefs === "object") {
     for (const [id, value] of Object.entries<any>(parsedSectionPrefs)) {
+      if (value && typeof value === "object") channelSections[id] = { ...value };
       if (value?.sort === "recent") sectionSort[id] = "recent";
       if (value?.sidebar === "hid" || value?.sidebar === "active" || value?.sidebar === "all")
         sectionSidebar[id] = value.sidebar;
@@ -185,9 +191,20 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     searchHistory,
     sectionSort,
     sectionSidebar,
+    channelSections,
     usergroupSectionOrder,
     usergroupSectionSidebar,
   };
+}
+
+// Persists the whole "channel_sections" blob (a per-section map holding each
+// section's filter/sort) back through users.prefs.set. Callers merge their one
+// change into the blob from fetchUserPrefs so nothing else is lost.
+export async function setChannelSectionsPreference(
+  sections: Record<string, Record<string, unknown>>,
+): Promise<boolean> {
+  const data = await apiPut("/api/preferences/channel-sections", { sections });
+  return !!data.ok;
 }
 
 export async function setUsergroupSectionOrderPreference(sectionIds: string[]): Promise<boolean> {
@@ -231,10 +248,9 @@ export async function setChannelTabs(entries: Record<string, { type: string }[]>
 
 // dnd.info is a documented public method — the account's real snooze deadline.
 export async function fetchDndStatus(): Promise<number | null> {
-  const data = (await fetchInitialData()).dnd;
-  if (!data.ok) throw new Error(data.error ?? "dnd.info failed");
-  if (!(data.snooze_enabled && data.snooze_endtime)) return null;
-  return data.snooze_endtime * 1000;
+  const data = await fetchInitialData();
+  if (data.error?.snooze) throw new Error(data.error.snooze);
+  return data.snooze?.endtime ? data.snooze.endtime * 1000 : null;
 }
 
 export async function setDndSnooze(minutes: number): Promise<void> {

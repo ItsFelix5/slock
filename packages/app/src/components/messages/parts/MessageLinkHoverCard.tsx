@@ -19,7 +19,7 @@ export default function MessageLinkHoverCard(props: {
 }) {
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let anchorRef: HTMLSpanElement | undefined;
-  const { cancelClose, open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const { cancelClose, close, open, scheduleClose, scheduleOpen } = useHoverIntent();
 
   const [message] = createResource(
     () => (open() ? props : undefined),
@@ -41,6 +41,7 @@ export default function MessageLinkHoverCard(props: {
         class="message-link-hovercard"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
+        onScroll={close}
         open={open()}
         placement="top"
         style={{ width: `${CARD_WIDTH}px` }}

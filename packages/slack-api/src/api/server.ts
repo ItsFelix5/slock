@@ -9,7 +9,11 @@ async function request<T = any>(method: string, path: string, body?: unknown): P
       ? {}
       : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
   });
-  return res.json();
+  const data = await res.json();
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    return { ...data, ok: res.ok } as T;
+  }
+  return data as T;
 }
 
 export function apiGet<T = any>(path: string): Promise<T> {
@@ -97,7 +101,7 @@ export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; er
     headers: { "content-type": "application/json" },
     method: "POST",
   });
-  return res.json();
+  return { ...(await res.json()), ok: res.ok };
 }
 
 // Tells the server to clear the credentials cookie. Caller is expected to

@@ -10,6 +10,14 @@ export type MessageRowsProps = {
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
+  // Roving-tabindex focus: the ts of the one row that should be keyboard
+  // reachable right now (see messageFocus.ts).
+  focusedTs?: () => string | null;
+  // Which message (if any) is in inline edit mode — lifted out of MessageRow
+  // so the 'e' keyboard shortcut (messageFocus.ts) can trigger it remotely.
+  editingTs?: () => string | null;
+  onStartEdit?: (ts: string) => void;
+  onStopEdit?: () => void;
   // Only the main channel view opts into windowing (see MessageList.tsx) —
   // a single thread's reply count is small enough that virtualizing it isn't
   // worth the added complexity, so ThreadPanel.tsx just omits these and gets
@@ -40,12 +48,16 @@ export default function MessageRows(props: MessageRowsProps) {
           {(message, index) => (
             <MessageRow
               channelId={props.channelId}
+              editingTs={props.editingTs}
+              focusedTs={props.focusedTs}
               index={index}
               message={message}
               messages={props.messages}
               onJumpToMessage={props.onJumpToMessage}
               onOpenThread={props.onOpenThread}
               onReplyLink={props.onReplyLink}
+              onStartEdit={props.onStartEdit}
+              onStopEdit={props.onStopEdit}
               threadTs={props.threadTs}
             />
           )}

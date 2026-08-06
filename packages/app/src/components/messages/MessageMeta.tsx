@@ -1,7 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
-import type { Message, User } from "@slock/slack-api";
+import { fetchUserStatus, type Message, type User } from "@slock/slack-api";
 import { Icon, Tooltip } from "@slock/ui";
-import { type Accessor, Show } from "solid-js";
+import { type Accessor, createResource, Show } from "solid-js";
 import UserHoverCard from "../user/UserHoverCard";
 import { MessageAuthorButton } from "./MessageAuthorButtons";
 
@@ -15,6 +15,10 @@ export default function MessageMeta(props: {
   userId?: string;
 }) {
   const msg = props.message;
+  const [status] = createResource(
+    () => props.userId,
+    (userId) => fetchUserStatus(userId).catch(() => undefined),
+  );
   return (
     <div class="message-meta">
       <Show
@@ -27,6 +31,7 @@ export default function MessageMeta(props: {
               disabled={false}
               name={props.displayName()}
               onClick={props.onOpenUser}
+              status={status()}
             />
           </UserHoverCard>
         )}
@@ -46,7 +51,9 @@ export default function MessageMeta(props: {
       <Show when={msg.kind === "system"}>
         <span class="message-bot-badge">System</span>
       </Show>
-      <span class="message-time">{msg.time}</span>
+      <Tooltip content={`${msg.day} at ${msg.time}`}>
+        <span class="message-time">{msg.time}</span>
+      </Tooltip>
       <Show when={props.user()?.pronouns}>
         <span class="pronouns">• {props.user()?.pronouns}</span>
       </Show>

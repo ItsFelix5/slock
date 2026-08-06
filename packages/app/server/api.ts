@@ -9,7 +9,6 @@ import {
 import { authResponse, type Credentials, jsonHeaders, logoutResponse } from "./auth.ts";
 import { emojiImageUrl, emojiListResponse } from "./emoji.ts";
 import { jsonResponse } from "./http/jsonResponse.ts";
-import { flaronChannelResponse } from "./lookup/flaronChannel.ts";
 import { bootstrapResponse } from "./operations/bootstrap.ts";
 import { accountRoutes } from "./routes/account.ts";
 import { activityRoutes } from "./routes/activity.ts";
@@ -28,6 +27,7 @@ import { searchRoutes } from "./routes/search.ts";
 import { sectionRoutes } from "./routes/sections.ts";
 import { threadRoutes } from "./routes/threads.ts";
 import { usergroupRoutes } from "./routes/usergroups.ts";
+import { userStatusRoutes } from "./routes/userStatus.ts";
 import { callSlack } from "./slackClient.ts";
 
 // Purpose-built routes, one group per resource area.
@@ -52,6 +52,7 @@ const ROUTES: Route[] = [
   ...preferenceRoutes,
   ...activityRoutes,
   ...commandRoutes,
+  ...userStatusRoutes,
 ];
 
 export async function routeApiRequest(
@@ -87,17 +88,17 @@ export async function routeApiRequest(
   if (method === "GET" && pathname.startsWith("/api/emoji/")) {
     const name = decodeURIComponent(pathname.slice("/api/emoji/".length));
     const url = await emojiImageUrl(name, creds, callSlack);
-    const res = await namedSlackAssetResponse(url, creds);
-    res.headers.set("vary", "Cookie");
+    const res = await namedSlackAssetResponse(url, creds, acceptEncoding);
+    res.headers.append("vary", "Cookie");
     return res;
   }
   if (method === "GET" && pathname.startsWith("/api/assets/")) {
-    return slackAssetResponse(pathname.slice("/api/assets/".length), creds);
+    return slackAssetResponse(pathname.slice("/api/assets/".length), creds, acceptEncoding);
   }
   if (method === "POST" && pathname === "/api/files/reserve") {
     const params = (await body.json()) as Record<string, string>;
     if (!(params.filename && params.length)) {
-      return new Response(JSON.stringify({ error: "invalid_file", ok: false }), {
+      return new Response(JSON.stringify({ error: "invalid_file" }), {
         headers: jsonHeaders,
         status: 400,
       });
@@ -108,17 +109,23 @@ export async function routeApiRequest(
       creds,
     );
     if (!(reservation.ok && reservation.upload_url && creds)) {
-      return new Response(JSON.stringify(reservation), { headers: jsonHeaders });
+      return new Response(
+        JSON.stringify({ error: reservation.error ?? "file reservation failed" }),
+        {
+          headers: jsonHeaders,
+          status: 502,
+        },
+      );
     }
     const capability = uploadCapability(reservation.upload_url, creds);
     if (!capability) {
-      return new Response(JSON.stringify({ error: "invalid_upload_url", ok: false }), {
+      return new Response(JSON.stringify({ error: "invalid_upload_url" }), {
         headers: jsonHeaders,
         status: 502,
       });
     }
     return new Response(
-      JSON.stringify({ file_id: reservation.file_id, ok: true, upload_token: capability }),
+      JSON.stringify({ file_id: reservation.file_id, upload_token: capability }),
       { headers: jsonHeaders },
     );
   }
@@ -136,11 +143,14 @@ export async function routeApiRequest(
       (await body.json()) as Record<string, string>,
       creds,
     );
-    if (!data.ok) return jsonResponse(data, creds, acceptEncoding);
-    return jsonResponse({ ok: true }, creds, acceptEncoding);
-  }
-  if (method === "GET" && pathname === "/api/channels/discovery") {
-    return flaronChannelResponse(searchParams.get("id"));
+    if (!data.ok)
+      return jsonResponse(
+        { error: data.error ?? "file upload failed" },
+        creds,
+        acceptEncoding,
+        502,
+      );
+    return jsonResponse({}, creds, acceptEncoding);
   }
   if (method === "POST" && pathname === "/api/session") {
     const raw = await body.text();

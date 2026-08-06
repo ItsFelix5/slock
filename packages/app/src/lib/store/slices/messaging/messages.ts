@@ -50,6 +50,7 @@ export function createMessagesSlice(deps: {
     loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
+    loadOlderMessagesToBeginning,
     loadNewerMessages,
     loadRecentHistory,
     hasMoreHistory,
@@ -62,6 +63,7 @@ export function createMessagesSlice(deps: {
     isLoadingThread,
     ensureChannelMessage,
     ensureThreadRepliesLoaded,
+    jumpToDate,
   } = history;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
@@ -279,10 +281,12 @@ export function createMessagesSlice(deps: {
     isLoadingHistory,
     isLoadingThread,
     isReactionPending,
+    jumpToDate,
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
+    loadOlderMessagesToBeginning,
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,

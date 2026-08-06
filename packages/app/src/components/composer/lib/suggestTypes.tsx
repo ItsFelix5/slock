@@ -2,8 +2,20 @@ import { emojiUrl } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { Avatar, Icon } from "@slock/ui";
 
-export type UserSuggestItem = { kind: "user"; id: string; name: string; user: User };
-export type ChannelSuggestItem = { kind: "channel"; id: string; name: string; private: boolean };
+export type UserSuggestItem = {
+  kind: "user";
+  id: string;
+  name: string;
+  user: User;
+  notInChannel?: boolean;
+};
+export type ChannelSuggestItem = {
+  kind: "channel";
+  id: string;
+  name: string;
+  private: boolean;
+  notInChannel?: boolean;
+};
 export type CommandSuggestItem = {
   kind: "command";
   name: string;
@@ -33,6 +45,7 @@ export function suggestItemContent(item: SuggestItem) {
         <>
           <Avatar size="small" user={item.user} />
           <span class="composer-suggest-label">{item.name}</span>
+          {item.notInChannel ? <span class="composer-suggest-desc">not in channel</span> : null}
         </>
       );
     case "channel":
@@ -42,6 +55,7 @@ export function suggestItemContent(item: SuggestItem) {
             {item.private ? <Icon name="lock" size={12} /> : "#"}
           </span>
           <span class="composer-suggest-label">{item.name}</span>
+          {item.notInChannel ? <span class="composer-suggest-desc">not in channel</span> : null}
         </>
       );
     case "command":

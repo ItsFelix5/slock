@@ -99,12 +99,6 @@
   border-color: var(--accent);
 }
 
-.channel-details-value {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
 .channel-details-meta {
   margin: 0;
   font-size: 12px;
@@ -238,7 +232,8 @@
   border-radius: var(--radius-6);
 }
 
-.channel-details-member:hover .channel-details-member-remove {
+.channel-details-member:hover .channel-details-member-remove,
+.channel-details-member:focus-within .channel-details-member-remove {
   display: flex;
 }
 

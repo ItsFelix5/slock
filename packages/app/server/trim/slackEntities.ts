@@ -183,6 +183,13 @@ export function trimCountGroups(data: any, trimGroup: (group: any) => any): any 
   };
 }
 
+export function trimActivityCounts(activity: any): any {
+  if (!activity || typeof activity !== "object") return activity;
+  return Object.fromEntries(
+    Object.entries(activity).filter(([, value]) => typeof value === "number"),
+  );
+}
+
 export function trimBot(bot: any): any {
   if (!bot || typeof bot !== "object") return bot;
   return {
@@ -208,6 +215,7 @@ export function trimChannel(channel: any): any {
     is_member: channel.is_member,
     is_mpim: channel.is_mpim,
     is_private: channel.is_private,
+    is_record_channel: channel.is_record_channel,
     last_read: channel.last_read,
     latest: channel.latest,
     members: Array.isArray(channel.members) ? channel.members : undefined,
@@ -216,6 +224,7 @@ export function trimChannel(channel: any): any {
     num_members: channel.num_members,
     properties: channel.properties
       ? {
+          has_custom_mpdm_name: channel.properties.has_custom_mpdm_name,
           canvas: channel.properties.canvas
             ? {
                 file_id: channel.properties.canvas.file_id,

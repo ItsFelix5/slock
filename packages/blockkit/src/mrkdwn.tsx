@@ -1,11 +1,13 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to rendering.
-import { Icon } from "@slock/ui";
+import { Icon, Tooltip } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
-import { useBlockKitResolver } from "./context";
-import { formatSlackDateTokens } from "./dateFormat";
+import { useBlockKitResolver, useTimeAnchor } from "./context";
+import { formatFullDate, formatFullDateTime, formatSlackDateTokens } from "./dateFormat";
 import EmojiText from "./emoji/EmojiText";
 import { decodeTextEntities } from "./entities";
 import { type InlineNode, parseInline } from "./mrkdwnInline";
+import "./mrkdwnTime.css";
+import { findTimeMentions, splitTimeMentions } from "./textTimeMentions";
 import { stripTrackingParams } from "./urlCleanup";
 
 // Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
@@ -64,19 +66,84 @@ function parseMrkdwn(text: string): BlockNode[] {
   return blocks;
 }
 
-function formatDate(node: Extract<InlineNode, { t: "date" }>): string {
-  return formatSlackDateTokens(node.format, node.timestamp, node.fallback);
-}
-
-export function Link(props: { url: string; label?: string }) {
+export function Link(props: {
+  children?: JSX.Element;
+  class?: string;
+  url: string;
+  label?: string;
+}) {
   const resolver = useBlockKitResolver();
-  const url = () => stripTrackingParams(decodeTextEntities(props.url));
+  const stripped = () => stripTrackingParams(decodeTextEntities(props.url));
   const anchor = (
-    <a class="bk-link" href={url()} rel="noopener noreferrer" target="_blank">
-      {props.label ? <EmojiText text={props.label} /> : url()}
+    <a
+      class={`bk-link ${props.class ?? ""}`}
+      href={stripped()}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      {props.children ?? (props.label ? <EmojiText text={props.label} /> : props.url)}
     </a>
   );
-  return resolver.wrapLink?.(url(), anchor) ?? anchor;
+  return resolver.wrapLink?.(stripped(), anchor) ?? anchor;
+}
+
+export function DateToken(props: {
+  fallback?: string;
+  format: string;
+  timestamp: number;
+  url?: string;
+}) {
+  const label = formatSlackDateTokens(props.format, props.timestamp, props.fallback);
+  return (
+    <Tooltip content={formatFullDateTime(props.timestamp)}>
+      {props.url ? (
+        <Link class="bk-date" url={props.url}>
+          {label}
+        </Link>
+      ) : (
+        <span class="bk-date">{label}</span>
+      )}
+    </Tooltip>
+  );
+}
+
+// Underlines plain-typed time references ("3 seconds ago", "1pm") within a
+// real chat message and shows the actual instant on hover — only active
+// where a TimeAnchorContext is in scope (see MessageRow), so a channel topic
+// or bio never gets flagged for saying "call me in 5 minutes".
+export function TimeAwareText(props: { text: string }) {
+  const anchor = useTimeAnchor();
+  const segments = () => {
+    if (!anchor) return;
+    const mentions = findTimeMentions(props.text, anchor.ms, anchor.tz);
+    return mentions.length > 0 ? splitTimeMentions(props.text, mentions) : undefined;
+  };
+  return (
+    <Show fallback={<EmojiText text={props.text} />} when={segments()}>
+      {(parts) => (
+        <For each={parts()}>
+          {(seg) =>
+            seg.timestamp === undefined ? (
+              <EmojiText text={seg.text} />
+            ) : (
+              <Tooltip
+                class="bk-time-mention-anchor"
+                content={
+                  seg.dateOnly
+                    ? formatFullDate(seg.timestamp / 1000)
+                    : formatFullDateTime(seg.timestamp / 1000)
+                }
+              >
+                <span class="bk-time-mention">
+                  <EmojiText text={seg.text} />
+                </span>
+              </Tooltip>
+            )
+          }
+        </For>
+      )}
+    </Show>
+  );
 }
 
 export function Mention(props: { id: string; kind: "user" | "channel"; label?: string }) {
@@ -145,7 +212,7 @@ function InlineNodeView(props: { node: InlineNode }) {
   const n = props.node;
   switch (n.t) {
     case "text":
-      return <EmojiText text={n.text} />;
+      return <TimeAwareText text={n.text} />;
     case "bold":
       return (
         <strong>
@@ -185,7 +252,9 @@ function InlineNodeView(props: { node: InlineNode }) {
     case "broadcast":
       return <span class="bk-mention bk-mention-broadcast">@{n.range}</span>;
     case "date":
-      return n.url ? <Link label={formatDate(n)} url={n.url} /> : formatDate(n);
+      return (
+        <DateToken fallback={n.fallback} format={n.format} timestamp={n.timestamp} url={n.url} />
+      );
   }
 }
 
