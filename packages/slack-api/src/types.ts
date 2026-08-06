@@ -1,6 +1,6 @@
 import type { Block } from "./blocks";
 
-interface UserCustomField {
+export interface UserCustomField {
   alt?: string;
   id: string;
   value: string;
@@ -25,7 +25,9 @@ export interface User {
   lastSeen?: number;
   name: string;
   phone?: string;
-  presence: "active" | "away";
+  // Unset means we have no real signal either way — render no indicator
+  // rather than guessing (see mapUser).
+  presence?: "active" | "away";
   pronouns?: string;
   statusEmoji?: string;
   statusText?: string;

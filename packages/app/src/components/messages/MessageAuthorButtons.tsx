@@ -26,15 +26,27 @@ export function MessageAuthorButton(props: {
   onClick: () => void;
   status?: UserStatus;
 }) {
+  // plain span, not a <button>: button content isn't a valid text-selection
+  // anchor, so drag-selecting from the name into the message body made the
+  // browser snap the selection to the nearest selectable spot outside the row
   return (
-    <button
+    // biome-ignore lint/a11y/useSemanticElements: must not be a <button> so it stays a text-selection anchor
+    <span
+      aria-disabled={props.disabled}
       class="message-author btn-reset"
       classList={{ [`message-author-${props.status}`]: !!props.status }}
-      disabled={props.disabled}
-      onClick={props.onClick}
-      type="button"
+      onClick={() => {
+        if (!props.disabled) props.onClick();
+      }}
+      onKeyDown={(event) => {
+        if (props.disabled || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        props.onClick();
+      }}
+      role="button"
+      tabIndex={props.disabled ? -1 : 0}
     >
       {props.name}
-    </button>
+    </span>
   );
 }

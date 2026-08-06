@@ -62,6 +62,7 @@ export default function MrkdwnComposer(props: {
 
   const onInput = () => {
     editor.normalizeStrayEmptyBlock();
+    editor.maybeConvertTypedEmojiShortcode();
     editor.maybeLinkifyTypedUrl();
     editor.syncFromDom();
     const el = editor.getRef();

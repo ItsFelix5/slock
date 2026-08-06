@@ -51,17 +51,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
           }}
           src={u().avatarUrl}
         />
-        <Show
-          fallback={
-            <span
-              aria-label={`${u().name} is ${u().presence}`}
-              class="user-profile-presence"
-              classList={{ away: u().presence === "away" }}
-              role="img"
-            />
-          }
-          when={props.isSelf()}
-        >
+        <Show when={props.isSelf()}>
           <button
             aria-busy={props.isSavingPresence()}
             aria-label={
@@ -76,6 +66,14 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
             disabled={props.isSavingPresence()}
             onClick={props.onTogglePresence}
             type="button"
+          />
+        </Show>
+        <Show when={!props.isSelf() && u().presence}>
+          <span
+            aria-label={`${u().name} is ${u().presence}`}
+            class="user-profile-presence"
+            classList={{ away: u().presence === "away" }}
+            role="img"
           />
         </Show>
       </div>

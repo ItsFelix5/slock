@@ -93,6 +93,10 @@ const LENS_SIZE = 500;
 const LENS_ZOOM_DEFAULT = 5;
 const LENS_ZOOM_STEP = 0.5;
 const LENS_PAN_STEP = 24;
+// small images (icons, tiny screenshots) get lost at native size in the lightbox,
+// so upscale anything whose longest edge is under this back up to it
+const MIN_DISPLAY_SIZE = 320;
+const MAX_UPSCALE = 8;
 
 function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }) {
   useEscapeClose(props.onClose);
@@ -102,6 +106,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
   const [lensZoom, setLensZoom] = createSignal(LENS_ZOOM_DEFAULT);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
+  const [naturalSize, setNaturalSize] = createSignal<{ w: number; h: number } | null>(null);
 
   createEffect(
     on(
@@ -110,10 +115,20 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
         setFailed(false);
         setLoading(true);
         setLensZoom(LENS_ZOOM_DEFAULT);
+        setNaturalSize(null);
       },
       { defer: true },
     ),
   );
+
+  const upscaleStyle = (): JSX.CSSProperties | undefined => {
+    const size = naturalSize();
+    if (!size) return undefined;
+    const longest = Math.max(size.w, size.h);
+    if (!longest || longest >= MIN_DISPLAY_SIZE) return undefined;
+    const scale = Math.min(MAX_UPSCALE, MIN_DISPLAY_SIZE / longest);
+    return { width: `${size.w * scale}px`, height: `${size.h * scale}px` };
+  };
 
   const moveLens = (e: MouseEvent) => {
     const rect = imgRef?.getBoundingClientRect();
@@ -229,9 +244,14 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
               setFailed(true);
               setLoading(false);
             }}
-            onLoad={() => setLoading(false)}
+            onLoad={(e) => {
+              setLoading(false);
+              const img = e.currentTarget;
+              setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+            }}
             ref={imgRef}
             src={props.src}
+            style={upscaleStyle()}
           />
           <Show when={lens()}>
             {(pos) => {

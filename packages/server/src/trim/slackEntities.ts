@@ -11,9 +11,38 @@ function trimIcons(icons: any): any {
   };
 }
 
+export function trimProfile(profile: any): any {
+  if (!profile || typeof profile !== "object") return profile;
+  return {
+    api_app_id: profile.api_app_id,
+    avatar_hash: profile.avatar_hash,
+    bot_id: profile.bot_id,
+    display_name: profile.display_name,
+    email: profile.email,
+    fields:
+      profile.fields && typeof profile.fields === "object"
+        ? Object.fromEntries(
+            Object.entries(profile.fields).map(([id, field]: [string, any]) => [
+              id,
+              field ? { alt: field.alt, value: field.value } : field,
+            ]),
+          )
+        : profile.fields,
+    image_192: profile.image_192,
+    image_48: profile.image_48,
+    image_72: profile.image_72,
+    phone: profile.phone,
+    pronouns: profile.pronouns,
+    real_name: profile.real_name,
+    status_emoji: profile.status_emoji,
+    status_text: profile.status_text,
+    team: profile.team,
+    title: profile.title,
+  };
+}
+
 export function trimUser(user: any): any {
   if (!user || typeof user !== "object") return user;
-  const profile = user.profile ?? {};
   return {
     color: user.color,
     deleted: user.deleted,
@@ -24,32 +53,7 @@ export function trimUser(user: any): any {
     is_primary_owner: user.is_primary_owner,
     name: user.name,
     presence: user.presence,
-    profile: {
-      api_app_id: profile.api_app_id,
-      avatar_hash: profile.avatar_hash,
-      bot_id: profile.bot_id,
-      display_name: profile.display_name,
-      email: profile.email,
-      fields:
-        profile.fields && typeof profile.fields === "object"
-          ? Object.fromEntries(
-              Object.entries(profile.fields).map(([id, field]: [string, any]) => [
-                id,
-                field ? { alt: field.alt, value: field.value } : field,
-              ]),
-            )
-          : profile.fields,
-      image_192: profile.image_192,
-      image_48: profile.image_48,
-      image_72: profile.image_72,
-      phone: profile.phone,
-      pronouns: profile.pronouns,
-      real_name: profile.real_name,
-      status_emoji: profile.status_emoji,
-      status_text: profile.status_text,
-      team: profile.team,
-      title: profile.title,
-    },
+    profile: trimProfile(user.profile ?? {}),
     real_name: user.real_name,
     team_id: user.team_id,
     tz: user.tz,

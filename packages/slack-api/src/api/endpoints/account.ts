@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import type { ProfileFieldDef, User } from "../../types";
+import type { ProfileFieldDef, User, UserCustomField } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
-import { mapBot, mapUser } from "../mappers";
+import { mapBot, mapCustomFields, mapUser } from "../mappers";
 import { apiGet, apiPost, apiPut } from "../server";
 
 // Keep JSON request bodies comfortably below the server limit even when
@@ -28,6 +28,15 @@ export function fetchUser(id: string): Promise<User | null> {
   // The normal Web API users.info endpoint is restricted on Enterprise Grid.
   // Coalesce all requests issued in this event-loop turn into one cache call.
   return fetchCachedUser(id);
+}
+
+// The batched users/lookup cache above never carries custom field *values* for
+// anyone (self included) — only this full per-user fetch does, so it's called
+// on demand when the profile panel actually needs them.
+export async function fetchUserCustomFields(id: string): Promise<UserCustomField[] | undefined> {
+  const data = await apiGet(`/api/users/${id}/profile`);
+  if (!data.ok) throw new Error(data.error ?? "users.profile.get failed");
+  return mapCustomFields(data.profile);
 }
 
 // team.profile.get's field *definitions* (label/ordering) are workspace-wide and

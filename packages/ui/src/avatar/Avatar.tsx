@@ -37,7 +37,7 @@ export default function Avatar(props: AvatarProps) {
           src={props.user.avatarUrl}
         />
       </Show>
-      <Show when={props.showPresence}>
+      <Show when={props.showPresence && props.user.presence}>
         <span class={`avatar-presence-dot ${presenceClass()}`} />
       </Show>
     </span>

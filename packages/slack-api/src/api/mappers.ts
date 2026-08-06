@@ -8,6 +8,7 @@ import type {
   Reaction,
   SlackFile,
   User,
+  UserCustomField,
 } from "../types";
 import { resolveMediaUrl } from "./server";
 
@@ -216,13 +217,18 @@ function avatarUrlFromHash(raw: RawUser): string | undefined {
   return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
 }
 
-export function mapUser(raw: RawUser): User {
-  const isSlack = raw.id === SLACK_USER_ID;
-  const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
-  const rawFields = raw.profile?.fields ?? {};
+export function mapCustomFields(profile: RawUserProfile | undefined): UserCustomField[] | undefined {
+  const rawFields = profile?.fields ?? {};
   const customFields = Object.keys(rawFields)
     .map((id) => ({ alt: rawFields[id]?.alt || undefined, id, value: rawFields[id]?.value ?? "" }))
     .filter((f) => f.value);
+  return customFields.length ? customFields : undefined;
+}
+
+export function mapUser(raw: RawUser): User {
+  const isSlack = raw.id === SLACK_USER_ID;
+  const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
+  const customFields = mapCustomFields(raw.profile);
   const avatarUrl: string | undefined = isSlack
     ? SLACK_AVATAR_URL
     : raw.profile?.image_192 ||
@@ -234,7 +240,7 @@ export function mapUser(raw: RawUser): User {
     avatarColor: isSlack ? "transparent" : colorFromHex(raw.color),
     avatarUrl,
     botId: raw.profile?.bot_id || undefined,
-    customFields: customFields.length ? customFields : undefined,
+    customFields,
     email: raw.profile?.email || undefined,
     id: raw.id,
     // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
@@ -244,9 +250,10 @@ export function mapUser(raw: RawUser): User {
     lastSeen: raw.last_seen || undefined,
     name: name ?? "",
     phone: raw.profile?.phone || undefined,
-    // users/info (the batched lookup) never includes presence, so treat
-    // unknown as away — defaulting to active made every card look online.
-    presence: raw.presence === "active" ? "active" : "away",
+    // users/info (the batched lookup) never includes presence — leave it
+    // unset rather than guessing; a fabricated default was either always
+    // "online" or, just as wrong, always "away" for everyone unknown.
+    presence: raw.presence === "active" || raw.presence === "away" ? raw.presence : undefined,
     pronouns: raw.profile?.pronouns || undefined,
     statusEmoji: raw.profile?.status_emoji || undefined,
     statusText: raw.profile?.status_text || undefined,

@@ -202,6 +202,7 @@ export function createComposerController(props: ComposerProps) {
       composerDrafts.cacheLocal();
       return;
     }
+    editor.maybeConvertTypedEmojiShortcode();
     editor.maybeLinkifyTypedUrl();
     editor.syncFromDom();
     const editorEl = editor.getRef();

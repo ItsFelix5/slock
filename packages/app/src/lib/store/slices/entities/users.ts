@@ -1,10 +1,11 @@
-import type { User } from "@slock/slack-api";
+import type { User, UserCustomField } from "@slock/slack-api";
 import {
   setPresence as apiSetPresence,
   setProfileFields as apiSetProfileFields,
   setStatus as apiSetStatus,
   fetchAppDescription,
   fetchUser,
+  fetchUserCustomFields,
   searchDirectory,
 } from "@slock/slack-api";
 import { createSignal } from "solid-js";
@@ -15,6 +16,7 @@ import { actionFeedback } from "../feedback";
 type UsersApi = {
   fetchAppDescription: typeof fetchAppDescription;
   fetchUser: typeof fetchUser;
+  fetchUserCustomFields: typeof fetchUserCustomFields;
   searchDirectory: typeof searchDirectory;
   setPresence: typeof apiSetPresence;
   setProfileFields: typeof apiSetProfileFields;
@@ -24,6 +26,7 @@ type UsersApi = {
 const DEFAULT_USERS_API: UsersApi = {
   fetchAppDescription,
   fetchUser,
+  fetchUserCustomFields,
   searchDirectory,
   setPresence: apiSetPresence,
   setProfileFields: apiSetProfileFields,
@@ -45,6 +48,17 @@ export function createUsersSlice(
   // description, so this dedupes the apps.profile.get fetch across them.
   const [botBios, setBotBios] = createStore<Record<string, string>>({});
   const pendingBotBios = new Set<string>();
+
+  // Custom profile field *values* aren't in the batched users/info lookup for
+  // anyone, self included (see userById above and mapCustomFields) — only
+  // users.profile.get has them. Only the profile panel needs them, so they're
+  // fetched lazily per id here rather than merged into the hot userById/
+  // currentUser paths that every avatar/mention hydration goes through.
+  const [customFieldsById, setCustomFieldsById] = createStore<
+    Record<string, UserCustomField[] | undefined>
+  >({});
+  const loadedCustomFields = new Set<string>();
+  const pendingCustomFields = new Set<string>();
 
   // Every user ever resolved this session — via userById's lazy fetchUser,
   // searchUsers' remote matches, or an invalidateUser refresh. There's no bootstrap
@@ -147,6 +161,23 @@ export function createUsersSlice(
     return known;
   }
 
+  function customFieldsFor(id: string): UserCustomField[] | undefined {
+    // Read the store key unconditionally (even though it's undefined pre-fetch)
+    // so callers reactively track it, same as botBio's `known` read above.
+    const known = customFieldsById[id];
+    if (loadedCustomFields.has(id) || pendingCustomFields.has(id)) return known;
+    pendingCustomFields.add(id);
+    api
+      .fetchUserCustomFields(id)
+      .then((fields) => setCustomFieldsById(id, fields))
+      .catch(() => {})
+      .finally(() => {
+        pendingCustomFields.delete(id);
+        loadedCustomFields.add(id);
+      });
+    return known;
+  }
+
   function openUserProfile(id: string) {
     setProfileUserId(id);
   }
@@ -193,18 +224,18 @@ export function createUsersSlice(
           if (fields.displayName !== undefined) next.name = fields.displayName;
           if (fields.title !== undefined) next.title = fields.title || undefined;
           if (fields.pronouns !== undefined) next.pronouns = fields.pronouns || undefined;
-          if (fields.customFields) {
-            const merged = new Map(
-              (prev?.customFields ?? currentUser()?.customFields ?? []).map((f) => [f.id, f]),
-            );
-            for (const [id, value] of Object.entries(fields.customFields)) {
-              if (value) merged.set(id, { id, value });
-              else merged.delete(id);
-            }
-            next.customFields = [...merged.values()];
-          }
           return next;
         });
+        const selfId = deps.currentUserBase()?.id;
+        if (fields.customFields && selfId) {
+          const merged = new Map((customFieldsById[selfId] ?? []).map((f) => [f.id, f]));
+          for (const [id, value] of Object.entries(fields.customFields)) {
+            if (value) merged.set(id, { id, value });
+            else merged.delete(id);
+          }
+          setCustomFieldsById(selfId, [...merged.values()]);
+          loadedCustomFields.add(selfId);
+        }
         return true;
       } catch (err) {
         console.error("Failed to update profile", err);
@@ -237,6 +268,7 @@ export function createUsersSlice(
     clearMyStatus,
     closeUserProfile,
     currentUser,
+    customFieldsFor,
     invalidateUser,
     knownUsers,
     openUserProfile,

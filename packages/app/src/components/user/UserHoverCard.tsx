@@ -66,10 +66,12 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                     }}
                     src={u().avatarUrl}
                   />
-                  <span
-                    class="user-hovercard-presence"
-                    classList={{ away: u().presence === "away" }}
-                  />
+                  <Show when={u().presence}>
+                    <span
+                      class="user-hovercard-presence"
+                      classList={{ away: u().presence === "away" }}
+                    />
+                  </Show>
                 </div>
                 <div class="user-hovercard-heading">
                   <div class="user-hovercard-name">

@@ -3,7 +3,7 @@ import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { getLastSeen } from "../../presence/lastSeen.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
-import { trimBot, trimUser } from "../../trim/slackEntities.ts";
+import { trimBot, trimProfile, trimUser } from "../../trim/slackEntities.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 function cachedUserForId(data: any, id: string): any | undefined {
@@ -56,6 +56,20 @@ export const accountRoutes: Route[] = [
           }),
         ),
       },
+      ctx.creds,
+      ctx.acceptEncoding,
+    );
+  }),
+
+  // The edge users/info cache above (used everywhere for cheap avatar/name/status
+  // hydration) never carries custom profile field *values* for anyone, self
+  // included — only the full users.profile.get call does, so the profile panel
+  // fetches it separately instead of paying that cost on every batched lookup.
+  route("GET", "/api/users/:id/profile", async (ctx) => {
+    const data = await callSlack("users.profile.get", { user: ctx.params.id }, ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "users.profile.get", ctx.creds, ctx.acceptEncoding);
+    return jsonResponse(
+      { ok: true, profile: trimProfile(data.profile) },
       ctx.creds,
       ctx.acceptEncoding,
     );

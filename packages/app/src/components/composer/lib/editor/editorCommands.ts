@@ -1,6 +1,7 @@
 import type { InlineDialect } from "../richtext";
 import { createBlockCommands } from "./blockCommands";
 import { createEditorRef } from "./editorRef";
+import { createEmojiShortcodeCommands } from "./emojiShortcodeCommands";
 import { createLinkifyCommands } from "./linkifyCommands";
 import { createSelectionCommands } from "./selectionCommands";
 
@@ -34,6 +35,10 @@ export function createEditorCommands(opts: {
     currentTextContext: selection.currentTextContext,
     syncFromDom: selection.syncFromDom,
   });
+  const emojiShortcodes = createEmojiShortcodeCommands(ref, {
+    currentTextContext: selection.currentTextContext,
+    syncFromDom: selection.syncFromDom,
+  });
 
   return {
     getRef: ref.get,
@@ -41,6 +46,7 @@ export function createEditorCommands(opts: {
     ...selection,
     ...block,
     ...linkify,
+    ...emojiShortcodes,
   };
 }
 
