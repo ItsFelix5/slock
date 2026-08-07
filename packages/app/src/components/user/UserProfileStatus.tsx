@@ -1,8 +1,9 @@
 import { EmojiText } from "@slock/blockkit";
 import { Popover } from "@slock/ui";
-import { createSignal, For, Show } from "solid-js";
-import EmojiPicker from "../composer/popovers/EmojiPicker";
+import { createSignal, For, lazy, Show } from "solid-js";
 import { EXPIRATION_OPTIONS } from "./userProfileOptions";
+
+const EmojiPicker = lazy(() => import("../composer/popovers/EmojiPicker"));
 
 interface UserProfileStatusProps {
   statusText: () => string;

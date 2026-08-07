@@ -1,9 +1,14 @@
 import type { Message } from "@slock/slack-api";
 import { Icon, Menu, Tooltip } from "@slock/ui";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, createSignal, lazy, Show } from "solid-js";
 import { store } from "../../../lib/store";
-import FloatingEmojiPicker from "./FloatingEmojiPicker";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
+
+// This toolbar renders unconditionally on every message row, so an eager
+// import here would bundle the emoji picker (and its grid/search/skin-tone
+// UI) into the main chunk for every session — deferred until the picker
+// itself is actually opened, which is already gated by pickerOpen() below.
+const FloatingEmojiPicker = lazy(() => import("./FloatingEmojiPicker"));
 
 export default function MessageActionsBar(props: {
   channelId: string;
