@@ -168,8 +168,15 @@
   white-space: nowrap;
 }
 .message-feedback {
-  display: block;
-  margin-top: 4px;
+  position: absolute;
+  right: 16px;
+  bottom: 6px;
+  max-width: calc(100% - 32px);
+  padding: 3px 8px;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-6);
+  pointer-events: none;
 }
 .message-replies:hover .message-replies-last {
   color: var(--text-secondary);

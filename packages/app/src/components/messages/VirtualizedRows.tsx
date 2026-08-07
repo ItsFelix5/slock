@@ -2,7 +2,7 @@ import { logDeletedMessages, messageSize } from "@slock/ui";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { ScrollToOptions } from "@tanstack/virtual-core";
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
-import { actionFeedback, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import MessageRow from "./MessageRow";
 import type { MessageRowsProps } from "./MessageRows";
 import { estimateMessageHeight } from "./parts/estimateMessageHeight";
@@ -43,7 +43,6 @@ export default function VirtualizedRows(props: MessageRowsProps) {
   const estimateRowSize = (index: number) =>
     estimateMessageHeight(props.messages[index], props.messages[index - 1], width(), {
       channelId: props.channelId,
-      hasFeedback: !!actionFeedback.get(props.messages[index]?.ts ?? ""),
       hasOpenThread: !!props.onOpenThread,
       isPinned: store.pinned.isMessagePinned(props.channelId, props.messages[index]?.ts ?? ""),
       messageSize: messageSize(),
