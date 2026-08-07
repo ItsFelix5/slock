@@ -11,6 +11,12 @@ import "./ActivityRow.css";
 import "./ActivityThread.css";
 import { ActivityMessageText, ThreadMessageRow } from "./activityThreadMessage";
 
+// A thread's unread tail renders in full below the summary, uncollapsed —
+// fine for a handful of replies, not for a thread that's been unread for a
+// week. Cap it so the feed stays scannable; the rest is one click away
+// through the same "read N earlier" affordance as already-read history.
+const MAX_INITIAL_TIMELINE_ENTRIES = 20;
+
 export interface ActivityRow {
   isThread: boolean;
   items: ActivityItem[];
@@ -146,12 +152,17 @@ export default function ActivityRow(props: {
 
   // Frozen at first read (untrack) so items don't collapse out from under the
   // user mid-view once markActivityItemsRead fires; a genuinely new reply
-  // still surfaces because it changes the timeline itself.
+  // still surfaces because it changes the timeline itself. Also caps how far
+  // back an unread burst reaches on its own — a thread with hundreds of
+  // unread replies would otherwise dump its entire tail straight into the
+  // feed; past the cap it folds into the same "read N earlier" collapse as
+  // already-read history.
   const visibleStartIndex = createMemo(() => {
     const entries = timeline();
     return untrack(() => {
       const idx = entries.findIndex(entryUnread);
-      return idx === -1 ? entries.length - 1 : idx;
+      const firstUnread = idx === -1 ? entries.length - 1 : idx;
+      return Math.max(firstUnread, entries.length - MAX_INITIAL_TIMELINE_ENTRIES);
     });
   });
   const olderEntries = createMemo(() => timeline().slice(0, visibleStartIndex()));
