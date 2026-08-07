@@ -1,7 +1,7 @@
 .view-modal-card {
   width: min(600px, calc(100vw - 32px));
   max-height: min(700px, calc(100vh - 48px));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   box-shadow: var(--shadow-modal-lg);
 }
 

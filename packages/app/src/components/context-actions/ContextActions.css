@@ -1,7 +1,7 @@
 .context-actions-card {
   width: min(480px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 48px));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   box-shadow: var(--shadow-modal-lg);
 }
 
@@ -62,5 +62,5 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }

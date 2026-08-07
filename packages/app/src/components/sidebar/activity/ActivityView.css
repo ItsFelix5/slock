@@ -23,7 +23,7 @@
   color: var(--text-dim);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .activity-search-wrap:focus-within {
@@ -56,7 +56,7 @@
   padding: 3px;
   margin-top: 6px;
   background: var(--hover-bg);
-  border-radius: 9px;
+  border-radius: var(--radius-9);
 }
 
 .activity-read-toggle button {
@@ -69,7 +69,7 @@
   font-size: 11px;
   font-weight: 650;
   color: var(--text-secondary);
-  border-radius: 7px;
+  border-radius: var(--radius-7);
 }
 
 .activity-read-toggle button:hover {
@@ -113,7 +113,7 @@
   width: 24px;
   height: 24px;
   color: var(--text-dim);
-  border-radius: 7px;
+  border-radius: var(--radius-7);
 }
 
 .activity-type-button:hover {
