@@ -1,63 +1,24 @@
-import { ACTIVITY_KIND_FEED_TYPES, type ActivityItem, formatDayFromMs } from "@slock/slack-api";
-import { Button, Icon, type IconName, Tooltip } from "@slock/ui";
+import { formatDayFromMs } from "@slock/slack-api";
+import { Button, Icon } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
-import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
+import ActivityToolbar from "./ActivityToolbar";
 import "./ActivityView.css";
-
-type Tag = ActivityItem["kind"] | "app";
-type ReadState = "all" | "unread" | "read" | "reacted";
-type RowStatus = Exclude<ReadState, "all"> | "pending";
+import {
+  type ActivityListEntry,
+  feedTypesForTag,
+  latestItem,
+  type ReadState,
+  type RowStatus,
+  TAG_FILTERS,
+  type Tag,
+} from "./activityViewFilters";
 
 const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
 // Caps the auto top-up effect's consecutive fetches per filter combo — see
 // its comment below for why an unbounded version can loop forever.
 const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
-
-type ActivityListEntry =
-  | { day: string; kind: "divider" }
-  | { key: string; kind: "row"; row: ActivityRowData };
-
-const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
-  { icon: ACTIVITY_KIND_ICONS.mention, key: "mention", label: "Mentions" },
-  { icon: ACTIVITY_KIND_ICONS.dm, key: "dm", label: "Direct messages" },
-  { icon: ACTIVITY_KIND_ICONS.keyword, key: "keyword", label: "Pingwords" },
-  { icon: ACTIVITY_KIND_ICONS.thread_reply, key: "thread_reply", label: "Threads" },
-  {
-    icon: ACTIVITY_KIND_ICONS.channel_mention,
-    key: "channel_mention",
-    label: "@channel and @here",
-  },
-  { icon: ACTIVITY_KIND_ICONS.usergroup_mention, key: "usergroup_mention", label: "Usergroups" },
-  { icon: ACTIVITY_KIND_ICONS.channel_all, key: "channel_all", label: "All channel posts" },
-  { icon: ACTIVITY_KIND_ICONS.reaction, key: "reaction", label: "Reactions" },
-  { icon: ACTIVITY_KIND_ICONS.reminder, key: "reminder", label: "Reminders" },
-  { icon: ACTIVITY_KIND_ICONS.channel_invite, key: "channel_invite", label: "Invitations" },
-  { icon: ACTIVITY_KIND_ICONS.list, key: "list", label: "Lists" },
-  { icon: "apps", key: "app", label: "Apps" },
-];
-
-const READ_STATES: { key: ReadState; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "unread", label: "Unread" },
-  { key: "read", label: "Read" },
-  { key: "reacted", label: "Reacted" },
-];
-
-function latestItem(row: ActivityRowData) {
-  return row.items[0];
-}
-
-// Scopes activity.feed's `types` param to the selected category so paging
-// through a narrow filter (e.g. just Reactions) doesn't have to wade through
-// pages of every other kind first. "app" is a client-only split of dm items
-// (bot senders), so it shares dm's wire type rather than having its own.
-function feedTypesForTag(tag: Tag | "all"): string | undefined {
-  if (tag === "all") return;
-  if (tag === "app") return ACTIVITY_KIND_FEED_TYPES.dm.join(",");
-  return ACTIVITY_KIND_FEED_TYPES[tag].join(",");
-}
 
 export default function ActivityView() {
   const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
@@ -251,74 +212,15 @@ export default function ActivityView() {
       onScroll={handleScroll}
       ref={scrollRef}
     >
-      <div class="activity-toolbar">
-        <div class="activity-search-wrap flex-align-center">
-          <Icon name="search" size={15} />
-          <input
-            class="activity-search"
-            onInput={(event) => setKeyword(event.currentTarget.value)}
-            placeholder="Search activity"
-            type="search"
-            value={keyword()}
-          />
-        </div>
-
-        <div aria-label="Activity status" class="activity-read-toggle" role="tablist">
-          <For each={READ_STATES}>
-            {(state) => {
-              const count = () => tabCount(state.key);
-              return (
-                <button
-                  aria-selected={readState() === state.key}
-                  class="btn-reset"
-                  classList={{ active: readState() === state.key }}
-                  onClick={() => setReadState(state.key)}
-                  role="tab"
-                  type="button"
-                >
-                  {state.label}
-                  <Show when={(count() ?? 0) > 0}>
-                    <span>{count()}</span>
-                  </Show>
-                </button>
-              );
-            }}
-          </For>
-        </div>
-
-        <div class="activity-type-filter">
-          <div aria-label="Activity type" class="activity-type-icons" role="toolbar">
-            <Tooltip content="All activity">
-              <button
-                aria-label="All activity"
-                aria-pressed={selectedTag() === "all"}
-                class="activity-type-button btn-reset flex-center"
-                classList={{ active: selectedTag() === "all" }}
-                onClick={() => setSelectedTag("all")}
-                type="button"
-              >
-                <Icon name="list-view" size={17} />
-              </button>
-            </Tooltip>
-            <For each={TAG_FILTERS}>
-              {(filter) => (
-                <Tooltip content={filter.label}>
-                  <button
-                    aria-label={filter.label}
-                    aria-pressed={selectedTag() === filter.key}
-                    class="activity-type-button btn-reset flex-center"
-                    classList={{ active: selectedTag() === filter.key }}
-                    onClick={() => setSelectedTag(filter.key)}
-                    type="button"
-                  >
-                    <Icon name={filter.icon} size={17} />
-                  </button>
-                </Tooltip>
-              )}
-            </For>
-          </div>
-        </div>
-      </div>
+      <ActivityToolbar
+        keyword={keyword()}
+        onKeywordInput={setKeyword}
+        onReadStateChange={setReadState}
+        onSelectTag={setSelectedTag}
+        readState={readState()}
+        selectedTag={selectedTag()}
+        tabCount={tabCount}
+      />
 
       <Show
         when={
