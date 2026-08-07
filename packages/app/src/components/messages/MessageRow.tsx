@@ -11,7 +11,7 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { actionFeedback, store } from "../../lib/store";
+import { actionFeedback, formatInteractorNames, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
 import { MessageAvatarButton } from "./MessageAuthorButtons";
@@ -380,17 +380,11 @@ export default function MessageRow(props: MessageRowProps) {
                 >
                   {(users) => (
                     <Tooltip
-                      content={users()
-                        .map((id) =>
-                          id === store.users.currentUser()?.id
-                            ? "you"
-                            : (store.users.userById(id)?.name ?? "someone"),
-                        )
-                        .reduce(
-                          (prev, curr, i, a) =>
-                            (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
-                          "",
-                        )}
+                      content={formatInteractorNames(
+                        users(),
+                        store.users.currentUser()?.id,
+                        store.users.userById,
+                      )}
                     >
                       <AvatarStack
                         users={users()
