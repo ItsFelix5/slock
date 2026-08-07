@@ -28,9 +28,10 @@ export type MessageRowsProps = {
   // above the virtualized rows in the same scroll container — fed to the
   // virtualizer so its offsets line up with the real scroll position.
   scrollMargin?: number;
-  // Initial unread landing can add temporary space below the virtual rows.
-  // While it exists, preserve the row at the top of the viewport instead of
-  // treating the virtual list's own trailing edge as the visible bottom.
+  // "start" while MessageList.tsx is actively landing on a row that isn't
+  // the newest message (an unread divider, a jump-to-date/message), so a
+  // mid-flight prepend or resize doesn't fight that landing by re-anchoring
+  // on the trailing edge instead. Reverts to "end" once settled.
   anchorTo?: "start" | "end";
   followOnAppend?: boolean | ScrollBehavior;
   // Called once with the virtualizer handle when windowing is active, so

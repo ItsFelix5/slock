@@ -12,6 +12,24 @@ import { isUnreadDividerBoundary } from "../../../lib/store";
 
 const USER_PROFILE_ID_RE = /^[UW]/;
 
+const RICH_TEXT_SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
+  "rich_text_section",
+  "rich_text_list",
+  "rich_text_preformatted",
+  "rich_text_quote",
+]);
+
+// A rich_text_quote's `elements` can mix plain inline content with a fully
+// nested sub-block (most often a rich_text_list, from starting a bullet list
+// while the caret sits inside a blockquote) — this tells the two apart.
+// Shared by estimateMessageHeight.ts (measuring one) and this file (deciding
+// whether a message is emoji-only) so both agree on what counts as nested.
+export function isRichTextSubBlock(
+  element: RichTextInlineElement | RichTextSubBlock,
+): element is RichTextSubBlock {
+  return RICH_TEXT_SUB_BLOCK_TYPES.has(element.type as RichTextSubBlock["type"]);
+}
+
 // A user token posting via bot_profile still has userId set to the real
 // poster; Slackbot posts have neither a real userId matching this pattern
 // nor a bot user id worth opening a profile for, so it gets a fixed synthetic
@@ -76,7 +94,10 @@ function emojiOnlyRichTextCount(block: RichTextBlock): number | undefined {
   const addSubBlock = (subBlock: RichTextSubBlock) => {
     if (subBlock.type === "rich_text_list")
       return subBlock.elements.every((section) => addElements(section.elements));
-    return addElements(subBlock.elements);
+    // A quote nesting a full sub-block (see isRichTextSubBlock) is never
+    // just emoji — treat it the same as any other non-text/emoji element.
+    if (subBlock.elements.some(isRichTextSubBlock)) return false;
+    return addElements(subBlock.elements as RichTextInlineElement[]);
   };
 
   return block.elements.every(addSubBlock) ? count : undefined;

@@ -47,7 +47,7 @@ Bun.serve<{ creds: Credentials | null }>({
       req.headers.get("accept-encoding"),
       {
         buffer: async () => new Uint8Array(await req.arrayBuffer()),
-        json: () => req.json().catch(() => ({})),
+        json: () => req.json().catch(() => ({})) as Promise<Record<string, unknown>>,
         text: () => req.text().catch(() => ""),
       },
     );

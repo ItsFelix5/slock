@@ -64,9 +64,7 @@ export default function UserProfile() {
     const me = store.users.currentUser();
     if (!(defs && id && me && id === me.id)) return;
     const fields = store.users.customFieldsFor(id);
-    setCustomFieldInputs((current) =>
-      mergeMissingProfileFieldValues(current, defs, fields ?? []),
-    );
+    setCustomFieldInputs((current) => mergeMissingProfileFieldValues(current, defs, fields ?? []));
   });
   const saveProfileField = async (key: string, save: () => Promise<boolean>) => {
     if (savingProfileFields()[key]) return;

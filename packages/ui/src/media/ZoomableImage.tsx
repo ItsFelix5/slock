@@ -123,9 +123,9 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
 
   const upscaleStyle = (): JSX.CSSProperties | undefined => {
     const size = naturalSize();
-    if (!size) return undefined;
+    if (!size) return;
     const longest = Math.max(size.w, size.h);
-    if (!longest || longest >= MIN_DISPLAY_SIZE) return undefined;
+    if (!longest || longest >= MIN_DISPLAY_SIZE) return;
     const scale = Math.min(MAX_UPSCALE, MIN_DISPLAY_SIZE / longest);
     return { width: `${size.w * scale}px`, height: `${size.h * scale}px` };
   };

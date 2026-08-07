@@ -217,7 +217,9 @@ function avatarUrlFromHash(raw: RawUser): string | undefined {
   return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
 }
 
-export function mapCustomFields(profile: RawUserProfile | undefined): UserCustomField[] | undefined {
+export function mapCustomFields(
+  profile: RawUserProfile | undefined,
+): UserCustomField[] | undefined {
   const rawFields = profile?.fields ?? {};
   const customFields = Object.keys(rawFields)
     .map((id) => ({ alt: rawFields[id]?.alt || undefined, id, value: rawFields[id]?.value ?? "" }))

@@ -142,6 +142,27 @@ export default function ActivityView() {
     return counts;
   });
 
+  // tagAndSearchRows only holds what's been paginated in so far, so a count
+  // taken from it mid-scroll is really "how far I've scrolled" rather than a
+  // true total — it grows every time another page loads, which reads as a
+  // buggy, made-up number. Only trust it once that pagination scope has
+  // actually run dry; until then, show no badge rather than a wrong one. The
+  // "unread" scope is also satisfied once the *general* scope is exhausted,
+  // since that implies every unread item was loaded along the way too.
+  const generalScopeExhausted = createMemo(
+    () => !store.activity.activityHasMore(feedTypesForTag(selectedTag())),
+  );
+  const unreadScopeExhausted = createMemo(
+    () =>
+      generalScopeExhausted() ||
+      !store.activity.activityHasMore(feedTypesForTag(selectedTag()), true),
+  );
+  const tabCount = (key: ReadState): number | undefined => {
+    if (key === "all") return generalScopeExhausted() ? tagAndSearchRows().length : undefined;
+    if (key === "unread") return unreadScopeExhausted() ? statusCounts().unread : undefined;
+    return generalScopeExhausted() ? statusCounts()[key] : undefined;
+  };
+
   const visibleRows = createMemo(() => {
     const state = readState();
     if (state === "all") return tagAndSearchRows();
@@ -245,10 +266,7 @@ export default function ActivityView() {
         <div aria-label="Activity status" class="activity-read-toggle" role="tablist">
           <For each={READ_STATES}>
             {(state) => {
-              const count = () =>
-                state.key === "all"
-                  ? tagAndSearchRows().length
-                  : statusCounts()[state.key as Exclude<ReadState, "all">];
+              const count = () => tabCount(state.key);
               return (
                 <button
                   aria-selected={readState() === state.key}
@@ -259,7 +277,7 @@ export default function ActivityView() {
                   type="button"
                 >
                   {state.label}
-                  <Show when={count() > 0}>
+                  <Show when={(count() ?? 0) > 0}>
                     <span>{count()}</span>
                   </Show>
                 </button>

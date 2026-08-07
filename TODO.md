@@ -5,14 +5,11 @@
 - better uploads (cropping perhaps even???)
 - generally improve UI/UX across the app a LOT
 - ?hca/ht status (ploogin?)
-- I actively see a ping in a channel and a dm from Slack in my message list but its not in activity
-- Initial scroll sometimes only just shows like one message and blank space under it
 - Improve speed (especially network is blocking, reduce on that)
 - skip long threads in activity
 - Response/reply links staying on message mentions
 - Concistency on cross channel threads
 - ctrl+z
-- All/Unread numbers don't make any sense
 
 hover glance thing
 context switching (active in multiple threads)

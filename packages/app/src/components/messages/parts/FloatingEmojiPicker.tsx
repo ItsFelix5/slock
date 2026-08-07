@@ -7,7 +7,6 @@ export default function FloatingEmojiPicker(props: {
   onSelect: (name: string) => void;
   open: boolean;
 }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let panelRef: HTMLDivElement | undefined;
 
   // The trigger button must count as "inside" here, otherwise its own click
