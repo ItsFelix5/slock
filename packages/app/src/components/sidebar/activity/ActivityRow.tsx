@@ -2,7 +2,12 @@ import { formatTime } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
-import { conversationDisplayName, isPingingActivity, store } from "../../../lib/store";
+import {
+  conversationDisplayName,
+  formatInteractorNames,
+  isPingingActivity,
+  store,
+} from "../../../lib/store";
 import ReactionRow from "../../messages/parts/ReactionRow";
 import { ActivityRowActions } from "./ActivityRowActions";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
@@ -183,16 +188,8 @@ export default function ActivityRow(props: {
     return ids;
   });
 
-  const formatInteractorNames = (ids: string[]) => {
-    const names = ids.map((id) =>
-      id === store.users.currentUser()?.id ? "you" : (store.users.userById(id)?.name ?? "someone"),
-    );
-    return names.reduce(
-      (previous, current, index, all) =>
-        (previous ? previous + (index < all.length - 1 ? ", " : " and ") : "") + current,
-      "",
-    );
-  };
+  const interactorNames = (ids: string[]) =>
+    formatInteractorNames(ids, store.users.currentUser()?.id, store.users.userById);
 
   const reactedMessage = createMemo(() =>
     latest().kind === "reaction"
@@ -263,7 +260,7 @@ export default function ActivityRow(props: {
               }
               when={isThreadGroup()}
             >
-              <Tooltip content={formatInteractorNames(replierIds())}>
+              <Tooltip content={interactorNames(replierIds())}>
                 <AvatarStack
                   max={3}
                   users={replierIds()

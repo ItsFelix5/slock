@@ -16,6 +16,7 @@ export { channelDisplayName } from "./slices/channelDisplayName";
 export { conversationDisplayName } from "./slices/conversationDisplayName";
 export { dmDisplayName } from "./slices/dmDisplayName";
 export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
+export { formatInteractorNames } from "./slices/interactorNames";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
 export { findUnreadDividerIndex, isUnreadDividerBoundary } from "./slices/messaging/unread";
