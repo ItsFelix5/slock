@@ -1,9 +1,13 @@
 import { Avatar, Icon, Skeleton, Tooltip } from "@slock/ui";
-import { Show } from "solid-js";
+import { lazy, Show } from "solid-js";
 import GlobalSearch from "../search/GlobalSearch";
-import Settings from "../settings/Settings";
 import DndButton from "./dnd/DndButton";
 import type { SidebarContext } from "./sidebarCategories";
+
+// Settings pulls in four tab components' worth of forms and switches for
+// something most sessions never open — split it out of the main chunk
+// instead of paying for it on every load.
+const Settings = lazy(() => import("../settings/Settings"));
 
 type SidebarToolbarProps = Pick<
   SidebarContext,

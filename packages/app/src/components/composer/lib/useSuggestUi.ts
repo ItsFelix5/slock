@@ -2,7 +2,7 @@ import { useClickOutside, useEscapeClose } from "@slock/ui";
 import type { Accessor } from "solid-js";
 import type { SuggestState } from "./suggestTypes";
 
-export function useSuggestUI(
+export function useSuggestUi(
   suggestPopoverRef: Accessor<HTMLDivElement | undefined>,
   suggest: Accessor<SuggestState | null>,
   setSuggest: (value: SuggestState | null) => void,

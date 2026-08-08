@@ -21,6 +21,7 @@ export type { SkeletonProps } from "./feedback/Skeleton";
 export { default as Skeleton } from "./feedback/Skeleton";
 export type { TypingIndicatorProps } from "./feedback/TypingIndicator";
 export { default as TypingIndicator } from "./feedback/TypingIndicator";
+export { activeFontPreset, DEFAULT_FONT, FONT_PRESETS, type FontPreset } from "./fontPresets";
 export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
 export type { ComboItem } from "./form/FilterCombobox";
@@ -74,22 +75,20 @@ export { default as Popover } from "./overlay/Popover";
 export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
 export {
-  activeFontPreset,
-  activePreset,
-  applyPreset,
-  DEFAULT_FONT,
-  FONT_PRESETS,
-  type FontPreset,
-  getEffectiveColor,
   logDeletedMessages,
   type MessageSize,
   type MessageSizeMetrics,
   messageSize,
   messageSizeMetrics,
-  resetThemeColor,
-  resetThemeColors,
   setLogDeletedMessages,
   setMessageSize,
+} from "./theme";
+export {
+  activePreset,
+  applyPreset,
+  getEffectiveColor,
+  resetThemeColor,
+  resetThemeColors,
   setThemeColors,
   THEME_COLOR_KEYS,
   THEME_COLOR_LABELS,
@@ -97,7 +96,7 @@ export {
   type ThemeColors,
   type ThemePreset,
   themeColors,
-} from "./theme";
+} from "./themeColors";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export { useHoverIntent } from "./useHoverIntent";

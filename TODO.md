@@ -1,4 +1,3 @@
-- Feedback ux (especially the copied link/reactors sucks and changes scroll)
 - Everything should be keyboard accessible, from shortcuts to ctrl+z on EVERYTHING to improving ctrl+k and making sure ctrl+/ is up to date
 - Avoid optimistic updates but max ux
 - channel search button should show files & links page + search bar  (conversations.searchLinks + search.modules.files?)
@@ -6,7 +5,6 @@
 - generally improve UI/UX across the app a LOT
 - ?hca/ht status (ploogin?)
 - Improve speed (especially network is blocking, reduce on that)
-- skip long threads in activity
 - Response/reply links staying on message mentions
 - Concistency on cross channel threads
 - ctrl+z

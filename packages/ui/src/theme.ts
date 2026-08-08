@@ -92,25 +92,4 @@ export function setLogDeletedMessages(on: boolean) {
   localStorage.setItem(LOG_DELETED_KEY, on ? "1" : "0");
 }
 
-export {
-  activeFontPreset,
-  DEFAULT_FONT,
-  FONT_PRESETS,
-  type FontPreset,
-} from "./fontPresets";
-export {
-  activePreset,
-  applyPreset,
-  getEffectiveColor,
-  resetThemeColor,
-  resetThemeColors,
-  setThemeColors,
-  THEME_COLOR_KEYS,
-  THEME_COLOR_LABELS,
-  THEME_PRESETS,
-  type ThemeColors,
-  type ThemePreset,
-  themeColors,
-} from "./themeColors";
-
 export { logDeletedMessages, messageSize };

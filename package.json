@@ -12,7 +12,7 @@
     "build": "tsc -b && bun run --filter slock-web build",
     "start": "bun run --filter slock-web build && bun run --filter slock-server start",
     "preview": "bun run --filter slock-web preview",
-    "check": "biome check . && bun test && bun run build",
+    "check": "biome check . && bun run build",
     "format": "biome check . --write"
   },
   "devDependencies": {

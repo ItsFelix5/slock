@@ -9,17 +9,10 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, For } from "solid-js";
-import { actionFeedback, store } from "../../../lib/store";
+import { actionFeedback, formatInteractorNames, store } from "../../../lib/store";
 
 function reactorNames(users: string[]) {
-  return users
-    .map((id) =>
-      id === store.users.currentUser()?.id ? "you" : (store.users.userById(id)?.name ?? "someone"),
-    )
-    .reduce(
-      (prev, curr, i, a) => (prev ? prev + (i < a.length - 1 ? ", " : " and ") : "") + curr,
-      "",
-    );
+  return formatInteractorNames(users, store.users.currentUser()?.id, store.users.userById);
 }
 
 export default function ReactionRow(props: {

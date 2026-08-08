@@ -12,7 +12,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   box-shadow: var(--shadow-hovercard);
 }
 
@@ -33,7 +33,7 @@
   font-weight: 700;
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .channel-hovercard-btn:hover {

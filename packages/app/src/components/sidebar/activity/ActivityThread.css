@@ -28,7 +28,7 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .activity-read-more:hover {
@@ -44,7 +44,7 @@
   min-width: 0;
   padding: 4px 6px 4px 0;
   text-align: left;
-  border-radius: 7px;
+  border-radius: var(--radius-7);
 }
 
 .activity-thread-message:hover {
@@ -59,7 +59,7 @@
   align-items: flex-start;
   justify-content: center;
   margin-left: -32px;
-  border-radius: 7px;
+  border-radius: var(--radius-7);
 }
 
 .activity-thread-message-body {

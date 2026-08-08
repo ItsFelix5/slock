@@ -45,7 +45,6 @@ const SECTION_FIELD_LINE_HEIGHT = 20;
 const IMAGE_BLOCK_HEIGHT = 240;
 
 export interface MessageHeightContext extends MessageRenderContext {
-  hasFeedback?: boolean;
   messageSize: MessageSize;
 }
 
@@ -279,7 +278,6 @@ export function estimateMessageHeight(
       0,
     );
   contentHeight += estimateReactionHeight(message, wrapWidth);
-  if (renderContext.hasFeedback) contentHeight += 22;
   if (renderContext.hasOpenThread && (message.replyCount ?? 0) > 0) contentHeight += 32;
 
   // mirrors the CSS: a lead row's total vertical padding is rowPaddingY applied

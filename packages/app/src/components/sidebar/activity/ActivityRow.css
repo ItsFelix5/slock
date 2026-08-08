@@ -112,7 +112,7 @@
   color: var(--text-secondary);
   vertical-align: 1px;
   background: var(--active-bg);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .activity-reaction-slot {
@@ -169,7 +169,7 @@
   height: 21px;
   color: var(--text-dim);
   opacity: 0.45;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .activity-item-wrap:hover .activity-react-toggle,
@@ -198,7 +198,7 @@
   width: 6px;
   height: 6px;
   background: transparent;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .activity-unread-dot.unread {

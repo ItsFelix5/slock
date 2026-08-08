@@ -43,7 +43,7 @@
   width: 4px;
   content: "";
   background: var(--attachment-unfurl-color, var(--text-dim));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .attachment-message-author {

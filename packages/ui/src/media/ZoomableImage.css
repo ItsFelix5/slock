@@ -79,7 +79,7 @@
   cursor: pointer;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   box-shadow: var(--shadow-modal);
 }
 

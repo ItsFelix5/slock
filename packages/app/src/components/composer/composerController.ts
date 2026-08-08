@@ -20,7 +20,7 @@ import { fragmentToBlocks } from "./lib/richtextSerialization";
 import { createPendingFileState, draftCacheKey, submitComposerPayload } from "./lib/submission";
 import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
-import { useSuggestUI } from "./lib/useSuggestUI";
+import { useSuggestUi } from "./lib/useSuggestUi";
 
 export function createComposerController(props: ComposerProps) {
   const [text, setText] = createSignal("");
@@ -51,7 +51,7 @@ export function createComposerController(props: ComposerProps) {
     suggest,
     syncFromDom: editor.syncFromDom,
   });
-  useSuggestUI(() => suggestPopoverRef, suggest, setSuggest);
+  useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
   createEffect(() => {
     const s = suggest();
     if (!(s && suggestPopoverRef)) return;

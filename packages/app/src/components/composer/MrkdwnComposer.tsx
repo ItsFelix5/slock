@@ -4,7 +4,7 @@ import { handleMarkShortcut } from "./lib/editor/markShortcuts";
 import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
-import { useSuggestUI } from "./lib/useSuggestUI";
+import { useSuggestUi } from "./lib/useSuggestUi";
 import "./MrkdwnComposer.css";
 
 export default function MrkdwnComposer(props: {
@@ -43,7 +43,7 @@ export default function MrkdwnComposer(props: {
     syncFromDom: editor.syncFromDom,
   });
 
-  useSuggestUI(() => suggestPopoverRef, suggest, setSuggest);
+  useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
 
   createEffect(() => {
     const { value } = props;
