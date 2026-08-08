@@ -27,7 +27,7 @@
   font-size: 12px;
   color: var(--danger);
   background: rgba(var(--danger-rgb), 0.08);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .user-profile-avatar {
@@ -38,7 +38,7 @@
   font-size: 28px;
   font-weight: 700;
   color: var(--text-on-accent);
-  border-radius: var(--radius-12);
+  border-radius: 12px;
 }
 
 .user-profile-avatar img {
@@ -57,7 +57,7 @@
   height: 14px;
   background: var(--presence-active);
   border: 2px solid var(--main-bg);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 
 .user-profile-presence.away {
@@ -117,7 +117,7 @@ button.user-profile-presence:disabled {
   color: var(--text-on-accent);
   background: var(--accent);
   border: none;
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .user-profile-message-btn:hover:not(:disabled) {
@@ -196,7 +196,7 @@ button.user-profile-presence:disabled {
   color: var(--text-primary);
   background: none;
   border: 1px solid transparent;
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .user-profile-name-input {

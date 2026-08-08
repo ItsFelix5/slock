@@ -12,7 +12,7 @@
   padding: 4px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
   box-shadow: var(--shadow-popover);
 }
 
@@ -28,7 +28,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: var(--radius-5);
+  border-radius: 5px;
 }
 
 .menu-item:hover:not(:disabled) {
@@ -54,5 +54,5 @@
   flex-shrink: 0;
   width: 15px;
   height: 15px;
-  border-radius: var(--radius-3);
+  border-radius: 3px;
 }

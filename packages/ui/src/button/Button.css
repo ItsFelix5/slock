@@ -7,11 +7,10 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  border-radius: var(--radius-6);
+  border-radius: 6px;
   transition: all 0.15s ease-in-out;
 }
 
-/* Sizes */
 .btn-sm {
   padding: 4px 10px;
   font-size: 12px;
@@ -27,10 +26,9 @@
   font-size: 15px;
 }
 
-/* Icon buttons */
 .btn-icon {
   padding: 0;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 
 .btn-icon.btn-sm {
@@ -48,7 +46,6 @@
   height: 36px;
 }
 
-/* Variants */
 .btn-primary {
   color: var(--text-on-accent);
   background: var(--accent);
@@ -92,7 +89,6 @@
   background: rgba(var(--danger-rgb), 0.1);
 }
 
-/* Disabled state */
 .btn:disabled,
 .btn-disabled {
   cursor: not-allowed;

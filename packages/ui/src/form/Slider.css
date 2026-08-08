@@ -11,7 +11,7 @@
   appearance: none;
   cursor: pointer;
   background: var(--hover-bg);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
   outline: none;
 }
 
@@ -20,7 +20,7 @@
   height: 14px;
   appearance: none;
   background: var(--accent);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
   transition: transform 0.1s;
 }
 
@@ -34,7 +34,7 @@
   cursor: pointer;
   background: var(--accent);
   border: none;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
   transition: transform 0.1s;
 }
 

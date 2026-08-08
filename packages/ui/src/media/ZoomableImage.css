@@ -36,7 +36,7 @@
   color: var(--text-secondary);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .zoomable-image-unavailable-framed {
@@ -57,7 +57,7 @@
   cursor: zoom-in;
   user-select: none;
   object-fit: contain;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 
 .zoomable-image-full-loading {
@@ -79,7 +79,7 @@
   cursor: pointer;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
   box-shadow: var(--shadow-modal);
 }
 
@@ -93,7 +93,7 @@
   color: var(--text-secondary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
   box-shadow: var(--shadow-modal);
 }
 
@@ -136,6 +136,8 @@
   pointer-events: none;
   background: var(--main-bg);
   background-repeat: no-repeat;
-  border: 3px solid var(--zoomable-lens-border);
-  box-shadow: var(--zoomable-lens-shadow);
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
 }

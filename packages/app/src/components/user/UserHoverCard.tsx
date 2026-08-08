@@ -1,55 +1,25 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
-import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
-import { createMemo, type JSX, Show } from "solid-js";
+import { HoverCard, Icon } from "@slock/ui";
+import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
 import { createLocalTime } from "./userProfileTime";
 import ViewProfileButton from "./ViewProfileButton";
 import "./UserHoverCard.css";
 
-const CARD_WIDTH = 300;
-
-// A lightweight preview of a user shown on hover over their name or avatar —
-// avatar, presence, status, title and local time — without opening the full
-// profile panel. Positioned via FloatingPanel (Portal + viewport flip/clamp) so it
-// is never clipped by the surrounding message list's overflow.
 export default function UserHoverCard(props: { userId: string; children: JSX.Element }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
-  let anchorRef: HTMLSpanElement | undefined;
-  const { cancelClose, close, open, openNow, scheduleClose, scheduleOpen } = useHoverIntent();
-
+  const [cardOpen, setCardOpen] = createSignal(false);
   const user = createMemo(() => store.users.userById(props.userId));
   const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
   const botBio = createMemo(() =>
-    open() && user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
+    cardOpen() && user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
   );
 
   const localTime = createLocalTime(user, Date.now);
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real controls are the buttons inside the children and the card
-    <span
-      class="user-hovercard-anchor"
-      onFocusIn={openNow}
-      onFocusOut={(e) => {
-        if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)))
-          close();
-      }}
-      onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleClose}
-      ref={anchorRef}
-    >
-      {props.children}
-      <FloatingPanel
-        align="start"
-        anchor={() => anchorRef}
-        class="user-hovercard"
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
-        onScroll={close}
-        open={open() && !!user()}
-        placement="top"
-        style={{ width: `${CARD_WIDTH}px` }}
-      >
+    <HoverCard
+      anchorClass="user-hovercard-anchor"
+      content={(close) => (
         <Show when={user()}>
           {(u) => (
             <>
@@ -119,7 +89,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                   when={!isSelf()}
                 >
                   <button
-                    class="user-hovercard-btn btn-reset flex-center"
+                    class="user-hovercard-btn hover-card-action btn-reset flex-center"
                     disabled={store.dms.isOpenDmPending(u().id)}
                     onClick={() => {
                       close();
@@ -139,7 +109,13 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
             </>
           )}
         </Show>
-      </FloatingPanel>
-    </span>
+      )}
+      onOpenChange={setCardOpen}
+      openWhen={() => !!user()}
+      panelClass="user-hovercard"
+      width={300}
+    >
+      {props.children}
+    </HoverCard>
   );
 }

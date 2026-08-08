@@ -2,7 +2,7 @@
   width: 520px;
   max-width: calc(100vw - 40px);
   max-height: 70vh;
-  border-radius: var(--radius-12);
+  border-radius: 12px;
   box-shadow: var(--shadow-modal-lg);
 }
 
@@ -57,7 +57,7 @@
   font-size: 14px;
   text-align: left;
   background: transparent;
-  border-radius: var(--radius-10);
+  border-radius: 10px;
 }
 
 .global-search-result:hover,

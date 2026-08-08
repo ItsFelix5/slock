@@ -1,25 +1,18 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import { Avatar, FloatingPanel, useHoverIntent } from "@slock/ui";
-import { createResource, type JSX, Show } from "solid-js";
+import { Avatar, HoverCard } from "@slock/ui";
+import { createResource, createSignal, type JSX, Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
 import "./MessageLinkHoverCard.css";
 
-const CARD_WIDTH = 320;
-
-// A lightweight preview of the message a pasted Slack permalink points at —
-// sender + snippet — fetched on demand since the target may not be part of
-// any channel/thread the viewer already has loaded.
 export default function MessageLinkHoverCard(props: {
   channelId: string;
   messageTs: string;
   threadTs: string;
   children: JSX.Element;
 }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
-  let anchorRef: HTMLSpanElement | undefined;
-  const { cancelClose, close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const [open, setOpen] = createSignal(false);
 
   const [message] = createResource(
     () => (open() ? props : undefined),
@@ -27,25 +20,8 @@ export default function MessageLinkHoverCard(props: {
   );
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real control is the link itself
-    <span
-      class="message-link-hovercard-anchor"
-      onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleClose}
-      ref={anchorRef}
-    >
-      {props.children}
-      <FloatingPanel
-        align="start"
-        anchor={() => anchorRef}
-        class="message-link-hovercard"
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
-        onScroll={close}
-        open={open()}
-        placement="top"
-        style={{ width: `${CARD_WIDTH}px` }}
-      >
+    <HoverCard
+      content={() => (
         <Show
           fallback={
             <div class="message-link-hovercard-status text-dim text-sm">
@@ -76,7 +52,12 @@ export default function MessageLinkHoverCard(props: {
             </>
           )}
         </Show>
-      </FloatingPanel>
-    </span>
+      )}
+      onOpenChange={setOpen}
+      panelClass="message-link-hovercard"
+      width={320}
+    >
+      {props.children}
+    </HoverCard>
   );
 }

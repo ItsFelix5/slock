@@ -6,28 +6,28 @@
   justify-content: center;
   font-weight: 700;
   color: var(--text-on-accent);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
 }
 
 .avatar-small {
   width: 20px;
   height: 20px;
   font-size: 10px;
-  border-radius: var(--radius-5);
+  border-radius: 5px;
 }
 
 .avatar-medium {
   width: 32px;
   height: 32px;
   font-size: 13px;
-  border-radius: var(--radius-8);
+  border-radius: 8px;
 }
 
 .avatar-large {
   width: 48px;
   height: 48px;
   font-size: 16px;
-  border-radius: var(--radius-12);
+  border-radius: 12px;
 }
 
 .avatar-img {
@@ -47,7 +47,7 @@
   position: absolute;
   background: var(--presence-active);
   border: 2px solid var(--sidebar-bg);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 
 .avatar-small .avatar-presence-dot {

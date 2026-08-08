@@ -47,7 +47,7 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-12);
+  border-radius: 12px;
 }
 .message-list-intro h2 {
   margin: 0 0 6px;
@@ -145,7 +145,7 @@
   pointer-events: none;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
   opacity: 0;
 }
 .message-row-group.is-first-message .message-hover-actions {
@@ -162,7 +162,7 @@
   height: 28px;
   font-size: 14px;
   color: var(--text-secondary);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 .message-hover-btn:hover:not(:disabled) {
   color: var(--text-primary);
@@ -231,7 +231,7 @@
   font-size: var(--message-avatar-font-size);
   font-weight: 700;
   color: var(--text-on-accent);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 .message-avatar-img {
   position: absolute;

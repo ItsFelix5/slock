@@ -3,7 +3,7 @@
   padding: 10px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
   box-shadow: var(--shadow-popover);
 }
 .compose-date-preview {
@@ -20,7 +20,7 @@
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-5);
+  border-radius: 5px;
 }
 .compose-date-section {
   margin-top: 8px;
@@ -39,7 +39,7 @@
   width: 24px;
   height: 24px;
   color: var(--text-secondary);
-  border-radius: var(--radius-4);
+  border-radius: 4px;
   place-items: center;
 }
 .compose-date-relative-btn:hover,
@@ -51,7 +51,7 @@
   max-height: 150px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-5);
+  border-radius: 5px;
 }
 .compose-date-option {
   display: flex;
@@ -99,7 +99,7 @@
   color: var(--text-on-accent);
   background: var(--accent);
   border: 0;
-  border-radius: var(--radius-5);
+  border-radius: 5px;
 }
 .compose-date-insert:disabled {
   cursor: default;

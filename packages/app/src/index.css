@@ -30,7 +30,7 @@ button {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -55,7 +55,7 @@ button {
   text-align: center;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
   box-shadow: var(--shadow-popover);
 }
 

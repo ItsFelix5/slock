@@ -1,7 +1,5 @@
 import { createSignal, onCleanup } from "solid-js";
 
-// Delayed open/close so a hover card doesn't flash while the pointer is just
-// passing through, but still closes promptly once the pointer actually leaves.
 export function useHoverIntent(openDelay = 350, closeDelay = 160) {
   const [open, setOpen] = createSignal(false);
   let openTimer: ReturnType<typeof setTimeout> | undefined;
@@ -21,8 +19,6 @@ export function useHoverIntent(openDelay = 350, closeDelay = 160) {
     clearTimeout(closeTimer);
     setOpen(false);
   };
-  // Keyboard focus is a deliberate action, not a passing cursor — open right
-  // away instead of waiting out the hover-intent delay.
   const openNow = () => {
     clearTimeout(openTimer);
     clearTimeout(closeTimer);

@@ -6,7 +6,7 @@ export interface ViewProfileButtonProps {
 export default function ViewProfileButton(props: ViewProfileButtonProps) {
   return (
     <button
-      class="user-hovercard-btn btn-reset flex-center"
+      class="user-hovercard-btn hover-card-action btn-reset flex-center"
       onClick={() => {
         props.onClose();
         props.onViewProfile();

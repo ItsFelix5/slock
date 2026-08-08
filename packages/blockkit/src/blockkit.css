@@ -56,7 +56,7 @@
   width: 20px;
   height: 20px;
   object-fit: cover;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 .bk-image-block {
   display: flex;
@@ -68,13 +68,13 @@
   max-width: min(360px, 100%);
   max-height: 360px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 .bk-image-el {
   max-width: min(240px, 100%);
   max-height: 120px;
   object-fit: cover;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 .bk-image-block-title {
   font-size: 13px;
@@ -97,7 +97,7 @@
   cursor: pointer;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 .bk-button:hover {
   border-color: var(--text-dim);
@@ -129,7 +129,7 @@
   color: var(--text-secondary);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 .bk-overflow-btn:hover {
   color: var(--text-primary);
@@ -179,7 +179,7 @@
   white-space: pre-wrap;
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 .bk-inline-code,
 .bk-rt-code,
@@ -189,7 +189,7 @@
   font-size: 0.9em;
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 .bk-link {
   color: var(--link-color);
@@ -206,7 +206,7 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 .bk-date.bk-link:hover {
   color: var(--text-primary);
@@ -222,7 +222,7 @@
   cursor: pointer;
   background: var(--mention-bg);
   border: none;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
   /* it's a <button> for click-to-open-profile, but browsers make button
      text unselectable by default — without this, dragging a selection
      across a mention skips its text and breaks copying the message. */
@@ -274,7 +274,7 @@
   width: 12px;
   height: 12px;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-3);
+  border-radius: 3px;
 }
 .bk-rich-text {
   font-size: 15px;
@@ -294,7 +294,7 @@
 }
 .bk-rt-highlight {
   background: var(--highlight-bg);
-  border-radius: var(--radius-3);
+  border-radius: 3px;
 }
 .bk-rt-list {
   margin: 2px 0;

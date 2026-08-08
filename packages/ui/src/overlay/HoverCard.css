@@ -1,34 +1,35 @@
-.channel-hovercard {
-  gap: 8px;
-  padding: 12px 14px;
+.hover-card-anchor {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.hover-card {
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-12);
+  border-radius: 12px;
   box-shadow: var(--shadow-hovercard);
 }
 
-.channel-hovercard-heading {
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.channel-hovercard-hash {
-  color: var(--text-dim);
-}
-
-.channel-hovercard-btn {
+.hover-card-action {
   gap: 6px;
   padding: 7px 10px;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
 }
 
-.channel-hovercard-btn:hover {
+.hover-card-action:hover:not(:disabled) {
   background: var(--hover-bg);
   border-color: var(--text-dim);
+}
+
+.hover-card-action:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }

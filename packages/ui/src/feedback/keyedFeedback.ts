@@ -7,10 +7,6 @@ export interface Feedback {
   text: string;
 }
 
-// A per-key replacement for a global toast stack: async actions (usually store
-// mutations keyed by the entity they act on, e.g. a channel or message id) flash
-// a short-lived message here instead, and whichever row/panel renders that entity
-// picks it up with `get(key)` and shows it inline, right next to what changed.
 export function createKeyedFeedback(ttlMs = 3000) {
   const [state, setState] = createSignal<Record<string, Feedback>>({});
   const timers = new Map<string, ReturnType<typeof setTimeout>>();

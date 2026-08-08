@@ -1,23 +1,10 @@
-.user-hovercard-anchor {
-  display: inline-flex;
-  max-width: 100%;
-}
-
 .message-row > .user-hovercard-anchor {
   align-self: flex-start;
 }
 
 .user-hovercard {
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
   gap: 10px;
   padding: 14px;
-  color: var(--text-primary);
-  background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-12);
-  box-shadow: var(--shadow-hovercard);
 }
 
 .user-hovercard-top {
@@ -35,7 +22,7 @@
   font-size: 20px;
   font-weight: 700;
   color: var(--text-on-accent);
-  border-radius: var(--radius-10);
+  border-radius: 10px;
 }
 
 .user-hovercard-avatar img {
@@ -44,7 +31,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--radius-10);
+  border-radius: 10px;
 }
 
 .user-hovercard-presence {
@@ -55,7 +42,7 @@
   height: 13px;
   background: var(--presence-active);
   border: 2px solid var(--main-bg);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 
 .user-hovercard-presence.away {
@@ -98,7 +85,7 @@
   font-weight: 700;
   color: var(--text-secondary);
   background: var(--badge-bg);
-  border-radius: var(--radius-3);
+  border-radius: 3px;
 }
 
 .user-hovercard-status {
@@ -116,21 +103,4 @@
 
 .user-hovercard-btn {
   flex: 1;
-  gap: 6px;
-  padding: 7px 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
-}
-
-.user-hovercard-btn:hover:not(:disabled) {
-  background: var(--hover-bg);
-  border-color: var(--text-dim);
-}
-
-.user-hovercard-btn:disabled {
-  cursor: wait;
-  opacity: 0.6;
 }

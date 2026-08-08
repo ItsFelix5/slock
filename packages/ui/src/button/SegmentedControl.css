@@ -4,7 +4,7 @@
   gap: 4px;
   padding: 2px;
   background: var(--hover-bg);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .segmented-control-btn {
@@ -14,7 +14,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 
 .segmented-control-btn:hover {

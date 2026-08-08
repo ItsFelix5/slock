@@ -13,7 +13,7 @@
   text-align: center;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
   box-shadow: var(--shadow-modal);
   transform: translateX(-50%);
 }
@@ -27,7 +27,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 
 .connection-status-retry:hover {

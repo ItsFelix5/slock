@@ -1,8 +1,5 @@
 import { createSignal, getOwner, onCleanup } from "solid-js";
 
-// Powers the "copy to clipboard" checkmark-swap pattern: call `copy(text, key)`
-// from a button's onClick, then check `copied() === key` to briefly swap that
-// button's icon/label instead of popping a toast.
 export function createCopyFeedback(
   ttlMs = 1200,
   onError?: () => void,

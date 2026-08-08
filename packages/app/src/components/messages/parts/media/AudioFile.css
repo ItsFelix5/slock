@@ -19,7 +19,7 @@
   height: 32px;
   color: var(--text-on-accent);
   background: var(--accent);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 
 .audio-file-play:hover {
@@ -40,7 +40,7 @@
   gap: 2px;
   height: 28px;
   cursor: pointer;
-  border-radius: var(--radius-3);
+  border-radius: 3px;
 }
 
 .audio-file-waveform[aria-disabled="true"] {

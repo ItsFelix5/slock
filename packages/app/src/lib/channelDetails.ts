@@ -25,8 +25,6 @@ import { actionFeedback, store } from "./store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 
-// Channel-details modal state and actions, kept out of the (already oversized)
-// main store — it only touches the rest of the app through patchChannel.
 function setup() {
   const [channelDetailsId, setChannelDetailsId] = createSignal<string | null>(null);
 
@@ -38,9 +36,6 @@ function setup() {
     setChannelDetailsId(null);
   }
 
-  // Every action here follows the same shape: call the API, flash a message
-  // keyed to the channel on failure, and fall back to a caller-given value
-  // instead of throwing (the modal stays usable either way).
   async function withFeedback<T>(
     id: string,
     fallbackMessage: string,
@@ -55,6 +50,19 @@ function setup() {
     }
   }
 
+  async function withFeedbackOrThrow<T>(
+    id: string,
+    fallbackMessage: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await action();
+    } catch (err) {
+      actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
+      throw err;
+    }
+  }
+
   function loadChannelDetails(id: string): Promise<ChannelDetails | null> {
     return withFeedback(
       id,
@@ -64,47 +72,26 @@ function setup() {
     );
   }
 
-  async function loadChannelMembers(
+  function loadChannelMembers(
     id: string,
     filter: "everyone" | "apps",
     cursor?: string,
   ): Promise<ChannelMembersPage> {
-    try {
-      return await fetchChannelMembers(id, filter, cursor);
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load members.",
-        "error",
-      );
-      throw err;
-    }
+    return withFeedbackOrThrow(id, "Failed to load members.", () =>
+      fetchChannelMembers(id, filter, cursor),
+    );
   }
 
-  async function loadChannelManagerIds(id: string): Promise<string[]> {
-    try {
-      return await fetchChannelManagerIds(id);
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load channel managers.",
-        "error",
-      );
-      throw err;
-    }
+  function loadChannelManagerIds(id: string): Promise<string[]> {
+    return withFeedbackOrThrow(id, "Failed to load channel managers.", () =>
+      fetchChannelManagerIds(id),
+    );
   }
 
-  async function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs> {
-    try {
-      return await fetchChannelPostingPrefs(id);
-    } catch (err) {
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load posting permissions.",
-        "error",
-      );
-      throw err;
-    }
+  function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs> {
+    return withFeedbackOrThrow(id, "Failed to load posting permissions.", () =>
+      fetchChannelPostingPrefs(id),
+    );
   }
 
   function renameChannelById(id: string, name: string): Promise<boolean> {

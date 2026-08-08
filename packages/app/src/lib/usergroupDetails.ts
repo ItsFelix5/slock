@@ -8,9 +8,6 @@ import { createRoot, createSignal } from "solid-js";
 import { actionFeedback, store } from "./store";
 import { createSerialMutationQueue } from "./store/mutations/serialMutationQueue";
 
-// Pinggroup-details panel state and actions, kept out of the main store the
-// same way channelDetails.ts is — it only touches the rest of the app
-// through store.usergroups.
 function setup() {
   const [usergroupDetailsId, setUsergroupDetailsId] = createSignal<string | null>(null);
   const [usergroupDetailsLoading, setUsergroupDetailsLoading] = createSignal(false);

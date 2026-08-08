@@ -17,7 +17,7 @@
   padding: 10px 4px;
   color: var(--text-secondary);
   border: 1px solid transparent;
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .debug-icon-cell:hover {

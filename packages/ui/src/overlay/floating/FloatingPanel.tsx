@@ -54,6 +54,7 @@ export interface FloatingPanelProps {
   children: JSX.Element;
   class?: string;
   gap?: number;
+  onFocusOut?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
   onMouseEnter?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseLeave?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onKeyDown?: JSX.EventHandlerUnion<HTMLDivElement, KeyboardEvent>;
@@ -149,6 +150,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
         {/* biome-ignore lint/a11y/noStaticElementInteractions: floating panels may use pointer entry/exit to preserve hover intent */}
         <div
           class={props.class}
+          onFocusOut={props.onFocusOut}
           onKeyDown={props.onKeyDown}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}

@@ -46,7 +46,7 @@
   height: 58px;
   color: var(--accent);
   background: var(--hover-bg);
-  border-radius: var(--radius-12);
+  border-radius: 12px;
 }
 
 .canvas-panel-create h2,

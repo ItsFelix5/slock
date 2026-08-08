@@ -5,7 +5,7 @@
   margin: 0 20px 20px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-18);
+  border-radius: 18px;
 }
 
 .channel-notice-bar-text {
@@ -37,7 +37,7 @@
   font-weight: 700;
   color: var(--text-on-accent);
   background: var(--accent);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .join-channel-bar-btn:hover:not(:disabled) {

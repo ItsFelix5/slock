@@ -6,7 +6,7 @@
   margin: 0 10px 10px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-16);
+  border-radius: 16px;
 }
 .composer:focus-within {
   border-color: var(--text-dim);
@@ -33,7 +33,7 @@
   margin-bottom: 6px;
   padding: 3px 8px;
   background: var(--composer-bg);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -73,14 +73,14 @@
   font-size: 12px;
   color: var(--text-secondary);
   background: var(--hover-bg);
-  border-radius: var(--radius-5);
+  border-radius: 5px;
 }
 .composer-file-chip-thumb {
   width: 20px;
   height: 20px;
   margin-left: -4px;
   object-fit: cover;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 .composer-file-chip-name {
   color: inherit;
@@ -140,7 +140,7 @@
   font-size: 11px;
   color: var(--text-dim);
   background: var(--hover-bg);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 .composer-link-preview-remove:hover {
   color: var(--text-primary);
@@ -152,7 +152,7 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--text-secondary);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 .composer-tool:hover {
   color: var(--text-primary);
@@ -208,7 +208,7 @@
   width: 100%;
   padding: 5px 8px;
   text-align: left;
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 .composer-suggest-row:hover,
 .composer-suggest-row.active {

@@ -11,7 +11,7 @@
 .activity-item {
   position: relative;
   min-width: 0;
-  border-radius: var(--radius-8);
+  border-radius: 8px;
   transition: background 120ms ease;
 }
 
@@ -45,7 +45,7 @@
   min-width: 0;
   padding: 8px 30px 8px 10px;
   text-align: left;
-  border-radius: var(--radius-8);
+  border-radius: 8px;
 }
 
 .activity-item-summary:focus-visible,
@@ -198,7 +198,7 @@
   width: 6px;
   height: 6px;
   background: transparent;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-circle);
 }
 
 .activity-unread-dot.unread {

@@ -62,6 +62,7 @@ export {
   resolveHorizontalPlacement,
   resolveVerticalPlacement,
 } from "./overlay/floating/FloatingPanel";
+export { default as HoverCard, type HoverCardProps } from "./overlay/HoverCard";
 export type { ContextMenuProps } from "./overlay/menu/ContextMenu";
 export { default as ContextMenu } from "./overlay/menu/ContextMenu";
 export { default as Menu, type MenuProps } from "./overlay/menu/Menu";
@@ -99,7 +100,6 @@ export {
 } from "./themeColors";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
-export { useHoverIntent } from "./useHoverIntent";
 export {
   plainKey,
   type ShortcutDef,

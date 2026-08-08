@@ -1,54 +1,17 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { FloatingPanel, Icon, useHoverIntent } from "@slock/ui";
-import { createEffect, createMemo, type JSX, Show } from "solid-js";
+import { HoverCard, Icon } from "@slock/ui";
+import { createMemo, type JSX, Show } from "solid-js";
 import { channelDisplayName, store } from "../../../lib/store";
 import "./ChannelHoverCard.css";
 
-const CARD_WIDTH = 280;
-
-// A lightweight preview of a channel shown on hover over a #mention — name,
-// topic and a join/open action — without leaving the message list.
 export default function ChannelHoverCard(props: { channelId: string; children: JSX.Element }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
-  let anchorRef: HTMLSpanElement | undefined;
-  const { cancelClose, close, open, openNow, scheduleClose, scheduleOpen } = useHoverIntent();
-
   const channel = createMemo(() => store.channels.channelById(props.channelId));
   const isMember = createMemo(() => store.channels.isChannelMember(props.channelId));
   const name = () => channelDisplayName(channel(), props.channelId);
 
-  // Only resolve the topic once the card is actually shown — every #mention in
-  // every rendered message links here, so fetching on mount would fire a
-  // conversations.info burst for channels the user never hovers over.
-  createEffect(() => {
-    if (open()) store.channels.ensureChannelTopic(props.channelId);
-  });
-
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the real controls are the mention button and the card's own buttons
-    <span
-      class="channel-hovercard-anchor"
-      onFocusIn={openNow}
-      onFocusOut={(e) => {
-        if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)))
-          close();
-      }}
-      onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleClose}
-      ref={anchorRef}
-    >
-      {props.children}
-      <FloatingPanel
-        align="start"
-        anchor={() => anchorRef}
-        class="channel-hovercard"
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
-        onScroll={close}
-        open={open() && !!channel()}
-        placement="top"
-        style={{ width: `${CARD_WIDTH}px` }}
-      >
+    <HoverCard
+      content={(close) => (
         <Show when={channel()}>
           {(c) => (
             <>
@@ -68,7 +31,7 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
               <Show
                 fallback={
                   <button
-                    class="channel-hovercard-btn btn-reset flex-center"
+                    class="hover-card-action btn-reset flex-center"
                     onClick={() => {
                       close();
                       store.viewState.setActiveView({ id: props.channelId, kind: "channel" });
@@ -82,7 +45,7 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
                 when={!isMember()}
               >
                 <button
-                  class="channel-hovercard-btn btn-reset flex-center"
+                  class="hover-card-action btn-reset flex-center"
                   onClick={() => {
                     close();
                     store.channels.joinChannelById(props.channelId);
@@ -96,7 +59,15 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
             </>
           )}
         </Show>
-      </FloatingPanel>
-    </span>
+      )}
+      onOpenChange={(open) => {
+        if (open) store.channels.ensureChannelTopic(props.channelId);
+      }}
+      openWhen={() => !!channel()}
+      panelClass="channel-hovercard"
+      width={280}
+    >
+      {props.children}
+    </HoverCard>
   );
 }

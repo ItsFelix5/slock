@@ -5,7 +5,7 @@
   font-size: 12px;
   color: var(--error-text);
   background: var(--error-bg);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .channel-details-setting-select {

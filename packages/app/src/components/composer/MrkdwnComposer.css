@@ -8,7 +8,7 @@
   overflow: visible;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .mrkdwn-composer:focus-within {

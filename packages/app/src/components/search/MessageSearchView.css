@@ -25,7 +25,7 @@
   color: var(--text-dim);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }
 
 .message-search-suggestions {
@@ -61,7 +61,7 @@
   font-size: 13px;
   color: var(--text-secondary);
   text-align: left;
-  border-radius: var(--radius-6);
+  border-radius: 6px;
 }
 
 .message-search-suggestion:hover,
