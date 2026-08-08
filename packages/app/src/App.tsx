@@ -2,15 +2,12 @@ import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
 import { Button, ConnectionStatus, InlineFeedback, TypingIndicator, useShortcut } from "@slock/ui";
-import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, lazy, onCleanup, onMount, Show } from "solid-js";
 import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
-import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelHeader from "./components/channel/ChannelHeader";
-import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
 import { isArchivedChannel } from "./components/channel/channelHeaderState";
 import JoinChannelBar from "./components/channel/JoinChannelBar";
-import PinnedPanel from "./components/channel/PinnedPanel";
 import Composer from "./components/composer/Composer";
 import ContextActions from "./components/context-actions/ContextActions";
 import MessageList from "./components/messages/MessageList";
@@ -20,15 +17,24 @@ import ViewModal from "./components/modals/ViewModal";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
-import UsergroupDetails from "./components/usergroup/UsergroupDetails";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
+import { channelDetailsId } from "./lib/channelDetails";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
   parseSlackPermalink,
 } from "./lib/navigation/slackPermalink";
 import { actionFeedback, channelDisplayName, conversationDisplayName, store } from "./lib/store";
-import { openUsergroupDetails } from "./lib/usergroupDetails";
+import { openUsergroupDetails, usergroupDetailsId } from "./lib/usergroupDetails";
+
+// Each of these four is an occasional side panel (channel/usergroup info,
+// pinned messages, canvas editing) behind its own store-level open state, not
+// something opened on every session — deferred out of the main chunk instead
+// of bundled unconditionally like the always-visible layout below.
+const CanvasPanel = lazy(() => import("./components/channel/CanvasPanel"));
+const ChannelDetails = lazy(() => import("./components/channel/channel-details/ChannelDetails"));
+const PinnedPanel = lazy(() => import("./components/channel/PinnedPanel"));
+const UsergroupDetails = lazy(() => import("./components/usergroup/UsergroupDetails"));
 
 const blockKitResolver: BlockKitResolver = {
   onChannelClick: (id) => store.viewState.setActiveView({ id, kind: "channel" }),
@@ -239,10 +245,18 @@ function App() {
           </div>
           <ThreadPanel />
           <UserProfile />
-          <UsergroupDetails />
-          <ChannelDetails />
-          <PinnedPanel />
-          <CanvasPanel />
+          <Show when={usergroupDetailsId()}>
+            <UsergroupDetails />
+          </Show>
+          <Show when={channelDetailsId()}>
+            <ChannelDetails />
+          </Show>
+          <Show when={store.pinned.pinnedPanelChannelId()}>
+            <PinnedPanel />
+          </Show>
+          <Show when={store.canvas.openCanvas()}>
+            <CanvasPanel />
+          </Show>
           <ContextActions />
           <ViewModal />
         </div>
