@@ -18,6 +18,7 @@ import { createLaterSlice } from "./slices/session/later";
 import { createModalsSlice } from "./slices/session/modals";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
+import { createUndoSlice } from "./slices/session/undo";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { View } from "./slices/types";
 
@@ -30,6 +31,7 @@ export function createStoreSlices({
   userPrefs: Resource<UserPrefs>;
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
+  const undo = createUndoSlice();
   const viewState = createViewStateSlice({ bootstrap });
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
   const usergroups = createUsergroupsSlice({
@@ -56,6 +58,7 @@ export function createStoreSlices({
   });
   const preferences = createPreferencesSlice({
     channels: channels.channels,
+    recordUndoableAction: undo.recordUndoableAction,
     userPrefs,
   });
   const unread = createUnreadSlice({ bootstrap, patchChannel: channels.patchChannel, patchDm });
@@ -83,7 +86,7 @@ export function createStoreSlices({
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
   const searchHistory = createSearchHistorySlice({ userPrefs });
   const channelTabsSlice = createChannelTabsSlice({ userPrefs });
-  const later = createLaterSlice();
+  const later = createLaterSlice({ recordUndoableAction: undo.recordUndoableAction });
   const dms = createDmsSlice({
     activeView: viewState.activeView,
     bootstrap,
@@ -92,7 +95,7 @@ export function createStoreSlices({
     setActiveView,
   });
   patchDmImplRef.current = dms.patchDm;
-  const pinned = createPinnedSlice();
+  const pinned = createPinnedSlice({ recordUndoableAction: undo.recordUndoableAction });
   const canvas = createCanvasSlice();
   const modals = createModalsSlice();
   const messages = createMessagesSlice({
@@ -168,6 +171,7 @@ export function createStoreSlices({
     setActiveView,
     setActiveViewImplRef,
     typing,
+    undo,
     unread,
     users,
     usergroups,

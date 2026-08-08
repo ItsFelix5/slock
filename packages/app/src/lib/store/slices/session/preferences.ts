@@ -28,6 +28,7 @@ function escapeRegExp(s: string): string {
 export function createPreferencesSlice(deps: {
   channels: () => Channel[];
   userPrefs: () => UserPrefs | undefined;
+  recordUndoableAction: (label: string, undo: () => void) => void;
 }) {
   const [mutedChannelIds, setMutedChannelIds] = createStore<Record<string, boolean>>({});
   const [mutePendingByChannel, setMutePendingByChannel] = createStore<Record<string, boolean>>({});
@@ -109,6 +110,10 @@ export function createPreferencesSlice(deps: {
     const allMuted = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
     try {
       await setMutedChannels(allMuted);
+      deps.recordUndoableAction(
+        next ? "Muted channel" : "Unmuted channel",
+        () => void toggleMuteChannel(channelId),
+      );
       return true;
     } catch (err) {
       console.error("Failed to set channel mute preference", err);

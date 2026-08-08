@@ -1,7 +1,7 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import { Button, ConnectionStatus, InlineFeedback, TypingIndicator } from "@slock/ui";
+import { Button, ConnectionStatus, InlineFeedback, TypingIndicator, useShortcut } from "@slock/ui";
 import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
 import CanvasPanel from "./components/channel/CanvasPanel";
@@ -149,6 +149,25 @@ function App() {
     });
   });
 
+  // Covers whichever of pin/mute/save-for-later happened most recently — each
+  // of those is its own clean inverse already, so "undo" is just calling the
+  // same toggle again. Not allowed while typing (unset allowInInputs), so it
+  // never steals the composer's own native text-undo.
+  useShortcut({
+    allowRepeat: false,
+    enabled: () => !!store.undo.lastAction(),
+    handler: () => {
+      const action = store.undo.lastAction();
+      store.undo.undoLastAction();
+      if (action) actionFeedback.flash("undo", `Undone — ${action.label}`);
+    },
+    keys: "Ctrl/⌘ Z",
+    label: "Undo the last pin, mute, or save-for-later",
+    match: (e) =>
+      (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "z",
+    scope: "general",
+  });
+
   const unjoinedChannelId = () => {
     if (store.resources.bootstrap.loading) return;
     const v = store.viewState.activeView();
@@ -187,6 +206,11 @@ function App() {
           <InlineFeedback
             class="app-navigation-feedback"
             feedback={actionFeedback.get("navigation")}
+            priority={2}
+          />
+          <InlineFeedback
+            class="app-navigation-feedback"
+            feedback={actionFeedback.get("undo")}
             priority={2}
           />
           <Sidebar />

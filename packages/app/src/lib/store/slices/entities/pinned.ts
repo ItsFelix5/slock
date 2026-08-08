@@ -3,7 +3,9 @@ import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 
-export function createPinnedSlice() {
+export function createPinnedSlice(deps: {
+  recordUndoableAction: (label: string, undo: () => void) => void;
+}) {
   const [pinnedByChannel, setPinnedByChannel] = createStore<
     Record<string, Record<string, boolean>>
   >({});
@@ -50,6 +52,9 @@ export function createPinnedSlice() {
     setPinnedByChannel(channelId, ts, !currentlyPinned);
     try {
       await togglePin(channelId, ts, currentlyPinned);
+      deps.recordUndoableAction(currentlyPinned ? "Unpinned message" : "Pinned message", () =>
+        togglePinMessage(channelId, ts),
+      );
       return true;
     } catch (err) {
       console.error("Failed to toggle pin", err);

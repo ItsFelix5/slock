@@ -4,7 +4,9 @@ import { createSignal } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 
-export function createLaterSlice() {
+export function createLaterSlice(deps: {
+  recordUndoableAction: (label: string, undo: () => void) => void;
+}) {
   const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);
   const [laterLoaded, setLaterLoaded] = createSignal(false);
   const [laterLoading, setLaterLoading] = createSignal(false);
@@ -38,6 +40,10 @@ export function createLaterSlice() {
     }
     try {
       await toggleSaved(channelId, ts, currentlySaved);
+      deps.recordUndoableAction(
+        currentlySaved ? "Removed from Later" : "Saved for later",
+        () => void toggleSaveForLater(channelId, ts),
+      );
       return true;
     } catch (err) {
       console.error("Failed to toggle saved-for-later", err);

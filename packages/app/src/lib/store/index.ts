@@ -96,6 +96,7 @@ function setup() {
     modals,
     realtime,
     commands,
+    undo,
     setActiveView,
     setActiveViewImplRef,
   } = slices;
@@ -120,6 +121,7 @@ function setup() {
     realtime,
     searchHistory,
     typing,
+    undo,
     unread: { ...unread, markAllAsRead },
     users,
     usergroups,
