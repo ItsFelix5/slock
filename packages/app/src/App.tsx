@@ -13,7 +13,6 @@ import ContextActions from "./components/context-actions/ContextActions";
 import MessageList from "./components/messages/MessageList";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
 import ThreadPanel from "./components/messages/thread/ThreadPanel";
-import ViewModal from "./components/modals/ViewModal";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
@@ -27,13 +26,15 @@ import {
 import { actionFeedback, channelDisplayName, conversationDisplayName, store } from "./lib/store";
 import { openUsergroupDetails, usergroupDetailsId } from "./lib/usergroupDetails";
 
-// Each of these four is an occasional side panel (channel/usergroup info,
-// pinned messages, canvas editing) behind its own store-level open state, not
-// something opened on every session — deferred out of the main chunk instead
-// of bundled unconditionally like the always-visible layout below.
+// Each of these is an occasional side panel (channel/usergroup info, pinned
+// messages, canvas editing, an app-pushed view) behind its own store-level
+// open state, not something opened on every session — deferred out of the
+// main chunk instead of bundled unconditionally like the always-visible
+// layout below.
 const CanvasPanel = lazy(() => import("./components/channel/CanvasPanel"));
 const ChannelDetails = lazy(() => import("./components/channel/channel-details/ChannelDetails"));
 const PinnedPanel = lazy(() => import("./components/channel/PinnedPanel"));
+const ViewModal = lazy(() => import("./components/modals/ViewModal"));
 const UsergroupDetails = lazy(() => import("./components/usergroup/UsergroupDetails"));
 
 const blockKitResolver: BlockKitResolver = {
@@ -258,7 +259,9 @@ function App() {
             <CanvasPanel />
           </Show>
           <ContextActions />
-          <ViewModal />
+          <Show when={store.modals.topView()}>
+            <ViewModal />
+          </Show>
         </div>
       </Show>
     </BlockKitResolverContext.Provider>
