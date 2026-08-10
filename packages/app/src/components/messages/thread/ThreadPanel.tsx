@@ -45,7 +45,6 @@ export default function ThreadPanel() {
   });
   const messageFocus = createMessageFocus(
     messages,
-    () => null,
     () => messagesRef,
     () => thread()?.channelId ?? "",
     {

@@ -20,7 +20,6 @@ export { formatInteractorNames } from "./slices/interactorNames";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
 export { findUnreadDividerIndex, isUnreadDividerBoundary } from "./slices/messaging/unread";
-export { resolveUnreadLandingIndex } from "./slices/messaging/unreadLanding";
 export type { ChannelMessageTarget, MessageLocation, Nav, ThreadRef, View } from "./slices/types";
 
 declare global {

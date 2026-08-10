@@ -68,8 +68,13 @@ export interface RichTextDateElement {
 }
 
 // What a pasted Slack permalink becomes once it round-trips through blocks.
+// channel_id/message_ts identify the quoted message directly — prefer those
+// over parsing `url`/`text`, which are just display fallbacks.
 export interface RichTextMessageMentionElement {
+  channel_id?: string;
+  message_ts?: string;
   text?: string;
+  thread_ts?: string;
   type: "message_mention";
   url: string;
 }

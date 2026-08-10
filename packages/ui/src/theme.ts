@@ -10,7 +10,6 @@ export interface MessageSizeMetrics {
   metaGap: number;
 }
 
-// shared with the row-height estimator so virtual rows track the css
 const MESSAGE_SIZE_KEYFRAMES: [number, MessageSizeMetrics][] = [
   [0, { avatarFontSize: 11, avatarMarginTop: 1, avatarSize: 22, metaGap: 4, rowPaddingY: 0 }],
   [1, { avatarFontSize: 14, avatarMarginTop: 2, avatarSize: 36, metaGap: 6, rowPaddingY: 2 }],

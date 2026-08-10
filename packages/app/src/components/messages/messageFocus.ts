@@ -5,8 +5,6 @@ import { threadContainsMessage } from "../../lib/replyLink";
 import { store } from "../../lib/store";
 import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
 import { resolveProfileUserId } from "./parts/messageRenderState";
-import { waitForMessageElement } from "./scrollAnchor";
-import type { VirtualRowsApi } from "./VirtualizedRows";
 
 export interface MessageFocusCallbacks {
   onOpenThread?: (ts: string) => void;
@@ -21,7 +19,6 @@ export interface MessageFocusCallbacks {
 // and a full set of single-key shortcuts act on whichever message is focused.
 export function createMessageFocus(
   messages: Accessor<Message[]>,
-  virtualApi: Accessor<VirtualRowsApi | null>,
   container: Accessor<HTMLElement | undefined>,
   channelId: Accessor<string>,
   callbacks: MessageFocusCallbacks = {},
@@ -29,7 +26,6 @@ export function createMessageFocus(
   const [focusedTs, setFocusedTs] = createSignal<string | null>(null);
   const [editingTs, setEditingTs] = createSignal<string | null>(null);
   const [listFocused, setListFocused] = createSignal(false);
-  let cancelWait: (() => void) | undefined;
 
   // Keeps exactly one row tabbable: seeds the initial focus once messages
   // arrive, and recovers (rather than pointing at nothing) if the focused
@@ -63,19 +59,7 @@ export function createMessageFocus(
     );
     const next = list[nextIndex];
     if (!next) return;
-
-    cancelWait?.();
-    const api = virtualApi();
-    const el = container();
-    if (!(api && el)) {
-      focusRow(next.ts);
-      return;
-    }
-    api.scrollToIndex(nextIndex, { align: "auto" });
-    cancelWait = waitForMessageElement(el, next.ts, (row) => {
-      setFocusedTs(next.ts);
-      row.focus();
-    });
+    focusRow(next.ts);
   }
 
   const focusedMessage = () => {

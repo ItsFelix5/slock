@@ -80,8 +80,15 @@ export function parseReplyLinkFromBlocks(
   const [section] = richText.elements;
   if (section?.type !== "rich_text_section") return null;
   const [mention] = section.elements;
-  if (mention?.type !== "message_mention" || !mention.url) return null;
-  const parsed = permalinkToChannelTs(mention.url);
+  if (mention?.type !== "message_mention") return null;
+  // channel_id/message_ts identify the quoted message directly; fall back to
+  // parsing `url` only for older payloads that didn't carry those fields.
+  const parsed =
+    mention.channel_id && mention.message_ts
+      ? { channelId: mention.channel_id, ts: mention.message_ts }
+      : mention.url
+        ? permalinkToChannelTs(mention.url)
+        : null;
   if (!parsed) return null;
 
   const restSectionElements = section.elements.slice(1);

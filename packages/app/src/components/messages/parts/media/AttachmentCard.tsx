@@ -5,8 +5,8 @@ import { ConstrainedImage, Icon, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { conversationDisplayName, store } from "../../../../lib/store";
 import { MessageAuthorButton } from "../../MessageAuthorButtons";
-import { constrainMediaDimensions } from "./estimateMediaHeight";
 import MessageFiles from "./MessageFiles";
+import { constrainMediaDimensions } from "./mediaDimensions";
 import "./AttachmentCard.css";
 
 function AttachmentContent(props: { attachment: Attachment; context?: BlockActionContext }) {

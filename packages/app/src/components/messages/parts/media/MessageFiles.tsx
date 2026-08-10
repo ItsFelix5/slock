@@ -4,9 +4,9 @@ import { ConstrainedImage, Icon, type IconName, VideoPlayer } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
 import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
-import { constrainMediaDimensions } from "./estimateMediaHeight";
 import FileViewerTrigger from "./FileViewer";
 import MediaFrame from "./MediaFrame";
+import { constrainMediaDimensions } from "./mediaDimensions";
 import "./MessageFiles.css";
 
 function formatSize(bytes: number | undefined): string {

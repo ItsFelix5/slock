@@ -14,21 +14,7 @@ import { createSignal } from "solid-js";
 const DRAG_SELECTING_CLASS = "is-drag-selecting";
 const HOVER_ACTIONS_SELECTOR = ".message-hover-actions";
 
-// The much bigger cause of "selecting from one line into the next selects
-// everything": a message row near the top/bottom of the loaded window sits
-// close to the scroll container's edge, so a drag that crosses it triggers
-// the browser's native auto-scroll-while-selecting — which fires real
-// `scroll` events through the virtualized list. VirtualizedRows only keeps a
-// small overscan window of rows mounted, so those scroll events unmount the
-// row the selection's anchor/focus lives in mid-drag. Once a Selection's
-// endpoint node is removed from the document, the browser re-resolves it to
-// some other still-attached boundary — observed as the selection snapping to
-// span everything back to the start of what's rendered. VirtualizedRows.tsx
-// reads this signal to render every row (no recycling) for the drag's
-// duration so there's nothing for a mid-drag scroll to unmount.
 const [isDragSelecting, setIsDragSelecting] = createSignal(false);
-
-export { isDragSelecting };
 
 // A plain click is also a mousedown+mouseup, so the guard can't engage until
 // the pointer has actually moved — otherwise every click on a message (to

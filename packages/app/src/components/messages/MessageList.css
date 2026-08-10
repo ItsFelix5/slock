@@ -4,12 +4,6 @@
   padding-bottom: 12px;
   overflow-x: hidden;
   overflow-y: auto;
-  /* MessageRows.tsx already compensates scrollTop precisely for height
-     corrections above the viewport (it knows exactly which row changed and
-     by how much) — leaving the browser's own heuristic scroll anchoring on
-     double-applies a second, slightly different correction for the same
-     event, which is what was jittering. */
-  overflow-anchor: none;
   /* The date pill (MessageListDateNav) replaces the scrollbar as the
      discoverable way to see and change where you are in history. */
   scrollbar-width: none;

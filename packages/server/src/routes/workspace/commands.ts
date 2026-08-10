@@ -1,5 +1,4 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-import { writeFile } from "node:fs/promises";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { type Route, route } from "../router.ts";
@@ -7,36 +6,30 @@ import { type Route, route } from "../router.ts";
 const LEADING_SLASH_RE = /^\//;
 
 export const commandRoutes: Route[] = [
+  // commands.list only returns commands installed for the current team (~73
+  // for this workspace); client.appCommands' `commands` field is what the
+  // real webapp's autocomplete uses instead and includes Slack's native
+  // built-ins (type "core") alongside installed app/custom/service commands
+  // — confirmed via a live capture, ~6600 entries here vs commands.list's 73.
   route("GET", "/api/commands", async (ctx) => {
-    const data = await callSlack("commands.list", {}, ctx.creds);
-    if (!data.ok) return slackErrorResponse(data, "commands.list", ctx.creds, ctx.acceptEncoding);
-    const commandsObj = data.commands ?? {};
-    // DEBUG: commands.list only returned 73 commands for the user, who says
-    // client.appCommands has a `commands` field with more. Dumping just that
-    // field to a file instead of console (too large to read as log lines).
-    callSlack("client.appCommands", { _x_reason: "app-commands-conditional-fetching" }, ctx.creds)
-      .then((appCommandsData) =>
-        writeFile(
-          "/tmp/debug-app-commands.json",
-          JSON.stringify(appCommandsData.commands, null, 2),
-        ),
-      )
-      .then(() => console.log("[debug] wrote /tmp/debug-app-commands.json"))
-      .catch((err) => console.log("[debug client.appCommands] failed:", err));
-    return jsonResponse(
-      {
-        commands: Object.values<any>(commandsObj)
-          .filter((c) => c?.name)
-          .map((c) => ({
-            desc: c.desc || "",
-            icon: c.icons?.image_32 || null,
-            name: c.name.replace(LEADING_SLASH_RE, ""),
-          })),
-        ok: true,
-      },
+    const data = await callSlack(
+      "client.appCommands",
+      { _x_reason: "app-commands-conditional-fetching" },
       ctx.creds,
-      ctx.acceptEncoding,
     );
+    if (!data.ok) {
+      return slackErrorResponse(data, "client.appCommands", ctx.creds, ctx.acceptEncoding);
+    }
+    const raw: any[] = Array.isArray(data.commands) ? data.commands : [];
+    const byName = new Map<string, { name: string; desc: string; icon: string | null }>();
+    for (const c of raw) {
+      if (!c?.name) continue;
+      const name = c.name.replace(LEADING_SLASH_RE, "");
+      if (!byName.has(name)) {
+        byName.set(name, { desc: c.desc || "", icon: c.icons?.image_32 || null, name });
+      }
+    }
+    return jsonResponse({ commands: [...byName.values()], ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
 
   // Best-effort: there's no documented public method for dispatching a slash

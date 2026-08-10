@@ -26,9 +26,8 @@ const RICH_TEXT_SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
 
 // A rich_text_quote's `elements` can mix plain inline content with a fully
 // nested sub-block (most often a rich_text_list, from starting a bullet list
-// while the caret sits inside a blockquote) — this tells the two apart.
-// Shared by estimateMessageHeight.ts (measuring one) and this file (deciding
-// whether a message is emoji-only) so both agree on what counts as nested.
+// while the caret sits inside a blockquote) — this tells the two apart, used
+// here to decide whether a message is emoji-only.
 export function isRichTextSubBlock(
   element: RichTextInlineElement | RichTextSubBlock,
 ): element is RichTextSubBlock {
@@ -239,7 +238,12 @@ export function resolveMessageRenderState(
       ? {
           channelId: blockReplyRef.channelId,
           prefix: "",
-          rest: message.text,
+          // `rest` isn't used for rendering here — the remaining content (if
+          // any) renders through `renderBlocks` below, not Mrkdwn — but it
+          // still needs to be empty rather than `message.text`, since that's
+          // exactly what Mrkdwn falls back to when `renderBlocks` comes back
+          // empty (the mention was the message's only content).
+          rest: "",
           ts: blockReplyRef.ts,
           url: blockReplyRef.url,
         }
