@@ -4,7 +4,7 @@
   overflow: hidden;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-8);
+  border-radius: 8px;
 }
 
 .audio-file-controls {
@@ -53,7 +53,7 @@
   min-width: 1px;
   height: 100%;
   background: var(--border-strong);
-  border-radius: var(--radius-2);
+  border-radius: 2px;
 }
 
 .audio-file-bar.played {

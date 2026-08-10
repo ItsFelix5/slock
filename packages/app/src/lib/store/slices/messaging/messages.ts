@@ -23,21 +23,20 @@ export { REMINDER_OPTIONS } from "./messageLinks";
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;
   pushActivity: (item: ActivityItem) => void;
-  recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
   clearChannelUnread: (channelId: string) => void;
   setLastReadByChannel: (channelId: string, ts: number) => void;
   setUnreadDividerTs: (channelId: string, ts: number) => void;
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-  activeView: () => View | null;
-  activeThread: () => ThreadRef | null;
+  visibleViews: () => View[];
+  visibleThreads: () => ThreadRef[];
   onConversationView?: (view: ConversationViewData) => void;
 }) {
   const history = createMessageHistory({
-    activeThread: deps.activeThread,
-    activeView: deps.activeView,
     onConversationView: deps.onConversationView,
+    visibleThreads: deps.visibleThreads,
+    visibleViews: deps.visibleViews,
   });
   const {
     messagesByChannel,
@@ -50,7 +49,6 @@ export function createMessagesSlice(deps: {
     loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
-    loadOlderMessagesToBeginning,
     loadNewerMessages,
     loadRecentHistory,
     hasMoreHistory,
@@ -63,6 +61,7 @@ export function createMessagesSlice(deps: {
     isLoadingThread,
     ensureChannelMessage,
     ensureThreadRepliesLoaded,
+    jumpToBeginning,
     jumpToDate,
   } = history;
   const statusActions = createMessageStatusActions({
@@ -162,16 +161,17 @@ export function createMessagesSlice(deps: {
     try {
       const res = await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
       const realTs = res.ts as string;
+      // keep the "pending-" id so a later gateway echo or history poll can still
+      // reconcile this stub with the real, fully-mapped message (see PENDING_ID_PREFIX
+      // in merge/messageMerge.ts and the pendingIdx match in mergeIncomingMessage) -
+      // overwriting it here used to make the echo's dedupe check think it already won
       const resolvePending = (list: Message[]) =>
-        list.some((m) => m.id !== optimistic.id && (m.ts === realTs || m.id === realTs))
-          ? list.filter((m) => m.id !== optimistic.id)
-          : list.map((m) => (m.id === optimistic.id ? { ...m, id: realTs, ts: realTs } : m));
+        list.map((m) => (m.id === optimistic.id ? { ...m, ts: realTs } : m));
       if (location.store === "channel") {
         setMessagesByChannel(location.key, resolvePending);
       } else {
         setThreadMessages(location.key, resolvePending);
       }
-      deps.recordActivityEngagement(channelId, realTs, threadTs);
     } catch (err) {
       console.error("Failed to send message", err);
       removeMessage(location, optimistic.ts);
@@ -246,10 +246,6 @@ export function createMessagesSlice(deps: {
     patchMessage(channelId, msg.ts, { reactions: nextReactions });
     try {
       await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
-      if (!alreadyReacted) {
-        const threadTs = msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined);
-        deps.recordActivityEngagement(channelId, msg.ts, threadTs);
-      }
     } catch (err) {
       console.error("Failed to toggle reaction", err);
       actionFeedback.flash(msg.ts, "Failed to update reaction.", "error");
@@ -281,12 +277,12 @@ export function createMessagesSlice(deps: {
     isLoadingHistory,
     isLoadingThread,
     isReactionPending,
+    jumpToBeginning,
     jumpToDate,
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
-    loadOlderMessagesToBeginning,
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,

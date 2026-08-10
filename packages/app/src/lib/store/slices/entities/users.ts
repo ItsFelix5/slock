@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive user entity slice with shared profile/presence state.
 import type { User, UserCustomField } from "@slock/slack-api";
 import {
   setPresence as apiSetPresence,
@@ -6,6 +7,7 @@ import {
   fetchAppDescription,
   fetchUser,
   fetchUserCustomFields,
+  fetchUserPresence,
   searchDirectory,
 } from "@slock/slack-api";
 import { createSignal } from "solid-js";
@@ -17,6 +19,7 @@ type UsersApi = {
   fetchAppDescription: typeof fetchAppDescription;
   fetchUser: typeof fetchUser;
   fetchUserCustomFields: typeof fetchUserCustomFields;
+  fetchUserPresence: typeof fetchUserPresence;
   searchDirectory: typeof searchDirectory;
   setPresence: typeof apiSetPresence;
   setProfileFields: typeof apiSetProfileFields;
@@ -27,6 +30,7 @@ const DEFAULT_USERS_API: UsersApi = {
   fetchAppDescription,
   fetchUser,
   fetchUserCustomFields,
+  fetchUserPresence,
   searchDirectory,
   setPresence: apiSetPresence,
   setProfileFields: apiSetProfileFields,
@@ -49,11 +53,9 @@ export function createUsersSlice(
   const [botBios, setBotBios] = createStore<Record<string, string>>({});
   const pendingBotBios = new Set<string>();
 
-  // Custom profile field *values* aren't in the batched users/info lookup for
-  // anyone, self included (see userById above and mapCustomFields) — only
-  // users.profile.get has them. Only the profile panel needs them, so they're
-  // fetched lazily per id here rather than merged into the hot userById/
-  // currentUser paths that every avatar/mention hydration goes through.
+  // Custom profile field *values* aren't in the batched users/info lookup for anyone, self
+  // included — only users.profile.get has them, fetched lazily per id here rather than
+  // merged into the hot userById/currentUser paths that every avatar/mention hydration uses.
   const [customFieldsById, setCustomFieldsById] = createStore<
     Record<string, UserCustomField[] | undefined>
   >({});
@@ -73,9 +75,11 @@ export function createUsersSlice(
   }
 
   function userById(id: string): User | undefined {
-    // Route self through currentUser() rather than the generic lookup below —
-    // that lookup hits the batched users/info endpoint, which never carries a
-    // real presence value and would show us as away until manually toggled.
+    // "" is mappers.ts's sentinel for a message with neither a user nor a
+    // bot_id (plain system messages) — not a ghost id worth round-tripping
+    // through fetchUser.
+    if (!id) return;
+    // Self goes through currentUser() — the generic lookup below never carries a real presence value.
     if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
     if (!known) {
@@ -85,8 +89,11 @@ export function createUsersSlice(
           .fetchUser(id)
           .then((user) => {
             if (user) setExtraUsers(id, user);
+            else console.warn("[userById] fetchUser resolved no user for id", JSON.stringify(id));
           })
-          .catch(() => {})
+          .catch((err) =>
+            console.warn("[userById] fetchUser threw for id", JSON.stringify(id), err),
+          )
           .finally(() => {
             pendingUsers.delete(id);
           });
@@ -161,15 +168,23 @@ export function createUsersSlice(
     return known;
   }
 
+  // undefined = not fetched yet, [] = fetched and genuinely empty. Callers
+  // that fill a signal from this (see UserProfile.tsx) must tell the two
+  // apart — a premature undefined-as-[] fill would look "already handled"
+  // to the missing-values merge and permanently block the real values.
   function customFieldsFor(id: string): UserCustomField[] | undefined {
     // Read the store key unconditionally (even though it's undefined pre-fetch)
     // so callers reactively track it, same as botBio's `known` read above.
     const known = customFieldsById[id];
     if (loadedCustomFields.has(id) || pendingCustomFields.has(id)) return known;
     pendingCustomFields.add(id);
+    // The server route treats "me" as "ask Slack for the authed user's own
+    // profile" — passing your own real id instead resolves field visibility
+    // as if a stranger were viewing it, so self needs the sentinel.
+    const routeId = id === deps.currentUserBase()?.id ? "me" : id;
     api
-      .fetchUserCustomFields(id)
-      .then((fields) => setCustomFieldsById(id, fields))
+      .fetchUserCustomFields(routeId)
+      .then((fields) => setCustomFieldsById(id, fields ?? []))
       .catch(() => {})
       .finally(() => {
         pendingCustomFields.delete(id);
@@ -180,6 +195,12 @@ export function createUsersSlice(
 
   function openUserProfile(id: string) {
     setProfileUserId(id);
+    // presence_change only ever arrives for people already in your DM/sidebar list
+    if (id === deps.currentUserBase()?.id) return;
+    api
+      .fetchUserPresence(id)
+      .then((presence) => presence && setPresenceOverrides(id, presence))
+      .catch(() => {});
   }
 
   function closeUserProfile() {

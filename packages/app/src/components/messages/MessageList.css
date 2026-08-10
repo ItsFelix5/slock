@@ -104,25 +104,18 @@
   display: flex;
   gap: 10px;
   padding: var(--message-row-padding-y) 20px var(--message-row-padding-y) 16px;
+  outline: none;
 }
 .message-row-group {
   position: relative;
 }
-.message-row-group:hover {
+.message-row-group:hover,
+.message-row-group:has(.message-row.focused) {
   background: var(--hover-bg);
 }
-.message-row-group:hover .message-row {
-  background: transparent;
-}
-.message-row:hover {
-  background: var(--hover-bg);
-}
-.message-row:focus-visible {
+.message-row-group:has(.message-row:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
-}
-.message-row:focus-within {
-  background: var(--hover-bg);
 }
 @keyframes message-flash {
   0%,
@@ -151,9 +144,15 @@
 .message-row-group.is-first-message .message-hover-actions {
   top: -6px;
 }
-.message-row:hover .message-hover-actions,
-.message-row:focus-within .message-hover-actions,
-.message-hover-actions.force-visible {
+/* body:not(.is-drag-selecting) has to be baked into the same selectors that
+   grant pointer-events, not layered on as a separate override rule — a
+   `body.is-drag-selecting .message-hover-actions { pointer-events: none }`
+   rule loses the cascade to these (fewer class selectors = lower specificity)
+   while the mouse is still over the hovered row, which is always true for a
+   drag that starts inside it. that let the toolbar keep intercepting a
+   text-selection drag started on the row's meta line even while "dragging". */
+body:not(.is-drag-selecting) .message-row:hover .message-hover-actions,
+body:not(.is-drag-selecting) .message-hover-actions.force-visible {
   pointer-events: auto;
   opacity: 1;
 }
@@ -232,6 +231,9 @@
   font-weight: 700;
   color: var(--text-on-accent);
   border-radius: 6px;
+}
+.message-avatar-fallback {
+  user-select: none;
 }
 .message-avatar-img {
   position: absolute;

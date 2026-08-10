@@ -79,11 +79,7 @@ export default function ActivityView() {
     const query = keyword().trim().toLowerCase();
     return rows().filter((row) => {
       if (tag !== "all") {
-        const matches = row.items.some((item) =>
-          tag === "app"
-            ? item.kind === "dm" && !!store.users.userById(item.userId)?.isBot
-            : item.kind === tag,
-        );
+        const matches = row.items.some((item) => item.kind === tag);
         if (!matches) return false;
       }
       return !query || row.items.some((item) => item.text.toLowerCase().includes(query));
@@ -282,11 +278,7 @@ export default function ActivityView() {
                     <span>{entry.day}</span>
                   </div>
                 ) : (
-                  <ActivityRow
-                    onReacted={store.activity.markActivityItemsReacted}
-                    onSeen={store.activity.markActivityItemsRead}
-                    row={entry.row}
-                  />
+                  <ActivityRow onSeen={store.activity.markActivityItemsRead} row={entry.row} />
                 )
               }
             </For>

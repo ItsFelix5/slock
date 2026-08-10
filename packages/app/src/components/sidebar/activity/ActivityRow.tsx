@@ -1,6 +1,7 @@
+// biome-ignore-all lint/style/noExcessiveLinesPerFile: A row's summary, thread timeline, and reaction slot share state that's clearer kept in one component.
 import { formatTime } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
-import { Avatar, AvatarStack, Icon, Tooltip } from "@slock/ui";
+import { Avatar, AvatarStack, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import {
   conversationDisplayName,
@@ -8,7 +9,14 @@ import {
   isPingingActivity,
   store,
 } from "../../../lib/store";
+import {
+  type MessageAuthorFields,
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  unresolvedAuthorFallback,
+} from "../../messages/parts/messageRenderState";
 import ReactionRow from "../../messages/parts/ReactionRow";
+import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
 import { ActivityRowActions } from "./ActivityRowActions";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import { activityVerb } from "./activityMetadata";
@@ -41,34 +49,41 @@ export function rowTarget(row: ActivityRow) {
 }
 
 function TimelineRow(props: {
+  author: MessageAuthorFields;
+  isFirst: boolean;
+  isLast: boolean;
   isRoot: boolean;
   onOpen: () => void;
   text: string;
   ts: string;
   unread: boolean;
-  userId: string;
 }) {
   return (
     <ThreadMessageRow
+      author={props.author}
       eventLabel={props.isRoot ? "started the thread" : undefined}
+      isFirst={props.isFirst}
+      isLast={props.isLast}
       isRoot={props.isRoot}
       onOpen={props.onOpen}
       text={props.text}
       time={parseFloat(props.ts) * 1000}
       unread={props.unread}
-      userId={props.userId}
     />
   );
 }
 
 export default function ActivityRow(props: {
   row: ActivityRow;
-  onReacted: (items: readonly ActivityItem[]) => void;
   onSeen: (items: readonly ActivityItem[]) => void;
 }) {
   const [expanded, setExpanded] = createSignal(false);
   const latest = createMemo(() => props.row.items[0]);
   const user = createMemo(() => store.users.userById(latest().userId));
+  const displayName = createMemo(() =>
+    resolveAuthorDisplayName(latest(), user()?.name, unresolvedAuthorFallback(latest())),
+  );
+  const avatarUrl = createMemo(() => resolveAuthorAvatarUrl(latest(), user()?.avatarUrl));
   const channel = createMemo(() => store.channels.channelById(latest().channelId));
   const channelLabel = createMemo(() => {
     if (!latest().channelId) return "Activity";
@@ -82,9 +97,9 @@ export default function ActivityRow(props: {
   const isUnread = createMemo(() => store.activity.isActivityItemUnread(latest()));
   const isReacted = createMemo(() => store.activity.isActivityItemReacted(latest()));
   const isPinging = createMemo(() => isPingingActivity(latest()));
-  const isListActivity = createMemo(() => latest().kind === "list");
+  const isOtherActivity = createMemo(() => latest().kind === "other");
   const isStandaloneActivity = createMemo(() => !latest().channelId);
-  const showsActivityVerb = createMemo(() => isListActivity() || isStandaloneActivity());
+  const showsActivityVerb = createMemo(() => isOtherActivity() || isStandaloneActivity());
   const isThreadGroup = createMemo(() => props.row.isThread);
   const orderedItems = createMemo(() => [...props.row.items].reverse());
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
@@ -130,7 +145,8 @@ export default function ActivityRow(props: {
   });
 
   function entryUnread(entry: TimelineEntry): boolean {
-    // Never your own reply — the fallbacks below only know position/timestamp.
+    // Never your own reply — the fallback below only knows position within
+    // the known unread tail.
     if (entryUserId(entry) === store.users.currentUser()?.id) return false;
     if (entry.item) return store.activity.isActivityItemUnread(entry.item);
     const bundled = bundledItem();
@@ -138,13 +154,14 @@ export default function ActivityRow(props: {
     if (bundled?.unreadCount && list) {
       const tailStart = list.length - Math.min(bundled.unreadCount, list.length);
       const index = list.findIndex((message) => message.ts === entry.ts);
-      if (index >= tailStart) return true;
+      return index >= tailStart;
     }
-    // A reply the sparse activity feed never surfaced is still unread if it
-    // sits past the channel's read cursor — otherwise it gets folded into the
-    // collapsed "earlier messages" even though it was never read.
-    const lastRead = store.unread.lastReadByChannel[latest().channelId] ?? 0;
-    return parseFloat(entry.ts) * 1000 > lastRead;
+    // Thread replies never advance the channel's own read cursor, so a reply
+    // the sparse activity feed never surfaced and that isn't part of the
+    // known unread tail can't be judged against lastReadByChannel — that's
+    // the exact comparison activityItemReadState avoids for thread_reply
+    // items. With no signal saying otherwise, treat it as read.
+    return false;
   }
 
   function entryText(entry: TimelineEntry): string {
@@ -153,6 +170,15 @@ export default function ActivityRow(props: {
 
   function entryUserId(entry: TimelineEntry): string {
     return entry.message?.userId ?? entry.item?.userId ?? "";
+  }
+
+  function entryAuthor(entry: TimelineEntry): MessageAuthorFields {
+    return {
+      botIcon: entry.message?.botIcon ?? entry.item?.botIcon,
+      botId: entry.message?.botId ?? entry.item?.botId,
+      botName: entry.message?.botName ?? entry.item?.botName,
+      userId: entryUserId(entry),
+    };
   }
 
   // Frozen at first read (untrack) so items don't collapse out from under the
@@ -172,6 +198,18 @@ export default function ActivityRow(props: {
   });
   const olderEntries = createMemo(() => timeline().slice(0, visibleStartIndex()));
   const visibleEntries = createMemo(() => timeline().slice(visibleStartIndex()));
+  // The connector line runs between avatars; it needs to know which rendered
+  // row is actually first/last so it doesn't dangle past the real endpoints.
+  // Can't use CSS :first-child/:last-child here — each row is wrapped in its
+  // own SplitNavigation span, so consecutive rows aren't DOM siblings.
+  const firstTimelineTs = createMemo(() => {
+    if (expanded() && olderEntries().length > 0) return olderEntries()[0].ts;
+    return visibleEntries()[0]?.ts;
+  });
+  const lastTimelineTs = createMemo(() => {
+    const entries = visibleEntries();
+    return entries[entries.length - 1]?.ts;
+  });
   const hiddenMessageCount = createMemo(() => olderEntries().length);
   const earlierMessageCount = createMemo(() =>
     Math.max(hiddenMessageCount(), (bundledItem()?.unreadCount ?? 1) - 1),
@@ -205,7 +243,7 @@ export default function ActivityRow(props: {
     if (!item.channelId) return;
     props.onSeen(props.row.items);
     if (item.activityType === "quietly_added_to_channel") {
-      store.viewState.setSelected({ id: item.channelId, kind: "channel" });
+      store.viewState.setActiveView({ id: item.channelId, kind: "channel" });
       return;
     }
     if (item.threadTs)
@@ -218,15 +256,31 @@ export default function ActivityRow(props: {
     store.viewState.openChannelPeek(latest().channelId, threadTs(), ts, { keepNav: true });
   };
 
+  const openRowInSplit = () => {
+    const item = latest();
+    if (!item.channelId) return;
+    props.onSeen(props.row.items);
+    openConversationInSplit(item.channelId, item.threadTs ?? item.ts);
+  };
+
+  const openThreadInSplit = () => {
+    props.onSeen(props.row.items);
+    openConversationInSplit(latest().channelId, threadTs());
+  };
+
   const renderEntry = (entry: TimelineEntry) => (
-    <TimelineRow
-      isRoot={entry.isRoot}
-      onOpen={() => openThreadTs(entry.ts)}
-      text={entryText(entry)}
-      ts={entry.ts}
-      unread={entryUnread(entry)}
-      userId={entryUserId(entry)}
-    />
+    <SplitNavigation onSplit={openThreadInSplit}>
+      <TimelineRow
+        author={entryAuthor(entry)}
+        isFirst={entry.ts === firstTimelineTs()}
+        isLast={entry.ts === lastTimelineTs()}
+        isRoot={entry.isRoot}
+        onOpen={() => openThreadTs(entry.ts)}
+        text={entryText(entry)}
+        ts={entry.ts}
+        unread={entryUnread(entry)}
+      />
+    </SplitNavigation>
   );
 
   return (
@@ -240,71 +294,75 @@ export default function ActivityRow(props: {
           unread: isUnread(),
         }}
       >
-        <button
-          class="activity-item-summary btn-reset"
-          data-nav-row
-          onClick={openRow}
-          type="button"
-        >
-          <span class="activity-item-avatar">
-            <Show
-              fallback={
-                <Show when={user()}>
-                  {(person) => (
-                    <Avatar
-                      size="small"
-                      user={{ ...person(), avatarColor: person().avatarColor ?? "#616061" }}
-                    />
-                  )}
+        <SplitNavigation onSplit={openRowInSplit}>
+          <button
+            class="activity-item-summary btn-reset"
+            data-nav-row
+            onClick={openRow}
+            type="button"
+          >
+            <span class="activity-item-avatar">
+              <Show
+                fallback={
+                  <Avatar
+                    size="small"
+                    user={{
+                      avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
+                      avatarUrl: avatarUrl(),
+                      id: latest().userId,
+                      name: displayName(),
+                      presence: user()?.presence,
+                    }}
+                  />
+                }
+                when={isThreadGroup()}
+              >
+                <Tooltip content={interactorNames(replierIds())}>
+                  <AvatarStack
+                    max={3}
+                    users={replierIds()
+                      .map((id) => store.users.userById(id))
+                      .filter((person) => person !== undefined)}
+                  />
+                </Tooltip>
+              </Show>
+            </span>
+            <span class="activity-body">
+              <span class="activity-headline">
+                <Tooltip content={activityVerb(latest())}>
+                  <Icon
+                    class="activity-kind-icon"
+                    name={ACTIVITY_KIND_ICONS[latest().kind]}
+                    size={12}
+                  />
+                </Tooltip>
+                <Show when={!(isThreadGroup() || isStandaloneActivity())}>
+                  <strong>{displayName()}</strong>
                 </Show>
-              }
-              when={isThreadGroup()}
-            >
-              <Tooltip content={interactorNames(replierIds())}>
-                <AvatarStack
-                  max={3}
-                  users={replierIds()
-                    .map((id) => store.users.userById(id))
-                    .filter((person) => person !== undefined)}
-                />
-              </Tooltip>
-            </Show>
-          </span>
-          <span class="activity-body">
-            <span class="activity-headline">
-              <Tooltip content={activityVerb(latest())}>
-                <Icon
-                  class="activity-kind-icon"
-                  name={ACTIVITY_KIND_ICONS[latest().kind]}
-                  size={12}
-                />
-              </Tooltip>
-              <Show when={!(isThreadGroup() || isStandaloneActivity())}>
-                <strong>{user()?.name ?? "Someone"}</strong>
-              </Show>
-              <Show when={showsActivityVerb()}>
-                <span class="activity-channel">{activityVerb(latest())}</span>
-              </Show>
-              <Show when={latest().kind !== "dm" && !isStandaloneActivity()}>
-                <span class="activity-channel">{channelLabel()}</span>
-              </Show>
-              <Show when={props.row.items.length > 1}>
-                <span class="activity-reply-count">{props.row.items.length}</span>
-              </Show>
-              <Show when={isReacted()}>
-                <span class="activity-reacted-label">
-                  <Icon name="check" size={11} /> Reacted
+                <Show when={showsActivityVerb()}>
+                  <span class="activity-channel">{activityVerb(latest())}</span>
+                </Show>
+                <Show when={latest().kind !== "dm" && !isStandaloneActivity()}>
+                  <span class="activity-channel">{channelLabel()}</span>
+                </Show>
+                <Show when={props.row.items.length > 1}>
+                  <span class="activity-reply-count">{props.row.items.length}</span>
+                </Show>
+                <Show when={isReacted()}>
+                  <span class="activity-reacted-label">
+                    <Icon name="check" size={11} /> Reacted
+                  </span>
+                </Show>
+                <span class="activity-time">{formatTime(latest().time)}</span>
+              </span>
+              <Show when={!isThreadGroup()}>
+                <span class="activity-snippet">
+                  <ActivityMessageText text={latest().text} />
                 </span>
               </Show>
-              <span class="activity-time">{formatTime(latest().time)}</span>
             </span>
-            <Show when={!isThreadGroup()}>
-              <span class="activity-snippet">
-                <ActivityMessageText text={latest().text} />
-              </span>
-            </Show>
-          </span>
-        </button>
+          </button>
+        </SplitNavigation>
 
         {/* Its own reaction pills are separately clickable — kept outside the
         summary button above instead of nested inside it. */}
@@ -348,9 +406,7 @@ export default function ActivityRow(props: {
       </div>
 
       <ActivityRowActions
-        isReacted={isReacted()}
         isThread={isThreadGroup()}
-        onReact={() => props.onReacted(props.row.items)}
         onUnsubscribe={() => store.messages.unsubscribeFromThread(latest().channelId, threadTs())}
         unsubscribePending={store.messages.isThreadSubscriptionPending(
           latest().channelId,

@@ -2,8 +2,6 @@
   width: 520px;
   max-width: calc(100vw - 40px);
   max-height: 70vh;
-  border-radius: 12px;
-  box-shadow: var(--shadow-modal-lg);
 }
 
 .global-search-input-row {

@@ -1,12 +1,13 @@
-import { Mrkdwn } from "@slock/blockkit";
+import { MARKDOWN_DIALECT, Mrkdwn } from "@slock/blockkit";
 import {
   Button,
   Icon,
+  IconButton,
   InlineFeedback,
   Menu,
+  MenuItem,
   Overlay,
   PanelHeader,
-  Tooltip,
   useEscapeClose,
 } from "@slock/ui";
 import {
@@ -23,7 +24,6 @@ import { actionFeedback, store } from "../../lib/store";
 import "../composer/Composer.css";
 import { createEditorCommands } from "../composer/lib/editor/editorCommands";
 import { handleMarkShortcut } from "../composer/lib/editor/markShortcuts";
-import { MARKDOWN_DIALECT } from "../composer/lib/richtext";
 import { createCanvasEditorLoadTracker } from "./canvas/canvasEditorLoadTracker";
 import { createCanvasSaveController } from "./canvas/canvasSaveController";
 import "./CanvasPanel.css";
@@ -215,16 +215,13 @@ export default function CanvasPanel() {
                       open={menuOpen()}
                       panelClass="menu-panel canvas-panel-menu"
                       trigger={
-                        <Tooltip content="More">
-                          <button
-                            aria-label="More"
-                            class="icon-btn sm icon-action"
-                            onClick={() => setMenuOpen(!menuOpen())}
-                            type="button"
-                          >
-                            <Icon name="ellipsis-horizontal-filled" size={15} />
-                          </button>
-                        </Tooltip>
+                        <IconButton
+                          icon="ellipsis-horizontal-filled"
+                          iconSize={15}
+                          label="More"
+                          onClick={() => setMenuOpen(!menuOpen())}
+                          size="sm"
+                        />
                       }
                     >
                       <a
@@ -237,10 +234,9 @@ export default function CanvasPanel() {
                         <Icon name="open-in-tab" size={15} />
                         Open in new tab
                       </a>
-                      <button class="menu-item" onClick={copyLink} type="button">
-                        <Icon name="link" size={15} />
+                      <MenuItem icon="link" onClick={copyLink}>
                         Copy link
-                      </button>
+                      </MenuItem>
                     </Menu>
                   )}
                 </Show>

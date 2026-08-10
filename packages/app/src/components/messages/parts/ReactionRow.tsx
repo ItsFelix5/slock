@@ -3,7 +3,7 @@ import type { Reaction } from "@slock/slack-api";
 import {
   AvatarStack,
   ContextMenu,
-  Icon,
+  MenuItem,
   openContextMenuFromKeyboard,
   Tooltip,
   useContextMenu,
@@ -70,10 +70,9 @@ export default function ReactionRow(props: {
                 x={ctxMenu.x()}
                 y={ctxMenu.y()}
               >
-                <button class="menu-item" onClick={copyReactors} type="button">
-                  <Icon name="user-groups" size={15} />
+                <MenuItem icon="user-groups" onClick={copyReactors}>
                   Copy reactors
-                </button>
+                </MenuItem>
               </ContextMenu>
             </>
           );

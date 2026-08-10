@@ -1,27 +1,6 @@
 .context-actions-card {
   width: min(480px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 48px));
-  border-radius: var(--radius-12);
-  box-shadow: var(--shadow-modal-lg);
-}
-
-.context-actions-header {
-  gap: 16px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.context-actions-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.context-actions-header p {
-  margin: 3px 0 0;
-  font-size: 12px;
-  color: var(--text-dim);
 }
 
 .context-actions-content {
@@ -62,5 +41,5 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-4);
+  border-radius: 4px;
 }

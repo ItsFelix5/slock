@@ -67,15 +67,19 @@ export function createAppActions(deps: AppActionsDeps) {
 
   function openChannelMessage(channelId: string, ts: string, options?: { keepNav?: boolean }) {
     const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
-    // "View in channel" — jumps the main list to the message without closing
-    // the thread panel, so this can't go through setActiveView (it clears
-    // activeThread as part of a normal channel switch). Batched so effects
-    // reacting to channelMessageTarget never observe the in-between state
-    // where the view has switched but the real target hasn't landed yet —
-    // that gap was enough to make MessageList's positioning effect think it
-    // already handled this view, breaking the jump to a message that isn't
-    // loaded yet.
+    // "View in channel" jumps the main list to the message without closing the
+    // thread panel, so this can't go through setActiveView (it always clears
+    // activeThread). That's only correct when the message is in the same
+    // channel as the open thread — otherwise the thread panel is left showing
+    // a channel the sidebar no longer agrees with, so close it here instead.
+    // Batched so effects reacting to channelMessageTarget never observe the
+    // in-between state where the view has switched but the real target hasn't
+    // landed yet — that gap was enough to make MessageList's positioning
+    // effect think it already handled this view, breaking the jump to a
+    // message that isn't loaded yet.
     batch(() => {
+      const thread = viewState.activeThread();
+      if (thread && thread.channelId !== channelId) closeThread();
       viewState.setSelected({ id: channelId, kind });
       if (!options?.keepNav) viewState.setNav("home");
       unread.clearChannelUnread(channelId);

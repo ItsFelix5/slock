@@ -1,4 +1,5 @@
 import type { Message, User } from "@slock/slack-api";
+import { dedupeMessages } from "./messageMerge";
 
 export function createMessageMergeActions(deps: {
   currentUser: () => User | undefined;
@@ -6,14 +7,14 @@ export function createMessageMergeActions(deps: {
 }) {
   function insertMessageInOrder(channelId: string, msg: Message) {
     deps.setMessagesByChannel(channelId, (existing = []) => {
-      if (existing.some((m) => m.ts === msg.ts)) return existing;
-      const idx = existing.findIndex((m) => parseFloat(m.ts) > parseFloat(msg.ts));
-      if (idx === -1) return [...existing, msg];
-      return [...existing.slice(0, idx), msg, ...existing.slice(idx)];
+      const messages = dedupeMessages(existing);
+      if (messages.some((m) => m.ts === msg.ts)) return messages;
+      const idx = messages.findIndex((m) => parseFloat(m.ts) > parseFloat(msg.ts));
+      if (idx === -1) return [...messages, msg];
+      return [...messages.slice(0, idx), msg, ...messages.slice(idx)];
     });
   }
   function mergeIncomingMessage(existing: Message[], msg: Message): Message[] {
-    if (existing.some((m) => m.ts === msg.ts || m.id === msg.ts)) return existing;
     const me = deps.currentUser();
     if (me && msg.userId === me.id) {
       const pendingIdx = existing.findIndex(
@@ -22,10 +23,11 @@ export function createMessageMergeActions(deps: {
       if (pendingIdx !== -1) {
         const next = existing.slice();
         next[pendingIdx] = msg;
-        return next;
+        return dedupeMessages(next);
       }
     }
-    return [...existing, msg];
+    if (existing.some((m) => m.ts === msg.ts || m.id === msg.id)) return dedupeMessages(existing);
+    return dedupeMessages([...existing, msg]);
   }
   return { insertMessageInOrder, mergeIncomingMessage };
 }

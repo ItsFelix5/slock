@@ -3,11 +3,15 @@
 - channel search button should show files & links page + search bar (conversations.searchLinks + search.modules.files?)
 - better uploads (cropping perhaps even???)
 - generally improve UI/UX across the app a LOT
-- ?hca/ht status (ploogin?)
 - Improve speed (especially network is blocking, reduce on that)
 - Response/reply links staying on message mentions
 - Concistency on cross channel threads
 - ctrl+z
+- reactions animations
+- unread channel arrow
+- unread message info
+- catch up
+- make activity triage over recall
 
 hover glance thing
 context switching (active in multiple threads)

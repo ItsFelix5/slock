@@ -1,6 +1,10 @@
 import { createSignal, Show } from "solid-js";
 import "./Avatar.css";
 
+// Slack's own fallback color for users whose avatarColor wasn't loaded
+// (e.g. a lightweight message-author summary missing full user data).
+export const DEFAULT_AVATAR_COLOR = "#616061";
+
 export interface AvatarUser {
   avatarColor: string;
   avatarUrl?: string;

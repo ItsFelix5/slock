@@ -1,4 +1,4 @@
-import type { InlineDialect } from "../richtext";
+import type { InlineDialect } from "@slock/blockkit";
 import { createBlockCommands } from "./blockCommands";
 import { createEditorRef } from "./editorRef";
 import { createEmojiShortcodeCommands } from "./emojiShortcodeCommands";

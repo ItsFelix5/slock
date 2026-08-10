@@ -13,6 +13,9 @@ export type MessageRowsProps = {
   // Roving-tabindex focus: the ts of the one row that should be keyboard
   // reachable right now (see messageFocus.ts).
   focusedTs?: () => string | null;
+  // Real DOM focus within the list — separate from focusedTs, which also
+  // holds a value before anyone has actually tabbed or clicked in.
+  listFocused?: () => boolean;
   // Which message (if any) is in inline edit mode — lifted out of MessageRow
   // so the 'e' keyboard shortcut (messageFocus.ts) can trigger it remotely.
   editingTs?: () => string | null;
@@ -52,6 +55,7 @@ export default function MessageRows(props: MessageRowsProps) {
               editingTs={props.editingTs}
               focusedTs={props.focusedTs}
               index={index}
+              listFocused={props.listFocused}
               message={message}
               messages={props.messages}
               onJumpToMessage={props.onJumpToMessage}

@@ -24,11 +24,14 @@ import { createRoot, createSignal } from "solid-js";
 import { actionFeedback, store } from "./store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
+export type ChannelDetailsTab = "about" | "members" | "settings";
 
 function setup() {
   const [channelDetailsId, setChannelDetailsId] = createSignal<string | null>(null);
+  const [channelDetailsTab, setChannelDetailsTab] = createSignal<ChannelDetailsTab>("about");
 
-  function openChannelDetails(id: string) {
+  function openChannelDetails(id: string, tab: ChannelDetailsTab = "about") {
+    setChannelDetailsTab(tab);
     setChannelDetailsId(id);
   }
 
@@ -192,6 +195,7 @@ function setup() {
   return {
     archiveChannelById,
     channelDetailsId,
+    channelDetailsTab,
     closeChannelDetails,
     convertChannelToPrivateById,
     inviteUsersToChannel,
@@ -214,6 +218,7 @@ function setup() {
 export const {
   archiveChannelById,
   channelDetailsId,
+  channelDetailsTab,
   openChannelDetails,
   closeChannelDetails,
   convertChannelToPrivateById,

@@ -1,6 +1,7 @@
 import type { Message, MessageShortcut } from "@slock/slack-api";
-import { fuzzySearch, Icon, Menu } from "@slock/ui";
+import { fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import { threadContainsMessage } from "../../../lib/replyLink";
 import { REMINDER_OPTIONS, store } from "../../../lib/store";
 import { confirmAndDeleteMessage, copyMessageText } from "../messageActions";
 
@@ -64,15 +65,17 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     store.messages.markMessageUnread(props.channelId, props.msg.ts);
   };
 
-  const isInThread = (channelId: string, ts: string) =>
-    !!props.threadTs &&
-    channelId === props.channelId &&
-    (ts === props.threadTs ||
-      (store.messages.threadMessages[props.threadTs]?.some((m) => m.ts === ts) ?? false));
-
   const copyText = () => {
     close();
-    void copyMessageText(props.msg, isInThread);
+    void copyMessageText(props.msg, (channelId, ts) =>
+      threadContainsMessage(
+        props.channelId,
+        props.threadTs,
+        store.messages.threadMessages[props.threadTs ?? ""] ?? [],
+        channelId,
+        ts,
+      ),
+    );
   };
 
   const remind = (dateDue: number) => {
@@ -97,24 +100,20 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   return (
     <>
-      <button class="menu-item" onClick={copyLink} type="button">
-        <Icon name="link" size={15} />
+      <MenuItem icon="link" onClick={copyLink}>
         Copy link
-      </button>
-      <button
-        class="menu-item"
+      </MenuItem>
+      <MenuItem
         disabled={store.pinned.isPinPending(props.channelId, props.msg.ts)}
+        icon="pin"
         onClick={togglePin}
-        type="button"
       >
-        <Icon name="pin" size={15} />
         {isPinned() ? "Unpin from channel" : "Pin to channel"}
-      </button>
+      </MenuItem>
       <Show when={canBroadcast()}>
-        <button class="menu-item" onClick={broadcastToChannel} type="button">
-          <Icon name="channel" size={15} />
+        <MenuItem icon="channel" onClick={broadcastToChannel}>
           Also send to channel
-        </button>
+        </MenuItem>
       </Show>
       <Menu
         class="message-more-item-wrap"
@@ -123,28 +122,21 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         panelClass="menu-panel message-more-submenu"
         placement="left"
         trigger={
-          <button class="menu-item" onClick={() => setRemindOpen(!remindOpen())} type="button">
-            <Icon name="clock" size={15} />
+          <MenuItem icon="clock" onClick={() => setRemindOpen(!remindOpen())}>
             Remind me
-          </button>
+          </MenuItem>
         }
       >
         <For each={REMINDER_OPTIONS}>
-          {(opt) => (
-            <button class="menu-item" onClick={() => remind(opt.dateDue())} type="button">
-              {opt.label}
-            </button>
-          )}
+          {(opt) => <MenuItem onClick={() => remind(opt.dateDue())}>{opt.label}</MenuItem>}
         </For>
       </Menu>
-      <button class="menu-item" onClick={markUnread} type="button">
-        <Icon name="mark-as-unread" size={15} />
+      <MenuItem icon="mark-as-unread" onClick={markUnread}>
         Mark unread
-      </button>
-      <button class="menu-item" onClick={copyText} type="button">
-        <Icon name="text" size={15} />
+      </MenuItem>
+      <MenuItem icon="text" onClick={copyText}>
         Copy text
-      </button>
+      </MenuItem>
       <Show when={store.resources.messageShortcuts.loading}>
         <div aria-live="polite" class="menu-item disabled">
           <Icon name="apps" size={15} />
@@ -152,10 +144,9 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         </div>
       </Show>
       <Show when={store.resources.messageShortcuts.error}>
-        <button class="menu-item" onClick={store.resources.retryMessageShortcuts} type="button">
-          <Icon name="refresh" size={15} />
+        <MenuItem icon="refresh" onClick={store.resources.retryMessageShortcuts}>
           Retry message shortcuts
-        </button>
+        </MenuItem>
       </Show>
       <Show when={store.resources.messageShortcuts()?.length}>
         <Menu
@@ -168,10 +159,9 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
           panelClass="menu-panel message-shortcuts-menu"
           placement="left"
           trigger={
-            <button class="menu-item" onClick={toggleShortcuts} type="button">
-              <Icon name="apps" size={15} />
+            <MenuItem icon="apps" onClick={toggleShortcuts}>
               More message shortcuts
-            </button>
+            </MenuItem>
           }
         >
           <input
@@ -188,26 +178,28 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
               fallback={<div class="message-shortcuts-empty">No matching shortcuts</div>}
             >
               {(shortcut) => (
-                <button class="menu-item" onClick={() => runShortcut(shortcut)} type="button">
-                  <Show fallback={<Icon name="apps" size={15} />} when={shortcut.icon}>
-                    {(icon) => <img alt="" class="menu-item-app-icon" src={icon()} />}
-                  </Show>
+                <MenuItem
+                  leading={
+                    <Show fallback={<Icon name="apps" size={15} />} when={shortcut.icon}>
+                      {(icon) => <img alt="" class="menu-item-app-icon" src={icon()} />}
+                    </Show>
+                  }
+                  onClick={() => runShortcut(shortcut)}
+                >
                   {shortcut.name}
-                </button>
+                </MenuItem>
               )}
             </For>
           </div>
         </Menu>
       </Show>
       <Show when={isMine()}>
-        <button class="menu-item" onClick={requestEdit} type="button">
-          <Icon name="edit" size={15} />
+        <MenuItem icon="edit" onClick={requestEdit}>
           Edit message
-        </button>
-        <button class="menu-item danger" onClick={requestDelete} type="button">
-          <Icon name="trash" size={15} />
+        </MenuItem>
+        <MenuItem danger icon="trash" onClick={requestDelete}>
           Delete message
-        </button>
+        </MenuItem>
       </Show>
     </>
   );

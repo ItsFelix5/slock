@@ -11,6 +11,7 @@ import {
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import {
   channelDetailsId,
+  channelDetailsTab,
   closeChannelDetails,
   loadChannelDetails,
   renameChannelById,
@@ -50,7 +51,7 @@ export default function ChannelDetails() {
 
   const [details, { refetch }] = createResource(channelDetailsId, loadChannelDetails);
 
-  createEffect(on(channelDetailsId, () => setTab("about")));
+  createEffect(on(channelDetailsId, () => setTab(channelDetailsTab())));
 
   // Refreshes after one field saves must not erase unsaved typing in another.
   // Track the last server snapshot and only replace fields still equal to it.
@@ -175,30 +176,34 @@ export default function ChannelDetails() {
           >
             {(d) => (
               <div class="channel-details-card flex-col">
-                <PanelHeader onClose={closeChannelDetails}>
+                <PanelHeader
+                  bottom={
+                    <div class="channel-details-tabs">
+                      <For each={TABS}>
+                        {(t) => (
+                          <button
+                            aria-pressed={tab() === t.key}
+                            class="channel-details-tab btn-reset flex-align-center"
+                            classList={{ active: tab() === t.key }}
+                            onClick={() => setTab(t.key)}
+                            type="button"
+                          >
+                            {t.label}
+                            <Show when={t.key === "members" && d().memberCount}>
+                              {(count) => <span class="channel-details-tab-count">{count()}</span>}
+                            </Show>
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                  }
+                  onClose={closeChannelDetails}
+                >
                   <div class="channel-details-title">
                     {d().private ? <Icon name="lock" size={14} /> : "#"}
                     {d().name}
                   </div>
                 </PanelHeader>
-                <div class="channel-details-tabs">
-                  <For each={TABS}>
-                    {(t) => (
-                      <button
-                        aria-pressed={tab() === t.key}
-                        class="channel-details-tab btn-reset flex-align-center"
-                        classList={{ active: tab() === t.key }}
-                        onClick={() => setTab(t.key)}
-                        type="button"
-                      >
-                        {t.label}
-                        <Show when={t.key === "members" && d().memberCount}>
-                          {(count) => <span class="channel-details-tab-count">{count()}</span>}
-                        </Show>
-                      </button>
-                    )}
-                  </For>
-                </div>
 
                 <InlineFeedback
                   class="channel-details-feedback"

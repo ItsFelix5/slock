@@ -17,25 +17,25 @@ const ACTIVITY_TYPE_KINDS = {
   bot_dm_bundle: "dm",
   channel: "channel_all",
   dm: "dm",
-  external_channel_invite: "channel_invite",
-  external_dm_invite: "channel_invite",
-  internal_channel_invite: "channel_invite",
+  external_channel_invite: "other",
+  external_dm_invite: "other",
+  internal_channel_invite: "other",
   keyword: "keyword",
-  list_approval_request: "list",
-  list_approval_reviewed: "list",
-  list_record_assigned: "list",
-  list_record_edited: "list",
-  list_todo_notification: "list",
-  list_user_mentioned: "list",
+  list_approval_request: "other",
+  list_approval_reviewed: "other",
+  list_record_assigned: "other",
+  list_record_edited: "other",
+  list_todo_notification: "other",
+  list_user_mentioned: "other",
   message_reaction: "reaction",
-  quietly_added_to_channel: "channel_invite",
-  saved_reminder: "reminder",
+  quietly_added_to_channel: "other",
+  saved_reminder: "other",
   thread_v2: "thread_reply",
   unjoined_channel_mention: "channel_mention",
 } as const satisfies Record<(typeof ACTIVITY_FEED_TYPES)[number], ActivityItem["kind"]>;
 
 function activityKindFor(type: string): ActivityItem["kind"] {
-  return ACTIVITY_TYPE_KINDS[type as keyof typeof ACTIVITY_TYPE_KINDS] ?? "list";
+  return ACTIVITY_TYPE_KINDS[type as keyof typeof ACTIVITY_TYPE_KINDS] ?? "other";
 }
 
 export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = Object.entries(
@@ -47,14 +47,12 @@ export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = 
   },
   {
     channel_all: [],
-    channel_invite: [],
     channel_mention: [],
     dm: [],
     keyword: [],
-    list: [],
     mention: [],
+    other: [],
     reaction: [],
-    reminder: [],
     thread_reply: [],
     usergroup_mention: [],
   },
@@ -68,6 +66,27 @@ function rawMessageText(message: any): string | undefined {
 
 function rawMessageUserId(message: any): string | undefined {
   return message?.user ?? message?.author_user_id ?? message?.bot_id ?? undefined;
+}
+
+function rawMessageAuthor(
+  message: any,
+  userId: string,
+): Pick<ActivityItem, "botIcon" | "botId" | "botName"> {
+  if (typeof message?.ts !== "string" || rawMessageUserId(message) !== userId) return {};
+  const { botIcon, botId, botName } = mapMessage(message);
+  return { botIcon, botId, botName };
+}
+
+function rawActivityUserId(item: any): string | undefined {
+  return (
+    item?.latest_reply_actor_user_id ??
+    item?.actor_user_id ??
+    item?.author_user_id ??
+    item?.latest_user_id ??
+    item?.user ??
+    item?.user_id ??
+    undefined
+  );
 }
 
 const EXACT_CHANNEL_FEED_KEY_RE = /^[CG][A-Z0-9]{8,}$/;
@@ -106,8 +125,17 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     if (thread) {
       const latestMessage =
         thread.latest_message ?? thread.latest_msg ?? thread.message ?? raw.item.message;
+      const userId =
+        thread.latest_reply_actor_user_id ??
+        thread.latest_user_id ??
+        thread.latest_reply_user_id ??
+        thread.user_id ??
+        rawMessageUserId(latestMessage) ??
+        rawActivityUserId(raw.item) ??
+        "";
       return {
         activityType: type,
+        ...rawMessageAuthor(latestMessage, userId),
         channelId: thread.channel_id,
         feedTs: String(raw.feed_ts),
         id: raw.key,
@@ -117,13 +145,7 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
         time,
         ts: thread.latest_ts,
         unreadCount: thread.unread_msg_count,
-        userId:
-          thread.latest_reply_actor_user_id ??
-          thread.latest_user_id ??
-          thread.latest_reply_user_id ??
-          thread.user_id ??
-          rawMessageUserId(latestMessage) ??
-          "",
+        userId,
       };
     }
   }
@@ -138,7 +160,12 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     channelEntry?.latest_message ??
     channelEntry?.message ??
     channelEntry;
-  const isSparseType = raw.item.type === "channel" || kind === "channel_invite";
+  const isSparseType =
+    type === "channel" ||
+    type === "internal_channel_invite" ||
+    type === "external_channel_invite" ||
+    type === "external_dm_invite" ||
+    type === "quietly_added_to_channel";
   const sparseChannelId = isSparseType ? channelIdFromFeedKey(raw.key) : undefined;
   const channelId =
     message?.channel ??
@@ -157,9 +184,10 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     (sparseChannelId ? raw.feed_ts : undefined);
   if (!(channelId && ts)) {
     const text = rawMessageText(message) ?? raw.item.activity_text;
-    const userId = rawMessageUserId(message) ?? raw.item?.user_id ?? "";
+    const userId = rawMessageUserId(message) ?? rawActivityUserId(raw.item) ?? "";
     return {
       activityType: type,
+      ...rawMessageAuthor(message, userId),
       channelId: "",
       feedTs: String(raw.feed_ts),
       id: String(raw.key ?? `${type}:${raw.feed_ts}`),
@@ -170,8 +198,20 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
       userId,
     };
   }
+  const userId =
+    rawMessageUserId(message) ??
+    channelEntry?.latest_user_id ??
+    channelEntry?.user_id ??
+    raw.item.latest_user_id ??
+    rawActivityUserId(raw.item) ??
+    quietlyAdded?.inviter_user_id ??
+    "";
+  const text = rawMessageText(message) ?? raw.item.activity_text;
+  if (kind === "dm" && !text && !userId)
+    console.warn("[activity] dm entry resolved with no text/userId", JSON.stringify(raw));
   return {
     activityType: type,
+    ...rawMessageAuthor(message, userId),
     broadcastRange:
       raw.item.type === "at_everyone"
         ? "everyone"
@@ -185,19 +225,12 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     threadTs: message?.thread_ts && message.thread_ts !== ts ? message.thread_ts : undefined,
     time,
     ts,
-    text: rawMessageText(message) ?? raw.item.activity_text,
+    text,
     unread: typeof raw.is_unread === "boolean" ? raw.is_unread : undefined,
     // Message-backed activity uses `user` for the actor in current payloads;
     // some older shapes expose the same person as `author_user_id` instead.
     // In particular, ordinary `channel` entries generally only carry `user`.
-    userId:
-      rawMessageUserId(message) ??
-      channelEntry?.latest_user_id ??
-      channelEntry?.user_id ??
-      raw.item.latest_user_id ??
-      raw.item.user_id ??
-      quietlyAdded?.inviter_user_id ??
-      "",
+    userId,
   };
 }
 
@@ -339,8 +372,15 @@ export function resolveActivityEntry(
   batchedMessages?: Map<string, Message>,
 ): ActivityItem {
   const msg = batchedMessages?.get(`${entry.channelId}:${entry.ts}`);
+  const isReaction = entry.kind === "reaction";
+  // A reaction's fetched message belongs to the person who received the
+  // reaction, while every other entry is about that message's own author.
+  const userId = isReaction ? entry.userId || msg?.userId || "" : (msg?.userId ?? entry.userId);
   return {
     ...entry,
+    botIcon: !isReaction && msg ? msg.botIcon : entry.botIcon,
+    botId: !isReaction && msg ? msg.botId : entry.botId,
+    botName: !isReaction && msg ? msg.botName : entry.botName,
     text: msg?.text ?? entry.text ?? "",
     // message_reaction entries never carry thread_ts from the feed itself
     // (unlike at_user/dm/keyword, which do) — the fetched message is the
@@ -350,6 +390,6 @@ export function resolveActivityEntry(
       entry.kind === "reaction"
         ? (msg?.threadTs ?? ((msg?.replyCount ?? 0) > 0 ? msg?.ts : undefined))
         : entry.threadTs,
-    userId: entry.userId || msg?.userId || "",
+    userId,
   };
 }

@@ -7,10 +7,15 @@ import type {
   RichTextSubBlock,
   TextObject,
 } from "@slock/slack-api";
-import { parseReplyLink } from "../../../lib/replyLink";
+import {
+  parseReplyLink,
+  parseReplyLinkFromBlocks,
+  threadContainsMessage,
+} from "../../../lib/replyLink";
 import { isUnreadDividerBoundary } from "../../../lib/store";
 
 const USER_PROFILE_ID_RE = /^[UW]/;
+const BOT_PROFILE_ID_RE = /^B/;
 
 const RICH_TEXT_SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
   "rich_text_section",
@@ -33,15 +38,79 @@ export function isRichTextSubBlock(
 // A user token posting via bot_profile still has userId set to the real
 // poster; Slackbot posts have neither a real userId matching this pattern
 // nor a bot user id worth opening a profile for, so it gets a fixed synthetic
-// one. Anything else that doesn't match is a plain app/bot post with no
-// profile to open.
-export function resolveProfileUserId(msg: Pick<Message, "userId" | "botName">): string | undefined {
-  const id = USER_PROFILE_ID_RE.test(msg.userId)
+// one. A bot/webhook post (including one with a per-message custom username
+// override) has userId set to its bot_id — fetchUser resolves those through
+// bots.info, so the card can still open, just showing the bot's own identity
+// rather than the overridden name.
+export function resolveBotProfileUserId(
+  msg: Pick<Message, "botId" | "botName" | "userId">,
+): string | undefined {
+  if (BOT_PROFILE_ID_RE.test(msg.botId ?? "")) return msg.botId;
+  if (msg.botName === "Slackbot") return "USLACKBOT";
+  return msg.botName && (USER_PROFILE_ID_RE.test(msg.userId) || BOT_PROFILE_ID_RE.test(msg.userId))
     ? msg.userId
-    : msg.botName === "Slackbot"
-      ? "USLACKBOT"
-      : msg.userId;
-  return USER_PROFILE_ID_RE.test(id) ? id : undefined;
+    : undefined;
+}
+
+export function resolveProfileUserId(
+  msg: Pick<Message, "botId" | "botName" | "sourceUserId" | "userId">,
+): string | undefined {
+  if ((msg.botId || msg.botName) && USER_PROFILE_ID_RE.test(msg.sourceUserId ?? "")) {
+    return msg.sourceUserId;
+  }
+  if (USER_PROFILE_ID_RE.test(msg.userId)) return msg.userId;
+  return resolveBotProfileUserId(msg);
+}
+
+// resolveProfileUserId also returns bot ids (for opening the bot's profile card),
+// but the Hack Club identity/hackatime lookup behind fetchUserStatus only knows
+// about real Slack users, so bot ids must be filtered out before calling it.
+export function isRealUserId(id: string | undefined): id is string {
+  return !!id && USER_PROFILE_ID_RE.test(id);
+}
+
+export interface MessageAuthorFields {
+  botIcon?: string;
+  botId?: string;
+  botName?: string;
+  sourceUserId?: string;
+  userId: string;
+}
+
+// True for a genuine account (including an app posting via a user token,
+// where userId is the real poster and botId/botName just tag along on
+// bot_profile). False for a plain bot/webhook post, where userId is only
+// ever the bot_id repeated. Shared by messages and activity rows so both
+// agree on when to trust the store-resolved user vs. the message's own
+// botName/botIcon.
+export function hasRealMessageAuthor(msg: MessageAuthorFields): boolean {
+  return (
+    ((msg.botId || msg.botName) && USER_PROFILE_ID_RE.test(msg.sourceUserId ?? "")) ||
+    (!!msg.userId && msg.userId !== msg.botId)
+  );
+}
+
+// botName/botIcon are per-message overrides (a webhook's custom username/
+// icon, or bot_profile's defaults) already delivered with the message —
+// preferred over a lazily store-resolved user, which for a plain bot post is
+// only the bot's own registered identity via bots.info, not the override.
+export function resolveAuthorDisplayName(
+  msg: MessageAuthorFields,
+  userName: string | undefined,
+  fallback: string,
+): string {
+  return (hasRealMessageAuthor(msg) ? userName : undefined) ?? msg.botName ?? fallback;
+}
+
+export function unresolvedAuthorFallback(msg: Pick<MessageAuthorFields, "userId">): string {
+  return msg.userId ? "Loading…" : "Someone";
+}
+
+export function resolveAuthorAvatarUrl(
+  msg: MessageAuthorFields,
+  userAvatarUrl: string | undefined,
+): string | undefined {
+  return (hasRealMessageAuthor(msg) ? userAvatarUrl : undefined) ?? msg.botIcon;
 }
 
 export interface MessageRenderContext {
@@ -59,6 +128,7 @@ export interface MessageRenderState {
   enlargedEmojiCount: number;
   hasEnlargedEmojiOnlyText: boolean;
   messageText: string;
+  renderBlocks: Block[] | undefined;
   replyRef: ReturnType<typeof parseReplyLink>;
   repliesDividerDay: string | undefined;
   sameAuthorAsPrev: boolean;
@@ -152,12 +222,35 @@ export function resolveMessageRenderState(
     !context.threadTs &&
     context.unreadDividerTs != null &&
     isUnreadDividerBoundary(message.ts, prev?.ts, context.unreadDividerTs);
-  const isInThread = (channelId: string, ts: string) =>
-    !!context.threadTs &&
-    channelId === context.channelId &&
-    (ts === context.threadTs || context.messages.some((candidate) => candidate.ts === ts));
-  const replyRef = parseReplyLink(message.text, isInThread);
+  const textReplyRef = parseReplyLink(message.text, (channelId, ts) =>
+    threadContainsMessage(context.channelId, context.threadTs, context.messages, channelId, ts),
+  );
+  // A message built as blocks (a real Slack client's pasted-permalink quote,
+  // as opposed to one of our own composer-authored reply links) can carry
+  // the reply reference only in `blocks` — `text` is a wire-independent
+  // fallback field that's often blank for these. Falling back to the blocks
+  // scan is what lets that case still collapse into an (invisible) reply
+  // reference instead of showing the raw permalink as a rendered link.
+  const blockReplyRef =
+    !textReplyRef && message.blocks?.length ? parseReplyLinkFromBlocks(message.blocks) : undefined;
+  const replyRef =
+    textReplyRef ??
+    (blockReplyRef
+      ? {
+          channelId: blockReplyRef.channelId,
+          prefix: "",
+          rest: message.text,
+          ts: blockReplyRef.ts,
+          url: blockReplyRef.url,
+        }
+      : null);
   const messageText = replyRef?.rest ?? message.text;
+  // Mirrors the branches above: our own text-based reply links always fall
+  // back to plain Mrkdwn (their `rest` already carries all the content), a
+  // blocks-based one renders the same blocks minus the stripped-out leading
+  // mention, and anything else renders its blocks untouched.
+  const rawRenderBlocks = textReplyRef ? undefined : (blockReplyRef?.blocks ?? message.blocks);
+  const renderBlocks = rawRenderBlocks?.length ? rawRenderBlocks : undefined;
   const showThreadContext = context.hasOpenThread && !!message.isBroadcast && !!message.threadTs;
   // The complementary case: viewed from inside the thread panel itself
   // (where showThreadContext never fires, since there's no "open thread"
@@ -169,6 +262,7 @@ export function resolveMessageRenderState(
     prev.userId === message.userId &&
     prev.botName === message.botName &&
     prev.botIcon === message.botIcon &&
+    prev.sourceUserId === message.sourceUserId &&
     !dayChangedRaw &&
     prev.kind === message.kind &&
     !context.isPinned &&
@@ -188,6 +282,7 @@ export function resolveMessageRenderState(
     enlargedEmojiCount,
     hasEnlargedEmojiOnlyText: enlargedEmojiCount > 0,
     messageText,
+    renderBlocks,
     replyRef,
     repliesDividerDay,
     sameAuthorAsPrev,

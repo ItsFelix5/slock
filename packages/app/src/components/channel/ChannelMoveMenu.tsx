@@ -1,4 +1,4 @@
-import { Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
+import { Icon, IconButton, InlineFeedback, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { actionFeedback, store } from "../../lib/store";
 import {
@@ -107,28 +107,25 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
 
   const trigger = () =>
     props.variant === "menu-item" ? (
-      <button
+      <MenuItem
         aria-label={`Move #${props.channelTitle} to another section`}
-        class="menu-item channel-move-menu-trigger"
+        class="channel-move-menu-trigger"
+        icon="folder"
         onClick={() => setOpen(!open())}
-        type="button"
       >
-        <Icon name="folder" size={15} />
         Move to…
         <Icon class="channel-move-menu-trigger-caret" name="caret-right" size={13} />
-      </button>
+      </MenuItem>
     ) : (
-      <Tooltip content="Move to…">
-        <button
-          aria-label="Move to…"
-          class="channel-header-star btn-reset icon-btn sm icon-action text-dim"
-          classList={{ active: isStarred() }}
-          onClick={() => setOpen(!open())}
-          type="button"
-        >
-          <Icon name={isStarred() ? "star-filled" : "section"} size={16} />
-        </button>
-      </Tooltip>
+      <IconButton
+        active={isStarred()}
+        class="channel-header-star"
+        icon={isStarred() ? "star-filled" : "section"}
+        label="Move to…"
+        onClick={() => setOpen(!open())}
+        size="sm"
+        tone="dim"
+      />
     );
 
   return (
@@ -159,32 +156,30 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       </div>
 
       <div aria-busy={isPending()} class="channel-move-menu-destinations">
-        <button
+        <MenuItem
           aria-current={isStarred() ? "true" : undefined}
-          class="menu-item channel-move-menu-destination"
+          class="channel-move-menu-destination"
           disabled={isPending()}
+          icon={isStarred() ? "star-filled" : "star"}
           onClick={() => void moveToStarred()}
-          type="button"
         >
-          <Icon name={isStarred() ? "star-filled" : "star"} size={15} />
           <span>Starred</span>
           <Show when={isStarred()}>
             <Icon class="channel-move-menu-check" name="check" size={13} />
           </Show>
-        </button>
-        <button
+        </MenuItem>
+        <MenuItem
           aria-current={isInChannels() ? "true" : undefined}
-          class="menu-item channel-move-menu-destination"
+          class="channel-move-menu-destination"
           disabled={isPending()}
+          icon="channel"
           onClick={() => void moveToChannels()}
-          type="button"
         >
-          <Icon name="channel" size={15} />
           <span>Channels</span>
           <Show when={isInChannels()}>
             <Icon class="channel-move-menu-check" name="check" size={13} />
           </Show>
-        </button>
+        </MenuItem>
 
         <Show when={sections().length > 0}>
           <div class="channel-move-menu-section-label menu-label">Sections</div>
@@ -192,19 +187,18 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
             {(section) => {
               const selected = () => !isStarred() && currentSectionId() === section.id;
               return (
-                <button
+                <MenuItem
                   aria-current={selected() ? "true" : undefined}
-                  class="menu-item channel-move-menu-destination"
+                  class="channel-move-menu-destination"
                   disabled={isPending()}
+                  icon="section"
                   onClick={() => void moveToSection(section.id)}
-                  type="button"
                 >
-                  <Icon name="section" size={15} />
                   <span class="truncate">{section.name}</span>
                   <Show when={selected()}>
                     <Icon class="channel-move-menu-check" name="check" size={13} />
                   </Show>
-                </button>
+                </MenuItem>
               );
             }}
           </For>
@@ -219,18 +213,17 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       <div class="divider" />
       <Show
         fallback={
-          <button
-            class="menu-item channel-move-menu-new"
+          <MenuItem
+            class="channel-move-menu-new"
             disabled={isPending()}
+            icon="plus"
             onClick={() => {
               setAddingSection(true);
               queueMicrotask(() => newSectionInputRef?.focus());
             }}
-            type="button"
           >
-            <Icon name="plus" size={15} />
             New section
-          </button>
+          </MenuItem>
         }
         when={addingSection()}
       >

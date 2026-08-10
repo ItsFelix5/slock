@@ -1,6 +1,6 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import { Avatar, HoverCard } from "@slock/ui";
+import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard } from "@slock/ui";
 import { createResource, createSignal, type JSX, Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
@@ -36,7 +36,8 @@ export default function MessageLinkHoverCard(props: {
                 <Avatar
                   size="small"
                   user={{
-                    avatarColor: store.users.userById(msg().userId)?.avatarColor ?? "#616061",
+                    avatarColor:
+                      store.users.userById(msg().userId)?.avatarColor ?? DEFAULT_AVATAR_COLOR,
                     avatarUrl: msg().botIcon ?? store.users.userById(msg().userId)?.avatarUrl,
                     id: msg().userId,
                     name: msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown",

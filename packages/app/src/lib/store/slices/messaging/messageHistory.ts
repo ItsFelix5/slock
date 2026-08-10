@@ -1,6 +1,7 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: Bidirectional channel and thread request state share one epoch-coordinated history store.
 import type { ConversationViewData, Message } from "@slock/slack-api";
 import {
+  fetchChannelDetails,
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
@@ -23,6 +24,7 @@ type HistoryMeta = {
 };
 
 type MessageHistoryApi = {
+  fetchChannelDetails: typeof fetchChannelDetails;
   fetchHistory: typeof fetchHistory;
   fetchHistoryAround: typeof fetchHistoryAround;
   fetchHistoryNewer: typeof fetchHistoryNewer;
@@ -30,6 +32,7 @@ type MessageHistoryApi = {
 };
 
 const DEFAULT_HISTORY_API: MessageHistoryApi = {
+  fetchChannelDetails,
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
@@ -38,8 +41,8 @@ const DEFAULT_HISTORY_API: MessageHistoryApi = {
 
 export function createMessageHistory(
   deps: {
-    activeView: () => View | null;
-    activeThread: () => ThreadRef | null;
+    visibleViews: () => View[];
+    visibleThreads: () => ThreadRef[];
     onConversationView?: (view: ConversationViewData) => void;
   },
   api: MessageHistoryApi = DEFAULT_HISTORY_API,
@@ -81,7 +84,7 @@ export function createMessageHistory(
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
       if (view) deps.onConversationView?.(view);
       setMessagesByChannel(channelId, (existing = []) =>
-        replaceAnchoredWindow ? messages : mergeMessages(existing, messages),
+        mergeMessages(replaceAnchoredWindow ? [] : existing, messages),
       );
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.delete(channelId);
@@ -100,16 +103,16 @@ export function createMessageHistory(
     }
   }
   createEffect(() => {
-    const view = deps.activeView();
-    if (!view) return;
-    // Re-fetches on every switch to a channel whose loaded window is a
-    // permalink-jumped island rather than the live tail (see
-    // ensureChannelMessage) — leaving and re-entering the channel is how you
-    // get back to "now", the same way Slack's own permalink view works.
-    const alreadyAtPresent =
-      loadedChannels.has(view.id) && !untrack(() => historyMeta[view.id]?.anchored);
-    if (alreadyAtPresent) return;
-    loadRecentHistory(view.id);
+    for (const view of deps.visibleViews()) {
+      // Re-fetches on every switch to a channel whose loaded window is a
+      // permalink-jumped island rather than the live tail (see
+      // ensureChannelMessage) — leaving and re-entering the channel is how you
+      // get back to "now", the same way Slack's own permalink view works.
+      const alreadyAtPresent =
+        loadedChannels.has(view.id) && !untrack(() => historyMeta[view.id]?.anchored);
+      if (alreadyAtPresent) continue;
+      loadRecentHistory(view.id);
+    }
   });
   const [threadMeta, setThreadMeta] = createStore<
     Record<string, { error: boolean; loading: boolean }>
@@ -128,9 +131,8 @@ export function createMessageHistory(
     }
   }
   createEffect(() => {
-    const thread = deps.activeThread();
-    if (!thread) return;
-    ensureThreadRepliesLoaded(thread.channelId, thread.ts);
+    for (const thread of deps.visibleThreads())
+      ensureThreadRepliesLoaded(thread.channelId, thread.ts);
   });
   function hasMoreHistory(channelId: string) {
     return historyMeta[channelId]?.hasMore ?? true;
@@ -158,47 +160,6 @@ export function createMessageHistory(
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
       setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, older));
       historyCursor.set(channelId, nextCursor);
-      setHistoryMeta(channelId, { hasMore, loading: false });
-    } catch {
-      if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      setHistoryMeta(channelId, "loading", false);
-      setHistoryMeta(channelId, "olderError", true);
-    }
-  }
-  // Jumping to the beginning walks every remaining older page in one request
-  // chain instead of waiting for scroll events to trigger each one. The
-  // scroll-driven path (loadOlderMessages) depends on scrollHeight growing
-  // enough to fire another scroll event — a page that's entirely hidden
-  // subtypes (joins/leaves) adds no visible rows, so that never happens and
-  // hasMore is left stuck true. conversations.history's own has_more/
-  // next_cursor is trustworthy across however many requests that takes; a
-  // failure partway through just leaves the normal olderError retry state.
-  async function loadOlderMessagesToBeginning(channelId: string) {
-    if (!loadedChannels.has(channelId)) return;
-    const meta = historyMeta[channelId];
-    if (meta?.loading || meta?.hasMore === false) return;
-    let cursor = historyCursor.get(channelId);
-    if (!cursor) {
-      setHistoryMeta(channelId, "hasMore", false);
-      return;
-    }
-    const epoch = windowEpochs.current(channelId);
-    setHistoryMeta(channelId, "loading", true);
-    setHistoryMeta(channelId, "olderError", false);
-    try {
-      let hasMore = true;
-      while (cursor && hasMore) {
-        const {
-          messages: older,
-          hasMore: pageHasMore,
-          nextCursor,
-        } = await api.fetchHistory(channelId, cursor);
-        if (!windowEpochs.isCurrent(channelId, epoch)) return;
-        setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, older));
-        historyCursor.set(channelId, nextCursor);
-        cursor = nextCursor;
-        hasMore = pageHasMore;
-      }
       setHistoryMeta(channelId, { hasMore, loading: false });
     } catch {
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
@@ -336,7 +297,7 @@ export function createMessageHistory(
         void loadRecentHistory(channelId);
         return false;
       }
-      setMessagesByChannel(channelId, messages);
+      setMessagesByChannel(channelId, () => mergeMessages([], messages));
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
       setHistoryMeta(channelId, {
@@ -384,7 +345,7 @@ export function createMessageHistory(
         void loadRecentHistory(channelId);
         return false;
       }
-      setMessagesByChannel(channelId, messages);
+      setMessagesByChannel(channelId, () => mergeMessages([], messages));
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
       setHistoryMeta(channelId, {
@@ -404,6 +365,24 @@ export function createMessageHistory(
       return false;
     }
   }
+  // "Beginning of channel" reuses the exact same one-bounded-request jump as
+  // jumpToDate above, anchored on the channel's own creation date
+  // (conversations.info's `created`) instead of paginating backward through
+  // history. There's no Slack API call that returns the first page directly
+  // — conversations.history always answers relative to `latest`, newest
+  // first — so the only alternative is walking backward through an unknown
+  // number of older-history pages, which is unreliable on deep history
+  // (rate limits/timeouts partway through) and is exactly what this avoids.
+  async function jumpToBeginning(channelId: string) {
+    try {
+      const details = await api.fetchChannelDetails(channelId);
+      if (!details.created) return false;
+      return await jumpToDate(channelId, details.created * 1000);
+    } catch (err) {
+      console.error("Failed to jump to beginning", channelId, err);
+      return false;
+    }
+  }
   return {
     ensureChannelMessage,
     ensureThreadRepliesLoaded,
@@ -417,12 +396,12 @@ export function createMessageHistory(
     historyMeta,
     isLoadingHistory,
     isLoadingThread,
+    jumpToBeginning,
     jumpToDate,
     loadedChannels,
     loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
-    loadOlderMessagesToBeginning,
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,

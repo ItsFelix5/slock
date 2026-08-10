@@ -262,9 +262,15 @@ export function estimateMessageHeight(
   if (!state.showMessage) return 0;
 
   const wrapWidth = Math.max(120, containerWidth - GUTTER_WIDTH);
-  const usesBlocks = !state.replyRef && !!message.blocks?.length;
+  // Mirrors MessageRow.tsx's renderBlocks() exactly (not a re-derived
+  // message.blocks/replyRef check) — a block-based reply reference
+  // (blockReplyRef in messageRenderState.ts, e.g. a pasted permalink quote)
+  // still renders its blocks even though state.replyRef is also set, so
+  // gating on replyRef alone silently underestimated every such row to its
+  // near-empty message.text fallback instead of its real block content.
+  const usesBlocks = !!state.renderBlocks?.length;
   let contentHeight = usesBlocks
-    ? estimateBlocksHeight(message.blocks ?? [], wrapWidth)
+    ? estimateBlocksHeight(state.renderBlocks ?? [], wrapWidth)
     : state.enlargedEmojiCount
       ? Math.ceil(
           state.enlargedEmojiCount / Math.max(1, Math.floor(wrapWidth / ENLARGED_EMOJI_WIDTH)),

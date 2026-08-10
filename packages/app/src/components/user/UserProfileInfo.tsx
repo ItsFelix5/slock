@@ -1,8 +1,9 @@
-import { EmojiText, Mrkdwn } from "@slock/blockkit";
+import { Mrkdwn } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
-import { Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import { store } from "../../lib/store";
+import UserProfileStatus from "./UserProfileStatus";
 
 interface UserProfileInfoProps {
   isSelf: () => boolean;
@@ -23,11 +24,31 @@ interface UserProfileInfoProps {
   setPronounsInput: (value: string) => void;
   savingProfileFields: () => Record<string, boolean>;
   blurOnEnter: (e: KeyboardEvent) => void;
+  statusText: () => string;
+  setStatusText: (value: string) => void;
+  statusEmoji: () => string;
+  setStatusEmoji: (value: string) => void;
+  savingStatus: () => boolean;
+  saveStatus: () => Promise<void>;
+  clearStatus: () => Promise<void>;
+}
+
+// Title grows to fit its content instead of scrolling horizontally like a
+// normal single-line input — a title occasionally runs longer than the panel.
+function autoGrowTitle(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
 }
 
 export default function UserProfileInfo(props: UserProfileInfoProps) {
   // biome-ignore lint/style/noNonNullAssertion: user is guaranteed by parent Show
   const u = () => props.user()!;
+  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this through the JSX ref.
+  let titleRef: HTMLTextAreaElement | undefined;
+  createEffect(() => {
+    props.titleInput();
+    if (titleRef) autoGrowTitle(titleRef);
+  });
   return (
     <>
       <div class="user-profile-avatar flex-center" style={{ background: u().avatarColor }}>
@@ -78,15 +99,19 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
               type="text"
               value={props.nameInput()}
             />
-            <input
+            <textarea
               aria-label="Title"
               class="user-profile-title-input"
               disabled={props.savingProfileFields().title}
               onBlur={props.saveTitle}
-              onInput={(e) => props.setTitleInput(e.currentTarget.value)}
+              onInput={(e) => {
+                props.setTitleInput(e.currentTarget.value);
+                autoGrowTitle(e.currentTarget);
+              }}
               onKeyDown={props.blurOnEnter}
               placeholder="Title"
-              type="text"
+              ref={titleRef}
+              rows={1}
               value={props.titleInput()}
             />
             <input
@@ -121,12 +146,17 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
           </p>
         </Show>
       </Show>
-      <Show when={u().statusText}>
-        <p class="user-profile-status flex-align-center">
-          <Show when={u().statusEmoji}>{(emoji) => <EmojiText text={emoji()} />}</Show>
-          {u().statusText}
-        </p>
-      </Show>
+      <UserProfileStatus
+        clearStatus={props.clearStatus}
+        isSelf={props.isSelf}
+        saveStatus={props.saveStatus}
+        savingStatus={props.savingStatus}
+        setStatusEmoji={props.setStatusEmoji}
+        setStatusText={props.setStatusText}
+        statusEmoji={() => (props.isSelf() ? props.statusEmoji() : (u().statusEmoji ?? ""))}
+        statusText={() => (props.isSelf() ? props.statusText() : (u().statusText ?? ""))}
+        blurOnEnter={props.blurOnEnter}
+      />
       <Show when={props.localTime()}>
         <p class="user-profile-meta text-muted text-sm">
           {props.localTime()} local time{u().tzLabel ? ` (${u().tzLabel})` : ""}

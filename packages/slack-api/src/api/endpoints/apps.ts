@@ -51,30 +51,26 @@ export function fetchAppDescription(appId: string, botId: string): Promise<strin
   });
 }
 
-// Dispatches a Block Kit button click. Fire-and-forget, like
-// runMessageShortcut: the app receives it via its own interactivity endpoint
-// and responds asynchronously (e.g. updating the message), not through this
-// call's result.
+// Dispatches a Block Kit interactive element (button, overflow, ...).
+// Fire-and-forget, like runMessageShortcut: the app receives it via its own
+// interactivity endpoint and responds asynchronously (e.g. updating the
+// message), not through this call's result. `action` is the block_actions
+// entry itself, shaped exactly as Slack's own client sends it (see the
+// per-element callers) — this call just resolves app_id and forwards it.
 export async function runBlockAction(params: {
-  actionId: string;
-  blockId?: string;
+  action: Record<string, unknown>;
   botId: string;
-  buttonText: string;
   channelId: string;
   messageTs: string;
-  value?: string;
 }): Promise<void> {
   const botInfo = await fetchBotAppInfo(params.botId);
   if (!botInfo) throw new Error("Couldn't resolve the app behind this button");
   const data = await apiPost("/api/blocks/actions", {
-    actionId: params.actionId,
+    action: params.action,
     appId: botInfo.appId,
-    blockId: params.blockId,
     botId: params.botId,
-    buttonText: params.buttonText,
     channelId: params.channelId,
     messageTs: params.messageTs,
-    value: params.value,
   });
   if (!data.ok) throw new Error(data.error ?? "blocks.actions failed");
 }

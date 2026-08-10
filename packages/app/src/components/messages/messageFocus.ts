@@ -1,6 +1,7 @@
 import type { Message } from "@slock/slack-api";
 import { plainKey, useShortcut } from "@slock/ui";
 import { type Accessor, createEffect, createSignal } from "solid-js";
+import { threadContainsMessage } from "../../lib/replyLink";
 import { store } from "../../lib/store";
 import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
 import { resolveProfileUserId } from "./parts/messageRenderState";
@@ -93,16 +94,6 @@ export function createMessageFocus(
     if (focusedTs() === ts) setEditingTs(ts);
   };
   const stopEdit = () => setEditingTs(null);
-
-  const isInThread = (candidateChannelId: string, ts: string) => {
-    const threadTs = callbacks.threadTs?.();
-    return (
-      !!threadTs &&
-      candidateChannelId === channelId() &&
-      (ts === threadTs ||
-        (store.messages.threadMessages[threadTs]?.some((m) => m.ts === ts) ?? false))
-    );
-  };
 
   // Reuses the row's own hover-toolbar button via a synthetic click rather
   // than lifting its open/close state — inherits that button's existing
@@ -198,7 +189,17 @@ export function createMessageFocus(
     enabled: messageActionEnabled,
     handler: () => {
       const msg = focusedMessage();
-      if (msg) void copyMessageText(msg, isInThread);
+      if (!msg) return;
+      const threadTs = callbacks.threadTs?.();
+      void copyMessageText(msg, (candidateChannelId, ts) =>
+        threadContainsMessage(
+          channelId(),
+          threadTs,
+          store.messages.threadMessages[threadTs ?? ""] ?? [],
+          candidateChannelId,
+          ts,
+        ),
+      );
     },
     keys: "y",
     label: "Copy text",
@@ -267,6 +268,11 @@ export function createMessageFocus(
   return {
     editingTs,
     focusedTs,
+    // Real DOM focus within the list, as opposed to focusedTs — which also
+    // holds a value (the seeded last message) before anyone has ever tabbed
+    // or clicked in. Rows use this to gate their own visual "focused" look so
+    // an implicitly-seeded row doesn't look selected before any interaction.
+    listFocused,
     onContainerFocusIn: () => setListFocused(true),
     onContainerFocusOut: (e: FocusEvent) => {
       const el = e.currentTarget as HTMLElement;

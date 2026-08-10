@@ -17,6 +17,8 @@
   --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --danger: #e0554a;
   --danger-rgb: 224, 85, 74;
+  --error-text: var(--danger);
+  --error-bg: rgba(var(--danger-rgb), 0.12);
   --warning: #f39c12;
   --text-on-accent: #fff;
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.35);

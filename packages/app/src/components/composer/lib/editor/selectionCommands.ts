@@ -1,13 +1,11 @@
+import { fragmentToMrkdwn, type InlineDialect, MRKDWN_DIALECT } from "@slock/blockkit";
 import {
   htmlToFragment,
-  type InlineDialect,
-  MRKDWN_DIALECT,
   mrkdwnToFragment,
   pasteTextToFragment,
   placeCaretAtEnd,
   placeCaretInText,
 } from "../richtext";
-import { fragmentToMrkdwn } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
 // Caret/selection plumbing and draft-loading for the composer's

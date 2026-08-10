@@ -181,6 +181,7 @@ export interface Message {
   reactions?: Reaction[];
   replyCount?: number;
   replyUsers?: string[];
+  sourceUserId?: string;
   text: string;
   // Slack includes this rendering-ready copy of the parent on broadcast replies.
   threadRoot?: Message;
@@ -203,6 +204,7 @@ export interface Channel {
   canvas?: CanvasInfo;
   id: string;
   lastActivity?: number;
+  memberCount?: number;
   mentions?: number;
   name: string;
   private: boolean;

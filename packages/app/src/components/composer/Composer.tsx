@@ -1,4 +1,4 @@
-import { Button, Icon, InlineFeedback, Menu, Tooltip } from "@slock/ui";
+import { Button, Icon, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { actionFeedback, composerFeedbackKey } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
@@ -240,15 +240,13 @@ export default function Composer(props: ComposerProps) {
           >
             <For each={availableTools()}>
               {(tool) => (
-                <button
-                  class="menu-item"
+                <MenuItem
+                  icon={tool.icon}
                   onClick={() => runTool(tool)}
                   onMouseDown={(e) => e.preventDefault()}
-                  type="button"
                 >
-                  <Icon name={tool.icon} size={15} />
                   {tool.title}
-                </button>
+                </MenuItem>
               )}
             </For>
           </Menu>

@@ -26,13 +26,7 @@ import { fetchChannelActivityItems } from "./activity/channelActivity";
 // app messages). Shared between the sidebar bell's two-tier urgency and the
 // Activity view's own pinging/ambient filter and row styling, so the
 // definition lives in one place.
-export const PING_KINDS = new Set<ActivityItem["kind"]>([
-  "mention",
-  "dm",
-  "keyword",
-  "reminder",
-  "channel_invite",
-]);
+export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
   "channel_mention",
@@ -78,6 +72,7 @@ export function createActivitySlice(
     currentUser: () => User | undefined;
     lastReadByChannel: Record<string, number>;
     notifyAllChannelIds?: () => readonly string[];
+    reactionMessageFor?: (channelId: string, ts: string) => Message | undefined;
     setLastReadByChannel: (channelId: string, ts: number) => void;
     clearChannelUnread: (channelId: string) => void;
     syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
@@ -117,11 +112,7 @@ export function createActivitySlice(
     return scopeKey ? (scopedActivityHasMore[scopeKey] ?? true) : activityHasMore();
   }
   const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean>>({});
-  const [reactedActivityIds, setReactedActivityIds] = createStore<Record<string, boolean>>({});
   const activityReadSync = createActivityReadSync(deps.syncChannelRead);
-  const [engagements, setEngagements] = createSignal<
-    { channelId: string; threadTs?: string; time: number; ts: string }[]
-  >([]);
   const [gatewayActivityCount, setGatewayActivityCount] = createSignal<number>();
   let lastGatewayActivityCountsSnapshot: string | undefined;
 
@@ -155,13 +146,11 @@ export function createActivitySlice(
     seenChannelPosts: Set<string>,
     push: (entry: FeedEntry, batch?: Map<string, Message>) => void,
   ) {
-    // Reactions never carry a body or thread_ts from the feed, and other
-    // kinds sometimes arrive without text — those need messages.list.
-    // Anything the feed already fully describes renders now, so a slow
-    // channel's fetch never holds up the whole view.
+    // Feed entries can include a displayable body but still omit the
+    // message-level author overrides. Hydrate every channel-backed entry so
+    // its name and avatar match the message opened from the row.
     const needsMessage = (entry: FeedEntry) =>
-      (entry.kind === "reaction" || !entry.text || !entry.userId) &&
-      entry.activityType !== "quietly_added_to_channel";
+      !!entry.channelId && entry.activityType !== "quietly_added_to_channel";
     for (const entry of pending) if (!needsMessage(entry)) push(entry);
     const unresolved = pending.filter(needsMessage);
     const toFetch = unresolved.filter((entry) => !!entry.channelId);
@@ -283,10 +272,29 @@ export function createActivitySlice(
           .map((entry) => `${entry.channelId}:${entry.ts}`),
       );
       const pending = entries.filter((entry) => !seen.has(entry.id));
+      // A thread bundle keeps the same feed key across refreshes even after a
+      // new reply lands — Slack just bumps that same key's unread_msg_count
+      // and latest_ts. Without this, `seen` above makes it look already
+      // handled and the stored item (with its now-stale unreadCount) never
+      // gets touched again, so a thread you'd read once could never show
+      // unread again no matter how many replies arrived after.
+      const stale = entries.filter((entry) => seen.has(entry.id));
       const { push, pushItem } = createEntryPusher(me, seen, seenChannelPosts);
       for (const item of channelItems)
         if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
+      if (stale.length) {
+        setActivityItems(
+          produce((list) => {
+            for (const entry of stale) {
+              const index = list.findIndex((i) => i.id === entry.id);
+              if (index === -1) continue;
+              const resolved = api.resolveActivityEntry(entry);
+              if (resolved.time >= list[index].time) list[index] = resolved;
+            }
+          }),
+        );
+      }
       setActivityLoaded(true);
       void backfillMissingReadCursors(activityItems);
     } catch (err) {
@@ -367,26 +375,18 @@ export function createActivitySlice(
     refresh: refreshActivityFeed,
   });
 
-  function engagementCoversItem(
-    engagement: { channelId: string; threadTs?: string; time: number; ts: string },
-    item: ActivityItem,
-  ) {
-    if (engagement.channelId !== item.channelId) return false;
-    if (engagement.ts === item.ts) return true;
-    if (engagement.threadTs) {
-      return (
-        (item.threadTs === engagement.threadTs || item.ts === engagement.threadTs) &&
-        item.time <= engagement.time
-      );
-    }
-    return !item.threadTs && item.time <= engagement.time;
-  }
-
+  // Reacted has to mean a real emoji on the real message, read straight from
+  // Slack's own reactions array — anything client-invented (a manual toggle,
+  // a "you just engaged with this" tracker) is memory-only and evaporates on
+  // reload, which just relitigates itself as a "why did this un-react" bug.
+  // Only items whose message got resolved into reactionMessages (see
+  // resolvePendingEntries) have data to check; everything else honestly
+  // reports false rather than guessing.
   function isActivityItemReacted(item: ActivityItem): boolean {
-    return (
-      !!reactedActivityIds[item.id] ||
-      engagements().some((entry) => engagementCoversItem(entry, item))
-    );
+    const me = deps.currentUser();
+    if (!me) return false;
+    const message = deps.reactionMessageFor?.(item.channelId, item.ts);
+    return !!message?.reactions?.some((reaction) => reaction.users.includes(me.id));
   }
 
   function activityItemReadState(item: ActivityItem): ActivityItemReadState {
@@ -394,16 +394,19 @@ export function createActivitySlice(
     // (not in PING_KINDS/GLOW_KINDS), so they shouldn't sit in the "Unread"
     // filter forever either.
     if (item.kind === "reaction") return "read";
-    if (readActivityIds[item.id] || isActivityItemReacted(item)) return "read";
-    if (item.unread !== undefined) return item.unread ? "unread" : "read";
     // A thread reply's read state lives on Slack's own per-thread subscription
     // cursor, not the parent channel's last_read — replying in a thread never
     // advances the channel's cursor, so comparing against lastReadByChannel
     // would keep a thread you've genuinely read (here or in real Slack)
     // marked unread forever. Slack hands back that cursor's result directly as
-    // unreadCount on the bundle; trust it whenever the feed provides it.
+    // unreadCount on the bundle; trust it whenever the feed provides it, ahead
+    // of readActivityIds below — that flag only records "was read as of some
+    // past refresh" and must not keep pinning the row to "read" once a later
+    // refresh reports a fresh reply via a bumped unreadCount.
     if (item.kind === "thread_reply" && item.unreadCount !== undefined)
       return item.unreadCount > 0 ? "unread" : "read";
+    if (readActivityIds[item.id]) return "read";
+    if (item.unread !== undefined) return item.unread ? "unread" : "read";
     const lastRead = deps.lastReadByChannel[item.channelId];
     if (item.channelId && lastRead === undefined) return "pending";
     return item.time > (lastRead ?? 0) ? "unread" : "read";
@@ -474,6 +477,11 @@ export function createActivitySlice(
         continue;
       }
       setReadActivityIds(item.id, true);
+      // activityItemReadState trusts a thread_reply's own unreadCount over
+      // readActivityIds (see above), so without this the row would keep
+      // showing unread until the next feed refresh catches up.
+      if (item.kind === "thread_reply" && item.unreadCount !== undefined)
+        setActivityItems((i) => i.id === item.id, "unreadCount", 0);
       if (!item.channelId) continue;
       if (item.kind === "thread_reply" && item.threadTs) {
         const key = `${item.channelId}:${item.threadTs}`;
@@ -513,23 +521,6 @@ export function createActivitySlice(
       void deps.syncThreadRead(channelId, threadTs, ts);
   }
 
-  function markActivityItemsReacted(items: readonly ActivityItem[]) {
-    for (const item of items) setReactedActivityIds(item.id, true);
-  }
-
-  function recordActivityEngagement(channelId: string, ts: string, threadTs?: string) {
-    const time = parseFloat(ts) * 1000;
-    if (!Number.isFinite(time)) return;
-    setEngagements((current) => {
-      const index = current.findIndex(
-        (entry) => entry.channelId === channelId && entry.threadTs === threadTs,
-      );
-      if (index === -1) return [...current, { channelId, threadTs, time, ts }];
-      if (current[index].time >= time) return current;
-      return current.map((entry, i) => (i === index ? { channelId, threadTs, time, ts } : entry));
-    });
-  }
-
   return {
     activityHasMore: activityHasMoreFor,
     activityItems,
@@ -546,10 +537,8 @@ export function createActivitySlice(
     isActivityItemReacted,
     isActivityItemUnread,
     loadMoreActivity,
-    markActivityItemsReacted,
     markActivityItemsRead,
     pushActivity,
-    recordActivityEngagement,
     requestActivityRefresh,
     retryActivityReadSync: activityReadSync.retry,
     setGatewayActivityBadgeCounts,

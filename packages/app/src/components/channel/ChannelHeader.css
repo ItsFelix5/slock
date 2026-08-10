@@ -1,8 +1,13 @@
 .channel-header {
+  position: relative;
   flex-shrink: 0;
   overflow: hidden;
   background: var(--main-bg);
   border-bottom: 1px solid var(--border);
+}
+
+.channel-header:has(.channel-header-topic-wrap.is-overflowing:hover) {
+  overflow: visible;
 }
 
 .channel-header-top {
@@ -17,6 +22,10 @@
   gap: 8px;
   min-width: 0;
   overflow: hidden;
+}
+
+.channel-header-context:has(.channel-header-topic-wrap.is-overflowing:hover) {
+  overflow: visible;
 }
 
 .channel-header-identity {
@@ -67,17 +76,37 @@
 }
 
 .channel-header-topic-wrap {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
 }
 
 .channel-header-topic {
+  display: block;
   width: 100%;
   min-width: 0;
   padding-left: 8px;
   margin-left: 4px;
   border-left: 1px solid var(--border);
+}
+
+.channel-header-topic-wrap.is-overflowing:hover .channel-header-topic {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  z-index: 20;
+  width: max-content;
+  max-width: min(440px, calc(100vw - 32px));
+  margin-left: 0;
+  padding: 6px 10px;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: unset;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-tooltip);
+  transform: translateY(-50%);
 }
 
 .channel-header-feedback {
@@ -98,6 +127,21 @@
 
 .channel-header-btn {
   font-size: 14px;
+}
+
+.channel-header-members-btn {
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 6px;
+}
+
+.channel-header-members-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
 .channel-header-canvas-menu.menu-panel {

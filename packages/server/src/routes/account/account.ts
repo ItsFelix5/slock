@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
-import { getLastSeen } from "../../presence/lastSeen.ts";
+import { getLastSeen, recordSeenActive } from "../../presence/lastSeen.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
 import { trimBot, trimProfile, trimUser } from "../../trim/slackEntities.ts";
 import { mutate, type Route, route } from "../router.ts";
@@ -65,8 +65,14 @@ export const accountRoutes: Route[] = [
   // hydration) never carries custom profile field *values* for anyone, self
   // included — only the full users.profile.get call does, so the profile panel
   // fetches it separately instead of paying that cost on every batched lookup.
+  // "me" means the client is asking about itself — passed as a distinct id
+  // rather than the real user id because explicitly passing `user: <own id>`
+  // resolves your own field visibility as if you were someone else viewing
+  // it, silently dropping fields; omitting `user` entirely is what actually
+  // returns everything for the authed user.
   route("GET", "/api/users/:id/profile", async (ctx) => {
-    const data = await callSlack("users.profile.get", { user: ctx.params.id }, ctx.creds);
+    const params: Record<string, string> = ctx.params.id === "me" ? {} : { user: ctx.params.id };
+    const data = await callSlack("users.profile.get", params, ctx.creds);
     if (!data.ok)
       return slackErrorResponse(data, "users.profile.get", ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
@@ -74,6 +80,20 @@ export const accountRoutes: Route[] = [
       ctx.creds,
       ctx.acceptEncoding,
     );
+  }),
+
+  // Passive gateway presence_change events only ever arrive for people
+  // already in your DM/sidebar list, so opening a profile falls back to
+  // asking Slack directly rather than showing nothing for anyone else.
+  route("GET", "/api/users/:id/presence", async (ctx) => {
+    const data = await callSlack("users.getPresence", { user: ctx.params.id }, ctx.creds);
+    if (!data.ok) {
+      return slackErrorResponse(data, "users.getPresence", ctx.creds, ctx.acceptEncoding);
+    }
+    const presence = data.presence === "away" ? "away" : "active";
+    const teamId = ctx.creds ? teamIdFromRoute(ctx.creds.route) : null;
+    if (presence === "active" && teamId) recordSeenActive(teamId, ctx.params.id);
+    return jsonResponse({ ok: true, presence }, ctx.creds, ctx.acceptEncoding);
   }),
 
   // team.profile.get's field *definitions* (label/ordering) are workspace-wide,

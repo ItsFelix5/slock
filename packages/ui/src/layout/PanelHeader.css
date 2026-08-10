@@ -1,12 +1,15 @@
+.panel-header-wrap {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
 .panel-header {
   box-sizing: content-box;
   display: flex;
-  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   height: 49px;
   padding: 0px 16px;
-  border-bottom: 1px solid var(--border);
 }
 
 .panel-header-title {

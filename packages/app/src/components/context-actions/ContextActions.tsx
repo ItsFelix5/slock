@@ -1,4 +1,4 @@
-import { Icon, Overlay, shortcutsByScope, Tooltip, useEscapeClose, useShortcut } from "@slock/ui";
+import { Modal, ModalHeader, shortcutsByScope, useEscapeClose, useShortcut } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import "./ContextActions.css";
 
@@ -57,44 +57,32 @@ export default function ContextActions() {
 
   return (
     <Show when={open()}>
-      <Overlay ariaLabel="Context actions" onClose={() => setOpen(false)}>
-        <div class="context-actions-card modal-card">
-          <div class="context-actions-header flex-between">
-            <div>
-              <h2>Context actions</h2>
-            </div>
-            <Tooltip content="Close">
-              <button
-                aria-label="Close"
-                class="panel-close-btn"
-                onClick={() => setOpen(false)}
-                type="button"
-              >
-                <Icon name="close" size={12} />
-              </button>
-            </Tooltip>
-          </div>
+      <Modal
+        ariaLabel="Context actions"
+        class="context-actions-card"
+        onClose={() => setOpen(false)}
+      >
+        <ModalHeader onClose={() => setOpen(false)} title="Context actions" />
 
-          <div class="context-actions-content">
-            <Show when={composerContext()}>
-              <section>
-                <h3>Composer</h3>
-                <ActionList actions={COMPOSER_ACTIONS} />
-              </section>
-            </Show>
-            <Show when={messageActions().length > 0}>
-              <section>
-                <h3>Messages</h3>
-                <ActionList actions={messageActions()} />
-              </section>
-            </Show>
+        <div class="context-actions-content">
+          <Show when={composerContext()}>
             <section>
-              <h3>General</h3>
-              <ActionList actions={generalActions()} />
+              <h3>Composer</h3>
+              <ActionList actions={COMPOSER_ACTIONS} />
             </section>
-          </div>
+          </Show>
+          <Show when={messageActions().length > 0}>
+            <section>
+              <h3>Messages</h3>
+              <ActionList actions={messageActions()} />
+            </section>
+          </Show>
+          <section>
+            <h3>General</h3>
+            <ActionList actions={generalActions()} />
+          </section>
         </div>
-      </Overlay>
+      </Modal>
     </Show>
   );
 }

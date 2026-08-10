@@ -28,6 +28,15 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
                 </div>
               </Show>
 
+              <Show when={c().memberCount}>
+                {(count) => (
+                  <div class="channel-hovercard-members flex-align-center text-muted text-sm">
+                    <Icon name="user-groups" size={13} />
+                    {count()} {count() === 1 ? "member" : "members"}
+                  </div>
+                )}
+              </Show>
+
               <Show
                 fallback={
                   <button

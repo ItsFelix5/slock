@@ -21,15 +21,6 @@ export function createLinkChip(url: string, label: string): HTMLSpanElement {
   return chip;
 }
 
-export function serializeLinkElement(el: HTMLElement): string {
-  const url = el.dataset.linkUrl ?? "";
-  if (el.classList.contains("composer-link-chip")) {
-    const label = (el.textContent ?? "").replace(/\|/g, "");
-    return label && label !== url ? `<${url}|${label}>` : `<${url}>`;
-  }
-  return `<${(el.textContent ?? url).replace(/\|/g, "")}>`;
-}
-
 export function replaceLinkElement(el: HTMLElement, url: string, label: string): HTMLElement {
   const next = label && label !== url ? createLinkChip(url, label) : createLinkSpan(url);
   el.replaceWith(next);

@@ -1,5 +1,6 @@
 // biome-ignore-all lint/performance/noBarrelFile: This is the API package's public entry point.
 // biome-ignore-all lint/performance/noReExportAll: The API surface intentionally aggregates endpoint modules.
+
 export * from "./endpoints/account";
 export * from "./endpoints/activity";
 export * from "./endpoints/apps";

@@ -3,6 +3,7 @@ import { ContextMenu, Icon, openContextMenuFromKeyboard, useContextMenu } from "
 import { createMemo } from "solid-js";
 import { channelDisplayName, store } from "../../../lib/store";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
+import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
 
 export default function ChannelRow(props: { channel: Channel; unread: boolean }) {
   const ctxMenu = useContextMenu();
@@ -14,27 +15,29 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
 
   return (
     <>
-      <button
-        class="sidebar-row btn-reset flex-align-center"
-        classList={{
-          active: isActive(),
-          muted: muted(),
-          unread: props.unread && !muted(),
-        }}
-        data-nav-row
-        onClick={() => store.viewState.setActiveView({ id: props.channel.id, kind: "channel" })}
-        onContextMenu={ctxMenu.open}
-        onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
-        type="button"
-      >
-        <span class="sidebar-row-icon">
-          {props.channel.private ? <Icon name="lock" size={13} /> : "#"}
-        </span>
-        <span class="sidebar-row-name truncate">{channelDisplayName(props.channel)}</span>
-        {!muted() && props.channel.mentions ? (
-          <span class="sidebar-badge">{props.channel.mentions}</span>
-        ) : null}
-      </button>
+      <SplitNavigation onSplit={() => openConversationInSplit(props.channel.id)}>
+        <button
+          class="sidebar-row btn-reset flex-align-center"
+          classList={{
+            active: isActive(),
+            muted: muted(),
+            unread: props.unread && !muted(),
+          }}
+          data-nav-row
+          onClick={() => store.viewState.setActiveView({ id: props.channel.id, kind: "channel" })}
+          onContextMenu={ctxMenu.open}
+          onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
+          type="button"
+        >
+          <span class="sidebar-row-icon">
+            {props.channel.private ? <Icon name="lock" size={13} /> : "#"}
+          </span>
+          <span class="sidebar-row-name truncate">{channelDisplayName(props.channel)}</span>
+          {!muted() && props.channel.mentions ? (
+            <span class="sidebar-badge">{props.channel.mentions}</span>
+          ) : null}
+        </button>
+      </SplitNavigation>
       <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
         <ChannelActionsMenuItems
           channelId={props.channel.id}

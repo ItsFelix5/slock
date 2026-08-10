@@ -82,45 +82,27 @@ export const appRoutes: Route[] = [
     return jsonResponse({ desc: data.app_profile?.desc, ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // Dispatches a Block Kit button click. Reverse-engineered from a live
-  // capture of Slack's own web client: actions carries the modern
-  // block_actions shape, container identifies the message the block lives
-  // in. Fire-and-forget, like the shortcut run above.
+  // Dispatches a Block Kit interactive element click (button, overflow, ...).
+  // Reverse-engineered from a live capture of Slack's own web client: `action`
+  // is forwarded verbatim as the sole entry of the modern block_actions
+  // `actions` array — the caller already shapes it exactly as Slack's client
+  // does per element type — and `container` identifies the message the block
+  // lives in. Fire-and-forget, like the shortcut run above.
   route("POST", "/api/blocks/actions", async (ctx) => {
     const body = (await ctx.body.json()) as {
-      actionId?: string;
+      action?: Record<string, unknown>;
       appId?: string;
-      blockId?: string;
       botId?: string;
-      buttonText?: string;
       channelId?: string;
       messageTs?: string;
-      value?: string;
     };
-    if (
-      !(
-        body.actionId &&
-        body.appId &&
-        body.botId &&
-        body.buttonText &&
-        body.channelId &&
-        body.messageTs
-      )
-    ) {
+    if (!(body.action && body.appId && body.botId && body.channelId && body.messageTs)) {
       return errorResponse("invalid_block_action", 400);
     }
     return mutate(
       "blocks.actions",
       {
-        actions: JSON.stringify([
-          {
-            action_id: body.actionId,
-            block_id: body.blockId,
-            text: { emoji: true, text: body.buttonText, type: "plain_text" },
-            type: "button",
-            value: body.value ?? "",
-          },
-        ]),
+        actions: JSON.stringify([body.action]),
         app_id: body.appId,
         client_token: `web-${Date.now()}`,
         container: JSON.stringify({

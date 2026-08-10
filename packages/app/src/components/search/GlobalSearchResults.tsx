@@ -2,6 +2,7 @@ import type { DirectMessage, User } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { dmDisplayName, store } from "../../lib/store";
+import { openConversationInSplit, SplitNavigation } from "../navigation/SplitNavigation";
 
 export interface JumpChannel {
   id: string;
@@ -68,22 +69,24 @@ export default function GlobalSearchResults(props: {
               if (row.kind === "channel") {
                 const channel = row.data;
                 return (
-                  <button
-                    aria-selected={props.activeIndex === itemIndex()}
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: props.activeIndex === itemIndex() }}
-                    id={optionId(itemIndex())}
-                    onClick={() => props.onChannel(channel)}
-                    onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                    role="option"
-                    tabIndex={-1}
-                    type="button"
-                  >
-                    <span class="global-search-jump-icon">
-                      {channel.private ? <Icon name="lock" size={13} /> : "#"}
-                    </span>
-                    {channel.name}
-                  </button>
+                  <SplitNavigation onSplit={() => openConversationInSplit(channel.id)}>
+                    <button
+                      aria-selected={props.activeIndex === itemIndex()}
+                      class="global-search-result global-search-jump btn-reset flex-align-center"
+                      classList={{ active: props.activeIndex === itemIndex() }}
+                      id={optionId(itemIndex())}
+                      onClick={() => props.onChannel(channel)}
+                      onMouseEnter={() => props.onActiveIndex(itemIndex())}
+                      role="option"
+                      tabIndex={-1}
+                      type="button"
+                    >
+                      <span class="global-search-jump-icon">
+                        {channel.private ? <Icon name="lock" size={13} /> : "#"}
+                      </span>
+                      {channel.name}
+                    </button>
+                  </SplitNavigation>
                 );
               }
               if (row.kind === "dm") {
@@ -92,20 +95,22 @@ export default function GlobalSearchResults(props: {
                   .map((id) => store.users.userById(id))
                   .filter((member) => member !== undefined);
                 return (
-                  <button
-                    aria-selected={props.activeIndex === itemIndex()}
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: props.activeIndex === itemIndex() }}
-                    id={optionId(itemIndex())}
-                    onClick={() => props.onDm(dm)}
-                    onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                    role="option"
-                    tabIndex={-1}
-                    type="button"
-                  >
-                    <AvatarStack max={3} size="small" users={members} />
-                    {dmDisplayName(dm, store.users.userById)}
-                  </button>
+                  <SplitNavigation onSplit={() => openConversationInSplit(dm.id)}>
+                    <button
+                      aria-selected={props.activeIndex === itemIndex()}
+                      class="global-search-result global-search-jump btn-reset flex-align-center"
+                      classList={{ active: props.activeIndex === itemIndex() }}
+                      id={optionId(itemIndex())}
+                      onClick={() => props.onDm(dm)}
+                      onMouseEnter={() => props.onActiveIndex(itemIndex())}
+                      role="option"
+                      tabIndex={-1}
+                      type="button"
+                    >
+                      <AvatarStack max={3} size="small" users={members} />
+                      {dmDisplayName(dm, store.users.userById)}
+                    </button>
+                  </SplitNavigation>
                 );
               }
               const user = row.data;

@@ -1,14 +1,15 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to command parsing.
+import { HEADING_TAG_RE } from "@slock/blockkit";
 import {
   createDateChip,
   createDividerElement,
   createHeaderElement,
   expandRangeToLines,
+  hideTrailingLineBreak,
   placeCaretAtEnd,
   placeCaretAtStart,
   placeCaretInText,
 } from "../richtext";
-import { HEADING_TAG_RE } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 import { createNavigationCommands } from "./navigationCommands";
 export function createBlockCommands(
@@ -77,6 +78,7 @@ export function createBlockCommands(
       const contents = lineRange.extractContents();
       const container = build(contents);
       lineRange.insertNode(container);
+      hideTrailingLineBreak(container);
       if (container.textContent || container.querySelector("br")) {
         placeCaretAtEnd(container);
       } else {
@@ -112,6 +114,7 @@ export function createBlockCommands(
     const range = sel.getRangeAt(0);
     const hr = createDividerElement();
     range.insertNode(hr);
+    hideTrailingLineBreak(hr);
     if (!hr.nextSibling) hr.after(document.createElement("br"));
     const r = document.createRange();
     r.setStartAfter(hr);
@@ -150,6 +153,7 @@ export function createBlockCommands(
         }
       }
       lineRange.insertNode(list);
+      hideTrailingLineBreak(list);
       const lastLi = list.lastElementChild ?? list;
       if (lastLi.textContent || lastLi.querySelector("br")) {
         placeCaretAtEnd(lastLi);

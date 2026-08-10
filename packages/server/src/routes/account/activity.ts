@@ -63,6 +63,8 @@ function trimActivityItem(raw: any): any {
     is_unread: raw?.is_unread,
     item: {
       activity_text: findActivityText(item),
+      actor_user_id: item.actor_user_id,
+      author_user_id: item.author_user_id,
       bundle_info: hasBundlePayload
         ? {
             payload: {
@@ -106,6 +108,7 @@ function trimActivityItem(raw: any): any {
       channel_id: item.channel_id,
       invite: item.invite,
       latest_user_id: item.latest_user_id,
+      latest_reply_actor_user_id: item.latest_reply_actor_user_id,
       linked_item_id: item.linked_item_id,
       message: trimActivityMessage(message),
       message_ts: item.message_ts,
@@ -119,6 +122,7 @@ function trimActivityItem(raw: any): any {
       reaction: item.reaction ? { name: item.reaction.name, user: item.reaction.user } : undefined,
       ts: item.ts,
       type: item.type,
+      user: item.user,
       user_id: item.user_id,
     },
     key: raw?.key,

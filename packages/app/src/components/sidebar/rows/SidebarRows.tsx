@@ -12,6 +12,7 @@ import {
 import type { JSX } from "solid-js";
 import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
+import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
 
 // Shared by channel-category headers (label doubles as an unread filter
 // toggle) and the DM section headers (label is plain text) so the caret
@@ -78,25 +79,27 @@ export function DmRow(props: { dm: DirectMessage }) {
   return (
     <Show when={ready()}>
       <div class="sidebar-row-wrap">
-        <button
-          class="sidebar-row btn-reset flex-align-center"
-          classList={{
-            active: isActive(),
-            muted: muted(),
-            unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
-          }}
-          data-nav-row
-          onClick={() => store.viewState.setActiveView({ id: props.dm.id, kind: "dm" })}
-          type="button"
-        >
-          <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>
-            {(u) => <Avatar showPresence size="small" user={u()} />}
-          </Show>
-          <span class="sidebar-row-name truncate">{name()}</span>
-          {!muted() && props.dm.mentions ? (
-            <span class="sidebar-badge">{props.dm.mentions}</span>
-          ) : null}
-        </button>
+        <SplitNavigation onSplit={() => openConversationInSplit(props.dm.id)}>
+          <button
+            class="sidebar-row btn-reset flex-align-center"
+            classList={{
+              active: isActive(),
+              muted: muted(),
+              unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
+            }}
+            data-nav-row
+            onClick={() => store.viewState.setActiveView({ id: props.dm.id, kind: "dm" })}
+            type="button"
+          >
+            <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>
+              {(u) => <Avatar showPresence size="small" user={u()} />}
+            </Show>
+            <span class="sidebar-row-name truncate">{name()}</span>
+            {!muted() && props.dm.mentions ? (
+              <span class="sidebar-badge">{props.dm.mentions}</span>
+            ) : null}
+          </button>
+        </SplitNavigation>
         <Tooltip content="Close conversation">
           <button
             aria-label="Close conversation"

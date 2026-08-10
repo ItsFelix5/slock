@@ -83,6 +83,8 @@
 }
 .modal-card {
   background: var(--composer-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal-lg);
 }
 .search-input {
   width: 100%;

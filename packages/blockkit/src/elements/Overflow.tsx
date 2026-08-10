@@ -1,14 +1,61 @@
-import type { OverflowElement } from "@slock/slack-api";
+// biome-ignore-all lint/style/useNamingConvention: Slack action payloads preserve the service's wire field names.
+import { type OverflowElement, runBlockAction } from "@slock/slack-api";
 import { Icon, Menu } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
+import type { BlockActionContext } from "../BlockKit";
 
-export default function Overflow(props: { el: OverflowElement }) {
+export default function Overflow(props: {
+  blockId?: string;
+  context?: BlockActionContext;
+  el: OverflowElement;
+}) {
   const [open, setOpen] = createSignal(false);
   const [unsupported, setUnsupported] = createSignal(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let active = true;
+  const canDispatch = () => !!(props.context?.botId && props.el.action_id);
 
-  onCleanup(() => clearTimeout(timer));
+  onCleanup(() => {
+    active = false;
+    clearTimeout(timer);
+  });
+
+  const flashUnsupported = () => {
+    clearTimeout(timer);
+    setUnsupported(true);
+    timer = setTimeout(() => setUnsupported(false), 2000);
+  };
+
+  const selectOption = (opt: OverflowElement["options"][number]) => {
+    if (opt.url) {
+      setOpen(false);
+      window.open(opt.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const ctx = props.context;
+    if (!(ctx?.botId && props.el.action_id)) {
+      flashUnsupported();
+      return;
+    }
+    setOpen(false);
+    runBlockAction({
+      action: {
+        action_id: props.el.action_id,
+        block_id: props.blockId,
+        selected_option: {
+          text: opt.text,
+          ...(opt.value === undefined ? {} : { value: opt.value }),
+        },
+        type: "overflow",
+      },
+      botId: ctx.botId,
+      channelId: ctx.channelId,
+      messageTs: ctx.messageTs,
+    }).catch(() => {
+      if (active) flashUnsupported();
+    });
+  };
 
   return (
     <Menu
@@ -23,7 +70,7 @@ export default function Overflow(props: { el: OverflowElement }) {
         <button
           class="bk-overflow-btn"
           onClick={() => setOpen(!open())}
-          title="More options"
+          title={canDispatch() ? "More options" : "This menu needs its app to respond"}
           type="button"
         >
           <Icon name="ellipsis-vertical-filled" size={16} />
@@ -32,20 +79,7 @@ export default function Overflow(props: { el: OverflowElement }) {
     >
       <For each={props.el.options}>
         {(opt) => (
-          <button
-            class="menu-item"
-            onClick={() => {
-              if (opt.url) {
-                setOpen(false);
-                window.open(opt.url, "_blank", "noopener,noreferrer");
-                return;
-              }
-              clearTimeout(timer);
-              setUnsupported(true);
-              timer = setTimeout(() => setUnsupported(false), 2000);
-            }}
-            type="button"
-          >
+          <button class="menu-item" onClick={() => selectOption(opt)} type="button">
             <BkText text={opt.text} />
           </button>
         )}

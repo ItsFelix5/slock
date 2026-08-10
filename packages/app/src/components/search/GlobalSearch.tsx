@@ -6,9 +6,8 @@ import {
   fuzzySearch,
   Icon,
   listNavigationIndex,
-  Overlay,
-  Tooltip,
-  useEscapeClose,
+  Modal,
+  ModalCloseButton,
 } from "@slock/ui";
 import {
   createEffect,
@@ -41,7 +40,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const [peopleError, setPeopleError] = createSignal(false);
   const [channelsError, setChannelsError] = createSignal(false);
   const listboxId = createUniqueId();
-  useEscapeClose(props.onClose);
   const peopleRequest = createDebouncedRequest(
     (q) => store.users.searchUsers(q, store.users.currentUser()?.id),
     {
@@ -222,66 +220,55 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     if (next !== undefined) setActiveIndex(next);
   };
   return (
-    <Overlay align="top" ariaLabel="Search Slack" onClose={props.onClose}>
-      <div class="global-search-card modal-card">
-        <div class="global-search-input-row flex-align-center">
-          <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
-          <input
-            aria-activedescendant={activeOptionId()}
-            aria-autocomplete="list"
-            aria-controls={listboxId}
-            aria-expanded={hasQuery()}
-            aria-label="Search channels, people, and conversations"
-            autofocus
-            autocomplete="off"
-            class="global-search-input input-reset"
-            onInput={(e) => searchDirectories(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                e.preventDefault();
-                moveActive(e.key);
-              } else if ((e.key === "Home" || e.key === "End") && hasQuery()) {
-                e.preventDefault();
-                moveActive(e.key);
-              } else if (e.key === "Enter" && hasQuery()) {
-                e.preventDefault();
-                const index = activeIndex();
-                if (index === null) goToMessageSearch();
-                else activateItem(index);
-              }
-            }}
-            placeholder="Search channels, people, conversations…"
-            role="combobox"
-            spellcheck={false}
-            type="text"
-            value={query()}
-          />
-          <Tooltip content="Close">
-            <button
-              aria-label="Close"
-              class="panel-close-btn"
-              onClick={props.onClose}
-              type="button"
-            >
-              <Icon name="close" size={12} />
-            </button>
-          </Tooltip>
-        </div>
-        <GlobalSearchResults
-          activeIndex={activeIndex()}
-          hasQuery={hasQuery()}
-          listboxId={listboxId}
-          onActiveIndex={setActiveIndex}
-          onChannel={goToChannel}
-          onDm={goToDm}
-          onMessageSearch={goToMessageSearch}
-          onPerson={goToPerson}
-          query={query()}
-          rows={rows()}
-          searching={searching()}
-          status={searchStatus()}
+    <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
+      <div class="global-search-input-row flex-align-center">
+        <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
+        <input
+          aria-activedescendant={activeOptionId()}
+          aria-autocomplete="list"
+          aria-controls={listboxId}
+          aria-expanded={hasQuery()}
+          aria-label="Search channels, people, and conversations"
+          autofocus
+          autocomplete="off"
+          class="global-search-input input-reset"
+          onInput={(e) => searchDirectories(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              e.preventDefault();
+              moveActive(e.key);
+            } else if ((e.key === "Home" || e.key === "End") && hasQuery()) {
+              e.preventDefault();
+              moveActive(e.key);
+            } else if (e.key === "Enter" && hasQuery()) {
+              e.preventDefault();
+              const index = activeIndex();
+              if (index === null) goToMessageSearch();
+              else activateItem(index);
+            }
+          }}
+          placeholder="Search channels, people, conversations…"
+          role="combobox"
+          spellcheck={false}
+          type="text"
+          value={query()}
         />
+        <ModalCloseButton onClose={props.onClose} />
       </div>
-    </Overlay>
+      <GlobalSearchResults
+        activeIndex={activeIndex()}
+        hasQuery={hasQuery()}
+        listboxId={listboxId}
+        onActiveIndex={setActiveIndex}
+        onChannel={goToChannel}
+        onDm={goToDm}
+        onMessageSearch={goToMessageSearch}
+        onPerson={goToPerson}
+        query={query()}
+        rows={rows()}
+        searching={searching()}
+        status={searchStatus()}
+      />
+    </Modal>
   );
 }

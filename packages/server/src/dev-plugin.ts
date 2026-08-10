@@ -123,23 +123,21 @@ export function appServerPlugin(): Plugin {
         }
       });
 
-      server.httpServer?.on("upgrade", (req, socket) => {
+      server.httpServer?.on("upgrade", (req, socket, head) => {
         const { pathname } = new URL(req.url ?? "/", "http://internal");
         if (pathname !== "/ws") return; // let Vite's own HMR upgrade handler take it
-        const key = req.headers["sec-websocket-key"];
-        if (typeof key !== "string") {
-          socket.destroy();
-          return;
-        }
         const creds = parseCredsCookie(req.headers.cookie ?? null);
-        const client = acceptUpgrade(
+        acceptUpgrade(
+          req,
           socket,
-          key,
+          head,
+          (client) => {
+            client.send(statusMessage(false));
+            handleClientOpen(client, creds);
+          },
           (raw, c) => handleClientMessage(raw, c),
           (c) => handleClientDisconnect(c),
         );
-        client.send(statusMessage(false));
-        handleClientOpen(client, creds);
       });
     },
     name: "slock-app-server",

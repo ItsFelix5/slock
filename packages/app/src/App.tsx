@@ -1,14 +1,21 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import { Button, ConnectionStatus, InlineFeedback, TypingIndicator } from "@slock/ui";
+import {
+  Button,
+  ConnectionStatus,
+  InlineFeedback,
+  TileGroup,
+  type TileLeaf,
+  TypingIndicator,
+} from "@slock/ui";
 import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
 import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
-import { isArchivedChannel } from "./components/channel/channelHeaderState";
+import { createChannelHeaderState } from "./components/channel/channelHeaderState";
 import JoinChannelBar from "./components/channel/JoinChannelBar";
 import PinnedPanel from "./components/channel/PinnedPanel";
 import Composer from "./components/composer/Composer";
@@ -17,17 +24,22 @@ import MessageList from "./components/messages/MessageList";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
 import ThreadPanel from "./components/messages/thread/ThreadPanel";
 import ViewModal from "./components/modals/ViewModal";
+import { openConversationInSplit, SplitNavigation } from "./components/navigation/SplitNavigation";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
 import UsergroupDetails from "./components/usergroup/UsergroupDetails";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
+import { handleMessageCopy } from "./lib/messageCopy";
+import { installMessageHoverDragGuard } from "./lib/messageHoverDragGuard";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
   parseSlackPermalink,
 } from "./lib/navigation/slackPermalink";
+import { PaneViewProvider } from "./lib/paneView";
 import { actionFeedback, channelDisplayName, conversationDisplayName, store } from "./lib/store";
+import type { View } from "./lib/store/slices/types";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
@@ -55,18 +67,22 @@ const blockKitResolver: BlockKitResolver = {
       : undefined;
   },
   wrapChannelMention: (id, trigger) => (
-    <ChannelHoverCard channelId={id}>{trigger}</ChannelHoverCard>
+    <SplitNavigation onSplit={() => openConversationInSplit(id)}>
+      <ChannelHoverCard channelId={id}>{trigger}</ChannelHoverCard>
+    </SplitNavigation>
   ),
   wrapLink: (url, trigger) => {
     const target = parseSlackPermalink(url);
     return target ? (
-      <MessageLinkHoverCard
-        channelId={target.channelId}
-        messageTs={target.messageTs}
-        threadTs={target.threadTs}
-      >
-        {trigger}
-      </MessageLinkHoverCard>
+      <SplitNavigation onSplit={() => openConversationInSplit(target.channelId, target.threadTs)}>
+        <MessageLinkHoverCard
+          channelId={target.channelId}
+          messageTs={target.messageTs}
+          threadTs={target.threadTs}
+        >
+          {trigger}
+        </MessageLinkHoverCard>
+      </SplitNavigation>
     ) : (
       trigger
     );
@@ -76,6 +92,54 @@ const blockKitResolver: BlockKitResolver = {
     <UsergroupHoverCard usergroupId={id}>{trigger}</UsergroupHoverCard>
   ),
 };
+
+function MainPane(props: { leaf: TileLeaf<View | null> }) {
+  const { isArchivedChannel } = createChannelHeaderState(() => props.leaf.content);
+  const unjoinedChannelId = () => {
+    const view = props.leaf.content;
+    return view?.kind === "channel" && !store.channels.isChannelMember(view.id)
+      ? view.id
+      : undefined;
+  };
+  const typingNames = createMemo(() => {
+    const view = props.leaf.content;
+    return view ? store.typing.typingUsersInChannel(view.id).map((user) => user.name) : [];
+  });
+
+  return (
+    <PaneViewProvider
+      value={{
+        clearMessageTarget: () => store.tiling.clearMessageTarget(props.leaf.id),
+        messageTarget: () => store.tiling.messageTarget(props.leaf.id),
+        paneId: props.leaf.id,
+        view: () => props.leaf.content,
+      }}
+    >
+      <div class="main-panel">
+        <ChannelHeader />
+        <MessageList />
+        <Show
+          fallback={
+            <Show
+              fallback={
+                <div class="typing-indicator-anchor">
+                  <TypingIndicator names={typingNames()} />
+                  <Composer channelId={props.leaf.content?.id} />
+                </div>
+              }
+              when={isArchivedChannel()}
+            >
+              <ArchivedChannelBar />
+            </Show>
+          }
+          when={unjoinedChannelId()}
+        >
+          {(channelId) => <JoinChannelBar channelId={channelId()} />}
+        </Show>
+      </div>
+    </PaneViewProvider>
+  );
+}
 
 function App() {
   createEffect(() => {
@@ -143,23 +207,19 @@ function App() {
 
   onMount(() => {
     document.addEventListener("click", openSlackPermalink);
+    document.addEventListener("copy", handleMessageCopy);
+    const uninstallDragGuard = installMessageHoverDragGuard();
     onCleanup(() => {
       permalinkOpener.invalidate();
       document.removeEventListener("click", openSlackPermalink);
+      document.removeEventListener("copy", handleMessageCopy);
+      uninstallDragGuard();
     });
   });
 
-  const unjoinedChannelId = () => {
-    if (store.resources.bootstrap.loading) return;
-    const v = store.viewState.activeView();
-    return v?.kind === "channel" && !store.channels.isChannelMember(v.id) ? v.id : undefined;
-  };
-
-  const typingNames = createMemo(() => {
-    const v = store.viewState.activeView();
-    if (!v) return [];
-    return store.typing.typingUsersInChannel(v.id).map((u) => u.name);
-  });
+  function renderMainPaneContent(leaf: TileLeaf<View | null>) {
+    return <MainPane leaf={leaf} />;
+  }
 
   return (
     <BlockKitResolverContext.Provider value={blockKitResolver}>
@@ -191,28 +251,11 @@ function App() {
           />
           <Sidebar />
 
-          <div class="main-panel">
-            <ChannelHeader />
-            <MessageList />
-            <Show
-              fallback={
-                <Show
-                  fallback={
-                    <div class="typing-indicator-anchor">
-                      <TypingIndicator names={typingNames()} />
-                      <Composer />
-                    </div>
-                  }
-                  when={isArchivedChannel()}
-                >
-                  <ArchivedChannelBar />
-                </Show>
-              }
-              when={unjoinedChannelId()}
-            >
-              {(channelId) => <JoinChannelBar channelId={channelId()} />}
-            </Show>
-          </div>
+          <TileGroup
+            onResize={store.tiling.resizeSplit}
+            renderLeaf={renderMainPaneContent}
+            tree={store.tiling.tree()}
+          />
           <ThreadPanel />
           <UserProfile />
           <UsergroupDetails />

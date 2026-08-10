@@ -261,7 +261,7 @@ function EmojiButton(props: {
         type="button"
       >
         <Show fallback={props.entry.unicode ?? "❔"} when={url()}>
-          {(u) => <img alt={props.entry.name} src={u()} />}
+          {(u) => <img alt={props.entry.name} decoding="async" loading="lazy" src={u()} />}
         </Show>
       </button>
     </Tooltip>

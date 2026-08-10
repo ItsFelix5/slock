@@ -1,6 +1,7 @@
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: History loading, virtualized positioning, and their shared DOM measurements form one scroll state machine.
 import { Button, Icon } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
+import { usePaneView } from "../../lib/paneView";
 import {
   channelDisplayName,
   dmDisplayName,
@@ -41,6 +42,16 @@ const MAX_LANDING_FRAMES = 30;
 // as "settled" — one match alone could just be luck between two rows that
 // happened to measure in the same frame.
 const LANDING_STABLE_STREAK = 2;
+// A settled total below this floor (message count times the shortest a row
+// can ever render — a compact same-author continuation) means the
+// virtualizer hasn't actually caught up with the message list yet, not that
+// layout has genuinely finished. Without this, totalSize() can flatline on a
+// bogus early value (observed: 164px "stable" for a 28-message channel,
+// three frames in) before most rows have mounted, and the list gets revealed
+// still wrong — the exact "colliding on open" bug, which then only ever
+// self-corrects if something else later forces a remeasure (a live message
+// arriving, or a row leaving and re-entering the rendered window).
+const MIN_ROW_HEIGHT_FLOOR = 24;
 
 type LandingAlign = "start" | "end" | "center";
 
@@ -49,6 +60,7 @@ function nextFrame(): Promise<void> {
 }
 
 export default function MessageList() {
+  const { clearMessageTarget, messageTarget, view: paneView } = usePaneView();
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let scrollRef: HTMLDivElement | undefined;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
@@ -71,7 +83,7 @@ export default function MessageList() {
   // lets the header-height compensation effect below stay out of its way
   // instead of both adjusting scrollTop in the same frame.
   let landingActive = false;
-  let requestedMessageTarget: ReturnType<typeof store.viewState.channelMessageTarget> = null;
+  let requestedMessageTarget: ReturnType<typeof messageTarget> = null;
   let cancelPendingFlash: (() => void) | undefined;
   // Older-page fetches spent per view trying to backfill far enough to reach
   // its read cursor — reset once we land (or give up) so a later reopen gets
@@ -99,14 +111,14 @@ export default function MessageList() {
   const [scrollMargin, setScrollMargin] = createSignal(0);
 
   const messages = createMemo(() => {
-    const v = store.viewState.activeView();
+    const v = paneView();
     if (!v) return [];
     return store.messages.messagesByChannel[v.id] ?? [];
   });
-  const activeChannelId = () => store.viewState.activeView()?.id ?? "";
+  const activeChannelId = () => paneView()?.id ?? "";
   const messageFocus = createMessageFocus(messages, virtualApi, () => scrollRef, activeChannelId, {
     onOpenThread: (ts) => {
-      const v = store.viewState.activeView();
+      const v = paneView();
       if (v) store.viewState.openThread(v.id, ts);
     },
   });
@@ -123,7 +135,7 @@ export default function MessageList() {
   createEffect(
     on(
       () => {
-        const view = store.viewState.activeView();
+        const view = paneView();
         // Every input that can change the header's height, so this re-measures.
         return [
           store.resources.bootstrap.loading,
@@ -164,7 +176,7 @@ export default function MessageList() {
   );
 
   const channelName = createMemo(() => {
-    const v = store.viewState.activeView();
+    const v = paneView();
     if (!v) return "";
     if (v.kind === "channel") return channelDisplayName(store.channels.channelById(v.id), v.id);
     return dmDisplayName(store.dms.dmById(v.id), store.users.userById);
@@ -189,10 +201,15 @@ export default function MessageList() {
   // superseded and return without touching anything.
   async function runLanding(viewId: string, index: number, align: LandingAlign) {
     const run = ++landingRun;
-    const isStale = () => run !== landingRun || store.viewState.activeView()?.id !== viewId;
+    const isStale = () => run !== landingRun || paneView()?.id !== viewId;
     if (isStale()) return;
     landingActive = true;
-    setLandingAnchor(align === "start" ? "start" : "end");
+    // Anchor to the landing row, not the bottom, for any align that isn't
+    // literally "end" — "center" (cold jump-to-message) was falling through
+    // to "end" here, which kept the virtualizer pinned to whatever was at the
+    // bottom of the viewport while rows measured in, fighting the repeated
+    // scrollToIndex below and throwing the landing off in either direction.
+    setLandingAnchor(align === "end" ? "end" : "start");
     let lastTotal = -1;
     let stableStreak = 0;
     for (let frame = 0; frame < MAX_LANDING_FRAMES; frame++) {
@@ -213,7 +230,8 @@ export default function MessageList() {
       await nextFrame();
       if (isStale()) return;
       const total = virtualApi()?.totalSize() ?? -1;
-      if (total === lastTotal) {
+      const plausible = total >= messages().length * MIN_ROW_HEIGHT_FLOOR;
+      if (total === lastTotal && plausible) {
         stableStreak += 1;
         if (stableStreak >= LANDING_STABLE_STREAK) break;
       } else {
@@ -252,7 +270,7 @@ export default function MessageList() {
     landingRun += 1;
     landingActive = false;
     setLandingAnchor("end");
-    const view = store.viewState.activeView();
+    const view = paneView();
     if (view && readyViewId() !== view.id) setReadyViewId(view.id);
   }
 
@@ -263,7 +281,7 @@ export default function MessageList() {
   // handled by the virtualizer itself (see anchorTo/followOnAppend in
   // VirtualizedRows.tsx) — this effect only owns the one-time initial landing.
   createEffect(() => {
-    const view = store.viewState.activeView();
+    const view = paneView();
     const msgs = messages();
     const switchedView = view?.id !== lastViewId;
     lastViewId = view?.id;
@@ -282,8 +300,8 @@ export default function MessageList() {
 
     // A deliberate "view in channel" navigation owns the landing position;
     // don't let the usual unread/newest positioning race it.
-    const messageTarget = store.viewState.channelMessageTarget();
-    if (messageTarget?.channelId === view?.id) return;
+    const target = messageTarget();
+    if (target?.channelId === view?.id) return;
 
     if (view && positionedViewId !== view.id && msgs.length > 0) {
       const api = virtualApi();
@@ -385,7 +403,7 @@ export default function MessageList() {
 
   function handleScroll(preferredDirection?: "newer" | "older") {
     const el = scrollRef;
-    const view = store.viewState.activeView();
+    const view = paneView();
     if (!(el && view)) return;
     const direction =
       preferredDirection ??
@@ -484,7 +502,7 @@ export default function MessageList() {
   }
 
   function jumpToDate(dateMs: number) {
-    const view = store.viewState.activeView();
+    const view = paneView();
     if (!view) return;
     void store.messages.jumpToDate(view.id, dateMs).then((ok) => {
       if (ok) landAt(view.id, 0);
@@ -493,20 +511,22 @@ export default function MessageList() {
 
   // There's no Slack API call that returns "the first page of the channel"
   // directly (conversations.history always answers relative to `latest`,
-  // newest-first), so reaching an arbitrarily old beginning means walking
-  // every older page via cursor. Land on whatever's loaded now, same as any
-  // other jump, then drive that walk explicitly (loadOlderMessagesToBeginning)
-  // rather than leaving it to scroll events — see that function for why.
+  // newest-first) — the only way to reach an arbitrarily old beginning
+  // without walking every older page by hand is to anchor on a known nearby
+  // timestamp, same as jumpToDate. store.messages.jumpToBeginning does
+  // exactly that off the channel's own creation date (one bounded request,
+  // never a loop).
   function jumpToBeginning() {
-    const view = store.viewState.activeView();
+    const view = paneView();
     if (!view) return;
-    landAt(view.id, 0);
-    void store.messages.loadOlderMessagesToBeginning(view.id);
+    void store.messages.jumpToBeginning(view.id).then((ok) => {
+      if (ok) landAt(view.id, 0);
+    });
   }
 
   createEffect(() => {
-    const target = store.viewState.channelMessageTarget();
-    const view = store.viewState.activeView();
+    const target = messageTarget();
+    const view = paneView();
     if (!(target && view?.id === target.channelId)) return;
 
     const index = messages().findIndex((candidate) => candidate.ts === target.ts);
@@ -521,7 +541,7 @@ export default function MessageList() {
       // reply reference) has nothing to wait for, so it skips straight to
       // scrolling instead of hiding an already-visible view.
       const coldOpen = readyViewId() !== view.id;
-      store.viewState.setChannelMessageTarget(null);
+      clearMessageTarget();
       if (coldOpen) {
         beginLanding(view.id, index, "center");
       } else {
@@ -533,8 +553,7 @@ export default function MessageList() {
     if (requestedMessageTarget === target) return;
     requestedMessageTarget = target;
     void store.messages.ensureChannelMessage(target.channelId, target.ts).then((found) => {
-      if (!found && store.viewState.channelMessageTarget() === target)
-        store.viewState.setChannelMessageTarget(null);
+      if (!found && messageTarget() === target) clearMessageTarget();
     });
   });
 
@@ -550,7 +569,7 @@ export default function MessageList() {
       ref={scrollRef}
     >
       <Show when={!store.resources.bootstrap.loading}>
-        <Show when={store.viewState.activeView()}>
+        <Show when={paneView()}>
           {(v) => (
             <>
               <Show when={visibleDay()}>
@@ -620,6 +639,7 @@ export default function MessageList() {
                   channelId={v().id}
                   editingTs={messageFocus.editingTs}
                   focusedTs={messageFocus.focusedTs}
+                  listFocused={messageFocus.listFocused}
                   followOnAppend={followOnAppend()}
                   messages={messages()}
                   onApi={setVirtualApi}

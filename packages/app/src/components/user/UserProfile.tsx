@@ -13,7 +13,6 @@ import "../settings/Settings.css";
 import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
-import UserProfileStatus from "./UserProfileStatus";
 import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
 import { blurOnEnter, DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH } from "./userProfileOptions";
 import { createLastSeenText, createLocalTime } from "./userProfileTime";
@@ -26,7 +25,6 @@ export default function UserProfile() {
   const [customFieldInputs, setCustomFieldInputs] = createSignal<Record<string, string>>({});
   const [statusText, setStatusText] = createSignal("");
   const [statusEmoji, setStatusEmoji] = createSignal("");
-  const [statusExpiration, setStatusExpiration] = createSignal(0);
   const [savingStatus, setSavingStatus] = createSignal(false);
   const [savingPresence, setSavingPresence] = createSignal(false);
   const [savingProfileFields, setSavingProfileFields] = createSignal<Record<string, boolean>>({});
@@ -48,7 +46,6 @@ export default function UserProfile() {
       if (!id || id !== me?.id) return;
       setStatusText(me.statusText ?? "");
       setStatusEmoji(me.statusEmoji ?? "");
-      setStatusExpiration(0);
       setNameInput(me.name);
       setTitleInput(me.title ?? "");
       setPronounsInput(me.pronouns ?? "");
@@ -56,15 +53,18 @@ export default function UserProfile() {
   );
   // Custom field values live in customFieldsFor (fetched separately — see
   // the store), not on the user object, and arrive async — so backfill any
-  // inputs still missing once either that fetch or profileFieldDefs resolves,
-  // the same non-destructive merge either way.
+  // inputs still missing once either that fetch or profileFieldDefs resolves.
+  // fields is undefined until the fetch actually resolves (see customFieldsFor);
+  // merging that as "no values" would permanently mark every field as already
+  // handled and lock out the real values once they do arrive.
   createEffect(() => {
     const defs = store.resources.profileFieldDefs();
     const id = user()?.id;
     const me = store.users.currentUser();
     if (!(defs && id && me && id === me.id)) return;
     const fields = store.users.customFieldsFor(id);
-    setCustomFieldInputs((current) => mergeMissingProfileFieldValues(current, defs, fields ?? []));
+    if (!fields) return;
+    setCustomFieldInputs((current) => mergeMissingProfileFieldValues(current, defs, fields));
   });
   const saveProfileField = async (key: string, save: () => Promise<boolean>) => {
     if (savingProfileFields()[key]) return;
@@ -92,23 +92,19 @@ export default function UserProfile() {
   };
   const saveCustomField = (id: string) => {
     const v = (customFieldInputs()[id] ?? "").trim();
-    const current = user()?.customFields?.find((f) => f.id === id)?.value ?? "";
+    const userId = user()?.id;
+    const current =
+      (userId && store.users.customFieldsFor(userId)?.find((f) => f.id === id)?.value) ?? "";
     if (v === current) return;
     return saveProfileField(`custom:${id}`, () =>
       store.users.updateMyProfile({ customFields: { [id]: v } }),
     );
   };
-  const statusExpirationTimestamp = (): number => {
-    const sel = statusExpiration();
-    if (sel === 0) return 0;
-    if (sel === -1) return Math.floor(new Date().setHours(23, 59, 59, 999) / 1000);
-    return Math.floor(Date.now() / 1000) + sel;
-  };
   const saveStatus = async () => {
     if (savingStatus()) return;
     setSavingStatus(true);
     try {
-      await store.users.updateMyStatus(statusText(), statusEmoji(), statusExpirationTimestamp());
+      await store.users.updateMyStatus(statusText(), statusEmoji(), 0);
     } finally {
       setSavingStatus(false);
     }
@@ -120,7 +116,6 @@ export default function UserProfile() {
       if (await store.users.clearMyStatus()) {
         setStatusText("");
         setStatusEmoji("");
-        setStatusExpiration(0);
       }
     } finally {
       setSavingStatus(false);
@@ -143,7 +138,8 @@ export default function UserProfile() {
   const lastSeenText = createLastSeenText(user, now);
   const customFields = createMemo(() => {
     const defs = store.resources.profileFieldDefs();
-    const values = user()?.customFields;
+    const id = user()?.id;
+    const values = id ? store.users.customFieldsFor(id) : undefined;
     if (!(defs && values?.length)) return [];
     const labelById = new Map(defs.map((d) => [d.id, d.label]));
     return values
@@ -178,6 +174,7 @@ export default function UserProfile() {
             <UserProfileInfo
               blurOnEnter={blurOnEnter}
               botBio={botBio}
+              clearStatus={clearStatus}
               isSavingPresence={savingPresence}
               isSelf={isSelf}
               lastSeenText={lastSeenText}
@@ -187,27 +184,20 @@ export default function UserProfile() {
               pronounsInput={pronounsInput}
               saveName={saveName}
               savePronouns={savePronouns}
+              saveStatus={saveStatus}
               saveTitle={saveTitle}
               savingProfileFields={savingProfileFields}
+              savingStatus={savingStatus}
               setNameInput={setNameInput}
               setPronounsInput={setPronounsInput}
+              setStatusEmoji={setStatusEmoji}
+              setStatusText={setStatusText}
               setTitleInput={setTitleInput}
+              statusEmoji={statusEmoji}
+              statusText={statusText}
               titleInput={titleInput}
               user={user}
             />
-            <Show when={isSelf()}>
-              <UserProfileStatus
-                clearStatus={clearStatus}
-                saveStatus={saveStatus}
-                setStatusEmoji={setStatusEmoji}
-                setStatusExpiration={setStatusExpiration}
-                setStatusText={setStatusText}
-                statusEmoji={statusEmoji}
-                statusExpiration={statusExpiration}
-                statusText={statusText}
-                savingStatus={savingStatus}
-              />
-            </Show>
             <UserProfileContact
               customFields={customFields()}
               editableFields={editableCustomFields()}

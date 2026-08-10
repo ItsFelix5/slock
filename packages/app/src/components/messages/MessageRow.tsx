@@ -21,7 +21,13 @@ import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
 import AttachmentCard from "./parts/media/AttachmentCard";
 import MessageFiles from "./parts/media/MessageFiles";
-import { resolveMessageRenderState, resolveProfileUserId } from "./parts/messageRenderState";
+import {
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  resolveBotProfileUserId,
+  resolveMessageRenderState,
+  resolveProfileUserId,
+} from "./parts/messageRenderState";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 
@@ -88,6 +94,7 @@ export type MessageRowProps = {
   onJumpToMessage?: (ts: string) => void;
   index: () => number;
   focusedTs?: () => string | null;
+  listFocused?: () => boolean;
   editingTs?: () => string | null;
   onStartEdit?: (ts: string) => void;
   onStopEdit?: () => void;
@@ -113,6 +120,7 @@ export default function MessageRow(props: MessageRowProps) {
   const showRepliesDivider = () => renderState().showRepliesDivider;
   const replyRef = () => renderState().replyRef;
   const messageText = () => renderState().messageText;
+  const renderBlocks = () => renderState().renderBlocks;
   const hasEnlargedEmojiOnlyText = () => renderState().hasEnlargedEmojiOnlyText;
   const referencedMessage = createMemo(() => {
     const ref = replyRef();
@@ -142,19 +150,23 @@ export default function MessageRow(props: MessageRowProps) {
   const sameAuthorAsPrev = () => renderState().sameAuthorAsPrev;
   const showBroadcastBadge = () => renderState().showBroadcastBadge;
   const profileUserId = () => resolveProfileUserId(msg());
-  const user = createMemo(() => (msg().userId ? store.users.userById(msg().userId) : undefined));
-  // Apps posting via a user token set both `user` (the real poster) and
-  // bot_profile (the app's identity). When they're distinct, the real user's
-  // name/avatar wins — bot_profile is a fallback, not the poster. A message
-  // with only bot_id (no separate user) is a genuine bot post, so bot_profile
-  // still leads there; the [APP] badge covers both cases regardless.
-  const hasRealUser = () => !!msg().userId && msg().userId !== msg().botId;
-  const displayName = () =>
-    (hasRealUser() ? user()?.name : undefined) ?? msg().botName ?? "Unknown";
-  const avatarUrl = () => (hasRealUser() ? user()?.avatarUrl : undefined) ?? msg().botIcon;
+  const botProfileUserId = () => resolveBotProfileUserId(msg());
+  const user = createMemo(() => {
+    const id = profileUserId();
+    return id ? store.users.userById(id) : undefined;
+  });
+  const displayName = () => resolveAuthorDisplayName(msg(), user()?.name, "Unknown");
+  const avatarUrl = () => resolveAuthorAvatarUrl(msg(), user()?.avatarUrl);
   const isEditing = () => props.editingTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
+  // Whether this row is the roving-tabindex target — always true for exactly
+  // one row so Tab has somewhere to land, even before any real interaction.
   const focused = () => props.focusedTs?.() === msg().ts;
+  // Whether it should *look* focused: only once the list has genuine DOM
+  // focus, so the implicitly-seeded default row doesn't look selected on
+  // first render, and a stray click elsewhere can't pin a look-alike "focus"
+  // on a row that was never actually navigated to.
+  const visuallyFocused = () => focused() && (props.listFocused?.() ?? false);
   return (
     <Show when={renderState().showMessage}>
       <Show when={dayChanged() || showUnreadDivider()}>
@@ -198,6 +210,7 @@ export default function MessageRow(props: MessageRowProps) {
         {/* biome-ignore lint/a11y/noStaticElementInteractions: right-click-to-open-context-menu is a mouse-only convenience alongside the row's own interactive children */}
         <div
           class="message-row"
+          classList={{ focused: visuallyFocused() }}
           data-message-ts={msg().ts}
           onContextMenu={(e) => {
             if (msg().deleted || msg().isEphemeral || isEditing()) return;
@@ -261,6 +274,11 @@ export default function MessageRow(props: MessageRowProps) {
               <MessageMeta
                 displayName={displayName}
                 isPinned={isPinned}
+                botUserId={botProfileUserId()}
+                onOpenBot={() => {
+                  const id = botProfileUserId();
+                  if (id) store.users.openUserProfile(id);
+                }}
                 showBroadcastBadge={showBroadcastBadge}
                 message={
                   {
@@ -314,7 +332,7 @@ export default function MessageRow(props: MessageRowProps) {
                         </Show>
                       </>
                     }
-                    when={!replyRef() && msg().blocks?.length ? msg().blocks : undefined}
+                    when={renderBlocks()}
                   >
                     {(blocks) => (
                       <BlockKit
@@ -342,6 +360,12 @@ export default function MessageRow(props: MessageRowProps) {
                 {(a) => (
                   <AttachmentCard
                     attachment={a}
+                    context={{
+                      botId: msg().botId,
+                      channelId: props.channelId,
+                      messageTs: msg().ts,
+                      threadTs: msg().threadTs,
+                    }}
                     showPermalink={
                       !!a.fromUrl &&
                       !msg().text.includes(a.fromUrl) &&

@@ -1,4 +1,4 @@
-import { Icon, InlineFeedback } from "@slock/ui";
+import { Button, Icon, InlineFeedback } from "@slock/ui";
 import { actionFeedback, channelDisplayName, store } from "../../lib/store";
 import "./JoinChannelBar.css";
 
@@ -16,15 +16,15 @@ export default function JoinChannelBar(props: { channelId: string }) {
         feedback={actionFeedback.get(props.channelId)}
         priority={2}
       />
-      <button
-        class="join-channel-bar-btn btn-reset flex-align-center"
+      <Button
+        class="flex-shrink-0"
         disabled={store.channels.isJoinPending(props.channelId)}
         onClick={() => store.channels.joinChannelById(props.channelId)}
-        type="button"
+        variant="primary"
       >
         <Icon name="plus" size={14} />
         {store.channels.isJoinPending(props.channelId) ? "Joining…" : "Join channel"}
-      </button>
+      </Button>
     </div>
   );
 }

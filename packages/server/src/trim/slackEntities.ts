@@ -156,6 +156,9 @@ export function trimMessage(message: any): any {
     icons: trimIcons(message.icons),
     is_ephemeral: message.is_ephemeral,
     latest_reply: message.latest_reply,
+    metadata: message.metadata?.event_payload?.source_user_id
+      ? { event_payload: { source_user_id: message.metadata.event_payload.source_user_id } }
+      : undefined,
     reactions: Array.isArray(message.reactions)
       ? message.reactions.map((reaction: any) => ({
           count: reaction?.count,

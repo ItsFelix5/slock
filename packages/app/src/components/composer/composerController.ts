@@ -43,7 +43,7 @@ export function createComposerController(props: ComposerProps) {
     resetLinkPreviews: linkPreviews.reset,
     setText,
   });
-  const targetChannelId = () => props.channelId ?? store.viewState.activeView()?.id;
+  const targetChannelId = () => props.channelId;
   const suggestions = createSuggestionController({
     channelId: targetChannelId,
     currentTextContext: editor.currentTextContext,
@@ -102,11 +102,11 @@ export function createComposerController(props: ComposerProps) {
   });
   const placeholder = () => {
     if (props.placeholder) return props.placeholder;
-    const v = store.viewState.activeView();
-    if (!v) return "Message";
-    if (v.kind === "channel")
-      return `Message #${channelDisplayName(store.channels.channelById(v.id), v.id)}`;
-    return `Message ${dmDisplayName(store.dms.dmById(v.id), store.users.userById)}`;
+    const { channelId } = props;
+    if (!channelId) return "Message";
+    const dm = store.dms.dmById(channelId);
+    if (dm) return `Message ${dmDisplayName(dm, store.users.userById)}`;
+    return `Message #${channelDisplayName(store.channels.channelById(channelId), channelId)}`;
   };
   const runTool = createRunTool({
     applyMark: editor.applyMark,

@@ -8,8 +8,8 @@ import {
 import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from "solid-js";
 import { store } from "../../lib/store";
 import "./GlobalSearch.css";
-import "./MessageSearchView.css";
 import MessageSearchResults from "./MessageSearchResults";
+import "./MessageSearchView.css";
 import { type QuerySuggestion, querySuggestions, queryToken } from "./querySuggestions";
 import { navigateToSearchResult } from "./searchResultNavigation";
 
@@ -224,14 +224,6 @@ export default function MessageSearchView() {
           </For>
         </div>
       </Show>
-      <div class="message-search-help">
-        <span>
-          Try <kbd>from:</kbd> <kbd>in:</kbd> <kbd>has:link</kbd>
-        </span>
-        <span>
-          <kbd>tab</kbd> completes
-        </span>
-      </div>
       <MessageSearchResults
         canSearch={canSearch()}
         loading={loading()}

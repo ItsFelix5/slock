@@ -1,4 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
+import { writeFile } from "node:fs/promises";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { type Route, route } from "../router.ts";
@@ -10,6 +11,18 @@ export const commandRoutes: Route[] = [
     const data = await callSlack("commands.list", {}, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "commands.list", ctx.creds, ctx.acceptEncoding);
     const commandsObj = data.commands ?? {};
+    // DEBUG: commands.list only returned 73 commands for the user, who says
+    // client.appCommands has a `commands` field with more. Dumping just that
+    // field to a file instead of console (too large to read as log lines).
+    callSlack("client.appCommands", { _x_reason: "app-commands-conditional-fetching" }, ctx.creds)
+      .then((appCommandsData) =>
+        writeFile(
+          "/tmp/debug-app-commands.json",
+          JSON.stringify(appCommandsData.commands, null, 2),
+        ),
+      )
+      .then(() => console.log("[debug] wrote /tmp/debug-app-commands.json"))
+      .catch((err) => console.log("[debug client.appCommands] failed:", err));
     return jsonResponse(
       {
         commands: Object.values<any>(commandsObj)

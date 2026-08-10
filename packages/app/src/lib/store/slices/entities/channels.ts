@@ -113,21 +113,27 @@ export function createChannelsSlice(deps: {
     }
   }
 
-  // client.userBoot can omit topic metadata for a channel. Resolve it lazily
-  // from the authenticated conversations.info response, then patch the
-  // reactive channel snapshot. Only called from the couple of places that
-  // actually display a topic (channel header, #mention hover card) - not
-  // from channelById itself, which is called for every channel referenced
-  // anywhere in the UI (message lists, activity feed, etc.) and would
-  // otherwise fire a conversations.info burst for channels that never show
-  // their topic.
+  // client.userBoot can omit topic/member-count metadata for a channel.
+  // Resolve it lazily from the authenticated conversations.info response,
+  // then patch the reactive channel snapshot. Only called from the couple of
+  // places that actually display this (channel header, #mention hover card)
+  // - not from channelById itself, which is called for every channel
+  // referenced anywhere in the UI (message lists, activity feed, etc.) and
+  // would otherwise fire a conversations.info burst for channels that never
+  // show it.
   function ensureChannelTopic(id: string): void {
     const known = channels().find((c) => c.id === id);
-    if (!known || known.topic || channelDetailsRequested.has(id)) return;
+    if (
+      !known ||
+      (known.topic && known.memberCount !== undefined) ||
+      channelDetailsRequested.has(id)
+    )
+      return;
     channelDetailsRequested.add(id);
     fetchConversationView(id)
       .then((view) => {
         patchChannel(id, {
+          memberCount: view.details.memberCount,
           name: view.channel.name,
           private: view.channel.private,
           topic: view.channel.topic,

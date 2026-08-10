@@ -1,12 +1,14 @@
 // biome-ignore-all lint/performance/noBarrelFile: This is the UI package's public API entry point.
 export type { AvatarProps, AvatarUser } from "./avatar/Avatar";
-export { default as Avatar } from "./avatar/Avatar";
+export { DEFAULT_AVATAR_COLOR, default as Avatar } from "./avatar/Avatar";
 export type { AvatarStackProps } from "./avatar/AvatarStack";
 export { default as AvatarStack } from "./avatar/AvatarStack";
 export type { ButtonProps } from "./button/Button";
 export { default as Button } from "./button/Button";
 export type { ButtonGroupProps } from "./button/ButtonGroup";
 export { default as ButtonGroup } from "./button/ButtonGroup";
+export type { IconButtonProps } from "./button/IconButton";
+export { default as IconButton } from "./button/IconButton";
 export type { SegmentedControlProps } from "./button/SegmentedControl";
 export { default as SegmentedControl } from "./button/SegmentedControl";
 export { createDebouncedRequest, type DebouncedRequestOptions } from "./debouncedRequest";
@@ -63,11 +65,21 @@ export {
   resolveVerticalPlacement,
 } from "./overlay/floating/FloatingPanel";
 export { default as HoverCard, type HoverCardProps } from "./overlay/HoverCard";
+export {
+  default as Modal,
+  ModalCloseButton,
+  type ModalCloseButtonProps,
+  ModalHeader,
+  type ModalHeaderProps,
+  type ModalProps,
+} from "./overlay/Modal";
 export type { ContextMenuProps } from "./overlay/menu/ContextMenu";
 export { default as ContextMenu } from "./overlay/menu/ContextMenu";
 export { default as Menu, type MenuProps } from "./overlay/menu/Menu";
 export type { MenuButtonProps } from "./overlay/menu/MenuButton";
 export { default as MenuButton } from "./overlay/menu/MenuButton";
+export type { MenuItemProps } from "./overlay/menu/MenuItem";
+export { default as MenuItem } from "./overlay/menu/MenuItem";
 export { openContextMenuFromKeyboard, useContextMenu } from "./overlay/menu/useContextMenu";
 export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
@@ -98,6 +110,35 @@ export {
   type ThemePreset,
   themeColors,
 } from "./themeColors";
+export {
+  createDragSource,
+  createDropZone,
+  type DragSource,
+  type DropZone,
+} from "./tiling/dragDrop";
+export { detectEdgeZone, type EdgeZone } from "./tiling/dragEdge";
+export { distributeResize } from "./tiling/resize";
+export {
+  default as TileGroup,
+  type TileGroupProps,
+} from "./tiling/TileGroup";
+export {
+  type Axis,
+  closeLeaf,
+  createTileId,
+  type Edge,
+  findLeaf,
+  findLeafBy,
+  leaf,
+  listLeaves,
+  moveLeaf,
+  replaceLeafContent,
+  resizeSplit,
+  splitLeaf,
+  type TileLeaf,
+  type TileNode,
+  type TileSplit,
+} from "./tiling/tree";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export {

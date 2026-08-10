@@ -59,6 +59,9 @@
   background: var(--hover-bg);
   border-radius: 3px;
 }
+button.message-bot-badge {
+  cursor: pointer;
+}
 .message-edited {
   font-size: 11px;
   color: var(--text-dim);
@@ -175,7 +178,7 @@
   padding: 3px 8px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-6);
+  border-radius: 6px;
   pointer-events: none;
 }
 .message-replies:hover .message-replies-last {

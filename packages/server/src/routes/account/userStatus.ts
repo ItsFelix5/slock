@@ -2,14 +2,32 @@ import { errorResponse, jsonResponse } from "../../http/jsonResponse.ts";
 import { type Route, route } from "../router.ts";
 
 type UserStatus = "eligible" | "over_18" | "banned" | "unverified";
+type Lookup = "identity" | "hackatime";
+type LookupFailure = { lookup: Lookup; reason: string };
 
 const USER_ID_RE = /^[UW][A-Z0-9]+$/;
 const FETCH_TIMEOUT_MS = 8_000;
 
-async function fetchJson(url: string): Promise<any> {
+async function fetchJson(lookup: Lookup, url: string): Promise<any> {
   const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`${url} responded ${res.status}`);
+  if (!res.ok) throw new Error(`${lookup} responded ${res.status}`);
   return res.json();
+}
+
+// Hackatime 404s for any slack_id without a Hackatime account, which is most
+// users — that's not a fetch failure, just "no trust factor data".
+async function fetchTrustFactor(id: string): Promise<any> {
+  const res = await fetch(`https://hackatime.hackclub.com/api/v1/users/${id}/trust_factor`, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`hackatime responded ${res.status}`);
+  return res.json();
+}
+
+function failure(lookup: Lookup, error: unknown): LookupFailure {
+  const message = error instanceof Error ? error.message : String(error);
+  return { lookup, reason: message.slice(0, 240) };
 }
 
 export const userStatusRoutes: Route[] = [
@@ -21,16 +39,23 @@ export const userStatusRoutes: Route[] = [
     const { id } = ctx.params;
     if (!USER_ID_RE.test(id)) return errorResponse("invalid_user", 400);
 
-    let identity: any;
-    let hackatime: any;
-    try {
-      [identity, hackatime] = await Promise.all([
-        fetchJson(`https://identity.hackclub.com/api/external/check?slack_id=${id}`),
-        fetchJson(`https://hackatime.hackclub.com/api/v1/users/${id}/trust_factor`),
-      ]);
-    } catch {
-      return errorResponse("user_status_unavailable", 502);
+    const [identityResult, hackatimeResult] = await Promise.allSettled([
+      fetchJson("identity", `https://identity.hackclub.com/api/external/check?slack_id=${id}`),
+      fetchTrustFactor(id),
+    ]);
+    const failures = [
+      ...(identityResult.status === "rejected" ? [failure("identity", identityResult.reason)] : []),
+      ...(hackatimeResult.status === "rejected"
+        ? [failure("hackatime", hackatimeResult.reason)]
+        : []),
+    ];
+    if (identityResult.status !== "fulfilled" || hackatimeResult.status !== "fulfilled") {
+      console.warn("user status lookup unavailable", { userId: id, failures });
+      return errorResponse("user_status_unavailable", 502, { failures });
     }
+
+    const identity = identityResult.value;
+    const hackatime = hackatimeResult.value;
 
     let status: UserStatus = "unverified";
     if (hackatime?.trust_value === 1) status = "banned";

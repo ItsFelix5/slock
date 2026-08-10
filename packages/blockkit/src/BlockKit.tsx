@@ -21,8 +21,9 @@ import "./blockkit.css";
 
 // The message a set of blocks was posted as, threaded down to interactive
 // elements (Button, Overflow) so a click can be dispatched back to the app
-// that owns it — see runBlockAction. Omitted (e.g. a link-unfurl preview in
-// AttachmentCard) when there's no real message to act on, in which case
+// that owns it — see runBlockAction. Omitted when there's no real message to
+// act on (e.g. a link-unfurl preview in AttachmentCard, which renders a
+// different message than the one it's attached to), in which case
 // interactive elements fall back to their "unsupported" placeholder.
 export interface BlockActionContext {
   botId?: string;

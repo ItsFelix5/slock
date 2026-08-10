@@ -101,6 +101,11 @@ export const channelRoutes: Route[] = [
   route("GET", "/api/channels/:id/posting-prefs", async (ctx) => {
     const data = await callSlack("channels.prefs.get", { channel_id: ctx.params.id }, ctx.creds);
     if (!data.ok) {
+      // channels.prefs.get is undocumented — response_metadata.messages usually
+      // says which argument Slack actually rejected, but slackErrorResponse only
+      // forwards the bare error code to the client. Logging the full response
+      // here so a real failure shows the reason instead of just "invalid_arguments".
+      console.error("channels.prefs.get failed", JSON.stringify(data));
       return slackErrorResponse(data, "channels.prefs.get", ctx.creds, ctx.acceptEncoding);
     }
     const prefs = data.prefs ?? data;

@@ -15,6 +15,8 @@ type AppWiringDeps = Pick<
   | "unread"
   | "users"
   | "viewState"
+  | "visibleThreads"
+  | "visibleViews"
 > & {
   actions: ReturnType<typeof createAppActions>;
 };
@@ -33,6 +35,8 @@ export function wireAppState(deps: AppWiringDeps) {
     unread,
     users,
     viewState,
+    visibleThreads,
+    visibleViews,
   } = deps;
   const markAllAsRead = createMarkAllAsRead({
     channelIds: () =>
@@ -51,10 +55,10 @@ export function wireAppState(deps: AppWiringDeps) {
     if (view) void pinned.ensurePinsLoaded(view.id);
   });
   unread.wireReadTracking({
-    activeView: viewState.activeView,
     messagesByChannel: messages.messagesByChannel,
-    activeThread: viewState.activeThread,
     threadMessages: messages.threadMessages,
+    visibleThreads,
+    visibleViews,
   });
   desktopNotifications.wireNotifications({
     activeView: viewState.activeView,

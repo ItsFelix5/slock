@@ -28,23 +28,3 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-
-.join-channel-bar-btn {
-  flex-shrink: 0;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-on-accent);
-  background: var(--accent);
-  border-radius: 6px;
-}
-
-.join-channel-bar-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.join-channel-bar-btn:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}

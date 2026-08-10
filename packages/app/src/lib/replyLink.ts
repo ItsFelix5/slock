@@ -1,33 +1,15 @@
-// Discord-style "reply" references are encoded as a real Slack permalink
-// prepended to the message text as an explicit `<url|label>` mrkdwn link —
-// written out ourselves rather than left as a bare URL for Slack to
-// autolink, with a leading marker (so we can tell our own reply links apart
-// from a plain pasted link) and the label itself both set to a zero-width
-// space. `​` isn't stripped by `.trim()` (it's Unicode category Cf, not
-// whitespace), so both survive Composer's and store.sendMessage's trimming
-// untouched.
-//
-// Writing the `<url|label>` syntax ourselves (instead of a bare URL) matters
-// for two reasons: it round-trips through Slack unchanged instead of being
-// reformatted by Slack's own autolink detector (which — since the marker
-// isn't real whitespace either — used to swallow it into the link token and
-// break re-parsing after the echo replaced the optimistic message), and it
-// means the worst-case fallback (this failing to parse, or showing up in a
-// real Slack client) renders an invisible label instead of the raw
-// permalink text.
-// Slack normalizes an empty/whitespace-only link label on its end, so the
-// zero-width space we send doesn't always come back unchanged — it can
-// round-trip as `.` or get dropped (bare `<url>`, or `<url|>`) depending on
-// the path the message took (echo vs. history fetch vs. edit).
+import type { Block, Message, RichTextBlock } from "@slock/slack-api";
+
 const BRACKETED_LINK_RE = /^<(https?:\/\/[^\s|>]+)(?:\|([^>]*))?>/;
-// Real Slack clients represent a pasted message permalink as a `message_mention`
-// rich_text element, and its `msg.text` fallback carries the bare permalink
-// completely unwrapped — not `<...>`-delimited mrkdwn like every other link.
-// Ordinary mrkdwn always brackets links, so an un-delimited permalink at the
-// very start of the text can only be this fallback, never a typed message —
-// treat it the same as an unlabeled reply link.
 const BARE_PERMALINK_RE = /^(https?:\/\/[^\s<>]+)/;
 const PERMALINK_RE = /\/archives\/([A-Z0-9]+)\/p(\d+)/;
+
+function permalinkToChannelTs(url: string): { channelId: string; ts: string } | null {
+  const match = PERMALINK_RE.exec(url);
+  if (!match) return null;
+  const [, channelId, digits] = match;
+  return { channelId, ts: `${digits.slice(0, -6)}.${digits.slice(-6)}` };
+}
 
 function isBareLabel(label: string | undefined): boolean {
   return label === undefined || label === "" || label === "." || label === "​";
@@ -37,26 +19,35 @@ export function encodeReplyLink(permalink: string): string {
   return `<${permalink}|​>`;
 }
 
-// `isInThread` lets a caller with thread context (e.g. MessageRow rendering
-// inside ThreadPanel) opt a *real*-labeled permalink into being treated as a
-// reply reference too — someone quoting a message from the thread with their
-// own words, not one of our own bare-labeled reply links. In that case the
-// label is real message content, so it's kept in `rest` (as plain text,
-// no longer wrapped in the link markup) instead of being discarded.
+export function threadContainsMessage(
+  channelId: string,
+  threadTs: string | undefined,
+  messages: readonly Pick<Message, "ts">[],
+  targetChannelId: string,
+  targetTs: string,
+): boolean {
+  return (
+    !!threadTs &&
+    channelId === targetChannelId &&
+    (targetTs === threadTs || messages.some((message) => message.ts === targetTs))
+  );
+}
+
 export function parseReplyLink(
   text: string,
-  isInThread?: (channelId: string, ts: string) => boolean,
+  isThreadMessage?: (channelId: string, ts: string) => boolean,
 ): { ts: string; channelId: string; rest: string; prefix: string; url: string } | null {
   const bracketed = BRACKETED_LINK_RE.exec(text);
   if (bracketed) {
-    const urlMatch = PERMALINK_RE.exec(bracketed[1]);
-    if (!urlMatch) return null;
-    const [, channelId, digits] = urlMatch;
+    const parsed = permalinkToChannelTs(bracketed[1]);
+    if (!parsed) return null;
+    const { channelId, ts } = parsed;
     const [, , label] = bracketed;
-    const ts = `${digits.slice(0, -6)}.${digits.slice(-6)}`;
     const bare = isBareLabel(label);
-    if (!(bare || isInThread?.(channelId, ts))) return null;
     const remainder = text.slice(bracketed[0].length);
+    const linkedThreadMessage = isThreadMessage?.(channelId, ts) ?? false;
+    if (!remainder.trim()) return null;
+    if (!(bare || linkedThreadMessage)) return null;
     return {
       channelId,
       prefix: bracketed[0],
@@ -68,15 +59,44 @@ export function parseReplyLink(
 
   const bareLink = BARE_PERMALINK_RE.exec(text);
   if (!bareLink) return null;
-  const urlMatch = PERMALINK_RE.exec(bareLink[1]);
-  if (!urlMatch) return null;
-  const [, channelId, digits] = urlMatch;
-  const ts = `${digits.slice(0, -6)}.${digits.slice(-6)}`;
+  const parsed = permalinkToChannelTs(bareLink[1]);
+  if (!parsed) return null;
+  const rest = text.slice(bareLink[0].length);
+  if (!rest.trim()) return null;
   return {
-    channelId,
+    ...parsed,
     prefix: bareLink[0],
-    rest: text.slice(bareLink[0].length),
-    ts,
+    rest,
     url: bareLink[1],
   };
+}
+
+export function parseReplyLinkFromBlocks(
+  blocks: readonly Block[],
+): { ts: string; channelId: string; url: string; blocks: Block[] } | null {
+  const [rawRichText] = blocks;
+  if (rawRichText?.type !== "rich_text") return null;
+  const richText = rawRichText as RichTextBlock;
+  const [section] = richText.elements;
+  if (section?.type !== "rich_text_section") return null;
+  const [mention] = section.elements;
+  if (mention?.type !== "message_mention" || !mention.url) return null;
+  const parsed = permalinkToChannelTs(mention.url);
+  if (!parsed) return null;
+
+  const restSectionElements = section.elements.slice(1);
+  const restRichTextElements = richText.elements.slice(1);
+  const strippedRichText: RichTextBlock[] =
+    restSectionElements.length > 0
+      ? [
+          {
+            ...richText,
+            elements: [{ ...section, elements: restSectionElements }, ...restRichTextElements],
+          },
+        ]
+      : restRichTextElements.length > 0
+        ? [{ ...richText, elements: restRichTextElements }]
+        : [];
+
+  return { ...parsed, blocks: [...strippedRichText, ...blocks.slice(1)], url: mention.url };
 }

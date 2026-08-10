@@ -168,6 +168,7 @@ export interface RawMessage {
   icons?: { image_36?: string; image_48?: string; image_72?: string };
   is_ephemeral?: boolean;
   latest_reply?: string;
+  metadata?: { event_payload?: { source_user_id?: string } };
   reactions?: Reaction[];
   reply_count?: number;
   reply_users?: string[];
@@ -529,6 +530,7 @@ export function mapMessage(m: RawMessage): Message {
     reactions: m.reactions,
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
+    sourceUserId: m.metadata?.event_payload?.source_user_id,
     text: m.text ?? "",
     threadRoot: m.root ? mapMessage(m.root) : undefined,
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,

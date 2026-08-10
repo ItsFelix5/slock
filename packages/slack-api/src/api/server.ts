@@ -2,6 +2,7 @@
 // routes (e.g. "/api/channels/C123/messages"), never a raw Slack method name
 // — the server decides internally what Slack call(s) to make and returns
 // only the fields that route's caller needs.
+
 async function request<T = any>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -10,6 +11,15 @@ async function request<T = any>(method: string, path: string, body?: unknown): P
       : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
   });
   const data = await res.json();
+  if (!res.ok) {
+    const message =
+      data && typeof data === "object" && !Array.isArray(data) && typeof data.error === "string"
+        ? data.error
+        : `request failed with ${res.status}`;
+    const details =
+      data && typeof data === "object" && !Array.isArray(data) ? data.details : undefined;
+    console.warn("api request failed", { details, message, path, status: res.status });
+  }
   if (data && typeof data === "object" && !Array.isArray(data)) {
     return { ...data, ok: res.ok } as T;
   }

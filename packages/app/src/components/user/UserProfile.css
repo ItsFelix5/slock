@@ -92,12 +92,6 @@ button.user-profile-presence:disabled {
   font-size: 14px;
 }
 
-.user-profile-status {
-  gap: 6px;
-  margin: 8px 0 0;
-  font-size: 14px;
-}
-
 .user-profile-meta {
   margin: 10px 0 0;
 }
@@ -208,6 +202,14 @@ button.user-profile-presence:disabled {
 .user-profile-pronouns-input {
   font-size: 14px;
   color: var(--text-secondary);
+}
+
+textarea.user-profile-title-input {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  line-height: 1.35;
+  resize: none;
 }
 
 .user-profile-field-input {

@@ -1,3 +1,4 @@
+import { HEADING_TAG_RE } from "@slock/blockkit";
 import {
   closestListItem,
   createComposerBlockSeparator,
@@ -5,10 +6,8 @@ import {
   placeCaretAtStart,
   placeCaretInText,
 } from "../richtext";
-import { HEADING_TAG_RE } from "../richtextSerialization";
 import type { EditorRefHandle } from "./editorRef";
 
-const ZWSP = "​";
 const BLOCK_NAMES = new Set(["BLOCKQUOTE", "PRE", "HR", "UL", "OL"]);
 
 function isBlockEl(n: Node | null): boolean {
@@ -106,6 +105,15 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     return bq;
   }
 
+  function caretAfter(node: Node) {
+    const sel = window.getSelection();
+    if (!sel) return;
+    const r = document.createRange();
+    r.setStartAfter(node);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
   // backspace at the start of a quoted line strips the quote off just that
   // line and drops it as a plain line, exactly like deleting the leading `>`
   // as a character. the lines above and below stay quoted
@@ -114,20 +122,27 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     if (!(quote && caretAtLineStart(quote))) return false;
     const lines = blockLines(quote);
     const caret = caretLineIndex(quote, lines.length);
+    const popped = lines[caret];
+    // a hidden separator keeps a content line flush under the quote above it;
+    // an empty line is just a plain <br> so a single backspace clears it
+    const empty = popped.length === 0;
 
     const replacement = document.createDocumentFragment();
     if (caret > 0) {
-      replacement.append(buildQuote(lines.slice(0, caret)), createComposerBlockSeparator());
+      replacement.appendChild(buildQuote(lines.slice(0, caret)));
+      if (!empty) replacement.appendChild(createComposerBlockSeparator());
     }
-    const popped = lines[caret];
-    const marker = document.createTextNode(popped.length ? "" : ZWSP);
-    replacement.appendChild(marker);
+    const marker = document.createTextNode("");
+    const br = document.createElement("br");
+    replacement.appendChild(empty ? br : marker);
     for (const node of popped) replacement.appendChild(node);
     if (caret < lines.length - 1) {
-      replacement.append(createComposerBlockSeparator(), buildQuote(lines.slice(caret + 1)));
+      if (!empty) replacement.appendChild(createComposerBlockSeparator());
+      replacement.appendChild(buildQuote(lines.slice(caret + 1)));
     }
     quote.replaceWith(replacement);
-    placeCaretInText(marker, 0);
+    if (empty) caretAfter(br);
+    else placeCaretInText(marker, 0);
     syncFromDom();
     return true;
   }
@@ -181,11 +196,11 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     if (!hr) return false;
     const before = hr.previousSibling;
     const after = hr.nextSibling;
-    const marker = document.createTextNode(ZWSP);
-    (hr as ChildNode).replaceWith(marker);
+    const br = document.createElement("br");
+    (hr as ChildNode).replaceWith(br);
     normalizeSeparator(before);
     normalizeSeparator(after);
-    placeCaretInText(marker, 0);
+    caretAfter(br);
     syncFromDom();
     return true;
   }
@@ -198,12 +213,8 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     while (n && n !== el && !HEADING_TAG_RE.test(n.nodeName)) n = n.parentNode;
     if (!n || n === el) return false;
     const heading = n as HTMLElement;
-    if (!heading.nextSibling) heading.after(document.createElement("br"));
-    const r = document.createRange();
-    r.setStartAfter(heading);
-    r.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(r);
+    heading.after(document.createElement("br"));
+    caretAfter(heading);
     syncFromDom();
     return true;
   }

@@ -2,6 +2,7 @@ import { logDeletedMessages, messageSize } from "@slock/ui";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { ScrollToOptions } from "@tanstack/virtual-core";
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
+import { isDragSelecting } from "../../lib/messageHoverDragGuard";
 import { store } from "../../lib/store";
 import MessageRow from "./MessageRow";
 import type { MessageRowsProps } from "./MessageRows";
@@ -56,7 +57,17 @@ export default function VirtualizedRows(props: MessageRowsProps) {
     estimateSize: estimateRowSize,
     getItemKey: (index) => props.messages[index]?.ts ?? index,
     getScrollElement: () => props.scrollContainer?.() ?? null,
-    overscan: 8,
+    // A row near the loaded window's edge sits close to the scroll
+    // container's own edge too, so a text-selection drag that crosses it can
+    // trigger the browser's native auto-scroll-while-selecting — which fires
+    // real scroll events and, at the normal overscan, unmounts the row the
+    // selection's anchor/focus lives in mid-drag (see
+    // messageHoverDragGuard.ts's isDragSelecting doc comment for what that
+    // does to the selection). Rendering every row for the drag's duration
+    // means there's nothing for a mid-drag scroll to unmount.
+    get overscan() {
+      return isDragSelecting() ? props.messages.length : 8;
+    },
     // The virtualized rows sit below a variable-height header (loading
     // indicator / channel intro) inside the same scroll container; without
     // this the virtualizer treats item offsets as starting at scrollTop 0, so
@@ -89,9 +100,10 @@ export default function VirtualizedRows(props: MessageRowsProps) {
   // keyed), and tanstack-virtual only invalidates its measurement cache when
   // count/getItemKey change identity - not when they return different
   // values. same message count across two channels meant the old channel's
-  // row heights got reused for the new one until each row individually
-  // re-measured, causing overlap/gaps on switch. measure() forces a clean
-  // remeasure
+  // row heights got reused for the new one, causing overlap/gaps on switch.
+  // measure() only invalidates (sizes fall back to estimates) - the actual
+  // re-measuring of reused rows is the per-row key-change effect in the ref
+  // below
   createEffect(
     on(
       () => props.channelId,
@@ -167,6 +179,33 @@ export default function VirtualizedRows(props: MessageRowsProps) {
                   // height regardless of its real (image/embed) content.
                   el.dataset.index = String(item.index);
                   virtualizer.measureElement(el);
+                  // solid-virtual reconciles virtual items keyed by index, so
+                  // a channel switch (or history prepend) reuses this element
+                  // in place for a different message - the ref never reruns,
+                  // the virtualizer still has it registered under the old
+                  // message's key, and its ResizeObserver only fires if the
+                  // swapped-in content happens to change the height. a key
+                  // whose row never re-measures stays at its raw estimate
+                  // (rows overlapping on open) until the row scrolls out and
+                  // remounts. re-register and force a real measurement on
+                  // every key change, and drop the stale cache entry so a
+                  // later mount of the old key can't steal this element's
+                  // observer subscription
+                  createEffect(
+                    on(
+                      () => item.key,
+                      (_key, prevKey) => {
+                        if (prevKey !== undefined && virtualizer.elementsCache.get(prevKey) === el)
+                          virtualizer.elementsCache.delete(prevKey);
+                        virtualizer.measureElement(el);
+                        // measureElement skips its synchronous measure while a
+                        // scroll is in flight; resizeItem directly so the swap
+                        // can never be left sitting on an estimate
+                        virtualizer.resizeItem(item.index, el.offsetHeight);
+                      },
+                      { defer: true },
+                    ),
+                  );
                   // Solid refs (unlike React's) never fire again with `null`
                   // on unmount, so without this the virtualizer's own
                   // ResizeObserver only notices a scrolled-away row went
@@ -192,6 +231,7 @@ export default function VirtualizedRows(props: MessageRowsProps) {
                   editingTs={props.editingTs}
                   focusedTs={props.focusedTs}
                   index={() => item.index}
+                  listFocused={props.listFocused}
                   message={message()}
                   messages={props.messages}
                   onJumpToMessage={props.onJumpToMessage}

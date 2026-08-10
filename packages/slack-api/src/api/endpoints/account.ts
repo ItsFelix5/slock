@@ -85,6 +85,15 @@ export async function setPresence(presence: "auto" | "away"): Promise<void> {
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
 }
 
+// Passive presence_change gateway events only ever arrive for people already
+// in your DM/sidebar list — this queries Slack directly for anyone else,
+// used when a profile is actually opened.
+export async function fetchUserPresence(id: string): Promise<"active" | "away" | null> {
+  const data = await apiGet(`/api/users/${id}/presence`);
+  if (!data.ok) return null;
+  return data.presence === "away" ? "away" : "active";
+}
+
 // Org-wide member search via the same search.modules.people endpoint the real
 // web client's people search uses — a live per-query search, so a 100k-member
 // workspace never needs to be paged through and cached locally.

@@ -1,14 +1,17 @@
 // biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related author and avatar button exports.
 import type { UserStatus } from "@slock/slack-api";
+import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
 export function MessageAvatarButton(props: { color?: string; src?: string; onClick: () => void }) {
   return (
     <button
       class="message-avatar btn-reset flex-center"
       onClick={props.onClick}
-      style={{ background: props.color ?? "#616061" }}
+      style={{ background: props.color ?? DEFAULT_AVATAR_COLOR }}
       type="button"
     >
-      <span aria-hidden="true">?</span>
+      <span aria-hidden="true" class="message-avatar-fallback">
+        ?
+      </span>
       <img
         alt=""
         class="message-avatar-img"

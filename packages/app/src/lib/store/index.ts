@@ -98,6 +98,7 @@ function setup() {
     commands,
     setActiveView,
     setActiveViewImplRef,
+    tiling,
   } = slices;
   const actions = createAppActions({ ...slices, setActiveView, setActiveViewImplRef });
   const { markAllAsRead } = wireAppState({ ...slices, actions });
@@ -119,6 +120,7 @@ function setup() {
     preferences,
     realtime,
     searchHistory,
+    tiling,
     typing,
     unread: { ...unread, markAllAsRead },
     users,

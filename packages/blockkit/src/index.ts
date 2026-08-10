@@ -1,5 +1,6 @@
 // biome-ignore-all lint/performance/noBarrelFile: This is the package's public API entry point.
 export { default as BkText } from "./BkText";
+export type { BlockActionContext } from "./BlockKit";
 export { default as BlockKit } from "./BlockKit";
 export type { BlockKitMentionInfo, BlockKitResolver, TimeAnchor } from "./context";
 export {
@@ -19,6 +20,7 @@ export {
   startOfDayMs,
   TIME_FORMAT_OPTIONS,
 } from "./dateFormat";
+export { fragmentToMrkdwn, HEADING_TAG_RE, serializeNode } from "./domToMrkdwn";
 export { default as EmojiText } from "./emoji/EmojiText";
 export type { StandardEmoji } from "./emoji/emoji";
 export { standardEmojiEntries } from "./emoji/emoji";
@@ -33,6 +35,8 @@ export {
   loadCustomEmoji,
 } from "./emoji/emojiCache";
 export { decodeTextEntities } from "./entities";
+export type { InlineDialect } from "./inlineDialect";
+export { MARKDOWN_DIALECT, MRKDWN_DIALECT } from "./inlineDialect";
 export { default as Mrkdwn, Link, Mention, TimeAwareText } from "./mrkdwn";
 export { stripTrackingParams } from "./urlCleanup";
 export { parseUserProfileLink } from "./userProfileLink";

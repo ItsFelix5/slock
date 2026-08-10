@@ -1,4 +1,4 @@
-import { Icon } from "@slock/ui";
+import { MenuItem } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { actionFeedback, store } from "../../lib/store";
@@ -33,23 +33,19 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
 
   return (
     <>
-      <button
-        class="menu-item"
+      <MenuItem
+        icon="mark-as-read"
         onClick={() => run(() => store.messages.markCurrentChannelRead(props.channelId))}
-        type="button"
       >
-        <Icon name="mark-as-read" size={15} />
         Mark as read
-      </button>
+      </MenuItem>
       <Show when={!props.isDm}>
-        <button
-          class="menu-item"
+        <MenuItem
+          icon="channel-section"
           onClick={() => run(() => openChannelDetails(props.channelId))}
-          type="button"
         >
-          <Icon name="channel-section" size={15} />
           Open channel details
-        </button>
+        </MenuItem>
       </Show>
       <Show when={!props.isDm && props.showMoveTo}>
         <ChannelMoveMenu
@@ -59,54 +55,40 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           variant="menu-item"
         />
       </Show>
-      <button
-        class="menu-item"
-        onClick={() => run(() => store.pinned.openPinnedPanel(props.channelId))}
-        type="button"
-      >
-        <Icon name="pin" size={15} />
+      <MenuItem icon="pin" onClick={() => run(() => store.pinned.openPinnedPanel(props.channelId))}>
         View pinned items
-      </button>
-      <button
-        class="menu-item"
+      </MenuItem>
+      <MenuItem
         disabled={store.preferences.isMutePending(props.channelId)}
+        icon={muted() ? "notifications" : "notifications-off"}
         onClick={() => run(() => store.preferences.toggleMuteChannel(props.channelId))}
-        type="button"
       >
-        <Icon name={muted() ? "notifications" : "notifications-off"} size={15} />
         {muted() ? "Unmute channel" : "Mute channel"}
-      </button>
-      <button
-        class="menu-item"
+      </MenuItem>
+      <MenuItem
         disabled={store.preferences.isNotifyAllPending(props.channelId)}
+        icon={notifyAll() ? "notifications-just-mentions" : "notifications-all-new-posts"}
         onClick={() => run(() => store.preferences.toggleNotifyAllChannel(props.channelId))}
-        type="button"
       >
-        <Icon
-          name={notifyAll() ? "notifications-just-mentions" : "notifications-all-new-posts"}
-          size={15}
-        />
         {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
-      </button>
-      <button class="menu-item" onClick={() => run(copyConversationLink)} type="button">
-        <Icon name="link" size={15} />
+      </MenuItem>
+      <MenuItem icon="link" onClick={() => run(copyConversationLink)}>
         {props.isDm ? "Copy link to conversation" : "Copy link to channel"}
-      </button>
+      </MenuItem>
       <Show when={!props.isDm}>
-        <button
-          class="menu-item danger"
+        <MenuItem
+          danger
           disabled={store.channels.isLeavePending(props.channelId)}
+          icon="sign-out"
           onClick={() => {
             props.onClose();
             // biome-ignore lint/suspicious/noAlert: Leaving a channel requires explicit confirmation.
             if (confirm(`Leave #${props.channelTitle}?`))
               store.channels.leaveCurrentChannel(props.channelId);
           }}
-          type="button"
         >
-          <Icon name="sign-out" size={15} />
           Leave channel
-        </button>
+        </MenuItem>
       </Show>
     </>
   );

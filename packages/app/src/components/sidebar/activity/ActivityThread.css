@@ -1,19 +1,8 @@
 .activity-thread-timeline {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1px;
   padding: 0 8px 8px 50px;
-}
-
-.activity-thread-timeline::before {
-  position: absolute;
-  top: 6px;
-  bottom: 20px;
-  left: 27px;
-  width: 1px;
-  content: "";
-  background: var(--border-strong);
 }
 
 .activity-read-more {
@@ -44,7 +33,7 @@
   min-width: 0;
   padding: 4px 6px 4px 0;
   text-align: left;
-  border-radius: var(--radius-7);
+  border-radius: 7px;
 }
 
 .activity-thread-message:hover {
@@ -59,7 +48,40 @@
   align-items: flex-start;
   justify-content: center;
   margin-left: -32px;
-  border-radius: var(--radius-7);
+  border-radius: 7px;
+}
+
+/* Connector runs through each row's own avatar column rather than one long
+line sized off the container — the avatar sits pinned to the row's top
+(flex-start) regardless of how tall the row grows, so its center is always
+10px down, and splitting the line there lets it track avatars of any height
+without dangling past whichever row happens to render last. */
+.activity-thread-avatar::before,
+.activity-thread-avatar::after {
+  position: absolute;
+  left: 50%;
+  width: 1px;
+  content: "";
+  background: var(--border-strong);
+  transform: translateX(-50%);
+}
+
+.activity-thread-avatar::before {
+  top: 0;
+  height: 10px;
+}
+
+.activity-thread-avatar::after {
+  top: 10px;
+  bottom: 0;
+}
+
+.activity-thread-line-start .activity-thread-avatar::before {
+  display: none;
+}
+
+.activity-thread-line-end .activity-thread-avatar::after {
+  display: none;
 }
 
 .activity-thread-message-body {

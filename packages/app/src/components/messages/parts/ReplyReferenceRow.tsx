@@ -1,6 +1,6 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { Attachment, Message } from "@slock/slack-api";
-import { Avatar, Icon, type IconName } from "@slock/ui";
+import { Avatar, DEFAULT_AVATAR_COLOR, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
@@ -61,7 +61,8 @@ export default function ReplyReferenceRow(props: {
             <Avatar
               size="small"
               user={{
-                avatarColor: store.users.userById(msg().userId)?.avatarColor ?? "#616061",
+                avatarColor:
+                  store.users.userById(msg().userId)?.avatarColor ?? DEFAULT_AVATAR_COLOR,
                 avatarUrl: msg().botIcon ?? store.users.userById(msg().userId)?.avatarUrl,
                 id: msg().userId,
                 name: msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown",

@@ -1,3 +1,4 @@
+import type { BlockActionContext } from "@slock/blockkit";
 import { BlockKit, decodeTextEntities, EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
 import { ConstrainedImage, Icon, VideoPlayer } from "@slock/ui";
@@ -8,7 +9,7 @@ import { constrainMediaDimensions } from "./estimateMediaHeight";
 import MessageFiles from "./MessageFiles";
 import "./AttachmentCard.css";
 
-function AttachmentContent(props: { attachment: Attachment }) {
+function AttachmentContent(props: { attachment: Attachment; context?: BlockActionContext }) {
   const a = props.attachment;
   const bodyText = () => a.text || a.fallback;
   const imageDimensions = () =>
@@ -50,7 +51,7 @@ function AttachmentContent(props: { attachment: Attachment }) {
       >
         {(blocks) => (
           <div class="attachment-text">
-            <BlockKit blocks={blocks()} />
+            <BlockKit blocks={blocks()} context={props.context} />
           </div>
         )}
       </Show>
@@ -198,7 +199,11 @@ function MessageUnfurl(props: { attachment: Attachment }) {
   );
 }
 
-export default function AttachmentCard(props: { attachment: Attachment; showPermalink?: boolean }) {
+export default function AttachmentCard(props: {
+  attachment: Attachment;
+  showPermalink?: boolean;
+  context?: BlockActionContext;
+}) {
   const a = props.attachment;
   return (
     <>
@@ -243,7 +248,7 @@ export default function AttachmentCard(props: { attachment: Attachment; showPerm
                 <Mrkdwn text={a.authorName ?? ""} />
               </div>
             </Show>
-            <AttachmentContent attachment={a} />
+            <AttachmentContent attachment={a} context={props.context} />
             <Show when={a.footer}>
               <div class="attachment-footer flex-align-center text-dim text-xs">
                 <Show when={a.footerIcon}>

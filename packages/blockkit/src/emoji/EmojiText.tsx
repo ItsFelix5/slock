@@ -40,7 +40,13 @@ export default function EmojiText(props: { text: string }) {
             when={url()}
           >
             {(u) => (
-              <img alt={`:${part.name}:`} class="emoji-img" src={u()} title={`:${part.name}:`} />
+              <img
+                alt={`:${part.name}:`}
+                class="emoji-img"
+                data-emoji-name={part.name}
+                src={u()}
+                title={`:${part.name}:`}
+              />
             )}
           </Show>
         );

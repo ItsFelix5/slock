@@ -18,8 +18,9 @@ import { createLaterSlice } from "./slices/session/later";
 import { createModalsSlice } from "./slices/session/modals";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
+import { createTilingSlice } from "./slices/session/tiling";
 import { createViewStateSlice } from "./slices/session/viewState";
-import type { View } from "./slices/types";
+import type { ThreadRef, View } from "./slices/types";
 
 export function createStoreSlices({
   bootstrap,
@@ -31,6 +32,19 @@ export function createStoreSlices({
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
   const viewState = createViewStateSlice({ bootstrap });
+  const tiling = createTilingSlice({
+    activeView: viewState.activeView,
+    channelMessageTarget: viewState.channelMessageTarget,
+    clearChannelMessageTarget: () => viewState.setChannelMessageTarget(null),
+  });
+  const { visibleViews } = tiling;
+  // TODO(tiling phase 5): threads become tile leaves too — replace with the
+  // tiling slice's own visibleThreads once ThreadPanel is migrated to pane
+  // content. Until then it isn't a tile, so it's still tracked separately.
+  const visibleThreads = (): ThreadRef[] => {
+    const thread = viewState.activeThread();
+    return thread ? [thread] : [];
+  };
   const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
   const usergroups = createUsergroupsSlice({
     selfUsergroupIds: () => bootstrap()?.selfUsergroupIds ?? [],
@@ -62,6 +76,9 @@ export function createStoreSlices({
   const cacheResolvedMessagesRef: {
     current: (messages: Map<string, import("@slock/slack-api").Message>) => void;
   } = { current: () => {} };
+  const reactionMessageForRef: {
+    current: (channelId: string, ts: string) => import("@slock/slack-api").Message | undefined;
+  } = { current: () => undefined };
   const activity = createActivitySlice({
     cacheResolvedMessages: (messages) => cacheResolvedMessagesRef.current(messages),
     channels: channels.channels,
@@ -75,6 +92,7 @@ export function createStoreSlices({
         ? channels.channels().map((channel) => channel.id)
         : (prefs?.notifyAllChannels ?? []);
     },
+    reactionMessageFor: (channelId, ts) => reactionMessageForRef.current(channelId, ts),
     setLastReadByChannel: unread.setLastReadByChannel,
     syncChannelRead: unread.syncChannelRead,
     syncThreadRead: unread.syncThreadRead,
@@ -96,8 +114,6 @@ export function createStoreSlices({
   const canvas = createCanvasSlice();
   const modals = createModalsSlice();
   const messages = createMessagesSlice({
-    activeThread: viewState.activeThread,
-    activeView: viewState.activeView,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     onConversationView: (view) => {
@@ -106,19 +122,20 @@ export function createStoreSlices({
       canvas.cacheChannelCanvases(view.channel.id, view.canvases);
     },
     pushActivity: activity.pushActivity,
-    recordActivityEngagement: activity.recordActivityEngagement,
     setLastReadByChannel: unread.setLastReadByChannel,
     setChannelRead: unread.setChannelRead,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     setUnreadDividerTs: unread.setUnreadDividerTs,
     syncChannelRead: unread.syncChannelRead,
+    visibleThreads,
+    visibleViews,
   });
   cacheResolvedMessagesRef.current = (resolved) => {
     for (const [key, message] of resolved) messages.setReactionMessages(key, [message]);
   };
+  reactionMessageForRef.current = (channelId, ts) =>
+    messages.reactionMessages[`${channelId}:${ts}`]?.[0];
   const realtime = createRealtimeSlice({
-    activeThread: viewState.activeThread,
-    activeView: viewState.activeView,
     allDirectMessages: dms.allDirectMessages,
     applyReactionEvent: messages.applyReactionEvent,
     channels: channels.channels,
@@ -137,7 +154,6 @@ export function createStoreSlices({
     patchChannel: channels.patchChannel,
     patchDm: dms.patchDm,
     patchMessage: messages.patchMessage,
-    recordActivityEngagement: activity.recordActivityEngagement,
     recordTyping: typing.recordTyping,
     refreshActivityFeed: activity.requestActivityRefresh,
     setGatewayActivityBadgeCounts: activity.setGatewayActivityBadgeCounts,
@@ -148,6 +164,8 @@ export function createStoreSlices({
     setThreadMessages: messages.setThreadMessages,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     threadMessages: messages.threadMessages,
+    visibleThreads,
+    visibleViews,
   });
   const commands = createCommandsSlice({ sendMessage: messages.sendMessage });
   return {
@@ -167,10 +185,13 @@ export function createStoreSlices({
     searchHistory,
     setActiveView,
     setActiveViewImplRef,
+    tiling,
     typing,
     unread,
     users,
     usergroups,
     viewState,
+    visibleThreads,
+    visibleViews,
   };
 }

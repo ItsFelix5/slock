@@ -77,7 +77,10 @@ function enqueueDraftSave(
     })
     .then(
       () => setDraftError(key, false),
-      () => setDraftError(key, true),
+      (err) => {
+        console.warn("draft sync failed", key, err);
+        setDraftError(key, true);
+      },
     );
   draftSaveQueues.set(key, next);
   void next.finally(() => {

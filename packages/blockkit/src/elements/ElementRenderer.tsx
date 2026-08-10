@@ -24,7 +24,11 @@ export default function ElementRenderer(props: {
               fallback={<span class="bk-unsupported">[{props.el.type}]</span>}
               when={props.el.type === "overflow"}
             >
-              <Overflow el={props.el as OverflowElement} />
+              <Overflow
+                blockId={props.blockId}
+                context={props.context}
+                el={props.el as OverflowElement}
+              />
             </Show>
           }
           when={props.el.type === "image"}

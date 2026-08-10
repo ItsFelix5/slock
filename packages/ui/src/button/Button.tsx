@@ -10,7 +10,7 @@ export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>
 
 export default function Button(props: ButtonProps) {
   const merged = mergeProps({ size: "md", variant: "secondary" }, props);
-  const [, rest] = splitProps(merged, ["variant", "size", "icon", "disabled", "children"]);
+  const [, rest] = splitProps(merged, ["variant", "size", "icon", "disabled", "children", "class"]);
 
   return (
     <button
@@ -20,6 +20,7 @@ export default function Button(props: ButtonProps) {
         `btn-${merged.size}`,
         merged.icon && "btn-icon",
         merged.disabled && "btn-disabled",
+        merged.class,
       ]
         .filter(Boolean)
         .join(" ")}

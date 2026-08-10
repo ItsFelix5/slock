@@ -25,8 +25,11 @@ export function okResponse(creds: Credentials | null, acceptEncoding: string | n
   return jsonResponse({}, creds, acceptEncoding);
 }
 
-export function errorResponse(error: string, status: number): Response {
-  return new Response(JSON.stringify({ error }), { headers: jsonHeaders, status });
+export function errorResponse(error: string, status: number, details?: unknown): Response {
+  return new Response(JSON.stringify({ error, ...(details === undefined ? {} : { details }) }), {
+    headers: jsonHeaders,
+    status,
+  });
 }
 
 export function slackErrorResponse(

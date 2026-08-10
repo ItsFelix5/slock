@@ -1,4 +1,4 @@
-import { Icon, Overlay, Tooltip, useEscapeClose } from "@slock/ui";
+import { Modal, ModalCloseButton } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import SettingsAccountTab from "./SettingsAccountTab";
 import SettingsAppearanceTab from "./SettingsAppearanceTab";
@@ -17,58 +17,45 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function Settings(props: { onClose: () => void }) {
-  useEscapeClose(props.onClose);
-
   const [tab, setTab] = createSignal<Tab>("notifications");
 
   return (
-    <Overlay ariaLabel="Settings" onClose={props.onClose}>
-      <div class="settings-card modal-card">
-        <Tooltip content="Close">
-          <button
-            aria-label="Close"
-            class="panel-close-btn floating"
-            onClick={props.onClose}
-            type="button"
-          >
-            <Icon name="close" size={12} />
-          </button>
-        </Tooltip>
+    <Modal ariaLabel="Settings" class="settings-card" onClose={props.onClose}>
+      <ModalCloseButton class="floating" onClose={props.onClose} />
 
-        <div class="settings-nav flex-col">
-          <For each={TABS}>
-            {(t) => (
-              <button
-                aria-pressed={tab() === t.key}
-                class="settings-nav-btn btn-reset"
-                classList={{ active: tab() === t.key }}
-                onClick={() => setTab(t.key)}
-                type="button"
-              >
-                {t.label}
-              </button>
-            )}
-          </For>
-        </div>
-
-        <div class="settings-content">
-          <Show when={tab() === "account"}>
-            <SettingsAccountTab />
-          </Show>
-
-          <Show when={tab() === "notifications"}>
-            <SettingsNotificationsTab />
-          </Show>
-
-          <Show when={tab() === "appearance"}>
-            <SettingsAppearanceTab />
-          </Show>
-
-          <Show when={tab() === "debugging"}>
-            <SettingsDebugTab />
-          </Show>
-        </div>
+      <div class="settings-nav flex-col">
+        <For each={TABS}>
+          {(t) => (
+            <button
+              aria-pressed={tab() === t.key}
+              class="settings-nav-btn btn-reset"
+              classList={{ active: tab() === t.key }}
+              onClick={() => setTab(t.key)}
+              type="button"
+            >
+              {t.label}
+            </button>
+          )}
+        </For>
       </div>
-    </Overlay>
+
+      <div class="settings-content">
+        <Show when={tab() === "account"}>
+          <SettingsAccountTab />
+        </Show>
+
+        <Show when={tab() === "notifications"}>
+          <SettingsNotificationsTab />
+        </Show>
+
+        <Show when={tab() === "appearance"}>
+          <SettingsAppearanceTab />
+        </Show>
+
+        <Show when={tab() === "debugging"}>
+          <SettingsDebugTab />
+        </Show>
+      </div>
+    </Modal>
   );
 }

@@ -3,6 +3,7 @@ import type { SearchResult } from "@slock/slack-api";
 import { Button, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { dmDisplayName, store } from "../../lib/store";
+import { openConversationInSplit, SplitNavigation } from "../navigation/SplitNavigation";
 
 export default function MessageSearchResults(props: {
   canSearch: boolean;
@@ -81,18 +82,24 @@ export default function MessageSearchResults(props: {
                     return `#${result.channelName ?? result.channelId}`;
                   };
                   return (
-                    <button
-                      class="global-search-result message-search-result btn-reset"
-                      onClick={() => props.onResult(result)}
-                      type="button"
+                    <SplitNavigation
+                      onSplit={() =>
+                        openConversationInSplit(result.channelId, result.threadTs ?? result.ts)
+                      }
                     >
-                      <div class="global-search-result-meta text-muted text-sm">
-                        {user()?.name ?? "Someone"} in {channelLabel()}
-                      </div>
-                      <div class="global-search-result-snippet">
-                        <Mrkdwn text={result.text} />
-                      </div>
-                    </button>
+                      <button
+                        class="global-search-result message-search-result btn-reset"
+                        onClick={() => props.onResult(result)}
+                        type="button"
+                      >
+                        <div class="global-search-result-meta text-muted text-sm">
+                          {user()?.name ?? "Someone"} in {channelLabel()}
+                        </div>
+                        <div class="global-search-result-snippet">
+                          <Mrkdwn text={result.text} />
+                        </div>
+                      </button>
+                    </SplitNavigation>
                   );
                 }}
               </For>

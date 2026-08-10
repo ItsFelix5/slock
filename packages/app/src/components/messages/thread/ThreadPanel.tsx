@@ -273,6 +273,7 @@ export default function ThreadPanel() {
               channelId={t().channelId}
               editingTs={messageFocus.editingTs}
               focusedTs={messageFocus.focusedTs}
+              listFocused={messageFocus.listFocused}
               messages={messages()}
               onJumpToMessage={jumpToMessage}
               onReplyLink={startReply}

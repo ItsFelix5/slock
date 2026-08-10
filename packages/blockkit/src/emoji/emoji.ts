@@ -4,8 +4,11 @@ import emojiData from "./emojis.json" with { type: "json" };
 // ZWJ sequences), Slack falls back to naming the shortcode after its raw
 // codepoint(s) in hex, e.g. ":1f6dd:" or ":1f9d1-200d-1f4bb:" instead of a
 // friendly name. Slack's rich_text "emoji" element's `unicode` field uses
-// this same hex format rather than the literal glyph.
-const HEX_CODEPOINTS_RE = /^[0-9a-f]{1,6}(-[0-9a-f]{1,6})*$/i;
+// this same hex format rather than the literal glyph. Every codepoint in
+// Slack's own emoji dataset is zero-padded to 4-6 hex digits, so requiring
+// that length keeps ordinary text like "19:50:00" from being misread as a
+// codepoint shortcode.
+const HEX_CODEPOINTS_RE = /^[0-9a-f]{4,6}(-[0-9a-f]{4,6})*$/i;
 
 export function hexCodepointsToEmoji(hex: string): string | undefined {
   if (!HEX_CODEPOINTS_RE.test(hex)) return;

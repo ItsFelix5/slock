@@ -1,7 +1,15 @@
 import type { ActivityItem } from "@slock/slack-api";
 
-function listActivityLabel(type?: string): string {
+function otherActivityLabel(type?: string): string {
   switch (type) {
+    case "saved_reminder":
+      return "Reminded you";
+    case "quietly_added_to_channel":
+      return "Added you to this channel";
+    case "internal_channel_invite":
+    case "external_channel_invite":
+    case "external_dm_invite":
+      return "Invited you";
     case "list_approval_request":
       return "Approval requested";
     case "list_approval_reviewed":
@@ -15,7 +23,7 @@ function listActivityLabel(type?: string): string {
     case "list_user_mentioned":
       return "Mentioned in a list";
     default:
-      return "List activity";
+      return "Other activity";
   }
 }
 
@@ -36,13 +44,8 @@ export function activityVerb(item: ActivityItem): string {
       return "Mentioned your usergroup";
     case "channel_all":
       return "Posted in a channel you follow";
-    case "reminder":
-      return "Reminded you";
-    case "channel_invite":
-      if (item.activityType === "quietly_added_to_channel") return "Added you to this channel";
-      return "Invited you";
-    case "list":
-      return listActivityLabel(item.activityType);
+    case "other":
+      return otherActivityLabel(item.activityType);
     default:
       return "Reacted to your message";
   }

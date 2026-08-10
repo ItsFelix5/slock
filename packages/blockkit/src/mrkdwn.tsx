@@ -71,15 +71,21 @@ export function Link(props: {
   class?: string;
   url: string;
   label?: string;
+  // Extra data-* attributes for a caller (DateToken) that needs the anchor
+  // to also carry its own copy-serialization identity — see domToMrkdwn's
+  // dataset.dateTs check, which takes priority over dataset.linkUrl.
+  data?: Record<string, string>;
 }) {
   const resolver = useBlockKitResolver();
   const stripped = () => stripTrackingParams(decodeTextEntities(props.url));
   const anchor = (
     <a
       class={`bk-link ${props.class ?? ""}`}
+      data-link-url={stripped()}
       href={stripped()}
       rel="noopener noreferrer"
       target="_blank"
+      {...props.data}
     >
       {props.children ?? (props.label ? <EmojiText text={props.label} /> : props.url)}
     </a>
@@ -94,14 +100,21 @@ export function DateToken(props: {
   url?: string;
 }) {
   const label = formatSlackDateTokens(props.format, props.timestamp, props.fallback);
+  const dateData = () => ({
+    "data-date-fallback": props.fallback ?? "",
+    "data-date-format": props.format,
+    "data-date-ts": String(props.timestamp),
+  });
   return (
     <Tooltip content={formatFullDateTime(props.timestamp)}>
       {props.url ? (
-        <Link class="bk-date" url={props.url}>
+        <Link class="bk-date" data={dateData()} url={props.url}>
           {label}
         </Link>
       ) : (
-        <span class="bk-date">{label}</span>
+        <span class="bk-date" {...dateData()}>
+          {label}
+        </span>
       )}
     </Tooltip>
   );
@@ -168,6 +181,15 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
     else resolver.onChannelClick(props.id);
   };
 
+  // Mirrors the composer's own mention-chip dataset attributes (see
+  // createMentionChip/createChannelChip in richtext.ts) so a selection
+  // spanning this button round-trips through copy/paste as a real `<@id>` /
+  // `<#id|name>` token instead of just its display text.
+  const mentionData = () =>
+    isUser
+      ? { "data-mention-id": props.id }
+      : { "data-channel-id": props.id, "data-channel-name": name() };
+
   const trigger = (
     <button
       class="bk-mention"
@@ -178,6 +200,7 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
       }}
       onClick={onClick}
       type="button"
+      {...mentionData()}
     >
       <Show fallback={isUser ? "@" : "#"} when={isPrivate()}>
         <Icon name="lock" size={12} />

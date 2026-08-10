@@ -1,0 +1,21 @@
+.modal-header {
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header-title {
+  gap: 8px;
+  min-width: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}

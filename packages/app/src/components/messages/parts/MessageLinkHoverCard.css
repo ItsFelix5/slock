@@ -4,8 +4,8 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-12);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.32);
+  border-radius: 12px;
+  box-shadow: var(--shadow-hovercard);
 }
 
 .message-link-hovercard-head {

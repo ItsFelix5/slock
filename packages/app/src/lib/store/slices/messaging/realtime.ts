@@ -10,8 +10,8 @@ function wsUrl() {
   return `${proto}://${location.host}/ws`;
 }
 export function createRealtimeSlice(deps: {
-  activeView: () => View | null;
-  activeThread: () => ThreadRef | null;
+  visibleViews: () => View[];
+  visibleThreads: () => ThreadRef[];
   currentUser: () => User | undefined;
   channels: () => Channel[];
   patchChannel: (id: string, patch: Partial<Channel>) => void;
@@ -27,7 +27,6 @@ export function createRealtimeSlice(deps: {
   ensureDm: (channelId: string, userId: string) => void;
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   openModalView: (view: ModalView) => void;
-  recordActivityEngagement: (channelId: string, ts: string, threadTs?: string) => void;
   setGatewayActivityBadgeCounts: (activity: any) => boolean;
   refreshActivityFeed: () => void;
   messagesByChannel: Record<string, Message[]>;
@@ -92,7 +91,9 @@ export function createRealtimeSlice(deps: {
     const msg = mapMessage(payload);
     if (msg.isEphemeral) {
       if (deps.loadedChannels.has(channel)) {
-        deps.setMessagesByChannel(channel, (existing: Message[] = []) => [...existing, msg]);
+        deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
+          deps.mergeIncomingMessage(existing, msg),
+        );
       }
       return;
     }
@@ -122,10 +123,14 @@ export function createRealtimeSlice(deps: {
         deps.mergeIncomingMessage(existing, msg),
       );
     }
-    const activeId = deps.activeView()?.id;
     // Slack echoes messages sent by this account from its other clients. They
     // are already read by definition and must not create a local unread dot.
-    if (me && msg.userId !== me.id && channel !== activeId && !isThreadReply) {
+    if (
+      me &&
+      msg.userId !== me.id &&
+      !isThreadReply &&
+      !deps.visibleViews().some((v) => v.id === channel)
+    ) {
       deps.setUnreadChannelIds(channel, true);
     }
     if (deps.allDirectMessages().some((d) => d.id === channel)) {
@@ -134,13 +139,6 @@ export function createRealtimeSlice(deps: {
       deps.ensureDm(channel, msg.userId);
     } else if (deps.channels().some((c) => c.id === channel)) {
       deps.patchChannel(channel, { lastActivity: Date.now() });
-    }
-    // Activity items themselves come exclusively from activity.feed (see
-    // ensureActivityLoaded/refreshActivityFeed) rather than guessed from raw
-    // message text here — engagement tracking (did I reply to this?) is the
-    // only thing this handler still needs to record locally.
-    if (me && msg.userId === me.id) {
-      deps.recordActivityEngagement(channel, ts, isThreadReply ? payload.thread_ts : undefined);
     }
   }
   function handleRawMessage(raw: string) {
@@ -181,11 +179,9 @@ export function createRealtimeSlice(deps: {
       case "reaction_added":
       case "reaction_removed":
         if (!(payload.item?.channel && payload.item?.ts)) break;
-        if (payload.user === deps.currentUser()?.id) {
-          if (payload.type === "reaction_added") {
-            deps.recordActivityEngagement(payload.item.channel, payload.item.ts);
-          }
-        } else {
+        // Our own reactToMessage already applies the optimistic update;
+        // re-applying it here on the gateway echo would double-count it.
+        if (payload.user !== deps.currentUser()?.id) {
           deps.applyReactionEvent(
             payload.item.channel,
             payload.item.ts,
@@ -248,18 +244,17 @@ export function createRealtimeSlice(deps: {
     onMessage: handleRawMessage,
     onOpen: () => {
       for (const channel of deps.loadedChannels) send({ channel, type: "watch_channel" });
-      const thread = deps.activeThread();
-      if (thread) send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
+      for (const thread of deps.visibleThreads())
+        send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
     },
     url: wsUrl,
   });
   createEffect(() => {
-    const view = deps.activeView();
-    if (view) send({ channel: view.id, type: "watch_channel" });
+    for (const view of deps.visibleViews()) send({ channel: view.id, type: "watch_channel" });
   });
   createEffect(() => {
-    const thread = deps.activeThread();
-    if (thread) send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
+    for (const thread of deps.visibleThreads())
+      send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
   });
   return {
     connectionState: connection.connectionState,

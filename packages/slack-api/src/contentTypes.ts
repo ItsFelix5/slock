@@ -26,6 +26,10 @@ export const ACTIVITY_FEED_TYPES = [
 export const ACTIVITY_FEED_TYPES_PARAM = ACTIVITY_FEED_TYPES.join(",");
 
 export interface ActivityItem {
+  botIcon?: string;
+  botId?: string;
+  // Only retained when the message is known to describe this entry's actor.
+  botName?: string;
   broadcastRange?: "channel" | "here" | "everyone";
   channelId: string;
   id: string;
@@ -38,9 +42,7 @@ export interface ActivityItem {
     | "usergroup_mention"
     | "channel_all"
     | "keyword"
-    | "reminder"
-    | "channel_invite"
-    | "list";
+    | "other";
   activityType?: string;
   feedTs?: string;
   // The pingword that matched, for kind "keyword" — surfaced from

@@ -1,4 +1,4 @@
-import { Avatar, Icon, Skeleton, Tooltip } from "@slock/ui";
+import { Avatar, IconButton, Skeleton } from "@slock/ui";
 import { lazy, Show } from "solid-js";
 import GlobalSearch from "../search/GlobalSearch";
 import DndButton from "./dnd/DndButton";
@@ -44,26 +44,18 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
           )}
         </Show>
         <DndButton />
-        <Tooltip content="Settings">
-          <button
-            aria-label="Settings"
-            class="sidebar-global-search-btn btn-reset icon-btn icon-action"
-            onClick={() => props.setSettingsOpen(true)}
-            type="button"
-          >
-            <Icon name="settings" size={16} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Search (Ctrl+K)">
-          <button
-            aria-label="Search (Ctrl+K)"
-            class="sidebar-global-search-btn btn-reset icon-btn icon-action"
-            onClick={() => props.setSearchOpen(true)}
-            type="button"
-          >
-            <Icon name="search" size={16} />
-          </button>
-        </Tooltip>
+        <IconButton
+          class="sidebar-global-search-btn"
+          icon="settings"
+          label="Settings"
+          onClick={() => props.setSettingsOpen(true)}
+        />
+        <IconButton
+          class="sidebar-global-search-btn"
+          icon="search"
+          label="Search (Ctrl+K)"
+          onClick={() => props.setSearchOpen(true)}
+        />
       </div>
       <Show when={props.searchOpen()}>
         <GlobalSearch onClose={() => props.setSearchOpen(false)} />

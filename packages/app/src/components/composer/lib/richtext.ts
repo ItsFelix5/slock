@@ -1,42 +1,19 @@
 // biome-ignore-all lint/performance/useTopLevelRegex lint/style/noExcessiveLinesPerFile: These expressions are local to one cohesive rich-text transformation module.
+
 import {
   DEFAULT_DATE_FORMAT,
   emojiUrl,
   formatSlackDate,
   formatSlackDateTokens,
+  HEADING_TAG_RE,
+  type InlineDialect,
+  MARKDOWN_DIALECT,
+  MRKDWN_DIALECT,
   parseUserProfileLink,
 } from "@slock/blockkit";
 import { standardEmojiUnicode } from "../../../lib/emojiSearch";
 import { channelDisplayName, store } from "../../../lib/store";
 import { createLinkChip, createLinkSpan } from "./linkChip";
-import { HEADING_TAG_RE } from "./richtextSerialization";
-
-// Slack messages and mentions use mrkdwn (single-char *bold*/~strike~); Slack
-// canvases store real markdown (**bold**/~~strike~~) instead — everything
-// else here (headers, quotes, lists, dividers, code fences, the <...> token
-// syntax for mentions/channels/dates/links) is identical between the two, so
-// only the inline mark delimiters need to vary per caller.
-export interface InlineDialect {
-  bold: string;
-  italic: string;
-  strike: string;
-  // Slack chat text HTML-entity-escapes its blockquote marker (`&gt;`) along
-  // with the rest of the text's `<`/`>`/`&`; a canvas's markdown document is
-  // plain text with no such escaping, so its quotes use a literal `>`.
-  quotePrefix: string;
-}
-export const MRKDWN_DIALECT: InlineDialect = {
-  bold: "*",
-  italic: "_",
-  quotePrefix: "&gt;",
-  strike: "~",
-};
-export const MARKDOWN_DIALECT: InlineDialect = {
-  bold: "**",
-  italic: "_",
-  quotePrefix: ">",
-  strike: "~~",
-};
 
 function escapeRegExpLiteral(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -80,6 +57,17 @@ export function createComposerBlockSeparator(): HTMLBRElement {
   const br = document.createElement("br");
   br.className = "composer-block-separator";
   return br;
+}
+// a freshly-inserted block (header/quote/code block/list/divider) already
+// ends its own line by virtue of being display:block. if the line it
+// replaced had a real <br> after it pointing at further content, that br is
+// now a second, visible line break stacked on top of the block's own one —
+// hide it the same way unwrapBlock's normalizeSeparator does in reverse
+export function hideTrailingLineBreak(container: HTMLElement) {
+  const next = container.nextSibling;
+  if (next?.nodeName === "BR" && next.nextSibling) {
+    next.replaceWith(createComposerBlockSeparator());
+  }
 }
 function unescapeEntities(text: string): string {
   return text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");

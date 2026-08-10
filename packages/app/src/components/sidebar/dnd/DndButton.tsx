@@ -1,4 +1,4 @@
-import { FloatingPanel, Icon, InlineFeedback, Tooltip } from "@slock/ui";
+import { FloatingPanel, IconButton, InlineFeedback, MenuItem } from "@slock/ui";
 import { createSignal, For, onCleanup } from "solid-js";
 import { actionFeedback, store } from "../../../lib/store";
 import "./DndButton.css";
@@ -60,37 +60,25 @@ export default function DndButton() {
       onMouseLeave={scheduleClose}
       ref={wrapRef}
     >
-      <Tooltip
-        content={
+      <IconButton
+        class="sidebar-global-search-btn"
+        disabled={store.preferences.isDndPending()}
+        icon={store.preferences.isDndActive() ? "moon-filled" : "moon"}
+        label={
           store.preferences.hasDndStatusError()
             ? "Retry Do Not Disturb status"
             : store.preferences.isDndActive()
               ? "Turn off Do Not Disturb"
               : "Turn on Do Not Disturb"
         }
-      >
-        <button
-          aria-label={
-            store.preferences.hasDndStatusError()
-              ? "Retry Do Not Disturb status"
-              : store.preferences.isDndActive()
-                ? "Turn off Do Not Disturb"
-                : "Turn on Do Not Disturb"
-          }
-          class="sidebar-global-search-btn btn-reset icon-btn icon-action"
-          disabled={store.preferences.isDndPending()}
-          onClick={() => {
-            clearTimeout(openTimer);
-            setOpen(false);
-            if (store.preferences.hasDndStatusError()) store.preferences.retryDndStatus();
-            else if (store.preferences.isDndActive()) store.preferences.endDnd();
-            else store.preferences.snoozeDnd(60);
-          }}
-          type="button"
-        >
-          <Icon name={store.preferences.isDndActive() ? "moon-filled" : "moon"} size={16} />
-        </button>
-      </Tooltip>
+        onClick={() => {
+          clearTimeout(openTimer);
+          setOpen(false);
+          if (store.preferences.hasDndStatusError()) store.preferences.retryDndStatus();
+          else if (store.preferences.isDndActive()) store.preferences.endDnd();
+          else store.preferences.snoozeDnd(60);
+        }}
+      />
       <InlineFeedback class="dnd-btn-feedback" feedback={actionFeedback.get("dnd")} />
       <FloatingPanel
         anchor={() => wrapRef}
@@ -101,11 +89,7 @@ export default function DndButton() {
         open={open()}
       >
         <For each={DURATIONS}>
-          {(d) => (
-            <button class="menu-item" onClick={() => pick(d.minutes)} type="button">
-              {d.label}
-            </button>
-          )}
+          {(d) => <MenuItem onClick={() => pick(d.minutes)}>{d.label}</MenuItem>}
         </For>
       </FloatingPanel>
     </fieldset>
