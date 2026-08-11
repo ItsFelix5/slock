@@ -47,7 +47,7 @@ function topChildOffset(block: HTMLElement, startContainer: Node, startOffset: n
 // serializer uses when it strips one trailing newline
 function blockLines(block: HTMLElement): Node[][] {
   const kids = Array.from(block.childNodes);
-  if (kids.length > 1 && kids[kids.length - 1].nodeName === "BR") kids.pop();
+  if (kids.length && kids[kids.length - 1].nodeName === "BR") kids.pop();
   const lines: Node[][] = [[]];
   for (const kid of kids) {
     if (kid.nodeName === "BR") lines.push([]);
@@ -132,17 +132,19 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
       replacement.appendChild(buildQuote(lines.slice(0, caret)));
       if (!empty) replacement.appendChild(createComposerBlockSeparator());
     }
+    // caret lives in a real (empty) text node so it stays on the plain line
+    // instead of sliding into the next blockquote. an empty line still needs a
+    // br for height, placed after the marker so a single backspace clears it
     const marker = document.createTextNode("");
-    const br = document.createElement("br");
-    replacement.appendChild(empty ? br : marker);
+    replacement.appendChild(marker);
+    if (empty) replacement.appendChild(document.createElement("br"));
     for (const node of popped) replacement.appendChild(node);
     if (caret < lines.length - 1) {
       if (!empty) replacement.appendChild(createComposerBlockSeparator());
       replacement.appendChild(buildQuote(lines.slice(caret + 1)));
     }
     quote.replaceWith(replacement);
-    if (empty) caretAfter(br);
-    else placeCaretInText(marker, 0);
+    placeCaretInText(marker, 0);
     syncFromDom();
     return true;
   }
@@ -218,6 +220,26 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     syncFromDom();
     return true;
   }
+  // shift+enter on an empty quoted line exits the quote onto a plain line
+  // below the kept quoted lines, the way every editor treats enter on an empty
+  // quote. lines with content keep adding quoted lines through insertLineBreak
+  function handleShiftEnterInQuote(): boolean {
+    const quote = closestBlock((name) => name === "BLOCKQUOTE");
+    if (!quote) return false;
+    const lines = blockLines(quote);
+    const caret = caretLineIndex(quote, lines.length);
+    if (caret !== lines.length - 1 || lines[caret].length !== 0) return false;
+    const replacement = document.createDocumentFragment();
+    const keep = lines.slice(0, caret);
+    if (keep.length) replacement.appendChild(buildQuote(keep));
+    const marker = document.createTextNode("");
+    replacement.appendChild(marker);
+    replacement.appendChild(document.createElement("br"));
+    quote.replaceWith(replacement);
+    placeCaretInText(marker, 0);
+    syncFromDom();
+    return true;
+  }
   function handleShiftEnterInList(): boolean {
     const el = ref.get();
     const sel = window.getSelection();
@@ -265,7 +287,13 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
       HEADING_TAG_RE.test(only.tagName) ||
       only.tagName === "HR"
     ) {
+      // clearing the block drops the node the caret lived in, so put a caret
+      // back at the start when it was inside, otherwise the cursor vanishes
+      const sel = window.getSelection();
+      const caretInside =
+        !!sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).startContainer);
       el.innerHTML = "";
+      if (caretInside) placeCaretAtStart(el);
     }
   }
   return {
@@ -275,6 +303,7 @@ export function createNavigationCommands(ref: EditorRefHandle, syncFromDom: () =
     handleBackspaceOnQuote,
     handleShiftEnterInHeader,
     handleShiftEnterInList,
+    handleShiftEnterInQuote,
     normalizeStrayEmptyBlock,
   };
 }

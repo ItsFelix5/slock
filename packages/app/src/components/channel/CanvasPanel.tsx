@@ -197,7 +197,7 @@ export default function CanvasPanel() {
     <Show when={open()}>
       {(_open) => (
         <Overlay ariaLabel={title()} onClose={() => void close()}>
-          <div class="canvas-panel-card flex-col">
+          <div class="canvas-panel-card flex-col" data-pane="detail">
             <PanelHeader onClose={() => void close()}>
               <div class="canvas-panel-header-info flex-align-center">
                 <div class="canvas-panel-title">

@@ -1,18 +1,21 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
-import { createEffect, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { store } from "../../lib/store";
 import UserProfileStatus from "./UserProfileStatus";
 
 interface UserProfileInfoProps {
   isSelf: () => boolean;
+  isSavingProfilePhoto: () => boolean;
   isSavingPresence: () => boolean;
   user: () => User | undefined;
   botBio: () => string | undefined;
   lastSeenText: () => string | null;
   localTime: () => string | null;
   onTogglePresence: () => void;
+  onProfilePhotoSelected: (file: File) => void;
   saveName: () => void;
   saveTitle: () => void;
   savePronouns: () => void;
@@ -45,21 +48,56 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
   const u = () => props.user()!;
   // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this through the JSX ref.
   let titleRef: HTMLTextAreaElement | undefined;
+  const [photoInputRef, setPhotoInputRef] = createSignal<HTMLInputElement>();
   createEffect(() => {
     props.titleInput();
     if (titleRef) autoGrowTitle(titleRef);
   });
   return (
     <>
-      <div class="user-profile-avatar flex-center" style={{ background: u().avatarColor }}>
-        <span aria-hidden="true">?</span>
-        <img
-          alt=""
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
+      <div class="user-profile-avatar-wrap">
+        <Dynamic
+          aria-busy={props.isSelf() ? props.isSavingProfilePhoto() : undefined}
+          aria-label={
+            props.isSelf()
+              ? props.isSavingProfilePhoto()
+                ? "Uploading profile photo"
+                : "Change profile photo"
+              : undefined
+          }
+          class="user-profile-avatar flex-center"
+          classList={{ "is-editable": props.isSelf() }}
+          component={props.isSelf() ? "button" : "div"}
+          disabled={props.isSelf() ? props.isSavingProfilePhoto() : undefined}
+          onClick={() => {
+            if (!props.isSavingProfilePhoto()) photoInputRef()?.click();
           }}
-          src={u().avatarUrl}
-        />
+          style={{ background: u().avatarColor }}
+          type={props.isSelf() ? "button" : undefined}
+        >
+          <span aria-hidden="true">?</span>
+          <img
+            alt=""
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+            src={u().avatarUrl}
+          />
+          <Show when={props.isSelf()}>
+            <input
+              accept="image/*"
+              class="user-profile-photo-input"
+              disabled={props.isSavingProfilePhoto()}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) props.onProfilePhotoSelected(file);
+                event.currentTarget.value = "";
+              }}
+              ref={setPhotoInputRef}
+              type="file"
+            />
+          </Show>
+        </Dynamic>
         <Show when={props.isSelf()}>
           <button
             aria-busy={props.isSavingPresence()}
@@ -73,7 +111,10 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
             class="user-profile-presence"
             classList={{ away: u().presence === "away" }}
             disabled={props.isSavingPresence()}
-            onClick={props.onTogglePresence}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onTogglePresence();
+            }}
             type="button"
           />
         </Show>

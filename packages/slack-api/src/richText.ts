@@ -54,6 +54,17 @@ export interface RichTextBroadcastElement {
   type: "broadcast";
 }
 
+export type BroadcastRange = RichTextBroadcastElement["range"];
+
+export function isRichTextBroadcast(value: unknown): value is RichTextBroadcastElement {
+  if (!(value && typeof value === "object")) return false;
+  const element = value as { range?: unknown; type?: unknown };
+  return (
+    element.type === "broadcast" &&
+    (element.range === "here" || element.range === "channel" || element.range === "everyone")
+  );
+}
+
 export interface RichTextColorElement {
   type: "color";
   value: string;
@@ -130,4 +141,28 @@ export interface RichTextBlock {
   block_id?: string;
   elements: RichTextSubBlock[];
   type: "rich_text";
+}
+
+function broadcastRangeFromElements(elements: readonly unknown[]): BroadcastRange | undefined {
+  for (const element of elements) {
+    if (isRichTextBroadcast(element)) return element.range;
+    if (
+      element &&
+      typeof element === "object" &&
+      "elements" in element &&
+      Array.isArray(element.elements)
+    ) {
+      const range = broadcastRangeFromElements(element.elements);
+      if (range) return range;
+    }
+  }
+}
+
+export function broadcastRangeFromRichTextBlocks(
+  blocks: readonly RichTextBlock[],
+): BroadcastRange | undefined {
+  for (const block of blocks) {
+    const range = broadcastRangeFromElements(block.elements);
+    if (range) return range;
+  }
 }

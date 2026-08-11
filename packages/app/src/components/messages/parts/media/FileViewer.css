@@ -91,7 +91,7 @@
 }
 
 .file-viewer-mail-frame {
-  background: #fff;
+  background: var(--embedded-content-bg);
 }
 
 .file-viewer-mail-text {

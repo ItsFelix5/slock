@@ -1,4 +1,5 @@
 import { ADDABLE_CHANNEL_TABS } from "../../lib/channelTabMeta";
+import { openFilesLinksPanel } from "../../lib/filesLinksPanel";
 import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import type { View } from "../../lib/store/slices/types";
 
@@ -49,7 +50,7 @@ export function createChannelHeaderState(view: () => View | null) {
     ADDABLE_CHANNEL_TABS.filter((tab) => !store.channelTabs.tabsForChannel(id).includes(tab.type));
   const searchCurrentConversation = () => {
     const v = view();
-    if (v) store.viewState.openMessageSearch("", v.kind === "channel" ? { inChannelId: v.id } : {});
+    if (v) openFilesLinksPanel(v.id);
   };
   const openCurrentDmProfile = () => {
     const v = view();

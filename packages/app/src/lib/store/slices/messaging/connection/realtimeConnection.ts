@@ -1,7 +1,12 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import { createReconnectScheduler } from "./reconnectScheduler";
 
 export type RealtimeConnectionState = "connected" | "connecting" | "offline" | "reconnecting";
+
+// Matches Slack's own online-for-presence-purposes check: truly connected
+// right now, or connected within the last 10s — the grace period is what
+// keeps a brief reconnect blip from flickering the presence dot to "away".
+const ONLINE_GRACE_MS = 10_000;
 
 export function createRealtimeConnection(opts: {
   onMessage: (raw: string) => void;
@@ -13,6 +18,23 @@ export function createRealtimeConnection(opts: {
     online() ? "connecting" : "offline",
   );
   const [rtmConnected, setRtmConnected] = createSignal(false);
+  const isTrulyOnline = () => online() && rtmConnected();
+  const [recentlyOnline, setRecentlyOnline] = createSignal(isTrulyOnline());
+  let onlineGraceTimer: ReturnType<typeof setTimeout> | null = null;
+  createEffect(() => {
+    if (isTrulyOnline()) {
+      if (onlineGraceTimer) {
+        clearTimeout(onlineGraceTimer);
+        onlineGraceTimer = null;
+      }
+      setRecentlyOnline(true);
+    } else if (!onlineGraceTimer) {
+      onlineGraceTimer = setTimeout(() => {
+        onlineGraceTimer = null;
+        setRecentlyOnline(false);
+      }, ONLINE_GRACE_MS);
+    }
+  });
   let disposed = false;
   let hasConnected = false;
   let socket: WebSocket | null = null;
@@ -84,10 +106,12 @@ export function createRealtimeConnection(opts: {
     window.removeEventListener("online", handleOnline);
     document.removeEventListener("visibilitychange", handleVisibility);
     disconnectCurrent();
+    if (onlineGraceTimer) clearTimeout(onlineGraceTimer);
   });
 
   return {
     connectionState,
+    isSelfOnline: () => isTrulyOnline() || recentlyOnline(),
     retry() {
       if (!online()) {
         setConnectionState("offline");

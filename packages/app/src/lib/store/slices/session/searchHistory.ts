@@ -5,9 +5,6 @@ import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
 
 const MAX_ENTRIES = 15;
 
-// Recent message-search queries, synced through the same users.prefs blob as
-// pingwords/mute (custom key — see fetchUserPrefs) rather than localStorage,
-// so history follows the account across devices instead of staying per-browser.
 export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const [searchHistory, setSearchHistory] = createSignal<string[]>([]);
   const runMutation = createSerialMutationQueue();

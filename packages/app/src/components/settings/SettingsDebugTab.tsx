@@ -22,9 +22,6 @@ export default function SettingsDebugTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Icon browser</div>
-        <div class="settings-row-hint text-dim">
-          {ICON_NAMES.length} icons available. Click one to copy its name.
-        </div>
         <Show when={copyError()}>
           <div class="settings-account-error" role="alert">
             Couldn’t copy to the clipboard.

@@ -48,11 +48,14 @@ export const messageRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/threads/:ts/messages", async (ctx) => {
-    const data = await callSlack(
-      "conversations.replies",
-      { channel: ctx.params.id, limit: "200", ts: ctx.params.ts },
-      ctx.creds,
-    );
+    const params: Record<string, string> = {
+      channel: ctx.params.id,
+      limit: "200",
+      ts: ctx.params.ts,
+    };
+    const cursor = ctx.searchParams.get("cursor");
+    if (cursor) params.cursor = cursor;
+    const data = await callSlack("conversations.replies", params, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.replies", ctx.creds, ctx.acceptEncoding);
     }

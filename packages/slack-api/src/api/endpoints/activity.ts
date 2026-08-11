@@ -1,5 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 // biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive module for the undocumented activity feed endpoint and its entry mapping.
+import { broadcastRangeFromBlocks } from "../../blocks";
 import {
   type ACTIVITY_FEED_TYPES,
   ACTIVITY_FEED_TYPES_PARAM,
@@ -140,7 +141,7 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
         feedTs: String(raw.feed_ts),
         id: raw.key,
         kind,
-        text: rawMessageText(latestMessage),
+        text: rawMessageText(latestMessage) ?? raw.item.activity_text,
         threadTs: thread.thread_ts,
         time,
         ts: thread.latest_ts,
@@ -207,8 +208,6 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     quietlyAdded?.inviter_user_id ??
     "";
   const text = rawMessageText(message) ?? raw.item.activity_text;
-  if (kind === "dm" && !text && !userId)
-    console.warn("[activity] dm entry resolved with no text/userId", JSON.stringify(raw));
   return {
     activityType: type,
     ...rawMessageAuthor(message, userId),
@@ -373,14 +372,17 @@ export function resolveActivityEntry(
 ): ActivityItem {
   const msg = batchedMessages?.get(`${entry.channelId}:${entry.ts}`);
   const isReaction = entry.kind === "reaction";
+  const broadcastRange = entry.broadcastRange ?? broadcastRangeFromBlocks(msg?.blocks);
   // A reaction's fetched message belongs to the person who received the
   // reaction, while every other entry is about that message's own author.
   const userId = isReaction ? entry.userId || msg?.userId || "" : (msg?.userId ?? entry.userId);
   return {
     ...entry,
+    broadcastRange,
     botIcon: !isReaction && msg ? msg.botIcon : entry.botIcon,
     botId: !isReaction && msg ? msg.botId : entry.botId,
     botName: !isReaction && msg ? msg.botName : entry.botName,
+    kind: entry.kind === "channel_all" && broadcastRange ? "channel_mention" : entry.kind,
     text: msg?.text ?? entry.text ?? "",
     // message_reaction entries never carry thread_ts from the feed itself
     // (unlike at_user/dm/keyword, which do) — the fetched message is the

@@ -42,13 +42,12 @@ export function messageSizeMetrics(size: MessageSize): MessageSizeMetrics {
 }
 
 const MESSAGE_SIZE_KEY = "slock-message-size";
-const LEGACY_COMPACT_KEY = "slock-compact";
 
 function loadMessageSize(): MessageSize {
   const raw = localStorage.getItem(MESSAGE_SIZE_KEY);
   const saved = raw === null ? Number.NaN : Number(raw);
   if (!Number.isNaN(saved)) return Math.min(2, Math.max(0, saved));
-  return localStorage.getItem(LEGACY_COMPACT_KEY) === "1" ? 0 : 1;
+  return 1;
 }
 
 const [messageSize, setMessageSizeSignal] = createSignal<MessageSize>(loadMessageSize());
@@ -68,7 +67,6 @@ applyMessageSize(messageSize());
 export function setMessageSize(size: MessageSize) {
   setMessageSizeSignal(size);
   localStorage.setItem(MESSAGE_SIZE_KEY, String(size));
-  localStorage.removeItem(LEGACY_COMPACT_KEY);
   applyMessageSize(size);
 }
 

@@ -11,7 +11,7 @@
   appearance: none;
   cursor: pointer;
   background: var(--hover-bg);
-  border-radius: var(--radius-circle);
+  border-radius: var(--radius-pill);
   outline: none;
 }
 
@@ -49,6 +49,7 @@
 
 .slider-ticks {
   display: flex;
+  cursor: pointer;
   justify-content: space-between;
   padding: 0 1px;
   font-size: 11px;

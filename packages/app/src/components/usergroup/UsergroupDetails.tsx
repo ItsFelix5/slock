@@ -94,6 +94,7 @@ export default function UsergroupDetails() {
         <div
           class="usergroup-details-panel"
           classList={{ "panel-fullscreen": isFullscreen() }}
+          data-pane="detail"
           style={{ width: `${width()}px` }}
         >
           <ResizeHandle

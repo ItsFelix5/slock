@@ -1,12 +1,18 @@
 // biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related author and avatar button exports.
 import type { UserStatus } from "@slock/slack-api";
 import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
-export function MessageAvatarButton(props: { color?: string; src?: string; onClick: () => void }) {
+export function MessageAvatarButton(props: {
+  color?: string;
+  src?: string;
+  onClick: () => void;
+  tabbable?: boolean;
+}) {
   return (
     <button
       class="message-avatar btn-reset flex-center"
       onClick={props.onClick}
       style={{ background: props.color ?? DEFAULT_AVATAR_COLOR }}
+      tabIndex={props.tabbable === false ? -1 : undefined}
       type="button"
     >
       <span aria-hidden="true" class="message-avatar-fallback">
@@ -28,6 +34,7 @@ export function MessageAuthorButton(props: {
   name: string;
   onClick: () => void;
   status?: UserStatus;
+  tabbable?: boolean;
 }) {
   // plain span, not a <button>: button content isn't a valid text-selection
   // anchor, so drag-selecting from the name into the message body made the
@@ -47,7 +54,7 @@ export function MessageAuthorButton(props: {
         props.onClick();
       }}
       role="button"
-      tabIndex={props.disabled ? -1 : 0}
+      tabIndex={props.disabled || props.tabbable === false ? -1 : 0}
     >
       {props.name}
     </span>

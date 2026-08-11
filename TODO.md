@@ -1,11 +1,6 @@
-- Everything should be keyboard accessible, from shortcuts to ctrl+z on EVERYTHING to improving ctrl+k and making sure ctrl+/ is up to date
-- Avoid optimistic updates but max ux
-- channel search button should show files & links page + search bar (conversations.searchLinks + search.modules.files?)
-- better uploads (cropping perhaps even???)
-- generally improve UI/UX across the app a LOT
-- Improve speed (especially network is blocking, reduce on that)
+- better uploads
+- online status
 - Response/reply links staying on message mentions
-- Concistency on cross channel threads
 - ctrl+z
 - reactions animations
 - unread channel arrow

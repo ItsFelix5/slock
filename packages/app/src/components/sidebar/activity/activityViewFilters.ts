@@ -43,5 +43,9 @@ export function latestItem(row: ActivityRowData) {
 // pages of every other kind first.
 export function feedTypesForTag(tag: Tag | "all"): string | undefined {
   if (tag === "all") return;
-  return ACTIVITY_KIND_FEED_TYPES[tag].join(",");
+  const types = ACTIVITY_KIND_FEED_TYPES[tag];
+  // Slack files some bot-as-user broadcasts as generic channel activity
+  return (
+    tag === "channel_mention" ? [...types, ...ACTIVITY_KIND_FEED_TYPES.channel_all] : types
+  ).join(",");
 }

@@ -38,5 +38,9 @@ export function slackErrorResponse(
   creds: Credentials | null,
   acceptEncoding: string | null,
 ): Response {
-  return jsonResponse({ error: data.error ?? fallback }, creds, acceptEncoding, 502);
+  const error =
+    typeof data.error === "string" && data.error
+      ? data.error
+      : `${fallback} failed without an error: ${JSON.stringify(data)}`;
+  return jsonResponse({ error }, creds, acceptEncoding, 502);
 }

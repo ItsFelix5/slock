@@ -109,7 +109,7 @@ export function resolveAuthorAvatarUrl(
   msg: MessageAuthorFields,
   userAvatarUrl: string | undefined,
 ): string | undefined {
-  return (hasRealMessageAuthor(msg) ? userAvatarUrl : undefined) ?? msg.botIcon;
+  return hasRealMessageAuthor(msg) ? userAvatarUrl : msg.botIcon ?? userAvatarUrl;
 }
 
 export interface MessageRenderContext {

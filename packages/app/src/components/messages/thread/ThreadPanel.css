@@ -17,7 +17,7 @@
 .thread-panel-title {
   font-size: 16px;
   font-weight: 800;
-  color: var(--text-on-accent);
+  color: var(--text-primary);
 }
 
 .thread-panel-subtitle {

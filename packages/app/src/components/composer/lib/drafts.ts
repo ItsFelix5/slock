@@ -3,12 +3,6 @@ import { createEffect, createSignal } from "solid-js";
 import { createDraftPersistenceGate, saveAfterDraftHydration } from "./draftSync/draftSyncGuards";
 import { draftCacheKey } from "./submission";
 
-// Drafts live on the real Slack account (drafts.list/create/delete) rather
-// than in localStorage, so they follow you to another device the way a real
-// unsent-message draft does. Keyed the same way as before (`thread:<ts>` for
-// a thread reply, else the channel id) — this module-level cache is shared
-// across every Composer instance (the component is reused across channel
-// switches, never remounted), and is hydrated once from the account at load.
 export const drafts: Record<string, string> = {};
 const [draftsReady, setDraftsReady] = createSignal(false);
 const [draftErrorKeys, setDraftErrorKeys] = createSignal<Set<string>>(new Set());
@@ -77,8 +71,7 @@ function enqueueDraftSave(
     })
     .then(
       () => setDraftError(key, false),
-      (err) => {
-        console.warn("draft sync failed", key, err);
+      () => {
         setDraftError(key, true);
       },
     );

@@ -17,6 +17,12 @@ export default function MessageActionsBar(props: {
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
+  // Only the currently roving-focused row's buttons stay in Tab order — with
+  // every message row contributing this toolbar, leaving them all tabbable
+  // would turn Tab through the list into 4-5 stops per message. They're
+  // still fully reachable: the row's own r/a/s/p/./etc. shortcuts, and once
+  // the row is focused these buttons rejoin Tab order to reach for a mouse.
+  rowFocused: () => boolean;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
@@ -56,6 +62,7 @@ export default function MessageActionsBar(props: {
             aria-label="React"
             class="message-hover-btn btn-reset flex-center"
             onClick={togglePicker}
+            tabIndex={props.rowFocused() ? undefined : -1}
             type="button"
           >
             <Icon name="emoji" size={16} />
@@ -77,6 +84,7 @@ export default function MessageActionsBar(props: {
             aria-label="Reply in thread"
             class="message-hover-btn btn-reset flex-center"
             onClick={() => props.onOpenThread?.(threadRootTs())}
+            tabIndex={props.rowFocused() ? undefined : -1}
             type="button"
           >
             <Icon name="threads" size={16} />
@@ -90,6 +98,7 @@ export default function MessageActionsBar(props: {
             aria-label="Reply"
             class="message-hover-btn btn-reset flex-center"
             onClick={() => props.onReplyLink?.(props.msg)}
+            tabIndex={props.rowFocused() ? undefined : -1}
             type="button"
           >
             <Icon name="email-reply" size={16} />
@@ -107,6 +116,7 @@ export default function MessageActionsBar(props: {
             store.later.isSaveForLaterPending(props.channelId, props.msg.ts)
           }
           onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
+          tabIndex={props.rowFocused() ? undefined : -1}
           type="button"
         >
           <Icon name={isSaved() ? "bookmark-filled" : "bookmark"} size={15} />
@@ -125,6 +135,7 @@ export default function MessageActionsBar(props: {
               aria-label="More actions"
               class="message-hover-btn btn-reset flex-center"
               onClick={toggleMore}
+              tabIndex={props.rowFocused() ? undefined : -1}
               type="button"
             >
               <Icon name="ellipsis-vertical-filled" size={16} />

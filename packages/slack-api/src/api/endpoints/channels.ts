@@ -9,9 +9,11 @@ import type {
   ChannelDetails,
   ChannelMembersPage,
   MemberPermissionsPatch,
+  SlackFile,
+  SlackLink,
 } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
-import { mapChannel, mapUser } from "../mappers";
+import { mapChannel, mapFile, mapLink, mapUser } from "../mappers";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "../server";
 import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
 
@@ -72,6 +74,33 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
       private: !!c.is_private,
       topic: typeof c.topic === "string" ? c.topic : (c.topic?.value ?? ""),
     }));
+}
+
+export interface ChannelFilesAndLinks {
+  files: SlackFile[];
+  filesTotal: number;
+  links: SlackLink[];
+  linksTotal: number;
+}
+
+// Backs the channel header's "Files & links" panel — combines
+// search.modules.files and conversations.searchLinks into one relay call.
+export async function searchChannelFilesAndLinks(
+  channelId: string,
+  channelName: string,
+  query: string,
+): Promise<ChannelFilesAndLinks> {
+  const params = new URLSearchParams({ channelName, query });
+  const data = await apiGet(`/api/channels/${channelId}/files-links?${params}`);
+  if (!data.ok) throw new Error(data.error ?? "channel files & links search failed");
+  const files: any[] = Array.isArray(data.files) ? data.files : [];
+  const links: any[] = Array.isArray(data.links) ? data.links : [];
+  return {
+    files: files.map(mapFile),
+    filesTotal: data.filesTotal ?? files.length,
+    links: links.map(mapLink),
+    linksTotal: data.linksTotal ?? links.length,
+  };
 }
 export async function fetchChannelCanvasInfo(channelId: string): Promise<CanvasInfo | null> {
   const [canvas] = await fetchChannelCanvases(channelId);

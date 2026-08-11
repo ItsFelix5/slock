@@ -73,6 +73,7 @@ export default function UsergroupMembersTab(props: {
             <div class="usergroup-details-row">
               <button
                 class="usergroup-details-row-main btn-reset flex-align-center"
+                data-nav-row
                 onClick={() => store.users.openUserProfile(u.id)}
                 type="button"
               >

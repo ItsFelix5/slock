@@ -175,7 +175,7 @@ export default function ChannelDetails() {
             when={details()}
           >
             {(d) => (
-              <div class="channel-details-card flex-col">
+              <div class="channel-details-card flex-col" data-pane="detail">
                 <PanelHeader
                   bottom={
                     <div class="channel-details-tabs">

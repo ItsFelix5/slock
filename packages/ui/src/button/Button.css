@@ -86,7 +86,7 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: rgba(var(--danger-rgb), 0.1);
+  background: var(--danger-muted);
 }
 
 .btn:disabled,

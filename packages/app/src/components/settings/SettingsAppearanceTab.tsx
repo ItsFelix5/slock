@@ -1,15 +1,18 @@
 import {
   activeFontPreset,
   activePreset,
+  applyCopiedThemePalette,
   applyPreset,
   ColorField,
+  copyableThemePalette,
+  createCopyFeedback,
   DEFAULT_FONT,
   FONT_PRESETS,
   getEffectiveColor,
+  IconButton,
   logDeletedMessages,
   messageSize,
   resetThemeColor,
-  resetThemeColors,
   Slider,
   Switch,
   setLogDeletedMessages,
@@ -27,6 +30,8 @@ const MESSAGE_SIZE_LABELS = ["Compact", "Default", "Large"];
 
 export default function SettingsAppearanceTab() {
   const [fontDraft, setFontDraft] = createSignal(getEffectiveColor("font"));
+  const [copiedKey, copy] = createCopyFeedback();
+  const [pasteResult, setPasteResult] = createSignal<"pasted" | "failed" | null>(null);
   createEffect(() => setFontDraft(getEffectiveColor("font")));
 
   function commitFont(value: string) {
@@ -34,15 +39,25 @@ export default function SettingsAppearanceTab() {
     setThemeColors({ font: trimmed || DEFAULT_FONT });
   }
 
+  async function copyTheme() {
+    await copy(copyableThemePalette(), "theme");
+  }
+
+  async function pasteTheme() {
+    try {
+      const payload = await navigator.clipboard.readText();
+      setPasteResult(applyCopiedThemePalette(payload) ? "pasted" : "failed");
+    } catch {
+      setPasteResult("failed");
+    }
+  }
+
   return (
     <>
       <h2>Appearance</h2>
 
       <div class="settings-row flex-between">
-        <div>
-          <div class="settings-row-label">Message size</div>
-          <div class="settings-row-hint text-dim">Compact, default, or large messages.</div>
-        </div>
+        <div class="settings-row-label">Message size</div>
         <Slider
           ariaLabel="Message size"
           labels={MESSAGE_SIZE_LABELS}
@@ -54,12 +69,7 @@ export default function SettingsAppearanceTab() {
       </div>
 
       <div class="settings-row flex-between">
-        <div>
-          <div class="settings-row-label">Log deleted messages</div>
-          <div class="settings-row-hint text-dim">
-            Keep a deleted message visible, struck through, instead of removing it from the list.
-          </div>
-        </div>
+        <div class="settings-row-label">Log deleted messages</div>
         <Switch
           checked={logDeletedMessages()}
           onChange={setLogDeletedMessages}
@@ -68,42 +78,7 @@ export default function SettingsAppearanceTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Theme</div>
-        <div class="settings-row-hint text-dim">
-          Choose a complete theme, then fine-tune any color below.
-        </div>
-        <div class="settings-preset-group">
-          <For each={THEME_PRESETS}>
-            {(preset) => (
-              <Tooltip content={preset.label}>
-                <button
-                  aria-label={preset.label}
-                  class="settings-preset-btn btn-reset flex-align-center"
-                  classList={{ active: activePreset() === preset.id }}
-                  onClick={() => applyPreset(preset)}
-                  type="button"
-                >
-                  <span
-                    class="settings-preset-swatch"
-                    style={{
-                      "background-color": preset.colors.mainBg,
-                      "border-color": preset.colors.borderStrong,
-                      color: preset.colors.accent,
-                    }}
-                  />
-                  {preset.label}
-                </button>
-              </Tooltip>
-            )}
-          </For>
-        </div>
-      </div>
-
-      <div class="settings-section">
         <div class="settings-row-label">Font</div>
-        <div class="settings-row-hint text-dim">
-          Choose a font, or type any CSS font-family value below.
-        </div>
         <div class="settings-preset-group">
           <For each={FONT_PRESETS}>
             {(preset) => (
@@ -148,9 +123,52 @@ export default function SettingsAppearanceTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Custom colors</div>
-        <div class="settings-row-hint text-dim">
-          Every color token used by the app. Type a hex/rgba value or click a swatch to pick one.
+        <div class="settings-row-label">Theme</div>
+        <div class="settings-preset-group">
+          <For each={THEME_PRESETS}>
+            {(preset) => (
+              <button
+                aria-label={preset.label}
+                class="settings-preset-btn settings-theme-preset-btn btn-reset flex-align-center"
+                classList={{ active: activePreset() === preset.id }}
+                onClick={() => applyPreset(preset)}
+                style={{
+                  "--theme-preview-overlay": preset.colors.textPrimary,
+                  background: preset.colors.mainBg,
+                  "border-color": preset.colors.borderStrong ?? preset.colors.border,
+                  color: preset.colors.textPrimary,
+                }}
+                type="button"
+              >
+                <span
+                  aria-hidden="true"
+                  class="settings-theme-preset-dot"
+                  style={{ background: preset.colors.accent }}
+                />
+                {preset.label}
+              </button>
+            )}
+          </For>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-row flex-between">
+          <div class="settings-row-label">Custom colors</div>
+          <div class="settings-theme-actions flex-align-center">
+            <IconButton
+              icon={pasteResult() === "pasted" ? "check" : "arrow-down"}
+              label={pasteResult() === "failed" ? "Invalid theme" : "Paste theme"}
+              onClick={pasteTheme}
+              size="sm"
+            />
+            <IconButton
+              icon={copiedKey() === "theme" ? "check" : "copy"}
+              label={copiedKey() === "theme" ? "Copied" : "Copy theme"}
+              onClick={copyTheme}
+              size="sm"
+            />
+          </div>
         </div>
         <div class="settings-color-list">
           <For each={THEME_COLOR_KEYS}>
@@ -164,13 +182,6 @@ export default function SettingsAppearanceTab() {
             )}
           </For>
         </div>
-        <button
-          class="settings-status-clear btn-reset"
-          onClick={() => resetThemeColors()}
-          type="button"
-        >
-          Reset all colors
-        </button>
       </div>
     </>
   );

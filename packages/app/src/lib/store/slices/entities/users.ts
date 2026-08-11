@@ -4,6 +4,7 @@ import {
   setPresence as apiSetPresence,
   setProfileFields as apiSetProfileFields,
   setStatus as apiSetStatus,
+  uploadProfilePhoto as apiUploadProfilePhoto,
   fetchAppDescription,
   fetchUser,
   fetchUserCustomFields,
@@ -24,6 +25,7 @@ type UsersApi = {
   setPresence: typeof apiSetPresence;
   setProfileFields: typeof apiSetProfileFields;
   setStatus: typeof apiSetStatus;
+  uploadProfilePhoto: typeof apiUploadProfilePhoto;
 };
 
 const DEFAULT_USERS_API: UsersApi = {
@@ -35,14 +37,19 @@ const DEFAULT_USERS_API: UsersApi = {
   setPresence: apiSetPresence,
   setProfileFields: apiSetProfileFields,
   setStatus: apiSetStatus,
+  uploadProfilePhoto: apiUploadProfilePhoto,
 };
 
 export function createUsersSlice(
-  deps: { currentUserBase: () => User | undefined },
+  deps: { currentUserBase: () => User | undefined; isSelfOnline: () => boolean },
   api: UsersApi = DEFAULT_USERS_API,
 ) {
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
   const pendingUsers = new Set<string>();
+  // Ids fetchUser came back empty/thrown for (e.g. a bot_id bots.info can't
+  // resolve — deleted app, no access). Without this, every re-render of a
+  // message row from that author would retry the same doomed fetch forever.
+  const unresolvableUsers = new Set<string>();
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
     {},
   );
@@ -83,17 +90,17 @@ export function createUsersSlice(
     if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
     if (!known) {
-      if (!pendingUsers.has(id)) {
+      if (!(pendingUsers.has(id) || unresolvableUsers.has(id))) {
         pendingUsers.add(id);
         api
           .fetchUser(id)
           .then((user) => {
             if (user) setExtraUsers(id, user);
-            else console.warn("[userById] fetchUser resolved no user for id", JSON.stringify(id));
+            else {
+              unresolvableUsers.add(id);
+            }
           })
-          .catch((err) =>
-            console.warn("[userById] fetchUser threw for id", JSON.stringify(id), err),
-          )
+          .catch(() => unresolvableUsers.add(id))
           .finally(() => {
             pendingUsers.delete(id);
           });
@@ -116,6 +123,7 @@ export function createUsersSlice(
       }),
     );
     pendingUsers.delete(id);
+    unresolvableUsers.delete(id);
   }
 
   // Org-wide people search for DM compose / @mention / global search. On a large
@@ -146,10 +154,11 @@ export function createUsersSlice(
   function currentUser(): User | undefined {
     const base = deps.currentUserBase();
     if (!base) return base;
-    const presence = presenceOverrides[base.id];
+    // Manually setting yourself away always wins; otherwise presence follows
+    // the realtime connection, same as real Slack's own online check.
+    const presence = presenceOverrides[base.id] ?? (deps.isSelfOnline() ? "active" : "away");
     const status = selfStatusOverride();
-    if (!(presence || status)) return base;
-    return { ...base, ...(presence ? { presence } : {}), ...(status ?? {}) };
+    return { ...base, presence, ...(status ?? {}) };
   }
 
   function botBio(appId: string | undefined, botId: string | undefined): string | undefined {
@@ -227,6 +236,22 @@ export function createUsersSlice(
     return updateMyStatus("", "", 0);
   }
 
+  async function updateMyProfilePhoto(file: File): Promise<boolean> {
+    try {
+      const avatarUrl = await api.uploadProfilePhoto(file);
+      if (avatarUrl) setSelfStatusOverride((prev) => ({ ...prev, avatarUrl }));
+      return true;
+    } catch (err) {
+      console.error("Failed to update profile photo", err);
+      actionFeedback.flash(
+        "me",
+        err instanceof Error ? err.message : "Failed to update profile photo.",
+        "error",
+      );
+      return false;
+    }
+  }
+
   // Profile fields share users.profile.set, so serialize edits. Two quick
   // blurs otherwise race at the network boundary and an older response can
   // leave both Slack and the panel showing the wrong final value.
@@ -273,8 +298,18 @@ export function createUsersSlice(
   async function updateMyPresence(presence: "auto" | "away"): Promise<boolean> {
     try {
       await api.setPresence(presence);
-      const me = currentUser();
-      if (me) setPresenceOverrides(me.id, presence === "away" ? "away" : "active");
+      const selfId = deps.currentUserBase()?.id;
+      if (selfId) {
+        // "auto" hands control back to isSelfOnline rather than forcing active,
+        // so it actually goes stale-away again if the connection later drops.
+        if (presence === "away") setPresenceOverrides(selfId, "away");
+        else
+          setPresenceOverrides(
+            produce((s) => {
+              delete s[selfId];
+            }),
+          );
+      }
       return true;
     } catch (err) {
       console.error("Failed to set presence", err);
@@ -297,6 +332,7 @@ export function createUsersSlice(
     searchUsers,
     setPresenceOverrides,
     updateMyPresence,
+    updateMyProfilePhoto,
     updateMyProfile,
     updateMyStatus,
     userById,

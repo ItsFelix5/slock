@@ -1,71 +1,193 @@
 import { createSignal } from "solid-js";
+import { dependentThemeColorKeys, withDerivedThemeColors } from "./themeDerivations";
+import { LIGHT_THEME_COLORS, THEME_PRESETS as PRESETS } from "./themePresets";
 
 export interface ThemeColors {
   accent?: string;
+  accentBorder?: string;
+  accentBorderStrong?: string;
+  accentEmphasis?: string;
   accentHover?: string;
+  accentMuted?: string;
+  accentSubtle?: string;
   activeBg?: string;
   badgeBg?: string;
+  blockKitButtonDanger?: string;
+  blockKitButtonPrimary?: string;
   border?: string;
   borderStrong?: string;
   codeBg?: string;
   composerBg?: string;
+  controlContrastBorder?: string;
   danger?: string;
+  dangerMuted?: string;
+  dangerSubtle?: string;
+  embeddedContentBg?: string;
+  errorBg?: string;
+  errorText?: string;
+  focusRingColor?: string;
   font?: string;
+  highlightBg?: string;
   hoverBg?: string;
+  linkColor?: string;
   mainBg?: string;
+  mediaLensBorder?: string;
+  mentionBg?: string;
+  mentionHoverBg?: string;
+  mentionInaccessibleBg?: string;
+  mentionInaccessibleHoverBg?: string;
+  mentionInaccessibleText?: string;
+  mentionSelfBg?: string;
+  mentionSelfHoverBg?: string;
   mentionSelfText?: string;
   mentionText?: string;
+  moderationBanned?: string;
+  moderationRestricted?: string;
+  moderationUnverified?: string;
+  overlayBackdrop?: string;
   presenceActive?: string;
+  presenceAway?: string;
   railBg?: string;
+  scrimStrong?: string;
+  shadowColor?: string;
+  shadowColorSoft?: string;
   sidebarBg?: string;
+  success?: string;
   textDim?: string;
   textOnAccent?: string;
+  textOnAvatar?: string;
+  textOnDanger?: string;
+  textOnSuccess?: string;
+  textDisabled?: string;
   textPrimary?: string;
   textSecondary?: string;
   warning?: string;
+  warningEmphasis?: string;
+  warningMuted?: string;
+  warningSubtle?: string;
 }
 
-const THEME_COLOR_VARS: Record<keyof ThemeColors, string> = {
-  accent: "--accent",
-  accentHover: "--accent-hover",
-  activeBg: "--active-bg",
-  badgeBg: "--badge-bg",
-  border: "--border",
-  borderStrong: "--border-strong",
-  codeBg: "--code-bg",
-  composerBg: "--composer-bg",
-  danger: "--danger",
+export interface ThemePreset {
+  colorScheme?: "dark" | "light";
+  colors: ThemeColors;
+  id: string;
+  label: string;
+}
+
+const THEME_COLOR_DEFINITIONS = {
+  accent: ["--accent", "Accent"],
+  accentBorder: ["--accent-border", "Accent border"],
+  accentBorderStrong: ["--accent-border-strong", "Accent border (strong)"],
+  accentEmphasis: ["--accent-emphasis", "Accent emphasis"],
+  accentHover: ["--accent-hover", "Accent (hover)"],
+  accentMuted: ["--accent-muted", "Accent muted"],
+  accentSubtle: ["--accent-subtle", "Accent subtle"],
+  activeBg: ["--active-bg", "Active background"],
+  badgeBg: ["--badge-bg", "Badge background"],
+  blockKitButtonDanger: ["--bk-button-danger", "Block Kit button (danger)"],
+  blockKitButtonPrimary: ["--bk-button-primary", "Block Kit button (primary)"],
+  border: ["--border", "Border"],
+  borderStrong: ["--border-strong", "Border (strong)"],
+  codeBg: ["--code-bg", "Code background"],
+  composerBg: ["--composer-bg", "Composer background"],
+  controlContrastBorder: ["--control-contrast-border", "Control contrast border"],
+  danger: ["--danger", "Danger"],
+  dangerMuted: ["--danger-muted", "Danger muted"],
+  dangerSubtle: ["--danger-subtle", "Danger subtle"],
+  embeddedContentBg: ["--embedded-content-bg", "Embedded content background"],
+  errorBg: ["--error-bg", "Error background"],
+  errorText: ["--error-text", "Error text"],
+  focusRingColor: ["--focus-ring-color", "Focus ring"],
+  highlightBg: ["--highlight-bg", "Highlight background"],
+  hoverBg: ["--hover-bg", "Hover background"],
+  linkColor: ["--link-color", "Link"],
+  mainBg: ["--main-bg", "Main background"],
+  mediaLensBorder: ["--media-lens-border", "Media lens border"],
+  mentionBg: ["--mention-bg", "Mention background"],
+  mentionHoverBg: ["--mention-hover-bg", "Mention background (hover)"],
+  mentionInaccessibleBg: ["--mention-inaccessible-bg", "Mention inaccessible background"],
+  mentionInaccessibleHoverBg: [
+    "--mention-inaccessible-hover-bg",
+    "Mention inaccessible background (hover)",
+  ],
+  mentionInaccessibleText: ["--mention-inaccessible-text", "Mention inaccessible text"],
+  mentionSelfBg: ["--mention-self-bg", "Mention self background"],
+  mentionSelfHoverBg: ["--mention-self-hover-bg", "Mention self background (hover)"],
+  mentionSelfText: ["--mention-self-text", "Mention (self)"],
+  mentionText: ["--mention-text", "Mention text"],
+  moderationBanned: ["--moderation-banned", "Moderation (banned)"],
+  moderationRestricted: ["--moderation-restricted", "Moderation (restricted)"],
+  moderationUnverified: ["--moderation-unverified", "Moderation (unverified)"],
+  overlayBackdrop: ["--overlay-backdrop", "Overlay backdrop"],
+  presenceActive: ["--presence-active", "Presence (active)"],
+  presenceAway: ["--presence-away", "Presence (away)"],
+  railBg: ["--rail-bg", "Rail background"],
+  scrimStrong: ["--scrim-strong", "Strong scrim"],
+  shadowColor: ["--shadow-color", "Shadow"],
+  shadowColorSoft: ["--shadow-color-soft", "Soft shadow"],
+  sidebarBg: ["--sidebar-bg", "Sidebar background"],
+  success: ["--success", "Success"],
+  textDim: ["--text-dim", "Text (dim)"],
+  textOnAccent: ["--text-on-accent", "Text on accent"],
+  textOnAvatar: ["--text-on-avatar", "Text on avatar"],
+  textOnDanger: ["--text-on-danger", "Text on danger"],
+  textOnSuccess: ["--text-on-success", "Text on success"],
+  textDisabled: ["--text-disabled", "Text (disabled)"],
+  textPrimary: ["--text-primary", "Text (primary)"],
+  textSecondary: ["--text-secondary", "Text (secondary)"],
+  warning: ["--warning", "Warning"],
+  warningEmphasis: ["--warning-emphasis", "Warning emphasis"],
+  warningMuted: ["--warning-muted", "Warning muted"],
+  warningSubtle: ["--warning-subtle", "Warning subtle"],
+} satisfies Record<Exclude<keyof ThemeColors, "font">, [string, string]>;
+
+const THEME_COLOR_VARS = {
   font: "--font",
-  hoverBg: "--hover-bg",
-  mainBg: "--main-bg",
-  mentionSelfText: "--mention-self-text",
-  mentionText: "--mention-text",
-  presenceActive: "--presence-active",
-  railBg: "--rail-bg",
-  sidebarBg: "--sidebar-bg",
-  textDim: "--text-dim",
-  textOnAccent: "--text-on-accent",
-  textPrimary: "--text-primary",
-  textSecondary: "--text-secondary",
-  warning: "--warning",
-};
+  ...Object.fromEntries(
+    Object.entries(THEME_COLOR_DEFINITIONS).map(([key, [cssVar]]) => [key, cssVar]),
+  ),
+} as Record<keyof ThemeColors, string>;
+
+const THEME_COLOR_LABELS: Record<Exclude<keyof ThemeColors, "font">, string> = Object.fromEntries(
+  Object.entries(THEME_COLOR_DEFINITIONS).map(([key, [, label]]) => [key, label]),
+) as Record<Exclude<keyof ThemeColors, "font">, string>;
 
 const THEME_COLORS_KEY = "slock-theme-colors";
-const HEX_COLOR_RE = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
+const THEME_PRESET_KEY = "slock-theme-preset";
+const THEME_COLOR_SCHEME_KEY = "slock-theme-color-scheme";
+const PRESET_MIGRATIONS: Record<string, string> = { pastel: "nord" };
+const PREVIOUS_CHARCOAL = {
+  accent: "oklch(0.66 0.145 250)",
+  mainBg: "oklch(0.175 0.01 255)",
+  sidebarBg: "oklch(0.105 0.008 255)",
+};
 
-function hexToRgbTriplet(hex: string): string {
-  const result = HEX_COLOR_RE.exec(hex);
-  if (!result) return "";
-  const r = parseInt(result[1], 16);
-  const g = parseInt(result[2], 16);
-  const b = parseInt(result[3], 16);
-  return `${r}, ${g}, ${b}`;
+function migratedPreset(colors: ThemeColors): ThemePreset | undefined {
+  const wasCharcoal = (Object.keys(PREVIOUS_CHARCOAL) as (keyof typeof PREVIOUS_CHARCOAL)[]).every(
+    (key) => colors[key] === PREVIOUS_CHARCOAL[key],
+  );
+  return wasCharcoal ? PRESETS.find((preset) => preset.id === "dark") : undefined;
 }
 
 function loadThemeColors(): ThemeColors {
   try {
+    const storedPresetId = localStorage.getItem(THEME_PRESET_KEY);
+    const presetId = storedPresetId
+      ? (PRESET_MIGRATIONS[storedPresetId] ?? storedPresetId)
+      : undefined;
+    const preset = PRESETS.find((candidate) => candidate.id === presetId);
     const raw = localStorage.getItem(THEME_COLORS_KEY);
     const overrides = raw ? JSON.parse(raw) : {};
+    if (preset) {
+      if (presetId !== storedPresetId) localStorage.setItem(THEME_PRESET_KEY, preset.id);
+      return { ...preset.colors, ...overrides };
+    }
+    const migrated = migratedPreset(overrides);
+    if (migrated) {
+      localStorage.removeItem(THEME_COLORS_KEY);
+      localStorage.setItem(THEME_PRESET_KEY, migrated.id);
+      return migrated.colors;
+    }
     const legacyTheme = localStorage.getItem("slock-theme");
     const usedLightTheme =
       legacyTheme === "light" ||
@@ -76,26 +198,46 @@ function loadThemeColors(): ThemeColors {
   }
 }
 
+function loadThemeColorScheme(): "dark" | "light" {
+  const stored = localStorage.getItem(THEME_COLOR_SCHEME_KEY);
+  if (stored === "dark" || stored === "light") return stored;
+
+  const storedPresetId = localStorage.getItem(THEME_PRESET_KEY);
+  const presetId = storedPresetId
+    ? (PRESET_MIGRATIONS[storedPresetId] ?? storedPresetId)
+    : undefined;
+  const preset = PRESETS.find((candidate) => candidate.id === presetId);
+  if (preset?.colorScheme) return preset.colorScheme;
+
+  const legacyTheme = localStorage.getItem("slock-theme");
+  if (legacyTheme === "light") return "light";
+  if (legacyTheme === "system" && window.matchMedia?.("(prefers-color-scheme: light)").matches)
+    return "light";
+  return "dark";
+}
+
+function applyThemeColorScheme(scheme: "dark" | "light", persist: boolean) {
+  document.documentElement.dataset.colorScheme = scheme;
+  if (persist) localStorage.setItem(THEME_COLOR_SCHEME_KEY, scheme);
+}
+
 function applyThemeColors(colors: ThemeColors) {
   for (const key of Object.keys(colors) as (keyof ThemeColors)[]) {
     const value = colors[key];
-    if (value !== undefined) {
+    if (value !== undefined)
       document.documentElement.style.setProperty(THEME_COLOR_VARS[key], value);
-      if (key === "accent" && value) {
-        const rgb = hexToRgbTriplet(value);
-        if (rgb) document.documentElement.style.setProperty("--accent-rgb", rgb);
-      } else if (key === "danger" && value) {
-        const rgb = hexToRgbTriplet(value);
-        if (rgb) document.documentElement.style.setProperty("--danger-rgb", rgb);
-      }
-    }
   }
 }
 
+const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeColors());
+applyThemeColors(themeColors());
+applyThemeColorScheme(loadThemeColorScheme(), false);
+
 export function setThemeColors(overrides: ThemeColors): void {
-  const merged = { ...themeColors(), ...overrides };
+  const expanded = withDerivedThemeColors(overrides);
+  const merged = { ...themeColors(), ...expanded };
   setThemeColorsSignal(merged);
-  applyThemeColors(overrides);
+  applyThemeColors(expanded);
   localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(merged));
 }
 
@@ -103,49 +245,38 @@ export function resetThemeColors(): void {
   for (const cssVar of Object.values(THEME_COLOR_VARS)) {
     document.documentElement.style.removeProperty(cssVar);
   }
-  document.documentElement.style.removeProperty("--accent-rgb");
-  document.documentElement.style.removeProperty("--danger-rgb");
   setThemeColorsSignal({});
   localStorage.removeItem(THEME_COLORS_KEY);
+  localStorage.removeItem(THEME_PRESET_KEY);
+  localStorage.removeItem(THEME_COLOR_SCHEME_KEY);
+  applyThemeColorScheme("dark", false);
 }
 
 export function resetThemeColor(key: keyof ThemeColors): void {
   const next = { ...themeColors() };
-  delete next[key];
+  const storedPresetId = localStorage.getItem(THEME_PRESET_KEY);
+  const presetId = storedPresetId
+    ? (PRESET_MIGRATIONS[storedPresetId] ?? storedPresetId)
+    : undefined;
+  const presetValue = PRESETS.find((preset) => preset.id === presetId)?.colors[key];
+  const resetKeys = [key, ...dependentThemeColorKeys(key)];
+  if (presetValue === undefined) {
+    for (const resetKey of resetKeys) {
+      delete next[resetKey];
+      document.documentElement.style.removeProperty(THEME_COLOR_VARS[resetKey]);
+    }
+  } else {
+    const preset = PRESETS.find((candidate) => candidate.id === presetId);
+    for (const resetKey of resetKeys) {
+      const value = preset?.colors[resetKey];
+      if (value === undefined) continue;
+      next[resetKey] = value;
+      document.documentElement.style.setProperty(THEME_COLOR_VARS[resetKey], value);
+    }
+  }
   setThemeColorsSignal(next);
-  document.documentElement.style.removeProperty(THEME_COLOR_VARS[key]);
-  if (key === "accent") document.documentElement.style.removeProperty("--accent-rgb");
-  else if (key === "danger") document.documentElement.style.removeProperty("--danger-rgb");
   localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(next));
 }
-
-export const THEME_COLOR_KEYS = Object.keys(THEME_COLOR_VARS).filter(
-  (k) => k !== "font",
-) as Exclude<keyof ThemeColors, "font">[];
-
-export const THEME_COLOR_LABELS: Record<Exclude<keyof ThemeColors, "font">, string> = {
-  accent: "Accent",
-  accentHover: "Accent (hover)",
-  activeBg: "Active background",
-  badgeBg: "Badge background",
-  border: "Border",
-  borderStrong: "Border (strong)",
-  codeBg: "Code background",
-  composerBg: "Composer background",
-  danger: "Danger",
-  hoverBg: "Hover background",
-  mainBg: "Main background",
-  mentionSelfText: "Mention (self)",
-  mentionText: "Mention text",
-  presenceActive: "Presence (active)",
-  railBg: "Rail background",
-  sidebarBg: "Sidebar background",
-  textDim: "Text (dim)",
-  textOnAccent: "Text on accent",
-  textPrimary: "Text (primary)",
-  textSecondary: "Text (secondary)",
-  warning: "Warning",
-};
 
 export function getEffectiveColor(key: keyof ThemeColors): string {
   const override = themeColors()[key];
@@ -153,137 +284,48 @@ export function getEffectiveColor(key: keyof ThemeColors): string {
   return getComputedStyle(document.documentElement).getPropertyValue(THEME_COLOR_VARS[key]).trim();
 }
 
-export interface ThemePreset {
-  colors: ThemeColors;
-  id: string;
-  label: string;
+export function copyableThemePalette(): string {
+  const styles = getComputedStyle(document.documentElement);
+  return THEME_COLOR_KEYS.map((key) => styles.getPropertyValue(THEME_COLOR_VARS[key]).trim()).join(
+    "|",
+  );
 }
 
-const DARK_THEME_COLORS = {
-  accent: "#1264a3",
-  accentHover: "#0b5385",
-  activeBg: "rgba(255, 255, 255, 0.1)",
-  badgeBg: "#cd2553",
-  border: "rgba(255, 255, 255, 0.08)",
-  borderStrong: "rgba(255, 255, 255, 0.14)",
-  codeBg: "rgba(0, 0, 0, 0.25)",
-  composerBg: "#222529",
-  danger: "#e0554a",
-  hoverBg: "rgba(255, 255, 255, 0.06)",
-  mainBg: "#1a1d21",
-  mentionSelfText: "#e0a72d",
-  mentionText: "#4bb6e8",
-  presenceActive: "#2eb67d",
-  railBg: "#191a20",
-  sidebarBg: "#101214",
-  textDim: "rgba(224, 224, 224, 0.45)",
-  textOnAccent: "#fff",
-  textPrimary: "#d1d2d3",
-  textSecondary: "rgba(224, 224, 224, 0.7)",
-  warning: "#f39c12",
-} satisfies ThemeColors;
+export function applyCopiedThemePalette(payload: string): boolean {
+  const values = payload.trim().split("|");
+  if (
+    values.length !== THEME_COLOR_KEYS.length ||
+    values.some((value) => !CSS.supports("color", value))
+  )
+    return false;
 
-export const LIGHT_THEME_COLORS = {
-  ...DARK_THEME_COLORS,
-  activeBg: "rgba(18, 100, 163, 0.12)",
-  border: "rgba(0, 0, 0, 0.09)",
-  borderStrong: "rgba(0, 0, 0, 0.16)",
-  codeBg: "rgba(0, 0, 0, 0.08)",
-  composerBg: "#ffffff",
-  danger: "#cc3333",
-  hoverBg: "rgba(0, 0, 0, 0.05)",
-  mainBg: "#ffffff",
-  railBg: "#f7f7f8",
-  sidebarBg: "#f0f0f2",
-  textDim: "rgba(29, 28, 29, 0.45)",
-  textPrimary: "#1d1c1d",
-  textSecondary: "rgba(29, 28, 29, 0.7)",
-} satisfies ThemeColors;
-
-const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeColors());
-applyThemeColors(themeColors());
-
-export const THEME_PRESETS: ThemePreset[] = [
-  {
-    colors: DARK_THEME_COLORS,
-    id: "dark",
-    label: "Dark",
-  },
-  {
-    colors: LIGHT_THEME_COLORS,
-    id: "light",
-    label: "Light",
-  },
-  {
-    colors: {
-      ...DARK_THEME_COLORS,
-      accent: "#611f69",
-      accentHover: "#4a154b",
-      badgeBg: "#e01e5a",
-      presenceActive: "#2bac76",
-    },
-    id: "aubergine",
-    label: "Aubergine",
-  },
-  {
-    colors: {
-      ...DARK_THEME_COLORS,
-      accent: "#2f855a",
-      accentHover: "#276749",
-      badgeBg: "#dd6b20",
-      presenceActive: "#48bb78",
-    },
-    id: "forest",
-    label: "Forest",
-  },
-  {
-    colors: {
-      ...DARK_THEME_COLORS,
-      accent: "#b91c1c",
-      accentHover: "#991b1b",
-      badgeBg: "#db2777",
-      presenceActive: "#16a34a",
-    },
-    id: "crimson",
-    label: "Crimson",
-  },
-  {
-    colors: {
-      ...DARK_THEME_COLORS,
-      accent: "#ea580c",
-      accentHover: "#c2410c",
-      badgeBg: "#db2777",
-      presenceActive: "#22c55e",
-    },
-    id: "sunset",
-    label: "Sunset",
-  },
-  {
-    colors: {
-      ...DARK_THEME_COLORS,
-      accent: "#52525b",
-      accentHover: "#3f3f46",
-      badgeBg: "#ef4444",
-      presenceActive: "#71717a",
-    },
-    id: "slate",
-    label: "Slate",
-  },
-];
+  setThemeColors(Object.fromEntries(THEME_COLOR_KEYS.map((key, index) => [key, values[index]])));
+  return true;
+}
 
 export function applyPreset(preset: ThemePreset): void {
   resetThemeColors();
-  setThemeColors(preset.colors);
+  setThemeColorsSignal(preset.colors);
+  applyThemeColors(preset.colors);
+  localStorage.setItem(THEME_PRESET_KEY, preset.id);
+  applyThemeColorScheme(preset.colorScheme ?? "dark", true);
 }
 
 export function activePreset(): string {
-  for (const preset of THEME_PRESETS) {
-    const matches = (Object.keys(preset.colors) as (keyof ThemePreset["colors"])[]).every(
-      (k) => getEffectiveColor(k).toLowerCase() === preset.colors[k]?.toLowerCase(),
+  const colors = themeColors();
+  if (!THEME_COLOR_KEYS.some((key) => colors[key] !== undefined)) return "dark";
+  for (const preset of PRESETS) {
+    const matches = (Object.keys(preset.colors) as (keyof ThemeColors)[]).every(
+      (key) => colors[key]?.trim().toLowerCase() === preset.colors[key]?.trim().toLowerCase(),
     );
     if (matches) return preset.id;
   }
   return "custom";
 }
 
-export { themeColors };
+export const THEME_COLOR_KEYS = Object.keys(THEME_COLOR_VARS).filter(
+  (key) => key !== "font",
+) as Exclude<keyof ThemeColors, "font">[];
+
+export const THEME_PRESETS = PRESETS;
+export { THEME_COLOR_LABELS, themeColors };

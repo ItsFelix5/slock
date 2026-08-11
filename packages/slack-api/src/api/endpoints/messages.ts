@@ -149,13 +149,33 @@ export async function fetchHistoryNewer(
   throw new Error("Unable to find a bounded newer history page");
 }
 
-export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
-  const data = await apiGet(`/api/channels/${channelId}/threads/${threadTs}/messages`);
-  if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
-  const messages: any[] = data.messages ?? [];
-  return messages
-    .filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
-    .map(mapMessage);
+// conversations.replies caps a single page at 200 replies. Threads longer
+// than that need their later pages walked down via `cursor` — otherwise a
+// reply past the first page (e.g. a Later/Activity jump into a busy thread)
+// never loads and its highlight target silently fails to resolve. `untilTs`
+// stops the walk as soon as that target shows up rather than always pulling
+// the whole thread, since ThreadPanel renders replies unvirtualized.
+export async function fetchReplies(
+  channelId: string,
+  threadTs: string,
+  options?: { untilTs?: string },
+): Promise<Message[]> {
+  const messages: Message[] = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const query = new URLSearchParams({ limit: "200" });
+    if (cursor) query.set("cursor", cursor);
+    const data = await apiGet(`/api/channels/${channelId}/threads/${threadTs}/messages?${query}`);
+    if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
+    const raw: any[] = data.messages ?? [];
+    messages.push(
+      ...raw.filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype)).map(mapMessage),
+    );
+    const nextCursor = data.response_metadata?.next_cursor || undefined;
+    if (!(data.has_more && nextCursor)) return messages;
+    if (options?.untilTs && messages.some((m) => m.ts === options.untilTs)) return messages;
+    cursor = nextCursor;
+  }
 }
 
 // Fetches the single message a pasted permalink points at, for hover previews.
@@ -167,7 +187,7 @@ export async function fetchPermalinkMessage(
   threadTs: string,
 ): Promise<Message | undefined> {
   if (threadTs !== messageTs) {
-    const replies = await fetchReplies(channelId, threadTs);
+    const replies = await fetchReplies(channelId, threadTs, { untilTs: messageTs });
     return replies.find((m) => m.ts === messageTs);
   }
   const query = new URLSearchParams({

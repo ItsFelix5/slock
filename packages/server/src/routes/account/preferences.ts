@@ -1,13 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse } from "../../http/jsonResponse.ts";
-import { mutate, type Route, type RouteCtx, route } from "../router.ts";
+import { mutate, route, type Route, type RouteCtx } from "../router.ts";
 
-// Slack's users.prefs.set is a generic name/value KV write - the account's
-// real local-usage-database mechanism the webapp itself uses for settings
-// with no dedicated method, and for this app's own invented keys
-// (slock_* below) synced the same real way instead of falling back to
-// localStorage. Each route here names one concern rather than exposing that
-// generic name/value shape directly to the browser.
 function prefWrite(name: string, value: string, ctx: RouteCtx) {
   return mutate("users.prefs.set", { name, value }, ctx);
 }

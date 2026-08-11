@@ -28,11 +28,6 @@
 
 .later-item {
   position: relative;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 12px;
-  border-radius: 8px;
 }
 
 .later-feedback {
@@ -43,28 +38,6 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.later-item:hover {
-  background: var(--hover-bg);
-}
-
-.later-main {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
-
-.later-channel {
-  margin-bottom: 2px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.later-snippet {
-  font-size: 14px;
-  word-break: break-word;
-  white-space: pre-wrap;
 }
 
 .later-remove {

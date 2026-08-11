@@ -2,7 +2,7 @@
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { getLastSeen, recordSeenActive } from "../../presence/lastSeen.ts";
-import { callSlack, callSlackEdge } from "../../slackClient.ts";
+import { callSlack, callSlackEdge, callSlackMultipart } from "../../slackClient.ts";
 import { trimBot, trimProfile, trimUser } from "../../trim/slackEntities.ts";
 import { mutate, type Route, route } from "../router.ts";
 
@@ -121,6 +121,24 @@ export const accountRoutes: Route[] = [
     const { profile } = (await ctx.body.json()) as { profile?: Record<string, unknown> };
     if (!profile) return errorResponse("invalid_profile", 400);
     return mutate("users.profile.set", { profile: JSON.stringify(profile) }, ctx);
+  }),
+
+  route("POST", "/api/profile/photo", async (ctx) => {
+    const filename = ctx.searchParams.get("filename") ?? "profile-photo";
+    const type = ctx.searchParams.get("type") ?? "application/octet-stream";
+    if (!type.startsWith("image/")) return errorResponse("invalid_image", 400);
+    const bytes = await ctx.body.buffer();
+    if (!bytes.length || bytes.length > 10 * 1024 * 1024)
+      return errorResponse("invalid_image", 400);
+    const data = await callSlackMultipart(
+      "users.setPhoto",
+      {},
+      { bytes, field: "image", filename, type },
+      ctx.creds,
+    );
+    if (!data.ok) return slackErrorResponse(data, "users.setPhoto", ctx.creds, ctx.acceptEncoding);
+    const profile = data.profile ?? data.user?.profile;
+    return jsonResponse({ ok: true, profile: trimProfile(profile) }, ctx.creds, ctx.acceptEncoding);
   }),
 
   route("PUT", "/api/presence", async (ctx) => {

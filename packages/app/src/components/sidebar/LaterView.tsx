@@ -1,11 +1,15 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Button, IconButton, InlineFeedback } from "@slock/ui";
+import { formatTime } from "@slock/slack-api";
+import { Button, DEFAULT_AVATAR_COLOR, IconButton, InlineFeedback } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
-import {
-  openConversationInSplit,
-  SplitNavigation,
-} from "../../components/navigation/SplitNavigation";
+import { openConversationInSplit } from "../../components/navigation/SplitNavigation";
 import { actionFeedback, conversationDisplayName, store } from "../../lib/store";
+import {
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  resolveProfileUserId,
+} from "../messages/parts/messageRenderState";
+import ResultMessageCard from "../messages/parts/ResultMessageCard";
 import "./LaterView.css";
 
 export default function LaterView() {
@@ -73,63 +77,82 @@ export default function LaterView() {
                     : store.channels.channelById(item.channelId),
                 );
                 const dm = createMemo(() => store.dms.dmById(item.channelId));
+                const authorId = createMemo(() => resolveProfileUserId(msg() ?? { userId: "" }));
+                const author = createMemo(() => {
+                  const id = authorId();
+                  return id ? store.users.userById(id) : undefined;
+                });
+                const authorName = createMemo(() => {
+                  const message = msg();
+                  return message
+                    ? resolveAuthorDisplayName(message, author()?.name, "Unknown")
+                    : "Loading…";
+                });
+                const avatarUrl = createMemo(() => {
+                  const message = msg();
+                  return message ? resolveAuthorAvatarUrl(message, author()?.avatarUrl) : undefined;
+                });
                 return (
                   <div class="later-item">
-                    <SplitNavigation
+                    <ResultMessageCard
+                      avatarUser={{
+                        avatarColor: author()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
+                        avatarUrl: avatarUrl(),
+                        id: authorId() ?? "",
+                        name: authorName(),
+                      }}
+                      context={conversationDisplayName(
+                        item.channelId,
+                        channel(),
+                        dm(),
+                        store.users.userById,
+                      )}
+                      name={authorName()}
+                      navRow
+                      onOpen={() => {
+                        const rootTs = msg()?.threadTs;
+                        goTo(item.channelId, rootTs ?? item.ts, rootTs ? item.ts : undefined);
+                      }}
                       onSplit={() => {
                         const rootTs = msg()?.threadTs;
                         openConversationInSplit(item.channelId, rootTs ?? item.ts);
                       }}
-                    >
-                      <button
-                        class="later-main btn-reset"
-                        data-nav-row
-                        onClick={() => {
-                          const rootTs = msg()?.threadTs;
-                          goTo(item.channelId, rootTs ?? item.ts, rootTs ? item.ts : undefined);
-                        }}
-                        type="button"
-                      >
-                        <div class="later-channel">
-                          {conversationDisplayName(
-                            item.channelId,
-                            channel(),
-                            dm(),
-                            store.users.userById,
-                          )}
-                        </div>
-                        <div class="later-snippet">
-                          <Show
-                            fallback={loadError() ? "Couldn’t load this message." : "Loading…"}
-                            when={isLoaded()}
-                          >
-                            <Show fallback="Message unavailable" when={msg()}>
-                              {(message) => <Mrkdwn text={message().text} />}
-                            </Show>
+                      snippet={
+                        <Show
+                          fallback={loadError() ? "Couldn’t load this message." : "Loading…"}
+                          when={isLoaded()}
+                        >
+                          <Show fallback="Message unavailable" when={msg()}>
+                            {(message) => <Mrkdwn text={message().text} />}
                           </Show>
-                        </div>
-                      </button>
-                    </SplitNavigation>
-                    <Show when={loadError()}>
-                      <button
-                        class="later-message-retry btn-reset text-accent"
-                        disabled={isLoading()}
-                        onClick={() => store.later.ensureLaterMessageLoaded(item)}
-                        type="button"
-                      >
-                        Retry
-                      </button>
-                    </Show>
-                    <IconButton
-                      class="later-remove"
-                      disabled={
-                        store.later.laterLoading() ||
-                        store.later.isSaveForLaterPending(item.channelId, item.ts)
+                        </Show>
                       }
-                      icon="bookmark-filled"
-                      label="Remove from Later"
-                      onClick={() => store.later.toggleSaveForLater(item.channelId, item.ts)}
-                      tone="accent"
+                      time={formatTime(item.ts)}
+                      trailing={
+                        <>
+                          <Show when={loadError()}>
+                            <button
+                              class="later-message-retry btn-reset text-accent"
+                              disabled={isLoading()}
+                              onClick={() => store.later.ensureLaterMessageLoaded(item)}
+                              type="button"
+                            >
+                              Retry
+                            </button>
+                          </Show>
+                          <IconButton
+                            class="later-remove"
+                            disabled={
+                              store.later.laterLoading() ||
+                              store.later.isSaveForLaterPending(item.channelId, item.ts)
+                            }
+                            icon="bookmark-filled"
+                            label="Remove from Later"
+                            onClick={() => store.later.toggleSaveForLater(item.channelId, item.ts)}
+                            tone="accent"
+                          />
+                        </>
+                      }
                     />
                     <InlineFeedback
                       class="later-feedback"

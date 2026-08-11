@@ -1,0 +1,99 @@
+.volume-control {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.volume-control-toggle {
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+
+.volume-control-toggle:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.volume-control-panel {
+  position: absolute;
+  z-index: 1;
+  bottom: 100%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 40px;
+  padding: 8px 6px 7px;
+  pointer-events: none;
+  visibility: hidden;
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 0.12s,
+    transform 0.12s,
+    visibility 0.12s;
+}
+
+.volume-control:hover .volume-control-panel,
+.volume-control:focus-within .volume-control-panel {
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.volume-control-value {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.volume-control-slider {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 18px;
+  height: 120px;
+}
+
+.volume-control-input {
+  width: 4px;
+  height: 120px;
+  appearance: slider-vertical;
+  cursor: pointer;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  border-radius: var(--radius-pill);
+}
+
+.volume-control-input::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  appearance: none;
+  background: var(--accent);
+  border-radius: var(--radius-circle);
+}
+
+.volume-control-input::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-circle);
+}
+
+.volume-control-toggle:focus-visible,
+.volume-control-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

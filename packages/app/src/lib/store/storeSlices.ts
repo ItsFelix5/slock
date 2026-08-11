@@ -45,7 +45,14 @@ export function createStoreSlices({
     const thread = viewState.activeThread();
     return thread ? [thread] : [];
   };
-  const users = createUsersSlice({ currentUserBase: () => bootstrap()?.currentUser });
+  // realtime.isSelfOnline doesn't exist until the realtime slice is built
+  // below (which itself needs users.currentUser) — bridge with a stable
+  // wrapper, filled in once realtime is created.
+  const isSelfOnlineImplRef: { current: () => boolean } = { current: () => true };
+  const users = createUsersSlice({
+    currentUserBase: () => bootstrap()?.currentUser,
+    isSelfOnline: () => isSelfOnlineImplRef.current(),
+  });
   const usergroups = createUsergroupsSlice({
     selfUsergroupIds: () => bootstrap()?.selfUsergroupIds ?? [],
   });
@@ -167,6 +174,7 @@ export function createStoreSlices({
     visibleThreads,
     visibleViews,
   });
+  isSelfOnlineImplRef.current = realtime.isSelfOnline;
   const commands = createCommandsSlice({ sendMessage: messages.sendMessage });
   return {
     activity,

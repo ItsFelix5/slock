@@ -9,7 +9,7 @@ import MediaFrame from "./MediaFrame";
 import { constrainMediaDimensions } from "./mediaDimensions";
 import "./MessageFiles.css";
 
-function formatSize(bytes: number | undefined): string {
+export function formatSize(bytes: number | undefined): string {
   if (!bytes) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

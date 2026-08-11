@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { type Credentials, jsonHeaders, slackCookieHeader } from "./auth.ts";
+import { errorMessage } from "./http/errorMessage.ts";
 
 const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 // Only bounds connecting + headers, not the body stream that gets piped
@@ -122,13 +123,19 @@ async function slackFileResponse(
       },
       signal: controller.signal,
     });
-  } catch {
-    return new Response("failed to fetch file", { headers: jsonHeaders, status: 502 });
+  } catch (error) {
+    return new Response(errorMessage(error, "Slack file request failed"), {
+      headers: jsonHeaders,
+      status: 502,
+    });
   } finally {
     clearTimeout(connectTimer);
   }
   if (!(fileRes.ok && fileRes.body)) {
-    return new Response("failed to fetch file", { headers: jsonHeaders, status: 502 });
+    return new Response(`Slack file request failed: ${fileRes.status} ${fileRes.statusText}`, {
+      headers: jsonHeaders,
+      status: 502,
+    });
   }
   const contentEncoding = fileRes.headers.get("content-encoding");
   return new Response(fileRes.body, {
@@ -200,11 +207,25 @@ export async function slackUploadResponse(
       method: "POST",
       signal: AbortSignal.timeout(60_000),
     });
-    return new Response(JSON.stringify({ ok: uploadRes.ok }), {
-      headers: jsonHeaders,
-      status: uploadRes.ok ? 200 : 502,
-    });
-  } catch {
-    return new Response(JSON.stringify({ ok: false }), { headers: jsonHeaders, status: 502 });
+    return new Response(
+      JSON.stringify({
+        error: uploadRes.ok
+          ? undefined
+          : `Slack file upload failed: ${uploadRes.status} ${uploadRes.statusText}`,
+        ok: uploadRes.ok,
+      }),
+      {
+        headers: jsonHeaders,
+        status: uploadRes.ok ? 200 : 502,
+      },
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: errorMessage(error, "Slack file upload failed"), ok: false }),
+      {
+        headers: jsonHeaders,
+        status: 502,
+      },
+    );
   }
 }

@@ -107,12 +107,12 @@
   opacity: 0.6;
 }
 .bk-button--primary {
-  color: var(--text-on-accent);
+  color: var(--text-on-success);
   background: var(--bk-button-primary);
   border-color: var(--bk-button-primary);
 }
 .bk-button--danger {
-  color: var(--text-on-accent);
+  color: var(--text-on-danger);
   background: var(--bk-button-danger);
   border-color: var(--bk-button-danger);
 }
@@ -229,7 +229,7 @@
   user-select: text;
 }
 .bk-mention:hover {
-  background: rgba(var(--mention-rgb), 0.3);
+  background: var(--mention-hover-bg);
 }
 .bk-mention-broadcast {
   cursor: default;
@@ -242,7 +242,7 @@
   background: var(--mention-self-bg);
 }
 .bk-mention-self:hover {
-  background: rgba(var(--mention-self-rgb), 0.35);
+  background: var(--mention-self-hover-bg);
 }
 /* dimmed and non-clickable since there's nowhere for the viewer to go. */
 .bk-mention-inaccessible {

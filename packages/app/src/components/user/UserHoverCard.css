@@ -21,7 +21,7 @@
   overflow: visible;
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-on-accent);
+  color: var(--text-on-avatar);
   border-radius: 10px;
 }
 
@@ -46,7 +46,7 @@
 }
 
 .user-hovercard-presence.away {
-  background: var(--text-dim);
+  background: var(--presence-away);
 }
 
 .user-hovercard-heading {

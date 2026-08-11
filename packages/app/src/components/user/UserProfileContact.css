@@ -1,0 +1,31 @@
+.user-profile-copyable-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-profile-copyable-value .user-profile-field-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-profile-copy-btn {
+  flex: 0 0 auto;
+  padding: 3px;
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+
+.user-profile-copy-btn:hover,
+.user-profile-copy-btn:focus-visible {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.user-profile-copy-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

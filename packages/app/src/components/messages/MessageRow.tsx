@@ -7,6 +7,7 @@ import {
   Icon,
   InlineFeedback,
   logDeletedMessages,
+  openContextMenuFromKeyboard,
   Tooltip,
   useContextMenu,
 } from "@slock/ui";
@@ -218,6 +219,11 @@ export default function MessageRow(props: MessageRowProps) {
             store.resources.loadMessageShortcuts();
             ctxMenu.open(e);
           }}
+          onKeyDown={(e) => {
+            if (msg().deleted || msg().isEphemeral || isEditing()) return;
+            store.resources.loadMessageShortcuts();
+            openContextMenuFromKeyboard(e, ctxMenu.openAt);
+          }}
           tabIndex={focused() ? 0 : -1}
         >
           <Show when={!(msg().deleted || msg().isEphemeral)}>
@@ -227,6 +233,7 @@ export default function MessageRow(props: MessageRowProps) {
               onEditRequest={() => props.onStartEdit?.(msg().ts)}
               onOpenThread={props.onOpenThread}
               onReplyLink={props.onReplyLink}
+              rowFocused={focused}
               threadTs={props.threadTs}
             />
             <ContextMenu
@@ -254,6 +261,7 @@ export default function MessageRow(props: MessageRowProps) {
                   color={user()?.avatarColor}
                   onClick={() => {}}
                   src={avatarUrl()}
+                  tabbable={focused()}
                 />
               }
               when={profileUserId()}
@@ -264,6 +272,7 @@ export default function MessageRow(props: MessageRowProps) {
                     color={user()?.avatarColor}
                     onClick={() => store.users.openUserProfile(userId())}
                     src={avatarUrl()}
+                    tabbable={focused()}
                   />
                 </UserHoverCard>
               )}
@@ -280,6 +289,7 @@ export default function MessageRow(props: MessageRowProps) {
                   if (id) store.users.openUserProfile(id);
                 }}
                 showBroadcastBadge={showBroadcastBadge}
+                tabbable={focused}
                 message={
                   {
                     ...msg(),

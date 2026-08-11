@@ -3,6 +3,7 @@ import type { Block, Message, RichTextBlock } from "@slock/slack-api";
 const BRACKETED_LINK_RE = /^<(https?:\/\/[^\s|>]+)(?:\|([^>]*))?>/;
 const BARE_PERMALINK_RE = /^(https?:\/\/[^\s<>]+)/;
 const PERMALINK_RE = /\/archives\/([A-Z0-9]+)\/p(\d+)/;
+const LEADING_NEWLINE_RE = /^\r?\n/;
 
 function permalinkToChannelTs(url: string): { channelId: string; ts: string } | null {
   const match = PERMALINK_RE.exec(url);
@@ -13,6 +14,14 @@ function permalinkToChannelTs(url: string): { channelId: string; ts: string } | 
 
 function isBareLabel(label: string | undefined): boolean {
   return label === undefined || label === "" || label === "." || label === "​";
+}
+
+// The link (ours or Slack's own auto-linkified fallback) sits on its own
+// line before the real message content, so the newline right after it is
+// just a composition artifact, not intentional content — drop only that one
+// separator, not any further blank lines the user actually typed.
+function stripLeadingNewline(text: string): string {
+  return text.replace(LEADING_NEWLINE_RE, "");
 }
 
 export function encodeReplyLink(permalink: string): string {
@@ -43,7 +52,10 @@ export function parseReplyLink(
     if (!parsed) return null;
     const { channelId, ts } = parsed;
     const [, , label] = bracketed;
-    const bare = isBareLabel(label);
+    // A label identical to the url itself isn't real quoted prose — it's
+    // Slack's own auto-linkify of a bare pasted url (`<url|url>`), same as
+    // an empty/invisible label would be.
+    const bare = isBareLabel(label) || label === bracketed[1];
     const remainder = text.slice(bracketed[0].length);
     const linkedThreadMessage = isThreadMessage?.(channelId, ts) ?? false;
     if (!remainder.trim()) return null;
@@ -51,7 +63,7 @@ export function parseReplyLink(
     return {
       channelId,
       prefix: bracketed[0],
-      rest: bare ? remainder : `${label}${remainder}`,
+      rest: bare ? stripLeadingNewline(remainder) : `${label}${remainder}`,
       ts,
       url: bracketed[1],
     };
@@ -66,7 +78,7 @@ export function parseReplyLink(
   return {
     ...parsed,
     prefix: bareLink[0],
-    rest,
+    rest: stripLeadingNewline(rest),
     url: bareLink[1],
   };
 }
@@ -92,6 +104,10 @@ export function parseReplyLinkFromBlocks(
   if (!parsed) return null;
 
   const restSectionElements = section.elements.slice(1);
+  const [firstRest] = restSectionElements;
+  if (firstRest?.type === "text") {
+    restSectionElements[0] = { ...firstRest, text: stripLeadingNewline(firstRest.text) };
+  }
   const restRichTextElements = richText.elements.slice(1);
   const strippedRichText: RichTextBlock[] =
     restSectionElements.length > 0

@@ -257,7 +257,17 @@ export function createMessageFocus(
     // or clicked in. Rows use this to gate their own visual "focused" look so
     // an implicitly-seeded row doesn't look selected before any interaction.
     listFocused,
-    onContainerFocusIn: () => setListFocused(true),
+    onContainerFocusIn: (e: FocusEvent) => {
+      setListFocused(true);
+      // A click (or any DOM focus) can land on a row other than the one
+      // focusedTs currently points at (e.g. it defaults to the last message
+      // until keyboard nav moves it) — sync so that row is the one that
+      // actually looks focused instead of leaving a stale row highlighted.
+      const ts = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+        "[data-message-ts]",
+      )?.dataset.messageTs;
+      if (ts) setFocusedTs(ts);
+    },
     onContainerFocusOut: (e: FocusEvent) => {
       const el = e.currentTarget as HTMLElement;
       if (!(e.relatedTarget instanceof Node && el.contains(e.relatedTarget))) {

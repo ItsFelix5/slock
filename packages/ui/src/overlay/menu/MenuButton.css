@@ -29,10 +29,16 @@
   background: none;
   border: none;
   border-radius: 5px;
+  outline: none;
 }
 
 .menu-item:hover:not(:disabled) {
   background: var(--hover-bg);
+}
+
+.menu-item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: -2px;
 }
 
 .menu-item:disabled {

@@ -7,6 +7,8 @@ import type {
   MessageKind,
   Reaction,
   SlackFile,
+  SlackFileShare,
+  SlackLink,
   User,
   UserCustomField,
 } from "../types";
@@ -95,6 +97,7 @@ export interface RawCounts {
 
 export interface RawFile {
   audio_wave_samples?: number[];
+  created?: number;
   duration?: number;
   duration_ms?: number;
   filetype?: string;
@@ -125,6 +128,25 @@ export interface RawFile {
   title?: string;
   transcription?: { preview?: { content?: string; has_more?: boolean } };
   url_private?: string;
+}
+
+export interface RawLink {
+  icon_url?: string | null;
+  thumb_height?: number | null;
+  thumb_url?: string | null;
+  thumb_width?: number | null;
+  timestamp: string;
+  title: string | null;
+  url: string;
+}
+
+export interface RawFileShare {
+  channel_id: string;
+  channel_name?: string;
+  reply_count?: number;
+  share_user_id?: string;
+  thread_ts?: string;
+  ts: string;
 }
 
 export interface RawAttachment {
@@ -353,7 +375,7 @@ export function parseBadgeCounts(
   ]);
 }
 
-function formatTime(ts: string) {
+export function formatTime(ts: string) {
   const date = new Date(parseFloat(ts) * 1000);
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
@@ -410,7 +432,7 @@ export const HIDE_SUBTYPES = new Set([
   "reply_broadcast",
 ]);
 
-function mapFile(f: RawFile): SlackFile {
+export function mapFile(f: RawFile): SlackFile {
   const mimetype: string | undefined = f.mimetype;
   // Pick one thumb size and use *its* dimensions, not a mismatched pair
   // (e.g. the thumb_720 image URL with thumb_360's width/height) — that
@@ -433,6 +455,7 @@ function mapFile(f: RawFile): SlackFile {
       : undefined) ??
     (f.thumb_160 ? { h: f.original_h, url: f.thumb_160, w: f.original_w } : undefined);
   return {
+    created: f.created,
     // Voice messages report length as duration_ms; other files (if ever) as duration.
     duration: f.duration ?? (typeof f.duration_ms === "number" ? f.duration_ms / 1000 : undefined),
     filetype: f.filetype,
@@ -460,6 +483,29 @@ function mapFile(f: RawFile): SlackFile {
     urlPrivate: f.url_private ?? "",
     waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
     width: thumb?.w ?? f.original_w,
+  };
+}
+
+export function mapLink(raw: RawLink): SlackLink {
+  return {
+    iconUrl: raw.icon_url ? resolveMediaUrl(raw.icon_url) : undefined,
+    thumbHeight: raw.thumb_height ?? undefined,
+    thumbUrl: raw.thumb_url ? resolveMediaUrl(raw.thumb_url) : undefined,
+    thumbWidth: raw.thumb_width ?? undefined,
+    title: raw.title,
+    ts: raw.timestamp,
+    url: raw.url,
+  };
+}
+
+export function mapFileShare(raw: RawFileShare): SlackFileShare {
+  return {
+    channelId: raw.channel_id,
+    channelName: raw.channel_name ?? raw.channel_id,
+    replyCount: raw.reply_count,
+    sharedByUserId: raw.share_user_id,
+    threadTs: raw.thread_ts,
+    ts: raw.ts,
   };
 }
 

@@ -46,7 +46,13 @@ export function createComposerKeyHandler(deps: {
     }
     if (e.key === "Enter" && e.shiftKey) {
       e.preventDefault();
-      if (!(deps.editor.handleShiftEnterInHeader() || deps.editor.handleShiftEnterInList()))
+      if (
+        !(
+          deps.editor.handleShiftEnterInHeader() ||
+          deps.editor.handleShiftEnterInQuote() ||
+          deps.editor.handleShiftEnterInList()
+        )
+      )
         deps.editor.insertLineBreak();
       return;
     }

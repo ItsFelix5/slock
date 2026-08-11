@@ -1,5 +1,6 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
+import { FloatingMountContext } from "./floating/floatingMountContext";
 import "./Overlay.css";
 
 const FOCUSABLE_SELECTOR = [
@@ -105,7 +106,9 @@ export default function Overlay(props: OverlayProps) {
         role="dialog"
         tabIndex={-1}
       >
-        {props.children}
+        <FloatingMountContext.Provider value={() => overlayRef}>
+          {props.children}
+        </FloatingMountContext.Provider>
       </div>
     </Portal>
   );

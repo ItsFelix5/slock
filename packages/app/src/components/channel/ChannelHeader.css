@@ -52,7 +52,7 @@
   overflow: hidden;
   font-size: 16px;
   font-weight: 800;
-  color: var(--text-on-accent);
+  color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -26,19 +26,41 @@
   margin-top: 16px;
   font-size: 12px;
   color: var(--danger);
-  background: rgba(var(--danger-rgb), 0.08);
+  background: var(--danger-subtle);
   border-radius: 6px;
 }
 
-.user-profile-avatar {
+.user-profile-avatar-wrap {
   position: relative;
   width: 72px;
   height: 72px;
-  overflow: hidden;
+}
+
+.user-profile-avatar {
+  width: 100%;
+  height: 100%;
   font-size: 28px;
   font-weight: 700;
-  color: var(--text-on-accent);
+  color: var(--text-on-avatar);
   border-radius: 12px;
+}
+
+button.user-profile-avatar {
+  padding: 0;
+  border: 0;
+}
+
+button.user-profile-avatar.is-editable {
+  cursor: pointer;
+}
+
+button.user-profile-avatar.is-editable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button.user-profile-avatar:disabled {
+  cursor: wait;
 }
 
 .user-profile-avatar img {
@@ -47,25 +69,40 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: inherit;
+}
+
+.user-profile-photo-input {
+  display: none;
 }
 
 .user-profile-presence {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 14px;
-  height: 14px;
+  right: -4px;
+  bottom: -4px;
+  width: 18px;
+  height: 18px;
   background: var(--presence-active);
   border: 2px solid var(--main-bg);
   border-radius: var(--radius-circle);
 }
 
 .user-profile-presence.away {
-  background: var(--text-dim);
+  background: var(--presence-away);
 }
 
 button.user-profile-presence {
+  padding: 0;
   cursor: pointer;
+  appearance: none;
+}
+
+button.user-profile-presence:not(.away) {
+  background-color: var(--presence-active);
+}
+
+button.user-profile-presence.away {
+  background-color: var(--presence-away);
 }
 
 button.user-profile-presence:disabled {

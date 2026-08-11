@@ -1,6 +1,6 @@
 import { formatDuration } from "@slock/blockkit";
 import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
-import { Icon } from "@slock/ui";
+import { createMediaVolume, Icon, VolumeControl } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import "./AudioFile.css";
 
@@ -22,8 +22,9 @@ function resample(raw: number[]): number[] {
 }
 
 export default function AudioFile(props: { file: SlackFile }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let audioRef: HTMLAudioElement | undefined;
+  const [audioElement, setAudioElement] = createSignal<HTMLAudioElement>();
+  const mediaVolume = createMediaVolume(audioElement);
   const [playing, setPlaying] = createSignal(false);
   const [currentTime, setCurrentTime] = createSignal(0);
   const [mediaDuration, setMediaDuration] = createSignal<number>();
@@ -145,6 +146,12 @@ export default function AudioFile(props: { file: SlackFile }) {
           <span class="audio-file-duration text-dim text-xs">
             {formatDuration(playing() || currentTime() ? currentTime() : duration())}
           </span>
+          <VolumeControl
+            muted={mediaVolume.muted()}
+            onMutedChange={mediaVolume.setMuted}
+            onVolumeChange={mediaVolume.setVolume}
+            volume={mediaVolume.volume()}
+          />
         </div>
       </Show>
       <audio
@@ -155,7 +162,10 @@ export default function AudioFile(props: { file: SlackFile }) {
         onPlay={() => setPlaying(true)}
         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
         preload="metadata"
-        ref={audioRef}
+        ref={(audio) => {
+          audioRef = audio;
+          setAudioElement(audio);
+        }}
         src={resolveMediaUrl(props.file.urlPrivate)}
       />
       <Show when={props.file.transcriptionPreview}>

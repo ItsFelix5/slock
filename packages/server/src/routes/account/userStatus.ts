@@ -10,7 +10,7 @@ const FETCH_TIMEOUT_MS = 8_000;
 
 async function fetchJson(lookup: Lookup, url: string): Promise<any> {
   const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`${lookup} responded ${res.status}`);
+  if (!res.ok) throw new Error(`${lookup} responded ${res.status} ${res.statusText}`);
   return res.json();
 }
 
@@ -21,7 +21,7 @@ async function fetchTrustFactor(id: string): Promise<any> {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`hackatime responded ${res.status}`);
+  if (!res.ok) throw new Error(`hackatime responded ${res.status} ${res.statusText}`);
   return res.json();
 }
 
@@ -50,7 +50,6 @@ export const userStatusRoutes: Route[] = [
         : []),
     ];
     if (identityResult.status !== "fulfilled" || hackatimeResult.status !== "fulfilled") {
-      console.warn("user status lookup unavailable", { userId: id, failures });
       return errorResponse("user_status_unavailable", 502, { failures });
     }
 

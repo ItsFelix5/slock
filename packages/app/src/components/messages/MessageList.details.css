@@ -12,9 +12,9 @@
 }
 .message-author {
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-weight: 800;
-  color: var(--text-on-accent);
+  color: var(--text-primary);
 }
 .message-author:hover {
   text-decoration: underline;
@@ -29,29 +29,29 @@
 .message-author-unverified:hover {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: #001ba5;
+  text-decoration-color: var(--moderation-unverified);
   text-decoration-thickness: 1px;
 }
 .message-author-over_18,
 .message-author-over_18:hover {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: #d97706;
+  text-decoration-color: var(--moderation-restricted);
   text-decoration-thickness: 1px;
 }
 .message-author-banned,
 .message-author-banned:hover {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: #ff0000;
+  text-decoration-color: var(--moderation-banned);
   text-decoration-thickness: 1px;
 }
 .message-time {
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-dim);
 }
 .message-bot-badge {
-  padding: 1px 4px;
+  padding: 1px var(--space-xs);
   font-size: 10px;
   font-weight: 700;
   color: var(--text-dim);
@@ -63,7 +63,7 @@ button.message-bot-badge {
   cursor: pointer;
 }
 .message-edited {
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   color: var(--text-dim);
 }
 .message-deleted-text {
@@ -72,17 +72,17 @@ button.message-bot-badge {
   opacity: 0.7;
 }
 .message-row-group.deleted:hover {
-  background: rgba(var(--danger-rgb), 0.06);
+  background: var(--danger-subtle);
 }
 .message-row-group.saved {
-  box-shadow: inset 2px 0 0 rgba(var(--accent-rgb), 0.5);
+  box-shadow: inset 2px 0 0 var(--accent-border);
 }
 .message-row-group.ephemeral {
-  background: rgba(var(--mention-self-rgb), 0.05);
-  box-shadow: inset 2px 0 0 rgba(var(--mention-self-rgb), 0.4);
+  background: var(--warning-subtle);
+  box-shadow: inset 2px 0 0 var(--warning-emphasis);
 }
-.message-row.ephemeral:hover {
-  background: rgba(var(--mention-self-rgb), 0.09);
+.message-row-group.ephemeral:hover {
+  background: var(--warning-muted);
 }
 .message-saved-badge,
 .message-pinned-badge,
@@ -92,14 +92,14 @@ button.message-bot-badge {
   gap: 3px;
   align-items: center;
   padding: 1px 5px;
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.02em;
   border-radius: 3px;
 }
 .message-saved-badge {
   color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.12);
+  background: var(--accent-muted);
 }
 .message-broadcast-badge,
 .message-pinned-badge {
@@ -118,12 +118,12 @@ button.message-bot-badge {
 }
 .reaction-pill {
   gap: 5px;
-  padding: 2px 8px;
-  font-size: 12px;
+  padding: 2px var(--space-sm);
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
 }
 .reaction-pill:hover:not(:disabled) {
   cursor: pointer;
@@ -135,7 +135,7 @@ button.message-bot-badge {
 }
 .reaction-pill.mine {
   color: var(--text-primary);
-  background: rgba(var(--accent-rgb), 0.18);
+  background: var(--accent-emphasis);
   border-color: var(--accent);
 }
 .reaction-count {
@@ -145,9 +145,9 @@ button.message-bot-badge {
   gap: 6px;
   width: 100%;
   min-width: 0;
-  padding: 4px;
-  margin-top: 4px;
-  font-size: 13px;
+  padding: var(--space-xs);
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-control);
   font-weight: 700;
   color: var(--accent);
   border-radius: 6px;
@@ -175,7 +175,7 @@ button.message-bot-badge {
   right: 16px;
   bottom: 6px;
   max-width: calc(100% - 32px);
-  padding: 3px 8px;
+  padding: 3px var(--space-sm);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -183,6 +183,10 @@ button.message-bot-badge {
 }
 .message-replies:hover .message-replies-last {
   color: var(--text-secondary);
+}
+.message-meta .icon,
+.message-replies > .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 .pronouns {
   min-width: 0;
@@ -196,7 +200,7 @@ button.message-bot-badge {
 .message-status-emoji {
   display: inline-flex;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--font-size-secondary);
   cursor: default;
 }
 .message-status-emoji .emoji-img {

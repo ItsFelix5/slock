@@ -70,6 +70,9 @@ export interface Reaction {
 }
 
 export interface SlackFile {
+  // Unix seconds — only populated by channel file browsing (search.modules.files),
+  // not by messages' inline files, which sort by the message's own ts instead.
+  created?: number;
   duration?: number;
   filetype?: string;
   height?: number;
@@ -99,6 +102,37 @@ export interface SlackFile {
   // Per-sample amplitude (0-100) Slack renders as the voice-message waveform.
   waveform?: number[];
   width?: number;
+}
+
+// From conversations.searchLinks — a link shared in a channel, not a message itself.
+export interface SlackLink {
+  iconUrl?: string;
+  thumbHeight?: number;
+  thumbUrl?: string;
+  thumbWidth?: number;
+  title: string | null;
+  // The ts of the message that shared this link.
+  ts: string;
+  url: string;
+}
+
+// From files.getShares — one channel a file was shared into, and the message that shared it there.
+export interface SlackFileShare {
+  channelId: string;
+  channelName: string;
+  replyCount?: number;
+  sharedByUserId?: string;
+  threadTs?: string;
+  ts: string;
+}
+
+// From files.info + files.getShares, fetched on demand when a file's detail view opens.
+export interface SlackFileDetail {
+  // Plain-text body, populated for snippet/text files only.
+  content: string | null;
+  contentTruncated: boolean;
+  file: SlackFile;
+  shares: SlackFileShare[];
 }
 
 export interface CanvasListItem {

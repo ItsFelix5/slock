@@ -3,13 +3,14 @@
   flex: 1;
   flex-direction: column;
   overflow: hidden;
+  background: var(--main-bg);
 }
 
 .message-search-header {
   flex-shrink: 0;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--sidebar-bg);
+  background: var(--main-bg);
   border-bottom: 1px solid var(--border);
 }
 
@@ -72,16 +73,6 @@
   justify-content: center;
 }
 
-.message-search-result {
-  margin-bottom: 6px;
-  border: 1px solid var(--border);
-}
-
-.message-search-result:hover,
-.message-search-result:focus-visible {
-  border-color: var(--border-strong);
-}
-
 .message-search-history {
   padding-top: 4px;
 }
@@ -99,13 +90,4 @@
 .message-search-history-query {
   flex: 1;
   min-width: 0;
-}
-
-.global-search-result-meta {
-  margin-bottom: 3px;
-}
-
-.global-search-result-snippet {
-  line-height: 1.35;
-  color: var(--text-primary);
 }

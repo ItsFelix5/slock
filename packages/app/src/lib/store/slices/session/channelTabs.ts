@@ -8,11 +8,6 @@ import {
 } from "../../../channelTabMeta";
 import { actionFeedback } from "../feedback";
 
-// Which extra tabs (beyond the always-present Messages) show under a
-// channel's header. This is this app's own feature, not Slack's real
-// `properties.tabs` (admin-only, no known write endpoint) — synced through
-// the same users.prefs blob as search history/pingwords (custom key) rather
-// than localStorage, so it follows the account across devices.
 export function createChannelTabsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const [channelTabs, setChannelTabs] = createSignal<Record<string, ChannelTabType[]>>({});
   const [pending, setPending] = createSignal(false);

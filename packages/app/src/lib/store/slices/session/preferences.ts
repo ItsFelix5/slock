@@ -16,15 +16,10 @@ import {
 } from "../../../frecency";
 import { actionFeedback } from "../feedback";
 
-// Escapes regex metacharacters in a user-typed keyword before building a
-// word-boundary RegExp out of it.
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Muted / notify-all channels, pingwords, and DND snooze all live on the real
-// Slack account (users.prefs / dnd.info) — these seed from there via
-// createEffect below rather than from localStorage, once the boot fetch resolves.
 export function createPreferencesSlice(deps: {
   channels: () => Channel[];
   userPrefs: () => UserPrefs | undefined;

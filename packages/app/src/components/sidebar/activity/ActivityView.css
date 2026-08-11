@@ -28,8 +28,8 @@
 
 .activity-search-wrap:focus-within {
   color: var(--text-secondary);
-  border-color: rgba(var(--accent-rgb), 0.8);
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.14);
+  border-color: var(--accent-border-strong);
+  box-shadow: 0 0 0 2px var(--accent-muted);
 }
 
 .activity-search {
@@ -79,7 +79,7 @@
 .activity-read-toggle button.active {
   color: var(--text-primary);
   background: var(--active-bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-control);
 }
 
 .activity-read-toggle button span {

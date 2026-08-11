@@ -115,6 +115,70 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
+  // Backs the channel header's "Files & links" panel. Slack's own client
+  // splits this into three calls (media files, non-media files, links) across
+  // tabs; we show everything in one merged list, so one search.modules.files
+  // call (no type: filter) plus conversations.searchLinks covers it.
+  route("GET", "/api/channels/:id/files-links", async (ctx) => {
+    const channelId = ctx.params.id;
+    const channelName = ctx.searchParams.get("channelName")?.trim() ?? "";
+    const query = ctx.searchParams.get("query")?.trim() ?? "";
+    const filesQuery = `in:<#${channelId}${channelName ? `|${channelName}` : ""}> ${query}`.trim();
+    const [filesData, linksData] = await Promise.all([
+      callSlack(
+        "search.modules.files",
+        {
+          count: "50",
+          extra_message_data: "1",
+          extracts: "1",
+          file_title_only: "false",
+          highlight: "1",
+          include_files_shares: "1",
+          max_extract_len: "200",
+          max_filter_suggestions: "10",
+          module: "files",
+          no_user_profile: "1",
+          page: "1",
+          query: filesQuery,
+          query_rewrite_disabled: "false",
+          search_context: "desktop_files_channel_tab",
+          search_exclude_bots: "false",
+          search_only_my_channels: "false",
+          sort: "timestamp",
+          sort_dir: "desc",
+        },
+        ctx.creds,
+      ),
+      callSlack(
+        "conversations.searchLinks",
+        { channel_id: channelId, page: "1", query, sort: "timestamp", sort_dir: "desc" },
+        ctx.creds,
+      ),
+    ]);
+    if (!filesData.ok) {
+      return slackErrorResponse(filesData, "search.modules.files", ctx.creds, ctx.acceptEncoding);
+    }
+    if (!linksData.ok) {
+      return slackErrorResponse(
+        linksData,
+        "conversations.searchLinks",
+        ctx.creds,
+        ctx.acceptEncoding,
+      );
+    }
+    return jsonResponse(
+      {
+        files: Array.isArray(filesData.items) ? filesData.items : [],
+        filesTotal: filesData.pagination?.total_count ?? 0,
+        links: Array.isArray(linksData.items) ? linksData.items : [],
+        linksTotal: linksData.pagination?.total_count ?? 0,
+        ok: true,
+      },
+      ctx.creds,
+      ctx.acceptEncoding,
+    );
+  }),
+
   route("GET", "/api/channels/:id/managers", async (ctx) => {
     const data = await callSlack(
       "admin.roles.entity.listAssignments",

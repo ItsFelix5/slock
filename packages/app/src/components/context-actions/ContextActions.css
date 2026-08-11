@@ -27,6 +27,12 @@
   font-size: 13px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.context-actions-row:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: -2px;
 }
 
 .context-actions-row:last-child {

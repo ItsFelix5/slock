@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: var(--text-on-accent);
+  color: var(--text-on-avatar);
   border-radius: 8px;
 }
 
@@ -75,6 +75,5 @@
 }
 
 .avatar-presence-dot.away {
-  background: transparent;
-  border: 1.5px solid var(--text-dim);
+  background: var(--presence-away);
 }

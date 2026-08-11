@@ -194,18 +194,23 @@ export function createActivitySlice(
   // thread you're in) can legitimately point at your own message — the feed
   // itself doesn't filter those out, so do it here rather than showing your
   // own posts back to you as activity. Only those two kinds get this
-  // treatment, and only on a positive userId match: this used to also drop
-  // anything whose author never resolved (empty userId), which silently ate
-  // real pings (a mention/DM/keyword hit whose messages.list lookup failed
-  // or raced a not-yet-indexed message) instead of just showing them with an
-  // unknown author, the same fallback the rest of the app already uses.
+  // treatment. A positive userId match is the common case, but an
+  // *unresolved* userId counts too: unlike mention/dm/keyword (real pings,
+  // never dropped on unresolved — see isOwnOrUnresolved below), these two are
+  // ambient feed kinds that routinely reference your own just-sent activity,
+  // and a freshly-sent post racing ahead of messages.list's indexer is far
+  // more likely to be yours than a stranger's than it is worth risking a
+  // permanent "Someone" row for your own post.
   const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>(["channel_all", "thread_reply"]);
+  function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
+    return OwnMessageFilteredKinds.has(item.kind) && (!item.userId || item.userId === me.id);
+  }
   function createEntryPusher(me: User, seen: Set<string>, seenChannelPosts: Set<string>) {
     const pushItem = (item: ActivityItem) => {
       const channelPostKey = `${item.channelId}:${item.ts}`;
       if (
         seen.has(item.id) ||
-        (OwnMessageFilteredKinds.has(item.kind) && item.userId === me.id) ||
+        isOwnOrUnresolved(item, me) ||
         (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey))
       )
         return;
@@ -284,13 +289,34 @@ export function createActivitySlice(
         if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
+        // A bump's own thread_entry payload is often sparse (Slack has
+        // nothing new to tell you about a reply you already know you sent),
+        // so resolve it the same way a first-seen entry would: through
+        // messages.list. That's also what lets the own-message filter below
+        // recognize "you just replied to your own thread" instead of
+        // rendering a blank row for it.
+        const toFetch = stale.filter((entry) => !!entry.channelId);
+        const batch = await api.fetchMessagesByIds(toFetch);
+        if (batch.size) deps.cacheResolvedMessages?.(batch);
         setActivityItems(
           produce((list) => {
             for (const entry of stale) {
               const index = list.findIndex((i) => i.id === entry.id);
               if (index === -1) continue;
-              const resolved = api.resolveActivityEntry(entry);
-              if (resolved.time >= list[index].time) list[index] = resolved;
+              const resolved = api.resolveActivityEntry(entry, batch);
+              if (resolved.time < list[index].time) continue;
+              if (isOwnOrUnresolved(resolved, me)) {
+                list.splice(index, 1);
+                continue;
+              }
+              // Keep whatever the row already showed if this bump's message
+              // didn't resolve, instead of blanking a row that had real
+              // content.
+              list[index] = {
+                ...resolved,
+                text: resolved.text || list[index].text,
+                userId: resolved.userId || list[index].userId,
+              };
             }
           }),
         );

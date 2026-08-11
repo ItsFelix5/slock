@@ -8,7 +8,6 @@ export const draftRoutes: Route[] = [
     const data = await callSlack("drafts.list", { is_active: "true", limit: "100" }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "drafts.list", ctx.creds, ctx.acceptEncoding);
     const drafts: any[] = Array.isArray(data.drafts) ? data.drafts : [];
-    if (drafts[0]) console.warn("drafts.list raw item", JSON.stringify(drafts[0]));
     return jsonResponse(
       {
         drafts: drafts.map((d) => {
@@ -52,7 +51,6 @@ export const draftRoutes: Route[] = [
     };
     if (body.draftId) params.draft_id = body.draftId;
     const data = await callSlack("drafts.create", params, ctx.creds);
-    console.warn("drafts.create raw response", JSON.stringify(data));
     if (!data.ok) return slackErrorResponse(data, "drafts.create", ctx.creds, ctx.acceptEncoding);
     const draftId = data.draft?.id ?? data.id;
     if (!draftId) return errorResponse("draft_creation_failed", 502);

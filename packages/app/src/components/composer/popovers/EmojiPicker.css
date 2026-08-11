@@ -45,6 +45,11 @@
   background: var(--hover-bg);
 }
 
+.emoji-picker-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: -2px;
+}
+
 .emoji-picker-empty {
   padding: 24px 10px;
   font-size: 13px;

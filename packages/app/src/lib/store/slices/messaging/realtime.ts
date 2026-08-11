@@ -258,6 +258,7 @@ export function createRealtimeSlice(deps: {
   });
   return {
     connectionState: connection.connectionState,
+    isSelfOnline: connection.isSelfOnline,
     retryConnection: connection.retry,
     rtmConnected: connection.rtmConnected,
     send,

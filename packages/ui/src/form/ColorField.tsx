@@ -1,8 +1,8 @@
 import { createEffect, createSignal } from "solid-js";
+import Popover from "../overlay/Popover";
 import Tooltip from "../overlay/Tooltip";
+import OklchColorPicker from "./OklchColorPicker";
 import "./ColorField.css";
-
-const HEX_RE = /^#[0-9a-f]{6}$/i;
 
 export interface ColorFieldProps {
   label: string;
@@ -12,30 +12,45 @@ export interface ColorFieldProps {
 }
 
 export default function ColorField(props: ColorFieldProps) {
-  const [draft, setDraft] = createSignal(props.value);
+  const [value, setValue] = createSignal(props.value);
+  const [draft, setDraft] = createSignal(value());
+  const [pickerOpen, setPickerOpen] = createSignal(false);
 
-  createEffect(() => setDraft(props.value));
+  createEffect(() => {
+    setValue(props.value);
+    setDraft(props.value);
+  });
 
   function commit(next: string) {
     if (!(next && CSS.supports("color", next))) return;
     props.onChange(next);
   }
 
+  function reset() {
+    props.onReset();
+    setValue(props.value);
+  }
+
   return (
     <div class="color-field">
-      <div class="color-field-swatch" style={{ "background-color": props.value }}>
-        {HEX_RE.test(props.value) && (
-          <Tooltip content="Pick a color">
-            <input
-              aria-label="Pick a color"
-              class="color-field-native"
-              onInput={(e) => commit(e.currentTarget.value)}
-              type="color"
-              value={props.value}
-            />
-          </Tooltip>
-        )}
-      </div>
+      <Popover
+        onClose={() => setPickerOpen(false)}
+        open={pickerOpen()}
+        panelClass="color-field-picker-popover"
+        trigger={
+          <button
+            aria-expanded={pickerOpen()}
+            aria-haspopup="dialog"
+            aria-label={`Pick ${props.label.toLowerCase()}`}
+            class="color-field-swatch"
+            onClick={() => setPickerOpen((open) => !open)}
+            style={{ "background-color": value() }}
+            type="button"
+          />
+        }
+      >
+        <OklchColorPicker label={props.label} onChange={commit} value={value()} />
+      </Popover>
       <div class="color-field-name">{props.label}</div>
       <input
         class="color-field-text"
@@ -49,7 +64,7 @@ export default function ColorField(props: ColorFieldProps) {
         <button
           aria-label="Reset to default"
           class="color-field-reset"
-          onClick={props.onReset}
+          onClick={reset}
           type="button"
         >
           ↺

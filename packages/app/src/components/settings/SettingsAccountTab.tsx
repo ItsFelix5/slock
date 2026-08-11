@@ -36,7 +36,7 @@ export default function SettingsAccountTab() {
               <Avatar size="medium" user={user()} />
               <div>
                 <div class="settings-row-label">{user().name}</div>
-                <div class="settings-row-hint text-dim">
+                <div class="settings-row-meta text-dim">
                   {domain.loading
                     ? "Loading workspace…"
                     : domain.error
@@ -56,10 +56,6 @@ export default function SettingsAccountTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Log out</div>
-        <div class="settings-row-hint text-dim">
-          Disconnects this browser and server from Slack. You'll need to paste a fresh request from
-          devtools to reconnect.
-        </div>
         <Button disabled={loggingOut()} onClick={handleLogout} variant="danger">
           {loggingOut() ? "Logging out…" : "Log out"}
         </Button>

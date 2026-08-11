@@ -25,6 +25,10 @@
   color: var(--text-primary);
 }
 
+.reply-reference-row > .icon {
+  transform: translateY(var(--icon-optical-shift));
+}
+
 .reply-reference-avatar {
   display: flex;
   flex-shrink: 0;
@@ -33,7 +37,7 @@
   width: 16px;
   height: 16px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   border-radius: 4px;
 }
 

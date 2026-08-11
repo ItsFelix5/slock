@@ -5,9 +5,6 @@ import { conversationDisplayName } from "../conversationDisplayName";
 import { actionFeedback } from "../feedback";
 import { PING_KINDS } from "../messaging/activity";
 
-// Synced through the same users.prefs blob as mute/pingwords (custom key,
-// since Slack's own account has no built-in concept of "pop OS
-// notifications") rather than localStorage, so it follows you across devices.
 export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const supported = typeof window !== "undefined" && "Notification" in window;
   const [permission, setPermission] = createSignal<NotificationPermission>(
@@ -80,11 +77,11 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
         item.kind === "dm"
           ? (user?.name ?? "New message")
           : `${user?.name ?? "Someone"} in ${conversationDisplayName(
-              item.channelId,
-              item.channelId.startsWith("D") ? undefined : deps.channelById(item.channelId),
-              deps.dmById(item.channelId),
-              deps.userById,
-            )}`;
+            item.channelId,
+            item.channelId.startsWith("D") ? undefined : deps.channelById(item.channelId),
+            deps.dmById(item.channelId),
+            deps.userById,
+          )}`;
       const notification = new Notification(title, {
         body: item.text.slice(0, 200),
         icon: user?.avatarUrl,

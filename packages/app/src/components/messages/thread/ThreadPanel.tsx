@@ -188,6 +188,7 @@ export default function ThreadPanel() {
         <div
           class="thread-panel"
           classList={{ "panel-fullscreen": isFullscreen() }}
+          data-pane="thread"
           style={{ width: `${width()}px` }}
         >
           <ResizeHandle

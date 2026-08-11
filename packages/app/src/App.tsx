@@ -8,14 +8,16 @@ import {
   TileGroup,
   type TileLeaf,
   TypingIndicator,
+  usePaneNavigation,
 } from "@slock/ui";
 import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
 import CanvasPanel from "./components/channel/CanvasPanel";
-import ChannelHeader from "./components/channel/ChannelHeader";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
+import ChannelHeader from "./components/channel/ChannelHeader";
 import { createChannelHeaderState } from "./components/channel/channelHeaderState";
+import FilesLinksPanel from "./components/channel/FilesLinksPanel";
 import JoinChannelBar from "./components/channel/JoinChannelBar";
 import PinnedPanel from "./components/channel/PinnedPanel";
 import Composer from "./components/composer/Composer";
@@ -30,8 +32,8 @@ import UserHoverCard from "./components/user/UserHoverCard";
 import UserProfile from "./components/user/UserProfile";
 import UsergroupDetails from "./components/usergroup/UsergroupDetails";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
+import { filesLinksChannelId } from "./lib/filesLinksPanel";
 import { handleMessageCopy } from "./lib/messageCopy";
-import { installMessageHoverDragGuard } from "./lib/messageHoverDragGuard";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
@@ -50,10 +52,10 @@ const blockKitResolver: BlockKitResolver = {
     const channel = store.channels.channelById(id);
     return channel
       ? {
-          isMember: store.channels.isChannelMember(id),
-          isPrivate: channel.private,
-          name: channelDisplayName(channel),
-        }
+        isMember: store.channels.isChannelMember(id),
+        isPrivate: channel.private,
+        name: channelDisplayName(channel),
+      }
       : undefined;
   },
   resolveUser: (id) => {
@@ -105,6 +107,10 @@ function MainPane(props: { leaf: TileLeaf<View | null> }) {
     const view = props.leaf.content;
     return view ? store.typing.typingUsersInChannel(view.id).map((user) => user.name) : [];
   });
+  const showFilesLinks = createMemo(() => {
+    const id = props.leaf.content?.id;
+    return !!id && filesLinksChannelId() === id;
+  });
 
   return (
     <PaneViewProvider
@@ -115,26 +121,28 @@ function MainPane(props: { leaf: TileLeaf<View | null> }) {
         view: () => props.leaf.content,
       }}
     >
-      <div class="main-panel">
+      <div class="main-panel" data-pane="messages">
         <ChannelHeader />
-        <MessageList />
-        <Show
-          fallback={
-            <Show
-              fallback={
-                <div class="typing-indicator-anchor">
-                  <TypingIndicator names={typingNames()} />
-                  <Composer channelId={props.leaf.content?.id} />
-                </div>
-              }
-              when={isArchivedChannel()}
-            >
-              <ArchivedChannelBar />
-            </Show>
-          }
-          when={unjoinedChannelId()}
-        >
-          {(channelId) => <JoinChannelBar channelId={channelId()} />}
+        <Show fallback={<FilesLinksPanel />} when={!showFilesLinks()}>
+          <MessageList />
+          <Show
+            fallback={
+              <Show
+                fallback={
+                  <div class="typing-indicator-anchor">
+                    <TypingIndicator names={typingNames()} />
+                    <Composer channelId={props.leaf.content?.id} />
+                  </div>
+                }
+                when={isArchivedChannel()}
+              >
+                <ArchivedChannelBar />
+              </Show>
+            }
+            when={unjoinedChannelId()}
+          >
+            {(channelId) => <JoinChannelBar channelId={channelId()} />}
+          </Show>
         </Show>
       </div>
     </PaneViewProvider>
@@ -142,6 +150,8 @@ function MainPane(props: { leaf: TileLeaf<View | null> }) {
 }
 
 function App() {
+  usePaneNavigation();
+
   createEffect(() => {
     const nav = store.viewState.nav();
     const view = store.viewState.activeView();
@@ -153,11 +163,11 @@ function App() {
       }[nav] ||
       (view
         ? conversationDisplayName(
-            view.id,
-            view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
-            view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
-            store.users.userById,
-          )
+          view.id,
+          view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
+          view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
+          store.users.userById,
+        )
         : "") ||
       "slock";
   });
@@ -208,12 +218,10 @@ function App() {
   onMount(() => {
     document.addEventListener("click", openSlackPermalink);
     document.addEventListener("copy", handleMessageCopy);
-    const uninstallDragGuard = installMessageHoverDragGuard();
     onCleanup(() => {
       permalinkOpener.invalidate();
       document.removeEventListener("click", openSlackPermalink);
       document.removeEventListener("copy", handleMessageCopy);
-      uninstallDragGuard();
     });
   });
 

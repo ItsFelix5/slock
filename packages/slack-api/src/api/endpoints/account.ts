@@ -2,7 +2,7 @@
 import type { ProfileFieldDef, User, UserCustomField } from "../../types";
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapBot, mapCustomFields, mapUser } from "../mappers";
-import { apiGet, apiPost, apiPut } from "../server";
+import { apiGet, apiPost, apiPut, apiUpload } from "../server";
 
 // Keep JSON request bodies comfortably below the server limit even when
 // a channel or search result renders thousands of previously unseen authors.
@@ -78,6 +78,18 @@ export async function setProfileFields(fields: {
   }
   const data = await apiPut("/api/profile", { profile });
   if (!data.ok) throw new Error(data.error ?? "users.profile.set failed");
+}
+
+export async function uploadProfilePhoto(file: File): Promise<string | undefined> {
+  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Choose an image smaller than 10 MB.");
+  const params = new URLSearchParams({ filename: file.name, type: file.type });
+  const data = await apiUpload<{
+    error?: string;
+    profile?: { image_192?: string; image_48?: string; image_72?: string };
+  }>(`/api/profile/photo?${params}`, file);
+  if (data.error) throw new Error(data.error);
+  return data.profile?.image_192 ?? data.profile?.image_72 ?? data.profile?.image_48;
 }
 
 export async function setPresence(presence: "auto" | "away"): Promise<void> {

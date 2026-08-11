@@ -1,49 +1,140 @@
 :root {
-  --rail-bg: #191a20;
-  --sidebar-bg: #101214;
-  --main-bg: #1a1d21;
-  --composer-bg: #222529;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text-primary: #d1d2d3;
-  --text-secondary: rgba(224, 224, 224, 0.7);
-  --text-dim: rgba(224, 224, 224, 0.45);
-  --accent: #1264a3;
-  --accent-hover: #0b5385;
-  --presence-active: #2eb67d;
-  --hover-bg: rgba(255, 255, 255, 0.06);
-  --active-bg: rgba(255, 255, 255, 0.1);
-  --badge-bg: #e5484d;
-  --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --danger: #e0554a;
-  --danger-rgb: 224, 85, 74;
-  --error-text: var(--danger);
-  --error-bg: rgba(var(--danger-rgb), 0.12);
-  --warning: #f39c12;
-  --text-on-accent: #fff;
-  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --overlay-backdrop: rgba(0, 0, 0, 0.45);
-  --code-bg: rgba(0, 0, 0, 0.25);
-  --accent-rgb: 18, 100, 163;
-  --mention-rgb: 29, 155, 209;
-  --mention-bg: rgba(var(--mention-rgb), 0.16);
-  --mention-text: #4bb6e8;
-  --mention-self-rgb: 224, 167, 45;
-  --mention-self-bg: rgba(var(--mention-self-rgb), 0.22);
-  --mention-self-text: #e0a72d;
-  --mention-inaccessible-rgb: 148, 158, 168;
-  --mention-inaccessible-bg: rgba(var(--mention-inaccessible-rgb), 0.16);
-  --mention-inaccessible-hover-bg: rgba(var(--mention-inaccessible-rgb), 0.28);
-  --mention-inaccessible-text: #8b96a3;
-  --link-color: #1d9bd1;
-  --highlight-bg: rgba(255, 214, 89, 0.35);
-  --shadow-tooltip: 0 4px 14px rgba(0, 0, 0, 0.35);
-  --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.4);
-  --shadow-modal-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
-  --shadow-hovercard: 0 8px 26px rgba(0, 0, 0, 0.32);
-  --bk-button-primary: #2b7a4b;
-  --bk-button-danger: #8f3527;
+  color-scheme: dark;
 
+  --palette-charcoal-1000: oklch(0.15 0.01 255);
+  --palette-charcoal-950: oklch(0.17 0.011 255);
+  --palette-charcoal-900: oklch(0.19 0.012 255);
+  --palette-charcoal-850: oklch(0.21 0.012 255);
+  --palette-charcoal-800: oklch(0.24 0.013 255);
+  --palette-charcoal-700: oklch(0.33 0.012 255);
+  --palette-charcoal-600: oklch(0.425 0.011 255);
+  --palette-charcoal-500: oklch(0.52 0.01 255);
+  --palette-charcoal-400: oklch(0.61 0.009 255);
+  --palette-charcoal-300: oklch(0.7 0.008 255);
+  --palette-charcoal-200: oklch(0.8 0.007 255);
+  --palette-charcoal-100: oklch(0.89 0.006 255);
+  --palette-charcoal-50: oklch(0.97 0.003 255);
+
+  --palette-blue-700: oklch(0.5 0.15 250);
+  --palette-blue-600: oklch(0.58 0.15 250);
+  --palette-blue-500: oklch(0.69 0.15 250);
+  --palette-blue-400: oklch(0.75 0.13 250);
+  --palette-green-600: oklch(0.58 0.14 155);
+  --palette-green-500: oklch(0.66 0.14 155);
+  --palette-green-400: oklch(0.74 0.12 155);
+  --palette-amber-600: oklch(0.62 0.14 82);
+  --palette-amber-500: oklch(0.7 0.14 82);
+  --palette-amber-400: oklch(0.78 0.12 82);
+  --palette-red-700: oklch(0.5 0.17 25);
+  --palette-red-600: oklch(0.58 0.18 25);
+  --palette-red-500: oklch(0.66 0.17 25);
+  --palette-red-400: oklch(0.74 0.13 25);
+
+  --rail-bg: var(--palette-charcoal-900);
+  --sidebar-bg: var(--palette-charcoal-950);
+  --main-bg: var(--palette-charcoal-850);
+  --composer-bg: var(--palette-charcoal-800);
+  --border: color-mix(in oklch, var(--palette-charcoal-300) 10%, transparent);
+  --border-strong: color-mix(in oklch, var(--palette-charcoal-300) 18%, transparent);
+  --text-primary: var(--palette-charcoal-100);
+  --text-secondary: var(--palette-charcoal-300);
+  --text-dim: var(--palette-charcoal-500);
+  --text-disabled: var(--palette-charcoal-600);
+  --text-on-avatar: var(--palette-charcoal-50);
+  --text-on-danger: var(--palette-charcoal-1000);
+  --text-on-success: var(--palette-charcoal-1000);
+  --accent: var(--palette-blue-500);
+  --accent-hover: var(--palette-blue-400);
+  --text-on-accent: var(--palette-charcoal-950);
+  --presence-active: var(--palette-green-500);
+  --presence-away: var(--palette-charcoal-500);
+  --hover-bg: color-mix(in oklch, var(--palette-charcoal-100) 6%, transparent);
+  --active-bg: color-mix(in oklch, var(--palette-charcoal-100) 10%, transparent);
+  --badge-bg: var(--palette-red-500);
+  --danger: var(--palette-red-400);
+  --warning: var(--palette-amber-400);
+  --success: var(--palette-green-400);
+  --error-text: var(--danger);
+  --error-bg: color-mix(in oklch, var(--danger) 12%, transparent);
+  --code-bg: color-mix(in oklch, var(--palette-charcoal-1000) 48%, transparent);
+  --link-color: var(--palette-blue-400);
+  --highlight-bg: color-mix(in oklch, var(--palette-amber-400) 28%, transparent);
+
+  --accent-subtle: color-mix(in oklch, var(--accent) 8%, transparent);
+  --accent-muted: color-mix(in oklch, var(--accent) 14%, transparent);
+  --accent-emphasis: color-mix(in oklch, var(--accent) 20%, transparent);
+  --accent-border: color-mix(in oklch, var(--accent) 52%, transparent);
+  --accent-border-strong: color-mix(in oklch, var(--accent) 82%, transparent);
+  --danger-subtle: color-mix(in oklch, var(--danger) 8%, transparent);
+  --danger-muted: color-mix(in oklch, var(--danger) 12%, transparent);
+  --warning-subtle: color-mix(in oklch, var(--warning) 8%, transparent);
+  --warning-muted: color-mix(in oklch, var(--warning) 18%, transparent);
+  --warning-emphasis: color-mix(in oklch, var(--warning) 38%, transparent);
+
+  --mention-text: var(--palette-blue-400);
+  --mention-bg: color-mix(in oklch, var(--mention-text) 16%, transparent);
+  --mention-hover-bg: color-mix(in oklch, var(--mention-text) 30%, transparent);
+  --mention-self-text: var(--palette-amber-400);
+  --mention-self-bg: color-mix(in oklch, var(--mention-self-text) 20%, transparent);
+  --mention-self-hover-bg: color-mix(in oklch, var(--mention-self-text) 34%, transparent);
+  --mention-inaccessible-text: var(--palette-charcoal-400);
+  --mention-inaccessible-bg: color-mix(in oklch, var(--mention-inaccessible-text) 14%, transparent);
+  --mention-inaccessible-hover-bg: color-mix(
+    in oklch,
+    var(--mention-inaccessible-text) 24%,
+    transparent
+  );
+
+  --moderation-unverified: var(--palette-blue-500);
+  --moderation-restricted: var(--palette-amber-500);
+  --moderation-banned: var(--palette-red-500);
+  --scrim-strong: color-mix(in oklch, var(--palette-charcoal-1000) 72%, transparent);
+  --overlay-backdrop: color-mix(in oklch, var(--palette-charcoal-1000) 68%, transparent);
+  --embedded-content-bg: var(--palette-charcoal-50);
+  --media-lens-border: color-mix(in oklch, var(--palette-charcoal-50) 88%, transparent);
+  --media-editor-control: var(--palette-charcoal-50);
+  --media-editor-shadow: color-mix(in oklch, var(--palette-charcoal-1000) 35%, transparent);
+  --control-contrast-border: color-mix(in oklch, var(--palette-charcoal-400) 42%, transparent);
+
+  --shadow-color: color-mix(in oklch, var(--palette-charcoal-1000) 72%, transparent);
+  --shadow-color-soft: color-mix(in oklch, var(--palette-charcoal-1000) 48%, transparent);
+  --shadow-tooltip: 0 4px 14px var(--shadow-color-soft);
+  --shadow-popover: 0 8px 24px var(--shadow-color-soft);
+  --shadow-hovercard: 0 8px 26px var(--shadow-color-soft);
+  --shadow-modal: 0 12px 32px var(--shadow-color);
+  --shadow-modal-lg: 0 16px 40px var(--shadow-color);
+  --shadow-control: 0 1px 3px var(--shadow-color-soft);
+  --shadow-media: 0 4px 18px var(--shadow-color);
+  --shadow-inset: inset 0 0 0 1px var(--shadow-color-soft);
+
+  --bk-button-primary: var(--palette-green-600);
+  --bk-button-danger: var(--palette-red-600);
+  --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-size-caption: 11px;
+  --font-size-meta: 12px;
+  --font-size-control: 13px;
+  --font-size-secondary: 14px;
+  --font-size-body: 15px;
+  --font-size-heading-sm: 18px;
+  --font-size-heading-lg: 24px;
+  --font-size-display: 32px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-circle: 50%;
   --radius-pill: 999px;
+  --icon-optical-shift: 1px;
+  --focus-ring-width: 2px;
+  --focus-ring-color: var(--accent);
+}
+
+:root[data-color-scheme="light"] {
+  color-scheme: light;
 }

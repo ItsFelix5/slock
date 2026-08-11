@@ -175,7 +175,7 @@ export default function ChannelHeader() {
           <IconButton
             class="channel-header-btn"
             icon="search"
-            label="Search in conversation"
+            label="Files & links"
             onClick={searchCurrentConversation}
             size="md"
           />

@@ -85,7 +85,6 @@ function connectGateway(state: ConnectionState) {
     state.gatewaySocket = socket;
 
     socket.addEventListener("open", () => {
-      console.log("Connected to Slack Edge gateway");
       state.gatewayConnected = true;
       state.gatewayRetryDelay = 2000;
       stopFallbackPolling(state);
@@ -131,8 +130,7 @@ function connectGateway(state: ConnectionState) {
       }
     }, 30000);
     socket.addEventListener("close", () => clearInterval(pingTimer));
-  } catch (err) {
-    console.warn("Failed to connect to Slack gateway, retrying:", err);
+  } catch {
     if (state.closed) return;
     scheduleGatewayReconnect(state);
   }

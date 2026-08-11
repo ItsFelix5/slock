@@ -4,6 +4,7 @@ import { routeApiRequest } from "./api.ts";
 import { parseCredsCookie } from "./auth.ts";
 import { acceptUpgrade } from "./dev-websocket.ts";
 import { compressResponse } from "./http/compressedResponse.ts";
+import { errorMessage } from "./http/errorMessage.ts";
 import {
   handleClientDisconnect,
   handleClientMessage,
@@ -117,9 +118,9 @@ export function appServerPlugin(): Plugin {
           next();
         } catch (err) {
           if (res.headersSent || res.destroyed) return;
-          console.warn("slock API middleware error:", err);
           res.statusCode = 500;
-          res.end();
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: errorMessage(err, "API request failed") }));
         }
       });
 

@@ -1,0 +1,117 @@
+.file-detail-card {
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow: hidden;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-modal);
+}
+
+.file-detail-body {
+  gap: 4px;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+
+.file-detail-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--composer-bg);
+  border-radius: 8px;
+}
+
+.file-detail-image {
+  max-width: 100%;
+  max-height: 50vh;
+}
+
+.file-detail-snippet {
+  width: 100%;
+  max-height: 50vh;
+  padding: 14px 16px;
+  overflow: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.file-detail-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.file-detail-fallback:hover {
+  color: var(--text-primary);
+}
+
+.file-detail-meta {
+  font-size: 12.5px;
+}
+
+.file-detail-shares-loading {
+  padding: 10px 0 2px;
+  font-size: 12.5px;
+}
+
+.file-detail-shares {
+  padding-top: 12px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.file-detail-shares-label {
+  padding: 0 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.file-detail-share-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px;
+  text-align: left;
+  border-radius: 6px;
+}
+
+.file-detail-share-row:hover {
+  background: var(--hover-bg);
+}
+
+.file-detail-share-channel {
+  flex-shrink: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.file-detail-share-time,
+.file-detail-share-replies {
+  flex-shrink: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.file-detail-share-time {
+  margin-left: auto;
+}

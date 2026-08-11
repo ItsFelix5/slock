@@ -1,7 +1,7 @@
 .audio-file {
   max-width: min(360px, 100%);
   padding: 8px 12px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;

@@ -11,6 +11,7 @@ import { sidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import "../settings/Settings.css";
 import "./UserProfile.css";
+import ProfilePhotoEditor from "./ProfilePhotoEditor";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
 import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
@@ -27,6 +28,8 @@ export default function UserProfile() {
   const [statusEmoji, setStatusEmoji] = createSignal("");
   const [savingStatus, setSavingStatus] = createSignal(false);
   const [savingPresence, setSavingPresence] = createSignal(false);
+  const [savingProfilePhoto, setSavingProfilePhoto] = createSignal(false);
+  const [photoToEdit, setPhotoToEdit] = createSignal<File>();
   const [savingProfileFields, setSavingProfileFields] = createSignal<Record<string, boolean>>({});
   useEscapeClose(store.users.closeUserProfile, () => !!store.users.profileUserId());
   const user = createMemo(() => {
@@ -131,6 +134,15 @@ export default function UserProfile() {
       setSavingPresence(false);
     }
   };
+  const updateProfilePhoto = async (file: File) => {
+    if (savingProfilePhoto()) return false;
+    setSavingProfilePhoto(true);
+    try {
+      return await store.users.updateMyProfilePhoto(file);
+    } finally {
+      setSavingProfilePhoto(false);
+    }
+  };
   const [now, setNow] = createSignal(Date.now());
   const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
   onCleanup(() => clearInterval(clockTimer));
@@ -148,83 +160,96 @@ export default function UserProfile() {
   });
   const editableCustomFields = createMemo(() => store.resources.profileFieldDefs() ?? []);
   return (
-    <Show when={user()}>
-      {(u) => (
-        <div
-          class="user-profile-panel"
-          classList={{ "panel-fullscreen": isFullscreen() }}
-          style={{ width: `${width()}px` }}
-        >
-          <ResizeHandle
-            direction={-1}
-            label="Resize profile panel"
-            max={MAX_WIDTH}
-            min={MIN_WIDTH}
-            setWidth={setWidth}
-            side="left"
-            width={width}
-          />
-          <PanelHeader onClose={store.users.closeUserProfile} title="Profile" />
-          <div class="user-profile-body">
-            <InlineFeedback
-              class="user-profile-feedback"
-              feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
-              priority={2}
+    <>
+      <Show when={user()}>
+        {(u) => (
+          <div
+            class="user-profile-panel"
+            classList={{ "panel-fullscreen": isFullscreen() }}
+            style={{ width: `${width()}px` }}
+          >
+            <ResizeHandle
+              direction={-1}
+              label="Resize profile panel"
+              max={MAX_WIDTH}
+              min={MIN_WIDTH}
+              setWidth={setWidth}
+              side="left"
+              width={width}
             />
-            <UserProfileInfo
-              blurOnEnter={blurOnEnter}
-              botBio={botBio}
-              clearStatus={clearStatus}
-              isSavingPresence={savingPresence}
-              isSelf={isSelf}
-              lastSeenText={lastSeenText}
-              localTime={localTime}
-              nameInput={nameInput}
-              onTogglePresence={togglePresence}
-              pronounsInput={pronounsInput}
-              saveName={saveName}
-              savePronouns={savePronouns}
-              saveStatus={saveStatus}
-              saveTitle={saveTitle}
-              savingProfileFields={savingProfileFields}
-              savingStatus={savingStatus}
-              setNameInput={setNameInput}
-              setPronounsInput={setPronounsInput}
-              setStatusEmoji={setStatusEmoji}
-              setStatusText={setStatusText}
-              setTitleInput={setTitleInput}
-              statusEmoji={statusEmoji}
-              statusText={statusText}
-              titleInput={titleInput}
-              user={user}
-            />
-            <UserProfileContact
-              customFields={customFields()}
-              editableFields={editableCustomFields()}
-              isSelf={isSelf()}
-              isSavingField={(id) => !!savingProfileFields()[`custom:${id}`]}
-              onKeyDown={blurOnEnter}
-              saveField={saveCustomField}
-              setValue={(id, value) => setCustomFieldInputs((prev) => ({ ...prev, [id]: value }))}
-              user={u()}
-              values={customFieldInputs()}
-            />
-            <Show when={store.resources.profileFieldDefs.error}>
-              <div class="user-profile-fields-warning flex-between" role="alert">
-                <span>Additional profile fields are unavailable.</span>
-                <Button
-                  disabled={store.resources.profileFieldDefs.loading}
-                  onClick={() => void store.resources.retryProfileFieldDefs()}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {store.resources.profileFieldDefs.loading ? "Retrying…" : "Try again"}
-                </Button>
-              </div>
-            </Show>
+            <PanelHeader onClose={store.users.closeUserProfile} title="Profile" />
+            <div class="user-profile-body">
+              <InlineFeedback
+                class="user-profile-feedback"
+                feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
+                priority={2}
+              />
+              <UserProfileInfo
+                blurOnEnter={blurOnEnter}
+                botBio={botBio}
+                clearStatus={clearStatus}
+                isSavingProfilePhoto={savingProfilePhoto}
+                isSavingPresence={savingPresence}
+                isSelf={isSelf}
+                lastSeenText={lastSeenText}
+                localTime={localTime}
+                nameInput={nameInput}
+                onProfilePhotoSelected={setPhotoToEdit}
+                onTogglePresence={togglePresence}
+                pronounsInput={pronounsInput}
+                saveName={saveName}
+                savePronouns={savePronouns}
+                saveStatus={saveStatus}
+                saveTitle={saveTitle}
+                savingProfileFields={savingProfileFields}
+                savingStatus={savingStatus}
+                setNameInput={setNameInput}
+                setPronounsInput={setPronounsInput}
+                setStatusEmoji={setStatusEmoji}
+                setStatusText={setStatusText}
+                setTitleInput={setTitleInput}
+                statusEmoji={statusEmoji}
+                statusText={statusText}
+                titleInput={titleInput}
+                user={user}
+              />
+              <UserProfileContact
+                customFields={customFields()}
+                editableFields={editableCustomFields()}
+                isSelf={isSelf()}
+                isSavingField={(id) => !!savingProfileFields()[`custom:${id}`]}
+                onKeyDown={blurOnEnter}
+                saveField={saveCustomField}
+                setValue={(id, value) => setCustomFieldInputs((prev) => ({ ...prev, [id]: value }))}
+                user={u()}
+                values={customFieldInputs()}
+              />
+              <Show when={store.resources.profileFieldDefs.error}>
+                <div class="user-profile-fields-warning flex-between" role="alert">
+                  <span>Additional profile fields are unavailable.</span>
+                  <Button
+                    disabled={store.resources.profileFieldDefs.loading}
+                    onClick={() => void store.resources.retryProfileFieldDefs()}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {store.resources.profileFieldDefs.loading ? "Retrying…" : "Try again"}
+                  </Button>
+                </div>
+              </Show>
+            </div>
           </div>
-        </div>
-      )}
-    </Show>
+        )}
+      </Show>
+      <Show when={photoToEdit()}>
+        {(file) => (
+          <ProfilePhotoEditor
+            file={file()}
+            onClose={() => setPhotoToEdit(undefined)}
+            onSave={updateProfilePhoto}
+          />
+        )}
+      </Show>
+    </>
   );
 }

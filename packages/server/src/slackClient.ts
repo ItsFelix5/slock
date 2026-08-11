@@ -1,5 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { type Credentials, slackCookieHeader } from "./auth.ts";
+import { errorMessage } from "./http/errorMessage.ts";
 
 async function parseSlackResponse(res: Response): Promise<any> {
   const text = await res.text();
@@ -8,7 +9,9 @@ async function parseSlackResponse(res: Response): Promise<any> {
   } catch {
     const retryAfter = res.headers.get("retry-after");
     return {
-      error: res.status === 429 ? "rate_limited" : "upstream_invalid_response",
+      error:
+        text.trim().slice(0, 500) ||
+        (res.status === 429 ? "rate_limited" : `Slack responded ${res.status} ${res.statusText}`),
       ok: false,
       ...(retryAfter ? { retry_after: retryAfter } : {}),
     };
@@ -66,10 +69,40 @@ export async function callSlack(
       signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
     });
     return await parseSlackResponse(res);
-  } catch {
-    return { error: "upstream_timeout", ok: false };
+  } catch (error) {
+    return { error: errorMessage(error, "Slack request failed"), ok: false };
   }
 }
+
+export async function callSlackMultipart(
+  method: string,
+  params: Record<string, string>,
+  file: { bytes: Uint8Array; field: string; filename: string; type: string },
+  creds: Credentials | null,
+): Promise<any> {
+  if (!creds) return { error: "not_configured", ok: false };
+  const body = new FormData();
+  body.append("token", creds.token);
+  for (const [key, value] of Object.entries(params)) body.append(key, value);
+  body.append(
+    file.field,
+    new Blob([new Uint8Array(file.bytes)], { type: file.type }),
+    file.filename,
+  );
+  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
+  try {
+    const res = await fetch(url, {
+      body,
+      headers: { cookie: slackCookieHeader(creds) },
+      method: "POST",
+      signal: AbortSignal.timeout(60_000),
+    });
+    return await parseSlackResponse(res);
+  } catch (error) {
+    return { error: errorMessage(error, "Slack request failed"), ok: false };
+  }
+}
+
 export async function callSlackEdge(
   method: string,
   params: Record<string, unknown>,
@@ -87,7 +120,7 @@ export async function callSlackEdge(
       signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
     });
     return await parseSlackResponse(res);
-  } catch {
-    return { error: "upstream_timeout", ok: false };
+  } catch (error) {
+    return { error: errorMessage(error, "Slack Edge request failed"), ok: false };
   }
 }

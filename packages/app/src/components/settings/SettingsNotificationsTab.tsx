@@ -35,12 +35,7 @@ export default function SettingsNotificationsTab() {
       <Show when={store.desktopNotifications.supported}>
         <div class="settings-section">
           <div class="settings-row flex-between">
-            <div>
-              <div class="settings-row-label">Desktop notifications</div>
-              <div class="settings-row-hint text-dim">
-                Pop a notification for direct mentions and DMs when this tab isn't focused.
-              </div>
-            </div>
+            <div class="settings-row-label">Desktop notifications</div>
             <Show
               fallback={
                 <Show
@@ -56,7 +51,7 @@ export default function SettingsNotificationsTab() {
                   }
                   when={store.desktopNotifications.permission() === "denied"}
                 >
-                  <span class="settings-row-hint text-dim">Blocked in browser settings</span>
+                  <span class="settings-row-meta text-dim">Blocked in browser settings</span>
                 </Show>
               }
               when={store.desktopNotifications.permission() === "granted"}
@@ -77,9 +72,6 @@ export default function SettingsNotificationsTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Muted channels</div>
-        <div class="settings-row-hint text-dim">
-          You won't see unread badges or mentions for these.
-        </div>
         <Show
           fallback={<div class="settings-list-empty text-dim text-sm">No muted channels.</div>}
           when={store.preferences.mutedChannels().length > 0}
@@ -113,9 +105,6 @@ export default function SettingsNotificationsTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Notify for all messages</div>
-        <div class="settings-row-hint text-dim">
-          These channels ping you for every new message instead of just mentions.
-        </div>
         <Show
           fallback={
             <div class="settings-list-empty text-dim text-sm">
@@ -153,10 +142,6 @@ export default function SettingsNotificationsTab() {
 
       <div class="settings-section">
         <div class="settings-row-label">Pingwords</div>
-        <div class="settings-row-hint text-dim">
-          Ping you like an @mention whenever one of these words appears in a message, even in
-          channels you'd otherwise get no activity from.
-        </div>
         <form class="settings-add-row flex-align-center" onSubmit={submitNewWord}>
           <input
             class="search-input"

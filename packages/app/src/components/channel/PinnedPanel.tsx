@@ -40,7 +40,7 @@ export default function PinnedPanel() {
     <Show when={channelId()}>
       {(id) => (
         <Overlay ariaLabel={title()} align="top" onClose={store.pinned.closePinnedPanel}>
-          <div class="pinned-panel-card surface-card">
+          <div class="pinned-panel-card surface-card" data-pane="detail">
             <PanelHeader onClose={store.pinned.closePinnedPanel}>
               <div class="pinned-panel-title">{title()}</div>
             </PanelHeader>
@@ -73,6 +73,7 @@ export default function PinnedPanel() {
                           <div class="pinned-panel-item">
                             <button
                               class="pinned-panel-item-main btn-reset"
+                              data-nav-row
                               onClick={() => goTo(pin.ts)}
                               type="button"
                             >

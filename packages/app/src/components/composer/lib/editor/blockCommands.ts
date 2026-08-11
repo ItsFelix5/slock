@@ -131,13 +131,14 @@ export function createBlockCommands(
       return quote;
     });
   }
-  function applyList(ordered: boolean) {
+  function applyList(ordered: boolean, root?: HTMLElement) {
     const el = ref.get();
     const sel = window.getSelection();
     if (!(el && sel) || sel.rangeCount === 0) return;
     opts.focusEditor();
+    const container = root ?? el;
     const original = sel.getRangeAt(0);
-    const lineRange = expandRangeToLines(el, original);
+    const lineRange = expandRangeToLines(container, original);
     const list = document.createElement(ordered ? "ol" : "ul");
     list.className = "composer-list";
     let li = document.createElement("li");
@@ -225,7 +226,9 @@ export function createBlockCommands(
     const ctx = opts.currentTextContext();
     if (!(el && ctx)) return false;
     const { node, offset } = ctx;
-    if (node.parentNode !== el) return false;
+    const container = node.parentNode;
+    const quote = container?.nodeName === "BLOCKQUOTE" ? (container as HTMLElement) : null;
+    if (container !== el && !quote) return false;
     const LineBoundary = ["BR", "HR", "PRE", "BLOCKQUOTE", "UL", "OL"];
     let prev = node.previousSibling;
     while (prev && prev.nodeType === Node.TEXT_NODE && !(prev as Text).length) {
@@ -234,6 +237,21 @@ export function createBlockCommands(
     if (prev && !LineBoundary.includes(prev.nodeName) && !HEADING_TAG_RE.test(prev.nodeName))
       return false;
     const before = (node.textContent ?? "").slice(0, offset);
+    if (quote) {
+      // already quoted: `>` mustn't nest another quote, it just strips the
+      // marker and leaves an empty quoted line, only lists apply inside a quote
+      const stripQuoteMarker = /^>[  ]$/.test(before);
+      let quoted: (() => void) | undefined;
+      if (/^[-*][  ]$/.test(before)) quoted = () => applyList(false, quote);
+      else if (/^\d+\.[  ]$/.test(before)) quoted = () => applyList(true, quote);
+      if (!(stripQuoteMarker || quoted)) return false;
+      node.deleteData(0, offset);
+      placeCaretInText(node, 0);
+      quoted?.();
+      opts.closeSuggestions();
+      opts.syncFromDom();
+      return true;
+    }
     let action: (() => void) | undefined;
     const headerMatch = /^(#{1,6})[  ]$/.exec(before);
     if (headerMatch) action = () => applyHeader(headerMatch[1].length);

@@ -3,27 +3,46 @@
 // — the server decides internally what Slack call(s) to make and returns
 // only the fields that route's caller needs.
 
-async function request<T = any>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method,
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    const message =
-      data && typeof data === "object" && !Array.isArray(data) && typeof data.error === "string"
-        ? data.error
-        : `request failed with ${res.status}`;
-    const details =
-      data && typeof data === "object" && !Array.isArray(data) ? data.details : undefined;
-    console.warn("api request failed", { details, message, path, status: res.status });
+function hasError(data: unknown): data is { error: string } {
+  return !!(
+    data &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    "error" in data &&
+    typeof data.error === "string"
+  );
+}
+
+async function readResponse<T>(res: Response): Promise<T> {
+  const responseBody = await res.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(responseBody);
+  } catch (error) {
+    if (!res.ok) {
+      throw new Error(responseBody || `request failed with ${res.status} ${res.statusText}`, {
+        cause: error,
+      });
+    }
+    return responseBody as T;
+  }
+  if (!(res.ok || hasError(data))) {
+    throw new Error(`request failed with ${res.status} ${res.statusText}: ${responseBody}`);
   }
   if (data && typeof data === "object" && !Array.isArray(data)) {
     return { ...data, ok: res.ok } as T;
   }
   return data as T;
+}
+
+async function request<T = any>(method: string, path: string, requestBody?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    ...(requestBody === undefined
+      ? {}
+      : { body: JSON.stringify(requestBody), headers: { "content-type": "application/json" } }),
+  });
+  return readResponse<T>(res);
 }
 
 export function apiGet<T = any>(path: string): Promise<T> {
@@ -40,6 +59,15 @@ export function apiPatch<T = any>(path: string, body: unknown = {}): Promise<T> 
 }
 export function apiDelete<T = any>(path: string, body?: unknown): Promise<T> {
   return request<T>("DELETE", path, body);
+}
+
+export async function apiUpload<T = any>(path: string, file: File): Promise<T> {
+  const res = await fetch(path, {
+    body: file,
+    headers: file.type ? { "content-type": file.type } : undefined,
+    method: "POST",
+  });
+  return readResponse<T>(res);
 }
 
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;

@@ -74,6 +74,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
     <div
       class="sidebar flex-col"
       classList={{ feed: feedMode() }}
+      data-pane="sidebar"
       style={{ width: `${feedMode() ? feedWidth() : width()}px` }}
     >
       <ResizeHandle

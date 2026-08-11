@@ -34,6 +34,8 @@ export {
   listNavigationIndex,
   scrollActiveListOption,
 } from "./form/listNavigation";
+export type { OklchColorPickerProps } from "./form/OklchColorPicker";
+export { default as OklchColorPicker } from "./form/OklchColorPicker";
 export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
 export type { SwitchProps } from "./form/Switch";
@@ -46,12 +48,17 @@ export { panelWantsFullscreen } from "./layout/panelWidth";
 export { default as ResizeHandle } from "./layout/ResizeHandle";
 export type { ConstrainedImageProps } from "./media/ConstrainedImage";
 export { default as ConstrainedImage } from "./media/ConstrainedImage";
+export type { MediaVolumeControl } from "./media/createMediaVolume";
+export { createMediaVolume } from "./media/createMediaVolume";
 export type { IconName } from "./media/Icon";
 export { default as Icon, ICON_NAMES } from "./media/Icon";
 export type { VideoPlayerProps } from "./media/VideoPlayer";
 export { default as VideoPlayer } from "./media/VideoPlayer";
+export type { VolumeControlProps } from "./media/VolumeControl";
+export { default as VolumeControl } from "./media/VolumeControl";
 export type { ZoomableImageProps } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
+export { usePaneNavigation } from "./nav/paneNav";
 export type {
   FloatingAlign,
   FloatingPanelProps,
@@ -98,7 +105,9 @@ export {
 } from "./theme";
 export {
   activePreset,
+  applyCopiedThemePalette,
   applyPreset,
+  copyableThemePalette,
   getEffectiveColor,
   resetThemeColor,
   resetThemeColors,

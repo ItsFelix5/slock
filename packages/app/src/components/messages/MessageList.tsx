@@ -14,13 +14,6 @@ import {
   waitForMessageElement,
 } from "./scrollAnchor";
 
-// temporary: set localStorage.debugScroll="1" in the console to trace the
-// open/landing sequence
-const dbg = (...args: unknown[]) => {
-  if (typeof localStorage !== "undefined" && localStorage.getItem("debugScroll"))
-    console.log("[scroll]", ...args);
-};
-
 // Keep two viewports of history buffered in the direction of travel.
 const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
 // Cap on the older-history pages we'll fetch automatically to reach a read
@@ -195,19 +188,17 @@ export default function MessageList() {
   // Jump to the newest message whenever the channel changes or its history first
   // loads — without this the list sits at its natural scroll position (the top,
   // i.e. the oldest loaded message) instead of where a chat view is expected to open.
-  // Live messages arriving, and older history loading in above the fold, are both
-  // handled without any per-message-list bookkeeping now — a native `overflow-anchor`
-  // (see MessageList.css) keeps the reader's spot stable as content is prepended
-  // above the viewport, and the ResizeObserver effect above keeps a follow-bottom
-  // reader pinned to new trailing content — this effect only owns the one-time
-  // initial landing.
+  // Live messages arriving are handled by the ResizeObserver effect above (keeps a
+  // follow-bottom reader pinned to new trailing content); older history loading in
+  // above the fold is handled by loadOlderMessagesPreservingScroll below (the browser
+  // doesn't reliably keep scrollTop pinned to the reader's spot on its own here) — this
+  // effect only owns the one-time initial landing.
   createEffect(() => {
     const view = paneView();
     const msgs = messages();
     const switchedView = view?.id !== lastViewId;
     lastViewId = view?.id;
     if (switchedView) {
-      dbg("switch view", { view: view?.id, msgs: msgs.length });
       landingRun += 1;
       positionedViewId = undefined;
       lastScrollTop = 0;
@@ -265,13 +256,6 @@ export default function MessageList() {
       // jumping to the newest loaded message — that's where a reader left off.
       const dividerIndex = gaveUpBackfill ? -1 : findUnreadDividerIndex(msgs, anchor);
       const dividerTs = dividerIndex >= 0 ? msgs[dividerIndex]?.ts : undefined;
-      dbg("land decision", {
-        view: view.id,
-        msgs: msgs.length,
-        dividerIndex,
-        gaveUpBackfill,
-        landing: dividerTs ? "divider" : "bottom",
-      });
       if (dividerTs) landOnDivider(view.id, dividerTs);
       else landOnBottom(view.id);
     }
@@ -284,6 +268,24 @@ export default function MessageList() {
     } finally {
       setIsLoadingNewer(false);
     }
+  }
+
+  // Loading older history prepends rows above the reader's current position —
+  // without re-pinning scrollTop afterward the view stays wherever it was
+  // (usually still scrolled to the very top), which keeps handleScroll seeing
+  // "near top" and firing another load forever. Unlike ThreadPanel's width-resize
+  // anchor restore, there's a real async gap here during which a fast scroller
+  // keeps moving scrollTop on their own — anchoring to a specific row's captured
+  // offset would misread that manual movement as more layout shift and fight it.
+  // A plain scrollHeight delta, read live rather than snapshotted, only ever adds
+  // back the height actually inserted above, on top of wherever they've since scrolled.
+  async function loadOlderMessagesPreservingScroll(channelId: string) {
+    const el = scrollRef;
+    if (!el) return;
+    const prevScrollHeight = el.scrollHeight;
+    await store.messages.loadOlderMessages(channelId);
+    if (scrollRef !== el || paneView()?.id !== channelId) return;
+    el.scrollTop += el.scrollHeight - prevScrollHeight;
   }
 
   // handleScroll reads scrollHeight/clientHeight, which forces a synchronous
@@ -340,14 +342,8 @@ export default function MessageList() {
       nearTop &&
       store.messages.hasMoreHistory(view.id) &&
       !store.messages.hasOlderHistoryError(view.id)
-    ) {
-      dbg("loadOlder (near top)", {
-        scrollTop: el.scrollTop,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight,
-      });
-      store.messages.loadOlderMessages(view.id);
-    }
+    )
+      void loadOlderMessagesPreservingScroll(view.id);
   }
 
   function handleWheel(event: WheelEvent) {
@@ -501,7 +497,10 @@ export default function MessageList() {
                   <Show when={store.messages.hasOlderHistoryError(v().id)}>
                     <div class="message-list-load-error" role="alert">
                       <span>Couldn’t load older messages.</span>
-                      <Button onClick={() => store.messages.loadOlderMessages(v().id)} size="sm">
+                      <Button
+                        onClick={() => void loadOlderMessagesPreservingScroll(v().id)}
+                        size="sm"
+                      >
                         Try again
                       </Button>
                     </div>

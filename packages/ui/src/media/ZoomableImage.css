@@ -136,8 +136,6 @@
   pointer-events: none;
   background: var(--main-bg);
   background-repeat: no-repeat;
-  border: 3px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    0 4px 18px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  border: 3px solid var(--media-lens-border);
+  box-shadow: var(--shadow-media), var(--shadow-inset);
 }

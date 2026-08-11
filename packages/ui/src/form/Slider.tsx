@@ -7,6 +7,7 @@ export interface SliderProps {
   max: number;
   min: number;
   onChange: (value: number) => void;
+  step?: number | "any";
   value: number;
 }
 
@@ -23,7 +24,7 @@ export default function Slider(props: SliderProps) {
         max={props.max}
         min={props.min}
         onInput={(e) => props.onChange(Number(e.currentTarget.value))}
-        step="any"
+        step={props.step ?? "any"}
         type="range"
         value={props.value}
       />
@@ -35,6 +36,7 @@ export default function Slider(props: SliderProps) {
               classList={{
                 active: Math.abs(props.value - (props.min + i() * tickSpacing())) < 0.05,
               }}
+              onclick={() => props.onChange(props.min + i() * tickSpacing())}
             >
               {label}
             </span>

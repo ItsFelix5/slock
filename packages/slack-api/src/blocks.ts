@@ -163,7 +163,7 @@ export type {
   RichTextUsergroupElement,
 } from "./richText";
 
-import type { RichTextBlock } from "./richText";
+import { broadcastRangeFromRichTextBlocks, type RichTextBlock } from "./richText";
 
 export interface UnknownBlock {
   block_id?: string;
@@ -181,6 +181,12 @@ export type Block =
   | InputBlock
   | RichTextBlock
   | UnknownBlock;
+
+export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {
+  return broadcastRangeFromRichTextBlocks(
+    (blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
+  );
+}
 
 // --- modal/home views (views.open / view_opened gateway event) ---
 

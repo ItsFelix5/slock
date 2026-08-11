@@ -1,4 +1,4 @@
-import { plainKey, useShortcut } from "@slock/ui";
+import { useShortcut } from "@slock/ui";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
@@ -42,28 +42,6 @@ export default function Sidebar() {
     keys: "Ctrl/⌘ K",
     label: "Jump to a channel or person",
     match: (e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k",
-    scope: "general",
-  });
-  // Generic roving nav for any plain, non-virtualized list of real rows —
-  // sidebar channels/DMs, and (via the same data-nav-row marker) the
-  // Activity feed and Later views, which replace this list in "feed mode".
-  useShortcut({
-    allowRepeat: true,
-    enabled: () => !!document.activeElement?.closest("[data-nav-row]"),
-    handler: (e) => {
-      const rows = [...document.querySelectorAll<HTMLElement>("[data-nav-row]:not([disabled])")];
-      const current = rows.indexOf(document.activeElement as HTMLElement);
-      const next =
-        e.key === "Home"
-          ? rows[0]
-          : e.key === "End"
-            ? rows[rows.length - 1]
-            : rows[Math.max(0, Math.min(rows.length - 1, current + (e.key === "k" ? -1 : 1)))];
-      next?.focus();
-    },
-    keys: "j / k",
-    label: "Move between list items (channels, activity, saved)",
-    match: plainKey("j", "k", "Home", "End"),
     scope: "general",
   });
   const toggleCategory = (id: string) => {

@@ -284,6 +284,7 @@ export default function ChannelMembersTab(props: {
             <div class="channel-details-member flex-align-center">
               <button
                 class="channel-details-member-main btn-reset flex-align-center"
+                data-nav-row
                 onClick={() => store.users.openUserProfile(u.id)}
                 type="button"
               >

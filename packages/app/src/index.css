@@ -16,7 +16,6 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--text-primary);
   background: var(--main-bg);
-  color-scheme: dark;
 }
 
 button {

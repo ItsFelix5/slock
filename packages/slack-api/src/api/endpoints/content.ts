@@ -1,5 +1,7 @@
 // biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { LinkPreview, SavedItem } from "../../contentTypes";
+import type { SlackFileDetail } from "../../types";
+import { mapFile, mapFileShare } from "../mappers";
 import { apiGet, apiPost, apiPut, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
@@ -103,6 +105,19 @@ export async function fetchCanvasFileUrl(fileId: string): Promise<string | null>
     // failure and should not lose the whole panel over a missing shortcut.
     return null;
   }
+}
+
+// Fetched only when a file's detail view is opened — files.info + files.getShares
+// aren't needed for the lightweight list of cards in Files & links.
+export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> {
+  const data = await apiGet(`/api/files/${fileId}/detail`);
+  if (!data.ok) throw new Error(data.error ?? "files.info failed");
+  return {
+    content: data.content ?? null,
+    contentTruncated: !!data.contentTruncated,
+    file: mapFile(data.file),
+    shares: Array.isArray(data.shares) ? data.shares.map(mapFileShare) : [],
+  };
 }
 
 export async function saveCanvas(fileId: string, markdown: string): Promise<void> {

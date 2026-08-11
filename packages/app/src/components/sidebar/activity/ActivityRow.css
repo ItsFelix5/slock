@@ -21,12 +21,12 @@
 }
 
 .activity-item.unread {
-  background: rgba(var(--accent-rgb), 0.06);
+  background: var(--accent-subtle);
 }
 
 .activity-item.unread:hover,
 .activity-item.unread:focus-within {
-  background: rgba(var(--accent-rgb), 0.1);
+  background: var(--accent-muted);
 }
 
 .activity-item.unread.pinging {
@@ -193,7 +193,7 @@
 
 .activity-unread-dot.unread {
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.13);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 .activity-day-divider {

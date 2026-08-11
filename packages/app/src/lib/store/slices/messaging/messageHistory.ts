@@ -117,12 +117,18 @@ export function createMessageHistory(
   const [threadMeta, setThreadMeta] = createStore<
     Record<string, { error: boolean; loading: boolean }>
   >({});
-  async function ensureThreadRepliesLoaded(channelId: string, ts: string) {
-    if (loadedThreads.has(ts) || threadMeta[ts]?.loading) return;
+  async function ensureThreadRepliesLoaded(channelId: string, ts: string, highlightTs?: string) {
+    // A thread already "loaded" only had its first page (conversations.replies
+    // caps at 200) — a highlightTs from Later/Activity can point past that, so
+    // re-fetch whenever the requested target isn't in what's loaded yet rather
+    // than trusting the one-shot loadedThreads gate.
+    const hasTarget =
+      !highlightTs || untrack(() => threadMessages[ts] ?? []).some((m) => m.ts === highlightTs);
+    if ((loadedThreads.has(ts) && hasTarget) || threadMeta[ts]?.loading) return;
     loadedThreads.add(ts);
     setThreadMeta(ts, { error: false, loading: true });
     try {
-      const messages = await api.fetchReplies(channelId, ts);
+      const messages = await api.fetchReplies(channelId, ts, { untilTs: highlightTs });
       setThreadMessages(ts, (existing = []) => mergeMessages(existing, messages));
       setThreadMeta(ts, { error: false, loading: false });
     } catch {
@@ -132,7 +138,7 @@ export function createMessageHistory(
   }
   createEffect(() => {
     for (const thread of deps.visibleThreads())
-      ensureThreadRepliesLoaded(thread.channelId, thread.ts);
+      ensureThreadRepliesLoaded(thread.channelId, thread.ts, thread.highlightTs);
   });
   function hasMoreHistory(channelId: string) {
     return historyMeta[channelId]?.hasMore ?? true;

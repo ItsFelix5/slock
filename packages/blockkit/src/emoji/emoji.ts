@@ -30,13 +30,7 @@ export interface StandardEmoji {
   unicode: string;
 }
 
-// Every known shortcode (including aliases like "+1" and "thumbsup", and
-// per-skin-tone variants like "thumbsup::skin-tone-2") mapped to its unicode
-// glyph, sourced from Slack's own emoji index rather than GitHub's gemoji
-// dataset — the two disagree often enough (missing/renamed shortcodes) that
-// gemoji was producing wrong or missing standard emoji.
-// Slack has a couple of legacy names not present in its own current index.
-const STANDARD_EMOJI: Record<string, string> = { brokenheart: "💔" };
+const STANDARD_EMOJI: Record<string, string> = {};
 // Canonical (non-alias) entries only, for the emoji picker's search list —
 // aliases are folded in as extra search terms instead of separate rows.
 const STANDARD_EMOJI_LIST: StandardEmoji[] = [];
