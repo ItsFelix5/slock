@@ -3,14 +3,11 @@ import { type Credentials, jsonHeaders, slackCookieHeader } from "./auth.ts";
 import { errorMessage } from "./http/errorMessage.ts";
 
 const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
-// Only bounds connecting + headers, not the body stream that gets piped
-// through afterward — large file downloads/uploads shouldn't get cut off
-// mid-transfer, but a stalled upstream that never responds at all should.
+
 const FILE_CONNECT_TIMEOUT_MS = 15_000;
 const SLACK_ASSET_KEY_RE =
   /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$/i;
-// Excludes "video": slack-imgs.com is an image proxy, so third-party unfurl
-// videos are left as direct links rather than passed through it.
+
 const SLACK_IMGS_KEY_RE = /(?:^|_)(?:avatar|icon|image|thumb)(?:_|$)/i;
 
 type CapabilityPurpose = "download" | "upload";
@@ -56,11 +53,6 @@ function isAllowedSlackUrl(value: string): boolean {
   }
 }
 
-// Third-party unfurl/attachment images (e.g. a link preview's image_url)
-// aren't behind Slack's cookie, so they don't need our signed fetch-through
-// proxy — routing them there would also leak the user's Slack session cookie
-// to an arbitrary external host. Slack's own client instead hands these to
-// its public slack-imgs.com image proxy, which we mirror here.
 function slackImgsProxyUrl(value: string): string | null {
   try {
     const parsed = new URL(value);
@@ -106,11 +98,17 @@ async function slackFileResponse(
     return new Response("invalid url", { headers: jsonHeaders, status: 400 });
   }
   if (!ALLOWED_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
-    return new Response("host not allowed", { headers: jsonHeaders, status: 403 });
+    return new Response("host not allowed", {
+      headers: jsonHeaders,
+      status: 403,
+    });
   }
-  if (!creds) return new Response("not configured", { headers: jsonHeaders, status: 401 });
-  // Aborts only if upstream never responds at all; cleared once headers land
-  // so a slow-but-streaming download isn't cut off mid-transfer.
+  if (!creds)
+    return new Response("not configured", {
+      headers: jsonHeaders,
+      status: 401,
+    });
+
   const controller = new AbortController();
   const connectTimer = setTimeout(() => controller.abort(), FILE_CONNECT_TIMEOUT_MS);
   let fileRes: Response;
@@ -194,13 +192,14 @@ export async function slackUploadResponse(
     return new Response("invalid url", { headers: jsonHeaders, status: 400 });
   }
   if (!ALLOWED_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
-    return new Response("host not allowed", { headers: jsonHeaders, status: 403 });
+    return new Response("host not allowed", {
+      headers: jsonHeaders,
+      status: 403,
+    });
   }
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(body)]), filename ?? "file");
-  // Unlike the download side, the whole upload (send + response) happens
-  // inside this one fetch() call, so the timeout has to cover the full
-  // transfer rather than just connecting.
+
   try {
     const uploadRes = await fetch(parsed, {
       body: form,
@@ -221,7 +220,10 @@ export async function slackUploadResponse(
     );
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: errorMessage(error, "Slack file upload failed"), ok: false }),
+      JSON.stringify({
+        error: errorMessage(error, "Slack file upload failed"),
+        ok: false,
+      }),
       {
         headers: jsonHeaders,
         status: 502,

@@ -35,7 +35,7 @@ export default function ThreadPanel() {
   const [replyTarget, setReplyTarget] = createSignal<{ ts: string; permalink: string } | null>(
     null,
   );
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let messagesRef: HTMLDivElement | undefined;
   let cancelJump: (() => void) | undefined;
   const messages = createMemo(() => {
@@ -80,12 +80,6 @@ export default function ThreadPanel() {
   });
   onCleanup(() => cancelJump?.());
 
-  // Opening a thread via a specific reply (e.g. from Later) resolves to the
-  // thread root, so once that reply loads in, scroll to and flash it rather
-  // than leaving the reader at the top of the thread.
-  // Track the navigation request itself, rather than just its timestamps. A
-  // Later item can be clicked again while this thread is already open; that
-  // creates a fresh ThreadRef with the same values and should jump again.
   let handledHighlightRequest: ReturnType<typeof thread> = null;
   let highlightedRequestJustHandled: ReturnType<typeof thread> = null;
   createEffect(() => {
@@ -168,9 +162,6 @@ export default function ThreadPanel() {
     if (messagesRef) shouldFollowBottom = isScrolledToBottom(messagesRef);
   }
 
-  // Dragging the resize handle rewraps message text on every pointermove, which
-  // otherwise leaves scrollTop as a stale pixel offset and visibly yanks the
-  // reader's spot around. Re-pin whichever row they were looking at instead.
   function setWidthAnchored(w: number) {
     const el = messagesRef;
     if (!el) {
@@ -219,11 +210,6 @@ export default function ThreadPanel() {
                 }
               >
                 <button
-                  aria-label={
-                    store.messages.isThreadSubscribed(t().ts)
-                      ? "Unfollow thread"
-                      : "Get notified about new replies"
-                  }
                   class="thread-panel-subscribe-btn btn-reset flex-center"
                   classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
                   disabled={
@@ -246,13 +232,11 @@ export default function ThreadPanel() {
             </div>
           </PanelHeader>
           <Show when={store.messages.isLoadingThread(t().ts) && messages().length === 0}>
-            <div class="thread-panel-status text-dim" role="status">
-              Loading thread…
-            </div>
+            <div class="thread-panel-status text-dim">Loading thread…</div>
           </Show>
           <Show when={store.messages.hasThreadError(t().ts)}>
-            <div class="thread-panel-error" role="alert">
-              <span>Couldn’t load this thread.</span>
+            <div class="thread-panel-error">
+              <span>Couldn't load this thread.</span>
               <Button
                 onClick={() => store.messages.ensureThreadRepliesLoaded(t().channelId, t().ts)}
                 size="sm"
@@ -294,7 +278,7 @@ export default function ThreadPanel() {
                     onClick={cancelReply}
                     type="button"
                   >
-                    <Icon name="close" size={12} />
+                    <Icon name="close" size={16} />
                   </button>
                 </Tooltip>
               </div>

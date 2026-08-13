@@ -10,9 +10,6 @@ import {
   unresolvedAuthorFallback,
 } from "../../messages/parts/messageRenderState";
 
-// A pasted message permalink round-trips as a bare, un-bracketed URL in
-// `text` (see replyLink.ts) — Mrkdwn only autolinks Slack's `<url|label>`
-// token, so left alone this renders as plain, unclickable text.
 export function ActivityMessageText(props: { text: string }) {
   const ref = createMemo(() => parseReplyLink(props.text));
   return (

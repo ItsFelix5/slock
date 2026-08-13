@@ -16,9 +16,6 @@ export function scrollToBottom(container: HTMLElement) {
   container.scrollTop = container.scrollHeight;
 }
 
-/** Topmost message row still (partially) below the container's visible top —
- * the row a reader's eye is actually on, used to keep that spot stable across
- * a layout change instead of leaving scrollTop as a raw pixel offset. */
 function findTopAnchor(container: HTMLElement): ScrollAnchor | null {
   const containerTop = container.getBoundingClientRect().top;
   for (const row of container.querySelectorAll<HTMLElement>("[data-message-ts]")) {
@@ -32,9 +29,6 @@ export function captureScrollAnchor(container: HTMLElement): ScrollAnchor | null
   return findTopAnchor(container);
 }
 
-/** Re-pins `anchor` to the viewport offset it had when captured. Call after a
- * layout-affecting change (e.g. a panel width resize reflowing message text)
- * so the reader's spot doesn't silently drift. */
 export function restoreScrollAnchor(container: HTMLElement, anchor: ScrollAnchor | null) {
   if (!anchor) return;
   const containerTop = container.getBoundingClientRect().top;
@@ -42,11 +36,6 @@ export function restoreScrollAnchor(container: HTMLElement, anchor: ScrollAnchor
   container.scrollTop += newOffset - anchor.offset;
 }
 
-/** Briefly highlights a "jumped to" message, e.g. after a reply-reference
- * click, then removes the highlight. Shared by jumpToMessageInContainer
- * below (ThreadPanel's plain, unwindowed render) and MessageList.tsx's own
- * virtualizer-based jump (which finds the element itself once
- * virtualizer.scrollToIndex has brought it into the rendered window). */
 export function flashMessageElement(el: HTMLElement) {
   el.classList.add("message-flash");
   const timer = setTimeout(() => el.classList.remove("message-flash"), FLASH_MS);
@@ -56,10 +45,6 @@ export function flashMessageElement(el: HTMLElement) {
   };
 }
 
-/** Waits for a virtualized row to enter the DOM, then invokes `onFound` with
- * it. Returns a cancellation function so a channel switch (or a later call
- * for a different message) can't act on a row from the conversation that
- * replaced the original target. */
 export function waitForMessageElement(
   container: HTMLElement,
   ts: string,
@@ -92,18 +77,10 @@ export function waitForMessageElement(
   return stop;
 }
 
-/** Waits for a virtualized row to enter the DOM before highlighting it. */
 export function flashMessageWhenRendered(container: HTMLElement, ts: string): () => void {
   return waitForMessageElement(container, ts, flashMessageElement);
 }
 
-/** Scrolls to a message and flashes it, then keeps it centered for a short
- * window afterward. Attachments (images, files) often resolve their real
- * height a beat after the message renders, which would otherwise nudge the
- * target out of view right after landing on it. Only used by the
- * non-virtualized render path (ThreadPanel) — the virtualized channel view
- * uses virtualizer.scrollToIndex instead (see MessageList.tsx), which
- * already keeps a smooth-scroll target aligned as nearby rows resize. */
 export function jumpToMessageInContainer(container: HTMLElement, ts: string) {
   const el = container.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
   if (!el) return () => {};

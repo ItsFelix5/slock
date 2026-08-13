@@ -26,7 +26,6 @@ export type OverlayProps = OverlayLabel & {
 };
 
 export default function Overlay(props: OverlayProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let overlayRef: HTMLDivElement | undefined;
   const previouslyFocused =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -90,12 +89,7 @@ export default function Overlay(props: OverlayProps) {
   });
 
   return (
-    // Portaled to <body> — callers can be mounted anywhere, including inside
-    // a virtualized message row (translateY transform), and any transformed
-    // ancestor would otherwise contain this fixed-position overlay instead
-    // of letting it cover the viewport.
     <Portal mount={document.body}>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click-to-close is a mouse-only convenience; callers pair this with useEscapeClose for the keyboard equivalent */}
       <div
         aria-label={props.ariaLabel}
         aria-labelledby={props.ariaLabelledBy}
@@ -103,7 +97,6 @@ export default function Overlay(props: OverlayProps) {
         class={`overlay ${props.align === "top" ? "overlay-top" : ""}`}
         onClick={(e) => e.target === e.currentTarget && props.onClose()}
         ref={overlayRef}
-        role="dialog"
         tabIndex={-1}
       >
         <FloatingMountContext.Provider value={() => overlayRef}>

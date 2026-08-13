@@ -34,7 +34,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
   const [searching, setSearching] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
   const listboxId = createUniqueId();
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid.js assigns via ref attribute
+
   let listRef: HTMLDivElement | undefined;
   const { activeIndex, setActiveIndex, optionId, activeOptionId } = createListboxActiveIndex(
     () => items().length,
@@ -117,7 +117,6 @@ export default function ComposePicker<T extends PickerItem>(props: {
         onInput={(e) => onInput(e.currentTarget.value)}
         onKeyDown={onKeyDown}
         placeholder={props.placeholder}
-        role="combobox"
         spellcheck={false}
         type="text"
         value={query()}
@@ -128,11 +127,10 @@ export default function ComposePicker<T extends PickerItem>(props: {
         class="compose-picker-list"
         id={listboxId}
         ref={listRef}
-        role="listbox"
       >
         <Show
           fallback={
-            <div class="compose-picker-empty" role="status">
+            <div class="compose-picker-empty">
               {searching()
                 ? props.searchingMessage
                 : searchError()
@@ -151,7 +149,6 @@ export default function ComposePicker<T extends PickerItem>(props: {
                 id={optionId(index())}
                 onClick={() => props.onSelect(item.id)}
                 onMouseEnter={() => setActiveIndex(index())}
-                role="option"
                 tabIndex={-1}
                 type="button"
               >

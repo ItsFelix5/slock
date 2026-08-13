@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { getLastSeen, recordSeenActive } from "../../presence/lastSeen.ts";
@@ -18,16 +17,12 @@ function cachedUserForId(data: any, id: string): any | undefined {
 }
 
 export const accountRoutes: Route[] = [
-  // Bot authors (message.bot_id/app_id, no inline bot_profile) aren't valid
-  // input to the users cache endpoint below — resolved through bots.info instead.
   route("GET", "/api/bots/:id", async (ctx) => {
     const data = await callSlack("bots.info", { bot: ctx.params.id }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "bots.info", ctx.creds, ctx.acceptEncoding);
     return jsonResponse({ bot: trimBot(data.bot), ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // Batched user-by-id lookup, backed by Slack's edge cache API (the regular
-  // users.info Web API method is restricted on Enterprise Grid).
   route("POST", "/api/users/lookup", async (ctx) => {
     const { ids } = (await ctx.body.json()) as { ids?: string[] };
     if (!ids?.length) return errorResponse("invalid_ids", 400);
@@ -61,15 +56,6 @@ export const accountRoutes: Route[] = [
     );
   }),
 
-  // The edge users/info cache above (used everywhere for cheap avatar/name/status
-  // hydration) never carries custom profile field *values* for anyone, self
-  // included — only the full users.profile.get call does, so the profile panel
-  // fetches it separately instead of paying that cost on every batched lookup.
-  // "me" means the client is asking about itself — passed as a distinct id
-  // rather than the real user id because explicitly passing `user: <own id>`
-  // resolves your own field visibility as if you were someone else viewing
-  // it, silently dropping fields; omitting `user` entirely is what actually
-  // returns everything for the authed user.
   route("GET", "/api/users/:id/profile", async (ctx) => {
     const params: Record<string, string> = ctx.params.id === "me" ? {} : { user: ctx.params.id };
     const data = await callSlack("users.profile.get", params, ctx.creds);
@@ -82,9 +68,6 @@ export const accountRoutes: Route[] = [
     );
   }),
 
-  // Passive gateway presence_change events only ever arrive for people
-  // already in your DM/sidebar list, so opening a profile falls back to
-  // asking Slack directly rather than showing nothing for anyone else.
   route("GET", "/api/users/:id/presence", async (ctx) => {
     const data = await callSlack("users.getPresence", { user: ctx.params.id }, ctx.creds);
     if (!data.ok) {
@@ -96,8 +79,6 @@ export const accountRoutes: Route[] = [
     return jsonResponse({ ok: true, presence }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // team.profile.get's field *definitions* (label/ordering) are workspace-wide,
-  // separate from each user's field *values*.
   route("GET", "/api/profile-fields", async (ctx) => {
     const data = await callSlack("team.profile.get", {}, ctx.creds);
     if (!data.ok) {
@@ -109,7 +90,7 @@ export const accountRoutes: Route[] = [
         fields: fields
           .filter((f) => !f.is_hidden)
           .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
-          .map((f) => ({ id: f.id, label: f.label })),
+          .map((f) => ({ fieldName: f.field_name, id: f.id, label: f.label })),
         ok: true,
       },
       ctx.creds,
@@ -118,7 +99,9 @@ export const accountRoutes: Route[] = [
   }),
 
   route("PUT", "/api/profile", async (ctx) => {
-    const { profile } = (await ctx.body.json()) as { profile?: Record<string, unknown> };
+    const { profile } = (await ctx.body.json()) as {
+      profile?: Record<string, unknown>;
+    };
     if (!profile) return errorResponse("invalid_profile", 400);
     return mutate("users.profile.set", { profile: JSON.stringify(profile) }, ctx);
   }),
@@ -142,13 +125,13 @@ export const accountRoutes: Route[] = [
   }),
 
   route("PUT", "/api/presence", async (ctx) => {
-    const { presence } = (await ctx.body.json()) as { presence?: "auto" | "away" };
+    const { presence } = (await ctx.body.json()) as {
+      presence?: "auto" | "away";
+    };
     if (!presence) return errorResponse("invalid_presence", 400);
     return mutate("users.setPresence", { presence }, ctx);
   }),
 
-  // Org-wide member search — a live per-query search, so a 100k-member
-  // workspace never needs to be paged through and cached locally.
   route("GET", "/api/directory", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ truncated: false, users: [] }, ctx.creds, ctx.acceptEncoding);

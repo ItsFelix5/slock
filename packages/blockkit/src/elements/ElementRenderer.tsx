@@ -9,6 +9,7 @@ import type { BlockActionContext } from "../BlockKit";
 import Button from "./Button";
 import ImageElement from "./ImageElement";
 import Overflow from "./Overflow";
+import Controls from "./Controls";
 
 export default function ElementRenderer(props: {
   blockId?: string;
@@ -21,7 +22,7 @@ export default function ElementRenderer(props: {
         <Show
           fallback={
             <Show
-              fallback={<span class="bk-unsupported">[{props.el.type}]</span>}
+              fallback={<Controls blockId={props.blockId} context={props.context} el={props.el} />}
               when={props.el.type === "overflow"}
             >
               <Overflow

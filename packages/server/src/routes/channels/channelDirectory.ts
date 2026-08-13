@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { lookupFlaronChannel } from "../../lookup/flaronChannel.ts";
@@ -15,7 +14,6 @@ function cachedChannelForId(data: any, id: string): any | undefined {
 }
 
 export const channelDirectoryRoutes: Route[] = [
-  // Batched channel lookup by id, backed by Slack's edge cache API.
   route("POST", "/api/channels/lookup", async (ctx) => {
     const { ids } = (await ctx.body.json()) as { ids?: string[] };
     if (!ids?.length) return errorResponse("invalid_ids", 400);
@@ -24,11 +22,7 @@ export const channelDirectoryRoutes: Route[] = [
       { updated_ids: Object.fromEntries(ids.map((id) => [id, 0])) },
       ctx.creds,
     );
-    // A single unresolvable id (foreign/deleted channel) makes Slack fail the
-    // *whole* batch with channel_not_found instead of nulling just that id —
-    // treat it as "nothing cached" so co-batched ids still get a real answer
-    // (and a shot at the Flaron fallback below) instead of every id in the
-    // batch rejecting and retrying in lockstep forever.
+
     if (!data.ok && data.error !== "channel_not_found") {
       return slackErrorResponse(data, "edge channels/info", ctx.creds, ctx.acceptEncoding);
     }
@@ -36,14 +30,17 @@ export const channelDirectoryRoutes: Route[] = [
       ids.map(async (id) => {
         const raw = data.ok ? cachedChannelForId(data, id) : undefined;
         if (raw?.id) return [id, trimChannel(raw)] as const;
-        // Not visible to this workspace's Slack API (cross-workspace/shared
-        // link) — Flaron's public directory is stateless, so it's cheap to
-        // check in the same request rather than round-tripping the client.
+
         const flaron = await lookupFlaronChannel(id);
         return [
           id,
           flaron
-            ? { id: flaron.id, is_private: flaron.private, name: flaron.name, topic: flaron.topic }
+            ? {
+                id: flaron.id,
+                is_private: flaron.private,
+                name: flaron.name,
+                topic: flaron.topic,
+              }
             : null,
         ] as const;
       }),
@@ -55,11 +52,6 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
-  // search.modules.channels only indexes channels the caller is already a
-  // member of — the edge cache's channels/search is what the real client
-  // uses for #-mention/browse autocomplete, and it covers the whole
-  // workspace's public channels too. Its response is a bare array, not the
-  // usual {ok, ...} envelope.
   route("GET", "/api/channels/browse", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ items: [], ok: true }, ctx.creds, ctx.acceptEncoding);
@@ -115,14 +107,11 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
-  // Backs the channel header's "Files & links" panel. Slack's own client
-  // splits this into three calls (media files, non-media files, links) across
-  // tabs; we show everything in one merged list, so one search.modules.files
-  // call (no type: filter) plus conversations.searchLinks covers it.
   route("GET", "/api/channels/:id/files-links", async (ctx) => {
     const channelId = ctx.params.id;
     const channelName = ctx.searchParams.get("channelName")?.trim() ?? "";
     const query = ctx.searchParams.get("query")?.trim() ?? "";
+    const page = Math.max(1, Number.parseInt(ctx.searchParams.get("page") ?? "1", 10) || 1);
     const filesQuery = `in:<#${channelId}${channelName ? `|${channelName}` : ""}> ${query}`.trim();
     const [filesData, linksData] = await Promise.all([
       callSlack(
@@ -138,7 +127,7 @@ export const channelDirectoryRoutes: Route[] = [
           max_filter_suggestions: "10",
           module: "files",
           no_user_profile: "1",
-          page: "1",
+          page: String(page),
           query: filesQuery,
           query_rewrite_disabled: "false",
           search_context: "desktop_files_channel_tab",
@@ -151,7 +140,13 @@ export const channelDirectoryRoutes: Route[] = [
       ),
       callSlack(
         "conversations.searchLinks",
-        { channel_id: channelId, page: "1", query, sort: "timestamp", sort_dir: "desc" },
+        {
+          channel_id: channelId,
+          page: String(page),
+          query,
+          sort: "timestamp",
+          sort_dir: "desc",
+        },
         ctx.creds,
       ),
     ]);
@@ -170,6 +165,9 @@ export const channelDirectoryRoutes: Route[] = [
       {
         files: Array.isArray(filesData.items) ? filesData.items : [],
         filesTotal: filesData.pagination?.total_count ?? 0,
+        hasMore:
+          page * 50 < (filesData.pagination?.total_count ?? 0) ||
+          page * 50 < (linksData.pagination?.total_count ?? 0),
         links: Array.isArray(linksData.items) ? linksData.items : [],
         linksTotal: linksData.pagination?.total_count ?? 0,
         ok: true,
@@ -195,7 +193,10 @@ export const channelDirectoryRoutes: Route[] = [
     }
     const assignments: any[] = Array.isArray(data.role_assignments) ? data.role_assignments : [];
     return jsonResponse(
-      { ok: true, userIds: [...new Set(assignments.flatMap((a) => a.users ?? []))] },
+      {
+        ok: true,
+        userIds: [...new Set(assignments.flatMap((a) => a.users ?? []))],
+      },
       ctx.creds,
       ctx.acceptEncoding,
     );

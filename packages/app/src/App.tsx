@@ -12,7 +12,6 @@ import {
 } from "@slock/ui";
 import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
-import CanvasPanel from "./components/channel/CanvasPanel";
 import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
 import ChannelHeader from "./components/channel/ChannelHeader";
@@ -52,10 +51,10 @@ const blockKitResolver: BlockKitResolver = {
     const channel = store.channels.channelById(id);
     return channel
       ? {
-        isMember: store.channels.isChannelMember(id),
-        isPrivate: channel.private,
-        name: channelDisplayName(channel),
-      }
+          isMember: store.channels.isChannelMember(id),
+          isPrivate: channel.private,
+          name: channelDisplayName(channel),
+        }
       : undefined;
   },
   resolveUser: (id) => {
@@ -163,11 +162,11 @@ function App() {
       }[nav] ||
       (view
         ? conversationDisplayName(
-          view.id,
-          view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
-          view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
-          store.users.userById,
-        )
+            view.id,
+            view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
+            view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
+            store.users.userById,
+          )
         : "") ||
       "slock";
   });
@@ -176,7 +175,7 @@ function App() {
     navigate: (target, options) => navigateToSlackPermalink(target, store.viewState, options),
     onError: (error) => {
       console.error("Failed to open Slack permalink", error);
-      actionFeedback.flash("navigation", "Couldn’t open that message. Try again.", "error");
+      actionFeedback.flash("navigation", "Couldn't open that message. Try again.", "error");
     },
     onUnavailable: () =>
       actionFeedback.flash("navigation", "That message is unavailable.", "error"),
@@ -206,10 +205,7 @@ function App() {
 
     event.preventDefault();
     actionFeedback.clear("navigation");
-    // Probe the message before navigating — a link to a channel we can't read
-    // (private, not a member) would otherwise switch views only to land on a
-    // dead end. A newer primary click invalidates this probe so a slow response
-    // cannot unexpectedly pull the user away from their newer destination.
+
     const nav = store.viewState.nav();
     const keepNav = nav === "later" || nav === "activity";
     void permalinkOpener.open(target, { keepNav });
@@ -233,8 +229,8 @@ function App() {
     <BlockKitResolverContext.Provider value={blockKitResolver}>
       <Show
         fallback={
-          <main class="app-bootstrap-error flex-center flex-col" role="alert">
-            <h1>Couldn’t load your workspace</h1>
+          <main class="app-bootstrap-error flex-center flex-col">
+            <h1>Couldn't load your workspace</h1>
             <p>Check your connection and try again. Your local settings are unchanged.</p>
             <Button
               disabled={store.resources.bootstrap.loading}
@@ -269,7 +265,6 @@ function App() {
           <UsergroupDetails />
           <ChannelDetails />
           <PinnedPanel />
-          <CanvasPanel />
           <ContextActions />
           <ViewModal />
         </div>

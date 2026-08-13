@@ -14,10 +14,7 @@ export async function saveEditableField<T>(options: {
     }
     try {
       await options.refresh();
-    } catch {
-      // The edit is server-confirmed even if its follow-up resource refresh
-      // fails; the resource owns its retry/error state.
-    }
+    } catch {}
     return true;
   } finally {
     options.setPending(false);

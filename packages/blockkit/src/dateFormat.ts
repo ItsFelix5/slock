@@ -1,9 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Formatter keys are Slack's documented date tokens.
-// Renders Slack's `<!date^ts^{format}|fallback>` format-token mini-language —
-// used both to display a date node (mrkdwn.tsx) and to preview each format
-// option in the composer's date picker before it's inserted, so the two never
-// drift out of sync.
-
 const MONTH_NAMES = [
   "January",
   "February",
@@ -82,7 +76,11 @@ function time(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 function timeSecs(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 function ago(date: Date): string {
   const seconds = Math.round((Date.now() - date.getTime()) / 1000);
@@ -125,9 +123,6 @@ export function formatSlackDate(timestamp: number, fallback?: string): string {
   }
 }
 
-// Tooltip text for a rendered date token — spells out the same instant the
-// short token label (e.g. "1:00 PM", "3 seconds ago") stands for, unambiguously,
-// in the viewer's own timezone.
 export function formatFullDateTime(timestamp: number): string {
   const date = new Date(timestamp * 1000);
   return date.toLocaleString([], {
@@ -142,8 +137,6 @@ export function formatFullDateTime(timestamp: number): string {
   });
 }
 
-// Same as formatFullDateTime, but for a date-only mention ("yesterday") that
-// has no time of day to show.
 export function formatFullDate(timestamp: number): string {
   const date = new Date(timestamp * 1000);
   return date.toLocaleDateString([], {
@@ -183,7 +176,7 @@ function partsInZone(ms: number, timeZone: string) {
     map[part.type] = part.value;
   return {
     day: Number(map.day),
-    // Some locales format midnight as "24" rather than "00" in hour12: false mode.
+
     hour: map.hour === "24" ? 0 : Number(map.hour),
     minute: Number(map.minute),
     month: Number(map.month),
@@ -192,12 +185,34 @@ function partsInZone(ms: number, timeZone: string) {
   };
 }
 
-// Resolves a bare wall-clock time (e.g. someone typing "1pm" in a message) to
-// the real instant it refers to: hour:minute on whichever calendar day
-// `anchorMs` falls on in `timeZone` (the sender's, or the viewer's own when
-// unknown, unless the text named one explicitly — "5pm UTC"). Re-derives the
-// zone's offset at the guessed instant rather than assuming a fixed one, so
-// DST transitions resolve correctly.
+function timeZoneOffsetAt(ms: number, timeZone: string): number {
+  const parts = partsInZone(ms, timeZone);
+  return Math.round(
+    (Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) -
+      ms) /
+      60_000,
+  );
+}
+
+export function zonedDateTimeToMs(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second = 0,
+  timeZone?: string,
+): number {
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  return utcGuess - timeZoneOffsetAt(utcGuess, zone) * 60_000;
+}
+
+export function timeZoneOffsetAtAnchor(anchorMs: number, timeZone?: string): number {
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return timeZoneOffsetAt(anchorMs, zone);
+}
+
 export function zonedWallTimeToMs(
   anchorMs: number,
   hour: number,
@@ -206,24 +221,13 @@ export function zonedWallTimeToMs(
 ): number {
   const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const anchor = partsInZone(anchorMs, zone);
-  const utcGuess = Date.UTC(anchor.year, anchor.month - 1, anchor.day, hour, minute);
-  const asIfUtc = partsInZone(utcGuess, zone);
-  const offset =
-    Date.UTC(asIfUtc.year, asIfUtc.month - 1, asIfUtc.day, asIfUtc.hour, asIfUtc.minute) - utcGuess;
-  return utcGuess - offset;
+  return zonedDateTimeToMs(anchor.year, anchor.month, anchor.day, hour, minute, 0, zone);
 }
 
-// Resolves "the calendar day `dayOffset` days from whichever day `anchorMs`
-// falls on, in `timeZone`" (e.g. "yesterday") to an instant on that day —
-// noon, arbitrarily, since callers only format this as a date.
 export function relativeDayMs(anchorMs: number, dayOffset: number, timeZone?: string): number {
   const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const anchor = partsInZone(anchorMs, zone);
-  const utcGuess = Date.UTC(anchor.year, anchor.month - 1, anchor.day + dayOffset, 12, 0);
-  const asIfUtc = partsInZone(utcGuess, zone);
-  const offset =
-    Date.UTC(asIfUtc.year, asIfUtc.month - 1, asIfUtc.day, asIfUtc.hour, asIfUtc.minute) - utcGuess;
-  return utcGuess - offset;
+  return zonedDateTimeToMs(anchor.year, anchor.month, anchor.day + dayOffset, 12, 0, 0, zone);
 }
 
 export const DATE_FORMAT_OPTIONS = [
@@ -236,27 +240,29 @@ export const DATE_FORMAT_OPTIONS = [
   { format: "{date_long_pretty}", label: "With weekday, relative" },
 ];
 
+export const DATE_FORMAT_OPTION_PAIRS = [
+  { normal: DATE_FORMAT_OPTIONS[0] },
+  { normal: DATE_FORMAT_OPTIONS[1], relative: DATE_FORMAT_OPTIONS[4] },
+  { normal: DATE_FORMAT_OPTIONS[2], relative: DATE_FORMAT_OPTIONS[5] },
+  { normal: DATE_FORMAT_OPTIONS[3], relative: DATE_FORMAT_OPTIONS[6] },
+];
+
 export const TIME_FORMAT_OPTIONS = [
   { format: "{time}", label: "Hours and minutes" },
   { format: "{time_secs}", label: "Including seconds" },
 ];
 
-// Format a duration in seconds as mm:ss (used by AudioFile for waveform playback).
 export function formatDuration(seconds: number | undefined): string {
   const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds ?? 0)) : 0;
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-// Calculate start of day at midnight for a given timestamp (ms).
-// Used to compute relative time spans in activity/presence.
 export function startOfDayMs(ts: number): number {
   const d = new Date(ts);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
 
-// Format how long ago a user was last seen, relative to a given now timestamp (ms).
-// Returns strings like "just now", "5m ago", "yesterday at 3:00 PM", etc.
 export function formatLastSeen(seenAt: number, now: number): string {
   const diffMs = now - seenAt;
   const minute = 60_000;
@@ -274,11 +280,15 @@ export function formatLastSeen(seenAt: number, now: number): string {
     return `yesterday at ${timeStr}`;
   }
   if (dayDiff < 7) return `${dayDiff}d ago`;
-  return new Date(seenAt).toLocaleDateString([], { day: "numeric", month: "short" });
+  return new Date(seenAt).toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  });
 }
 
-// Format a wall-clock time (hour:minute) in the viewer's locale.
-// Used in activity thread rows where dates are already grouped.
 export function formatTime(time: number): string {
-  return new Date(time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return new Date(time).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

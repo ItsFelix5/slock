@@ -6,9 +6,6 @@ import { actionFeedback } from "../feedback";
 import type { ThreadRef, View } from "../types";
 import { createLatestValueSync } from "./readSync/latestValueSync";
 
-// The "new messages" divider's boundary condition — shared by MessageRow.tsx
-// (checking a single row) and MessageRows.tsx (scanning for that row's index)
-// so the arithmetic lives in exactly one place.
 export function isUnreadDividerBoundary(
   ts: string,
   prevTs: string | undefined,
@@ -19,11 +16,6 @@ export function isUnreadDividerBoundary(
   );
 }
 
-// The unread divider's row index within `messages` for a given read-cursor
-// anchor (see isUnreadDividerBoundary) — used by MessageList.tsx to land on
-// it by index (virtualizer.scrollToIndex) rather than by querying the DOM.
-// -1 for "no divider to show" — either there's no read cursor yet, or the
-// sentinel (Infinity) meaning "already caught up" (see unreadDividerTsForChannel).
 export function findUnreadDividerIndex(messages: Message[], anchor: number | undefined): number {
   if (anchor == null || !Number.isFinite(anchor)) return -1;
   return messages.findIndex((msg, index) =>
@@ -31,10 +23,6 @@ export function findUnreadDividerIndex(messages: Message[], anchor: number | und
   );
 }
 
-// client.counts' mention badge is only fetched once at boot (see bootstrap's
-// buildUnreadMap) and never refreshed, so left alone it goes stale the moment
-// a mention arrives or gets read during the session — keep it in sync locally
-// wherever we already tell Slack "read up to here".
 export function createUnreadSlice(deps: {
   patchChannel: (id: string, patch: Partial<Channel>) => void;
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
@@ -48,9 +36,6 @@ export function createUnreadSlice(deps: {
 }) {
   const [unreadChannelIds, setUnreadChannelIds] = createStore<Record<string, boolean>>({});
 
-  // Seed from client.counts (via bootstrap) so a fresh load shows the real
-  // unread dots immediately, instead of waiting for a live event to touch
-  // each channel/DM.
   let unreadIdsSeeded = false;
   createEffect(() => {
     const data = deps.bootstrap();
@@ -59,16 +44,9 @@ export function createUnreadSlice(deps: {
     for (const c of data.channels) if (c.unread) setUnreadChannelIds(c.id, true);
     for (const dm of data.directMessages) if (dm.unread) setUnreadChannelIds(dm.id, true);
   });
-  // Per-channel real Slack read cursors (client.counts' last_read) rather than a
-  // single locally-invented "activity read at" timestamp — an activity item is
-  // unread if its ts is past the *account's own* read cursor for that channel,
-  // the same signal Slack's real unread badges use. Sourced from the same
-  // bootstrap client.counts call above rather than a second fetch.
+
   const [lastReadByChannel, setLastReadByChannel] = createStore<Record<string, number>>({});
-  // Where the "new messages" divider line sits — frozen at the read cursor's
-  // position from *before* the current visit marks everything read, so it
-  // doesn't vanish the instant you open the channel. Reset when you leave so
-  // the next visit re-anchors to whatever's unread by then.
+
   const [unreadDividerTs, setUnreadDividerTs] = createStore<Record<string, number | undefined>>({});
 
   const [lastReadSeeded, setLastReadSeeded] = createSignal(false);
@@ -79,19 +57,18 @@ export function createUnreadSlice(deps: {
     for (const [id, ts] of Object.entries(data.lastReadByChannel)) setLastReadByChannel(id, ts);
   });
 
-  // Slack answers conversations.mark/subscriptions.thread.mark with
-  // channel_not_found once you've left the channel or closed the DM — routine
-  // whenever that happens while a read-mark from the visit is still in
-  // flight, not something the user needs an error toast about.
   const isChannelGoneError = (error: unknown) =>
     error instanceof Error && error.message === "channel_not_found";
 
-  const channelReadSync = createLatestValueSync<{ channelId: string; ts: string }>({
+  const channelReadSync = createLatestValueSync<{
+    channelId: string;
+    ts: string;
+  }>({
     key: (cursor) => cursor.channelId,
     onError: (cursor, error) => {
       if (isChannelGoneError(error)) return true;
       console.error("Failed to sync channel read cursor", error);
-      actionFeedback.flash(cursor.channelId, "Couldn’t sync read state.", "error");
+      actionFeedback.flash(cursor.channelId, "Couldn't sync read state.", "error");
     },
     version: (cursor) => parseFloat(cursor.ts),
     write: async (cursor) => {
@@ -107,7 +84,7 @@ export function createUnreadSlice(deps: {
     onError: (cursor, error) => {
       if (isChannelGoneError(error)) return true;
       console.error("Failed to sync thread read cursor", cursor, error);
-      actionFeedback.flash(cursor.threadTs, "Couldn’t sync thread read state.", "error");
+      actionFeedback.flash(cursor.threadTs, "Couldn't sync thread read state.", "error");
     },
     version: (cursor) => parseFloat(cursor.ts),
     write: async (cursor) => {
@@ -137,58 +114,30 @@ export function createUnreadSlice(deps: {
     return unreadDividerTs[channelId];
   }
 
-  // Wires the read-cursor/divider effects that need to watch the active view
-  // and the loaded message list — kept here (rather than as a constructor dep)
-  // since messages.ts is necessarily built after this slice.
   function wireReadTracking(readDeps: {
     visibleViews: () => View[];
     messagesByChannel: Record<string, Message[]>;
     visibleThreads: () => ThreadRef[];
     threadMessages: Record<string, Message[]>;
   }) {
-    // Snapshots where the "new messages" divider sits, once per visit to a
-    // channel — keyed only on the channel id, *not* on the message list, so it
-    // re-anchors every time you switch in even if the list hasn't changed
-    // (e.g. after using "mark unread", which doesn't add any new message).
-    // Must run before the mark-as-read effect below so it captures the cursor's
-    // pre-visit value rather than the one that effect is about to write.
     const dividerAnchoredChannels = new Set<string>();
     createEffect(() => {
-      // Read cursors haven't arrived yet — anchoring now would treat "unknown"
-      // as "read nothing" (0) and plant the divider above the oldest loaded
-      // message. Wait, without latching, so this fires for real once loaded.
       if (!lastReadSeeded()) return;
       for (const { id } of readDeps.visibleViews()) {
         if (dividerAnchoredChannels.has(id)) continue;
-        // Wait for the channel's own history too — deciding "caught up" below
-        // needs the actual last message, not an empty list that hasn't loaded yet.
+
         const list = readDeps.messagesByChannel[id];
         if (!list?.length) continue;
         dividerAnchoredChannels.add(id);
         const lastRead = lastReadByChannel[id] ?? 0;
         const latest = list[list.length - 1];
-        // Only anchor a divider when there's a genuine gap (unread messages
-        // already sitting there when you opened). Otherwise — already caught
-        // up — use a sentinel no message can ever cross, so a message sent or
-        // received *during* this visit (including your own) never gets mistaken
-        // for "new since last time" and grows a divider above it.
-        // lastRead of 0 means Slack has no read cursor at all (channel never
-        // opened before) rather than "read nothing yet" — treat that as caught
-        // up too, so a first-ever open lands on the newest message instead of
-        // backfilling all the way to the channel's start looking for a divider.
+
         const hasUnreadGap = !!latest && lastRead > 0 && parseFloat(latest.ts) * 1000 > lastRead;
         const anchor = hasUnreadGap ? lastRead : Infinity;
         setUnreadDividerTs(id, anchor);
       }
     });
 
-    // Drop the divider anchor for a channel once no visible pane shows it
-    // anymore, so the next visit re-anchors to whatever's unread by then
-    // instead of reusing a stale (now fully-read) position. This clears
-    // strictly at leave-time — a moment that never overlaps with the *next*
-    // visit's anchor computation — which is what lets the mark-as-read effect
-    // below use unreadDividerTs's own undefined/defined state as its gate
-    // instead of assuming effect order.
     let previousVisibleIds = new Set<string>();
     createEffect(() => {
       const currentIds = new Set(readDeps.visibleViews().map((v) => v.id));
@@ -201,21 +150,6 @@ export function createUnreadSlice(deps: {
       previousVisibleIds = currentIds;
     });
 
-    // Advances the *real* Slack read cursor to the latest message of every
-    // channel/DM currently open in a pane — setActiveView only clears the
-    // local unread dot, it never tells Slack itself. Reruns whenever a visible
-    // channel's message list changes, so this also covers a new message
-    // arriving while you're already looking at it (the way the real client
-    // keeps a channel "seen" live), not just the initial switch.
-    //
-    // Gated on unreadDividerTs already being anchored for this visit: Solid
-    // doesn't guarantee the anchor effect above runs first just because it was
-    // registered first (verified — they can race), and if this effect wins the
-    // race it stamps lastReadByChannel with the *current* latest message before
-    // the anchor effect reads it, making every message look already-read and
-    // permanently hiding the divider. Reading unreadDividerTs here creates a
-    // real reactive dependency, so once the anchor effect sets it this effect
-    // reruns on its own — no ordering assumption needed.
     const lastMarkedReadTs: Record<string, string> = {};
     createEffect(() => {
       for (const view of readDeps.visibleViews()) {
@@ -233,27 +167,16 @@ export function createUnreadSlice(deps: {
       }
     });
 
-    // Mirrors the channel effect above, but for each visible thread's own read
-    // cursor — conversations.mark (above) never clears a thread's badge, only
-    // subscriptions.thread.mark does. Reruns on new replies arriving while
-    // the thread is already open, same as the channel case.
     const lastMarkedThreadReadTs: Record<string, string> = {};
     createEffect(() => {
       for (const thread of readDeps.visibleThreads()) {
         const list = readDeps.threadMessages[thread.ts];
-        // Only followed threads have Slack-side subscription read state. Calling
-        // subscriptions.thread.mark for an unfollowed thread has no cursor to
-        // advance and Slack answers with message_not_found.
+
         const root = list?.find((m) => m.ts === thread.ts);
         if (!root?.isSubscribed) continue;
-        // A deleted reply stays in the list as a tombstone (msg.deleted) rather
-        // than being removed, but no longer exists on Slack's side — marking it
-        // read 404s with message_not_found, permanently, since it can't ever be
-        // un-deleted. Walk back to the latest reply that's still real.
+
         const latest = list?.findLast((m) => !m.deleted);
-        // A thread with no replies yet has only its root as `latest` (ts ===
-        // thread.ts) — Slack has no reply subscription to mark read at that
-        // point, and subscriptions.thread.mark answers with message_not_found.
+
         if (!latest || latest.ts === thread.ts || latest.id.startsWith("pending-")) continue;
         if (lastMarkedThreadReadTs[thread.ts] === latest.ts) continue;
         lastMarkedThreadReadTs[thread.ts] = latest.ts;

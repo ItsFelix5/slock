@@ -7,6 +7,9 @@
 - unread message info
 - catch up
 - make activity triage over recall
+- member count & canvi gone
+- non channel canvi
+- tiling system
 
 hover glance thing
 context switching (active in multiple threads)
@@ -18,9 +21,3 @@ Advanced pingwords (channel+user regex)
 advanced shi like help channels/feeds
 notify on normal messages if relevant/interesting/fun
 clankers?
-
-app: 25776 21256 | 4520
-server: 3266
-ui: 3793 2617 | 1176
-api: 3092
-blocks: 2064 1746 | 318

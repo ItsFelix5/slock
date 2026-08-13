@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's gateway wire fields.
 import { trimActivityCounts, trimCountGroups, trimMessage } from "./slackEntities.ts";
 
 function trimGatewayCounts(payload: any): any {

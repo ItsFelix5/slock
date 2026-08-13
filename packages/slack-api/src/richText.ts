@@ -1,7 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Block Kit types intentionally mirror Slack's wire schema.
-// rich_text block element types — split out of blocks.ts, which was hitting
-// the per-file line cap.
-
 export interface RichTextStyle {
   bold?: boolean;
   client_highlight?: boolean;
@@ -78,9 +74,6 @@ export interface RichTextDateElement {
   url?: string;
 }
 
-// What a pasted Slack permalink becomes once it round-trips through blocks.
-// channel_id/message_ts identify the quoted message directly — prefer those
-// over parsing `url`/`text`, which are just display fallbacks.
 export interface RichTextMessageMentionElement {
   channel_id?: string;
   message_ts?: string;
@@ -124,9 +117,7 @@ export interface RichTextPreformatted {
 
 export interface RichTextQuote {
   border?: number;
-  // Slack can nest any sub-block here (e.g. a rich_text_list, for a bulleted
-  // list created while the caret is inside a blockquote), not just inline
-  // content — same union as a rich_text block's own top-level elements.
+
   elements: (RichTextInlineElement | RichTextSubBlock)[];
   type: "rich_text_quote";
 }

@@ -1,5 +1,6 @@
 .channel-header {
   position: relative;
+  height: var(--header-height);
   flex-shrink: 0;
   overflow: hidden;
   background: var(--main-bg);
@@ -13,8 +14,8 @@
 .channel-header-top {
   gap: 8px;
   min-width: 0;
-  height: 49px;
-  padding: 0 16px;
+  height: calc(var(--header-height) - var(--header-divider-width));
+  padding: 0 var(--header-padding-inline);
 }
 
 .channel-header-context {
@@ -50,8 +51,8 @@
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--font-size-heading-xs);
+  font-weight: 700;
   color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -59,12 +60,12 @@
 
 .channel-header-archived-badge {
   flex-shrink: 0;
-  padding: 1px 6px;
-  font-size: 11px;
+  padding: 0 var(--space-sm);
+  font-size: var(--font-size-caption);
   font-weight: 700;
   color: var(--text-dim);
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .channel-header-title-btn {
@@ -85,26 +86,26 @@
   display: block;
   width: 100%;
   min-width: 0;
-  padding-left: 8px;
-  margin-left: 4px;
+  padding-left: var(--space-sm);
+  margin-left: var(--space-xs);
   border-left: 1px solid var(--border);
 }
 
 .channel-header-topic-wrap.is-overflowing:hover .channel-header-topic {
   position: absolute;
   top: 50%;
-  left: 8px;
+  left: var(--space-sm);
   z-index: 20;
   width: max-content;
   max-width: min(440px, calc(100vw - 32px));
   margin-left: 0;
-  padding: 6px 10px;
+  padding: var(--space-sm) var(--space-md);
   overflow: visible;
   white-space: normal;
   text-overflow: unset;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-tooltip);
   transform: translateY(-50%);
 }
@@ -113,7 +114,7 @@
   flex-shrink: 1;
   max-width: 220px;
   overflow: hidden;
-  margin-left: 8px;
+  margin-left: var(--space-sm);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -121,33 +122,37 @@
 .channel-header-actions {
   display: flex;
   flex-shrink: 0;
-  gap: 2px;
+  gap: var(--space-xs);
   margin-left: auto;
 }
 
-.channel-header-btn {
-  font-size: 14px;
+.icon-btn.channel-header-btn {
+  width: var(--header-action-size);
+  height: var(--header-action-size);
+}
+
+.channel-header-btn .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 
 .channel-header-members-btn {
-  gap: 5px;
-  height: 28px;
-  padding: 0 8px;
-  font-size: 13px;
-  font-weight: 600;
+  flex-shrink: 0;
+  gap: var(--space-xs);
+  min-height: var(--header-action-size);
+  padding: 0 var(--space-sm);
+  font-size: var(--font-size-meta);
+  font-weight: 500;
   color: var(--text-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.channel-header-members-btn .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 
 .channel-header-members-btn:hover {
   color: var(--text-primary);
   background: var(--hover-bg);
-}
-
-.channel-header-canvas-menu.menu-panel {
-  z-index: 8;
-  min-width: 230px;
-  max-width: 320px;
 }
 
 .channel-header-menu.menu-panel {

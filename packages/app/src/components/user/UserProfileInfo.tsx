@@ -1,10 +1,12 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { store } from "../../lib/store";
+import AppBadge from "./AppBadge";
 import UserProfileStatus from "./UserProfileStatus";
+import { formatStartDate } from "./userProfileTime";
 
 interface UserProfileInfoProps {
   isSelf: () => boolean;
@@ -31,28 +33,28 @@ interface UserProfileInfoProps {
   setStatusText: (value: string) => void;
   statusEmoji: () => string;
   setStatusEmoji: (value: string) => void;
+  startDate: () => string | undefined;
   savingStatus: () => boolean;
   saveStatus: () => Promise<void>;
   clearStatus: () => Promise<void>;
 }
 
-// Title grows to fit its content instead of scrolling horizontally like a
-// normal single-line input — a title occasionally runs longer than the panel.
 function autoGrowTitle(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${el.scrollHeight}px`;
 }
 
 export default function UserProfileInfo(props: UserProfileInfoProps) {
-  // biome-ignore lint/style/noNonNullAssertion: user is guaranteed by parent Show
   const u = () => props.user()!;
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this through the JSX ref.
+
   let titleRef: HTMLTextAreaElement | undefined;
+  let titleResizeObserver: ResizeObserver | undefined;
   const [photoInputRef, setPhotoInputRef] = createSignal<HTMLInputElement>();
   createEffect(() => {
     props.titleInput();
     if (titleRef) autoGrowTitle(titleRef);
   });
+  onCleanup(() => titleResizeObserver?.disconnect());
   return (
     <>
       <div class="user-profile-avatar-wrap">
@@ -123,7 +125,6 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
             aria-label={`${u().name} is ${u().presence}`}
             class="user-profile-presence"
             classList={{ away: u().presence === "away" }}
-            role="img"
           />
         </Show>
       </div>
@@ -151,7 +152,12 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
               }}
               onKeyDown={props.blurOnEnter}
               placeholder="Title"
-              ref={titleRef}
+              ref={(el) => {
+                titleRef = el;
+                titleResizeObserver?.disconnect();
+                titleResizeObserver = new ResizeObserver(() => autoGrowTitle(el));
+                titleResizeObserver.observe(el.parentElement ?? el);
+              }}
               rows={1}
               value={props.titleInput()}
             />
@@ -171,10 +177,10 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
         when={!props.isSelf()}
       >
         <h2 class="user-profile-name">
-          <span class="user-profile-name-label">
-            {u().name}
-            {u().isBot ? " (bot)" : ""}
-          </span>
+          <span class="user-profile-name-label">{u().name}</span>
+          <Show when={u().isBot}>
+            <AppBadge />
+          </Show>
           <Show when={u().pronouns}>
             <span class="pronouns">({u().pronouns})</span>
           </Show>
@@ -205,6 +211,11 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
       </Show>
       <Show when={props.lastSeenText()}>
         <p class="user-profile-meta text-muted text-sm">Last seen {props.lastSeenText()}</p>
+      </Show>
+      <Show when={formatStartDate(props.startDate())}>
+        <p class="user-profile-meta text-muted text-sm">
+          Started {formatStartDate(props.startDate())}
+        </p>
       </Show>
       <Show when={!props.isSelf()}>
         <div class="user-profile-actions">

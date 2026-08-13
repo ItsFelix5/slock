@@ -1,13 +1,13 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Icon, IconButton, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { Icon, IconButton, InlineFeedback, Menu, Tooltip } from "@slock/ui";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { usePaneView } from "../../lib/paneView";
-import { actionFeedback, store } from "../../lib/store";
+import { actionFeedback } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
+import "./ChannelHeader.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
 import { createChannelHeaderState } from "./channelHeaderState";
-import "./ChannelHeader.css";
 
 export default function ChannelHeader() {
   const { view } = usePaneView();
@@ -15,6 +15,7 @@ export default function ChannelHeader() {
     channelMemberCount,
     channelTitle,
     channelTopic,
+    filesLinksOpen,
     isArchivedChannel,
     isChannelView,
     isPrivateChannel,
@@ -22,7 +23,6 @@ export default function ChannelHeader() {
     searchCurrentConversation,
   } = createChannelHeaderState(view);
   const [moreOpen, setMoreOpen] = createSignal(false);
-  const [canvasMenuOpen, setCanvasMenuOpen] = createSignal(false);
   const [topicEl, setTopicEl] = createSignal<HTMLSpanElement>();
   const [topicOverflowing, setTopicOverflowing] = createSignal(false);
   createEffect(() => {
@@ -37,24 +37,6 @@ export default function ChannelHeader() {
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     onCleanup(() => observer.disconnect());
-  });
-  const activeChannelId = () => {
-    const v = view();
-    return v?.kind === "channel" ? v.id : undefined;
-  };
-  const canvases = () => {
-    const channelId = activeChannelId();
-    return channelId ? (store.canvas.canvasesByChannel[channelId] ?? []) : [];
-  };
-  let lastCanvasChannelId: string | undefined;
-  createEffect(() => {
-    const channelId = activeChannelId();
-    if (channelId !== lastCanvasChannelId) setCanvasMenuOpen(false);
-    lastCanvasChannelId = channelId;
-  });
-  createEffect(() => {
-    const v = view();
-    if (v?.kind === "channel") store.canvas.ensureCanvasChecked(v.id);
   });
   return (
     <div class="channel-header">
@@ -81,6 +63,23 @@ export default function ChannelHeader() {
             >
               {channelTitle()}
             </button>
+            <Show when={isChannelView() && channelMemberCount()}>
+              {(count) => (
+                <Tooltip content="View members">
+                  <button
+                    class="channel-header-members-btn btn-reset flex-align-center"
+                    onClick={() => {
+                      const v = view();
+                      if (v?.kind === "channel") openChannelDetails(v.id, "members");
+                    }}
+                    type="button"
+                  >
+                    <Icon name="user-groups" size={14} />
+                    <span>{count()}</span>
+                  </button>
+                </Tooltip>
+              )}
+            </Show>
             <Show when={isArchivedChannel()}>
               <span class="channel-header-archived-badge">Archived</span>
             </Show>
@@ -102,77 +101,8 @@ export default function ChannelHeader() {
           </Show>
         </div>
         <div class="channel-header-actions">
-          <Show when={activeChannelId() && canvases().length > 0 ? activeChannelId() : undefined}>
-            {(id) => (
-              <Menu
-                align="end"
-                class="channel-header-canvas-wrap"
-                onClose={() => setCanvasMenuOpen(false)}
-                onOpen={() => setCanvasMenuOpen(true)}
-                open={canvasMenuOpen()}
-                openOnHover
-                panelClass="menu-panel channel-header-canvas-menu"
-                trigger={
-                  <IconButton
-                    aria-expanded={canvasMenuOpen()}
-                    class="channel-header-btn"
-                    icon="canvas-browser"
-                    label="Canvases"
-                    onClick={() => setCanvasMenuOpen(!canvasMenuOpen())}
-                    size="md"
-                    tooltip={false}
-                  />
-                }
-              >
-                <For each={canvases()}>
-                  {(canvas) => (
-                    <MenuItem
-                      icon="canvas-content"
-                      onClick={() => {
-                        setCanvasMenuOpen(false);
-                        if (canvas.fileId === store.canvas.canvasByChannel[id()]?.fileId) {
-                          store.canvas.openChannelCanvas(id());
-                        } else {
-                          store.canvas.openFileCanvas(canvas.fileId, canvas.title);
-                        }
-                      }}
-                    >
-                      <span class="truncate">
-                        <Mrkdwn text={canvas.title} />
-                      </span>
-                    </MenuItem>
-                  )}
-                </For>
-                <MenuItem
-                  icon="plus"
-                  onClick={() => {
-                    setCanvasMenuOpen(false);
-                    store.canvas.openCanvasCreator(id());
-                  }}
-                >
-                  Add canvas
-                </MenuItem>
-              </Menu>
-            )}
-          </Show>
-          <Show when={isChannelView() && channelMemberCount()}>
-            {(count) => (
-              <Tooltip content="View members">
-                <button
-                  class="channel-header-btn channel-header-members-btn btn-reset flex-align-center"
-                  onClick={() => {
-                    const v = view();
-                    if (v?.kind === "channel") openChannelDetails(v.id, "members");
-                  }}
-                  type="button"
-                >
-                  <Icon name="user-groups" size={15} />
-                  <span>{count()}</span>
-                </button>
-              </Tooltip>
-            )}
-          </Show>
           <IconButton
+            active={filesLinksOpen()}
             class="channel-header-btn"
             icon="search"
             label="Files & links"
@@ -189,7 +119,6 @@ export default function ChannelHeader() {
                 panelClass="menu-panel channel-header-menu"
                 trigger={
                   <IconButton
-                    aria-expanded={moreOpen()}
                     class="channel-header-btn"
                     icon="ellipsis-vertical-filled"
                     label="More"

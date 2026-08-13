@@ -33,7 +33,7 @@ export default function UsergroupMembersTab(props: {
 
   const removeMember = async (user: User) => {
     if (props.disabled) return;
-    // biome-ignore lint/suspicious/noAlert: Removing a member requires explicit confirmation.
+
     if (!confirm(`Remove ${user.name} from this pinggroup?`)) return;
     await removeUsergroupMember(props.usergroupId, user.id);
   };

@@ -8,6 +8,12 @@
   border-radius: 6px;
 }
 
+.channel-details-settings-error-code {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 .channel-details-setting-select {
   width: min(190px, 55%);
 }

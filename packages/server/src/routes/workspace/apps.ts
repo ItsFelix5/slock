@@ -1,13 +1,9 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 export const appRoutes: Route[] = [
-  // client.appCommands' `app_actions` list mixes every action any installed
-  // app registered — global shortcuts and per-message shortcuts share this
-  // one list, distinguished only by `type`; we only care about "message_action".
   route("GET", "/api/message-shortcuts", async (ctx) => {
     const data = await callSlack(
       "client.appCommands",
@@ -37,8 +33,6 @@ export const appRoutes: Route[] = [
     return jsonResponse({ ok: true, shortcuts }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // Fire-and-forget: the app receives the message via its own interactivity
-  // endpoint and responds asynchronously, not through this call's result.
   route("POST", "/api/message-shortcuts/:actionId/run", async (ctx) => {
     const { appId, channelId, messageTs } = (await ctx.body.json()) as {
       appId?: string;
@@ -53,17 +47,15 @@ export const appRoutes: Route[] = [
         action_id: ctx.params.actionId,
         app_id: appId,
         client_token: `web-${Date.now()}`,
-        context: JSON.stringify({ channel_id: channelId, message_ts: messageTs }),
+        context: JSON.stringify({
+          channel_id: channelId,
+          message_ts: messageTs,
+        }),
       },
       ctx,
     );
   }),
 
-  // Powers the app "About" flyout Slack's own client shows for a bot user.
-  // Reverse-engineered from a live capture: keyed by the app id, the bot's
-  // classic id, and the bot's home team (not necessarily this workspace's own
-  // team id on Enterprise Grid) - derived here from the route cookie instead
-  // of the browser needing to know or send it.
   route("GET", "/api/apps/:id/profile", async (ctx) => {
     const botId = ctx.searchParams.get("bot");
     if (!botId) return errorResponse("invalid_bot", 400);
@@ -82,12 +74,6 @@ export const appRoutes: Route[] = [
     return jsonResponse({ desc: data.app_profile?.desc, ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // Dispatches a Block Kit interactive element click (button, overflow, ...).
-  // Reverse-engineered from a live capture of Slack's own web client: `action`
-  // is forwarded verbatim as the sole entry of the modern block_actions
-  // `actions` array — the caller already shapes it exactly as Slack's client
-  // does per element type — and `container` identifies the message the block
-  // lives in. Fire-and-forget, like the shortcut run above.
   route("POST", "/api/blocks/actions", async (ctx) => {
     const body = (await ctx.body.json()) as {
       action?: Record<string, unknown>;
@@ -114,6 +100,61 @@ export const appRoutes: Route[] = [
         service_id: body.botId,
         service_team_id: teamIdFromRoute(ctx.creds?.route ?? "") ?? "",
         state: JSON.stringify({ values: {} }),
+      },
+      ctx,
+    );
+  }),
+
+  route("POST", "/api/attachments/actions", async (ctx) => {
+    const body = (await ctx.body.json()) as {
+      action?: { name?: string; style?: string; text?: string; value?: string };
+      attachmentId?: number;
+      botId?: string;
+      botUserId?: string;
+      callbackId?: string;
+      channelId?: string;
+      isEphemeral?: boolean;
+      messageTs?: string;
+    };
+    if (
+      !(
+        body.action?.name &&
+        body.action.text &&
+        body.attachmentId !== undefined &&
+        body.botId &&
+        body.botUserId &&
+        body.callbackId &&
+        body.channelId &&
+        body.messageTs
+      )
+    ) {
+      return errorResponse("invalid_attachment_action", 400);
+    }
+    const attachmentId = String(body.attachmentId);
+    return mutate(
+      "chat.attachmentAction",
+      {
+        bot_user_id: body.botUserId,
+        client_token: `web-${Date.now()}`,
+        payload: JSON.stringify({
+          actions: [
+            {
+              id: attachmentId,
+              name: body.action.name,
+              style: body.action.style ?? "",
+              text: body.action.text,
+              type: "button",
+              ...(body.action.value === undefined ? {} : { value: body.action.value }),
+            },
+          ],
+          attachment_id: attachmentId,
+          callback_id: body.callbackId,
+          channel_id: body.channelId,
+          is_ephemeral: body.isEphemeral ?? false,
+          message_ts: body.messageTs,
+          prompt_app_install: false,
+        }),
+        service_id: body.botId,
       },
       ctx,
     );

@@ -13,14 +13,12 @@ export interface TooltipProps {
 }
 
 export default function Tooltip(props: TooltipProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let anchorRef: HTMLSpanElement | undefined;
   const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
 
   const showable = () => !props.disabled && props.content != null && props.content !== "";
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hover-intent wrapper; the actual interactive control is whatever's passed as children
     <span
       class={`tooltip-anchor${props.class ? ` ${props.class}` : ""}`}
       onFocusIn={() => showable() && scheduleOpen()}

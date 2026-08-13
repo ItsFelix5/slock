@@ -9,14 +9,10 @@ import { resolveProfileUserId } from "./parts/messageRenderState";
 export interface MessageFocusCallbacks {
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
-  // Current thread context (if any), used only to match MessageActionsMenuItems'
-  // copy-text behavior of stripping a reply-link prefix for in-thread replies.
+
   threadTs?: Accessor<string | undefined>;
 }
 
-// Drives roving-tabindex keyboard navigation across a message list: exactly
-// one row is ever focusable (tabIndex 0) at a time, ArrowUp/ArrowDown move it,
-// and a full set of single-key shortcuts act on whichever message is focused.
 export function createMessageFocus(
   messages: Accessor<Message[]>,
   container: Accessor<HTMLElement | undefined>,
@@ -27,9 +23,6 @@ export function createMessageFocus(
   const [editingTs, setEditingTs] = createSignal<string | null>(null);
   const [listFocused, setListFocused] = createSignal(false);
 
-  // Keeps exactly one row tabbable: seeds the initial focus once messages
-  // arrive, and recovers (rather than pointing at nothing) if the focused
-  // message scrolled out of the loaded window or the channel changed.
   createEffect(() => {
     const list = messages();
     const current = focusedTs();
@@ -79,9 +72,6 @@ export function createMessageFocus(
   };
   const stopEdit = () => setEditingTs(null);
 
-  // Reuses the row's own hover-toolbar button via a synthetic click rather
-  // than lifting its open/close state — inherits that button's existing
-  // (already keyboard-complete) picker/menu behavior for free.
   const clickRowButton = (ariaLabel: string) => {
     const ts = focusedTs();
     if (ts === null) return;
@@ -102,12 +92,6 @@ export function createMessageFocus(
     scope: "messages",
   });
 
-  // All the single-key actions below only make sense while a message row
-  // genuinely has DOM focus (listFocused) — focusedTs itself never goes back
-  // to null just because focus moved elsewhere (it has to keep pointing at
-  // *some* message for roving-tabindex), so without the listFocused() check
-  // these kept firing anywhere else in the app, including "d" opening a
-  // delete confirmation for a message that isn't even visible anymore.
   const messageActionEnabled = () => listFocused() && focusedTs() !== null;
 
   useShortcut({
@@ -252,20 +236,13 @@ export function createMessageFocus(
   return {
     editingTs,
     focusedTs,
-    // Real DOM focus within the list, as opposed to focusedTs — which also
-    // holds a value (the seeded last message) before anyone has ever tabbed
-    // or clicked in. Rows use this to gate their own visual "focused" look so
-    // an implicitly-seeded row doesn't look selected before any interaction.
+
     listFocused,
     onContainerFocusIn: (e: FocusEvent) => {
       setListFocused(true);
-      // A click (or any DOM focus) can land on a row other than the one
-      // focusedTs currently points at (e.g. it defaults to the last message
-      // until keyboard nav moves it) — sync so that row is the one that
-      // actually looks focused instead of leaving a stale row highlighted.
-      const ts = (e.target as HTMLElement | null)?.closest<HTMLElement>(
-        "[data-message-ts]",
-      )?.dataset.messageTs;
+
+      const ts = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-message-ts]")
+        ?.dataset.messageTs;
       if (ts) setFocusedTs(ts);
     },
     onContainerFocusOut: (e: FocusEvent) => {

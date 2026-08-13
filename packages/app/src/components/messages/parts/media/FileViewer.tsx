@@ -10,8 +10,8 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { parseEml } from "./mailParse";
 import "./FileViewer.css";
+import { parseEml } from "./mailParse";
 
 const EMAIL_HEAD_RE = /<head(?:\s[^>]*)?>/i;
 const EMAIL_PREVIEW_POLICY =
@@ -83,8 +83,8 @@ function PdfBody(props: { file: SlackFile }) {
   return (
     <Show
       fallback={
-        <div class="file-viewer-error flex-center flex-col" role="alert">
-          <div>Couldn’t preview this PDF.</div>
+        <div class="file-viewer-error flex-center flex-col">
+          <div>Couldn't preview this PDF.</div>
           <Button
             onClick={() => {
               setLoaded(false);
@@ -139,8 +139,8 @@ function MailBody(props: { file: SlackFile }) {
         <div class="file-viewer-loading flex-center text-dim text-sm">Loading email…</div>
       </Match>
       <Match when={raw.error}>
-        <div class="file-viewer-error flex-center flex-col" role="alert">
-          <div>Couldn’t preview this email.</div>
+        <div class="file-viewer-error flex-center flex-col">
+          <div>Couldn't preview this email.</div>
           <Button onClick={() => refetch()} size="sm">
             Try again
           </Button>
@@ -176,10 +176,6 @@ function MailBody(props: { file: SlackFile }) {
             >
               <Match when={m().bodyHtml}>
                 {(html) => (
-                  // No allow-scripts/allow-same-origin: this renders a
-                  // stranger's HTML email, so it gets the same sandboxing as
-                  // an inert preview — no script execution, no DOM/cookie
-                  // access to the rest of the app.
                   <iframe
                     class="file-viewer-frame file-viewer-mail-frame"
                     sandbox=""

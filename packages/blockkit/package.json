@@ -9,6 +9,10 @@
   "dependencies": {
     "@slock/slack-api": "workspace:*",
     "@slock/ui": "workspace:*",
+    "chrono-node": "^2.10.1",
     "solid-js": "^1.9.13"
+  },
+  "devDependencies": {
+    "@slock/server": "workspace:*"
   }
 }

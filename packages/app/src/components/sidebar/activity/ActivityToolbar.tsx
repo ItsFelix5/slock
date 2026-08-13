@@ -24,7 +24,7 @@ export default function ActivityToolbar(props: {
         />
       </div>
 
-      <div aria-label="Activity status" class="activity-read-toggle" role="tablist">
+      <div aria-label="Activity status" class="activity-read-toggle">
         <For each={READ_STATES}>
           {(state) => {
             const count = () => props.tabCount(state.key);
@@ -34,7 +34,6 @@ export default function ActivityToolbar(props: {
                 class="btn-reset"
                 classList={{ active: props.readState === state.key }}
                 onClick={() => props.onReadStateChange(state.key)}
-                role="tab"
                 type="button"
               >
                 {state.label}
@@ -48,7 +47,7 @@ export default function ActivityToolbar(props: {
       </div>
 
       <div class="activity-type-filter">
-        <div aria-label="Activity type" class="activity-type-icons" role="toolbar">
+        <div aria-label="Activity type" class="activity-type-icons">
           <Tooltip content="All activity">
             <button
               aria-label="All activity"

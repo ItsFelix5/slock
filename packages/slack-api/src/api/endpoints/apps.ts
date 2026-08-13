@@ -1,4 +1,4 @@
-import type { MessageShortcut } from "../../types";
+import type { AttachmentAction, MessageShortcut } from "../../types";
 import { getOrCreateRetryablePromise } from "../cache/retryablePromiseCache";
 import { apiGet, apiPost, resolveMediaUrl } from "../server";
 
@@ -6,12 +6,12 @@ export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
   const data = await apiGet("/api/message-shortcuts");
   if (!data.ok) throw new Error(data.error ?? "client.appCommands failed");
   const shortcuts: any[] = data.shortcuts ?? [];
-  return shortcuts.map((s) => ({ ...s, icon: s.icon ? resolveMediaUrl(s.icon) : undefined }));
+  return shortcuts.map((s) => ({
+    ...s,
+    icon: s.icon ? resolveMediaUrl(s.icon) : undefined,
+  }));
 }
 
-// Fire-and-forget: the app receives the message via its own interactivity
-// endpoint and responds asynchronously (e.g. an ephemeral message or modal),
-// not through this call's result.
 export async function runMessageShortcut(
   actionId: string,
   appId: string,
@@ -27,9 +27,6 @@ export async function runMessageShortcut(
   return data;
 }
 
-// bots.info's `app_id` is needed to submit a block action (see runBlockAction)
-// but isn't worth a field on every mapped message — resolved lazily per bot id
-// instead, and cached since it never changes at runtime.
 const botAppInfoCache = new Map<string, Promise<{ appId: string } | null>>();
 function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
   return getOrCreateRetryablePromise(botAppInfoCache, botId, async () => {
@@ -39,9 +36,6 @@ function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
   });
 }
 
-// Powers the app "About" flyout Slack's own client shows for a bot user.
-// Cached per app id — it never changes at runtime, and every bot user of the
-// same app shares one description.
 const appDescriptionCache = new Map<string, Promise<string | undefined>>();
 export function fetchAppDescription(appId: string, botId: string): Promise<string | undefined> {
   return getOrCreateRetryablePromise(appDescriptionCache, appId, async () => {
@@ -51,12 +45,6 @@ export function fetchAppDescription(appId: string, botId: string): Promise<strin
   });
 }
 
-// Dispatches a Block Kit interactive element (button, overflow, ...).
-// Fire-and-forget, like runMessageShortcut: the app receives it via its own
-// interactivity endpoint and responds asynchronously (e.g. updating the
-// message), not through this call's result. `action` is the block_actions
-// entry itself, shaped exactly as Slack's own client sends it (see the
-// per-element callers) — this call just resolves app_id and forwards it.
 export async function runBlockAction(params: {
   action: Record<string, unknown>;
   botId: string;
@@ -73,4 +61,18 @@ export async function runBlockAction(params: {
     messageTs: params.messageTs,
   });
   if (!data.ok) throw new Error(data.error ?? "blocks.actions failed");
+}
+
+export async function runAttachmentAction(params: {
+  action: AttachmentAction;
+  attachmentId: number;
+  botId: string;
+  botUserId: string;
+  callbackId: string;
+  channelId: string;
+  isEphemeral: boolean;
+  messageTs: string;
+}): Promise<void> {
+  const data = await apiPost("/api/attachments/actions", params);
+  if (!data.ok) throw new Error(data.error ?? "chat.attachmentAction failed");
 }

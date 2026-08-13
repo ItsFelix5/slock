@@ -2,9 +2,6 @@ import { apiDelete, apiGet, apiPut } from "../server";
 
 export type DraftEntry = { channelId: string; threadTs?: string; text: string };
 
-// Tracks the real Slack draft id + client_msg_id behind each channel/thread's
-// live composer draft, so repeated saves update the same draft.create row
-// instead of creating a new one on every debounce tick.
 const draftState = new Map<string, { draftId: string; clientMsgId: string }>();
 function draftKey(channelId: string, threadTs?: string): string {
   return threadTs ? `${channelId}:${threadTs}` : channelId;

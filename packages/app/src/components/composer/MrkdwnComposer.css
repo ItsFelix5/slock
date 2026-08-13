@@ -32,6 +32,10 @@
   color: var(--text-primary);
   word-break: break-word;
   cursor: text;
+  resize: none;
+  field-sizing: content;
+  background: transparent;
+  border: 0;
 }
 
 .mrkdwn-composer.multiline .mrkdwn-composer-input {
@@ -42,10 +46,9 @@
   outline: none;
 }
 
-.mrkdwn-composer-input:empty::before {
+.mrkdwn-composer-input::placeholder {
   color: var(--text-dim);
-  pointer-events: none;
-  content: attr(data-placeholder);
+  opacity: 1;
 }
 
 .mrkdwn-composer > .composer-suggest-popover {

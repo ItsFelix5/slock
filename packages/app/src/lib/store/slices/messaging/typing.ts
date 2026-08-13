@@ -2,12 +2,6 @@ import type { User } from "@slock/slack-api";
 import { onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 
-// Keyed by channel id, or `${channel}:${thread_ts}` for typing inside a thread's
-// reply composer — Slack keeps those scoped separately so the main channel view
-// doesn't show "typing" for someone who's only replying in a thread. Values are
-// expiry timestamps: there's no explicit "stopped typing" event, only repeated
-// user_typing pushes every ~3s while the composer stays non-empty, so an entry
-// is swept once it goes a beat past that without a refresh.
 const TYPING_TTL_MS = 4000;
 
 export function createTypingSlice(deps: { userById: (id: string) => User | undefined }) {
@@ -69,5 +63,10 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
       .filter((u): u is User => !!u);
   }
 
-  return { clearTyping, recordTyping, typingUsersInChannel, typingUsersInThread };
+  return {
+    clearTyping,
+    recordTyping,
+    typingUsersInChannel,
+    typingUsersInThread,
+  };
 }

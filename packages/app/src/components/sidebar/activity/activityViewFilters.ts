@@ -14,14 +14,26 @@ export type ActivityListEntry =
 export const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
   { icon: ACTIVITY_KIND_ICONS.mention, key: "mention", label: "Mentions" },
   { icon: ACTIVITY_KIND_ICONS.dm, key: "dm", label: "Direct messages" },
-  { icon: ACTIVITY_KIND_ICONS.thread_reply, key: "thread_reply", label: "Threads" },
-  { icon: ACTIVITY_KIND_ICONS.usergroup_mention, key: "usergroup_mention", label: "Usergroups" },
+  {
+    icon: ACTIVITY_KIND_ICONS.thread_reply,
+    key: "thread_reply",
+    label: "Threads",
+  },
+  {
+    icon: ACTIVITY_KIND_ICONS.usergroup_mention,
+    key: "usergroup_mention",
+    label: "Usergroups",
+  },
   {
     icon: ACTIVITY_KIND_ICONS.channel_mention,
     key: "channel_mention",
     label: "@channel and @here",
   },
-  { icon: ACTIVITY_KIND_ICONS.channel_all, key: "channel_all", label: "All channel posts" },
+  {
+    icon: ACTIVITY_KIND_ICONS.channel_all,
+    key: "channel_all",
+    label: "All channel posts",
+  },
   { icon: ACTIVITY_KIND_ICONS.keyword, key: "keyword", label: "Pingwords" },
   { icon: ACTIVITY_KIND_ICONS.reaction, key: "reaction", label: "Reactions" },
   { icon: ACTIVITY_KIND_ICONS.other, key: "other", label: "Other" },
@@ -38,13 +50,10 @@ export function latestItem(row: ActivityRowData) {
   return row.items[0];
 }
 
-// Scopes activity.feed's `types` param to the selected category so paging
-// through a narrow filter (e.g. just Reactions) doesn't have to wade through
-// pages of every other kind first.
 export function feedTypesForTag(tag: Tag | "all"): string | undefined {
   if (tag === "all") return;
   const types = ACTIVITY_KIND_FEED_TYPES[tag];
-  // Slack files some bot-as-user broadcasts as generic channel activity
+
   return (
     tag === "channel_mention" ? [...types, ...ACTIVITY_KIND_FEED_TYPES.channel_all] : types
   ).join(",");

@@ -14,14 +14,9 @@ const DURATIONS = [
   { label: "24h", minutes: 1440 },
 ];
 
-// Click still does the quick default toggle (unchanged behavior). Hovering
-// reveals a duration picker, but only after a delay so brushing past the
-// button on the way to Settings/Search doesn't pop up a menu — same
-// open/close-delay pattern as UserHoverCard, minus the portal since this
-// panel is never clipped by an ancestor's overflow.
 export default function DndButton() {
   const [open, setOpen] = createSignal(false);
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let wrapRef: HTMLFieldSetElement | undefined;
   let openTimer: ReturnType<typeof setTimeout> | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;

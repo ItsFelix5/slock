@@ -9,9 +9,6 @@ export default function FloatingEmojiPicker(props: {
 }) {
   let panelRef: HTMLDivElement | undefined;
 
-  // The trigger button must count as "inside" here, otherwise its own click
-  // races this mousedown listener: mousedown closes the picker first, then
-  // the trigger's click handler re-opens it, so the popover never closes.
   useClickOutside([props.anchor, () => panelRef], () => {
     if (props.open) props.onClose();
   });

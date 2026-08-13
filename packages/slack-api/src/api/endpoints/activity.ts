@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive module for the undocumented activity feed endpoint and its entry mapping.
 import { broadcastRangeFromBlocks } from "../../blocks";
 import {
   type ACTIVITY_FEED_TYPES,
@@ -99,9 +97,6 @@ function channelIdFromFeedKey(key: unknown): string | undefined {
   return key.match(EMBEDDED_CHANNEL_FEED_KEY_RE)?.[1];
 }
 
-// Feed entries carry a message reference in several shapes. The body is not
-// guaranteed, so fetchMessagesByIds below resolves missing bodies in one
-// batched messages.list request grouped by channel.
 function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
   const type = raw.item?.type;
   if (typeof type !== "string") return;
@@ -226,9 +221,7 @@ function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     ts,
     text,
     unread: typeof raw.is_unread === "boolean" ? raw.is_unread : undefined,
-    // Message-backed activity uses `user` for the actor in current payloads;
-    // some older shapes expose the same person as `author_user_id` instead.
-    // In particular, ordinary `channel` entries generally only carry `user`.
+
     userId,
   };
 }
@@ -249,13 +242,6 @@ export async function markActivityRead(type: string, feedTs: string, key: string
   if (!data.ok) throw new Error(data.error ?? "activity.markRead failed");
 }
 
-// Slack's own client-side Activity tab, undocumented and used here because
-// there's no public endpoint that returns historical dm/thread/reaction/
-// broadcast activity — search.messages only ever finds literal @mentions.
-// Only carries ids (channel/ts/reactor) — resolveActivityEntry below fetches
-// each entry's message body separately, kept split from this call so callers
-// Paginates like Slack's other list endpoints: pass a prior page's
-// `nextCursor` back in as `cursor` to walk further into the history.
 export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
@@ -270,7 +256,10 @@ export async function fetchActivityFeedEntries(
   const entries = ((data.items ?? []) as any[])
     .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts) * 1000))
     .filter((entry): entry is FeedEntry => !!entry);
-  return { entries, nextCursor: data.response_metadata?.next_cursor || undefined };
+  return {
+    entries,
+    nextCursor: data.response_metadata?.next_cursor || undefined,
+  };
 }
 
 type MessageIdGroup = { channel: string; timestamps: string[] };
@@ -313,12 +302,6 @@ function rawMessagesFromMessagesListEntry(entry: any): any[] {
   return [];
 }
 
-// Slack's own Activity tab resolves every entry's message body with
-// messages.list: one form field named `message_ids` whose value is a JSON
-// array like [{channel, timestamps}]. Keyed by `channel:ts` since a channel
-// can appear with several timestamps. `onBatch` fires per resolved chunk with
-// just that chunk's messages, so callers can render each batch the moment it
-// lands instead of blocking on the slowest one.
 export async function fetchMessagesByIds(
   entries: MessageRef[],
   onBatch?: (batch: Map<string, Message>) => void,
@@ -373,8 +356,7 @@ export function resolveActivityEntry(
   const msg = batchedMessages?.get(`${entry.channelId}:${entry.ts}`);
   const isReaction = entry.kind === "reaction";
   const broadcastRange = entry.broadcastRange ?? broadcastRangeFromBlocks(msg?.blocks);
-  // A reaction's fetched message belongs to the person who received the
-  // reaction, while every other entry is about that message's own author.
+
   const userId = isReaction ? entry.userId || msg?.userId || "" : (msg?.userId ?? entry.userId);
   return {
     ...entry,
@@ -384,10 +366,7 @@ export function resolveActivityEntry(
     botName: !isReaction && msg ? msg.botName : entry.botName,
     kind: entry.kind === "channel_all" && broadcastRange ? "channel_mention" : entry.kind,
     text: msg?.text ?? entry.text ?? "",
-    // message_reaction entries never carry thread_ts from the feed itself
-    // (unlike at_user/dm/keyword, which do) — the fetched message is the
-    // only source for it, needed so a reply you post in that thread later
-    // is recognized as covering this activity (see engagementCoversItem).
+
     threadTs:
       entry.kind === "reaction"
         ? (msg?.threadTs ?? ((msg?.replyCount ?? 0) > 0 ? msg?.ts : undefined))

@@ -1,5 +1,5 @@
 import type { Message, MessageShortcut } from "@slock/slack-api";
-import { fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
+import { Button, fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { threadContainsMessage } from "../../../lib/replyLink";
 import { REMINDER_OPTIONS, store } from "../../../lib/store";
@@ -13,11 +13,36 @@ export interface MessageActionsMenuItemsProps {
   threadTs?: string;
 }
 
-// The message "..." menu's contents — shared between the hover toolbar's more-actions
-// Menu and a message row's right-click ContextMenu, so both stay in sync for free.
+function toLocalInputValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`;
+}
+
+function nextHourInputValue(): string {
+  const date = new Date();
+  date.setMinutes(0, 0, 0);
+  date.setHours(date.getHours() + 1);
+  return toLocalInputValue(date);
+}
+
+function currentMinuteInputValue(): string {
+  const date = new Date();
+  date.setSeconds(0, 0);
+  return toLocalInputValue(date);
+}
+
+function dateDueFromInput(value: string): number | null {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : Math.floor(timestamp / 1000);
+}
+
 export default function MessageActionsMenuItems(props: MessageActionsMenuItemsProps) {
   const [remindOpen, setRemindOpen] = createSignal(false);
+  const [customReminderTime, setCustomReminderTime] = createSignal(nextHourInputValue());
   const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
+  const customReminderDateDue = createMemo(() => dateDueFromInput(customReminderTime()));
   const [shortcutQuery, setShortcutQuery] = createSignal("");
 
   const filteredShortcuts = createMemo(() => {
@@ -83,6 +108,13 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     store.messages.remindAboutMessage(props.channelId, props.msg.ts, dateDue);
   };
 
+  const remindAtCustomTime = (event: SubmitEvent) => {
+    event.preventDefault();
+    const dateDue = customReminderDateDue();
+    if (!dateDue || dateDue <= Math.floor(Date.now() / 1000)) return;
+    remind(dateDue);
+  };
+
   const runShortcut = (shortcut: MessageShortcut) => {
     close();
     store.resources.runMessageShortcutAt(props.channelId, props.msg.ts, shortcut);
@@ -130,6 +162,24 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         <For each={REMINDER_OPTIONS}>
           {(opt) => <MenuItem onClick={() => remind(opt.dateDue())}>{opt.label}</MenuItem>}
         </For>
+        <form class="custom-reminder-time" onSubmit={remindAtCustomTime}>
+          <input
+            id="custom-reminder-time"
+            min={currentMinuteInputValue()}
+            onInput={(event) => setCustomReminderTime(event.currentTarget.value)}
+            required
+            type="datetime-local"
+            value={customReminderTime()}
+          />
+          <Button
+            disabled={(customReminderDateDue() ?? 0) <= Math.floor(Date.now() / 1000)}
+            size="sm"
+            type="submit"
+            variant="primary"
+          >
+            Set reminder
+          </Button>
+        </form>
       </Menu>
       <MenuItem icon="mark-as-unread" onClick={markUnread}>
         Mark unread

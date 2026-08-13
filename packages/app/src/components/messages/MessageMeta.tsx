@@ -20,13 +20,16 @@ export default function MessageMeta(props: {
 }) {
   const msg = props.message;
   const [status] = createResource(
-    () => (isRealUserId(props.userId) && !props.botUserId ? props.userId : undefined),
+    () => {
+      const user = props.user();
+      return isRealUserId(props.userId) && user && !user.isBot ? props.userId : undefined;
+    },
     (userId) => fetchUserStatus(userId).catch(() => undefined),
   );
   return (
     <div class="message-meta">
       <Show
-        fallback={<MessageAuthorButton disabled name={props.displayName()} onClick={() => { }} />}
+        fallback={<MessageAuthorButton disabled name={props.displayName()} onClick={() => {}} />}
         when={props.userId}
       >
         {(userId) => (

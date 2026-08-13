@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to serialization.
 import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
 import { DEFAULT_DATE_FORMAT, formatSlackDate } from "./dateFormat";
 import { type InlineDialect, MRKDWN_DIALECT } from "./inlineDialect";
@@ -9,11 +8,6 @@ function wrapNonEmpty(inner: string, marker: string): string {
   return inner ? `${marker}${inner}${marker}` : "";
 }
 
-// A link is a chip carrying its real destination in `data-link-url` (both
-// the composer's editable link chips and blockkit's rendered <a> tags use
-// this attribute) — the visible label only differs from the url when it was
-// customized, so a plain autolinked/unlabeled url round-trips as `<url>`
-// rather than the noisier `<url|url>`.
 function serializeLinkElement(el: HTMLElement): string {
   const url = el.dataset.linkUrl ?? "";
   const label = (el.textContent ?? "").replace(/\|/g, "");
@@ -22,13 +16,21 @@ function serializeLinkElement(el: HTMLElement): string {
 
 function serializeChildren(node: Node, dialect: InlineDialect): string {
   let out = "";
-  for (const child of Array.from(node.childNodes)) out += serializeNode(child, dialect);
+  const children = Array.from(node.childNodes);
+  for (const [index, child] of children.entries()) {
+    out += serializeNode(child, dialect);
+    const next = children[index + 1];
+    if (
+      next?.nodeName !== "BR" &&
+      child.nodeType === Node.ELEMENT_NODE &&
+      ["BLOCKQUOTE", "OL", "PRE", "UL"].includes(child.nodeName)
+    ) {
+      out += "\n";
+    }
+  }
   return out;
 }
-// Exported (not just fragmentToMrkdwn) so callers that need to build up
-// their own runs node-by-node — see the composer's fragmentToBlocks, which
-// interleaves this with header/divider block boundaries — don't have to
-// reimplement inline serialization themselves.
+
 export function serializeNode(node: Node, dialect: InlineDialect): string {
   if (node.nodeType === Node.TEXT_NODE) {
     return (node.textContent ?? "").replace(/​/g, "").replace(/ /g, " ");
@@ -43,10 +45,7 @@ export function serializeNode(node: Node, dialect: InlineDialect): string {
     return `<${userProfileUrl(domain, el.dataset.userLinkId)}|${label}>`;
   }
   if (el.dataset.channelId) return `<#${el.dataset.channelId}|${el.dataset.channelName}>`;
-  // Checked ahead of dataset.linkUrl: a date chip with a url (e.g. a linked
-  // deadline) carries both attributes, and losing the timestamp/format down
-  // to a plain link would mean it no longer reconstructs as a live date chip
-  // on paste.
+
   if (el.dataset.dateTs) {
     const timestamp = Number(el.dataset.dateTs);
     const format = el.dataset.dateFormat || DEFAULT_DATE_FORMAT;
@@ -65,10 +64,6 @@ export function serializeNode(node: Node, dialect: InlineDialect): string {
       return "\n";
     case "DIV":
     case "P": {
-      // Layout wrappers (e.g. a copied selection spanning several message
-      // rows clones many nested non-content divs) shouldn't each add their
-      // own line break on top of one their content already ended with —
-      // that's what turns a multi-message copy into a wall of blank lines.
       const inner = serializeChildren(el, dialect);
       if (!inner) return "";
       return inner.endsWith("\n") ? inner : `${inner}\n`;

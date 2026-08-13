@@ -1,11 +1,16 @@
-import { listNavigationIndex, Modal, ModalHeader, shortcutsByScope, useEscapeClose, useShortcut } from "@slock/ui";
+import {
+  listNavigationIndex,
+  Modal,
+  ModalHeader,
+  shortcutsByScope,
+  useEscapeClose,
+  useShortcut,
+} from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import "./ContextActions.css";
 
 type Action = { keys: string; label: string };
 
-// The composer's own key handler (composerKeyboard.ts) owns these directly —
-// they're not global shortcuts, so they don't go through the shared registry.
 const COMPOSER_ACTIONS: Action[] = [
   { keys: "Enter", label: "Send message" },
   { keys: "Shift Enter", label: "Insert a new line" },
@@ -15,8 +20,6 @@ const COMPOSER_ACTIONS: Action[] = [
   { keys: "Ctrl/⌘ Shift C", label: "Inline code" },
 ];
 
-// useEscapeClose is its own layered stack, not part of the shortcut registry,
-// so this one entry is still listed by hand.
 const ESCAPE_ACTION: Action = { keys: "Escape", label: "Close the current panel or dialog" };
 
 function ActionList(props: { actions: Action[] }) {
@@ -34,12 +37,6 @@ function ActionList(props: { actions: Action[] }) {
   );
 }
 
-// Every row is a real, focusable stop (unlike a repeated-per-row list like
-// the message list, this is a short, bounded reference list — Tab cycling
-// through every entry is exactly the point, not something to trim). Arrow
-// keys move faster between rows on top of that; focusing a row inside the
-// overflow:auto content also auto-scrolls it into view, which is what makes
-// the list reachable/scrollable by keyboard at all.
 function onContentKeyDown(event: KeyboardEvent & { currentTarget: HTMLDivElement }) {
   if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
   const rows = [...event.currentTarget.querySelectorAll<HTMLElement>(".context-actions-row")];

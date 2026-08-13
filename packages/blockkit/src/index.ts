@@ -1,15 +1,20 @@
-// biome-ignore-all lint/performance/noBarrelFile: This is the package's public API entry point.
 export { default as BkText } from "./BkText";
-export type { BlockActionContext } from "./BlockKit";
 export { default as BlockKit } from "./BlockKit";
-export type { BlockKitMentionInfo, BlockKitResolver, TimeAnchor } from "./context";
+export type { BlockActionContext } from "./BlockKit";
+export { MRKDWN_CLIPBOARD_TYPE } from "./clipboard";
 export {
   BlockKitResolverContext,
   TimeAnchorContext,
   useBlockKitResolver,
   useTimeAnchor,
 } from "./context";
+export type {
+  BlockKitMentionInfo,
+  BlockKitResolver,
+  TimeAnchor,
+} from "./context";
 export {
+  DATE_FORMAT_OPTION_PAIRS,
   DATE_FORMAT_OPTIONS,
   DEFAULT_DATE_FORMAT,
   formatDuration,
@@ -21,11 +26,10 @@ export {
   TIME_FORMAT_OPTIONS,
 } from "./dateFormat";
 export { fragmentToMrkdwn, HEADING_TAG_RE, serializeNode } from "./domToMrkdwn";
-export { default as EmojiText } from "./emoji/EmojiText";
-export type { StandardEmoji } from "./emoji/emoji";
 export { standardEmojiEntries } from "./emoji/emoji";
-// Used both internally (EmojiText) and directly by apps/web's EmojiPicker, so these
-// need to be public API, not just internal implementation details.
+export type { StandardEmoji } from "./emoji/emoji";
+export { default as EmojiText } from "./emoji/EmojiText";
+
 export {
   customEmojiNames,
   emojiUrl,
@@ -35,8 +39,9 @@ export {
   loadCustomEmoji,
 } from "./emoji/emojiCache";
 export { decodeTextEntities } from "./entities";
+export { MRKDWN_DIALECT } from "./inlineDialect";
 export type { InlineDialect } from "./inlineDialect";
-export { MARKDOWN_DIALECT, MRKDWN_DIALECT } from "./inlineDialect";
-export { default as Mrkdwn, Link, Mention, TimeAwareText } from "./mrkdwn";
+export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
+export { Link, Mention, default as Mrkdwn, TimeAwareText } from "./mrkdwn";
 export { stripTrackingParams } from "./urlCleanup";
 export { parseUserProfileLink } from "./userProfileLink";

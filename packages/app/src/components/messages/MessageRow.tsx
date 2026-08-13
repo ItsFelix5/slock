@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: Message rendering branches share state and interaction wiring that is clearer in one component.
 import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
 import {
@@ -18,10 +17,10 @@ import UserHoverCard from "../user/UserHoverCard";
 import { MessageAvatarButton } from "./MessageAuthorButtons";
 import "./MessageList.css";
 import MessageMeta from "./MessageMeta";
-import MessageActionsBar from "./parts/MessageActionsBar";
-import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
 import AttachmentCard from "./parts/media/AttachmentCard";
 import MessageFiles from "./parts/media/MessageFiles";
+import MessageActionsBar from "./parts/MessageActionsBar";
+import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
 import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
@@ -160,13 +159,9 @@ export default function MessageRow(props: MessageRowProps) {
   const avatarUrl = () => resolveAuthorAvatarUrl(msg(), user()?.avatarUrl);
   const isEditing = () => props.editingTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
-  // Whether this row is the roving-tabindex target — always true for exactly
-  // one row so Tab has somewhere to land, even before any real interaction.
+
   const focused = () => props.focusedTs?.() === msg().ts;
-  // Whether it should *look* focused: only once the list has genuine DOM
-  // focus, so the implicitly-seeded default row doesn't look selected on
-  // first render, and a stray click elsewhere can't pin a look-alike "focus"
-  // on a row that was never actually navigated to.
+
   const visuallyFocused = () => focused() && (props.listFocused?.() ?? false);
   return (
     <Show when={renderState().showMessage}>
@@ -199,6 +194,7 @@ export default function MessageRow(props: MessageRowProps) {
             attachment={replyUnfurl()}
             message={referencedMessage()}
             onJump={() => props.onJumpToMessage?.(replyRef()?.ts ?? "")}
+            permalink={replyRef()?.url}
           />
         </Show>
         <Show when={showThreadContext()}>
@@ -208,7 +204,6 @@ export default function MessageRow(props: MessageRowProps) {
             onJump={() => props.onOpenThread?.(msg().threadTs ?? "")}
           />
         </Show>
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: right-click-to-open-context-menu is a mouse-only convenience alongside the row's own interactive children */}
         <div
           class="message-row"
           classList={{ focused: visuallyFocused() }}
@@ -259,9 +254,11 @@ export default function MessageRow(props: MessageRowProps) {
               fallback={
                 <MessageAvatarButton
                   color={user()?.avatarColor}
+                  name={displayName()}
                   onClick={() => {}}
                   src={avatarUrl()}
                   tabbable={focused()}
+                  userId={msg().userId}
                 />
               }
               when={profileUserId()}
@@ -270,9 +267,11 @@ export default function MessageRow(props: MessageRowProps) {
                 <UserHoverCard userId={userId()}>
                   <MessageAvatarButton
                     color={user()?.avatarColor}
+                    name={displayName()}
                     onClick={() => store.users.openUserProfile(userId())}
                     src={avatarUrl()}
                     tabbable={focused()}
+                    userId={userId()}
                   />
                 </UserHoverCard>
               )}
@@ -349,6 +348,7 @@ export default function MessageRow(props: MessageRowProps) {
                         blocks={blocks()}
                         context={{
                           botId: msg().botId,
+                          botUserId: msg().userId,
                           channelId: props.channelId,
                           messageTs: msg().ts,
                           threadTs: msg().threadTs,
@@ -372,6 +372,7 @@ export default function MessageRow(props: MessageRowProps) {
                     attachment={a}
                     context={{
                       botId: msg().botId,
+                      botUserId: msg().userId,
                       channelId: props.channelId,
                       messageTs: msg().ts,
                       threadTs: msg().threadTs,
@@ -381,6 +382,7 @@ export default function MessageRow(props: MessageRowProps) {
                       !msg().text.includes(a.fromUrl) &&
                       !a.pretext?.includes(a.fromUrl)
                     }
+                    isEphemeral={msg().isEphemeral ?? false}
                   />
                 )}
               </For>

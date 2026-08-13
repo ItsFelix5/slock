@@ -1,9 +1,6 @@
 import { type Accessor, createSignal } from "solid-js";
 import { detectEdgeZone, type EdgeZone } from "./dragEdge";
 
-// Native dragover/drop can't read dataTransfer payloads reliably (Firefox
-// only exposes them on "drop"), so — same trick Sidebar.tsx's section drag
-// already uses — the payload travels via a plain signal, not dataTransfer.
 export interface DragSource<T> {
   payload: Accessor<T | null>;
   start: (event: DragEvent, value: T) => void;

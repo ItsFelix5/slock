@@ -10,8 +10,7 @@ import { createListboxActiveIndex, listNavigationIndex } from "./listNavigation"
 export interface ComboItem {
   id: string;
   label: string;
-  // Optional usage frequency/frecency, higher = used more. Only breaks ties
-  // between equally-good fuzzy matches — same policy as every other searcher.
+
   score?: number;
 }
 
@@ -20,9 +19,7 @@ export default function FilterCombobox(props: {
   items: ComboItem[];
   value?: string;
   onSelect: (id: string | undefined) => void;
-  // Optional org-wide search for lists too large to ship to the client in full
-  // (e.g. a ~100k-member workspace's users) — local `items` still match instantly,
-  // this fills in results beyond that capped local set as the user types.
+
   remoteSearch?: (query: string) => Promise<ComboItem[]>;
 }) {
   const [open, setOpen] = createSignal(false);
@@ -32,11 +29,11 @@ export default function FilterCombobox(props: {
   const [searchError, setSearchError] = createSignal(false);
   const [pickedLabel, setPickedLabel] = createSignal<string | undefined>(undefined);
   const listboxId = createUniqueId();
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let rootRef: HTMLDivElement | undefined;
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let triggerRef: HTMLButtonElement | undefined;
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let listRef: HTMLDivElement | undefined;
   const { activeIndex, setActiveIndex, optionId, activeOptionId } = createListboxActiveIndex(
     () => filtered().length,
@@ -163,7 +160,6 @@ export default function FilterCombobox(props: {
             onInput={(e) => onInput(e.currentTarget.value)}
             onKeyDown={onKeyDown}
             placeholder="Type to filter…"
-            role="combobox"
             spellcheck={false}
             type="text"
             value={query()}
@@ -174,16 +170,15 @@ export default function FilterCombobox(props: {
             class="filter-combobox-list"
             id={listboxId}
             ref={listRef}
-            role="listbox"
           >
             <For
               each={filtered()}
               fallback={
-                <div class="filter-combobox-empty" role="status">
+                <div class="filter-combobox-empty">
                   {searching()
                     ? "Searching…"
                     : searchError()
-                      ? "Couldn’t load suggestions"
+                      ? "Couldn't load suggestions"
                       : "No matches"}
                 </div>
               }
@@ -196,7 +191,6 @@ export default function FilterCombobox(props: {
                   id={optionId(index())}
                   onClick={() => pick(item)}
                   onMouseEnter={() => setActiveIndex(index())}
-                  role="option"
                   tabIndex={-1}
                   type="button"
                 >

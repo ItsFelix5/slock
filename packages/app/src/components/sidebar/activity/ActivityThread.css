@@ -51,11 +51,6 @@
   border-radius: 7px;
 }
 
-/* Connector runs through each row's own avatar column rather than one long
-line sized off the container — the avatar sits pinned to the row's top
-(flex-start) regardless of how tall the row grows, so its center is always
-10px down, and splitting the line there lets it track avatars of any height
-without dangling past whichever row happens to render last. */
 .activity-thread-avatar::before,
 .activity-thread-avatar::after {
   position: absolute;

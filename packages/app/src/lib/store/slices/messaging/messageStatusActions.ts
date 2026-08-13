@@ -45,10 +45,7 @@ export function createMessageStatusActions(deps: {
       );
     }
   }
-  // One-way, unlike toggleThreadSubscribed: callers that only know a thread's
-  // ts from the activity feed (e.g. a thread_reply row) never have its root
-  // message loaded, so isThreadSubscribed would read as false and a toggle
-  // would subscribe instead of unsubscribe.
+
   async function unsubscribeFromThread(channelId: string, ts: string) {
     const pendingKey = subscriptionPendingKey(channelId, ts);
     if (threadSubscriptionPending[pendingKey]) return;

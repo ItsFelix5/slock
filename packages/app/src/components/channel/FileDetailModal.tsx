@@ -22,6 +22,7 @@ function formatDateTime(value: number | string | undefined): string {
 
 export default function FileDetailModal(props: { file: SlackFile; onClose: () => void }) {
   const [detail] = createResource(() => props.file.id, fetchFileDetail);
+  const file = () => detail()?.file ?? props.file;
 
   const jumpToShare = (channelId: string, ts: string) => {
     props.onClose();
@@ -29,75 +30,74 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
     store.viewState.openChannelMessage(channelId, ts, { keepNav: true });
   };
 
-  const openCanvas = () => {
-    props.onClose();
-    store.canvas.openFileCanvas(props.file.id, props.file.title || props.file.name);
-  };
-
   return (
-    <Overlay ariaLabel={props.file.title || props.file.name} onClose={props.onClose}>
+    <Overlay ariaLabel={file().title || file().name} onClose={props.onClose}>
       <div class="file-detail-card flex-col">
-        <PanelHeader onClose={props.onClose} title={props.file.title || props.file.name} />
+        <PanelHeader onClose={props.onClose} title={file().title || file().name} />
         <div class="file-detail-body flex-col">
           <div class="file-detail-preview">
             <Switch
               fallback={
-                <a
-                  class="file-detail-fallback flex-col"
-                  href={props.file.urlPrivate}
-                  rel="noopener noreferrer"
-                  target="_blank"
+                <Show
+                  fallback={
+                    <div class="file-detail-fallback flex-col">
+                      <Icon name="file" size={40} />
+                      <span>{detail.error ? "File is no longer available" : "Loading file…"}</span>
+                    </div>
+                  }
+                  when={file().urlPrivate}
                 >
-                  <Icon name="file" size={40} />
-                  <span>Open file</span>
-                </a>
+                  <a
+                    class="file-detail-fallback flex-col"
+                    href={file().urlPrivate}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <Icon name="file" size={40} />
+                    <span>Open file</span>
+                  </a>
+                </Show>
               }
             >
               <Match when={detail()?.content != null}>
                 <pre class="file-detail-snippet">{detail()?.content}</pre>
               </Match>
-              <Match when={props.file.isImage && props.file.thumbUrl}>
+              <Match when={file().isImage && file().thumbUrl}>
                 <ConstrainedImage
-                  alt={props.file.title || props.file.name}
+                  alt={file().title || file().name}
                   class="file-detail-image"
-                  fullSrc={resolveMediaUrl(props.file.urlPrivate)}
-                  height={props.file.height || 480}
-                  src={props.file.thumbUrl ?? ""}
-                  width={props.file.width || 640}
+                  fullSrc={resolveMediaUrl(file().urlPrivate)}
+                  height={file().height || 480}
+                  src={file().thumbUrl ?? ""}
+                  width={file().width || 640}
                 />
               </Match>
-              <Match when={props.file.isVideo}>
+              <Match when={file().isVideo}>
                 <VideoPlayer
-                  ariaLabel={props.file.title || props.file.name}
-                  height={props.file.height}
-                  openHref={props.file.urlPrivate}
-                  poster={props.file.thumbUrl}
-                  src={resolveMediaUrl(props.file.urlPrivate)}
-                  width={props.file.width}
+                  ariaLabel={file().title || file().name}
+                  height={file().height}
+                  openHref={file().urlPrivate}
+                  poster={file().thumbUrl}
+                  src={resolveMediaUrl(file().urlPrivate)}
+                  width={file().width}
                 />
               </Match>
-              <Match when={props.file.isAudio}>
-                <AudioFile file={props.file} />
+              <Match when={file().isAudio}>
+                <AudioFile file={file()} />
               </Match>
-              <Match when={props.file.isPdf || props.file.isMail}>
-                <FileViewerTrigger file={props.file} kind={props.file.isPdf ? "pdf" : "mail"}>
-                  <Icon name={props.file.isPdf ? "pdf-file" : "email"} size={40} />
+              <Match when={file().isPdf || file().isMail}>
+                <FileViewerTrigger file={file()} kind={file().isPdf ? "pdf" : "mail"}>
+                  <Icon name={file().isPdf ? "pdf-file" : "email"} size={40} />
                   <span>Open preview</span>
                 </FileViewerTrigger>
-              </Match>
-              <Match when={props.file.isCanvas}>
-                <button class="file-detail-fallback btn-reset" onClick={openCanvas} type="button">
-                  <Icon name="canvas-content" size={40} />
-                  <span>Open canvas</span>
-                </button>
               </Match>
             </Switch>
           </div>
           <div class="file-detail-meta text-dim">
             {[
-              props.file.filetype?.toUpperCase(),
-              formatSize(props.file.size),
-              formatDateTime(props.file.created),
+              file().filetype?.toUpperCase(),
+              formatSize(file().size),
+              formatDateTime(file().created),
             ]
               .filter(Boolean)
               .join(" · ")}

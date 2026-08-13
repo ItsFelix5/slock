@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads retain their wire field names.
 export type InitialData = {
   channels?: any[];
   error?: Record<string, string>;
@@ -17,9 +16,6 @@ export type InitialData = {
 let initialDataPromise: Promise<InitialData> | null = null;
 const FEED_ROUTE_RE = /^\/(activity|later|search)(?:\/|$)/;
 
-// Bootstrap, preferences and DND are separate client resources but one server
-// operation. Sharing the promise prevents each resource from issuing its own
-// request while still letting each map its own slice of the result.
 export function fetchInitialData(): Promise<InitialData> {
   if (initialDataPromise) return initialDataPromise;
   const pathname = typeof window === "undefined" ? "/" : window.location.pathname;

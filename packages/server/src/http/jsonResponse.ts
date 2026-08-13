@@ -3,9 +3,6 @@ import type { Credentials } from "../auth.ts";
 import { jsonHeaders } from "../auth.ts";
 import { compressedResponse } from "./compressedResponse.ts";
 
-// Every purpose-built route returns through here: one place that rewrites
-// Slack-hosted asset URLs into signed same-origin ones and gzips the result,
-// so neither step can be forgotten as new routes are added.
 export function jsonResponse(
   data: unknown,
   creds: Credentials | null,

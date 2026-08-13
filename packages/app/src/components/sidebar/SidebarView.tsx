@@ -7,9 +7,9 @@ import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
 import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/SidebarRows";
+import type { SidebarContext } from "./sidebarCategories";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
-import type { SidebarContext } from "./sidebarCategories";
 
 export default function SidebarView(props: { context: SidebarContext }) {
   const {
@@ -160,8 +160,8 @@ export default function SidebarView(props: { context: SidebarContext }) {
         <div class="sidebar-scroll">
           <Show fallback={<SidebarSkeleton />} when={!bootstrap.loading}>
             <Show when={preferencesError()}>
-              <div class="sidebar-resource-error" role="alert">
-                <span>Couldn’t load preferences.</span>
+              <div class="sidebar-resource-error">
+                <span>Couldn't load preferences.</span>
                 <Button
                   disabled={preferencesLoading()}
                   onClick={() => void retryPreferences()}
@@ -173,8 +173,8 @@ export default function SidebarView(props: { context: SidebarContext }) {
               </div>
             </Show>
             <Show when={sectionsError()}>
-              <div class="sidebar-resource-error" role="alert">
-                <span>Couldn’t load custom sections.</span>
+              <div class="sidebar-resource-error">
+                <span>Couldn't load custom sections.</span>
                 <Button
                   disabled={sectionsLoading()}
                   onClick={() => void retrySections()}
@@ -202,7 +202,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
                       dropTarget()?.before === true,
                   }}
                 >
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-to-reorder is a mouse-only convenience; the section's own menu (Rename/Delete) stays fully keyboard-reachable */}
                   <div
                     class="sidebar-section-header flex-align-center"
                     classList={{

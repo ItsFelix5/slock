@@ -115,6 +115,7 @@
   --font-size-control: 13px;
   --font-size-secondary: 14px;
   --font-size-body: 15px;
+  --font-size-heading-xs: 16px;
   --font-size-heading-sm: 18px;
   --font-size-heading-lg: 24px;
   --font-size-display: 32px;
@@ -133,6 +134,23 @@
   --icon-optical-shift: 1px;
   --focus-ring-width: 2px;
   --focus-ring-color: var(--accent);
+  --header-height: 48px;
+  --header-padding-inline: var(--space-lg);
+  --header-action-size: 32px;
+  --header-divider-width: 1px;
+  --composer-frame-inline: var(--space-md);
+  --composer-frame-block-end: var(--space-sm);
+  --composer-action-size: 32px;
+  --composer-radius: var(--space-lg);
+  --message-row-inline-start: 16px;
+  --message-row-inline-end: 20px;
+  --message-row-avatar-gap: 10px;
+  --message-control-radius: 6px;
+  --message-row-padding-y: 2px;
+  --message-avatar-size: 36px;
+  --message-avatar-margin-top: 2px;
+  --message-avatar-font-size: 14px;
+  --message-meta-gap: 6px;
 }
 
 :root[data-color-scheme="light"] {

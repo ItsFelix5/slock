@@ -1,12 +1,6 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to command parsing.
 import { addReminder, runSlashCommand, setChannelTopic } from "@slock/slack-api";
 import { actionFeedback, composerFeedbackKey } from "../feedback";
 
-// Well-understood commands map to real documented APIs already wired up
-// elsewhere in this file; anything else is forwarded best-effort to Slack's
-// command dispatch, with the actual error surfaced rather than assumed to
-// have worked, since that internal call can't be verified without live
-// testing against a real workspace.
 export function createCommandsSlice(deps: {
   sendMessage: (
     channelId: string,

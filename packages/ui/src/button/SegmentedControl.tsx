@@ -8,7 +8,6 @@ export interface SegmentedControlProps {
 }
 
 export default function SegmentedControl(props: SegmentedControlProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -29,7 +28,6 @@ export default function SegmentedControl(props: SegmentedControlProps) {
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: delegates arrow-key movement to the caller-provided segment buttons, which are the real interactive elements
     <div class={`segmented-control ${props.class || ""}`} onKeyDown={onKeyDown} ref={rootRef}>
       {props.children}
     </div>

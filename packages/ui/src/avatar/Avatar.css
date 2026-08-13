@@ -30,6 +30,13 @@
   border-radius: 12px;
 }
 
+.avatar-message {
+  width: var(--message-avatar-size);
+  height: var(--message-avatar-size);
+  font-size: var(--message-avatar-font-size);
+  border-radius: var(--message-control-radius);
+}
+
 .avatar-img {
   position: absolute;
   inset: 0;

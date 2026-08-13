@@ -4,9 +4,6 @@ import { createMediaVolume, Icon, VolumeControl } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import "./AudioFile.css";
 
-// Slack ships one raw sample per ~0.4s of audio, so a longer message can carry
-// hundreds of values — far more than fit as individually visible bars. Fold
-// them down to a fixed count so the waveform's width never depends on clip length.
 const BAR_COUNT = 40;
 
 function resample(raw: number[]): number[] {
@@ -83,7 +80,7 @@ export default function AudioFile(props: { file: SlackFile }) {
     <div class="audio-file">
       <Show
         fallback={
-          <div class="audio-file-error" role="alert">
+          <div class="audio-file-error">
             <Icon name="warning" size={18} />
             <span>Audio unavailable.</span>
             <button
@@ -130,7 +127,6 @@ export default function AudioFile(props: { file: SlackFile }) {
               seekTo((event.clientX - rect.left) / rect.width);
             }}
             onKeyDown={handleSeekKeyDown}
-            role="slider"
             tabIndex={0}
           >
             <For each={samples()}>

@@ -9,13 +9,13 @@ const USER_ID_RE = /^[UW][A-Z0-9]+$/;
 const FETCH_TIMEOUT_MS = 8_000;
 
 async function fetchJson(lookup: Lookup, url: string): Promise<any> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${lookup} responded ${res.status} ${res.statusText}`);
   return res.json();
 }
 
-// Hackatime 404s for any slack_id without a Hackatime account, which is most
-// users — that's not a fetch failure, just "no trust factor data".
 async function fetchTrustFactor(id: string): Promise<any> {
   const res = await fetch(`https://hackatime.hackclub.com/api/v1/users/${id}/trust_factor`, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -31,9 +31,6 @@ function failure(lookup: Lookup, error: unknown): LookupFailure {
 }
 
 export const userStatusRoutes: Route[] = [
-  // Proxies Hack Club's identity/Hackatime trust lookups server-side — the
-  // browser can't call these directly (no CORS), and routing them through
-  // here keeps the two hardcoded external hosts out of client code.
   route("GET", "/api/user-status/:id", async (ctx) => {
     if (!ctx.creds) return errorResponse("not configured", 401);
     const { id } = ctx.params;

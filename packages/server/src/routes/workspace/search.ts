@@ -1,13 +1,99 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
+import { teamIdFromRoute } from "../../auth.ts";
 import { jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
-import { callSlack } from "../../slackClient.ts";
+import { callSlack, callSlackEdge } from "../../slackClient.ts";
+import { trimChannel, trimFile, trimUser } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
 
 export const searchRoutes: Route[] = [
-  // search.messages has no next-page affordance in this client — the caller
-  // never requests page 2 — so unlike conversations.history/activity.feed,
-  // there's no cursor to carry through here; that's intentional, not an
-  // oversight.
+  route("GET", "/api/search", async (ctx) => {
+    let query = (ctx.searchParams.get("query") ?? "").trim();
+    if (!query)
+      return jsonResponse(
+        { channels: [], files: [], ok: true, users: [] },
+        ctx.creds,
+        ctx.acceptEncoding,
+      );
+    const scope =
+      query[0] === "#"
+        ? "channels"
+        : query[0] === "@"
+          ? "users"
+          : query[0] === "§"
+            ? "files"
+            : "all";
+    if (scope !== "all") query = query.slice(1).trim();
+
+    //todo users/search
+    //channels/search
+    //search.autocomplete.files query include_shares
+    const [peopleData, channelsData, filesData] = await Promise.all([
+      scope === "channels" || scope === "files"
+        ? Promise.resolve({ items: [], ok: true })
+        : callSlack("search.modules.people", { count: "30", module: "people", query }, ctx.creds),
+      scope === "files" || scope === "users"
+        ? Promise.resolve({ results: [] })
+        : callSlackEdge(
+            "channels/search",
+            {
+              check_membership: true,
+              count: 40,
+              default_workspace: ctx.creds ? teamIdFromRoute(ctx.creds.route) : undefined,
+              filter: "xws",
+              fuzz: 1,
+              include_record_channels: false,
+              query,
+            },
+            ctx.creds,
+          ),
+      scope === "channels" || scope === "users"
+        ? Promise.resolve({ items: [], ok: true })
+        : callSlack(
+            "search.modules.files",
+            {
+              count: "20",
+              extra_message_data: "1",
+              extracts: "1",
+              file_title_only: "false",
+              highlight: "1",
+              include_files_shares: "1",
+              max_extract_len: "200",
+              module: "files",
+              no_user_profile: "1",
+              page: "1",
+              query,
+              query_rewrite_disabled: "false",
+              search_context: "desktop_files_search",
+              search_exclude_bots: "false",
+              search_only_my_channels: "false",
+              sort: "timestamp",
+              sort_dir: "desc",
+            },
+            ctx.creds,
+          ),
+    ]);
+    if (!peopleData.ok)
+      return slackErrorResponse(peopleData, "search.modules.people", ctx.creds, ctx.acceptEncoding);
+    if (!Array.isArray(channelsData.results))
+      return slackErrorResponse(
+        channelsData,
+        "edge channels/search",
+        ctx.creds,
+        ctx.acceptEncoding,
+      );
+    if (!filesData.ok)
+      return slackErrorResponse(filesData, "search.modules.files", ctx.creds, ctx.acceptEncoding);
+    return jsonResponse(
+      {
+        channels: channelsData.results.map(trimChannel),
+        files: (Array.isArray(filesData.items) ? filesData.items : []).map(trimFile),
+        ok: true,
+        users: (Array.isArray(peopleData.items) ? peopleData.items : []).map(trimUser),
+      },
+      ctx.creds,
+      ctx.acceptEncoding,
+    );
+  }),
+
   route("GET", "/api/search/messages", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ ok: true, results: [] }, ctx.creds, ctx.acceptEncoding);

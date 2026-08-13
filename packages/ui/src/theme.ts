@@ -10,6 +10,10 @@ export interface MessageSizeMetrics {
   metaGap: number;
 }
 
+export interface ThemeAppearance {
+  messageSize: MessageSize;
+}
+
 const MESSAGE_SIZE_KEYFRAMES: [number, MessageSizeMetrics][] = [
   [0, { avatarFontSize: 11, avatarMarginTop: 1, avatarSize: 22, metaGap: 4, rowPaddingY: 0 }],
   [1, { avatarFontSize: 14, avatarMarginTop: 2, avatarSize: 36, metaGap: 6, rowPaddingY: 2 }],
@@ -41,16 +45,32 @@ export function messageSizeMetrics(size: MessageSize): MessageSizeMetrics {
   };
 }
 
-const MESSAGE_SIZE_KEY = "slock-message-size";
+const THEME_APPEARANCE_KEY = "slock-theme-appearance";
+const LEGACY_MESSAGE_SIZE_KEY = "slock-message-size";
 
-function loadMessageSize(): MessageSize {
-  const raw = localStorage.getItem(MESSAGE_SIZE_KEY);
-  const saved = raw === null ? Number.NaN : Number(raw);
-  if (!Number.isNaN(saved)) return Math.min(2, Math.max(0, saved));
-  return 1;
+function loadThemeAppearance(): ThemeAppearance {
+  try {
+    const stored = localStorage.getItem(THEME_APPEARANCE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<ThemeAppearance>;
+      if (typeof parsed.messageSize === "number")
+        return { messageSize: Math.min(2, Math.max(0, parsed.messageSize)) };
+    }
+  } catch {
+    localStorage.removeItem(THEME_APPEARANCE_KEY);
+  }
+
+  const legacyRaw = localStorage.getItem(LEGACY_MESSAGE_SIZE_KEY);
+  const legacy = legacyRaw === null ? Number.NaN : Number(legacyRaw);
+  const messageSize = Number.isNaN(legacy) ? 1 : Math.min(2, Math.max(0, legacy));
+  const appearance = { messageSize };
+  localStorage.setItem(THEME_APPEARANCE_KEY, JSON.stringify(appearance));
+  localStorage.removeItem(LEGACY_MESSAGE_SIZE_KEY);
+  return appearance;
 }
 
-const [messageSize, setMessageSizeSignal] = createSignal<MessageSize>(loadMessageSize());
+const [themeAppearance, setThemeAppearanceSignal] = createSignal(loadThemeAppearance());
+const messageSize = () => themeAppearance().messageSize;
 
 function applyMessageSize(size: MessageSize) {
   const root = document.documentElement;
@@ -65,19 +85,11 @@ function applyMessageSize(size: MessageSize) {
 applyMessageSize(messageSize());
 
 export function setMessageSize(size: MessageSize) {
-  setMessageSizeSignal(size);
-  localStorage.setItem(MESSAGE_SIZE_KEY, String(size));
-  applyMessageSize(size);
+  const messageSize = Math.min(2, Math.max(0, size));
+  const next = { ...themeAppearance(), messageSize };
+  setThemeAppearanceSignal(next);
+  localStorage.setItem(THEME_APPEARANCE_KEY, JSON.stringify(next));
+  applyMessageSize(messageSize);
 }
 
-const LOG_DELETED_KEY = "slock-log-deleted-messages";
-const [logDeletedMessages, setLogDeletedMessagesSignal] = createSignal(
-  localStorage.getItem(LOG_DELETED_KEY) === "1",
-);
-
-export function setLogDeletedMessages(on: boolean) {
-  setLogDeletedMessagesSignal(on);
-  localStorage.setItem(LOG_DELETED_KEY, on ? "1" : "0");
-}
-
-export { logDeletedMessages, messageSize };
+export { messageSize, themeAppearance };

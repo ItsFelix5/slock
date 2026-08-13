@@ -1,13 +1,5 @@
-import { fragmentToMrkdwn } from "@slock/blockkit";
+import { fragmentToMrkdwn, MRKDWN_CLIPBOARD_TYPE } from "@slock/blockkit";
 
-// Selecting part of a sent message (mentions, channel/date chips, emoji,
-// links, formatting — all plain read-only DOM, see MessageRow / blockkit's
-// Mrkdwn and RichText) and copying it should produce the same Slack token
-// syntax the composer emits on its own copy (selectionCommands.ts's
-// copySelection) — that's what lets a copied message round-trip back into
-// the composer as real chips instead of dead display text. Global rather
-// than per-component so it covers every surface that renders message
-// content (channel view, thread panel) without wiring a handler into each.
 const MESSAGE_CONTENT_SELECTOR = ".message-list, .thread-panel-messages";
 
 export function handleMessageCopy(e: ClipboardEvent) {
@@ -25,5 +17,6 @@ export function handleMessageCopy(e: ClipboardEvent) {
   const text = fragmentToMrkdwn(container);
   if (!(text && e.clipboardData)) return;
   e.clipboardData.setData("text/plain", text);
+  e.clipboardData.setData(MRKDWN_CLIPBOARD_TYPE, text);
   e.preventDefault();
 }

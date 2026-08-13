@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: A row's summary, thread timeline, and reaction slot share state that's clearer kept in one component.
 import { formatTime } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
@@ -17,17 +16,13 @@ import {
 } from "../../messages/parts/messageRenderState";
 import ReactionRow from "../../messages/parts/ReactionRow";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
-import { ActivityRowActions } from "./ActivityRowActions";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import { activityVerb } from "./activityMetadata";
 import "./ActivityRow.css";
+import { ActivityRowActions } from "./ActivityRowActions";
 import "./ActivityThread.css";
 import { ActivityMessageText, ThreadMessageRow } from "./activityThreadMessage";
 
-// A thread's unread tail renders in full below the summary, uncollapsed —
-// fine for a handful of replies, not for a thread that's been unread for a
-// week. Cap it so the feed stays scannable; the rest is one click away
-// through the same "read N earlier" affordance as already-read history.
 const MAX_INITIAL_TIMELINE_ENTRIES = 20;
 
 export interface ActivityRow {
@@ -103,11 +98,7 @@ export default function ActivityRow(props: {
   const isThreadGroup = createMemo(() => props.row.isThread);
   const orderedItems = createMemo(() => [...props.row.items].reverse());
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
-  // The channel's own message cache only covers whatever page of history is
-  // currently loaded, which almost never includes an arbitrary thread's root
-  // for a channel the user hasn't opened — fetch the real thread so nothing
-  // between the root and the activity feed's own (sparse) entries silently
-  // goes missing.
+
   createEffect(() => {
     if (!(isThreadGroup() && expanded())) return;
     store.messages.ensureThreadRepliesLoaded(latest().channelId, threadTs());
@@ -119,17 +110,10 @@ export default function ActivityRow(props: {
     return map;
   });
 
-  // Slack bundles an entire burst of unread thread replies into a single
-  // feed entry — only its latest ts is exposed, so this one ActivityItem can
-  // stand in for many actual messages.
   const bundledItem = createMemo(() =>
     props.row.items.find((item) => item.kind === "thread_reply" && (item.unreadCount ?? 0) > 1),
   );
 
-  // Structural only — no read/unread status baked in, so marking items read
-  // elsewhere doesn't reshuffle which messages are already showing (see
-  // visibleStartIndex below). Prefers the real fetched thread once it's in;
-  // falls back to the (possibly sparse) activity items while that's loading.
   const timeline = createMemo<TimelineEntry[]>(() => {
     const list = fullThread();
     if (list && list.length > 0) {
@@ -145,8 +129,6 @@ export default function ActivityRow(props: {
   });
 
   function entryUnread(entry: TimelineEntry): boolean {
-    // Never your own reply — the fallback below only knows position within
-    // the known unread tail.
     if (entryUserId(entry) === store.users.currentUser()?.id) return false;
     if (entry.item) return store.activity.isActivityItemUnread(entry.item);
     const bundled = bundledItem();
@@ -156,11 +138,7 @@ export default function ActivityRow(props: {
       const index = list.findIndex((message) => message.ts === entry.ts);
       return index >= tailStart;
     }
-    // Thread replies never advance the channel's own read cursor, so a reply
-    // the sparse activity feed never surfaced and that isn't part of the
-    // known unread tail can't be judged against lastReadByChannel — that's
-    // the exact comparison activityItemReadState avoids for thread_reply
-    // items. With no signal saying otherwise, treat it as read.
+
     return false;
   }
 
@@ -181,13 +159,6 @@ export default function ActivityRow(props: {
     };
   }
 
-  // Frozen at first read (untrack) so items don't collapse out from under the
-  // user mid-view once markActivityItemsRead fires; a genuinely new reply
-  // still surfaces because it changes the timeline itself. Also caps how far
-  // back an unread burst reaches on its own — a thread with hundreds of
-  // unread replies would otherwise dump its entire tail straight into the
-  // feed; past the cap it folds into the same "read N earlier" collapse as
-  // already-read history.
   const visibleStartIndex = createMemo(() => {
     const entries = timeline();
     return untrack(() => {
@@ -198,10 +169,7 @@ export default function ActivityRow(props: {
   });
   const olderEntries = createMemo(() => timeline().slice(0, visibleStartIndex()));
   const visibleEntries = createMemo(() => timeline().slice(visibleStartIndex()));
-  // The connector line runs between avatars; it needs to know which rendered
-  // row is actually first/last so it doesn't dangle past the real endpoints.
-  // Can't use CSS :first-child/:last-child here — each row is wrapped in its
-  // own SplitNavigation span, so consecutive rows aren't DOM siblings.
+
   const firstTimelineTs = createMemo(() => {
     if (expanded() && olderEntries().length > 0) return olderEntries()[0].ts;
     return visibleEntries()[0]?.ts;
@@ -364,8 +332,6 @@ export default function ActivityRow(props: {
           </button>
         </SplitNavigation>
 
-        {/* Its own reaction pills are separately clickable — kept outside the
-        summary button above instead of nested inside it. */}
         <Show when={isThreadGroup() ? undefined : matchingReaction()}>
           {(reaction) => (
             <div class="activity-reaction-slot">

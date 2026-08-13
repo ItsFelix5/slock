@@ -28,7 +28,7 @@ export default function ConnectionStatus(props: {
 
   const message = () => {
     if (props.state === "offline") {
-      return "You’re offline. Messages and drafts will retry when your connection returns.";
+      return "You're offline. Messages and drafts will retry when your connection returns.";
     }
     if (props.state === "reconnecting") return "Live updates are delayed. Reconnecting…";
     return "Connecting to live updates…";
@@ -36,7 +36,7 @@ export default function ConnectionStatus(props: {
 
   return (
     <Show when={visible() && props.state !== "connected"}>
-      <div class="connection-status" role="status">
+      <div class="connection-status">
         <Icon name={props.state === "offline" ? "cloud-offline" : "refresh"} size={15} />
         <span>{message()}</span>
         <Show when={props.state === "reconnecting"}>

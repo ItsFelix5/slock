@@ -62,16 +62,13 @@ export function createPreferencesSlice(deps: {
 
   createEffect(() => {
     if (dndStatus.error) {
-      actionFeedback.flash("dnd", "Couldn’t load Do Not Disturb status. Click to retry.", "error");
+      actionFeedback.flash("dnd", "Couldn't load Do Not Disturb status. Click to retry.", "error");
       return;
     }
     const status = dndStatus();
     if (status !== undefined) setDndSnoozedUntil(status);
   });
 
-  // isDndActive() only re-evaluates when dndSnoozedUntil() itself changes — without
-  // this, a snooze that lapses while nothing else touches the signal would leave the
-  // UI reporting DND as active forever, until the user manually toggles it again.
   createEffect(() => {
     const until = dndSnoozedUntil();
     if (!until) return;
@@ -180,9 +177,6 @@ export function createPreferencesSlice(deps: {
     }
   }
 
-  // Central lists for the Settings > Notifications tab — everywhere else, mute
-  // and notify-all are set per-channel from that channel's own header/context
-  // menu, so this is the only place all of them are visible together.
   const mutedChannels = createMemo<Channel[]>(() =>
     deps.channels().filter((c) => mutedChannelIds[c.id]),
   );
@@ -190,9 +184,6 @@ export function createPreferencesSlice(deps: {
     deps.channels().filter((c) => notifyAllChannelIds[c.id]),
   );
 
-  // The keyword that pings via <text> the way an @mention does — first match
-  // wins, case-insensitive, on a whole word (so "cat" doesn't fire on
-  // "concatenate"). Mirrors Slack's own "highlight words" notification setting.
   function matchingHighlightWord(text: string): string | undefined {
     return highlightWords().find((word) =>
       new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(text),
@@ -218,9 +209,7 @@ export function createPreferencesSlice(deps: {
   async function retryDndStatus(): Promise<void> {
     try {
       await refetchDndStatus();
-    } catch {
-      // The resource effect refreshes the actionable feedback.
-    }
+    } catch {}
   }
 
   async function snoozeDnd(minutes: number): Promise<boolean> {

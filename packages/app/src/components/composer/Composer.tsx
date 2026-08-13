@@ -2,13 +2,12 @@ import { Button, Icon, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { actionFeedback, composerFeedbackKey } from "../../lib/store";
 import AttachmentCard from "../messages/parts/media/AttachmentCard";
+import "./Composer.css";
 import { createComposerController } from "./composerController";
 import type { ComposerProps } from "./composerTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
 import { linkPreviewToAttachment } from "./lib/textDetection";
 import ComposeDatePicker from "./popovers/ComposeDatePicker";
-import ComposeLinkEditor from "./popovers/ComposeLinkEditor";
-import "./Composer.css";
 
 function FileChipThumbnail(props: { file: File }) {
   if (!props.file.type.startsWith("image/")) return null;
@@ -25,6 +24,7 @@ function FileChip(props: {
 }) {
   const [renaming, setRenaming] = createSignal(false);
   const [draft, setDraft] = createSignal("");
+  const isImage = () => props.file.type.startsWith("image/");
 
   const startRename = () => {
     if (props.disabled) return;
@@ -38,50 +38,53 @@ function FileChip(props: {
   };
 
   return (
-    <span class="composer-file-chip flex-align-center">
+    <span
+      class="composer-file-chip flex-align-center"
+      classList={{ "composer-file-chip-image": isImage() }}
+    >
       <FileChipThumbnail file={props.file} />
-      <Show
-        fallback={
-          <input
-            autofocus
-            class="composer-file-chip-rename-input"
-            onBlur={commit}
-            onInput={(e) => setDraft(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                commit();
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setRenaming(false);
-              }
-            }}
-            ref={(el) => requestAnimationFrame(() => el.select())}
-            value={draft()}
-          />
-        }
-        when={!renaming()}
-      >
-        <button
-          aria-label={`Rename ${props.file.name}`}
-          class="composer-file-chip-name btn-reset"
-          disabled={props.disabled}
-          onClick={startRename}
-          type="button"
+      <span class="composer-file-chip-details">
+        <Show
+          fallback={
+            <input
+              autofocus
+              class="composer-file-chip-rename-input"
+              onBlur={commit}
+              onInput={(e) => setDraft(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commit();
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setRenaming(false);
+                }
+              }}
+              ref={(el) => requestAnimationFrame(() => el.select())}
+              value={draft()}
+            />
+          }
+          when={!renaming()}
         >
-          {props.file.name}
-        </button>
-      </Show>
+          <button
+            class="composer-file-chip-name btn-reset"
+            disabled={props.disabled}
+            onClick={startRename}
+            type="button"
+          >
+            {props.file.name}
+          </button>
+        </Show>
+      </span>
       <Tooltip content="Remove">
         <button
-          aria-label={`Remove ${props.file.name}`}
-          class="btn-reset"
+          class="composer-file-chip-remove btn-reset"
           disabled={props.disabled}
           onClick={props.onRemove}
           type="button"
         >
-          <Icon name="close" size={12} />
+          <Icon name="close" size={16} />
         </button>
       </Tooltip>
     </span>
@@ -94,8 +97,6 @@ export default function Composer(props: ComposerProps) {
     setToolsOpen,
     dateOpen,
     setDateOpen,
-    linkEditor,
-    setLinkEditor,
     pendingFiles,
     dragOver,
     setDragOver,
@@ -103,6 +104,8 @@ export default function Composer(props: ComposerProps) {
     setSuggest,
     linkPreviews,
     editor,
+    setEditorRef,
+    applySuggestion,
     suggestions,
     targetChannelId,
     feedbackKey,
@@ -110,16 +113,13 @@ export default function Composer(props: ComposerProps) {
     placeholder,
     runTool,
     availableTools,
+    cacheDraftLocally,
     addFiles,
     removeFile,
     renameFile,
     submit,
     onKeyDown,
     onInput,
-    onPaste,
-    onCopy,
-    onCut,
-    onEditorClick,
     setSuggestPopoverRef,
     setFileInputRef,
     sending,
@@ -128,7 +128,6 @@ export default function Composer(props: ComposerProps) {
     retryingDraft,
     retrySlashCommandSuggestions,
     slashCommandSuggestionsError,
-    slashCommandSuggestionsLoading,
   } = createComposerController(props);
   return (
     <form
@@ -141,9 +140,14 @@ export default function Composer(props: ComposerProps) {
         if (!(props.editing || sending()) && targetChannelId()) setDragOver(true);
       }}
       onDrop={(e) => {
-        e.preventDefault();
         setDragOver(false);
-        if (!props.editing && e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
+        const files = e.dataTransfer?.files;
+        if (files?.length) {
+          e.preventDefault();
+          if (!props.editing) addFiles(files);
+        } else if (sending()) {
+          e.preventDefault();
+        }
       }}
       onSubmit={submit}
     >
@@ -169,13 +173,12 @@ export default function Composer(props: ComposerProps) {
                 <AttachmentCard attachment={linkPreviewToAttachment(preview)} />
                 <Tooltip class="composer-link-preview-remove-anchor" content="Remove preview">
                   <button
-                    aria-label="Remove preview"
                     class="composer-link-preview-remove btn-reset flex-center"
                     disabled={sending()}
                     onClick={() => linkPreviews.dismissLinkPreview(preview.url)}
                     type="button"
                   >
-                    <Icon name="close" size={12} />
+                    <Icon name="close" size={16} />
                   </button>
                 </Tooltip>
               </div>
@@ -190,7 +193,7 @@ export default function Composer(props: ComposerProps) {
         />
       </Show>
       <Show when={!props.editing && draftSyncError()}>
-        <div class="composer-draft-warning flex-between" role="alert">
+        <div class="composer-draft-warning flex-between">
           <span>Draft sync is unavailable. Keep this tab open until it is saved.</span>
           <Button
             disabled={retryingDraft()}
@@ -202,14 +205,9 @@ export default function Composer(props: ComposerProps) {
           </Button>
         </div>
       </Show>
-      <Show when={!props.editing && slashCommandSuggestionsLoading()}>
-        <div class="composer-capability-notice" role="status">
-          Loading slash-command suggestions…
-        </div>
-      </Show>
       <Show when={!props.editing && slashCommandSuggestionsError()}>
-        <div class="composer-capability-notice composer-capability-error flex-between" role="alert">
-          <span>Couldn’t load slash-command suggestions. Commands can still be typed.</span>
+        <div class="composer-capability-error flex-between">
+          <span>Couldn't load slash-command suggestions. Commands can still be typed.</span>
           <Button onClick={() => void retrySlashCommandSuggestions()} size="sm" variant="ghost">
             Try again
           </Button>
@@ -223,19 +221,17 @@ export default function Composer(props: ComposerProps) {
             panelClass="menu-panel composer-tools-menu"
             placement="top"
             trigger={
-              <Tooltip content="Add formatting or a block">
-                <button
-                  aria-label="Add formatting or a block"
-                  class="composer-tool btn-reset flex-center flex-shrink-0"
-                  classList={{ active: toolsOpen() }}
-                  disabled={disabled()}
-                  onClick={() => setToolsOpen(!toolsOpen())}
-                  onMouseDown={(e) => e.preventDefault()}
-                  type="button"
-                >
-                  <Icon name="plus" size={16} />
-                </button>
-              </Tooltip>
+              <button
+                aria-label="Add formatting or a block"
+                class="composer-tool btn-reset flex-center flex-shrink-0"
+                classList={{ active: toolsOpen() }}
+                disabled={disabled()}
+                onClick={() => setToolsOpen(!toolsOpen())}
+                onMouseDown={(e) => e.preventDefault()}
+                type="button"
+              >
+                <Icon name="plus" size={16} />
+              </button>
             }
           >
             <For each={availableTools()}>
@@ -257,6 +253,7 @@ export default function Composer(props: ComposerProps) {
                 onSelect={(ts, format) => {
                   editor.restoreSelection();
                   editor.insertDateChipAtCaret(ts, format);
+                  cacheDraftLocally();
                   setDateOpen(false);
                 }}
               />
@@ -264,7 +261,6 @@ export default function Composer(props: ComposerProps) {
           </Show>
         </div>
         <div class="composer-input-wrap">
-          {/* biome-ignore lint/a11y/useSemanticElements: rich-text formatting needs a real contenteditable, not <textarea> */}
           <div
             aria-label={dragOver() ? "Drop to attach" : placeholder()}
             aria-multiline="true"
@@ -273,15 +269,10 @@ export default function Composer(props: ComposerProps) {
             contentEditable={!disabled()}
             data-placeholder={dragOver() ? "Drop to attach" : placeholder()}
             onBlur={() => setSuggest(null)}
-            onClick={onEditorClick}
-            onCopy={onCopy}
-            onCut={onCut}
             onInput={onInput}
             onKeyDown={onKeyDown}
-            onPaste={onPaste}
-            ref={editor.setRef}
-            role="textbox"
-            tabIndex={0}
+            ref={setEditorRef}
+            tabIndex={disabled() ? -1 : 0}
           />
           <Show when={suggest()}>
             {(s) => (
@@ -291,7 +282,7 @@ export default function Composer(props: ComposerProps) {
                     <button
                       class="composer-suggest-row btn-reset flex-align-center"
                       classList={{ active: i() === s().active }}
-                      onClick={() => suggestions.applySuggestion(i())}
+                      onClick={() => applySuggestion(i())}
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => suggestions.setActiveSuggestion(i())}
                       type="button"
@@ -301,17 +292,6 @@ export default function Composer(props: ComposerProps) {
                   )}
                 </For>
               </div>
-            )}
-          </Show>
-          <Show when={linkEditor()}>
-            {(le) => (
-              <ComposeLinkEditor
-                currentLabel={le().label}
-                linkEl={le().el}
-                onClose={() => setLinkEditor(null)}
-                onSync={editor.syncFromDom}
-                url={le().url}
-              />
             )}
           </Show>
         </div>
@@ -327,7 +307,7 @@ export default function Composer(props: ComposerProps) {
           type="file"
         />
         <Show when={sending()}>
-          <span class="composer-send-status" role="status">
+          <span class="composer-send-status">
             {props.editing
               ? "Saving…"
               : pendingFiles().length > 0

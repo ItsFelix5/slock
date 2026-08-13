@@ -1,4 +1,4 @@
-import type { DirectMessage, User } from "@slock/slack-api";
+import type { DirectMessage, SlackFile, User } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { dmDisplayName, store } from "../../lib/store";
@@ -14,7 +14,8 @@ export interface JumpChannel {
 export type GlobalSearchRow =
   | { kind: "channel"; data: JumpChannel }
   | { kind: "person"; data: User }
-  | { kind: "dm"; data: DirectMessage };
+  | { kind: "dm"; data: DirectMessage }
+  | { kind: "file"; data: SlackFile };
 
 export default function GlobalSearchResults(props: {
   activeIndex: number | null;
@@ -23,6 +24,7 @@ export default function GlobalSearchResults(props: {
   onActiveIndex: (index: number) => void;
   onChannel: (channel: JumpChannel) => void;
   onDm: (dm: DirectMessage) => void;
+  onFile: (file: SlackFile) => void;
   onMessageSearch: () => void;
   onPerson: (userId: string) => void;
   query: string;
@@ -45,7 +47,6 @@ export default function GlobalSearchResults(props: {
           aria-label="Search suggestions"
           class="global-search-options"
           id={props.listboxId}
-          role="listbox"
         >
           <button
             aria-selected={props.activeIndex === 0}
@@ -54,7 +55,6 @@ export default function GlobalSearchResults(props: {
             id={optionId(0)}
             onClick={props.onMessageSearch}
             onMouseEnter={() => props.onActiveIndex(0)}
-            role="option"
             tabIndex={-1}
             type="button"
           >
@@ -77,7 +77,6 @@ export default function GlobalSearchResults(props: {
                       id={optionId(itemIndex())}
                       onClick={() => props.onChannel(channel)}
                       onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                      role="option"
                       tabIndex={-1}
                       type="button"
                     >
@@ -103,7 +102,6 @@ export default function GlobalSearchResults(props: {
                       id={optionId(itemIndex())}
                       onClick={() => props.onDm(dm)}
                       onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                      role="option"
                       tabIndex={-1}
                       type="button"
                     >
@@ -111,6 +109,29 @@ export default function GlobalSearchResults(props: {
                       {dmDisplayName(dm, store.users.userById)}
                     </button>
                   </SplitNavigation>
+                );
+              }
+              if (row.kind === "file") {
+                const file = row.data;
+                return (
+                  <button
+                    aria-selected={props.activeIndex === itemIndex()}
+                    class="global-search-result global-search-jump btn-reset flex-align-center"
+                    classList={{ active: props.activeIndex === itemIndex() }}
+                    id={optionId(itemIndex())}
+                    onClick={() => props.onFile(file)}
+                    onMouseEnter={() => props.onActiveIndex(itemIndex())}
+                    tabIndex={-1}
+                    type="button"
+                  >
+                    <span class="global-search-jump-icon">
+                      <Icon name={file.isImage ? "image" : "file"} size={13} />
+                    </span>
+                    <span class="global-search-file-name truncate">{file.title || file.name}</span>
+                    <span class="global-search-file-meta text-dim truncate">
+                      {file.filetype?.toUpperCase()}
+                    </span>
+                  </button>
                 );
               }
               const user = row.data;
@@ -122,7 +143,6 @@ export default function GlobalSearchResults(props: {
                   id={optionId(itemIndex())}
                   onClick={() => props.onPerson(user.id)}
                   onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                  role="option"
                   tabIndex={-1}
                   type="button"
                 >

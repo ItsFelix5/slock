@@ -56,9 +56,6 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     if (result === "granted") setNotificationsEnabled(true);
   }
 
-  // Wires the effect that actually pops notifications — kept separate from
-  // the constructor (like unread.ts's wireReadTracking) since it needs
-  // several other slices that don't exist yet when this one is built.
   function wireNotifications(deps: {
     activityItems: ActivityItem[];
     userById: (id: string) => User | undefined;
@@ -77,11 +74,11 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
         item.kind === "dm"
           ? (user?.name ?? "New message")
           : `${user?.name ?? "Someone"} in ${conversationDisplayName(
-            item.channelId,
-            item.channelId.startsWith("D") ? undefined : deps.channelById(item.channelId),
-            deps.dmById(item.channelId),
-            deps.userById,
-          )}`;
+              item.channelId,
+              item.channelId.startsWith("D") ? undefined : deps.channelById(item.channelId),
+              deps.dmById(item.channelId),
+              deps.userById,
+            )}`;
       const notification = new Notification(title, {
         body: item.text.slice(0, 200),
         icon: user?.avatarUrl,
@@ -98,9 +95,6 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
       };
     }
 
-    // Skip the boot-time batch (activity feed history, gateway-reconnect
-    // replay) — only items that land after this effect is already live
-    // should ever pop a notification.
     let lastSeenTs = Date.now();
     let firstRun = true;
     createEffect(() => {
@@ -110,8 +104,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
         return;
       }
       if (permission() !== "granted" || !enabled() || deps.isDndActive()) return;
-      // A focused, visible tab already shows the activity live — no need to
-      // also pop an OS notification over it.
+
       if (document.hasFocus() && document.visibilityState === "visible") return;
       let newest = lastSeenTs;
       for (const item of items) {

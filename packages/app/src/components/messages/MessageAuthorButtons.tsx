@@ -1,30 +1,29 @@
-// biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related author and avatar button exports.
 import type { UserStatus } from "@slock/slack-api";
-import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
+import { Avatar, DEFAULT_AVATAR_COLOR } from "@slock/ui";
 export function MessageAvatarButton(props: {
   color?: string;
+  name: string;
   src?: string;
+  userId: string;
   onClick: () => void;
   tabbable?: boolean;
 }) {
   return (
     <button
-      class="message-avatar btn-reset flex-center"
+      aria-label={`View ${props.name}`}
+      class="message-avatar-button btn-reset flex-center"
       onClick={props.onClick}
-      style={{ background: props.color ?? DEFAULT_AVATAR_COLOR }}
       tabIndex={props.tabbable === false ? -1 : undefined}
       type="button"
     >
-      <span aria-hidden="true" class="message-avatar-fallback">
-        ?
-      </span>
-      <img
-        alt=""
-        class="message-avatar-img"
-        onError={(event) => {
-          event.currentTarget.style.display = "none";
+      <Avatar
+        size="message"
+        user={{
+          avatarColor: props.color ?? DEFAULT_AVATAR_COLOR,
+          avatarUrl: props.src,
+          id: props.userId,
+          name: props.name,
         }}
-        src={props.src}
       />
     </button>
   );
@@ -36,11 +35,7 @@ export function MessageAuthorButton(props: {
   status?: UserStatus;
   tabbable?: boolean;
 }) {
-  // plain span, not a <button>: button content isn't a valid text-selection
-  // anchor, so drag-selecting from the name into the message body made the
-  // browser snap the selection to the nearest selectable spot outside the row
   return (
-    // biome-ignore lint/a11y/useSemanticElements: must not be a <button> so it stays a text-selection anchor
     <span
       aria-disabled={props.disabled}
       class="message-author btn-reset"
@@ -53,7 +48,6 @@ export function MessageAuthorButton(props: {
         event.preventDefault();
         props.onClick();
       }}
-      role="button"
       tabIndex={props.disabled || props.tabbable === false ? -1 : 0}
     >
       {props.name}

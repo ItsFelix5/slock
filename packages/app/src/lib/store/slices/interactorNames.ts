@@ -1,7 +1,5 @@
 import type { User } from "@slock/slack-api";
 
-// Shared by ReactionRow's "who reacted" tooltip and ActivityRow's thread-group
-// avatar-stack tooltip — both format the same "you, Alice and Bob" list.
 export function formatInteractorNames(
   ids: string[],
   currentUserId: string | undefined,

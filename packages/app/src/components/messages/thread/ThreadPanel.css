@@ -10,18 +10,18 @@
 }
 
 .thread-panel-header-info {
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 
 .thread-panel-title {
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--font-size-heading-xs);
+  font-weight: 700;
   color: var(--text-primary);
 }
 
 .thread-panel-subtitle {
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-dim);
   cursor: pointer;
 }
@@ -32,12 +32,20 @@
 }
 
 .thread-panel-subscribe-btn {
-  width: 28px;
-  height: 28px;
+  width: var(--header-action-size);
+  height: var(--header-action-size);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
 }
 
+.thread-panel-subscribe-btn:hover:not(:disabled),
 .thread-panel-subscribe-btn.subscribed {
-  color: var(--accent);
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.thread-panel-subscribe-btn .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 
 .thread-panel-subscribe-btn:disabled {
@@ -73,17 +81,15 @@
 
 .thread-reply-preview {
   flex-shrink: 0;
-  gap: 8px;
-  padding: 6px 10px;
-  margin: 0 10px;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--composer-frame-inline);
+  margin: 0 var(--composer-frame-inline);
   background: var(--hover-bg);
   border: 1px solid var(--border-strong);
   border-bottom: none;
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
-/* Sits flush on top of the composer below it, so together they read as one
-   rounded shape rather than two boxes with a seam between them. */
 .thread-reply-preview + .composer {
   border-top: none;
   border-top-left-radius: 0;
@@ -102,10 +108,14 @@
 
 .thread-reply-preview-cancel {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: var(--composer-action-size);
+  height: var(--composer-action-size);
   color: var(--text-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.thread-reply-preview-cancel .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 
 .thread-reply-preview-cancel:hover {

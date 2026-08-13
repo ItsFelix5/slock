@@ -133,10 +133,7 @@ export function createComposerDraftState(opts: {
     const channelId = opts.channelId();
     if (!(key && channelId)) return;
     const value = opts.text();
-    // A channel switch or hydration populates the editor programmatically.
-    // Treat that first observed value as the baseline, not as a user edit;
-    // otherwise an empty baseline after a failed list request can delete a
-    // server draft as soon as the retry discovers its id.
+
     if (!persistenceGate.shouldPersist(key)) return;
     if (value.trim()) drafts[key] = value;
     else delete drafts[key];
@@ -163,9 +160,6 @@ export function createComposerDraftState(opts: {
   };
 }
 
-// Debounced so a debounce-free character-by-character sync doesn't spam
-// drafts.create — Slack's own draft round-trip only needs to be roughly
-// current, not live.
 export function persistDraft(channelId: string, threadTs: string | undefined, text: string) {
   const key = draftCacheKey(channelId, threadTs);
   const pending = draftSaveTimers.get(key);

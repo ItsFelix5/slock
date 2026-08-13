@@ -15,6 +15,15 @@ export function createMessageMergeActions(deps: {
     });
   }
   function mergeIncomingMessage(existing: Message[], msg: Message): Message[] {
+    const matchingIndex = existing.findIndex((m) => m.ts === msg.ts || m.id === msg.id);
+    if (matchingIndex !== -1) {
+      if (existing[matchingIndex].id.startsWith("pending-") && !msg.id.startsWith("pending-")) {
+        const next = existing.slice();
+        next[matchingIndex] = msg;
+        return dedupeMessages(next);
+      }
+      return dedupeMessages(existing);
+    }
     const me = deps.currentUser();
     if (me && msg.userId === me.id) {
       const pendingIdx = existing.findIndex(
@@ -26,7 +35,6 @@ export function createMessageMergeActions(deps: {
         return dedupeMessages(next);
       }
     }
-    if (existing.some((m) => m.ts === msg.ts || m.id === msg.id)) return dedupeMessages(existing);
     return dedupeMessages([...existing, msg]);
   }
   return { insertMessageInOrder, mergeIncomingMessage };

@@ -1,7 +1,7 @@
 import { For, type JSX, onCleanup, Show } from "solid-js";
 import { distributeResize } from "./resize";
-import type { Axis, TileLeaf, TileNode } from "./tree";
 import "./TileGroup.css";
+import type { Axis, TileLeaf, TileNode } from "./tree";
 
 const MIN_FRACTION = 0.12;
 
@@ -12,10 +12,6 @@ export interface TileGroupProps<T> {
   minFraction?: number;
 }
 
-// Renders a tile tree as nested flex splits with resize dividers between
-// children. A single-leaf tree renders `renderLeaf` directly with no
-// wrapper — chrome only exists inside split nodes, so single-pane use is
-// structurally identical to a plain content render, not CSS-hidden.
 export default function TileGroup<T>(props: TileGroupProps<T>) {
   return (
     <TileNodeView
@@ -81,7 +77,6 @@ function TileDivider(props: {
   positionPercent: number;
   onDrag: (deltaFraction: number) => void;
 }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this through the JSX ref.
   let handleEl: HTMLHRElement | undefined;
   let startPos = 0;
   let containerSize = 1;

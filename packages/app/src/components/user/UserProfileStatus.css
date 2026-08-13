@@ -4,9 +4,6 @@
   font-size: 14px;
 }
 
-/* Self-view status: reads as plain text at rest, same "input until you touch
-   it" treatment as name/title/pronouns, plus a clear button that only shows
-   up once there's something to clear and you're near the row. */
 .user-profile-status-edit {
   gap: 4px;
   margin: 8px 0 0;

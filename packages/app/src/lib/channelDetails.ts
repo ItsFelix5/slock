@@ -92,9 +92,7 @@ function setup() {
   }
 
   function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs> {
-    return withFeedbackOrThrow(id, "Failed to load posting permissions.", () =>
-      fetchChannelPostingPrefs(id),
-    );
+    return fetchChannelPostingPrefs(id);
   }
 
   function renameChannelById(id: string, name: string): Promise<boolean> {
@@ -134,24 +132,8 @@ function setup() {
     });
   }
 
-  async function updateChannelPostingPrefs(
-    id: string,
-    patch: ChannelPostingPrefsPatch,
-  ): Promise<boolean> {
-    try {
-      await setChannelPostingPrefs(id, patch);
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update posting permissions.";
-      actionFeedback.flash(
-        id,
-        message === "not_permitted"
-          ? "Slack denied this change. A workspace or organization policy may restrict who can edit posting permissions."
-          : message,
-        "error",
-      );
-      return false;
-    }
+  function updateChannelPostingPrefs(id: string, patch: ChannelPostingPrefsPatch): Promise<void> {
+    return setChannelPostingPrefs(id, patch);
   }
 
   function updateChannelRetention(id: string, days: number | null): Promise<boolean> {

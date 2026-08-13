@@ -16,7 +16,6 @@ export interface PopoverProps {
 }
 
 export default function Popover(props: PopoverProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
 

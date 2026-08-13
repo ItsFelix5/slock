@@ -1,5 +1,5 @@
-import type { BrowsableChannel, Channel, DirectMessage, User } from "@slock/slack-api";
-import { fetchBrowsableChannels } from "@slock/slack-api";
+import type { Channel, DirectMessage, SlackFile, User } from "@slock/slack-api";
+import { type GlobalSearchResults as SearchResults, searchGlobal } from "@slock/slack-api";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,
@@ -22,50 +22,34 @@ import "./GlobalSearch.css";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
 type Candidate = { row: GlobalSearchRow; name: string; id: string };
-type SearchItem =
-  | { kind: "message-search" }
-  | { kind: "channel"; data: JumpChannel }
-  | { kind: "person"; data: User }
-  | { kind: "dm"; data: DirectMessage };
-export default function GlobalSearch(props: { onClose: () => void }) {
+type SearchItem = { kind: "message-search" } | GlobalSearchRow;
+export default function GlobalSearch(props: {
+  onClose: () => void;
+  onFile: (file: SlackFile) => void;
+}) {
   const [query, setQuery] = createSignal("");
-  const [remotePeople, setRemotePeople] = createSignal<User[]>([]);
-  const [remoteChannels, setRemoteChannels] = createSignal<BrowsableChannel[]>([]);
-  // Frozen snapshot of results: written exactly once per query, only once
-  // both local and remote data have fully settled, so the visible list never
-  // shuffles or grows after it's already on screen.
+  const [remoteResults, setRemoteResults] = createSignal<SearchResults>({
+    channels: [],
+    files: [],
+    users: [],
+  });
+
   const [committedRows, setCommittedRows] = createSignal<GlobalSearchRow[]>([]);
-  const [peopleSearching, setPeopleSearching] = createSignal(false);
-  const [channelsSearching, setChannelsSearching] = createSignal(false);
-  const [peopleError, setPeopleError] = createSignal(false);
-  const [channelsError, setChannelsError] = createSignal(false);
+  const [searching, setSearching] = createSignal(false);
+  const [searchError, setSearchError] = createSignal(false);
   const listboxId = createUniqueId();
-  const peopleRequest = createDebouncedRequest(
-    (q) => store.users.searchUsers(q, store.users.currentUser()?.id),
-    {
-      delay: 100,
-      onError: () => setPeopleError(true),
-      onPendingChange: setPeopleSearching,
-      onReset: () => {
-        setPeopleError(false);
-        setRemotePeople([]);
-      },
-      onResult: setRemotePeople,
-    },
-  );
-  const channelRequest = createDebouncedRequest(fetchBrowsableChannels, {
+  const searchRequest = createDebouncedRequest(searchGlobal, {
     delay: 100,
-    onError: () => setChannelsError(true),
-    onPendingChange: setChannelsSearching,
+    onError: () => setSearchError(true),
+    onPendingChange: setSearching,
     onReset: () => {
-      setChannelsError(false);
-      setRemoteChannels([]);
+      setSearchError(false);
+      setRemoteResults({ channels: [], files: [], users: [] });
     },
-    onResult: setRemoteChannels,
+    onResult: setRemoteResults,
   });
   onCleanup(() => {
-    peopleRequest.dispose();
-    channelRequest.dispose();
+    searchRequest.dispose();
   });
   const hasQuery = createMemo(() => !!query().trim());
   const localChannelMatches = createMemo<Channel[]>(() => {
@@ -86,9 +70,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       { frequency: (u) => store.preferences.frecencyScore(u.id), query: q, text: (u) => u.name },
     );
   });
-  // Multi-person DMs have no single person to find them through the way a
-  // regular DM's other participant does — this is their only way back into
-  // search once closed from the sidebar.
+
   const mpdmResults = createMemo<DirectMessage[]>(() => {
     const q = query().trim();
     if (!q) return [];
@@ -102,11 +84,9 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const searchDirectories = (value: string) => {
     setQuery(value);
     setActiveIndex(value.trim() ? 0 : null);
-    // Clear the frozen result set right away so a new query never briefly
-    // shows the previous query's (now mismatched) results.
+
     setCommittedRows([]);
-    peopleRequest.run(value);
-    channelRequest.run(value);
+    searchRequest.run(value);
   };
   const computedRows = createMemo<GlobalSearchRow[]>(() => {
     if (!hasQuery()) return [];
@@ -123,8 +103,8 @@ export default function GlobalSearch(props: { onClose: () => void }) {
           },
         }),
       ),
-      ...remoteChannels()
-        .filter((c) => !joinedIds.has(c.id))
+      ...remoteResults()
+        .channels.filter((c) => !joinedIds.has(c.id))
         .map(
           (c): Candidate => ({
             id: c.id,
@@ -138,14 +118,21 @@ export default function GlobalSearch(props: { onClose: () => void }) {
       ...localPeopleMatches().map(
         (u): Candidate => ({ id: u.id, name: u.name, row: { data: u, kind: "person" } }),
       ),
-      ...remotePeople()
-        .filter((u) => !knownIds.has(u.id))
+      ...remoteResults()
+        .users.filter((u) => !knownIds.has(u.id))
         .map((u): Candidate => ({ id: u.id, name: u.name, row: { data: u, kind: "person" } })),
       ...mpdmResults().map(
         (dm): Candidate => ({
           id: dm.id,
           name: dmDisplayName(dm, store.users.userById),
           row: { data: dm, kind: "dm" },
+        }),
+      ),
+      ...remoteResults().files.map(
+        (file): Candidate => ({
+          id: file.id,
+          name: file.title || file.name,
+          row: { data: file, kind: "file" },
         }),
       ),
     ];
@@ -158,7 +145,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     return ranked.slice(0, 8).map((c) => c.row);
   });
   createEffect(() => {
-    if (!query().trim() || peopleSearching() || channelsSearching()) return;
+    if (!query().trim() || searching()) return;
     setCommittedRows(untrack(computedRows));
   });
   const rows = committedRows;
@@ -166,8 +153,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     if (!hasQuery()) return [];
     return [{ kind: "message-search" }, ...rows()];
   });
-  const searching = () => peopleSearching() || channelsSearching();
-  const searchError = () => peopleError() || channelsError();
   const { activeIndex, setActiveIndex, activeOptionId } = createListboxActiveIndex(
     () => items().length,
     listboxId,
@@ -176,9 +161,9 @@ export default function GlobalSearch(props: { onClose: () => void }) {
   const searchStatus = createMemo(() => {
     if (!hasQuery()) return "";
     if (rows().length > 0) return "";
-    if (searching()) return "Searching people and channels…";
-    if (searchError()) return "Some directory suggestions couldn’t be loaded.";
-    return "No matching people or channels.";
+    if (searching()) return "Searching people, channels, and files…";
+    if (searchError()) return "Search couldn't be completed.";
+    return "No matching people, channels, or files.";
   });
   const goToChannel = (c: JumpChannel) => {
     store.viewState.setActiveView({ id: c.id, kind: "channel" });
@@ -198,6 +183,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     store.viewState.openMessageSearch(query());
     props.onClose();
   };
+  const openFile = (file: SlackFile) => {
+    props.onFile(file);
+    props.onClose();
+  };
   const activateItem = (index: number) => {
     const item = items()[index];
     if (!item) return;
@@ -211,6 +200,10 @@ export default function GlobalSearch(props: { onClose: () => void }) {
     }
     if (item.kind === "dm") {
       goToDm(item.data);
+      return;
+    }
+    if (item.kind === "file") {
+      openFile(item.data);
       return;
     }
     goToPerson(item.data.id);
@@ -248,7 +241,6 @@ export default function GlobalSearch(props: { onClose: () => void }) {
             }
           }}
           placeholder="Search channels, people, conversations…"
-          role="combobox"
           spellcheck={false}
           type="text"
           value={query()}
@@ -262,6 +254,7 @@ export default function GlobalSearch(props: { onClose: () => void }) {
         onActiveIndex={setActiveIndex}
         onChannel={goToChannel}
         onDm={goToDm}
+        onFile={openFile}
         onMessageSearch={goToMessageSearch}
         onPerson={goToPerson}
         query={query()}

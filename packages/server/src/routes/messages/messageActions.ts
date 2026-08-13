@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimMessage } from "../../trim/slackEntities.ts";
@@ -68,9 +67,7 @@ export const messageActionRoutes: Route[] = [
   route("GET", "/api/saved", async (ctx) => {
     const data = await callSlack("saved.list", { limit: "40" }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "saved.list", ctx.creds, ctx.acceptEncoding);
-    // saved.list returns `saved_items`, each shaped like { item_id (the
-    // channel), item_type: 'message', ts, ... } — item_id/ts sit at the top
-    // level, not nested.
+
     const items: any[] = data.saved_items ?? data.items ?? [];
     const normalized = items
       .filter((item) => !item.item_type || item.item_type === "message")
@@ -89,9 +86,7 @@ export const messageActionRoutes: Route[] = [
       ts?: string;
       dateDue?: number;
     };
-    // Reminders tied to a specific message use the item_type/item_id/ts/date_due
-    // shape (matches Slack's own message-reminder menu) rather than the
-    // free-text text/time form `/remind` uses.
+
     if (requestBody.channelId && requestBody.ts && requestBody.dateDue !== undefined) {
       return mutate(
         "reminders.add",

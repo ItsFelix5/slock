@@ -8,9 +8,9 @@
   ],
   "scripts": {
     "dev": "bun run --filter slock-web dev",
-    "server": "bun run --filter slock-server start",
+    "server": "bun run --filter @slock/server start",
     "build": "tsc -b && bun run --filter slock-web build",
-    "start": "bun run --filter slock-web build && bun run --filter slock-server start",
+    "start": "bun run --filter slock-web build && bun run --filter @slock/server start",
     "preview": "bun run --filter slock-web preview",
     "check": "biome check . && bun run build",
     "format": "biome check . --write"

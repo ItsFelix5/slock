@@ -20,9 +20,7 @@ export async function settleLinkPreview(
     if (isCurrent()) update((cache) => ({ ...cache, [url]: preview }));
   } catch {
     if (!isCurrent()) return;
-    // A null entry means "request in flight". Evict it on failure so the
-    // next text change can retry instead of leaving this URL permanently
-    // stuck as an invisible loading placeholder.
+
     update((cache) => {
       if (!(url in cache)) return cache;
       const next = { ...cache };
@@ -32,10 +30,6 @@ export async function settleLinkPreview(
   }
 }
 
-// Detects bare URLs in the composer text, fetches (debounced) unfurl previews
-// for them, and tracks which ones the user has dismissed — the composer-side
-// half of link unfurling (the other half, rendering the fetched preview, is
-// AttachmentCard via linkPreviewToAttachment).
 export function createLinkPreviewController(
   text: () => string,
   options: LinkPreviewControllerOptions = {},
@@ -60,8 +54,6 @@ export function createLinkPreviewController(
     return result;
   });
 
-  // Debounced so a link half-typed character-by-character doesn't fire a
-  // fetch per keystroke — only once the text settles down.
   createEffect(() => {
     const urls = detectedUrls();
     clearTimeout(unfurlDebounce);
@@ -102,5 +94,11 @@ export function createLinkPreviewController(
     return detectedUrls().some((u) => dismissed.has(u));
   }
 
-  return { detectedUrls, dismissLinkPreview, reset, shouldSuppressUnfurl, visiblePreviews };
+  return {
+    detectedUrls,
+    dismissLinkPreview,
+    reset,
+    shouldSuppressUnfurl,
+    visiblePreviews,
+  };
 }

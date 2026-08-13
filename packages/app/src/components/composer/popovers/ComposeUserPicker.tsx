@@ -28,7 +28,7 @@ export default function ComposeUserPicker(props: {
       emptyMessage="No matches"
       excludeIds={props.excludeUserIds}
       localItems={localUsers}
-      notFoundMessage="Couldn’t load people"
+      notFoundMessage="Couldn't load people"
       onClose={props.onClose}
       onSelect={props.onSelect}
       placeholder="Find a person…"

@@ -1,10 +1,8 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-import type { CanvasListItem, Channel, ChannelDetails, Message, User } from "../../types";
+import type { Channel, ChannelDetails, Message, User } from "../../types";
 import { HIDE_SUBTYPES, mapChannel, mapMessage, mapUser } from "../mappers";
 import { apiGet } from "../server";
 
 export interface ConversationViewData {
-  canvases: CanvasListItem[];
   channel: Channel;
   details: ChannelDetails;
   hasMore: boolean;
@@ -15,18 +13,6 @@ export interface ConversationViewData {
 const inFlight = new Map<string, Promise<ConversationViewData>>();
 const recent = new Map<string, { data: ConversationViewData; expiresAt: number }>();
 const DEDUPE_WINDOW_MS = 5_000;
-
-function mapCanvasTabs(channel: any): CanvasListItem[] {
-  const properties = channel?.properties;
-  const tabs: any[] = Array.isArray(properties?.tabs) ? properties.tabs : (properties?.tabz ?? []);
-  const seen = new Set<string>();
-  return tabs.flatMap((tab) => {
-    const fileId = tab?.type === "canvas" ? tab.data?.file_id : undefined;
-    if (!fileId || seen.has(fileId)) return [];
-    seen.add(fileId);
-    return [{ fileId, title: typeof tab.label === "string" ? tab.label.trim() : "" }];
-  });
-}
 
 function mapChannelDetails(channel: any): ChannelDetails {
   return {
@@ -48,16 +34,10 @@ async function loadConversationView(channelId: string): Promise<ConversationView
   if (!data.ok) throw new Error(data.error ?? "conversations.view failed");
   const rawMessages: any[] = data.history?.messages ?? [];
   const rawUsers: any[] = data.users ?? [];
-  // DMs have no topic/purpose/canvas, so conversations.view omits `channel`
-  // entirely for them — only channels/groups get one back.
-  const canvases = data.channel ? mapCanvasTabs(data.channel) : [];
+
   return {
-    canvases,
     channel: data.channel
-      ? {
-          ...mapChannel(data.channel),
-          canvas: canvases[0] ? { fileId: canvases[0].fileId, isEmpty: false } : undefined,
-        }
+      ? mapChannel(data.channel)
       : {
           archived: false,
           id: channelId,
@@ -104,8 +84,4 @@ export function fetchConversationView(channelId: string): Promise<ConversationVi
     .finally(() => inFlight.delete(channelId));
   inFlight.set(channelId, request);
   return request;
-}
-
-export async function fetchChannelCanvases(channelId: string): Promise<CanvasListItem[]> {
-  return (await fetchConversationView(channelId)).canvases;
 }

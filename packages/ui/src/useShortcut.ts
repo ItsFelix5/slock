@@ -6,11 +6,9 @@ export interface ShortcutDef {
   match: (e: KeyboardEvent) => boolean;
   handler: (e: KeyboardEvent) => void;
   enabled?: Accessor<boolean>;
-  // Global shortcuts are ignored while typing in an input/textarea/contenteditable
-  // by default — set true for shortcuts (like Ctrl+K) meant to work everywhere.
+
   allowInInputs?: boolean;
-  // Most shortcuts (arrow-key navigation) should keep firing while the key is
-  // held; toggles like Ctrl+/ set this false to only react to the initial press.
+
   allowRepeat?: boolean;
   label: string;
   keys: string;
@@ -22,7 +20,9 @@ interface RegisteredShortcut extends ShortcutDef {
 }
 
 const shortcuts: RegisteredShortcut[] = [];
-const [registryVersion, bumpRegistryVersion] = createSignal(0, { equals: false });
+const [registryVersion, bumpRegistryVersion] = createSignal(0, {
+  equals: false,
+});
 
 function isTypingTarget(target: EventTarget | null) {
   return (
@@ -50,7 +50,10 @@ function handleKeyDown(event: KeyboardEvent) {
 
 export function useShortcut(def: ShortcutDef) {
   onMount(() => {
-    const shortcut: RegisteredShortcut = { ...def, enabled: def.enabled ?? (() => true) };
+    const shortcut: RegisteredShortcut = {
+      ...def,
+      enabled: def.enabled ?? (() => true),
+    };
     if (shortcuts.length === 0) document.addEventListener("keydown", handleKeyDown);
     shortcuts.push(shortcut);
     bumpRegistryVersion((v) => v + 1);
@@ -63,16 +66,10 @@ export function useShortcut(def: ShortcutDef) {
   });
 }
 
-// A bare key like "c" or "j" still reports e.key === "c" when Ctrl/Cmd/Alt
-// is held (that's what makes Ctrl+C etc. work at all) — every plain-letter
-// shortcut needs this guard or it hijacks the browser/OS binding on the same
-// key instead of letting it through.
 export function plainKey(...keys: string[]) {
   return (e: KeyboardEvent) => keys.includes(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey;
 }
 
-// Reactive so a help overlay can render the live set of currently-mounted
-// shortcuts instead of a hand-maintained list that can drift out of sync.
 export function shortcutsByScope(): Map<ShortcutScope, ShortcutDef[]> {
   registryVersion();
   const byScope = new Map<ShortcutScope, ShortcutDef[]>();

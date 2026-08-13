@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { ChannelSection, Usergroup, UsergroupDetails } from "../types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 import { apiGet, apiPatch, apiPost, apiPut } from "./server";
@@ -10,8 +9,6 @@ function mapUsergroup(raw: any): Usergroup | undefined {
   return { id: raw.id, name: label.startsWith("@") ? label : `@${label}` };
 }
 
-// memberIds isn't filled in here — usergroups/info only carries a count, not
-// the member list (see fetchUsergroupMemberIds) — callers merge it in after.
 function mapUsergroupDetails(raw: any): Omit<UsergroupDetails, "memberIds"> | undefined {
   if (typeof raw?.id !== "string") return;
   const channelIds = [raw.prefs?.channels, raw.prefs?.groups]
@@ -32,12 +29,6 @@ function mapUsergroupDetails(raw: any): Omit<UsergroupDetails, "memberIds"> | un
 
 const MAX_USERGROUPS_PER_BATCH = 100;
 
-// Coalesce requests issued while a message list renders (each @usergroup
-// mention resolves independently) into batches, mirroring user lookup. The
-// raw object already carries everything the details panel needs too
-// (description, handle, prefs.channels, user_count) — see
-// fetchUsergroupDetails — so both the light mention lookup and the rich
-// details fetch share this one batched call instead of hitting Slack twice.
 const fetchUsergroupRaw = createBatchedIdFetcher<any | undefined>(async (ids) => {
   const data = await apiPost("/api/usergroups/lookup", { ids });
   const usergroups: Record<string, any> = data.ok ? (data.usergroups ?? {}) : {};
@@ -60,9 +51,6 @@ export async function fetchUsergroupChannelSection(id: string): Promise<ChannelS
   };
 }
 
-// usergroups/info (above) has no member list, only a count — Slack's edge
-// mention cache is optimized for rendering @mentions, not membership. The
-// dedicated usergroups.users.list Web API call fills that one gap.
 async function fetchUsergroupMemberIds(id: string): Promise<string[]> {
   const data = await apiGet(`/api/usergroups/${id}/members`);
   if (!data.ok) throw new Error(data.error ?? "usergroups.users.list failed");
@@ -83,20 +71,19 @@ export async function updateUsergroupProfile(
   if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");
 }
 
-// Slack has no add/remove member endpoint — usergroups.users.update replaces
-// the whole membership list, so callers pass the full next set of ids.
 export async function setUsergroupMembers(id: string, userIds: string[]): Promise<void> {
   const data = await apiPut(`/api/usergroups/${id}/members`, { userIds });
   if (!data.ok) throw new Error(data.error ?? "usergroups.users.update failed");
 }
 
-// Same full-replacement shape as setUsergroupMembers, for the group's default channels.
 export async function setUsergroupChannels(id: string, channelIds: string[]): Promise<void> {
   const data = await apiPatch(`/api/usergroups/${id}`, { channelIds });
   if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");
 }
 
 export async function setUsergroupSectionEnabled(id: string, enabled: boolean): Promise<void> {
-  const data = await apiPatch(`/api/usergroups/${id}`, { sectionEnabled: enabled });
+  const data = await apiPatch(`/api/usergroups/${id}`, {
+    sectionEnabled: enabled,
+  });
   if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");
 }

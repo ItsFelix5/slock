@@ -1,0 +1,11 @@
+.app-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-dim);
+  background: var(--hover-bg);
+  border-radius: 3px;
+}

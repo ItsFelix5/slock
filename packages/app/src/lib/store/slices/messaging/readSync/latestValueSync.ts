@@ -1,9 +1,6 @@
 type LatestValueSyncOptions<T> = {
   key: (value: T) => string;
-  // Return true to treat the failure as resolved rather than a retryable
-  // error — e.g. the channel got removed out from under the write, so no
-  // retry will ever succeed and the caller shouldn't be told it's still
-  // broken.
+
   onError?: (value: T, error: unknown) => boolean | undefined;
   version: (value: T) => number;
   write: (value: T) => Promise<void>;
@@ -42,9 +39,6 @@ export function createLatestValueSync<T>(options: LatestValueSyncOptions<T>) {
           state.syncedRevision = attempt.revision;
           state.syncedVersion = options.version(attempt.value);
         } catch (error) {
-          // A newer cursor superseded the failed request while it was in
-          // flight. Send that cursor before reporting an error: Slack only
-          // needs the newest successful position, not every intermediate one.
           if (state.desired.revision !== attempt.revision) continue;
           if (options.onError?.(attempt.value, error)) {
             state.syncedRevision = attempt.revision;

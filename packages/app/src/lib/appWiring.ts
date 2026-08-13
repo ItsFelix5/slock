@@ -21,7 +21,6 @@ type AppWiringDeps = Pick<
   actions: ReturnType<typeof createAppActions>;
 };
 
-/** Installs cross-domain reactive behavior after all slices have been composed. */
 export function wireAppState(deps: AppWiringDeps) {
   const {
     actions,

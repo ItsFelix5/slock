@@ -1,16 +1,9 @@
 @import "./MessageList.details.css";
 .message-list {
-  --message-list-gutter: 20px;
-  --message-row-inline-start: 16px;
-  --message-row-avatar-gap: 10px;
-  --message-control-radius: 6px;
-
   flex: 1;
   padding-bottom: 12px;
   overflow-x: hidden;
   overflow-y: auto;
-  /* The date pill (MessageListDateNav) replaces the scrollbar as the
-     discoverable way to see and change where you are in history. */
   scrollbar-width: none;
 }
 .message-list::-webkit-scrollbar {
@@ -20,7 +13,7 @@
   visibility: hidden;
 }
 .message-list-loading-older {
-  padding: 10px var(--message-list-gutter);
+  padding: 10px var(--message-row-inline-end);
   font-size: var(--font-size-control);
   color: var(--text-secondary);
   text-align: center;
@@ -30,13 +23,13 @@
   gap: 10px;
   align-items: center;
   justify-content: center;
-  padding: var(--space-sm) var(--message-list-gutter);
+  padding: var(--space-sm) var(--message-row-inline-end);
   font-size: var(--font-size-control);
   color: var(--text-secondary);
   text-align: center;
 }
 .message-list-intro {
-  padding: var(--space-3xl) var(--message-list-gutter) var(--space-2xl);
+  padding: var(--space-3xl) var(--message-row-inline-end) var(--space-2xl);
 }
 .message-list-intro-icon {
   width: 56px;
@@ -70,7 +63,7 @@
   margin-bottom: 0;
 }
 .message-divider {
-  margin: 0 var(--message-list-gutter);
+  margin: 0 var(--message-row-inline-end);
   text-align: center;
 }
 .message-divider::before,
@@ -102,7 +95,7 @@
   position: relative;
   display: flex;
   gap: var(--message-row-avatar-gap);
-  padding: var(--message-row-padding-y) var(--message-list-gutter) var(--message-row-padding-y)
+  padding: var(--message-row-padding-y) var(--message-row-inline-end) var(--message-row-padding-y)
     var(--message-row-inline-start);
   outline: none;
 }
@@ -187,6 +180,31 @@
   z-index: 6;
   min-width: 150px;
 }
+.custom-reminder-time {
+  display: grid;
+  gap: 8px;
+  width: 236px;
+  padding: 8px 6px 6px;
+  border-top: 1px solid var(--border);
+}
+.custom-reminder-time label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.custom-reminder-time input {
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+}
+.custom-reminder-time .btn {
+  justify-self: end;
+}
 .menu-panel.message-shortcuts-menu {
   z-index: 6;
   min-width: 220px;
@@ -218,27 +236,15 @@
   height: 36px;
   vertical-align: -7px;
 }
-.message-avatar {
-  position: relative;
+.message-avatar-button {
   flex-shrink: 0;
   width: var(--message-avatar-size);
   height: var(--message-avatar-size);
   margin-top: var(--message-avatar-margin-top);
-  overflow: hidden;
-  font-size: var(--message-avatar-font-size);
-  font-weight: 700;
-  color: var(--text-on-avatar);
   border-radius: var(--message-control-radius);
 }
-.message-avatar-fallback {
-  user-select: none;
-}
-.message-avatar-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.message-avatar-button .avatar-message {
+  pointer-events: none;
 }
 .message-avatar-spacer {
   flex-shrink: 0;

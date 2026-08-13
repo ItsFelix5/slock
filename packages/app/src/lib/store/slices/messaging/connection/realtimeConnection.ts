@@ -3,9 +3,6 @@ import { createReconnectScheduler } from "./reconnectScheduler";
 
 export type RealtimeConnectionState = "connected" | "connecting" | "offline" | "reconnecting";
 
-// Matches Slack's own online-for-presence-purposes check: truly connected
-// right now, or connected within the last 10s — the grace period is what
-// keeps a brief reconnect blip from flickering the presence dot to "away".
 const ONLINE_GRACE_MS = 10_000;
 
 export function createRealtimeConnection(opts: {

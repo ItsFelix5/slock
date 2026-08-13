@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack action payloads preserve the service's wire field names.
 import { type OverflowElement, runBlockAction } from "@slock/slack-api";
 import { Icon, Menu } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
@@ -31,6 +30,12 @@ export default function Overflow(props: {
     if (opt.url) {
       setOpen(false);
       window.open(opt.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (
+      props.el.confirm &&
+      !window.confirm(`${props.el.confirm.title.text}\n\n${props.el.confirm.text.text}`)
+    ) {
       return;
     }
     const ctx = props.context;

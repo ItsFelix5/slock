@@ -1,13 +1,6 @@
 import { fetchAllEmoji } from "@slock/slack-api";
 import { createStore } from "solid-js/store";
 
-// One bulk fetch instead of a network round-trip per unique emoji name — cheaper
-// and means reactions/messages never show a loading flicker after the first paint.
-// Plain object, not a Solid store: workspaces can have tens of thousands of
-// custom emoji, and this map is only ever written once in bulk, so per-key
-// fine-grained reactivity would just mean Solid allocating a signal for every
-// single name the moment anything iterates the full list (e.g. the emoji
-// picker's search index) — `loaded` below is the only reactive signal needed.
 let emojiUrls: Record<string, string | null> = {};
 const [loadState, setLoadState] = createStore<{
   value: "idle" | "loading" | "loaded" | "error";
@@ -15,8 +8,6 @@ const [loadState, setLoadState] = createStore<{
 
 let emojiLoadPromise: Promise<void> | null = null;
 
-// `emoji.list` can be several megabytes for workspaces with many custom emoji,
-// so callers request it only when a custom-looking token or emoji UI needs it.
 export function loadCustomEmoji(): Promise<void> {
   if (!emojiLoadPromise) {
     setLoadState("value", "loading");
@@ -39,7 +30,6 @@ export function emojiUrl(name: string): string | null | undefined {
 }
 
 export function customEmojiNames(): string[] {
-  // biome-ignore lint/suspicious/noUnusedExpressions: This reactive read invalidates consumers when the plain bulk map is replaced.
   loadState.value;
   return Object.keys(emojiUrls);
 }

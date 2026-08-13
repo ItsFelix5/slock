@@ -1,12 +1,14 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimChannel } from "../../trim/slackEntities.ts";
-import { mutate, type Route, type RouteCtx, route } from "../router.ts";
+import { mutate, route, type Route, type RouteCtx } from "../router.ts";
 
 export const channelRoutes: Route[] = [
   route("POST", "/api/channels", async (ctx) => {
-    const { name, isPrivate } = (await ctx.body.json()) as { name?: string; isPrivate?: boolean };
+    const { name, isPrivate } = (await ctx.body.json()) as {
+      name?: string;
+      isPrivate?: boolean;
+    };
     if (!name) return errorResponse("invalid_name", 400);
     const data = await callSlack(
       "conversations.create",
@@ -99,9 +101,18 @@ export const channelRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/posting-prefs", async (ctx) => {
-    const data = await callSlack("channels.prefs.get", { channel_id: ctx.params.id }, ctx.creds);
+    const data = await callSlack(
+      "admin.conversations.getConversationPrefs",
+      { channel_id: ctx.params.id },
+      ctx.creds,
+    );
     if (!data.ok) {
-      return slackErrorResponse(data, "channels.prefs.get", ctx.creds, ctx.acceptEncoding);
+      return slackErrorResponse(
+        data,
+        "admin.conversations.getConversationPrefs",
+        ctx.creds,
+        ctx.acceptEncoding,
+      );
     }
     const prefs = data.prefs ?? data;
     return jsonResponse(
@@ -123,10 +134,12 @@ export const channelRoutes: Route[] = [
   }),
 
   route("PUT", "/api/channels/:id/posting-prefs", async (ctx) => {
-    const { prefs } = (await ctx.body.json()) as { prefs?: Record<string, string> };
+    const { prefs } = (await ctx.body.json()) as {
+      prefs?: Record<string, string>;
+    };
     if (!prefs) return errorResponse("invalid_prefs", 400);
     return mutate(
-      "channels.prefs.set",
+      "admin.conversations.setConversationPrefs",
       { channel_id: ctx.params.id, prefs: JSON.stringify(prefs) },
       ctx,
     );

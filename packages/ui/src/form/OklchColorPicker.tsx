@@ -41,7 +41,7 @@ export default function OklchColorPicker(props: OklchColorPickerProps) {
   };
 
   return (
-    <div aria-label={`${props.label} color picker`} class="oklch-picker" role="dialog">
+    <div aria-label={`${props.label} color picker`} class="oklch-picker">
       <div class="oklch-picker-preview" style={{ background: formatOklch(color()) }} />
       <ColorChannelRow
         label="Lightness"

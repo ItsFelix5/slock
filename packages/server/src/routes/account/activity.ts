@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Slack payloads preserve Slack's wire field names; activity trimming shares recursive helpers.
-
 import { ACTIVITY_FEED_TYPES_PARAM } from "@slock/slack-api";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
@@ -153,11 +151,6 @@ export const activityRoutes: Route[] = [
     );
   }),
 
-  // Slack's own client-side Activity tab, undocumented and used here because
-  // there's no public endpoint that returns historical dm/thread/reaction/
-  // broadcast activity — search.messages only ever finds literal @mentions.
-  // Only carries ids (channel/ts/reactor); resolving each entry's message
-  // body is a separate batched lookup (see /api/messages/lookup).
   route("GET", "/api/activity", async (ctx) => {
     const limit = ctx.searchParams.get("limit") ?? "50";
     const cursor = ctx.searchParams.get("cursor") ?? undefined;

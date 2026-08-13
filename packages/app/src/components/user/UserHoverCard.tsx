@@ -2,6 +2,7 @@ import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import { HoverCard, Icon } from "@slock/ui";
 import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
+import AppBadge from "./AppBadge";
 import { createLocalTime } from "./userProfileTime";
 import ViewProfileButton from "./ViewProfileButton";
 import "./UserHoverCard.css";
@@ -47,7 +48,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                   <div class="user-hovercard-name">
                     <span class="user-hovercard-name-label">{u().name}</span>
                     <Show when={u().isBot}>
-                      <span class="user-hovercard-badge">APP</span>
+                      <AppBadge />
                     </Show>
                     <Show when={u().pronouns}>
                       <span class="pronouns">({u().pronouns})</span>

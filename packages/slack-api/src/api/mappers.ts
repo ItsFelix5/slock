@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile lint/style/useNamingConvention: One cohesive raw-Slack-payload-to-app-type translation layer; raw interfaces intentionally mirror Slack snake_case wire fields.
 import type { Block } from "../blocks";
 import type {
   Attachment,
@@ -17,10 +16,6 @@ import { resolveMediaUrl } from "./server";
 const SLACK_USER_ID = "USLACK";
 const SLACK_AVATAR_URL = "/slack-logo.svg";
 
-// Raw wire shapes below are our best understanding of Slack's (partly
-// undocumented) payloads — deliberately all-optional so a missing/renamed
-// field degrades to `undefined` through the mappers' existing `??`/`||`
-// fallbacks instead of throwing.
 export interface RawUserProfile {
   api_app_id?: string;
   avatar_hash?: string;
@@ -34,6 +29,7 @@ export interface RawUserProfile {
   phone?: string;
   pronouns?: string;
   real_name?: string;
+  start_date?: string;
   status_emoji?: string;
   status_text?: string;
   team?: string;
@@ -70,7 +66,9 @@ export interface RawChannel {
   is_archived?: boolean;
   is_private?: boolean;
   latest?: string;
+  member_count?: number;
   name?: string;
+  num_members?: number;
   topic?: string | { value?: string };
   unread_count?: number;
   unread_count_display?: number;
@@ -121,9 +119,7 @@ export interface RawFile {
   thumb_800?: string;
   thumb_800_h?: number;
   thumb_800_w?: number;
-  // A ~30-byte base64 JPEG (no data: prefix) Slack generates for every
-  // image upload — used as a blurred placeholder while the real thumbnail
-  // (chosen below) loads in.
+
   thumb_tiny?: string;
   title?: string;
   transcription?: { preview?: { content?: string; has_more?: boolean } };
@@ -150,9 +146,18 @@ export interface RawFileShare {
 }
 
 export interface RawAttachment {
+  actions?: {
+    name?: string;
+    style?: string;
+    text?: string;
+    type?: string;
+    url?: string;
+    value?: string;
+  }[];
   author_icon?: string;
   author_name?: string;
   blocks?: Block[];
+  callback_id?: string;
   channel_id?: string;
   color?: string;
   fallback?: string;
@@ -230,9 +235,6 @@ function tzLabelFromOffset(seconds: number | undefined): string | undefined {
   return `UTC${sign}${whole}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
 }
 
-// The self object in client.userBoot (unlike regular users.list members) carries no
-// profile.image_* URLs at all — just an avatar_hash — so the current user's own avatar
-// has to be built from Slack's CDN URL convention instead of read off the profile directly.
 function avatarUrlFromHash(raw: RawUser): string | undefined {
   const hash = raw.profile?.avatar_hash;
   const team = raw.profile?.team ?? raw.team_id;
@@ -245,9 +247,17 @@ export function mapCustomFields(
 ): UserCustomField[] | undefined {
   const rawFields = profile?.fields ?? {};
   const customFields = Object.keys(rawFields)
-    .map((id) => ({ alt: rawFields[id]?.alt || undefined, id, value: rawFields[id]?.value ?? "" }))
+    .map((id) => ({
+      alt: rawFields[id]?.alt || undefined,
+      id,
+      value: rawFields[id]?.value ?? "",
+    }))
     .filter((f) => f.value);
   return customFields.length ? customFields : undefined;
+}
+
+export function mapStartDate(profile: RawUserProfile | undefined): string | undefined {
+  return profile?.start_date || undefined;
 }
 
 export function mapUser(raw: RawUser): User {
@@ -268,18 +278,16 @@ export function mapUser(raw: RawUser): User {
     customFields,
     email: raw.profile?.email || undefined,
     id: raw.id,
-    // Slackbot is a built-in pseudo-user, not a real bot-token integration, so
-    // Slack's API never sets is_bot for it — flag it by id instead.
+
     isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
     isWorkspaceAdmin: !!(raw.is_admin || raw.is_owner || raw.is_primary_owner),
     lastSeen: raw.last_seen || undefined,
     name: name ?? "",
     phone: raw.profile?.phone || undefined,
-    // users/info (the batched lookup) never includes presence — leave it
-    // unset rather than guessing; a fabricated default was either always
-    // "online" or, just as wrong, always "away" for everyone unknown.
+
     presence: raw.presence === "active" || raw.presence === "away" ? raw.presence : undefined,
     pronouns: raw.profile?.pronouns || undefined,
+    startDate: mapStartDate(raw.profile),
     statusEmoji: raw.profile?.status_emoji || undefined,
     statusText: raw.profile?.status_text || undefined,
     title: raw.profile?.title || undefined,
@@ -307,6 +315,7 @@ export function mapChannel(raw: RawChannel): Channel {
     archived: !!raw.is_archived,
     id: raw.id,
     lastActivity: raw.latest ? Number.parseFloat(raw.latest) * 1000 : undefined,
+    memberCount: raw.num_members ?? raw.member_count,
     name: raw.name ?? raw.id,
     private: !!raw.is_private,
     topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
@@ -314,20 +323,11 @@ export function mapChannel(raw: RawChannel): Channel {
   };
 }
 
-// Shared by client.counts (REST, boot) and badge_counts_updated (gateway, live) —
-// both hand back the same per-conversation shape, just wrapped in a different
-// envelope. Field names are our best understanding of that (undocumented) shape;
-// anything that doesn't match just falls through to "not unread" for that entry
-// rather than throwing, since this is read-only enhancement, not something that
-// should ever fail bootstrap or drop a socket message over.
 function parseCountGroup(
   g: RawCountGroup,
 ): { id: string; unread: boolean; mentions: number } | null {
   if (!g?.id) return null;
-  // Slack's raw counters/has_unreads flag can include activity it deliberately
-  // omits from the sidebar (join/leave messages, for example). Prefer the
-  // display counters whenever they are present so our unread styling mirrors
-  // Slack's UI instead of lighting up every conversation with raw activity.
+
   const mentions = Number(g.mention_count_display ?? g.mention_count ?? 0) || 0;
   const rawUnreadCount = g.unread_count_display ?? g.unread_count;
   const hasUnreadCount = rawUnreadCount !== undefined && rawUnreadCount !== null;
@@ -361,9 +361,6 @@ export function buildUnreadMap(
   ]);
 }
 
-// The gateway's live push counterpart to client.counts — same per-item fields,
-// but we've seen it both nested under a top-level "badges" object and flattened
-// at the top level, so check both rather than betting on one.
 export function parseBadgeCounts(
   payload: (RawCounts & { badges?: RawCounts }) | undefined,
 ): Record<string, { unread: boolean; mentions: number }> {
@@ -391,20 +388,17 @@ export function formatDayFromMs(ms: number) {
     a.getDate() === b.getDate();
   if (sameDay(date, today)) return "Today";
   if (sameDay(date, yesterday)) return "Yesterday";
-  return date.toLocaleDateString(undefined, { day: "numeric", month: "long", weekday: "long" });
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    weekday: "long",
+  });
 }
 
 export function formatDay(ts: string) {
   return formatDayFromMs(parseFloat(ts) * 1000);
 }
 
-// Only a small, known set of subtypes are pure announcements — Slack embeds
-// the acting user as a <@U..> mention right inside the ready-to-render text
-// ("<@U123> has joined the channel"), so a plain gray notice with no avatar
-// row is correct for these. Everything else defaults to "normal" rather than
-// being lumped in as a system notice: unrecognized/new subtypes (e.g. canvas
-// shares, which attribute the actor only via `user`, not the text) need the
-// full avatar/name treatment or they render as unattributed text.
 const SYSTEM_SUBTYPES = new Set([
   "channel_join",
   "channel_leave",
@@ -434,12 +428,7 @@ export const HIDE_SUBTYPES = new Set([
 
 export function mapFile(f: RawFile): SlackFile {
   const mimetype: string | undefined = f.mimetype;
-  // Pick one thumb size and use *its* dimensions, not a mismatched pair
-  // (e.g. the thumb_720 image URL with thumb_360's width/height) — that
-  // reserves the wrong box in the DOM before the image loads, causing a
-  // layout jump once the real (differently-proportioned) image lands.
-  // Prefers the largest available so retina displays stay crisp at our
-  // ~360px-wide render size (see MessageFiles.css).
+
   const thumb =
     (f.thumb_800 && f.thumb_800_w && f.thumb_800_h
       ? { h: f.thumb_800_h, url: f.thumb_800, w: f.thumb_800_w }
@@ -456,13 +445,12 @@ export function mapFile(f: RawFile): SlackFile {
     (f.thumb_160 ? { h: f.original_h, url: f.thumb_160, w: f.original_w } : undefined);
   return {
     created: f.created,
-    // Voice messages report length as duration_ms; other files (if ever) as duration.
+
     duration: f.duration ?? (typeof f.duration_ms === "number" ? f.duration_ms / 1000 : undefined),
     filetype: f.filetype,
     height: thumb?.h ?? f.original_h,
     id: f.id,
     isAudio: !!mimetype?.startsWith("audio/"),
-    isCanvas: f.filetype === "quip" || f.filetype === "canvas",
     isImage: !!mimetype?.startsWith("image/"),
     isMail: mimetype === "message/rfc822" || f.filetype === "eml",
     isPdf: mimetype === "application/pdf" || f.filetype === "pdf",
@@ -476,10 +464,7 @@ export function mapFile(f: RawFile): SlackFile {
     title: f.title,
     transcriptionHasMore: f.transcription?.preview?.has_more,
     transcriptionPreview: f.transcription?.preview?.content,
-    // Kept unproxied: used both as a top-level download-link href (a plain
-    // navigation, which does send Slack's SameSite cookie) and as an <img>/
-    // <video> subresource src (which doesn't) — callers that need the latter
-    // pass it through resolveMediaUrl themselves.
+
     urlPrivate: f.url_private ?? "",
     waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
     width: thumb?.w ?? f.original_w,
@@ -511,9 +496,23 @@ export function mapFileShare(raw: RawFileShare): SlackFileShare {
 
 function mapAttachment(a: RawAttachment): Attachment {
   return {
+    actions: a.actions?.flatMap((action) =>
+      action.type === "button" && action.name && action.text
+        ? [
+            {
+              name: action.name,
+              style: action.style,
+              text: action.text,
+              url: action.url,
+              value: action.value,
+            },
+          ]
+        : [],
+    ),
     authorIcon: a.author_icon ? resolveMediaUrl(a.author_icon) : undefined,
     authorName: a.author_name,
     blocks: a.blocks,
+    callbackId: a.callback_id,
     channelId: a.channel_id,
     color: a.color,
     fallback: a.fallback,
@@ -545,8 +544,7 @@ export function mapMessage(m: RawMessage): Message {
   return {
     attachments: Array.isArray(m.attachments) ? m.attachments.map(mapAttachment) : undefined,
     blocks: m.blocks,
-    // A message-level icon is a deliberate per-message override. Fall back to
-    // the bot profile only when the message does not provide one.
+
     botIcon: (() => {
       const icon =
         m.icons?.image_72 ??
@@ -558,9 +556,7 @@ export function mapMessage(m: RawMessage): Message {
       return icon ? resolveMediaUrl(icon) : undefined;
     })(),
     botId: m.bot_id,
-    // Legacy integrations and incoming webhooks can provide a custom author
-    // without also setting subtype=bot_message or bot_id. In that shape the
-    // top-level username is still the message's authoritative display name.
+
     botName: m.username ?? m.bot_profile?.name,
     day: formatDay(m.ts),
     edited: !!m.edited,
@@ -599,25 +595,13 @@ export function extractChannelSections(
 ): ChannelSectionSummary[] | null {
   const raw = data?.channel_sections;
   if (!Array.isArray(raw)) return null;
-  // Slack always includes built-in pseudo-sections alongside real ones —
-  // "stars", "slack_connect", "salesforce_records", "channels",
-  // "direct_messages", "recent_apps", "agents" — each with its own fixed,
-  // non-renameable channel_section_id, even when the user has never created a
-  // custom category. Real user-created sections come back as type "standard"
-  // (confirmed by creating one). Every entry (not just "standard") is kept
-  // here, in Slack's own order, so the sidebar can drag-reorder the built-in
-  // "Starred"/"Channels" groups alongside custom ones — callers that mutate
-  // section *membership* (move a channel in/out) must filter to "standard"
-  // themselves, since that operation is meaningless for the pseudo-sections.
+
   return raw
     .map((s) => ({
       channelIds: s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? [],
       id: s.channel_section_id ?? s.id ?? s.name,
       name: s.name ?? "Section",
-      // A section Slack has never had a filter set on omits `sidebar`
-      // entirely (or sends something we don't recognize) — that means
-      // unread-only, same as the built-in Channels/usergroup sections
-      // default to. "hide" is just the older spelling of "hid".
+
       sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : ("hid" as const),
       type: s.type ?? "standard",
     }))

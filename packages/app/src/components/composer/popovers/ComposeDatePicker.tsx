@@ -1,4 +1,9 @@
-import { DATE_FORMAT_OPTIONS, formatSlackDateTokens, TIME_FORMAT_OPTIONS } from "@slock/blockkit";
+import {
+  DATE_FORMAT_OPTION_PAIRS,
+  DATE_FORMAT_OPTIONS,
+  formatSlackDateTokens,
+  TIME_FORMAT_OPTIONS,
+} from "@slock/blockkit";
 import { Icon, Tooltip, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import "./ComposeDatePicker.css";
@@ -63,18 +68,15 @@ export default function ComposeDatePicker(props: {
       <div class="compose-date-section">
         <div class="compose-date-section-heading">
           <span>Date</span>
-          <Tooltip content="Or use relative time, such as 3 minutes ago">
-            <button
-              aria-label="Use relative time"
-              aria-pressed={useAgo()}
-              class="compose-date-relative-btn btn-reset"
-              classList={{ active: useAgo() }}
-              onClick={selectAgo}
-              type="button"
-            >
-              <Icon name="clock" size={14} />
-            </button>
-          </Tooltip>
+          <button
+            aria-pressed={useAgo()}
+            class="compose-date-relative-btn btn-reset"
+            classList={{ active: useAgo() }}
+            onClick={selectAgo}
+            type="button"
+          >
+            Relative
+          </button>
         </div>
         <div class="compose-date-option-list">
           <button
@@ -85,17 +87,34 @@ export default function ComposeDatePicker(props: {
           >
             <span>No date</span>
           </button>
-          <For each={DATE_FORMAT_OPTIONS}>
-            {(option) => (
-              <button
-                class="compose-date-option"
-                classList={{ active: !useAgo() && dateFormat() === option.format }}
-                onClick={() => selectDateFormat(option.format)}
-                type="button"
-              >
-                <span>{formatSlackDateTokens(option.format, dateToTs(date()))}</span>
-                <span class="compose-date-option-detail">{option.label}</span>
-              </button>
+          <For each={DATE_FORMAT_OPTION_PAIRS}>
+            {(pair) => (
+              <div class="compose-date-option-pair" classList={{ single: !pair.relative }}>
+                <button
+                  class="compose-date-option"
+                  classList={{ active: !useAgo() && dateFormat() === pair.normal.format }}
+                  onClick={() => selectDateFormat(pair.normal.format)}
+                  type="button"
+                >
+                  <span>{formatSlackDateTokens(pair.normal.format, dateToTs(date()))}</span>
+                  <span class="compose-date-option-detail">{pair.normal.label}</span>
+                </button>
+                <Show when={pair.relative}>
+                  {(relative) => (
+                    <Tooltip content={`Use ${relative().label.toLowerCase()} date`}>
+                      <button
+                        aria-label={`Use ${relative().label.toLowerCase()} date`}
+                        class="compose-date-relative-option btn-reset"
+                        classList={{ active: !useAgo() && dateFormat() === relative().format }}
+                        onClick={() => selectDateFormat(relative().format)}
+                        type="button"
+                      >
+                        <Icon name="history" size={14} />
+                      </button>
+                    </Tooltip>
+                  )}
+                </Show>
+              </div>
             )}
           </For>
         </div>
@@ -128,7 +147,7 @@ export default function ComposeDatePicker(props: {
       </div>
       <div class="compose-date-footer">
         <Show
-          fallback={<span class="compose-date-empty">Choose a date, time, or time ago</span>}
+          fallback={<span class="compose-date-empty">Choose a date, time, or relative time</span>}
           when={format()}
         >
           <span class="compose-date-preview">

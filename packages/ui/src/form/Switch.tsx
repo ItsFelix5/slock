@@ -18,7 +18,6 @@ export default function Switch(props: SwitchProps) {
         classList={{ disabled: props.disabled, on: props.checked }}
         disabled={props.disabled}
         onClick={() => props.onChange(!props.checked)}
-        role="switch"
         type="button"
       >
         <span class="switch-knob" />

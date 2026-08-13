@@ -7,8 +7,6 @@ interface EdgeRect {
   height: number;
 }
 
-// Picks whichever edge the pointer is closest to; "center" if it's not
-// within edgeFraction of any edge (i.e. drop here replaces content in place).
 export function detectEdgeZone(
   rect: EdgeRect,
   x: number,

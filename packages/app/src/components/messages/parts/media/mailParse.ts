@@ -1,7 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to mail parsing.
-// A small .eml (RFC 822/MIME) reader for previewing headers and text bodies.
-// Attachments are deliberately ignored, but nested multipart bodies are
-// traversed because multipart/mixed > multipart/alternative is commonplace.
 export interface ParsedMail {
   bodyHtml?: string;
   bodyText?: string;
@@ -66,9 +62,7 @@ function decodeBody(body: string, headers: Record<string, string>): string {
       return decodeBytes(bytesFromBase64(body), charset?.[1] ?? charset?.[2]);
     if (encoding === "quoted-printable")
       return decodeBytes(bytesFromQuotedPrintable(body), charset?.[1] ?? charset?.[2]);
-  } catch {
-    // A malformed transfer encoding should still leave the raw body readable.
-  }
+  } catch {}
   return body.trim();
 }
 

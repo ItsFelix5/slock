@@ -22,17 +22,13 @@ export default function LaterView() {
     <div class="later-view sidebar-view-panel">
       <h2>Later</h2>
       <Show
-        fallback={
-          <div class="later-empty empty-state" role="status">
-            Loading saved items…
-          </div>
-        }
+        fallback={<div class="later-empty empty-state">Loading saved items…</div>}
         when={store.later.laterLoaded() || store.later.laterLoadError()}
       >
         <Show
           fallback={
-            <div class="later-load-error empty-state flex-col" role="alert">
-              <span>Couldn’t load saved items.</span>
+            <div class="later-load-error empty-state flex-col">
+              <span>Couldn't load saved items.</span>
               <Button onClick={store.later.ensureLaterLoaded} size="sm">
                 Try again
               </Button>
@@ -41,13 +37,11 @@ export default function LaterView() {
           when={store.later.laterLoaded() || !store.later.laterLoadError()}
         >
           <Show when={store.later.laterLoading() && store.later.laterLoaded()}>
-            <div class="later-load-notice text-dim text-sm" role="status">
-              Refreshing saved items…
-            </div>
+            <div class="later-load-notice text-dim text-sm">Refreshing saved items…</div>
           </Show>
           <Show when={store.later.laterLoadError() && store.later.laterLoaded()}>
-            <div class="later-load-notice later-load-warning" role="alert">
-              <span>Couldn’t refresh saved items.</span>
+            <div class="later-load-notice later-load-warning">
+              <span>Couldn't refresh saved items.</span>
               <Button onClick={store.later.ensureLaterLoaded} size="sm">
                 Try again
               </Button>
@@ -69,8 +63,7 @@ export default function LaterView() {
                   store.later.hasLaterMessageError(item.channelId, item.ts),
                 );
                 const msg = createMemo(() => store.later.laterMessages[key]);
-                // channelById triggers a network discovery lookup for unknown
-                // ids — skip it for DM ids, which will never resolve as a channel.
+
                 const channel = createMemo(() =>
                   item.channelId.startsWith("D")
                     ? undefined
@@ -119,7 +112,7 @@ export default function LaterView() {
                       }}
                       snippet={
                         <Show
-                          fallback={loadError() ? "Couldn’t load this message." : "Loading…"}
+                          fallback={loadError() ? "Couldn't load this message." : "Loading…"}
                           when={isLoaded()}
                         >
                           <Show fallback="Message unavailable" when={msg()}>

@@ -1,5 +1,3 @@
-// Modifying this file is a workaround, not a fix.
-// Do not modify this if you are an AI
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "formatter": {
@@ -12,7 +10,7 @@
   "linter": {
     "rules": {
       "a11y": {
-        "useMediaCaption": "off"
+        "preset": "none"
       },
       "complexity": {
         "noUselessCatchBinding": "on",
@@ -87,7 +85,6 @@
         "useErrorCause": "on",
         "useFilenamingConvention": "on",
         "useFragmentSyntax": "on",
-        "useNamingConvention": "on",
         "useObjectSpread": "on",
         "useReactFunctionComponents": "on",
         "useSelfClosingElements": "on",

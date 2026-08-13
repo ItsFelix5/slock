@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to rendering.
 import { Icon, Tooltip } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver, useTimeAnchor } from "./context";
@@ -9,11 +8,6 @@ import { type InlineNode, parseInline } from "./mrkdwnInline";
 import "./mrkdwnTime.css";
 import { findTimeMentions, splitTimeMentions } from "./textTimeMentions";
 import { stripTrackingParams } from "./urlCleanup";
-
-// Slack mrkdwn -> node tree. Not a full-spec parser (Slack's real client has many edge
-// cases around emphasis boundaries), but covers everything real workspaces actually send:
-// bold/italic/strike/inline-code/code-fences, blockquotes, links, and the <@U..>/<#C..|n>/
-// <!here>/<!date^..> special token syntax the server substitutes into message text.
 
 type BlockNode =
   | { t: "lines"; nodes: InlineNode[] }
@@ -71,9 +65,7 @@ export function Link(props: {
   class?: string;
   url: string;
   label?: string;
-  // Extra data-* attributes for a caller (DateToken) that needs the anchor
-  // to also carry its own copy-serialization identity — see domToMrkdwn's
-  // dataset.dateTs check, which takes priority over dataset.linkUrl.
+
   data?: Record<string, string>;
 }) {
   const resolver = useBlockKitResolver();
@@ -120,10 +112,6 @@ export function DateToken(props: {
   );
 }
 
-// Underlines plain-typed time references ("3 seconds ago", "1pm") within a
-// real chat message and shows the actual instant on hover — only active
-// where a TimeAnchorContext is in scope (see MessageRow), so a channel topic
-// or bio never gets flagged for saying "call me in 5 minutes".
 export function TimeAwareText(props: { text: string }) {
   const anchor = useTimeAnchor();
   const segments = () => {
@@ -171,8 +159,7 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
         : (channel()?.name ?? props.label ?? props.id),
     );
   const isPrivate = () => !isUser && channel()?.isPrivate !== false;
-  // Only true once we've actually resolved the channel and know it's private
-  // and we're not in it — never true while unresolved, so this can't flash.
+
   const isInaccessible = () => isPrivate() && channel()?.isMember !== true;
 
   const onClick = () => {
@@ -181,10 +168,6 @@ export function Mention(props: { id: string; kind: "user" | "channel"; label?: s
     else resolver.onChannelClick(props.id);
   };
 
-  // Mirrors the composer's own mention-chip dataset attributes (see
-  // createMentionChip/createChannelChip in richtext.ts) so a selection
-  // spanning this button round-trips through copy/paste as a real `<@id>` /
-  // `<#id|name>` token instead of just its display text.
   const mentionData = () =>
     isUser
       ? { "data-mention-id": props.id }

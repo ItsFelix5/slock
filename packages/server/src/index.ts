@@ -1,5 +1,3 @@
-// Production entry point: one process serves the built client and application
-// API on a single port. Vite remains development-only.
 import { routeApiRequest } from "./api";
 import { type Credentials, parseCredsCookie } from "./auth";
 import { compressResponse } from "./http/compressedResponse";
@@ -19,7 +17,7 @@ async function serveStatic(pathname: string): Promise<Response | null> {
   const rel = pathname === "/" ? "/index.html" : pathname;
   const file = Bun.file(`${DIST_DIR}${rel}`);
   if (await file.exists()) return new Response(file);
-  // SPA fallback: client-side routes (no file extension) fall back to index.html.
+
   if (!rel.slice(rel.lastIndexOf("/") + 1).includes(".")) {
     const index = Bun.file(`${DIST_DIR}/index.html`);
     if (await index.exists()) return new Response(index);
@@ -34,8 +32,6 @@ Bun.serve<{ creds: Credentials | null }>({
       const creds = parseCredsCookie(req.headers.get("cookie"));
 
       if (url.pathname === "/ws") {
-        // Cookies auto-attach to a same-origin WS handshake, so creds parsed
-        // above from this same upgrade request travel through as `ws.data`.
         if (server.upgrade(req, { data: { creds } })) return;
         return new Response("upgrade failed", { status: 400 });
       }

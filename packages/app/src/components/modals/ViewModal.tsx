@@ -4,11 +4,6 @@ import { Show } from "solid-js";
 import { store } from "../../lib/store";
 import "./ViewModal.css";
 
-// Renders modals apps push via `views.open`/`views.push` (delivered over the
-// gateway as `view_opened`). We only relay the shortcut/action request — the
-// app's own backend owns the interactivity round-trip — so this is a
-// read-only viewer: Submit has nowhere real to send data, and is disabled
-// rather than pretending to succeed.
 export default function ViewModal() {
   const view = () => store.modals.topView();
   const canGoBack = () => store.modals.viewStack().length > 1;

@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to the save operation.
 import {
   Button,
   InlineFeedback,
@@ -57,7 +56,6 @@ export default function UsergroupDetails() {
 
   createEffect(on(usergroupDetailsId, () => setTab("about")));
 
-  // Form fields seed once per fetched details, not on every input keystroke.
   createEffect(
     on(details, (d) => {
       if (!d) return;
@@ -117,23 +115,20 @@ export default function UsergroupDetails() {
             class="usergroup-details-body flex-col"
           >
             <Show when={details() && usergroupDetailsLoading()}>
-              <div class="usergroup-details-load-notice text-dim text-sm" role="status">
+              <div class="usergroup-details-load-notice text-dim text-sm">
                 Refreshing pinggroup details…
               </div>
             </Show>
             <Show when={details() && usergroupDetailsLoadError()}>
-              <div
-                class="usergroup-details-load-notice usergroup-details-load-warning"
-                role="alert"
-              >
-                <span>Couldn’t refresh pinggroup details.</span>
+              <div class="usergroup-details-load-notice usergroup-details-load-warning">
+                <span>Couldn't refresh pinggroup details.</span>
                 <Button onClick={() => loadUsergroupDetails(id())} size="sm">
                   Try again
                 </Button>
               </div>
             </Show>
             <Show when={usergroupMutationPending()}>
-              <div class="usergroup-details-load-notice text-dim text-sm" role="status">
+              <div class="usergroup-details-load-notice text-dim text-sm">
                 Saving pinggroup changes…
               </div>
             </Show>
@@ -141,8 +136,8 @@ export default function UsergroupDetails() {
               fallback={
                 <Show
                   fallback={
-                    <div class="usergroup-details-load-state flex-col" role="alert">
-                      <span>Couldn’t load pinggroup details.</span>
+                    <div class="usergroup-details-load-state flex-col">
+                      <span>Couldn't load pinggroup details.</span>
                       <Button onClick={() => loadUsergroupDetails(id())} size="sm">
                         Try again
                       </Button>
@@ -150,7 +145,7 @@ export default function UsergroupDetails() {
                   }
                   when={!usergroupDetailsLoadError()}
                 >
-                  <p class="usergroup-details-meta usergroup-details-tab-content" role="status">
+                  <p class="usergroup-details-meta usergroup-details-tab-content">
                     Loading pinggroup details…
                   </p>
                 </Show>

@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimChannelSections } from "../../trim/slackEntities.ts";
@@ -44,14 +43,17 @@ export const sectionRoutes: Route[] = [
     );
   }),
 
-  // Shared by a rename (name) and a sidebar-visibility change (sidebar) —
-  // same resource, same Slack method, different partial update.
   route("PATCH", "/api/sections/:id", async (ctx) => {
-    const body = (await ctx.body.json()) as { name?: string; sidebar?: "hid" | "active" | "all" };
+    const body = (await ctx.body.json()) as {
+      name?: string;
+      sidebar?: "hid" | "active" | "all";
+    };
     if (body.name === undefined && body.sidebar === undefined) {
       return errorResponse("invalid_patch", 400);
     }
-    const params: Record<string, string> = { channel_section_id: ctx.params.id };
+    const params: Record<string, string> = {
+      channel_section_id: ctx.params.id,
+    };
     if (body.name !== undefined) params.name = body.name;
     if (body.sidebar !== undefined) params.sidebar = body.sidebar;
     return mutate("users.channelSections.update", params, ctx);
@@ -62,7 +64,9 @@ export const sectionRoutes: Route[] = [
   ),
 
   route("PUT", "/api/sections/:id/order", async (ctx) => {
-    const { nextSectionId } = (await ctx.body.json()) as { nextSectionId?: string | null };
+    const { nextSectionId } = (await ctx.body.json()) as {
+      nextSectionId?: string | null;
+    };
     return mutate(
       "users.channelSections.set",
       {

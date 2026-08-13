@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to contact formatting.
 import type { ProfileFieldDef, User } from "@slock/slack-api";
 import { createCopyFeedback, Icon, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
@@ -86,7 +85,7 @@ export default function UserProfileContact(props: {
               <div class="user-profile-field-label text-muted">{field.label}</div>
               <Show
                 fallback={<div class="user-profile-field-value">{field.alt || field.value}</div>}
-                when={/^https?:\/\//.test(field.value)}
+                when={/^https?:\/\/\S+$/i.test(field.value)}
               >
                 <a
                   class="user-profile-field-value user-profile-field-link"

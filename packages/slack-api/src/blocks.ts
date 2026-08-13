@@ -1,8 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Block Kit types intentionally mirror Slack's wire schema.
-// Slack Block Kit types — trimmed to what a message-rendering client needs.
-// Unknown/unsupported block or element types still type-check via the `type: string`
-// fallback members below, so the renderer can show a graceful placeholder instead of crashing.
-
 export interface TextObject {
   emoji?: boolean;
   text: string;
@@ -25,9 +20,17 @@ export interface Option {
   value?: string;
 }
 
-export interface ButtonElement {
+export interface OptionGroup {
+  label: TextObject;
+  options: Option[];
+}
+
+interface ActionElement {
   action_id?: string;
   confirm?: ConfirmationDialog;
+}
+
+export interface ButtonElement extends ActionElement {
   style?: "primary" | "danger";
   text: TextObject;
   type: "button";
@@ -49,8 +52,11 @@ export interface OverflowElement {
   type: "overflow";
 }
 
-export interface SelectElement {
-  action_id?: string;
+export interface SelectElement extends ActionElement {
+  initial_option?: Option;
+  initial_options?: Option[];
+  option_groups?: OptionGroup[];
+  options?: Option[];
   placeholder?: TextObject;
   type:
     | "static_select"
@@ -65,17 +71,60 @@ export interface SelectElement {
     | "multi_channels_select";
 }
 
-export interface DatePickerElement {
-  action_id?: string;
+export interface DatePickerElement extends ActionElement {
   initial_date?: string;
+  initial_time?: string;
+  initial_datetime?: number;
   placeholder?: TextObject;
   type: "datepicker" | "timepicker" | "datetimepicker";
 }
 
-export interface CheckboxRadioElement {
-  action_id?: string;
+export interface CheckboxRadioElement extends ActionElement {
+  initial_option?: Option;
+  initial_options?: Option[];
   options: Option[];
   type: "checkboxes" | "radio_buttons";
+}
+
+export interface TextInputElement extends ActionElement {
+  initial_value?: string;
+  max_length?: number;
+  min_length?: number;
+  multiline?: boolean;
+  placeholder?: TextObject;
+  type: "plain_text_input" | "email_text_input" | "url_text_input" | "number_input";
+}
+
+export interface RichTextInputElement extends ActionElement {
+  initial_value?: RichTextBlock;
+  placeholder?: TextObject;
+  type: "rich_text_input";
+}
+
+export interface FileInputElement extends ActionElement {
+  filetypes?: string[];
+  max_files?: number;
+  type: "file_input";
+}
+
+export interface WorkflowButtonElement extends ActionElement {
+  style?: "primary" | "danger";
+  text: TextObject;
+  type: "workflow_button";
+  workflow?: { trigger?: { url?: string } };
+}
+
+export interface IconButtonElement extends ActionElement {
+  accessibility_label?: string;
+  icon: string;
+  text: TextObject;
+  type: "icon_button";
+}
+
+export interface FeedbackButtonsElement extends ActionElement {
+  negative_button: { text: TextObject; value?: string };
+  positive_button: { text: TextObject; value?: string };
+  type: "feedback_buttons";
 }
 
 export interface UnknownElement {
@@ -90,6 +139,12 @@ export type BlockElement =
   | SelectElement
   | DatePickerElement
   | CheckboxRadioElement
+  | TextInputElement
+  | RichTextInputElement
+  | FileInputElement
+  | WorkflowButtonElement
+  | IconButtonElement
+  | FeedbackButtonsElement
   | UnknownElement;
 
 export interface SectionBlock {
@@ -120,7 +175,11 @@ export interface ContextBlock {
 export interface ImageBlock {
   alt_text: string;
   block_id?: string;
-  image_url: string;
+  image_height?: number;
+  is_animated?: boolean;
+  image_width?: number;
+  image_url?: string;
+  slack_file?: { url?: string; id?: string };
   title?: TextObject;
   type: "image";
 }
@@ -140,7 +199,117 @@ export interface InputBlock {
   type: "input";
 }
 
-// --- rich_text ---
+export interface MarkdownBlock {
+  block_id?: string;
+  text: string;
+  type: "markdown";
+}
+
+export interface FileBlock {
+  block_id?: string;
+  external_id: string;
+  source: "remote" | string;
+  type: "file";
+}
+
+export interface VideoBlock {
+  alt_text: string;
+  author_name?: string;
+  block_id?: string;
+  description?: TextObject;
+  provider_icon_url?: string;
+  provider_name?: string;
+  thumbnail_url: string;
+  title: TextObject;
+  title_url?: string;
+  type: "video";
+  video_url: string;
+}
+
+export interface CardBlock {
+  actions?: BlockElement[];
+  block_id?: string;
+  body?: TextObject;
+  hero_image?: ImageElement;
+  icon?: ImageElement;
+  subtitle?: TextObject;
+  subtext?: TextObject;
+  title?: TextObject;
+  type: "card";
+}
+
+export interface CarouselBlock {
+  block_id?: string;
+  elements: CardBlock[];
+  type: "carousel";
+}
+
+export interface ContainerBlock {
+  block_id?: string;
+  blocks?: Block[];
+  elements?: Block[];
+  type: "container";
+}
+
+export interface ContextActionsBlock {
+  block_id?: string;
+  elements: BlockElement[];
+  type: "context_actions";
+}
+
+export interface TableCell {
+  elements?: RichTextBlock["elements"];
+  text?: string;
+  type: "raw_text" | "raw_number" | "rich_text";
+  value?: number;
+}
+
+export interface TableBlock {
+  block_id?: string;
+  column_settings?: ({
+    align?: "left" | "center" | "right";
+    is_wrapped?: boolean;
+  } | null)[];
+  rows: TableCell[][];
+  type: "table" | "data_table";
+  caption?: string;
+  page_size?: number;
+  row_header_column_index?: number;
+}
+
+export interface DataVisualizationBlock {
+  block_id?: string;
+  chart: { type: string; [key: string]: unknown };
+  title: string;
+  type: "data_visualization";
+}
+
+export interface TaskCardBlock {
+  block_id?: string;
+  details?: RichTextBlock;
+  output?: RichTextBlock;
+  sources?: { text: string; type: "url"; url: string }[];
+  status?: "pending" | "in_progress" | "complete" | "error";
+  task_id: string;
+  title: string;
+  type: "task_card";
+}
+
+export interface PlanBlock {
+  block_id?: string;
+  tasks?: TaskCardBlock[];
+  title: TextObject | string;
+  type: "plan";
+}
+
+export interface AlertBlock {
+  block_id?: string;
+  level?: "default" | "info" | "warning" | "error" | "success";
+  text?: TextObject;
+  title?: TextObject;
+  type: "alert";
+  [key: string]: unknown;
+}
 
 export type {
   RichTextBlock,
@@ -179,6 +348,18 @@ export type Block =
   | ImageBlock
   | ActionsBlock
   | InputBlock
+  | MarkdownBlock
+  | FileBlock
+  | VideoBlock
+  | CardBlock
+  | CarouselBlock
+  | ContainerBlock
+  | ContextActionsBlock
+  | TableBlock
+  | DataVisualizationBlock
+  | TaskCardBlock
+  | PlanBlock
+  | AlertBlock
   | RichTextBlock
   | UnknownBlock;
 
@@ -187,8 +368,6 @@ export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {
     (blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
   );
 }
-
-// --- modal/home views (views.open / view_opened gateway event) ---
 
 export interface ModalView {
   app_id?: string;

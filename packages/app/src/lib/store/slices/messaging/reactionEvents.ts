@@ -17,7 +17,8 @@ export function createReactionEvents(deps: {
     name: string,
     userId: string,
     msg: Message,
-  ) {//todo?
+  ) {
+    //todo?
     deps.pushActivity({
       channelId: channel,
       id: `rx-${channel}-${ts}-${name}-${userId}-${Date.now()}`,
@@ -55,7 +56,11 @@ export function createReactionEvents(deps: {
         next = reactions
           .map((r) =>
             r.name === name
-              ? { ...r, count: r.count - 1, users: r.users.filter((u) => u !== userId) }
+              ? {
+                  ...r,
+                  count: r.count - 1,
+                  users: r.users.filter((u) => u !== userId),
+                }
               : r,
           )
           .filter((r) => r.count > 0);
@@ -70,9 +75,7 @@ export function createReactionEvents(deps: {
       if (msg.userId === me.id) pushReactionActivity(channel, ts, name, userId, msg);
       return;
     }
-    // Message isn't loaded locally (channel not currently open). The gateway
-    // event already tells us who owns the item, so only fetch the full
-    // message (for text/threadTs) when it's actually ours to report.
+
     if (itemUserId !== undefined && itemUserId !== me.id) return;
     fetchPermalinkMessage(channel, ts, ts)
       .then((fetched) => {

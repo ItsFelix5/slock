@@ -39,7 +39,7 @@ export default function UsergroupChannelsTab(props: {
 
   const removeChannel = async (id: string, name: string) => {
     if (props.disabled) return;
-    // biome-ignore lint/suspicious/noAlert: Removing a default channel requires explicit confirmation.
+
     if (!confirm(`Remove #${name} as a default channel for this pinggroup?`)) return;
     await removeUsergroupChannel(props.usergroupId, id);
   };

@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The expression is local to the save operation.
 import {
   Button,
   createCopyFeedback,
@@ -20,8 +19,8 @@ import {
 } from "../../../lib/channelDetails";
 import { actionFeedback, store } from "../../../lib/store";
 import MrkdwnComposer from "../../composer/MrkdwnComposer";
-import ChannelMembersTab from "./ChannelMembersTab";
 import "./ChannelDetails.css";
+import ChannelMembersTab from "./ChannelMembersTab";
 import ChannelSettingsTab from "./ChannelSettingsTab";
 import {
   type EditableChannelDetails,
@@ -53,8 +52,6 @@ export default function ChannelDetails() {
 
   createEffect(on(channelDetailsId, () => setTab(channelDetailsTab())));
 
-  // Refreshes after one field saves must not erase unsaved typing in another.
-  // Track the last server snapshot and only replace fields still equal to it.
   let seededDetails: EditableChannelDetails | undefined;
   createEffect(
     on(details, (d) => {
@@ -124,7 +121,7 @@ export default function ChannelDetails() {
 
   const [copiedKey, copy] = createCopyFeedback(1200, () => {
     const id = channelDetailsId();
-    if (id) actionFeedback.flash(id, "Couldn’t copy to the clipboard.", "error");
+    if (id) actionFeedback.flash(id, "Couldn't copy to the clipboard.", "error");
   });
 
   const blurOnEnter = (e: KeyboardEvent) => {
@@ -156,8 +153,8 @@ export default function ChannelDetails() {
                 <PanelHeader onClose={closeChannelDetails} title="Channel details" />
                 <Show
                   fallback={
-                    <div class="channel-details-load-error flex-center flex-col" role="alert">
-                      <span>Couldn’t load channel details.</span>
+                    <div class="channel-details-load-error flex-center flex-col">
+                      <span>Couldn't load channel details.</span>
                       <InlineFeedback feedback={actionFeedback.get(id())} priority={2} />
                       <Button onClick={() => refetch()} size="sm">
                         Try again
@@ -182,7 +179,6 @@ export default function ChannelDetails() {
                       <For each={TABS}>
                         {(t) => (
                           <button
-                            aria-pressed={tab() === t.key}
                             class="channel-details-tab btn-reset flex-align-center"
                             classList={{ active: tab() === t.key }}
                             onClick={() => setTab(t.key)}
@@ -222,7 +218,6 @@ export default function ChannelDetails() {
                           {d().private ? <Icon name="lock" size={13} /> : "#"}
                         </span>
                         <input
-                          aria-busy={savingName()}
                           class="channel-details-input"
                           disabled={savingName()}
                           id="channel-details-name"

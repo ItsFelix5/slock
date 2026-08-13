@@ -87,7 +87,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
 
     if (isVertical(preferred)) {
       placement = resolveVerticalPlacement(anchor, panelRect.height, preferred, gap, padding);
-      // biome-ignore lint/style/useDestructuring: left is conditionally reassigned below based on align, destructuring doesn't fit
+
       left = anchor.left;
       if (props.align === "center") left += (anchor.width - panelRect.width) / 2;
       else if (props.align === "end") left = anchor.right - panelRect.width;
@@ -97,7 +97,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
       top = clamp(desiredTop, padding, window.innerHeight - panelRect.height - padding);
     } else {
       placement = resolveHorizontalPlacement(anchor, panelRect.width, preferred, gap, padding);
-      // biome-ignore lint/style/useDestructuring: top is conditionally reassigned below based on align, destructuring doesn't fit
+
       top = anchor.top;
       if (props.align === "center") top += (anchor.height - panelRect.height) / 2;
       else if (props.align === "end") top = anchor.bottom - panelRect.height;
@@ -122,8 +122,6 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     });
   };
 
-  // Capture-phase so we hear about scrolls on any ancestor, but that also
-  // catches scrolling inside the panel's own content — ignore those.
   const handleScroll = (e: Event) => {
     if (panel && e.target instanceof Node && panel.contains(e.target)) return;
     props.onScroll?.();
@@ -147,7 +145,6 @@ export default function FloatingPanel(props: FloatingPanelProps) {
   return (
     <Show when={props.open && props.anchor()}>
       <Portal mount={parentMount?.() ?? document.body}>
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: floating panels may use pointer entry/exit to preserve hover intent */}
         <div
           class={props.class}
           onFocusOut={props.onFocusOut}

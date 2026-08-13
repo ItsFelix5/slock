@@ -8,10 +8,6 @@ function isOutside(target: ClickOutsideTarget, e: MouseEvent): boolean {
   return !!el && !el.contains(e.target as Node);
 }
 
-// Accepts either a single target or a list of targets (kept for compatibility with
-// existing call sites). A list is needed once a panel is Portal-rendered elsewhere in the
-// DOM (e.g. via FloatingPanel) — the click then has to be outside the trigger *and* the
-// portaled panel to count as "outside".
 export function useClickOutside(
   target: ClickOutsideTarget | ClickOutsideTarget[],
   onClose: () => void,

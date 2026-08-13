@@ -19,8 +19,7 @@ export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | un
 
   function persist(next: string[]) {
     setSearchHistory(next);
-    // Keep searches usable during a preferences outage, but never overwrite
-    // the server-backed history from an uninitialized empty base.
+
     if (!deps.userPrefs()) return;
     runMutation(() => setSearchHistoryApi(next)).catch((err) => {
       console.error("Failed to sync search history", err);
@@ -45,5 +44,10 @@ export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | un
     persist([]);
   }
 
-  return { clearSearchHistory, recordSearch, removeSearchHistoryEntry, searchHistory };
+  return {
+    clearSearchHistory,
+    recordSearch,
+    removeSearchHistoryEntry,
+    searchHistory,
+  };
 }

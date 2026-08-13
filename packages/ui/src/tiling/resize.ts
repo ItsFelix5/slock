@@ -1,6 +1,3 @@
-// N-way generalization of layout/resizeMath.ts's resizeWidth: dragging the
-// divider between two neighbors only ever trades size between that pair
-// (VS Code editor-group semantics), clamped so neither shrinks past minFraction.
 export function distributeResize(
   sizes: number[],
   index: number,

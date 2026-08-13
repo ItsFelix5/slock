@@ -149,7 +149,7 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
       canvas.height = outputSize;
       canvas.width = outputSize;
       const context = canvas.getContext("2d");
-      if (!context) throw new Error("Couldn’t prepare this image.");
+      if (!context) throw new Error("Couldn't prepare this image.");
       const left = Math.max(0, value.x);
       const top = Math.max(0, value.y);
       const right = Math.min(source.width, value.x + value.size);
@@ -170,7 +170,7 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
       }
       const blob = await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob(
-          (result) => (result ? resolve(result) : reject(new Error("Couldn’t crop image."))),
+          (result) => (result ? resolve(result) : reject(new Error("Couldn't crop image."))),
           "image/png",
         ),
       );
@@ -180,7 +180,7 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
         props.onClose();
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Couldn’t crop image.");
+      setError(cause instanceof Error ? cause.message : "Couldn't crop image.");
     } finally {
       setSaving(false);
     }
@@ -203,7 +203,7 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
           <img
             alt=""
             class="profile-photo-editor-image"
-            onError={() => setError("This image couldn’t be opened.")}
+            onError={() => setError("This image couldn't be opened.")}
             onLoad={(event) => {
               const { naturalHeight: height, naturalWidth: width } = event.currentTarget;
               setDimensions({ height, width });

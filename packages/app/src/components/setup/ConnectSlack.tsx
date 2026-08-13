@@ -105,9 +105,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
           if (body.trim().startsWith("{")) {
             try {
               ({ token } = JSON.parse(body));
-            } catch {
-              // not valid JSON; fall through to the "no token" error below
-            }
+            } catch {}
           } else {
             token = new URLSearchParams(body).get("token") ?? undefined;
           }
@@ -160,7 +158,7 @@ export default function ConnectSlack(props: { onConnected: () => void }) {
           rows={8}
           spellcheck={false}
         />
-        <p class="connect-slack-error" id="connect-slack-error" role="alert">
+        <p class="connect-slack-error" id="connect-slack-error">
           {error()}
         </p>
       </div>

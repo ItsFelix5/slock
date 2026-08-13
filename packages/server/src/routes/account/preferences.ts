@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse } from "../../http/jsonResponse.ts";
 import { mutate, route, type Route, type RouteCtx } from "../router.ts";
 

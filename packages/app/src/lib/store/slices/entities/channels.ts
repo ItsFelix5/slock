@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive channel entity slice with shared optimistic section state.
 import type { BrowsableChannel, Channel, ChannelSection, UserPrefs } from "@slock/slack-api";
 import {
   createSection as apiCreateSection,
@@ -11,7 +10,6 @@ import {
   fetchBrowsableChannels,
   fetchChannel,
   fetchChannelMembers,
-  fetchConversationView,
   fetchFreshSections,
   fetchSections,
   joinChannel,
@@ -41,17 +39,13 @@ export function createChannelsSlice(deps: {
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
-  // Channels resolved only for display purposes (e.g. a #channel mention link
-  // pointing at a channel the user has never joined) — kept separate from
-  // `extraChannels` so a lookup never makes an unjoined channel show up in
-  // the sidebar via `channels()`.
+
   const [discoveredChannels, setDiscoveredChannels] = createStore<Channel[]>([]);
   const pendingChannels = new Set<string>();
   const channelDiscoveryMisses = new Map<string, number>();
   const channelDiscoveryRetryMs = 30_000;
   const channelDetailsRequested = new Set<string>();
-  // Local edits (rename, topic) on top of the immutable bootstrap snapshot,
-  // applied when `channels()` assembles its list.
+
   const [channelPatches, setChannelPatches] = createStore<Record<string, Partial<Channel>>>({});
   const [leftChannelIds, setLeftChannelIds] = createStore<Record<string, boolean>>({});
   const [joinPendingIds, setJoinPendingIds] = createStore<Record<string, boolean>>({});
@@ -70,9 +64,6 @@ export function createChannelsSlice(deps: {
     for (const id of data.starredChannelIds) setStarredChannelIds(id, true);
   });
 
-  // Channels newly joined/created this session — bootstrap() is a resource
-  // snapshot from boot, not a store, so a freshly joined channel needs to be
-  // merged in here rather than mutating that snapshot.
   const channels = createMemo<Channel[]>(() => {
     const base = deps.bootstrap()?.channels ?? [];
     const extra = extraChannels.filter((c) => !base.some((b) => b.id === c.id));
@@ -96,8 +87,7 @@ export function createChannelsSlice(deps: {
     const known =
       channels().find((c) => c.id === id) ?? discoveredChannels.find((c) => c.id === id);
     if (known) return known;
-    // Bootstrap hasn't resolved yet, so we can't tell a genuinely unknown
-    // channel apart from one of this account's own that just hasn't loaded.
+
     if (!deps.bootstrap()) return;
     const missedAt = channelDiscoveryMisses.get(id);
     if (missedAt && Date.now() - missedAt < channelDiscoveryRetryMs) return;
@@ -113,14 +103,6 @@ export function createChannelsSlice(deps: {
     }
   }
 
-  // client.userBoot can omit topic/member-count metadata for a channel.
-  // Resolve it lazily from the authenticated conversations.info response,
-  // then patch the reactive channel snapshot. Only called from the couple of
-  // places that actually display this (channel header, #mention hover card)
-  // - not from channelById itself, which is called for every channel
-  // referenced anywhere in the UI (message lists, activity feed, etc.) and
-  // would otherwise fire a conversations.info burst for channels that never
-  // show it.
   function ensureChannelTopic(id: string): void {
     const known = channels().find((c) => c.id === id);
     if (
@@ -130,13 +112,14 @@ export function createChannelsSlice(deps: {
     )
       return;
     channelDetailsRequested.add(id);
-    fetchConversationView(id)
-      .then((view) => {
+    fetchChannel(id)
+      .then((channel) => {
+        if (!channel) return;
         patchChannel(id, {
-          memberCount: view.details.memberCount,
-          name: view.channel.name,
-          private: view.channel.private,
-          topic: view.channel.topic,
+          memberCount: channel.memberCount,
+          name: channel.name,
+          private: channel.private,
+          topic: channel.topic,
         });
       })
       .catch(() => channelDetailsRequested.delete(id));
@@ -146,9 +129,6 @@ export function createChannelsSlice(deps: {
     return channels().some((c) => c.id === id);
   }
 
-  // Full member-id roster for a channel, used to flag "not in channel" on
-  // @mention suggestions. Fetched in full and cached per channel rather than
-  // per-user-checked, since Slack has no "is user X in channel Y" lookup.
   const channelRosters = new Map<string, Set<string>>();
   const rosterLoads = new Map<string, Promise<Set<string> | undefined>>();
 
@@ -236,8 +216,6 @@ export function createChannelsSlice(deps: {
     }
   }
 
-  // ---- sections ----
-
   let sectionsLoaded = false;
   const loadSections = () => {
     const load = sectionsLoaded ? fetchFreshSections : fetchSections;
@@ -255,16 +233,9 @@ export function createChannelsSlice(deps: {
   async function refreshSections(): Promise<ChannelSection[] | null | undefined> {
     try {
       return await refetchSections();
-    } catch {
-      // The resource retains its error for the sidebar's retry state. Callers
-      // should not become unhandled rejected event promises just because the
-      // follow-up refresh after a successful mutation failed.
-    }
+    } catch {}
   }
-  // Neither a section's `sort` nor its `sidebar` filter is carried reliably by
-  // users.channelSections.list — both live in the separate users.prefs
-  // "channel_sections" blob — so merge them in here rather than teaching every
-  // section resource consumer about two sources.
+
   const sections = createMemo<ChannelSection[] | undefined>(() => {
     const list = rawSections();
     const groupSections = deps.usergroupSections();
@@ -374,8 +345,7 @@ export function createChannelsSlice(deps: {
       isSectionSidebarPending(sectionId)
     )
       return false;
-    // Personal section filters live in Slack's channel_sections preference;
-    // synthesized user-group sections use Slock's own synced preference key.
+
     const prev = deps.userPrefs();
     if (!prev) {
       actionFeedback.flash(
@@ -427,17 +397,12 @@ export function createChannelsSlice(deps: {
     }
   }
 
-  // Clicking a section name flips it between showing every channel and the
-  // unread-only filter, persisting the choice like the section menu's control.
   function toggleSectionFilter(sectionId: string) {
     const section = (sections() ?? []).find((candidate) => candidate.id === sectionId);
     if (!section) return;
     void setChannelSectionSidebar(sectionId, section.sidebar === "all" ? "hid" : "all");
   }
 
-  // Moves `sectionId` to sit directly above `nextSectionId` (or to the
-  // bottom of the list when null). Reordered optimistically so a drag feels
-  // instant; rolled back if the server call fails.
   async function reorderChannelSection(
     sectionId: string,
     nextSectionId: string | null,
@@ -446,10 +411,7 @@ export function createChannelsSlice(deps: {
     const current = sections() ?? [];
     const optimistic = reorderSections(current, sectionId, nextSectionId);
     if (!optimistic) return false;
-    // Slack rejects users.channelSections.set when a synthesized user-group
-    // section participates in the order. Keep the existing shared reorder
-    // algorithm and persist only its resulting order through the same synced
-    // preference KV used by Slock's other client-owned settings.
+
     if (current.some((section) => section.type === "usergroup")) {
       const previousPrefs = deps.userPrefs();
       if (!previousPrefs) {
@@ -528,15 +490,18 @@ export function createChannelsSlice(deps: {
       starUpdated = true;
       if (currentlyStarred) return "applied";
 
-      // Starred and sectioned are mutually exclusive in the real client — starring a
-      // channel pulls it out of whatever section it was in.
       const from = (sections() ?? []).find(
         (section) => section.type === "standard" && section.channelIds.includes(channelId),
       );
-      if (from && !(await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] }))) {
+      if (
+        from &&
+        !(await apiUpdateSectionChannels(from.id, {
+          removeChannelIds: [channelId],
+        }))
+      ) {
         actionFeedback.flash(
           channelId,
-          "Starred, but couldn’t remove the channel from its previous section.",
+          "Starred, but couldn't remove the channel from its previous section.",
           "error",
         );
         return "applied-with-warning";
@@ -548,7 +513,7 @@ export function createChannelsSlice(deps: {
         console.error("Failed to remove starred channel from its section", err);
         actionFeedback.flash(
           channelId,
-          "Starred, but couldn’t remove the channel from its previous section.",
+          "Starred, but couldn't remove the channel from its previous section.",
           "error",
         );
       } else {
@@ -564,8 +529,6 @@ export function createChannelsSlice(deps: {
     }
   }
 
-  // Slack's bulkUpdate is scoped to one section at a time, so moving a channel
-  // between two custom sections is a remove-then-insert pair rather than one call.
   async function moveChannelToSection(
     channelId: string,
     targetSectionId: string | null,
@@ -581,7 +544,9 @@ export function createChannelsSlice(deps: {
     let insertedIntoTarget = false;
     try {
       if (from) {
-        const ok = await apiUpdateSectionChannels(from.id, { removeChannelIds: [channelId] });
+        const ok = await apiUpdateSectionChannels(from.id, {
+          removeChannelIds: [channelId],
+        });
         if (!ok) {
           actionFeedback.flash(channelId, "Failed to move channel.", "error");
           return "failed";
@@ -593,14 +558,16 @@ export function createChannelsSlice(deps: {
           insertChannelIds: [channelId],
         });
         if (!ok) {
-          if (from) await apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
+          if (from)
+            await apiUpdateSectionChannels(from.id, {
+              insertChannelIds: [channelId],
+            });
           actionFeedback.flash(channelId, "Failed to move channel.", "error");
           await refreshSections();
           return "failed";
         }
         insertedIntoTarget = true;
-        // Starred and sectioned are mutually exclusive in the real client — a channel
-        // moved into a section drops out of Starred.
+
         if (isChannelStarred(channelId)) {
           setStarredChannelIds(channelId, false);
           try {
@@ -610,7 +577,7 @@ export function createChannelsSlice(deps: {
             setStarredChannelIds(channelId, true);
             actionFeedback.flash(
               channelId,
-              "Moved, but couldn’t remove the channel from Starred.",
+              "Moved, but couldn't remove the channel from Starred.",
               "error",
             );
             await refreshSections();
@@ -624,7 +591,9 @@ export function createChannelsSlice(deps: {
       console.error("Failed to move channel", err);
       if (removedFromSource && !insertedIntoTarget && from) {
         try {
-          await apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
+          await apiUpdateSectionChannels(from.id, {
+            insertChannelIds: [channelId],
+          });
         } catch (rollbackError) {
           console.error("Failed to restore channel to its previous section", rollbackError);
         }
@@ -637,8 +606,6 @@ export function createChannelsSlice(deps: {
       setSectionStructurePending(false);
     }
   }
-
-  // ---- channel directory: browse ----
 
   async function searchBrowsableChannels(query: string) {
     const found = await fetchBrowsableChannels(query);

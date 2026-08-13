@@ -15,7 +15,7 @@ function label(names: string[]): string {
 export default function TypingIndicator(props: TypingIndicatorProps) {
   return (
     <Show when={props.names.length > 0}>
-      <div aria-live="polite" class="typing-indicator" role="status">
+      <div aria-live="polite" class="typing-indicator">
         <span aria-hidden="true" class="typing-indicator-dots">
           <span />
           <span />

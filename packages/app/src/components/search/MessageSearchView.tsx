@@ -1,4 +1,4 @@
-import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "@slock/slack-api";
+import { fetchSearchAutocomplete, searchMessages, type SearchResult } from "@slock/slack-api";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,
@@ -22,7 +22,7 @@ export default function MessageSearchView() {
   const [cursor, setCursor] = createSignal(0);
   const [dismissedSuggestionsFor, setDismissedSuggestionsFor] = createSignal<string>();
   const suggestionListId = createUniqueId();
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let suggestionsListRef: HTMLDivElement | undefined;
   const searchRequest = createDebouncedRequest(
     (value) => searchMessages(value, { sort: "score", sortDir: "desc" }),
@@ -179,7 +179,6 @@ export default function MessageSearchView() {
             }
           }}
           placeholder="Search every message…"
-          role="combobox"
           spellcheck={false}
           type="text"
           value={query()}
@@ -192,7 +191,6 @@ export default function MessageSearchView() {
           class="message-search-suggestions"
           id={suggestionListId}
           ref={suggestionsListRef}
-          role="listbox"
         >
           <For each={suggestions()}>
             {(suggestion, index) => (
@@ -204,7 +202,6 @@ export default function MessageSearchView() {
                 onClick={() => applySuggestion(suggestion)}
                 onMouseDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setActiveSuggestion(index())}
-                role="option"
                 tabIndex={-1}
                 type="button"
               >

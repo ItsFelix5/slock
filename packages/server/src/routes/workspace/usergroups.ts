@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
 import { mutate, type Route, route } from "../router.ts";
@@ -26,9 +25,6 @@ function cachedUsergroupForId(data: any, id: string): any | undefined {
 }
 
 export const usergroupRoutes: Route[] = [
-  // Batched usergroup-by-id lookup, backed by Slack's edge mention cache —
-  // shared by the light @mention name lookup and the richer details panel,
-  // which both need the same raw fields.
   route("POST", "/api/usergroups/lookup", async (ctx) => {
     const { ids } = (await ctx.body.json()) as { ids?: string[] };
     if (!ids?.length) return errorResponse("invalid_ids", 400);
@@ -51,8 +47,6 @@ export const usergroupRoutes: Route[] = [
     );
   }),
 
-  // usergroups/info only carries a member *count*, not the list — this fills
-  // that one gap.
   route("GET", "/api/usergroups/:id/members", async (ctx) => {
     const data = await callSlack("usergroups.users.list", { usergroup: ctx.params.id }, ctx.creds);
     if (!data.ok) {
@@ -65,9 +59,6 @@ export const usergroupRoutes: Route[] = [
     );
   }),
 
-  // Covers renaming/re-describing a usergroup, replacing its default
-  // channels, and toggling section visibility — all the same Slack method
-  // with a different partial body.
   route("PATCH", "/api/usergroups/:id", async (ctx) => {
     const body = (await ctx.body.json()) as {
       name?: string;
@@ -86,8 +77,6 @@ export const usergroupRoutes: Route[] = [
     return mutate("usergroups.update", params, ctx);
   }),
 
-  // Slack has no add/remove member endpoint - this replaces the whole
-  // membership list, so callers send the full next set of ids.
   route("PUT", "/api/usergroups/:id/members", async (ctx) => {
     const { userIds } = (await ctx.body.json()) as { userIds?: string[] };
     if (!userIds) return errorResponse("invalid_user_ids", 400);

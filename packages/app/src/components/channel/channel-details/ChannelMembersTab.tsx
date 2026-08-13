@@ -28,8 +28,7 @@ export default function ChannelMembersTab(props: {
 }) {
   const [query, setQuery] = createSignal("");
   const [filter, setFilter] = createSignal<MemberFilter>("everyone");
-  // Kept per-filter (rather than one shared list) so switching Everyone ->
-  // Apps -> Everyone shows what was already loaded instead of wiping it.
+
   const [pagedMembers, setPagedMembers] = createSignal<Record<PagedFilter, User[]>>({
     apps: [],
     everyone: [],
@@ -40,29 +39,18 @@ export default function ChannelMembersTab(props: {
   });
   const [pagedLoadVersion, setPagedLoadVersion] = createSignal(0);
 
-  // Channel managers come from a completely different, non-paginated
-  // endpoint (admin.roles.entity.listAssignments — see fetchChannelManagerIds)
-  // that only returns ids, so they're resolved through the store's user
-  // lookup rather than sharing the `pagedMembers` cache the edge API fills in.
-  // That endpoint is Enterprise Grid-only and errors on every normal
-  // workspace — treated as "no managers assigned" rather than a load
-  // failure, since there's nothing a retry could fix there.
   const [managerIds, setManagerIds] = createSignal<string[]>([]);
   const [loadingManagers, setLoadingManagers] = createSignal(false);
   let managersLoaded = false;
 
   const [copiedKey, copy] = createCopyFeedback(1200, () =>
-    actionFeedback.flash(props.channelId, "Couldn’t copy the member list.", "error"),
+    actionFeedback.flash(props.channelId, "Couldn't copy the member list.", "error"),
   );
 
   const [addingPeople, setAddingPeople] = createSignal(false);
   const [inviting, setInviting] = createSignal(false);
   const [removingMemberIds, setRemovingMemberIds] = createSignal<Set<string>>(new Set());
 
-  // Switching between Everyone/Apps queries the same edge endpoint with a
-  // different `filter` param. Results always land in that filter's own slot
-  // (not "whichever filter is selected right now"), so a fetch that's still
-  // in flight when the user switches away doesn't get dropped.
   const pagedLoader = createKeyedPageLoader<PagedFilter, ChannelMembersPage>({
     load: (f) => loadChannelMembers(props.channelId, f, pagedCursors()[f]),
     onResult: (f, page) => {
@@ -179,7 +167,7 @@ export default function ChannelMembersTab(props: {
 
   const removeMember = async (user: User) => {
     if (removingMemberIds().has(user.id)) return;
-    // biome-ignore lint/suspicious/noAlert: Removing a member requires explicit confirmation.
+
     if (!confirm(`Remove ${user.name} from #${props.channelName}?`)) return;
     setRemovingMemberIds((current) => new Set(current).add(user.id));
     try {
@@ -206,7 +194,6 @@ export default function ChannelMembersTab(props: {
         <For each={MEMBER_FILTERS}>
           {(f) => (
             <button
-              aria-pressed={filter() === f.key}
               class="segmented-control-btn"
               classList={{ active: filter() === f.key }}
               onClick={() => setFilter(f.key)}
@@ -227,7 +214,6 @@ export default function ChannelMembersTab(props: {
         />
         <Tooltip content="Copy members">
           <button
-            aria-label="Copy members"
             class="channel-details-add-btn btn-reset flex-center"
             disabled={filteredMembers().length === 0}
             onClick={() =>
@@ -264,8 +250,8 @@ export default function ChannelMembersTab(props: {
         </div>
       </Show>
       <Show when={loadError()}>
-        <div class="channel-details-members-error" role="alert">
-          <span>Couldn’t load {loadErrorLabel()}.</span>
+        <div class="channel-details-members-error">
+          <span>Couldn't load {loadErrorLabel()}.</span>
           <Button disabled={isLoading()} onClick={retryLoad} size="sm">
             Try again
           </Button>
@@ -300,7 +286,6 @@ export default function ChannelMembersTab(props: {
               <Show when={u.id !== store.users.currentUser()?.id}>
                 <Tooltip content="Remove from channel">
                   <button
-                    aria-label="Remove from channel"
                     class="channel-details-member-remove btn-reset flex-center"
                     disabled={removingMemberIds().has(u.id)}
                     onClick={() => removeMember(u)}

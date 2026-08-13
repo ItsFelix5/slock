@@ -65,7 +65,6 @@ function containsLeaf<T>(node: TileNode<T>, id: string): boolean {
   return findLeaf(node, id) !== null;
 }
 
-// New pane gets an even share (1/n); existing siblings shrink proportionally to make room.
 function redistributeForInsert(sizes: number[], insertAt: number): number[] {
   const evenShare = 1 / (sizes.length + 1);
   const next = sizes.map((s) => s * (1 - evenShare));
@@ -73,7 +72,6 @@ function redistributeForInsert(sizes: number[], insertAt: number): number[] {
   return next;
 }
 
-// Removed pane's share is redistributed proportionally among the remaining siblings.
 function redistributeForRemove(sizes: number[], removeAt: number): number[] {
   const removed = sizes[removeAt] ?? 0;
   const rest = sizes.filter((_, i) => i !== removeAt);
@@ -96,17 +94,26 @@ function insertLeaf<T>(
     if (node.type === "leaf") {
       if (node.id !== targetLeafId) return node;
       const children = before ? [newLeaf, node] : [node, newLeaf];
-      return { type: "split", id: createTileId(), axis, sizes: [0.5, 0.5], children };
+      return {
+        type: "split",
+        id: createTileId(),
+        axis,
+        sizes: [0.5, 0.5],
+        children,
+      };
     }
     const targetIndex = node.children.findIndex((c) => containsLeaf(c, targetLeafId));
     if (targetIndex === -1) return node;
     const targetChild = node.children[targetIndex];
     if (node.axis === axis && targetChild.type === "leaf" && targetChild.id === targetLeafId) {
-      // Same-axis split: insert as a sibling instead of nesting a redundant split.
       const children = [...node.children];
       const insertAt = before ? targetIndex : targetIndex + 1;
       children.splice(insertAt, 0, newLeaf);
-      return { ...node, children, sizes: redistributeForInsert(node.sizes, insertAt) };
+      return {
+        ...node,
+        children,
+        sizes: redistributeForInsert(node.sizes, insertAt),
+      };
     }
     const children = [...node.children];
     children[targetIndex] = recurse(targetChild);
@@ -125,8 +132,6 @@ export function splitLeaf<T>(
   return insertLeaf(tree, targetLeafId, edge, leaf(content));
 }
 
-// Returns null only when removing the sole remaining leaf in the whole tree —
-// callers must guard against that case (a tiling layout can't go empty).
 export function closeLeaf<T>(tree: TileNode<T>, leafId: string): TileNode<T> | null {
   if (tree.type === "leaf") return tree.id === leafId ? null : tree;
 
@@ -177,5 +182,8 @@ export function replaceLeafContent<T>(tree: TileNode<T>, leafId: string, content
 export function resizeSplit<T>(tree: TileNode<T>, splitId: string, sizes: number[]): TileNode<T> {
   if (tree.type === "leaf") return tree;
   if (tree.id === splitId) return { ...tree, sizes };
-  return { ...tree, children: tree.children.map((child) => resizeSplit(child, splitId, sizes)) };
+  return {
+    ...tree,
+    children: tree.children.map((child) => resizeSplit(child, splitId, sizes)),
+  };
 }

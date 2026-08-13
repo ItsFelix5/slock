@@ -1,5 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: This module is the store's deliberate public API.
-// biome-ignore-all lint/performance/noNamespaceImport: The frecency module is used as a cohesive API.
 import {
   fetchBootstrap,
   fetchMessageShortcuts,
@@ -19,16 +17,20 @@ export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
 export { formatInteractorNames } from "./slices/interactorNames";
 export { isPingingActivity } from "./slices/messaging/activity";
 export { REMINDER_OPTIONS } from "./slices/messaging/messages";
-export { findUnreadDividerIndex, isUnreadDividerBoundary } from "./slices/messaging/unread";
-export type { ChannelMessageTarget, MessageLocation, Nav, ThreadRef, View } from "./slices/types";
+export {
+  findUnreadDividerIndex,
+  isUnreadDividerBoundary,
+} from "./slices/messaging/unread";
+export type {
+  ChannelMessageTarget,
+  MessageLocation,
+  Nav,
+  ThreadRef,
+  View,
+} from "./slices/types";
 
 declare global {
   interface Window {
-    /**
-     * Live client-store inspector. Intended for use from the browser console.
-     * `state` is always evaluated at access time; `store` contains the actions
-     * and reactive accessors used by the application itself.
-     */
     slock?: unknown;
   }
 }
@@ -38,9 +40,7 @@ function setup() {
   async function retryBootstrap(): Promise<void> {
     try {
       await refetchBootstrap();
-    } catch {
-      // The resource keeps the error available to the full-screen retry UI.
-    }
+    } catch {}
   }
   const [messageShortcutsRequested, setMessageShortcutsRequested] = createSignal(false);
   const [messageShortcuts, { refetch: refetchMessageShortcuts }] = createResource(
@@ -60,9 +60,7 @@ function setup() {
     try {
       setProfileFieldDefsRequested(true);
       await refetchProfileFieldDefs();
-    } catch {
-      // The profile panel reads the resource error and keeps retry available.
-    }
+    } catch {}
   }
   const runMessageShortcutAt = createRunMessageShortcut();
   const [userPrefs, { mutate: mutateUserPrefs, refetch: refetchUserPrefs }] =
@@ -70,9 +68,7 @@ function setup() {
   async function retryUserPrefs(): Promise<void> {
     try {
       await refetchUserPrefs();
-    } catch {
-      // The resource exposes the error to retry UIs.
-    }
+    } catch {}
   }
   const slices = createStoreSlices({ bootstrap, userPrefs, mutateUserPrefs });
   const {
@@ -90,7 +86,6 @@ function setup() {
     later,
     dms,
     pinned,
-    canvas,
     messages,
     modals,
     realtime,
@@ -99,14 +94,15 @@ function setup() {
     setActiveViewImplRef,
     tiling,
   } = slices;
-  const actions = createAppActions({ ...slices, setActiveView, setActiveViewImplRef });
+  const actions = createAppActions({
+    ...slices,
+    setActiveView,
+    setActiveViewImplRef,
+  });
   const { markAllAsRead } = wireAppState({ ...slices, actions });
-  // Keep each domain at its own stable path.  In particular, consumers should
-  // use `store.viewState.activeThread()` instead of reaching through a single
-  // flat collection of every state value and action.
+
   const store = {
     activity,
-    canvas,
     channels,
     channelTabs: channelTabsSlice,
     commands,

@@ -27,13 +27,10 @@ function splitPath(pathname: string): string[] {
   return pathname.split("/").filter(Boolean);
 }
 
-// `path` uses `:name` segments for params, e.g. "/api/channels/:id/messages".
 export function route(method: string, path: string, handler: Route["handler"]): Route {
   return { handler, method, segments: splitPath(path) };
 }
 
-// Shared shape for the many routes that just call one Slack method and report
-// back ok/error with no payload of their own (reactions, pins, stars, ...).
 export async function mutate(
   slackMethod: string,
   params: Record<string, string>,

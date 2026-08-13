@@ -4,25 +4,39 @@ import { useEscapeClose } from "../useEscapeClose";
 import Icon from "./Icon";
 import "./ZoomableImage.css";
 
+export interface ZoomableImageItem {
+  alt?: string;
+  src: string;
+}
+
 export interface ZoomableImageProps {
   alt?: string;
   class?: string;
   fullSrc?: string;
+  gallery?: ZoomableImageItem[];
+  galleryIndex?: number;
   height?: number;
   reservedHeight?: number;
   reservedWidth?: number;
   src: string;
   width?: number;
-  // A tiny (often base64) low-res image shown behind the real one — since
-  // the real <img> box is already reserved via width/height (see mapFile in
-  // slack-api), this just fills that box with a blurred preview instead of
-  // blank space while `src` (lazy-)loads.
+
   blurSrc?: string;
 }
 
 export default function ZoomableImage(props: ZoomableImageProps) {
   const [open, setOpen] = createSignal(false);
+  const [galleryIndex, setGalleryIndex] = createSignal(0);
   const [previewFailed, setPreviewFailed] = createSignal(false);
+
+  const gallery = (): ZoomableImageItem[] =>
+    props.gallery?.length ? props.gallery : [{ alt: props.alt, src: props.fullSrc ?? props.src }];
+  const initialGalleryIndex = () =>
+    Math.max(0, Math.min(props.galleryIndex ?? 0, gallery().length - 1));
+  const openPreview = () => {
+    setGalleryIndex(initialGalleryIndex());
+    setOpen(true);
+  };
 
   createEffect(
     on(
@@ -52,7 +66,7 @@ export default function ZoomableImage(props: ZoomableImageProps) {
       <button
         aria-label={props.alt ? `Open image preview: ${props.alt}` : "Open image preview"}
         class="zoomable-image-trigger"
-        onClick={() => setOpen(true)}
+        onClick={openPreview}
         style={triggerStyle()}
         type="button"
       >
@@ -80,9 +94,10 @@ export default function ZoomableImage(props: ZoomableImageProps) {
       </button>
       <Show when={open()}>
         <ImageLightbox
-          alt={props.alt}
+          gallery={gallery()}
+          index={galleryIndex()}
           onClose={() => setOpen(false)}
-          src={props.fullSrc ?? props.src}
+          onIndexChange={setGalleryIndex}
         />
       </Show>
     </>
@@ -93,24 +108,31 @@ const LENS_SIZE = 500;
 const LENS_ZOOM_DEFAULT = 5;
 const LENS_ZOOM_STEP = 0.5;
 const LENS_PAN_STEP = 24;
-// small images (icons, tiny screenshots) get lost at native size in the lightbox,
-// so upscale anything whose longest edge is under this back up to it
+
 const MIN_DISPLAY_SIZE = 320;
 const MAX_UPSCALE = 8;
 
-function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }) {
+function ImageLightbox(props: {
+  gallery: ZoomableImageItem[];
+  index: number;
+  onClose: () => void;
+  onIndexChange: (index: number) => void;
+}) {
   useEscapeClose(props.onClose);
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let imgRef: HTMLImageElement | undefined;
   const [lens, setLens] = createSignal<{ x: number; y: number } | null>(null);
   const [lensZoom, setLensZoom] = createSignal(LENS_ZOOM_DEFAULT);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [naturalSize, setNaturalSize] = createSignal<{ w: number; h: number } | null>(null);
+  const image = () => props.gallery[props.index];
+  const hasPrevious = () => props.index > 0;
+  const hasNext = () => props.index < props.gallery.length - 1;
 
   createEffect(
     on(
-      () => props.src,
+      () => image().src,
       () => {
         setFailed(false);
         setLoading(true);
@@ -147,8 +169,6 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
     );
   };
 
-  // Keyboard equivalent of the mouse-driven lens above: focusing the area
-  // centers it, arrow keys pan it (clamped to the image bounds), +/- zoom.
   const focusLens = () => {
     const rect = imgRef?.getBoundingClientRect();
     if (!rect) return;
@@ -180,7 +200,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
 
   return (
     <Overlay
-      ariaLabel={props.alt ? `Image preview: ${props.alt}` : "Image preview"}
+      ariaLabel={image().alt ? `Image preview: ${image().alt}` : "Image preview"}
       onClose={props.onClose}
     >
       <button
@@ -191,11 +211,31 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
       >
         <Icon name="close" size={20} />
       </button>
+      <Show when={props.gallery.length > 1}>
+        <button
+          aria-label="Previous image"
+          class="zoomable-image-navigation zoomable-image-previous"
+          disabled={!hasPrevious()}
+          onClick={() => props.onIndexChange(props.index - 1)}
+          type="button"
+        >
+          <Icon name="arrow-left" size={20} />
+        </button>
+        <button
+          aria-label="Next image"
+          class="zoomable-image-navigation zoomable-image-next"
+          disabled={!hasNext()}
+          onClick={() => props.onIndexChange(props.index + 1)}
+          type="button"
+        >
+          <Icon name="arrow-right" size={20} />
+        </button>
+      </Show>
       <Show
         fallback={
-          <div class="zoomable-image-error" role="alert">
+          <div class="zoomable-image-error">
             <Icon name="image-broken" size={28} />
-            <div>Couldn’t load this image.</div>
+            <div>Couldn't load this image.</div>
             <div class="zoomable-image-error-actions">
               <button
                 class="zoomable-image-action"
@@ -209,7 +249,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
               </button>
               <a
                 class="zoomable-image-action"
-                href={props.src}
+                href={image().src}
                 rel="noopener noreferrer"
                 target="_blank"
               >
@@ -231,12 +271,10 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
           onMouseMove={(e) => lens() && moveLens(e)}
           onMouseUp={() => setLens(null)}
           onWheel={zoomLens}
-          role="application"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: a 2D pan/zoom lens has no standard interactive ARIA role; it's a real keyboard control (arrow keys pan, +/- zoom) once focused
           tabIndex={0}
         >
           <img
-            alt={props.alt}
+            alt={image().alt}
             class="zoomable-image-full"
             classList={{ "zoomable-image-full-loading": loading() }}
             draggable={false}
@@ -250,7 +288,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
               setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
             }}
             ref={imgRef}
-            src={props.src}
+            src={image().src}
             style={upscaleStyle()}
           />
           <Show when={lens()}>
@@ -260,7 +298,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
                 <div
                   class="zoomable-image-lens"
                   style={{
-                    "background-image": `url(${props.src})`,
+                    "background-image": `url(${image().src})`,
                     "background-position": `${LENS_SIZE / 2 - pos().x * lensZoom()}px ${LENS_SIZE / 2 - pos().y * lensZoom()}px`,
                     "background-size": `${(rect()?.width ?? 0) * lensZoom()}px ${(rect()?.height ?? 0) * lensZoom()}px`,
                     height: `${LENS_SIZE}px`,
@@ -274,7 +312,7 @@ function ImageLightbox(props: { src: string; alt?: string; onClose: () => void }
           </Show>
         </div>
         <Show when={loading()}>
-          <div aria-live="polite" class="zoomable-image-loading" role="status">
+          <div aria-live="polite" class="zoomable-image-loading">
             Loading image…
           </div>
         </Show>

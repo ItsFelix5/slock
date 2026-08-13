@@ -16,10 +16,6 @@ function isBareLabel(label: string | undefined): boolean {
   return label === undefined || label === "" || label === "." || label === "​";
 }
 
-// The link (ours or Slack's own auto-linkified fallback) sits on its own
-// line before the real message content, so the newline right after it is
-// just a composition artifact, not intentional content — drop only that one
-// separator, not any further blank lines the user actually typed.
 function stripLeadingNewline(text: string): string {
   return text.replace(LEADING_NEWLINE_RE, "");
 }
@@ -45,16 +41,20 @@ export function threadContainsMessage(
 export function parseReplyLink(
   text: string,
   isThreadMessage?: (channelId: string, ts: string) => boolean,
-): { ts: string; channelId: string; rest: string; prefix: string; url: string } | null {
+): {
+  ts: string;
+  channelId: string;
+  rest: string;
+  prefix: string;
+  url: string;
+} | null {
   const bracketed = BRACKETED_LINK_RE.exec(text);
   if (bracketed) {
     const parsed = permalinkToChannelTs(bracketed[1]);
     if (!parsed) return null;
     const { channelId, ts } = parsed;
     const [, , label] = bracketed;
-    // A label identical to the url itself isn't real quoted prose — it's
-    // Slack's own auto-linkify of a bare pasted url (`<url|url>`), same as
-    // an empty/invisible label would be.
+
     const bare = isBareLabel(label) || label === bracketed[1];
     const remainder = text.slice(bracketed[0].length);
     const linkedThreadMessage = isThreadMessage?.(channelId, ts) ?? false;
@@ -93,8 +93,7 @@ export function parseReplyLinkFromBlocks(
   if (section?.type !== "rich_text_section") return null;
   const [mention] = section.elements;
   if (mention?.type !== "message_mention") return null;
-  // channel_id/message_ts identify the quoted message directly; fall back to
-  // parsing `url` only for older payloads that didn't carry those fields.
+
   const parsed =
     mention.channel_id && mention.message_ts
       ? { channelId: mention.channel_id, ts: mention.message_ts }
@@ -106,7 +105,10 @@ export function parseReplyLinkFromBlocks(
   const restSectionElements = section.elements.slice(1);
   const [firstRest] = restSectionElements;
   if (firstRest?.type === "text") {
-    restSectionElements[0] = { ...firstRest, text: stripLeadingNewline(firstRest.text) };
+    restSectionElements[0] = {
+      ...firstRest,
+      text: stripLeadingNewline(firstRest.text),
+    };
   }
   const restRichTextElements = richText.elements.slice(1);
   const strippedRichText: RichTextBlock[] =
@@ -121,5 +123,9 @@ export function parseReplyLinkFromBlocks(
         ? [{ ...richText, elements: restRichTextElements }]
         : [];
 
-  return { ...parsed, blocks: [...strippedRichText, ...blocks.slice(1)], url: mention.url };
+  return {
+    ...parsed,
+    blocks: [...strippedRichText, ...blocks.slice(1)],
+    url: mention.url,
+  };
 }

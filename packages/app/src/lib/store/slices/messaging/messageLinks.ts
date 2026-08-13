@@ -33,7 +33,7 @@ export async function copyMessageLink(channelId: string, ts: string) {
     await navigator.clipboard.writeText(link);
   } catch (err) {
     console.error("Failed to get permalink", err);
-    actionFeedback.flash(ts, "Couldn’t copy the message link.", "error");
+    actionFeedback.flash(ts, "Couldn't copy the message link.", "error");
   }
 }
 
@@ -56,6 +56,6 @@ export async function remindAboutMessage(channelId: string, ts: string, dateDue:
     actionFeedback.flash(ts, "Reminder set.");
   } catch (err) {
     console.error("Failed to set reminder", err);
-    actionFeedback.flash(ts, "Couldn’t set the reminder.", "error");
+    actionFeedback.flash(ts, "Couldn't set the reminder.", "error");
   }
 }

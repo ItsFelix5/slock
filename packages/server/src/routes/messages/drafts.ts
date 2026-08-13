@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { mutate, type Route, route } from "../router.ts";
@@ -27,8 +26,6 @@ export const draftRoutes: Route[] = [
     );
   }),
 
-  // Upsert: `draftId` present updates that draft's row, otherwise a new one
-  // is created (the composer's own debounce owns deciding which).
   route("PUT", "/api/drafts", async (ctx) => {
     const body = (await ctx.body.json()) as {
       channelId?: string;
@@ -60,7 +57,10 @@ export const draftRoutes: Route[] = [
   route("DELETE", "/api/drafts/:id", (ctx) =>
     mutate(
       "drafts.delete",
-      { client_last_updated_ts: String(Date.now() / 1000), draft_id: ctx.params.id },
+      {
+        client_last_updated_ts: String(Date.now() / 1000),
+        draft_id: ctx.params.id,
+      },
       ctx,
     ),
   ),

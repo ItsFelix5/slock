@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Flaron mirrors Slack identifiers and metadata.
 const CHANNEL_ID_RE = /^[A-Z][A-Z0-9]{1,31}$/;
 
 export type ChannelLookup = {

@@ -12,8 +12,6 @@ export interface ChannelActionsMenuItemsProps {
   showMoveTo?: boolean;
 }
 
-// The channel header's "..." menu contents — shared with a channel row's
-// right-click ContextMenu in the sidebar, so both stay in sync for free.
 export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsProps) {
   const muted = createMemo(() => store.preferences.isChannelMuted(props.channelId));
   const notifyAll = createMemo(() => store.preferences.isChannelNotifyAll(props.channelId));
@@ -27,7 +25,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
     try {
       await navigator.clipboard.writeText(`${location.origin}/#${props.channelId}`);
     } catch {
-      actionFeedback.flash(props.channelId, "Couldn’t copy the link.", "error");
+      actionFeedback.flash(props.channelId, "Couldn't copy the link.", "error");
     }
   };
 
@@ -82,7 +80,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           icon="sign-out"
           onClick={() => {
             props.onClose();
-            // biome-ignore lint/suspicious/noAlert: Leaving a channel requires explicit confirmation.
+
             if (confirm(`Leave #${props.channelTitle}?`))
               store.channels.leaveCurrentChannel(props.channelId);
           }}

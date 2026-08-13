@@ -16,31 +16,18 @@ import { isUnreadDividerBoundary } from "../../../lib/store";
 
 const USER_PROFILE_ID_RE = /^[UW]/;
 const BOT_PROFILE_ID_RE = /^B/;
-
 const RICH_TEXT_SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
   "rich_text_section",
   "rich_text_list",
   "rich_text_preformatted",
   "rich_text_quote",
 ]);
-
-// A rich_text_quote's `elements` can mix plain inline content with a fully
-// nested sub-block (most often a rich_text_list, from starting a bullet list
-// while the caret sits inside a blockquote) — this tells the two apart, used
-// here to decide whether a message is emoji-only.
 export function isRichTextSubBlock(
   element: RichTextInlineElement | RichTextSubBlock,
 ): element is RichTextSubBlock {
   return RICH_TEXT_SUB_BLOCK_TYPES.has(element.type as RichTextSubBlock["type"]);
 }
 
-// A user token posting via bot_profile still has userId set to the real
-// poster; Slackbot posts have neither a real userId matching this pattern
-// nor a bot user id worth opening a profile for, so it gets a fixed synthetic
-// one. A bot/webhook post (including one with a per-message custom username
-// override) has userId set to its bot_id — fetchUser resolves those through
-// bots.info, so the card can still open, just showing the bot's own identity
-// rather than the overridden name.
 export function resolveBotProfileUserId(
   msg: Pick<Message, "botId" | "botName" | "userId">,
 ): string | undefined {
@@ -61,9 +48,6 @@ export function resolveProfileUserId(
   return resolveBotProfileUserId(msg);
 }
 
-// resolveProfileUserId also returns bot ids (for opening the bot's profile card),
-// but the Hack Club identity/hackatime lookup behind fetchUserStatus only knows
-// about real Slack users, so bot ids must be filtered out before calling it.
 export function isRealUserId(id: string | undefined): id is string {
   return !!id && USER_PROFILE_ID_RE.test(id);
 }
@@ -76,12 +60,6 @@ export interface MessageAuthorFields {
   userId: string;
 }
 
-// True for a genuine account (including an app posting via a user token,
-// where userId is the real poster and botId/botName just tag along on
-// bot_profile). False for a plain bot/webhook post, where userId is only
-// ever the bot_id repeated. Shared by messages and activity rows so both
-// agree on when to trust the store-resolved user vs. the message's own
-// botName/botIcon.
 export function hasRealMessageAuthor(msg: MessageAuthorFields): boolean {
   return (
     ((msg.botId || msg.botName) && USER_PROFILE_ID_RE.test(msg.sourceUserId ?? "")) ||
@@ -89,10 +67,6 @@ export function hasRealMessageAuthor(msg: MessageAuthorFields): boolean {
   );
 }
 
-// botName/botIcon are per-message overrides (a webhook's custom username/
-// icon, or bot_profile's defaults) already delivered with the message —
-// preferred over a lazily store-resolved user, which for a plain bot post is
-// only the bot's own registered identity via bots.info, not the override.
 export function resolveAuthorDisplayName(
   msg: MessageAuthorFields,
   userName: string | undefined,
@@ -109,7 +83,7 @@ export function resolveAuthorAvatarUrl(
   msg: MessageAuthorFields,
   userAvatarUrl: string | undefined,
 ): string | undefined {
-  return hasRealMessageAuthor(msg) ? userAvatarUrl : msg.botIcon ?? userAvatarUrl;
+  return hasRealMessageAuthor(msg) ? userAvatarUrl : (msg.botIcon ?? userAvatarUrl);
 }
 
 export interface MessageRenderContext {
@@ -163,8 +137,7 @@ function emojiOnlyRichTextCount(block: RichTextBlock): number | undefined {
   const addSubBlock = (subBlock: RichTextSubBlock) => {
     if (subBlock.type === "rich_text_list")
       return subBlock.elements.every((section) => addElements(section.elements));
-    // A quote nesting a full sub-block (see isRichTextSubBlock) is never
-    // just emoji — treat it the same as any other non-text/emoji element.
+
     if (subBlock.elements.some(isRichTextSubBlock)) return false;
     return addElements(subBlock.elements as RichTextInlineElement[]);
   };
@@ -204,10 +177,7 @@ export function resolveMessageRenderState(
   context: MessageRenderContext,
 ): MessageRenderState {
   const isThreadRoot = !!context.threadTs && message.ts === context.threadTs;
-  // The reply immediately after the root gets its date folded into the
-  // "N replies" divider below instead of getting its own day-divider right
-  // underneath it — otherwise a thread whose root is from a previous day
-  // but whose only reply came in today shows two divider bars back-to-back.
+
   const isFirstReply = !!context.threadTs && !!prev && prev.ts === context.threadTs;
   const dayChangedRaw = isThreadRoot ? message.day !== "Today" : !prev || prev.day !== message.day;
   const dayChanged = isThreadRoot || isFirstReply ? false : dayChangedRaw;
@@ -221,45 +191,34 @@ export function resolveMessageRenderState(
     !context.threadTs &&
     context.unreadDividerTs != null &&
     isUnreadDividerBoundary(message.ts, prev?.ts, context.unreadDividerTs);
-  const textReplyRef = parseReplyLink(message.text, (channelId, ts) =>
+  const parsedTextReplyRef = parseReplyLink(message.text, (channelId, ts) =>
     threadContainsMessage(context.channelId, context.threadTs, context.messages, channelId, ts),
   );
-  // A message built as blocks (a real Slack client's pasted-permalink quote,
-  // as opposed to one of our own composer-authored reply links) can carry
-  // the reply reference only in `blocks` — `text` is a wire-independent
-  // fallback field that's often blank for these. Falling back to the blocks
-  // scan is what lets that case still collapse into an (invisible) reply
-  // reference instead of showing the raw permalink as a rendered link.
-  const blockReplyRef =
+  const textReplyRef =
+    parsedTextReplyRef?.channelId === context.channelId ? parsedTextReplyRef : null;
+
+  const parsedBlockReplyRef =
     !textReplyRef && message.blocks?.length ? parseReplyLinkFromBlocks(message.blocks) : undefined;
+  const blockReplyRef =
+    parsedBlockReplyRef?.channelId === context.channelId ? parsedBlockReplyRef : undefined;
   const replyRef =
     textReplyRef ??
     (blockReplyRef
       ? {
           channelId: blockReplyRef.channelId,
           prefix: "",
-          // `rest` isn't used for rendering here — the remaining content (if
-          // any) renders through `renderBlocks` below, not Mrkdwn — but it
-          // still needs to be empty rather than `message.text`, since that's
-          // exactly what Mrkdwn falls back to when `renderBlocks` comes back
-          // empty (the mention was the message's only content).
+
           rest: "",
           ts: blockReplyRef.ts,
           url: blockReplyRef.url,
         }
       : null);
   const messageText = replyRef?.rest ?? message.text;
-  // Mirrors the branches above: our own text-based reply links always fall
-  // back to plain Mrkdwn (their `rest` already carries all the content), a
-  // blocks-based one renders the same blocks minus the stripped-out leading
-  // mention, and anything else renders its blocks untouched.
+
   const rawRenderBlocks = textReplyRef ? undefined : (blockReplyRef?.blocks ?? message.blocks);
   const renderBlocks = rawRenderBlocks?.length ? rawRenderBlocks : undefined;
   const showThreadContext = context.hasOpenThread && !!message.isBroadcast && !!message.threadTs;
-  // The complementary case: viewed from inside the thread panel itself
-  // (where showThreadContext never fires, since there's no "open thread"
-  // callback to jump to), a broadcast reply gets a small badge instead so
-  // it's still clear this reply also went out to the channel.
+
   const showBroadcastBadge = !context.hasOpenThread && !!message.isBroadcast && !!message.threadTs;
   const sameAuthorAsPrev =
     !!prev &&

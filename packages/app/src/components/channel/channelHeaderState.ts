@@ -1,5 +1,9 @@
 import { ADDABLE_CHANNEL_TABS } from "../../lib/channelTabMeta";
-import { openFilesLinksPanel } from "../../lib/filesLinksPanel";
+import {
+  closeFilesLinksPanel,
+  filesLinksChannelId,
+  openFilesLinksPanel,
+} from "../../lib/filesLinksPanel";
 import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
 import type { View } from "../../lib/store/slices/types";
 
@@ -48,15 +52,19 @@ export function createChannelHeaderState(view: () => View | null) {
   };
   const availableChannelTabs = (id: string) =>
     ADDABLE_CHANNEL_TABS.filter((tab) => !store.channelTabs.tabsForChannel(id).includes(tab.type));
+  const filesLinksOpen = () => {
+    const v = view();
+    return !!v && filesLinksChannelId() === v.id;
+  };
   const searchCurrentConversation = () => {
     const v = view();
-    if (v) openFilesLinksPanel(v.id);
+    if (!v) return;
+    if (filesLinksChannelId() === v.id) closeFilesLinksPanel();
+    else openFilesLinksPanel(v.id);
   };
   const openCurrentDmProfile = () => {
     const v = view();
     if (v?.kind === "dm") {
-      // No group-profile panel for multi-person DMs (memberIds) yet — only a
-      // regular DM's single userId has somewhere to navigate to.
       const userId = store.dms.dmById(v.id)?.userId;
       if (userId) store.users.openUserProfile(userId);
     }
@@ -67,6 +75,7 @@ export function createChannelHeaderState(view: () => View | null) {
     channelTitle,
     channelTopic,
     currentSectionId,
+    filesLinksOpen,
     isArchivedChannel,
     isChannelView,
     isPrivateChannel,

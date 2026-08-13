@@ -17,7 +17,7 @@ export default function ChannelDangerZone(props: {
   const toggleArchived = async () => {
     if (!props.isManager() || archiving()) return;
     const verb = props.archived ? "Unarchive" : "Archive";
-    // biome-ignore lint/suspicious/noAlert: Archiving a channel requires explicit confirmation.
+
     if (!confirm(`${verb} this channel?`)) return;
     setArchiving(true);
     const ok = await (props.archived
@@ -30,7 +30,7 @@ export default function ChannelDangerZone(props: {
   const [convertingPrivate, setConvertingPrivate] = createSignal(false);
   const convertToPrivate = async () => {
     if (!props.isManager() || convertingPrivate()) return;
-    // biome-ignore lint/suspicious/noAlert: Converting to private can't be undone from here.
+
     if (!confirm("Convert this channel to private? This can't be undone.")) return;
     setConvertingPrivate(true);
     const ok = await convertChannelToPrivateById(props.channelId);

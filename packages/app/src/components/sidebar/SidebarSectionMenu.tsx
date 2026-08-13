@@ -23,7 +23,7 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
     !!preferencesError();
   const deleteSection = () => {
     setSectionMenuOpen(null);
-    // biome-ignore lint/suspicious/noAlert: Deleting a section requires explicit confirmation.
+
     const confirmed = confirm(
       `Delete section "${props.cat.name}"? Its channels won't be removed from the workspace.`,
     );

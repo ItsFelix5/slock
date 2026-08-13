@@ -3,9 +3,9 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import { sectionMoveTarget } from "../../lib/store/slices/entities/mutations/sectionOrder";
+import "./Sidebar.css";
 import SidebarView from "./SidebarView";
 import { buildCategories, type Category } from "./sidebarCategories";
-import "./Sidebar.css";
 
 const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
@@ -42,6 +42,15 @@ export default function Sidebar() {
     keys: "Ctrl/⌘ K",
     label: "Jump to a channel or person",
     match: (e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k",
+    scope: "general",
+  });
+  useShortcut({
+    allowInInputs: true,
+    allowRepeat: false,
+    handler: () => store.viewState.openMessageSearch(""),
+    keys: "Ctrl/⌘ F or G",
+    label: "Search messages",
+    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && ["f", "g"].includes(e.key.toLowerCase()),
     scope: "general",
   });
   const toggleCategory = (id: string) => {
@@ -150,8 +159,7 @@ export default function Sidebar() {
     }),
   );
   const unreadDms = createMemo(() => visibleDms().filter(isDmUnread));
-  // A multi-person DM (memberIds instead of a single userId) is never a bot
-  // DM, so it always sorts into people.
+
   const peopleDms = createMemo(() =>
     visibleDms().filter(
       (dm) =>

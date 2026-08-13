@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Gateway query parameters use Slack's wire field names.
-
 import { rewriteSlackAssetUrls } from "./assets.js";
 import { type Credentials, slackCookieHeader, teamIdFromRoute } from "./auth.js";
 import { recordSeenActive } from "./presence/lastSeen.js";
@@ -27,9 +25,7 @@ const GATEWAY_MAX_RETRY_DELAY = 60000;
 function send(state: ConnectionState, payload: unknown) {
   try {
     state.socket.send(JSON.stringify(payload));
-  } catch {
-    // dropped client; the close handler will clean it up
-  }
+  } catch {}
 }
 
 function sendStatus(state: ConnectionState) {
@@ -104,9 +100,7 @@ function connectGateway(state: ConnectionState) {
         }
         const trimmed = trimSlackGatewayPayload(payload);
         if (trimmed) send(state, rewriteSlackAssetUrls(trimmed, state.creds));
-      } catch {
-        // ignore malformed frames
-      }
+      } catch {}
     });
 
     const onDown = () => {
@@ -177,7 +171,5 @@ export function handleClientMessage(raw: string, socket: ClientSocket): void {
     else if (msg.type === "watch_thread" && msg.channel && msg.ts)
       state.watchedThreads.set(msg.ts, msg.channel);
     else if (msg.type === "unwatch_thread" && msg.ts) state.watchedThreads.delete(msg.ts);
-  } catch {
-    // ignore malformed client frames
-  }
+  } catch {}
 }

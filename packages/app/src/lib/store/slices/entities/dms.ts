@@ -14,14 +14,12 @@ export function createDmsSlice(deps: {
 }) {
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
   const [closedDmIds, setClosedDmIds] = createStore<Record<string, boolean>>({});
-  // Local edits (e.g. live mention-count updates) on top of the immutable bootstrap
-  // snapshot, applied when `allDirectMessages()` assembles its list.
+
   const [dmPatches, setDmPatches] = createStore<Record<string, Partial<DirectMessage>>>({});
   const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<string, boolean>>({});
   const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<string, boolean>>({});
   const pendingMpdms = new Set<string>();
 
-  // All known DMs regardless of local close state, so reopening/lookups can still find them.
   const allDirectMessages = createMemo<DirectMessage[]>(() => {
     const base = deps.bootstrap()?.directMessages ?? [];
     const extra = extraDms.filter((dm) => !base.some((b) => b.id === dm.id));
@@ -46,18 +44,11 @@ export function createDmsSlice(deps: {
     return allDirectMessages().find((d) => d.userId === userId)?.id;
   }
 
-  // Called when a message arrives on a DM channel we've never seen before (someone
-  // opened a DM with us for the first time this session) so it can show up in the
-  // sidebar without waiting for a full reload.
   function ensureDm(channelId: string, userId: string) {
     if (allDirectMessages().some((d) => d.id === channelId)) return;
     setExtraDms(produce((list) => list.push({ id: channelId, unread: true, userId })));
   }
 
-  // Search can surface a message from a multi-person DM the boot payload never sent
-  // (mpims are only included there while `is_open`, see fetchBootstrap) — this backfills
-  // it into extraDms from its member list so dmById/dmDisplayName resolve it normally
-  // instead of the caller falling back to Slack's raw "mpdm-alice--bob--carol-1" id.
   async function ensureMpdm(channelId: string) {
     if (allDirectMessages().some((d) => d.id === channelId) || pendingMpdms.has(channelId)) return;
     pendingMpdms.add(channelId);

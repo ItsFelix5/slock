@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimMessage } from "../../trim/slackEntities.ts";
@@ -15,9 +14,6 @@ export function trimHistory(data: any): any {
   };
 }
 
-// messages.list nests each channel's resolved messages under `messages`,
-// which itself may be a single message, an array, or (when keyed by
-// timestamp) an object of messages — mirror that shape back, just trimmed.
 function trimMessagesListEntry(entry: any): any {
   if (Array.isArray(entry)) return entry.map(trimMessage);
   if (!(entry && typeof entry === "object")) return entry;
@@ -28,14 +24,14 @@ function trimMessagesListEntry(entry: any): any {
   );
 }
 
-// conversations.history's own pagination surface, passed straight through as
-// query params — the route is still bound to this one Slack method, so
-// exposing its params isn't the generic name-based proxy this replaces.
 const HISTORY_PARAM_KEYS = ["cursor", "latest", "oldest", "inclusive", "limit"] as const;
 
 export const messageRoutes: Route[] = [
   route("GET", "/api/channels/:id/messages", async (ctx) => {
-    const params: Record<string, string> = { channel: ctx.params.id, limit: "60" };
+    const params: Record<string, string> = {
+      channel: ctx.params.id,
+      limit: "60",
+    };
     for (const key of HISTORY_PARAM_KEYS) {
       const value = ctx.searchParams.get(key);
       if (value) params[key] = value;
@@ -80,12 +76,13 @@ export const messageRoutes: Route[] = [
       suppressUnfurl?: boolean;
     };
     if (!body.text) return errorResponse("invalid_text", 400);
-    const params: Record<string, string> = { channel: ctx.params.id, text: body.text };
+    const params: Record<string, string> = {
+      channel: ctx.params.id,
+      text: body.text,
+    };
     if (body.threadTs) params.thread_ts = body.threadTs;
     if (body.blocks) params.blocks = JSON.stringify(body.blocks);
-    // Slack's own link unfurl is all-or-nothing for the whole message — there's
-    // no documented way to suppress just one link — so dismissing any preview
-    // in the composer turns it off for the message as a whole.
+
     if (body.suppressUnfurl) {
       params.unfurl_links = "false";
       params.unfurl_media = "false";
@@ -97,16 +94,16 @@ export const messageRoutes: Route[] = [
     return jsonResponse({ ok: true, ts: data.ts }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // Shared by both an ordinary edit (text/blocks) and marking an existing
-  // reply as broadcast to the channel (replyBroadcast) — same resource, same
-  // Slack method, different partial update.
   route("PATCH", "/api/channels/:id/messages/:ts", async (ctx) => {
     const body = (await ctx.body.json()) as {
       text?: string;
       blocks?: unknown;
       replyBroadcast?: boolean;
     };
-    const params: Record<string, string> = { channel: ctx.params.id, ts: ctx.params.ts };
+    const params: Record<string, string> = {
+      channel: ctx.params.id,
+      ts: ctx.params.ts,
+    };
     if (body.replyBroadcast) {
       params.reply_broadcast = "true";
     } else {
@@ -133,8 +130,6 @@ export const messageRoutes: Route[] = [
     return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  // Batched message-body lookup used by the activity feed, which only gets
-  // ids/refs from activity.feed and resolves the actual text/user/etc after.
   route("POST", "/api/messages/lookup", async (ctx) => {
     const { messageIds } = (await ctx.body.json()) as {
       messageIds?: { channel: string; timestamps: string[] }[];

@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
-
 import {
   namedSlackAssetResponse,
   slackAssetResponse,
@@ -14,7 +12,6 @@ import { accountRoutes } from "./routes/account/account.ts";
 import { activityRoutes } from "./routes/account/activity.ts";
 import { preferenceRoutes } from "./routes/account/preferences.ts";
 import { userStatusRoutes } from "./routes/account/userStatus.ts";
-import { canvasRoutes } from "./routes/channels/canvases.ts";
 import { channelDirectoryRoutes } from "./routes/channels/channelDirectory.ts";
 import { channelRoutes } from "./routes/channels/channels.ts";
 import { sectionRoutes } from "./routes/channels/sections.ts";
@@ -31,11 +28,6 @@ import { searchRoutes } from "./routes/workspace/search.ts";
 import { usergroupRoutes } from "./routes/workspace/usergroups.ts";
 import { callSlack } from "./slackClient.ts";
 
-// Purpose-built routes, one group per resource area.
-// channelDirectoryRoutes comes before channelRoutes so its literal
-// "/api/channels/browse" and "/api/channels/lookup" paths match before
-// channelRoutes' "/api/channels/:id" catch-all would otherwise swallow them
-// as a channel id.
 const ROUTES: Route[] = [
   ...messageActionRoutes,
   ...messageRoutes,
@@ -44,7 +36,6 @@ const ROUTES: Route[] = [
   ...channelDirectoryRoutes,
   ...channelRoutes,
   ...sectionRoutes,
-  ...canvasRoutes,
   ...draftRoutes,
   ...fileRoutes,
   ...accountRoutes,
@@ -112,7 +103,9 @@ export async function routeApiRequest(
     );
     if (!(reservation.ok && reservation.upload_url && creds)) {
       return new Response(
-        JSON.stringify({ error: reservation.error ?? "file reservation failed" }),
+        JSON.stringify({
+          error: reservation.error ?? "file reservation failed",
+        }),
         {
           headers: jsonHeaders,
           status: 502,
@@ -127,7 +120,10 @@ export async function routeApiRequest(
       });
     }
     return new Response(
-      JSON.stringify({ file_id: reservation.file_id, upload_token: capability }),
+      JSON.stringify({
+        file_id: reservation.file_id,
+        upload_token: capability,
+      }),
       { headers: jsonHeaders },
     );
   }

@@ -15,10 +15,27 @@
   border-radius: 6px;
 }
 
+.message-file-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px;
+  max-width: min(360px, 100%);
+}
+
+.message-file-gallery.single {
+  display: block;
+}
+
 .message-file-video {
   max-width: min(360px, 100%);
   max-height: 320px;
   border-radius: 6px;
+}
+
+.message-file-gallery:not(.single) .message-file-image,
+.message-file-gallery:not(.single) .message-file-video {
+  width: 100%;
+  max-width: none;
 }
 
 .message-file-card {

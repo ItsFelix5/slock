@@ -32,7 +32,7 @@ export default function PinnedPanel() {
 
   const unpin = async (id: string, ts: string) => {
     if (await store.pinned.togglePinMessage(id, ts)) {
-      store.pinned.openPinnedPanel(id); // refresh the list so the unpinned item drops off immediately
+      store.pinned.openPinnedPanel(id);
     }
   };
 
@@ -44,7 +44,7 @@ export default function PinnedPanel() {
             <PanelHeader onClose={store.pinned.closePinnedPanel}>
               <div class="pinned-panel-title">{title()}</div>
             </PanelHeader>
-            <div aria-busy={loading()} class="pinned-panel-list">
+            <div class="pinned-panel-list">
               <Show when={loading() && pins() !== undefined && !loadError()}>
                 <div class="pinned-panel-refreshing text-dim text-sm">Refreshing…</div>
               </Show>
@@ -52,8 +52,8 @@ export default function PinnedPanel() {
                 <div class="pinned-panel-empty empty-state">Loading pinned messages…</div>
               </Show>
               <Show when={loadError()}>
-                <div class="pinned-panel-load-error empty-state" role="alert">
-                  <span>Couldn’t load pinned messages.</span>
+                <div class="pinned-panel-load-error empty-state">
+                  <span>Couldn't load pinned messages.</span>
                   <Button onClick={() => store.pinned.refreshPinnedMessages(id())} size="sm">
                     Try again
                   </Button>
@@ -81,7 +81,6 @@ export default function PinnedPanel() {
                             </button>
                             <Tooltip content="Unpin">
                               <button
-                                aria-label="Unpin"
                                 class="pinned-panel-unpin"
                                 disabled={store.pinned.isPinPending(id(), pin.ts)}
                                 onClick={() => id() && unpin(id(), pin.ts)}

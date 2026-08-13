@@ -11,7 +11,6 @@ export function editableChannelDetails(details: ChannelDetails): EditableChannel
   return { id: details.id, ...channelDetailsDraft(details) };
 }
 
-/** Merge a refreshed server record without overwriting locally edited fields. */
 export function mergeChannelDetailsDraft(
   current: ChannelDetailsDraft,
   previousServer: EditableChannelDetails | undefined,

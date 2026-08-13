@@ -35,23 +35,28 @@
   color: var(--text-secondary);
 }
 .compose-date-relative-btn {
-  display: grid;
-  width: 24px;
+  min-width: 32px;
   height: 24px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
   color: var(--text-secondary);
+  background-color: var(--hover-bg);
   border-radius: 4px;
-  place-items: center;
 }
 .compose-date-relative-btn:hover,
 .compose-date-relative-btn.active {
   background: var(--active-bg);
+  color: var(--accent);
 }
 .compose-date-option-list {
   display: grid;
-  max-height: 150px;
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 5px;
+}
+.compose-date-option-pair {
+  display: flex;
+  border-top: 1px solid var(--border);
 }
 .compose-date-option {
   display: flex;
@@ -67,8 +72,25 @@
   background: transparent;
   border: 0;
 }
+.compose-date-option-pair .compose-date-option {
+  flex: 1;
+  min-width: 0;
+}
+.compose-date-relative-option {
+  display: grid;
+  width: 28px;
+  margin: 2px;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  place-items: center;
+}
 .compose-date-option:hover,
 .compose-date-option.active {
+  background: var(--hover-bg);
+}
+.compose-date-relative-option:hover,
+.compose-date-relative-option.active {
+  color: var(--accent);
   background: var(--hover-bg);
 }
 .compose-date-option.active {

@@ -1,10 +1,5 @@
-// biome-ignore-all lint/performance/noBarrelFile: Channel-section functions are public API exports.
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: Channel operations share serialization rules and a single public API surface.
 import type {
   BrowsableChannel,
-  CanvasInfo,
-  CanvasListItem,
   Channel,
   ChannelDetails,
   ChannelMembersPage,
@@ -15,7 +10,7 @@ import type {
 import { createBatchedIdFetcher } from "../cache/batchedIdFetcher";
 import { mapChannel, mapFile, mapLink, mapUser } from "../mappers";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "../server";
-import { fetchChannelCanvases, invalidateConversationView } from "./conversationView";
+import { mapBrowsableChannels } from "./search";
 
 export {
   createSection,
@@ -30,9 +25,8 @@ export {
   updateSectionChannels,
 } from "./channels/sections";
 export {
-  type ConversationViewData,
-  fetchChannelCanvases,
   fetchConversationView,
+  type ConversationViewData,
 } from "./conversationView";
 export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite";
 
@@ -50,47 +44,28 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
   if (!q) return [];
   const data = await apiGet(`/api/channels/browse?query=${encodeURIComponent(q)}`);
   if (!data.ok) throw new Error(data.error ?? "search.modules.channels failed");
-  const items: any[] = data.items ?? [];
-  // search.modules.channels' index isn't scoped to browsable public/private channels the
-  // way conversations.list is — it also matches multi-person DMs by their raw "mpdm-a--b--c"
-  // name, which isn't a channel you can browse/join. is_mpim/is_im filter out flagged ones;
-  // the name check catches any the index doesn't flag.
-  return items
-    .filter(
-      (c) =>
-        !(
-          c.is_archived ||
-          c.is_member ||
-          c.is_mpim ||
-          c.is_im ||
-          c.is_record_channel ||
-          c.name?.startsWith("mpdm-")
-        ),
-    )
-    .map((c) => ({
-      id: c.id,
-      memberCount: c.member_count,
-      name: c.name,
-      private: !!c.is_private,
-      topic: typeof c.topic === "string" ? c.topic : (c.topic?.value ?? ""),
-    }));
+  return mapBrowsableChannels(Array.isArray(data.items) ? data.items : []);
 }
 
 export interface ChannelFilesAndLinks {
   files: SlackFile[];
   filesTotal: number;
+  hasMore: boolean;
   links: SlackLink[];
   linksTotal: number;
 }
 
-// Backs the channel header's "Files & links" panel — combines
-// search.modules.files and conversations.searchLinks into one relay call.
 export async function searchChannelFilesAndLinks(
   channelId: string,
   channelName: string,
   query: string,
+  page = 1,
 ): Promise<ChannelFilesAndLinks> {
-  const params = new URLSearchParams({ channelName, query });
+  const params = new URLSearchParams({
+    channelName,
+    page: String(page),
+    query,
+  });
   const data = await apiGet(`/api/channels/${channelId}/files-links?${params}`);
   if (!data.ok) throw new Error(data.error ?? "channel files & links search failed");
   const files: any[] = Array.isArray(data.files) ? data.files : [];
@@ -98,37 +73,12 @@ export async function searchChannelFilesAndLinks(
   return {
     files: files.map(mapFile),
     filesTotal: data.filesTotal ?? files.length,
+    hasMore: !!data.hasMore,
     links: links.map(mapLink),
     linksTotal: data.linksTotal ?? links.length,
   };
 }
-export async function fetchChannelCanvasInfo(channelId: string): Promise<CanvasInfo | null> {
-  const [canvas] = await fetchChannelCanvases(channelId);
-  return canvas ? { fileId: canvas.fileId, isEmpty: false } : null;
-}
-export async function createChannelCanvas(channelId: string, title?: string): Promise<CanvasInfo> {
-  const data = await apiPost(`/api/channels/${channelId}/canvas`, title ? { title } : {});
-  if (!data.ok) {
-    invalidateConversationView(channelId);
-    throw new Error(data.error ?? "conversations.canvases.create failed");
-  }
-  invalidateConversationView(channelId);
-  return { fileId: data.canvasId, isEmpty: true };
-}
-export async function createSharedChannelCanvas(
-  channelId: string,
-  title: string,
-): Promise<CanvasListItem> {
-  const data = await apiPost("/api/canvases", { channelId, title });
-  if (!data.ok) throw new Error(data.error ?? "canvases.create failed");
-  invalidateConversationView(channelId);
-  return { fileId: data.canvasId, title };
-}
-// Bootstrap only seeds lastReadByChannel for conversations client.counts
-// happens to include. An old/closed DM the Activity feed still surfaces
-// history for can be absent from that response, leaving no cursor to compare
-// against — this is the on-demand fallback for that gap, mirroring the same
-// last_read field bootstrap.ts reads from client.counts.
+
 export async function fetchChannelLastRead(channelId: string): Promise<number> {
   const data = await apiGet(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
@@ -217,7 +167,10 @@ function splitPrefValues(value: unknown): string[] {
     .filter(Boolean);
 }
 
-function parseAccessPref(value: unknown): { types: string[]; userIds: string[] } {
+function parseAccessPref(value: unknown): {
+  types: string[];
+  userIds: string[];
+} {
   if (typeof value === "string") {
     const parts = splitPrefValues(value);
     return {
@@ -291,7 +244,9 @@ export function serializeChannelPostingPrefsPatch(
     };
   }
   if ("threadsRestrictedToManagers" in patch) {
-    return { can_thread: serializeAccessPref(patch.threadsRestrictedToManagers) };
+    return {
+      can_thread: serializeAccessPref(patch.threadsRestrictedToManagers),
+    };
   }
   const enabled = String(patch.allowChannelMentions);
   return { enable_at_channel: enabled, enable_at_here: enabled };
@@ -299,7 +254,7 @@ export function serializeChannelPostingPrefsPatch(
 
 export async function fetchChannelPostingPrefs(channelId: string): Promise<ChannelPostingPrefs> {
   const data = await apiGet(`/api/channels/${channelId}/posting-prefs`);
-  if (!data.ok) throw new Error(data.error ?? "channels.prefs.get failed");
+  if (!data.ok) throw new Error(data.error ?? "admin.conversations.getConversationPrefs failed");
   return parseChannelPostingPrefs(data.prefs ?? data);
 }
 
@@ -310,7 +265,7 @@ export async function setChannelPostingPrefs(
   const data = await apiPut(`/api/channels/${channelId}/posting-prefs`, {
     prefs: serializeChannelPostingPrefsPatch(patch),
   });
-  if (!data.ok) throw new Error(data.error ?? "channels.prefs.set failed");
+  if (!data.ok) throw new Error(data.error ?? "admin.conversations.setConversationPrefs failed");
 }
 export async function setChannelRetention(channelId: string, days: number | null): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/retention`, { days });
@@ -322,13 +277,22 @@ export function serializeMemberPermissionsPatch(patch: MemberPermissionsPatch): 
 }[] {
   const permissions: { is_allowed: boolean; permission: string }[] = [];
   if (patch.invite !== undefined) {
-    permissions.push({ is_allowed: patch.invite, permission: "INVITE_TO_CHANNEL" });
+    permissions.push({
+      is_allowed: patch.invite,
+      permission: "INVITE_TO_CHANNEL",
+    });
   }
   if (patch.setPurpose !== undefined) {
-    permissions.push({ is_allowed: patch.setPurpose, permission: "SET_CHANNEL_PURPOSE" });
+    permissions.push({
+      is_allowed: patch.setPurpose,
+      permission: "SET_CHANNEL_PURPOSE",
+    });
   }
   if (patch.setTopic !== undefined) {
-    permissions.push({ is_allowed: patch.setTopic, permission: "SET_CHANNEL_TOPIC" });
+    permissions.push({
+      is_allowed: patch.setTopic,
+      permission: "SET_CHANNEL_TOPIC",
+    });
   }
   return permissions;
 }
@@ -339,7 +303,9 @@ export async function setMemberPermissions(
 ): Promise<void> {
   const permissions = serializeMemberPermissionsPatch(patch);
   if (permissions.length === 0) return;
-  const data = await apiPut(`/api/channels/${channelId}/member-permissions`, { permissions });
+  const data = await apiPut(`/api/channels/${channelId}/member-permissions`, {
+    permissions,
+  });
   if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.set failed");
 }
 export async function joinChannel(channelId: string): Promise<Channel> {

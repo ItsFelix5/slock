@@ -19,7 +19,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
   const [addingSection, setAddingSection] = createSignal(false);
   const [newSectionName, setNewSectionName] = createSignal("");
   const [creatingSection, setCreatingSection] = createSignal(false);
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let newSectionInputRef: HTMLInputElement | undefined;
 
   const sections = createMemo(
@@ -92,7 +92,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       if (!isChannelPlacementApplied(outcome)) {
         actionFeedback.flash(
           props.channelId,
-          `Created “${created.name}”, but couldn’t move this channel into it.`,
+          `Created “${created.name}”, but couldn't move this channel into it.`,
           "error",
         );
         setAddingSection(false);
@@ -107,12 +107,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
 
   const trigger = () =>
     props.variant === "menu-item" ? (
-      <MenuItem
-        aria-label={`Move #${props.channelTitle} to another section`}
-        class="channel-move-menu-trigger"
-        icon="folder"
-        onClick={() => setOpen(!open())}
-      >
+      <MenuItem class="channel-move-menu-trigger" icon="folder" onClick={() => setOpen(!open())}>
         Move to…
         <Icon class="channel-move-menu-trigger-caret" name="caret-right" size={13} />
       </MenuItem>
@@ -149,13 +144,13 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
           {props.channelTitle}
         </span>
         <Show when={isPending()}>
-          <span aria-live="polite" class="channel-move-menu-status" role="status">
+          <span class="channel-move-menu-status">
             {creatingSection() ? "Creating…" : "Moving…"}
           </span>
         </Show>
       </div>
 
-      <div aria-busy={isPending()} class="channel-move-menu-destinations">
+      <div class="channel-move-menu-destinations">
         <MenuItem
           aria-current={isStarred() ? "true" : undefined}
           class="channel-move-menu-destination"
@@ -229,7 +224,6 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       >
         <form class="channel-move-menu-form" onSubmit={submitNewSection}>
           <input
-            aria-label="New section name"
             class="channel-move-menu-input search-input"
             disabled={creatingSection()}
             onInput={(event) => setNewSectionName(event.currentTarget.value)}

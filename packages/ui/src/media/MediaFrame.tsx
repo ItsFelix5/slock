@@ -1,15 +1,20 @@
-import { Icon } from "@slock/ui";
 import { createSignal, type JSX, Show } from "solid-js";
+import Icon from "./Icon";
 import "./MediaFrame.css";
 
-export default function MediaFrame(props: { title: string; children: JSX.Element }) {
+export interface MediaFrameProps {
+  children: JSX.Element;
+  title: string;
+}
+
+export default function MediaFrame(props: MediaFrameProps) {
   const [collapsed, setCollapsed] = createSignal(false);
   return (
     <div class="media-frame">
       <button
         aria-expanded={!collapsed()}
         class="media-frame-toggle btn-reset flex-align-center"
-        onClick={() => setCollapsed((c) => !c)}
+        onClick={() => setCollapsed((collapsed) => !collapsed)}
         type="button"
       >
         <Icon name={collapsed() ? "caret-right-filled" : "caret-down-filled"} size={11} />

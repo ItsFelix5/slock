@@ -4,8 +4,7 @@ const SLACK_TS_RE = /^\d+\.\d+$/;
 
 export interface SlackPermalinkTarget {
   channelId: string;
-  // The specific message the permalink points at — differs from threadTs
-  // when the link is to a reply (permalink carries `?thread_ts=<root>`).
+
   messageTs: string;
   threadTs: string;
 }
@@ -27,11 +26,6 @@ export interface SlackPermalinkOpenerDeps {
   probe: (target: SlackPermalinkTarget) => Promise<boolean>;
 }
 
-/**
- * Coordinates permalink probes so a slow response cannot override a newer
- * click. Calling invalidate also makes cleanup and unrelated primary clicks
- * explicitly cancel the pending navigation.
- */
 export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
   let requestId = 0;
 
@@ -69,7 +63,6 @@ export function navigateToSlackPermalink(
   navigator.openChannelMessage(target.channelId, target.messageTs, options);
 }
 
-/** Return the in-app destination represented by a Slack message permalink. */
 export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {
   let url: URL;
   try {

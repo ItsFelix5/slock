@@ -7,6 +7,7 @@
   margin: 4px 20px -2px 34px;
   font-size: 12.5px;
   color: var(--text-secondary);
+  text-decoration: none;
 }
 
 .reply-reference-row::before {

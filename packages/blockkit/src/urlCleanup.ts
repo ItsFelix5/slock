@@ -66,11 +66,6 @@ const TRACKING_PARAM_NAMES = new Set([
   "twclid",
 ]);
 
-// Params that are only tracking noise on specific sites; stripping them
-// globally would clobber legitimate uses elsewhere (e.g. "pp"/"feature" as
-// generic query params on other sites, or "tag" as someone's own query key).
-// Literal names taken from ClearURLs' per-site providers; their regex-shaped
-// rules (e.g. "p[fd]_rd_[a-z]*") are skipped since we only match exact keys.
 const DOMAIN_TRACKING_PARAMS: { names: string[]; roots: string[] }[] = [
   { names: ["si", "feature", "kw", "pp"], roots: ["youtube", "youtu"] },
   { names: ["si"], roots: ["spotify"] },
@@ -180,10 +175,6 @@ const DOMAIN_TRACKING_PARAMS: { names: string[]; roots: string[] }[] = [
   },
 ];
 
-// ClearURLs' globalRules strips bare "ref"/"referrer" too, but exempts sites
-// where it's real data rather than tracking (git refs, OAuth referrer, session
-// state) via a per-URL exceptions list. We only carry the domain-root part of
-// that list forward, since we match whole params rather than path regexes.
 const REF_PARAM_NAMES = new Set(["ref", "referrer"]);
 const REF_SAFE_ROOTS = [
   "github",

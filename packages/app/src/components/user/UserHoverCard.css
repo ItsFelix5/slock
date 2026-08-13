@@ -67,8 +67,7 @@
   white-space: nowrap;
 }
 
-.user-hovercard-name-label,
-.user-hovercard-badge {
+.user-hovercard-name-label {
   flex-shrink: 0;
 }
 
@@ -77,15 +76,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.user-hovercard-badge {
-  padding: 1px 4px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  background: var(--badge-bg);
-  border-radius: 3px;
 }
 
 .user-hovercard-status {

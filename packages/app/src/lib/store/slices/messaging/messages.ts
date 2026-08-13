@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile lint/style/noExcessiveLinesPerFile: These re-exports form one cohesive messaging slice API.
 import type { ActivityItem, ConversationViewData, Message, User } from "@slock/slack-api";
 import {
   broadcastReply,
@@ -9,7 +8,8 @@ import {
 } from "@slock/slack-api";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
-import type { MessageLocation, ThreadRef, View } from "../types";
+import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
+import { dedupeMessages } from "./merge/messageMerge";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./messageLinks";
@@ -29,11 +29,13 @@ export function createMessagesSlice(deps: {
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
+  channelMessageTarget: () => ChannelMessageTarget | null;
   visibleViews: () => View[];
   visibleThreads: () => ThreadRef[];
   onConversationView?: (view: ConversationViewData) => void;
 }) {
   const history = createMessageHistory({
+    channelMessageTarget: deps.channelMessageTarget,
     onConversationView: deps.onConversationView,
     visibleThreads: deps.visibleThreads,
     visibleViews: deps.visibleViews,
@@ -135,7 +137,10 @@ export function createMessagesSlice(deps: {
       id: `pending-${now}`,
       kind: "normal",
       text: trimmed,
-      time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      time: new Date().toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
       ts: String(now / 1000),
       userId: me?.id ?? "",
     };
@@ -161,12 +166,9 @@ export function createMessagesSlice(deps: {
     try {
       const res = await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
       const realTs = res.ts as string;
-      // keep the "pending-" id so a later gateway echo or history poll can still
-      // reconcile this stub with the real, fully-mapped message (see PENDING_ID_PREFIX
-      // in merge/messageMerge.ts and the pendingIdx match in mergeIncomingMessage) -
-      // overwriting it here used to make the echo's dedupe check think it already won
+
       const resolvePending = (list: Message[]) =>
-        list.map((m) => (m.id === optimistic.id ? { ...m, ts: realTs } : m));
+        dedupeMessages(list.map((m) => (m.id === optimistic.id ? { ...m, ts: realTs } : m)));
       if (location.store === "channel") {
         setMessagesByChannel(location.key, resolvePending);
       } else {
@@ -232,7 +234,11 @@ export function createMessagesSlice(deps: {
       nextReactions = reactions
         .map((r) =>
           r.name === emojiName
-            ? { ...r, count: r.count - 1, users: r.users.filter((u) => u !== me.id) }
+            ? {
+                ...r,
+                count: r.count - 1,
+                users: r.users.filter((u) => u !== me.id),
+              }
             : r,
         )
         .filter((r) => r.count > 0);

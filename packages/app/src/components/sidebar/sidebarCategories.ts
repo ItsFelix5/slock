@@ -89,8 +89,6 @@ export function sectionShowsAllChannels(
   sidebar: Category["sidebar"],
   unreadsOnly: boolean,
 ): boolean {
-  // The global Unreads filter always wins: a section's own sidebar setting must
-  // never bring read channels back once the user has asked to see unreads only.
   if (unreadsOnly) return false;
   return sidebar === "all";
 }
@@ -115,16 +113,9 @@ export function buildCategories(
   isChannelMuted: (id: string) => boolean,
 ): Category[] {
   const visibleChannels = allChannels.filter((c) => !isChannelLeft(c.id));
-  // Bootstrap's `unread` value is only an initial snapshot. The reactive map
-  // is seeded from it, then receives both additions and clears from Slack and
-  // local read actions; consulting the snapshot here would make a cleared
-  // unread impossible to remove from filtered sections. A muted channel
-  // never counts as "unread" for filtering purposes, even with unread
-  // messages, so it drops out of unread-only views instead of lingering.
+
   const isUnread = (c: Channel) => !!unreadChannelIds[c.id] && !isChannelMuted(c.id);
   const matches = (c: Channel, sidebar: Category["sidebar"]) => {
-    // Opening a channel clears its unread state. Keep it in the sidebar even
-    // when that would otherwise make it disappear from a filtered section.
     if (isChannelOpen(c.id)) return true;
     return sectionShowsAllChannels(sidebar, unreadsOnly()) || isUnread(c);
   };
@@ -141,9 +132,7 @@ export function buildCategories(
     const ids = s.channelIds.filter((id) => !claimed.has(id));
     for (const id of ids) claimed.add(id);
     const channels = ids.map((id) => byId.get(id)).filter((c): c is Channel => !!c);
-    // Slack's channel_ids order is always the manual drag order. A section
-    // set to sort by recent activity instead shows its channels ranked by
-    // their own last activity, live, rather than that static server order.
+
     if (s.sort === "recent") channels.sort((a, b) => (b.lastActivity ?? 0) - (a.lastActivity ?? 0));
     sectionChannelsById.set(s.id, channels);
   }

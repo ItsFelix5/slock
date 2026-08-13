@@ -37,7 +37,7 @@ export default function ReactionRow(props: {
               await navigator.clipboard.writeText(r.users.map((id) => `<@${id}>`).join(" "));
             } catch {
               if (props.feedbackKey)
-                actionFeedback.flash(props.feedbackKey, "Couldn’t copy the reactors.", "error");
+                actionFeedback.flash(props.feedbackKey, "Couldn't copy the reactors.", "error");
             }
           };
 

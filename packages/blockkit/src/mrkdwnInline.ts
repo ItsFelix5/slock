@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: The global expressions are cloned by matchAll.
 import { parseUserProfileLink } from "./userProfileLink";
 
 export type InlineNode =
@@ -22,15 +21,9 @@ export type InlineNode =
       fallback?: string;
     };
 
-// Formatting delimiters must sit at word boundaries. In particular, an
-// underscore inside `pending_staff` is content, while the trailing underscore
-// in `_Status: pending_staff_` closes the italic run.
 const INLINE_RE =
   /`([^`]+)`|<([^<>]*)>|:([a-z0-9_+'-]+):|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|(?<![\p{L}\p{N}])_([^\n]+?)_(?![\p{L}\p{N}])|~([^~\n]+)~/giu;
 
-// Link/mention labels can themselves contain a literal "|" (a price, a
-// range, ...), so only the first "|" in a token is the field separator —
-// `token.split("|")` would silently truncate a label at its own pipe.
 function splitOnce(text: string, sep: string): [string, string | undefined] {
   const index = text.indexOf(sep);
   return index === -1 ? [text, undefined] : [text.slice(0, index), text.slice(index + sep.length)];
@@ -65,8 +58,6 @@ function parseToken(token: string): InlineNode {
   return userId ? { id: userId, label, t: "userlink", url } : { label, t: "link", url };
 }
 
-// Backticks suppress formatting but Slack still resolves its special `<...>`
-// tokens inside inline code.
 const CODE_TOKEN_RE = /<([^<>]*)>/g;
 
 function parseCodeInner(text: string): InlineNode[] {

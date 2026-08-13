@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack API payloads preserve the service's wire field names.
 import type { ChannelSection } from "../../../types";
 import { extractChannelSections } from "../../mappers";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "../../server";
@@ -70,7 +69,9 @@ export async function reorderSection(
   sectionId: string,
   nextSectionId: string | null,
 ): Promise<boolean> {
-  const data = await apiPut(`/api/sections/${sectionId}/order`, { nextSectionId });
+  const data = await apiPut(`/api/sections/${sectionId}/order`, {
+    nextSectionId,
+  });
   return !!data.ok;
 }
 export async function updateSectionChannels(

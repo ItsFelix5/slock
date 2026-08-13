@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack action payloads preserve the service's wire field names.
 import { type ButtonElement, runBlockAction } from "@slock/slack-api";
 import { createSignal, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
@@ -23,6 +22,12 @@ export default function Button(props: {
 
   const onClick = () => {
     if (props.el.url || pending()) return;
+    if (
+      props.el.confirm &&
+      !window.confirm(`${props.el.confirm.title.text}\n\n${props.el.confirm.text.text}`)
+    ) {
+      return;
+    }
     const ctx = props.context;
     if (!(ctx?.botId && props.el.action_id)) {
       flashUnsupported();

@@ -4,12 +4,11 @@
 }
 
 .panel-header {
-  box-sizing: content-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 49px;
-  padding: 0px 16px;
+  height: calc(var(--header-height) - var(--header-divider-width));
+  padding: 0 var(--header-padding-inline);
 }
 
 .panel-header-title {

@@ -15,8 +15,6 @@ export interface VideoPlayerProps {
 export default function VideoPlayer(props: VideoPlayerProps) {
   const [failed, setFailed] = createSignal(false);
 
-  // A virtualized row can be reused with a different attachment. A failure
-  // from the previous source must not strand the replacement in its fallback.
   createEffect(
     on(
       () => props.src,
@@ -28,7 +26,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   return (
     <Show
       fallback={
-        <div class={`video-player-error ${props.class ?? ""}`} role="alert">
+        <div class={`video-player-error ${props.class ?? ""}`}>
           <Icon name="video-off" size={22} />
           <span>Video unavailable</span>
           <span class="video-player-actions">

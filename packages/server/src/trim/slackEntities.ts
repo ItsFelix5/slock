@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Mirrors Slack's wire field names.
-
 function trimIcons(icons: any): any {
   if (!icons || typeof icons !== "object") return icons;
   return {
@@ -34,6 +32,7 @@ export function trimProfile(profile: any): any {
     phone: profile.phone,
     pronouns: profile.pronouns,
     real_name: profile.real_name,
+    start_date: profile.start_date,
     status_emoji: profile.status_emoji,
     status_text: profile.status_text,
     team: profile.team,
@@ -106,9 +105,20 @@ export function trimFile(file: any): any {
 function trimAttachment(attachment: any): any {
   if (!attachment || typeof attachment !== "object") return attachment;
   return {
+    actions: Array.isArray(attachment.actions)
+      ? attachment.actions.map((action: any) => ({
+          name: action?.name,
+          style: action?.style,
+          text: action?.text,
+          type: action?.type,
+          url: action?.url,
+          value: action?.value,
+        }))
+      : attachment.actions,
     author_icon: attachment.author_icon,
     author_name: attachment.author_name,
     blocks: attachment.blocks,
+    callback_id: attachment.callback_id,
     channel_id: attachment.channel_id,
     color: attachment.color,
     fallback: attachment.fallback,
@@ -149,7 +159,10 @@ export function trimMessage(message: any): any {
     blocks: message.blocks,
     bot_id: message.bot_id,
     bot_profile: message.bot_profile
-      ? { icons: trimIcons(message.bot_profile.icons), name: message.bot_profile.name }
+      ? {
+          icons: trimIcons(message.bot_profile.icons),
+          name: message.bot_profile.name,
+        }
       : undefined,
     edited: message.edited,
     files: Array.isArray(message.files) ? message.files.map(trimFile) : message.files,
@@ -157,7 +170,11 @@ export function trimMessage(message: any): any {
     is_ephemeral: message.is_ephemeral,
     latest_reply: message.latest_reply,
     metadata: message.metadata?.event_payload?.source_user_id
-      ? { event_payload: { source_user_id: message.metadata.event_payload.source_user_id } }
+      ? {
+          event_payload: {
+            source_user_id: message.metadata.event_payload.source_user_id,
+          },
+        }
       : undefined,
     reactions: Array.isArray(message.reactions)
       ? message.reactions.map((reaction: any) => ({
@@ -180,11 +197,6 @@ export function trimMessage(message: any): any {
   };
 }
 
-// Shared by bootstrap.ts's client.counts trim and slackGatewayPayload.ts's
-// badge_counts_updated trim — both trim the same channels/ims/mpims group
-// arrays, just with slightly different per-group field sets (the gateway
-// push omits last_read/latest, which its one consumer never reads, to keep
-// this very-frequent event small).
 export function trimCountGroups(data: any, trimGroup: (group: any) => any): any {
   return {
     channels: Array.isArray(data?.channels) ? data.channels.map(trimGroup) : data?.channels,
@@ -235,28 +247,6 @@ export function trimChannel(channel: any): any {
     properties: channel.properties
       ? {
           has_custom_mpdm_name: channel.properties.has_custom_mpdm_name,
-          canvas: channel.properties.canvas
-            ? {
-                file_id: channel.properties.canvas.file_id,
-                is_empty: channel.properties.canvas.is_empty,
-              }
-            : undefined,
-          tabs: Array.isArray(channel.properties.tabs)
-            ? channel.properties.tabs.map((tab: any) => ({
-                data: { file_id: tab?.data?.file_id },
-                id: tab?.id,
-                label: tab?.label,
-                type: tab?.type,
-              }))
-            : channel.properties.tabs,
-          tabz: Array.isArray(channel.properties.tabz)
-            ? channel.properties.tabz.map((tab: any) => ({
-                data: { file_id: tab?.data?.file_id },
-                id: tab?.id,
-                label: tab?.label,
-                type: tab?.type,
-              }))
-            : channel.properties.tabz,
           channel_email_addresses: Array.isArray(channel.properties.channel_email_addresses)
             ? channel.properties.channel_email_addresses.map((entry: any) => ({
                 address: entry?.address,
@@ -271,9 +261,6 @@ export function trimChannel(channel: any): any {
   };
 }
 
-// Shared by routes/sections.ts's GET /api/sections and bootstrap.ts's
-// conditional sections fan-out — both call users.channelSections.list
-// directly via callSlack and trim its response the same way.
 export function trimChannelSections(data: any): any {
   return {
     channel_sections: Array.isArray(data.channel_sections)

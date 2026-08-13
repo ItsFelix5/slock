@@ -18,6 +18,7 @@ export default function ChannelPostingPermissions(props: {
   const [allowChannelMentions, setAllowChannelMentions] = createSignal(true);
   const [savingPostingPrefs, setSavingPostingPrefs] = createSignal(false);
   const [addingPostingException, setAddingPostingException] = createSignal(false);
+  const [postingPrefsSaveError, setPostingPrefsSaveError] = createSignal<string>();
 
   const retryPostingPrefs = () => void Promise.resolve(refetchPostingPrefs()).catch(() => {});
 
@@ -33,6 +34,25 @@ export default function ChannelPostingPermissions(props: {
 
   const canEdit = () => !!postingPrefs() && props.isManager() && !savingPostingPrefs();
 
+  const errorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
+
+  const savePostingPrefs = async (
+    patch: Parameters<typeof updateChannelPostingPrefs>[1],
+    restore: () => void,
+  ) => {
+    setSavingPostingPrefs(true);
+    setPostingPrefsSaveError(undefined);
+    try {
+      await updateChannelPostingPrefs(props.channelId, patch);
+    } catch (error) {
+      restore();
+      setPostingPrefsSaveError(errorMessage(error, "Failed to update posting permissions."));
+    } finally {
+      setSavingPostingPrefs(false);
+    }
+  };
+
   const savePostingRestriction = async (restricted: boolean) => {
     if (!canEdit()) return;
     const previousRestricted = postingRestricted();
@@ -41,15 +61,13 @@ export default function ChannelPostingPermissions(props: {
     setPostingRestricted(restricted);
     setPostingExceptionUserIds(nextExceptions);
     if (!restricted) setAddingPostingException(false);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      posting: { exceptionUserIds: nextExceptions, restrictedToManagers: restricted },
-    });
-    if (!ok) {
-      setPostingRestricted(previousRestricted);
-      setPostingExceptionUserIds(previousExceptions);
-    }
-    setSavingPostingPrefs(false);
+    await savePostingPrefs(
+      { posting: { exceptionUserIds: nextExceptions, restrictedToManagers: restricted } },
+      () => {
+        setPostingRestricted(previousRestricted);
+        setPostingExceptionUserIds(previousExceptions);
+      },
+    );
   };
 
   const savePostingExceptions = async (next: string[]) => {
@@ -57,12 +75,10 @@ export default function ChannelPostingPermissions(props: {
     const previous = postingExceptionUserIds();
     setPostingExceptionUserIds(next);
     setAddingPostingException(false);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      posting: { exceptionUserIds: next, restrictedToManagers: true },
-    });
-    if (!ok) setPostingExceptionUserIds(previous);
-    setSavingPostingPrefs(false);
+    await savePostingPrefs(
+      { posting: { exceptionUserIds: next, restrictedToManagers: true } },
+      () => setPostingExceptionUserIds(previous),
+    );
   };
 
   const addPostingException = (userId: string) => {
@@ -79,24 +95,18 @@ export default function ChannelPostingPermissions(props: {
     if (!canEdit()) return;
     const previous = threadsRestricted();
     setThreadsRestricted(restricted);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      threadsRestrictedToManagers: restricted,
-    });
-    if (!ok) setThreadsRestricted(previous);
-    setSavingPostingPrefs(false);
+    await savePostingPrefs({ threadsRestrictedToManagers: restricted }, () =>
+      setThreadsRestricted(previous),
+    );
   };
 
   const saveChannelMentions = async (enabled: boolean) => {
     if (!canEdit()) return;
     const previous = allowChannelMentions();
     setAllowChannelMentions(enabled);
-    setSavingPostingPrefs(true);
-    const ok = await updateChannelPostingPrefs(props.channelId, {
-      allowChannelMentions: enabled,
-    });
-    if (!ok) setAllowChannelMentions(previous);
-    setSavingPostingPrefs(false);
+    await savePostingPrefs({ allowChannelMentions: enabled }, () =>
+      setAllowChannelMentions(previous),
+    );
   };
 
   return (
@@ -106,11 +116,22 @@ export default function ChannelPostingPermissions(props: {
         <p class="channel-details-meta">Loading posting permissions…</p>
       </Show>
       <Show when={postingPrefs.error}>
-        <div class="channel-details-settings-warning flex-between" role="alert">
-          <span>Posting permissions couldn’t be loaded.</span>
+        <div class="channel-details-settings-warning flex-between">
+          <div>
+            <div>Posting permissions couldn't be loaded.</div>
+            <div class="channel-details-settings-error-code">
+              {errorMessage(postingPrefs.error, "Unknown error")}
+            </div>
+          </div>
           <Button onClick={retryPostingPrefs} size="sm">
             Try again
           </Button>
+        </div>
+      </Show>
+      <Show when={postingPrefsSaveError()}>
+        <div class="channel-details-settings-warning">
+          <div>Posting permissions couldn't be saved.</div>
+          <div class="channel-details-settings-error-code">{postingPrefsSaveError()}</div>
         </div>
       </Show>
       <div class="settings-row">
@@ -165,7 +186,6 @@ export default function ChannelPostingPermissions(props: {
                     </Show>
                     <Tooltip content="Remove exception">
                       <button
-                        aria-label="Remove exception"
                         class="channel-details-exception-remove btn-reset flex-center"
                         disabled={!canEdit()}
                         onClick={() => removePostingException(userId)}

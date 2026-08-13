@@ -12,7 +12,6 @@ import { DateToken, Link, Mention, TimeAwareText, UsergroupMention } from "../mr
 import { parseUserProfileLink } from "../userProfileLink";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
-  // biome-ignore lint/style/useDestructuring: Reading the Solid prop preserves its reactive getter.
   const el = props.el;
   switch (el.type) {
     case "text": {
@@ -128,7 +127,6 @@ const SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
 ]);
 
 function SubBlockView(props: { sub: RichTextSubBlock }) {
-  // biome-ignore lint/style/useDestructuring: Reading the Solid prop preserves its reactive getter.
   const sub = props.sub;
   switch (sub.type) {
     case "rich_text_section":
@@ -152,11 +150,6 @@ function SubBlockView(props: { sub: RichTextSubBlock }) {
   }
 }
 
-// A rich_text_quote's elements are usually plain inline content, but Slack
-// nests full sub-blocks (most commonly a rich_text_list) directly inside
-// when e.g. a bulleted list is created while the caret is inside a
-// blockquote. Split the mixed array into inline runs and nested sub-blocks
-// so neither silently disappears.
 function QuoteContent(props: { elements: (RichTextInlineElement | RichTextSubBlock)[] }) {
   const nodes: JSX.Element[] = [];
   let run: RichTextInlineElement[] = [];

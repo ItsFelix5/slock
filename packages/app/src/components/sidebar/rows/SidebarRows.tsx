@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useFilenamingConvention: This module intentionally groups the related DM row and sidebar skeleton exports.
 import type { DirectMessage } from "@slock/slack-api";
 import {
   Avatar,
@@ -14,9 +13,6 @@ import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
 
-// Shared by channel-category headers (label doubles as an unread filter
-// toggle) and the DM section headers (label is plain text) so the caret
-// button and its expand/collapse semantics only live in one place.
 export function SidebarSectionCaretRow(props: {
   badge?: JSX.Element;
   caretIcon?: IconName;
@@ -66,9 +62,7 @@ export function DmRow(props: { dm: DirectMessage }) {
     (props.dm.memberIds ?? []).map((id) => store.users.userById(id)).filter((u) => u !== undefined),
   );
   const name = createMemo(() => dmDisplayName(props.dm, store.users.userById));
-  // A DM is only ready to render once every participant it needs has
-  // resolved — an mpdm with none of its members loaded yet would otherwise
-  // flash as an empty row.
+
   const ready = createMemo(() => (props.dm.userId ? !!user() : members().length > 0));
   const isActive = createMemo(() => {
     const v = store.viewState.activeView();

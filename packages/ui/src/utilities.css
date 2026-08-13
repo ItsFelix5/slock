@@ -143,9 +143,8 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  font-size: 18px;
+  width: var(--header-action-size);
+  height: var(--header-action-size);
   color: var(--text-secondary);
   cursor: pointer;
   background: none;
@@ -155,6 +154,9 @@
 .panel-close-btn:hover {
   color: var(--text-primary);
   background: var(--hover-bg);
+}
+.panel-close-btn .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 .panel-close-btn.floating {
   position: absolute;

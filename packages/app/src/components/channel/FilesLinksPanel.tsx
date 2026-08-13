@@ -9,10 +9,11 @@ import {
   filesLinksLoadError,
   filesLinksLoading,
   filesLinksQuery,
+  loadMoreFilesLinks,
   retryFilesLinks,
   setFilesLinksQuery,
 } from "../../lib/filesLinksPanel";
-import { channelDisplayName, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import { formatSize } from "../messages/parts/media/MessageFiles";
 import FileDetailModal from "./FileDetailModal";
 import "./FilesLinksPanel.css";
@@ -32,7 +33,6 @@ const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
 function fileIconName(file: SlackFile): IconName {
   if (file.isPdf) return "pdf-file";
   if (file.isVideo) return "video";
-  if (file.isCanvas) return "canvas-content";
   if (file.isMail) return "email";
   if (file.isAudio) return "sound";
   return "file";
@@ -149,12 +149,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
         </span>
       </a>
       <Tooltip content="Jump to message">
-        <button
-          aria-label="Jump to message"
-          class="files-links-card-jump btn-reset"
-          onClick={jumpToMessage}
-          type="button"
-        >
+        <button class="files-links-card-jump btn-reset" onClick={jumpToMessage} type="button">
           <Icon name="message" size={13} />
         </button>
       </Tooltip>
@@ -204,12 +199,6 @@ export default function FilesLinksPanel() {
 
   const groups = createMemo(() => (sortMode() === "name" ? null : groupByMonth(sorted())));
 
-  const title = () => {
-    const id = filesLinksChannelId();
-    if (!id) return "";
-    return channelDisplayName(store.channels.channelById(id), id);
-  };
-
   const searchMessagesInstead = () => {
     const channelId = filesLinksChannelId();
     if (!channelId) return;
@@ -222,31 +211,18 @@ export default function FilesLinksPanel() {
     if (e.key === "Enter") searchMessagesInstead();
   };
 
+  const loadMoreAtBottom = (body: HTMLDivElement) => {
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 160) loadMoreFilesLinks();
+  };
+
   return (
     <Show when={filesLinksChannelId()}>
       {(id) => (
         <div class="files-links-view flex-col">
-          <div class="files-links-header">
-            <div class="files-links-header-title">
-              <span class="files-links-title">Files & links</span>
-              <span class="files-links-subtitle text-dim truncate">{title()}</span>
-            </div>
-            <Tooltip content="Back to messages">
-              <button
-                aria-label="Close files & links"
-                class="files-links-close btn-reset"
-                onClick={closeFilesLinksPanel}
-                type="button"
-              >
-                <Icon name="close" size={16} />
-              </button>
-            </Tooltip>
-          </div>
           <div class="files-links-toolbar">
             <div class="files-links-searchbar">
               <Icon class="files-links-search-icon" name="search" size={14} />
               <input
-                aria-label="Search files and links in this channel"
                 class="files-links-search-input input-reset"
                 onInput={(e) => setFilesLinksQuery(e.currentTarget.value)}
                 onKeyDown={onSearchKeyDown}
@@ -255,7 +231,7 @@ export default function FilesLinksPanel() {
                 value={filesLinksQuery()}
               />
             </div>
-            <fieldset aria-label="Filter by type" class="files-links-filters">
+            <fieldset class="files-links-filters">
               <For each={TYPE_FILTERS}>
                 {(f) => (
                   <button
@@ -270,7 +246,6 @@ export default function FilesLinksPanel() {
               </For>
             </fieldset>
             <select
-              aria-label="Sort order"
               class="files-links-sort-select input-reset"
               onChange={(e) => setSortMode(e.currentTarget.value as SortMode)}
               value={sortMode()}
@@ -280,7 +255,7 @@ export default function FilesLinksPanel() {
               <option value="name">Name</option>
             </select>
           </div>
-          <div aria-busy={filesLinksLoading()} class="files-links-body">
+          <div class="files-links-body" onScroll={(e) => loadMoreAtBottom(e.currentTarget)}>
             <Show
               when={
                 filesLinksLoading() && filesLinksEntries().length === 0 && !filesLinksLoadError()
@@ -289,7 +264,7 @@ export default function FilesLinksPanel() {
               <div class="files-links-empty empty-state">Loading files & links…</div>
             </Show>
             <Show when={filesLinksLoadError()}>
-              <div class="files-links-empty empty-state" role="alert">
+              <div class="files-links-empty empty-state">
                 <span>Couldn't load files & links.</span>
                 <Button onClick={retryFilesLinks} size="sm">
                   Try again
@@ -325,6 +300,9 @@ export default function FilesLinksPanel() {
                   </For>
                 )}
               </Show>
+            </Show>
+            <Show when={filesLinksLoading() && filesLinksEntries().length > 0}>
+              <div class="files-links-loading-more text-dim text-sm">Loading more…</div>
             </Show>
           </div>
           <Show when={openFile()}>

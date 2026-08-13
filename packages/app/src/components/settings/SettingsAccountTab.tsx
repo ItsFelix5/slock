@@ -10,7 +10,6 @@ export default function SettingsAccountTab() {
   const [logoutError, setLogoutError] = createSignal<string>();
 
   async function handleLogout() {
-    // biome-ignore lint/suspicious/noAlert: Logging out requires explicit confirmation.
     if (!confirm("Log out? You'll need to paste a fresh request from devtools to reconnect.")) {
       return;
     }
@@ -20,7 +19,7 @@ export default function SettingsAccountTab() {
       await logout();
       location.reload();
     } catch (error) {
-      setLogoutError(error instanceof Error ? error.message : "Couldn’t log out. Try again.");
+      setLogoutError(error instanceof Error ? error.message : "Couldn't log out. Try again.");
       setLoggingOut(false);
     }
   }
@@ -60,11 +59,7 @@ export default function SettingsAccountTab() {
           {loggingOut() ? "Logging out…" : "Log out"}
         </Button>
         <Show when={logoutError()}>
-          {(message) => (
-            <div class="settings-account-error" role="alert">
-              {message()}
-            </div>
-          )}
+          {(message) => <div class="settings-account-error">{message()}</div>}
         </Show>
       </div>
     </>

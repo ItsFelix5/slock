@@ -1,7 +1,5 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
-import { createEditorCommands } from "./lib/editor/editorCommands";
-import { handleMarkShortcut } from "./lib/editor/markShortcuts";
-import { createSuggestionController } from "./lib/suggestionController";
+import { createSuggestionController, suggestionText } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
@@ -19,37 +17,31 @@ export default function MrkdwnComposer(props: {
   ariaBusy?: boolean;
 }) {
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  let loadedValue: string | undefined;
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this through the JSX ref.
-  let rootRef: HTMLDivElement | undefined;
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this through the JSX ref.
-  let suggestPopoverRef: HTMLDivElement | undefined;
+  let inputRef: HTMLTextAreaElement | undefined;
 
-  const emitValue = (value: string) => {
-    loadedValue = value;
-    props.onInput(value);
-  };
-  const editor = createEditorCommands({
-    allowBlockKit: false,
-    closeSuggestions: () => setSuggest(null),
-    resetLinkPreviews: () => {},
-    setText: emitValue,
-  });
+  let rootRef: HTMLDivElement | undefined;
+
+  let suggestPopoverRef: HTMLDivElement | undefined;
   const suggestions = createSuggestionController({
-    currentTextContext: editor.currentTextContext,
+    applyTextSuggestion: (item, state) => {
+      if (!inputRef) return;
+      inputRef.setRangeText(
+        suggestionText(item, state.kind),
+        state.start,
+        inputRef.selectionStart,
+        "end",
+      );
+      props.onInput(inputRef.value);
+    },
     includeCommands: false,
     setSuggest,
     suggest,
-    syncFromDom: editor.syncFromDom,
   });
 
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
 
   createEffect(() => {
-    const { value } = props;
-    if (value === loadedValue) return;
-    loadedValue = value;
-    editor.loadDraftIntoEditor(value);
+    if (inputRef && inputRef.value !== props.value) inputRef.value = props.value;
   });
 
   createEffect(() => {
@@ -60,21 +52,25 @@ export default function MrkdwnComposer(props: {
       ?.scrollIntoView({ block: "nearest" });
   });
 
-  const onInput = () => {
-    editor.normalizeStrayEmptyBlock();
-    editor.maybeConvertTypedEmojiShortcode();
-    editor.maybeLinkifyTypedUrl();
-    editor.syncFromDom();
-    const el = editor.getRef();
-    if (!props.value.trim() && el?.childNodes.length) el.innerHTML = "";
-    const context = editor.currentTextContext();
-    if (context) suggestions.updateSuggestions(context.node.textContent ?? "", context.offset);
-    else setSuggest(null);
+  const updateSuggestions = (input: HTMLTextAreaElement) => {
+    suggestions.updateSuggestions(input.value, input.selectionStart);
+  };
+
+  const applySuggestion = (index?: number) => {
+    suggestions.applySuggestion(index);
+  };
+
+  const onInput = (event: InputEvent) => {
+    const input = event.currentTarget as HTMLTextAreaElement;
+    props.onInput(input.value);
+    updateSuggestions(input);
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.isComposing) return;
+    const input = event.currentTarget as HTMLTextAreaElement;
     const state = suggest();
-    if (state?.items.length) {
+    if (state?.items.length && !(event.metaKey || event.ctrlKey || event.altKey)) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         suggestions.moveActiveSuggestion(event.key === "ArrowDown" ? 1 : -1);
@@ -82,7 +78,7 @@ export default function MrkdwnComposer(props: {
       }
       if (event.key === "Enter" || event.key === "Tab") {
         event.preventDefault();
-        suggestions.applySuggestion();
+        applySuggestion();
         return;
       }
       if (event.key === "Escape") {
@@ -91,12 +87,13 @@ export default function MrkdwnComposer(props: {
         return;
       }
     }
-    if (event.key === "Enter" && !props.multiline) {
+    if (!props.multiline && event.key === "Enter") {
       event.preventDefault();
-      editor.getRef()?.blur();
+      input.blur();
       return;
     }
-    handleMarkShortcut(event, editor);
+    if (["ArrowLeft", "ArrowRight", "End", "Home"].includes(event.key)) setSuggest(null);
+    queueMicrotask(() => updateSuggestions(input));
   };
 
   const onFocusOut = () => {
@@ -115,30 +112,20 @@ export default function MrkdwnComposer(props: {
       onFocusOut={onFocusOut}
       ref={rootRef}
     >
-      {/* biome-ignore lint/a11y/useSemanticElements: mrkdwn formatting requires a contenteditable. */}
-      <div
+      <textarea
         aria-label={props.ariaLabel}
         aria-multiline={props.multiline ?? false}
         class="mrkdwn-composer-input composer-input input-reset"
-        contentEditable={!props.disabled}
-        data-placeholder={props.placeholder}
+        disabled={props.disabled}
         id={props.id}
-        onCopy={(event) => editor.copySelection(event)}
-        onCut={(event) => editor.cutSelection(event)}
         onInput={onInput}
         onKeyDown={onKeyDown}
-        onPaste={(event) => {
-          event.preventDefault();
-          const pasted = event.clipboardData?.getData("text/plain") ?? "";
-          if (!pasted) return;
-          editor.insertPastedTextAtCaret(
-            props.multiline ? pasted : pasted.replace(/\s*\n\s*/g, " "),
-          );
-          editor.linkifyAll();
+        placeholder={props.placeholder}
+        ref={(el) => {
+          inputRef = el;
+          el.value = props.value;
         }}
-        ref={editor.setRef}
-        role="textbox"
-        tabIndex={props.disabled ? -1 : 0}
+        rows={props.multiline ? 3 : 1}
       />
       <Show when={suggest()}>
         {(state) => (
@@ -148,7 +135,7 @@ export default function MrkdwnComposer(props: {
                 <button
                   class="composer-suggest-row btn-reset flex-align-center"
                   classList={{ active: index() === state().active }}
-                  onClick={() => suggestions.applySuggestion(index())}
+                  onClick={() => applySuggestion(index())}
                   onMouseDown={(event) => event.preventDefault()}
                   onMouseEnter={() => suggestions.setActiveSuggestion(index())}
                   type="button"

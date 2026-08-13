@@ -112,6 +112,7 @@ button.user-profile-presence:disabled {
 
 .user-profile-name {
   display: flex;
+  gap: 6px;
   align-items: baseline;
   min-width: 0;
   margin: 12px 0 0;
@@ -208,8 +209,6 @@ button.user-profile-presence:disabled {
   white-space: nowrap;
 }
 
-/* Self-view identity fields: plain inputs that read as text until focused,
-   so editing your own name/title/pronouns needs no separate edit mode. */
 .user-profile-edit-name {
   display: flex;
   flex-direction: column;

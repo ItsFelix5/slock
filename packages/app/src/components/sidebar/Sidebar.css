@@ -17,9 +17,10 @@
 }
 
 .sidebar-top {
+  height: var(--header-height);
   flex-shrink: 0;
   gap: 8px;
-  padding: 4.5px 14px;
+  padding: 0 var(--header-padding-inline);
   border-bottom: 1px solid var(--border);
 }
 
@@ -44,8 +45,12 @@
 }
 
 .sidebar-global-search-btn {
-  width: 28px;
-  height: 28px;
+  width: var(--header-action-size);
+  height: var(--header-action-size);
+}
+
+.sidebar-global-search-btn .icon {
+  transform: translateY(var(--icon-optical-shift));
 }
 
 .sidebar-global-search-btn.active {

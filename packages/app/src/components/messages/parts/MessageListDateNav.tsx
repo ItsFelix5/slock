@@ -13,10 +13,6 @@ function toDateInputValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-// Sticky pill replacing the scrollbar as the primary way to see and change
-// where you are in a channel's history — shows the day currently at the top
-// of the viewport, and opens quick jumps (today/yesterday/beginning) plus an
-// arbitrary date picker.
 export default function MessageListDateNav(props: {
   day: string;
   onJumpToDate: (dateMs: number) => void;

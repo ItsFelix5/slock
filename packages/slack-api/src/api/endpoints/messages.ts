@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention lint/style/noExcessiveLinesPerFile: Message operations share one public endpoint surface.
 import type { Message } from "../../types";
 import { HIDE_SUBTYPES, mapMessage } from "../mappers";
 import { apiDelete, apiGet, apiPatch, apiPost, getWorkspaceDomain } from "../server";
@@ -37,8 +36,6 @@ function microsecondsToTimestamp(value: bigint): string {
   return `${seconds}.${fraction}`;
 }
 
-// `cursor` (from a prior page's nextCursor) fetches the next page of messages
-// older than that page — conversations.history paginates backwards in time.
 export async function fetchHistory(channelId: string, cursor?: string): Promise<HistoryPage> {
   if (!cursor) {
     const view = await fetchConversationView(channelId);
@@ -67,18 +64,16 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
   };
 }
 
-// Fetches a bounded page of messages ending at (and including) `ts`, the same
-// `latest`+`inclusive` request Slack's own webapp makes when jumping to a
-// permalinked message — not a zero-width `oldest === latest` lookup, which
-// Slack's API doesn't reliably resolve to the exact message. The page doesn't
-// need to connect to whatever's already loaded further down the channel; it's
-// fine for the two to sit apart with a gap the reader can page through later.
 export async function fetchHistoryAround(
   channelId: string,
   ts: string,
   limit = 28,
 ): Promise<HistoryPage> {
-  const query = new URLSearchParams({ inclusive: "true", latest: ts, limit: String(limit) });
+  const query = new URLSearchParams({
+    inclusive: "true",
+    latest: ts,
+    limit: String(limit),
+  });
   const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   return {
@@ -88,19 +83,13 @@ export async function fetchHistoryAround(
   };
 }
 
-// conversations.history always returns the newest messages inside a time
-// range, even when `oldest` is supplied. To get the messages immediately
-// after an old permalink (rather than jumping across the gap to today's
-// tail), probe a bounded range and shrink it whenever it contains more than
-// one page. Empty ranges grow exponentially, so long quiet periods still
-// take only a handful of requests.
 export async function fetchHistoryNewer(
   channelId: string,
   oldest: string,
   limit = 60,
 ): Promise<NewerHistoryPage> {
   const oldestMicroseconds = timestampToMicroseconds(oldest);
-  // Leave a small allowance for client/server clock skew at the live edge.
+
   const liveEdgeMicroseconds = BigInt(Date.now() + 60_000) * 1_000n;
   const maximumSpan = liveEdgeMicroseconds - oldestMicroseconds;
   if (maximumSpan <= 0n) return { hasMore: false, messages: [] };
@@ -140,8 +129,7 @@ export async function fetchHistoryNewer(
     return {
       hasMore: upperMicroseconds < liveEdgeMicroseconds || !!data.has_more,
       messages: processMessages(rawMessages),
-      // Advance across hidden event subtypes too, otherwise an all-hidden
-      // page would leave the next request stuck on the same boundary.
+
       nextOldest: rawMessages[0]?.ts,
     };
   }
@@ -149,12 +137,6 @@ export async function fetchHistoryNewer(
   throw new Error("Unable to find a bounded newer history page");
 }
 
-// conversations.replies caps a single page at 200 replies. Threads longer
-// than that need their later pages walked down via `cursor` — otherwise a
-// reply past the first page (e.g. a Later/Activity jump into a busy thread)
-// never loads and its highlight target silently fails to resolve. `untilTs`
-// stops the walk as soon as that target shows up rather than always pulling
-// the whole thread, since ThreadPanel renders replies unvirtualized.
 export async function fetchReplies(
   channelId: string,
   threadTs: string,
@@ -178,16 +160,15 @@ export async function fetchReplies(
   }
 }
 
-// Fetches the single message a pasted permalink points at, for hover previews.
-// Thread replies aren't visible to conversations.history, so those are looked
-// up via conversations.replies on the thread root instead.
 export async function fetchPermalinkMessage(
   channelId: string,
   messageTs: string,
   threadTs: string,
 ): Promise<Message | undefined> {
   if (threadTs !== messageTs) {
-    const replies = await fetchReplies(channelId, threadTs, { untilTs: messageTs });
+    const replies = await fetchReplies(channelId, threadTs, {
+      untilTs: messageTs,
+    });
     return replies.find((m) => m.ts === messageTs);
   }
   const query = new URLSearchParams({
@@ -213,9 +194,7 @@ export async function postMessage(
   const body: Record<string, unknown> = { text };
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
-  // Slack's own link unfurl is all-or-nothing for the whole message — there's
-  // no documented way to suppress just one link — so dismissing any preview
-  // in the composer turns it off for the message as a whole.
+
   if (suppressUnfurl) body.suppressUnfurl = true;
   const data = await apiPost(`/api/channels/${channelId}/messages`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
@@ -299,13 +278,6 @@ export async function togglePin(channelId: string, ts: string, remove: boolean) 
   return data;
 }
 
-// `chat.getPermalink` is blocked with `enterprise_is_restricted` on Enterprise
-// Grid workspaces like this one, so the permalink is built locally instead —
-// it's a plain, documented URL shape (workspace domain + channel + ts with
-// its "." removed and a "p" prefix), no API call needed. `threadTs` (when the
-// target is a reply within a thread) adds the same `thread_ts` query param
-// Slack's own permalinks use, so opening the link deep-links into the thread
-// instead of just the parent channel.
 export async function getPermalink(
   channelId: string,
   ts: string,
@@ -327,10 +299,6 @@ export async function addReminder(text: string, time: string) {
   return data;
 }
 
-// Reminders tied to a specific message use the channelId/ts/dateDue shape
-// (matches Slack's own message-reminder menu) rather than the free-text
-// text/time form `/remind` uses — this links the reminder to the message
-// itself instead of just embedding a permalink in reminder text.
 export async function addMessageReminder(channelId: string, ts: string, dateDue: number) {
   const data = await apiPost("/api/reminders", { channelId, dateDue, ts });
   if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
@@ -358,10 +326,6 @@ export async function searchMessages(
   return data.results ?? [];
 }
 
-// Slack's own query-completion suggestions (e.g. finishing a partial word,
-// or a modifier like "from:") — distinct from searchHistory's locally-
-// remembered past queries, which this is shown alongside rather than in
-// place of.
 export async function fetchSearchAutocomplete(query: string): Promise<string[]> {
   if (!query.trim()) return [];
   const data = await apiGet(`/api/search/autocomplete?query=${encodeURIComponent(query)}`);

@@ -56,8 +56,8 @@ export default function MessageSearchResults(props: {
         >
           <Show
             fallback={
-              <div class="message-search-error empty-state" role="alert">
-                <span>Couldn’t search messages.</span>
+              <div class="message-search-error empty-state">
+                <span>Couldn't search messages.</span>
                 <Button onClick={props.onRetry} size="sm">
                   Try again
                 </Button>

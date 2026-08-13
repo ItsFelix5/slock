@@ -1,19 +1,51 @@
 import type { BlockActionContext } from "@slock/blockkit";
-import { BlockKit, decodeTextEntities, EmojiText, Mrkdwn } from "@slock/blockkit";
+import {
+  BlockKit,
+  decodeTextEntities,
+  EmojiText,
+  LegacyAttachmentActions,
+  Mrkdwn,
+} from "@slock/blockkit";
 import type { Attachment } from "@slock/slack-api";
-import { ConstrainedImage, Icon, VideoPlayer } from "@slock/ui";
+import { ConstrainedImage, Icon, MediaFrame, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { conversationDisplayName, store } from "../../../../lib/store";
 import { MessageAuthorButton } from "../../MessageAuthorButtons";
+import "./AttachmentCard.css";
 import MessageFiles from "./MessageFiles";
 import { constrainMediaDimensions } from "./mediaDimensions";
-import "./AttachmentCard.css";
+
+const URL_SUFFIX_PATTERN = /[?#]/;
+
+function isGifAttachment(attachment: Attachment) {
+  if (!attachment.imageUrl || attachment.videoUrl) return false;
+  return attachment.imageUrl.split(URL_SUFFIX_PATTERN)[0].toLowerCase().endsWith(".gif");
+}
+
+function AttachmentImage(props: { attachment: Attachment; large?: boolean }) {
+  const a = props.attachment;
+  const dimensions = () =>
+    props.large
+      ? constrainMediaDimensions(a.imageWidth, a.imageHeight, 360, 320, 360, 180, true)
+      : constrainMediaDimensions(a.imageWidth, a.imageHeight, 240, 200, 240, 160, true);
+  return (
+    <Show when={a.imageUrl}>
+      {(url) => (
+        <ConstrainedImage
+          alt=""
+          class={`attachment-image${props.large ? " attachment-gif-image" : ""}`}
+          height={dimensions().height}
+          src={url()}
+          width={dimensions().width}
+        />
+      )}
+    </Show>
+  );
+}
 
 function AttachmentContent(props: { attachment: Attachment; context?: BlockActionContext }) {
   const a = props.attachment;
-  const bodyText = () => a.text || a.fallback;
-  const imageDimensions = () =>
-    constrainMediaDimensions(a.imageWidth, a.imageHeight, 240, 200, 240, 160, true);
+  const bodyText = () => a.text || (a.actions?.length ? undefined : a.fallback);
   return (
     <>
       <Show when={a.title}>
@@ -84,15 +116,7 @@ function AttachmentContent(props: { attachment: Attachment; context?: BlockActio
         )}
       </Show>
       <Show when={!a.videoUrl && a.imageUrl}>
-        {(url) => (
-          <ConstrainedImage
-            alt=""
-            class="attachment-image"
-            height={imageDimensions().height}
-            src={url()}
-            width={imageDimensions().width}
-          />
-        )}
+        <AttachmentImage attachment={a} />
       </Show>
       <Show when={a.files?.length ? a.files : undefined}>
         {(files) => <MessageFiles files={files()} />}
@@ -203,19 +227,18 @@ export default function AttachmentCard(props: {
   attachment: Attachment;
   showPermalink?: boolean;
   context?: BlockActionContext;
+  isEphemeral?: boolean;
 }) {
   const a = props.attachment;
   return (
     <>
-      <Show when={a.pretext}>
+      <Show when={isGifAttachment(a) ? undefined : a.pretext}>
         {(pretext) => (
           <div class="attachment-pretext">
             <Mrkdwn text={pretext()} />
           </div>
         )}
       </Show>
-      {/* Skip when channelId is set: MessageUnfurl's footer already renders this same
-          fromUrl as a "View message" link, so the raw URL here would just duplicate it. */}
       <Show when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}>
         {(url) => (
           <a
@@ -230,36 +253,56 @@ export default function AttachmentCard(props: {
       </Show>
       <Show
         fallback={
-          <div
-            class="attachment-card"
-            style={{
-              "border-left-color": a.color
-                ? `#${a.color.replace("#", "")}`
-                : "var(--border-strong)",
-            }}
+          <Show
+            fallback={
+              <div
+                class="attachment-card"
+                style={{
+                  "border-left-color": a.color
+                    ? `#${a.color.replace("#", "")}`
+                    : "var(--border-strong)",
+                }}
+              >
+                <Show when={a.authorName}>
+                  <div class="attachment-author flex-align-center">
+                    <Show when={a.authorIcon}>
+                      {(icon) => (
+                        <img alt="" class="attachment-author-icon" loading="lazy" src={icon()} />
+                      )}
+                    </Show>
+                    <Mrkdwn text={a.authorName ?? ""} />
+                  </div>
+                </Show>
+                <AttachmentContent attachment={a} context={props.context} />
+                <Show when={a.actions?.length ? a.actions : undefined}>
+                  {(actions) => (
+                    <LegacyAttachmentActions
+                      actions={actions()}
+                      attachmentId={a.id}
+                      callbackId={a.callbackId}
+                      context={props.context}
+                      isEphemeral={props.isEphemeral ?? false}
+                    />
+                  )}
+                </Show>
+                <Show when={a.footer}>
+                  <div class="attachment-footer flex-align-center text-dim text-xs">
+                    <Show when={a.footerIcon}>
+                      {(icon) => (
+                        <img alt="" class="attachment-footer-icon" loading="lazy" src={icon()} />
+                      )}
+                    </Show>
+                    <Mrkdwn text={a.footer ?? ""} />
+                  </div>
+                </Show>
+              </div>
+            }
+            when={isGifAttachment(a)}
           >
-            <Show when={a.authorName}>
-              <div class="attachment-author flex-align-center">
-                <Show when={a.authorIcon}>
-                  {(icon) => (
-                    <img alt="" class="attachment-author-icon" loading="lazy" src={icon()} />
-                  )}
-                </Show>
-                <Mrkdwn text={a.authorName ?? ""} />
-              </div>
-            </Show>
-            <AttachmentContent attachment={a} context={props.context} />
-            <Show when={a.footer}>
-              <div class="attachment-footer flex-align-center text-dim text-xs">
-                <Show when={a.footerIcon}>
-                  {(icon) => (
-                    <img alt="" class="attachment-footer-icon" loading="lazy" src={icon()} />
-                  )}
-                </Show>
-                <Mrkdwn text={a.footer ?? ""} />
-              </div>
-            </Show>
-          </div>
+            <MediaFrame title="GIF">
+              <AttachmentImage attachment={a} large />
+            </MediaFrame>
+          </Show>
         }
         when={a.isMessageUnfurl}
       >

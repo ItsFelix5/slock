@@ -1,5 +1,5 @@
 .composer-input {
-  min-height: 30px;
+  min-height: var(--composer-action-size);
   max-height: 200px;
   overflow-y: auto;
   line-height: 1.35;
@@ -13,6 +13,20 @@
   color: var(--text-dim);
   pointer-events: none;
   content: attr(data-placeholder);
+}
+.composer-textarea {
+  display: block;
+  width: 100%;
+  padding: 5px 0;
+  resize: none;
+  field-sizing: content;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+.composer-textarea::placeholder {
+  color: var(--text-dim);
+  opacity: 1;
 }
 .composer-input strong {
   font-weight: 700;
@@ -172,4 +186,61 @@ h6.composer-header {
   margin: 10px 0;
   background: var(--border);
   border: none;
+}
+
+.composer-file-chip-details {
+  display: flex;
+  min-width: 0;
+}
+.composer-file-chip-image {
+  position: relative;
+  display: grid;
+  grid-template-rows: 92px auto;
+  width: 140px;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.composer-file-chip-image .composer-file-chip-thumb {
+  width: 100%;
+  height: 92px;
+  margin: 0;
+  border-radius: 0;
+}
+.composer-file-chip-image .composer-file-chip-details {
+  padding: var(--space-sm);
+}
+.composer-file-chip-image .composer-file-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-file-chip-image .composer-file-chip-remove {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  display: flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-avatar);
+  background: color-mix(in oklch, var(--composer-bg) 72%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    background 120ms ease;
+}
+.composer-file-chip-image:hover .composer-file-chip-remove,
+.composer-file-chip-image:focus-within .composer-file-chip-remove {
+  opacity: 1;
+}
+.composer-file-chip-image .composer-file-chip-remove:hover {
+  color: var(--text-on-avatar);
+  background: color-mix(in oklch, var(--composer-bg) 88%, transparent);
 }

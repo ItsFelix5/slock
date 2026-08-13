@@ -2,30 +2,23 @@ import { Mrkdwn } from "@slock/blockkit";
 import type { Attachment, Message } from "@slock/slack-api";
 import { Avatar, DEFAULT_AVATAR_COLOR, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
+import { parseSlackPermalink } from "../../../lib/navigation/slackPermalink";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
+import MessageLinkHoverCard from "./MessageLinkHoverCard";
 import "./ReplyReferenceRow.css";
-
-const MAX_SNIPPET_CHARS = 50;
-
-function truncateSnippet(text: string): string {
-  return text.length > MAX_SNIPPET_CHARS ? `${text.slice(0, MAX_SNIPPET_CHARS)}…` : text;
-}
 
 export default function ReplyReferenceRow(props: {
   attachment?: Attachment;
   message?: Message;
-  onJump: () => void;
+  onJump?: () => void;
+  permalink?: string;
   icon?: IconName;
 }) {
   const snippet = (msg: Message) => parseReplyLink(msg.text)?.rest ?? msg.text;
-
-  return (
-    <button
-      class="reply-reference-row btn-reset flex-align-center"
-      onClick={props.onJump}
-      type="button"
-    >
+  const permalinkTarget = () => (props.permalink ? parseSlackPermalink(props.permalink) : null);
+  const contents = (
+    <>
       <Icon name={props.icon ?? "email-reply"} size={13} />
       <Show
         fallback={
@@ -44,11 +37,7 @@ export default function ReplyReferenceRow(props: {
                   {(name) => <span class="reply-reference-name">{name()}</span>}
                 </Show>
                 <span class="reply-reference-snippet">
-                  <Mrkdwn
-                    text={truncateSnippet(
-                      attachment().text ?? attachment().title ?? "Original message",
-                    )}
-                  />
+                  <Mrkdwn text={attachment().text ?? attachment().title ?? "Original message"} />
                 </span>
               </>
             )}
@@ -72,11 +61,38 @@ export default function ReplyReferenceRow(props: {
               {msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown"}
             </span>
             <span class="reply-reference-snippet">
-              <Mrkdwn text={truncateSnippet(snippet(msg()))} />
+              <Mrkdwn text={snippet(msg())} />
             </span>
           </>
         )}
       </Show>
-    </button>
+    </>
+  );
+
+  return (
+    <Show
+      fallback={
+        <button
+          class="reply-reference-row btn-reset flex-align-center"
+          onClick={props.onJump}
+          type="button"
+        >
+          {contents}
+        </button>
+      }
+      when={permalinkTarget()}
+    >
+      {(target) => (
+        <MessageLinkHoverCard
+          channelId={target().channelId}
+          messageTs={target().messageTs}
+          threadTs={target().threadTs}
+        >
+          <a class="reply-reference-row btn-reset flex-align-center" href={props.permalink}>
+            {contents}
+          </a>
+        </MessageLinkHoverCard>
+      )}
+    </Show>
   );
 }

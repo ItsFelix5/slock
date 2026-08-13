@@ -23,11 +23,6 @@ export function useContextMenu() {
   };
 }
 
-// The standard cross-platform keyboard equivalent for a right-click: the
-// Menu key (rare on modern keyboards) and Shift+F10 (the one every OS still
-// honors). Anchors the menu under the row that has focus rather than a
-// cursor position, so it works the moment a row is focused — no Tab-hunting
-// for a hidden trigger button required.
 export function openContextMenuFromKeyboard(
   e: KeyboardEvent & { currentTarget: HTMLElement },
   openAt: (p: ContextMenuPoint) => void,

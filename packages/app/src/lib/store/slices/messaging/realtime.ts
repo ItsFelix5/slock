@@ -51,6 +51,20 @@ export function createRealtimeSlice(deps: {
     itemUserId?: string,
   ) => void;
 }) {
+  const latestReplyByThread = new Map<string, string>();
+  const seenReplyKeys = new Set<string>();
+
+  function hasSeenReply(channel: string, ts: string) {
+    const key = `${channel}:${ts}`;
+    if (seenReplyKeys.has(key)) return true;
+    seenReplyKeys.add(key);
+    if (seenReplyKeys.size > 5000) {
+      const oldest = seenReplyKeys.values().next().value;
+      if (oldest) seenReplyKeys.delete(oldest);
+    }
+    return false;
+  }
+
   function send(payload: unknown) {
     return connection.send(payload);
   }
@@ -78,7 +92,12 @@ export function createRealtimeSlice(deps: {
       const updated = payload.message;
       if (!updated?.ts) return;
       const { lastReplyLabel, replyCount, replyUsers } = mapMessage(updated);
-      deps.patchMessage(channel, updated.ts, { lastReplyLabel, replyCount, replyUsers });
+      if (updated.latest_reply) latestReplyByThread.set(updated.ts, updated.latest_reply);
+      deps.patchMessage(channel, updated.ts, {
+        lastReplyLabel,
+        replyCount,
+        replyUsers,
+      });
       return;
     }
     if (subtype === "message_deleted") {
@@ -101,6 +120,13 @@ export function createRealtimeSlice(deps: {
     const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
     deps.clearTyping(channel, isThreadReply ? payload.thread_ts : undefined, msg.userId);
     if (isThreadReply) {
+      const existingReplies = deps.threadMessages[payload.thread_ts] ?? [];
+      const alreadyMerged =
+        hasSeenReply(channel, msg.ts) ||
+        existingReplies.some(
+          (reply) =>
+            (reply.ts === msg.ts || reply.id === msg.id) && !reply.id.startsWith("pending-"),
+        );
       if (deps.loadedThreads.has(payload.thread_ts)) {
         deps.setThreadMessages(payload.thread_ts, (existing: Message[] = []) =>
           deps.mergeIncomingMessage(existing, msg),
@@ -108,7 +134,10 @@ export function createRealtimeSlice(deps: {
       }
       const parentLocations = deps.findAllMessageLocations(channel, payload.thread_ts);
       const parentMsg = parentLocations[0]?.list.find((m) => m.ts === payload.thread_ts);
-      if (parentMsg) {
+      const latestReplyTs = latestReplyByThread.get(payload.thread_ts);
+      const countAlreadyConfirmed =
+        latestReplyTs && parseFloat(latestReplyTs) >= parseFloat(msg.ts);
+      if (parentMsg && !alreadyMerged && !countAlreadyConfirmed) {
         deps.patchMessage(channel, payload.thread_ts, {
           replyCount: (parentMsg.replyCount ?? 0) + 1,
         });
@@ -123,8 +152,7 @@ export function createRealtimeSlice(deps: {
         deps.mergeIncomingMessage(existing, msg),
       );
     }
-    // Slack echoes messages sent by this account from its other clients. They
-    // are already read by definition and must not create a local unread dot.
+
     if (
       me &&
       msg.userId !== me.id &&
@@ -179,8 +207,7 @@ export function createRealtimeSlice(deps: {
       case "reaction_added":
       case "reaction_removed":
         if (!(payload.item?.channel && payload.item?.ts)) break;
-        // Our own reactToMessage already applies the optimistic update;
-        // re-applying it here on the gateway echo would double-count it.
+
         if (payload.user !== deps.currentUser()?.id) {
           deps.applyReactionEvent(
             payload.item.channel,
@@ -206,21 +233,16 @@ export function createRealtimeSlice(deps: {
       }
       case "badge_counts_updated": {
         for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
-          if (!unread) deps.setUnreadChannelIds(id, false);
+          deps.setUnreadChannelIds(id, unread);
           if (id.startsWith("D")) deps.patchDm(id, { mentions });
           else deps.patchChannel(id, { mentions });
         }
         const activityCountsChanged = deps.setGatewayActivityBadgeCounts(payload.activity_v2);
-        // The gateway only pushes aggregate counts, never the entries
-        // themselves. Identical snapshots are common, so only a real count
-        // change should schedule a coalesced activity.feed refresh.
+
         if (activityCountsChanged) deps.refreshActivityFeed();
         break;
       }
       case "channel_marked": {
-        // Sent when Slack advances this account's read cursor, including from
-        // another client. The event's zero counts are authoritative, even if
-        // we did not receive the corresponding conversations.mark response.
         if (!payload.channel) break;
         deps.setUnreadChannelIds(payload.channel, false);
         deps.patchChannel(payload.channel, { mentions: 0 });
@@ -245,7 +267,11 @@ export function createRealtimeSlice(deps: {
     onOpen: () => {
       for (const channel of deps.loadedChannels) send({ channel, type: "watch_channel" });
       for (const thread of deps.visibleThreads())
-        send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
+        send({
+          channel: thread.channelId,
+          ts: thread.ts,
+          type: "watch_thread",
+        });
     },
     url: wsUrl,
   });

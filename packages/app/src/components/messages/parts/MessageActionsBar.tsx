@@ -4,10 +4,6 @@ import { createMemo, createSignal, lazy, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
-// This toolbar renders unconditionally on every message row, so an eager
-// import here would bundle the emoji picker (and its grid/search/skin-tone
-// UI) into the main chunk for every session — deferred until the picker
-// itself is actually opened, which is already gated by pickerOpen() below.
 const FloatingEmojiPicker = lazy(() => import("./FloatingEmojiPicker"));
 
 export default function MessageActionsBar(props: {
@@ -17,16 +13,12 @@ export default function MessageActionsBar(props: {
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
-  // Only the currently roving-focused row's buttons stay in Tab order — with
-  // every message row contributing this toolbar, leaving them all tabbable
-  // would turn Tab through the list into 4-5 stops per message. They're
-  // still fully reachable: the row's own r/a/s/p/./etc. shortcuts, and once
-  // the row is focused these buttons rejoin Tab order to reach for a mouse.
+
   rowFocused: () => boolean;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
-  // biome-ignore lint/suspicious/noUnassignedVariables: Solid assigns this variable through the JSX ref attribute.
+
   let pickerWrapRef: HTMLDivElement | undefined;
 
   const togglePicker = () => {
@@ -34,15 +26,10 @@ export default function MessageActionsBar(props: {
   };
 
   const toggleMore = () => {
-    // client.appCommands can be several megabytes. Fetch it only after the
-    // user asks for this overflow menu, not while the page is loading.
     store.resources.loadMessageShortcuts();
     setMoreOpen(!moreOpen());
   };
 
-  // A broadcasted reply's own ts is just where it landed in the channel —
-  // its actual thread lives at threadTs, so "reply in thread" must jump
-  // there instead of opening a new thread rooted on the broadcast itself.
   const threadRootTs = createMemo(() =>
     props.msg.isBroadcast && props.msg.threadTs ? props.msg.threadTs : props.msg.ts,
   );

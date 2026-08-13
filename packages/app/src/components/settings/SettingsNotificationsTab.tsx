@@ -19,8 +19,8 @@ export default function SettingsNotificationsTab() {
       <h2>Notifications</h2>
 
       <Show when={store.resources.userPrefs.error}>
-        <div class="settings-preferences-error flex-between" role="alert">
-          <span>Couldn’t load your saved preferences. Changes are disabled to protect them.</span>
+        <div class="settings-preferences-error flex-between">
+          <span>Couldn't load your saved preferences. Changes are disabled to protect them.</span>
           <Button
             disabled={store.resources.userPrefs.loading}
             onClick={() => void store.resources.retryUserPrefs()}

@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads retain their wire field names.
-
 import type { Credentials } from "../auth.ts";
 import { jsonResponse } from "../http/jsonResponse.ts";
 import { callSlack } from "../slackClient.ts";
@@ -115,9 +113,6 @@ function trimSections(data: any): Record<string, any> {
   );
 }
 
-// These calls seed account-wide state used throughout the mounted shell. They are
-// one app-level bootstrap operation; view-specific data such as sections, history,
-// pins and drafts deliberately stays out and is loaded only by its owning view.
 export async function bootstrapResponse(
   creds: Credentials | null,
   acceptEncoding: string | null,

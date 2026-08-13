@@ -9,14 +9,11 @@ export type MessageRowsProps = {
   onOpenThread?: (ts: string) => void;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
-  // Roving-tabindex focus: the ts of the one row that should be keyboard
-  // reachable right now (see messageFocus.ts).
+
   focusedTs?: () => string | null;
-  // Real DOM focus within the list — separate from focusedTs, which also
-  // holds a value before anyone has actually tabbed or clicked in.
+
   listFocused?: () => boolean;
-  // Which message (if any) is in inline edit mode — lifted out of MessageRow
-  // so the 'e' keyboard shortcut (messageFocus.ts) can trigger it remotely.
+
   editingTs?: () => string | null;
   onStartEdit?: (ts: string) => void;
   onStopEdit?: () => void;

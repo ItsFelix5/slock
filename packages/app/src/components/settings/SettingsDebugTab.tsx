@@ -1,4 +1,4 @@
-import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon, Tooltip } from "@slock/ui";
+import { createCopyFeedback, fuzzySearch, Icon, ICON_NAMES, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import "./Settings.css";
 import "./SettingsDebugTab.css";
@@ -23,9 +23,7 @@ export default function SettingsDebugTab() {
       <div class="settings-section">
         <div class="settings-row-label">Icon browser</div>
         <Show when={copyError()}>
-          <div class="settings-account-error" role="alert">
-            Couldn’t copy to the clipboard.
-          </div>
+          <div class="settings-account-error">Couldn't copy to the clipboard.</div>
         </Show>
         <input
           class="settings-status-input debug-icon-search"

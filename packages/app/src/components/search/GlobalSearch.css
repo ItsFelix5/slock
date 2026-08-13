@@ -78,6 +78,15 @@
   font-weight: 700;
 }
 
+.global-search-file-name {
+  min-width: 0;
+}
+
+.global-search-file-meta {
+  margin-left: auto;
+  font-size: 12px;
+}
+
 .global-search-jump-icon {
   flex-shrink: 0;
   width: 18px;

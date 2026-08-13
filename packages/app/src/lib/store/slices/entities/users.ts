@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive user entity slice with shared profile/presence state.
 import type { User, UserCustomField } from "@slock/slack-api";
 import {
   setPresence as apiSetPresence,
@@ -7,8 +6,8 @@ import {
   uploadProfilePhoto as apiUploadProfilePhoto,
   fetchAppDescription,
   fetchUser,
-  fetchUserCustomFields,
   fetchUserPresence,
+  fetchUserProfile,
   searchDirectory,
 } from "@slock/slack-api";
 import { createSignal } from "solid-js";
@@ -19,7 +18,7 @@ import { actionFeedback } from "../feedback";
 type UsersApi = {
   fetchAppDescription: typeof fetchAppDescription;
   fetchUser: typeof fetchUser;
-  fetchUserCustomFields: typeof fetchUserCustomFields;
+  fetchUserProfile: typeof fetchUserProfile;
   fetchUserPresence: typeof fetchUserPresence;
   searchDirectory: typeof searchDirectory;
   setPresence: typeof apiSetPresence;
@@ -31,7 +30,7 @@ type UsersApi = {
 const DEFAULT_USERS_API: UsersApi = {
   fetchAppDescription,
   fetchUser,
-  fetchUserCustomFields,
+  fetchUserProfile,
   fetchUserPresence,
   searchDirectory,
   setPresence: apiSetPresence,
@@ -41,38 +40,34 @@ const DEFAULT_USERS_API: UsersApi = {
 };
 
 export function createUsersSlice(
-  deps: { currentUserBase: () => User | undefined; isSelfOnline: () => boolean },
+  deps: {
+    currentUserBase: () => User | undefined;
+    isSelfOnline: () => boolean;
+  },
   api: UsersApi = DEFAULT_USERS_API,
 ) {
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
   const pendingUsers = new Set<string>();
-  // Ids fetchUser came back empty/thrown for (e.g. a bot_id bots.info can't
-  // resolve — deleted app, no access). Without this, every re-render of a
-  // message row from that author would retry the same doomed fetch forever.
+
   const unresolvableUsers = new Set<string>();
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
     {},
   );
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
   const [profileUserId, setProfileUserId] = createSignal<string | null>(null);
-  // Keyed by app id (not user id) — every bot user of the same app shares one
-  // description, so this dedupes the apps.profile.get fetch across them.
+
   const [botBios, setBotBios] = createStore<Record<string, string>>({});
   const pendingBotBios = new Set<string>();
 
-  // Custom profile field *values* aren't in the batched users/info lookup for anyone, self
-  // included — only users.profile.get has them, fetched lazily per id here rather than
-  // merged into the hot userById/currentUser paths that every avatar/mention hydration uses.
   const [customFieldsById, setCustomFieldsById] = createStore<
     Record<string, UserCustomField[] | undefined>
+  >({});
+  const [profileStartDatesById, setProfileStartDatesById] = createStore<
+    Record<string, string | undefined>
   >({});
   const loadedCustomFields = new Set<string>();
   const pendingCustomFields = new Set<string>();
 
-  // Every user ever resolved this session — via userById's lazy fetchUser,
-  // searchUsers' remote matches, or an invalidateUser refresh. There's no bootstrap
-  // user list to seed this from (a fixed-size slice of the org is never complete),
-  // so it starts empty and fills in as the UI asks about people.
   function knownUsers(): User[] {
     return Object.values(extraUsers);
   }
@@ -82,11 +77,8 @@ export function createUsersSlice(
   }
 
   function userById(id: string): User | undefined {
-    // "" is mappers.ts's sentinel for a message with neither a user nor a
-    // bot_id (plain system messages) — not a ghost id worth round-tripping
-    // through fetchUser.
     if (!id) return;
-    // Self goes through currentUser() — the generic lookup below never carries a real presence value.
+
     if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
     if (!known) {
@@ -112,10 +104,6 @@ export function createUsersSlice(
     return { ...known, presence };
   }
 
-  // The gateway sends this when a user's profile changes elsewhere (name, avatar,
-  // status, etc.) — our cached extraUsers entry is now stale. Just drop it rather
-  // than eagerly re-fetching; userById already lazily re-fetches on demand next
-  // time it's actually needed, same as any other never-seen id.
   function invalidateUser(id: string) {
     setExtraUsers(
       produce((s) => {
@@ -126,11 +114,6 @@ export function createUsersSlice(
     unresolvableUsers.delete(id);
   }
 
-  // Org-wide people search for DM compose / @mention / global search. On a large
-  // workspace (Hack Club's is ~100k members) there's no local slice worth trusting
-  // as complete, so this merges instantly-available local matches (anyone already
-  // resolved via userById/a prior search) with a live search.modules.people query
-  // (see searchDirectory).
   async function searchUsers(query: string, excludeId?: string): Promise<User[]> {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -154,8 +137,7 @@ export function createUsersSlice(
   function currentUser(): User | undefined {
     const base = deps.currentUserBase();
     if (!base) return base;
-    // Manually setting yourself away always wins; otherwise presence follows
-    // the realtime connection, same as real Slack's own online check.
+
     const presence = presenceOverrides[base.id] ?? (deps.isSelfOnline() ? "active" : "away");
     const status = selfStatusOverride();
     return { ...base, presence, ...(status ?? {}) };
@@ -177,23 +159,18 @@ export function createUsersSlice(
     return known;
   }
 
-  // undefined = not fetched yet, [] = fetched and genuinely empty. Callers
-  // that fill a signal from this (see UserProfile.tsx) must tell the two
-  // apart — a premature undefined-as-[] fill would look "already handled"
-  // to the missing-values merge and permanently block the real values.
   function customFieldsFor(id: string): UserCustomField[] | undefined {
-    // Read the store key unconditionally (even though it's undefined pre-fetch)
-    // so callers reactively track it, same as botBio's `known` read above.
     const known = customFieldsById[id];
     if (loadedCustomFields.has(id) || pendingCustomFields.has(id)) return known;
     pendingCustomFields.add(id);
-    // The server route treats "me" as "ask Slack for the authed user's own
-    // profile" — passing your own real id instead resolves field visibility
-    // as if a stranger were viewing it, so self needs the sentinel.
+
     const routeId = id === deps.currentUserBase()?.id ? "me" : id;
     api
-      .fetchUserCustomFields(routeId)
-      .then((fields) => setCustomFieldsById(id, fields ?? []))
+      .fetchUserProfile(routeId)
+      .then((profile) => {
+        setCustomFieldsById(id, profile.customFields ?? []);
+        setProfileStartDatesById(id, profile.startDate);
+      })
       .catch(() => {})
       .finally(() => {
         pendingCustomFields.delete(id);
@@ -202,9 +179,14 @@ export function createUsersSlice(
     return known;
   }
 
+  function profileStartDateFor(id: string): string | undefined {
+    customFieldsFor(id);
+    return profileStartDatesById[id];
+  }
+
   function openUserProfile(id: string) {
     setProfileUserId(id);
-    // presence_change only ever arrives for people already in your DM/sidebar list
+
     if (id === deps.currentUserBase()?.id) return;
     api
       .fetchUserPresence(id)
@@ -252,9 +234,6 @@ export function createUsersSlice(
     }
   }
 
-  // Profile fields share users.profile.set, so serialize edits. Two quick
-  // blurs otherwise race at the network boundary and an older response can
-  // leave both Slack and the panel showing the wrong final value.
   const runProfileMutation = createSerialMutationQueue();
   function updateMyProfile(fields: {
     displayName?: string;
@@ -300,8 +279,6 @@ export function createUsersSlice(
       await api.setPresence(presence);
       const selfId = deps.currentUserBase()?.id;
       if (selfId) {
-        // "auto" hands control back to isSelfOnline rather than forcing active,
-        // so it actually goes stale-away again if the connection later drops.
         if (presence === "away") setPresenceOverrides(selfId, "away");
         else
           setPresenceOverrides(
@@ -328,6 +305,7 @@ export function createUsersSlice(
     invalidateUser,
     knownUsers,
     openUserProfile,
+    profileStartDateFor,
     profileUserId,
     searchUsers,
     setPresenceOverrides,

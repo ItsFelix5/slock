@@ -1,4 +1,4 @@
-import { emojiUrl, loadCustomEmoji } from "@slock/blockkit";
+import { loadCustomEmoji } from "@slock/blockkit";
 import type { User } from "@slock/slack-api";
 import { fetchBrowsableChannels } from "@slock/slack-api";
 import { fuzzySearch, listNavigationIndex } from "@slock/ui";
@@ -9,13 +9,6 @@ import {
   loadSlashCommandSuggestions,
   slashCommandsGlobal,
 } from "./commands/slashCommandSuggestions";
-import {
-  createChannelChip,
-  createEmojiChip,
-  createMentionChip,
-  createUserLinkChip,
-  placeCaretInText,
-} from "./richtext";
 import type {
   ChannelSuggestItem,
   CommandSuggestItem,
@@ -28,14 +21,22 @@ import { detectMentionTrigger } from "./textDetection";
 type SuggestionOptions = {
   suggest: () => SuggestState | null;
   setSuggest: Setter<SuggestState | null>;
-  currentTextContext: () => { node: Text; offset: number } | null;
-  syncFromDom: () => void;
+  applyTextSuggestion: (item: SuggestState["items"][number], state: SuggestState) => void;
   includeCommands?: boolean;
-  // Channel the message is being composed for, used to flag @mentions and
-  // #channel mentions of people/channels not in it. Omitted for mrkdwn
-  // fields that aren't tied to a channel (topic, purpose, etc).
+
   channelId?: () => string | undefined;
 };
+
+export function suggestionText(
+  item: SuggestState["items"][number],
+  kind: SuggestState["kind"],
+): string {
+  if (item.kind === "command") return `/${item.name} `;
+  if (item.kind === "emoji") return `:${item.name}: `;
+  if (kind === "userlink") return `@${item.name} `;
+  if (item.kind === "user") return `<@${item.id}> `;
+  return `<#${item.id}|${item.name}> `;
+}
 
 type ChannelCandidate = { id: string; name: string; private: boolean };
 
@@ -45,8 +46,16 @@ function createStaticSuggestion(
   query: string,
 ): SuggestState | null {
   if (kind === "command") {
-    const items = fuzzySearch(slashCommandsGlobal(), { query, text: (c) => c.name }).map(
-      (c): CommandSuggestItem => ({ desc: c.desc, icon: c.icon, kind: "command", name: c.name }),
+    const items = fuzzySearch(slashCommandsGlobal(), {
+      query,
+      text: (c) => c.name,
+    }).map(
+      (c): CommandSuggestItem => ({
+        desc: c.desc,
+        icon: c.icon,
+        kind: "command",
+        name: c.name,
+      }),
     );
     return items.length > 0 ? { active: 0, items, kind, start } : null;
   }
@@ -96,7 +105,10 @@ function updateUserSuggestions(
         prev?.kind === trigger.kind
           ? {
               ...prev,
-              items: prev.items.map((item) => ({ ...item, notInChannel: !resolved.has(item.id) })),
+              items: prev.items.map((item) => ({
+                ...item,
+                notInChannel: !resolved.has(item.id),
+              })),
             }
           : prev,
       );
@@ -138,7 +150,12 @@ function updateChannelSuggestions(
         private: c.private,
       }));
   const localChannels = store.channels.channels();
-  opts.setSuggest({ active: 0, items: toItems(localChannels), kind: "channel", start });
+  opts.setSuggest({
+    active: 0,
+    items: toItems(localChannels),
+    kind: "channel",
+    start,
+  });
   if (!query) return;
   fetchBrowsableChannels(query)
     .then((found) => {
@@ -152,43 +169,6 @@ function updateChannelSuggestions(
     .catch(() => {});
 }
 
-function insertSuggestionItem(
-  item: SuggestState["items"][number],
-  kind: SuggestState["kind"],
-  parent: Node,
-  after: Node,
-) {
-  if (item.kind === "command") {
-    const insertion = document.createTextNode(`/${item.name} `);
-    parent.insertBefore(insertion, after);
-    placeCaretInText(insertion, insertion.length);
-    return;
-  }
-  if (item.kind === "emoji") {
-    const chip = emojiUrl(item.name) ? createEmojiChip(item.name) : null;
-    if (chip) parent.insertBefore(chip, after);
-    const insertion = chip
-      ? document.createTextNode(" ")
-      : document.createTextNode(`${item.unicode ?? `:${item.name}:`} `);
-    parent.insertBefore(insertion, after);
-    placeCaretInText(insertion, insertion.length);
-    return;
-  }
-  const chip =
-    kind === "userlink"
-      ? createUserLinkChip(item.id, item.name)
-      : item.kind === "user"
-        ? createMentionChip(item.id, item.name)
-        : createChannelChip(item.id, item.name);
-  parent.insertBefore(chip, after);
-  const space = document.createTextNode(" ");
-  parent.insertBefore(space, after);
-  placeCaretInText(space, 1);
-}
-
-// Drives the @mention / #channel / :emoji: / slash-command popover: matching
-// the in-progress trigger to ranked candidates, keyboard/mouse selection
-// within the list, and splicing the chosen item into the DOM at the caret.
 export function createSuggestionController(opts: SuggestionOptions) {
   let suggestRequestId = 0;
 
@@ -243,21 +223,17 @@ export function createSuggestionController(opts: SuggestionOptions) {
 
   function applySuggestion(index?: number) {
     const s = opts.suggest();
-    const ctx = opts.currentTextContext();
-    if (!(s && ctx)) return;
+    if (!s) return;
     const item = s.items[index ?? s.active];
     if (!item) return;
-    const { node, offset } = ctx;
-    const parent = node.parentNode;
-    if (!parent) return;
-
-    const after = node.splitText(offset);
-    node.deleteData(s.start, node.length - s.start);
-
-    insertSuggestionItem(item, s.kind, parent, after);
+    opts.applyTextSuggestion(item, s);
     opts.setSuggest(null);
-    opts.syncFromDom();
   }
 
-  return { applySuggestion, moveActiveSuggestion, setActiveSuggestion, updateSuggestions };
+  return {
+    applySuggestion,
+    moveActiveSuggestion,
+    setActiveSuggestion,
+    updateSuggestions,
+  };
 }

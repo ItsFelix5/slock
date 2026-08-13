@@ -13,9 +13,6 @@ export interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElem
   tooltip?: boolean;
 }
 
-// Icon-only button matching the app's `.icon-btn`/`.icon-action` look (square,
-// rounded corners) — distinct from Button's `icon` variant, which renders a
-// fully circular button and is used for a different visual language.
 export default function IconButton(props: IconButtonProps) {
   const [local, rest] = splitProps(props, [
     "active",

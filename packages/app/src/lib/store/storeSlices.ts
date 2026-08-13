@@ -1,6 +1,5 @@
 import type { Bootstrap, DirectMessage, UserPrefs } from "@slock/slack-api";
 import { createEffect, type Resource, type Setter } from "solid-js";
-import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
 import { createPinnedSlice } from "./slices/entities/pinned";
@@ -38,17 +37,15 @@ export function createStoreSlices({
     clearChannelMessageTarget: () => viewState.setChannelMessageTarget(null),
   });
   const { visibleViews } = tiling;
-  // TODO(tiling phase 5): threads become tile leaves too — replace with the
-  // tiling slice's own visibleThreads once ThreadPanel is migrated to pane
-  // content. Until then it isn't a tile, so it's still tracked separately.
+
   const visibleThreads = (): ThreadRef[] => {
     const thread = viewState.activeThread();
     return thread ? [thread] : [];
   };
-  // realtime.isSelfOnline doesn't exist until the realtime slice is built
-  // below (which itself needs users.currentUser) — bridge with a stable
-  // wrapper, filled in once realtime is created.
-  const isSelfOnlineImplRef: { current: () => boolean } = { current: () => true };
+
+  const isSelfOnlineImplRef: { current: () => boolean } = {
+    current: () => true,
+  };
   const users = createUsersSlice({
     currentUserBase: () => bootstrap()?.currentUser,
     isSelfOnline: () => isSelfOnlineImplRef.current(),
@@ -57,12 +54,14 @@ export function createStoreSlices({
     selfUsergroupIds: () => bootstrap()?.selfUsergroupIds ?? [],
   });
   const typing = createTypingSlice({ userById: users.userById });
-  const setActiveViewImplRef: { current: (view: View) => void } = { current: () => {} };
+  const setActiveViewImplRef: { current: (view: View) => void } = {
+    current: () => {},
+  };
   const setActiveView = (view: View) => setActiveViewImplRef.current(view);
-  // dms.patchDm doesn't exist yet when the unread slice is built (dms needs
-  // unread.unreadChannelIds, so it must come later) — bridge with a stable
-  // wrapper, filled in once dms is created below.
-  const patchDmImplRef: { current: (id: string, patch: Partial<DirectMessage>) => void } = {
+
+  const patchDmImplRef: {
+    current: (id: string, patch: Partial<DirectMessage>) => void;
+  } = {
     current: () => {},
   };
   const patchDm = (id: string, patch: Partial<DirectMessage>) => patchDmImplRef.current(id, patch);
@@ -79,7 +78,11 @@ export function createStoreSlices({
     channels: channels.channels,
     userPrefs,
   });
-  const unread = createUnreadSlice({ bootstrap, patchChannel: channels.patchChannel, patchDm });
+  const unread = createUnreadSlice({
+    bootstrap,
+    patchChannel: channels.patchChannel,
+    patchDm,
+  });
   const cacheResolvedMessagesRef: {
     current: (messages: Map<string, import("@slock/slack-api").Message>) => void;
   } = { current: () => {} };
@@ -118,15 +121,14 @@ export function createStoreSlices({
   });
   patchDmImplRef.current = dms.patchDm;
   const pinned = createPinnedSlice();
-  const canvas = createCanvasSlice();
   const modals = createModalsSlice();
   const messages = createMessagesSlice({
+    channelMessageTarget: viewState.channelMessageTarget,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     onConversationView: (view) => {
       channels.patchChannel(view.channel.id, view.channel);
       users.cacheUsers(view.users);
-      canvas.cacheChannelCanvases(view.channel.id, view.canvases);
     },
     pushActivity: activity.pushActivity,
     setLastReadByChannel: unread.setLastReadByChannel,
@@ -178,7 +180,6 @@ export function createStoreSlices({
   const commands = createCommandsSlice({ sendMessage: messages.sendMessage });
   return {
     activity,
-    canvas,
     channels,
     channelTabsSlice,
     commands,

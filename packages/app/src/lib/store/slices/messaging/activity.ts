@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/noExcessiveLinesPerFile: One cohesive activity state machine coordinates feed loading, badges, and read state.
 import type { ActivityItem, Channel, FeedEntry, Message, User } from "@slock/slack-api";
 import {
   fetchActivityBadgeCounts,
@@ -19,13 +18,6 @@ import {
 import { createActivityReadSync } from "./activity/activityReadSync";
 import { fetchChannelActivityItems } from "./activity/channelActivity";
 
-// Which activity kinds represent a real, personally-addressed ping (direct
-// @mention, DM, a custom pingword) versus ambient activity that's relevant
-// but not aimed at you (thread replies, @channel/@here/usergroup broadcasts,
-// a channel you've set to notify on every post) versus neither (reactions,
-// app messages). Shared between the sidebar bell's two-tier urgency and the
-// Activity view's own pinging/ambient filter and row styling, so the
-// definition lives in one place.
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
@@ -89,14 +81,7 @@ export function createActivitySlice(
   const [activityLoadingMore, setActivityLoadingMore] = createSignal(false);
   const [activityLoadMoreError, setActivityLoadMoreError] = createSignal(false);
   let activityFeedCursor: string | undefined;
-  // A category filter in the Activity view (e.g. just "Reactions") can pass
-  // its Slack `types` wire value, and/or the real `unread_only` flag Slack's
-  // own client sends for its "Unread" tab, to loadMoreActivity so pagination
-  // only pulls matching pages instead of the whole feed. Each distinct
-  // (types, unreadOnly) combo is its own paginated sequence, so it gets its
-  // own cursor/more state, keyed by a combined scope string — never mixed
-  // with activityFeedCursor/activityHasMore above (the default unfiltered
-  // load used for badges/bell counts).
+
   const scopedActivityFeedCursors = new Map<string, string | undefined>();
   const [scopedActivityHasMore, setScopedActivityHasMore] = createStore<Record<string, boolean>>(
     {},
@@ -130,42 +115,45 @@ export function createActivitySlice(
   function pushActivity(item: ActivityItem) {
     setActivityItems(
       produce((list) => {
+        if (list.some((existing) => sameActivityItem(existing, item))) return;
         list.unshift(item);
         if (list.length > 300) list.length = 300;
       }),
     );
   }
 
-  // Shared by the initial load and loadMoreActivity: turns a page of raw feed
-  // entries into pushed ActivityItems, resolving bodies via messages.list
-  // (streamed in per batch) and falling back to a direct history lookup for
-  // sparse notify-all bundles messages.list doesn't recognize.
+  function reactionActivityKey(item: ActivityItem): string | undefined {
+    if (
+      !(item.kind === "reaction" && item.channelId && item.ts && item.reactionName && item.userId)
+    )
+      return;
+    return `${item.channelId}:${item.ts}:${item.reactionName}:${item.userId}`;
+  }
+
+  function sameActivityItem(existing: ActivityItem, next: ActivityItem): boolean {
+    if (existing.id === next.id) return true;
+    const existingReaction = reactionActivityKey(existing);
+    return !!existingReaction && existingReaction === reactionActivityKey(next);
+  }
+
   async function resolvePendingEntries(
     pending: FeedEntry[],
     seen: Set<string>,
     seenChannelPosts: Set<string>,
     push: (entry: FeedEntry, batch?: Map<string, Message>) => void,
   ) {
-    // Feed entries can include a displayable body but still omit the
-    // message-level author overrides. Hydrate every channel-backed entry so
-    // its name and avatar match the message opened from the row.
     const needsMessage = (entry: FeedEntry) =>
       !!entry.channelId && entry.activityType !== "quietly_added_to_channel";
     for (const entry of pending) if (!needsMessage(entry)) push(entry);
     const unresolved = pending.filter(needsMessage);
     const toFetch = unresolved.filter((entry) => !!entry.channelId);
-    // Stream the rest in as each messages.list batch resolves, then backfill
-    // any whose message never came back (still worth a row from feed data).
+
     await api.fetchMessagesByIds(toFetch, (batch) => {
       deps.cacheResolvedMessages?.(batch);
       for (const entry of toFetch)
         if (!seen.has(entry.id) && batch.has(`${entry.channelId}:${entry.ts}`)) push(entry, batch);
     });
-    // Sparse notify-all bundles sometimes fail to resolve through
-    // messages.list even though they carry an exact channel + timestamp.
-    // Fall back to the same inclusive history lookup used for permalink
-    // navigation so the row gets its real author and body before we render
-    // the final reference-only placeholder.
+
     const unresolvedChannelEntries = toFetch.filter(
       (entry) =>
         entry.kind === "channel_all" &&
@@ -190,31 +178,28 @@ export function createActivitySlice(
     for (const entry of unresolved) if (!seen.has(entry.id)) push(entry);
   }
 
-  // "channel_all" (notify-on-every-post) and "thread_v2" (latest reply in a
-  // thread you're in) can legitimately point at your own message — the feed
-  // itself doesn't filter those out, so do it here rather than showing your
-  // own posts back to you as activity. Only those two kinds get this
-  // treatment. A positive userId match is the common case, but an
-  // *unresolved* userId counts too: unlike mention/dm/keyword (real pings,
-  // never dropped on unresolved — see isOwnOrUnresolved below), these two are
-  // ambient feed kinds that routinely reference your own just-sent activity,
-  // and a freshly-sent post racing ahead of messages.list's indexer is far
-  // more likely to be yours than a stranger's than it is worth risking a
-  // permanent "Someone" row for your own post.
   const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>(["channel_all", "thread_reply"]);
   function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
     return OwnMessageFilteredKinds.has(item.kind) && (!item.userId || item.userId === me.id);
   }
-  function createEntryPusher(me: User, seen: Set<string>, seenChannelPosts: Set<string>) {
+  function createEntryPusher(
+    me: User,
+    seen: Set<string>,
+    seenChannelPosts: Set<string>,
+    seenReactions: Set<string>,
+  ) {
     const pushItem = (item: ActivityItem) => {
       const channelPostKey = `${item.channelId}:${item.ts}`;
+      const reactionKey = reactionActivityKey(item);
       if (
         seen.has(item.id) ||
+        (!!reactionKey && seenReactions.has(reactionKey)) ||
         isOwnOrUnresolved(item, me) ||
         (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey))
       )
         return;
       seen.add(item.id);
+      if (reactionKey) seenReactions.add(reactionKey);
       if (item.kind === "channel_all") seenChannelPosts.add(channelPostKey);
       setActivityItems(
         produce((list) => {
@@ -228,11 +213,6 @@ export function createActivitySlice(
     return { push, pushItem };
   }
 
-  // Slack computes addressed activity (e.g. usergroup membership) in its feed.
-  // The `channel` badge is aggregate-only, though, so notify-all channel posts
-  // are hydrated from unread channel history alongside it. Safe to call
-  // repeatedly since both sources are deduped; the in-flight guard avoids
-  // overlapping fetches.
   async function refreshActivityFeed() {
     if (activityLoading()) return;
     const me = deps.currentUser();
@@ -263,38 +243,26 @@ export function createActivitySlice(
           .filter((item) => item.kind === "channel_all")
           .map((item) => `${item.channelId}:${item.ts}`),
       );
+      const seenReactions = new Set(
+        activityItems.map(reactionActivityKey).filter((key): key is string => !!key),
+      );
       const addressedFeedPosts = new Set(
         entries
           .filter(
             (entry) =>
               entry.kind !== "reaction" &&
-              // A sparse channel bundle is only a reference. Let the richer
-              // conversations.history row win instead of suppressing it
-              // before messages.list has had a chance to hydrate the actor
-              // and body.
               (entry.kind !== "channel_all" || (!!entry.userId && !!entry.text)),
           )
           .map((entry) => `${entry.channelId}:${entry.ts}`),
       );
       const pending = entries.filter((entry) => !seen.has(entry.id));
-      // A thread bundle keeps the same feed key across refreshes even after a
-      // new reply lands — Slack just bumps that same key's unread_msg_count
-      // and latest_ts. Without this, `seen` above makes it look already
-      // handled and the stored item (with its now-stale unreadCount) never
-      // gets touched again, so a thread you'd read once could never show
-      // unread again no matter how many replies arrived after.
+
       const stale = entries.filter((entry) => seen.has(entry.id));
-      const { push, pushItem } = createEntryPusher(me, seen, seenChannelPosts);
+      const { push, pushItem } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       for (const item of channelItems)
         if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
-        // A bump's own thread_entry payload is often sparse (Slack has
-        // nothing new to tell you about a reply you already know you sent),
-        // so resolve it the same way a first-seen entry would: through
-        // messages.list. That's also what lets the own-message filter below
-        // recognize "you just replied to your own thread" instead of
-        // rendering a blank row for it.
         const toFetch = stale.filter((entry) => !!entry.channelId);
         const batch = await api.fetchMessagesByIds(toFetch);
         if (batch.size) deps.cacheResolvedMessages?.(batch);
@@ -309,9 +277,7 @@ export function createActivitySlice(
                 list.splice(index, 1);
                 continue;
               }
-              // Keep whatever the row already showed if this bump's message
-              // didn't resolve, instead of blanking a row that had real
-              // content.
+
               list[index] = {
                 ...resolved,
                 text: resolved.text || list[index].text,
@@ -336,16 +302,6 @@ export function createActivitySlice(
     await refreshActivityFeed();
   }
 
-  // Walks one older page of the feed in via the cursor from the previous
-  // page. Channel-post hydration only ever covers the current unread
-  // window, so — unlike the initial load — older pages are feed entries only.
-  // `types` narrows the request to one category's Slack wire type(s) (see
-  // ACTIVITY_KIND_FEED_TYPES) — pass it when the Activity view has a category
-  // filter active so paging in a narrow filter doesn't have to wade through
-  // pages of other kinds just to find a few more matching rows. `unreadOnly`
-  // mirrors Slack's own `unread_only` param for its "Unread" tab, so that
-  // filter is server-side too instead of paging through read history that
-  // never contributes a visible row.
   async function loadMoreActivity(types?: string, unreadOnly?: boolean) {
     const scopeKey = activityFeedScopeKey(types, unreadOnly);
     if (
@@ -378,8 +334,11 @@ export function createActivitySlice(
           .filter((item) => item.kind === "channel_all")
           .map((item) => `${item.channelId}:${item.ts}`),
       );
+      const seenReactions = new Set(
+        activityItems.map(reactionActivityKey).filter((key): key is string => !!key),
+      );
       const pending = entries.filter((entry) => !seen.has(entry.id));
-      const { push } = createEntryPusher(me, seen, seenChannelPosts);
+      const { push } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       void backfillMissingReadCursors(activityItems);
     } catch (err) {
@@ -390,24 +349,12 @@ export function createActivitySlice(
     }
   }
 
-  // badge_counts_updated is noisy and Slack frequently sends identical
-  // snapshots in a burst. Refresh the authoritative feed on real changes so
-  // activity is retained before its view is opened, while collapsing a burst
-  // into one trailing request. If another real count change arrives while
-  // that request is running, keep exactly one follow-up refresh.
   const requestActivityRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
     isLoading: activityLoading,
     refresh: refreshActivityFeed,
   });
 
-  // Reacted has to mean a real emoji on the real message, read straight from
-  // Slack's own reactions array — anything client-invented (a manual toggle,
-  // a "you just engaged with this" tracker) is memory-only and evaporates on
-  // reload, which just relitigates itself as a "why did this un-react" bug.
-  // Only items whose message got resolved into reactionMessages (see
-  // resolvePendingEntries) have data to check; everything else honestly
-  // reports false rather than guessing.
   function isActivityItemReacted(item: ActivityItem): boolean {
     const me = deps.currentUser();
     if (!me) return false;
@@ -416,19 +363,8 @@ export function createActivitySlice(
   }
 
   function activityItemReadState(item: ActivityItem): ActivityItemReadState {
-    // Reactions are a nice-to-know, not a ping — they never light the bell
-    // (not in PING_KINDS/GLOW_KINDS), so they shouldn't sit in the "Unread"
-    // filter forever either.
     if (item.kind === "reaction") return "read";
-    // A thread reply's read state lives on Slack's own per-thread subscription
-    // cursor, not the parent channel's last_read — replying in a thread never
-    // advances the channel's cursor, so comparing against lastReadByChannel
-    // would keep a thread you've genuinely read (here or in real Slack)
-    // marked unread forever. Slack hands back that cursor's result directly as
-    // unreadCount on the bundle; trust it whenever the feed provides it, ahead
-    // of readActivityIds below — that flag only records "was read as of some
-    // past refresh" and must not keep pinning the row to "read" once a later
-    // refresh reports a fresh reply via a bumped unreadCount.
+
     if (item.kind === "thread_reply" && item.unreadCount !== undefined)
       return item.unreadCount > 0 ? "unread" : "read";
     if (readActivityIds[item.id]) return "read";
@@ -442,11 +378,6 @@ export function createActivitySlice(
     return activityItemReadState(item) === "unread";
   }
 
-  // lastReadByChannel is only ever seeded from client.counts (bootstrap) and
-  // live gateway events for channels those happen to cover. An old, closed DM
-  // can drop out of client.counts entirely while activity.feed still returns
-  // its history. Once a page of activity items loads, backfill a real cursor
-  // for every missing channel so the row can resolve from its neutral state.
   const attemptedReadCursorBackfill = new Set<string>();
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
@@ -465,7 +396,6 @@ export function createActivitySlice(
         try {
           deps.setLastReadByChannel(channelId, await api.fetchChannelLastRead(channelId));
         } catch {
-          // Leave it out of the attempted set so the next feed refresh retries.
           attemptedReadCursorBackfill.delete(channelId);
         }
       }),
@@ -503,9 +433,7 @@ export function createActivitySlice(
         continue;
       }
       setReadActivityIds(item.id, true);
-      // activityItemReadState trusts a thread_reply's own unreadCount over
-      // readActivityIds (see above), so without this the row would keep
-      // showing unread until the next feed refresh catches up.
+
       if (item.kind === "thread_reply" && item.unreadCount !== undefined)
         setActivityItems((i) => i.id === item.id, "unreadCount", 0);
       if (!item.channelId) continue;
@@ -526,23 +454,16 @@ export function createActivitySlice(
     }
     for (const [channelId, ts] of latestTsByChannel) {
       deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
-      // Same clear used everywhere else a channel gets marked read, so the
-      // sidebar's unread dot/mentions badge doesn't linger just because this
-      // particular read happened via the Activity feed instead of visiting
-      // the channel directly.
+
       deps.clearChannelUnread(channelId);
       void activityReadSync.request(channelId, ts).then(async (synced) => {
         if (!synced) return;
         try {
           setGatewayActivityBadgeCounts(await api.fetchActivityBadgeCounts());
-        } catch {
-          // the next gateway badge update or bootstrap refresh will retry
-        }
+        } catch {}
       });
     }
-    // Thread replies carry their own subscription read cursor on Slack's
-    // side — advancing the channel cursor above does nothing for them, so
-    // this is the only thing that actually clears their unread state there.
+
     for (const { channelId, threadTs, ts } of latestByThread.values())
       void deps.syncThreadRead(channelId, threadTs, ts);
   }

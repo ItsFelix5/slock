@@ -7,10 +7,6 @@
   text-underline-offset: 2px;
   text-decoration-color: var(--text-dim);
 }
-/* Tooltip's anchor wrapper defaults to inline-flex + vertical-align: middle,
-   which is right for icon/badge triggers but drops plain text a few pixels
-   off the surrounding line's baseline. Time mentions sit inline in a normal
-   sentence, so put them back in normal text flow. */
 .tooltip-anchor.bk-time-mention-anchor {
   display: inline;
   vertical-align: baseline;

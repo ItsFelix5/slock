@@ -1,5 +1,5 @@
-import "./ResizeHandle.css";
 import { onCleanup } from "solid-js";
+import "./ResizeHandle.css";
 import { resizeWidth } from "./resizeMath";
 
 export default function ResizeHandle(props: {
@@ -7,7 +7,6 @@ export default function ResizeHandle(props: {
   setWidth: (w: number) => void;
   min: number;
   max: number;
-  /** 1 if dragging right should grow the panel (handle on its right edge), -1 if it should shrink it (handle on its left edge). */
   direction: 1 | -1;
   side: "left" | "right";
   label?: string;

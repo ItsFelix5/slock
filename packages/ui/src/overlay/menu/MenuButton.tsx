@@ -12,9 +12,6 @@ export interface MenuButtonProps extends Omit<MenuProps, "trigger" | "class" | "
   variant?: "primary" | "secondary" | "danger" | "ghost";
 }
 
-// Self-contained trigger + menu: unlike Menu itself (which is fully controlled by
-// its caller), MenuButton owns its own open state so the button it renders is
-// clickable out of the box.
 export default function MenuButton(props: MenuButtonProps) {
   const [open, setOpen] = createSignal(false);
   return (

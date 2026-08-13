@@ -10,8 +10,8 @@ import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "sol
 import { sidebarWidth } from "../../lib/sidebarWidth";
 import { actionFeedback, store } from "../../lib/store";
 import "../settings/Settings.css";
-import "./UserProfile.css";
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
+import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
 import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
@@ -54,12 +54,7 @@ export default function UserProfile() {
       setPronounsInput(me.pronouns ?? "");
     }),
   );
-  // Custom field values live in customFieldsFor (fetched separately — see
-  // the store), not on the user object, and arrive async — so backfill any
-  // inputs still missing once either that fetch or profileFieldDefs resolves.
-  // fields is undefined until the fetch actually resolves (see customFieldsFor);
-  // merging that as "no values" would permanently mark every field as already
-  // handled and lock out the real values once they do arrive.
+
   createEffect(() => {
     const defs = store.resources.profileFieldDefs();
     const id = user()?.id;
@@ -148,17 +143,27 @@ export default function UserProfile() {
   onCleanup(() => clearInterval(clockTimer));
   const localTime = createLocalTime(user, now);
   const lastSeenText = createLastSeenText(user, now);
+  const startDate = createMemo(() => {
+    const u = user();
+    return u?.startDate ?? (u ? store.users.profileStartDateFor(u.id) : undefined);
+  });
   const customFields = createMemo(() => {
     const defs = store.resources.profileFieldDefs();
     const id = user()?.id;
     const values = id ? store.users.customFieldsFor(id) : undefined;
     if (!(defs && values?.length)) return [];
-    const labelById = new Map(defs.map((d) => [d.id, d.label]));
+    const definitionById = new Map(defs.map((d) => [d.id, d]));
     return values
-      .map((f) => ({ ...f, label: labelById.get(f.id) }))
-      .filter((f): f is typeof f & { label: string } => !!f.label);
+      .map((f) => ({ ...f, definition: definitionById.get(f.id) }))
+      .filter(
+        (f): f is typeof f & { definition: { label: string } } =>
+          f.definition?.fieldName !== "start_date" && !!f.definition?.label,
+      )
+      .map(({ definition, ...field }) => ({ ...field, label: definition.label }));
   });
-  const editableCustomFields = createMemo(() => store.resources.profileFieldDefs() ?? []);
+  const editableCustomFields = createMemo(() =>
+    (store.resources.profileFieldDefs() ?? []).filter((field) => field.fieldName !== "start_date"),
+  );
   return (
     <>
       <Show when={user()}>
@@ -210,6 +215,7 @@ export default function UserProfile() {
                 setTitleInput={setTitleInput}
                 statusEmoji={statusEmoji}
                 statusText={statusText}
+                startDate={startDate}
                 titleInput={titleInput}
                 user={user}
               />
@@ -225,7 +231,7 @@ export default function UserProfile() {
                 values={customFieldInputs()}
               />
               <Show when={store.resources.profileFieldDefs.error}>
-                <div class="user-profile-fields-warning flex-between" role="alert">
+                <div class="user-profile-fields-warning flex-between">
                   <span>Additional profile fields are unavailable.</span>
                   <Button
                     disabled={store.resources.profileFieldDefs.loading}

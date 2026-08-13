@@ -6,10 +6,10 @@ import {
   updateMemberPermissions,
 } from "../../../lib/channelDetails";
 import { store } from "../../../lib/store";
-import ChannelDangerZone from "./ChannelDangerZone";
-import ChannelPostingPermissions from "./ChannelPostingPermissions";
 import "../../settings/Settings.css";
+import ChannelDangerZone from "./ChannelDangerZone";
 import "./ChannelDetails.css";
+import ChannelPostingPermissions from "./ChannelPostingPermissions";
 import "./ChannelSettingsTab.css";
 import {
   type AppliedPermissionChoice,
@@ -25,11 +25,6 @@ export default function ChannelSettingsTab(props: {
   onChanged?: () => void;
   private: boolean;
 }) {
-  // admin.roles.entity.listAssignments (the source for managerIds) is an
-  // Enterprise Grid org-admin API — it 404s/errors on every normal
-  // workspace. Treat it as a bonus signal, not a requirement: workspace
-  // admins/owners and the channel's creator can always manage a channel on
-  // a non-Grid workspace, matching what Slack's own client falls back to.
   const [managerIds] = createResource(() => props.channelId, loadChannelManagerIds);
   const isManager = createMemo(() => {
     const me = store.users.currentUser();
@@ -40,20 +35,12 @@ export default function ChannelSettingsTab(props: {
     return (managerIds() ?? []).includes(me.id);
   });
 
-  // conversations.permissions.accountTypes.set's FULL_MEMBER `is_allowed` flags
-  // are the same "channel managers only" restriction as who_can_post/can_thread
-  // above — inverted here so every switch in this tab reads the same way
-  // ("Only channel managers can ___", on = restricted).
   type PermissionChoice = "" | AppliedPermissionChoice;
   const [invitePermission, setInvitePermission] = createSignal<PermissionChoice>("");
   const [topicPermission, setTopicPermission] = createSignal<PermissionChoice>("");
   const [purposePermission, setPurposePermission] = createSignal<PermissionChoice>("");
   const [savingMemberPermissions, setSavingMemberPermissions] = createSignal(false);
 
-  // Retention changes post a visible system message to the channel, so
-  // unlike the other toggles this doesn't auto-commit on change — it needs
-  // an explicit Save so flipping the switch or editing the day count doesn't
-  // spam the channel with a message per change.
   type RetentionChoice = "" | AppliedRetentionChoice;
   const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>("");
   const [retentionDays, setRetentionDays] = createSignal(90);
@@ -128,7 +115,7 @@ export default function ChannelSettingsTab(props: {
       <div class="settings-section">
         <div class="settings-row-label">Member permissions</div>
         <p class="channel-details-meta">
-          Slack doesn’t expose the current values here. Choose an explicit policy to change only
+          Slack doesn't expose the current values here. Choose an explicit policy to change only
           that permission.
         </p>
         <div class="settings-row flex-between">
@@ -196,7 +183,7 @@ export default function ChannelSettingsTab(props: {
       <div class="settings-section">
         <div class="settings-row-label">Message retention</div>
         <p class="channel-details-meta">
-          The current retention policy isn’t exposed here. Choose a policy to apply an explicit
+          The current retention policy isn't exposed here. Choose a policy to apply an explicit
           change; saving posts a system message to the channel.
         </p>
         <div class="settings-row flex-between">
@@ -220,7 +207,6 @@ export default function ChannelSettingsTab(props: {
         <Show when={retentionChoice() === "delete"}>
           <div class="channel-details-retention-row flex-align-center">
             <input
-              aria-invalid={!retentionDaysValid()}
               class="channel-details-input channel-details-retention-input"
               disabled={!isManager() || savingRetention()}
               min="1"

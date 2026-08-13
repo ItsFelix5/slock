@@ -29,7 +29,7 @@ export default function ComposeChannelPicker(props: {
       emptyMessage="No matches"
       excludeIds={props.excludeChannelIds}
       localItems={localChannels}
-      notFoundMessage="Couldn’t load channels"
+      notFoundMessage="Couldn't load channels"
       onClose={props.onClose}
       onSelect={props.onSelect}
       placeholder="Find a channel…"

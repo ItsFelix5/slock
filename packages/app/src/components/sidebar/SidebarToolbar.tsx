@@ -1,12 +1,11 @@
+import type { SlackFile } from "@slock/slack-api";
 import { Avatar, IconButton, Skeleton } from "@slock/ui";
-import { lazy, Show } from "solid-js";
+import { createSignal, lazy, Show } from "solid-js";
+import FileDetailModal from "../channel/FileDetailModal";
 import GlobalSearch from "../search/GlobalSearch";
 import DndButton from "./dnd/DndButton";
 import type { SidebarContext } from "./sidebarCategories";
 
-// Settings pulls in four tab components' worth of forms and switches for
-// something most sessions never open — split it out of the main chunk
-// instead of paying for it on every load.
 const Settings = lazy(() => import("../settings/Settings"));
 
 type SidebarToolbarProps = Pick<
@@ -20,6 +19,7 @@ type SidebarToolbarProps = Pick<
 >;
 
 export default function SidebarToolbar(props: SidebarToolbarProps) {
+  const [openFile, setOpenFile] = createSignal<SlackFile>();
   return (
     <>
       <div class="sidebar-top flex-align-center">
@@ -58,7 +58,10 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
         />
       </div>
       <Show when={props.searchOpen()}>
-        <GlobalSearch onClose={() => props.setSearchOpen(false)} />
+        <GlobalSearch onClose={() => props.setSearchOpen(false)} onFile={setOpenFile} />
+      </Show>
+      <Show when={openFile()}>
+        {(file) => <FileDetailModal file={file()} onClose={() => setOpenFile()} />}
       </Show>
       <Show when={props.settingsOpen()}>
         <Settings onClose={() => props.setSettingsOpen(false)} />

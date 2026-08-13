@@ -16,9 +16,6 @@ export function resolveActiveView(
   data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
 ): View | null {
   if (selected) {
-    // parseNavPath guesses kind from the id alone, but mpim ids share private
-    // channels' "G..." namespace and can only be told apart once the dms list
-    // has loaded — reconcile against it here (see isDmId).
     const isDm = isDmId(selected.id, (id) => !!data?.directMessages.some((d) => d.id === id));
     const kind = isDm ? "dm" : "channel";
     return kind === selected.kind ? selected : { id: selected.id, kind };
@@ -30,9 +27,6 @@ export function resolveActiveView(
   return firstDirectMessage ? { id: firstDirectMessage.id, kind: "dm" } : null;
 }
 
-// DM conversation ids are Slack "D..." ims (see bootstrap.ts); everything
-// else selectable (public/private channels) is a "C..." id. That's enough
-// to tell channel and DM URLs apart without a /channel/ or /dm/ segment.
 function parseNavPath(url: URL): NavSnapshot {
   const segs = url.pathname.split("/").filter(Boolean);
   const [firstSegment] = segs;
@@ -65,11 +59,6 @@ function navSnapshotToPath(snap: NavSnapshot): string {
   return snap.thread ? `${path}?t=${encodeURIComponent(snap.thread.ts)}` : path;
 }
 
-// Raw navigation state: which view/tab/thread is selected, plus the browser
-// history <-> in-app-navigation sync. Side effects that reach into other
-// slices (clearing unread state, DM re-opening, etc.) live one layer up in
-// the composed setActiveView/setNavView in store/index.ts — this slice only
-// knows about "where am I", not what opening a view should also do.
 export function createViewStateSlice(deps: {
   bootstrap: () => { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
 }) {
@@ -83,20 +72,9 @@ export function createViewStateSlice(deps: {
   );
 
   const activeView = createMemo<View | null>(() => {
-    // Feed/search routes with no explicit conversation should not silently
-    // activate the first workspace channel behind the visible screen. Doing
-    // that made every conversation-owned effect (history, pins, canvas and
-    // read cursors) run during a hard reload of /activity.
     return resolveActiveView(nav(), selected(), deps.bootstrap());
   });
 
-  // ---- browser history integration (back/forward navigates views) ----
-  // Every view change (channel/dm selection, tab, open thread) is mirrored into
-  // window.history — as a real path, not just a state blob, so the address bar
-  // reflects where you are and a hard refresh/pasted link lands back there.
-  // `lastNavSerialized` de-dupes and, crucially, is primed on popstate so the
-  // effect that re-runs after we restore a snapshot recognises it as a no-op
-  // and doesn't push the restored state back on top of the stack.
   let lastNavSerialized: string | null = null;
 
   function currentNavSnapshot(): NavSnapshot {
@@ -104,10 +82,6 @@ export function createViewStateSlice(deps: {
   }
 
   function applyNavSnapshot(snap: NavSnapshot) {
-    // Called from the raw `popstate` DOM listener, which Solid doesn't
-    // auto-batch (unlike JSX event handlers). Without batch(), each setter
-    // below would fire the history-sync effect on its own with a partial
-    // snapshot, pushing junk history entries and making back/forward loop.
     batch(() => {
       setChannelMessageTarget(null);
       setSelected(snap.view ?? null);

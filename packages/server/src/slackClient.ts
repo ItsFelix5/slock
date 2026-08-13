@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { type Credentials, slackCookieHeader } from "./auth.ts";
 import { errorMessage } from "./http/errorMessage.ts";
 
@@ -47,9 +46,6 @@ function slackRequestBody(
   };
 }
 
-// Fetch + parse only, no trimming or asset-URL rewriting — every route
-// handler (routes/*.ts) trims exactly the fields it needs itself, then
-// returns through jsonResponse, which rewrites asset URLs once, centrally.
 export async function callSlack(
   method: string,
   params: Record<string, string>,
@@ -112,15 +108,23 @@ export async function callSlackEdge(
   const [enterpriseId] = creds.route.split(":");
   try {
     const res = await fetch(`https://edgeapi.slack.com/cache/${enterpriseId}/${method}`, {
-      // Cache endpoints use the same browser-session credentials, including the
-      // enterprise token, regardless of the resource being requested.
-      body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
-      headers: { "content-type": "application/json", cookie: slackCookieHeader(creds) },
+      body: JSON.stringify({
+        ...params,
+        enterprise_token: creds.token,
+        token: creds.token,
+      }),
+      headers: {
+        "content-type": "application/json",
+        cookie: slackCookieHeader(creds),
+      },
       method: "POST",
       signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
     });
     return await parseSlackResponse(res);
   } catch (error) {
-    return { error: errorMessage(error, "Slack Edge request failed"), ok: false };
+    return {
+      error: errorMessage(error, "Slack Edge request failed"),
+      ok: false,
+    };
   }
 }

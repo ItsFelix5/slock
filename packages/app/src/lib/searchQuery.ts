@@ -1,11 +1,6 @@
-// Slack's search.messages endpoint natively parses modifier tokens (from:, in:,
-// has:, before:, after:, is:) inside the query string, so the advanced-search UI
-// just assembles those tokens around the free-text terms. This module keeps that
-// assembly pure and testable, separate from the React-ish component.
-
 export interface SearchFilters {
-  after?: string; // yyyy-mm-dd
-  before?: string; // yyyy-mm-dd
+  after?: string;
+  before?: string;
   fromUserId?: string;
   hasLink?: boolean;
   hasPin?: boolean;

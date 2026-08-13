@@ -1,9 +1,5 @@
-// biome-ignore-all lint/performance/useTopLevelRegex: These expressions are local to token detection.
 import type { Attachment, LinkPreview } from "@slock/slack-api";
 
-// Matches Slack's own composer trigger for a link preview: any bare
-// http(s) URL, trailing sentence punctuation stripped since that's almost
-// never actually part of the link.
 const URL_RE = /https?:\/\/[^\s<>]+/g;
 export function detectUrls(value: string): string[] {
   const found = new Set<string>();
@@ -24,14 +20,6 @@ export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
   };
 }
 
-// Detects an in-progress @mention, @/link-mention, #channel-mention,
-// :emoji-shortcode, or /slash-command token immediately before the cursor,
-// the way Slack's real composer does. Mentions and emoji must start at a
-// word boundary (so "user@example.com" and clock times like "10:30" don't
-// trigger), and slash commands are only recognized as the very first token
-// of the message. "@/" runs the same user search as "@" but is meant to
-// insert a silent link to the person's Slack profile instead of a real
-// mention — see suggestionController and createUserLinkChip.
 export function detectMentionTrigger(
   value: string,
   cursor: number,

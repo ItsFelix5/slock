@@ -1,18 +1,19 @@
-// biome-ignore-all lint/style/useNamingConvention: Slack payloads preserve Slack's wire field names.
 import { extractSlackSession } from "@slock/slack-api";
 
 export const jsonHeaders = { "content-type": "application/json" };
 
-export type Credentials = { domain: string; token: string; route: string; slackSession: string };
+export type Credentials = {
+  domain: string;
+  token: string;
+  route: string;
+  slackSession: string;
+};
 type AuthPayload = Credentials;
 const CREDS_COOKIE = "slock_creds";
-// Holds only the non-sensitive bits of Credentials (domain, teamId) — never
-// HttpOnly, so page JS can read the workspace domain/team id directly
-// instead of round-tripping through the server (see getWorkspaceDomain in
-// slack-api/src/api/server.ts). The token/session/route stay in CREDS_COOKIE.
+
 const INFO_COOKIE = "slock_info";
 const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slack\.com$/i;
-// biome-ignore lint/suspicious/noControlCharactersInRegex: validating credentials
+
 const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\x00-\x1f\x7f]+$/;
 const SESSION_INVALID_CHARS_RE = /[;\s]/;
 
@@ -62,21 +63,22 @@ export function encodeCredsCookie(creds: Credentials, secure: boolean): string {
   if (secure) flags.push("Secure");
   return `${CREDS_COOKIE}=${value}; ${flags.join("; ")}`;
 }
-// `route` is "T..." on a plain workspace, "E...:T..." on Enterprise Grid —
-// the team id is always its last segment.
+
 export function teamIdFromRoute(route: string): string | null {
   return route.split(":").at(-1) ?? null;
 }
 function encodeInfoCookie(creds: Credentials, secure: boolean): string {
   const value = encodeURIComponent(
-    JSON.stringify({ domain: creds.domain, teamId: teamIdFromRoute(creds.route) }),
+    JSON.stringify({
+      domain: creds.domain,
+      teamId: teamIdFromRoute(creds.route),
+    }),
   );
   const flags = ["SameSite=Strict", "Path=/", "Max-Age=34560000"];
   if (secure) flags.push("Secure");
   return `${INFO_COOKIE}=${value}; ${flags.join("; ")}`;
 }
-// Both cookies are always set/cleared together — set-cookie only allows one
-// cookie per header instance, so the caller has to append two.
+
 export function credsCookieHeaders(creds: Credentials, secure: boolean): Headers {
   const headers = new Headers(jsonHeaders);
   headers.append("set-cookie", encodeCredsCookie(creds, secure));
@@ -98,10 +100,7 @@ export function parseCredsCookie(cookieHeader: string | null): Credentials | nul
     try {
       const parsed = JSON.parse(decodeURIComponent(part.slice(eq + 1).trim()));
       if (isAuthPayload(parsed)) return parsed;
-      // Migrate credentials saved before Slock stopped retaining the entire
-      // copied Slack Cookie header into today's slackSession-only shape.
-      // Read-only: nothing rewrites the stored cookie to this canonical
-      // form, so this branch runs on every request until the user re-auths.
+
       const slackSession =
         typeof parsed?.cookie === "string" ? extractSlackSession(parsed.cookie) : null;
       const migrated = { ...parsed, slackSession };
@@ -135,5 +134,7 @@ export function authResponse(raw: string, secure: boolean): Response {
   }
 }
 export function logoutResponse(): Response {
-  return new Response(JSON.stringify({ ok: true }), { headers: clearedCredsCookieHeaders() });
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: clearedCredsCookieHeaders(),
+  });
 }

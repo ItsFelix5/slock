@@ -32,7 +32,6 @@ export default function HoverCard(props: HoverCardProps) {
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: focus and hover expose the card attached to the child control
     <span
       class={`hover-card-anchor ${props.anchorClass ?? ""}`}
       onFocusIn={openNow}
