@@ -17,6 +17,7 @@ import {
 } from "./activity/activityFeedRefresh";
 import { createActivityReadSync } from "./activity/activityReadSync";
 import { fetchChannelActivityItems } from "./activity/channelActivity";
+import { createRecentReactionFlash } from "./activity/recentReaction";
 
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
@@ -112,6 +113,8 @@ export function createActivitySlice(
     return changed;
   }
 
+  const recentReactionFlash = createRecentReactionFlash();
+
   function pushActivity(item: ActivityItem) {
     setActivityItems(
       produce((list) => {
@@ -120,6 +123,7 @@ export function createActivitySlice(
         if (list.length > 300) list.length = 300;
       }),
     );
+    if (item.kind === "reaction" && item.reactionName) recentReactionFlash.flash(item.reactionName);
   }
 
   function reactionActivityKey(item: ActivityItem): string | undefined {
@@ -486,6 +490,7 @@ export function createActivitySlice(
     loadMoreActivity,
     markActivityItemsRead,
     pushActivity,
+    recentReactionEmoji: recentReactionFlash.recentReactionEmoji,
     requestActivityRefresh,
     retryActivityReadSync: activityReadSync.retry,
     setGatewayActivityBadgeCounts,
