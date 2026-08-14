@@ -11,8 +11,8 @@ import {
   latestItem,
   type ReadState,
   type RowStatus,
-  type Tag,
   TAG_FILTERS,
+  type Tag,
 } from "./activityViewFilters";
 
 const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;

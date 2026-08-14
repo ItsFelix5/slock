@@ -29,14 +29,14 @@ export function createMessagesSlice(deps: {
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-  channelMessageTarget: () => ChannelMessageTarget | null;
+  visibleMessageTargets: () => ChannelMessageTarget[];
   visibleViews: () => View[];
   visibleThreads: () => ThreadRef[];
   onConversationView?: (view: ConversationViewData) => void;
 }) {
   const history = createMessageHistory({
-    channelMessageTarget: deps.channelMessageTarget,
     onConversationView: deps.onConversationView,
+    visibleMessageTargets: deps.visibleMessageTargets,
     visibleThreads: deps.visibleThreads,
     visibleViews: deps.visibleViews,
   });

@@ -1,290 +1,362 @@
-import { Button, Icon, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
+import {
+  ATOM_DATE,
+  ATOM_EMOJI,
+  ATOM_MENTION,
+  blocksToDoc,
+  type ComposeAtomData,
+  composeAtomRenderers,
+  docToBlocks,
+  formatSlackDateTokens,
+} from "@slock/blockkit";
+import type { Block as SlackBlock } from "@slock/slack-api";
+import { uploadFiles } from "@slock/slack-api";
+import type { DocModel } from "@slock/ui";
+import {
+  createAtomRun,
+  createEditorStore,
+  createParagraph,
+  createTextRun,
+  EditorView,
+  emptyDoc,
+  IconButton,
+  InlineFeedback,
+  Menu,
+  MenuItem,
+} from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
-import { actionFeedback, composerFeedbackKey } from "../../lib/store";
-import AttachmentCard from "../messages/parts/media/AttachmentCard";
-import "./Composer.css";
-import { createComposerController } from "./composerController";
+import { actionFeedback, composerFeedbackKey, store } from "../../lib/store";
 import type { ComposerProps } from "./composerTypes";
+import FileChip from "./FileChip";
+import { clearPersistedDraft, createComposerDraftState } from "./lib/drafts";
+import { createPendingFileState, draftCacheKey, submitComposerPayload } from "./lib/submission";
+import { createSuggestionController } from "./lib/suggestionController";
+import type { SuggestItem, SuggestState } from "./lib/suggestTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
-import { linkPreviewToAttachment } from "./lib/textDetection";
+import { useSuggestUi } from "./lib/useSuggestUi";
 import ComposeDatePicker from "./popovers/ComposeDatePicker";
+import "./Composer.css";
 
-function FileChipThumbnail(props: { file: File }) {
-  if (!props.file.type.startsWith("image/")) return null;
-  const url = URL.createObjectURL(props.file);
-  onCleanup(() => URL.revokeObjectURL(url));
-  return <img alt="" class="composer-file-chip-thumb" src={url} />;
+/** A doc built from a plain string — used when there's no real blocks payload to load from
+ * (an old text-only draft, or the `initialText`-only edit fallback). */
+function docFromPlainText(text: string) {
+  return text
+    ? { blocks: [createParagraph<ComposeAtomData>([createTextRun(text)])] }
+    : emptyDoc<ComposeAtomData>();
 }
 
-function FileChip(props: {
-  file: File;
-  disabled: boolean;
-  onRemove: () => void;
-  onRename: (name: string) => void;
-}) {
-  const [renaming, setRenaming] = createSignal(false);
-  const [draft, setDraft] = createSignal("");
-  const isImage = () => props.file.type.startsWith("image/");
-
-  const startRename = () => {
-    if (props.disabled) return;
-    setDraft(props.file.name);
-    setRenaming(true);
-  };
-  const commit = () => {
-    if (!renaming()) return;
-    setRenaming(false);
-    props.onRename(draft());
-  };
-
-  return (
-    <span
-      class="composer-file-chip flex-align-center"
-      classList={{ "composer-file-chip-image": isImage() }}
-    >
-      <FileChipThumbnail file={props.file} />
-      <span class="composer-file-chip-details">
-        <Show
-          fallback={
-            <input
-              autofocus
-              class="composer-file-chip-rename-input"
-              onBlur={commit}
-              onInput={(e) => setDraft(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commit();
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setRenaming(false);
-                }
-              }}
-              ref={(el) => requestAnimationFrame(() => el.select())}
-              value={draft()}
-            />
-          }
-          when={!renaming()}
-        >
-          <button
-            class="composer-file-chip-name btn-reset"
-            disabled={props.disabled}
-            onClick={startRename}
-            type="button"
-          >
-            {props.file.name}
-          </button>
-        </Show>
-      </span>
-      <Tooltip content="Remove">
-        <button
-          class="composer-file-chip-remove btn-reset"
-          disabled={props.disabled}
-          onClick={props.onRemove}
-          type="button"
-        >
-          <Icon name="close" size={16} />
-        </button>
-      </Tooltip>
-    </span>
-  );
+function docFromDraft(text: string, blocks?: unknown) {
+  if (Array.isArray(blocks) && blocks.length > 0) {
+    return blocksToDoc(blocks as SlackBlock[]) as DocModel<ComposeAtomData>;
+  }
+  return docFromPlainText(text);
 }
 
 export default function Composer(props: ComposerProps) {
-  const {
-    toolsOpen,
-    setToolsOpen,
-    dateOpen,
-    setDateOpen,
-    pendingFiles,
-    dragOver,
-    setDragOver,
-    suggest,
+  const editor = createEditorStore<ComposeAtomData>();
+  const [plainText, setPlainText] = createSignal("");
+  const [sending, setSending] = createSignal(false);
+  const [dragOver, setDragOver] = createSignal(false);
+  const [menuOpen, setMenuOpen] = createSignal(false);
+  const [dateOpen, setDateOpen] = createSignal(false);
+  const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
+  const [suggestPopoverRef, setSuggestPopoverRef] = createSignal<HTMLDivElement>();
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
+  let fileInputRef: HTMLInputElement | undefined;
+  let plusClickTimer: ReturnType<typeof setTimeout> | undefined;
+
+  useSuggestUi(suggestPopoverRef, suggest, setSuggest);
+
+  const applyTextSuggestion = (item: SuggestItem, state: SuggestState) => {
+    if (item.kind === "command") {
+      editor.replaceTriggerRange(state.start, createTextRun(`/${item.name} `));
+      return;
+    }
+    if (item.kind === "emoji") {
+      editor.replaceTriggerRange(state.start, [
+        createAtomRun(ATOM_EMOJI, {
+          fallbackText: `:${item.name}:`,
+          name: item.name,
+          unicode: item.unicode,
+        }),
+        createTextRun(" "),
+      ]);
+      return;
+    }
+    if (item.kind === "user") {
+      editor.replaceTriggerRange(state.start, [
+        createAtomRun(ATOM_MENTION, {
+          fallbackText: `<@${item.id}>`,
+          refId: item.id,
+          target: "user",
+        }),
+        createTextRun(" "),
+      ]);
+      return;
+    }
+    editor.replaceTriggerRange(state.start, [
+      createAtomRun(ATOM_MENTION, {
+        fallbackText: `<#${item.id}>`,
+        refId: item.id,
+        target: "channel",
+      }),
+      createTextRun(" "),
+    ]);
+  };
+
+  const suggestionCtl = createSuggestionController({
+    applyTextSuggestion,
+    channelId: () => props.channelId,
+    includeCommands: !props.editing,
     setSuggest,
-    linkPreviews,
-    editor,
-    setEditorRef,
-    applySuggestion,
-    suggestions,
-    targetChannelId,
-    feedbackKey,
-    disabled,
-    placeholder,
-    runTool,
-    availableTools,
-    cacheDraftLocally,
-    addFiles,
-    removeFile,
-    renameFile,
-    submit,
-    onKeyDown,
-    onInput,
-    setSuggestPopoverRef,
-    setFileInputRef,
-    sending,
-    draftSyncError,
-    retryDraftSync,
-    retryingDraft,
-    retrySlashCommandSuggestions,
-    slashCommandSuggestionsError,
-  } = createComposerController(props);
+    suggest,
+  });
+
+  const handleCaretActivity = () => {
+    const caret = editor.getCaretContext();
+    suggestionCtl.updateSuggestions(caret?.text ?? "", caret?.caretOffset ?? 0);
+  };
+
+  const handleKeyDownCapture = (event: KeyboardEvent): boolean => {
+    if (!suggest()) return false;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      suggestionCtl.moveActiveSuggestion(1);
+      return true;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      suggestionCtl.moveActiveSuggestion(-1);
+      return true;
+    }
+    if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      suggestionCtl.applySuggestion();
+      return true;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setSuggest(null);
+      return true;
+    }
+    return false;
+  };
+
+  const feedbackKey = () => composerFeedbackKey(props.threadTs ?? props.channelId ?? "");
+  const pendingFiles = createPendingFileState({
+    disabled: sending,
+    draftKey: () => (props.channelId ? draftCacheKey(props.channelId, props.threadTs) : undefined),
+  });
+
+  if (props.editing) {
+    editor.loadDoc(docFromDraft(props.editing.initialText, props.editing.initialBlocks));
+    setPlainText(editor.getPlainText());
+  }
+
+  const unsubscribe = editor.onChange(() => setPlainText(editor.getPlainText()));
+  onCleanup(unsubscribe);
+
+  const draftState = props.editing
+    ? undefined
+    : createComposerDraftState({
+        blocks: () => (editor.isEmpty() ? undefined : docToBlocks(editor.getDoc())),
+        channelId: () => props.channelId,
+        editing: () => false,
+        key: () => (props.channelId ? draftCacheKey(props.channelId, props.threadTs) : undefined),
+        loadIntoEditor: (text, blocks) => editor.loadDoc(docFromDraft(text, blocks)),
+        resetPreviews: () => {},
+        setText: setPlainText,
+        text: plainText,
+        threadTs: () => props.threadTs,
+      });
+
+  onCleanup(() => draftState?.cacheLocal());
+
+  const handleSubmit = async () => {
+    if (sending() || !props.channelId) return;
+    const text = editor.getPlainText().trim();
+    if (!text && pendingFiles.files().length === 0 && editor.isEmpty()) return;
+    setSending(true);
+    try {
+      if (props.editing) {
+        const blocks = editor.isEmpty() ? undefined : docToBlocks(editor.getDoc());
+        const ok = await props.editing.onSave(text, blocks);
+        if (!ok) return;
+        return;
+      }
+      const channelId = props.channelId;
+      const threadTs = props.threadTs;
+      const isSlashAttempt = text.startsWith("/");
+      const blocks = isSlashAttempt || editor.isEmpty() ? undefined : docToBlocks(editor.getDoc());
+      const key = draftCacheKey(channelId, threadTs);
+      await submitComposerPayload({
+        blocks,
+        files: pendingFiles.files(),
+        isSlashAttempt,
+        onSuccess: () => {
+          editor.clear();
+          pendingFiles.clear(key);
+          clearPersistedDraft(channelId, threadTs);
+          props.replyTo?.onSent();
+        },
+        runCommand: () => store.commands.handleSlashCommand(channelId, threadTs, text),
+        sendMessage: (b) => store.messages.sendMessage(channelId, text, threadTs, b),
+        uploadFiles: () => uploadFiles(channelId, pendingFiles.files(), threadTs, text),
+      });
+    } catch (err) {
+      actionFeedback.flash(
+        feedbackKey(),
+        err instanceof Error ? err.message : "Failed to send message.",
+        "error",
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDateSelect = (timestamp: number, format: string) => {
+    setDateOpen(false);
+    editor.insertAtomAtCaret(ATOM_DATE, {
+      fallbackText: formatSlackDateTokens(format, timestamp),
+      format,
+      timestamp,
+    });
+    editor.focus();
+  };
+
+  const handlePlusClick = () => {
+    if (plusClickTimer) {
+      clearTimeout(plusClickTimer);
+      plusClickTimer = undefined;
+      return; // second click of a double-click — let onDblClick handle it
+    }
+    plusClickTimer = setTimeout(() => {
+      plusClickTimer = undefined;
+      setMenuOpen(true);
+    }, 220);
+  };
+  const handlePlusDblClick = () => {
+    if (plusClickTimer) {
+      clearTimeout(plusClickTimer);
+      plusClickTimer = undefined;
+    }
+    fileInputRef?.click();
+  };
+
+  const feedback = () => actionFeedback.get(feedbackKey());
+
   return (
-    <form
-      aria-busy={sending()}
+    <div
       class="composer"
       classList={{ "composer-editing": !!props.editing, "drag-over": dragOver() }}
       onDragLeave={() => setDragOver(false)}
       onDragOver={(e) => {
+        if (props.editing) return;
         e.preventDefault();
-        if (!(props.editing || sending()) && targetChannelId()) setDragOver(true);
+        setDragOver(true);
       }}
       onDrop={(e) => {
+        e.preventDefault();
         setDragOver(false);
-        const files = e.dataTransfer?.files;
-        if (files?.length) {
-          e.preventDefault();
-          if (!props.editing) addFiles(files);
-        } else if (sending()) {
-          e.preventDefault();
-        }
+        if (!props.editing && e.dataTransfer?.files.length) pendingFiles.add(e.dataTransfer.files);
       }}
-      onSubmit={submit}
     >
-      <Show when={!props.editing && pendingFiles().length > 0}>
+      <InlineFeedback class="composer-feedback" feedback={feedback()} />
+      <Show when={draftState?.syncError()}>
+        <div class="composer-draft-warning flex-align-center">
+          Draft failed to save.
+          <button class="btn-reset" onClick={() => draftState?.retrySync()} type="button">
+            Retry
+          </button>
+        </div>
+      </Show>
+      <Show when={pendingFiles.files().length > 0}>
         <div class="composer-file-chips">
-          <For each={pendingFiles()}>
-            {(file, i) => (
+          <For each={pendingFiles.files()}>
+            {(file, index) => (
               <FileChip
                 disabled={sending()}
                 file={file}
-                onRemove={() => removeFile(i())}
-                onRename={(name) => renameFile(i(), name)}
+                onRemove={() => pendingFiles.remove(index())}
+                onRename={(name) => pendingFiles.rename(index(), name)}
               />
             )}
           </For>
-        </div>
-      </Show>
-      <Show when={!props.editing && linkPreviews.visiblePreviews().length > 0}>
-        <div class="composer-link-previews">
-          <For each={linkPreviews.visiblePreviews()}>
-            {(preview) => (
-              <div class="composer-link-preview">
-                <AttachmentCard attachment={linkPreviewToAttachment(preview)} />
-                <Tooltip class="composer-link-preview-remove-anchor" content="Remove preview">
-                  <button
-                    class="composer-link-preview-remove btn-reset flex-center"
-                    disabled={sending()}
-                    onClick={() => linkPreviews.dismissLinkPreview(preview.url)}
-                    type="button"
-                  >
-                    <Icon name="close" size={16} />
-                  </button>
-                </Tooltip>
-              </div>
-            )}
-          </For>
-        </div>
-      </Show>
-      <Show when={!props.editing}>
-        <InlineFeedback
-          class="composer-feedback"
-          feedback={actionFeedback.get(composerFeedbackKey(feedbackKey()))}
-        />
-      </Show>
-      <Show when={!props.editing && draftSyncError()}>
-        <div class="composer-draft-warning flex-between">
-          <span>Draft sync is unavailable. Keep this tab open until it is saved.</span>
-          <Button
-            disabled={retryingDraft()}
-            onClick={() => void retryDraftSync()}
-            size="sm"
-            variant="ghost"
-          >
-            {retryingDraft() ? "Retrying…" : "Retry now"}
-          </Button>
-        </div>
-      </Show>
-      <Show when={!props.editing && slashCommandSuggestionsError()}>
-        <div class="composer-capability-error flex-between">
-          <span>Couldn't load slash-command suggestions. Commands can still be typed.</span>
-          <Button onClick={() => void retrySlashCommandSuggestions()} size="sm" variant="ghost">
-            Try again
-          </Button>
         </div>
       </Show>
       <div class="composer-row">
-        <div class="composer-tools-wrap">
+        <Show when={!props.editing}>
           <Menu
-            onClose={() => setToolsOpen(false)}
-            open={toolsOpen()}
+            class="composer-plus-menu"
+            onClose={() => setMenuOpen(false)}
+            open={menuOpen()}
             panelClass="menu-panel composer-tools-menu"
-            placement="top"
             trigger={
-              <button
-                aria-label="Add formatting or a block"
-                class="composer-tool btn-reset flex-center flex-shrink-0"
-                classList={{ active: toolsOpen() }}
-                disabled={disabled()}
-                onClick={() => setToolsOpen(!toolsOpen())}
-                onMouseDown={(e) => e.preventDefault()}
-                type="button"
-              >
-                <Icon name="plus" size={16} />
-              </button>
+              <IconButton
+                circular
+                icon="plus"
+                label="Add attachment or date (double-click to attach)"
+                onClick={handlePlusClick}
+                onDblClick={handlePlusDblClick}
+                size="md"
+              />
             }
           >
-            <For each={availableTools()}>
-              {(tool) => (
-                <MenuItem
-                  icon={tool.icon}
-                  onClick={() => runTool(tool)}
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  {tool.title}
-                </MenuItem>
-              )}
-            </For>
+            <MenuItem
+              icon="attachment"
+              onClick={() => {
+                setMenuOpen(false);
+                fileInputRef?.click();
+              }}
+            >
+              Attach file
+            </MenuItem>
+            <MenuItem
+              icon="calendar"
+              onClick={() => {
+                setMenuOpen(false);
+                setDateOpen(true);
+              }}
+            >
+              Insert date
+            </MenuItem>
           </Menu>
+          <input
+            class="composer-file-input"
+            multiple
+            onChange={(e) => {
+              if (e.currentTarget.files) pendingFiles.add(e.currentTarget.files);
+              e.currentTarget.value = "";
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
+        </Show>
+        <div class="composer-input-wrap">
+          <EditorView
+            ariaLabel={props.editing ? "Edit message" : "Message"}
+            atomRenderers={composeAtomRenderers}
+            class="composer-input"
+            editor={editor}
+            onCaretActivity={handleCaretActivity}
+            onKeyDownCapture={handleKeyDownCapture}
+            onSubmit={handleSubmit}
+            placeholder={props.placeholder ?? "Message"}
+          />
           <Show when={dateOpen()}>
             <div class="composer-date-popover">
-              <ComposeDatePicker
-                onClose={() => setDateOpen(false)}
-                onSelect={(ts, format) => {
-                  editor.restoreSelection();
-                  editor.insertDateChipAtCaret(ts, format);
-                  cacheDraftLocally();
-                  setDateOpen(false);
-                }}
-              />
+              <ComposeDatePicker onClose={() => setDateOpen(false)} onSelect={handleDateSelect} />
             </div>
           </Show>
-        </div>
-        <div class="composer-input-wrap">
-          <div
-            aria-label={dragOver() ? "Drop to attach" : placeholder()}
-            aria-multiline="true"
-            class="composer-input input-reset"
-            classList={{ disabled: disabled() }}
-            contentEditable={!disabled()}
-            data-placeholder={dragOver() ? "Drop to attach" : placeholder()}
-            onBlur={() => setSuggest(null)}
-            onInput={onInput}
-            onKeyDown={onKeyDown}
-            ref={setEditorRef}
-            tabIndex={disabled() ? -1 : 0}
-          />
           <Show when={suggest()}>
-            {(s) => (
+            {(state) => (
               <div class="menu-panel composer-suggest-popover" ref={setSuggestPopoverRef}>
-                <For each={s().items}>
+                <For each={state().items}>
                   {(item, i) => (
                     <button
-                      class="composer-suggest-row btn-reset flex-align-center"
-                      classList={{ active: i() === s().active }}
-                      onClick={() => applySuggestion(i())}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onMouseEnter={() => suggestions.setActiveSuggestion(i())}
+                      class="composer-suggest-row flex-align-center"
+                      classList={{ active: i() === state().active }}
+                      onClick={() => suggestionCtl.applySuggestion(i())}
+                      onMouseEnter={() => suggestionCtl.setActiveSuggestion(i())}
                       type="button"
                     >
                       {suggestItemContent(item)}
@@ -295,27 +367,21 @@ export default function Composer(props: ComposerProps) {
             )}
           </Show>
         </div>
-        <input
-          class="composer-file-input"
-          disabled={disabled()}
-          multiple
-          onChange={(e) => {
-            if (e.currentTarget.files?.length) addFiles(e.currentTarget.files);
-            e.currentTarget.value = "";
-          }}
-          ref={setFileInputRef}
-          type="file"
-        />
-        <Show when={sending()}>
-          <span class="composer-send-status">
-            {props.editing
-              ? "Saving…"
-              : pendingFiles().length > 0
-                ? `Uploading ${pendingFiles().length === 1 ? "file" : `${pendingFiles().length} files`}…`
-                : "Sending…"}
-          </span>
-        </Show>
       </div>
-    </form>
+      <Show when={props.editing}>
+        <div class="composer-row composer-edit-actions">
+          <button
+            class="btn-reset composer-edit-cancel"
+            onClick={() => props.editing?.onCancel()}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button class="btn-reset composer-edit-save" onClick={handleSubmit} type="button">
+            Save
+          </button>
+        </div>
+      </Show>
+    </div>
   );
 }

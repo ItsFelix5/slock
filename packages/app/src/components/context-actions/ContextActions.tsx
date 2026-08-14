@@ -20,7 +20,11 @@ const COMPOSER_ACTIONS: Action[] = [
   { keys: "Ctrl/⌘ Shift C", label: "Inline code" },
 ];
 
-const ESCAPE_ACTION: Action = { keys: "Escape", label: "Close the current panel or dialog" };
+const ESCAPE_ACTION: Action = { keys: "Escape", label: "Close the focused pane or dialog" };
+const SPLIT_ACTION: Action = {
+  keys: "Ctrl/⌘ Click",
+  label: "Open a channel, link, or reply in a new split pane",
+};
 
 function ActionList(props: { actions: Action[] }) {
   return (
@@ -65,7 +69,11 @@ export default function ContextActions() {
     scope: "general",
   });
   useEscapeClose(() => setOpen(false), open);
-  const generalActions = () => [...(shortcutsByScope().get("general") ?? []), ESCAPE_ACTION];
+  const generalActions = () => [
+    ...(shortcutsByScope().get("general") ?? []),
+    SPLIT_ACTION,
+    ESCAPE_ACTION,
+  ];
   const messageActions = () => shortcutsByScope().get("messages") ?? [];
 
   return (

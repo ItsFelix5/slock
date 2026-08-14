@@ -7,9 +7,9 @@ import type {
 import { Show } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
 import Button from "./Button";
+import Controls from "./Controls";
 import ImageElement from "./ImageElement";
 import Overflow from "./Overflow";
-import Controls from "./Controls";
 
 export default function ElementRenderer(props: {
   blockId?: string;

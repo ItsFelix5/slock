@@ -47,9 +47,9 @@ export default function MessageList() {
   });
   const activeChannelId = () => paneView()?.id ?? "";
   const messageFocus = createMessageFocus(messages, () => scrollRef, activeChannelId, {
-    onOpenThread: (ts) => {
+    onOpenThread: (ts, opts) => {
       const v = paneView();
-      if (v) store.viewState.openThread(v.id, ts);
+      if (v) store.viewState.openThread(v.id, ts, undefined, opts);
     },
   });
 
@@ -433,7 +433,9 @@ export default function MessageList() {
                   listFocused={messageFocus.listFocused}
                   messages={messages()}
                   onJumpToMessage={jumpToMessage}
-                  onOpenThread={(ts) => store.viewState.openThread(v().id, ts)}
+                  onOpenThread={(ts, opts) =>
+                    store.viewState.openThread(v().id, ts, undefined, opts)
+                  }
                   onStartEdit={messageFocus.onStartEdit}
                   onStopEdit={messageFocus.onStopEdit}
                 />

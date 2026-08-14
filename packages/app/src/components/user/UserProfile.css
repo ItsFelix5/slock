@@ -1,11 +1,11 @@
 .user-profile-panel {
   position: relative;
   display: flex;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
   flex-direction: column;
   overflow-y: auto;
   background: var(--main-bg);
-  border-left: 1px solid var(--border);
 }
 
 .user-profile-body {

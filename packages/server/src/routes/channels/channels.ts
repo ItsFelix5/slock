@@ -1,7 +1,7 @@
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimChannel } from "../../trim/slackEntities.ts";
-import { mutate, route, type Route, type RouteCtx } from "../router.ts";
+import { mutate, type Route, type RouteCtx, route } from "../router.ts";
 
 export const channelRoutes: Route[] = [
   route("POST", "/api/channels", async (ctx) => {

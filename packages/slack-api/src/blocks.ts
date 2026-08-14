@@ -150,6 +150,7 @@ export type BlockElement =
 export interface SectionBlock {
   accessory?: BlockElement;
   block_id?: string;
+  expand?: boolean;
   fields?: TextObject[];
   text?: TextObject;
   type: "section";
@@ -226,12 +227,18 @@ export interface VideoBlock {
   video_url: string;
 }
 
+export interface SlackIconObject {
+  name: string;
+  type: "icon";
+}
+
 export interface CardBlock {
   actions?: BlockElement[];
   block_id?: string;
   body?: TextObject;
   hero_image?: ImageElement;
   icon?: ImageElement;
+  slack_icon?: SlackIconObject;
   subtitle?: TextObject;
   subtext?: TextObject;
   title?: TextObject;
@@ -246,9 +253,20 @@ export interface CarouselBlock {
 
 export interface ContainerBlock {
   block_id?: string;
+  /** @deprecated undocumented alias observed in the wild; child_blocks is the documented field */
   blocks?: Block[];
+  child_blocks?: Block[];
+  default_collapsed?: boolean;
+  /** @deprecated undocumented alias observed in the wild; child_blocks is the documented field */
   elements?: Block[];
+  has_header_divider?: boolean;
+  icon?: ImageElement;
+  is_collapsible?: boolean;
+  rich_text_title?: RichTextBlock;
+  subtitle?: TextObject;
+  title?: TextObject;
   type: "container";
+  width?: "narrow" | "standard" | "wide" | "full";
 }
 
 export interface ContextActionsBlock {
@@ -277,9 +295,34 @@ export interface TableBlock {
   row_header_column_index?: number;
 }
 
+export interface ChartSegment {
+  label: string;
+  value: number;
+}
+
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+}
+
+export interface ChartSeries {
+  data: ChartDataPoint[];
+  name: string;
+}
+
+export interface ChartAxisConfig {
+  categories: string[];
+  x_label?: string;
+  y_label?: string;
+}
+
+export type Chart =
+  | { segments: ChartSegment[]; type: "pie" }
+  | { axis_config: ChartAxisConfig; series: ChartSeries[]; type: "bar" | "area" | "line" };
+
 export interface DataVisualizationBlock {
   block_id?: string;
-  chart: { type: string; [key: string]: unknown };
+  chart: Chart;
   title: string;
   type: "data_visualization";
 }

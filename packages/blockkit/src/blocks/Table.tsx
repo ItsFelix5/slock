@@ -1,4 +1,4 @@
-import type { DataVisualizationBlock, TableBlock } from "@slock/slack-api";
+import type { TableBlock } from "@slock/slack-api";
 import { For, Show } from "solid-js";
 import RichText from "./RichText";
 
@@ -43,32 +43,5 @@ export function Table(props: { block: TableBlock }) {
         </tbody>
       </table>
     </div>
-  );
-}
-
-export function DataVisualization(props: { block: DataVisualizationBlock }) {
-  const segments = () =>
-    (props.block.chart as { segments?: { label?: string; value?: number }[] }).segments ?? [];
-  const max = () => Math.max(1, ...segments().map((segment) => segment.value ?? 0));
-  return (
-    <section class="bk-chart">
-      <div class="bk-chart-title">{props.block.title}</div>
-      <Show
-        fallback={<div class="bk-chart-empty">{props.block.chart.type} chart</div>}
-        when={segments().length}
-      >
-        <div class="bk-chart-bars">
-          <For each={segments()}>
-            {(segment) => (
-              <div class="bk-chart-row">
-                <span>{segment.label}</span>
-                <i style={{ width: `${((segment.value ?? 0) / max()) * 100}%` }} />
-                <b>{segment.value}</b>
-              </div>
-            )}
-          </For>
-        </div>
-      </Show>
-    </section>
   );
 }

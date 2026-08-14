@@ -6,7 +6,7 @@ export type MessageRowsProps = {
   messages: Message[];
   channelId: string;
   threadTs?: string;
-  onOpenThread?: (ts: string) => void;
+  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
 

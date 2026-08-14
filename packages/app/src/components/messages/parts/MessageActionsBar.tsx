@@ -10,7 +10,7 @@ export default function MessageActionsBar(props: {
   channelId: string;
   msg: Message;
   threadTs?: string;
-  onOpenThread?: (ts: string) => void;
+  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
 
@@ -70,7 +70,9 @@ export default function MessageActionsBar(props: {
           <button
             aria-label="Reply in thread"
             class="message-hover-btn btn-reset flex-center"
-            onClick={() => props.onOpenThread?.(threadRootTs())}
+            onClick={(e) =>
+              props.onOpenThread?.(threadRootTs(), { pinned: e.ctrlKey || e.metaKey })
+            }
             tabIndex={props.rowFocused() ? undefined : -1}
             type="button"
           >

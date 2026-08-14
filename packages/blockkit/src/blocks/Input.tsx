@@ -1,8 +1,8 @@
 import type { InputBlock } from "@slock/slack-api";
 import { Show } from "solid-js";
 import BkText from "../BkText";
-import ElementRenderer from "../elements/ElementRenderer";
 import type { BlockActionContext } from "../BlockKit";
+import ElementRenderer from "../elements/ElementRenderer";
 
 export default function Input(props: { block: InputBlock; context?: BlockActionContext }) {
   return (

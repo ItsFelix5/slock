@@ -9,7 +9,6 @@ import { actionFeedback, store } from "./store";
 import { createSerialMutationQueue } from "./store/mutations/serialMutationQueue";
 
 function setup() {
-  const [usergroupDetailsId, setUsergroupDetailsId] = createSignal<string | null>(null);
   const [usergroupDetailsLoading, setUsergroupDetailsLoading] = createSignal(false);
   const [usergroupDetailsLoadError, setUsergroupDetailsLoadError] = createSignal(false);
   const [usergroupMutationPending, setUsergroupMutationPending] = createSignal(false);
@@ -26,7 +25,7 @@ function setup() {
       if (!details) throw new Error("Pinggroup details are unavailable.");
       return true;
     } catch (err) {
-      if (epoch !== loadEpoch || usergroupDetailsId() !== id) return false;
+      if (epoch !== loadEpoch) return false;
       setUsergroupDetailsLoadError(true);
       actionFeedback.flash(
         id,
@@ -40,7 +39,7 @@ function setup() {
   }
 
   function openUsergroupDetails(id: string) {
-    setUsergroupDetailsId(id);
+    store.panes.openInNewPane({ kind: "usergroup-details", usergroupId: id });
     void loadUsergroupDetails(id);
   }
 
@@ -48,7 +47,8 @@ function setup() {
     loadEpoch++;
     setUsergroupDetailsLoading(false);
     setUsergroupDetailsLoadError(false);
-    setUsergroupDetailsId(null);
+    const pane = store.panes.panes().find((p) => p.content?.kind === "usergroup-details");
+    if (pane) store.panes.closePane(pane.id);
   }
 
   function withFeedback(
@@ -136,7 +136,6 @@ function setup() {
     removeUsergroupMember,
     saveUsergroupProfile,
     setUsergroupChannelSectionEnabled,
-    usergroupDetailsId,
     usergroupDetailsLoadError,
     usergroupDetailsLoading,
     usergroupMutationPending,
@@ -153,7 +152,6 @@ export const {
   removeUsergroupMember,
   saveUsergroupProfile,
   setUsergroupChannelSectionEnabled,
-  usergroupDetailsId,
   usergroupDetailsLoadError,
   usergroupDetailsLoading,
   usergroupMutationPending,

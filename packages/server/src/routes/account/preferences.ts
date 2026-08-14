@@ -1,5 +1,5 @@
 import { errorResponse } from "../../http/jsonResponse.ts";
-import { mutate, route, type Route, type RouteCtx } from "../router.ts";
+import { mutate, type Route, type RouteCtx, route } from "../router.ts";
 
 function prefWrite(name: string, value: string, ctx: RouteCtx) {
   return mutate("users.prefs.set", { name, value }, ctx);

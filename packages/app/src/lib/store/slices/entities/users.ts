@@ -14,6 +14,7 @@ import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
 import { actionFeedback } from "../feedback";
+import type { createPanesSlice } from "../session/panes";
 
 type UsersApi = {
   fetchAppDescription: typeof fetchAppDescription;
@@ -43,6 +44,7 @@ export function createUsersSlice(
   deps: {
     currentUserBase: () => User | undefined;
     isSelfOnline: () => boolean;
+    panes: Pick<ReturnType<typeof createPanesSlice>, "closePane" | "openInNewPane" | "panes">;
   },
   api: UsersApi = DEFAULT_USERS_API,
 ) {
@@ -54,7 +56,6 @@ export function createUsersSlice(
     {},
   );
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
-  const [profileUserId, setProfileUserId] = createSignal<string | null>(null);
 
   const [botBios, setBotBios] = createStore<Record<string, string>>({});
   const pendingBotBios = new Set<string>();
@@ -185,7 +186,7 @@ export function createUsersSlice(
   }
 
   function openUserProfile(id: string) {
-    setProfileUserId(id);
+    deps.panes.openInNewPane({ kind: "profile", userId: id });
 
     if (id === deps.currentUserBase()?.id) return;
     api
@@ -195,7 +196,8 @@ export function createUsersSlice(
   }
 
   function closeUserProfile() {
-    setProfileUserId(null);
+    const profile = deps.panes.panes().find((p) => p.content?.kind === "profile");
+    if (profile) deps.panes.closePane(profile.id);
   }
 
   async function updateMyStatus(text: string, emoji: string, expiration: number): Promise<boolean> {
@@ -306,7 +308,6 @@ export function createUsersSlice(
     knownUsers,
     openUserProfile,
     profileStartDateFor,
-    profileUserId,
     searchUsers,
     setPresenceOverrides,
     updateMyPresence,

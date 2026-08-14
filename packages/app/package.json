@@ -9,15 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@lexical/code": "^0.49.0",
-    "@lexical/history": "^0.49.0",
-    "@lexical/link": "^0.49.0",
-    "@lexical/list": "^0.49.0",
-    "@lexical/rich-text": "^0.49.0",
     "@slock/blockkit": "workspace:*",
     "@slock/slack-api": "workspace:*",
     "@slock/ui": "workspace:*",
-    "lexical": "^0.49.0",
     "solid-js": "^1.9.13"
   },
   "devDependencies": {

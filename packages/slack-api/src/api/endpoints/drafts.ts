@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPut } from "../server";
 
-export type DraftEntry = { channelId: string; threadTs?: string; text: string };
+export type DraftEntry = { channelId: string; threadTs?: string; text: string; blocks?: unknown };
 
 const draftState = new Map<string, { draftId: string; clientMsgId: string }>();
 function draftKey(channelId: string, threadTs?: string): string {
@@ -16,11 +16,16 @@ export async function fetchDrafts(): Promise<DraftEntry[]> {
       clientMsgId: d.clientMsgId,
       draftId: d.id,
     });
-    return { channelId: d.channelId, text: d.text, threadTs: d.threadTs };
+    return { blocks: d.blocks, channelId: d.channelId, text: d.text, threadTs: d.threadTs };
   });
 }
 
-export async function saveDraft(channelId: string, threadTs: string | undefined, text: string) {
+export async function saveDraft(
+  channelId: string,
+  threadTs: string | undefined,
+  text: string,
+  blocks?: unknown,
+) {
   const key = draftKey(channelId, threadTs);
   const existing = draftState.get(key);
 
@@ -35,6 +40,7 @@ export async function saveDraft(channelId: string, threadTs: string | undefined,
 
   const clientMsgId = existing?.clientMsgId ?? crypto.randomUUID();
   const data = await apiPut("/api/drafts", {
+    blocks,
     channelId,
     clientMsgId,
     draftId: existing?.draftId,

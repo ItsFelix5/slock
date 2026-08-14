@@ -161,7 +161,7 @@ export function formatSlackDateTokens(
   }
 }
 
-function partsInZone(ms: number, timeZone: string) {
+export function partsInZone(ms: number, timeZone: string) {
   const map: Record<string, string> = {};
   for (const part of new Intl.DateTimeFormat("en-US", {
     day: "2-digit",

@@ -31,6 +31,13 @@ function focusPaneEntry(pane: HTMLElement) {
     ?.focus();
 }
 
+export function focusPaneById(id: string): boolean {
+  const pane = document.querySelector<HTMLElement>(`[data-pane="${CSS.escape(id)}"]`);
+  if (!pane) return false;
+  focusPaneEntry(pane);
+  return true;
+}
+
 export function usePaneNavigation() {
   useShortcut({
     allowRepeat: true,

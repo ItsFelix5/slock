@@ -25,8 +25,8 @@ export {
   updateSectionChannels,
 } from "./channels/sections";
 export {
-  fetchConversationView,
   type ConversationViewData,
+  fetchConversationView,
 } from "./conversationView";
 export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite";
 

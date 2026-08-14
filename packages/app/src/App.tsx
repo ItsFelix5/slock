@@ -1,46 +1,24 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import {
-  Button,
-  ConnectionStatus,
-  InlineFeedback,
-  TileGroup,
-  type TileLeaf,
-  TypingIndicator,
-  usePaneNavigation,
-} from "@slock/ui";
-import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
-import ArchivedChannelBar from "./components/channel/ArchivedChannelBar";
-import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
+import { Button, ConnectionStatus, InlineFeedback, PaneRow, usePaneNavigation } from "@slock/ui";
+import { createEffect, onCleanup, onMount, Show } from "solid-js";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
-import ChannelHeader from "./components/channel/ChannelHeader";
-import { createChannelHeaderState } from "./components/channel/channelHeaderState";
-import FilesLinksPanel from "./components/channel/FilesLinksPanel";
-import JoinChannelBar from "./components/channel/JoinChannelBar";
-import PinnedPanel from "./components/channel/PinnedPanel";
-import Composer from "./components/composer/Composer";
 import ContextActions from "./components/context-actions/ContextActions";
-import MessageList from "./components/messages/MessageList";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
-import ThreadPanel from "./components/messages/thread/ThreadPanel";
 import ViewModal from "./components/modals/ViewModal";
 import { openConversationInSplit, SplitNavigation } from "./components/navigation/SplitNavigation";
+import PaneSwitch from "./components/panes/PaneSwitch";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
-import UserProfile from "./components/user/UserProfile";
-import UsergroupDetails from "./components/usergroup/UsergroupDetails";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
-import { filesLinksChannelId } from "./lib/filesLinksPanel";
 import { handleMessageCopy } from "./lib/messageCopy";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
   parseSlackPermalink,
 } from "./lib/navigation/slackPermalink";
-import { PaneViewProvider } from "./lib/paneView";
 import { actionFeedback, channelDisplayName, conversationDisplayName, store } from "./lib/store";
-import type { View } from "./lib/store/slices/types";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
@@ -93,60 +71,6 @@ const blockKitResolver: BlockKitResolver = {
     <UsergroupHoverCard usergroupId={id}>{trigger}</UsergroupHoverCard>
   ),
 };
-
-function MainPane(props: { leaf: TileLeaf<View | null> }) {
-  const { isArchivedChannel } = createChannelHeaderState(() => props.leaf.content);
-  const unjoinedChannelId = () => {
-    const view = props.leaf.content;
-    return view?.kind === "channel" && !store.channels.isChannelMember(view.id)
-      ? view.id
-      : undefined;
-  };
-  const typingNames = createMemo(() => {
-    const view = props.leaf.content;
-    return view ? store.typing.typingUsersInChannel(view.id).map((user) => user.name) : [];
-  });
-  const showFilesLinks = createMemo(() => {
-    const id = props.leaf.content?.id;
-    return !!id && filesLinksChannelId() === id;
-  });
-
-  return (
-    <PaneViewProvider
-      value={{
-        clearMessageTarget: () => store.tiling.clearMessageTarget(props.leaf.id),
-        messageTarget: () => store.tiling.messageTarget(props.leaf.id),
-        paneId: props.leaf.id,
-        view: () => props.leaf.content,
-      }}
-    >
-      <div class="main-panel" data-pane="messages">
-        <ChannelHeader />
-        <Show fallback={<FilesLinksPanel />} when={!showFilesLinks()}>
-          <MessageList />
-          <Show
-            fallback={
-              <Show
-                fallback={
-                  <div class="typing-indicator-anchor">
-                    <TypingIndicator names={typingNames()} />
-                    <Composer channelId={props.leaf.content?.id} />
-                  </div>
-                }
-                when={isArchivedChannel()}
-              >
-                <ArchivedChannelBar />
-              </Show>
-            }
-            when={unjoinedChannelId()}
-          >
-            {(channelId) => <JoinChannelBar channelId={channelId()} />}
-          </Show>
-        </Show>
-      </div>
-    </PaneViewProvider>
-  );
-}
 
 function App() {
   usePaneNavigation();
@@ -221,17 +145,13 @@ function App() {
     });
   });
 
-  function renderMainPaneContent(leaf: TileLeaf<View | null>) {
-    return <MainPane leaf={leaf} />;
-  }
-
   return (
     <BlockKitResolverContext.Provider value={blockKitResolver}>
       <Show
         fallback={
           <main class="app-bootstrap-error flex-center flex-col">
             <h1>Couldn't load your workspace</h1>
-            <p>Check your connection and try again. Your local settings are unchanged.</p>
+            <p>Check your connection and try again.</p>
             <Button
               disabled={store.resources.bootstrap.loading}
               onClick={() => void store.resources.retryBootstrap()}
@@ -255,16 +175,11 @@ function App() {
           />
           <Sidebar />
 
-          <TileGroup
-            onResize={store.tiling.resizeSplit}
-            renderLeaf={renderMainPaneContent}
-            tree={store.tiling.tree()}
+          <PaneRow
+            onResize={store.panes.resize}
+            panes={store.panes.panes()}
+            renderPane={(pane) => <PaneSwitch pane={pane} />}
           />
-          <ThreadPanel />
-          <UserProfile />
-          <UsergroupDetails />
-          <ChannelDetails />
-          <PinnedPanel />
           <ContextActions />
           <ViewModal />
         </div>

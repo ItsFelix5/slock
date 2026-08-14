@@ -17,10 +17,10 @@ import UserHoverCard from "../user/UserHoverCard";
 import { MessageAvatarButton } from "./MessageAuthorButtons";
 import "./MessageList.css";
 import MessageMeta from "./MessageMeta";
-import AttachmentCard from "./parts/media/AttachmentCard";
-import MessageFiles from "./parts/media/MessageFiles";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
+import AttachmentCard from "./parts/media/AttachmentCard";
+import MessageFiles from "./parts/media/MessageFiles";
 import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
@@ -89,7 +89,7 @@ export type MessageRowProps = {
   messages: Message[];
   channelId: string;
   threadTs?: string;
-  onOpenThread?: (ts: string) => void;
+  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
   index: () => number;
@@ -308,6 +308,7 @@ export default function MessageRow(props: MessageRowProps) {
                 <Composer
                   channelId={props.channelId}
                   editing={{
+                    initialBlocks: replyRef() ? undefined : msg().blocks,
                     initialText: replyRef()?.rest ?? msg().text,
                     onCancel: () => props.onStopEdit?.(),
                     onSave: async (text, blocks) => {
@@ -407,7 +408,7 @@ export default function MessageRow(props: MessageRowProps) {
             <Show when={props.onOpenThread && (msg().replyCount ?? 0) > 0}>
               <button
                 class="message-replies btn-reset flex-align-center"
-                onClick={() => props.onOpenThread?.(msg().ts)}
+                onClick={(e) => props.onOpenThread?.(msg().ts, { pinned: e.ctrlKey || e.metaKey })}
                 type="button"
               >
                 <Show

@@ -1,9 +1,25 @@
 import type { BlockElement, CardBlock, CarouselBlock } from "@slock/slack-api";
+import { Icon, type IconName } from "@slock/ui";
 import { For, Show } from "solid-js";
-import type { BlockActionContext } from "../BlockKit";
 import BkText from "../BkText";
+import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
 import ImageElement from "../elements/ImageElement";
+
+// slack_icon names are a fixed Block Kit enum; map them onto our closest icon-set entries
+const SLACK_ICON_NAME_MAP: Record<string, IconName> = {
+  clipboard: "form",
+  compass: "explore",
+  cube: "blocks",
+  gear: "settings",
+  lightbulb: "magic-wand",
+  sparkle: "sparkles",
+  upload: "cloud-upload",
+};
+
+function slackIconName(name: string): IconName {
+  return SLACK_ICON_NAME_MAP[name] ?? (name as IconName);
+}
 
 export function Card(props: { block: CardBlock; context?: BlockActionContext }) {
   return (
@@ -12,10 +28,25 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
         <ImageElement el={props.block.hero_image!} />
       </Show>
       <div class="bk-card-content">
-        <Show when={props.block.icon || props.block.title || props.block.subtitle}>
+        <Show
+          when={
+            props.block.icon || props.block.slack_icon || props.block.title || props.block.subtitle
+          }
+        >
           <div class="bk-card-heading">
-            <Show when={props.block.icon}>
-              <ImageElement el={props.block.icon!} />
+            <Show
+              fallback={
+                <Show when={props.block.icon}>
+                  <ImageElement el={props.block.icon!} />
+                </Show>
+              }
+              when={props.block.slack_icon}
+            >
+              {(slackIcon) => (
+                <span class="bk-card-slack-icon">
+                  <Icon name={slackIconName(slackIcon().name)} size={16} />
+                </span>
+              )}
             </Show>
             <div>
               <Show when={props.block.title}>

@@ -1,55 +1,32 @@
 import type { Message } from "@slock/slack-api";
-import {
-  Button,
-  Icon,
-  PanelHeader,
-  panelWantsFullscreen,
-  ResizeHandle,
-  Tooltip,
-  TypingIndicator,
-} from "@slock/ui";
+import { Button, Icon, type Pane, PanelHeader, Tooltip, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { sidebarWidth } from "../../../lib/sidebarWidth";
+import { closeTile } from "../../../lib/paneActions";
 import { actionFeedback, conversationDisplayName, store } from "../../../lib/store";
+import type { ThreadPaneContent } from "../../../lib/store/slices/types";
 import Composer from "../../composer/Composer";
 import MessageRows from "../MessageRows";
 import { createMessageFocus } from "../messageFocus";
 import ReplyReferenceRow from "../parts/ReplyReferenceRow";
-import {
-  captureScrollAnchor,
-  isScrolledToBottom,
-  jumpToMessageInContainer,
-  restoreScrollAnchor,
-  scrollToBottom,
-} from "../scrollAnchor";
+import { isScrolledToBottom, jumpToMessageInContainer, scrollToBottom } from "../scrollAnchor";
 import "./ThreadPanel.css";
 
-const DEFAULT_WIDTH = 380;
-const MIN_WIDTH = 280;
-const MAX_WIDTH = 640;
-
-export default function ThreadPanel() {
-  const thread = store.viewState.activeThread;
-  const [width, setWidth] = createSignal(DEFAULT_WIDTH);
-  const isFullscreen = createMemo(() => panelWantsFullscreen(sidebarWidth(), width()));
+export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
+  const thread = () => props.pane.content;
   const [replyTarget, setReplyTarget] = createSignal<{ ts: string; permalink: string } | null>(
     null,
   );
 
   let messagesRef: HTMLDivElement | undefined;
   let cancelJump: (() => void) | undefined;
-  const messages = createMemo(() => {
-    const t = thread();
-    if (!t) return [];
-    return store.messages.threadMessages[t.ts] ?? [];
-  });
+  const messages = createMemo(() => store.messages.threadMessages[thread().ts] ?? []);
   const messageFocus = createMessageFocus(
     messages,
     () => messagesRef,
-    () => thread()?.channelId ?? "",
+    () => thread().channelId,
     {
       onReplyLink: (msg) => void startReply(msg),
-      threadTs: () => thread()?.ts,
+      threadTs: () => thread().ts,
     },
   );
 
@@ -57,19 +34,18 @@ export default function ThreadPanel() {
 
   const typingNames = createMemo(() => {
     const t = thread();
-    if (!t) return [];
     return store.typing.typingUsersInThread(t.channelId, t.ts).map((u) => u.name);
   });
 
   const toggleSubscription = () => {
     const t = thread();
-    if (t) store.messages.toggleThreadSubscribed(t.channelId, t.ts);
+    store.messages.toggleThreadSubscribed(t.channelId, t.ts);
   };
   const jumpToReplyTarget = () => jumpToMessage(replyTarget()?.ts ?? "");
   const cancelReply = () => setReplyTarget(null);
   const openThreadMessageInChannel = () => {
     const t = thread();
-    if (t) store.viewState.openChannelMessage(t.channelId, t.ts, { keepNav: true });
+    store.viewState.openChannelMessage(t.channelId, t.ts, { keepNav: true });
   };
 
   createEffect(() => {
@@ -80,11 +56,11 @@ export default function ThreadPanel() {
   });
   onCleanup(() => cancelJump?.());
 
-  let handledHighlightRequest: ReturnType<typeof thread> = null;
-  let highlightedRequestJustHandled: ReturnType<typeof thread> = null;
+  let handledHighlightRequest: ThreadPaneContent | null = null;
+  let highlightedRequestJustHandled: ThreadPaneContent | null = null;
   createEffect(() => {
     const t = thread();
-    if (!t?.highlightTs) return;
+    if (!t.highlightTs) return;
     if (handledHighlightRequest === t) return;
     if (!messages().some((m) => m.ts === t.highlightTs)) return;
     handledHighlightRequest = t;
@@ -97,10 +73,10 @@ export default function ThreadPanel() {
   createEffect(() => {
     const t = thread();
     const msgs = messages();
-    const switchedThread = t?.ts !== lastThreadTs;
-    lastThreadTs = t?.ts;
+    const switchedThread = t.ts !== lastThreadTs;
+    lastThreadTs = t.ts;
     if (switchedThread) shouldFollowBottom = true;
-    if (!(t && messagesRef && msgs.length > 0)) return;
+    if (!(messagesRef && msgs.length > 0)) return;
 
     if (highlightedRequestJustHandled === t) {
       highlightedRequestJustHandled = null;
@@ -131,7 +107,6 @@ export default function ThreadPanel() {
 
   const channelName = createMemo(() => {
     const t = thread();
-    if (!t) return "";
     return conversationDisplayName(
       t.channelId,
       t.channelId.startsWith("D") ? undefined : store.channels.channelById(t.channelId),
@@ -142,7 +117,6 @@ export default function ThreadPanel() {
 
   async function startReply(msg: Message) {
     const t = thread();
-    if (!t) return;
     const permalink = await store.messages.prepareReplyLink(t.channelId, msg.ts, t.ts);
     if (thread() !== t) return;
     if (!permalink) {
@@ -162,141 +136,112 @@ export default function ThreadPanel() {
     if (messagesRef) shouldFollowBottom = isScrolledToBottom(messagesRef);
   }
 
-  function setWidthAnchored(w: number) {
-    const el = messagesRef;
-    if (!el) {
-      setWidth(w);
-      return;
-    }
-    const anchor = captureScrollAnchor(el);
-    setWidth(w);
-    restoreScrollAnchor(el, anchor);
-  }
-
   return (
-    <Show when={thread()}>
-      {(t) => (
-        <div
-          class="thread-panel"
-          classList={{ "panel-fullscreen": isFullscreen() }}
-          data-pane="thread"
-          style={{ width: `${width()}px` }}
-        >
-          <ResizeHandle
-            direction={-1}
-            label="Resize thread panel"
-            max={MAX_WIDTH}
-            min={MIN_WIDTH}
-            setWidth={setWidthAnchored}
-            side="left"
-            width={width}
-          />
-          <PanelHeader onClose={store.viewState.closeThread}>
-            <div class="thread-panel-header-info flex-align-center">
-              <div class="thread-panel-title">Thread</div>
+    <div class="thread-panel" data-pane={props.pane.id}>
+      <PanelHeader onClose={() => closeTile(props.pane.id)}>
+        <div class="thread-panel-header-info flex-align-center">
+          <div class="thread-panel-title">Thread</div>
+          <button
+            aria-label={`View thread message in ${channelName()}`}
+            class="thread-panel-subtitle btn-reset"
+            onClick={openThreadMessageInChannel}
+            type="button"
+          >
+            {channelName()}
+          </button>
+          <Tooltip
+            content={
+              store.messages.isThreadSubscribed(thread().ts)
+                ? "Unfollow thread"
+                : "Get notified about new replies"
+            }
+          >
+            <button
+              class="thread-panel-subscribe-btn btn-reset flex-center"
+              classList={{ subscribed: store.messages.isThreadSubscribed(thread().ts) }}
+              disabled={
+                messages().length === 0 ||
+                store.messages.isThreadSubscriptionPending(thread().channelId, thread().ts)
+              }
+              onClick={toggleSubscription}
+              type="button"
+            >
+              <Icon
+                name={
+                  store.messages.isThreadSubscribed(thread().ts)
+                    ? "notifications-check"
+                    : "notifications"
+                }
+                size={16}
+              />
+            </button>
+          </Tooltip>
+        </div>
+      </PanelHeader>
+      <Show when={store.messages.isLoadingThread(thread().ts) && messages().length === 0}>
+        <div class="thread-panel-status text-dim">Loading thread…</div>
+      </Show>
+      <Show when={store.messages.hasThreadError(thread().ts)}>
+        <div class="thread-panel-error">
+          <span>Couldn't load this thread.</span>
+          <Button
+            onClick={() =>
+              store.messages.ensureThreadRepliesLoaded(thread().channelId, thread().ts)
+            }
+            size="sm"
+          >
+            Try again
+          </Button>
+        </div>
+      </Show>
+      <div
+        aria-busy={store.messages.isLoadingThread(thread().ts)}
+        class="thread-panel-messages"
+        onFocusIn={messageFocus.onContainerFocusIn}
+        onFocusOut={messageFocus.onContainerFocusOut}
+        onScroll={handleMessagesScroll}
+        ref={messagesRef}
+      >
+        <MessageRows
+          channelId={thread().channelId}
+          editingTs={messageFocus.editingTs}
+          focusedTs={messageFocus.focusedTs}
+          listFocused={messageFocus.listFocused}
+          messages={messages()}
+          onJumpToMessage={jumpToMessage}
+          onReplyLink={startReply}
+          onStartEdit={messageFocus.onStartEdit}
+          onStopEdit={messageFocus.onStopEdit}
+          threadTs={thread().ts}
+        />
+      </div>
+      <div class="typing-indicator-anchor">
+        <TypingIndicator names={typingNames()} />
+        <Show when={replyTarget()}>
+          <div class="thread-reply-preview flex-align-center">
+            <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
+            <Tooltip content="Cancel reply">
               <button
-                aria-label={`View thread message in ${channelName()}`}
-                class="thread-panel-subtitle btn-reset"
-                onClick={openThreadMessageInChannel}
+                aria-label="Cancel reply"
+                class="thread-reply-preview-cancel btn-reset flex-center"
+                onClick={cancelReply}
                 type="button"
               >
-                {channelName()}
+                <Icon name="close" size={16} />
               </button>
-              <Tooltip
-                content={
-                  store.messages.isThreadSubscribed(t().ts)
-                    ? "Unfollow thread"
-                    : "Get notified about new replies"
-                }
-              >
-                <button
-                  class="thread-panel-subscribe-btn btn-reset flex-center"
-                  classList={{ subscribed: store.messages.isThreadSubscribed(t().ts) }}
-                  disabled={
-                    messages().length === 0 ||
-                    store.messages.isThreadSubscriptionPending(t().channelId, t().ts)
-                  }
-                  onClick={toggleSubscription}
-                  type="button"
-                >
-                  <Icon
-                    name={
-                      store.messages.isThreadSubscribed(t().ts)
-                        ? "notifications-check"
-                        : "notifications"
-                    }
-                    size={16}
-                  />
-                </button>
-              </Tooltip>
-            </div>
-          </PanelHeader>
-          <Show when={store.messages.isLoadingThread(t().ts) && messages().length === 0}>
-            <div class="thread-panel-status text-dim">Loading thread…</div>
-          </Show>
-          <Show when={store.messages.hasThreadError(t().ts)}>
-            <div class="thread-panel-error">
-              <span>Couldn't load this thread.</span>
-              <Button
-                onClick={() => store.messages.ensureThreadRepliesLoaded(t().channelId, t().ts)}
-                size="sm"
-              >
-                Try again
-              </Button>
-            </div>
-          </Show>
-          <div
-            aria-busy={store.messages.isLoadingThread(t().ts)}
-            class="thread-panel-messages"
-            onFocusIn={messageFocus.onContainerFocusIn}
-            onFocusOut={messageFocus.onContainerFocusOut}
-            onScroll={handleMessagesScroll}
-            ref={messagesRef}
-          >
-            <MessageRows
-              channelId={t().channelId}
-              editingTs={messageFocus.editingTs}
-              focusedTs={messageFocus.focusedTs}
-              listFocused={messageFocus.listFocused}
-              messages={messages()}
-              onJumpToMessage={jumpToMessage}
-              onReplyLink={startReply}
-              onStartEdit={messageFocus.onStartEdit}
-              onStopEdit={messageFocus.onStopEdit}
-              threadTs={t().ts}
-            />
+            </Tooltip>
           </div>
-          <div class="typing-indicator-anchor">
-            <TypingIndicator names={typingNames()} />
-            <Show when={replyTarget()}>
-              <div class="thread-reply-preview flex-align-center">
-                <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
-                <Tooltip content="Cancel reply">
-                  <button
-                    aria-label="Cancel reply"
-                    class="thread-reply-preview-cancel btn-reset flex-center"
-                    onClick={cancelReply}
-                    type="button"
-                  >
-                    <Icon name="close" size={16} />
-                  </button>
-                </Tooltip>
-              </div>
-            </Show>
-            <Composer
-              channelId={t().channelId}
-              placeholder="Reply…"
-              replyTo={(() => {
-                const rt = replyTarget();
-                return rt
-                  ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
-                  : undefined;
-              })()}
-              threadTs={t().ts}
-            />
-          </div>
-        </div>
-      )}
-    </Show>
+        </Show>
+        <Composer
+          channelId={thread().channelId}
+          placeholder="Reply…"
+          replyTo={(() => {
+            const rt = replyTarget();
+            return rt ? { onSent: () => setReplyTarget(null), permalink: rt.permalink } : undefined;
+          })()}
+          threadTs={thread().ts}
+        />
+      </div>
+    </div>
   );
 }

@@ -22,10 +22,17 @@ export {
   isUnreadDividerBoundary,
 } from "./slices/messaging/unread";
 export type {
+  ChannelDetailsPaneContent,
+  ChannelDetailsTab,
   ChannelMessageTarget,
   MessageLocation,
   Nav,
+  PaneContent,
+  PinnedPaneContent,
+  ProfilePaneContent,
+  ThreadPaneContent,
   ThreadRef,
+  UsergroupDetailsPaneContent,
   View,
 } from "./slices/types";
 
@@ -90,9 +97,9 @@ function setup() {
     modals,
     realtime,
     commands,
+    panes,
     setActiveView,
     setActiveViewImplRef,
-    tiling,
   } = slices;
   const actions = createAppActions({
     ...slices,
@@ -111,11 +118,11 @@ function setup() {
     later,
     messages,
     modals,
+    panes,
     pinned,
     preferences,
     realtime,
     searchHistory,
-    tiling,
     typing,
     unread: { ...unread, markAllAsRead },
     users,

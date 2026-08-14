@@ -1,9 +1,11 @@
 import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "@slock/slack-api";
-import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
+import type { createPanesSlice } from "../session/panes";
 
-export function createPinnedSlice() {
+export function createPinnedSlice(deps: {
+  panes: Pick<ReturnType<typeof createPanesSlice>, "closePane" | "openInNewPane" | "panes">;
+}) {
   const [pinnedByChannel, setPinnedByChannel] = createStore<
     Record<string, Record<string, boolean>>
   >({});
@@ -15,7 +17,6 @@ export function createPinnedSlice() {
   const [pinnedMessagesLoading, setPinnedMessagesLoading] = createStore<Record<string, boolean>>(
     {},
   );
-  const [pinnedPanelChannelId, setPinnedPanelChannelId] = createSignal<string | null>(null);
   const [pinPending, setPinPending] = createStore<Record<string, boolean>>({});
 
   const pinPendingKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
@@ -81,12 +82,13 @@ export function createPinnedSlice() {
   }
 
   function openPinnedPanel(channelId: string) {
-    setPinnedPanelChannelId(channelId);
+    deps.panes.openInNewPane({ channelId, kind: "pinned" });
     refreshPinnedMessages(channelId);
   }
 
   function closePinnedPanel() {
-    setPinnedPanelChannelId(null);
+    const pane = deps.panes.panes().find((p) => p.content?.kind === "pinned");
+    if (pane) deps.panes.closePane(pane.id);
   }
 
   return {
@@ -98,7 +100,6 @@ export function createPinnedSlice() {
     pinnedMessagesCache,
     pinnedMessagesError,
     pinnedMessagesLoading,
-    pinnedPanelChannelId,
     refreshPinnedMessages,
     togglePinMessage,
   };

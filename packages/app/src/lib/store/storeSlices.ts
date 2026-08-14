@@ -15,11 +15,11 @@ import { createCommandsSlice } from "./slices/session/commands";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
 import { createModalsSlice } from "./slices/session/modals";
+import { createPanesSlice } from "./slices/session/panes";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
-import { createTilingSlice } from "./slices/session/tiling";
 import { createViewStateSlice } from "./slices/session/viewState";
-import type { ThreadRef, View } from "./slices/types";
+import type { View } from "./slices/types";
 
 export function createStoreSlices({
   bootstrap,
@@ -30,18 +30,9 @@ export function createStoreSlices({
   userPrefs: Resource<UserPrefs>;
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
-  const viewState = createViewStateSlice({ bootstrap });
-  const tiling = createTilingSlice({
-    activeView: viewState.activeView,
-    channelMessageTarget: viewState.channelMessageTarget,
-    clearChannelMessageTarget: () => viewState.setChannelMessageTarget(null),
-  });
-  const { visibleViews } = tiling;
-
-  const visibleThreads = (): ThreadRef[] => {
-    const thread = viewState.activeThread();
-    return thread ? [thread] : [];
-  };
+  const panes = createPanesSlice();
+  const viewState = createViewStateSlice({ bootstrap, panes });
+  const { visibleMessageTargets, visibleThreads, visibleViews } = panes;
 
   const isSelfOnlineImplRef: { current: () => boolean } = {
     current: () => true,
@@ -49,6 +40,7 @@ export function createStoreSlices({
   const users = createUsersSlice({
     currentUserBase: () => bootstrap()?.currentUser,
     isSelfOnline: () => isSelfOnlineImplRef.current(),
+    panes,
   });
   const usergroups = createUsergroupsSlice({
     selfUsergroupIds: () => bootstrap()?.selfUsergroupIds ?? [],
@@ -120,10 +112,9 @@ export function createStoreSlices({
     setActiveView,
   });
   patchDmImplRef.current = dms.patchDm;
-  const pinned = createPinnedSlice();
+  const pinned = createPinnedSlice({ panes });
   const modals = createModalsSlice();
   const messages = createMessagesSlice({
-    channelMessageTarget: viewState.channelMessageTarget,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     onConversationView: (view) => {
@@ -136,6 +127,7 @@ export function createStoreSlices({
     setUnreadChannelIds: unread.setUnreadChannelIds,
     setUnreadDividerTs: unread.setUnreadDividerTs,
     syncChannelRead: unread.syncChannelRead,
+    visibleMessageTargets,
     visibleThreads,
     visibleViews,
   });
@@ -188,18 +180,19 @@ export function createStoreSlices({
     later,
     messages,
     modals,
+    panes,
     pinned,
     preferences,
     realtime,
     searchHistory,
     setActiveView,
     setActiveViewImplRef,
-    tiling,
     typing,
     unread,
     users,
     usergroups,
     viewState,
+    visibleMessageTargets,
     visibleThreads,
     visibleViews,
   };

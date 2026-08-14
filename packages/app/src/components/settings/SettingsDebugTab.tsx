@@ -1,4 +1,4 @@
-import { createCopyFeedback, fuzzySearch, Icon, ICON_NAMES, Tooltip } from "@slock/ui";
+import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import "./Settings.css";
 import "./SettingsDebugTab.css";

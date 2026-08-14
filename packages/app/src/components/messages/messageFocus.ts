@@ -7,7 +7,7 @@ import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
 import { resolveProfileUserId } from "./parts/messageRenderState";
 
 export interface MessageFocusCallbacks {
-  onOpenThread?: (ts: string) => void;
+  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
   onReplyLink?: (msg: Message) => void;
 
   threadTs?: Accessor<string | undefined>;
@@ -105,6 +105,18 @@ export function createMessageFocus(
     keys: "r",
     label: "Reply",
     match: plainKey("r"),
+    scope: "messages",
+  });
+
+  useShortcut({
+    enabled: () => messageActionEnabled() && !!callbacks.onOpenThread,
+    handler: () => {
+      const msg = focusedMessage();
+      if (msg) callbacks.onOpenThread?.(msg.ts, { pinned: true });
+    },
+    keys: "Shift R",
+    label: "Reply in a new split",
+    match: plainKey("R"),
     scope: "messages",
   });
 

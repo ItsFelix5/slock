@@ -205,7 +205,7 @@ export default function Controls(props: {
         disabled={pending() || !options.length}
         multiple={isMulti()}
         onChange={(event) => select(event.currentTarget)}
-        title={!options.length ? "This menu loads its options from its app in Slack" : undefined}
+        title={options.length ? undefined : "This menu loads its options from its app in Slack"}
         value={isMulti() ? initialValues() : initialValue()}
       >
         <Show when={!isMulti()}>

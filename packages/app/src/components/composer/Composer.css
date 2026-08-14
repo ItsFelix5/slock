@@ -143,27 +143,6 @@
   color: var(--text-primary);
   background: var(--active-bg);
 }
-.composer-tool {
-  width: var(--composer-action-size);
-  height: var(--composer-action-size);
-  font-size: var(--font-size-control);
-  font-weight: 700;
-  color: var(--text-secondary);
-  border-radius: var(--radius-circle);
-}
-.composer-tool:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-.composer-tool.active {
-  color: var(--text-primary);
-  background: var(--active-bg);
-}
-.composer-tool:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-.composer-tool .icon,
 .composer-link-preview-remove .icon,
 .composer-file-chip-remove .icon {
   transform: translateY(var(--icon-optical-shift));
@@ -174,10 +153,6 @@
   font-size: var(--font-size-caption);
   color: var(--text-dim);
   white-space: nowrap;
-}
-.composer-tool:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--space-xs);
 }
 .menu-panel.composer-tools-menu {
   min-width: 192px;
@@ -256,4 +231,31 @@
   padding: 3px 2px;
   font-family: inherit;
   font-size: var(--font-size-body);
+}
+.composer-plus-menu {
+  display: inline-flex;
+}
+.composer-edit-actions {
+  justify-content: flex-end;
+  padding: var(--space-xs) 2px 2px;
+}
+.composer-edit-cancel,
+.composer-edit-save {
+  padding: 4px 10px;
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+.composer-edit-cancel {
+  color: var(--text-secondary);
+}
+.composer-edit-cancel:hover {
+  background: var(--hover-bg);
+}
+.composer-edit-save {
+  color: var(--text-on-success);
+  background: var(--bk-button-primary);
+}
+.composer-edit-save:hover {
+  opacity: 0.9;
 }

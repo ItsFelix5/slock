@@ -1,6 +1,7 @@
 @import "./MessageList.details.css";
 .message-list {
   flex: 1;
+  min-height: 0;
   padding-bottom: 12px;
   overflow-x: hidden;
   overflow-y: auto;

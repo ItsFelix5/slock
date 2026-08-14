@@ -1,4 +1,4 @@
-import { formatTime } from "@slock/blockkit";
+import { EmojiText, formatTime } from "@slock/blockkit";
 import type { ActivityItem, Message } from "@slock/slack-api";
 import { Avatar, AvatarStack, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
@@ -298,11 +298,22 @@ export default function ActivityRow(props: {
             <span class="activity-body">
               <span class="activity-headline">
                 <Tooltip content={activityVerb(latest())}>
-                  <Icon
-                    class="activity-kind-icon"
-                    name={ACTIVITY_KIND_ICONS[latest().kind]}
-                    size={12}
-                  />
+                  <Show
+                    fallback={
+                      <Icon
+                        class="activity-kind-icon"
+                        name={ACTIVITY_KIND_ICONS[latest().kind]}
+                        size={12}
+                      />
+                    }
+                    when={latest().kind === "reaction" && latest().reactionName}
+                  >
+                    {(name) => (
+                      <span class="activity-kind-icon activity-reaction-emoji">
+                        <EmojiText text={`:${name()}:`} />
+                      </span>
+                    )}
+                  </Show>
                 </Tooltip>
                 <Show when={!(isThreadGroup() || isStandaloneActivity())}>
                   <strong>{displayName()}</strong>

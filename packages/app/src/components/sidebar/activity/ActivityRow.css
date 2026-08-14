@@ -92,6 +92,19 @@
   color: var(--text-dim);
 }
 
+.activity-reaction-emoji {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.activity-reaction-emoji .emoji-img {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
 .activity-channel {
   margin-left: 4px;
   font-weight: 400;

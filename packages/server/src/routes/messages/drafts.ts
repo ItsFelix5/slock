@@ -12,6 +12,7 @@ export const draftRoutes: Route[] = [
         drafts: drafts.map((d) => {
           const dest = d.destinations?.[0] ?? {};
           return {
+            blocks: d.blocks,
             channelId: dest.channel_id,
             clientMsgId: d.client_msg_id,
             id: d.id,
@@ -31,6 +32,7 @@ export const draftRoutes: Route[] = [
       channelId?: string;
       threadTs?: string;
       text?: string;
+      blocks?: unknown;
       draftId?: string;
       clientMsgId?: string;
     };
@@ -39,8 +41,12 @@ export const draftRoutes: Route[] = [
     }
     const destination: Record<string, string> = { channel_id: body.channelId };
     if (body.threadTs) destination.thread_ts = body.threadTs;
+    const blocks =
+      Array.isArray(body.blocks) && body.blocks.length > 0
+        ? body.blocks
+        : [{ text: { text: body.text, type: "mrkdwn" }, type: "section" }];
     const params: Record<string, string> = {
-      blocks: JSON.stringify([{ text: { text: body.text, type: "mrkdwn" }, type: "section" }]),
+      blocks: JSON.stringify(blocks),
       client_msg_id: body.clientMsgId,
       destinations: JSON.stringify([destination]),
       file_ids: "[]",

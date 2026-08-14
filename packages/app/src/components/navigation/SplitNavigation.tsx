@@ -10,18 +10,15 @@ function viewForConversation(channelId: string) {
 
 export function openConversationInSplit(channelId: string, ts?: string) {
   const view = viewForConversation(channelId);
-  if (ts) {
-    store.tiling.openMessageInSplit(view, { channelId, ts });
-    return;
-  }
-  store.tiling.openViewInSplit(view);
+  const paneId = store.panes.openInNewPane(view);
+  if (ts) store.panes.setMessageTarget(paneId, { channelId, ts });
 }
 
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
   return (
     <span
-      onAuxClick={(event) => {
-        if (event.button !== 1 || event.defaultPrevented) return;
+      onClick={(event) => {
+        if (!(event.ctrlKey || event.metaKey) || event.defaultPrevented) return;
         event.preventDefault();
         event.stopPropagation();
         props.onSplit();

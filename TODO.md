@@ -1,4 +1,5 @@
-- better uploads
+no touchy this references context you don't have
+
 - online status
 - Response/reply links staying on message mentions
 - ctrl+z
@@ -6,18 +7,11 @@
 - unread channel arrow
 - unread message info
 - catch up
-- make activity triage over recall
+- make activity triage over recall and later issue tracking over a list
 - member count & canvi gone
 - non channel canvi
-- tiling system
-
-hover glance thing
-context switching (active in multiple threads)
-tabs?
-issue manager
-Unifieder inbox as complete queue not feed
-snooze, task?, mute, vip
-Advanced pingwords (channel+user regex)
-advanced shi like help channels/feeds
-notify on normal messages if relevant/interesting/fun
-clankers?
+- glance
+- better context switching when active in multiple threads
+- bun check
+- composer
+- reaction images/templates

@@ -1,11 +1,11 @@
 .usergroup-details-panel {
   position: relative;
   display: flex;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
   flex-direction: column;
   overflow: hidden;
   background: var(--main-bg);
-  border-left: 1px solid var(--border);
 }
 
 .usergroup-details-body {

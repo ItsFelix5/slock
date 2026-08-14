@@ -40,7 +40,7 @@ const DEFAULT_HISTORY_API: MessageHistoryApi = {
 
 export function createMessageHistory(
   deps: {
-    channelMessageTarget: () => ChannelMessageTarget | null;
+    visibleMessageTargets: () => ChannelMessageTarget[];
     visibleViews: () => View[];
     visibleThreads: () => ThreadRef[];
     onConversationView?: (view: ConversationViewData) => void;
@@ -101,9 +101,9 @@ export function createMessageHistory(
     }
   }
   createEffect(() => {
-    const target = untrack(deps.channelMessageTarget);
+    const targets = untrack(deps.visibleMessageTargets);
     for (const view of deps.visibleViews()) {
-      if (target?.channelId === view.id) continue;
+      if (targets.some((target) => target.channelId === view.id)) continue;
 
       const alreadyAtPresent =
         loadedChannels.has(view.id) && !untrack(() => historyMeta[view.id]?.anchored);

@@ -1,4 +1,4 @@
-import { fetchSearchAutocomplete, searchMessages, type SearchResult } from "@slock/slack-api";
+import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "@slock/slack-api";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,

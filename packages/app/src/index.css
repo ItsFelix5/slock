@@ -82,21 +82,6 @@ button {
   flex: 1;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   background: var(--main-bg);
-}
-
-.main-panel:has(~ .panel-fullscreen) {
-  display: none;
-}
-
-.thread-panel.panel-fullscreen,
-.user-profile-panel.panel-fullscreen,
-.usergroup-details-panel.panel-fullscreen {
-  flex: 1;
-  min-width: 0;
-  border-left: none;
-}
-
-.panel-fullscreen .resize-handle {
-  z-index: 11;
 }

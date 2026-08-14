@@ -11,6 +11,5 @@ Important rules:
 - Prefer adding debugs that tell you _important information_ (don't debug to debug, prefer using the knowledge you already have) when that helps or ASKING instead of doing stupid shit or guessing data based on nothing.
 - Stop writing tests
 - Comment only when you are recording something genuinely valuable that the code cannot convey by itself, so writing none is the default. Never narrate edits.
-- When a comment grows past a sentence or two, stop and reconsider whether it earns its place, because it usually does not. The rare exception is a short block that captures knowledge someone would otherwise have to rediscover painfully, for example why a workaround is required by some external constraint.
 - Keep the mechanics casual: lowercased, US-keyboard characters only, punctuation kept to a minimum, no trailing period, closer to a jotted note than a wrapped paragraph.
 - Use bun

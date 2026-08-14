@@ -27,6 +27,7 @@ import Alert from "./blocks/Alert";
 import { Card, Carousel } from "./blocks/Card";
 import Container from "./blocks/Container";
 import Context from "./blocks/Context";
+import { DataVisualization } from "./blocks/DataVisualization";
 import Divider from "./blocks/Divider";
 import File from "./blocks/File";
 import Header from "./blocks/Header";
@@ -35,7 +36,7 @@ import Input from "./blocks/Input";
 import Markdown from "./blocks/Markdown";
 import RichText from "./blocks/RichText";
 import Section from "./blocks/Section";
-import { DataVisualization, Table } from "./blocks/Table";
+import { Table } from "./blocks/Table";
 import { Plan, TaskCard } from "./blocks/TaskCard";
 import Video from "./blocks/Video";
 
@@ -91,9 +92,7 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
       </Match>
       <Match when={props.block.type === "container"}>
         <Container
-          blocks={
-            (props.block as ContainerBlock).blocks ?? (props.block as ContainerBlock).elements ?? []
-          }
+          block={props.block as ContainerBlock}
           render={(block) => <BlockView block={block} context={props.context} />}
         />
       </Match>
