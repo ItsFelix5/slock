@@ -36,6 +36,12 @@ export type SuggestState =
   | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
   | { kind: "emoji"; start: number; items: EmojiSuggestItem[]; active: number };
 
+/** A suggest state with zero items (e.g. `@nobody`, `#no-such-channel`) shouldn't render a popover
+ * or capture Enter/Tab — those must fall through to normal typing/submit. */
+export function suggestOpen(state: SuggestState | null): state is SuggestState {
+  return !!state && state.items.length > 0;
+}
+
 export function suggestItemContent(item: SuggestItem) {
   switch (item.kind) {
     case "user":

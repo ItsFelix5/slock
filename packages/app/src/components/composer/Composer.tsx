@@ -31,7 +31,7 @@ import { clearPersistedDraft, createComposerDraftState } from "./lib/drafts";
 import { createPendingFileState, draftCacheKey, submitComposerPayload } from "./lib/submission";
 import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestItem, SuggestState } from "./lib/suggestTypes";
-import { suggestItemContent } from "./lib/suggestTypes";
+import { suggestItemContent, suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
 import ComposeDatePicker from "./popovers/ComposeDatePicker";
 import "./Composer.css";
@@ -117,7 +117,7 @@ export default function Composer(props: ComposerProps) {
   };
 
   const handleKeyDownCapture = (event: KeyboardEvent): boolean => {
-    if (!suggest()) return false;
+    if (!suggestOpen(suggest())) return false;
     if (event.key === "ArrowDown") {
       event.preventDefault();
       suggestionCtl.moveActiveSuggestion(1);
@@ -347,7 +347,7 @@ export default function Composer(props: ComposerProps) {
               <ComposeDatePicker onClose={() => setDateOpen(false)} onSelect={handleDateSelect} />
             </div>
           </Show>
-          <Show when={suggest()}>
+          <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
             {(state) => (
               <div class="menu-panel composer-suggest-popover" ref={setSuggestPopoverRef}>
                 <For each={state().items}>
@@ -367,6 +367,15 @@ export default function Composer(props: ComposerProps) {
             )}
           </Show>
         </div>
+        <Show when={sending()}>
+          <span class="composer-send-status">
+            {props.editing
+              ? "Saving…"
+              : pendingFiles.files().length > 0
+                ? `Uploading ${pendingFiles.files().length === 1 ? "file" : `${pendingFiles.files().length} files`}…`
+                : "Sending…"}
+          </span>
+        </Show>
       </div>
       <Show when={props.editing}>
         <div class="composer-row composer-edit-actions">
