@@ -48,7 +48,7 @@ export default function EditorView<A>(props: {
   };
 
   const onBeforeInput = (event: InputEvent) => {
-    const editor = props.editor;
+    const { editor } = props;
     syncSelection();
     const selection = editor.getSelection();
     if (!selection) return;
@@ -102,7 +102,7 @@ export default function EditorView<A>(props: {
   };
 
   const checkMarkShortcut = () => {
-    const editor = props.editor;
+    const { editor } = props;
     const caret = editor.getCaretContext();
     if (!caret) return;
     const match = detectMarkShortcut(caret.text, caret.caretOffset);
@@ -116,7 +116,7 @@ export default function EditorView<A>(props: {
   };
 
   const checkLinkShortcut = () => {
-    const editor = props.editor;
+    const { editor } = props;
     const caret = editor.getCaretContext();
     if (!caret) return;
     const match = detectLinkShortcut(caret.text, caret.caretOffset);
@@ -133,7 +133,7 @@ export default function EditorView<A>(props: {
   /** Only a plain, still-untouched top-level paragraph (a 2-segment run path) can convert — an
    * already-converted heading/list/etc, or a nested container, never re-triggers this. */
   const checkBlockShortcut = () => {
-    const editor = props.editor;
+    const { editor } = props;
     const selection = editor.getSelection();
     if (selection?.focus.path.length !== 2) return;
     const caret = editor.getCaretContext();
@@ -150,7 +150,7 @@ export default function EditorView<A>(props: {
     syncSelection();
     const selection = props.editor.getSelection();
     if (selection && rootRef) {
-      const path = selection.focus.path;
+      const { path } = selection.focus;
       const leaf = rootRef.querySelector<HTMLElement>(`[data-rt-path="${pathKey(path)}"]`);
       if (leaf && leaf.getAttribute("data-rt-atom") !== "true") {
         props.editor.updateRunText(path, leaf.textContent ?? "");
@@ -164,7 +164,7 @@ export default function EditorView<A>(props: {
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (props.onKeyDownCapture?.(event)) return;
-    const editor = props.editor;
+    const { editor } = props;
     if (event.key === "Tab") {
       const selection = editor.getSelection();
       if (selection?.focus.path.length === 4) {
@@ -206,7 +206,7 @@ export default function EditorView<A>(props: {
   };
 
   const onPaste = (event: ClipboardEvent) => {
-    const editor = props.editor;
+    const { editor } = props;
     const text = event.clipboardData?.getData("text/plain");
     if (text === undefined) return;
     event.preventDefault();
@@ -233,7 +233,7 @@ export default function EditorView<A>(props: {
   };
 
   const onCopy = (event: ClipboardEvent) => {
-    const editor = props.editor;
+    const { editor } = props;
     const selection = editor.getSelection();
     if (!(selection && event.clipboardData)) return;
     const sel = window.getSelection();

@@ -183,8 +183,7 @@ export default function Composer(props: ComposerProps) {
         if (!ok) return;
         return;
       }
-      const channelId = props.channelId;
-      const threadTs = props.threadTs;
+      const { channelId, threadTs } = props;
       const isSlashAttempt = text.startsWith("/");
       const blocks = isSlashAttempt || editor.isEmpty() ? undefined : docToBlocks(editor.getDoc());
       const key = draftCacheKey(channelId, threadTs);

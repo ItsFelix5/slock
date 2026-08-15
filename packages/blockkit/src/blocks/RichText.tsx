@@ -12,7 +12,7 @@ import { DateToken, Link, Mention, TimeAwareText, UsergroupMention } from "../mr
 import { parseUserProfileLink } from "../userProfileLink";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
-  const el = props.el;
+  const { el } = props;
   switch (el.type) {
     case "text": {
       const s = el.style;
@@ -127,7 +127,7 @@ const SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
 ]);
 
 function SubBlockView(props: { sub: RichTextSubBlock }) {
-  const sub = props.sub;
+  const { sub } = props;
   switch (sub.type) {
     case "rich_text_section":
       return <RichTextSectionView section={sub} />;
