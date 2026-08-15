@@ -2,6 +2,7 @@ import type { BrowsableChannel, Channel, ChannelSection, UserPrefs } from "@sloc
 import {
   fetchBrowsableChannels,
   fetchChannel,
+  fetchChannelDetails,
   fetchChannelMembers,
   joinChannel,
   leaveChannel,
@@ -111,14 +112,13 @@ export function createChannelsSlice(deps: {
     )
       return;
     channelDetailsRequested.add(id);
-    fetchChannel(id)
-      .then((channel) => {
-        if (!channel) return;
+    fetchChannelDetails(id)
+      .then((details) => {
         patchChannel(id, {
-          memberCount: channel.memberCount,
-          name: channel.name,
-          private: channel.private,
-          topic: channel.topic,
+          memberCount: details.memberCount,
+          name: details.name,
+          private: details.private,
+          topic: details.topic,
         });
       })
       .catch(() => channelDetailsRequested.delete(id));
