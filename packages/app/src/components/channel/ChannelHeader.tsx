@@ -1,9 +1,9 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Icon, IconButton, InlineFeedback, Menu, Tooltip } from "@slock/ui";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { Icon, IconButton, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { usePaneView } from "../../lib/paneView";
-import { actionFeedback } from "../../lib/store";
+import { actionFeedback, store } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
 import "./ChannelHeader.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
@@ -23,6 +23,7 @@ export default function ChannelHeader() {
     searchCurrentConversation,
   } = createChannelHeaderState(view);
   const [moreOpen, setMoreOpen] = createSignal(false);
+  const [canvasMenuOpen, setCanvasMenuOpen] = createSignal(false);
   const [topicEl, setTopicEl] = createSignal<HTMLSpanElement>();
   const [topicOverflowing, setTopicOverflowing] = createSignal(false);
   createEffect(() => {
@@ -37,6 +38,24 @@ export default function ChannelHeader() {
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     onCleanup(() => observer.disconnect());
+  });
+  const activeChannelId = () => {
+    const v = view();
+    return v?.kind === "channel" ? v.id : undefined;
+  };
+  const canvases = () => {
+    const channelId = activeChannelId();
+    return channelId ? (store.canvas.canvasesByChannel[channelId] ?? []) : [];
+  };
+  let lastCanvasChannelId: string | undefined;
+  createEffect(() => {
+    const channelId = activeChannelId();
+    if (channelId !== lastCanvasChannelId) setCanvasMenuOpen(false);
+    lastCanvasChannelId = channelId;
+  });
+  createEffect(() => {
+    const channelId = activeChannelId();
+    if (channelId) store.canvas.ensureCanvasChecked(channelId);
   });
   return (
     <div class="channel-header">
@@ -101,6 +120,40 @@ export default function ChannelHeader() {
           </Show>
         </div>
         <div class="channel-header-actions">
+          <Show when={canvases().length > 0}>
+            <Menu
+              align="end"
+              class="channel-header-canvas-wrap"
+              onClose={() => setCanvasMenuOpen(false)}
+              open={canvasMenuOpen()}
+              panelClass="menu-panel channel-header-canvas-menu"
+              trigger={
+                <IconButton
+                  class="channel-header-btn"
+                  icon="canvas-browser"
+                  label="Canvases"
+                  onClick={() => setCanvasMenuOpen(!canvasMenuOpen())}
+                  size="md"
+                />
+              }
+            >
+              <For each={canvases()}>
+                {(canvas) => (
+                  <MenuItem
+                    icon="canvas-content"
+                    onClick={() => {
+                      setCanvasMenuOpen(false);
+                      store.canvas.openCanvasPane(canvas.fileId, canvas.title);
+                    }}
+                  >
+                    <span class="truncate">
+                      <Mrkdwn text={canvas.title} />
+                    </span>
+                  </MenuItem>
+                )}
+              </For>
+            </Menu>
+          </Show>
           <IconButton
             active={filesLinksOpen()}
             class="channel-header-btn"

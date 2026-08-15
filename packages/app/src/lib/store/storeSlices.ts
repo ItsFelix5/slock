@@ -1,5 +1,6 @@
 import type { Bootstrap, DirectMessage, UserPrefs } from "@slock/slack-api";
 import { createEffect, type Resource, type Setter } from "solid-js";
+import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
 import { createPinnedSlice } from "./slices/entities/pinned";
@@ -113,6 +114,7 @@ export function createStoreSlices({
   });
   patchDmImplRef.current = dms.patchDm;
   const pinned = createPinnedSlice({ panes });
+  const canvas = createCanvasSlice({ panes });
   const modals = createModalsSlice();
   const messages = createMessagesSlice({
     clearChannelUnread: unread.clearChannelUnread,
@@ -172,6 +174,7 @@ export function createStoreSlices({
   const commands = createCommandsSlice({ sendMessage: messages.sendMessage });
   return {
     activity,
+    canvas,
     channels,
     channelTabsSlice,
     commands,

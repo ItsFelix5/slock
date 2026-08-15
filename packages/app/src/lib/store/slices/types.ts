@@ -16,6 +16,7 @@ export type ChannelDetailsPaneContent = {
 };
 export type UsergroupDetailsPaneContent = { kind: "usergroup-details"; usergroupId: string };
 export type PinnedPaneContent = { kind: "pinned"; channelId: string };
+export type CanvasPaneContent = { kind: "canvas"; fileId: string; title: string };
 
 export type PaneContent =
   | View
@@ -23,7 +24,8 @@ export type PaneContent =
   | ProfilePaneContent
   | ChannelDetailsPaneContent
   | UsergroupDetailsPaneContent
-  | PinnedPaneContent;
+  | PinnedPaneContent
+  | CanvasPaneContent;
 
 export type MessageLocation =
   | { store: "channel"; key: string }

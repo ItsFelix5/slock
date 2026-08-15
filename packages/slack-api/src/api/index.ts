@@ -42,6 +42,7 @@ export {
   deleteSection,
   fetchBrowsableChannels,
   fetchChannel,
+  fetchChannelCanvases,
   fetchChannelDetails,
   fetchChannelLastRead,
   fetchChannelManagerIds,
@@ -75,6 +76,9 @@ export {
 } from "./endpoints/channels";
 export {
   fetchAllEmoji,
+  fetchCanvas,
+  fetchCanvasFileUrl,
+  fetchCanvasTitle,
   fetchFileDetail,
   fetchLinkPreview,
   fetchSaved,

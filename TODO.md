@@ -8,7 +8,7 @@ no touchy this references context you don't have
 - unread message info
 - catch up
 - make activity triage over recall and later issue tracking over a list
-- member count & canvi gone
+- canvas editing
 - non channel canvi
 - glance
 - better context switching when active in multiple threads
