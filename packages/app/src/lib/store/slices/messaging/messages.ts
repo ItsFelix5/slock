@@ -1,12 +1,6 @@
 import type { ActivityItem, ConversationViewData, Message, User } from "@slock/slack-api";
-import {
-  broadcastReply,
-  deleteMessage,
-  editMessage,
-  postMessage,
-  toggleReaction,
-} from "@slock/slack-api";
-import { createStore, produce } from "solid-js/store";
+import { broadcastReply, deleteMessage, editMessage, postMessage } from "@slock/slack-api";
+import { produce } from "solid-js/store";
 import { actionFeedback } from "../feedback";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
 import { dedupeMessages } from "./merge/messageMerge";
@@ -14,9 +8,9 @@ import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./messageLinks";
 import { findMessageLocations } from "./messageLocations";
+import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
-import { restoreFailedReaction } from "./reactions/reactionRollback";
 
 export { REMINDER_OPTIONS } from "./messageLinks";
 
@@ -114,12 +108,11 @@ export function createMessagesSlice(deps: {
     patchMessage,
     pushActivity: deps.pushActivity,
   });
-  const [reactionPending, setReactionPending] = createStore<Record<string, boolean>>({});
-  const reactionPendingKey = (channelId: string, ts: string, emojiName: string) =>
-    `${channelId}:${ts}:${emojiName}`;
-  function isReactionPending(channelId: string, ts: string, emojiName: string): boolean {
-    return !!reactionPending[reactionPendingKey(channelId, ts, emojiName)];
-  }
+  const { isReactionPending, reactToMessage } = createMessageReactionToggle({
+    currentUser: deps.currentUser,
+    findAllMessageLocations,
+    patchMessage,
+  });
   async function sendMessage(
     channelId: string,
     text: string,
@@ -217,56 +210,6 @@ export function createMessagesSlice(deps: {
     } catch (err) {
       console.error("Failed to delete message", err);
       actionFeedback.flash(ts, "Failed to delete message.", "error");
-    }
-  }
-  async function reactToMessage(channelId: string, msg: Message, emojiName: string) {
-    const me = deps.currentUser();
-    const pendingKey = reactionPendingKey(channelId, msg.ts, emojiName);
-    if (!me || reactionPending[pendingKey]) return;
-    setReactionPending(pendingKey, true);
-    const previousReactions = msg.reactions;
-    const reactions = previousReactions ?? [];
-    const existing = reactions.find((r) => r.name === emojiName);
-    const existingIndex = reactions.findIndex((r) => r.name === emojiName);
-    const alreadyReacted = !!existing?.users.includes(me.id);
-    let nextReactions: typeof reactions;
-    if (alreadyReacted) {
-      nextReactions = reactions
-        .map((r) =>
-          r.name === emojiName
-            ? {
-                ...r,
-                count: r.count - 1,
-                users: r.users.filter((u) => u !== me.id),
-              }
-            : r,
-        )
-        .filter((r) => r.count > 0);
-    } else if (existing) {
-      nextReactions = reactions.map((r) =>
-        r.name === emojiName ? { ...r, count: r.count + 1, users: [...r.users, me.id] } : r,
-      );
-    } else {
-      nextReactions = [...reactions, { count: 1, name: emojiName, users: [me.id] }];
-    }
-    patchMessage(channelId, msg.ts, { reactions: nextReactions });
-    try {
-      await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
-    } catch (err) {
-      console.error("Failed to toggle reaction", err);
-      actionFeedback.flash(msg.ts, "Failed to update reaction.", "error");
-      const current = findAllMessageLocations(channelId, msg.ts)[0]?.list.find(
-        (candidate) => candidate.ts === msg.ts,
-      )?.reactions;
-      patchMessage(channelId, msg.ts, {
-        reactions: restoreFailedReaction(current, emojiName, existing, existingIndex),
-      });
-    } finally {
-      setReactionPending(
-        produce((pending) => {
-          delete pending[pendingKey];
-        }),
-      );
     }
   }
   return {
