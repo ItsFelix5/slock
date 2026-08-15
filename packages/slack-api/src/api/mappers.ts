@@ -1,314 +1,41 @@
-import type { Block } from "../blocks";
 import type {
   Attachment,
   Channel,
   Message,
   MessageKind,
-  Reaction,
   SlackFile,
   SlackFileShare,
   SlackLink,
-  User,
-  UserCustomField,
 } from "../types";
+import { formatDay, formatTime } from "./mapTime";
+import type {
+  RawAttachment,
+  RawChannel,
+  RawChannelSection,
+  RawFile,
+  RawFileShare,
+  RawLink,
+  RawMessage,
+} from "./rawTypes";
 import { resolveMediaUrl } from "./server";
 
-const SLACK_USER_ID = "USLACK";
-const SLACK_AVATAR_URL = "/slack-logo.svg";
-
-export interface RawUserProfile {
-  api_app_id?: string;
-  avatar_hash?: string;
-  bot_id?: string;
-  display_name?: string;
-  email?: string;
-  fields?: Record<string, { alt?: string; value?: string } | undefined>;
-  image_192?: string;
-  image_48?: string;
-  image_72?: string;
-  phone?: string;
-  pronouns?: string;
-  real_name?: string;
-  start_date?: string;
-  status_emoji?: string;
-  status_text?: string;
-  team?: string;
-  title?: string;
-}
-
-export interface RawUser {
-  color?: string;
-  id: string;
-  is_admin?: boolean;
-  is_bot?: boolean;
-  is_owner?: boolean;
-  is_primary_owner?: boolean;
-  last_seen?: number;
-  name?: string;
-  presence?: string;
-  profile?: RawUserProfile;
-  real_name?: string;
-  team_id?: string;
-  tz?: string;
-  tz_label?: string;
-  tz_offset?: number;
-}
-
-export interface RawBot {
-  app_id?: string;
-  icons?: { image_36?: string; image_48?: string; image_72?: string };
-  id: string;
-  name?: string;
-}
-
-export interface RawChannel {
-  id: string;
-  is_archived?: boolean;
-  is_private?: boolean;
-  latest?: string;
-  member_count?: number;
-  name?: string;
-  num_members?: number;
-  topic?: string | { value?: string };
-  unread_count?: number;
-  unread_count_display?: number;
-}
-
-export interface RawCountGroup {
-  has_unreads?: boolean | number | string;
-  id?: string;
-  is_unread?: boolean | number | string;
-  last_read?: string;
-  latest?: string;
-  mention_count?: number;
-  mention_count_display?: number;
-  unread_count?: number | null;
-  unread_count_display?: number | null;
-}
-
-export interface RawCounts {
-  activity_v2?: Record<string, number>;
-  channels?: RawCountGroup[];
-  ims?: RawCountGroup[];
-  mpims?: RawCountGroup[];
-}
-
-export interface RawFile {
-  audio_wave_samples?: number[];
-  created?: number;
-  duration?: number;
-  duration_ms?: number;
-  filetype?: string;
-  id: string;
-  mimetype?: string;
-  name?: string;
-  original_h?: number;
-  original_w?: number;
-  permalink?: string;
-  size?: number;
-  thumb_160?: string;
-  thumb_360?: string;
-  thumb_360_h?: number;
-  thumb_360_w?: number;
-  thumb_480?: string;
-  thumb_480_h?: number;
-  thumb_480_w?: number;
-  thumb_720?: string;
-  thumb_720_h?: number;
-  thumb_720_w?: number;
-  thumb_800?: string;
-  thumb_800_h?: number;
-  thumb_800_w?: number;
-
-  thumb_tiny?: string;
-  title?: string;
-  transcription?: { preview?: { content?: string; has_more?: boolean } };
-  url_private?: string;
-}
-
-export interface RawLink {
-  icon_url?: string | null;
-  thumb_height?: number | null;
-  thumb_url?: string | null;
-  thumb_width?: number | null;
-  timestamp: string;
-  title: string | null;
-  url: string;
-}
-
-export interface RawFileShare {
-  channel_id: string;
-  channel_name?: string;
-  reply_count?: number;
-  share_user_id?: string;
-  thread_ts?: string;
-  ts: string;
-}
-
-export interface RawAttachment {
-  actions?: {
-    name?: string;
-    style?: string;
-    text?: string;
-    type?: string;
-    url?: string;
-    value?: string;
-  }[];
-  author_icon?: string;
-  author_name?: string;
-  blocks?: Block[];
-  callback_id?: string;
-  channel_id?: string;
-  color?: string;
-  fallback?: string;
-  fields?: { short?: boolean; title: string; value: string }[];
-  files?: RawFile[];
-  footer?: string;
-  footer_icon?: string;
-  from_url?: string;
-  id?: number;
-  image_height?: number;
-  image_url?: string;
-  image_width?: number;
-  is_msg_unfurl?: boolean;
-  is_reply_unfurl?: boolean;
-  pretext?: string;
-  text?: string;
-  title?: string;
-  title_link?: string;
-  ts?: string;
-  video_height?: number;
-  video_url?: string;
-  video_width?: number;
-}
-
-export interface RawMessage {
-  attachments?: RawAttachment[];
-  blocks?: Block[];
-  bot_id?: string;
-  bot_profile?: {
-    icons?: { image_36?: string; image_48?: string; image_72?: string };
-    name?: string;
-  };
-  edited?: unknown;
-  files?: RawFile[];
-  icons?: { image_36?: string; image_48?: string; image_72?: string };
-  is_ephemeral?: boolean;
-  latest_reply?: string;
-  metadata?: { event_payload?: { source_user_id?: string } };
-  reactions?: Reaction[];
-  reply_count?: number;
-  reply_users?: string[];
-  root?: RawMessage;
-  subscribed?: boolean;
-  subtype?: string;
-  text?: string;
-  thread_ts?: string;
-  ts: string;
-  type?: string;
-  user?: string;
-  username?: string;
-}
-
-export interface RawChannelSection {
-  channel_ids?: string[];
-  channel_ids_page?: { channel_ids?: string[] };
-  channel_section_id?: string;
-  channels?: string[];
-  id?: string;
-  name?: string;
-  sidebar?: string;
-  type?: string;
-}
-
-function colorFromHex(hex: string | undefined) {
-  return hex ? `#${hex}` : "#616061";
-}
-
-function tzLabelFromOffset(seconds: number | undefined): string | undefined {
-  if (seconds === undefined) return;
-  const hours = seconds / 3600;
-  const sign = hours >= 0 ? "+" : "-";
-  const abs = Math.abs(hours);
-  const whole = Math.floor(abs);
-  const minutes = Math.round((abs - whole) * 60);
-  return `UTC${sign}${whole}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
-}
-
-function avatarUrlFromHash(raw: RawUser): string | undefined {
-  const hash = raw.profile?.avatar_hash;
-  const team = raw.profile?.team ?? raw.team_id;
-  if (!(hash && team)) return;
-  return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
-}
-
-export function mapCustomFields(
-  profile: RawUserProfile | undefined,
-): UserCustomField[] | undefined {
-  const rawFields = profile?.fields ?? {};
-  const customFields = Object.keys(rawFields)
-    .map((id) => ({
-      alt: rawFields[id]?.alt || undefined,
-      id,
-      value: rawFields[id]?.value ?? "",
-    }))
-    .filter((f) => f.value);
-  return customFields.length ? customFields : undefined;
-}
-
-export function mapStartDate(profile: RawUserProfile | undefined): string | undefined {
-  return profile?.start_date || undefined;
-}
-
-export function mapUser(raw: RawUser): User {
-  const isSlack = raw.id === SLACK_USER_ID;
-  const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
-  const customFields = mapCustomFields(raw.profile);
-  const avatarUrl: string | undefined = isSlack
-    ? SLACK_AVATAR_URL
-    : raw.profile?.image_192 ||
-      raw.profile?.image_72 ||
-      raw.profile?.image_48 ||
-      avatarUrlFromHash(raw);
-  return {
-    appId: raw.profile?.api_app_id || undefined,
-    avatarColor: isSlack ? "transparent" : colorFromHex(raw.color),
-    avatarUrl,
-    botId: raw.profile?.bot_id || undefined,
-    customFields,
-    email: raw.profile?.email || undefined,
-    id: raw.id,
-
-    isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
-    isWorkspaceAdmin: !!(raw.is_admin || raw.is_owner || raw.is_primary_owner),
-    lastSeen: raw.last_seen || undefined,
-    name: name ?? "",
-    phone: raw.profile?.phone || undefined,
-
-    presence: raw.presence === "active" || raw.presence === "away" ? raw.presence : undefined,
-    pronouns: raw.profile?.pronouns || undefined,
-    startDate: mapStartDate(raw.profile),
-    statusEmoji: raw.profile?.status_emoji || undefined,
-    statusText: raw.profile?.status_text || undefined,
-    title: raw.profile?.title || undefined,
-    tz: raw.tz,
-    tzLabel: raw.tz_label || tzLabelFromOffset(raw.tz_offset),
-  };
-}
-
-export function mapBot(raw: RawBot): User {
-  const rawIcon = raw.icons?.image_72 ?? raw.icons?.image_48 ?? raw.icons?.image_36;
-  return {
-    appId: raw.app_id || undefined,
-    avatarColor: "#616061",
-    avatarUrl: rawIcon ? resolveMediaUrl(rawIcon) : undefined,
-    botId: raw.id,
-    id: raw.id,
-    isBot: true,
-    name: raw.name ?? "",
-    presence: "active",
-  };
-}
+export { buildUnreadMap, parseBadgeCounts } from "./mapCounts";
+export { formatDay, formatDayFromMs, formatTime } from "./mapTime";
+export { mapBot, mapCustomFields, mapStartDate, mapUser } from "./mapUsers";
+export type {
+  RawAttachment,
+  RawBot,
+  RawChannel,
+  RawChannelSection,
+  RawCountGroup,
+  RawCounts,
+  RawFile,
+  RawFileShare,
+  RawLink,
+  RawMessage,
+  RawUser,
+  RawUserProfile,
+} from "./rawTypes";
 
 export function mapChannel(raw: RawChannel): Channel {
   return {
@@ -321,82 +48,6 @@ export function mapChannel(raw: RawChannel): Channel {
     topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
     unread: (raw.unread_count_display ?? raw.unread_count ?? 0) > 0,
   };
-}
-
-function parseCountGroup(
-  g: RawCountGroup,
-): { id: string; unread: boolean; mentions: number } | null {
-  if (!g?.id) return null;
-
-  const mentions = Number(g.mention_count_display ?? g.mention_count ?? 0) || 0;
-  const rawUnreadCount = g.unread_count_display ?? g.unread_count;
-  const hasUnreadCount = rawUnreadCount !== undefined && rawUnreadCount !== null;
-  const unreadCount = Number(rawUnreadCount) || 0;
-  const fallbackFlag = g.is_unread ?? g.has_unreads;
-  const unreadFromFlag =
-    fallbackFlag === true || fallbackFlag === 1 || fallbackFlag === "true" || fallbackFlag === "1";
-  const unread = mentions > 0 || (hasUnreadCount ? unreadCount > 0 : unreadFromFlag);
-  return { id: g.id, mentions, unread };
-}
-
-function mapCountGroups(
-  groups: RawCountGroup[],
-): Record<string, { unread: boolean; mentions: number }> {
-  const map: Record<string, { unread: boolean; mentions: number }> = {};
-  for (const g of groups) {
-    const parsed = parseCountGroup(g);
-    if (parsed) map[parsed.id] = { mentions: parsed.mentions, unread: parsed.unread };
-  }
-  return map;
-}
-
-export function buildUnreadMap(
-  counts: RawCounts | undefined,
-): Record<string, { unread: boolean; mentions: number }> {
-  if (!counts) return {};
-  return mapCountGroups([
-    ...(counts.channels ?? []),
-    ...(counts.mpims ?? []),
-    ...(counts.ims ?? []),
-  ]);
-}
-
-export function parseBadgeCounts(
-  payload: (RawCounts & { badges?: RawCounts }) | undefined,
-): Record<string, { unread: boolean; mentions: number }> {
-  const source = payload?.badges ?? payload ?? {};
-  return mapCountGroups([
-    ...(source.channels ?? []),
-    ...(source.mpims ?? []),
-    ...(source.ims ?? []),
-  ]);
-}
-
-export function formatTime(ts: string) {
-  const date = new Date(parseFloat(ts) * 1000);
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
-export function formatDayFromMs(ms: number) {
-  const date = new Date(ms);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-  if (sameDay(date, today)) return "Today";
-  if (sameDay(date, yesterday)) return "Yesterday";
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "long",
-    weekday: "long",
-  });
-}
-
-export function formatDay(ts: string) {
-  return formatDayFromMs(parseFloat(ts) * 1000);
 }
 
 const SYSTEM_SUBTYPES = new Set([
