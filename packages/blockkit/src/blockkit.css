@@ -1,3 +1,7 @@
+/* biome-ignore-all lint/style/noExcessiveLinesPerFile: one stylesheet for every block-kit block
+ * type, several selectors intentionally shared/grouped across block types (bk-image-el,
+ * bk-video-title/bk-task-sources, bk-card-subtext/bk-video-description, ...) - splitting by
+ * block would duplicate or fragment those shared rules for no real gain. */
 .bk-root {
   display: flex;
   flex-direction: column;

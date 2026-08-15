@@ -1,4 +1,4 @@
-import type { ThemeColors } from "./themeColors";
+import type { ThemeColors } from "./themeColorDefinitions";
 
 export function translucent(color: string, amount: number) {
   return `color-mix(in oklch, ${color} ${amount}%, transparent)`;
