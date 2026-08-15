@@ -1,37 +1,32 @@
 import {
-  ATOM_DATE,
-  ATOM_EMOJI,
-  ATOM_MENTION,
   blocksToDoc,
   type ComposeAtomData,
   composeAtomRenderers,
   docToBlocks,
-  formatSlackDateTokens,
 } from "@slock/blockkit";
 import type { Block as SlackBlock } from "@slock/slack-api";
-import { uploadFiles } from "@slock/slack-api";
 import type { DocModel } from "@slock/ui";
 import {
-  createAtomRun,
   createEditorStore,
   createParagraph,
   createTextRun,
   EditorView,
   emptyDoc,
-  IconButton,
   InlineFeedback,
-  Menu,
-  MenuItem,
 } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
-import { actionFeedback, composerFeedbackKey, store } from "../../lib/store";
+import { actionFeedback, composerFeedbackKey } from "../../lib/store";
+import ComposerAttachMenu from "./ComposerAttachMenu";
+import ComposerSuggestPopover from "./ComposerSuggestPopover";
+import { createComposerSubmitHandler } from "./composerSubmit";
+import { applyTextSuggestion, insertDateAtom } from "./composerSuggestionApply";
 import type { ComposerProps } from "./composerTypes";
 import FileChip from "./FileChip";
-import { clearPersistedDraft, createComposerDraftState } from "./lib/drafts";
-import { createPendingFileState, draftCacheKey, submitComposerPayload } from "./lib/submission";
+import { createComposerDraftState } from "./lib/drafts";
+import { createPendingFileState, draftCacheKey } from "./lib/submission";
 import { createSuggestionController } from "./lib/suggestionController";
-import type { SuggestItem, SuggestState } from "./lib/suggestTypes";
-import { suggestItemContent, suggestOpen } from "./lib/suggestTypes";
+import type { SuggestState } from "./lib/suggestTypes";
+import { suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
 import ComposeDatePicker from "./popovers/ComposeDatePicker";
 import "./Composer.css";
@@ -60,51 +55,11 @@ export default function Composer(props: ComposerProps) {
   const [dateOpen, setDateOpen] = createSignal(false);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   const [suggestPopoverRef, setSuggestPopoverRef] = createSignal<HTMLDivElement>();
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
-  let fileInputRef: HTMLInputElement | undefined;
-  let plusClickTimer: ReturnType<typeof setTimeout> | undefined;
 
   useSuggestUi(suggestPopoverRef, suggest, setSuggest);
 
-  const applyTextSuggestion = (item: SuggestItem, state: SuggestState) => {
-    if (item.kind === "command") {
-      editor.replaceTriggerRange(state.start, createTextRun(`/${item.name} `));
-      return;
-    }
-    if (item.kind === "emoji") {
-      editor.replaceTriggerRange(state.start, [
-        createAtomRun(ATOM_EMOJI, {
-          fallbackText: `:${item.name}:`,
-          name: item.name,
-          unicode: item.unicode,
-        }),
-        createTextRun(" "),
-      ]);
-      return;
-    }
-    if (item.kind === "user") {
-      editor.replaceTriggerRange(state.start, [
-        createAtomRun(ATOM_MENTION, {
-          fallbackText: `<@${item.id}>`,
-          refId: item.id,
-          target: "user",
-        }),
-        createTextRun(" "),
-      ]);
-      return;
-    }
-    editor.replaceTriggerRange(state.start, [
-      createAtomRun(ATOM_MENTION, {
-        fallbackText: `<#${item.id}>`,
-        refId: item.id,
-        target: "channel",
-      }),
-      createTextRun(" "),
-    ]);
-  };
-
   const suggestionCtl = createSuggestionController({
-    applyTextSuggestion,
+    applyTextSuggestion: (item, state) => applyTextSuggestion(editor, item, state),
     channelId: () => props.channelId,
     includeCommands: !props.editing,
     setSuggest,
@@ -171,74 +126,21 @@ export default function Composer(props: ComposerProps) {
 
   onCleanup(() => draftState?.cacheLocal());
 
-  const handleSubmit = async () => {
-    if (sending() || !props.channelId) return;
-    const text = editor.getPlainText().trim();
-    if (!text && pendingFiles.files().length === 0 && editor.isEmpty()) return;
-    setSending(true);
-    try {
-      if (props.editing) {
-        const blocks = editor.isEmpty() ? undefined : docToBlocks(editor.getDoc());
-        const ok = await props.editing.onSave(text, blocks);
-        if (!ok) return;
-        return;
-      }
-      const { channelId, threadTs } = props;
-      const isSlashAttempt = text.startsWith("/");
-      const blocks = isSlashAttempt || editor.isEmpty() ? undefined : docToBlocks(editor.getDoc());
-      const key = draftCacheKey(channelId, threadTs);
-      await submitComposerPayload({
-        blocks,
-        files: pendingFiles.files(),
-        isSlashAttempt,
-        onSuccess: () => {
-          editor.clear();
-          pendingFiles.clear(key);
-          clearPersistedDraft(channelId, threadTs);
-          props.replyTo?.onSent();
-        },
-        runCommand: () => store.commands.handleSlashCommand(channelId, threadTs, text),
-        sendMessage: (b) => store.messages.sendMessage(channelId, text, threadTs, b),
-        uploadFiles: () => uploadFiles(channelId, pendingFiles.files(), threadTs, text),
-      });
-    } catch (err) {
-      actionFeedback.flash(
-        feedbackKey(),
-        err instanceof Error ? err.message : "Failed to send message.",
-        "error",
-      );
-    } finally {
-      setSending(false);
-    }
-  };
+  const handleSubmit = createComposerSubmitHandler({
+    channelId: () => props.channelId,
+    editing: () => props.editing,
+    editor,
+    feedbackKey,
+    onSent: () => props.replyTo?.onSent(),
+    pendingFiles,
+    sending,
+    setSending,
+    threadTs: () => props.threadTs,
+  });
 
   const handleDateSelect = (timestamp: number, format: string) => {
     setDateOpen(false);
-    editor.insertAtomAtCaret(ATOM_DATE, {
-      fallbackText: formatSlackDateTokens(format, timestamp),
-      format,
-      timestamp,
-    });
-    editor.focus();
-  };
-
-  const handlePlusClick = () => {
-    if (plusClickTimer) {
-      clearTimeout(plusClickTimer);
-      plusClickTimer = undefined;
-      return; // second click of a double-click — let onDblClick handle it
-    }
-    plusClickTimer = setTimeout(() => {
-      plusClickTimer = undefined;
-      setMenuOpen(true);
-    }, 220);
-  };
-  const handlePlusDblClick = () => {
-    if (plusClickTimer) {
-      clearTimeout(plusClickTimer);
-      plusClickTimer = undefined;
-    }
-    fileInputRef?.click();
+    insertDateAtom(editor, timestamp, format);
   };
 
   const feedback = () => actionFeedback.get(feedbackKey());
@@ -284,50 +186,11 @@ export default function Composer(props: ComposerProps) {
       </Show>
       <div class="composer-row">
         <Show when={!props.editing}>
-          <Menu
-            class="composer-plus-menu"
-            onClose={() => setMenuOpen(false)}
+          <ComposerAttachMenu
+            onFilesSelected={(files) => pendingFiles.add(files)}
+            onInsertDate={() => setDateOpen(true)}
+            onOpenChange={setMenuOpen}
             open={menuOpen()}
-            panelClass="menu-panel composer-tools-menu"
-            trigger={
-              <IconButton
-                circular
-                icon="plus"
-                label="Add attachment or date (double-click to attach)"
-                onClick={handlePlusClick}
-                onDblClick={handlePlusDblClick}
-                size="md"
-              />
-            }
-          >
-            <MenuItem
-              icon="attachment"
-              onClick={() => {
-                setMenuOpen(false);
-                fileInputRef?.click();
-              }}
-            >
-              Attach file
-            </MenuItem>
-            <MenuItem
-              icon="calendar"
-              onClick={() => {
-                setMenuOpen(false);
-                setDateOpen(true);
-              }}
-            >
-              Insert date
-            </MenuItem>
-          </Menu>
-          <input
-            class="composer-file-input"
-            multiple
-            onChange={(e) => {
-              if (e.currentTarget.files) pendingFiles.add(e.currentTarget.files);
-              e.currentTarget.value = "";
-            }}
-            ref={fileInputRef}
-            type="file"
           />
         </Show>
         <div class="composer-input-wrap">
@@ -348,21 +211,12 @@ export default function Composer(props: ComposerProps) {
           </Show>
           <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
             {(state) => (
-              <div class="menu-panel composer-suggest-popover" ref={setSuggestPopoverRef}>
-                <For each={state().items}>
-                  {(item, i) => (
-                    <button
-                      class="composer-suggest-row flex-align-center"
-                      classList={{ active: i() === state().active }}
-                      onClick={() => suggestionCtl.applySuggestion(i())}
-                      onMouseEnter={() => suggestionCtl.setActiveSuggestion(i())}
-                      type="button"
-                    >
-                      {suggestItemContent(item)}
-                    </button>
-                  )}
-                </For>
-              </div>
+              <ComposerSuggestPopover
+                onHover={suggestionCtl.setActiveSuggestion}
+                onPick={suggestionCtl.applySuggestion}
+                ref={setSuggestPopoverRef}
+                state={state()}
+              />
             )}
           </Show>
         </div>
