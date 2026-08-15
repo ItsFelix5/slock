@@ -19,8 +19,10 @@ export default function MrkdwnComposer(props: {
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   let inputRef: HTMLTextAreaElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let suggestPopoverRef: HTMLDivElement | undefined;
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {

@@ -43,6 +43,8 @@ function parseLinesAndQuotes(text: string): BlockNode[] {
 }
 
 const CODE_FENCE_RE = /```([\s\S]*?)```/g;
+const CODE_FENCE_LEADING_NEWLINE_RE = /^\n/;
+const CODE_FENCE_TRAILING_NEWLINE_RE = /\n$/;
 
 function parseMrkdwn(text: string): BlockNode[] {
   const blocks: BlockNode[] = [];
@@ -52,7 +54,11 @@ function parseMrkdwn(text: string): BlockNode[] {
     if (index > lastIndex) blocks.push(...parseLinesAndQuotes(text.slice(lastIndex, index)));
     blocks.push({
       t: "codeblock",
-      text: decodeTextEntities(match[1].replace(/^\n/, "").replace(/\n$/, "")),
+      text: decodeTextEntities(
+        match[1]
+          .replace(CODE_FENCE_LEADING_NEWLINE_RE, "")
+          .replace(CODE_FENCE_TRAILING_NEWLINE_RE, ""),
+      ),
     });
     lastIndex = index + match[0].length;
   }

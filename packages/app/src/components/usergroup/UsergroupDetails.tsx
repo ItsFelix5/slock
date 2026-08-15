@@ -15,6 +15,8 @@ import UsergroupChannelsTab from "./UsergroupChannelsTab";
 import "./UsergroupDetails.css";
 import UsergroupMembersTab from "./UsergroupMembersTab";
 
+const LEADING_AT_RE = /^@/;
+
 type Tab = "about" | "members" | "channels";
 
 const TABS: { key: Tab; label: string }[] = [
@@ -54,7 +56,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
   };
 
   const saveHandle = async () => {
-    const v = handleInput().trim().replace(/^@/, "");
+    const v = handleInput().trim().replace(LEADING_AT_RE, "");
     if (!v || v === details()?.handle) return;
     await saveUsergroupProfile(usergroupId(), { handle: v });
   };

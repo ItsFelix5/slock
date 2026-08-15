@@ -7,7 +7,7 @@ import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
-import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/SidebarRows";
+import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/sidebar-rows";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
 import type { SidebarContext } from "./sidebarCategories";

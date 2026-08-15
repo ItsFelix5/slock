@@ -17,6 +17,7 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     null,
   );
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let messagesRef: HTMLDivElement | undefined;
   let cancelJump: (() => void) | undefined;
   const messages = createMemo(() => store.messages.threadMessages[thread().ts] ?? []);

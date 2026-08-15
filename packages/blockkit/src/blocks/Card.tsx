@@ -24,9 +24,7 @@ function slackIconName(name: string): IconName {
 export function Card(props: { block: CardBlock; context?: BlockActionContext }) {
   return (
     <article class="bk-card">
-      <Show when={props.block.hero_image}>
-        <ImageElement el={props.block.hero_image!} />
-      </Show>
+      <Show when={props.block.hero_image}>{(heroImage) => <ImageElement el={heroImage()} />}</Show>
       <div class="bk-card-content">
         <Show
           when={
@@ -36,9 +34,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
           <div class="bk-card-heading">
             <Show
               fallback={
-                <Show when={props.block.icon}>
-                  <ImageElement el={props.block.icon!} />
-                </Show>
+                <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
               }
               when={props.block.slack_icon}
             >

@@ -23,6 +23,7 @@ export default function MessageSearchView() {
   const [dismissedSuggestionsFor, setDismissedSuggestionsFor] = createSignal<string>();
   const suggestionListId = createUniqueId();
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let suggestionsListRef: HTMLDivElement | undefined;
   const searchRequest = createDebouncedRequest(
     (value) => searchMessages(value, { sort: "score", sortDir: "desc" }),

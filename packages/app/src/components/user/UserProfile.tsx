@@ -193,7 +193,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 statusText={statusText}
                 startDate={startDate}
                 titleInput={titleInput}
-                user={user}
+                user={u}
               />
               <UserProfileContact
                 customFields={customFields()}

@@ -1,6 +1,6 @@
 import type { DirectMessage } from "@slock/slack-api";
 import { For, Show } from "solid-js";
-import { DmRow, SidebarSectionCaretRow } from "./SidebarRows";
+import { DmRow, SidebarSectionCaretRow } from "./sidebar-rows";
 
 function DmSection(props: {
   count?: () => number;

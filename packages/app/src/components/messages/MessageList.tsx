@@ -20,6 +20,7 @@ const MAX_BACKFILL_LOADS = 5;
 export default function MessageList() {
   const { clearMessageTarget, messageTarget, view: paneView } = usePaneView();
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let scrollRef: HTMLDivElement | undefined;
   let lastViewId: string | undefined;
   let lastScrollTop = 0;

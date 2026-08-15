@@ -132,6 +132,7 @@ export default function ActivityView() {
 
   const activeUnreadOnly = createMemo(() => readState() === "unread");
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let scrollRef: HTMLDivElement | undefined;
 
   function handleScroll() {

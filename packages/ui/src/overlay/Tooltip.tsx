@@ -13,6 +13,7 @@ export interface TooltipProps {
 }
 
 export default function Tooltip(props: TooltipProps) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let anchorRef: HTMLSpanElement | undefined;
   const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
 

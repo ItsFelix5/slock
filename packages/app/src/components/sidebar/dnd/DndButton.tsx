@@ -17,6 +17,7 @@ const DURATIONS = [
 export default function DndButton() {
   const [open, setOpen] = createSignal(false);
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let wrapRef: HTMLFieldSetElement | undefined;
   let openTimer: ReturnType<typeof setTimeout> | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;

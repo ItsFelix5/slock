@@ -14,7 +14,7 @@ import { createMemo, For, Show } from "solid-js";
 import { actionFeedback, formatInteractorNames, store } from "../../lib/store";
 import Composer from "../composer/Composer";
 import UserHoverCard from "../user/UserHoverCard";
-import { MessageAvatarButton } from "./MessageAuthorButtons";
+import { MessageAvatarButton } from "./message-author-buttons";
 import "./MessageList.css";
 import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";

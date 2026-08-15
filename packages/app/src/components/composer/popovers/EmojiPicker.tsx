@@ -54,8 +54,10 @@ export default function EmojiPicker(props: {
 }) {
   const [query, setQuery] = createSignal("");
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let bodyRef: HTMLDivElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let searchInputRef: HTMLInputElement | undefined;
 
   useEscapeClose(props.onClose);

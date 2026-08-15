@@ -20,6 +20,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
   const [newSectionName, setNewSectionName] = createSignal("");
   const [creatingSection, setCreatingSection] = createSignal(false);
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let newSectionInputRef: HTMLInputElement | undefined;
 
   const sections = createMemo(

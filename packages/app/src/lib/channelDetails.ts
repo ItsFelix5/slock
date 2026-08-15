@@ -25,7 +25,7 @@ import { actionFeedback, store } from "./store";
 import type { ChannelDetailsTab } from "./store/slices/types";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
-export type { ChannelDetailsTab };
+export type { ChannelDetailsTab } from "./store/slices/types";
 
 function setup() {
   function openChannelDetails(id: string, tab: ChannelDetailsTab = "about") {
