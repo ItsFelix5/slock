@@ -190,13 +190,15 @@ export function createSuggestionController(opts: SuggestionOptions) {
     if (next !== undefined) setActiveSuggestion(next);
   }
 
-  function updateSuggestions(value: string, cursor: number) {
+  function updateSuggestions(value: string, cursor: number, isDocStart = true) {
     const trigger = detectMentionTrigger(value, cursor);
     if (!trigger) {
       opts.setSuggest(null);
       return;
     }
-    if (trigger.kind === "command" && opts.includeCommands === false) {
+    // a slash command only counts at the very start of the message - "/" typed at the start of
+    // a later paragraph is just a literal slash, not a command trigger
+    if (trigger.kind === "command" && (opts.includeCommands === false || !isDocStart)) {
       opts.setSuggest(null);
       return;
     }

@@ -13,6 +13,7 @@ import {
   EditorView,
   emptyDoc,
   InlineFeedback,
+  useEscapeClose,
 } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { actionFeedback, composerFeedbackKey } from "../../lib/store";
@@ -68,8 +69,15 @@ export default function Composer(props: ComposerProps) {
 
   const handleCaretActivity = () => {
     const caret = editor.getCaretContext();
-    suggestionCtl.updateSuggestions(caret?.text ?? "", caret?.caretOffset ?? 0);
+    suggestionCtl.updateSuggestions(caret?.text ?? "", caret?.caretOffset ?? 0, caret?.isDocStart);
   };
+
+  // escape cancels an in-progress edit, same as the Cancel button - suppressed while a suggestion
+  // popover is open since that Escape (handled locally below) closes the popover first
+  useEscapeClose(
+    () => props.editing?.onCancel(),
+    () => !!props.editing,
+  );
 
   const handleKeyDownCapture = (event: KeyboardEvent): boolean => {
     if (!suggestOpen(suggest())) return false;
@@ -97,9 +105,15 @@ export default function Composer(props: ComposerProps) {
   };
 
   const feedbackKey = () => composerFeedbackKey(props.threadTs ?? props.channelId ?? "");
+  // an editing composer shares its channelId/threadTs with the "real" composer for that spot
+  // (main composer or thread reply box) - keying pending files off editing would leak the other
+  // composer's staged attachments into the edit box, so it never gets a draft key of its own
   const pendingFiles = createPendingFileState({
     disabled: sending,
-    draftKey: () => (props.channelId ? draftCacheKey(props.channelId, props.threadTs) : undefined),
+    draftKey: () =>
+      props.editing || !props.channelId
+        ? undefined
+        : draftCacheKey(props.channelId, props.threadTs),
   });
 
   if (props.editing) {
