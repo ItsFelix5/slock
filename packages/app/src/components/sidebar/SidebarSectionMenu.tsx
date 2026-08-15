@@ -1,4 +1,4 @@
-import { IconButton, Menu, MenuItem, SegmentedControl } from "@slock/ui";
+import { confirmDialog, IconButton, Menu, MenuItem, SegmentedControl } from "@slock/ui";
 import { Show } from "solid-js";
 import type { Category, SidebarContext } from "./sidebarCategories";
 
@@ -21,12 +21,14 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
     sectionStructurePending() ||
     preferencesLoading() ||
     !!preferencesError();
-  const deleteSection = () => {
+  const deleteSection = async () => {
     setSectionMenuOpen(null);
 
-    const confirmed = confirm(
-      `Delete section "${props.cat.name}"? Its channels won't be removed from the workspace.`,
-    );
+    const confirmed = await confirmDialog({
+      confirmLabel: "Delete",
+      danger: true,
+      message: `Delete section "${props.cat.name}"? Its channels won't be removed from the workspace.`,
+    });
     if (confirmed) void deleteChannelSection(props.cat.id);
   };
 

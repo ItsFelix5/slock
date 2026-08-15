@@ -1,4 +1,4 @@
-import { Button } from "@slock/ui";
+import { Button, confirmDialog } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import {
   archiveChannelById,
@@ -18,7 +18,8 @@ export default function ChannelDangerZone(props: {
     if (!props.isManager() || archiving()) return;
     const verb = props.archived ? "Unarchive" : "Archive";
 
-    if (!confirm(`${verb} this channel?`)) return;
+    const confirmed = await confirmDialog({ confirmLabel: verb, message: `${verb} this channel?` });
+    if (!confirmed) return;
     setArchiving(true);
     const ok = await (props.archived
       ? unarchiveChannelById(props.channelId)
@@ -31,7 +32,12 @@ export default function ChannelDangerZone(props: {
   const convertToPrivate = async () => {
     if (!props.isManager() || convertingPrivate()) return;
 
-    if (!confirm("Convert this channel to private? This can't be undone.")) return;
+    const confirmed = await confirmDialog({
+      confirmLabel: "Convert",
+      danger: true,
+      message: "Convert this channel to private? This can't be undone.",
+    });
+    if (!confirmed) return;
     setConvertingPrivate(true);
     const ok = await convertChannelToPrivateById(props.channelId);
     setConvertingPrivate(false);

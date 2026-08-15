@@ -1,5 +1,5 @@
 import type { User } from "@slock/slack-api";
-import { Avatar, Icon } from "@slock/ui";
+import { Avatar, confirmDialog, Icon } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { store } from "../../lib/store";
 import { addUsergroupMembers, removeUsergroupMember } from "../../lib/usergroupDetails";
@@ -34,7 +34,12 @@ export default function UsergroupMembersTab(props: {
   const removeMember = async (user: User) => {
     if (props.disabled) return;
 
-    if (!confirm(`Remove ${user.name} from this pinggroup?`)) return;
+    const confirmed = await confirmDialog({
+      confirmLabel: "Remove",
+      danger: true,
+      message: `Remove ${user.name} from this pinggroup?`,
+    });
+    if (!confirmed) return;
     await removeUsergroupMember(props.usergroupId, user.id);
   };
 

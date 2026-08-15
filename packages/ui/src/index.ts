@@ -74,6 +74,11 @@ export {
   setLogDeletedMessages,
 } from "./messagePreferences";
 export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
+export {
+  ConfirmDialogHost,
+  type ConfirmDialogOptions,
+  confirmDialog,
+} from "./overlay/confirm-dialog";
 export type {
   FloatingAlign,
   FloatingPanelProps,
