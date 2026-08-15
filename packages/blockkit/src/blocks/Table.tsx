@@ -6,7 +6,7 @@ function Cell(props: { cell: TableBlock["rows"][number][number] }) {
   return props.cell.type === "rich_text" ? (
     <RichText block={{ elements: props.cell.elements ?? [], type: "rich_text" }} />
   ) : (
-    <>{props.cell.text ?? props.cell.value}</>
+    (props.cell.text ?? props.cell.value)
   );
 }
 

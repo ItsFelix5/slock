@@ -1,7 +1,7 @@
 import type { LinkPreview, SavedItem } from "../../contentTypes";
 import type { SlackFileDetail } from "../../types";
 import { mapFile, mapFileShare } from "../mappers";
-import { apiGet, apiPost } from "../server";
+import { apiGet, apiPost, resolveMediaUrl } from "../server";
 
 let emojiMapPromise: Promise<Record<string, string>> | null = null;
 
@@ -40,6 +40,60 @@ export async function fetchSaved(): Promise<SavedItem[]> {
   const data = await apiGet("/api/saved");
   if (!data.ok) throw new Error(data.error ?? "saved.list failed");
   return data.items ?? [];
+}
+
+interface CanvasFileInfo {
+  title: string | null;
+  url: string | null;
+}
+
+const canvasFileInfoRequests = new Map<string, Promise<CanvasFileInfo>>();
+
+// Titles and backing URLs come from the same files.info payload. Keep that
+// lookup shared so asynchronously naming an unlabeled tab does not add another
+// request when the user immediately opens it.
+function resolveCanvasFileInfo(fileId: string): Promise<CanvasFileInfo> {
+  const existing = canvasFileInfoRequests.get(fileId);
+  if (existing) return existing;
+  const request = apiGet(`/api/canvases/${fileId}/file-info`)
+    .then((info) => {
+      if (!info.ok) throw new Error(info.error ?? "files.info failed");
+      return {
+        title: info.title,
+        url: info.url ? resolveMediaUrl(info.url) : null,
+      };
+    })
+    .catch((error) => {
+      canvasFileInfoRequests.delete(fileId);
+      throw error;
+    });
+  canvasFileInfoRequests.set(fileId, request);
+  return request;
+}
+
+export async function fetchCanvasTitle(fileId: string): Promise<string | null> {
+  try {
+    return (await resolveCanvasFileInfo(fileId)).title;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCanvas(fileId: string): Promise<string | null> {
+  const { url } = await resolveCanvasFileInfo(fileId);
+  if (!url) return null;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Canvas download failed (${res.status})`);
+  return res.text();
+}
+
+// A direct, navigable link to the canvas's backing file, for "open in new tab" / "copy link".
+export async function fetchCanvasFileUrl(fileId: string): Promise<string | null> {
+  try {
+    return (await resolveCanvasFileInfo(fileId)).url;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> {

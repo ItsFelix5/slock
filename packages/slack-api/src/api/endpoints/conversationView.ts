@@ -1,13 +1,25 @@
-import type { Channel, ChannelDetails, Message, User } from "../../types";
+import type { CanvasListItem, Channel, ChannelDetails, Message, User } from "../../types";
 import { HIDE_SUBTYPES, mapChannel, mapMessage, mapUser } from "../mappers";
 import { apiGet } from "../server";
 
 export interface ConversationViewData {
+  canvases: CanvasListItem[];
   channel: Channel;
   details: ChannelDetails;
   hasMore: boolean;
   messages: Message[];
   users: User[];
+}
+
+function mapCanvasTabs(channel: any): CanvasListItem[] {
+  const tabs: any[] = Array.isArray(channel?.properties?.tabs) ? channel.properties.tabs : [];
+  const seen = new Set<string>();
+  return tabs.flatMap((tab) => {
+    const fileId = tab?.type === "canvas" ? tab.data?.file_id : undefined;
+    if (!fileId || seen.has(fileId)) return [];
+    seen.add(fileId);
+    return [{ fileId, title: typeof tab.label === "string" ? tab.label.trim() : "" }];
+  });
 }
 
 const inFlight = new Map<string, Promise<ConversationViewData>>();
@@ -36,6 +48,7 @@ async function loadConversationView(channelId: string): Promise<ConversationView
   const rawUsers: any[] = data.users ?? [];
 
   return {
+    canvases: data.channel ? mapCanvasTabs(data.channel) : [],
     channel: data.channel
       ? mapChannel(data.channel)
       : {
@@ -84,4 +97,8 @@ export function fetchConversationView(channelId: string): Promise<ConversationVi
     .finally(() => inFlight.delete(channelId));
   inFlight.set(channelId, request);
   return request;
+}
+
+export async function fetchChannelCanvases(channelId: string): Promise<CanvasListItem[]> {
+  return (await fetchConversationView(channelId)).canvases;
 }

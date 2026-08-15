@@ -1,3 +1,4 @@
+import { EmojiText } from "@slock/blockkit";
 import { Button, Icon, InlineFeedback, ResizeHandle } from "@slock/ui";
 import { For, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
@@ -6,7 +7,7 @@ import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
-import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/SidebarRows";
+import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/sidebar-rows";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
 import type { SidebarContext } from "./sidebarCategories";
@@ -34,6 +35,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
     setUnreadsOnly,
     hasUnreadActivity,
     unreadPingCount,
+    recentReactionEmoji,
     bootstrap,
     categories,
     collapsed,
@@ -121,7 +123,13 @@ export default function SidebarView(props: { context: SidebarContext }) {
           onClick={() => setNavView("activity")}
           type="button"
         >
-          <Icon name="notifications" size={16} />
+          <Show fallback={<Icon name="notifications" size={16} />} when={recentReactionEmoji()}>
+            {(name) => (
+              <span class="sidebar-nav-reaction-emoji">
+                <EmojiText text={`:${name()}:`} />
+              </span>
+            )}
+          </Show>
           Activity
           <Show when={hasUnreadActivity()}>
             <span class="sidebar-ping-dot" classList={{ "has-count": unreadPingCount() > 0 }}>

@@ -47,7 +47,7 @@ export function convertBlockAtCaret<A>(
   selection: Range,
   match: BlockShortcutMatch,
 ): BlockOpResult<A> | null {
-  const blockIndex = selection.focus.path[0];
+  const [blockIndex] = selection.focus.path;
   const block = doc.blocks[blockIndex];
   if (block?.kind !== "paragraph") return null;
   const clone = cloneDoc(doc);

@@ -112,6 +112,20 @@
   border-radius: 9px;
 }
 
+.sidebar-nav-reaction-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sidebar-nav-reaction-emoji .emoji-img {
+  width: 16px;
+  height: 16px;
+}
+
 .sidebar-scroll {
   flex: 1;
   padding: 8px 0 16px;

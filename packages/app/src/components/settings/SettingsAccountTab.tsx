@@ -1,5 +1,5 @@
 import { getWorkspaceDomain, logout } from "@slock/slack-api";
-import { Avatar, Button } from "@slock/ui";
+import { Avatar, Button, confirmDialog } from "@slock/ui";
 import { createResource, createSignal, Show } from "solid-js";
 import { store } from "../../lib/store";
 import "./Settings.css";
@@ -10,9 +10,12 @@ export default function SettingsAccountTab() {
   const [logoutError, setLogoutError] = createSignal<string>();
 
   async function handleLogout() {
-    if (!confirm("Log out? You'll need to paste a fresh request from devtools to reconnect.")) {
-      return;
-    }
+    const confirmed = await confirmDialog({
+      confirmLabel: "Log out",
+      danger: true,
+      message: "Log out? You'll need to paste a fresh request from devtools to reconnect.",
+    });
+    if (!confirmed) return;
     setLogoutError(undefined);
     setLoggingOut(true);
     try {

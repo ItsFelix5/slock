@@ -11,9 +11,9 @@ export default function ParagraphBlockView<A>(props: {
   editor: EditorHandle<A>;
   placeholder?: string;
 }) {
-  const isEmpty = () =>
-    props.block.runs.length <= 1 &&
-    (props.block.runs[0]?.kind !== "text" || props.block.runs[0]?.text === "");
+  // a lone atom run (an emoji/mention/date chip with no other text) is real content, not an
+  // empty paragraph — only "no runs" or "a single blank text run" should show the placeholder
+  const isEmpty = () => props.block.runs.every((r) => r.kind === "text" && r.text === "");
 
   return (
     <div

@@ -12,6 +12,7 @@ import { accountRoutes } from "./routes/account/account.ts";
 import { activityRoutes } from "./routes/account/activity.ts";
 import { preferenceRoutes } from "./routes/account/preferences.ts";
 import { userStatusRoutes } from "./routes/account/userStatus.ts";
+import { canvasRoutes } from "./routes/channels/canvases.ts";
 import { channelDirectoryRoutes } from "./routes/channels/channelDirectory.ts";
 import { channelRoutes } from "./routes/channels/channels.ts";
 import { sectionRoutes } from "./routes/channels/sections.ts";
@@ -33,6 +34,7 @@ const ROUTES: Route[] = [
   ...messageRoutes,
   ...threadRoutes,
   ...conversationViewRoutes,
+  ...canvasRoutes,
   ...channelDirectoryRoutes,
   ...channelRoutes,
   ...sectionRoutes,

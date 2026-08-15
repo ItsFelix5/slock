@@ -27,6 +27,8 @@ import {
 } from "./fieldSave/channelDetailsDraft";
 import { saveEditableField } from "./fieldSave/fieldSaveController";
 
+const LEADING_HASH_RE = /^#/;
+
 const TABS: { key: ChannelDetailsTab; label: string }[] = [
   { key: "about", label: "About" },
   { key: "members", label: "Members" },
@@ -104,7 +106,7 @@ export default function ChannelDetails(props: { pane: Pane<ChannelDetailsPaneCon
 
   const saveName = async () => {
     const id = channelId();
-    const v = nameInput().trim().replace(/^#/, "");
+    const v = nameInput().trim().replace(LEADING_HASH_RE, "");
     const previous = details()?.name;
     if (!v || previous === undefined || v === previous || savingName()) return;
     await saveEditableField({

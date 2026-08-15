@@ -4,13 +4,14 @@ import {
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
-  fetchReplies,
 } from "@slock/slack-api";
 import { createEffect, untrack } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { ChannelMessageTarget, ThreadRef, View } from "../types";
 import { createRequestEpochs } from "./history/requestEpoch";
+import { createHistoryJump } from "./historyJump";
 import { mergeMessages } from "./merge/messageMerge";
+import { createThreadReplies } from "./threadReplies";
 
 type HistoryMeta = {
   anchored?: boolean;
@@ -27,7 +28,6 @@ type MessageHistoryApi = {
   fetchHistory: typeof fetchHistory;
   fetchHistoryAround: typeof fetchHistoryAround;
   fetchHistoryNewer: typeof fetchHistoryNewer;
-  fetchReplies: typeof fetchReplies;
 };
 
 const DEFAULT_HISTORY_API: MessageHistoryApi = {
@@ -35,7 +35,6 @@ const DEFAULT_HISTORY_API: MessageHistoryApi = {
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
-  fetchReplies,
 };
 
 export function createMessageHistory(
@@ -53,10 +52,16 @@ export function createMessageHistory(
   const newerHistoryBoundary = new Map<string, string>();
   const [historyMeta, setHistoryMeta] = createStore<Record<string, HistoryMeta>>({});
   const windowEpochs = createRequestEpochs();
-  const [threadMessages, setThreadMessages] = createStore<Record<string, Message[]>>({});
+  const {
+    ensureThreadRepliesLoaded,
+    hasThreadError,
+    isLoadingThread,
+    loadedThreads,
+    setThreadMessages,
+    threadMessages,
+  } = createThreadReplies({ visibleThreads: deps.visibleThreads });
 
   const [reactionMessages, setReactionMessages] = createStore<Record<string, Message[]>>({});
-  const loadedThreads = new Set<string>();
   async function loadRecentHistory(channelId: string) {
     const previous = historyMeta[channelId];
     const replaceAnchoredWindow = previous?.anchored === true;
@@ -110,30 +115,6 @@ export function createMessageHistory(
       if (alreadyAtPresent) continue;
       loadRecentHistory(view.id);
     }
-  });
-  const [threadMeta, setThreadMeta] = createStore<
-    Record<string, { error: boolean; loading: boolean }>
-  >({});
-  async function ensureThreadRepliesLoaded(channelId: string, ts: string, highlightTs?: string) {
-    const hasTarget =
-      !highlightTs || untrack(() => threadMessages[ts] ?? []).some((m) => m.ts === highlightTs);
-    if ((loadedThreads.has(ts) && hasTarget) || threadMeta[ts]?.loading) return;
-    loadedThreads.add(ts);
-    setThreadMeta(ts, { error: false, loading: true });
-    try {
-      const messages = await api.fetchReplies(channelId, ts, {
-        untilTs: highlightTs,
-      });
-      setThreadMessages(ts, (existing = []) => mergeMessages(existing, messages));
-      setThreadMeta(ts, { error: false, loading: false });
-    } catch {
-      loadedThreads.delete(ts);
-      setThreadMeta(ts, { error: true, loading: false });
-    }
-  }
-  createEffect(() => {
-    for (const thread of deps.visibleThreads())
-      ensureThreadRepliesLoaded(thread.channelId, thread.ts, thread.highlightTs);
   });
   function hasMoreHistory(channelId: string) {
     return historyMeta[channelId]?.hasMore ?? true;
@@ -260,106 +241,19 @@ export function createMessageHistory(
   function hasNewerHistoryError(channelId: string) {
     return historyMeta[channelId]?.newerError ?? false;
   }
-  function hasThreadError(ts: string) {
-    return threadMeta[ts]?.error ?? false;
-  }
-  function isLoadingThread(ts: string) {
-    return threadMeta[ts]?.loading ?? false;
-  }
 
-  async function ensureChannelMessage(channelId: string, ts: string) {
-    if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
-    const epoch = windowEpochs.begin(channelId);
-    const previous = historyMeta[channelId];
-    setHistoryMeta(channelId, {
-      anchored: previous?.anchored,
-      hasMore: previous?.hasMore ?? true,
-      initialError: false,
-      loading: true,
-      newerError: false,
-      olderError: false,
-    });
-    try {
-      const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
-      if (!windowEpochs.isCurrent(channelId, epoch)) return false;
-      if (!messages.some((message) => message.ts === ts)) {
-        void loadRecentHistory(channelId);
-        return false;
-      }
-      setMessagesByChannel(channelId, () => mergeMessages([], messages));
-      historyCursor.set(channelId, nextCursor);
-      newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
-      setHistoryMeta(channelId, {
-        anchored: true,
-        hasMore,
-        hasNewer: true,
-        initialError: false,
-        loading: false,
-        newerError: false,
-        olderError: false,
-      });
-      loadedChannels.add(channelId);
-      return true;
-    } catch (err) {
-      console.error("Failed to fetch history around message", err);
-      if (windowEpochs.isCurrent(channelId, epoch)) void loadRecentHistory(channelId);
-      return false;
-    }
-  }
-
-  async function jumpToDate(channelId: string, dateMs: number) {
-    const epoch = windowEpochs.begin(channelId);
-    const previous = historyMeta[channelId];
-    setHistoryMeta(channelId, {
-      anchored: previous?.anchored,
-      hasMore: previous?.hasMore ?? true,
-      initialError: false,
-      loading: true,
-      newerError: false,
-      olderError: false,
-    });
-    const endOfDay = new Date(dateMs);
-    endOfDay.setHours(23, 59, 59, 999);
-    const latestMs = Math.min(endOfDay.getTime(), Date.now());
-    const ts = (latestMs / 1000).toFixed(6);
-    try {
-      const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
-      if (!windowEpochs.isCurrent(channelId, epoch)) return false;
-      if (messages.length === 0) {
-        void loadRecentHistory(channelId);
-        return false;
-      }
-      setMessagesByChannel(channelId, () => mergeMessages([], messages));
-      historyCursor.set(channelId, nextCursor);
-      newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
-      setHistoryMeta(channelId, {
-        anchored: true,
-        hasMore,
-        hasNewer: true,
-        initialError: false,
-        loading: false,
-        newerError: false,
-        olderError: false,
-      });
-      loadedChannels.add(channelId);
-      return true;
-    } catch (err) {
-      console.error("Failed to jump to date", channelId, err);
-      if (windowEpochs.isCurrent(channelId, epoch)) void loadRecentHistory(channelId);
-      return false;
-    }
-  }
-
-  async function jumpToBeginning(channelId: string) {
-    try {
-      const details = await api.fetchChannelDetails(channelId);
-      if (!details.created) return false;
-      return await jumpToDate(channelId, details.created * 1000);
-    } catch (err) {
-      console.error("Failed to jump to beginning", channelId, err);
-      return false;
-    }
-  }
+  const { ensureChannelMessage, jumpToBeginning, jumpToDate } = createHistoryJump({
+    api,
+    historyCursor,
+    historyMeta,
+    loadedChannels,
+    loadRecentHistory,
+    messagesByChannel,
+    newerHistoryBoundary,
+    setHistoryMeta,
+    setMessagesByChannel,
+    windowEpochs,
+  });
   return {
     ensureChannelMessage,
     ensureThreadRepliesLoaded,

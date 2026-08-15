@@ -19,6 +19,7 @@ export interface MenuProps {
 }
 
 export default function Menu(props: MenuProps) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;

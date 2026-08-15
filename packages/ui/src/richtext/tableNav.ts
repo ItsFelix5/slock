@@ -9,8 +9,8 @@ export function adjacentCellPath<A>(
 ): number[] | null {
   const table = doc.blocks[path[0]];
   if (table?.kind !== "table") return null;
-  let row = path[1];
-  let cell = path[2] + dir;
+  let [, row, cell] = path;
+  cell += dir;
   const rowLength = (r: number) => table.rows[r]?.cells.length ?? 0;
   if (cell < 0) {
     row -= 1;

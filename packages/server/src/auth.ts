@@ -14,7 +14,7 @@ const CREDS_COOKIE = "slock_creds";
 const INFO_COOKIE = "slock_info";
 const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slack\.com$/i;
 
-const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\x00-\x1f\x7f]+$/;
+const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\p{Cc}]+$/u;
 const SESSION_INVALID_CHARS_RE = /[;\s]/;
 
 function authPayloadError(value: unknown): string | null {

@@ -1,4 +1,4 @@
-import { Icon, Switch } from "@slock/ui";
+import { confirmDialog, Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelDisplayName, store } from "../../lib/store";
 import {
@@ -40,7 +40,12 @@ export default function UsergroupChannelsTab(props: {
   const removeChannel = async (id: string, name: string) => {
     if (props.disabled) return;
 
-    if (!confirm(`Remove #${name} as a default channel for this pinggroup?`)) return;
+    const confirmed = await confirmDialog({
+      confirmLabel: "Remove",
+      danger: true,
+      message: `Remove #${name} as a default channel for this pinggroup?`,
+    });
+    if (!confirmed) return;
     await removeUsergroupChannel(props.usergroupId, id);
   };
 

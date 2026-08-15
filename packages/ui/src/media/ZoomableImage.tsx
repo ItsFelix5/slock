@@ -120,6 +120,7 @@ function ImageLightbox(props: {
 }) {
   useEscapeClose(props.onClose);
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let imgRef: HTMLImageElement | undefined;
   const [lens, setLens] = createSignal<{ x: number; y: number } | null>(null);
   const [lensZoom, setLensZoom] = createSignal(LENS_ZOOM_DEFAULT);

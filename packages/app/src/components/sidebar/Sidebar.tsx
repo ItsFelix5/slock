@@ -200,6 +200,7 @@ export default function Sidebar() {
     handleSectionDrop,
     hasUnreadActivity: store.activity.hasUnreadActivity,
     unreadPingCount: store.activity.unreadPingCount,
+    recentReactionEmoji: store.activity.recentReactionEmoji,
     maxWidth: MAX_WIDTH,
     minWidth: MIN_WIDTH,
     moveSection,

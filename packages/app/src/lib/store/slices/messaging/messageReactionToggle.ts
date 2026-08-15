@@ -1,0 +1,75 @@
+import type { Message, User } from "@slock/slack-api";
+import { toggleReaction } from "@slock/slack-api";
+import { createStore, produce } from "solid-js/store";
+import { actionFeedback } from "../feedback";
+import type { MessageLocation } from "../types";
+import { restoreFailedReaction } from "./reactions/reactionRollback";
+
+export function createMessageReactionToggle(deps: {
+  currentUser: () => User | undefined;
+  findAllMessageLocations: (
+    channelId: string,
+    ts: string,
+  ) => { location: MessageLocation; list: Message[] }[];
+  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
+}) {
+  const [reactionPending, setReactionPending] = createStore<Record<string, boolean>>({});
+  const reactionPendingKey = (channelId: string, ts: string, emojiName: string) =>
+    `${channelId}:${ts}:${emojiName}`;
+  function isReactionPending(channelId: string, ts: string, emojiName: string): boolean {
+    return !!reactionPending[reactionPendingKey(channelId, ts, emojiName)];
+  }
+
+  async function reactToMessage(channelId: string, msg: Message, emojiName: string) {
+    const me = deps.currentUser();
+    const pendingKey = reactionPendingKey(channelId, msg.ts, emojiName);
+    if (!me || reactionPending[pendingKey]) return;
+    setReactionPending(pendingKey, true);
+    const previousReactions = msg.reactions;
+    const reactions = previousReactions ?? [];
+    const existing = reactions.find((r) => r.name === emojiName);
+    const existingIndex = reactions.findIndex((r) => r.name === emojiName);
+    const alreadyReacted = !!existing?.users.includes(me.id);
+    let nextReactions: typeof reactions;
+    if (alreadyReacted) {
+      nextReactions = reactions
+        .map((r) =>
+          r.name === emojiName
+            ? {
+                ...r,
+                count: r.count - 1,
+                users: r.users.filter((u) => u !== me.id),
+              }
+            : r,
+        )
+        .filter((r) => r.count > 0);
+    } else if (existing) {
+      nextReactions = reactions.map((r) =>
+        r.name === emojiName ? { ...r, count: r.count + 1, users: [...r.users, me.id] } : r,
+      );
+    } else {
+      nextReactions = [...reactions, { count: 1, name: emojiName, users: [me.id] }];
+    }
+    deps.patchMessage(channelId, msg.ts, { reactions: nextReactions });
+    try {
+      await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
+    } catch (err) {
+      console.error("Failed to toggle reaction", err);
+      actionFeedback.flash(msg.ts, "Failed to update reaction.", "error");
+      const current = deps
+        .findAllMessageLocations(channelId, msg.ts)[0]
+        ?.list.find((candidate) => candidate.ts === msg.ts)?.reactions;
+      deps.patchMessage(channelId, msg.ts, {
+        reactions: restoreFailedReaction(current, emojiName, existing, existingIndex),
+      });
+    } finally {
+      setReactionPending(
+        produce((pending) => {
+          delete pending[pendingKey];
+        }),
+      );
+    }
+  }
+
+  return { isReactionPending, reactToMessage };
+}

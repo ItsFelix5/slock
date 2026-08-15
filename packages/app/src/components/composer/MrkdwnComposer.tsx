@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { createSuggestionController, suggestionText } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
-import { suggestItemContent } from "./lib/suggestTypes";
+import { suggestItemContent, suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
 import "./MrkdwnComposer.css";
 
@@ -19,8 +19,10 @@ export default function MrkdwnComposer(props: {
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   let inputRef: HTMLTextAreaElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let suggestPopoverRef: HTMLDivElement | undefined;
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {
@@ -127,7 +129,7 @@ export default function MrkdwnComposer(props: {
         }}
         rows={props.multiline ? 3 : 1}
       />
-      <Show when={suggest()}>
+      <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
         {(state) => (
           <div class="menu-panel composer-suggest-popover" ref={suggestPopoverRef}>
             <For each={state().items}>

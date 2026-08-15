@@ -19,7 +19,7 @@ export default function BlockView<A>(props: {
   editor: EditorHandle<A>;
   placeholder?: string;
 }) {
-  const block = props.block;
+  const { block } = props;
   if (block.kind === "paragraph") {
     return (
       <ParagraphBlockView

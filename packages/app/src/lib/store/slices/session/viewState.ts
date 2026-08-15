@@ -43,6 +43,10 @@ function parsePaneSegment(segment: string): PaneContent | RawPane | null {
     return { channelId, kind: "channel-details", tab: (tab || undefined) as ChannelDetailsTab };
   }
   if (segment.endsWith("*")) return { channelId: segment.slice(0, -1), kind: "pinned" };
+  if (segment.includes("^")) {
+    const [fileId, title] = segment.split("^");
+    return { fileId, kind: "canvas", title: decodeURIComponent(title) };
+  }
   if (segment.startsWith("U")) return { kind: "profile", userId: segment };
   if (segment.startsWith("S")) return { kind: "usergroup-details", usergroupId: segment };
   return { id: segment, kind: "raw" };
@@ -70,6 +74,8 @@ function serializePaneSegment(content: PaneContent): string {
       return content.usergroupId;
     case "pinned":
       return `${content.channelId}*`;
+    case "canvas":
+      return `${content.fileId}^${encodeURIComponent(content.title)}`;
     case "profile":
       return content.userId;
   }

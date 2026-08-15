@@ -16,6 +16,7 @@ export interface PopoverProps {
 }
 
 export default function Popover(props: PopoverProps) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
 

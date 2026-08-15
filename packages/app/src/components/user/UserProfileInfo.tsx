@@ -12,7 +12,7 @@ interface UserProfileInfoProps {
   isSelf: () => boolean;
   isSavingProfilePhoto: () => boolean;
   isSavingPresence: () => boolean;
-  user: () => User | undefined;
+  user: () => User;
   botBio: () => string | undefined;
   lastSeenText: () => string | null;
   localTime: () => string | null;
@@ -45,7 +45,7 @@ function autoGrowTitle(el: HTMLTextAreaElement) {
 }
 
 export default function UserProfileInfo(props: UserProfileInfoProps) {
-  const u = () => props.user()!;
+  const u = props.user;
 
   let titleRef: HTMLTextAreaElement | undefined;
   let titleResizeObserver: ResizeObserver | undefined;

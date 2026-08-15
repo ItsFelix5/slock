@@ -39,6 +39,7 @@ export interface SidebarContext {
   handleSectionDrop: (e: DragEvent) => void;
   hasUnreadActivity: Accessor<boolean>;
   unreadPingCount: Accessor<number>;
+  recentReactionEmoji: Accessor<string | undefined>;
   maxWidth: number;
   minWidth: number;
   canMoveSection: (sectionId: string, direction: -1 | 1) => boolean;

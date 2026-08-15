@@ -1,4 +1,4 @@
-import { MenuItem } from "@slock/ui";
+import { confirmDialog, MenuItem } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
 import { actionFeedback, store } from "../../lib/store";
@@ -78,11 +78,15 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           danger
           disabled={store.channels.isLeavePending(props.channelId)}
           icon="sign-out"
-          onClick={() => {
+          onClick={async () => {
             props.onClose();
 
-            if (confirm(`Leave #${props.channelTitle}?`))
-              store.channels.leaveCurrentChannel(props.channelId);
+            const ok = await confirmDialog({
+              confirmLabel: "Leave",
+              danger: true,
+              message: `Leave #${props.channelTitle}?`,
+            });
+            if (ok) store.channels.leaveCurrentChannel(props.channelId);
           }}
         >
           Leave channel

@@ -62,6 +62,7 @@ function ContextMenuPanel(props: {
   setRef: (el: HTMLDivElement) => void;
   children: JSX.Element;
 }) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let ref: HTMLDivElement | undefined;
 
   const menuItems = () =>

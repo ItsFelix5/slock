@@ -90,7 +90,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       if (!result) return false;
       pushHistory();
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
       return true;
     },
 
@@ -114,7 +114,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       if (!result) return;
       pushHistory();
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
     },
 
     insertNewlineInCodeblock() {
@@ -123,7 +123,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       if (!result) return false;
       pushHistory();
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
       return true;
     },
 
@@ -204,7 +204,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       pushHistory();
       const result = insertBlockAfterCurrentOp(doc, selection, block);
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
     },
 
     mergeWithNextBlock() {
@@ -213,7 +213,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       if (!result) return false;
       pushHistory();
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
       return true;
     },
 
@@ -223,7 +223,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       if (!result) return false;
       pushHistory();
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
       return true;
     },
 
@@ -237,7 +237,7 @@ export function createEditorStore<A = unknown>(): EditorHandle<A> {
       if (!result) return;
       pushHistory();
       commit(result.doc);
-      selection = result.selection;
+      ({ selection } = result);
     },
 
     setSelection(range) {

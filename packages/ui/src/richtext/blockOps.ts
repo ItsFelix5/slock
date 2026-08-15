@@ -120,7 +120,7 @@ export function mergeWithPreviousBlock<A>(
   const clone = cloneDoc(doc);
 
   if (ref.kind === "listItem") {
-    const list = (resolveContainerRef(clone.blocks, containerPath) as typeof ref).list;
+    const { list } = resolveContainerRef(clone.blocks, containerPath) as typeof ref;
     if (ref.index > 0) {
       const prev = list.items[ref.index - 1];
       const cur = list.items[ref.index];
@@ -176,7 +176,7 @@ function unwrapListFirstItem<A>(
   const listPos = resolveBlockPosition(clone.blocks, pathPrefix);
   if (!listPos) return null;
   const before = listPos.array[listPos.index - 1];
-  const firstItem = list.items[0];
+  const [firstItem] = list.items;
   if (before && "runs" in before) {
     const boundary = before.runs.length;
     before.runs.push(...firstItem.runs);
@@ -207,7 +207,7 @@ function unwrapSoleQuoteChild<A>(
   if (!quotePos) return null;
   const quote = quotePos.array[quotePos.index];
   if (quote.kind !== "quote" || quote.children.length !== 1) return null;
-  const child = quote.children[0];
+  const [child] = quote.children;
   quotePos.array.splice(quotePos.index, 1, child);
   const newPath = [...quotePath.slice(0, -1), quotePos.index, 0];
   return {
@@ -237,7 +237,7 @@ export function mergeWithNextBlock<A>(doc: DocModel<A>, selection: Range): Block
   const clone = cloneDoc(doc);
 
   if (ref.kind === "listItem") {
-    const list = (resolveContainerRef(clone.blocks, containerPath) as typeof ref).list;
+    const { list } = resolveContainerRef(clone.blocks, containerPath) as typeof ref;
     const cur = list.items[ref.index];
     const next = list.items[ref.index + 1];
     if (!next) return null;
@@ -268,7 +268,7 @@ export function insertBlockAfterCurrent<A>(
   block: Block<A>,
 ): BlockOpResult<A> {
   const clone = cloneDoc(doc);
-  const blockIndex = selection.focus.path[0];
+  const [blockIndex] = selection.focus.path;
   clone.blocks.splice(blockIndex + 1, 0, block);
   const newPath = [blockIndex + 1, 0];
   return {

@@ -62,6 +62,11 @@ export interface ProfileFieldDef {
   label: string;
 }
 
+export interface CanvasListItem {
+  fileId: string;
+  title: string;
+}
+
 export interface Reaction {
   count: number;
   name: string;

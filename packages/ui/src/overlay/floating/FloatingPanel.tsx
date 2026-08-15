@@ -88,7 +88,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     if (isVertical(preferred)) {
       placement = resolveVerticalPlacement(anchor, panelRect.height, preferred, gap, padding);
 
-      left = anchor.left;
+      ({ left } = anchor);
       if (props.align === "center") left += (anchor.width - panelRect.width) / 2;
       else if (props.align === "end") left = anchor.right - panelRect.width;
       left = clamp(left, padding, window.innerWidth - panelRect.width - padding);
@@ -98,7 +98,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     } else {
       placement = resolveHorizontalPlacement(anchor, panelRect.width, preferred, gap, padding);
 
-      top = anchor.top;
+      ({ top } = anchor);
       if (props.align === "center") top += (anchor.height - panelRect.height) / 2;
       else if (props.align === "end") top = anchor.bottom - panelRect.height;
       top = clamp(top, padding, window.innerHeight - panelRect.height - padding);

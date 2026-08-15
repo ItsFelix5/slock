@@ -11,14 +11,18 @@ export function TaskCard(props: { block: TaskCardBlock }) {
         <strong>{props.block.title}</strong>
       </div>
       <Show when={props.block.details}>
-        <div class="bk-task-details">
-          <RichText block={props.block.details!} />
-        </div>
+        {(details) => (
+          <div class="bk-task-details">
+            <RichText block={details()} />
+          </div>
+        )}
       </Show>
       <Show when={props.block.output}>
-        <div class="bk-task-output">
-          <RichText block={props.block.output!} />
-        </div>
+        {(output) => (
+          <div class="bk-task-output">
+            <RichText block={output()} />
+          </div>
+        )}
       </Show>
       <Show when={props.block.sources?.length}>
         <div class="bk-task-sources">

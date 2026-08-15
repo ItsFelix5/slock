@@ -1,5 +1,13 @@
 import type { ChannelMembersPage, User } from "@slock/slack-api";
-import { Avatar, Button, createCopyFeedback, Icon, SegmentedControl, Tooltip } from "@slock/ui";
+import {
+  Avatar,
+  Button,
+  confirmDialog,
+  createCopyFeedback,
+  Icon,
+  SegmentedControl,
+  Tooltip,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import {
   inviteUsersToChannel,
@@ -168,7 +176,12 @@ export default function ChannelMembersTab(props: {
   const removeMember = async (user: User) => {
     if (removingMemberIds().has(user.id)) return;
 
-    if (!confirm(`Remove ${user.name} from #${props.channelName}?`)) return;
+    const confirmed = await confirmDialog({
+      confirmLabel: "Remove",
+      danger: true,
+      message: `Remove ${user.name} from #${props.channelName}?`,
+    });
+    if (!confirmed) return;
     setRemovingMemberIds((current) => new Set(current).add(user.id));
     try {
       if (await removeUserFromChannel(props.channelId, user.id)) {

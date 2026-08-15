@@ -1,4 +1,5 @@
 import type { Message } from "@slock/slack-api";
+import { confirmDialog } from "@slock/ui";
 import { parseReplyLink } from "../../lib/replyLink";
 import { actionFeedback, store } from "../../lib/store";
 
@@ -13,6 +14,11 @@ export async function copyMessageText(
   }
 }
 
-export function confirmAndDeleteMessage(channelId: string, ts: string) {
-  if (confirm("Delete this message?")) store.messages.deleteMessageAt(channelId, ts);
+export async function confirmAndDeleteMessage(channelId: string, ts: string) {
+  const confirmed = await confirmDialog({
+    confirmLabel: "Delete",
+    danger: true,
+    message: "Delete this message?",
+  });
+  if (confirmed) store.messages.deleteMessageAt(channelId, ts);
 }

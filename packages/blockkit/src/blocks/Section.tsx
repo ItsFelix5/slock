@@ -8,6 +8,7 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
   const [expanded, setExpanded] = createSignal(false);
   const [overflowing, setOverflowing] = createSignal(false);
   const clampable = () => props.block.expand !== true;
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let textEl: HTMLDivElement | undefined;
 
   onMount(() => {

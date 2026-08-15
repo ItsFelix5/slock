@@ -1,4 +1,5 @@
 import { type ButtonElement, runBlockAction } from "@slock/slack-api";
+import { confirmDialog } from "@slock/ui";
 import { createSignal, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
@@ -20,13 +21,18 @@ export default function Button(props: {
     timer = setTimeout(() => setUnsupported(false), 2000);
   };
 
-  const onClick = () => {
+  const onClick = async () => {
     if (props.el.url || pending()) return;
-    if (
-      props.el.confirm &&
-      !window.confirm(`${props.el.confirm.title.text}\n\n${props.el.confirm.text.text}`)
-    ) {
-      return;
+    if (props.el.confirm) {
+      const c = props.el.confirm;
+      const ok = await confirmDialog({
+        cancelLabel: c.deny.text,
+        confirmLabel: c.confirm.text,
+        danger: c.style === "danger",
+        message: c.text.text,
+        title: c.title.text,
+      });
+      if (!ok) return;
     }
     const ctx = props.context;
     if (!(ctx?.botId && props.el.action_id)) {

@@ -1,25 +1,22 @@
-import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
 import type { Message } from "@slock/slack-api";
 import {
-  AvatarStack,
   ContextMenu,
-  Icon,
   InlineFeedback,
   logDeletedMessages,
   openContextMenuFromKeyboard,
-  Tooltip,
   useContextMenu,
 } from "@slock/ui";
-import { createMemo, For, Show } from "solid-js";
-import { actionFeedback, formatInteractorNames, store } from "../../lib/store";
-import Composer from "../composer/Composer";
-import UserHoverCard from "../user/UserHoverCard";
-import { MessageAvatarButton } from "./MessageAuthorButtons";
+import { createMemo, Show } from "solid-js";
+import { actionFeedback, store } from "../../lib/store";
+import { isMessageBackgroundContextMenu } from "./messageContextMenuTarget";
 import "./MessageList.css";
 import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageActionsMenuItems from "./parts/MessageActionsMenuItems";
-import AttachmentCard from "./parts/media/AttachmentCard";
+import MessageAttachmentList from "./parts/MessageAttachmentList";
+import MessageRepliesButton from "./parts/MessageRepliesButton";
+import MessageRowAvatar from "./parts/MessageRowAvatar";
+import MessageTextContent from "./parts/MessageTextContent";
 import MessageFiles from "./parts/media/MessageFiles";
 import {
   resolveAuthorAvatarUrl,
@@ -30,59 +27,6 @@ import {
 } from "./parts/messageRenderState";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
-
-const MESSAGE_CONTENT_ELEMENT_SELECTOR =
-  "a, button, input, textarea, select, img, video, audio, canvas, svg, iframe, object, embed";
-
-function rectContainsPoint(rect: DOMRect, x: number, y: number) {
-  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-}
-
-function pointIntersectsText(root: HTMLElement, x: number, y: number) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const range = document.createRange();
-  let node = walker.nextNode();
-  while (node) {
-    if (node.textContent?.trim()) {
-      range.selectNodeContents(node);
-      const rects = range.getClientRects();
-      for (let index = 0; index < rects.length; index += 1) {
-        if (rectContainsPoint(rects[index], x, y)) return true;
-      }
-    }
-    node = walker.nextNode();
-  }
-  return false;
-}
-
-function hasVisibleBox(element: Element) {
-  const style = getComputedStyle(element);
-  const hasBackground =
-    style.backgroundImage !== "none" ||
-    (style.backgroundColor !== "transparent" && style.backgroundColor !== "rgba(0, 0, 0, 0)");
-  const hasBorder =
-    (style.borderTopStyle !== "none" && Number.parseFloat(style.borderTopWidth) > 0) ||
-    (style.borderRightStyle !== "none" && Number.parseFloat(style.borderRightWidth) > 0) ||
-    (style.borderBottomStyle !== "none" && Number.parseFloat(style.borderBottomWidth) > 0) ||
-    (style.borderLeftStyle !== "none" && Number.parseFloat(style.borderLeftWidth) > 0);
-  return hasBackground || hasBorder || style.boxShadow !== "none";
-}
-
-function isMessageBackgroundContextMenu(event: MouseEvent & { currentTarget: HTMLDivElement }) {
-  const { currentTarget, target } = event;
-  if (!(target instanceof Element)) return false;
-
-  const contentElement = target.closest(MESSAGE_CONTENT_ELEMENT_SELECTOR);
-  if (contentElement && currentTarget.contains(contentElement)) return false;
-  if (pointIntersectsText(currentTarget, event.clientX, event.clientY)) return false;
-
-  let element: Element | null = target;
-  while (element && element !== currentTarget) {
-    if (hasVisibleBox(element)) return false;
-    element = element.parentElement;
-  }
-  return true;
-}
 
 export type MessageRowProps = {
   message: Message;
@@ -250,32 +194,14 @@ export default function MessageRow(props: MessageRowProps) {
             fallback={<div class="message-avatar-spacer">{msg().time.split(" ")[0]}</div>}
             when={!sameAuthorAsPrev()}
           >
-            <Show
-              fallback={
-                <MessageAvatarButton
-                  color={user()?.avatarColor}
-                  name={displayName()}
-                  onClick={() => {}}
-                  src={avatarUrl()}
-                  tabbable={focused()}
-                  userId={msg().userId}
-                />
-              }
-              when={profileUserId()}
-            >
-              {(userId) => (
-                <UserHoverCard userId={userId()}>
-                  <MessageAvatarButton
-                    color={user()?.avatarColor}
-                    name={displayName()}
-                    onClick={() => store.users.openUserProfile(userId())}
-                    src={avatarUrl()}
-                    tabbable={focused()}
-                    userId={userId()}
-                  />
-                </UserHoverCard>
-              )}
-            </Show>
+            <MessageRowAvatar
+              avatarUrl={avatarUrl()}
+              displayName={displayName()}
+              fallbackUserId={msg().userId}
+              focused={focused()}
+              profileUserId={profileUserId()}
+              user={user()}
+            />
           </Show>
           <div class="message-body">
             <Show when={!sameAuthorAsPrev()}>
@@ -303,91 +229,25 @@ export default function MessageRow(props: MessageRowProps) {
                 userId={profileUserId()}
               />
             </Show>
-            <Show
-              fallback={
-                <Composer
-                  channelId={props.channelId}
-                  editing={{
-                    initialBlocks: replyRef() ? undefined : msg().blocks,
-                    initialText: replyRef()?.rest ?? msg().text,
-                    onCancel: () => props.onStopEdit?.(),
-                    onSave: async (text, blocks) => {
-                      const saved = await store.messages.editMessageText(
-                        props.channelId,
-                        msg().ts,
-                        (replyRef()?.prefix ?? "") + text,
-                        blocks,
-                      );
-                      if (saved) props.onStopEdit?.();
-                      return saved;
-                    },
-                  }}
-                />
-              }
-              when={!isEditing()}
-            >
-              <div
-                class={`message-text${msg().deleted ? " message-deleted-text" : ""}`}
-                classList={{ "message-emoji-only": hasEnlargedEmojiOnlyText() }}
-              >
-                <TimeAnchorContext.Provider
-                  value={{ ms: parseFloat(msg().ts) * 1000, tz: user()?.tz }}
-                >
-                  <Show
-                    fallback={
-                      <>
-                        <Mrkdwn text={messageText()} />
-                        <Show when={msg().edited}>
-                          <span class="message-edited"> (edited)</span>
-                        </Show>
-                      </>
-                    }
-                    when={renderBlocks()}
-                  >
-                    {(blocks) => (
-                      <BlockKit
-                        blocks={blocks()}
-                        context={{
-                          botId: msg().botId,
-                          botUserId: msg().userId,
-                          channelId: props.channelId,
-                          messageTs: msg().ts,
-                          threadTs: msg().threadTs,
-                        }}
-                        trailing={
-                          msg().edited ? <span class="message-edited"> (edited)</span> : undefined
-                        }
-                      />
-                    )}
-                  </Show>
-                </TimeAnchorContext.Provider>
-              </div>
-            </Show>
+            <MessageTextContent
+              channelId={props.channelId}
+              hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
+              isEditing={isEditing()}
+              messageText={messageText()}
+              msg={msg()}
+              onStopEdit={props.onStopEdit}
+              renderBlocks={renderBlocks()}
+              replyRef={replyRef()}
+              tz={user()?.tz}
+            />
             <Show when={msg().files?.length ? msg().files : undefined}>
               {(files) => <MessageFiles files={files()} />}
             </Show>
-            <Show when={visibleAttachments()?.length}>
-              <For each={visibleAttachments()}>
-                {(a) => (
-                  <AttachmentCard
-                    attachment={a}
-                    context={{
-                      botId: msg().botId,
-                      botUserId: msg().userId,
-                      channelId: props.channelId,
-                      messageTs: msg().ts,
-                      threadTs: msg().threadTs,
-                    }}
-                    showPermalink={
-                      !!a.fromUrl &&
-                      !msg().text.includes(a.fromUrl) &&
-                      !a.pretext?.includes(a.fromUrl)
-                    }
-                    isEphemeral={msg().isEphemeral ?? false}
-                  />
-                )}
-              </For>
-            </Show>
+            <MessageAttachmentList
+              attachments={visibleAttachments()}
+              channelId={props.channelId}
+              msg={msg()}
+            />
             <Show when={msg().reactions?.length ? msg().reactions : undefined}>
               {(reactions) => (
                 <ReactionRow
@@ -406,39 +266,7 @@ export default function MessageRow(props: MessageRowProps) {
               priority={props.threadTs ? 1 : 0}
             />
             <Show when={props.onOpenThread && (msg().replyCount ?? 0) > 0}>
-              <button
-                class="message-replies btn-reset flex-align-center"
-                onClick={(e) => props.onOpenThread?.(msg().ts, { pinned: e.ctrlKey || e.metaKey })}
-                type="button"
-              >
-                <Show
-                  fallback={<Icon name="threads" size={14} />}
-                  when={msg().replyUsers?.length ? msg().replyUsers : undefined}
-                >
-                  {(users) => (
-                    <Tooltip
-                      content={formatInteractorNames(
-                        users(),
-                        store.users.currentUser()?.id,
-                        store.users.userById,
-                      )}
-                    >
-                      <AvatarStack
-                        users={users()
-                          .map((id) => store.users.userById(id))
-                          .filter((u) => u !== undefined)}
-                        max={3}
-                      />
-                    </Tooltip>
-                  )}
-                </Show>
-                <span class="message-replies-count">
-                  {msg().replyCount} {msg().replyCount === 1 ? "reply" : "replies"}
-                </span>
-                <Show when={msg().lastReplyLabel}>
-                  <span class="message-replies-last">Last reply {msg().lastReplyLabel}</span>
-                </Show>
-              </button>
+              <MessageRepliesButton msg={msg()} onOpenThread={props.onOpenThread ?? (() => {})} />
             </Show>
           </div>
         </div>

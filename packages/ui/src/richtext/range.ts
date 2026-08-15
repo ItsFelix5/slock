@@ -237,11 +237,9 @@ function deleteWithinLeaf<A>(leaf: Leaf<A>, from: number, to: number): void {
  * cross-block delete (e.g. a paragraph that was fully selected and merged elsewhere). */
 function removeEmptiedBlocksBetween<A>(
   doc: DocModel<A>,
-  start: Pos["path"],
-  end: Pos["path"],
+  [startBlockIndex]: Pos["path"],
+  [endBlockIndex]: Pos["path"],
 ): void {
-  const startBlockIndex = start[0];
-  const endBlockIndex = end[0];
   for (let i = endBlockIndex; i > startBlockIndex; i--) {
     const block = doc.blocks[i];
     if (block && isEmptyBlock(block)) doc.blocks.splice(i, 1);

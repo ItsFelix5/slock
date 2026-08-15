@@ -2,6 +2,7 @@ import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
 import { Match, Switch } from "solid-js";
 import { closeTile } from "../../lib/paneActions";
 import type {
+  CanvasPaneContent,
   ChannelDetailsPaneContent,
   PaneContent,
   PinnedPaneContent,
@@ -10,6 +11,7 @@ import type {
   UsergroupDetailsPaneContent,
   View,
 } from "../../lib/store/slices/types";
+import CanvasPanel from "../channel/CanvasPanel";
 import ChannelDetails from "../channel/channel-details/ChannelDetails";
 import PinnedPanel from "../channel/PinnedPanel";
 import ThreadPanel from "../messages/thread/ThreadPanel";
@@ -39,6 +41,9 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
       </Match>
       <Match when={props.pane.content?.kind === "pinned"}>
         <PinnedPanel pane={props.pane as Pane<PinnedPaneContent>} />
+      </Match>
+      <Match when={props.pane.content?.kind === "canvas"}>
+        <CanvasPanel pane={props.pane as Pane<CanvasPaneContent>} />
       </Match>
     </Switch>
   );

@@ -1,151 +1,26 @@
-export interface TextObject {
-  emoji?: boolean;
-  text: string;
-  type: "plain_text" | "mrkdwn";
-  verbatim?: boolean;
-}
+export type {
+  BlockElement,
+  ButtonElement,
+  CheckboxRadioElement,
+  ConfirmationDialog,
+  DatePickerElement,
+  FeedbackButtonsElement,
+  FileInputElement,
+  IconButtonElement,
+  ImageElement,
+  Option,
+  OptionGroup,
+  OverflowElement,
+  RichTextInputElement,
+  SelectElement,
+  TextInputElement,
+  TextObject,
+  UnknownElement,
+  WorkflowButtonElement,
+} from "./blockElements";
 
-export interface ConfirmationDialog {
-  confirm: TextObject;
-  deny: TextObject;
-  style?: "primary" | "danger";
-  text: TextObject;
-  title: TextObject;
-}
-
-export interface Option {
-  description?: TextObject;
-  text: TextObject;
-  url?: string;
-  value?: string;
-}
-
-export interface OptionGroup {
-  label: TextObject;
-  options: Option[];
-}
-
-interface ActionElement {
-  action_id?: string;
-  confirm?: ConfirmationDialog;
-}
-
-export interface ButtonElement extends ActionElement {
-  style?: "primary" | "danger";
-  text: TextObject;
-  type: "button";
-  url?: string;
-  value?: string;
-}
-
-export interface ImageElement {
-  alt_text: string;
-  image_url?: string;
-  slack_file?: { url?: string; id?: string };
-  type: "image";
-}
-
-export interface OverflowElement {
-  action_id?: string;
-  confirm?: ConfirmationDialog;
-  options: Option[];
-  type: "overflow";
-}
-
-export interface SelectElement extends ActionElement {
-  initial_option?: Option;
-  initial_options?: Option[];
-  option_groups?: OptionGroup[];
-  options?: Option[];
-  placeholder?: TextObject;
-  type:
-    | "static_select"
-    | "external_select"
-    | "users_select"
-    | "conversations_select"
-    | "channels_select"
-    | "multi_static_select"
-    | "multi_external_select"
-    | "multi_users_select"
-    | "multi_conversations_select"
-    | "multi_channels_select";
-}
-
-export interface DatePickerElement extends ActionElement {
-  initial_date?: string;
-  initial_time?: string;
-  initial_datetime?: number;
-  placeholder?: TextObject;
-  type: "datepicker" | "timepicker" | "datetimepicker";
-}
-
-export interface CheckboxRadioElement extends ActionElement {
-  initial_option?: Option;
-  initial_options?: Option[];
-  options: Option[];
-  type: "checkboxes" | "radio_buttons";
-}
-
-export interface TextInputElement extends ActionElement {
-  initial_value?: string;
-  max_length?: number;
-  min_length?: number;
-  multiline?: boolean;
-  placeholder?: TextObject;
-  type: "plain_text_input" | "email_text_input" | "url_text_input" | "number_input";
-}
-
-export interface RichTextInputElement extends ActionElement {
-  initial_value?: RichTextBlock;
-  placeholder?: TextObject;
-  type: "rich_text_input";
-}
-
-export interface FileInputElement extends ActionElement {
-  filetypes?: string[];
-  max_files?: number;
-  type: "file_input";
-}
-
-export interface WorkflowButtonElement extends ActionElement {
-  style?: "primary" | "danger";
-  text: TextObject;
-  type: "workflow_button";
-  workflow?: { trigger?: { url?: string } };
-}
-
-export interface IconButtonElement extends ActionElement {
-  accessibility_label?: string;
-  icon: string;
-  text: TextObject;
-  type: "icon_button";
-}
-
-export interface FeedbackButtonsElement extends ActionElement {
-  negative_button: { text: TextObject; value?: string };
-  positive_button: { text: TextObject; value?: string };
-  type: "feedback_buttons";
-}
-
-export interface UnknownElement {
-  type: string;
-  [key: string]: unknown;
-}
-
-export type BlockElement =
-  | ButtonElement
-  | ImageElement
-  | OverflowElement
-  | SelectElement
-  | DatePickerElement
-  | CheckboxRadioElement
-  | TextInputElement
-  | RichTextInputElement
-  | FileInputElement
-  | WorkflowButtonElement
-  | IconButtonElement
-  | FeedbackButtonsElement
-  | UnknownElement;
+import type { DataVisualizationBlock, TableBlock } from "./blockDataViz";
+import type { BlockElement, ImageElement, TextObject } from "./blockElements";
 
 export interface SectionBlock {
   accessory?: BlockElement;
@@ -275,57 +150,16 @@ export interface ContextActionsBlock {
   type: "context_actions";
 }
 
-export interface TableCell {
-  elements?: RichTextBlock["elements"];
-  text?: string;
-  type: "raw_text" | "raw_number" | "rich_text";
-  value?: number;
-}
-
-export interface TableBlock {
-  block_id?: string;
-  column_settings?: ({
-    align?: "left" | "center" | "right";
-    is_wrapped?: boolean;
-  } | null)[];
-  rows: TableCell[][];
-  type: "table" | "data_table";
-  caption?: string;
-  page_size?: number;
-  row_header_column_index?: number;
-}
-
-export interface ChartSegment {
-  label: string;
-  value: number;
-}
-
-export interface ChartDataPoint {
-  label: string;
-  value: number;
-}
-
-export interface ChartSeries {
-  data: ChartDataPoint[];
-  name: string;
-}
-
-export interface ChartAxisConfig {
-  categories: string[];
-  x_label?: string;
-  y_label?: string;
-}
-
-export type Chart =
-  | { segments: ChartSegment[]; type: "pie" }
-  | { axis_config: ChartAxisConfig; series: ChartSeries[]; type: "bar" | "area" | "line" };
-
-export interface DataVisualizationBlock {
-  block_id?: string;
-  chart: Chart;
-  title: string;
-  type: "data_visualization";
-}
+export type {
+  Chart,
+  ChartAxisConfig,
+  ChartDataPoint,
+  ChartSegment,
+  ChartSeries,
+  DataVisualizationBlock,
+  TableBlock,
+  TableCell,
+} from "./blockDataViz";
 
 export interface TaskCardBlock {
   block_id?: string;

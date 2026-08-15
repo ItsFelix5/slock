@@ -1,0 +1,17 @@
+.confirm-dialog {
+  width: 360px;
+}
+
+.confirm-dialog-message {
+  padding: 4px 20px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 20px 20px;
+}

@@ -30,7 +30,7 @@ export function emojiUrl(name: string): string | null | undefined {
 }
 
 export function customEmojiNames(): string[] {
-  loadState.value;
+  void loadState.value; // reactive read: subscribes callers to reloads even though only the keys are used
   return Object.keys(emojiUrls);
 }
 

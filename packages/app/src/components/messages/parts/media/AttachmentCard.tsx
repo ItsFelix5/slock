@@ -10,7 +10,7 @@ import type { Attachment } from "@slock/slack-api";
 import { ConstrainedImage, Icon, MediaFrame, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { conversationDisplayName, store } from "../../../../lib/store";
-import { MessageAuthorButton } from "../../MessageAuthorButtons";
+import { MessageAuthorButton } from "../../message-author-buttons";
 import "./AttachmentCard.css";
 import MessageFiles from "./MessageFiles";
 import { constrainMediaDimensions } from "./mediaDimensions";

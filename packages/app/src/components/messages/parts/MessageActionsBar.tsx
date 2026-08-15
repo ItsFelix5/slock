@@ -19,6 +19,7 @@ export default function MessageActionsBar(props: {
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let pickerWrapRef: HTMLDivElement | undefined;
 
   const togglePicker = () => {

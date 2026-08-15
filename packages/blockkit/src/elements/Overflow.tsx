@@ -1,5 +1,5 @@
 import { type OverflowElement, runBlockAction } from "@slock/slack-api";
-import { Icon, Menu } from "@slock/ui";
+import { confirmDialog, Icon, Menu } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
@@ -26,17 +26,22 @@ export default function Overflow(props: {
     timer = setTimeout(() => setUnsupported(false), 2000);
   };
 
-  const selectOption = (opt: OverflowElement["options"][number]) => {
+  const selectOption = async (opt: OverflowElement["options"][number]) => {
     if (opt.url) {
       setOpen(false);
       window.open(opt.url, "_blank", "noopener,noreferrer");
       return;
     }
-    if (
-      props.el.confirm &&
-      !window.confirm(`${props.el.confirm.title.text}\n\n${props.el.confirm.text.text}`)
-    ) {
-      return;
+    if (props.el.confirm) {
+      const c = props.el.confirm;
+      const ok = await confirmDialog({
+        cancelLabel: c.deny.text,
+        confirmLabel: c.confirm.text,
+        danger: c.style === "danger",
+        message: c.text.text,
+        title: c.title.text,
+      });
+      if (!ok) return;
     }
     const ctx = props.context;
     if (!(ctx?.botId && props.el.action_id)) {

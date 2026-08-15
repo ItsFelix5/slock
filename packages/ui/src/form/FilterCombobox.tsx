@@ -30,10 +30,13 @@ export default function FilterCombobox(props: {
   const [pickedLabel, setPickedLabel] = createSignal<string | undefined>(undefined);
   const listboxId = createUniqueId();
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let triggerRef: HTMLButtonElement | undefined;
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let listRef: HTMLDivElement | undefined;
   const { activeIndex, setActiveIndex, optionId, activeOptionId } = createListboxActiveIndex(
     () => filtered().length,

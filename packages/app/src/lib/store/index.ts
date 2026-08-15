@@ -83,6 +83,7 @@ function setup() {
     users,
     usergroups,
     typing,
+    canvas,
     channels,
     preferences,
     unread,
@@ -110,6 +111,7 @@ function setup() {
 
   const store = {
     activity,
+    canvas,
     channels,
     channelTabs: channelTabsSlice,
     commands,

@@ -99,6 +99,7 @@ export function trimFile(file: any): any {
         }
       : undefined,
     url_private: file.url_private,
+    url_private_download: file.url_private_download,
   };
 }
 

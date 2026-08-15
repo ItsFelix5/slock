@@ -35,6 +35,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
   const [searchError, setSearchError] = createSignal(false);
   const listboxId = createUniqueId();
 
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let listRef: HTMLDivElement | undefined;
   const { activeIndex, setActiveIndex, optionId, activeOptionId } = createListboxActiveIndex(
     () => items().length,

@@ -1,7 +1,14 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
 import { fetchPermalinkMessage } from "@slock/slack-api";
-import { Button, ConnectionStatus, InlineFeedback, PaneRow, usePaneNavigation } from "@slock/ui";
+import {
+  Button,
+  ConfirmDialogHost,
+  ConnectionStatus,
+  InlineFeedback,
+  PaneRow,
+  usePaneNavigation,
+} from "@slock/ui";
 import { createEffect, onCleanup, onMount, Show } from "solid-js";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
 import ContextActions from "./components/context-actions/ContextActions";
@@ -182,6 +189,7 @@ function App() {
           />
           <ContextActions />
           <ViewModal />
+          <ConfirmDialogHost />
         </div>
       </Show>
     </BlockKitResolverContext.Provider>

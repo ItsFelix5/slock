@@ -1,19 +1,9 @@
 import { EmojiText, formatTime } from "@slock/blockkit";
-import type { ActivityItem, Message } from "@slock/slack-api";
+import type { ActivityItem } from "@slock/slack-api";
 import { Avatar, AvatarStack, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
-import {
-  conversationDisplayName,
-  formatInteractorNames,
-  isPingingActivity,
-  store,
-} from "../../../lib/store";
-import {
-  type MessageAuthorFields,
-  resolveAuthorAvatarUrl,
-  resolveAuthorDisplayName,
-  unresolvedAuthorFallback,
-} from "../../messages/parts/messageRenderState";
+import { createMemo, createSignal, For, Show } from "solid-js";
+import { store } from "../../../lib/store";
+import type { MessageAuthorFields } from "../../messages/parts/messageRenderState";
 import ReactionRow from "../../messages/parts/ReactionRow";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
@@ -21,21 +11,14 @@ import { activityVerb } from "./activityMetadata";
 import "./ActivityRow.css";
 import { ActivityRowActions } from "./ActivityRowActions";
 import "./ActivityThread.css";
+import { createActivityRowDisplay } from "./activityRowDisplay";
 import { ActivityMessageText, ThreadMessageRow } from "./activityThreadMessage";
-
-const MAX_INITIAL_TIMELINE_ENTRIES = 20;
+import { createActivityTimeline, type TimelineEntry } from "./activityTimeline";
 
 export interface ActivityRow {
   isThread: boolean;
   items: ActivityItem[];
   key: string;
-}
-
-interface TimelineEntry {
-  isRoot: boolean;
-  item?: ActivityItem;
-  message?: Message;
-  ts: string;
 }
 
 export function rowTarget(row: ActivityRow) {
@@ -74,137 +57,42 @@ export default function ActivityRow(props: {
 }) {
   const [expanded, setExpanded] = createSignal(false);
   const latest = createMemo(() => props.row.items[0]);
-  const user = createMemo(() => store.users.userById(latest().userId));
-  const displayName = createMemo(() =>
-    resolveAuthorDisplayName(latest(), user()?.name, unresolvedAuthorFallback(latest())),
-  );
-  const avatarUrl = createMemo(() => resolveAuthorAvatarUrl(latest(), user()?.avatarUrl));
-  const channel = createMemo(() => store.channels.channelById(latest().channelId));
-  const channelLabel = createMemo(() => {
-    if (!latest().channelId) return "Activity";
-    return conversationDisplayName(
-      latest().channelId,
-      channel(),
-      store.dms.dmById(latest().channelId),
-      store.users.userById,
-    );
-  });
-  const isUnread = createMemo(() => store.activity.isActivityItemUnread(latest()));
-  const isReacted = createMemo(() => store.activity.isActivityItemReacted(latest()));
-  const isPinging = createMemo(() => isPingingActivity(latest()));
-  const isOtherActivity = createMemo(() => latest().kind === "other");
-  const isStandaloneActivity = createMemo(() => !latest().channelId);
-  const showsActivityVerb = createMemo(() => isOtherActivity() || isStandaloneActivity());
   const isThreadGroup = createMemo(() => props.row.isThread);
-  const orderedItems = createMemo(() => [...props.row.items].reverse());
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
 
-  createEffect(() => {
-    if (!(isThreadGroup() && expanded())) return;
-    store.messages.ensureThreadRepliesLoaded(latest().channelId, threadTs());
+  const {
+    avatarUrl,
+    channelLabel,
+    displayName,
+    interactorNames,
+    isPinging,
+    isReacted,
+    isStandaloneActivity,
+    isUnread,
+    matchingReaction,
+    reactedMessage,
+    replierIds,
+    showsActivityVerb,
+    user,
+  } = createActivityRowDisplay({ items: () => props.row.items, latest });
+
+  const {
+    earlierMessageCount,
+    entryAuthor,
+    entryText,
+    entryUnread,
+    firstTimelineTs,
+    lastTimelineTs,
+    olderEntries,
+    visibleEntries,
+  } = createActivityTimeline({
+    currentUserId: () => store.users.currentUser()?.id,
+    expanded,
+    isThreadGroup,
+    items: () => props.row.items,
+    latest,
+    threadTs,
   });
-  const fullThread = createMemo(() => store.messages.threadMessages[threadTs()]);
-  const activityByTs = createMemo(() => {
-    const map = new Map<string, ActivityItem>();
-    for (const item of props.row.items) map.set(item.ts, item);
-    return map;
-  });
-
-  const bundledItem = createMemo(() =>
-    props.row.items.find((item) => item.kind === "thread_reply" && (item.unreadCount ?? 0) > 1),
-  );
-
-  const timeline = createMemo<TimelineEntry[]>(() => {
-    const list = fullThread();
-    if (list && list.length > 0) {
-      const byTs = activityByTs();
-      return list.map((message) => ({
-        isRoot: message.ts === threadTs(),
-        item: byTs.get(message.ts),
-        message,
-        ts: message.ts,
-      }));
-    }
-    return orderedItems().map((item) => ({ isRoot: false, item, ts: item.ts }));
-  });
-
-  function entryUnread(entry: TimelineEntry): boolean {
-    if (entryUserId(entry) === store.users.currentUser()?.id) return false;
-    if (entry.item) return store.activity.isActivityItemUnread(entry.item);
-    const bundled = bundledItem();
-    const list = fullThread();
-    if (bundled?.unreadCount && list) {
-      const tailStart = list.length - Math.min(bundled.unreadCount, list.length);
-      const index = list.findIndex((message) => message.ts === entry.ts);
-      return index >= tailStart;
-    }
-
-    return false;
-  }
-
-  function entryText(entry: TimelineEntry): string {
-    return entry.message?.text ?? entry.item?.text ?? "";
-  }
-
-  function entryUserId(entry: TimelineEntry): string {
-    return entry.message?.userId ?? entry.item?.userId ?? "";
-  }
-
-  function entryAuthor(entry: TimelineEntry): MessageAuthorFields {
-    return {
-      botIcon: entry.message?.botIcon ?? entry.item?.botIcon,
-      botId: entry.message?.botId ?? entry.item?.botId,
-      botName: entry.message?.botName ?? entry.item?.botName,
-      userId: entryUserId(entry),
-    };
-  }
-
-  const visibleStartIndex = createMemo(() => {
-    const entries = timeline();
-    return untrack(() => {
-      const idx = entries.findIndex(entryUnread);
-      const firstUnread = idx === -1 ? entries.length - 1 : idx;
-      return Math.max(firstUnread, entries.length - MAX_INITIAL_TIMELINE_ENTRIES);
-    });
-  });
-  const olderEntries = createMemo(() => timeline().slice(0, visibleStartIndex()));
-  const visibleEntries = createMemo(() => timeline().slice(visibleStartIndex()));
-
-  const firstTimelineTs = createMemo(() => {
-    if (expanded() && olderEntries().length > 0) return olderEntries()[0].ts;
-    return visibleEntries()[0]?.ts;
-  });
-  const lastTimelineTs = createMemo(() => {
-    const entries = visibleEntries();
-    return entries[entries.length - 1]?.ts;
-  });
-  const hiddenMessageCount = createMemo(() => olderEntries().length);
-  const earlierMessageCount = createMemo(() =>
-    Math.max(hiddenMessageCount(), (bundledItem()?.unreadCount ?? 1) - 1),
-  );
-
-  const replierIds = createMemo(() => {
-    const seen = new Set<string>();
-    const ids: string[] = [];
-    for (const item of props.row.items) {
-      if (seen.has(item.userId)) continue;
-      seen.add(item.userId);
-      ids.push(item.userId);
-    }
-    return ids;
-  });
-
-  const interactorNames = (ids: string[]) =>
-    formatInteractorNames(ids, store.users.currentUser()?.id, store.users.userById);
-
-  const reactedMessage = createMemo(() =>
-    latest().kind === "reaction"
-      ? store.messages.reactionMessages[`${latest().channelId}:${latest().ts}`]?.[0]
-      : undefined,
-  );
-  const matchingReaction = createMemo(() =>
-    reactedMessage()?.reactions?.find((r) => r.name === latest().reactionName),
-  );
 
   const openRow = () => {
     const item = latest();

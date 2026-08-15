@@ -26,6 +26,7 @@ export type OverlayProps = OverlayLabel & {
 };
 
 export default function Overlay(props: OverlayProps) {
+  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let overlayRef: HTMLDivElement | undefined;
   const previouslyFocused =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
