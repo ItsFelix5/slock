@@ -1,6 +1,7 @@
 import { createStore, produce } from "solid-js/store";
 import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "../../../api";
 import { actionFeedback } from "../../../feedback";
+import { undoStack } from "../../../undo";
 import type { createPanesSlice } from "../session/panes";
 
 export function createPinnedSlice(deps: {
@@ -51,6 +52,10 @@ export function createPinnedSlice(deps: {
     setPinnedByChannel(channelId, ts, !currentlyPinned);
     try {
       await togglePin(channelId, ts, currentlyPinned);
+      undoStack.push({
+        label: currentlyPinned ? "unpin message" : "pin message",
+        undo: () => void togglePinMessage(channelId, ts),
+      });
       return true;
     } catch (err) {
       console.error("Failed to toggle pin", err);

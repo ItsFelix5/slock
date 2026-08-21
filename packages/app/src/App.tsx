@@ -7,6 +7,7 @@ import {
   DebugInfoDialogHost,
   InlineFeedback,
   PaneRow,
+  useGlobalUndoShortcut,
   usePaneNavigation,
 } from "@slock/ui";
 import { createEffect, onCleanup, onMount, Show } from "solid-js";
@@ -30,6 +31,7 @@ import {
   parseSlackPermalink,
 } from "./lib/navigation/slackPermalink";
 import { store } from "./lib/store";
+import { undoStack } from "./lib/undo";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
@@ -90,6 +92,7 @@ const blockKitResolver: BlockKitResolver = {
 
 function App() {
   usePaneNavigation();
+  useGlobalUndoShortcut(undoStack, (label) => actionFeedback.flash("undo", `Undid: ${label}`));
 
   createEffect(() => {
     const nav = store.viewState.nav();
@@ -188,6 +191,11 @@ function App() {
             class="app-navigation-feedback"
             feedback={actionFeedback.get("navigation")}
             priority={2}
+          />
+          <InlineFeedback
+            class="app-navigation-feedback"
+            feedback={actionFeedback.get("undo")}
+            priority={1}
           />
           <Sidebar />
 

@@ -3,6 +3,7 @@ import type { Message, User } from "../../../api";
 import { toggleReaction } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 import { restoreFailedReaction } from "../../../reactionRollback";
+import { undoStack } from "../../../undo";
 import type { MessageLocation } from "../types";
 
 export function createMessageReactionToggle(deps: {
@@ -53,6 +54,10 @@ export function createMessageReactionToggle(deps: {
     deps.patchMessage(channelId, msg.ts, { reactions: nextReactions });
     try {
       await toggleReaction(channelId, msg.ts, emojiName, alreadyReacted);
+      undoStack.push({
+        label: alreadyReacted ? `remove :${emojiName}:` : `react :${emojiName}:`,
+        undo: () => reactToMessage(channelId, { ...msg, reactions: nextReactions }, emojiName),
+      });
     } catch (err) {
       console.error("Failed to toggle reaction", err);
       actionFeedback.flash(msg.ts, "Failed to update reaction.", "error");

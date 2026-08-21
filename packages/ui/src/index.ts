@@ -158,6 +158,8 @@ export {
   themeColors,
 } from "./themeColors";
 export { setThemeShape, type ThemeShape, themeShape } from "./themeShape";
+export type { UndoEntry } from "./undoStack";
+export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export {

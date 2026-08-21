@@ -4,6 +4,7 @@ import { broadcastReply, deleteMessage, editMessage, postMessage } from "../../.
 import { actionFeedback } from "../../../feedback";
 import { findMessageLocations } from "../../../messageLocations";
 import { dedupeMessages } from "../../../messageMerge";
+import { undoStack } from "../../../undo";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
@@ -174,6 +175,7 @@ export function createMessagesSlice(deps: {
   async function editMessageText(channelId: string, ts: string, text: string, blocks?: unknown) {
     const trimmed = text.trim();
     if (!trimmed) return false;
+    const previous = findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
     try {
       await editMessage(channelId, ts, trimmed, blocks);
       patchMessage(channelId, ts, {
@@ -181,6 +183,12 @@ export function createMessagesSlice(deps: {
         edited: true,
         text: trimmed,
       });
+      if (previous && previous.text !== trimmed) {
+        undoStack.push({
+          label: "edit message",
+          undo: () => void editMessageText(channelId, ts, previous.text, previous.blocks),
+        });
+      }
       return true;
     } catch (err) {
       console.error("Failed to edit message", err);
