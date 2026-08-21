@@ -135,6 +135,9 @@
 .composer-input-wrap .bk-mention {
   cursor: text;
 }
+.composer-input-wrap .bk-composer-emoji {
+  cursor: text;
+}
 .menu-panel.composer-suggest-popover {
   position: absolute;
   top: auto;

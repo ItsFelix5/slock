@@ -1,6 +1,7 @@
 import Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
+import { emojiValue, resolvedEmojiName } from "./emojiEmbed";
 import { suggestionText } from "./suggestionController";
 import type { SuggestItem, SuggestState } from "./suggestTypes";
 
@@ -57,6 +58,8 @@ function embedText(insert: Record<string, unknown>): string {
   const mention = mentionValue(insert.mention);
   if (mention)
     return mention.kind === "user" ? `<@${mention.id}>` : `<#${mention.id}|${mention.name}>`;
+  const emojiName = emojiValue(insert.emoji);
+  if (emojiName) return `:${emojiName}:`;
   // Slack mrkdwn has no divider syntax (that's a block-kit-only block type),
   // so the best we can do is leave back the dashes the shortcut consumed.
   if (insert.divider) return "---";
@@ -130,7 +133,7 @@ export function mrkdwnText(quill: Quill): string {
   return out.join("\n");
 }
 
-const MENTION_TOKEN_RE = /<@([A-Z0-9]+)>|<#([A-Z0-9]+)(?:\|([^>]*))?>/g;
+const MENTION_TOKEN_RE = /<@([A-Z0-9]+)>|<#([A-Z0-9]+)(?:\|([^>]*))?>|:([a-zA-Z0-9_+'-]+):/g;
 
 export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
   quill.setText("\n");
@@ -143,7 +146,7 @@ export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
     cursor += segment.length;
   };
   for (const match of text.matchAll(MENTION_TOKEN_RE)) {
-    const [whole, userId, channelId, channelLabel] = match;
+    const [whole, userId, channelId, channelLabel, emojiName] = match;
     const index = match.index ?? 0;
     insertPlain(text.slice(lastIndex, index));
     if (userId) {
@@ -155,6 +158,11 @@ export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
         channelLabel || channelDisplayName(store.channels.channelById(channelId), channelId);
       quill.insertEmbed(cursor, "mention", { id: channelId, kind: "channel", name });
       cursor += 1;
+    } else if (emojiName && resolvedEmojiName(emojiName)) {
+      quill.insertEmbed(cursor, "emoji", { name: emojiName });
+      cursor += 1;
+    } else {
+      insertPlain(whole);
     }
     lastIndex = index + whole.length;
   }
@@ -171,6 +179,11 @@ export function insertSuggestionAt(
   quill.deleteText(start, deleteCount);
   if ((item.kind === "user" && kind !== "userlink") || item.kind === "channel") {
     quill.insertEmbed(start, "mention", { id: item.id, kind: item.kind, name: item.name });
+    quill.insertText(start + 1, " ");
+    return start + 2;
+  }
+  if (item.kind === "emoji") {
+    quill.insertEmbed(start, "emoji", { name: item.name });
     quill.insertText(start + 1, " ");
     return start + 2;
   }

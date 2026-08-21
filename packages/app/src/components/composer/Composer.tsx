@@ -14,11 +14,12 @@ import { consumeComposerAutofocusSuppression } from "../../lib/composerFocus";
 import { actionFeedback, composerFeedbackKey } from "../../lib/feedback";
 import "./Composer.css";
 import ComposerAttachMenu from "./ComposerAttachMenu";
-import { createComposerSubmitHandler } from "./composerSubmit";
 import ComposerSuggestPopover from "./ComposerSuggestPopover";
+import { createComposerSubmitHandler } from "./composerSubmit";
 import type { ComposerProps } from "./composerTypes";
 import FileChip from "./FileChip";
 import { createComposerDraftState, createPendingFileState, draftCacheKey } from "./lib/drafts";
+import { wireEmojiAutoconvert } from "./lib/quillEmoji";
 import {
   indexAlignedText,
   insertSuggestionAt,
@@ -214,6 +215,7 @@ export default function Composer(props: ComposerProps) {
               quill = q;
               const initial = props.editing?.initialText ?? pendingInitialText;
               if (initial) loadMrkdwnIntoQuill(q, initial);
+              wireEmojiAutoconvert(q);
               q.on("text-change", () => {
                 setText(mrkdwnText(q).replace(TRAILING_NEWLINE_RE, ""));
                 const aligned = indexAlignedText(q).replace(TRAILING_NEWLINE_RE, "");
