@@ -1,9 +1,9 @@
 import type Quill from "quill";
 import { resolvedEmojiName } from "./emojiEmbed";
 import { indexAlignedText } from "./quillMentions";
+import { WHITESPACE_RE } from "./textDetection";
 
 const EMOJI_NAME_RE = /:([a-z0-9_+'-]+):$/i;
-const WHITESPACE_RE = /\s/;
 
 export function wireEmojiAutoconvert(quill: Quill): void {
   quill.on("text-change", (_delta, _old, source) => {

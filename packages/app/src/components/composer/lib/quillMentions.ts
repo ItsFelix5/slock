@@ -1,3 +1,4 @@
+import { INLINE_MARKS } from "@slock/ui";
 import Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
@@ -77,18 +78,11 @@ interface DeltaLine {
   blockAttributes: Record<string, unknown> | undefined;
 }
 
-const INLINE_WRAPS: [key: string, delimiter: string][] = [
-  ["bold", "*"],
-  ["italic", "_"],
-  ["strike", "~"],
-  ["code", "`"],
-];
-
 function sameInlineAttrs(
   a: Record<string, unknown> | undefined,
   b: Record<string, unknown> | undefined,
 ) {
-  for (const [key] of INLINE_WRAPS) if (!!a?.[key] !== !!b?.[key]) return false;
+  for (const [, key] of INLINE_MARKS) if (!!a?.[key] !== !!b?.[key]) return false;
   return true;
 }
 
@@ -132,7 +126,7 @@ function inlineFormattedLineText(line: DeltaLine): string {
   return line.segments
     .map((segment) => {
       let text = segment.text;
-      for (const [key, delimiter] of INLINE_WRAPS) {
+      for (const [delimiter, key] of INLINE_MARKS) {
         if (segment.attributes?.[key]) text = `${delimiter}${text}${delimiter}`;
       }
       return text;

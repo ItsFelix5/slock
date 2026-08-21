@@ -26,7 +26,7 @@ export function hasUsergroupPing(value: string): boolean {
   return USERGROUP_PING_RE.test(value);
 }
 
-const WHITESPACE_RE = /\s/;
+export const WHITESPACE_RE = /\s/;
 const EMOJI_QUERY_RE = /^[a-z0-9_+'-]*$/i;
 
 export function detectMentionTrigger(
