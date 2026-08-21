@@ -1,6 +1,7 @@
 import Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
+import { dateMrkdwn, dateValue } from "./dateEmbed";
 import { emojiValue, resolvedEmojiName } from "./emojiEmbed";
 import { suggestionText } from "./suggestionController";
 import type { SuggestItem, SuggestState } from "./suggestTypes";
@@ -60,43 +61,95 @@ function embedText(insert: Record<string, unknown>): string {
     return mention.kind === "user" ? `<@${mention.id}>` : `<#${mention.id}|${mention.name}>`;
   const emojiName = emojiValue(insert.emoji);
   if (emojiName) return `:${emojiName}:`;
+  const date = dateValue(insert.date);
+  if (date) return dateMrkdwn(date);
   // Slack mrkdwn has no divider syntax (that's a block-kit-only block type),
   // so the best we can do is leave back the dashes the shortcut consumed.
   if (insert.divider) return "---";
   return "";
 }
 
-interface DeltaLine {
+interface DeltaSegment {
   text: string;
   attributes: Record<string, unknown> | undefined;
 }
 
+interface DeltaLine {
+  segments: DeltaSegment[];
+  blockAttributes: Record<string, unknown> | undefined;
+}
+
+// Slack mrkdwn's inline marks, applied in this fixed order for anything
+// combining more than one (Slack's own parser doesn't care about order).
+const INLINE_WRAPS: [key: string, delimiter: string][] = [
+  ["bold", "*"],
+  ["italic", "_"],
+  ["strike", "~"],
+  ["code", "`"],
+];
+
+function sameInlineAttrs(
+  a: Record<string, unknown> | undefined,
+  b: Record<string, unknown> | undefined,
+) {
+  for (const [key] of INLINE_WRAPS) if (!!a?.[key] !== !!b?.[key]) return false;
+  return true;
+}
+
+function pushSegment(
+  segments: DeltaSegment[],
+  text: string,
+  attributes: Record<string, unknown> | undefined,
+) {
+  if (!text) return;
+  const prev = segments[segments.length - 1];
+  if (prev && sameInlineAttrs(prev.attributes, attributes)) prev.text += text;
+  else segments.push({ attributes, text });
+}
+
 function deltaLines(quill: Quill): DeltaLine[] {
   const lines: DeltaLine[] = [];
-  let current = "";
+  let segments: DeltaSegment[] = [];
   for (const op of quill.getContents().ops) {
     if (typeof op.insert === "string") {
       const parts = op.insert.split("\n");
       parts.forEach((part, i) => {
-        current += part;
+        pushSegment(segments, part, op.attributes);
         if (i < parts.length - 1) {
-          lines.push({ attributes: op.attributes, text: current });
-          current = "";
+          lines.push({ blockAttributes: op.attributes, segments });
+          segments = [];
         }
       });
     } else if (op.insert) {
-      current += embedText(op.insert);
+      pushSegment(segments, embedText(op.insert), undefined);
     }
   }
-  if (current) lines.push({ attributes: undefined, text: current });
+  if (segments.length) lines.push({ blockAttributes: undefined, segments });
   return lines;
 }
 
+function rawLineText(line: DeltaLine): string {
+  return line.segments.map((s) => s.text).join("");
+}
+
+function inlineFormattedLineText(line: DeltaLine): string {
+  return line.segments
+    .map((segment) => {
+      let text = segment.text;
+      for (const [key, delimiter] of INLINE_WRAPS) {
+        if (segment.attributes?.[key]) text = `${delimiter}${text}${delimiter}`;
+      }
+      return text;
+    })
+    .join("");
+}
+
 // Quill's block-level formats (header, blockquote, list, code-block) live on
-// the line-terminating newline, not in the plain text - getContents().ops
-// alone loses all of that. Slack mrkdwn doesn't have real header or list
-// syntax either, so those fall back to the closest thing it does support
-// (bold text, a leading bullet/number) instead of just vanishing.
+// the line-terminating newline, and inline marks (bold, italic, ...) live on
+// the individual text ops - getContents().ops alone loses all of that. Slack
+// mrkdwn doesn't have real header or list syntax either, so those fall back
+// to the closest thing it does support (bold text, a leading bullet/number)
+// instead of just vanishing.
 export function mrkdwnText(quill: Quill): string {
   const out: string[] = [];
   let listType: unknown;
@@ -108,32 +161,34 @@ export function mrkdwnText(quill: Quill): string {
   };
 
   for (const line of deltaLines(quill)) {
-    const attrs = line.attributes;
+    const attrs = line.blockAttributes;
     if (attrs?.["code-block"]) {
       codeBlock ??= [];
-      codeBlock.push(line.text);
+      codeBlock.push(rawLineText(line));
       listType = undefined;
       continue;
     }
     flushCodeBlock();
 
+    const text = inlineFormattedLineText(line);
     if (attrs?.list === "bullet" || attrs?.list === "ordered") {
       listCounter = attrs.list === listType ? listCounter + 1 : 1;
       listType = attrs.list;
-      out.push(`${attrs.list === "ordered" ? `${listCounter}.` : "\u2022"} ${line.text}`);
+      out.push(`${attrs.list === "ordered" ? `${listCounter}.` : "\u2022"} ${text}`);
       continue;
     }
     listType = undefined;
 
-    if (attrs?.header) out.push(line.text ? `*${line.text}*` : line.text);
-    else if (attrs?.blockquote) out.push(`> ${line.text}`);
-    else out.push(line.text);
+    if (attrs?.header) out.push(text ? `*${text}*` : text);
+    else if (attrs?.blockquote) out.push(`> ${text}`);
+    else out.push(text);
   }
   flushCodeBlock();
   return out.join("\n");
 }
 
-const MENTION_TOKEN_RE = /<@([A-Z0-9]+)>|<#([A-Z0-9]+)(?:\|([^>]*))?>|:([a-zA-Z0-9_+'-]+):/g;
+const MENTION_TOKEN_RE =
+  /<@([A-Z0-9]+)>|<#([A-Z0-9]+)(?:\|([^>]*))?>|:([a-zA-Z0-9_+'-]+):|<!date\^(\d+)\^([^|^>]+)\|([^>]*)>/g;
 
 export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
   quill.setText("\n");
@@ -146,7 +201,8 @@ export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
     cursor += segment.length;
   };
   for (const match of text.matchAll(MENTION_TOKEN_RE)) {
-    const [whole, userId, channelId, channelLabel, emojiName] = match;
+    const [whole, userId, channelId, channelLabel, emojiName, dateTs, dateFormat, dateFallback] =
+      match;
     const index = match.index ?? 0;
     insertPlain(text.slice(lastIndex, index));
     if (userId) {
@@ -160,6 +216,13 @@ export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
       cursor += 1;
     } else if (emojiName && resolvedEmojiName(emojiName)) {
       quill.insertEmbed(cursor, "emoji", { name: emojiName });
+      cursor += 1;
+    } else if (dateTs && dateFormat) {
+      quill.insertEmbed(cursor, "date", {
+        fallback: dateFallback ?? "",
+        format: dateFormat,
+        ts: Number(dateTs),
+      });
       cursor += 1;
     } else {
       insertPlain(whole);

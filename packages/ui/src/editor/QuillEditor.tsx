@@ -21,6 +21,15 @@ class DividerBlot extends BlockEmbed {
 
 Quill.register(DividerBlot);
 
+const ESCAPE_RE = /[.*+?^${}()|[\]\\]/g;
+const WHITESPACE_RE = /\s/;
+const INLINE_MARKS: [char: string, format: string][] = [
+  ["*", "bold"],
+  ["_", "italic"],
+  ["~", "strike"],
+  ["`", "code"],
+];
+
 export default function QuillEditor(props: QuillEditorProps) {
   let container: HTMLDivElement | undefined;
   let quill: Quill | undefined;
@@ -100,6 +109,35 @@ export default function QuillEditor(props: QuillEditorProps) {
       quill!.formatLine(range.index - 5, 1, "header", 5);
       return false;
     });
+
+    // Inline wysiwyg: finishing a *bold*, _italic_, ~strike~ or `code` span
+    // converts it live instead of leaving the raw delimiters on screen -
+    // matches what Slack's own composer does. Each fires on typing its own
+    // closing character, with the prefix regex finding the still-open
+    // opening delimiter earlier in the same line (no fixed offset, since
+    // the span can be any length).
+    for (const [char, format] of INLINE_MARKS) {
+      const escaped = char.replace(ESCAPE_RE, "\\$&");
+      const prefix = new RegExp(`${escaped}([^${escaped}\\n]+)$`);
+      quill.keyboard.addBinding({ key: char }, { prefix }, (range, context) => {
+        const match = context.prefix.match(prefix);
+        if (!match) return true;
+        const start = range.index - match[0].length;
+        const before = context.prefix[start - 1];
+        if (before !== undefined && !WHITESPACE_RE.test(before)) return true;
+        quill!.deleteText(start, match[0].length);
+        quill!.insertText(start, match[1], format, true);
+        return false;
+      });
+    }
+    quill.keyboard.addBinding(
+      { key: "x", shiftKey: true, shortKey: true },
+      {},
+      (_range, context) => {
+        quill!.format("strike", !context.format.strike, "user");
+        return false;
+      },
+    );
 
     if (props.autofocus) quill.focus();
     props.onReady(quill);

@@ -1,3 +1,4 @@
+import { formatSlackDate } from "@slock/blockkit";
 import {
   focusedPaneId,
   focusPaneById,
@@ -155,7 +156,19 @@ export default function Composer(props: ComposerProps) {
     return false;
   };
 
-  const handleDateSelect = (_timestamp: number, _format: string) => setDateOpen(false);
+  const handleDateSelect = (timestamp: number, format: string) => {
+    setDateOpen(false);
+    if (!quill) return;
+    const index = quill.getSelection(true)?.index ?? quill.getLength();
+    quill.insertEmbed(index, "date", {
+      fallback: formatSlackDate(timestamp),
+      format,
+      ts: timestamp,
+    });
+    quill.insertText(index + 1, " ");
+    quill.setSelection(index + 2, 0);
+    quill.focus();
+  };
 
   const feedback = () => actionFeedback.get(feedbackKey());
 
