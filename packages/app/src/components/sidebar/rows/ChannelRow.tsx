@@ -2,6 +2,7 @@ import { ContextMenu, Icon, Tooltip, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
 import type { Channel } from "../../../lib/api";
 import { channelDisplayName, channelIconName } from "../../../lib/displayName";
+import { splitDragProps } from "../../../lib/dragSplitTarget";
 import { store } from "../../../lib/store";
 import { unreadSummary } from "../../../lib/unreadSummary";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
@@ -41,6 +42,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           onContextMenu={ctxMenu.open}
           tabIndex={-1}
           type="button"
+          {...splitDragProps({ channelId: props.channel.id })}
         >
           <span class="sidebar-row-icon">
             <Icon name={channelIconName(props.channel.private)} size={13} />

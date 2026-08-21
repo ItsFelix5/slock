@@ -13,6 +13,7 @@ import type { JSX } from "solid-js";
 import { createMemo, For, Show } from "solid-js";
 import type { DirectMessage } from "../../../lib/api";
 import { dmDisplayName } from "../../../lib/displayName";
+import { splitDragProps } from "../../../lib/dragSplitTarget";
 import { actionFeedback } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
 import { unreadSummary } from "../../../lib/unreadSummary";
@@ -104,6 +105,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             onContextMenu={ctxMenu.open}
             tabIndex={-1}
             type="button"
+            {...splitDragProps({ channelId: props.dm.id })}
           >
             <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>
               {(u) => <Avatar showPresence size="small" user={u()} />}

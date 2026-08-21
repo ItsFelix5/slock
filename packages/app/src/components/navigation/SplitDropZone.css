@@ -1,0 +1,19 @@
+.split-drop-zone {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  gap: 8px;
+  width: 88px;
+  color: var(--accent);
+  text-align: center;
+  background: var(--accent-subtle);
+  border-left: 2px dashed var(--accent-border-strong);
+}
+
+.split-drop-zone span {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}

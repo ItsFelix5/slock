@@ -7,6 +7,7 @@ import {
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import type { Message } from "../../lib/api";
+import { splitDragProps } from "../../lib/dragSplitTarget";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import { isMessageBackgroundContextMenu } from "./messageContextMenuTarget";
@@ -192,14 +193,19 @@ export default function MessageRow(props: MessageRowProps) {
             fallback={<div class="message-avatar-spacer">{msg().time.split(" ")[0]}</div>}
             when={!sameAuthorAsPrev()}
           >
-            <MessageRowAvatar
-              avatarUrl={avatarUrl()}
-              displayName={displayName()}
-              fallbackUserId={msg().userId}
-              focused={focused()}
-              profileUserId={profileUserId()}
-              user={user()}
-            />
+            <div
+              class="message-avatar-drag-handle"
+              {...splitDragProps({ channelId: props.channelId, ts: msg().ts })}
+            >
+              <MessageRowAvatar
+                avatarUrl={avatarUrl()}
+                displayName={displayName()}
+                fallbackUserId={msg().userId}
+                focused={focused()}
+                profileUserId={profileUserId()}
+                user={user()}
+              />
+            </div>
           </Show>
           <div class="message-body">
             <Show when={!sameAuthorAsPrev()}>

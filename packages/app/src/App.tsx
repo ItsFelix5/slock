@@ -16,6 +16,7 @@ import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverC
 import ContextActions from "./components/context-actions/ContextActions";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
 import ViewModal from "./components/modals/ViewModal";
+import SplitDropZone from "./components/navigation/SplitDropZone";
 import { openConversationInSplit, SplitNavigation } from "./components/navigation/SplitNavigation";
 import PaneSwitch from "./components/panes/PaneSwitch";
 import Sidebar from "./components/sidebar/Sidebar";
@@ -205,6 +206,7 @@ function App() {
             renderPane={(pane) => <PaneSwitch pane={pane} />}
           />
           <ContextActions />
+          <SplitDropZone />
           <ViewModal />
           <ChannelDetails />
           <ConfirmDialogHost />

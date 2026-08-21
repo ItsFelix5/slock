@@ -239,6 +239,10 @@
   height: 36px;
   vertical-align: -7px;
 }
+.message-avatar-drag-handle {
+  flex-shrink: 0;
+  width: var(--message-avatar-size);
+}
 .message-avatar-button {
   flex-shrink: 0;
   width: var(--message-avatar-size);
