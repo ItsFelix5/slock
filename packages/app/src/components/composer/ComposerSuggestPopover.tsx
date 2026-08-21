@@ -1,4 +1,4 @@
-import { For } from "solid-js";
+import { SuggestionList } from "@slock/ui";
 import type { SuggestState } from "./lib/suggestTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
 
@@ -9,22 +9,14 @@ export default function ComposerSuggestPopover(props: {
   state: SuggestState;
 }) {
   return (
-    <div class="menu-panel composer-suggest-popover" ref={props.ref}>
-      <For each={props.state.items}>
-        {(item, i) => (
-          <button
-            aria-selected={i() === props.state.active}
-            class="composer-suggest-row btn-reset flex-align-center"
-            classList={{ active: i() === props.state.active }}
-            onClick={() => props.onPick(i())}
-            onMouseDown={(e) => e.preventDefault()}
-            onMouseEnter={() => props.onHover(i())}
-            type="button"
-          >
-            {suggestItemContent(item)}
-          </button>
-        )}
-      </For>
-    </div>
+    <SuggestionList
+      activeIndex={props.state.active}
+      class="menu-panel composer-suggest-popover"
+      items={props.state.items}
+      onHover={props.onHover}
+      onPick={props.onPick}
+      ref={props.ref}
+      renderItem={suggestItemContent}
+    />
   );
 }

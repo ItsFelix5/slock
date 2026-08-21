@@ -50,6 +50,8 @@ export type { OklchColorPickerProps } from "./form/OklchColorPicker";
 export { default as OklchColorPicker } from "./form/OklchColorPicker";
 export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
+export type { SuggestionListProps } from "./form/SuggestionList";
+export { default as SuggestionList } from "./form/SuggestionList";
 export type { SwitchProps } from "./form/Switch";
 export { default as Switch } from "./form/Switch";
 export { formatDuration } from "./formatDuration";

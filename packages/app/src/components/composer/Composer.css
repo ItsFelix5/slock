@@ -153,29 +153,6 @@
   margin-bottom: var(--space-sm);
   overflow-y: auto;
 }
-.composer-suggest-row {
-  gap: var(--space-sm);
-  width: 100%;
-  padding: var(--space-sm);
-  text-align: left;
-  border-radius: var(--radius-sm);
-}
-.composer-suggest-row:hover,
-.composer-suggest-row.active {
-  background: var(--hover-bg);
-}
-.composer-suggest-icon {
-  flex-shrink: 0;
-  width: var(--space-lg);
-  height: var(--space-lg);
-  font-size: var(--font-size-meta);
-  color: var(--text-dim);
-}
-.composer-suggest-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
 .composer-suggest-emoji {
   font-size: 15px;
 }
@@ -183,20 +160,6 @@
   width: 16px;
   height: 16px;
   object-fit: contain;
-}
-.composer-suggest-label {
-  flex-shrink: 0;
-  font-size: var(--font-size-meta);
-  font-weight: 500;
-}
-.composer-suggest-desc {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: var(--font-size-caption);
-  font-weight: 400;
-  color: var(--text-dim);
-  white-space: nowrap;
 }
 .composer-plus-menu {
   display: inline-flex;

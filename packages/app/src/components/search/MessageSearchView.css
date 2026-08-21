@@ -25,30 +25,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.message-search-suggestion {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  padding: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: left;
-  border-radius: var(--radius-control);
-}
-
-.message-search-suggestion:hover,
-.message-search-suggestion.active {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
-.message-search-suggestion-description {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
 .message-search-results {
   flex: 1;
   min-height: 0;

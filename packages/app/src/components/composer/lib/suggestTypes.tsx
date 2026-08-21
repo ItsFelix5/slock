@@ -47,38 +47,38 @@ export function suggestItemContent(item: SuggestItem) {
       return (
         <>
           <Avatar size="small" user={item.user} />
-          <span class="composer-suggest-label">{item.name}</span>
-          {item.notInChannel ? <span class="composer-suggest-desc">not in channel</span> : null}
+          <span class="suggestion-label">{item.name}</span>
+          {item.notInChannel ? <span class="suggestion-desc">not in channel</span> : null}
         </>
       );
     case "channel":
       return (
         <>
-          <span class="composer-suggest-icon flex-center">
+          <span class="suggestion-icon flex-center">
             <Icon name={channelIconName(item.private)} size={12} />
           </span>
-          <span class="composer-suggest-label">{item.name}</span>
-          {item.notInChannel ? <span class="composer-suggest-desc">not in channel</span> : null}
+          <span class="suggestion-label">{item.name}</span>
+          {item.notInChannel ? <span class="suggestion-desc">not in channel</span> : null}
         </>
       );
     case "command":
       return (
         <>
-          <span class="composer-suggest-icon flex-center">
+          <span class="suggestion-icon flex-center">
             {item.icon ? <img alt="" src={item.icon} /> : "/"}
           </span>
-          <span class="composer-suggest-label">{item.name}</span>
-          <span class="composer-suggest-desc">{item.desc}</span>
+          <span class="suggestion-label">{item.name}</span>
+          <span class="suggestion-desc">{item.desc}</span>
         </>
       );
     case "emoji": {
       const url = emojiUrl(item.name);
       return (
         <>
-          <span class="composer-suggest-icon composer-suggest-emoji flex-center">
+          <span class="suggestion-icon composer-suggest-emoji flex-center">
             {url ? <img alt="" src={url} /> : (item.unicode ?? "❔")}
           </span>
-          <span class="composer-suggest-label">:{item.name}:</span>
+          <span class="suggestion-label">:{item.name}:</span>
         </>
       );
     }

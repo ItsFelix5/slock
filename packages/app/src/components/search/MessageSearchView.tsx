@@ -3,9 +3,10 @@ import {
   createListboxActiveIndex,
   Icon,
   listNavigationIndex,
+  SuggestionList,
 } from "@slock/ui";
-import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from "solid-js";
-import { fetchSearchAutocomplete, searchMessages, type SearchResult } from "../../lib/api";
+import { createMemo, createSignal, createUniqueId, onCleanup, onMount, Show } from "solid-js";
+import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "../../lib/api";
 import { type SortMode, sortParams } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
 import "./GlobalSearch.css";
@@ -216,40 +217,35 @@ export default function MessageSearchView() {
         />
       </div>
       <Show when={suggestionsOpen()}>
-        <div
-          aria-label="Search suggestions"
+        <SuggestionList
+          activeIndex={activeSuggestion()}
+          ariaLabel="Search suggestions"
           class="message-search-suggestions"
           id={suggestionListId}
-          ref={suggestionsListRef}
-        >
-          <For each={suggestions()}>
-            {(suggestion, index) => (
-              <button
-                aria-selected={activeSuggestion() === index()}
-                class="message-search-suggestion btn-reset"
-                classList={{ active: activeSuggestion() === index() }}
-                id={optionId(index())}
-                onClick={() => applySuggestion(suggestion)}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setActiveSuggestion(index())}
-                tabIndex={-1}
-                type="button"
-              >
-                <Icon
-                  class="text-dim"
-                  name={suggestion.replaceToken ? "filters" : "search"}
-                  size={13}
-                />
-                <span>{suggestion.label}</span>
-                <Show when={suggestion.description}>
-                  <span class="message-search-suggestion-description">
-                    {suggestion.description}
-                  </span>
-                </Show>
-              </button>
-            )}
-          </For>
-        </div>
+          itemId={optionId}
+          items={suggestions()}
+          onHover={setActiveSuggestion}
+          onPick={(index) => {
+            const suggestion = suggestions()[index];
+            if (suggestion) applySuggestion(suggestion);
+          }}
+          ref={(el) => {
+            suggestionsListRef = el;
+          }}
+          renderItem={(suggestion) => (
+            <>
+              <Icon
+                class="suggestion-icon flex-center"
+                name={suggestion.replaceToken ? "filters" : "search"}
+                size={13}
+              />
+              <span class="suggestion-label">{suggestion.label}</span>
+              <Show when={suggestion.description}>
+                <span class="suggestion-desc">{suggestion.description}</span>
+              </Show>
+            </>
+          )}
+        />
       </Show>
       <MessageSearchResults
         canSearch={canSearch()}
