@@ -61,40 +61,43 @@ export default function QuillEditor(props: QuillEditorProps) {
       placeholder: props.placeholder,
     });
 
-    quill.keyboard.addBinding({ key: "-" }, { prefix: /--/, offset: 2 }, (range) => {
+    quill.keyboard.addBinding({ key: "-" }, { prefix: /^--$/, offset: 2 }, (range) => {
       quill!.deleteText(range.index - 3, 3);
       quill!.insertEmbed(range.index - 2, "divider", true);
       if (quill!.getLength() <= range.index) quill!.insertText(range.index, "\n");
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: />/, offset: 1 }, (range) => {
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^>$/, offset: 1 }, (range) => {
       quill!.deleteText(range.index - 1, 1);
       quill!.formatLine(range.index, 1, "blockquote");
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /#/, offset: 1 }, (range) => {
+    // Each header level needs its own exact-count match - unanchored regexes like /##/
+    // also match "###", and since Quill tries bindings in registration order the H1
+    // binding would always win first for "## " or deeper.
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^#$/, offset: 1 }, (range) => {
       quill!.deleteText(range.index - 1, 1);
       quill!.formatLine(range.index, 1, "header", 1);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /##/, offset: 2 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 2);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^##$/, offset: 2 }, (range) => {
+      quill!.deleteText(range.index - 2, 2);
+      quill!.formatLine(range.index - 2, 1, "header", 2);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /###/, offset: 3 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 3);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^###$/, offset: 3 }, (range) => {
+      quill!.deleteText(range.index - 3, 3);
+      quill!.formatLine(range.index - 3, 1, "header", 3);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /####/, offset: 4 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 4);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^####$/, offset: 4 }, (range) => {
+      quill!.deleteText(range.index - 4, 4);
+      quill!.formatLine(range.index - 4, 1, "header", 4);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /#####/, offset: 5 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 5);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^#####$/, offset: 5 }, (range) => {
+      quill!.deleteText(range.index - 5, 5);
+      quill!.formatLine(range.index - 5, 1, "header", 5);
       return false;
     });
 
