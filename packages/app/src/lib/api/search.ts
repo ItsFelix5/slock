@@ -23,8 +23,6 @@ export function mapBrowsableChannels(items: any[]): BrowsableChannel[] {
     }));
 }
 
-// Best-effort - mirrors real Slack persisting the query server-side. Never
-// throws; the local history list is still what actually drives the UI.
 export function saveSearchHistory(query: string): void {
   void apiPost("/api/search/save", { query }).catch(() => {});
 }

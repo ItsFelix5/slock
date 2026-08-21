@@ -83,9 +83,6 @@ export default function QuillEditor(props: QuillEditorProps) {
       quill!.formatLine(range.index, 1, "blockquote");
       return false;
     });
-    // Each header level needs its own exact-count match - unanchored regexes like /##/
-    // also match "###", and since Quill tries bindings in registration order the H1
-    // binding would always win first for "## " or deeper.
     quill.keyboard.addBinding({ key: " " }, { prefix: /^#$/, offset: 1 }, (range) => {
       quill!.deleteText(range.index - 1, 1);
       quill!.formatLine(range.index, 1, "header", 1);
@@ -112,12 +109,6 @@ export default function QuillEditor(props: QuillEditorProps) {
       return false;
     });
 
-    // Inline wysiwyg: finishing a *bold*, _italic_, ~strike~ or `code` span
-    // converts it live instead of leaving the raw delimiters on screen -
-    // matches what Slack's own composer does. Each fires on typing its own
-    // closing character, with the prefix regex finding the still-open
-    // opening delimiter earlier in the same line (no fixed offset, since
-    // the span can be any length).
     for (const [char, format] of INLINE_MARKS) {
       const escaped = char.replace(ESCAPE_RE, "\\$&");
       const prefix = new RegExp(`${escaped}([^${escaped}\\n]+)$`);
@@ -129,8 +120,6 @@ export default function QuillEditor(props: QuillEditorProps) {
         if (before !== undefined && !WHITESPACE_RE.test(before)) return true;
         quill!.deleteText(start, match[0].length);
         quill!.insertText(start, match[1], format, true);
-        // otherwise the format stays "sticky" and whatever's typed next
-        // keeps inheriting it instead of finishing the span
         quill!.setSelection(start + match[1].length, 0, "silent");
         quill!.format(format, false, "silent");
         return false;

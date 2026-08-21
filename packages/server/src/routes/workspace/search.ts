@@ -135,10 +135,6 @@ export const searchRoutes: Route[] = [
     );
   }),
 
-  // Best-effort: mirrors what Slack's own client fires when you submit a
-  // search, so recent searches show up there too instead of only in this
-  // browser's local storage. Never surfaced as an error to the caller - the
-  // local history list stays the source of truth for what's actually shown.
   route("POST", "/api/search/save", async (ctx) => {
     const { query } = (await ctx.body.json()) as { query?: string };
     if (query?.trim()) {

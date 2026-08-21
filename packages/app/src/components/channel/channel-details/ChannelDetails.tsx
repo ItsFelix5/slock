@@ -113,8 +113,6 @@ export default function ChannelDetails() {
     const previous = details()?.name;
     if (!id || previous === undefined || v === previous || savingName()) return;
     if (!v) {
-      // Unlike topic/purpose, an empty name isn't something Slack will accept -
-      // revert instead of leaving the field cleared with nothing actually saved.
       setNameInput(previous);
       actionFeedback.flash(id, "Channel name can't be empty.", "error");
       return;

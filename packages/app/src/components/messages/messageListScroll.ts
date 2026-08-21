@@ -50,14 +50,6 @@ export function createMessageListScroll(deps: {
     queueMicrotask(updateTopVisible);
   });
 
-  // One observer for the container's whole lifetime, incrementally kept in
-  // sync with which rows are actually rendered. Recreating it on every
-  // messages() change (as this used to) re-observes every already-rendered
-  // row from scratch each time, and ResizeObserver fires an initial
-  // notification for everything newly observed - so any unrelated update
-  // (a reaction, an edit elsewhere in the list) fired a bogus resize batch
-  // that could restore the scroll position against a stale anchor. Only
-  // genuinely new/removed rows should touch the observed set.
   let resizeObserver: ResizeObserver | undefined;
   let observedContainer: HTMLDivElement | undefined;
   const observedRows = new Set<HTMLElement>();
@@ -106,13 +98,6 @@ export function createMessageListScroll(deps: {
     }
   }
 
-  // The scrollTop correction below fires its own native scroll event, and if
-  // the newly loaded batch didn't push content past the "near top" band (a
-  // channel with short/sparse messages, or genuinely running out of
-  // history), that event looks exactly like still-at-the-top to handleScroll
-  // and immediately queues another older-history load - repeating for as
-  // long as each batch keeps landing short. Give the correction a moment to
-  // actually settle before the next one is allowed to fire.
   const OLDER_LOAD_COOLDOWN_MS = 250;
   let olderLoadCooldownUntil = 0;
   async function loadOlderMessagesPreservingScroll(channelId: string) {

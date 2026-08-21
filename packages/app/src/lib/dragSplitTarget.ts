@@ -17,9 +17,6 @@ export function endDragSplit() {
   setDragSplitTarget(null);
 }
 
-// Spread onto whatever a row's real root element is (button/div/etc) - not
-// a wrapper span, since display:contents wrappers (like SplitNavigation)
-// don't get a real box and drag-and-drop needs one to hit-test against.
 export function splitDragProps(target: DragSplitTarget) {
   return {
     draggable: true,

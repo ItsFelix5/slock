@@ -63,8 +63,6 @@ function embedText(insert: Record<string, unknown>): string {
   if (emojiName) return `:${emojiName}:`;
   const date = dateValue(insert.date);
   if (date) return dateMrkdwn(date);
-  // Slack mrkdwn has no divider syntax (that's a block-kit-only block type),
-  // so the best we can do is leave back the dashes the shortcut consumed.
   if (insert.divider) return "---";
   return "";
 }
@@ -79,8 +77,6 @@ interface DeltaLine {
   blockAttributes: Record<string, unknown> | undefined;
 }
 
-// Slack mrkdwn's inline marks, applied in this fixed order for anything
-// combining more than one (Slack's own parser doesn't care about order).
 const INLINE_WRAPS: [key: string, delimiter: string][] = [
   ["bold", "*"],
   ["italic", "_"],
@@ -144,12 +140,6 @@ function inlineFormattedLineText(line: DeltaLine): string {
     .join("");
 }
 
-// Quill's block-level formats (header, blockquote, list, code-block) live on
-// the line-terminating newline, and inline marks (bold, italic, ...) live on
-// the individual text ops - getContents().ops alone loses all of that. Slack
-// mrkdwn doesn't have real header or list syntax either, so those fall back
-// to the closest thing it does support (bold text, a leading bullet/number)
-// instead of just vanishing.
 export function mrkdwnText(quill: Quill): string {
   const out: string[] = [];
   let listType: unknown;

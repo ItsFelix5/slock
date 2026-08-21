@@ -5,9 +5,6 @@ import { indexAlignedText } from "./quillMentions";
 const EMOJI_NAME_RE = /:([a-z0-9_+'-]+):$/i;
 const WHITESPACE_RE = /\s/;
 
-// Watches for a completed :shortcode: as the user types it and swaps it for
-// a live emoji embed, the same way a picked suggestion would - but without
-// making them open the popover just to finish a code they already know.
 export function wireEmojiAutoconvert(quill: Quill): void {
   quill.on("text-change", (_delta, _old, source) => {
     if (source !== "user") return;
