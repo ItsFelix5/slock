@@ -30,6 +30,16 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
   function send(payload: unknown) {
     return connection.send(payload);
   }
+  function presenceSubIds(): string[] {
+    const selfId = deps.currentUser()?.id;
+    const ids = new Set<string>();
+    for (const dm of deps.allDirectMessages()) {
+      if (dm.userId) ids.add(dm.userId);
+      for (const id of dm.memberIds ?? []) ids.add(id);
+    }
+    if (selfId) ids.delete(selfId);
+    return [...ids];
+  }
   function handleIncomingMessage(payload: any) {
     const { channel, subtype, ts } = payload;
     if (subtype === "message_changed") {
@@ -245,6 +255,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
           ts: thread.ts,
           type: "watch_thread",
         });
+      send({ ids: presenceSubIds(), type: "watch_presence" });
     },
     url: wsUrl,
   });
@@ -254,6 +265,9 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
   createEffect(() => {
     for (const thread of deps.visibleThreads())
       send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
+  });
+  createEffect(() => {
+    send({ ids: presenceSubIds(), type: "watch_presence" });
   });
   return {
     connectionState: connection.connectionState,

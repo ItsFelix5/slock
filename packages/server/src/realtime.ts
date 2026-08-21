@@ -16,6 +16,7 @@ type ConnectionState = {
   fallbackPollRunning: boolean;
   watchedChannels: Set<string>;
   watchedThreads: Map<string, string>;
+  presenceSubIds: Set<string>;
   closed: boolean;
 };
 
@@ -30,6 +31,14 @@ function send(state: ConnectionState, payload: unknown) {
 
 function sendStatus(state: ConnectionState) {
   send(state, { connected: state.gatewayConnected, type: "_status" });
+}
+
+function sendPresenceSub(state: ConnectionState) {
+  if (state.presenceSubIds.size === 0) return;
+  if (state.gatewaySocket?.readyState !== WebSocket.OPEN) return;
+  state.gatewaySocket.send(
+    JSON.stringify({ ids: [...state.presenceSubIds], type: "presence_sub" }),
+  );
 }
 
 export function statusMessage(connected: boolean): string {
@@ -85,6 +94,7 @@ function connectGateway(state: ConnectionState) {
       state.gatewayRetryDelay = 2000;
       stopFallbackPolling(state);
       sendStatus(state);
+      sendPresenceSub(state);
     });
 
     socket.addEventListener("message", (event) => {
@@ -144,6 +154,7 @@ export function handleClientOpen(socket: ClientSocket, creds: Credentials | null
     socket,
     watchedChannels: new Set(),
     watchedThreads: new Map(),
+    presenceSubIds: new Set(),
   };
   connections.set(socket, state);
   connectGateway(state);
@@ -171,5 +182,9 @@ export function handleClientMessage(raw: string, socket: ClientSocket): void {
     else if (msg.type === "watch_thread" && msg.channel && msg.ts)
       state.watchedThreads.set(msg.ts, msg.channel);
     else if (msg.type === "unwatch_thread" && msg.ts) state.watchedThreads.delete(msg.ts);
+    else if (msg.type === "watch_presence" && Array.isArray(msg.ids)) {
+      state.presenceSubIds = new Set(msg.ids.filter((id: unknown) => typeof id === "string"));
+      sendPresenceSub(state);
+    }
   } catch {}
 }
