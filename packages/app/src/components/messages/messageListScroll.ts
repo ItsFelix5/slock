@@ -50,18 +50,51 @@ export function createMessageListScroll(deps: {
     queueMicrotask(updateTopVisible);
   });
 
-  createEffect(() => {
-    deps.messages();
-    const el = deps.scrollRef();
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
+  // One observer for the container's whole lifetime, incrementally kept in
+  // sync with which rows are actually rendered. Recreating it on every
+  // messages() change (as this used to) re-observes every already-rendered
+  // row from scratch each time, and ResizeObserver fires an initial
+  // notification for everything newly observed - so any unrelated update
+  // (a reaction, an edit elsewhere in the list) fired a bogus resize batch
+  // that could restore the scroll position against a stale anchor. Only
+  // genuinely new/removed rows should touch the observed set.
+  let resizeObserver: ResizeObserver | undefined;
+  let observedContainer: HTMLDivElement | undefined;
+  const observedRows = new Set<HTMLElement>();
+  function ensureResizeObserver(el: HTMLDivElement) {
+    if (resizeObserver && observedContainer === el) return resizeObserver;
+    resizeObserver?.disconnect();
+    observedRows.clear();
+    observedContainer = el;
+    resizeObserver = new ResizeObserver(() => {
       const current = deps.scrollRef();
       if (!current) return;
       if (shouldFollowBottom()) scrollToBottom(current);
       else if (lastAnchor?.el.isConnected) restoreScrollAnchor(current, lastAnchor);
     });
-    for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) observer.observe(row);
-    onCleanup(() => observer.disconnect());
+    return resizeObserver;
+  }
+  createEffect(() => {
+    deps.messages();
+    const el = deps.scrollRef();
+    if (!el) return;
+    const observer = ensureResizeObserver(el);
+    const currentRows = new Set(el.querySelectorAll<HTMLElement>("[data-message-ts]"));
+    for (const row of observedRows) {
+      if (currentRows.has(row)) continue;
+      observer.unobserve(row);
+      observedRows.delete(row);
+    }
+    for (const row of currentRows) {
+      if (observedRows.has(row)) continue;
+      observer.observe(row);
+      observedRows.add(row);
+    }
+  });
+  onCleanup(() => {
+    resizeObserver?.disconnect();
+    resizeObserver = undefined;
+    observedRows.clear();
   });
 
   async function loadNewerMessages(channelId: string) {
@@ -73,11 +106,21 @@ export function createMessageListScroll(deps: {
     }
   }
 
+  // The scrollTop correction below fires its own native scroll event, and if
+  // the newly loaded batch didn't push content past the "near top" band (a
+  // channel with short/sparse messages, or genuinely running out of
+  // history), that event looks exactly like still-at-the-top to handleScroll
+  // and immediately queues another older-history load - repeating for as
+  // long as each batch keeps landing short. Give the correction a moment to
+  // actually settle before the next one is allowed to fire.
+  const OLDER_LOAD_COOLDOWN_MS = 250;
+  let olderLoadCooldownUntil = 0;
   async function loadOlderMessagesPreservingScroll(channelId: string) {
     const el = deps.scrollRef();
     if (!el) return;
     const prevScrollHeight = el.scrollHeight;
     await store.messages.loadOlderMessages(channelId);
+    olderLoadCooldownUntil = Date.now() + OLDER_LOAD_COOLDOWN_MS;
     if (deps.scrollRef() !== el || deps.paneView()?.id !== channelId) return;
     el.scrollTop += el.scrollHeight - prevScrollHeight;
   }
@@ -126,6 +169,7 @@ export function createMessageListScroll(deps: {
     if (
       direction !== "newer" &&
       nearTop &&
+      Date.now() >= olderLoadCooldownUntil &&
       store.messages.hasMoreHistory(view.id) &&
       !store.messages.hasOlderHistoryError(view.id)
     )
