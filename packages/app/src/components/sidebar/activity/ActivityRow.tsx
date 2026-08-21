@@ -121,7 +121,7 @@ export default function ActivityRow(props: {
     avatarUrl,
     channelLabel,
     displayName,
-    hasKnownActor,
+    hasAnyActor,
     interactorNames,
     isPinging,
     isReacted,
@@ -242,7 +242,7 @@ export default function ActivityRow(props: {
                         />
                       </span>
                     }
-                    when={hasKnownActor()}
+                    when={hasAnyActor()}
                   >
                     <Avatar
                       size="small"

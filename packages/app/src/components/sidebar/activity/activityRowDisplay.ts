@@ -34,6 +34,13 @@ export function createActivityRowDisplay(deps: {
   const isPinging = createMemo(() => isPingingActivity(deps.latest()));
   const isStandaloneActivity = createMemo(() => !deps.latest().channelId);
   const hasKnownActor = createMemo(() => hasRealMessageAuthor(deps.latest()));
+  // hasKnownActor means "a real human we can link to a profile" - a bot
+  // posting on its own behalf (no source_user_id) fails that, but it still
+  // has a name/icon worth showing instead of falling back to a generic
+  // activity-kind glyph.
+  const hasAnyActor = createMemo(
+    () => hasKnownActor() || !!deps.latest().botId || !!deps.latest().botName,
+  );
   const showsActivityVerb = createMemo(
     () => deps.latest().kind === "other" || isStandaloneActivity(),
   );
@@ -65,6 +72,7 @@ export function createActivityRowDisplay(deps: {
     avatarUrl,
     channelLabel,
     displayName,
+    hasAnyActor,
     hasKnownActor,
     interactorNames,
     isPinging,
