@@ -129,6 +129,7 @@ export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
 export { focusedPaneId } from "./panes/focusedPane";
 export { consumeMouseButtonPop, hoveredPaneId } from "./panes/hoveredPane";
+export { useNarrowPaneRow } from "./panes/narrowLayout";
 export { default as PaneRow, type PaneRowProps } from "./panes/PaneRow";
 export {
   closePane,

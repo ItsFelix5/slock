@@ -18,7 +18,7 @@ import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCa
 import ViewModal from "./components/modals/ViewModal";
 import SplitDropZone from "./components/navigation/SplitDropZone";
 import { openConversationInSplit, SplitNavigation } from "./components/navigation/SplitNavigation";
-import PaneSwitch from "./components/panes/PaneSwitch";
+import PaneSwitch, { paneTabLabel } from "./components/panes/PaneSwitch";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
@@ -204,6 +204,7 @@ function App() {
             onResize={store.panes.resize}
             panes={store.panes.panes()}
             renderPane={(pane) => <PaneSwitch pane={pane} />}
+            tabLabel={paneTabLabel}
           />
           <ContextActions />
           <SplitDropZone />

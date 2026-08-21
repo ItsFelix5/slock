@@ -1,6 +1,8 @@
 import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
 import { Match, Switch } from "solid-js";
+import { conversationDisplayName } from "../../lib/displayName";
 import { closeTile } from "../../lib/paneActions";
+import { store } from "../../lib/store";
 import type {
   CanvasPaneContent,
   PaneContent,
@@ -16,6 +18,31 @@ import ThreadPanel from "../messages/thread/ThreadPanel";
 import UserProfile from "../user/UserProfile";
 import UsergroupDetails from "../usergroup/UsergroupDetails";
 import MainPane from "./MainPane";
+
+export function paneTabLabel(pane: Pane<PaneContent | null>): string {
+  const content = pane.content;
+  if (!content) return "…";
+  switch (content.kind) {
+    case "channel":
+    case "dm":
+      return conversationDisplayName(
+        content.id,
+        store.channels.channelById,
+        store.dms.dmById,
+        store.users.userById,
+      );
+    case "thread":
+      return `Thread in ${conversationDisplayName(content.channelId, store.channels.channelById, store.dms.dmById, store.users.userById)}`;
+    case "profile":
+      return store.users.userById(content.userId)?.name ?? "Profile";
+    case "usergroup-details":
+      return store.usergroups.usergroupById(content.usergroupId)?.name ?? "Usergroup";
+    case "pinned":
+      return `Pinned in ${conversationDisplayName(content.channelId, store.channels.channelById, store.dms.dmById, store.users.userById)}`;
+    case "canvas":
+      return content.title;
+  }
+}
 
 export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   useEscapeClose(
