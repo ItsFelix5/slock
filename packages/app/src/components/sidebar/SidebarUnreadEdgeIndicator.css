@@ -1,0 +1,28 @@
+.sidebar-unread-edge {
+  position: absolute;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 18px;
+  color: var(--text-on-danger);
+  background: var(--badge-bg);
+  border: 1px solid var(--sidebar-bg);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+  transform: translateX(-50%);
+}
+
+.sidebar-unread-edge:hover {
+  filter: brightness(1.1);
+}
+
+.sidebar-unread-edge-top {
+  top: 4px;
+}
+
+.sidebar-unread-edge-bottom {
+  bottom: 4px;
+}

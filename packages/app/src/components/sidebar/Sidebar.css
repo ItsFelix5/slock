@@ -126,6 +126,7 @@
 }
 
 .sidebar-scroll {
+  position: relative;
   flex: 1;
   padding: 8px 0 16px;
   overflow-y: auto;

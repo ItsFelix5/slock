@@ -1,6 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { Button, Icon, InlineFeedback, ResizeHandle } from "@slock/ui";
-import { For, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
 import MessageSearchView from "../search/MessageSearchView";
 import ActivityView from "./activity/ActivityView";
@@ -10,6 +10,7 @@ import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSecti
 import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/sidebar-rows";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
+import SidebarUnreadEdgeIndicator from "./SidebarUnreadEdgeIndicator";
 import type { SidebarContext } from "./sidebarCategories";
 
 export default function SidebarView(props: { context: SidebarContext }) {
@@ -73,6 +74,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
     unreadChannelIds,
     actionFeedback,
   } = props.context;
+  const [scrollEl, setScrollEl] = createSignal<HTMLDivElement>();
   return (
     <div
       class="sidebar flex-col"
@@ -166,7 +168,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
         }
         when={!feedMode()}
       >
-        <div class="sidebar-scroll">
+        <div class="sidebar-scroll" ref={setScrollEl}>
           <Show
             fallback={<SidebarSkeleton />}
             when={!(bootstrap.loading || sectionsLoading() || preferencesLoading())}
@@ -312,6 +314,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
               {...{ appDms, appsOpen, dmsOpen, peopleDms, setAppsOpen, setDmsOpen, unreadsOnly }}
             />
           </Show>
+          <SidebarUnreadEdgeIndicator containerRef={scrollEl} />
         </div>
       </Show>
     </div>
