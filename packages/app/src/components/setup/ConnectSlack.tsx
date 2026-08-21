@@ -5,7 +5,13 @@ import "./ConnectSlack.css";
 const CONTENT_TYPE_BOUNDARY_CURL = /-H\s*['"]content-type:[^'"]*boundary=([^\s'";]+)['"]/i;
 const CONTENT_TYPE_BOUNDARY_JSON = /"content-type":\s*"[^"]*boundary=([^"\\]+)"/i;
 const NEWLINE_SPLIT = /\r?\n/;
-const BOUNDARY_MARKER = /^-{2,}(.+)$/;
+// A multipart separator line is always exactly "--" + the boundary value -
+// this must NOT be greedy about leading dashes, since Firefox's own
+// generated boundary values (e.g. "----geckoformboundary...") commonly
+// start with more dashes themselves. Eating those extra dashes here makes
+// every later `--${boundary}` split miss them, leaving stray dashes stuck
+// onto every extracted field value.
+const BOUNDARY_MARKER = /^--(.+)$/;
 const UNESCAPE_CONTROL = /\\(r|n|t|\\|"|')/g;
 const FORM_DATA_DISPOSITION = /Content-Disposition:\s*form-data;\s*name="([^"]+)"/i;
 const CONTINUATION_JOIN = /\\\r?\n/g;
