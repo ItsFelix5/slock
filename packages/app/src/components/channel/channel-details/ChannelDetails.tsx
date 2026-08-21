@@ -111,7 +111,14 @@ export default function ChannelDetails() {
     const id = channelDetailsId();
     const v = nameInput().trim().replace(LEADING_HASH_RE, "");
     const previous = details()?.name;
-    if (!(id && v) || previous === undefined || v === previous || savingName()) return;
+    if (!id || previous === undefined || v === previous || savingName()) return;
+    if (!v) {
+      // Unlike topic/purpose, an empty name isn't something Slack will accept -
+      // revert instead of leaving the field cleared with nothing actually saved.
+      setNameInput(previous);
+      actionFeedback.flash(id, "Channel name can't be empty.", "error");
+      return;
+    }
     await saveEditableField({
       next: v,
       persist: (next) => renameChannelById(id, next),
