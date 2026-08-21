@@ -1,6 +1,6 @@
 import { createEffect } from "solid-js";
 import type { Message } from "../../../api";
-import { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
+import { fetchUserPresence, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
 import { isDmId } from "../../../dmId";
 import { mergeMessages } from "../../../messageMerge";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
@@ -39,6 +39,16 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
     }
     if (selfId) ids.delete(selfId);
     return [...ids];
+  }
+  const presenceHydrated = new Set<string>();
+  function hydratePresence(ids: string[]) {
+    for (const id of ids) {
+      if (presenceHydrated.has(id)) continue;
+      presenceHydrated.add(id);
+      fetchUserPresence(id)
+        .then((presence) => presence && deps.setPresenceOverrides(id, presence))
+        .catch(() => presenceHydrated.delete(id));
+    }
   }
   function handleIncomingMessage(payload: any) {
     const { channel, subtype, ts } = payload;
@@ -267,7 +277,9 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
   });
   createEffect(() => {
-    send({ ids: presenceSubIds(), type: "watch_presence" });
+    const ids = presenceSubIds();
+    send({ ids, type: "watch_presence" });
+    hydratePresence(ids);
   });
   return {
     connectionState: connection.connectionState,
