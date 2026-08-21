@@ -15,6 +15,7 @@ import type { DirectMessage } from "../../../lib/api";
 import { dmDisplayName } from "../../../lib/displayName";
 import { actionFeedback } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
+import { unreadSummary } from "../../../lib/unreadSummary";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
@@ -77,6 +78,14 @@ export function DmRow(props: { dm: DirectMessage }) {
   const muted = createMemo(() => store.preferences.isChannelMuted(props.dm.id));
   const hasDraft = createMemo(() => channelHasDraft(props.dm.id));
   const ctxMenu = useContextMenu();
+  const unreadTooltip = createMemo(() =>
+    unreadSummary({
+      currentUserId: store.users.currentUser()?.id,
+      lastRead: store.unread.lastReadByChannel[props.dm.id],
+      loadedMessages: store.messages.messagesByChannel[props.dm.id],
+      mentions: props.dm.mentions,
+    }),
+  );
 
   return (
     <Show when={ready()}>
@@ -107,7 +116,9 @@ export function DmRow(props: { dm: DirectMessage }) {
                 </span>
               ) : null}
               {!muted() && props.dm.mentions ? (
-                <span class="sidebar-badge">{props.dm.mentions}</span>
+                <Tooltip content={unreadTooltip()}>
+                  <span class="sidebar-badge">{props.dm.mentions}</span>
+                </Tooltip>
               ) : null}
             </span>
           </button>

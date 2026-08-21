@@ -1,8 +1,9 @@
-import { ContextMenu, Icon, useContextMenu } from "@slock/ui";
+import { ContextMenu, Icon, Tooltip, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
 import type { Channel } from "../../../lib/api";
 import { channelDisplayName, channelIconName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
+import { unreadSummary } from "../../../lib/unreadSummary";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
@@ -15,6 +16,14 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
   });
   const muted = createMemo(() => store.preferences.isChannelMuted(props.channel.id));
   const hasDraft = createMemo(() => channelHasDraft(props.channel.id));
+  const unreadTooltip = createMemo(() =>
+    unreadSummary({
+      currentUserId: store.users.currentUser()?.id,
+      lastRead: store.unread.lastReadByChannel[props.channel.id],
+      loadedMessages: store.messages.messagesByChannel[props.channel.id],
+      mentions: props.channel.mentions,
+    }),
+  );
 
   return (
     <>
@@ -44,7 +53,9 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
               </span>
             ) : null}
             {!muted() && props.channel.mentions ? (
-              <span class="sidebar-badge">{props.channel.mentions}</span>
+              <Tooltip content={unreadTooltip()}>
+                <span class="sidebar-badge">{props.channel.mentions}</span>
+              </Tooltip>
             ) : null}
           </span>
         </button>
