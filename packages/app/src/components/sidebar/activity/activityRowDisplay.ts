@@ -1,20 +1,16 @@
-import type { ActivityItem } from "@slock/slack-api";
 import { createMemo } from "solid-js";
+import { isPingingActivity } from "../../../lib/activityKinds";
+import type { ActivityItem } from "../../../lib/api";
+import { conversationDisplayName } from "../../../lib/displayName";
+import { formatInteractorNames } from "../../../lib/interactorNames";
+import { store } from "../../../lib/store";
 import {
-  conversationDisplayName,
-  formatInteractorNames,
-  isPingingActivity,
-  store,
-} from "../../../lib/store";
-import {
+  hasRealMessageAuthor,
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   unresolvedAuthorFallback,
 } from "../../messages/parts/messageRenderState";
 
-/** The identity/display half of an activity row: who to show, what channel label, and the
- * reacted/pinging/unread flags the row styles itself with - kept apart from the thread-timeline
- * and navigation concerns. */
 export function createActivityRowDisplay(deps: {
   items: () => ActivityItem[];
   latest: () => ActivityItem;
@@ -24,13 +20,12 @@ export function createActivityRowDisplay(deps: {
     resolveAuthorDisplayName(deps.latest(), user()?.name, unresolvedAuthorFallback(deps.latest())),
   );
   const avatarUrl = createMemo(() => resolveAuthorAvatarUrl(deps.latest(), user()?.avatarUrl));
-  const channel = createMemo(() => store.channels.channelById(deps.latest().channelId));
   const channelLabel = createMemo(() => {
     if (!deps.latest().channelId) return "Activity";
     return conversationDisplayName(
       deps.latest().channelId,
-      channel(),
-      store.dms.dmById(deps.latest().channelId),
+      store.channels.channelById,
+      store.dms.dmById,
       store.users.userById,
     );
   });
@@ -38,6 +33,7 @@ export function createActivityRowDisplay(deps: {
   const isReacted = createMemo(() => store.activity.isActivityItemReacted(deps.latest()));
   const isPinging = createMemo(() => isPingingActivity(deps.latest()));
   const isStandaloneActivity = createMemo(() => !deps.latest().channelId);
+  const hasKnownActor = createMemo(() => hasRealMessageAuthor(deps.latest()));
   const showsActivityVerb = createMemo(
     () => deps.latest().kind === "other" || isStandaloneActivity(),
   );
@@ -69,6 +65,7 @@ export function createActivityRowDisplay(deps: {
     avatarUrl,
     channelLabel,
     displayName,
+    hasKnownActor,
     interactorNames,
     isPinging,
     isReacted,

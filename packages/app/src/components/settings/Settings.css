@@ -19,7 +19,7 @@
   font-size: 13px;
   color: var(--text-secondary);
   text-align: left;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .settings-nav-btn:hover {
@@ -89,7 +89,7 @@
   cursor: pointer;
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .settings-status-emoji-btn:hover {
@@ -103,7 +103,7 @@
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .settings-status-input::placeholder {
@@ -118,7 +118,7 @@
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .settings-status-actions {
@@ -131,7 +131,7 @@
   font-weight: 500;
   color: var(--text-on-success);
   background: var(--presence-active);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .settings-status-save:hover:not(:disabled) {
@@ -149,7 +149,7 @@
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .settings-status-clear:hover:not(:disabled) {

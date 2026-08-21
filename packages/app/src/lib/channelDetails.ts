@@ -1,3 +1,4 @@
+import { createRoot, createSignal } from "solid-js";
 import {
   archiveChannel,
   type ChannelDetails,
@@ -19,22 +20,24 @@ import {
   setChannelTopic,
   setMemberPermissions,
   unarchiveChannel,
-} from "@slock/slack-api";
-import { createRoot } from "solid-js";
-import { actionFeedback, store } from "./store";
-import type { ChannelDetailsTab } from "./store/slices/types";
+} from "./api";
+import { actionFeedback } from "./feedback";
+import { store } from "./store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
-export type { ChannelDetailsTab } from "./store/slices/types";
+export type ChannelDetailsTab = "about" | "members" | "settings";
 
 function setup() {
+  const [channelDetailsId, setChannelDetailsId] = createSignal<string | null>(null);
+  const [channelDetailsTab, setChannelDetailsTab] = createSignal<ChannelDetailsTab>("about");
+
   function openChannelDetails(id: string, tab: ChannelDetailsTab = "about") {
-    store.panes.openInNewPane({ channelId: id, kind: "channel-details", tab });
+    setChannelDetailsTab(tab);
+    setChannelDetailsId(id);
   }
 
   function closeChannelDetails() {
-    const pane = store.panes.panes().find((p) => p.content?.kind === "channel-details");
-    if (pane) store.panes.closePane(pane.id);
+    setChannelDetailsId(null);
   }
 
   async function withFeedback<T>(
@@ -174,6 +177,8 @@ function setup() {
 
   return {
     archiveChannelById,
+    channelDetailsId,
+    channelDetailsTab,
     closeChannelDetails,
     convertChannelToPrivateById,
     inviteUsersToChannel,
@@ -195,6 +200,8 @@ function setup() {
 
 export const {
   archiveChannelById,
+  channelDetailsId,
+  channelDetailsTab,
   openChannelDetails,
   closeChannelDetails,
   convertChannelToPrivateById,

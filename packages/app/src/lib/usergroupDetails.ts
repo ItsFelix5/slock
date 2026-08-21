@@ -1,11 +1,12 @@
+import { createRoot, createSignal } from "solid-js";
 import {
   setUsergroupChannels,
   setUsergroupMembers,
   setUsergroupSectionEnabled,
   updateUsergroupProfile,
-} from "@slock/slack-api";
-import { createRoot, createSignal } from "solid-js";
-import { actionFeedback, store } from "./store";
+} from "./api";
+import { actionFeedback } from "./feedback";
+import { store } from "./store";
 import { createSerialMutationQueue } from "./store/mutations/serialMutationQueue";
 
 function setup() {

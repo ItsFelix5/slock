@@ -11,7 +11,7 @@
       "path": "../ui"
     },
     {
-      "path": "../slack-api"
+      "path": "../types"
     },
     {
       "path": "../blockkit"

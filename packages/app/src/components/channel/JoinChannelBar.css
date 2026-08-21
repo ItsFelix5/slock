@@ -5,7 +5,7 @@
   margin: 0 20px 20px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
 }
 
 .channel-notice-bar-text {

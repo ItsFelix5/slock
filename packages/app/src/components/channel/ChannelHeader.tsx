@@ -2,15 +2,19 @@ import { Mrkdwn } from "@slock/blockkit";
 import { Icon, IconButton, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
+import { channelIconName } from "../../lib/displayName";
+import { actionFeedback } from "../../lib/feedback";
+import { closeTile } from "../../lib/paneActions";
 import { usePaneView } from "../../lib/paneView";
-import { actionFeedback, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
 import "./ChannelHeader.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
 import { createChannelHeaderState } from "./channelHeaderState";
 
 export default function ChannelHeader() {
-  const { view } = usePaneView();
+  const { paneId, view } = usePaneView();
+  const canClose = () => store.panes.panes().length > 1;
   const {
     channelMemberCount,
     channelTitle,
@@ -67,7 +71,7 @@ export default function ChannelHeader() {
             </Show>
             <span class="channel-header-icon">
               <Show fallback={null} when={view()?.kind !== "dm"}>
-                {isPrivateChannel() ? <Icon name="lock" size={14} /> : "#"}
+                <Icon name={channelIconName(isPrivateChannel())} size={14} />
               </Show>
             </span>
             <button
@@ -82,23 +86,6 @@ export default function ChannelHeader() {
             >
               {channelTitle()}
             </button>
-            <Show when={isChannelView() && channelMemberCount()}>
-              {(count) => (
-                <Tooltip content="View members">
-                  <button
-                    class="channel-header-members-btn btn-reset flex-align-center"
-                    onClick={() => {
-                      const v = view();
-                      if (v?.kind === "channel") openChannelDetails(v.id, "members");
-                    }}
-                    type="button"
-                  >
-                    <Icon name="user-groups" size={14} />
-                    <span>{count()}</span>
-                  </button>
-                </Tooltip>
-              )}
-            </Show>
             <Show when={isArchivedChannel()}>
               <span class="channel-header-archived-badge">Archived</span>
             </Show>
@@ -107,8 +94,12 @@ export default function ChannelHeader() {
             <span
               class="channel-header-topic-wrap"
               classList={{ "is-overflowing": topicOverflowing() }}
+              tabIndex={topicOverflowing() ? 0 : undefined}
             >
               <span class="channel-header-topic truncate text-dim text-sm" ref={setTopicEl}>
+                <Mrkdwn text={channelTopic()} />
+              </span>
+              <span class="channel-header-topic-tooltip text-dim text-sm">
                 <Mrkdwn text={channelTopic()} />
               </span>
             </span>
@@ -154,6 +145,23 @@ export default function ChannelHeader() {
               </For>
             </Menu>
           </Show>
+          <Show when={isChannelView() && channelMemberCount()}>
+            {(count) => (
+              <Tooltip content="View members">
+                <button
+                  class="channel-header-members-btn btn-reset flex-align-center"
+                  onClick={() => {
+                    const v = view();
+                    if (v?.kind === "channel") openChannelDetails(v.id, "members");
+                  }}
+                  type="button"
+                >
+                  <Icon name="user-groups" size={14} />
+                  <span>{count()}</span>
+                </button>
+              </Tooltip>
+            )}
+          </Show>
           <IconButton
             active={filesLinksOpen()}
             class="channel-header-btn"
@@ -188,6 +196,15 @@ export default function ChannelHeader() {
                 />
               </Menu>
             )}
+          </Show>
+          <Show when={canClose()}>
+            <IconButton
+              class="channel-header-btn"
+              icon="close"
+              label="Close"
+              onClick={() => closeTile(paneId)}
+              size="md"
+            />
           </Show>
         </div>
       </div>

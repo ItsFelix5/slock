@@ -1,14 +1,15 @@
-import type { Channel, DirectMessage } from "@slock/slack-api";
 import { consumeMouseButtonPop, focusedPaneId, hoveredPaneId } from "@slock/ui";
 import { batch, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
+import type { Channel, DirectMessage } from "../../../api";
 import { isDmId } from "../../../dmId";
 import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
-import type { ChannelDetailsTab, Nav, PaneContent, View } from "../types";
+import type { Nav, PaneContent, View } from "../types";
 import type { createPanesSlice } from "./panes";
 
 interface NavSnapshot {
   nav: Nav;
   panes: PaneContent[];
+  searchQuery?: string;
 }
 
 type RawPane = { kind: "raw"; id: string };
@@ -38,10 +39,6 @@ function parsePaneSegment(segment: string): PaneContent | RawPane | null {
     const ts = pinned ? rest.slice(0, -1) : rest;
     return { channelId, kind: "thread", pinned: pinned || undefined, ts };
   }
-  if (segment.includes("+")) {
-    const [channelId, tab] = segment.split("+");
-    return { channelId, kind: "channel-details", tab: (tab || undefined) as ChannelDetailsTab };
-  }
   if (segment.endsWith("*")) return { channelId: segment.slice(0, -1), kind: "pinned" };
   if (segment.includes("^")) {
     const [fileId, title] = segment.split("^");
@@ -68,8 +65,6 @@ function serializePaneSegment(content: PaneContent): string {
       return content.id;
     case "thread":
       return `${content.channelId}~${content.ts}${content.pinned ? "!" : ""}`;
-    case "channel-details":
-      return `${content.channelId}+${content.tab ?? "about"}`;
     case "usergroup-details":
       return content.usergroupId;
     case "pinned":
@@ -81,30 +76,37 @@ function serializePaneSegment(content: PaneContent): string {
   }
 }
 
-function parseNavPath(url: URL): { nav: Nav; rawPanes: (PaneContent | RawPane)[] } {
+function parseNavPath(url: URL): {
+  nav: Nav;
+  rawPanes: (PaneContent | RawPane)[];
+  searchQuery?: string;
+} {
   const segs = url.pathname.split("/").filter(Boolean);
   const [firstSegment] = segs;
-  if (firstSegment === "search") return { nav: "search", rawPanes: [] };
 
   let nav: Nav = "home";
-  if (firstSegment === "activity" || firstSegment === "later") {
+  let searchQuery: string | undefined;
+  if (firstSegment === "search") {
+    nav = "search";
+    segs.shift();
+    searchQuery = url.searchParams.get("q") ?? undefined;
+  } else if (firstSegment === "activity" || firstSegment === "later") {
     nav = firstSegment;
     segs.shift();
   }
 
   const rawPanes = segs.map(parsePaneSegment).filter((c): c is PaneContent | RawPane => c !== null);
-  return { nav, rawPanes };
+  return { nav, rawPanes, searchQuery };
 }
 
 function navSnapshotToPath(snap: NavSnapshot): string {
   const parts: string[] = [];
-  if (snap.nav === "search") {
-    parts.push("search");
-  } else {
-    if (snap.nav !== "home") parts.push(snap.nav);
-    parts.push(...snap.panes.map(serializePaneSegment));
-  }
-  return `/${parts.join("/")}`;
+  if (snap.nav !== "home") parts.push(snap.nav);
+  parts.push(...snap.panes.map(serializePaneSegment));
+  const path = `/${parts.join("/")}`;
+  return snap.nav === "search" && snap.searchQuery
+    ? `${path}?q=${encodeURIComponent(snap.searchQuery)}`
+    : path;
 }
 
 export function createViewStateSlice(deps: {
@@ -125,20 +127,28 @@ export function createViewStateSlice(deps: {
   );
 
   let lastNavSerialized: string | null = null;
+  let lastStructuralKey: string | null = null;
+  let syncingFromPopState = false;
 
   function livePaneContents(): PaneContent[] {
     return panes.panes().flatMap((p) => (p.content ? [p.content] : []));
   }
 
+  function structuralKey(snap: Pick<NavSnapshot, "nav" | "panes">): string {
+    return JSON.stringify({ nav: snap.nav, panes: snap.panes });
+  }
+
   function currentNavSnapshot(): NavSnapshot {
-    return { nav: nav(), panes: livePaneContents() };
+    return {
+      nav: nav(),
+      panes: livePaneContents(),
+      searchQuery: nav() === "search" ? searchScreenQuery() : undefined,
+    };
   }
 
   function pushOrReplace(snap: NavSnapshot, replace: boolean) {
     const serialized = JSON.stringify(snap);
     lastNavSerialized = serialized;
-    // panes/content come from a Solid store (reactive proxies), which history.pushState's
-    // structured-clone can't handle — round-trip through JSON to get a plain, cloneable object
     const entry = { slockNav: JSON.parse(serialized) as NavSnapshot };
     const path = navSnapshotToPath(snap);
     if (replace) window.history.replaceState(entry, "", path);
@@ -157,8 +167,16 @@ export function createViewStateSlice(deps: {
           : null,
       );
       panes.setAllPanes(initialPanes);
+      if (initial.nav === "search" && initial.searchQuery)
+        setSearchScreenQuery(initial.searchQuery);
     });
-    pushOrReplace({ nav: initial.nav, panes: initialPanes }, true);
+    const initialSnap: NavSnapshot = {
+      nav: initial.nav,
+      panes: initialPanes,
+      searchQuery: initial.searchQuery,
+    };
+    pushOrReplace(initialSnap, true);
+    lastStructuralKey = structuralKey(initialSnap);
 
     const onPopState = (e: PopStateEvent) => {
       const popped = (e.state as { slockNav?: NavSnapshot } | null)?.slockNav;
@@ -173,15 +191,31 @@ export function createViewStateSlice(deps: {
       const index = targetIndex === -1 ? 0 : targetIndex;
       const targetPaneId = live[index]?.id;
 
-      setNav(popped.nav);
-      if (targetPaneId) {
-        const poppedContent = popped.panes[index];
-        if (poppedContent) panes.setPaneContent(targetPaneId, poppedContent);
-        else panes.closePane(targetPaneId);
-      }
+      syncingFromPopState = true;
+      batch(() => {
+        setNav(popped.nav);
+        if (popped.nav === "search") setSearchScreenQuery(popped.searchQuery ?? "");
+        if (targetPaneId) {
+          const poppedContent = popped.panes[index];
+          if (poppedContent) {
+            panes.setPaneContent(targetPaneId, poppedContent);
+            if (poppedContent.kind === "channel" || poppedContent.kind === "dm") {
+              setSelected(poppedContent);
+            }
+          } else {
+            panes.closePane(targetPaneId);
+          }
+        }
+      });
 
-      const merged: NavSnapshot = { nav: popped.nav, panes: livePaneContents() };
+      const merged: NavSnapshot = {
+        nav: popped.nav,
+        panes: livePaneContents(),
+        searchQuery: popped.nav === "search" ? popped.searchQuery : undefined,
+      };
       pushOrReplace(merged, true);
+      lastStructuralKey = structuralKey(merged);
+      syncingFromPopState = false;
     };
     window.addEventListener("popstate", onPopState);
     onCleanup(() => window.removeEventListener("popstate", onPopState));
@@ -189,11 +223,13 @@ export function createViewStateSlice(deps: {
     createEffect(() => {
       const snap = currentNavSnapshot();
       if (JSON.stringify(snap) === lastNavSerialized) return;
-      pushOrReplace(snap, false);
+      if (syncingFromPopState) return;
+      const key = structuralKey(snap);
+      const replace = key === lastStructuralKey;
+      lastStructuralKey = key;
+      pushOrReplace(snap, replace);
     });
 
-    // panes parsed before bootstrap loaded may have guessed channel-vs-dm from the id
-    // prefix alone (mpim ids are ambiguous) — correct any that data now resolves differently
     createEffect(() => {
       const data = deps.bootstrap();
       if (!data) return;

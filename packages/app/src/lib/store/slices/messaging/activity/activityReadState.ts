@@ -1,7 +1,7 @@
-import type { ActivityItem } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { gatewayActivityCountsSnapshot } from "./activityFeedRefresh";
+import { gatewayActivityCountsSnapshot, gatewayActivityPingCount } from "../../../../activityKinds";
+import type { ActivityItem } from "../../../../api";
 
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
@@ -38,9 +38,7 @@ export function createActivityReadState(deps: {
     const changed = nextSnapshot !== lastGatewayActivityCountsSnapshot;
     lastGatewayActivityCountsSnapshot = nextSnapshot;
     if (activity && typeof activity === "object")
-      setGatewayActivityCount(
-        Object.values(activity).reduce<number>((total, value) => total + (Number(value) || 0), 0),
-      );
+      setGatewayActivityCount(gatewayActivityPingCount(activity));
     return changed;
   }
 
@@ -51,6 +49,7 @@ export function createActivityReadState(deps: {
       return item.unreadCount > 0 ? "unread" : "read";
     if (readActivityIds[item.id]) return "read";
     if (item.unread !== undefined) return item.unread ? "unread" : "read";
+    if (item.kind !== "channel_all") return "pending";
     const lastRead = deps.lastReadByChannel[item.channelId];
     if (item.channelId && lastRead === undefined) return "pending";
     return item.time > (lastRead ?? 0) ? "unread" : "read";
@@ -64,8 +63,7 @@ export function createActivityReadState(deps: {
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
     if (!item.channelId) return false;
-    if (item.kind === "reaction") return false;
-    if (item.kind === "thread_reply" && item.unreadCount !== undefined) return false;
+    if (item.kind !== "channel_all") return false;
     return deps.lastReadByChannel[item.channelId] === undefined;
   }
 

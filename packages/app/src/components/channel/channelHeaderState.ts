@@ -1,10 +1,11 @@
 import { ADDABLE_CHANNEL_TABS } from "../../lib/channelTabMeta";
+import { channelDisplayName, dmDisplayName } from "../../lib/displayName";
 import {
   closeFilesLinksPanel,
   filesLinksChannelId,
   openFilesLinksPanel,
 } from "../../lib/filesLinksPanel";
-import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import type { View } from "../../lib/store/slices/types";
 
 export function createChannelHeaderState(view: () => View | null) {

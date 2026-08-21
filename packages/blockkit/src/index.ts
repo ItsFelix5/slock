@@ -6,18 +6,6 @@ export { default as Divider } from "./blocks/Divider";
 export { default as Header } from "./blocks/Header";
 export { Table } from "./blocks/Table";
 export { MRKDWN_CLIPBOARD_TYPE } from "./clipboard";
-export { composeAtomRenderers } from "./compose/atoms";
-export {
-  ATOM_DATE,
-  ATOM_EMOJI,
-  ATOM_MENTION,
-  type ComposeAtomData,
-  type DateAtomData,
-  type EmojiAtomData,
-  type MentionAtomData,
-} from "./compose/atomTypes";
-export { blocksToDoc } from "./compose/deserialize";
-export { docToBlocks } from "./compose/serialize";
 export type {
   BlockKitMentionInfo,
   BlockKitResolver,

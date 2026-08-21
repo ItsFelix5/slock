@@ -6,35 +6,35 @@
   justify-content: center;
   font-weight: 700;
   color: var(--text-on-avatar);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .avatar-small {
   width: 20px;
   height: 20px;
   font-size: 10px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .avatar-medium {
   width: 32px;
   height: 32px;
   font-size: 13px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .avatar-large {
   width: 48px;
   height: 48px;
   font-size: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .avatar-message {
   width: var(--message-avatar-size);
   height: var(--message-avatar-size);
   font-size: var(--message-avatar-font-size);
-  border-radius: var(--message-control-radius);
+  border-radius: var(--radius-control);
 }
 
 .avatar-img {

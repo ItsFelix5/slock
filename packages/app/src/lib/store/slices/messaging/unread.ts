@@ -1,27 +1,11 @@
-import type { Channel, DirectMessage, Message } from "@slock/slack-api";
-import { markChannelRead, markThreadRead } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import type { Channel, DirectMessage, Message } from "../../../api";
+import { markChannelRead, markThreadRead } from "../../../api";
+import { isDmId } from "../../../dmId";
+import { actionFeedback } from "../../../feedback";
 import type { ThreadRef, View } from "../types";
 import { createLatestValueSync } from "./readSync/latestValueSync";
-
-export function isUnreadDividerBoundary(
-  ts: string,
-  prevTs: string | undefined,
-  anchor: number,
-): boolean {
-  return (
-    parseFloat(ts) * 1000 > anchor && (prevTs === undefined || parseFloat(prevTs) * 1000 <= anchor)
-  );
-}
-
-export function findUnreadDividerIndex(messages: Message[], anchor: number | undefined): number {
-  if (anchor == null || !Number.isFinite(anchor)) return -1;
-  return messages.findIndex((msg, index) =>
-    isUnreadDividerBoundary(msg.ts, messages[index - 1]?.ts, anchor),
-  );
-}
 
 export function createUnreadSlice(deps: {
   patchChannel: (id: string, patch: Partial<Channel>) => void;
@@ -106,7 +90,11 @@ export function createUnreadSlice(deps: {
 
   function clearChannelUnread(channelId: string) {
     setUnreadChannelIds(channelId, false);
-    if (channelId.startsWith("D")) deps.patchDm(channelId, { mentions: 0 });
+    const isDm = isDmId(
+      channelId,
+      (id) => !!deps.bootstrap()?.directMessages.some((dm) => dm.id === id),
+    );
+    if (isDm) deps.patchDm(channelId, { mentions: 0 });
     else deps.patchChannel(channelId, { mentions: 0 });
   }
 

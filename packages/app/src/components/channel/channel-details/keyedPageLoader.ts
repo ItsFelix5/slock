@@ -1,36 +1,31 @@
-export function createKeyedPageLoader<Key, Page>(options: {
+import { createStore } from "solid-js/store";
+
+type LoadStatus = "loading" | "loaded" | "error";
+
+export function createKeyedPageLoader<Key extends string, Page>(options: {
   load: (key: Key) => Promise<Page>;
   onResult: (key: Key, page: Page) => void;
-  onStateChange?: () => void;
 }) {
-  const errors = new Set<Key>();
-  const loaded = new Set<Key>();
-  const loading = new Set<Key>();
+  const [status, setStatus] = createStore<Record<string, LoadStatus | undefined>>({});
 
   async function load(key: Key): Promise<boolean> {
-    if (loading.has(key)) return false;
-    loading.add(key);
-    errors.delete(key);
-    options.onStateChange?.();
+    if (status[key] === "loading") return false;
+    setStatus(key, "loading");
     try {
       const page = await options.load(key);
       options.onResult(key, page);
-      loaded.add(key);
+      setStatus(key, "loaded");
       return true;
     } catch {
-      loaded.delete(key);
-      errors.add(key);
+      setStatus(key, "error");
       return false;
-    } finally {
-      loading.delete(key);
-      options.onStateChange?.();
     }
   }
 
   return {
-    hasError: (key: Key) => errors.has(key),
-    hasLoaded: (key: Key) => loaded.has(key),
-    isLoading: (key: Key) => loading.has(key),
+    hasError: (key: Key) => status[key] === "error",
+    hasLoaded: (key: Key) => status[key] === "loaded",
+    isLoading: (key: Key) => status[key] === "loading",
     load,
   };
 }

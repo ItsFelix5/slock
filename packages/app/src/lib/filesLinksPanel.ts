@@ -1,6 +1,7 @@
-import { type SlackFile, type SlackLink, searchChannelFilesAndLinks } from "@slock/slack-api";
 import { createRoot, createSignal } from "solid-js";
-import { channelDisplayName, store } from "./store";
+import { type SlackFile, type SlackLink, searchChannelFilesAndLinks } from "./api";
+import { channelDisplayName, dmDisplayName } from "./displayName";
+import { store } from "./store";
 
 export type FilesLinksEntry =
   | { kind: "file"; sortTs: number; file: SlackFile }
@@ -45,8 +46,10 @@ function setup() {
     setFilesLinksLoading(true);
     setFilesLinksLoadError(false);
     try {
-      const channel = store.channels.channelById(channelId);
-      const channelName = channelDisplayName(channel, channelId);
+      const dm = store.dms.dmById(channelId);
+      const channelName = dm
+        ? dmDisplayName(dm, store.users.userById) || channelId
+        : channelDisplayName(store.channels.channelById(channelId), channelId);
       const { files, hasMore, links } = await searchChannelFilesAndLinks(
         channelId,
         channelName,

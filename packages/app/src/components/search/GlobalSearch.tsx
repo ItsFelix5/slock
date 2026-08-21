@@ -1,5 +1,3 @@
-import type { Channel, DirectMessage, SlackFile, User } from "@slock/slack-api";
-import { type GlobalSearchResults as SearchResults, searchGlobal } from "@slock/slack-api";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,
@@ -7,7 +5,6 @@ import {
   Icon,
   listNavigationIndex,
   Modal,
-  ModalCloseButton,
 } from "@slock/ui";
 import {
   createEffect,
@@ -17,7 +14,10 @@ import {
   onCleanup,
   untrack,
 } from "solid-js";
-import { dmDisplayName, store } from "../../lib/store";
+import type { Channel, DirectMessage, SlackFile, User } from "../../lib/api";
+import { type GlobalSearchResults as SearchResults, searchGlobal } from "../../lib/api";
+import { dmDisplayName } from "../../lib/displayName";
+import { store } from "../../lib/store";
 import "./GlobalSearch.css";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
@@ -245,7 +245,6 @@ export default function GlobalSearch(props: {
           type="text"
           value={query()}
         />
-        <ModalCloseButton onClose={props.onClose} />
       </div>
       <GlobalSearchResults
         activeIndex={activeIndex()}

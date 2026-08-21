@@ -4,12 +4,15 @@
   width: 100%;
   height: 100%;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--main-bg);
 }
 
 .user-profile-body {
+  flex: 1;
+  min-height: 0;
   padding: 20px 20px 24px;
+  overflow-y: auto;
 }
 
 .user-profile-feedback {
@@ -27,7 +30,7 @@
   font-size: 12px;
   color: var(--danger);
   background: var(--danger-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .user-profile-avatar-wrap {
@@ -42,7 +45,7 @@
   font-size: 28px;
   font-weight: 700;
   color: var(--text-on-avatar);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 button.user-profile-avatar {
@@ -130,6 +133,10 @@ button.user-profile-presence:disabled {
   font-size: 14px;
 }
 
+.user-profile-nickname {
+  margin-top: 8px;
+}
+
 .user-profile-meta {
   margin: 10px 0 0;
 }
@@ -149,7 +156,7 @@ button.user-profile-presence:disabled {
   color: var(--text-on-accent);
   background: var(--accent);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .user-profile-message-btn:hover:not(:disabled) {
@@ -219,6 +226,7 @@ button.user-profile-presence:disabled {
 .user-profile-name-input,
 .user-profile-title-input,
 .user-profile-pronouns-input,
+.user-profile-nickname-input,
 .user-profile-field-input {
   padding: 3px 6px;
   margin: -3px -6px;
@@ -226,7 +234,7 @@ button.user-profile-presence:disabled {
   color: var(--text-primary);
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .user-profile-name-input {
@@ -235,7 +243,8 @@ button.user-profile-presence:disabled {
 }
 
 .user-profile-title-input,
-.user-profile-pronouns-input {
+.user-profile-pronouns-input,
+.user-profile-nickname-input {
   font-size: 14px;
   color: var(--text-secondary);
 }
@@ -248,6 +257,7 @@ textarea.user-profile-title-input {
   resize: none;
 }
 
+.user-profile-nickname-input,
 .user-profile-field-input {
   display: block;
   width: 100%;
@@ -257,6 +267,7 @@ textarea.user-profile-title-input {
 .user-profile-name-input::placeholder,
 .user-profile-title-input::placeholder,
 .user-profile-pronouns-input::placeholder,
+.user-profile-nickname-input::placeholder,
 .user-profile-field-input::placeholder {
   color: var(--text-dim);
 }
@@ -264,6 +275,7 @@ textarea.user-profile-title-input {
 .user-profile-name-input:hover,
 .user-profile-title-input:hover,
 .user-profile-pronouns-input:hover,
+.user-profile-nickname-input:hover,
 .user-profile-field-input:hover {
   background: var(--hover-bg);
   border-color: var(--border);
@@ -272,15 +284,22 @@ textarea.user-profile-title-input {
 .user-profile-name-input:focus,
 .user-profile-title-input:focus,
 .user-profile-pronouns-input:focus,
+.user-profile-nickname-input:focus,
 .user-profile-field-input:focus {
-  outline: none;
   background: var(--hover-bg);
   border-color: var(--accent);
+}
+.user-profile-title-input:focus:not(:focus-visible),
+.user-profile-pronouns-input:focus:not(:focus-visible),
+.user-profile-nickname-input:focus:not(:focus-visible),
+.user-profile-field-input:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .user-profile-name-input:disabled,
 .user-profile-title-input:disabled,
 .user-profile-pronouns-input:disabled,
+.user-profile-nickname-input:disabled,
 .user-profile-field-input:disabled {
   cursor: wait;
   opacity: 0.65;

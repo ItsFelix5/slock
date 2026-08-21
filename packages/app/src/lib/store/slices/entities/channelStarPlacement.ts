@@ -1,12 +1,9 @@
-import type { ChannelSection } from "@slock/slack-api";
-import { updateSectionChannels as apiUpdateSectionChannels, toggleStar } from "@slock/slack-api";
 import { createStore } from "solid-js/store";
-import { actionFeedback } from "../feedback";
-import type { ChannelPlacementOutcome } from "./mutations/channelPlacementOutcome";
+import type { ChannelSection } from "../../../api";
+import { updateSectionChannels as apiUpdateSectionChannels, toggleStar } from "../../../api";
+import type { ChannelPlacementOutcome } from "../../../channelSectionMutations";
+import { actionFeedback } from "../../../feedback";
 
-/** Starring a channel and moving it between sections both mutate the same "which section is a
- * channel in" state on the server, and both need the same pending/rollback shape - kept together
- * rather than duplicated. */
 export function createChannelStarPlacement(deps: {
   refreshSections: () => Promise<ChannelSection[] | null | undefined>;
   sections: () => ChannelSection[] | undefined;

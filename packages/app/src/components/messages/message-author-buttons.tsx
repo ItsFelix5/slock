@@ -1,5 +1,5 @@
-import type { UserStatus } from "@slock/slack-api";
 import { Avatar, DEFAULT_AVATAR_COLOR } from "@slock/ui";
+import type { UserStatus } from "../../lib/api";
 export function MessageAvatarButton(props: {
   color?: string;
   name: string;

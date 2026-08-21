@@ -3,7 +3,7 @@ import type {
   ButtonElement,
   ImageElement as ImageElementType,
   OverflowElement,
-} from "@slock/slack-api";
+} from "@slock/types";
 import { Show } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
 import Button from "./Button";

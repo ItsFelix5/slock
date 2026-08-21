@@ -1,4 +1,4 @@
-import type { InputBlock } from "@slock/slack-api";
+import type { InputBlock } from "@slock/types";
 import { Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";

@@ -1,5 +1,5 @@
-import { addReminder, runSlashCommand, setChannelTopic } from "@slock/slack-api";
-import { actionFeedback, composerFeedbackKey } from "../feedback";
+import { addReminder, runSlashCommand, setChannelTopic } from "../../../api";
+import { actionFeedback, composerFeedbackKey } from "../../../feedback";
 
 const SLASH_COMMAND_RE = /^\/(\S+)\s*(.*)$/s;
 
@@ -16,7 +16,7 @@ export function createCommandsSlice(deps: {
     threadTs: string | undefined,
     input: string,
   ): Promise<{ handled: boolean; succeeded: boolean }> {
-    const match = input.match(SLASH_COMMAND_RE);
+    const match = SLASH_COMMAND_RE.exec(input);
     if (!match) return { handled: false, succeeded: false };
     const [, command, rest] = match;
     const key = composerFeedbackKey(threadTs ?? channelId);

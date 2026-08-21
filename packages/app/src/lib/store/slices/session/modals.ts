@@ -1,5 +1,5 @@
-import type { ModalView } from "@slock/slack-api";
 import { createMemo, createSignal } from "solid-js";
+import type { ModalView } from "../../../api";
 
 export function createModalsSlice() {
   const [viewStack, setViewStack] = createSignal<ModalView[]>([]);

@@ -1,4 +1,4 @@
-import type { ChannelDetails } from "@slock/slack-api";
+import type { ChannelDetails } from "../../../../lib/api";
 
 export type ChannelDetailsDraft = Pick<ChannelDetails, "name" | "purpose" | "topic">;
 export type EditableChannelDetails = ChannelDetailsDraft & Pick<ChannelDetails, "id">;

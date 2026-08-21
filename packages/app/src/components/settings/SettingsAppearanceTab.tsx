@@ -11,22 +11,23 @@ import {
   getEffectiveColor,
   IconButton,
   logDeletedMessages,
-  messageSize,
   resetThemeColor,
   Slider,
   Switch,
   setLogDeletedMessages,
-  setMessageSize,
   setThemeColors,
+  setThemeShape,
   THEME_COLOR_KEYS,
   THEME_COLOR_LABELS,
   THEME_PRESETS,
   Tooltip,
+  themeShape,
 } from "@slock/ui";
 import { createEffect, createSignal, For } from "solid-js";
 import "./Settings.css";
 
-const MESSAGE_SIZE_LABELS = ["Compact", "Default", "Large"];
+const DENSITY_LABELS = ["Compact", "Default", "Spacious"];
+const ROUNDNESS_LABELS = ["Sharp", "Default", "Round"];
 
 export default function SettingsAppearanceTab() {
   const [fontDraft, setFontDraft] = createSignal(getEffectiveColor("font"));
@@ -57,14 +58,26 @@ export default function SettingsAppearanceTab() {
       <h2>Appearance</h2>
 
       <div class="settings-row flex-between">
-        <div class="settings-row-label">Message size</div>
+        <div class="settings-row-label">Density</div>
         <Slider
-          ariaLabel="Message size"
-          labels={MESSAGE_SIZE_LABELS}
+          ariaLabel="Density"
+          labels={DENSITY_LABELS}
           max={2}
           min={0}
-          onChange={setMessageSize}
-          value={messageSize()}
+          onChange={(value) => setThemeShape({ density: value })}
+          value={themeShape().density}
+        />
+      </div>
+
+      <div class="settings-row flex-between">
+        <div class="settings-row-label">Roundness</div>
+        <Slider
+          ariaLabel="Roundness"
+          labels={ROUNDNESS_LABELS}
+          max={2}
+          min={0}
+          onChange={(value) => setThemeShape({ roundness: value })}
+          value={themeShape().roundness}
         />
       </div>
 

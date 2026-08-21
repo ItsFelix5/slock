@@ -1,7 +1,8 @@
 import { Button, Icon } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
+import { channelDisplayName, dmDisplayName } from "../../lib/displayName";
 import { usePaneView } from "../../lib/paneView";
-import { channelDisplayName, dmDisplayName, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
 import { createMessageFocus } from "./messageFocus";
@@ -11,7 +12,6 @@ import MessageListDateNav from "./parts/MessageListDateNav";
 export default function MessageList() {
   const { clearMessageTarget, messageTarget, view: paneView } = usePaneView();
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let scrollRef: HTMLDivElement | undefined;
 
   const messages = createMemo(() => {
@@ -23,7 +23,7 @@ export default function MessageList() {
   const messageFocus = createMessageFocus(messages, () => scrollRef, activeChannelId, {
     onOpenThread: (ts, opts) => {
       const v = paneView();
-      if (v) store.viewState.openThread(v.id, ts, undefined, opts);
+      if (v) store.viewState.openThread(v.id, ts, ts, opts);
     },
   });
 
@@ -138,12 +138,9 @@ export default function MessageList() {
                   channelId={v().id}
                   editingTs={messageFocus.editingTs}
                   focusedTs={messageFocus.focusedTs}
-                  listFocused={messageFocus.listFocused}
                   messages={messages()}
                   onJumpToMessage={jumpToMessage}
-                  onOpenThread={(ts, opts) =>
-                    store.viewState.openThread(v().id, ts, undefined, opts)
-                  }
+                  onOpenThread={(ts, opts) => store.viewState.openThread(v().id, ts, ts, opts)}
                   onStartEdit={messageFocus.onStartEdit}
                   onStopEdit={messageFocus.onStopEdit}
                 />

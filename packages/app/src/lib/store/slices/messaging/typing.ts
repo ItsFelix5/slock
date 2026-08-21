@@ -1,6 +1,6 @@
-import type { User } from "@slock/slack-api";
 import { onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
+import type { User } from "../../../api";
 
 const TYPING_TTL_MS = 4000;
 

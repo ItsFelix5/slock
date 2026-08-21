@@ -1,6 +1,6 @@
-import type { User } from "@slock/slack-api";
 import { Avatar } from "@slock/ui";
 import { createMemo } from "solid-js";
+import type { User } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import ComposePicker from "./ComposePicker";
 import "./ComposeUserPicker.css";

@@ -1,12 +1,12 @@
 import { createEffect, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { listNavigationIndex } from "../../form/listNavigation";
 import { useClickOutside } from "../../useClickOutside";
 import { useEscapeClose } from "../../useEscapeClose";
 import { FloatingMountContext } from "../floating/floatingMountContext";
 import { clamp } from "../floating/viewportClamp";
 import "./ContextMenu.css";
 import "./MenuButton.css";
+import { createMenuRovingFocus } from "./rovingMenuFocus";
 
 export interface ContextMenuProps {
   children: JSX.Element;
@@ -62,14 +62,9 @@ function ContextMenuPanel(props: {
   setRef: (el: HTMLDivElement) => void;
   children: JSX.Element;
 }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let ref: HTMLDivElement | undefined;
 
-  const menuItems = () =>
-    [...(ref?.querySelectorAll<HTMLElement>(".menu-item:not([disabled])") ?? [])].filter(
-      (element) => element.closest("[data-menu-panel]") === ref,
-    );
-  const focusMenuItem = (index: number) => queueMicrotask(() => menuItems()[index]?.focus());
+  const roving = createMenuRovingFocus(() => ref);
 
   onMount(() => {
     if (!ref) return;
@@ -80,20 +75,16 @@ function ContextMenuPanel(props: {
     const top = clamp(props.y, 8, window.innerHeight - rect.height - 8);
     ref.style.left = `${left}px`;
     ref.style.top = `${top}px`;
-    focusMenuItem(0);
+    roving.focusMenuItem(0);
   });
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    const items = menuItems();
-    const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = listNavigationIndex(event.key, current < 0 ? null : current, items.length, {
-      wrap: true,
-    });
-    if (next === undefined) return;
-    event.preventDefault();
-    event.stopPropagation();
-    focusMenuItem(next);
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (roving.moveByKey(current, event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
   };
 
   return (

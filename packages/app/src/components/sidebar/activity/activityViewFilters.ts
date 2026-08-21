@@ -1,5 +1,5 @@
-import { ACTIVITY_KIND_FEED_TYPES, type ActivityItem } from "@slock/slack-api";
 import type { IconName } from "@slock/ui";
+import { ACTIVITY_KIND_FEED_TYPES, type ActivityItem } from "../../../lib/api";
 import type { ActivityRow as ActivityRowData } from "./ActivityRow";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 

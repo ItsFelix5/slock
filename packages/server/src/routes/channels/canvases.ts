@@ -4,8 +4,6 @@ import { trimFile } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
 
 export const canvasRoutes: Route[] = [
-  // Canvases are backed by a regular Slack file sharing the same id, so this
-  // is files.info projected to just the title/download URL a canvas tab needs.
   route("GET", "/api/canvases/:id/file-info", async (ctx) => {
     const data = await callSlack("files.info", { file: ctx.params.id }, ctx.creds);
     if (!data.ok) {

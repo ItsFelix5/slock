@@ -1,15 +1,35 @@
 import { EmojiText, formatTime } from "@slock/blockkit";
-import type { ActivityItem } from "@slock/slack-api";
-import { Avatar, AvatarStack, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
+import {
+  Avatar,
+  AvatarStack,
+  ClickableInline,
+  ContextMenu,
+  DEFAULT_AVATAR_COLOR,
+  Icon,
+  openContextMenuFromKeyboard,
+  Tooltip,
+  useContextMenu,
+} from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import { type ActivityItem, type Block, formatDayFromMs, type Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
-import type { MessageAuthorFields } from "../../messages/parts/messageRenderState";
+import MessageActionsMenuItems from "../../messages/parts/MessageActionsMenuItems";
+import {
+  type MessageAuthorFields,
+  resolveProfileUserId,
+} from "../../messages/parts/messageRenderState";
 import ReactionRow from "../../messages/parts/ReactionRow";
-import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
+import {
+  openConversation,
+  openConversationInSplit,
+  SplitNavigation,
+} from "../../navigation/SplitNavigation";
+import ClickableAuthorName from "../../user/ClickableAuthorName";
 import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
 import { activityVerb } from "./activityMetadata";
 import "./ActivityRow.css";
 import { ActivityRowActions } from "./ActivityRowActions";
+import ActivityRowMenuItems from "./ActivityRowMenuItems";
 import "./ActivityThread.css";
 import { createActivityRowDisplay } from "./activityRowDisplay";
 import { ActivityMessageText, ThreadMessageRow } from "./activityThreadMessage";
@@ -28,26 +48,53 @@ export function rowTarget(row: ActivityRow) {
 
 function TimelineRow(props: {
   author: MessageAuthorFields;
+  blocks?: Block[];
+  channelId: string;
   isFirst: boolean;
   isLast: boolean;
   isRoot: boolean;
+  message?: Message;
   onOpen: () => void;
   text: string;
+  threadTs: string;
   ts: string;
   unread: boolean;
 }) {
+  const ctxMenu = useContextMenu();
   return (
-    <ThreadMessageRow
-      author={props.author}
-      eventLabel={props.isRoot ? "started the thread" : undefined}
-      isFirst={props.isFirst}
-      isLast={props.isLast}
-      isRoot={props.isRoot}
-      onOpen={props.onOpen}
-      text={props.text}
-      time={parseFloat(props.ts) * 1000}
-      unread={props.unread}
-    />
+    <>
+      <ThreadMessageRow
+        author={props.author}
+        blocks={props.blocks}
+        eventLabel={props.isRoot ? "started the thread" : undefined}
+        isFirst={props.isFirst}
+        isLast={props.isLast}
+        isRoot={props.isRoot}
+        onContextMenu={props.message ? ctxMenu.open : undefined}
+        onOpen={props.onOpen}
+        text={props.text}
+        time={parseFloat(props.ts) * 1000}
+        unread={props.unread}
+      />
+      <Show when={props.message}>
+        {(message) => (
+          <ContextMenu
+            onClose={ctxMenu.close}
+            open={ctxMenu.isOpen()}
+            x={ctxMenu.x()}
+            y={ctxMenu.y()}
+          >
+            <MessageActionsMenuItems
+              channelId={props.channelId}
+              msg={message()}
+              onClose={ctxMenu.close}
+              onEditRequest={props.onOpen}
+              threadTs={props.threadTs}
+            />
+          </ContextMenu>
+        )}
+      </Show>
+    </>
   );
 }
 
@@ -56,14 +103,25 @@ export default function ActivityRow(props: {
   onSeen: (items: readonly ActivityItem[]) => void;
 }) {
   const [expanded, setExpanded] = createSignal(false);
+  const ctxMenu = useContextMenu();
   const latest = createMemo(() => props.row.items[0]);
   const isThreadGroup = createMemo(() => props.row.isThread);
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
+  const saveTarget = createMemo(() => rowTarget(props.row));
+  const isSaved = createMemo(() =>
+    store.later.isSavedForLater(saveTarget().channelId, saveTarget().ts),
+  );
+  const savePending = createMemo(
+    () =>
+      store.later.laterLoading() ||
+      store.later.isSaveForLaterPending(saveTarget().channelId, saveTarget().ts),
+  );
 
   const {
     avatarUrl,
     channelLabel,
     displayName,
+    hasKnownActor,
     interactorNames,
     isPinging,
     isReacted,
@@ -75,10 +133,12 @@ export default function ActivityRow(props: {
     showsActivityVerb,
     user,
   } = createActivityRowDisplay({ items: () => props.row.items, latest });
+  const profileUserId = createMemo(() => resolveProfileUserId(latest()));
 
   const {
     earlierMessageCount,
     entryAuthor,
+    entryBlocks,
     entryText,
     entryUnread,
     firstTimelineTs,
@@ -116,23 +176,29 @@ export default function ActivityRow(props: {
     const item = latest();
     if (!item.channelId) return;
     props.onSeen(props.row.items);
-    openConversationInSplit(item.channelId, item.threadTs ?? item.ts);
+    if (item.threadTs)
+      store.viewState.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });
+    else openConversationInSplit(item.channelId, item.ts);
   };
 
-  const openThreadInSplit = () => {
+  const openThreadInSplit = (ts: string) => {
     props.onSeen(props.row.items);
-    openConversationInSplit(latest().channelId, threadTs());
+    store.viewState.openThread(latest().channelId, threadTs(), ts, { pinned: true });
   };
 
   const renderEntry = (entry: TimelineEntry) => (
-    <SplitNavigation onSplit={openThreadInSplit}>
+    <SplitNavigation onSplit={() => openThreadInSplit(entry.ts)}>
       <TimelineRow
         author={entryAuthor(entry)}
+        blocks={entryBlocks(entry)}
+        channelId={latest().channelId}
         isFirst={entry.ts === firstTimelineTs()}
         isLast={entry.ts === lastTimelineTs()}
         isRoot={entry.isRoot}
+        message={entry.message}
         onOpen={() => openThreadTs(entry.ts)}
         text={entryText(entry)}
+        threadTs={threadTs()}
         ts={entry.ts}
         unread={entryUnread(entry)}
       />
@@ -155,21 +221,40 @@ export default function ActivityRow(props: {
             class="activity-item-summary btn-reset"
             data-nav-row
             onClick={openRow}
+            onContextMenu={ctxMenu.open}
+            onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
+            tabIndex={-1}
             type="button"
           >
             <span class="activity-item-avatar">
               <Show
                 fallback={
-                  <Avatar
-                    size="small"
-                    user={{
-                      avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
-                      avatarUrl: avatarUrl(),
-                      id: latest().userId,
-                      name: displayName(),
-                      presence: user()?.presence,
-                    }}
-                  />
+                  <Show
+                    fallback={
+                      <span class="activity-item-avatar-icon">
+                        <Icon
+                          name={
+                            latest().activityType === "saved_reminder"
+                              ? "reminder"
+                              : ACTIVITY_KIND_ICONS[latest().kind]
+                          }
+                          size={12}
+                        />
+                      </span>
+                    }
+                    when={hasKnownActor()}
+                  >
+                    <Avatar
+                      size="small"
+                      user={{
+                        avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
+                        avatarUrl: avatarUrl(),
+                        id: latest().userId,
+                        name: displayName(),
+                        presence: user()?.presence,
+                      }}
+                    />
+                  </Show>
                 }
                 when={isThreadGroup()}
               >
@@ -204,13 +289,23 @@ export default function ActivityRow(props: {
                   </Show>
                 </Tooltip>
                 <Show when={!(isThreadGroup() || isStandaloneActivity())}>
-                  <strong>{displayName()}</strong>
+                  <Show fallback={<strong>{displayName()}</strong>} when={profileUserId()}>
+                    {(id) => (
+                      <ClickableAuthorName userId={id()}>
+                        <strong>{displayName()}</strong>
+                      </ClickableAuthorName>
+                    )}
+                  </Show>
                 </Show>
                 <Show when={showsActivityVerb()}>
                   <span class="activity-channel">{activityVerb(latest())}</span>
                 </Show>
                 <Show when={latest().kind !== "dm" && !isStandaloneActivity()}>
-                  <span class="activity-channel">{channelLabel()}</span>
+                  <span class="activity-channel">
+                    <ClickableInline onActivate={() => openConversation(latest().channelId)}>
+                      {channelLabel()}
+                    </ClickableInline>
+                  </span>
                 </Show>
                 <Show when={props.row.items.length > 1}>
                   <span class="activity-reply-count">{props.row.items.length}</span>
@@ -220,11 +315,15 @@ export default function ActivityRow(props: {
                     <Icon name="check" size={11} /> Reacted
                   </span>
                 </Show>
-                <span class="activity-time">{formatTime(latest().time)}</span>
+                <Tooltip
+                  content={`${formatDayFromMs(latest().time)} at ${formatTime(latest().time)}`}
+                >
+                  <span class="activity-time">{formatTime(latest().time)}</span>
+                </Tooltip>
               </span>
               <Show when={!isThreadGroup()}>
                 <span class="activity-snippet">
-                  <ActivityMessageText text={latest().text} />
+                  <ActivityMessageText blocks={latest().blocks} text={latest().text} />
                 </span>
               </Show>
             </span>
@@ -255,6 +354,7 @@ export default function ActivityRow(props: {
                 class="activity-read-more btn-reset"
                 data-nav-row
                 onClick={() => setExpanded(true)}
+                tabIndex={-1}
                 type="button"
               >
                 <Icon name="history" size={13} />
@@ -271,14 +371,28 @@ export default function ActivityRow(props: {
       </div>
 
       <ActivityRowActions
-        isThread={isThreadGroup()}
-        onUnsubscribe={() => store.messages.unsubscribeFromThread(latest().channelId, threadTs())}
+        isSaved={isSaved()}
+        isThread={
+          isThreadGroup() && !store.messages.isThreadUnsubscribed(latest().channelId, threadTs())
+        }
+        isUnread={isUnread()}
+        onMarkRead={() => props.onSeen(props.row.items)}
+        onToggleSave={() => store.later.toggleSaveForLater(saveTarget().channelId, saveTarget().ts)}
+        onUnsubscribe={() => {
+          store.messages.unsubscribeFromThread(latest().channelId, threadTs());
+          props.onSeen(props.row.items);
+        }}
+        savePending={savePending()}
         unsubscribePending={store.messages.isThreadSubscriptionPending(
           latest().channelId,
           threadTs(),
         )}
       />
       <span class="activity-unread-dot" classList={{ unread: isUnread() }} />
+
+      <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
+        <ActivityRowMenuItems onClose={ctxMenu.close} onSeen={props.onSeen} row={props.row} />
+      </ContextMenu>
     </article>
   );
 }

@@ -1,6 +1,6 @@
-import type { Message } from "@slock/slack-api";
 import type { SetStoreFunction, Store } from "solid-js/store";
-import { mergeMessages } from "./merge/messageMerge";
+import type { Message } from "../../../api";
+import { mergeMessages } from "../../../messageMerge";
 
 type HistoryMeta = {
   anchored?: boolean;
@@ -12,9 +12,6 @@ type HistoryMeta = {
   olderError?: boolean;
 };
 
-/** Jumping to an arbitrary point in history (a date, the channel's start, a permalinked message)
- * all share the same shape: fetch a window anchored at some timestamp, replace the loaded
- * messages with it, and fall back to `loadRecentHistory` on failure or a miss. */
 export function createHistoryJump(deps: {
   api: {
     fetchChannelDetails: (channelId: string) => Promise<{ created?: number }>;

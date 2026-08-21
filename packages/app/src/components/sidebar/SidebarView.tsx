@@ -53,10 +53,11 @@ export default function SidebarView(props: { context: SidebarContext }) {
     sectionsLoading,
     sectionStructurePending,
     handleSectionDragStart,
-    handleSectionDragOver,
-    handleSectionDragLeave,
     handleSectionDrop,
     handleSectionDragEnd,
+    handleSectionsDragOver,
+    handleSectionsDragLeave,
+    setSectionListRef,
     peopleDms,
     preferencesError,
     preferencesLoading,
@@ -166,7 +167,10 @@ export default function SidebarView(props: { context: SidebarContext }) {
         when={!feedMode()}
       >
         <div class="sidebar-scroll">
-          <Show fallback={<SidebarSkeleton />} when={!bootstrap.loading}>
+          <Show
+            fallback={<SidebarSkeleton />}
+            when={!(bootstrap.loading || sectionsLoading() || preferencesLoading())}
+          >
             <Show when={preferencesError()}>
               <div class="sidebar-resource-error">
                 <span>Couldn't load preferences.</span>
@@ -194,98 +198,116 @@ export default function SidebarView(props: { context: SidebarContext }) {
               </div>
             </Show>
             <SidebarUnreadDmSection {...{ setUnreadDmsOpen, unreadDms, unreadDmsOpen }} />
-            <For each={categories()}>
-              {(cat) => (
-                <div
-                  class="sidebar-section"
-                  classList={{
-                    "sidebar-section-dragging": cat.reorderable && draggingSectionId() === cat.id,
-                    "sidebar-section-drop-after":
-                      cat.reorderable &&
-                      dropTarget()?.id === cat.id &&
-                      dropTarget()?.before === false,
-                    "sidebar-section-drop-before":
-                      cat.reorderable &&
-                      dropTarget()?.id === cat.id &&
-                      dropTarget()?.before === true,
-                  }}
-                >
+            <div
+              class="sidebar-section-list"
+              onDragLeave={handleSectionsDragLeave}
+              onDragOver={handleSectionsDragOver}
+              onDrop={handleSectionDrop}
+              ref={setSectionListRef}
+            >
+              <For each={categories()}>
+                {(cat) => (
                   <div
-                    class="sidebar-section-header flex-align-center"
+                    class="sidebar-section"
                     classList={{
-                      "sidebar-section-header-draggable":
-                        cat.reorderable && !sectionStructurePending(),
+                      "sidebar-section-dragging": cat.reorderable && draggingSectionId() === cat.id,
+                      "sidebar-section-drop-after":
+                        cat.reorderable &&
+                        dropTarget()?.id === cat.id &&
+                        dropTarget()?.before === false,
+                      "sidebar-section-drop-before":
+                        cat.reorderable &&
+                        dropTarget()?.id === cat.id &&
+                        dropTarget()?.before === true,
                     }}
-                    draggable={
-                      cat.reorderable && renamingId() !== cat.id && !sectionStructurePending()
-                    }
-                    onDragEnd={handleSectionDragEnd}
-                    onDragLeave={() => cat.reorderable && handleSectionDragLeave(cat.id)}
-                    onDragOver={(e) => cat.reorderable && handleSectionDragOver(e, cat.id)}
-                    onDragStart={(e) => cat.reorderable && handleSectionDragStart(e, cat.id)}
-                    onDrop={(e) => cat.reorderable && handleSectionDrop(e)}
+                    data-reorderable={cat.reorderable ? "true" : undefined}
+                    data-section-id={cat.id}
                   >
-                    <Show
-                      fallback={
-                        <input
-                          aria-busy={sectionStructurePending()}
-                          autofocus
-                          class="sidebar-section-rename-input"
-                          onBlur={() => void commitRename()}
-                          onInput={(e) => setRenameValue(e.currentTarget.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") void commitRename();
-                            if (e.key === "Escape") {
-                              e.preventDefault();
-                              setRenamingId(null);
-                            }
-                          }}
-                          readOnly={sectionStructurePending()}
-                          value={renameValue()}
-                        />
+                    <div
+                      class="sidebar-section-header flex-align-center"
+                      classList={{
+                        "sidebar-section-header-draggable":
+                          cat.reorderable && !sectionStructurePending(),
+                      }}
+                      draggable={
+                        cat.reorderable && renamingId() !== cat.id && !sectionStructurePending()
                       }
-                      when={renamingId() !== cat.id}
+                      onDragEnd={handleSectionDragEnd}
+                      onDragStart={(e) => cat.reorderable && handleSectionDragStart(e, cat.id)}
                     >
-                      <SidebarSectionCaretRow
-                        caretIcon={
-                          collapsed().has(cat.id)
-                            ? "caret-right-filled"
-                            : cat.sidebar === "all"
-                              ? "caret-down-filled"
-                              : "section"
+                      <Show
+                        fallback={
+                          <input
+                            aria-busy={sectionStructurePending()}
+                            autofocus
+                            class="sidebar-section-rename-input"
+                            onBlur={() => void commitRename()}
+                            onInput={(e) => setRenameValue(e.currentTarget.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void commitRename();
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                setRenamingId(null);
+                              }
+                            }}
+                            readOnly={sectionStructurePending()}
+                            value={renameValue()}
+                          />
                         }
-                        label={cat.name}
-                        labelAriaLabel={`Toggle read channels in ${cat.name}`}
-                        onLabelClick={() => toggleSectionFilter(cat.id)}
-                        onToggleOpen={() => toggleCategory(cat.id)}
-                        open={!collapsed().has(cat.id)}
-                      />
-                    </Show>
-                    <InlineFeedback
-                      class="sidebar-section-feedback"
-                      feedback={actionFeedback.get(cat.id)}
-                    />
-                    <Show when={cat.filterable && renamingId() !== cat.id}>
-                      <SidebarSectionMenu cat={cat} context={props.context} />
-                    </Show>
-                  </div>
-                  <div>
-                    <For each={cat.channels}>
-                      {(ch) => (
-                        <Show
-                          when={
-                            !collapsed().has(cat.id) ||
-                            ((ch.mentions ?? 0) > 0 && !store.preferences.isChannelMuted(ch.id))
+                        when={renamingId() !== cat.id}
+                      >
+                        <SidebarSectionCaretRow
+                          caretIcon={
+                            collapsed().has(cat.id)
+                              ? "caret-right-filled"
+                              : cat.sidebar === "hid"
+                                ? "section"
+                                : "caret-down-filled"
                           }
-                        >
-                          <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />
-                        </Show>
-                      )}
-                    </For>
+                          label={cat.name}
+                          labelAriaLabel={`Toggle read channels in ${cat.name}`}
+                          onLabelClick={() => toggleSectionFilter(cat.id)}
+                          onToggleOpen={() => toggleCategory(cat.id)}
+                          open={!collapsed().has(cat.id)}
+                        />
+                      </Show>
+                      <InlineFeedback
+                        class="sidebar-section-feedback"
+                        feedback={actionFeedback.get(cat.id)}
+                      />
+                      <Show when={cat.filterable && renamingId() !== cat.id}>
+                        <SidebarSectionMenu cat={cat} context={props.context} />
+                      </Show>
+                    </div>
+                    <div>
+                      <For each={cat.channels}>
+                        {(ch) => {
+                          const isActiveChannel = () => {
+                            const v = store.viewState.activeView();
+                            return (
+                              store.viewState.nav() === "home" &&
+                              v?.kind === "channel" &&
+                              v.id === ch.id
+                            );
+                          };
+                          return (
+                            <Show
+                              when={
+                                !collapsed().has(cat.id) ||
+                                isActiveChannel() ||
+                                ((ch.mentions ?? 0) > 0 && !store.preferences.isChannelMuted(ch.id))
+                              }
+                            >
+                              <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />
+                            </Show>
+                          );
+                        }}
+                      </For>
+                    </div>
                   </div>
-                </div>
-              )}
-            </For>
+                )}
+              </For>
+            </div>
             <SidebarDmSections
               {...{ appDms, appsOpen, dmsOpen, peopleDms, setAppsOpen, setDmsOpen, unreadsOnly }}
             />

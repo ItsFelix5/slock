@@ -57,7 +57,7 @@
   color: var(--text-dim);
   letter-spacing: 0.02em;
   background: var(--hover-bg);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 button.message-bot-badge {
   cursor: pointer;
@@ -95,7 +95,7 @@ button.message-bot-badge {
   font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.02em;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 .message-saved-badge {
   color: var(--accent);
@@ -150,7 +150,7 @@ button.message-bot-badge {
   font-size: var(--font-size-control);
   font-weight: 700;
   color: var(--accent);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 .message-replies > svg,
 .message-replies > .tooltip-anchor,
@@ -178,7 +178,7 @@ button.message-bot-badge {
   padding: 3px var(--space-sm);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   pointer-events: none;
 }
 .message-replies:hover .message-replies-last {

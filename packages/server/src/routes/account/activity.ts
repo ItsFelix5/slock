@@ -1,4 +1,9 @@
-import { ACTIVITY_FEED_TYPES_PARAM } from "@slock/slack-api";
+import {
+  ACTIVITY_FEED_TYPES_PARAM,
+  type RichTextBlock,
+  richTextBlocksToPlainText,
+} from "@slock/types";
+import type { Credentials } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimActivityCounts } from "../../trim/slackEntities.ts";
@@ -9,11 +14,16 @@ function trimActivityMessage(message: any): any {
   return {
     author_user_id: message.author_user_id,
     bot_id: message.bot_id,
+    bot_profile: message.bot_profile ? { name: message.bot_profile.name } : undefined,
     channel: message.channel,
+    metadata: message.metadata?.event_payload?.source_user_id
+      ? { event_payload: { source_user_id: message.metadata.event_payload.source_user_id } }
+      : undefined,
     text: message.text,
     thread_ts: message.thread_ts,
     ts: message.ts,
     user: message.user,
+    username: message.username,
   };
 }
 
@@ -46,8 +56,41 @@ function findActivityText(value: any, depth = 0): string | undefined {
   }
 }
 
-function trimActivityItem(raw: any): any {
+async function fetchReminderTexts(
+  rawItems: any[],
+  creds: Credentials | null,
+): Promise<Map<string, string>> {
+  const ids = [
+    ...new Set(
+      rawItems
+        .filter((raw) => raw?.item?.type === "saved_reminder" && raw.item.linked_item_id)
+        .map((raw) => raw.item.linked_item_id as string),
+    ),
+  ];
+  const texts = new Map<string, string>();
+  if (ids.length === 0) return texts;
+  const data = await callSlack(
+    "saved.get",
+    {
+      items: JSON.stringify(
+        ids.map((id) => ({ item_id: id, item_detail: "", item_type: "reminder", ts: "" })),
+      ),
+    },
+    creds,
+  );
+  if (!data.ok) return texts;
+  for (const savedItem of data.saved_items ?? []) {
+    const blocks = savedItem?.description as RichTextBlock[] | undefined;
+    if (savedItem?.item_id && Array.isArray(blocks))
+      texts.set(savedItem.item_id, richTextBlocksToPlainText(blocks));
+  }
+  return texts;
+}
+
+function trimActivityItem(raw: any, reminderTexts: Map<string, string>): any {
   const item = raw?.item ?? {};
+  const reminderText =
+    item.type === "saved_reminder" ? reminderTexts.get(item.linked_item_id) : undefined;
   const payload = item.bundle_info?.payload;
   const thread = payload?.thread_entry;
   const dmEntry = payload?.dm_entry;
@@ -60,7 +103,7 @@ function trimActivityItem(raw: any): any {
     feed_ts: raw?.feed_ts,
     is_unread: raw?.is_unread,
     item: {
-      activity_text: findActivityText(item),
+      activity_text: reminderText ?? findActivityText(item),
       actor_user_id: item.actor_user_id,
       author_user_id: item.author_user_id,
       bundle_info: hasBundlePayload
@@ -174,9 +217,11 @@ export const activityRoutes: Route[] = [
       ctx.creds,
     );
     if (!data.ok) return slackErrorResponse(data, "activity.feed", ctx.creds, ctx.acceptEncoding);
+    const rawItems: any[] = Array.isArray(data.items) ? data.items : [];
+    const reminderTexts = await fetchReminderTexts(rawItems, ctx.creds);
     return jsonResponse(
       {
-        items: Array.isArray(data.items) ? data.items.map(trimActivityItem) : data.items,
+        items: rawItems.map((raw) => trimActivityItem(raw, reminderTexts)),
         ok: true,
         response_metadata: data.response_metadata
           ? { next_cursor: data.response_metadata.next_cursor }

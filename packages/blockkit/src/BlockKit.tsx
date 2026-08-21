@@ -19,7 +19,7 @@ import type {
   TableBlock,
   TaskCardBlock,
   VideoBlock,
-} from "@slock/slack-api";
+} from "@slock/types";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
 import "./blockkit.css";
 import Actions from "./blocks/Actions";

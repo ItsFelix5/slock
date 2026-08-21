@@ -14,7 +14,7 @@ function manualReload(): Plugin {
 
 export default defineConfig(async ({ command }) => ({
   optimizeDeps: {
-    exclude: ["@slock/ui", "@slock/slack-api", "@slock/blockkit"],
+    exclude: ["@slock/ui", "@slock/types", "@slock/blockkit"],
   },
   plugins: [
     solid(),

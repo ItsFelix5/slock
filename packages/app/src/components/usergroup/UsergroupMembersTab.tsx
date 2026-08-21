@@ -1,6 +1,6 @@
-import type { User } from "@slock/slack-api";
-import { Avatar, confirmDialog, Icon } from "@slock/ui";
+import { Avatar, confirmDialog, Icon, initRovingTabIndexDefault } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import type { User } from "../../lib/api";
 import { store } from "../../lib/store";
 import { addUsergroupMembers, removeUsergroupMember } from "../../lib/usergroupDetails";
 import ComposeUserPicker from "../composer/popovers/ComposeUserPicker";
@@ -12,6 +12,7 @@ export default function UsergroupMembersTab(props: {
   usergroupId: string;
   memberIds: string[];
 }) {
+  let listRef: HTMLDivElement | undefined;
   const [query, setQuery] = createSignal("");
   const [addingPeople, setAddingPeople] = createSignal(false);
 
@@ -24,6 +25,8 @@ export default function UsergroupMembersTab(props: {
     if (!q) return members();
     return members().filter((u) => u.name.toLowerCase().includes(q));
   });
+
+  initRovingTabIndexDefault(() => listRef, filteredMembers);
 
   const addMember = async (userId: string) => {
     if (props.disabled) return;
@@ -72,7 +75,7 @@ export default function UsergroupMembersTab(props: {
           />
         </div>
       </Show>
-      <div class="flex-col">
+      <div class="flex-col" ref={listRef}>
         <For each={filteredMembers()} fallback={<p class="usergroup-details-empty">No members.</p>}>
           {(u) => (
             <div class="usergroup-details-row">
@@ -80,6 +83,7 @@ export default function UsergroupMembersTab(props: {
                 class="usergroup-details-row-main btn-reset flex-align-center"
                 data-nav-row
                 onClick={() => store.users.openUserProfile(u.id)}
+                tabIndex={-1}
                 type="button"
               >
                 <Avatar size="small" user={u} />

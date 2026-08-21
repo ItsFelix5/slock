@@ -1,7 +1,8 @@
-import type { Message } from "@slock/slack-api";
 import { AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
-import { formatInteractorNames, store } from "../../../lib/store";
+import type { Message } from "../../../lib/api";
+import { formatInteractorNames } from "../../../lib/interactorNames";
+import { store } from "../../../lib/store";
 
 export default function MessageRepliesButton(props: {
   msg: Message;

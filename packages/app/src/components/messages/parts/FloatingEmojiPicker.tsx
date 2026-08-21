@@ -6,6 +6,7 @@ export default function FloatingEmojiPicker(props: {
   onClose: () => void;
   onSelect: (name: string) => void;
   open: boolean;
+  existingReactions?: { name: string; mine: boolean }[];
 }) {
   let panelRef: HTMLDivElement | undefined;
 
@@ -25,7 +26,11 @@ export default function FloatingEmojiPicker(props: {
         panelRef = element;
       }}
     >
-      <EmojiPicker onClose={props.onClose} onSelect={props.onSelect} />
+      <EmojiPicker
+        existingReactions={props.existingReactions}
+        onClose={props.onClose}
+        onSelect={props.onSelect}
+      />
     </FloatingPanel>
   );
 }

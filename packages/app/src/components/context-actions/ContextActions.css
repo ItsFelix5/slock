@@ -6,6 +6,12 @@
 .context-actions-content {
   padding: 6px 20px 16px;
   overflow-y: auto;
+  outline: none;
+}
+
+.context-actions-content:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: -2px;
 }
 
 .context-actions-content section + section {
@@ -27,12 +33,6 @@
   font-size: 13px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border);
-  outline: none;
-}
-
-.context-actions-row:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: -2px;
 }
 
 .context-actions-row:last-child {
@@ -47,5 +47,5 @@
   color: var(--text-secondary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }

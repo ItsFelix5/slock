@@ -1,4 +1,4 @@
-import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack-api";
+import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/types";
 import { DEFAULT_DATE_FORMAT, formatSlackDate } from "./dateFormat";
 import { type InlineDialect, MRKDWN_DIALECT } from "./inlineDialect";
 

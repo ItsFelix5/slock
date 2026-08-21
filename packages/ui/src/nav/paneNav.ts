@@ -1,4 +1,4 @@
-import { listNavigationIndex } from "../form/listNavigation";
+import { listNavigationIndex, rovingTabIndex } from "../form/listNavigation";
 import { plainKey, useShortcut } from "../useShortcut";
 
 const PANE_SELECTOR = "[data-pane]";
@@ -26,9 +26,11 @@ function focusPaneEntry(pane: HTMLElement) {
     rovingTarget.focus();
     return;
   }
-  pane
-    .querySelector<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')
-    ?.focus();
+
+  const focusable = 'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+  const candidates = [...pane.querySelectorAll<HTMLElement>(focusable)];
+  const bodyTarget = candidates.find((el) => !el.closest(".panel-header-wrap"));
+  (bodyTarget ?? candidates[0])?.focus();
 }
 
 export function focusPaneById(id: string): boolean {
@@ -36,6 +38,11 @@ export function focusPaneById(id: string): boolean {
   if (!pane) return false;
   focusPaneEntry(pane);
   return true;
+}
+
+export function paneRowsById(id: string): HTMLElement[] {
+  const pane = document.querySelector<HTMLElement>(`[data-pane="${CSS.escape(id)}"]`);
+  return pane ? paneRows(pane) : [];
 }
 
 export function usePaneNavigation() {
@@ -47,14 +54,16 @@ export function usePaneNavigation() {
       if (!pane) return;
       const rows = paneRows(pane);
       const current = rows.indexOf(document.activeElement as HTMLElement);
-      const key = e.key === "j" ? "ArrowDown" : e.key === "k" ? "ArrowUp" : e.key;
-      const next = listNavigationIndex(key, current < 0 ? null : current, rows.length);
+      const next = listNavigationIndex(e.key, current < 0 ? null : current, rows.length);
       if (next === undefined) return;
-      rows[next]?.focus();
+      rovingTabIndex(rows, next);
+      const target = rows[next];
+      target?.focus();
+      target?.scrollIntoView({ block: "nearest" });
     },
-    keys: "j / k",
-    label: "Move between list items (channels, activity, saved, pinned, files…)",
-    match: plainKey("j", "k", "Home", "End"),
+    keys: "↑ / ↓",
+    label: "Move between list items (activity, saved, pinned, files…)",
+    match: plainKey("ArrowDown", "ArrowUp", "Home", "End"),
     scope: "general",
   });
 

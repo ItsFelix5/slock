@@ -1,4 +1,4 @@
-import type { BlockElement, CardBlock, CarouselBlock } from "@slock/slack-api";
+import type { BlockElement, CardBlock, CarouselBlock } from "@slock/types";
 import { Icon, type IconName } from "@slock/ui";
 import { For, Show } from "solid-js";
 import BkText from "../BkText";
@@ -6,15 +6,13 @@ import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
 import ImageElement from "../elements/ImageElement";
 
-// slack_icon names are a fixed Block Kit enum; map them onto our closest icon-set entries
 const SLACK_ICON_NAME_MAP: Record<string, IconName> = {
-  clipboard: "form",
+  clipboard: "copy",
   compass: "explore",
   cube: "blocks",
   gear: "settings",
-  lightbulb: "magic-wand",
-  sparkle: "sparkles",
-  upload: "cloud-upload",
+  lightbulb: "emoji-objects",
+  upload: "file-upload",
 };
 
 function slackIconName(name: string): IconName {

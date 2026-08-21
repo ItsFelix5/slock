@@ -39,7 +39,7 @@
   height: 16px;
   overflow: hidden;
   font-size: var(--font-size-caption);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .reply-reference-avatar img {

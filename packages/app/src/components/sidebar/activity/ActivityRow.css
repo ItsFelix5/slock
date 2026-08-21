@@ -11,7 +11,7 @@
 .activity-item {
   position: relative;
   min-width: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   transition: background 120ms ease;
 }
 
@@ -45,7 +45,7 @@
   min-width: 0;
   padding: 8px 30px 8px 10px;
   text-align: left;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .activity-item-summary:focus-visible,
@@ -63,6 +63,18 @@
   flex: 0 0 22px;
   justify-content: center;
   min-height: 22px;
+}
+
+.activity-item-avatar-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-dim);
+  background: var(--active-bg);
+  border-radius: var(--radius-control);
 }
 
 .activity-body {
@@ -97,6 +109,18 @@
   align-items: center;
   font-size: 12px;
   line-height: 1;
+  animation: activity-reaction-pop 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes activity-reaction-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .activity-reaction-emoji .emoji-img {
@@ -175,22 +199,39 @@
   gap: 2px;
 }
 
-.activity-unsubscribe-toggle {
+.activity-unsubscribe-toggle,
+.activity-mark-read-toggle,
+.activity-save-toggle {
   width: 21px;
   height: 21px;
   color: var(--text-dim);
   opacity: 0.45;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .activity-item-wrap:hover .activity-unsubscribe-toggle,
-.activity-unsubscribe-toggle:focus-visible {
+.activity-item-wrap:hover .activity-mark-read-toggle,
+.activity-item-wrap:hover .activity-save-toggle,
+.activity-unsubscribe-toggle:focus-visible,
+.activity-mark-read-toggle:focus-visible,
+.activity-save-toggle:focus-visible,
+.activity-save-toggle.active {
   opacity: 1;
 }
 
-.activity-unsubscribe-toggle:hover {
+.activity-unsubscribe-toggle:hover,
+.activity-mark-read-toggle:hover,
+.activity-save-toggle:hover {
   color: var(--text-primary);
   background: var(--active-bg);
+}
+
+.activity-save-toggle.active {
+  color: var(--accent);
+}
+
+.activity-save-toggle:disabled {
+  cursor: wait;
 }
 
 .activity-unread-dot {

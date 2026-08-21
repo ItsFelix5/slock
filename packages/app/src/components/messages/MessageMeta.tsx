@@ -1,7 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
-import { fetchUserStatus, type Message, type User } from "@slock/slack-api";
 import { Icon, Tooltip } from "@slock/ui";
 import { type Accessor, createResource, Show } from "solid-js";
+import { fetchUserStatus, type Message, type User } from "../../lib/api";
 import UserHoverCard from "../user/UserHoverCard";
 import { MessageAuthorButton } from "./message-author-buttons";
 import { isRealUserId } from "./parts/messageRenderState";

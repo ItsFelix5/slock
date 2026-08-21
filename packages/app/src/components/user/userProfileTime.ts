@@ -1,6 +1,6 @@
 import { formatLastSeen } from "@slock/blockkit";
-import type { User } from "@slock/slack-api";
 import { type Accessor, createMemo } from "solid-js";
+import type { User } from "../../lib/api";
 
 export function createLocalTime(user: Accessor<User | undefined>, now: Accessor<number>) {
   return createMemo(() => {

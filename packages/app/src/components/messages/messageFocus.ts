@@ -1,6 +1,7 @@
-import type { Message } from "@slock/slack-api";
 import { plainKey, useShortcut } from "@slock/ui";
 import { type Accessor, createEffect, createSignal } from "solid-js";
+import type { Message } from "../../lib/api";
+import { copyMessageLink } from "../../lib/messageLinks";
 import { threadContainsMessage } from "../../lib/replyLink";
 import { store } from "../../lib/store";
 import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
@@ -37,9 +38,9 @@ export function createMessageFocus(
 
   function focusRow(ts: string) {
     setFocusedTs(ts);
-    container()
-      ?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`)
-      ?.focus();
+    const row = container()?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
+    row?.focus();
+    row?.scrollIntoView({ block: "nearest" });
   }
 
   function moveFocus(delta: number) {
@@ -75,11 +76,11 @@ export function createMessageFocus(
   const clickRowButton = (ariaLabel: string) => {
     const ts = focusedTs();
     if (ts === null) return;
-    container()
-      ?.querySelector<HTMLElement>(
-        `[data-message-ts="${CSS.escape(ts)}"] [aria-label="${ariaLabel}"]`,
-      )
-      ?.click();
+    const button = container()?.querySelector<HTMLElement>(
+      `[data-message-ts="${CSS.escape(ts)}"] [aria-label="${ariaLabel}"]`,
+    );
+    button?.focus();
+    button?.click();
   };
 
   useShortcut({
@@ -157,7 +158,7 @@ export function createMessageFocus(
     enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
-      if (ts !== null) store.messages.copyMessageLink(channelId(), ts);
+      if (ts !== null) copyMessageLink(channelId(), ts, callbacks.threadTs?.());
     },
     keys: "c",
     label: "Copy link",

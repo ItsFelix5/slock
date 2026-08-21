@@ -1,4 +1,4 @@
-import type { Attachment, LinkPreview } from "@slock/slack-api";
+import type { Attachment, LinkPreview } from "../../../lib/api";
 
 const URL_RE = /https?:\/\/[^\s<>]+/g;
 const TRAILING_PUNCTUATION_RE = /[),.!?;:'"]+$/;
@@ -19,6 +19,11 @@ export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
     title: preview.title || preview.url,
     titleLink: preview.url,
   };
+}
+
+const USERGROUP_PING_RE = /<!subteam\^/;
+export function hasUsergroupPing(value: string): boolean {
+  return USERGROUP_PING_RE.test(value);
 }
 
 const WHITESPACE_RE = /\s/;

@@ -1,6 +1,7 @@
 import { FloatingPanel, IconButton, InlineFeedback, MenuItem } from "@slock/ui";
 import { createSignal, For, onCleanup } from "solid-js";
-import { actionFeedback, store } from "../../../lib/store";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
 import "./DndButton.css";
 
 const OPEN_DELAY = 350;
@@ -17,7 +18,6 @@ const DURATIONS = [
 export default function DndButton() {
   const [open, setOpen] = createSignal(false);
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let wrapRef: HTMLFieldSetElement | undefined;
   let openTimer: ReturnType<typeof setTimeout> | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;

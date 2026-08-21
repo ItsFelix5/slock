@@ -1,6 +1,6 @@
-import type { SlackFile } from "@slock/slack-api";
 import { Avatar, IconButton, Skeleton } from "@slock/ui";
 import { createSignal, lazy, Show } from "solid-js";
+import type { SlackFile } from "../../lib/api";
 import FileDetailModal from "../channel/FileDetailModal";
 import GlobalSearch from "../search/GlobalSearch";
 import DndButton from "./dnd/DndButton";

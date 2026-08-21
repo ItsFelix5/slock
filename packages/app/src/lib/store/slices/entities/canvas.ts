@@ -1,14 +1,13 @@
-import type { CanvasListItem } from "@slock/slack-api";
+import { createStore } from "solid-js/store";
+import type { CanvasListItem } from "../../../api";
 import {
   fetchCanvas,
   fetchCanvasFileUrl,
   fetchCanvasTitle,
   fetchChannelCanvases,
-} from "@slock/slack-api";
-import { createStore } from "solid-js/store";
+} from "../../../api";
 import type { createPanesSlice } from "../session/panes";
 
-// Read-only for now: viewing/listing a channel's canvases, not creating or editing one.
 export function createCanvasSlice(deps: {
   panes: Pick<ReturnType<typeof createPanesSlice>, "openInNewPane">;
 }) {

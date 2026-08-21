@@ -28,16 +28,29 @@ export function createAppActions(deps: AppActionsDeps) {
     panes.closeUnpinnedThread();
   }
 
-  setActiveViewImplRef.current = (view: View) => {
-    batch(() => {
+  function closeThreadIfDifferentChannel(channelId: string) {
+    const thread = panes.panes().find((p) => p.content?.kind === "thread" && !p.content.pinned);
+    if (thread?.content?.kind === "thread" && thread.content.channelId !== channelId) {
       closeThread();
-      viewState.setSelected(view);
-      viewState.setNav("home");
-      unread.clearChannelUnread(view.id);
-      if (view.kind === "dm" && dms.closedDmIds[view.id]) dms.setClosedDmIds(view.id, false);
-      panes.navigateFocusedPane(view);
+    }
+  }
+
+  function switchToConversation(
+    channelId: string,
+    options?: { keepNav?: boolean; target?: ChannelMessageTarget },
+  ) {
+    const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
+    batch(() => {
+      closeThreadIfDifferentChannel(channelId);
+      viewState.setSelected({ id: channelId, kind });
+      if (!options?.keepNav) viewState.setNav("home");
+      unread.clearChannelUnread(channelId);
+      if (kind === "dm" && dms.closedDmIds[channelId]) dms.setClosedDmIds(channelId, false);
+      panes.navigateFocusedPane({ id: channelId, kind }, options?.target);
     });
-  };
+  }
+
+  setActiveViewImplRef.current = (view: View) => switchToConversation(view.id);
 
   function setNavView(next: Nav) {
     viewState.setNav(next);
@@ -60,34 +73,14 @@ export function createAppActions(deps: AppActionsDeps) {
     highlightTs?: string,
     options?: { keepNav?: boolean },
   ) {
-    const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
-    viewState.setSelected({ id: channelId, kind });
-
-    if (!options?.keepNav) viewState.setNav("home");
-    unread.clearChannelUnread(channelId);
-    openThread(channelId, ts, highlightTs);
+    batch(() => {
+      switchToConversation(channelId, options);
+      openThread(channelId, ts, highlightTs);
+    });
   }
 
   function openChannelMessage(channelId: string, ts: string, options?: { keepNav?: boolean }) {
-    const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
-
-    batch(() => {
-      const unpinnedThread = panes
-        .panes()
-        .find((p) => p.content?.kind === "thread" && !p.content.pinned);
-      if (
-        unpinnedThread?.content?.kind === "thread" &&
-        unpinnedThread.content.channelId !== channelId
-      ) {
-        closeThread();
-      }
-      viewState.setSelected({ id: channelId, kind });
-      if (!options?.keepNav) viewState.setNav("home");
-      unread.clearChannelUnread(channelId);
-      if (kind === "dm" && dms.closedDmIds[channelId]) dms.setClosedDmIds(channelId, false);
-      const target: ChannelMessageTarget = { channelId, ts };
-      panes.navigateFocusedPane({ id: channelId, kind }, target);
-    });
+    switchToConversation(channelId, { ...options, target: { channelId, ts } });
   }
 
   function openMessageSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {

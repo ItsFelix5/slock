@@ -1,4 +1,4 @@
-import type { ActivityItem, Channel, HistoryPage } from "@slock/slack-api";
+import type { ActivityItem, Channel, HistoryPage } from "../../../../api";
 
 export async function fetchChannelActivityItems({
   channels,

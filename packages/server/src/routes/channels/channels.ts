@@ -101,20 +101,11 @@ export const channelRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/posting-prefs", async (ctx) => {
-    const data = await callSlack(
-      "admin.conversations.getConversationPrefs",
-      { channel_id: ctx.params.id },
-      ctx.creds,
-    );
+    const data = await callSlack("conversations.info", { channel: ctx.params.id }, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(
-        data,
-        "admin.conversations.getConversationPrefs",
-        ctx.creds,
-        ctx.acceptEncoding,
-      );
+      return slackErrorResponse(data, "conversations.info", ctx.creds, ctx.acceptEncoding);
     }
-    const prefs = data.prefs ?? data;
+    const prefs = data.channel?.pref;
     return jsonResponse(
       {
         ok: true,
@@ -126,7 +117,7 @@ export const channelRoutes: Route[] = [
                 enable_at_here: prefs.enable_at_here,
                 who_can_post: prefs.who_can_post,
               }
-            : prefs,
+            : {},
       },
       ctx.creds,
       ctx.acceptEncoding,
@@ -139,8 +130,8 @@ export const channelRoutes: Route[] = [
     };
     if (!prefs) return errorResponse("invalid_prefs", 400);
     return mutate(
-      "admin.conversations.setConversationPrefs",
-      { channel_id: ctx.params.id, prefs: JSON.stringify(prefs) },
+      "conversations.setConversationPrefs",
+      { channel: ctx.params.id, prefs: JSON.stringify(prefs) },
       ctx,
     );
   }),

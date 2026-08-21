@@ -1,5 +1,3 @@
-import { extractSlackSession } from "@slock/slack-api";
-
 export const jsonHeaders = { "content-type": "application/json" };
 
 export type Credentials = {
@@ -17,7 +15,7 @@ const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slac
 const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\p{Cc}]+$/u;
 const SESSION_INVALID_CHARS_RE = /[;\s]/;
 
-function authPayloadError(value: unknown): string | null {
+function authPayloadError(value: unknown) {
   if (!(value && typeof value === "object")) return "Invalid credential payload.";
   const payload = value as Partial<AuthPayload>;
   if (typeof payload.domain !== "string" || !SLACK_DOMAIN_RE.test(payload.domain)) {
@@ -99,15 +97,7 @@ export function parseCredsCookie(cookieHeader: string | null): Credentials | nul
     if (part.slice(0, eq).trim() !== CREDS_COOKIE) continue;
     try {
       const parsed = JSON.parse(decodeURIComponent(part.slice(eq + 1).trim()));
-      if (isAuthPayload(parsed)) return parsed;
-
-      const slackSession =
-        typeof parsed?.cookie === "string" ? extractSlackSession(parsed.cookie) : null;
-      const migrated = { ...parsed, slackSession };
-      if (isAuthPayload(migrated)) {
-        const { domain, route, token } = migrated;
-        return { domain, route, slackSession: migrated.slackSession, token };
-      }
+      return isAuthPayload(parsed) ? parsed : null;
     } catch {
       return null;
     }

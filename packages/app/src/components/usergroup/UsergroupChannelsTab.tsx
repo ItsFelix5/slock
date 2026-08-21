@@ -1,6 +1,7 @@
 import { confirmDialog, Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { channelDisplayName, store } from "../../lib/store";
+import { channelDisplayName } from "../../lib/displayName";
+import { store } from "../../lib/store";
 import {
   addUsergroupChannels,
   removeUsergroupChannel,

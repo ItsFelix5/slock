@@ -108,12 +108,14 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .usergroup-details-input:focus {
-  outline: none;
   border-color: var(--accent);
+}
+.usergroup-details-input:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .usergroup-details-input:disabled,
@@ -177,7 +179,7 @@
   color: var(--text-primary);
   white-space: nowrap;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .usergroup-details-add-btn:hover:not(:disabled) {
@@ -208,7 +210,7 @@
   font-size: 13px;
   color: var(--text-primary);
   text-align: left;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .usergroup-details-row-main:hover {
@@ -228,7 +230,7 @@
   width: 26px;
   height: 26px;
   color: var(--text-dim);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .usergroup-details-row:hover .usergroup-details-row-remove,

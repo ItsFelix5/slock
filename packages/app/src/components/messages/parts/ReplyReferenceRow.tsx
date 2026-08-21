@@ -1,11 +1,12 @@
 import { Mrkdwn } from "@slock/blockkit";
-import type { Attachment, Message } from "@slock/slack-api";
-import { Avatar, DEFAULT_AVATAR_COLOR, Icon, type IconName } from "@slock/ui";
+import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
+import type { Attachment, Message } from "../../../lib/api";
 import { parseSlackPermalink } from "../../../lib/navigation/slackPermalink";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
 import MessageLinkHoverCard from "./MessageLinkHoverCard";
+import { resolveMessageAuthorAvatar } from "./messageRenderState";
 import "./ReplyReferenceRow.css";
 
 export default function ReplyReferenceRow(props: {
@@ -15,7 +16,8 @@ export default function ReplyReferenceRow(props: {
   permalink?: string;
   icon?: IconName;
 }) {
-  const snippet = (msg: Message) => parseReplyLink(msg.text)?.rest ?? msg.text;
+  const snippet = (msg: Message) =>
+    (parseReplyLink(msg.text)?.rest ?? msg.text).replace(/\n+/g, " ");
   const permalinkTarget = () => (props.permalink ? parseSlackPermalink(props.permalink) : null);
   const contents = (
     <>
@@ -37,7 +39,12 @@ export default function ReplyReferenceRow(props: {
                   {(name) => <span class="reply-reference-name">{name()}</span>}
                 </Show>
                 <span class="reply-reference-snippet">
-                  <Mrkdwn text={attachment().text ?? attachment().title ?? "Original message"} />
+                  <Mrkdwn
+                    text={(attachment().text ?? attachment().title ?? "Original message").replace(
+                      /\n+/g,
+                      " ",
+                    )}
+                  />
                 </span>
               </>
             )}
@@ -45,26 +52,18 @@ export default function ReplyReferenceRow(props: {
         }
         when={props.message}
       >
-        {(msg) => (
-          <>
-            <Avatar
-              size="small"
-              user={{
-                avatarColor:
-                  store.users.userById(msg().userId)?.avatarColor ?? DEFAULT_AVATAR_COLOR,
-                avatarUrl: msg().botIcon ?? store.users.userById(msg().userId)?.avatarUrl,
-                id: msg().userId,
-                name: msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown",
-              }}
-            />
-            <span class="reply-reference-name">
-              {msg().botName ?? store.users.userById(msg().userId)?.name ?? "Unknown"}
-            </span>
-            <span class="reply-reference-snippet">
-              <Mrkdwn text={snippet(msg())} />
-            </span>
-          </>
-        )}
+        {(msg) => {
+          const author = () => resolveMessageAuthorAvatar(msg(), store.users.userById);
+          return (
+            <>
+              <Avatar size="small" user={author()} />
+              <span class="reply-reference-name">{author().name}</span>
+              <span class="reply-reference-snippet">
+                <Mrkdwn text={snippet(msg())} />
+              </span>
+            </>
+          );
+        }}
       </Show>
     </>
   );

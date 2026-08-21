@@ -6,6 +6,7 @@ import {
   focusedPaneId,
   focusPaneById,
   insertPane,
+  isPaneRightAfter,
   type Pane,
   replacePaneContent,
   resizePanes,
@@ -77,12 +78,16 @@ export function createPanesSlice() {
   }
 
   function openInNewPane(content: PaneContent): string {
+    const focusedId = currentFocusedId();
     if (isSingletonKind(content)) {
       const existing = findPaneByContent(
         state.panes,
         (c) => !!c && c.kind === content.kind && !(c.kind === "thread" && c.pinned),
       );
-      if (existing) {
+      if (
+        existing &&
+        (content.kind !== "thread" || isPaneRightAfter(state.panes, focusedId, existing.id))
+      ) {
         setState(
           "panes",
           reconcile(replacePaneContent(unwrap(state.panes), existing.id, content), { key: "id" }),
@@ -90,12 +95,30 @@ export function createPanesSlice() {
         focusPaneSoon(existing.id);
         return existing.id;
       }
+      if (existing) {
+        const id = createPaneId();
+        setState(
+          "panes",
+          reconcile(
+            insertPane(
+              closePaneInList(unwrap(state.panes), existing.id),
+              focusedId,
+              content,
+              id,
+              0.32,
+            ),
+            { key: "id" },
+          ),
+        );
+        focusPaneSoon(id);
+        return id;
+      }
     }
     const id = createPaneId();
     const fraction = content.kind === "channel" || content.kind === "dm" ? 0.5 : 0.32;
     setState(
       "panes",
-      reconcile(insertPane(unwrap(state.panes), currentFocusedId(), content, id, fraction), {
+      reconcile(insertPane(unwrap(state.panes), focusedId, content, id, fraction), {
         key: "id",
       }),
     );

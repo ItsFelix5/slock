@@ -32,9 +32,6 @@ type ThemeBaseColors = ThemeColors &
 
 type CompleteThemeColors = Required<Omit<ThemeColors, "font">>;
 
-/** Fills in every derived color (borders, subtle/muted/emphasis tints, on-X text, ...) that a hand-
- * written palette can leave to a sensible default instead of spelling out - shared by the built-in
- * dark/light themes, the tinted hue presets, and the community palettes. */
 export function completeTheme(colors: ThemeBaseColors): CompleteThemeColors {
   const {
     accent,

@@ -1,6 +1,6 @@
-import type { MessageShortcut } from "@slock/slack-api";
-import { runMessageShortcut } from "@slock/slack-api";
-import { actionFeedback } from "./slices/feedback";
+import type { MessageShortcut } from "../api";
+import { runMessageShortcut } from "../api";
+import { actionFeedback } from "../feedback";
 
 export function createRunMessageShortcut() {
   return async function runMessageShortcutAt(

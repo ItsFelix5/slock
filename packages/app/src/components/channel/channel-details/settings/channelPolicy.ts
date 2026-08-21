@@ -1,4 +1,4 @@
-import type { MemberPermissionsPatch } from "@slock/slack-api";
+import type { MemberPermissionsPatch } from "../../../../lib/api";
 
 export type AppliedPermissionChoice = "allow" | "restrict";
 export type AppliedRetentionChoice = "keep" | "delete";

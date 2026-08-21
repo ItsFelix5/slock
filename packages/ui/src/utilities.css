@@ -13,6 +13,17 @@
   background: none;
   border: none;
 }
+button:not(.btn-reset):focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible,
+.input-reset:focus-visible,
+.btn-reset:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
 .text-muted {
   color: var(--text-secondary);
 }
@@ -24,6 +35,12 @@
 }
 .text-accent {
   color: var(--accent);
+}
+.clickable-name {
+  cursor: pointer;
+}
+.clickable-name:hover {
+  text-decoration: underline;
 }
 .text-xs {
   font-size: 12px;
@@ -83,7 +100,7 @@
 }
 .modal-card {
   background: var(--composer-bg);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal-lg);
 }
 .search-input {
@@ -93,7 +110,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 .chip {
   padding: 4px 10px;
@@ -149,7 +166,7 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 .panel-close-btn:hover {
   color: var(--text-primary);
@@ -168,7 +185,7 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 .icon-action {
   color: var(--text-secondary);

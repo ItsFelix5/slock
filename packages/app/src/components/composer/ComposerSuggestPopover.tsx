@@ -13,9 +13,11 @@ export default function ComposerSuggestPopover(props: {
       <For each={props.state.items}>
         {(item, i) => (
           <button
-            class="composer-suggest-row flex-align-center"
+            aria-selected={i() === props.state.active}
+            class="composer-suggest-row btn-reset flex-align-center"
             classList={{ active: i() === props.state.active }}
             onClick={() => props.onPick(i())}
+            onMouseDown={(e) => e.preventDefault()}
             onMouseEnter={() => props.onHover(i())}
             type="button"
           >

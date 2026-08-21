@@ -1,7 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/slack-api" },
+    { "path": "./packages/types" },
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
     { "path": "./packages/server" },

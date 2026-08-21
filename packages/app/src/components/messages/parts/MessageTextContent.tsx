@@ -1,12 +1,10 @@
 import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
-import type { Message } from "@slock/slack-api";
 import { Show } from "solid-js";
+import type { Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import Composer from "../../composer/Composer";
 import type { MessageRenderState } from "./messageRenderState";
 
-/** The body of a message row when it isn't being edited: either the raw block-kit render or
- * plain mrkdwn text, plus the "(edited)" suffix - swaps out for the edit Composer when editing. */
 export default function MessageTextContent(props: {
   channelId: string;
   hasEnlargedEmojiOnlyText: boolean;

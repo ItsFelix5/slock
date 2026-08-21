@@ -2,11 +2,19 @@ import type { EmojiEntry } from "../../../lib/emojiSearch";
 
 export function prioritizeEmojiEntries(
   entries: EmojiEntry[],
-  frequent: EmojiEntry[],
+  ...groups: EmojiEntry[][]
 ): EmojiEntry[] {
-  if (frequent.length === 0) return entries;
-  const frequentNames = new Set(frequent.map((entry) => entry.name));
-  return [...frequent, ...entries.filter((entry) => !frequentNames.has(entry.name))];
+  const seen = new Set<string>();
+  const prioritized: EmojiEntry[] = [];
+  for (const group of groups) {
+    for (const entry of group) {
+      if (seen.has(entry.name)) continue;
+      seen.add(entry.name);
+      prioritized.push(entry);
+    }
+  }
+  if (seen.size === 0) return entries;
+  return [...prioritized, ...entries.filter((entry) => !seen.has(entry.name))];
 }
 
 export function mergeEmojiEntries(custom: EmojiEntry[], standard: EmojiEntry[]): EmojiEntry[] {

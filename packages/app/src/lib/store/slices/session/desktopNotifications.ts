@@ -1,52 +1,23 @@
-import type { ActivityItem, Channel, DirectMessage, User, UserPrefs } from "@slock/slack-api";
-import { setDesktopNotificationsEnabled as setDesktopNotificationsEnabledApi } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
-import { conversationDisplayName } from "../conversationDisplayName";
-import { actionFeedback } from "../feedback";
-import { PING_KINDS } from "../messaging/activity";
+import { PING_KINDS } from "../../../activityKinds";
+import type { ActivityItem, Channel, DirectMessage, User, UserPrefs } from "../../../api";
+import { conversationDisplayName } from "../../../displayName";
+import { createLocalPref } from "../../localPref";
 
 export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const supported = typeof window !== "undefined" && "Notification" in window;
   const [permission, setPermission] = createSignal<NotificationPermission>(
     supported ? Notification.permission : "denied",
   );
-  const [enabled, setEnabled] = createSignal(false);
-  const [pending, setPending] = createSignal(false);
+  const [override, persistOverride] = createLocalPref<boolean | null>(
+    "desktop-notifications",
+    null,
+  );
+  const enabled = () =>
+    supported && (override() ?? deps.userPrefs()?.globalNotifications.desktopPushEnabled ?? false);
 
-  let seeded = false;
-  createEffect(() => {
-    const prefs = deps.userPrefs();
-    if (!prefs || seeded) return;
-    seeded = true;
-    setEnabled(supported && prefs.desktopNotificationsEnabled);
-  });
-
-  async function setNotificationsEnabled(next: boolean): Promise<void> {
-    if (pending()) return;
-    if (!deps.userPrefs()) {
-      actionFeedback.flash(
-        "desktop-notifications",
-        "Preferences are unavailable. Try loading them again.",
-        "error",
-      );
-      return;
-    }
-    const previous = enabled();
-    setPending(true);
-    setEnabled(next);
-    try {
-      await setDesktopNotificationsEnabledApi(next);
-    } catch (err) {
-      console.error("Failed to set desktop notification preference", err);
-      actionFeedback.flash(
-        "desktop-notifications",
-        "Failed to update desktop notifications.",
-        "error",
-      );
-      setEnabled(previous);
-    } finally {
-      setPending(false);
-    }
+  function setNotificationsEnabled(next: boolean): void {
+    persistOverride(next);
   }
 
   async function requestPermission() {
@@ -75,8 +46,8 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
           ? (user?.name ?? "New message")
           : `${user?.name ?? "Someone"} in ${conversationDisplayName(
               item.channelId,
-              item.channelId.startsWith("D") ? undefined : deps.channelById(item.channelId),
-              deps.dmById(item.channelId),
+              deps.channelById,
+              deps.dmById,
               deps.userById,
             )}`;
       const notification = new Notification(title, {
@@ -120,7 +91,6 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
 
   return {
     enabled,
-    isPending: pending,
     permission,
     requestPermission,
     setNotificationsEnabled,

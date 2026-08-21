@@ -1,29 +1,21 @@
-import type { ChannelSection, UserPrefs } from "@slock/slack-api";
+import { createMemo, createResource, createSignal, type Setter } from "solid-js";
+import { createStore } from "solid-js/store";
+import type { ChannelSection, UserPrefs } from "../../../api";
 import {
   createSection as apiCreateSection,
   deleteSection as apiDeleteSection,
   renameSection as apiRenameSection,
   reorderSection as apiReorderSection,
   setChannelSectionsPreference as apiSetChannelSectionsPreference,
-  setUsergroupSectionOrderPreference as apiSetUsergroupSectionOrderPreference,
   fetchFreshSections,
   fetchSections,
-  setUsergroupSectionSidebarPreferences,
-} from "@slock/slack-api";
-import { createMemo, createResource, createSignal, type Setter } from "solid-js";
-import { createStore } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+} from "../../../api";
+import { reorderSections, setSectionSidebarPreference } from "../../../channelSectionMutations";
+import { actionFeedback } from "../../../feedback";
 import type { Nav } from "../types";
-import { applySectionOrder, reorderSections } from "./mutations/sectionOrder";
-import {
-  setSectionSidebarPreference,
-  setUsergroupSectionOrderPreference,
-  setUsergroupSectionSidebarPreference,
-} from "./mutations/sectionSidebarPrefs";
 
 export function createChannelSections(deps: {
   nav: () => Nav;
-  usergroupSections: () => ChannelSection[];
   userPrefs: () => UserPrefs | undefined;
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
@@ -33,8 +25,9 @@ export function createChannelSections(deps: {
     sectionsLoaded = true;
     return load();
   };
+  const visitedHome = createMemo<boolean>((prev) => prev || deps.nav() === "home");
   const [rawSections, { refetch: refetchSections, mutate: mutateSections }] = createResource(
-    () => (deps.nav() === "home" ? true : undefined),
+    () => (visitedHome() ? true : undefined),
     loadSections,
   );
   const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
@@ -47,36 +40,18 @@ export function createChannelSections(deps: {
     } catch {}
   }
 
-  const sections = createMemo<ChannelSection[] | undefined>(() => {
+  const sections = createMemo(() => {
     const list = rawSections();
-    const groupSections = deps.usergroupSections();
+    if (!list) return list;
     const prefs = deps.userPrefs();
-    const visibleGroupSections = groupSections.map((section) => ({
-      ...section,
-      sidebar: prefs?.usergroupSectionSidebar[section.id] ?? section.sidebar,
-    }));
-    const usergroupOrder =
-      visibleGroupSections.length > 0 ? (prefs?.usergroupSectionOrder ?? []) : [];
-    if (!list)
-      return visibleGroupSections.length > 0
-        ? applySectionOrder(visibleGroupSections, usergroupOrder)
-        : list;
     const sectionSort = prefs?.sectionSort ?? {};
     const sectionSidebar = prefs?.sectionSidebar ?? {};
-    const personalSections = list.map((s) => {
+    return list.map((s) => {
       const sort = sectionSort[s.id];
       const sidebar = sectionSidebar[s.id] ?? s.sidebar;
       if (!sort && sidebar === s.sidebar) return s;
       return { ...s, sidebar, ...(sort ? { sort } : {}) };
     });
-    const personalIds = new Set(personalSections.map((section) => section.id));
-    return applySectionOrder(
-      [
-        ...personalSections,
-        ...visibleGroupSections.filter((section) => !personalIds.has(section.id)),
-      ],
-      usergroupOrder,
-    );
   });
 
   async function createChannelSection(
@@ -166,34 +141,18 @@ export function createChannelSections(deps: {
       );
       return false;
     }
-    const isUsergroupSection = section.type === "usergroup";
-    const previousSidebar = isUsergroupSection
-      ? prev.usergroupSectionSidebar[sectionId]
-      : prev.sectionSidebar[sectionId];
+    const previousSidebar = prev.sectionSidebar[sectionId];
     setSectionSidebarPendingById(sectionId, true);
     actionFeedback.clear(sectionId);
     deps.mutateUserPrefs((current) =>
-      current
-        ? isUsergroupSection
-          ? setUsergroupSectionSidebarPreference(current, sectionId, sidebar)
-          : setSectionSidebarPreference(current, sectionId, sidebar)
-        : current,
+      current ? setSectionSidebarPreference(current, sectionId, sidebar) : current,
     );
     const rollback = () =>
       deps.mutateUserPrefs((current) =>
-        current
-          ? isUsergroupSection
-            ? setUsergroupSectionSidebarPreference(current, sectionId, previousSidebar)
-            : setSectionSidebarPreference(current, sectionId, previousSidebar)
-          : current,
+        current ? setSectionSidebarPreference(current, sectionId, previousSidebar) : current,
       );
     try {
-      const ok = isUsergroupSection
-        ? await setUsergroupSectionSidebarPreferences({
-            ...prev.usergroupSectionSidebar,
-            [sectionId]: sidebar,
-          })
-        : await apiSetChannelSectionsPreference(deps.userPrefs()?.channelSections ?? {});
+      const ok = await apiSetChannelSectionsPreference(deps.userPrefs()?.channelSections ?? {});
       if (ok) return true;
       actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
       rollback();
@@ -223,42 +182,6 @@ export function createChannelSections(deps: {
     const optimistic = reorderSections(current, sectionId, nextSectionId);
     if (!optimistic) return false;
 
-    if (current.some((section) => section.type === "usergroup")) {
-      const previousPrefs = deps.userPrefs();
-      if (!previousPrefs) {
-        actionFeedback.flash(
-          sectionId,
-          "Preferences are unavailable. Try loading them again.",
-          "error",
-        );
-        return false;
-      }
-      const nextOrder = optimistic.map((section) => section.id);
-      setSectionStructurePending(true);
-      actionFeedback.clear(sectionId);
-      deps.mutateUserPrefs((prefs) =>
-        prefs ? setUsergroupSectionOrderPreference(prefs, nextOrder) : prefs,
-      );
-      const rollback = () =>
-        deps.mutateUserPrefs((prefs) =>
-          prefs
-            ? setUsergroupSectionOrderPreference(prefs, previousPrefs.usergroupSectionOrder)
-            : prefs,
-        );
-      try {
-        if (await apiSetUsergroupSectionOrderPreference(nextOrder)) return true;
-        actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
-        rollback();
-        return false;
-      } catch (err) {
-        console.error("Failed to reorder section", err);
-        actionFeedback.flash(sectionId, "Failed to reorder section.", "error");
-        rollback();
-        return false;
-      } finally {
-        setSectionStructurePending(false);
-      }
-    }
     setSectionStructurePending(true);
     mutateSections(optimistic);
     try {
@@ -292,7 +215,7 @@ export function createChannelSections(deps: {
     setSectionStructurePending,
     sections,
     sectionsError: () => rawSections.error,
-    sectionsLoading: () => rawSections.loading,
+    sectionsLoading: () => rawSections.loading && rawSections() === undefined,
     toggleSectionFilter,
   };
 }

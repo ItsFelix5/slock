@@ -1,4 +1,4 @@
-import { type ImageElement as ImageElementType, resolveMediaUrl } from "@slock/slack-api";
+import { type ImageElement as ImageElementType, resolveMediaUrl } from "@slock/types";
 import { ZoomableImage } from "@slock/ui";
 
 export default function ImageElement(props: { el: ImageElementType }) {

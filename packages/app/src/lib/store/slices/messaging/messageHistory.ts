@@ -1,16 +1,16 @@
-import type { ConversationViewData, Message } from "@slock/slack-api";
+import { createEffect, untrack } from "solid-js";
+import { createStore } from "solid-js/store";
+import type { ConversationViewData, Message } from "../../../api";
 import {
   fetchChannelDetails,
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
-} from "@slock/slack-api";
-import { createEffect, untrack } from "solid-js";
-import { createStore } from "solid-js/store";
+} from "../../../api";
+import { mergeMessages } from "../../../messageMerge";
 import type { ChannelMessageTarget, ThreadRef, View } from "../types";
 import { createRequestEpochs } from "./history/requestEpoch";
 import { createHistoryJump } from "./historyJump";
-import { mergeMessages } from "./merge/messageMerge";
 import { createThreadReplies } from "./threadReplies";
 
 type HistoryMeta = {

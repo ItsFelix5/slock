@@ -26,7 +26,6 @@ export type OverlayProps = OverlayLabel & {
 };
 
 export default function Overlay(props: OverlayProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let overlayRef: HTMLDivElement | undefined;
   const previouslyFocused =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -98,6 +97,7 @@ export default function Overlay(props: OverlayProps) {
         class={`overlay ${props.align === "top" ? "overlay-top" : ""}`}
         onClick={(e) => e.target === e.currentTarget && props.onClose()}
         ref={overlayRef}
+        role="dialog"
         tabIndex={-1}
       >
         <FloatingMountContext.Provider value={() => overlayRef}>

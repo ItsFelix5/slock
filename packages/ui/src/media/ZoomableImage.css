@@ -36,7 +36,7 @@
   color: var(--text-secondary);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .zoomable-image-unavailable-framed {
@@ -57,7 +57,7 @@
   cursor: zoom-in;
   user-select: none;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .zoomable-image-full-loading {
@@ -126,7 +126,7 @@
   color: var(--text-secondary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-modal);
 }
 
@@ -167,6 +167,7 @@
 .zoomable-image-lens {
   position: absolute;
   pointer-events: none;
+  cursor: none;
   background: var(--main-bg);
   background-repeat: no-repeat;
   border: 3px solid var(--media-lens-border);

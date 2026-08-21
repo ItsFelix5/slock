@@ -89,17 +89,30 @@ export function trimFile(file: any): any {
     thumb_800_h: file.thumb_800_h,
     thumb_800_w: file.thumb_800_w,
     thumb_tiny: file.thumb_tiny,
+    thumb_video: file.thumb_video,
+    thumb_video_h: file.thumb_video_h,
+    thumb_video_w: file.thumb_video_w,
     title: file.title,
-    transcription: file.transcription?.preview
+    transcription: file.transcription
       ? {
-          preview: {
-            content: file.transcription.preview.content,
-            has_more: file.transcription.preview.has_more,
-          },
+          lines: Array.isArray(file.transcription.lines)
+            ? file.transcription.lines.map((line: any) => ({
+                contents: line?.contents,
+                end_time_ms: line?.end_time_ms,
+                start_time_ms: line?.start_time_ms,
+              }))
+            : undefined,
+          preview: file.transcription.preview
+            ? {
+                content: file.transcription.preview.content,
+                has_more: file.transcription.preview.has_more,
+              }
+            : undefined,
         }
       : undefined,
     url_private: file.url_private,
     url_private_download: file.url_private_download,
+    vtt: file.vtt,
   };
 }
 
@@ -259,6 +272,28 @@ export function trimChannel(channel: any): any {
     topic: trimText(channel.topic),
     unread_count: channel.unread_count,
     unread_count_display: channel.unread_count_display,
+  };
+}
+
+export function trimBootChannel(channel: any): any {
+  if (!channel || typeof channel !== "object") return channel;
+  const trimText = (value: any) =>
+    typeof value === "string" || !value ? value : { value: value.value };
+  return {
+    created: channel.created,
+    id: channel.id,
+    is_archived: channel.is_archived,
+    is_channel: channel.is_channel,
+    is_group: channel.is_group,
+    is_mpim: channel.is_mpim,
+    is_private: channel.is_private,
+    members: channel.is_mpim && Array.isArray(channel.members) ? channel.members : undefined,
+    name: channel.name,
+    properties: channel.properties
+      ? { has_custom_mpdm_name: channel.properties.has_custom_mpdm_name }
+      : undefined,
+    topic: trimText(channel.topic),
+    updated: channel.updated,
   };
 }
 

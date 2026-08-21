@@ -15,7 +15,7 @@
   height: 22px;
   font-size: 15px;
   color: var(--text-dim);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .user-profile-status-emoji-btn:hover {
@@ -33,7 +33,7 @@
   color: var(--text-primary);
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .user-profile-status-input::placeholder {
@@ -46,9 +46,11 @@
 }
 
 .user-profile-status-input:focus {
-  outline: none;
   background: var(--hover-bg);
   border-color: var(--accent);
+}
+.user-profile-status-input:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .user-profile-status-input:disabled {
@@ -61,7 +63,7 @@
   width: 20px;
   height: 20px;
   color: var(--text-dim);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   opacity: 0;
   transition: opacity 0.1s;
 }

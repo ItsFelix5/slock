@@ -1,7 +1,9 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { scrollActiveListOption } from "@slock/ui";
+import { createEffect, createSignal, Show } from "solid-js";
+import ComposerSuggestPopover from "./ComposerSuggestPopover";
 import { createSuggestionController, suggestionText } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
-import { suggestItemContent, suggestOpen } from "./lib/suggestTypes";
+import { suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
 import "./MrkdwnComposer.css";
 
@@ -19,10 +21,8 @@ export default function MrkdwnComposer(props: {
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   let inputRef: HTMLTextAreaElement | undefined;
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let suggestPopoverRef: HTMLDivElement | undefined;
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {
@@ -47,11 +47,8 @@ export default function MrkdwnComposer(props: {
   });
 
   createEffect(() => {
-    const state = suggest();
-    if (!(state && suggestPopoverRef)) return;
-    suggestPopoverRef
-      .querySelector<HTMLElement>(`.composer-suggest-row:nth-child(${state.active + 1})`)
-      ?.scrollIntoView({ block: "nearest" });
+    suggest();
+    scrollActiveListOption(() => suggestPopoverRef);
   });
 
   const updateSuggestions = (input: HTMLTextAreaElement) => {
@@ -131,22 +128,14 @@ export default function MrkdwnComposer(props: {
       />
       <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
         {(state) => (
-          <div class="menu-panel composer-suggest-popover" ref={suggestPopoverRef}>
-            <For each={state().items}>
-              {(item, index) => (
-                <button
-                  class="composer-suggest-row btn-reset flex-align-center"
-                  classList={{ active: index() === state().active }}
-                  onClick={() => applySuggestion(index())}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => suggestions.setActiveSuggestion(index())}
-                  type="button"
-                >
-                  {suggestItemContent(item)}
-                </button>
-              )}
-            </For>
-          </div>
+          <ComposerSuggestPopover
+            onHover={suggestions.setActiveSuggestion}
+            onPick={applySuggestion}
+            ref={(el) => {
+              suggestPopoverRef = el;
+            }}
+            state={state()}
+          />
         )}
       </Show>
     </div>

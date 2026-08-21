@@ -1,14 +1,11 @@
 import { IconButton, Menu, MenuItem } from "@slock/ui";
 
-/** The composer's "+" button: single click opens the attach/date menu, double-click (or the
- * menu's "Attach file" item) jumps straight to the file picker. */
 export default function ComposerAttachMenu(props: {
   onFilesSelected: (files: FileList) => void;
   onInsertDate: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let fileInputRef: HTMLInputElement | undefined;
   let plusClickTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -16,7 +13,7 @@ export default function ComposerAttachMenu(props: {
     if (plusClickTimer) {
       clearTimeout(plusClickTimer);
       plusClickTimer = undefined;
-      return; // second click of a double-click — let onDblClick handle it
+      return;
     }
     plusClickTimer = setTimeout(() => {
       plusClickTimer = undefined;
@@ -42,7 +39,6 @@ export default function ComposerAttachMenu(props: {
           <IconButton
             circular
             icon="plus"
-            label="Add attachment or date (double-click to attach)"
             onClick={handlePlusClick}
             onDblClick={handlePlusDblClick}
             size="md"

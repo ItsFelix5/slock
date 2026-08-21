@@ -1,4 +1,3 @@
-import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "@slock/slack-api";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,
@@ -6,11 +5,18 @@ import {
   listNavigationIndex,
 } from "@slock/ui";
 import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from "solid-js";
+import { fetchSearchAutocomplete, searchMessages, type SearchResult } from "../../lib/api";
+import { type SortMode, sortParams } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
 import "./GlobalSearch.css";
 import MessageSearchResults from "./MessageSearchResults";
 import "./MessageSearchView.css";
-import { type QuerySuggestion, querySuggestions, queryToken } from "./querySuggestions";
+import {
+  type QuerySuggestion,
+  type QuerySuggestionContext,
+  querySuggestions,
+  queryToken,
+} from "./querySuggestions";
 import { navigateToSearchResult } from "./searchResultNavigation";
 
 export default function MessageSearchView() {
@@ -21,12 +27,12 @@ export default function MessageSearchView() {
   const [remoteSuggestions, setRemoteSuggestions] = createSignal<string[]>([]);
   const [cursor, setCursor] = createSignal(0);
   const [dismissedSuggestionsFor, setDismissedSuggestionsFor] = createSignal<string>();
+  const [sortMode, setSortMode] = createSignal<SortMode>("relevant");
   const suggestionListId = createUniqueId();
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let suggestionsListRef: HTMLDivElement | undefined;
   const searchRequest = createDebouncedRequest(
-    (value) => searchMessages(value, { sort: "score", sortDir: "desc" }),
+    (value) => searchMessages(value, sortParams(sortMode())),
     {
       delay: 300,
       onError: () => setSearchError(true),
@@ -50,10 +56,10 @@ export default function MessageSearchView() {
     setQuery(value);
     setCursor(selectionStart);
     setDismissedSuggestionsFor(undefined);
-    store.viewState.setSearchScreenQuery(value);
   };
-  const runSearch = () => {
-    searchRequest.run(query());
+  const runSearch = (immediate = true) => {
+    store.viewState.setSearchScreenQuery(query());
+    searchRequest.run(query(), { immediate });
   };
   const runAutocomplete = () => {
     autocompleteRequest.run(query());
@@ -63,12 +69,37 @@ export default function MessageSearchView() {
     autocompleteRequest.run("");
     runSearch();
   };
+  const changeSort = (mode: SortMode) => {
+    setSortMode(mode);
+    if (canSearch()) runSearch();
+  };
+  const suggestionContext = createMemo<QuerySuggestionContext>(() => {
+    const view = store.viewState.activeView();
+    const currentUserId = store.users.currentUser()?.id;
+    if (view?.kind === "channel") {
+      const channel = store.channels.channelById(view.id);
+      return {
+        currentChannel: channel ? { id: channel.id, name: channel.name } : undefined,
+        currentUserId,
+      };
+    }
+    if (view?.kind === "dm") {
+      const userId = store.dms.dmById(view.id)?.userId;
+      const user = userId ? store.users.userById(userId) : undefined;
+      return {
+        currentDmUser: user ? { id: user.id, name: user.name } : undefined,
+        currentUserId,
+      };
+    }
+    return { currentUserId };
+  });
   const localSuggestions = createMemo<QuerySuggestion[]>(() =>
     querySuggestions(
       query(),
       cursor(),
       store.users.knownUsers(),
       store.resources.bootstrap()?.channels ?? [],
+      suggestionContext(),
     ),
   );
   const suggestions = createMemo<QuerySuggestion[]>(() => {
@@ -115,7 +146,7 @@ export default function MessageSearchView() {
     autocompleteRequest.dispose();
   });
   const goToMessage = (r: SearchResult) => {
-    navigateToSearchResult(r, store.viewState);
+    navigateToSearchResult(r, store.viewState, { keepNav: true });
   };
   const canSearch = createMemo(() => !!query().trim());
   const optionId = (index: number) => `${suggestionListId}-option-${index}`;
@@ -145,7 +176,6 @@ export default function MessageSearchView() {
               e.currentTarget.value,
               e.currentTarget.selectionStart ?? e.currentTarget.value.length,
             );
-            runSearch();
             runAutocomplete();
           }}
           onKeyDown={(e) => {
@@ -184,7 +214,6 @@ export default function MessageSearchView() {
           type="text"
           value={query()}
         />
-        <span class="message-search-keyhint">esc</span>
       </div>
       <Show when={suggestionsOpen()}>
         <div
@@ -228,8 +257,10 @@ export default function MessageSearchView() {
         onHistorySearch={runHistorySearch}
         onResult={goToMessage}
         onRetry={runSearch}
+        onSortModeChange={changeSort}
         results={results()}
         searchError={searchError()}
+        sortMode={sortMode()}
       />
     </div>
   );

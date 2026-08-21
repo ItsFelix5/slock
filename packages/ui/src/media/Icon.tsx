@@ -15,5 +15,11 @@ export function createIconElement(name: IconName, size = 18, className = ""): HT
 }
 
 export default function Icon(props: { name: IconName; size?: number; class?: string }) {
-  return createIconElement(props.name, props.size, props.class);
+  return (
+    <span
+      class={`icon ${props.class ?? ""}`}
+      innerHTML={`<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">${ICONS[props.name]}</svg>`}
+      style={{ height: `${props.size ?? 18}px`, width: `${props.size ?? 18}px` }}
+    />
+  );
 }

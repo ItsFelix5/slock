@@ -1,11 +1,12 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { ConstrainedImage, Icon, type IconName, MediaFrame, VideoPlayer } from "@slock/ui";
-import { createMemo, For, Match, Show, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import AudioFile from "./AudioFile";
 import FileViewerTrigger from "./FileViewer";
 import { constrainMediaDimensions } from "./mediaDimensions";
 import "./MessageFiles.css";
+import TranscriptPopover from "./TranscriptPopover";
 
 function imageGallery(files: SlackFile[]) {
   return files
@@ -78,17 +79,33 @@ function InlineMedia(props: {
         }}
       </Match>
       <Match when={file.isVideo}>
-        <VideoPlayer
-          ariaLabel={file.title || file.name}
-          class="message-file-video"
-          height={file.height}
-          openHref={file.urlPrivate}
-          poster={file.thumbUrl}
-          src={resolveMediaUrl(file.urlPrivate)}
-          width={file.width}
-        />
+        <VideoFile file={file} />
       </Match>
     </Switch>
+  );
+}
+
+function VideoFile(props: { file: SlackFile }) {
+  const [video, setVideo] = createSignal<HTMLVideoElement>();
+  const { file } = props;
+  return (
+    <VideoPlayer
+      ariaLabel={file.title || file.name}
+      captionsSrc={file.vtt}
+      class="message-file-video"
+      duration={file.duration}
+      height={file.height}
+      openHref={file.urlPrivate}
+      poster={file.thumbUrl}
+      ref={setVideo}
+      src={resolveMediaUrl(file.urlPrivate)}
+      toolbarExtra={
+        <Show when={file.transcriptionPreview}>
+          <TranscriptPopover file={file} media={video} triggerClass="video-player-chrome" />
+        </Show>
+      }
+      width={file.width}
+    />
   );
 }
 

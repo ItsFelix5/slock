@@ -1,9 +1,23 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { formatTime } from "@slock/slack-api";
-import { Button, DEFAULT_AVATAR_COLOR, IconButton, InlineFeedback } from "@slock/ui";
+import {
+  Button,
+  ClickableInline,
+  ContextMenu,
+  DEFAULT_AVATAR_COLOR,
+  IconButton,
+  InlineFeedback,
+  useContextMenu,
+} from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
-import { openConversationInSplit } from "../../components/navigation/SplitNavigation";
-import { actionFeedback, conversationDisplayName, store } from "../../lib/store";
+import {
+  openConversation,
+  openConversationInSplit,
+} from "../../components/navigation/SplitNavigation";
+import { formatTime } from "../../lib/api";
+import { conversationDisplayName } from "../../lib/displayName";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
+import MessageActionsMenuItems from "../messages/parts/MessageActionsMenuItems";
 import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
@@ -15,12 +29,13 @@ import "./LaterView.css";
 export default function LaterView() {
   onMount(() => store.later.ensureLaterLoaded());
 
-  const goTo = (channelId: string, ts: string, highlightTs?: string) =>
-    store.viewState.openChannelPeek(channelId, ts, highlightTs, { keepNav: true });
+  const goTo = (channelId: string, ts: string, rootTs?: string) => {
+    if (rootTs) store.viewState.openChannelPeek(channelId, rootTs, ts, { keepNav: true });
+    else store.viewState.openChannelMessage(channelId, ts, { keepNav: true });
+  };
 
   return (
     <div class="later-view sidebar-view-panel">
-      <h2>Later</h2>
       <Show
         fallback={<div class="later-empty empty-state">Loading saved items…</div>}
         when={store.later.laterLoaded() || store.later.laterLoadError()}
@@ -64,12 +79,6 @@ export default function LaterView() {
                 );
                 const msg = createMemo(() => store.later.laterMessages[key]);
 
-                const channel = createMemo(() =>
-                  item.channelId.startsWith("D")
-                    ? undefined
-                    : store.channels.channelById(item.channelId),
-                );
-                const dm = createMemo(() => store.dms.dmById(item.channelId));
                 const authorId = createMemo(() => resolveProfileUserId(msg() ?? { userId: "" }));
                 const author = createMemo(() => {
                   const id = authorId();
@@ -85,6 +94,11 @@ export default function LaterView() {
                   const message = msg();
                   return message ? resolveAuthorAvatarUrl(message, author()?.avatarUrl) : undefined;
                 });
+                const timeTitle = createMemo(() => {
+                  const message = msg();
+                  return message ? `${message.day} at ${message.time}` : undefined;
+                });
+                const ctxMenu = useContextMenu();
                 return (
                   <div class="later-item">
                     <ResultMessageCard
@@ -94,17 +108,26 @@ export default function LaterView() {
                         id: authorId() ?? "",
                         name: authorName(),
                       }}
-                      context={conversationDisplayName(
-                        item.channelId,
-                        channel(),
-                        dm(),
-                        store.users.userById,
-                      )}
+                      context={
+                        <ClickableInline onActivate={() => openConversation(item.channelId)}>
+                          {conversationDisplayName(
+                            item.channelId,
+                            store.channels.channelById,
+                            store.dms.dmById,
+                            store.users.userById,
+                          )}
+                        </ClickableInline>
+                      }
+                      ctxMenu={isLoaded() ? ctxMenu : undefined}
                       name={authorName()}
                       navRow
                       onOpen={() => {
-                        const rootTs = msg()?.threadTs;
-                        goTo(item.channelId, rootTs ?? item.ts, rootTs ? item.ts : undefined);
+                        const threadTs = msg()?.threadTs;
+                        goTo(
+                          item.channelId,
+                          item.ts,
+                          threadTs && threadTs !== item.ts ? threadTs : undefined,
+                        );
                       }}
                       onSplit={() => {
                         const rootTs = msg()?.threadTs;
@@ -121,6 +144,8 @@ export default function LaterView() {
                         </Show>
                       }
                       time={formatTime(item.ts)}
+                      timeTitle={timeTitle()}
+                      userId={authorId()}
                       trailing={
                         <>
                           <Show when={loadError()}>
@@ -152,6 +177,31 @@ export default function LaterView() {
                       feedback={actionFeedback.get(item.ts)}
                       priority={2}
                     />
+                    <Show when={msg()}>
+                      {(message) => (
+                        <ContextMenu
+                          onClose={ctxMenu.close}
+                          open={ctxMenu.isOpen()}
+                          x={ctxMenu.x()}
+                          y={ctxMenu.y()}
+                        >
+                          <MessageActionsMenuItems
+                            channelId={item.channelId}
+                            msg={message()}
+                            onClose={ctxMenu.close}
+                            onEditRequest={() => {
+                              const { threadTs } = message();
+                              goTo(
+                                item.channelId,
+                                item.ts,
+                                threadTs && threadTs !== item.ts ? threadTs : undefined,
+                              );
+                            }}
+                            threadTs={message().threadTs}
+                          />
+                        </ContextMenu>
+                      )}
+                    </Show>
                   </div>
                 );
               }}

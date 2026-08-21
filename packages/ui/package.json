@@ -9,6 +9,7 @@
     "./utilities.css": "./src/utilities.css"
   },
   "dependencies": {
+    "quill": "^2",
     "solid-js": "^1.9.13"
   }
 }

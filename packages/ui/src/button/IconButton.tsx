@@ -7,10 +7,9 @@ export interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElem
   circular?: boolean;
   icon: IconName;
   iconSize?: number;
-  label: string;
+  label?: string;
   size?: "sm" | "md" | "lg";
   tone?: "dim" | "accent";
-  tooltip?: boolean;
 }
 
 export default function IconButton(props: IconButtonProps) {
@@ -23,7 +22,6 @@ export default function IconButton(props: IconButtonProps) {
     "label",
     "size",
     "tone",
-    "tooltip",
   ]);
 
   const button = (
@@ -46,5 +44,5 @@ export default function IconButton(props: IconButtonProps) {
     </button>
   );
 
-  return local.tooltip === false ? button : <Tooltip content={local.label}>{button}</Tooltip>;
+  return local.label ? <Tooltip content={local.label}>{button}</Tooltip> : button;
 }

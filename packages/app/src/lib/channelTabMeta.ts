@@ -7,7 +7,3 @@ export const ADDABLE_CHANNEL_TABS: {
   label: string;
   icon: IconName;
 }[] = [{ icon: "pin-filled", label: "Pinned", type: "pinned" }];
-
-export function channelTabsFeedbackKey(channelId: string): string {
-  return `channel-tabs:${channelId}`;
-}

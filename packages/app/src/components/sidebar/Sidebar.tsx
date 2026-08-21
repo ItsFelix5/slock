@@ -1,11 +1,13 @@
-import { useShortcut } from "@slock/ui";
+import { plainKey, useEscapeClose, useShortcut } from "@slock/ui";
 import { createEffect, createMemo, createSignal } from "solid-js";
+import { sectionMoveTarget } from "../../lib/channelSectionMutations";
+import { actionFeedback } from "../../lib/feedback";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
-import { actionFeedback, store } from "../../lib/store";
-import { sectionMoveTarget } from "../../lib/store/slices/entities/mutations/sectionOrder";
+import { store } from "../../lib/store";
 import "./Sidebar.css";
 import SidebarView from "./SidebarView";
 import { buildCategories, type Category } from "./sidebarCategories";
+import { useSidebarChannelCycle } from "./sidebarChannelCycle";
 
 const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
@@ -31,6 +33,7 @@ export default function Sidebar() {
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
+  useEscapeClose(() => setUnreadsOnly(false), unreadsOnly);
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
@@ -51,6 +54,18 @@ export default function Sidebar() {
     keys: "Ctrl/⌘ F or G",
     label: "Search messages",
     match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && ["f", "g"].includes(e.key.toLowerCase()),
+    scope: "general",
+  });
+  useSidebarChannelCycle();
+  useShortcut({
+    enabled: () => !unreadsOnly(),
+    handler: () => {
+      store.viewState.setNavView("home");
+      setUnreadsOnly(true);
+    },
+    keys: "Shift U",
+    label: "Show unread channels only",
+    match: plainKey("U"),
     scope: "general",
   });
   const toggleCategory = (id: string) => {
@@ -90,6 +105,10 @@ export default function Sidebar() {
     }
     if (await store.channels.renameChannelSection(id, name)) setRenamingId(null);
   };
+  let sectionListEl: HTMLDivElement | undefined;
+  const setSectionListRef = (el: HTMLDivElement) => {
+    sectionListEl = el;
+  };
   const handleSectionDragStart = (e: DragEvent, id: string) => {
     if (store.channels.isSectionStructurePending()) {
       e.preventDefault();
@@ -99,14 +118,37 @@ export default function Sidebar() {
     e.dataTransfer?.setData("text/plain", id);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
   };
-  const handleSectionDragOver = (e: DragEvent, id: string) => {
-    if (!draggingSectionId() || draggingSectionId() === id) return;
+  const handleSectionsDragOver = (e: DragEvent) => {
+    const draggedId = draggingSectionId();
+    if (!(draggedId && sectionListEl)) return;
     e.preventDefault();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setDropTarget({ before: e.clientY < rect.top + rect.height / 2, id });
+    const rows = Array.from(
+      sectionListEl.querySelectorAll<HTMLElement>('[data-reorderable="true"]'),
+    ).filter((row) => row.dataset.sectionId !== draggedId);
+    if (rows.length === 0) return;
+    let bestId = rows[0].dataset.sectionId as string;
+    let bestBefore = true;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const row of rows) {
+      const dist = Math.abs(e.clientY - row.getBoundingClientRect().top);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestId = row.dataset.sectionId as string;
+        bestBefore = true;
+      }
+    }
+    const last = rows[rows.length - 1];
+    const bottomDist = Math.abs(e.clientY - last.getBoundingClientRect().bottom);
+    if (bottomDist < bestDist) {
+      bestId = last.dataset.sectionId as string;
+      bestBefore = false;
+    }
+    setDropTarget({ before: bestBefore, id: bestId });
   };
-  const handleSectionDragLeave = (id: string) => {
-    setDropTarget((t) => (t?.id === id ? null : t));
+  const handleSectionsDragLeave = (e: DragEvent) => {
+    if (sectionListEl && e.relatedTarget instanceof Node && sectionListEl.contains(e.relatedTarget))
+      return;
+    setDropTarget(null);
   };
   const handleSectionDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -194,10 +236,11 @@ export default function Sidebar() {
     feedMode,
     feedWidth,
     handleSectionDragEnd,
-    handleSectionDragLeave,
-    handleSectionDragOver,
     handleSectionDragStart,
     handleSectionDrop,
+    handleSectionsDragLeave,
+    handleSectionsDragOver,
+    setSectionListRef,
     hasUnreadActivity: store.activity.hasUnreadActivity,
     unreadPingCount: store.activity.unreadPingCount,
     recentReactionEmoji: store.activity.recentReactionEmoji,

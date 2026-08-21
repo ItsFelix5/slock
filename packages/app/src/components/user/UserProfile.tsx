@@ -1,14 +1,15 @@
 import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
+import { actionFeedback } from "../../lib/feedback";
 import { closeTile } from "../../lib/paneActions";
-import { actionFeedback, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import type { ProfilePaneContent } from "../../lib/store/slices/types";
 import "../settings/Settings.css";
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
 import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
-import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
+import { isCustomFieldDef, mergeMissingProfileFieldValues } from "./userProfileFieldValues";
 import { blurOnEnter } from "./userProfileOptions";
 import { createLastSeenText, createLocalTime } from "./userProfileTime";
 export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
@@ -16,6 +17,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const [nameInput, setNameInput] = createSignal("");
   const [titleInput, setTitleInput] = createSignal("");
   const [pronounsInput, setPronounsInput] = createSignal("");
+  const [nicknameInput, setNicknameInput] = createSignal("");
   const [customFieldInputs, setCustomFieldInputs] = createSignal<Record<string, string>>({});
   const [statusText, setStatusText] = createSignal("");
   const [statusEmoji, setStatusEmoji] = createSignal("");
@@ -35,12 +37,14 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   createEffect(
     on(profileUserId, (id) => {
       const me = store.users.currentUser();
-      if (id !== me?.id) return;
-      setStatusText(me.statusText ?? "");
-      setStatusEmoji(me.statusEmoji ?? "");
-      setNameInput(me.name);
-      setTitleInput(me.title ?? "");
-      setPronounsInput(me.pronouns ?? "");
+      if (id === me?.id) {
+        setStatusText(me.statusText ?? "");
+        setStatusEmoji(me.statusEmoji ?? "");
+        setNameInput(me.name);
+        setTitleInput(me.title ?? "");
+        setPronounsInput(me.pronouns ?? "");
+      }
+      setNicknameInput(store.users.nicknameFor(id) ?? "");
     }),
   );
 
@@ -76,6 +80,12 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     const v = pronounsInput().trim();
     if (v === (user()?.pronouns ?? "")) return;
     return saveProfileField("pronouns", () => store.users.updateMyProfile({ pronouns: v }));
+  };
+  const saveNickname = () => {
+    const id = profileUserId();
+    const v = nicknameInput();
+    if (v.trim() === (store.users.nicknameFor(id) ?? "")) return;
+    store.users.setNickname(id, v);
   };
   const saveCustomField = (id: string) => {
     const v = (customFieldInputs()[id] ?? "").trim();
@@ -146,19 +156,19 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
       .map((f) => ({ ...f, definition: definitionById.get(f.id) }))
       .filter(
         (f): f is typeof f & { definition: { label: string } } =>
-          f.definition?.fieldName !== "start_date" && !!f.definition?.label,
+          !!f.definition?.label && isCustomFieldDef(f.definition),
       )
       .map(({ definition, ...field }) => ({ ...field, label: definition.label }));
   });
   const editableCustomFields = createMemo(() =>
-    (store.resources.profileFieldDefs() ?? []).filter((field) => field.fieldName !== "start_date"),
+    (store.resources.profileFieldDefs() ?? []).filter(isCustomFieldDef),
   );
   return (
     <>
-      <Show when={user()}>
-        {(u) => (
-          <div class="user-profile-panel" data-pane={props.pane.id}>
-            <PanelHeader onClose={() => closeTile(props.pane.id)} title="Profile" />
+      <div class="user-profile-panel" data-pane={props.pane.id}>
+        <PanelHeader onClose={() => closeTile(props.pane.id)} title="Profile" />
+        <Show when={user()}>
+          {(u) => (
             <div class="user-profile-body">
               <InlineFeedback
                 class="user-profile-feedback"
@@ -175,16 +185,19 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 lastSeenText={lastSeenText}
                 localTime={localTime}
                 nameInput={nameInput}
+                nicknameInput={nicknameInput}
                 onProfilePhotoSelected={setPhotoToEdit}
                 onTogglePresence={togglePresence}
                 pronounsInput={pronounsInput}
                 saveName={saveName}
+                saveNickname={saveNickname}
                 savePronouns={savePronouns}
                 saveStatus={saveStatus}
                 saveTitle={saveTitle}
                 savingProfileFields={savingProfileFields}
                 savingStatus={savingStatus}
                 setNameInput={setNameInput}
+                setNicknameInput={setNicknameInput}
                 setPronounsInput={setPronounsInput}
                 setStatusEmoji={setStatusEmoji}
                 setStatusText={setStatusText}
@@ -220,9 +233,9 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 </div>
               </Show>
             </div>
-          </div>
-        )}
-      </Show>
+          )}
+        </Show>
+      </div>
       <Show when={photoToEdit()}>
         {(file) => (
           <ProfilePhotoEditor

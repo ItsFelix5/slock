@@ -1,10 +1,9 @@
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
-import Icon from "../media/Icon";
+import IconButton from "../button/IconButton";
 import { useEscapeClose } from "../useEscapeClose";
-import Overlay from "./Overlay";
 import "./Modal.css";
-import Tooltip from "./Tooltip";
+import Overlay from "./Overlay";
 
 export interface ModalProps {
   align?: "center" | "top";
@@ -32,16 +31,13 @@ export interface ModalCloseButtonProps {
 export function ModalCloseButton(props: ModalCloseButtonProps) {
   const label = () => props.label ?? "Close";
   return (
-    <Tooltip content={label()}>
-      <button
-        aria-label={label()}
-        class={props.class ? `panel-close-btn ${props.class}` : "panel-close-btn"}
-        onClick={props.onClose}
-        type="button"
-      >
-        <Icon name="close" size={12} />
-      </button>
-    </Tooltip>
+    <IconButton
+      class={props.class ? `panel-close-btn ${props.class}` : "panel-close-btn"}
+      onClick={props.onClose}
+      label={label()}
+      icon="close"
+      iconSize={12}
+    />
   );
 }
 
@@ -49,6 +45,7 @@ export interface ModalHeaderProps {
   children?: JSX.Element;
   onClose: () => void;
   title?: JSX.Element;
+  buttons?: JSX.Element;
 }
 
 export function ModalHeader(props: ModalHeaderProps) {
@@ -60,7 +57,10 @@ export function ModalHeader(props: ModalHeaderProps) {
           <h2>{props.title}</h2>
         </Show>
       </div>
-      <ModalCloseButton onClose={props.onClose} />
+      <div class="modal-header-actions flex-align-center">
+        {props.buttons}
+        <ModalCloseButton onClose={props.onClose} />
+      </div>
     </div>
   );
 }

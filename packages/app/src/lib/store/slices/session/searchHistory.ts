@@ -1,30 +1,9 @@
-import type { UserPrefs } from "@slock/slack-api";
-import { setSearchHistory as setSearchHistoryApi } from "@slock/slack-api";
-import { createEffect, createSignal } from "solid-js";
-import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
+import { createLocalPref } from "../../localPref";
 
 const MAX_ENTRIES = 15;
 
-export function createSearchHistorySlice(deps: { userPrefs: () => UserPrefs | undefined }) {
-  const [searchHistory, setSearchHistory] = createSignal<string[]>([]);
-  const runMutation = createSerialMutationQueue();
-
-  let seeded = false;
-  createEffect(() => {
-    const prefs = deps.userPrefs();
-    if (!prefs || seeded) return;
-    seeded = true;
-    setSearchHistory(prefs.searchHistory);
-  });
-
-  function persist(next: string[]) {
-    setSearchHistory(next);
-
-    if (!deps.userPrefs()) return;
-    runMutation(() => setSearchHistoryApi(next)).catch((err) => {
-      console.error("Failed to sync search history", err);
-    });
-  }
+export function createSearchHistorySlice() {
+  const [searchHistory, persist] = createLocalPref<string[]>("search-history", []);
 
   function recordSearch(query: string) {
     const trimmed = query.trim();

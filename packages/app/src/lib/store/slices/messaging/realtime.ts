@@ -1,56 +1,18 @@
-import type { Channel, DirectMessage, Message, ModalView, User } from "@slock/slack-api";
-import { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "@slock/slack-api";
 import { createEffect } from "solid-js";
-import type { MessageLocation, ThreadRef, View } from "../types";
+import type { Message } from "../../../api";
+import { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
+import { isDmId } from "../../../dmId";
+import { mergeMessages } from "../../../messageMerge";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
-import { mergeMessages } from "./merge/messageMerge";
+import { createMembershipEvents } from "./membershipEvents";
+import type { RealtimeDeps } from "./realtimeDeps";
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   return `${proto}://${location.host}/ws`;
 }
-export function createRealtimeSlice(deps: {
-  visibleViews: () => View[];
-  visibleThreads: () => ThreadRef[];
-  currentUser: () => User | undefined;
-  channels: () => Channel[];
-  patchChannel: (id: string, patch: Partial<Channel>) => void;
-  setUnreadChannelIds: (id: string, unread: boolean) => void;
-  setLastReadByChannel: (id: string, ts: number) => void;
-  setPresenceOverrides: (id: string, presence: "active" | "away") => void;
-  invalidateUser: (id: string) => void;
-  recordTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
-  clearTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
-  allDirectMessages: () => DirectMessage[];
-  closedDmIds: Record<string, boolean>;
-  setClosedDmIds: (id: string, closed: boolean) => void;
-  ensureDm: (channelId: string, userId: string) => void;
-  patchDm: (id: string, patch: Partial<DirectMessage>) => void;
-  openModalView: (view: ModalView) => void;
-  setGatewayActivityBadgeCounts: (activity: any) => boolean;
-  refreshActivityFeed: () => void;
-  messagesByChannel: Record<string, Message[]>;
-  setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
-  threadMessages: Record<string, Message[]>;
-  setThreadMessages: (threadTs: string, updater: (existing?: Message[]) => Message[]) => void;
-  loadedChannels: Set<string>;
-  loadedThreads: Set<string>;
-  findAllMessageLocations: (
-    channelId: string,
-    ts: string,
-  ) => { location: MessageLocation; list: Message[] }[];
-  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
-  insertMessageInOrder: (channelId: string, msg: Message) => void;
-  mergeIncomingMessage: (existing: Message[], msg: Message) => Message[];
-  applyReactionEvent: (
-    channel: string,
-    ts: string,
-    name: string,
-    userId: string,
-    added: boolean,
-    itemUserId?: string,
-  ) => void;
-}) {
+export function createRealtimeSlice(deps: RealtimeDeps) {
+  const membershipEvents = createMembershipEvents(deps);
   const latestReplyByThread = new Map<string, string>();
   const seenReplyKeys = new Set<string>();
 
@@ -221,8 +183,9 @@ export function createRealtimeSlice(deps: {
         break;
       case "presence_change": {
         const presence = payload.presence === "away" ? "away" : "active";
+        const selfId = deps.currentUser()?.id;
         const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
-        for (const id of ids) deps.setPresenceOverrides(id, presence);
+        for (const id of ids) if (id !== selfId) deps.setPresenceOverrides(id, presence);
         break;
       }
       case "user_typing": {
@@ -234,7 +197,8 @@ export function createRealtimeSlice(deps: {
       case "badge_counts_updated": {
         for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
           deps.setUnreadChannelIds(id, unread);
-          if (id.startsWith("D")) deps.patchDm(id, { mentions });
+          const isDm = isDmId(id, (dmId) => deps.allDirectMessages().some((d) => d.id === dmId));
+          if (isDm) deps.patchDm(id, { mentions });
           else deps.patchChannel(id, { mentions });
         }
         const activityCountsChanged = deps.setGatewayActivityBadgeCounts(payload.activity_v2);
@@ -255,10 +219,19 @@ export function createRealtimeSlice(deps: {
         for (const id of ids) deps.invalidateUser(id);
         break;
       }
+      case "channel_joined":
+      case "group_joined":
+      case "channel_left":
+      case "group_left":
+      case "member_left_channel":
+      case "im_created":
+        membershipEvents.handleMembershipEvent(payload);
+        break;
       case "view_opened":
         if (payload.view_type === "modal" && payload.view) deps.openModalView(payload.view);
         break;
       default:
+        console.debug("[ws] unhandled message type:", payload.type, payload);
         break;
     }
   }

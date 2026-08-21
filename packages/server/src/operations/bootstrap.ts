@@ -3,7 +3,7 @@ import { jsonResponse } from "../http/jsonResponse.ts";
 import { callSlack } from "../slackClient.ts";
 import {
   trimActivityCounts,
-  trimChannel,
+  trimBootChannel,
   trimCountGroups,
   trimUser,
 } from "../trim/slackEntities.ts";
@@ -28,7 +28,7 @@ function trimUserBoot(data: any): any {
     updated: group?.updated,
   });
   return {
-    channels: Array.isArray(data.channels) ? data.channels.map(trimChannel) : data.channels,
+    channels: Array.isArray(data.channels) ? data.channels.map(trimBootChannel) : data.channels,
     ims: Array.isArray(data.ims) ? data.ims.map(trimIm) : data.ims,
     is_open: Array.isArray(data.is_open) ? data.is_open : undefined,
     mpims: Array.isArray(data.mpims) ? data.mpims.map(trimMpim) : data.mpims,
@@ -68,9 +68,6 @@ const USER_PREF_KEYS = [
   "frecency_jumper",
   "highlight_words",
   "muted_channels",
-  "slock_channel_tabs",
-  "slock_desktop_notifications",
-  "slock_search_history",
 ] as const;
 
 function trimUserPrefs(data: any): any {

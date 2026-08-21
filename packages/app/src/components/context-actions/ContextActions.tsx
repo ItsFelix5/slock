@@ -1,11 +1,4 @@
-import {
-  listNavigationIndex,
-  Modal,
-  ModalHeader,
-  shortcutsByScope,
-  useEscapeClose,
-  useShortcut,
-} from "@slock/ui";
+import { Modal, ModalHeader, shortcutsByScope, useEscapeClose, useShortcut } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import "./ContextActions.css";
 
@@ -31,7 +24,7 @@ function ActionList(props: { actions: Action[] }) {
     <div class="context-actions-list">
       <For each={props.actions}>
         {(action) => (
-          <div class="context-actions-row flex-between" tabIndex={0}>
+          <div class="context-actions-row flex-between">
             <span>{action.label}</span>
             <kbd>{action.keys}</kbd>
           </div>
@@ -39,16 +32,6 @@ function ActionList(props: { actions: Action[] }) {
       </For>
     </div>
   );
-}
-
-function onContentKeyDown(event: KeyboardEvent & { currentTarget: HTMLDivElement }) {
-  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-  const rows = [...event.currentTarget.querySelectorAll<HTMLElement>(".context-actions-row")];
-  const current = rows.indexOf(document.activeElement as HTMLElement);
-  const next = listNavigationIndex(event.key, current < 0 ? null : current, rows.length);
-  if (next === undefined) return;
-  event.preventDefault();
-  rows[next]?.focus();
 }
 
 export default function ContextActions() {
@@ -85,7 +68,7 @@ export default function ContextActions() {
       >
         <ModalHeader onClose={() => setOpen(false)} title="Context actions" />
 
-        <div class="context-actions-content" onKeyDown={onContentKeyDown}>
+        <div class="context-actions-content" tabIndex={0}>
           <Show when={composerContext()}>
             <section>
               <h3>Composer</h3>

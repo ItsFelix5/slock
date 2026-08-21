@@ -1,7 +1,8 @@
-import { fetchBrowsableChannels } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
-import { channelDisplayName, store } from "../../../lib/store";
+import { createMemo } from "solid-js";
+import { fetchBrowsableChannels } from "../../../lib/api";
+import { channelDisplayName, channelIconName } from "../../../lib/displayName";
+import { store } from "../../../lib/store";
 import ComposePicker from "./ComposePicker";
 import "./ComposeUserPicker.css";
 
@@ -43,9 +44,7 @@ export default function ComposeChannelPicker(props: {
       }}
       renderItem={(channel) => (
         <>
-          <Show fallback="#" when={channel.private}>
-            <Icon name="lock" size={12} />
-          </Show>
+          <Icon name={channelIconName(channel.private)} size={12} />
           {channel.name}
         </>
       )}

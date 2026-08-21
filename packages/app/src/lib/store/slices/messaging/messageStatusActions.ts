@@ -1,7 +1,7 @@
-import type { Message } from "@slock/slack-api";
-import { toggleThreadSubscription } from "@slock/slack-api";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import type { Message } from "../../../api";
+import { toggleThreadSubscription } from "../../../api";
+import { actionFeedback } from "../../../feedback";
 
 export function createMessageStatusActions(deps: {
   clearChannelUnread: (channelId: string) => void;
@@ -10,6 +10,7 @@ export function createMessageStatusActions(deps: {
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
+  hasMoreHistory: (channelId: string) => boolean;
   messagesByChannel: Record<string, Message[]>;
   threadMessages: Record<string, Message[]>;
   patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
@@ -18,9 +19,13 @@ export function createMessageStatusActions(deps: {
   const [threadSubscriptionPending, setThreadSubscriptionPending] = createStore<
     Record<string, boolean>
   >({});
+  const [threadUnsubscribed, setThreadUnsubscribed] = createStore<Record<string, boolean>>({});
   const subscriptionPendingKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
   function isThreadSubscriptionPending(channelId: string, ts: string): boolean {
     return !!threadSubscriptionPending[subscriptionPendingKey(channelId, ts)];
+  }
+  function isThreadUnsubscribed(channelId: string, ts: string): boolean {
+    return !!threadUnsubscribed[subscriptionPendingKey(channelId, ts)];
   }
   function isThreadSubscribed(ts: string): boolean {
     return !!threadMessages[ts]?.[0]?.isSubscribed;
@@ -51,12 +56,14 @@ export function createMessageStatusActions(deps: {
     if (threadSubscriptionPending[pendingKey]) return;
     setThreadSubscriptionPending(pendingKey, true);
     patchMessage(channelId, ts, { isSubscribed: false });
+    setThreadUnsubscribed(pendingKey, true);
     try {
       await toggleThreadSubscription(channelId, ts, true);
     } catch (err) {
       console.error("Failed to unsubscribe from thread", err);
       actionFeedback.flash(ts, "Failed to unsubscribe from thread.", "error");
       patchMessage(channelId, ts, { isSubscribed: true });
+      setThreadUnsubscribed(pendingKey, false);
     } finally {
       setThreadSubscriptionPending(
         produce((pending) => {
@@ -76,8 +83,9 @@ export function createMessageStatusActions(deps: {
   async function markMessageUnread(channelId: string, ts: string): Promise<boolean> {
     const list = messagesByChannel[channelId] ?? [];
     const idx = list.findIndex((m) => m.ts === ts);
+    const atRealStart = idx === 0 && !deps.hasMoreHistory(channelId);
     const previousTs =
-      idx > 0 ? list[idx - 1].ts : idx === 0 ? "0" : (parseFloat(ts) - 0.000001).toFixed(6);
+      idx > 0 ? list[idx - 1].ts : atRealStart ? "0" : (parseFloat(ts) - 0.000001).toFixed(6);
     const previousMs = parseFloat(previousTs) * 1000;
     if (!(await deps.setChannelRead(channelId, previousTs))) {
       actionFeedback.flash(ts, "Failed to mark as unread.", "error");
@@ -91,6 +99,7 @@ export function createMessageStatusActions(deps: {
   return {
     isThreadSubscribed,
     isThreadSubscriptionPending,
+    isThreadUnsubscribed,
     markCurrentChannelRead,
     markMessageUnread,
     toggleThreadSubscribed,

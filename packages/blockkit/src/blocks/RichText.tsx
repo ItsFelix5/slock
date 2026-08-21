@@ -4,8 +4,10 @@ import type {
   RichTextList as RichTextListType,
   RichTextSection,
   RichTextSubBlock,
-} from "@slock/slack-api";
+} from "@slock/types";
+import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
+import { useBlockKitResolver } from "../context";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
 import { DateToken, Link, Mention, TimeAwareText, UsergroupMention } from "../mrkdwn";
@@ -69,6 +71,20 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       );
     case "message_mention":
       return <Link label={el.text} url={el.url} />;
+    case "canvas": {
+      const resolver = useBlockKitResolver();
+      const label = el.text && el.text !== el.url ? el.text : "canvas";
+      return (
+        <button
+          class="bk-canvas"
+          onClick={() => resolver.onCanvasClick(el.file_id, label)}
+          type="button"
+        >
+          <Icon name="canvas-content" size={14} />
+          <EmojiText text={label} />
+        </button>
+      );
+    }
     default:
       return null;
   }

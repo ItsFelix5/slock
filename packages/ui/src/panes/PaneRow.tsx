@@ -46,7 +46,6 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
 }
 
 function PaneDivider(props: { positionPercent: number; onDrag: (deltaFraction: number) => void }) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let handleEl: HTMLHRElement | undefined;
   let startPos = 0;
   let containerSize = 1;

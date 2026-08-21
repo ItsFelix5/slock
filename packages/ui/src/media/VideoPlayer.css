@@ -33,3 +33,201 @@
 .video-player-action:hover {
   text-decoration: underline;
 }
+
+.video-player-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  background: #000;
+  border-radius: inherit;
+}
+
+.video-player-wrap:fullscreen {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.video-player-wrap video {
+  display: block;
+}
+
+.video-player-wrap:fullscreen video {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
+
+/* Same buttons everyone else uses (@slock/ui's IconButton, .icon-btn /
+   .icon-action), just recolored for legibility over arbitrary video. */
+.video-player-chrome.icon-action,
+.video-player-speed.video-player-chrome {
+  color: #fff;
+}
+
+.video-player-chrome.icon-action:hover,
+.video-player-chrome.icon-action.active,
+.video-player-speed.video-player-chrome:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Idle affordance: just play + length, bottom-left. Hidden on hover — the
+   full bar takes over. */
+.video-player-idle {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  gap: 7px;
+  padding: 4px 10px 4px 4px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: var(--radius-pill);
+  opacity: 1;
+  transition: opacity 0.1s;
+}
+
+.video-player-wrap:hover .video-player-idle,
+.video-player-wrap:focus-within .video-player-idle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Everything below only shows up on hover/focus. */
+.video-player-corner,
+.video-player-controls {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.video-player-wrap:hover .video-player-corner,
+.video-player-wrap:hover .video-player-controls,
+.video-player-wrap:focus-within .video-player-corner,
+.video-player-wrap:focus-within .video-player-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.video-player-corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-control);
+}
+
+.video-player-controls {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: var(--radius-md);
+}
+
+.video-player-controls-row {
+  gap: 8px;
+}
+
+.video-player-seek {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 12px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.video-player-seek-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-pill);
+}
+
+.video-player-seek-buffered {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(255, 255, 255, 0.42);
+  border-radius: var(--radius-pill);
+}
+
+.video-player-seek-played {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #fff;
+  border-radius: var(--radius-pill);
+}
+
+.video-player-seek-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: var(--radius-circle);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.1s;
+}
+
+.video-player-seek:hover .video-player-seek-thumb,
+.video-player-seek:focus-visible .video-player-seek-thumb {
+  opacity: 1;
+}
+
+.video-player-seek:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.video-player-time {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.video-player-row-spacer {
+  flex: 1;
+}
+
+.video-player-meta-group {
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.video-player-speed {
+  gap: 3px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--radius-control);
+}
+
+.video-player-speed-panel {
+  min-width: 76px;
+}
+
+.video-player-speed-panel .menu-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.video-player-controls .volume-control-toggle {
+  color: #fff;
+}
+
+.video-player-controls .volume-control-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+}

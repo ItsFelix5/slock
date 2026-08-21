@@ -91,7 +91,7 @@
   color: var(--text-on-accent);
   cursor: pointer;
   background: var(--accent);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .channel-move-menu-create:disabled {

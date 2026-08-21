@@ -1,29 +1,16 @@
+import { createResource, createRoot, createSignal } from "solid-js";
 import {
   fetchBootstrap,
   fetchMessageShortcuts,
   fetchProfileFieldDefs,
   fetchUserPrefs,
-} from "@slock/slack-api";
-import { createResource, createRoot, createSignal } from "solid-js";
+} from "../api";
 import { createAppActions } from "../appActions";
 import { wireAppState } from "../appWiring";
 import { createRunMessageShortcut } from "./runMessageShortcut";
 import { createStoreSlices } from "./storeSlices";
 
-export { channelDisplayName } from "./slices/channelDisplayName";
-export { conversationDisplayName } from "./slices/conversationDisplayName";
-export { dmDisplayName } from "./slices/dmDisplayName";
-export { actionFeedback, composerFeedbackKey } from "./slices/feedback";
-export { formatInteractorNames } from "./slices/interactorNames";
-export { isPingingActivity } from "./slices/messaging/activity";
-export { REMINDER_OPTIONS } from "./slices/messaging/messages";
-export {
-  findUnreadDividerIndex,
-  isUnreadDividerBoundary,
-} from "./slices/messaging/unread";
 export type {
-  ChannelDetailsPaneContent,
-  ChannelDetailsTab,
   ChannelMessageTarget,
   MessageLocation,
   Nav,

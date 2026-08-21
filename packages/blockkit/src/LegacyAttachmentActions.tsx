@@ -1,4 +1,4 @@
-import { type AttachmentAction, runAttachmentAction } from "@slock/slack-api";
+import { type AttachmentAction, runAttachmentAction } from "@slock/types";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import type { BlockActionContext } from "./BlockKit";
 

@@ -1,9 +1,10 @@
-import type { Message, MessageShortcut } from "@slock/slack-api";
-import { Button, fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
+import { Button, debugMode, fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import type { Message, MessageShortcut } from "../../../lib/api";
+import { copyMessageLink, REMINDER_OPTIONS, remindAboutMessage } from "../../../lib/messageLinks";
 import { threadContainsMessage } from "../../../lib/replyLink";
-import { REMINDER_OPTIONS, store } from "../../../lib/store";
-import { confirmAndDeleteMessage, copyMessageText } from "../messageActions";
+import { store } from "../../../lib/store";
+import { confirmAndDeleteMessage, copyMessageText, showMessageDebugInfo } from "../messageActions";
 
 export interface MessageActionsMenuItemsProps {
   channelId: string;
@@ -72,7 +73,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const copyLink = () => {
     close();
-    store.messages.copyMessageLink(props.channelId, props.msg.ts);
+    copyMessageLink(props.channelId, props.msg.ts, props.threadTs);
   };
 
   const togglePin = () => {
@@ -103,9 +104,14 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     );
   };
 
+  const showDebugInfo = () => {
+    close();
+    showMessageDebugInfo(props.msg);
+  };
+
   const remind = (dateDue: number) => {
     close();
-    store.messages.remindAboutMessage(props.channelId, props.msg.ts, dateDue);
+    remindAboutMessage(props.channelId, props.msg.ts, dateDue);
   };
 
   const remindAtCustomTime = (event: SubmitEvent) => {
@@ -187,6 +193,11 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
       <MenuItem icon="text" onClick={copyText}>
         Copy text
       </MenuItem>
+      <Show when={debugMode()}>
+        <MenuItem icon="bug" onClick={showDebugInfo}>
+          Show debug info
+        </MenuItem>
+      </Show>
       <Show when={store.resources.messageShortcuts.loading}>
         <div aria-live="polite" class="menu-item disabled">
           <Icon name="apps" size={15} />

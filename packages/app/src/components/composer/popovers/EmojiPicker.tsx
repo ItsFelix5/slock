@@ -51,13 +51,13 @@ function buildBlocks(sections: { entries: PickerEntry[] }[]): Block[] {
 export default function EmojiPicker(props: {
   onSelect: (name: string) => void;
   onClose: () => void;
+  existingReactions?: { name: string; mine: boolean }[];
 }) {
   const [query, setQuery] = createSignal("");
+  const [activeIndex, setActiveIndex] = createSignal(0);
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let bodyRef: HTMLDivElement | undefined;
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let searchInputRef: HTMLInputElement | undefined;
 
   useEscapeClose(props.onClose);
@@ -70,11 +70,25 @@ export default function EmojiPicker(props: {
 
   const allEntries = createMemo(() => allEmojiEntries());
 
+  const reactionByName = createMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const r of props.existingReactions ?? []) map.set(r.name, r.mine);
+    return map;
+  });
+
+  const reactedEntries = createMemo(() => {
+    if (!props.existingReactions?.length) return [];
+    const byName = new Map(allEntries().map((entry) => [entry.name, entry]));
+    return props.existingReactions
+      .map((r) => byName.get(r.name))
+      .filter((entry) => entry !== undefined);
+  });
+
   const visibleEntries = createMemo(() => {
     const entries = allEntries();
     if (query().trim()) return searchEmoji(entries, query());
     const frequent = frequentEmoji(entries);
-    return prioritizeEmojiEntries(entries, frequent);
+    return prioritizeEmojiEntries(entries, reactedEntries(), frequent);
   });
 
   const isEmpty = createMemo(() => visibleEntries().length === 0);
@@ -157,9 +171,17 @@ export default function EmojiPicker(props: {
     if (fromSearch && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     const indexAttr = target instanceof HTMLElement ? target.dataset.emojiIndex : undefined;
     const current = indexAttr === undefined ? null : Number(indexAttr);
+
+    if (!fromSearch && e.key === "ArrowUp" && current !== null && current < COLS) {
+      e.preventDefault();
+      searchInputRef?.focus();
+      return;
+    }
+
     const next = gridNavigationIndex(e.key, current, visibleEntries().length, COLS);
     if (next === undefined) return;
     e.preventDefault();
+    setActiveIndex(next);
     scrollEmojiIndexIntoView(next);
     queueMicrotask(() =>
       bodyRef?.querySelector<HTMLElement>(`[data-emoji-index="${next}"]`)?.focus(),
@@ -202,9 +224,11 @@ export default function EmojiPicker(props: {
                 <For each={item.block.entries}>
                   {(entry, index) => (
                     <EmojiButton
+                      active={activeIndex() === item.startIndex + index()}
                       entry={entry}
                       index={item.startIndex + index()}
                       onSelect={props.onSelect}
+                      reactionByName={reactionByName}
                     />
                   )}
                 </For>
@@ -219,18 +243,30 @@ export default function EmojiPicker(props: {
 }
 
 function EmojiButton(props: {
+  active: boolean;
   entry: PickerEntry;
   index: number;
   onSelect: (name: string) => void;
+  reactionByName: () => Map<string, boolean>;
 }) {
   const url = createMemo(() => emojiUrl(props.entry.name));
+  const mine = createMemo(() => props.reactionByName().get(props.entry.name) === true);
+  const reacted = createMemo(() => props.reactionByName().has(props.entry.name));
+  const tooltip = createMemo(() => {
+    if (mine()) return `:${props.entry.name}: · you reacted`;
+    if (reacted()) return `:${props.entry.name}: · already reacted`;
+    return `:${props.entry.name}:`;
+  });
   return (
-    <Tooltip content={`:${props.entry.name}:`}>
+    <Tooltip content={tooltip()}>
       <button
         aria-label={`:${props.entry.name}:`}
+        aria-pressed={mine()}
         class="emoji-picker-btn btn-reset flex-center"
+        classList={{ mine: mine(), reacted: reacted() }}
         data-emoji-index={props.index}
         onClick={() => props.onSelect(props.entry.name)}
+        tabIndex={props.active ? 0 : -1}
         type="button"
       >
         <Show fallback={props.entry.unicode ?? "❔"} when={url()}>

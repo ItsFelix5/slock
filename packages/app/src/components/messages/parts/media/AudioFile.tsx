@@ -1,8 +1,9 @@
 import { formatDuration } from "@slock/blockkit";
-import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { createMediaVolume, Icon, VolumeControl } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
+import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import "./AudioFile.css";
+import TranscriptPopover from "./TranscriptPopover";
 
 const BAR_COUNT = 40;
 
@@ -142,6 +143,9 @@ export default function AudioFile(props: { file: SlackFile }) {
           <span class="audio-file-duration text-dim text-xs">
             {formatDuration(playing() || currentTime() ? currentTime() : duration())}
           </span>
+          <Show when={props.file.transcriptionPreview}>
+            <TranscriptPopover file={props.file} media={audioElement} />
+          </Show>
           <VolumeControl
             muted={mediaVolume.muted()}
             onMutedChange={mediaVolume.setMuted}
@@ -164,14 +168,6 @@ export default function AudioFile(props: { file: SlackFile }) {
         }}
         src={resolveMediaUrl(props.file.urlPrivate)}
       />
-      <Show when={props.file.transcriptionPreview}>
-        {(text) => (
-          <div class="audio-file-transcript text-dim text-xs">
-            {text()}
-            {props.file.transcriptionHasMore ? "…" : ""}
-          </div>
-        )}
-      </Show>
     </div>
   );
 }

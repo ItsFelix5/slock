@@ -1,14 +1,15 @@
-import type { ChannelMembersPage, User } from "@slock/slack-api";
 import {
   Avatar,
   Button,
   confirmDialog,
   createCopyFeedback,
   Icon,
+  initRovingTabIndexDefault,
   SegmentedControl,
   Tooltip,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import type { ChannelMembersPage, User } from "../../../lib/api";
 import {
   inviteUsersToChannel,
   loadChannelManagerIds,
@@ -16,7 +17,8 @@ import {
   type MemberFilter,
   removeUserFromChannel,
 } from "../../../lib/channelDetails";
-import { actionFeedback, store } from "../../../lib/store";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import "./ChannelDetails.css";
 import { createKeyedPageLoader } from "./keyedPageLoader";
@@ -34,6 +36,7 @@ export default function ChannelMembersTab(props: {
   channelName: string;
   onMembersChanged?: () => void;
 }) {
+  let listRef: HTMLDivElement | undefined;
   const [query, setQuery] = createSignal("");
   const [filter, setFilter] = createSignal<MemberFilter>("everyone");
 
@@ -45,8 +48,6 @@ export default function ChannelMembersTab(props: {
     apps: undefined,
     everyone: undefined,
   });
-  const [pagedLoadVersion, setPagedLoadVersion] = createSignal(0);
-
   const [managerIds, setManagerIds] = createSignal<string[]>([]);
   const [loadingManagers, setLoadingManagers] = createSignal(false);
   let managersLoaded = false;
@@ -69,17 +70,8 @@ export default function ChannelMembersTab(props: {
       }));
       setPagedCursors((prev) => ({ ...prev, [f]: page.nextCursor }));
     },
-    onStateChange: () => setPagedLoadVersion((version) => version + 1),
   });
   const loadMore = (f: PagedFilter) => pagedLoader.load(f);
-  const isPagedLoading = (f: PagedFilter) => {
-    pagedLoadVersion();
-    return pagedLoader.isLoading(f);
-  };
-  const hasPagedLoadError = (f: PagedFilter) => {
-    pagedLoadVersion();
-    return pagedLoader.hasError(f);
-  };
 
   const loadManagers = async () => {
     if (managersLoaded || loadingManagers()) return;
@@ -116,10 +108,10 @@ export default function ChannelMembersTab(props: {
   });
 
   const isLoading = createMemo(() =>
-    filter() === "managers" ? loadingManagers() : isPagedLoading(filter() as PagedFilter),
+    filter() === "managers" ? loadingManagers() : pagedLoader.isLoading(filter() as PagedFilter),
   );
   const loadError = createMemo(() =>
-    filter() === "managers" ? false : hasPagedLoadError(filter() as PagedFilter),
+    filter() === "managers" ? false : pagedLoader.hasError(filter() as PagedFilter),
   );
 
   const retryLoad = () => {
@@ -138,6 +130,8 @@ export default function ChannelMembersTab(props: {
     if (!q) return list;
     return list.filter((u) => u.name.toLowerCase().includes(q));
   });
+
+  initRovingTabIndexDefault(() => listRef, filteredMembers);
 
   const emptyLabel = createMemo(() => {
     if (query().trim()) return "No matches.";
@@ -270,7 +264,7 @@ export default function ChannelMembersTab(props: {
           </Button>
         </div>
       </Show>
-      <div class="channel-details-member-list flex-col">
+      <div class="channel-details-member-list flex-col" ref={listRef}>
         <For
           each={filteredMembers()}
           fallback={
@@ -285,6 +279,7 @@ export default function ChannelMembersTab(props: {
                 class="channel-details-member-main btn-reset flex-align-center"
                 data-nav-row
                 onClick={() => store.users.openUserProfile(u.id)}
+                tabIndex={-1}
                 type="button"
               >
                 <Avatar size="small" user={u} />

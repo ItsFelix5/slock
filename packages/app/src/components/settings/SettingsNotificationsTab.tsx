@@ -1,6 +1,8 @@
 import { Button, Icon, InlineFeedback, Switch } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
-import { actionFeedback, channelDisplayName, store } from "../../lib/store";
+import { channelDisplayName, channelIconName } from "../../lib/displayName";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
 import "./Settings.css";
 import "./SettingsNotificationsTab.css";
 
@@ -58,9 +60,7 @@ export default function SettingsNotificationsTab() {
             >
               <Switch
                 checked={store.desktopNotifications.enabled()}
-                disabled={
-                  !store.preferences.preferencesReady() || store.desktopNotifications.isPending()
-                }
+                disabled={!store.preferences.preferencesReady()}
                 onChange={store.desktopNotifications.setNotificationsEnabled}
                 title="Desktop notifications"
               />
@@ -81,7 +81,7 @@ export default function SettingsNotificationsTab() {
               {(c) => (
                 <div class="settings-list-row flex-between">
                   <span class="settings-list-row-name flex-align-center">
-                    {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
+                    <Icon name={channelIconName(c.private)} size={12} /> {channelDisplayName(c)}
                   </span>
                   <InlineFeedback
                     class="settings-list-row-feedback"
@@ -118,7 +118,7 @@ export default function SettingsNotificationsTab() {
               {(c) => (
                 <div class="settings-list-row flex-between">
                   <span class="settings-list-row-name flex-align-center">
-                    {c.private ? <Icon name="lock" size={12} /> : "#"} {channelDisplayName(c)}
+                    <Icon name={channelIconName(c.private)} size={12} /> {channelDisplayName(c)}
                   </span>
                   <InlineFeedback
                     class="settings-list-row-feedback"

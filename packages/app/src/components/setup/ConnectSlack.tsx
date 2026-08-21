@@ -1,5 +1,5 @@
-import { extractSlackSession, submitAuthRequest } from "@slock/slack-api";
 import { createSignal } from "solid-js";
+import { extractSlackSession, submitAuthRequest } from "../../lib/api";
 import "./ConnectSlack.css";
 
 const CONTENT_TYPE_BOUNDARY_CURL = /-H\s*['"]content-type:[^'"]*boundary=([^\s'";]+)['"]/i;

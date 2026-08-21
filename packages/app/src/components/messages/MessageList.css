@@ -104,7 +104,7 @@
   position: relative;
 }
 .message-row-group:hover,
-.message-row-group:has(.message-row.focused) {
+.message-row-group:has(.message-row:focus-visible) {
   background: var(--hover-bg);
 }
 .message-row-group:has(.message-row:focus-visible) {
@@ -126,18 +126,20 @@
 }
 .message-hover-actions {
   position: absolute;
+  z-index: 1;
   top: -14px;
   right: var(--message-row-inline-start);
   display: none;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--message-control-radius);
+  border-radius: var(--radius-control);
 }
 .message-row-group.is-first-message .message-hover-actions {
   top: -6px;
 }
 .message-row:hover .message-hover-actions,
-.message-row:focus-within .message-hover-actions,
+.message-row:focus-visible .message-hover-actions,
+.message-row:has(:focus-visible) .message-hover-actions,
 .message-hover-actions.force-visible {
   display: flex;
 }
@@ -146,7 +148,7 @@
   height: 28px;
   font-size: var(--font-size-secondary);
   color: var(--text-secondary);
-  border-radius: var(--message-control-radius);
+  border-radius: var(--radius-control);
 }
 .message-hover-btn:hover:not(:disabled) {
   color: var(--text-primary);
@@ -201,7 +203,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 .custom-reminder-time .btn {
   justify-self: end;
@@ -242,7 +244,7 @@
   width: var(--message-avatar-size);
   height: var(--message-avatar-size);
   margin-top: var(--message-avatar-margin-top);
-  border-radius: var(--message-control-radius);
+  border-radius: var(--radius-control);
 }
 .message-avatar-button .avatar-message {
   pointer-events: none;

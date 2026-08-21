@@ -1,9 +1,9 @@
-import type { Message, User } from "@slock/slack-api";
-import { toggleReaction } from "@slock/slack-api";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import type { Message, User } from "../../../api";
+import { toggleReaction } from "../../../api";
+import { actionFeedback } from "../../../feedback";
+import { restoreFailedReaction } from "../../../reactionRollback";
 import type { MessageLocation } from "../types";
-import { restoreFailedReaction } from "./reactions/reactionRollback";
 
 export function createMessageReactionToggle(deps: {
   currentUser: () => User | undefined;

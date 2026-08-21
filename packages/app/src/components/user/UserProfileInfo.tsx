@@ -1,8 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
-import type { User } from "@slock/slack-api";
 import { Icon } from "@slock/ui";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import type { User } from "../../lib/api";
 import { store } from "../../lib/store";
 import AppBadge from "./AppBadge";
 import UserProfileStatus from "./UserProfileStatus";
@@ -21,12 +21,15 @@ interface UserProfileInfoProps {
   saveName: () => void;
   saveTitle: () => void;
   savePronouns: () => void;
+  saveNickname: () => void;
   nameInput: () => string;
   setNameInput: (value: string) => void;
   titleInput: () => string;
   setTitleInput: (value: string) => void;
   pronounsInput: () => string;
   setPronounsInput: (value: string) => void;
+  nicknameInput: () => string;
+  setNicknameInput: (value: string) => void;
   savingProfileFields: () => Record<string, boolean>;
   blurOnEnter: (e: KeyboardEvent) => void;
   statusText: () => string;
@@ -177,7 +180,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
         when={!props.isSelf()}
       >
         <h2 class="user-profile-name">
-          <span class="user-profile-name-label">{u().name}</span>
+          <span class="user-profile-name-label">{u().originalName ?? u().name}</span>
           <Show when={u().isBot}>
             <AppBadge />
           </Show>
@@ -192,6 +195,18 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
             </Show>
           </p>
         </Show>
+        <div class="user-profile-nickname">
+          <input
+            aria-label="Nickname"
+            class="user-profile-nickname-input"
+            onBlur={props.saveNickname}
+            onInput={(e) => props.setNicknameInput(e.currentTarget.value)}
+            onKeyDown={props.blurOnEnter}
+            placeholder="Add a nickname"
+            type="text"
+            value={props.nicknameInput()}
+          />
+        </div>
       </Show>
       <UserProfileStatus
         clearStatus={props.clearStatus}

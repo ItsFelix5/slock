@@ -1,5 +1,5 @@
-import { fetchSlashCommands } from "@slock/slack-api";
 import { createSignal } from "solid-js";
+import { fetchSlashCommands } from "../../../../lib/api";
 
 export const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<
   { name: string; desc: string; icon: string | null }[]

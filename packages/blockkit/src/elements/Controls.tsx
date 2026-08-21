@@ -1,4 +1,4 @@
-import { type BlockElement, runBlockAction, type TextObject } from "@slock/slack-api";
+import { type BlockElement, runBlockAction, type TextObject } from "@slock/types";
 import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";

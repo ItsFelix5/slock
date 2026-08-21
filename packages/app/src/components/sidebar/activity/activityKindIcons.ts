@@ -1,5 +1,5 @@
-import type { ActivityItem } from "@slock/slack-api";
 import type { IconName } from "@slock/ui";
+import type { ActivityItem } from "../../../lib/api";
 
 export const ACTIVITY_KIND_ICONS: Record<ActivityItem["kind"], IconName> = {
   channel_all: "notifications-all-new-posts",

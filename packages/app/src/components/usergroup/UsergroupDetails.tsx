@@ -1,7 +1,8 @@
 import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { actionFeedback } from "../../lib/feedback";
 import { closeTile } from "../../lib/paneActions";
-import { actionFeedback, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import type { UsergroupDetailsPaneContent } from "../../lib/store/slices/types";
 import {
   loadUsergroupDetails,

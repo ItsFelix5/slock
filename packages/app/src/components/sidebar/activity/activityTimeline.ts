@@ -1,5 +1,5 @@
-import type { ActivityItem, Message } from "@slock/slack-api";
 import { createEffect, createMemo, untrack } from "solid-js";
+import type { ActivityItem, Block, Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import type { MessageAuthorFields } from "../../messages/parts/messageRenderState";
 
@@ -12,9 +12,6 @@ export interface TimelineEntry {
   ts: string;
 }
 
-/** The thread-timeline half of an activity row: which messages to show, which are still unread,
- * and how many earlier ones are collapsed behind "Read N earlier messages" - all derived from the
- * activity items in the row plus (once loaded) the real thread messages. */
 export function createActivityTimeline(deps: {
   currentUserId: () => string | undefined;
   expanded: () => boolean;
@@ -72,7 +69,11 @@ export function createActivityTimeline(deps: {
   }
 
   function entryText(entry: TimelineEntry): string {
-    return entry.message?.text ?? entry.item?.text ?? "";
+    return entry.message?.text || entry.item?.text || "";
+  }
+
+  function entryBlocks(entry: TimelineEntry): Block[] | undefined {
+    return entry.message?.blocks ?? entry.item?.blocks;
   }
 
   function entryAuthor(entry: TimelineEntry): MessageAuthorFields {
@@ -111,6 +112,7 @@ export function createActivityTimeline(deps: {
   return {
     earlierMessageCount,
     entryAuthor,
+    entryBlocks,
     entryText,
     entryUnread,
     firstTimelineTs,

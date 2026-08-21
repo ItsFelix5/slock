@@ -1,4 +1,6 @@
-import type { Channel, UserPrefs } from "@slock/slack-api";
+import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
+import { createStore } from "solid-js/store";
+import type { Channel, UserPrefs } from "../../../api";
 import {
   endDndSnooze,
   fetchDndStatus,
@@ -7,14 +9,12 @@ import {
   setDndSnooze,
   setHighlightWords as setHighlightWordsApi,
   setMutedChannels,
-} from "@slock/slack-api";
-import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
-import { createStore } from "solid-js/store";
+} from "../../../api";
+import { actionFeedback } from "../../../feedback";
 import {
   emojiUseScore as calculateEmojiUseScore,
   frecencyScore as calculateFrecencyScore,
 } from "../../../frecency";
-import { actionFeedback } from "../feedback";
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

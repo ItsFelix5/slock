@@ -1,18 +1,94 @@
-import { fetchDrafts, saveDraft } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
-import { createDraftPersistenceGate, saveAfterDraftHydration } from "./draftSync/draftSyncGuards";
-import { draftCacheKey } from "./submission";
+import { fetchDrafts, saveDraft } from "../../../lib/api";
+
+export function draftCacheKey(channelId: string, threadTs?: string): string {
+  return threadTs ? `${channelId}:thread:${threadTs}` : channelId;
+}
 
 type DraftValue = { text: string; blocks?: unknown };
+
+const pendingFilesByDraft = new Map<string, File[]>();
+
+export function createPendingFileState(opts: {
+  disabled: () => boolean;
+  draftKey: () => string | undefined;
+}) {
+  const [files, setFiles] = createSignal<File[]>([]);
+  let loadedKey: string | undefined;
+
+  createEffect(() => {
+    const key = opts.draftKey();
+    if (key === loadedKey) return;
+    loadedKey = key;
+    setFiles(key ? (pendingFilesByDraft.get(key) ?? []) : []);
+  });
+
+  const store = (next: File[]) => {
+    setFiles(next);
+    const key = opts.draftKey();
+    if (!key) return;
+    if (next.length > 0) pendingFilesByDraft.set(key, next);
+    else pendingFilesByDraft.delete(key);
+  };
+
+  return {
+    add(fileList: FileList | File[]) {
+      if (opts.disabled()) return;
+      store([...files(), ...Array.from(fileList)]);
+    },
+    clear(submittedKey: string) {
+      pendingFilesByDraft.delete(submittedKey);
+      if (opts.draftKey() === submittedKey) setFiles([]);
+    },
+    files,
+    remove(index: number) {
+      if (opts.disabled()) return;
+      store(files().filter((_, currentIndex) => currentIndex !== index));
+    },
+    rename(index: number, name: string) {
+      if (opts.disabled()) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      store(
+        files().map((file, currentIndex) =>
+          currentIndex === index && trimmed !== file.name
+            ? new File([file], trimmed, { lastModified: file.lastModified, type: file.type })
+            : file,
+        ),
+      );
+    },
+  };
+}
 
 export const drafts: Record<string, DraftValue> = {};
 const [draftsReady, setDraftsReady] = createSignal(false);
 const [draftErrorKeys, setDraftErrorKeys] = createSignal<Set<string>>(new Set());
+const [draftsVersion, setDraftsVersion] = createSignal(0);
 const locallyTouchedKeys = new Set<string>();
 let draftsHydrated = false;
 let draftHydrationPromise: Promise<boolean> | null = null;
 
 export { draftsReady };
+
+function setDraft(key: string, value: DraftValue) {
+  drafts[key] = value;
+  setDraftsVersion((v) => v + 1);
+}
+
+function removeDraft(key: string) {
+  delete drafts[key];
+  setDraftsVersion((v) => v + 1);
+}
+
+export function channelHasDraft(channelId: string): boolean {
+  draftsVersion();
+  if (drafts[channelId]?.text.trim()) return true;
+  const threadPrefix = `${channelId}:thread:`;
+  for (const key in drafts) {
+    if (key.startsWith(threadPrefix) && drafts[key]?.text.trim()) return true;
+  }
+  return false;
+}
 
 function hydrateDrafts(): Promise<boolean> {
   if (draftsHydrated) return Promise.resolve(true);
@@ -22,7 +98,7 @@ function hydrateDrafts(): Promise<boolean> {
     .then((entries) => {
       for (const draft of entries) {
         const key = draftCacheKey(draft.channelId, draft.threadTs);
-        if (!locallyTouchedKeys.has(key)) drafts[key] = { blocks: draft.blocks, text: draft.text };
+        if (!locallyTouchedKeys.has(key)) setDraft(key, { blocks: draft.blocks, text: draft.text });
       }
       draftsHydrated = true;
       setDraftError("hydrate", false);
@@ -67,10 +143,8 @@ function enqueueDraftSave(
   const next = previous
     .catch(() => {})
     .then(async () => {
-      const saved = await saveAfterDraftHydration(hydrateDrafts, () =>
-        saveDraft(channelId, threadTs, text, blocks),
-      );
-      if (!saved) throw new Error("Draft hydration failed");
+      if (!(await hydrateDrafts())) throw new Error("Draft hydration failed");
+      await saveDraft(channelId, threadTs, text, blocks);
     })
     .then(
       () => setDraftError(key, false),
@@ -93,13 +167,13 @@ export function cacheDraftLocally(
 ) {
   const key = draftCacheKey(channelId, threadTs);
   locallyTouchedKeys.add(key);
-  drafts[key] = { blocks, text };
+  setDraft(key, { blocks, text });
 }
 
 export function clearCachedDraft(channelId: string, threadTs?: string) {
   const key = draftCacheKey(channelId, threadTs);
   locallyTouchedKeys.add(key);
-  delete drafts[key];
+  removeDraft(key);
 }
 
 export function hasDraftSyncError(channelId: string, threadTs?: string): boolean {
@@ -115,13 +189,11 @@ export function createComposerDraftState(opts: {
   resetPreviews: () => void;
   setText: (text: string) => void;
   text: () => string;
-  /** The composer's current blocks, saved and restored alongside `text` — undefined for a
-   * plain-text-only draft (matches `docToBlocks`'s "empty doc → no blocks" convention). */
   blocks?: () => unknown;
   threadTs: () => string | undefined;
 }) {
   let loadedKey: string | undefined;
-  const persistenceGate = createDraftPersistenceGate();
+  let persistedKey: string | undefined;
   createEffect(() => {
     if (opts.editing() || !opts.channelId()) return;
     void hydrateDrafts();
@@ -146,9 +218,11 @@ export function createComposerDraftState(opts: {
     const value = opts.text();
     const blocks = opts.blocks?.();
 
-    if (!persistenceGate.shouldPersist(key)) return;
-    if (value.trim()) drafts[key] = { blocks, text: value };
-    else delete drafts[key];
+    const skip = key !== persistedKey;
+    persistedKey = key;
+    if (skip) return;
+    if (value.trim()) setDraft(key, { blocks, text: value });
+    else removeDraft(key);
     persistDraft(channelId, opts.threadTs(), value, blocks);
   });
 
@@ -191,11 +265,16 @@ export function persistDraft(
   );
 }
 
-export function clearPersistedDraft(channelId: string, threadTs?: string) {
+export function clearPersistedDraft(
+  channelId: string,
+  threadTs: string | undefined,
+  pendingFiles: { clear: (key: string) => void },
+) {
   const key = draftCacheKey(channelId, threadTs);
   const pending = draftSaveTimers.get(key);
   if (pending) clearTimeout(pending);
   draftSaveTimers.delete(key);
   clearCachedDraft(channelId, threadTs);
   enqueueDraftSave(key, channelId, threadTs, "");
+  pendingFiles.clear(key);
 }

@@ -6,7 +6,7 @@ const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edg
 
 const FILE_CONNECT_TIMEOUT_MS = 15_000;
 const SLACK_ASSET_KEY_RE =
-  /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$/i;
+  /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$|^vtt$/i;
 
 const SLACK_IMGS_KEY_RE = /(?:^|_)(?:avatar|icon|image|thumb)(?:_|$)/i;
 

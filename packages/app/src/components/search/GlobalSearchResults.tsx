@@ -1,7 +1,8 @@
-import type { DirectMessage, SlackFile, User } from "@slock/slack-api";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { dmDisplayName, store } from "../../lib/store";
+import type { DirectMessage, SlackFile, User } from "../../lib/api";
+import { channelIconName, dmDisplayName } from "../../lib/displayName";
+import { store } from "../../lib/store";
 import { openConversationInSplit, SplitNavigation } from "../navigation/SplitNavigation";
 
 export interface JumpChannel {
@@ -81,7 +82,7 @@ export default function GlobalSearchResults(props: {
                       type="button"
                     >
                       <span class="global-search-jump-icon">
-                        {channel.private ? <Icon name="lock" size={13} /> : "#"}
+                        <Icon name={channelIconName(channel.private)} size={13} />
                       </span>
                       {channel.name}
                     </button>

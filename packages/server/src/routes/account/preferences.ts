@@ -6,20 +6,6 @@ function prefWrite(name: string, value: string, ctx: RouteCtx) {
 }
 
 export const preferenceRoutes: Route[] = [
-  route("PUT", "/api/preferences/usergroup-section-order", async (ctx) => {
-    const { sectionIds } = (await ctx.body.json()) as { sectionIds?: string[] };
-    if (!sectionIds) return errorResponse("invalid_section_ids", 400);
-    return prefWrite("slock_usergroup_section_order", JSON.stringify(sectionIds), ctx);
-  }),
-
-  route("PUT", "/api/preferences/usergroup-section-sidebar", async (ctx) => {
-    const { entries } = (await ctx.body.json()) as {
-      entries?: Record<string, "hid" | "active" | "all">;
-    };
-    if (!entries) return errorResponse("invalid_entries", 400);
-    return prefWrite("slock_usergroup_section_sidebar", JSON.stringify(entries), ctx);
-  }),
-
   route("PUT", "/api/preferences/channel-sections", async (ctx) => {
     const { sections } = (await ctx.body.json()) as {
       sections?: Record<string, Record<string, unknown>>;
@@ -40,24 +26,23 @@ export const preferenceRoutes: Route[] = [
     return prefWrite("highlight_words", words.join(","), ctx);
   }),
 
-  route("PUT", "/api/preferences/desktop-notifications", async (ctx) => {
-    const { enabled } = (await ctx.body.json()) as { enabled?: boolean };
-    if (enabled === undefined) return errorResponse("invalid_enabled", 400);
-    return prefWrite("slock_desktop_notifications", enabled ? "on" : "off", ctx);
-  }),
-
-  route("PUT", "/api/preferences/search-history", async (ctx) => {
-    const { queries } = (await ctx.body.json()) as { queries?: string[] };
-    if (!queries) return errorResponse("invalid_queries", 400);
-    return prefWrite("slock_search_history", JSON.stringify(queries), ctx);
-  }),
-
-  route("PUT", "/api/preferences/channel-tabs", async (ctx) => {
-    const { entries } = (await ctx.body.json()) as {
-      entries?: Record<string, { type: string }[]>;
+  route("PUT", "/api/preferences/theme-colors", async (ctx) => {
+    const { colors, colorScheme } = (await ctx.body.json()) as {
+      colors?: Record<string, string>;
+      colorScheme?: "dark" | "light";
     };
-    if (!entries) return errorResponse("invalid_entries", 400);
-    return prefWrite("slock_channel_tabs", JSON.stringify(entries), ctx);
+    if (!(colors && colorScheme)) return errorResponse("invalid_theme_colors", 400);
+    return prefWrite("slock_theme_colors", JSON.stringify({ colors, colorScheme }), ctx);
+  }),
+
+  route("PUT", "/api/preferences/theme-shape", async (ctx) => {
+    const { density, roundness } = (await ctx.body.json()) as {
+      density?: number;
+      roundness?: number;
+    };
+    if (typeof density !== "number" || typeof roundness !== "number")
+      return errorResponse("invalid_theme_shape", 400);
+    return prefWrite("slock_theme_shape", JSON.stringify({ density, roundness }), ctx);
   }),
 
   route("PUT", "/api/dnd/snooze", async (ctx) => {

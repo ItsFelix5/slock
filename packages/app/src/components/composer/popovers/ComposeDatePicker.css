@@ -3,7 +3,7 @@
   padding: 10px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-popover);
 }
 .compose-date-preview {
@@ -20,7 +20,7 @@
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 .compose-date-section {
   margin-top: 8px;
@@ -42,7 +42,7 @@
   font-size: 12px;
   color: var(--text-secondary);
   background-color: var(--hover-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .compose-date-relative-btn:hover,
 .compose-date-relative-btn.active {
@@ -52,7 +52,7 @@
 .compose-date-option-list {
   display: grid;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 .compose-date-option-pair {
   display: flex;
@@ -81,7 +81,7 @@
   width: 28px;
   margin: 2px;
   color: var(--text-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   place-items: center;
 }
 .compose-date-option:hover,
@@ -121,7 +121,7 @@
   color: var(--text-on-accent);
   background: var(--accent);
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 .compose-date-insert:disabled {
   cursor: default;

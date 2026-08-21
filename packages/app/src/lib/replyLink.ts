@@ -1,9 +1,9 @@
-import type { Block, Message, RichTextBlock } from "@slock/slack-api";
+import type { Block, Message, RichTextBlock } from "./api";
 
 const BRACKETED_LINK_RE = /^<(https?:\/\/[^\s|>]+)(?:\|([^>]*))?>/;
 const BARE_PERMALINK_RE = /^(https?:\/\/[^\s<>]+)/;
 const PERMALINK_RE = /\/archives\/([A-Z0-9]+)\/p(\d+)/;
-const LEADING_NEWLINE_RE = /^\r?\n/;
+const LEADING_NEWLINE_RE = /^[ \t]*\r?\n/;
 
 function permalinkToChannelTs(url: string): { channelId: string; ts: string } | null {
   const match = PERMALINK_RE.exec(url);

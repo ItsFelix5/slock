@@ -1,30 +1,32 @@
-import { Modal, ModalCloseButton } from "@slock/ui";
-import { createSignal, For, Show } from "solid-js";
-import SettingsAccountTab from "./SettingsAccountTab";
-import SettingsAppearanceTab from "./SettingsAppearanceTab";
-import SettingsDebugTab from "./SettingsDebugTab";
-import SettingsNotificationsTab from "./SettingsNotificationsTab";
+import { debugMode, Modal, ModalCloseButton } from "@slock/ui";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import "./Settings.css";
 import "./Settings.responsive.css";
+import SettingsAccountTab from "./SettingsAccountTab";
+import SettingsAppearanceTab from "./SettingsAppearanceTab";
+import SettingsIconsTab from "./SettingsIconsTab";
+import SettingsNotificationsTab from "./SettingsNotificationsTab";
 
-type Tab = "account" | "notifications" | "appearance" | "debugging";
+type Tab = "account" | "notifications" | "appearance" | "icons";
 
-const TABS: { key: Tab; label: string }[] = [
+const BASE_TABS: { key: Tab; label: string }[] = [
   { key: "account", label: "Account" },
   { key: "notifications", label: "Notifications" },
   { key: "appearance", label: "Appearance" },
-  { key: "debugging", label: "Debugging" },
 ];
+
+const ICONS_TAB = { key: "icons" as const, label: "Icons" };
 
 export default function Settings(props: { onClose: () => void }) {
   const [tab, setTab] = createSignal<Tab>("notifications");
+  const tabs = createMemo(() => (debugMode() ? [...BASE_TABS, ICONS_TAB] : BASE_TABS));
 
   return (
     <Modal ariaLabel="Settings" class="settings-card" onClose={props.onClose}>
       <ModalCloseButton class="floating" onClose={props.onClose} />
 
       <div class="settings-nav flex-col">
-        <For each={TABS}>
+        <For each={tabs()}>
           {(t) => (
             <button
               aria-pressed={tab() === t.key}
@@ -52,8 +54,8 @@ export default function Settings(props: { onClose: () => void }) {
           <SettingsAppearanceTab />
         </Show>
 
-        <Show when={tab() === "debugging"}>
-          <SettingsDebugTab />
+        <Show when={debugMode() && tab() === "icons"}>
+          <SettingsIconsTab />
         </Show>
       </div>
     </Modal>

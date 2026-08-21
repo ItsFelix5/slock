@@ -1,35 +1,18 @@
-import type {
-  ActivityItem,
-  Channel,
-  FeedEntry,
-  HistoryPage,
-  Message,
-  User,
-} from "@slock/slack-api";
 import { createSignal } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
+import { isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
+import type { ActivityItem, Channel, FeedEntry, HistoryPage, Message, User } from "../../../../api";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import { fetchChannelActivityItems } from "./channelActivity";
+import { createEntryResolution } from "./entryResolution";
 
 const LIVE_ACTIVITY_REFRESH_DELAY_MS = 250;
 
-/** The feed-loading half of the activity slice: initial load, live-refresh scheduling, and
- * "load more" pagination (which can be scoped to a filtered types/unreadOnly view, each with its
- * own cursor). Owns every signal those need - loading flags, cursors, has-more state. */
 export function createActivityFeedLoad(deps: {
   activityItems: ActivityItem[];
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   channels?: () => readonly Channel[];
   channelsInActivity?: () => boolean;
-  createEntryPusher: (
-    me: User,
-    seen: Set<string>,
-    seenChannelPosts: Set<string>,
-    seenReactions: Set<string>,
-  ) => {
-    push: (entry: FeedEntry, batch?: Map<string, Message>) => void;
-    pushItem: (item: ActivityItem) => void;
-  };
   currentUser: () => User | undefined;
   backfillMissingReadCursors: (items: readonly ActivityItem[]) => Promise<void>;
   fetchActivityFeedEntries: (
@@ -39,22 +22,29 @@ export function createActivityFeedLoad(deps: {
     unreadOnly?: boolean,
   ) => Promise<{ entries: FeedEntry[]; nextCursor?: string }>;
   fetchHistory: (channelId: string) => Promise<HistoryPage>;
+  fetchHistoryAround: (
+    channelId: string,
+    ts: string,
+    limit: number,
+  ) => Promise<{ messages: Message[] }>;
   fetchMessagesByIds: (
     entries: { channelId: string; ts: string }[],
   ) => Promise<Map<string, Message>>;
-  isOwnOrUnresolved: (item: Pick<ActivityItem, "kind" | "userId">, me: User) => boolean;
+  isBotUser?: (userId: string) => boolean;
   lastReadByChannel: Record<string, number>;
   notifyAllChannelIds?: () => readonly string[];
-  reactionActivityKey: (item: ActivityItem) => string | undefined;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
-  resolvePendingEntries: (
-    pending: FeedEntry[],
-    seen: Set<string>,
-    seenChannelPosts: Set<string>,
-    push: (entry: FeedEntry, batch?: Map<string, Message>) => void,
-  ) => Promise<void>;
   setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
+  const { createEntryPusher, resolvePendingEntries } = createEntryResolution({
+    cacheResolvedMessages: deps.cacheResolvedMessages,
+    fetchHistoryAround: deps.fetchHistoryAround,
+    fetchMessagesByIds: deps.fetchMessagesByIds,
+    isBotUser: deps.isBotUser,
+    resolveActivityEntry: deps.resolveActivityEntry,
+    setActivityItems: deps.setActivityItems,
+  });
+
   const [activityLoading, setActivityLoading] = createSignal(false);
   const [activityLoaded, setActivityLoaded] = createSignal(false);
   const [activityLoadError, setActivityLoadError] = createSignal(false);
@@ -86,7 +76,7 @@ export function createActivityFeedLoad(deps: {
         .map((item) => `${item.channelId}:${item.ts}`),
     );
     const seenReactions = new Set(
-      items.map(deps.reactionActivityKey).filter((key): key is string => !!key),
+      items.map(reactionActivityKey).filter((key): key is string => !!key),
     );
     return { seen, seenChannelPosts, seenReactions };
   }
@@ -128,10 +118,10 @@ export function createActivityFeedLoad(deps: {
       const pending = entries.filter((entry) => !seen.has(entry.id));
 
       const stale = entries.filter((entry) => seen.has(entry.id));
-      const { push, pushItem } = deps.createEntryPusher(me, seen, seenChannelPosts, seenReactions);
+      const { push, pushItem } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       for (const item of channelItems)
         if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
-      await deps.resolvePendingEntries(pending, seen, seenChannelPosts, push);
+      await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
         const toFetch = stale.filter((entry) => !!entry.channelId);
         const batch = await deps.fetchMessagesByIds(toFetch);
@@ -143,7 +133,7 @@ export function createActivityFeedLoad(deps: {
               if (index === -1) continue;
               const resolved = deps.resolveActivityEntry(entry, batch);
               if (resolved.time < list[index].time) continue;
-              if (deps.isOwnOrUnresolved(resolved, me)) {
+              if (isOwnOrUnresolved(resolved, me)) {
                 list.splice(index, 1);
                 continue;
               }
@@ -200,8 +190,8 @@ export function createActivityFeedLoad(deps: {
       else setActivityHasMore(hasMore);
       const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.activityItems);
       const pending = entries.filter((entry) => !seen.has(entry.id));
-      const { push } = deps.createEntryPusher(me, seen, seenChannelPosts, seenReactions);
-      await deps.resolvePendingEntries(pending, seen, seenChannelPosts, push);
+      const { push } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
+      await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       void deps.backfillMissingReadCursors(deps.activityItems);
     } catch (err) {
       console.error("Failed to load more activity", err);

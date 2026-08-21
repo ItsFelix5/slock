@@ -1,4 +1,4 @@
-import { resolveMediaUrl, type VideoBlock } from "@slock/slack-api";
+import { resolveMediaUrl, type VideoBlock } from "@slock/types";
 import { Show } from "solid-js";
 import BkText from "../BkText";
 

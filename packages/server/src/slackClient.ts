@@ -27,6 +27,7 @@ function slackRequestBody(
   if (
     method === "activity.markRead" ||
     method === "conversations.view" ||
+    method === "saved.get" ||
     (method === "messages.list" && params.message_ids)
   ) {
     const body = new FormData();

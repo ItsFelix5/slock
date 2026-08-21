@@ -127,6 +127,7 @@
   --space-2xl: 24px;
   --space-3xl: 32px;
   --radius-sm: 4px;
+  --radius-control: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-circle: 50%;
@@ -138,14 +139,13 @@
   --header-padding-inline: var(--space-lg);
   --header-action-size: 32px;
   --header-divider-width: 1px;
-  --composer-frame-inline: var(--space-md);
-  --composer-frame-block-end: var(--space-sm);
+  --composer-frame-inline: 12px;
+  --composer-frame-block-end: 8px;
   --composer-action-size: 32px;
-  --composer-radius: var(--space-lg);
+  --composer-radius: var(--radius-lg);
   --message-row-inline-start: 16px;
   --message-row-inline-end: 20px;
   --message-row-avatar-gap: 10px;
-  --message-control-radius: 6px;
   --message-row-padding-y: 2px;
   --message-avatar-size: 36px;
   --message-avatar-margin-top: 2px;

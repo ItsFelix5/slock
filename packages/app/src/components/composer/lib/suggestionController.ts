@@ -1,8 +1,8 @@
 import { loadCustomEmoji } from "@slock/blockkit";
-import type { User } from "@slock/slack-api";
-import { fetchBrowsableChannels } from "@slock/slack-api";
 import { fuzzySearch, listNavigationIndex } from "@slock/ui";
 import type { Setter } from "solid-js";
+import type { User } from "../../../lib/api";
+import { fetchBrowsableChannels } from "../../../lib/api";
 import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../../lib/emojiSearch";
 import { store } from "../../../lib/store";
 import {
@@ -196,8 +196,6 @@ export function createSuggestionController(opts: SuggestionOptions) {
       opts.setSuggest(null);
       return;
     }
-    // a slash command only counts at the very start of the message - "/" typed at the start of
-    // a later paragraph is just a literal slash, not a command trigger
     if (trigger.kind === "command" && (opts.includeCommands === false || !isDocStart)) {
       opts.setSuggest(null);
       return;

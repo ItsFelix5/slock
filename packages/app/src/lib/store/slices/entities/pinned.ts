@@ -1,6 +1,6 @@
-import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "@slock/slack-api";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "../../../api";
+import { actionFeedback } from "../../../feedback";
 import type { createPanesSlice } from "../session/panes";
 
 export function createPinnedSlice(deps: {

@@ -1,8 +1,11 @@
-import type { Message } from "@slock/slack-api";
 import { Button, Icon, type Pane, PanelHeader, Tooltip, TypingIndicator } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import type { Message } from "../../../lib/api";
+import { conversationDisplayName } from "../../../lib/displayName";
+import { actionFeedback } from "../../../lib/feedback";
+import { prepareReplyLink } from "../../../lib/messageLinks";
 import { closeTile } from "../../../lib/paneActions";
-import { actionFeedback, conversationDisplayName, store } from "../../../lib/store";
+import { store } from "../../../lib/store";
 import type { ThreadPaneContent } from "../../../lib/store/slices/types";
 import Composer from "../../composer/Composer";
 import MessageRows from "../MessageRows";
@@ -17,7 +20,6 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     null,
   );
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let messagesRef: HTMLDivElement | undefined;
   let cancelJump: (() => void) | undefined;
   const messages = createMemo(() => store.messages.threadMessages[thread().ts] ?? []);
@@ -106,19 +108,18 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     onCleanup(() => observer.disconnect());
   });
 
-  const channelName = createMemo(() => {
-    const t = thread();
-    return conversationDisplayName(
-      t.channelId,
-      t.channelId.startsWith("D") ? undefined : store.channels.channelById(t.channelId),
-      store.dms.dmById(t.channelId),
+  const channelName = createMemo(() =>
+    conversationDisplayName(
+      thread().channelId,
+      store.channels.channelById,
+      store.dms.dmById,
       store.users.userById,
-    );
-  });
+    ),
+  );
 
   async function startReply(msg: Message) {
     const t = thread();
-    const permalink = await store.messages.prepareReplyLink(t.channelId, msg.ts, t.ts);
+    const permalink = await prepareReplyLink(t.channelId, msg.ts, t.ts);
     if (thread() !== t) return;
     if (!permalink) {
       actionFeedback.flash(msg.ts, "Failed to prepare reply link.", "error");
@@ -139,12 +140,15 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
 
   return (
     <div class="thread-panel" data-pane={props.pane.id}>
-      <PanelHeader onClose={() => closeTile(props.pane.id)}>
+      <PanelHeader
+        canClose={store.panes.panes().length > 1}
+        onClose={() => closeTile(props.pane.id)}
+      >
         <div class="thread-panel-header-info flex-align-center">
           <div class="thread-panel-title">Thread</div>
           <button
             aria-label={`View thread message in ${channelName()}`}
-            class="thread-panel-subtitle btn-reset"
+            class="thread-panel-subtitle btn-reset flex-align-center"
             onClick={openThreadMessageInChannel}
             type="button"
           >
@@ -207,7 +211,6 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
           channelId={thread().channelId}
           editingTs={messageFocus.editingTs}
           focusedTs={messageFocus.focusedTs}
-          listFocused={messageFocus.listFocused}
           messages={messages()}
           onJumpToMessage={jumpToMessage}
           onReplyLink={startReply}
@@ -235,6 +238,7 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
         </Show>
         <Composer
           channelId={thread().channelId}
+          paneId={props.pane.id}
           placeholder="Reply…"
           replyTo={(() => {
             const rt = replyTarget();

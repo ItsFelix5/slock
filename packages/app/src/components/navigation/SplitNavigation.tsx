@@ -14,6 +14,10 @@ export function openConversationInSplit(channelId: string, ts?: string) {
   if (ts) store.panes.setMessageTarget(paneId, { channelId, ts });
 }
 
+export function openConversation(channelId: string) {
+  store.viewState.setActiveView(viewForConversation(channelId));
+}
+
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
   return (
     <span

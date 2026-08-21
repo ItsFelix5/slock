@@ -1,4 +1,4 @@
-import type { FileBlock } from "@slock/slack-api";
+import type { FileBlock } from "@slock/types";
 
 export default function File(props: { block: FileBlock }) {
   return (

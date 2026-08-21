@@ -1,5 +1,7 @@
 import { Button, Icon, InlineFeedback } from "@slock/ui";
-import { actionFeedback, channelDisplayName, store } from "../../lib/store";
+import { channelDisplayName } from "../../lib/displayName";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
 import "./JoinChannelBar.css";
 
 export default function JoinChannelBar(props: { channelId: string }) {

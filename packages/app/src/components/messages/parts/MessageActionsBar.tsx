@@ -1,6 +1,6 @@
-import type { Message } from "@slock/slack-api";
 import { Icon, Menu, Tooltip } from "@slock/ui";
 import { createMemo, createSignal, lazy, Show } from "solid-js";
+import type { Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
@@ -19,7 +19,6 @@ export default function MessageActionsBar(props: {
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let pickerWrapRef: HTMLDivElement | undefined;
 
   const togglePicker = () => {
@@ -36,6 +35,14 @@ export default function MessageActionsBar(props: {
   );
 
   const isSaved = createMemo(() => store.later.isSavedForLater(props.channelId, props.msg.ts));
+
+  const existingReactions = createMemo(() => {
+    const me = store.users.currentUser()?.id;
+    return (props.msg.reactions ?? []).map((r) => ({
+      mine: !!me && r.users.includes(me),
+      name: r.name,
+    }));
+  });
 
   const react = (name: string) => {
     store.messages.reactToMessage(props.channelId, props.msg, name);
@@ -59,6 +66,7 @@ export default function MessageActionsBar(props: {
         <Show when={pickerOpen()}>
           <FloatingEmojiPicker
             anchor={() => pickerWrapRef}
+            existingReactions={existingReactions()}
             onClose={() => setPickerOpen(false)}
             onSelect={react}
             open

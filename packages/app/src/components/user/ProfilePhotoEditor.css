@@ -15,7 +15,7 @@
   touch-action: none;
   user-select: none;
   background: repeating-conic-gradient(var(--hover-bg) 0 25%, var(--main-bg) 0 50%) 50% / 20px 20px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .profile-photo-editor-image {

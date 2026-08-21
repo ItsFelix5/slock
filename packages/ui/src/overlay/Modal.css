@@ -10,6 +10,11 @@
   min-width: 0;
 }
 
+.modal-header-actions {
+  flex-shrink: 0;
+  gap: 6px;
+}
+
 .modal-header h2 {
   margin: 0;
   overflow: hidden;

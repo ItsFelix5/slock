@@ -1,18 +1,15 @@
-import type { ActivityItem, ConversationViewData, Message, User } from "@slock/slack-api";
-import { broadcastReply, deleteMessage, editMessage, postMessage } from "@slock/slack-api";
 import { produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import type { ActivityItem, ConversationViewData, Message, User } from "../../../api";
+import { broadcastReply, deleteMessage, editMessage, postMessage } from "../../../api";
+import { actionFeedback } from "../../../feedback";
+import { findMessageLocations } from "../../../messageLocations";
+import { dedupeMessages } from "../../../messageMerge";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
-import { dedupeMessages } from "./merge/messageMerge";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
-import { copyMessageLink, prepareReplyLink, remindAboutMessage } from "./messageLinks";
-import { findMessageLocations } from "./messageLocations";
 import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
-
-export { REMINDER_OPTIONS } from "./messageLinks";
 
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;
@@ -62,6 +59,7 @@ export function createMessagesSlice(deps: {
   } = history;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
+    hasMoreHistory,
     messagesByChannel,
     patchMessage: (channelId, ts, patch) => patchMessage(channelId, ts, patch),
     setLastReadByChannel: deps.setLastReadByChannel,
@@ -241,16 +239,16 @@ export function createMessagesSlice(deps: {
     setReactionMessages,
     setThreadMessages,
     threadMessages,
-    ...mergeActions,
-    applyReactionEvent,
     broadcastThreadReply,
     deleteMessageAt,
     editMessageText,
     reactToMessage,
     sendMessage,
     ...statusActions,
-    copyMessageLink,
-    prepareReplyLink,
-    remindAboutMessage,
+    realtimeHooks: {
+      applyReactionEvent,
+      insertMessageInOrder: mergeActions.insertMessageInOrder,
+      mergeIncomingMessage: mergeActions.mergeIncomingMessage,
+    },
   };
 }

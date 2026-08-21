@@ -1,5 +1,5 @@
-import type { Message, User } from "@slock/slack-api";
-import { dedupeMessages } from "./messageMerge";
+import type { Message, User } from "../../../../api";
+import { dedupeMessages } from "../../../../messageMerge";
 
 export function createMessageMergeActions(deps: {
   currentUser: () => User | undefined;

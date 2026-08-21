@@ -1,6 +1,13 @@
-import type { SlackFile, SlackLink } from "@slock/slack-api";
-import { Button, Icon, type IconName, Tooltip, useEscapeClose } from "@slock/ui";
+import {
+  Button,
+  Icon,
+  type IconName,
+  initRovingTabIndexDefault,
+  Tooltip,
+  useEscapeClose,
+} from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import type { SlackFile, SlackLink } from "../../lib/api";
 import type { FilesLinksEntry } from "../../lib/filesLinksPanel";
 import {
   closeFilesLinksPanel,
@@ -90,6 +97,7 @@ function FileCard(props: { file: SlackFile; onOpen: (file: SlackFile) => void })
       class="files-links-card btn-reset"
       data-nav-row
       onClick={() => props.onOpen(props.file)}
+      tabIndex={-1}
       type="button"
     >
       <Show
@@ -131,6 +139,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
         data-nav-row
         href={props.link.url}
         rel="noopener noreferrer"
+        tabIndex={-1}
         target="_blank"
       >
         <Show
@@ -178,6 +187,7 @@ function EntryGrid(props: {
 }
 
 export default function FilesLinksPanel() {
+  let bodyRef: HTMLDivElement | undefined;
   useEscapeClose(closeFilesLinksPanel, () => !!filesLinksChannelId());
   const [typeFilter, setTypeFilter] = createSignal<TypeFilter>("all");
   const [sortMode, setSortMode] = createSignal<SortMode>("newest");
@@ -198,6 +208,8 @@ export default function FilesLinksPanel() {
   });
 
   const groups = createMemo(() => (sortMode() === "name" ? null : groupByMonth(sorted())));
+
+  initRovingTabIndexDefault(() => bodyRef, sorted);
 
   const searchMessagesInstead = () => {
     const channelId = filesLinksChannelId();
@@ -255,7 +267,11 @@ export default function FilesLinksPanel() {
               <option value="name">Name</option>
             </select>
           </div>
-          <div class="files-links-body" onScroll={(e) => loadMoreAtBottom(e.currentTarget)}>
+          <div
+            class="files-links-body"
+            onScroll={(e) => loadMoreAtBottom(e.currentTarget)}
+            ref={bodyRef}
+          >
             <Show
               when={
                 filesLinksLoading() && filesLinksEntries().length === 0 && !filesLinksLoadError()

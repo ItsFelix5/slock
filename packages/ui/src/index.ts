@@ -6,6 +6,7 @@ export type { ButtonProps } from "./button/Button";
 export { default as Button } from "./button/Button";
 export type { ButtonGroupProps } from "./button/ButtonGroup";
 export { default as ButtonGroup } from "./button/ButtonGroup";
+export { default as ClickableInline } from "./button/ClickableInline";
 export type { IconButtonProps } from "./button/IconButton";
 export { default as IconButton } from "./button/IconButton";
 export type { SegmentedControlProps } from "./button/SegmentedControl";
@@ -14,6 +15,8 @@ export {
   createDebouncedRequest,
   type DebouncedRequestOptions,
 } from "./debouncedRequest";
+export { debugMode, setDebugMode } from "./debugPreferences";
+export { default as QuillEditor, type QuillEditorProps } from "./editor/QuillEditor";
 export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
 export { createCopyFeedback } from "./feedback/copyFeedback";
@@ -39,6 +42,7 @@ export {
   createListboxActiveIndex,
   gridNavigationIndex,
   listNavigationIndex,
+  rovingTabIndex,
   scrollActiveListOption,
 } from "./form/listNavigation";
 export type { OklchColorPickerProps } from "./form/OklchColorPicker";
@@ -47,6 +51,7 @@ export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
 export type { SwitchProps } from "./form/Switch";
 export { default as Switch } from "./form/Switch";
+export { formatDuration } from "./formatDuration";
 export type { FuzzyMatch, FuzzySearchOptions } from "./fuzzy";
 export { fuzzyMatch, fuzzySearch } from "./fuzzy";
 export type { PanelHeaderProps } from "./layout/PanelHeader";
@@ -73,12 +78,14 @@ export {
   logDeletedMessages,
   setLogDeletedMessages,
 } from "./messagePreferences";
-export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
+export { focusPaneById, paneRowsById, usePaneNavigation } from "./nav/paneNav";
+export { createRovingFocus, initRovingTabIndexDefault } from "./nav/rovingFocus";
 export {
   ConfirmDialogHost,
   type ConfirmDialogOptions,
   confirmDialog,
 } from "./overlay/confirm-dialog";
+export { DebugInfoDialogHost, showDebugInfo } from "./overlay/debug-info-dialog";
 export type {
   FloatingAlign,
   FloatingPanelProps,
@@ -126,95 +133,20 @@ export {
   findPane,
   findPaneByContent,
   insertPane,
+  isPaneRightAfter,
   type Pane,
   replacePaneContent,
   resizePanes,
 } from "./panes/paneList";
 export { distributeResize } from "./panes/resize";
-export type {
-  AtomRenderers,
-  AtomRun,
-  Block,
-  BlockShortcutMatch,
-  CaretContext,
-  CodeBlock,
-  ContextBlock,
-  DividerBlock,
-  DocModel,
-  EditorHandle,
-  HeadingBlock,
-  InlineRun,
-  LinkRun,
-  LinkShortcutMatch,
-  ListBlock,
-  ListItem,
-  Mark,
-  MarkShortcutMatch,
-  ParagraphBlock,
-  Pos,
-  QuoteBlock,
-  Range,
-  RunContainerBlock,
-  RunSpan,
-  TableBlock,
-  TableCell,
-  TableRow,
-  TextRun,
-} from "./richtext/index";
-export {
-  applyMarkToRange,
-  comparePos,
-  containerFlatText,
-  createAtomRun,
-  createCodeBlock,
-  createContext,
-  createDivider,
-  createEditorStore,
-  createHeading,
-  createId,
-  createLinkRun,
-  createList,
-  createListItem,
-  createParagraph,
-  createQuote,
-  createTable,
-  createTableCell,
-  createTableRow,
-  createTextRun,
-  deleteRange,
-  detectBlockShortcut,
-  detectLinkShortcut,
-  detectMarkShortcut,
-  docToPlainText,
-  domSelectionToRange,
-  EditorView,
-  emptyDoc,
-  getRunsInRange,
-  isRunContainer,
-  matchMarkShortcutKey,
-  parsePathKey,
-  pathKey,
-  placeCaretAfterNode,
-  placeCaretAtNodeStart,
-  placeCaretAtTextOffset,
-  rangeToDomSelection,
-  resolveOffsetInRuns,
-} from "./richtext/index";
-export {
-  type MessageSize,
-  type MessageSizeMetrics,
-  messageSize,
-  messageSizeMetrics,
-  setMessageSize,
-  type ThemeAppearance,
-  themeAppearance,
-} from "./theme";
 export {
   activePreset,
   applyCopiedThemePalette,
   applyPreset,
+  colorScheme,
   copyableThemePalette,
   getEffectiveColor,
+  replaceThemeColors,
   resetThemeColor,
   resetThemeColors,
   setThemeColors,
@@ -225,6 +157,7 @@ export {
   type ThemePreset,
   themeColors,
 } from "./themeColors";
+export { setThemeShape, type ThemeShape, themeShape } from "./themeShape";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export {

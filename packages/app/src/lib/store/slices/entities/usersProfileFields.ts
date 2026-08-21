@@ -1,7 +1,7 @@
-import type { User, UserCustomField } from "@slock/slack-api";
 import { createStore } from "solid-js/store";
+import type { User, UserCustomField } from "../../../api";
+import { actionFeedback } from "../../../feedback";
 import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
-import { actionFeedback } from "../feedback";
 
 export function createUserProfileFields(
   deps: { currentUserBase: () => User | undefined },

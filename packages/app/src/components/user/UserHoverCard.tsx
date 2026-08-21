@@ -46,7 +46,12 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                 </div>
                 <div class="user-hovercard-heading">
                   <div class="user-hovercard-name">
-                    <span class="user-hovercard-name-label">{u().name}</span>
+                    <span
+                      class="user-hovercard-name-label"
+                      title={u().originalName && `really ${u().originalName}`}
+                    >
+                      {u().name}
+                    </span>
                     <Show when={u().isBot}>
                       <AppBadge />
                     </Show>

@@ -1,15 +1,17 @@
-import type { Message } from "@slock/slack-api";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import type { Message } from "../../lib/api";
 import type { ChannelMessageTarget, View } from "../../lib/store";
 import { store } from "../../lib/store";
 import { createMessageListLanding } from "./messageListLanding";
-import { isScrolledToBottom, scrollToBottom } from "./scrollAnchor";
+import {
+  captureScrollAnchor,
+  isScrolledToBottom,
+  restoreScrollAnchor,
+  scrollToBottom,
+} from "./scrollAnchor";
 
 const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
 
-/** Owns where the message list is scrolled to: landing on open (delegated to
- * messageListLanding.ts), infinite-load-more as the user scrolls near either edge, and which
- * day's header to show. Kept apart from MessageList's own rendering concerns. */
 export function createMessageListScroll(deps: {
   clearMessageTarget: () => void;
   messages: () => Message[];
@@ -29,20 +31,15 @@ export function createMessageListScroll(deps: {
 
   let lastScrollTop = 0;
   let touchStartY: number | undefined;
+  let lastAnchor: ReturnType<typeof captureScrollAnchor> = null;
   const [isLoadingNewer, setIsLoadingNewer] = createSignal(false);
   const [topVisibleTs, setTopVisibleTs] = createSignal<string>();
 
   function updateTopVisible() {
     const el = deps.scrollRef();
     if (!el) return;
-    const containerTop = el.getBoundingClientRect().top;
-    for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) {
-      if (row.getBoundingClientRect().bottom > containerTop) {
-        setTopVisibleTs(row.dataset.messageTs);
-        return;
-      }
-    }
-    setTopVisibleTs(undefined);
+    lastAnchor = captureScrollAnchor(el);
+    setTopVisibleTs(lastAnchor?.el.dataset.messageTs);
   }
 
   const visibleDay = createMemo(() => deps.messages().find((m) => m.ts === topVisibleTs())?.day);
@@ -59,7 +56,9 @@ export function createMessageListScroll(deps: {
     if (!el) return;
     const observer = new ResizeObserver(() => {
       const current = deps.scrollRef();
-      if (shouldFollowBottom() && current) scrollToBottom(current);
+      if (!current) return;
+      if (shouldFollowBottom()) scrollToBottom(current);
+      else if (lastAnchor?.el.isConnected) restoreScrollAnchor(current, lastAnchor);
     });
     for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) observer.observe(row);
     onCleanup(() => observer.disconnect());

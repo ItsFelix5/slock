@@ -1,4 +1,4 @@
-import type { MarkdownBlock } from "@slock/slack-api";
+import type { MarkdownBlock } from "@slock/types";
 import Mrkdwn from "../mrkdwn";
 
 export default function Markdown(props: { block: MarkdownBlock }) {

@@ -1,4 +1,7 @@
-import type { ActivityItem, Channel, Message, User } from "@slock/slack-api";
+import { createEffect } from "solid-js";
+import { createStore, produce } from "solid-js/store";
+import { PING_KINDS, reactionActivityKey } from "../../../activityKinds";
+import type { ActivityItem, Channel, Message, User } from "../../../api";
 import {
   fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
@@ -8,19 +11,12 @@ import {
   fetchMessagesByIds,
   markActivityRead,
   resolveActivityEntry,
-} from "@slock/slack-api";
-import { createStore, produce } from "solid-js/store";
+} from "../../../api";
+import type { ThreadRef } from "../types";
 import { createActivityFeedLoad } from "./activity/activityFeedLoad";
 import { createActivityReadState } from "./activity/activityReadState";
 import { createActivityReadSync } from "./activity/activityReadSync";
-import { createEntryResolution } from "./activity/entryResolution";
 import { createRecentReactionFlash } from "./activity/recentReaction";
-
-export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
-
-export function isPingingActivity(item: ActivityItem): boolean {
-  return PING_KINDS.has(item.kind);
-}
 
 type ActivityApi = {
   fetchActivityBadgeCounts: typeof fetchActivityBadgeCounts;
@@ -50,6 +46,7 @@ export function createActivitySlice(
     channels?: () => readonly Channel[];
     channelsInActivity?: () => boolean;
     currentUser: () => User | undefined;
+    isBotUser?: (userId: string) => boolean;
     lastReadByChannel: Record<string, number>;
     notifyAllChannelIds?: () => readonly string[];
     reactionMessageFor?: (channelId: string, ts: string) => Message | undefined;
@@ -57,6 +54,7 @@ export function createActivitySlice(
     clearChannelUnread: (channelId: string) => void;
     syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
     syncThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
+    visibleThreads?: () => ThreadRef[];
   },
   apiOverrides: Partial<ActivityApi> = {},
 ) {
@@ -86,9 +84,23 @@ export function createActivitySlice(
     syncThreadRead: deps.syncThreadRead,
   });
 
+  createEffect(() => {
+    const open = deps.visibleThreads?.();
+    if (!open?.length) return;
+    const openKeys = new Set(open.map((t) => `${t.channelId}:${t.ts}`));
+    const toMark = activityItems.filter(
+      (item) =>
+        item.kind === "thread_reply" &&
+        item.threadTs &&
+        openKeys.has(`${item.channelId}:${item.threadTs}`),
+    );
+    if (toMark.length) markActivityItemsRead(toMark);
+  });
+
   const recentReactionFlash = createRecentReactionFlash();
 
   function pushActivity(item: ActivityItem) {
+    if (item.kind === "reaction" && item.userId && deps.isBotUser?.(item.userId)) return;
     setActivityItems(
       produce((list) => {
         if (list.some((existing) => sameActivityItem(existing, item))) return;
@@ -99,28 +111,11 @@ export function createActivitySlice(
     if (item.kind === "reaction" && item.reactionName) recentReactionFlash.flash(item.reactionName);
   }
 
-  function reactionActivityKey(item: ActivityItem): string | undefined {
-    if (
-      !(item.kind === "reaction" && item.channelId && item.ts && item.reactionName && item.userId)
-    )
-      return;
-    return `${item.channelId}:${item.ts}:${item.reactionName}:${item.userId}`;
-  }
-
   function sameActivityItem(existing: ActivityItem, next: ActivityItem): boolean {
     if (existing.id === next.id) return true;
     const existingReaction = reactionActivityKey(existing);
     return !!existingReaction && existingReaction === reactionActivityKey(next);
   }
-
-  const { createEntryPusher, isOwnOrUnresolved, resolvePendingEntries } = createEntryResolution({
-    cacheResolvedMessages: deps.cacheResolvedMessages,
-    fetchHistoryAround: api.fetchHistoryAround,
-    fetchMessagesByIds: api.fetchMessagesByIds,
-    reactionActivityKey,
-    resolveActivityEntry: api.resolveActivityEntry,
-    setActivityItems,
-  });
 
   const {
     activityHasMore,
@@ -138,17 +133,15 @@ export function createActivitySlice(
     cacheResolvedMessages: deps.cacheResolvedMessages,
     channels: deps.channels,
     channelsInActivity: deps.channelsInActivity,
-    createEntryPusher,
     currentUser: deps.currentUser,
     fetchActivityFeedEntries: api.fetchActivityFeedEntries,
     fetchHistory: api.fetchHistory,
+    fetchHistoryAround: api.fetchHistoryAround,
     fetchMessagesByIds: api.fetchMessagesByIds,
-    isOwnOrUnresolved,
+    isBotUser: deps.isBotUser,
     lastReadByChannel: deps.lastReadByChannel,
     notifyAllChannelIds: deps.notifyAllChannelIds,
-    reactionActivityKey,
     resolveActivityEntry: api.resolveActivityEntry,
-    resolvePendingEntries,
     setActivityItems,
   });
 

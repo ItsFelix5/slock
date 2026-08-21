@@ -55,7 +55,7 @@ function rgbToOklch(red: number, green: number, blue: number, alpha = 1): OklchC
 }
 
 function parseOklch(value: string): OklchColor | undefined {
-  const match = value.match(OKLCH_RE);
+  const match = OKLCH_RE.exec(value);
   if (!match) return;
   const lightness = parseNumber(match[1]);
   const chroma = parseNumber(match[2], 0.4);
@@ -70,7 +70,7 @@ function parseOklch(value: string): OklchColor | undefined {
 }
 
 function parseRgb(value: string): OklchColor | undefined {
-  const match = value.match(RGB_RE);
+  const match = RGB_RE.exec(value);
   if (!match) return;
   const [channels, alpha] = match[1].split("/").map((part) => part.trim());
   const parts = channels.split(RGB_CHANNEL_RE).filter(Boolean);
@@ -83,7 +83,7 @@ function parseRgb(value: string): OklchColor | undefined {
 }
 
 function parseSrgb(value: string): OklchColor | undefined {
-  const match = value.match(SRGB_RE);
+  const match = SRGB_RE.exec(value);
   if (!match) return;
   const rgb = match.slice(1, 4).map(Number);
   if (!rgb.every(Number.isFinite)) return;
@@ -91,7 +91,7 @@ function parseSrgb(value: string): OklchColor | undefined {
 }
 
 function parseHex(value: string): OklchColor | undefined {
-  const match = value.match(HEX_RE);
+  const match = HEX_RE.exec(value);
   if (!match) return;
   const color = Number.parseInt(match[1], 16);
   const alpha = match[2] ? Number.parseInt(match[2], 16) / 255 : 1;

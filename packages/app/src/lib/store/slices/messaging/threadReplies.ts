@@ -1,9 +1,9 @@
-import type { Message } from "@slock/slack-api";
-import { fetchReplies } from "@slock/slack-api";
 import { createEffect, untrack } from "solid-js";
 import { createStore } from "solid-js/store";
+import type { Message } from "../../../api";
+import { fetchReplies } from "../../../api";
+import { mergeMessages } from "../../../messageMerge";
 import type { ThreadRef } from "../types";
-import { mergeMessages } from "./merge/messageMerge";
 
 export function createThreadReplies(
   deps: { visibleThreads: () => ThreadRef[] },

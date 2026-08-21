@@ -1,12 +1,22 @@
-export type ComposerProps = {
-  channelId?: string;
-  threadTs?: string;
+import type { Block } from "../../lib/api";
+
+export interface ComposerEditingProps {
+  initialBlocks?: Block[];
+  initialText?: string;
+  onCancel: () => void;
+  onSave: (text: string, blocks?: Block[]) => Promise<boolean>;
+}
+
+export interface ComposerReplyToProps {
+  onSent: () => void;
+  permalink: string;
+}
+
+export interface ComposerProps {
+  channelId: string;
+  editing?: ComposerEditingProps;
+  paneId?: string;
   placeholder?: string;
-  replyTo?: { permalink: string; onSent: () => void };
-  editing?: {
-    initialText: string;
-    initialBlocks?: unknown;
-    onSave: (text: string, blocks?: unknown) => Promise<boolean>;
-    onCancel: () => void;
-  };
-};
+  replyTo?: ComposerReplyToProps;
+  threadTs?: string;
+}

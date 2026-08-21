@@ -1,7 +1,8 @@
-import type { Message } from "@slock/slack-api";
-import { confirmDialog } from "@slock/ui";
+import { confirmDialog, showDebugInfo } from "@slock/ui";
+import type { Message } from "../../lib/api";
+import { actionFeedback } from "../../lib/feedback";
 import { parseReplyLink } from "../../lib/replyLink";
-import { actionFeedback, store } from "../../lib/store";
+import { store } from "../../lib/store";
 
 export async function copyMessageText(
   msg: Message,
@@ -12,6 +13,10 @@ export async function copyMessageText(
   } catch {
     actionFeedback.flash(msg.ts, "Couldn't copy the message text.", "error");
   }
+}
+
+export function showMessageDebugInfo(msg: Message) {
+  showDebugInfo(`Message ${msg.ts}`, msg);
 }
 
 export async function confirmAndDeleteMessage(channelId: string, ts: string) {

@@ -15,7 +15,7 @@
   padding: 28px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal-lg);
 }
 
@@ -44,7 +44,7 @@
   padding: 1px 5px;
   font-size: 13px;
   background: var(--code-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .connect-slack-input {
@@ -58,7 +58,11 @@
   outline: none;
   background: var(--main-bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
+}
+.connect-slack-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
 }
 
 .connect-slack-input:focus {

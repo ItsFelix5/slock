@@ -1,4 +1,4 @@
-import type { Block, ContainerBlock } from "@slock/slack-api";
+import type { Block, ContainerBlock } from "@slock/types";
 import { createSignal, For, type JSX, Show } from "solid-js";
 import BkText from "../BkText";
 import ImageElement from "../elements/ImageElement";
@@ -11,8 +11,7 @@ export default function Container(props: {
   const [collapsed, setCollapsed] = createSignal(
     !!props.block.is_collapsible && !!props.block.default_collapsed,
   );
-  const childBlocks = () =>
-    props.block.child_blocks ?? props.block.blocks ?? props.block.elements ?? [];
+  const childBlocks = () => props.block.child_blocks ?? [];
   const hasHeading = () =>
     !!(
       props.block.title ||

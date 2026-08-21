@@ -1,5 +1,5 @@
-import type { User } from "@slock/slack-api";
 import { Show } from "solid-js";
+import type { User } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import UserHoverCard from "../../user/UserHoverCard";
 import { MessageAvatarButton } from "../message-author-buttons";

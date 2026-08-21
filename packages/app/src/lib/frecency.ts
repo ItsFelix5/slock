@@ -1,4 +1,4 @@
-import type { UserPrefs } from "@slock/slack-api";
+import type { UserPrefs } from "./api";
 
 const FRECENCY_HALF_LIFE_MS = 3 * 24 * 60 * 60 * 1000;
 

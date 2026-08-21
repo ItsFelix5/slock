@@ -1,4 +1,4 @@
-import { type ImageBlock, resolveMediaUrl } from "@slock/slack-api";
+import { type ImageBlock, resolveMediaUrl } from "@slock/types";
 import { MediaFrame, ZoomableImage } from "@slock/ui";
 import { Show } from "solid-js";
 import EmojiText from "../emoji/EmojiText";

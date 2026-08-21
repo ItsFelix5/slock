@@ -1,6 +1,6 @@
-import type { ActivityItem } from "@slock/slack-api";
+import type { ActivityItem } from "../../../lib/api";
 
-function otherActivityLabel(type?: string): string {
+function otherActivityLabel(type?: string) {
   switch (type) {
     case "saved_reminder":
       return "Reminded you";

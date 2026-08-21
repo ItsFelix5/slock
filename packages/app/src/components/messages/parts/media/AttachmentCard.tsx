@@ -6,10 +6,12 @@ import {
   LegacyAttachmentActions,
   Mrkdwn,
 } from "@slock/blockkit";
-import type { Attachment } from "@slock/slack-api";
 import { ConstrainedImage, Icon, MediaFrame, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { conversationDisplayName, store } from "../../../../lib/store";
+import type { Attachment } from "../../../../lib/api";
+import { channelIconName, conversationDisplayName } from "../../../../lib/displayName";
+import { isDmId } from "../../../../lib/dmId";
+import { store } from "../../../../lib/store";
 import { MessageAuthorButton } from "../../message-author-buttons";
 import "./AttachmentCard.css";
 import MessageFiles from "./MessageFiles";
@@ -43,9 +45,13 @@ function AttachmentImage(props: { attachment: Attachment; large?: boolean }) {
   );
 }
 
-function AttachmentContent(props: { attachment: Attachment; context?: BlockActionContext }) {
+function AttachmentContent(props: {
+  attachment: Attachment;
+  context?: BlockActionContext;
+  isUnfurl?: boolean;
+}) {
   const a = props.attachment;
-  const bodyText = () => a.text || (a.actions?.length ? undefined : a.fallback);
+  const bodyText = () => a.text || (props.isUnfurl || a.actions?.length ? undefined : a.fallback);
   return (
     <>
       <Show when={a.title}>
@@ -127,16 +133,15 @@ function AttachmentContent(props: { attachment: Attachment; context?: BlockActio
 
 function MessageUnfurl(props: { attachment: Attachment }) {
   const a = props.attachment;
+  const dm = () => (a.channelId ? store.dms.dmById(a.channelId) : undefined);
   const channel = () =>
-    a.channelId && !a.channelId.startsWith("D")
-      ? store.channels.channelById(a.channelId)
-      : undefined;
+    a.channelId && !dm() ? store.channels.channelById(a.channelId) : undefined;
   const location = () =>
     a.channelId
       ? conversationDisplayName(
           a.channelId,
-          channel(),
-          store.dms.dmById(a.channelId),
+          store.channels.channelById,
+          store.dms.dmById,
           store.users.userById,
         )
       : "";
@@ -157,7 +162,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
     event.preventDefault();
     store.viewState.setActiveView({
       id: a.channelId,
-      kind: a.channelId.startsWith("D") ? "dm" : "channel",
+      kind: isDmId(a.channelId, (id) => !!store.dms.dmById(id)) ? "dm" : "channel",
     });
   };
 
@@ -178,7 +183,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
           <MessageAuthorButton disabled name={a.authorName ?? ""} onClick={() => {}} />
         </div>
       </Show>
-      <AttachmentContent attachment={a} />
+      <AttachmentContent attachment={a} isUnfurl />
       <Show when={a.channelId}>
         {(channelId) => (
           <div class="attachment-footer attachment-message-footer flex-align-center text-dim text-xs">
@@ -188,8 +193,8 @@ function MessageUnfurl(props: { attachment: Attachment }) {
               href={`/${channelId()}`}
               onClick={openConversation}
             >
-              <Show when={channel()?.private} fallback={channel() ? "#" : undefined}>
-                <Icon name="lock" size={11} />
+              <Show when={channel()}>
+                {(c) => <Icon name={channelIconName(c().private)} size={11} />}
               </Show>
               {locationLabel()}
             </a>

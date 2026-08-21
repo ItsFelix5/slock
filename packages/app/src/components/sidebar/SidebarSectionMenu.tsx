@@ -1,4 +1,4 @@
-import { confirmDialog, IconButton, Menu, MenuItem, SegmentedControl } from "@slock/ui";
+import { confirmDialog, IconButton, Menu, MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
 import type { Category, SidebarContext } from "./sidebarCategories";
 
@@ -6,21 +6,12 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
   const {
     canMoveSection,
     deleteChannelSection,
-    isSectionSidebarPending,
     moveSection,
-    preferencesError,
-    preferencesLoading,
     sectionMenuOpen,
     sectionStructurePending,
-    setChannelSectionSidebar,
     setSectionMenuOpen,
     startRename,
   } = props.context;
-  const filterDisabled = () =>
-    isSectionSidebarPending(props.cat.id) ||
-    sectionStructurePending() ||
-    preferencesLoading() ||
-    !!preferencesError();
   const deleteSection = async () => {
     setSectionMenuOpen(null);
 
@@ -74,49 +65,6 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
           Move down
         </MenuItem>
       </Show>
-      <div class="sidebar-section-filter">
-        <SegmentedControl>
-          <button
-            aria-pressed={props.cat.sidebar === "hid"}
-            class="segmented-control-btn"
-            classList={{ active: props.cat.sidebar === "hid" }}
-            disabled={filterDisabled()}
-            onClick={() => {
-              setSectionMenuOpen(null);
-              void setChannelSectionSidebar(props.cat.id, "hid");
-            }}
-            type="button"
-          >
-            Unread
-          </button>
-          <button
-            aria-pressed={props.cat.sidebar === "active"}
-            class="segmented-control-btn"
-            classList={{ active: props.cat.sidebar === "active" }}
-            disabled={filterDisabled()}
-            onClick={() => {
-              setSectionMenuOpen(null);
-              void setChannelSectionSidebar(props.cat.id, "active");
-            }}
-            type="button"
-          >
-            Active
-          </button>
-          <button
-            aria-pressed={props.cat.sidebar === "all"}
-            class="segmented-control-btn"
-            classList={{ active: props.cat.sidebar === "all" }}
-            disabled={filterDisabled()}
-            onClick={() => {
-              setSectionMenuOpen(null);
-              void setChannelSectionSidebar(props.cat.id, "all");
-            }}
-            type="button"
-          >
-            All
-          </button>
-        </SegmentedControl>
-      </div>
       <Show when={props.cat.custom}>
         <MenuItem danger disabled={sectionStructurePending()} onClick={deleteSection}>
           Delete section

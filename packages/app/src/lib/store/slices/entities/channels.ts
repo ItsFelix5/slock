@@ -1,4 +1,6 @@
-import type { BrowsableChannel, Channel, ChannelSection, UserPrefs } from "@slock/slack-api";
+import { createEffect, createMemo, createSignal, type Setter } from "solid-js";
+import { createStore, produce } from "solid-js/store";
+import type { BrowsableChannel, Channel, UserPrefs } from "../../../api";
 import {
   fetchBrowsableChannels,
   fetchChannel,
@@ -6,10 +8,9 @@ import {
   fetchChannelMembers,
   joinChannel,
   leaveChannel,
-} from "@slock/slack-api";
-import { createEffect, createMemo, createSignal, type Setter } from "solid-js";
-import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+} from "../../../api";
+import { isDmId } from "../../../dmId";
+import { actionFeedback } from "../../../feedback";
 import type { Nav, View } from "../types";
 import { createChannelSections } from "./channelSections";
 import { createChannelStarPlacement } from "./channelStarPlacement";
@@ -19,7 +20,6 @@ export function createChannelsSlice(deps: {
   activeView: () => View | null;
   nav: () => Nav;
   setActiveView: (view: View) => void;
-  usergroupSections: () => ChannelSection[];
   userPrefs: () => UserPrefs | undefined;
   mutateUserPrefs: Setter<UserPrefs | undefined>;
 }) {
@@ -41,7 +41,6 @@ export function createChannelsSlice(deps: {
   const channelSections = createChannelSections({
     mutateUserPrefs: deps.mutateUserPrefs,
     nav: deps.nav,
-    usergroupSections: deps.usergroupSections,
     userPrefs: deps.userPrefs,
   });
   const {
@@ -73,7 +72,11 @@ export function createChannelsSlice(deps: {
   });
 
   function patchChannel(id: string, patch: Partial<Channel>) {
-    setChannelPatches(id, { ...channelPatches[id], ...patch });
+    const known: Partial<Channel> = {};
+    for (const [key, value] of Object.entries(patch)) {
+      if (value !== undefined) (known as Record<string, unknown>)[key] = value;
+    }
+    setChannelPatches(id, { ...channelPatches[id], ...known });
   }
 
   async function discoverChannel(id: string): Promise<boolean> {
@@ -136,6 +139,7 @@ export function createChannelsSlice(deps: {
   }
 
   function ensureChannelRoster(channelId: string): Promise<Set<string> | undefined> {
+    if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
     const cached = channelRosters.get(channelId);
     if (cached) return Promise.resolve(cached);
     const inFlight = rosterLoads.get(channelId);
@@ -173,17 +177,32 @@ export function createChannelsSlice(deps: {
     return !!leavePendingIds[channelId];
   }
 
+  function addJoinedChannel(channel: Channel) {
+    setExtraChannels(
+      produce((list) => {
+        const idx = list.findIndex((candidate) => candidate.id === channel.id);
+        if (idx === -1) list.push(channel);
+        else list[idx] = channel;
+      }),
+    );
+    setLeftChannelIds(channel.id, false);
+  }
+
+  function markChannelLeft(channelId: string) {
+    if (leftChannelIds[channelId]) return;
+    setLeftChannelIds(channelId, true);
+    if (deps.activeView()?.id === channelId) {
+      const next = channels().find((c) => c.id !== channelId && !isChannelLeft(c.id));
+      if (next) deps.setActiveView({ id: next.id, kind: "channel" });
+    }
+  }
+
   async function joinChannelById(channelId: string): Promise<boolean> {
     if (isJoinPending(channelId)) return false;
     setJoinPendingIds(channelId, true);
     try {
       const channel = await joinChannel(channelId);
-      setExtraChannels(
-        produce((list) => {
-          if (!list.some((candidate) => candidate.id === channel.id)) list.push(channel);
-        }),
-      );
-      setLeftChannelIds(channelId, false);
+      addJoinedChannel(channel);
       deps.setActiveView({ id: channel.id, kind: "channel" });
       return true;
     } catch (err) {
@@ -200,11 +219,7 @@ export function createChannelsSlice(deps: {
     setLeavePendingIds(channelId, true);
     try {
       await leaveChannel(channelId);
-      setLeftChannelIds(channelId, true);
-      if (deps.activeView()?.id === channelId) {
-        const next = channels().find((c) => c.id !== channelId && !isChannelLeft(c.id));
-        if (next) deps.setActiveView({ id: next.id, kind: "channel" });
-      }
+      markChannelLeft(channelId);
       return true;
     } catch (err) {
       console.error("Failed to leave channel", err);
@@ -221,6 +236,7 @@ export function createChannelsSlice(deps: {
   }
 
   return {
+    addJoinedChannel,
     browsableChannels,
     channelById,
     channelMemberIds,
@@ -235,6 +251,7 @@ export function createChannelsSlice(deps: {
     isLeavePending,
     joinChannelById,
     leaveCurrentChannel,
+    markChannelLeft,
     moveChannelToSection,
     patchChannel,
     searchBrowsableChannels,

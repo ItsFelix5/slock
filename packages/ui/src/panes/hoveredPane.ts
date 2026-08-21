@@ -17,8 +17,6 @@ if (typeof document !== "undefined") {
     const related = event.relatedTarget as Element | null;
     if (!related?.closest("[data-pane]")) setHoveredPaneId(null);
   });
-  // browsers dispatch mouseup for the side (back/forward) buttons before performing
-  // the native navigation, so this reliably fires just ahead of the popstate it causes
   window.addEventListener(
     "mouseup",
     (event) => {
@@ -28,7 +26,7 @@ if (typeof document !== "undefined") {
   );
 }
 
-export function consumeMouseButtonPop(): boolean {
+export function consumeMouseButtonPop() {
   const was = lastPopWasMouseButton;
   lastPopWasMouseButton = false;
   return was;

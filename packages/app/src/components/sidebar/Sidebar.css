@@ -1,4 +1,3 @@
-/* biome-ignore-all lint/style/noExcessiveLinesPerFile: Sidebar layout and interaction states form one cohesive stylesheet. */
 .sidebar {
   position: relative;
   flex-shrink: 0;
@@ -31,7 +30,7 @@
   padding: 4px;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .sidebar-me:hover {
@@ -73,7 +72,7 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .sidebar-nav-btn:hover {
@@ -109,7 +108,7 @@
   height: 16px;
   padding: 0 4px;
   color: var(--text-on-danger);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
 }
 
 .sidebar-nav-reaction-emoji {
@@ -142,11 +141,12 @@
   font-size: 12px;
   color: var(--error-text);
   background: var(--error-bg);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .sidebar-section {
-  margin-top: 10px;
+  margin-top: 5px;
+  margin-bottom: 5px;
   border-top: 2px solid transparent;
   border-bottom: 2px solid transparent;
 }
@@ -211,6 +211,10 @@
   font-size: 10px;
 }
 
+.sidebar-caret .icon {
+  transform: translateY(var(--icon-optical-shift));
+}
+
 .sidebar-section-rename-input {
   flex: 1;
   min-width: 0;
@@ -220,7 +224,7 @@
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .sidebar-section-menu-wrap {
@@ -234,7 +238,7 @@
   height: 22px;
   visibility: hidden;
   color: var(--text-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .sidebar-section-header:hover .sidebar-section-menu-btn,
@@ -249,13 +253,6 @@
 
 .menu-panel.sidebar-section-menu {
   min-width: 240px;
-}
-
-.sidebar-section-filter {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 10px;
 }
 
 .sidebar-row-wrap {
@@ -274,7 +271,7 @@
   width: 20px;
   height: 20px;
   color: var(--text-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .sidebar-row-wrap:hover .sidebar-row-close,
@@ -338,9 +335,16 @@
   color: var(--text-primary);
 }
 
+.sidebar-row-end {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
 .sidebar-badge {
   padding: 1px 7px;
-  margin-left: auto;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-on-danger);
@@ -348,7 +352,13 @@
   border-radius: var(--radius-pill);
 }
 
-.sidebar-row-wrap:hover .sidebar-badge,
-.sidebar-row-wrap:focus-within .sidebar-badge {
+.sidebar-row-draft {
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+}
+
+.sidebar-row-wrap:hover .sidebar-row-end,
+.sidebar-row-wrap:focus-within .sidebar-row-end {
   display: none;
 }

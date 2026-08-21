@@ -1,4 +1,4 @@
-import type { TextObject } from "@slock/slack-api";
+import type { TextObject } from "@slock/types";
 import EmojiText from "./emoji/EmojiText";
 import Mrkdwn from "./mrkdwn";
 

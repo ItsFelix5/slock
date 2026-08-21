@@ -1,8 +1,8 @@
-import type { DirectMessage, User } from "@slock/slack-api";
-import { closeDm, fetchChannelMembers, openDm } from "@slock/slack-api";
 import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+import type { DirectMessage, User } from "../../../api";
+import { closeDm, fetchChannelMembers, openDm } from "../../../api";
+import { actionFeedback } from "../../../feedback";
 import type { View } from "../types";
 
 export function createDmsSlice(deps: {

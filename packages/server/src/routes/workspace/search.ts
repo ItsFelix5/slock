@@ -4,6 +4,14 @@ import { callSlack, callSlackEdge } from "../../slackClient.ts";
 import { trimChannel, trimFile, trimUser } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
 
+function threadTsFromMatch(match: { permalink?: string; thread_ts?: string }): string | undefined {
+  if (match.thread_ts) return match.thread_ts;
+  if (!match.permalink) return;
+  try {
+    return new URL(match.permalink).searchParams.get("thread_ts") || undefined;
+  } catch {}
+}
+
 export const searchRoutes: Route[] = [
   route("GET", "/api/search", async (ctx) => {
     let query = (ctx.searchParams.get("query") ?? "").trim();
@@ -117,7 +125,7 @@ export const searchRoutes: Route[] = [
             channelId: match.channel.id,
             channelName: match.channel.name ?? match.channel.id,
             text: match.text ?? "",
-            threadTs: match.thread_ts || undefined,
+            threadTs: threadTsFromMatch(match),
             ts: match.ts,
             userId: match.user ?? "",
           })),

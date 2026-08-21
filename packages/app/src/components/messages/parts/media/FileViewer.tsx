@@ -1,4 +1,3 @@
-import { resolveMediaUrl, type SlackFile } from "@slock/slack-api";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import {
   createResource,
@@ -10,6 +9,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import "./FileViewer.css";
 import { parseEml } from "./mailParse";
 
@@ -104,6 +104,7 @@ function PdfBody(props: { file: SlackFile }) {
           onError={() => setFailed(true)}
           onLoad={() => setLoaded(true)}
           src={resolveMediaUrl(props.file.urlPrivate)}
+          sandbox=""
           title={name()}
         />
         <Show when={!loaded()}>

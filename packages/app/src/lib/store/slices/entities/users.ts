@@ -1,4 +1,6 @@
-import type { User } from "@slock/slack-api";
+import { createSignal } from "solid-js";
+import { createStore, produce } from "solid-js/store";
+import type { User } from "../../../api";
 import {
   setPresence as apiSetPresence,
   setProfileFields as apiSetProfileFields,
@@ -9,10 +11,9 @@ import {
   fetchUserPresence,
   fetchUserProfile,
   searchDirectory,
-} from "@slock/slack-api";
-import { createSignal } from "solid-js";
-import { createStore, produce } from "solid-js/store";
-import { actionFeedback } from "../feedback";
+} from "../../../api";
+import { actionFeedback } from "../../../feedback";
+import { createLocalPref } from "../../localPref";
 import type { createPanesSlice } from "../session/panes";
 import { createUserProfileFields } from "./usersProfileFields";
 
@@ -57,6 +58,13 @@ export function createUsersSlice(
   );
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
 
+  const [nicknames, persistNicknames] = createLocalPref<Record<string, string>>("nicknames", {});
+
+  function withNickname(user: User): User {
+    const nickname = nicknames()[user.id];
+    return nickname ? { ...user, name: nickname, originalName: user.name } : user;
+  }
+
   const [botBios, setBotBios] = createStore<Record<string, string>>({});
   const pendingBotBios = new Set<string>();
 
@@ -64,7 +72,7 @@ export function createUsersSlice(
     createUserProfileFields(deps, api, setSelfStatusOverride);
 
   function knownUsers(): User[] {
-    return Object.values(extraUsers);
+    return Object.values(extraUsers).map(withNickname);
   }
 
   function cacheUsers(users: User[]): void {
@@ -95,8 +103,7 @@ export function createUsersSlice(
       return;
     }
     const presence = presenceOverrides[id];
-    if (!presence) return known;
-    return { ...known, presence };
+    return withNickname(presence ? { ...known, presence } : known);
   }
 
   function invalidateUser(id: string) {
@@ -115,7 +122,9 @@ export function createUsersSlice(
     const local = new Map<string, User>();
     for (const id of Object.keys(extraUsers)) local.set(id, extraUsers[id]);
     const localMatches = [...local.values()].filter(
-      (u) => u.id !== excludeId && u.name.toLowerCase().includes(q),
+      (u) =>
+        u.id !== excludeId &&
+        (u.name.toLowerCase().includes(q) || nicknames()[u.id]?.toLowerCase().includes(q)),
     );
 
     const { users: remote } = await api.searchDirectory(q);
@@ -126,7 +135,7 @@ export function createUsersSlice(
     const merged = new Map<string, User>();
     for (const u of localMatches) merged.set(u.id, u);
     for (const u of remote) if (u.id !== excludeId) merged.set(u.id, u);
-    return [...merged.values()].slice(0, 40);
+    return [...merged.values()].map(withNickname).slice(0, 40);
   }
 
   function currentUser(): User | undefined {
@@ -135,7 +144,19 @@ export function createUsersSlice(
 
     const presence = presenceOverrides[base.id] ?? (deps.isSelfOnline() ? "active" : "away");
     const status = selfStatusOverride();
-    return { ...base, presence, ...(status ?? {}) };
+    return withNickname({ ...base, presence, ...(status ?? {}) });
+  }
+
+  function nicknameFor(id: string): string | undefined {
+    return nicknames()[id];
+  }
+
+  function setNickname(id: string, nickname: string): void {
+    const trimmed = nickname.trim();
+    const next = { ...nicknames() };
+    if (trimmed) next[id] = trimmed;
+    else delete next[id];
+    persistNicknames(next);
   }
 
   function botBio(appId: string | undefined, botId: string | undefined): string | undefined {
@@ -219,9 +240,11 @@ export function createUsersSlice(
     customFieldsFor,
     invalidateUser,
     knownUsers,
+    nicknameFor,
     openUserProfile,
     profileStartDateFor,
     searchUsers,
+    setNickname,
     setPresenceOverrides,
     updateMyPresence,
     updateMyProfilePhoto,

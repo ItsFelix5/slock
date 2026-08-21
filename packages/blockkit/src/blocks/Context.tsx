@@ -3,7 +3,7 @@ import {
   type ImageElement,
   resolveMediaUrl,
   type TextObject,
-} from "@slock/slack-api";
+} from "@slock/types";
 import { For, Show } from "solid-js";
 import BkText from "../BkText";
 

@@ -1,7 +1,3 @@
-/* biome-ignore-all lint/style/noExcessiveLinesPerFile: one stylesheet for every block-kit block
- * type, several selectors intentionally shared/grouped across block types (bk-image-el,
- * bk-video-title/bk-task-sources, bk-card-subtext/bk-video-description, ...) - splitting by
- * block would duplicate or fragment those shared rules for no real gain. */
 .bk-root {
   display: flex;
   flex-direction: column;
@@ -60,9 +56,20 @@
   border-top: 1px solid var(--border-strong);
 }
 .bk-header {
-  font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
+}
+.bk-header-1 {
+  font-size: 20px;
+}
+.bk-header-2 {
+  font-size: 18px;
+}
+.bk-header-3 {
+  font-size: 16px;
+}
+.bk-header-4 {
+  font-size: 15px;
 }
 .bk-context {
   display: flex;
@@ -617,6 +624,23 @@
   border-radius: 4px;
 }
 .bk-date.bk-link:hover {
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
+.bk-canvas {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.bk-canvas:hover {
   color: var(--text-primary);
   background: var(--active-bg);
 }

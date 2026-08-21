@@ -1,4 +1,4 @@
-import type { AlertBlock } from "@slock/slack-api";
+import type { AlertBlock } from "@slock/types";
 import { Show } from "solid-js";
 import BkText from "../BkText";
 

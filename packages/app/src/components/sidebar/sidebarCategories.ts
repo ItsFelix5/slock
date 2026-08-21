@@ -1,6 +1,6 @@
-import type { Channel, ChannelSection, DirectMessage, User } from "@slock/slack-api";
 import type { createKeyedFeedback } from "@slock/ui";
 import type { Accessor, Setter } from "solid-js";
+import type { Channel, ChannelSection, DirectMessage, User } from "../../lib/api";
 import type { Nav } from "../../lib/store";
 
 export interface Category {
@@ -33,10 +33,11 @@ export interface SidebarContext {
   feedMode: Accessor<boolean>;
   feedWidth: Accessor<number>;
   handleSectionDragEnd: () => void;
-  handleSectionDragLeave: (id: string) => void;
-  handleSectionDragOver: (e: DragEvent, id: string) => void;
   handleSectionDragStart: (e: DragEvent, id: string) => void;
   handleSectionDrop: (e: DragEvent) => void;
+  handleSectionsDragLeave: (e: DragEvent) => void;
+  handleSectionsDragOver: (e: DragEvent) => void;
+  setSectionListRef: (el: HTMLDivElement) => void;
   hasUnreadActivity: Accessor<boolean>;
   unreadPingCount: Accessor<number>;
   recentReactionEmoji: Accessor<string | undefined>;

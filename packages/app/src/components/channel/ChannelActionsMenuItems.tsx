@@ -1,7 +1,8 @@
-import { confirmDialog, MenuItem } from "@slock/ui";
+import { confirmDialog, debugMode, MenuItem, showDebugInfo } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { openChannelDetails } from "../../lib/channelDetails";
-import { actionFeedback, store } from "../../lib/store";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
 import ChannelMoveMenu from "./ChannelMoveMenu";
 
 export interface ChannelActionsMenuItemsProps {
@@ -27,6 +28,13 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
     } catch {
       actionFeedback.flash(props.channelId, "Couldn't copy the link.", "error");
     }
+  };
+
+  const showDebug = () => {
+    const data = props.isDm
+      ? store.dms.dmById(props.channelId)
+      : store.channels.channelById(props.channelId);
+    showDebugInfo(`${props.isDm ? "DM" : "Channel"} ${props.channelId}`, data);
   };
 
   return (
@@ -90,6 +98,11 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           }}
         >
           Leave channel
+        </MenuItem>
+      </Show>
+      <Show when={debugMode()}>
+        <MenuItem icon="bug" onClick={() => run(showDebug)}>
+          Show debug info
         </MenuItem>
       </Show>
     </>

@@ -1,6 +1,6 @@
-import type { ProfileFieldDef, User } from "@slock/slack-api";
 import { createCopyFeedback, Icon, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
+import type { ProfileFieldDef, User } from "../../lib/api";
 import "./UserProfileContact.css";
 
 const URL_VALUE_RE = /^https?:\/\/\S+$/i;

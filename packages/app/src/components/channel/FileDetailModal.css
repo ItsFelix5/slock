@@ -7,7 +7,7 @@
   overflow: hidden;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-modal);
 }
 
@@ -25,10 +25,19 @@
   margin-bottom: 10px;
   overflow: hidden;
   background: var(--composer-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
+}
+
+.file-detail-video {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 50vh;
 }
 
 .file-detail-image {
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 50vh;
 }
@@ -90,7 +99,7 @@
   width: 100%;
   padding: 8px;
   text-align: left;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .file-detail-share-row:hover {

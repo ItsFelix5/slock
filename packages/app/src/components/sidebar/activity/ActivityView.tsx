@@ -1,6 +1,6 @@
-import { formatDayFromMs } from "@slock/slack-api";
-import { Button, Icon } from "@slock/ui";
+import { Button, Icon, initRovingTabIndexDefault } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
+import { formatDayFromMs } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
@@ -20,6 +20,7 @@ const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
 const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
 
 export default function ActivityView() {
+  let listRef: HTMLDivElement | undefined;
   const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
   const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
@@ -37,10 +38,7 @@ export default function ActivityView() {
     const ordered: ActivityRowData[] = [];
     const items = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
     for (const item of items) {
-      const threadTs =
-        item.kind === "reaction"
-          ? undefined
-          : (item.threadTs ?? (item.kind === "thread_reply" ? item.ts : undefined));
+      const threadTs = item.kind === "thread_reply" ? (item.threadTs ?? item.ts) : undefined;
       if (!threadTs) {
         ordered.push({ isThread: false, items: [item], key: `single:${item.id}` });
         continue;
@@ -124,6 +122,8 @@ export default function ActivityView() {
     return entries;
   });
 
+  initRovingTabIndexDefault(() => listRef, groupedVisibleRows);
+
   const selectedTagLabel = createMemo(
     () => TAG_FILTERS.find((filter) => filter.key === selectedTag())?.label ?? "All activity",
   );
@@ -132,7 +132,6 @@ export default function ActivityView() {
 
   const activeUnreadOnly = createMemo(() => readState() === "unread");
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let scrollRef: HTMLDivElement | undefined;
 
   function handleScroll() {
@@ -234,7 +233,7 @@ export default function ActivityView() {
           }
           when={visibleRows().length > 0}
         >
-          <div class="activity-list">
+          <div class="activity-list" ref={listRef}>
             <For each={groupedVisibleRows()}>
               {(entry) =>
                 entry.kind === "divider" ? (

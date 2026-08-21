@@ -1,15 +1,16 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { BlockKitResolverContext } from "@slock/blockkit";
-import { fetchPermalinkMessage } from "@slock/slack-api";
 import {
   Button,
   ConfirmDialogHost,
   ConnectionStatus,
+  DebugInfoDialogHost,
   InlineFeedback,
   PaneRow,
   usePaneNavigation,
 } from "@slock/ui";
 import { createEffect, onCleanup, onMount, Show } from "solid-js";
+import ChannelDetails from "./components/channel/channel-details/ChannelDetails";
 import ChannelHoverCard from "./components/channel/channel-details/ChannelHoverCard";
 import ContextActions from "./components/context-actions/ContextActions";
 import MessageLinkHoverCard from "./components/messages/parts/MessageLinkHoverCard";
@@ -19,27 +20,35 @@ import PaneSwitch from "./components/panes/PaneSwitch";
 import Sidebar from "./components/sidebar/Sidebar";
 import UserHoverCard from "./components/user/UserHoverCard";
 import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
+import { fetchPermalinkMessage } from "./lib/api";
+import { channelDisplayName, conversationDisplayName, dmDisplayName } from "./lib/displayName";
+import { actionFeedback } from "./lib/feedback";
 import { handleMessageCopy } from "./lib/messageCopy";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
   parseSlackPermalink,
 } from "./lib/navigation/slackPermalink";
-import { actionFeedback, channelDisplayName, conversationDisplayName, store } from "./lib/store";
+import { store } from "./lib/store";
 import { openUsergroupDetails } from "./lib/usergroupDetails";
 
 const blockKitResolver: BlockKitResolver = {
+  onCanvasClick: (fileId, title) => store.canvas.openCanvasPane(fileId, title ?? "canvas"),
   onChannelClick: (id) => store.viewState.setActiveView({ id, kind: "channel" }),
   onUserClick: store.users.openUserProfile,
   onUsergroupClick: openUsergroupDetails,
   resolveChannel: (id) => {
     const channel = store.channels.channelById(id);
-    return channel
-      ? {
-          isMember: store.channels.isChannelMember(id),
-          isPrivate: channel.private,
-          name: channelDisplayName(channel),
-        }
+    if (channel) {
+      return {
+        isMember: store.channels.isChannelMember(id),
+        isPrivate: channel.private,
+        name: channelDisplayName(channel),
+      };
+    }
+    const dm = store.dms.dmById(id);
+    return dm
+      ? { isMember: true, isPrivate: true, name: dmDisplayName(dm, store.users.userById) || id }
       : undefined;
   },
   resolveUser: (id) => {
@@ -94,8 +103,8 @@ function App() {
       (view
         ? conversationDisplayName(
             view.id,
-            view.kind === "channel" ? store.channels.channelById(view.id) : undefined,
-            view.kind === "dm" ? store.dms.dmById(view.id) : undefined,
+            store.channels.channelById,
+            store.dms.dmById,
             store.users.userById,
           )
         : "") ||
@@ -189,7 +198,9 @@ function App() {
           />
           <ContextActions />
           <ViewModal />
+          <ChannelDetails />
           <ConfirmDialogHost />
+          <DebugInfoDialogHost />
         </div>
       </Show>
     </BlockKitResolverContext.Provider>

@@ -1,23 +1,17 @@
-import { type ComposeAtomData, docToBlocks } from "@slock/blockkit";
-import { uploadFiles } from "@slock/slack-api";
-import type { EditorHandle } from "@slock/ui";
-import { actionFeedback, store } from "../../lib/store";
+import type Quill from "quill";
+import { uploadFiles } from "../../lib/api";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
 import type { ComposerProps } from "./composerTypes";
-import { clearPersistedDraft } from "./lib/drafts";
-import {
-  type createPendingFileState,
-  draftCacheKey,
-  submitComposerPayload,
-} from "./lib/submission";
+import { clearPersistedDraft, type createPendingFileState } from "./lib/drafts";
+import { mrkdwnText } from "./lib/quillMentions";
+import { submitComposerPayload } from "./lib/submission";
 
-/** Send-on-submit for the composer: routes to editing.onSave when editing an existing message,
- * otherwise runs a slash command or uploads/sends a new one - clearing the editor, draft, and
- * pending files on success either way. */
 export function createComposerSubmitHandler(deps: {
   channelId: () => string | undefined;
   editing: () => ComposerProps["editing"];
-  editor: EditorHandle<ComposeAtomData>;
   feedbackKey: () => string;
+  getQuill: () => Quill | undefined;
   onSent: () => void;
   pendingFiles: ReturnType<typeof createPendingFileState>;
   sending: () => boolean;
@@ -26,37 +20,38 @@ export function createComposerSubmitHandler(deps: {
 }) {
   return async function handleSubmit() {
     if (deps.sending() || !deps.channelId()) return;
-    const text = deps.editor.getPlainText().trim();
-    if (!text && deps.pendingFiles.files().length === 0 && deps.editor.isEmpty()) return;
+    const quill = deps.getQuill();
+    if (!quill) return;
+    const text = mrkdwnText(quill).trim();
+    if (!text && deps.pendingFiles.files().length === 0) return;
     deps.setSending(true);
     try {
       const editing = deps.editing();
       if (editing) {
-        const blocks = deps.editor.isEmpty() ? undefined : docToBlocks(deps.editor.getDoc());
-        const ok = await editing.onSave(text, blocks);
-        if (!ok) return;
+        await editing.onSave(text);
         return;
       }
       const channelId = deps.channelId();
       if (!channelId) return;
       const threadTs = deps.threadTs();
       const isSlashAttempt = text.startsWith("/");
-      const blocks =
-        isSlashAttempt || deps.editor.isEmpty() ? undefined : docToBlocks(deps.editor.getDoc());
-      const key = draftCacheKey(channelId, threadTs);
       await submitComposerPayload({
-        blocks,
         files: deps.pendingFiles.files(),
         isSlashAttempt,
         onSuccess: () => {
-          deps.editor.clear();
-          deps.pendingFiles.clear(key);
-          clearPersistedDraft(channelId, threadTs);
+          quill.setText("\n");
+          clearPersistedDraft(channelId, threadTs, deps.pendingFiles);
           deps.onSent();
         },
         runCommand: () => store.commands.handleSlashCommand(channelId, threadTs, text),
-        sendMessage: (b) => store.messages.sendMessage(channelId, text, threadTs, b),
-        uploadFiles: () => uploadFiles(channelId, deps.pendingFiles.files(), threadTs, text),
+        sendMessage: () => store.messages.sendMessage(channelId, text, threadTs),
+        uploadFiles: () =>
+          uploadFiles(
+            channelId,
+            deps.pendingFiles.files().map((file) => ({ file })),
+            threadTs,
+            text,
+          ),
       });
     } catch (err) {
       actionFeedback.flash(

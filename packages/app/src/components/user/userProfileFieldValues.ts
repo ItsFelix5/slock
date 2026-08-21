@@ -1,4 +1,8 @@
-import type { ProfileFieldDef } from "@slock/slack-api";
+import type { ProfileFieldDef } from "../../lib/api";
+
+export function isCustomFieldDef(field: ProfileFieldDef): boolean {
+  return field.fieldName !== "start_date" && field.label.trim().toLowerCase() !== "title";
+}
 
 export function mergeMissingProfileFieldValues(
   current: Record<string, string>,

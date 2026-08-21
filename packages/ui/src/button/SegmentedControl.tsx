@@ -8,7 +8,6 @@ export interface SegmentedControlProps {
 }
 
 export default function SegmentedControl(props: SegmentedControlProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
 
   const onKeyDown = (event: KeyboardEvent) => {

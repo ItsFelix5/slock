@@ -1,5 +1,7 @@
-import type { Bootstrap, DirectMessage, UserPrefs } from "@slock/slack-api";
+import { colorScheme, replaceThemeColors, setThemeShape, themeColors, themeShape } from "@slock/ui";
 import { createEffect, type Resource, type Setter } from "solid-js";
+import type { Bootstrap, DirectMessage, UserPrefs } from "../api";
+import { setThemeColorsPref, setThemeShapePref } from "../api";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -19,6 +21,7 @@ import { createModalsSlice } from "./slices/session/modals";
 import { createPanesSlice } from "./slices/session/panes";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
+import { createSyncedThemeValue } from "./slices/session/themeSync";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { View } from "./slices/types";
 
@@ -63,7 +66,6 @@ export function createStoreSlices({
     bootstrap,
     nav: viewState.nav,
     setActiveView,
-    usergroupSections: usergroups.channelSections,
     userPrefs,
     mutateUserPrefs,
   });
@@ -77,10 +79,10 @@ export function createStoreSlices({
     patchDm,
   });
   const cacheResolvedMessagesRef: {
-    current: (messages: Map<string, import("@slock/slack-api").Message>) => void;
+    current: (messages: Map<string, import("../api").Message>) => void;
   } = { current: () => {} };
   const reactionMessageForRef: {
-    current: (channelId: string, ts: string) => import("@slock/slack-api").Message | undefined;
+    current: (channelId: string, ts: string) => import("../api").Message | undefined;
   } = { current: () => undefined };
   const activity = createActivitySlice({
     cacheResolvedMessages: (messages) => cacheResolvedMessagesRef.current(messages),
@@ -88,6 +90,7 @@ export function createStoreSlices({
     channelsInActivity: () => userPrefs()?.globalNotifications.channelsInActivity !== false,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
+    isBotUser: (userId) => !!users.userById(userId)?.isBot,
     lastReadByChannel: unread.lastReadByChannel,
     notifyAllChannelIds: () => {
       const prefs = userPrefs();
@@ -99,11 +102,28 @@ export function createStoreSlices({
     setLastReadByChannel: unread.setLastReadByChannel,
     syncChannelRead: unread.syncChannelRead,
     syncThreadRead: unread.syncThreadRead,
+    visibleThreads,
   });
   createEffect(() => activity.setGatewayActivityBadgeCounts(bootstrap()?.activityCounts));
+  createSyncedThemeValue({
+    apply: (value) => replaceThemeColors(value.colors, value.colorScheme),
+    label: "theme-colors",
+    read: (prefs) => prefs.themeColors,
+    signal: () => ({ colorScheme: colorScheme(), colors: themeColors() as Record<string, string> }),
+    userPrefs,
+    write: setThemeColorsPref,
+  });
+  createSyncedThemeValue({
+    apply: setThemeShape,
+    label: "theme-shape",
+    read: (prefs) => prefs.themeShape,
+    signal: themeShape,
+    userPrefs,
+    write: setThemeShapePref,
+  });
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
-  const searchHistory = createSearchHistorySlice({ userPrefs });
-  const channelTabsSlice = createChannelTabsSlice({ userPrefs });
+  const searchHistory = createSearchHistorySlice();
+  const channelTabsSlice = createChannelTabsSlice();
   const later = createLaterSlice();
   const dms = createDmsSlice({
     activeView: viewState.activeView,
@@ -139,19 +159,21 @@ export function createStoreSlices({
   reactionMessageForRef.current = (channelId, ts) =>
     messages.reactionMessages[`${channelId}:${ts}`]?.[0];
   const realtime = createRealtimeSlice({
+    addJoinedChannel: channels.addJoinedChannel,
     allDirectMessages: dms.allDirectMessages,
-    applyReactionEvent: messages.applyReactionEvent,
+    applyReactionEvent: messages.realtimeHooks.applyReactionEvent,
     channels: channels.channels,
     clearTyping: typing.clearTyping,
     closedDmIds: dms.closedDmIds,
     currentUser: users.currentUser,
     ensureDm: dms.ensureDm,
     findAllMessageLocations: messages.findAllMessageLocations,
-    insertMessageInOrder: messages.insertMessageInOrder,
+    insertMessageInOrder: messages.realtimeHooks.insertMessageInOrder,
     invalidateUser: users.invalidateUser,
     loadedChannels: messages.loadedChannels,
     loadedThreads: messages.loadedThreads,
-    mergeIncomingMessage: messages.mergeIncomingMessage,
+    markChannelLeft: channels.markChannelLeft,
+    mergeIncomingMessage: messages.realtimeHooks.mergeIncomingMessage,
     messagesByChannel: messages.messagesByChannel,
     openModalView: modals.openView,
     patchChannel: channels.patchChannel,

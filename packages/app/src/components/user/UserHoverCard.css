@@ -22,7 +22,7 @@
   font-size: 20px;
   font-weight: 700;
   color: var(--text-on-avatar);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .user-hovercard-avatar img {
@@ -31,7 +31,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .user-hovercard-presence {

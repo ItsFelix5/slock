@@ -1,4 +1,4 @@
-import { trimActivityCounts, trimCountGroups, trimMessage } from "./slackEntities.ts";
+import { trimActivityCounts, trimChannel, trimCountGroups, trimMessage } from "./slackEntities.ts";
 
 function trimGatewayCounts(payload: any): any {
   if (!payload || typeof payload !== "object") return payload;
@@ -60,6 +60,20 @@ export function trimSlackGatewayPayload(payload: any): any | null {
     }
     case "channel_marked":
       return { channel: payload.channel, ts: payload.ts, type: payload.type };
+    case "channel_joined":
+    case "group_joined":
+      return { channel: trimChannel(payload.channel), type: payload.type };
+    case "im_created":
+      return {
+        channel: { ...trimChannel(payload.channel), user: payload.channel?.user },
+        type: payload.type,
+        user: payload.user,
+      };
+    case "channel_left":
+    case "group_left":
+      return { channel: payload.channel, type: payload.type };
+    case "member_left_channel":
+      return { channel: payload.channel, type: payload.type, user: payload.user };
     case "user_invalidated":
       return { type: payload.type, user: payload.user, users: payload.users };
     case "view_opened": {
@@ -81,6 +95,7 @@ export function trimSlackGatewayPayload(payload: any): any | null {
       };
     }
     default:
+      console.debug("[gateway] unhandled message type:", payload?.type, payload);
       return null;
   }
 }

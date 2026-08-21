@@ -1,4 +1,4 @@
-import type { PlanBlock, TaskCardBlock } from "@slock/slack-api";
+import type { PlanBlock, TaskCardBlock } from "@slock/types";
 import { For, Show } from "solid-js";
 import BkText from "../BkText";
 import RichText from "./RichText";

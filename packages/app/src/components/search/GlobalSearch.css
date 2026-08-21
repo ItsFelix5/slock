@@ -22,17 +22,6 @@
   color: var(--text-secondary);
 }
 
-.global-search-chip.active {
-  color: var(--text-primary);
-  background: var(--active-bg);
-  border-color: var(--accent);
-}
-
-.global-search-sort-btn.active {
-  color: var(--text-primary);
-  background: var(--active-bg);
-}
-
 .global-search-results {
   display: flex;
   flex: 1;
@@ -55,7 +44,7 @@
   font-size: 14px;
   text-align: left;
   background: transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .global-search-result:hover,

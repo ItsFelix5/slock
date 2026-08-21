@@ -1,15 +1,12 @@
-import type { Message } from "@slock/slack-api";
 import { createEffect, createSignal } from "solid-js";
+import type { Message } from "../../lib/api";
 import type { ChannelMessageTarget, View } from "../../lib/store";
-import { findUnreadDividerIndex, store } from "../../lib/store";
+import { store } from "../../lib/store";
+import { findUnreadDividerIndex } from "../../lib/unreadDivider";
 import { jumpToMessageInContainer, scrollToBottom, waitForMessageElement } from "./scrollAnchor";
 
 const MAX_BACKFILL_LOADS = 5;
 
-/** Where the message list lands when a channel first opens (or a message/date is jumped to):
- * the bottom, a specific message, or the unread divider - including backfilling older history
- * when the read cursor isn't loaded yet. Split out of messageListScroll.ts, which owns everything
- * that happens once the list is already sitting somewhere. */
 export function createMessageListLanding(deps: {
   clearMessageTarget: () => void;
   messages: () => Message[];

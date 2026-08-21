@@ -25,7 +25,7 @@
   padding: 6px 10px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .files-links-search-icon {
@@ -50,7 +50,7 @@
   margin: 0;
   background: var(--composer-bg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .files-links-filter-chip {
@@ -61,7 +61,7 @@
   white-space: nowrap;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .files-links-filter-chip:hover {
@@ -81,7 +81,7 @@
   color: var(--text-dim);
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .files-links-body {
@@ -132,7 +132,7 @@
   text-decoration: none;
   background: var(--composer-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .files-links-card:hover {
@@ -205,7 +205,7 @@
   color: var(--text-dim);
   background: var(--composer-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .files-links-card-jump:hover {

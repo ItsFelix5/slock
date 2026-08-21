@@ -1,14 +1,7 @@
-import type { ActivityItem, FeedEntry, Message, User } from "@slock/slack-api";
 import { produce, type SetStoreFunction } from "solid-js/store";
+import { isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
+import type { ActivityItem, FeedEntry, Message, User } from "../../../../api";
 
-const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>(["channel_all", "thread_reply"]);
-function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
-  return OwnMessageFilteredKinds.has(item.kind) && (!item.userId || item.userId === me.id);
-}
-
-/** Turns raw activity-feed entries (which only carry channel/ts, not the actual message) into
- * pushable `ActivityItem`s - resolving their messages in one batched lookup, then falling back to
- * a per-entry history fetch for `channel_all` posts the batch lookup couldn't place. */
 export function createEntryResolution(deps: {
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   fetchHistoryAround: (
@@ -20,7 +13,7 @@ export function createEntryResolution(deps: {
     entries: { channelId: string; ts: string }[],
     onBatch?: (batch: Map<string, Message>) => void,
   ) => Promise<Map<string, Message>>;
-  reactionActivityKey: (item: ActivityItem) => string | undefined;
+  isBotUser?: (userId: string) => boolean;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
   setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
@@ -74,12 +67,13 @@ export function createEntryResolution(deps: {
   ) {
     const pushItem = (item: ActivityItem) => {
       const channelPostKey = `${item.channelId}:${item.ts}`;
-      const reactionKey = deps.reactionActivityKey(item);
+      const reactionKey = reactionActivityKey(item);
       if (
         seen.has(item.id) ||
         (!!reactionKey && seenReactions.has(reactionKey)) ||
         isOwnOrUnresolved(item, me) ||
-        (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey))
+        (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey)) ||
+        (item.kind === "reaction" && !!item.userId && deps.isBotUser?.(item.userId))
       )
         return;
       seen.add(item.id);
@@ -97,5 +91,5 @@ export function createEntryResolution(deps: {
     return { push, pushItem };
   }
 
-  return { createEntryPusher, isOwnOrUnresolved, resolvePendingEntries };
+  return { createEntryPusher, resolvePendingEntries };
 }

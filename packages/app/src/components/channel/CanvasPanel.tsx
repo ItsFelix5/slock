@@ -5,7 +5,6 @@ import { store } from "../../lib/store";
 import type { CanvasPaneContent } from "../../lib/store/slices/types";
 import "./CanvasPanel.css";
 
-// Read-only viewer — no in-app editing yet, just the channel's canvas content.
 export default function CanvasPanel(props: { pane: Pane<CanvasPaneContent> }) {
   const fileId = () => props.pane.content.fileId;
 

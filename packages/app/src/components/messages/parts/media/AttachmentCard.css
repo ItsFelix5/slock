@@ -52,7 +52,7 @@
 .attachment-message-author-icon {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .attachment-author {
@@ -65,7 +65,7 @@
 .attachment-author-icon {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .attachment-title {
@@ -127,7 +127,7 @@
   max-width: min(240px, 100%);
   max-height: 200px;
   margin-top: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .attachment-image {
@@ -175,5 +175,5 @@
 .attachment-footer-icon {
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }

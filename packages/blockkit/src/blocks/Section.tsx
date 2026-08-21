@@ -1,4 +1,4 @@
-import type { SectionBlock } from "@slock/slack-api";
+import type { SectionBlock } from "@slock/types";
 import { createSignal, For, onMount, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
@@ -8,7 +8,6 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
   const [expanded, setExpanded] = createSignal(false);
   const [overflowing, setOverflowing] = createSignal(false);
   const clampable = () => props.block.expand !== true;
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let textEl: HTMLDivElement | undefined;
 
   onMount(() => {

@@ -1,10 +1,12 @@
 import { Icon, IconButton, InlineFeedback, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { actionFeedback, store } from "../../lib/store";
 import {
   type ChannelPlacementOutcome,
   isChannelPlacementApplied,
-} from "../../lib/store/slices/entities/mutations/channelPlacementOutcome";
+} from "../../lib/channelSectionMutations";
+import { channelIconName } from "../../lib/displayName";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
 import "./ChannelMoveMenu.css";
 
 export interface ChannelMoveMenuProps {
@@ -20,7 +22,6 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
   const [newSectionName, setNewSectionName] = createSignal("");
   const [creatingSection, setCreatingSection] = createSignal(false);
 
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let newSectionInputRef: HTMLInputElement | undefined;
 
   const sections = createMemo(
@@ -114,7 +115,6 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       </MenuItem>
     ) : (
       <IconButton
-        active={isStarred()}
         class="channel-header-star"
         icon={isStarred() ? "star-filled" : "section"}
         label="Move to…"
@@ -139,9 +139,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       <div class="channel-move-menu-heading">
         <span class="menu-label">Move to</span>
         <span class="channel-move-menu-channel truncate">
-          <Show fallback="#" when={isPrivate()}>
-            <Icon name="lock" size={11} />
-          </Show>
+          <Icon name={channelIconName(isPrivate())} size={11} />
           {props.channelTitle}
         </span>
         <Show when={isPending()}>

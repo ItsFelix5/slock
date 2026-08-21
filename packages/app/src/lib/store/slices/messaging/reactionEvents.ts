@@ -1,5 +1,5 @@
-import type { ActivityItem, Message } from "@slock/slack-api";
-import { fetchPermalinkMessage } from "@slock/slack-api";
+import type { ActivityItem, Message } from "../../../api";
+import { blockPreviewText, fetchPermalinkMessage } from "../../../api";
 import type { MessageLocation } from "../types";
 
 export function createReactionEvents(deps: {
@@ -18,13 +18,13 @@ export function createReactionEvents(deps: {
     userId: string,
     msg: Message,
   ) {
-    //todo?
     deps.pushActivity({
+      blocks: msg.blocks,
       channelId: channel,
       id: `rx-${channel}-${ts}-${name}-${userId}-${Date.now()}`,
       kind: "reaction",
       reactionName: name,
-      text: msg.text,
+      text: msg.text || blockPreviewText(msg.blocks),
       threadTs: msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined),
       time: Date.now(),
       ts,

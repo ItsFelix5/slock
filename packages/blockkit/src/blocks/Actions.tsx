@@ -1,4 +1,4 @@
-import type { ActionsBlock } from "@slock/slack-api";
+import type { ActionsBlock } from "@slock/types";
 import { For } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";

@@ -1,6 +1,6 @@
-import { getWorkspaceDomain, logout } from "@slock/slack-api";
-import { Avatar, Button, confirmDialog } from "@slock/ui";
+import { Avatar, Button, confirmDialog, debugMode, Switch, setDebugMode } from "@slock/ui";
 import { createResource, createSignal, Show } from "solid-js";
+import { getWorkspaceDomain, logout } from "../../lib/api";
 import { store } from "../../lib/store";
 import "./Settings.css";
 
@@ -56,8 +56,12 @@ export default function SettingsAccountTab() {
         )}
       </Show>
 
+      <div class="settings-row flex-between">
+        <div class="settings-row-label">Debug mode</div>
+        <Switch checked={debugMode()} onChange={setDebugMode} title="Debug mode" />
+      </div>
+
       <div class="settings-section">
-        <div class="settings-row-label">Log out</div>
         <Button disabled={loggingOut()} onClick={handleLogout} variant="danger">
           {loggingOut() ? "Logging out…" : "Log out"}
         </Button>

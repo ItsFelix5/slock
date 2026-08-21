@@ -35,6 +35,12 @@ export function gridNavigationIndex(
   if (key === "ArrowUp") return current === null ? itemCount - 1 : Math.max(current - columns, 0);
 }
 
+export function rovingTabIndex(rows: HTMLElement[], activeIndex: number) {
+  rows.forEach((row, index) => {
+    row.tabIndex = index === activeIndex ? 0 : -1;
+  });
+}
+
 export function scrollActiveListOption(listbox: () => HTMLElement | undefined) {
   queueMicrotask(() =>
     listbox()

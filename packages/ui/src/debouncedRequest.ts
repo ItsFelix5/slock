@@ -14,7 +14,7 @@ export function createDebouncedRequest<T>(
   let requestId = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const run = (rawQuery: string) => {
+  const run = (rawQuery: string, { immediate = false } = {}) => {
     if (disposed) return;
     clearTimeout(timer);
     timer = undefined;
@@ -27,7 +27,7 @@ export function createDebouncedRequest<T>(
     }
 
     options.onPendingChange?.(true);
-    timer = setTimeout(() => {
+    const fire = () => {
       timer = undefined;
       void request(query)
         .then((result) => {
@@ -39,7 +39,9 @@ export function createDebouncedRequest<T>(
         .finally(() => {
           if (!(disposed || id !== requestId)) options.onPendingChange?.(false);
         });
-    }, options.delay ?? 250);
+    };
+    if (immediate) fire();
+    else timer = setTimeout(fire, options.delay ?? 250);
   };
 
   const dispose = () => {

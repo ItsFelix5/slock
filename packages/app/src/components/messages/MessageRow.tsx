@@ -1,4 +1,3 @@
-import type { Message } from "@slock/slack-api";
 import {
   ContextMenu,
   InlineFeedback,
@@ -7,7 +6,9 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { actionFeedback, store } from "../../lib/store";
+import type { Message } from "../../lib/api";
+import { actionFeedback } from "../../lib/feedback";
+import { store } from "../../lib/store";
 import { isMessageBackgroundContextMenu } from "./messageContextMenuTarget";
 import "./MessageList.css";
 import MessageMeta from "./MessageMeta";
@@ -38,7 +39,6 @@ export type MessageRowProps = {
   onJumpToMessage?: (ts: string) => void;
   index: () => number;
   focusedTs?: () => string | null;
-  listFocused?: () => boolean;
   editingTs?: () => string | null;
   onStartEdit?: (ts: string) => void;
   onStopEdit?: () => void;
@@ -106,7 +106,6 @@ export default function MessageRow(props: MessageRowProps) {
 
   const focused = () => props.focusedTs?.() === msg().ts;
 
-  const visuallyFocused = () => focused() && (props.listFocused?.() ?? false);
   return (
     <Show when={renderState().showMessage}>
       <Show when={dayChanged() || showUnreadDivider()}>
@@ -150,7 +149,6 @@ export default function MessageRow(props: MessageRowProps) {
         </Show>
         <div
           class="message-row"
-          classList={{ focused: visuallyFocused() }}
           data-message-ts={msg().ts}
           onContextMenu={(e) => {
             if (msg().deleted || msg().isEphemeral || isEditing()) return;

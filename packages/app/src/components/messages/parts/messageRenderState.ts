@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
 import type {
   Attachment,
   Block,
@@ -6,13 +7,13 @@ import type {
   RichTextInlineElement,
   RichTextSubBlock,
   TextObject,
-} from "@slock/slack-api";
+} from "../../../lib/api";
 import {
   parseReplyLink,
   parseReplyLinkFromBlocks,
   threadContainsMessage,
 } from "../../../lib/replyLink";
-import { isUnreadDividerBoundary } from "../../../lib/store";
+import { isUnreadDividerBoundary } from "../../../lib/unreadDivider";
 
 const USER_PROFILE_ID_RE = /^[UW]/;
 const BOT_PROFILE_ID_RE = /^B/;
@@ -72,7 +73,7 @@ export function resolveAuthorDisplayName(
   userName: string | undefined,
   fallback: string,
 ): string {
-  return (hasRealMessageAuthor(msg) ? userName : undefined) ?? msg.botName ?? fallback;
+  return (hasRealMessageAuthor(msg) ? userName : (msg.botName ?? userName)) ?? fallback;
 }
 
 export function unresolvedAuthorFallback(msg: Pick<MessageAuthorFields, "userId">): string {
@@ -84,6 +85,26 @@ export function resolveAuthorAvatarUrl(
   userAvatarUrl: string | undefined,
 ): string | undefined {
   return hasRealMessageAuthor(msg) ? userAvatarUrl : (msg.botIcon ?? userAvatarUrl);
+}
+
+export interface MessageAuthorAvatarView {
+  avatarColor: string;
+  avatarUrl: string | undefined;
+  id: string;
+  name: string;
+}
+
+export function resolveMessageAuthorAvatar(
+  msg: MessageAuthorFields,
+  userById: (id: string) => { avatarColor?: string; avatarUrl?: string; name: string } | undefined,
+): MessageAuthorAvatarView {
+  const user = hasRealMessageAuthor(msg) ? userById(msg.userId) : undefined;
+  return {
+    avatarColor: user?.avatarColor ?? DEFAULT_AVATAR_COLOR,
+    avatarUrl: resolveAuthorAvatarUrl(msg, user?.avatarUrl),
+    id: msg.userId,
+    name: resolveAuthorDisplayName(msg, user?.name, "Unknown"),
+  };
 }
 
 export interface MessageRenderContext {

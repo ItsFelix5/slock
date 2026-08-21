@@ -1,28 +1,36 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Button, InlineFeedback, type Pane, PanelHeader, Tooltip } from "@slock/ui";
+import {
+  Button,
+  InlineFeedback,
+  initRovingTabIndexDefault,
+  type Pane,
+  PanelHeader,
+  Tooltip,
+} from "@slock/ui";
 import { For, Show } from "solid-js";
+import { conversationDisplayName } from "../../lib/displayName";
+import { actionFeedback } from "../../lib/feedback";
 import { closeTile } from "../../lib/paneActions";
-import { actionFeedback, conversationDisplayName, store } from "../../lib/store";
+import { store } from "../../lib/store";
 import type { PinnedPaneContent } from "../../lib/store/slices/types";
 import "./PinnedPanel.css";
 
 export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
+  let listRef: HTMLDivElement | undefined;
   const channelId = () => props.pane.content.channelId;
 
   const pins = () => store.pinned.pinnedMessagesCache[channelId()];
+  initRovingTabIndexDefault(() => listRef, pins);
   const loading = () => !!store.pinned.pinnedMessagesLoading[channelId()];
   const loadError = () => !!store.pinned.pinnedMessagesError[channelId()];
 
-  const title = () => {
-    const id = channelId();
-    const channel = id.startsWith("D") ? undefined : store.channels.channelById(id);
-    return `Pinned in ${conversationDisplayName(id, channel, store.dms.dmById(id), store.users.userById)}`;
-  };
+  const title = () =>
+    `Pinned in ${conversationDisplayName(channelId(), store.channels.channelById, store.dms.dmById, store.users.userById)}`;
 
   const goTo = (ts: string) => {
     const id = channelId();
     store.viewState.setActiveView({ id, kind: store.channels.channelById(id) ? "channel" : "dm" });
-    store.viewState.openThread(id, ts);
+    store.viewState.openThread(id, ts, ts);
     closeTile(props.pane.id);
   };
 
@@ -37,7 +45,7 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
       <PanelHeader onClose={() => closeTile(props.pane.id)}>
         <div class="pinned-panel-title">{title()}</div>
       </PanelHeader>
-      <div class="pinned-panel-list">
+      <div class="pinned-panel-list" ref={listRef}>
         <Show when={loading() && pins() !== undefined && !loadError()}>
           <div class="pinned-panel-refreshing text-dim text-sm">Refreshing…</div>
         </Show>
@@ -66,6 +74,7 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
                         class="pinned-panel-item-main btn-reset"
                         data-nav-row
                         onClick={() => goTo(pin.ts)}
+                        tabIndex={-1}
                         type="button"
                       >
                         <Mrkdwn text={msg().text} />

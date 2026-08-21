@@ -1,4 +1,4 @@
-import type { Chart, ChartAxisConfig, ChartSeries, DataVisualizationBlock } from "@slock/slack-api";
+import type { Chart, ChartAxisConfig, ChartSeries, DataVisualizationBlock } from "@slock/types";
 import { For, Match, Show, Switch } from "solid-js";
 
 const CHART_W = 300;

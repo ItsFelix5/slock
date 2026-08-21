@@ -1,4 +1,4 @@
-import type { TableBlock } from "@slock/slack-api";
+import type { TableBlock } from "@slock/types";
 import { For, Show } from "solid-js";
 import RichText from "./RichText";
 

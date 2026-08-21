@@ -1,4 +1,4 @@
-import { fetchAllEmoji } from "@slock/slack-api";
+import { fetchAllEmoji } from "@slock/types";
 import { createStore } from "solid-js/store";
 
 let emojiUrls: Record<string, string | null> = {};
@@ -30,7 +30,7 @@ export function emojiUrl(name: string): string | null | undefined {
 }
 
 export function customEmojiNames(): string[] {
-  void loadState.value; // reactive read: subscribes callers to reloads even though only the keys are used
+  void loadState.value;
   return Object.keys(emojiUrls);
 }
 

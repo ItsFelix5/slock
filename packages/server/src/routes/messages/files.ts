@@ -19,7 +19,11 @@ function flattenShares(sharesRoot: unknown): Record<string, unknown>[] {
 export const fileRoutes: Route[] = [
   route("GET", "/api/files/:id/detail", async (ctx) => {
     const [infoData, sharesData] = await Promise.all([
-      callSlack("files.info", { file: ctx.params.id }, ctx.creds),
+      callSlack(
+        "files.info",
+        { count: "1000", file: ctx.params.id, include_transcription: "true" },
+        ctx.creds,
+      ),
       callSlack("files.getShares", { file_id: ctx.params.id }, ctx.creds),
     ]);
     if (!infoData.ok) {

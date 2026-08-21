@@ -1,9 +1,9 @@
 import { createEffect, type JSX, onCleanup } from "solid-js";
-import { listNavigationIndex } from "../../form/listNavigation";
 import { useClickOutside } from "../../useClickOutside";
 import { useEscapeClose } from "../../useEscapeClose";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
 import "./MenuButton.css";
+import { createMenuRovingFocus } from "./rovingMenuFocus";
 
 export interface MenuProps {
   align?: FloatingAlign;
@@ -19,7 +19,6 @@ export interface MenuProps {
 }
 
 export default function Menu(props: MenuProps) {
-  // biome-ignore lint/suspicious/noUnassignedVariables: standard Solid ref pattern
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;
@@ -49,19 +48,13 @@ export default function Menu(props: MenuProps) {
     const element = trigger();
     if (element?.isConnected) element.focus();
   };
-  const menuItems = () =>
-    [...(panelRef?.querySelectorAll<HTMLElement>(".menu-item:not([disabled])") ?? [])].filter(
-      (element) =>
-        element.closest("[data-menu-panel]") === panelRef && element.getClientRects().length > 0,
-    );
-  const focusMenuItem = (index: number) => queueMicrotask(() => menuItems()[index]?.focus());
+  const roving = createMenuRovingFocus(() => panelRef, { requireVisible: true });
 
   const onRootKeyDown = (event: KeyboardEvent) => {
     if (!props.open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
     event.preventDefault();
     event.stopPropagation();
-    const items = menuItems();
-    focusMenuItem(event.key === "ArrowDown" ? 0 : items.length - 1);
+    roving.focusMenuItem(event.key === "ArrowDown" ? 0 : roving.menuItems().length - 1);
   };
 
   const onPanelKeyDown = (event: KeyboardEvent) => {
@@ -82,15 +75,11 @@ export default function Menu(props: MenuProps) {
       return;
     }
     if (event.key === "Enter" || event.key === " ") restoreAfterKeyboardAction = true;
-    const items = menuItems();
-    const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = listNavigationIndex(event.key, current < 0 ? null : current, items.length, {
-      wrap: true,
-    });
-    if (next === undefined) return;
-    event.preventDefault();
-    event.stopPropagation();
-    focusMenuItem(next);
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (roving.moveByKey(current, event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
   };
 
   useClickOutside([() => rootRef, () => panelRef], () => {

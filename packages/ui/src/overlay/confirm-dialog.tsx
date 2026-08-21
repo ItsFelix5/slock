@@ -17,8 +17,6 @@ interface PendingConfirm extends ConfirmDialogOptions {
 
 const [pending, setPending] = createSignal<PendingConfirm | null>(null);
 
-/** Promise-based stand-in for `window.confirm` - resolves `true`/`false` once the user picks an
- * action in the `ConfirmDialogHost` modal (mount that once, near the app root). */
 export function confirmDialog(options: ConfirmDialogOptions): Promise<boolean> {
   return new Promise((resolve) => setPending({ ...options, resolve }));
 }

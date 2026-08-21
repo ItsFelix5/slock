@@ -1,5 +1,5 @@
-import type { DirectMessage } from "@slock/slack-api";
 import { For, Show } from "solid-js";
+import type { DirectMessage } from "../../../lib/api";
 import { DmRow, SidebarSectionCaretRow } from "./sidebar-rows";
 
 function DmSection(props: {

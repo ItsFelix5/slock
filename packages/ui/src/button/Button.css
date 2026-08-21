@@ -7,7 +7,7 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   transition: all 0.15s ease-in-out;
 }
 

@@ -49,7 +49,9 @@ export default function MainPane(props: { pane: Pane<View | null> }) {
                 fallback={
                   <div class="typing-indicator-anchor">
                     <TypingIndicator names={typingNames()} />
-                    <Composer channelId={props.pane.content?.id} />
+                    <Show keyed when={props.pane.content}>
+                      {(content) => <Composer channelId={content.id} paneId={props.pane.id} />}
+                    </Show>
                   </div>
                 }
                 when={isArchivedChannel()}

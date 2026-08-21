@@ -1,5 +1,4 @@
 import { EmojiText } from "@slock/blockkit";
-import type { Reaction } from "@slock/slack-api";
 import {
   AvatarStack,
   ContextMenu,
@@ -9,7 +8,10 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, For } from "solid-js";
-import { actionFeedback, formatInteractorNames, store } from "../../../lib/store";
+import type { Reaction } from "../../../lib/api";
+import { actionFeedback } from "../../../lib/feedback";
+import { formatInteractorNames } from "../../../lib/interactorNames";
+import { store } from "../../../lib/store";
 
 function reactorNames(users: string[]) {
   return formatInteractorNames(users, store.users.currentUser()?.id, store.users.userById);

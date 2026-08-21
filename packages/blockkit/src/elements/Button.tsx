@@ -1,4 +1,4 @@
-import { type ButtonElement, runBlockAction } from "@slock/slack-api";
+import { type ButtonElement, runBlockAction } from "@slock/types";
 import { confirmDialog } from "@slock/ui";
 import { createSignal, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";

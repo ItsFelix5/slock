@@ -1,11 +1,3 @@
-export function gatewayActivityCountsSnapshot(activity: any): string {
-  if (!activity || typeof activity !== "object") return "";
-  return Object.entries(activity)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}:${Number(value) || 0}`)
-    .join(":");
-}
-
 export function createActivityFeedRefreshScheduler({
   delayMs,
   isLoading,

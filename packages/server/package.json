@@ -7,7 +7,7 @@
     "start": "bun --env-file=../../.env run src/index.ts"
   },
   "dependencies": {
-    "@slock/slack-api": "workspace:*"
+    "@slock/types": "workspace:*"
   },
   "exports": {
     "./dev-plugin": "./src/dev-plugin.ts"

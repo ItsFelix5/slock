@@ -1,7 +1,8 @@
 /* @refresh reload */
-import { isConfigured } from "@slock/slack-api";
+
 import { render } from "solid-js/web";
 import ConnectSlack from "./components/setup/ConnectSlack";
+import { isConfigured } from "./lib/api";
 import "./index.css";
 
 async function main(mountPoint: HTMLElement) {

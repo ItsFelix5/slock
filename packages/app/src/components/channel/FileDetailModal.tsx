@@ -1,11 +1,13 @@
-import { fetchFileDetail, resolveMediaUrl, type SlackFile } from "@slock/slack-api";
+import { formatDuration } from "@slock/blockkit";
 import { ConstrainedImage, Icon, Overlay, PanelHeader, VideoPlayer } from "@slock/ui";
-import { createResource, For, Match, Show, Switch } from "solid-js";
+import { createResource, createSignal, For, Match, Show, Switch } from "solid-js";
+import { fetchFileDetail, resolveMediaUrl, type SlackFile } from "../../lib/api";
 import { closeFilesLinksPanel } from "../../lib/filesLinksPanel";
 import { store } from "../../lib/store";
 import AudioFile from "../messages/parts/media/AudioFile";
 import FileViewerTrigger from "../messages/parts/media/FileViewer";
 import { formatSize } from "../messages/parts/media/MessageFiles";
+import TranscriptPopover from "../messages/parts/media/TranscriptPopover";
 import "./FileDetailModal.css";
 
 function formatDateTime(value: number | string | undefined): string {
@@ -23,6 +25,7 @@ function formatDateTime(value: number | string | undefined): string {
 export default function FileDetailModal(props: { file: SlackFile; onClose: () => void }) {
   const [detail] = createResource(() => props.file.id, fetchFileDetail);
   const file = () => detail()?.file ?? props.file;
+  const [video, setVideo] = createSignal<HTMLVideoElement>();
 
   const jumpToShare = (channelId: string, ts: string) => {
     props.onClose();
@@ -75,10 +78,23 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
               <Match when={file().isVideo}>
                 <VideoPlayer
                   ariaLabel={file().title || file().name}
+                  captionsSrc={file().vtt}
+                  class="file-detail-video"
+                  duration={file().duration}
                   height={file().height}
                   openHref={file().urlPrivate}
                   poster={file().thumbUrl}
+                  ref={setVideo}
                   src={resolveMediaUrl(file().urlPrivate)}
+                  toolbarExtra={
+                    <Show when={file().transcriptionPreview}>
+                      <TranscriptPopover
+                        file={file()}
+                        media={video}
+                        triggerClass="video-player-chrome"
+                      />
+                    </Show>
+                  }
                   width={file().width}
                 />
               </Match>
@@ -97,6 +113,7 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
             {[
               file().filetype?.toUpperCase(),
               formatSize(file().size),
+              file().isVideo && file().duration ? formatDuration(file().duration) : undefined,
               formatDateTime(file().created),
             ]
               .filter(Boolean)

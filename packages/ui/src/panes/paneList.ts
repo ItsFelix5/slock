@@ -77,4 +77,9 @@ export function findPaneByContent<T>(
   return panes.find((p) => predicate(p.content));
 }
 
+export function isPaneRightAfter<T>(panes: Pane<T>[], beforeId: string, afterId: string): boolean {
+  const index = panes.findIndex((p) => p.id === beforeId);
+  return index !== -1 && panes[index + 1]?.id === afterId;
+}
+
 export { MIN_FRACTION };

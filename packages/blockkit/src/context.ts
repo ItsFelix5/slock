@@ -10,6 +10,7 @@ export interface BlockKitMentionInfo {
 }
 
 export interface BlockKitResolver {
+  onCanvasClick(fileId: string, title?: string): void;
   onChannelClick(id: string): void;
   onUserClick(id: string): void;
   onUsergroupClick(id: string): void;
@@ -27,6 +28,7 @@ export interface BlockKitResolver {
 }
 
 const defaultNoopResolver: BlockKitResolver = {
+  onCanvasClick: () => {},
   onChannelClick: () => {},
   onUserClick: () => {},
   onUsergroupClick: () => {},

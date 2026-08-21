@@ -35,9 +35,6 @@ function hasVisibleBox(element: Element) {
   return hasBackground || hasBorder || style.boxShadow !== "none";
 }
 
-/** Right-click/context-menu should only open the message's own context menu when it lands on
- * empty space in the row - not on links, buttons, or the message text itself (which get their
- * own selection/native behavior). */
 export function isMessageBackgroundContextMenu(
   event: MouseEvent & { currentTarget: HTMLDivElement },
 ) {

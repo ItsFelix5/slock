@@ -1,7 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { HoverCard, Icon } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
-import { channelDisplayName, store } from "../../../lib/store";
+import { channelDisplayName } from "../../../lib/displayName";
+import { store } from "../../../lib/store";
 import "./ChannelHoverCard.css";
 
 export default function ChannelHoverCard(props: { channelId: string; children: JSX.Element }) {

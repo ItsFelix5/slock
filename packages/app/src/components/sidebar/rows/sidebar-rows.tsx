@@ -1,16 +1,22 @@
-import type { DirectMessage } from "@slock/slack-api";
 import {
   Avatar,
   AvatarStack,
+  ContextMenu,
   Icon,
   type IconName,
   InlineFeedback,
   Skeleton,
   Tooltip,
+  useContextMenu,
 } from "@slock/ui";
 import type { JSX } from "solid-js";
 import { createMemo, For, Show } from "solid-js";
-import { actionFeedback, dmDisplayName, store } from "../../../lib/store";
+import type { DirectMessage } from "../../../lib/api";
+import { dmDisplayName } from "../../../lib/displayName";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
+import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
+import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
 
 export function SidebarSectionCaretRow(props: {
@@ -69,6 +75,8 @@ export function DmRow(props: { dm: DirectMessage }) {
     return store.viewState.nav() === "home" && v?.kind === "dm" && v.id === props.dm.id;
   });
   const muted = createMemo(() => store.preferences.isChannelMuted(props.dm.id));
+  const hasDraft = createMemo(() => channelHasDraft(props.dm.id));
+  const ctxMenu = useContextMenu();
 
   return (
     <Show when={ready()}>
@@ -81,17 +89,27 @@ export function DmRow(props: { dm: DirectMessage }) {
               muted: muted(),
               unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
             }}
+            data-channel-id={props.dm.id}
             data-nav-row
             onClick={() => store.viewState.setActiveView({ id: props.dm.id, kind: "dm" })}
+            onContextMenu={ctxMenu.open}
+            tabIndex={-1}
             type="button"
           >
             <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>
               {(u) => <Avatar showPresence size="small" user={u()} />}
             </Show>
             <span class="sidebar-row-name truncate">{name()}</span>
-            {!muted() && props.dm.mentions ? (
-              <span class="sidebar-badge">{props.dm.mentions}</span>
-            ) : null}
+            <span class="sidebar-row-end">
+              {hasDraft() ? (
+                <span class="sidebar-row-draft" title="draft">
+                  <Icon name="edit" size={12} />
+                </span>
+              ) : null}
+              {!muted() && props.dm.mentions ? (
+                <span class="sidebar-badge">{props.dm.mentions}</span>
+              ) : null}
+            </span>
           </button>
         </SplitNavigation>
         <Tooltip content="Close conversation">
@@ -110,6 +128,14 @@ export function DmRow(props: { dm: DirectMessage }) {
         </Tooltip>
         <InlineFeedback class="sidebar-row-feedback" feedback={actionFeedback.get(props.dm.id)} />
       </div>
+      <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
+        <ChannelActionsMenuItems
+          channelId={props.dm.id}
+          channelTitle={name()}
+          isDm
+          onClose={ctxMenu.close}
+        />
+      </ContextMenu>
     </Show>
   );
 }

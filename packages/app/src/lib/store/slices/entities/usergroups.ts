@@ -1,11 +1,6 @@
-import type { ChannelSection, Usergroup, UsergroupDetails } from "@slock/slack-api";
-import {
-  fetchUsergroup,
-  fetchUsergroupChannelSection,
-  fetchUsergroupDetails,
-} from "@slock/slack-api";
-import { createEffect, createMemo } from "solid-js";
 import { createStore } from "solid-js/store";
+import type { Usergroup, UsergroupDetails } from "../../../api";
+import { fetchUsergroup, fetchUsergroupDetails } from "../../../api";
 
 export function createUsergroupsSlice(deps: { selfUsergroupIds: () => string[] }) {
   const [usergroups, setUsergroups] = createStore<Record<string, Usergroup>>({});
@@ -27,11 +22,7 @@ export function createUsergroupsSlice(deps: { selfUsergroupIds: () => string[] }
   }
 
   const [usergroupDetails, setUsergroupDetails] = createStore<Record<string, UsergroupDetails>>({});
-  const [usergroupSections, setUsergroupSections] = createStore<
-    Record<string, ChannelSection | null>
-  >({});
   const pendingUsergroupDetails = new Set<string>();
-  const pendingUsergroupSections = new Set<string>();
 
   function usergroupDetailsById(id: string): UsergroupDetails | undefined {
     return usergroupDetails[id];
@@ -45,18 +36,6 @@ export function createUsergroupsSlice(deps: { selfUsergroupIds: () => string[] }
         id: details.id,
         name: `@${details.handle || details.title}`,
       });
-      setUsergroupSections(
-        id,
-        details.isSection
-          ? {
-              channelIds: details.channelIds,
-              id: details.id,
-              name: details.title,
-              sidebar: "hid",
-              type: "usergroup",
-            }
-          : null,
-      );
     }
     return details;
   }
@@ -73,26 +52,7 @@ export function createUsergroupsSlice(deps: { selfUsergroupIds: () => string[] }
     return deps.selfUsergroupIds().includes(id);
   }
 
-  createEffect(() => {
-    for (const id of deps.selfUsergroupIds()) {
-      if (id in usergroupSections || pendingUsergroupSections.has(id)) continue;
-      pendingUsergroupSections.add(id);
-      fetchUsergroupChannelSection(id)
-        .then((section) => setUsergroupSections(id, section))
-        .catch(() => {})
-        .finally(() => pendingUsergroupSections.delete(id));
-    }
-  });
-
-  const channelSections = createMemo(() =>
-    deps
-      .selfUsergroupIds()
-      .map((id) => usergroupSections[id])
-      .filter((section): section is ChannelSection => !!section),
-  );
-
   return {
-    channelSections,
     ensureUsergroupDetails,
     isSelfMember,
     refreshUsergroupDetails,

@@ -1,4 +1,4 @@
-import { type OverflowElement, runBlockAction } from "@slock/slack-api";
+import { type OverflowElement, runBlockAction } from "@slock/types";
 import { confirmDialog, Icon, Menu } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import BkText from "../BkText";
