@@ -14,7 +14,12 @@ export const canvasRoutes: Route[] = [
       {
         ok: true,
         title: file?.title?.trim() || file?.name?.trim() || null,
-        url: file?.url_private_download ?? file?.url_private ?? null,
+        // key name matters here - jsonResponse only proxies fields that look
+        // like a Slack asset URL (see SLACK_ASSET_KEY_RE), and a plain "url"
+        // doesn't qualify. Without it the client fetches Slack's raw private
+        // file URL directly and gets a 401, since the browser never holds
+        // Slack's own auth cookie.
+        url_private_download: file?.url_private_download ?? file?.url_private ?? null,
       },
       ctx.creds,
       ctx.acceptEncoding,

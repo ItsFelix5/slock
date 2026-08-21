@@ -266,6 +266,13 @@ export function trimChannel(channel: any): any {
                 address: entry?.address,
               }))
             : channel.properties.channel_email_addresses,
+          tabs: Array.isArray(channel.properties.tabs)
+            ? channel.properties.tabs.map((tab: any) => ({
+                data: tab?.data ? { file_id: tab.data.file_id } : undefined,
+                label: tab?.label,
+                type: tab?.type,
+              }))
+            : channel.properties.tabs,
         }
       : undefined,
     purpose: trimText(channel.purpose),
