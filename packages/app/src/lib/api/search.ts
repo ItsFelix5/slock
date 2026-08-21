@@ -1,5 +1,5 @@
 import type { BrowsableChannel, GlobalSearchResults } from "@slock/types";
-import { apiGet, mapFile, mapUser } from "@slock/types";
+import { apiGet, apiPost, mapFile, mapUser } from "@slock/types";
 
 export function mapBrowsableChannels(items: any[]): BrowsableChannel[] {
   return items
@@ -21,6 +21,12 @@ export function mapBrowsableChannels(items: any[]): BrowsableChannel[] {
       private: !!channel.is_private,
       topic: typeof channel.topic === "string" ? channel.topic : (channel.topic?.value ?? ""),
     }));
+}
+
+// Best-effort - mirrors real Slack persisting the query server-side. Never
+// throws; the local history list is still what actually drives the UI.
+export function saveSearchHistory(query: string): void {
+  void apiPost("/api/search/save", { query }).catch(() => {});
 }
 
 export async function searchGlobal(query: string): Promise<GlobalSearchResults> {
