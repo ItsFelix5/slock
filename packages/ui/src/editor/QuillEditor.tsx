@@ -49,6 +49,8 @@ export default function QuillEditor(props: QuillEditorProps) {
         "code-block",
         "divider",
         "mention",
+        "emoji",
+        "date",
       ],
       modules: {
         keyboard: {
@@ -127,6 +129,10 @@ export default function QuillEditor(props: QuillEditorProps) {
         if (before !== undefined && !WHITESPACE_RE.test(before)) return true;
         quill!.deleteText(start, match[0].length);
         quill!.insertText(start, match[1], format, true);
+        // otherwise the format stays "sticky" and whatever's typed next
+        // keeps inheriting it instead of finishing the span
+        quill!.setSelection(start + match[1].length, 0, "silent");
+        quill!.format(format, false, "silent");
         return false;
       });
     }

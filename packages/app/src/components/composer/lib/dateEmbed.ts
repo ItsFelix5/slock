@@ -14,7 +14,7 @@ class DateBlot extends Embed {
   static tagName = "span";
 
   static create(value: DateValue) {
-    const node = Embed.create(value) as HTMLElement;
+    const node = super.create(value) as HTMLElement;
     node.className = "bk-date";
     node.dataset.ts = String(value.ts);
     node.dataset.format = value.format;

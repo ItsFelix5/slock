@@ -13,7 +13,7 @@ class EmojiBlot extends Embed {
   static tagName = "span";
 
   static create(value: EmojiValue) {
-    const node = Embed.create(value) as HTMLElement;
+    const node = super.create(value) as HTMLElement;
     node.className = "bk-composer-emoji";
     node.dataset.name = value.name;
     node.title = `:${value.name}:`;
