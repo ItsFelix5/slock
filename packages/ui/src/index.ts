@@ -38,8 +38,6 @@ export {
 } from "./fontPresets";
 export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
-export type { ComboItem } from "./form/FilterCombobox";
-export { default as FilterCombobox } from "./form/FilterCombobox";
 export {
   createListboxActiveIndex,
   gridNavigationIndex,
