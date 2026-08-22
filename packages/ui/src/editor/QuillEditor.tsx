@@ -1,7 +1,6 @@
 import Quill from "quill";
 import { onCleanup, onMount } from "solid-js";
 import "./editor.css";
-import { INLINE_MARKS } from "./inlineMarks";
 
 export interface QuillEditorProps {
   autofocus?: boolean;
@@ -24,6 +23,12 @@ Quill.register(DividerBlot);
 
 const ESCAPE_RE = /[.*+?^${}()|[\]\\]/g;
 const WHITESPACE_RE = /\s/;
+export const INLINE_MARKS: [char: string, format: string][] = [
+  ["*", "bold"],
+  ["_", "italic"],
+  ["~", "strike"],
+  ["`", "code"],
+];
 
 export default function QuillEditor(props: QuillEditorProps) {
   let container: HTMLDivElement | undefined;

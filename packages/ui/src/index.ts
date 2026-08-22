@@ -16,8 +16,7 @@ export {
   type DebouncedRequestOptions,
 } from "./debouncedRequest";
 export { debugMode, setDebugMode } from "./debugPreferences";
-export { INLINE_MARKS } from "./editor/inlineMarks";
-export { default as QuillEditor, type QuillEditorProps } from "./editor/QuillEditor";
+export { default as QuillEditor, INLINE_MARKS, type QuillEditorProps } from "./editor/QuillEditor";
 export { indexAlignedText } from "./editor/quillText";
 export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
