@@ -49,13 +49,6 @@ class MentionBlot extends Embed {
 
 Quill.register(MentionBlot);
 
-export function indexAlignedText(quill: Quill): string {
-  return quill
-    .getContents()
-    .ops.map((op) => (typeof op.insert === "string" ? op.insert : "\uFFFC"))
-    .join("");
-}
-
 function embedText(insert: Record<string, unknown>): string {
   const mention = mentionValue(insert.mention);
   if (mention)

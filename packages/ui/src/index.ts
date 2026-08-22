@@ -18,6 +18,7 @@ export {
 export { debugMode, setDebugMode } from "./debugPreferences";
 export { INLINE_MARKS } from "./editor/inlineMarks";
 export { default as QuillEditor, type QuillEditorProps } from "./editor/QuillEditor";
+export { indexAlignedText } from "./editor/quillText";
 export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
 export { createCopyFeedback } from "./feedback/copyFeedback";

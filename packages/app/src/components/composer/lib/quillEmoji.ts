@@ -1,6 +1,6 @@
+import { indexAlignedText } from "@slock/ui";
 import type Quill from "quill";
 import { resolvedEmojiName } from "./emojiEmbed";
-import { indexAlignedText } from "./quillMentions";
 import { WHITESPACE_RE } from "./textDetection";
 
 const EMOJI_NAME_RE = /:([a-z0-9_+'-]+):$/i;

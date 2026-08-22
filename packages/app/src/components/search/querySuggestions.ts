@@ -153,7 +153,7 @@ function entitySuggestions<T extends { id: string; name: string }>(
   const build = (id: string, name: string, itemDescription: string): QuerySuggestion => ({
     description: itemDescription,
     id: `${modifier}-${id}`,
-    label: `${sigil}${name}`,
+    label: `${modifier}:${sigil}${name}`,
     replaceToken: true,
     value: `${modifier}:${wrap(id)}`,
   });

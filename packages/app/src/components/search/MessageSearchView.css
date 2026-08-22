@@ -1,3 +1,5 @@
+@import "quill/dist/quill.core.css";
+
 .message-search-view {
   display: flex;
   flex: 1;
@@ -15,7 +17,32 @@
 }
 
 .message-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-search-input .ql-editor {
+  padding: 0;
+  overflow-x: auto;
   font-size: 15px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.message-search-input .ql-editor.ql-blank::before {
+  left: 0;
+  color: var(--text-tertiary, var(--text-dim));
+  font-style: normal;
+}
+
+.search-filter-pill {
+  cursor: pointer;
+}
+
+.search-filter-pill.negated,
+.search-filter-pill.negated:hover {
+  color: var(--error-text);
+  background: var(--error-bg);
 }
 
 .message-search-suggestions {

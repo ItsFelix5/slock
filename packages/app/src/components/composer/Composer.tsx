@@ -3,6 +3,7 @@ import {
   focusedPaneId,
   focusPaneById,
   InlineFeedback,
+  indexAlignedText,
   plainKey,
   QuillEditor,
   scrollActiveListOption,
@@ -21,12 +22,7 @@ import type { ComposerProps } from "./composerTypes";
 import FileChip from "./FileChip";
 import { createComposerDraftState, createPendingFileState, draftCacheKey } from "./lib/drafts";
 import { wireEmojiAutoconvert } from "./lib/quillEmoji";
-import {
-  indexAlignedText,
-  insertSuggestionAt,
-  loadMrkdwnIntoQuill,
-  mrkdwnText,
-} from "./lib/quillMentions";
+import { insertSuggestionAt, loadMrkdwnIntoQuill, mrkdwnText } from "./lib/quillMentions";
 import { createSuggestionController } from "./lib/suggestionController";
 import { type SuggestState, suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
