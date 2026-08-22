@@ -1,6 +1,20 @@
 import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/types";
 import { DEFAULT_DATE_FORMAT, formatSlackDate } from "./dateFormat";
-import { type InlineDialect, MRKDWN_DIALECT } from "./inlineDialect";
+
+export interface InlineDialect {
+  bold: string;
+  italic: string;
+  strike: string;
+  quotePrefix: string;
+}
+export const MRKDWN_DIALECT: InlineDialect = {
+  bold: "*",
+  italic: "_",
+  quotePrefix: "&gt;",
+  strike: "~",
+};
+
+export const MRKDWN_CLIPBOARD_TYPE = "application/x-slock-mrkdwn";
 
 export const HEADING_TAG_RE = /^H[1-6]$/;
 const PIPE_RE = /\|/g;
