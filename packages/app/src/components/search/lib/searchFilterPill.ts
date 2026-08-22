@@ -19,7 +19,8 @@ export class FilterPillBlot extends Embed {
     node.dataset.token = value.token;
     node.dataset.label = value.label;
     node.dataset.negated = String(value.negated);
-    node.textContent = value.label;
+    node.textContent = value.negated ? `-${value.label}` : value.label;
+    node.title = value.negated ? "Excluded - click to include" : "Click to exclude";
     return node;
   }
 

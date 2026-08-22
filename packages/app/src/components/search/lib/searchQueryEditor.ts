@@ -86,6 +86,24 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return quill ? indexAlignedText(quill) : "";
   }
 
+  function activeSuggestion(): QuerySuggestion | undefined {
+    if (!deps.suggestionsOpen()) return;
+    const selected = deps.getActiveSuggestion();
+    return selected === null ? undefined : deps.getSuggestions()[selected];
+  }
+
+  function activePillSuggestion(): QuerySuggestion | undefined {
+    const suggestion = activeSuggestion();
+    return suggestion?.replaceToken && suggestionToPill(suggestion.value, suggestion.label)
+      ? suggestion
+      : undefined;
+  }
+
+  function submit() {
+    deps.onSubmit();
+    return false;
+  }
+
   function mount(container: HTMLDivElement, ariaControls: string): Quill {
     quill = new Quill(container, {
       formats: ["filter"],
@@ -94,26 +112,21 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
         history: true,
         keyboard: {
           bindings: {
-            submit: {
+            submit: { handler: submit, key: "Enter" },
+            submitShift: { handler: submit, key: "Enter", shiftKey: true },
+            space: {
               handler: () => {
-                deps.onSubmit();
+                const suggestion = activePillSuggestion();
+                if (!suggestion) return true;
+                applySuggestion(suggestion);
                 return false;
               },
-              key: "Enter",
-            },
-            submitShift: {
-              handler: () => {
-                deps.onSubmit();
-                return false;
-              },
-              key: "Enter",
-              shiftKey: true,
+              key: " ",
             },
             tab: {
               handler: () => {
-                const selected = deps.getActiveSuggestion();
-                const suggestion = selected === null ? undefined : deps.getSuggestions()[selected];
-                if (suggestion && deps.suggestionsOpen()) applySuggestion(suggestion);
+                const suggestion = activeSuggestion();
+                if (suggestion) applySuggestion(suggestion);
                 return false;
               },
               key: "Tab",
