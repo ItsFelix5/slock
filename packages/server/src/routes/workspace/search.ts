@@ -31,9 +31,6 @@ export const searchRoutes: Route[] = [
             : "all";
     if (scope !== "all") query = query.slice(1).trim();
 
-    //todo users/search
-    //channels/search
-    //search.autocomplete.files query include_shares
     const [peopleData, channelsData, filesData] = await Promise.all([
       scope === "channels" || scope === "files"
         ? Promise.resolve({ items: [], ok: true })

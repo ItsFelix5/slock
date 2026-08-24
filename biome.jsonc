@@ -72,7 +72,7 @@
         "noDuplicatedSpreadProps": "on",
         "noEmptySource": "on",
         "noEvolvingTypes": "on",
-        "noExplicitAny": "off",
+        "noExplicitAny": "on",
         "noLeakedRender": "on",
         "noNestedPromises": "on",
         "noUnusedExpressions": "on",
@@ -82,6 +82,26 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": [
+        "packages/server/src/**",
+        "packages/types/src/server.ts",
+        "packages/app/src/lib/api/**",
+        "packages/app/src/lib/store/slices/messaging/realtime.ts",
+        "packages/app/src/lib/store/slices/messaging/realtimeDeps.ts",
+        "packages/app/src/lib/store/slices/messaging/membershipEvents.ts",
+        "packages/app/src/lib/store/slices/messaging/activity/activityReadState.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ],
   "vcs": {
     "clientKind": "git",
     "enabled": true,

@@ -131,8 +131,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     try {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else await videoRef.requestPictureInPicture();
-    } catch {
-    }
+    } catch {}
   };
 
   const toggleFullscreen = () => {
