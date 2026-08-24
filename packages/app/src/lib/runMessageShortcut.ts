@@ -1,6 +1,6 @@
-import type { MessageShortcut } from "../api";
-import { runMessageShortcut } from "../api";
-import { actionFeedback } from "../feedback";
+import type { MessageShortcut } from "./api";
+import { runMessageShortcut } from "./api";
+import { actionFeedback } from "./feedback";
 
 export function createRunMessageShortcut() {
   return async function runMessageShortcutAt(

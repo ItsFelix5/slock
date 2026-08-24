@@ -7,7 +7,7 @@ import {
 } from "../api";
 import { createAppActions } from "../appActions";
 import { wireAppState } from "../appWiring";
-import { createRunMessageShortcut } from "./runMessageShortcut";
+import { createRunMessageShortcut } from "../runMessageShortcut";
 import { createStoreSlices } from "./storeSlices";
 
 export type {

@@ -1,5 +1,5 @@
 import { saveSearchHistory } from "../../../api";
-import { createLocalPref } from "../../localPref";
+import { createLocalPref } from "../../../localPref";
 
 const MAX_ENTRIES = 15;
 

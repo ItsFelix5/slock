@@ -1,5 +1,5 @@
 import type { ChannelTabType } from "../../../channelTabMeta";
-import { createLocalPref } from "../../localPref";
+import { createLocalPref } from "../../../localPref";
 
 export function createChannelTabsSlice() {
   const [channelTabs, persist] = createLocalPref<Record<string, ChannelTabType[]>>(

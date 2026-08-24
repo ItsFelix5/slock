@@ -9,6 +9,10 @@ import {
   useEscapeClose,
 } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
+import { channelIconName } from "../../../lib/displayName";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
+import MrkdwnComposer from "../../composer/MrkdwnComposer";
 import {
   type ChannelDetailsTab,
   channelDetailsId,
@@ -18,11 +22,7 @@ import {
   renameChannelById,
   updateChannelPurpose,
   updateChannelTopic,
-} from "../../../lib/channelDetails";
-import { channelIconName } from "../../../lib/displayName";
-import { actionFeedback } from "../../../lib/feedback";
-import { store } from "../../../lib/store";
-import MrkdwnComposer from "../../composer/MrkdwnComposer";
+} from "../lib/channelDetails";
 import "./ChannelDetails.css";
 import ChannelMembersTab from "./ChannelMembersTab";
 import ChannelSettingsTab from "./ChannelSettingsTab";

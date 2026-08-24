@@ -4,10 +4,10 @@ import type { Channel } from "../../../lib/api";
 import { channelDisplayName, channelIconName } from "../../../lib/displayName";
 import { splitDragProps } from "../../../lib/dragSplitTarget";
 import { store } from "../../../lib/store";
-import { unreadSummary } from "../../../lib/unreadSummary";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
+import { unreadSummary } from "../lib/unreadSummary";
 
 export default function ChannelRow(props: { channel: Channel; unread: boolean }) {
   const ctxMenu = useContextMenu();

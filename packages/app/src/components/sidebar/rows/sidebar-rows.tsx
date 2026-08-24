@@ -16,10 +16,10 @@ import { dmDisplayName } from "../../../lib/displayName";
 import { splitDragProps } from "../../../lib/dragSplitTarget";
 import { actionFeedback } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
-import { unreadSummary } from "../../../lib/unreadSummary";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
+import { unreadSummary } from "../lib/unreadSummary";
 
 export function SidebarSectionCaretRow(props: {
   badge?: JSX.Element;

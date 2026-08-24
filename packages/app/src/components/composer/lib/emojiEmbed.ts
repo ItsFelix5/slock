@@ -1,7 +1,7 @@
 import { emojiUrl } from "@slock/blockkit";
 import { getEmbedBlot } from "@slock/ui";
 import Quill from "quill";
-import { standardEmojiUnicode } from "../../../lib/emojiSearch";
+import { standardEmojiUnicode } from "./emojiSearch";
 
 interface EmojiValue {
   name: string;

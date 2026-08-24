@@ -3,12 +3,12 @@ import { fuzzySearch, listNavigationIndex } from "@slock/ui";
 import type { Setter } from "solid-js";
 import type { User } from "../../../lib/api";
 import { fetchBrowsableChannels } from "../../../lib/api";
-import { allEmojiEntries, frequentEmoji, searchEmoji } from "../../../lib/emojiSearch";
 import { store } from "../../../lib/store";
 import {
   loadSlashCommandSuggestions,
   slashCommandsGlobal,
 } from "./commands/slashCommandSuggestions";
+import { allEmojiEntries, frequentEmoji, searchEmoji } from "./emojiSearch";
 import type {
   ChannelSuggestItem,
   CommandSuggestItem,

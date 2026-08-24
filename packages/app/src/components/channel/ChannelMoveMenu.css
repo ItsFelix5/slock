@@ -40,7 +40,7 @@
   overscroll-behavior: contain;
 }
 
-.channel-move-menu-destination[aria-current="true"] {
+.channel-move-menu-destination.active {
   color: var(--text-primary);
   background: var(--active-bg);
 }

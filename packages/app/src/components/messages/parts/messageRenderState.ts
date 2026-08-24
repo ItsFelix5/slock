@@ -13,7 +13,7 @@ import {
   parseReplyLinkFromBlocks,
   threadContainsMessage,
 } from "../../../lib/replyLink";
-import { isUnreadDividerBoundary } from "../../../lib/unreadDivider";
+import { isUnreadDividerBoundary } from "../lib/unreadDivider";
 
 const USER_PROFILE_ID_RE = /^[UW]/;
 const BOT_PROFILE_ID_RE = /^B/;

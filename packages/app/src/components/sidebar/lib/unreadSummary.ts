@@ -1,5 +1,5 @@
 import { formatLastSeen } from "@slock/blockkit";
-import type { Message } from "./api";
+import type { Message } from "../../../lib/api";
 
 export function unreadSummary(opts: {
   mentions?: number;

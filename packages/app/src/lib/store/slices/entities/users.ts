@@ -13,7 +13,7 @@ import {
   searchDirectory,
 } from "../../../api";
 import { actionFeedback } from "../../../feedback";
-import { createLocalPref } from "../../localPref";
+import { createLocalPref } from "../../../localPref";
 import type { createPanesSlice } from "../session/panes";
 import { createUserProfileFields } from "./usersProfileFields";
 
