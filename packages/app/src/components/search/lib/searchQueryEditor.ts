@@ -164,5 +164,19 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return q;
   }
 
-  return { alignedText, applySuggestion, mount, setQueryText, toggleFilterAt };
+  function setSuggestionState(open: boolean, activeOptionId: string | null) {
+    if (!quill) return;
+    quill.root.setAttribute("aria-expanded", String(open));
+    if (open && activeOptionId) quill.root.setAttribute("aria-activedescendant", activeOptionId);
+    else quill.root.removeAttribute("aria-activedescendant");
+  }
+
+  return {
+    alignedText,
+    applySuggestion,
+    mount,
+    setQueryText,
+    setSuggestionState,
+    toggleFilterAt,
+  };
 }

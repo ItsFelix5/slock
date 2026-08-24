@@ -151,13 +151,8 @@ export default function MessageSearchView() {
   });
   createEffect(() => {
     if (!quill) return;
-    quill.root.setAttribute("aria-expanded", String(suggestionsOpen()));
     const active = activeSuggestion();
-    if (suggestionsOpen() && active !== null) {
-      quill.root.setAttribute("aria-activedescendant", optionId(active));
-    } else {
-      quill.root.removeAttribute("aria-activedescendant");
-    }
+    editor.setSuggestionState(suggestionsOpen(), active === null ? null : optionId(active));
   });
   onCleanup(() => {
     searchRequest.dispose();
