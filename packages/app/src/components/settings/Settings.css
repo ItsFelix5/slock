@@ -76,26 +76,6 @@
   color: var(--danger);
 }
 
-.settings-status-row {
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.settings-status-emoji-btn {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  font-size: 18px;
-  cursor: pointer;
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-}
-
-.settings-status-emoji-btn:hover {
-  background: var(--active-bg);
-}
-
 .settings-status-input {
   flex: 1;
   padding: 8px 12px;
@@ -108,39 +88,6 @@
 
 .settings-status-input::placeholder {
   color: var(--text-dim);
-}
-
-.settings-status-expiration {
-  width: 100%;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-}
-
-.settings-status-actions {
-  gap: 8px;
-}
-
-.settings-status-save {
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-on-success);
-  background: var(--presence-active);
-  border-radius: var(--radius-control);
-}
-
-.settings-status-save:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.settings-status-save:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .settings-status-clear {

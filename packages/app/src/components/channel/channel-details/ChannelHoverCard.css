@@ -21,18 +21,3 @@
 .channel-hovercard-members {
   gap: 5px;
 }
-
-.channel-hovercard-btn {
-  gap: 6px;
-  padding: 7px 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
-
-.channel-hovercard-btn:hover {
-  background: var(--hover-bg);
-  border-color: var(--text-dim);
-}
