@@ -92,16 +92,16 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return selected === null ? undefined : deps.getSuggestions()[selected];
   }
 
-  function activePillSuggestion(): QuerySuggestion | undefined {
-    const suggestion = activeSuggestion();
-    return suggestion?.replaceToken && suggestionToPill(suggestion.value, suggestion.label)
-      ? suggestion
-      : undefined;
-  }
-
   function submit() {
     deps.onSubmit();
     return false;
+  }
+
+  function acceptActiveSuggestion(): boolean {
+    const suggestion = activeSuggestion();
+    if (!suggestion) return false;
+    applySuggestion(suggestion);
+    return true;
   }
 
   function mount(container: HTMLDivElement, ariaControls: string): Quill {
@@ -114,19 +114,10 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
           bindings: {
             submit: { handler: submit, key: "Enter" },
             submitShift: { handler: submit, key: "Enter", shiftKey: true },
-            space: {
-              handler: () => {
-                const suggestion = activePillSuggestion();
-                if (!suggestion) return true;
-                applySuggestion(suggestion);
-                return false;
-              },
-              key: " ",
-            },
+            space: { handler: () => !acceptActiveSuggestion(), key: " " },
             tab: {
               handler: () => {
-                const suggestion = activeSuggestion();
-                if (suggestion) applySuggestion(suggestion);
+                acceptActiveSuggestion();
                 return false;
               },
               key: "Tab",
