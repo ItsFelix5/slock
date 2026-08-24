@@ -20,7 +20,7 @@ import { type GlobalSearchResults as SearchResults, searchGlobal } from "../../l
 import { dmDisplayName } from "../../lib/displayName";
 import { clearPendingShare, pendingShareText } from "../../lib/incomingLinks";
 import { store } from "../../lib/store";
-import { cacheDraftLocally } from "../composer/lib/drafts";
+import { cacheDraftLocally, persistDraft } from "../composer/lib/drafts";
 import "./GlobalSearch.css";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
@@ -172,6 +172,7 @@ export default function GlobalSearch(props: {
     const text = pendingShareText();
     if (!text) return;
     cacheDraftLocally(channelId, undefined, text);
+    persistDraft(channelId, undefined, text);
     clearPendingShare();
   };
   const goToChannel = (c: JumpChannel) => {

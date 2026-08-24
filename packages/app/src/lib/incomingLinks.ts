@@ -11,34 +11,30 @@ export function clearPendingShare(): void {
   setPendingShareText(undefined);
 }
 
-export interface IncomingLinkOpener {
-  open: (target: SlackPermalinkTarget) => Promise<void>;
+function takeParams(...keys: string[]): (string | null)[] {
+  const params = new URLSearchParams(location.search);
+  const values = keys.map((key) => {
+    const value = params.get(key);
+    params.delete(key);
+    return value;
+  });
+  if (values.some(Boolean)) {
+    const rest = params.toString();
+    history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : ""));
+  }
+  return values;
 }
 
-export function consumeSharedProtocolLink(opener: IncomingLinkOpener): void {
-  const params = new URLSearchParams(location.search);
-  const protocolUrl = params.get("url");
+export function consumeSharedProtocolLink(opener: {
+  open: (target: SlackPermalinkTarget) => Promise<void>;
+}): void {
+  const [protocolUrl] = takeParams("url");
   if (!protocolUrl?.startsWith("web+slock:")) return;
-  params.delete("url");
-  history.replaceState(null, "", location.pathname + withQuery(params));
   const target = parseSlackPermalink(protocolUrl.replace(PROTOCOL_SCHEME_RE, "https:"));
   if (target) void opener.open(target);
 }
 
 export function consumeShareTarget(): void {
-  const params = new URLSearchParams(location.search);
-  const text = [params.get("share-title"), params.get("share-text"), params.get("share-url")]
-    .filter(Boolean)
-    .join("\n");
-  if (!text) return;
-  params.delete("share-title");
-  params.delete("share-text");
-  params.delete("share-url");
-  history.replaceState(null, "", location.pathname + withQuery(params));
-  setPendingShareText(text);
-}
-
-function withQuery(params: URLSearchParams): string {
-  const rest = params.toString();
-  return rest ? `?${rest}` : "";
+  const text = takeParams("share-title", "share-text", "share-url").filter(Boolean).join("\n");
+  if (text) setPendingShareText(text);
 }
