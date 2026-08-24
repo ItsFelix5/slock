@@ -104,7 +104,7 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return true;
   }
 
-  function mount(container: HTMLDivElement, ariaControls: string): Quill {
+  function mount(container: HTMLDivElement): Quill {
     quill = new Quill(container, {
       formats: ["filter"],
       modules: {
@@ -128,10 +128,6 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
       placeholder: "Search every message…",
     });
     const q = quill;
-
-    q.root.setAttribute("aria-autocomplete", "list");
-    q.root.setAttribute("aria-controls", ariaControls);
-    q.root.setAttribute("aria-label", "Search every message");
 
     q.on("text-change", (_delta, _old, source) => {
       const cursor = q.getSelection()?.index ?? indexAlignedText(q).length;
@@ -164,19 +160,5 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return q;
   }
 
-  function setSuggestionState(open: boolean, activeOptionId: string | null) {
-    if (!quill) return;
-    quill.root.setAttribute("aria-expanded", String(open));
-    if (open && activeOptionId) quill.root.setAttribute("aria-activedescendant", activeOptionId);
-    else quill.root.removeAttribute("aria-activedescendant");
-  }
-
-  return {
-    alignedText,
-    applySuggestion,
-    mount,
-    setQueryText,
-    setSuggestionState,
-    toggleFilterAt,
-  };
+  return { alignedText, applySuggestion, mount, setQueryText, toggleFilterAt };
 }

@@ -4,7 +4,6 @@ import "./SuggestionList.css";
 
 export interface SuggestionListProps<T> {
   activeIndex: number | null;
-  ariaLabel?: string;
   class?: string;
   id?: string;
   items: T[];
@@ -18,23 +17,19 @@ export interface SuggestionListProps<T> {
 export default function SuggestionList<T>(props: SuggestionListProps<T>) {
   return (
     <div
-      aria-label={props.ariaLabel}
       class={`suggestion-list${props.class ? ` ${props.class}` : ""}`}
       id={props.id}
       ref={props.ref}
-      role="listbox"
     >
       <For each={props.items}>
         {(item, i) => (
           <button
-            aria-selected={i() === props.activeIndex}
             class="suggestion-row btn-reset flex-align-center"
             classList={{ active: i() === props.activeIndex }}
             id={props.itemId?.(i())}
             onClick={() => props.onPick(i())}
             onMouseDown={(e) => e.preventDefault()}
             onMouseEnter={() => props.onHover(i())}
-            role="option"
             type="button"
           >
             {props.renderItem(item)}

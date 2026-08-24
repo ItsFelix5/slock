@@ -1,14 +1,5 @@
 import { createDebouncedRequest, createListboxActiveIndex, Icon, SuggestionList } from "@slock/ui";
-import type Quill from "quill";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  createUniqueId,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createMemo, createSignal, createUniqueId, onCleanup, onMount, Show } from "solid-js";
 import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "../../lib/api";
 import { type SortMode, sortParams } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
@@ -141,18 +132,12 @@ export default function MessageSearchView() {
       () => suggestionsListRef,
     );
 
-  let quill: Quill | undefined;
   onMount(() => {
     if (!containerEl) return;
-    quill = editor.mount(containerEl, suggestionListId);
+    const quill = editor.mount(containerEl);
     quill.focus();
     editor.setQueryText(store.viewState.searchScreenQuery());
     runSearch();
-  });
-  createEffect(() => {
-    if (!quill) return;
-    const active = activeSuggestion();
-    editor.setSuggestionState(suggestionsOpen(), active === null ? null : optionId(active));
   });
   onCleanup(() => {
     searchRequest.dispose();
@@ -173,7 +158,6 @@ export default function MessageSearchView() {
       <Show when={suggestionsOpen()}>
         <SuggestionList
           activeIndex={activeSuggestion()}
-          ariaLabel="Search suggestions"
           class="message-search-suggestions"
           id={suggestionListId}
           itemId={optionId}

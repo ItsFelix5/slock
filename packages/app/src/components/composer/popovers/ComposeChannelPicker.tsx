@@ -26,7 +26,6 @@ export default function ComposeChannelPicker(props: {
 
   return (
     <ComposePicker<PickerChannel>
-      ariaLabel="Find a channel"
       emptyMessage="No matches"
       excludeIds={props.excludeChannelIds}
       localItems={localChannels}

@@ -17,7 +17,6 @@ interface PickerItem {
 }
 
 export default function ComposePicker<T extends PickerItem>(props: {
-  ariaLabel: string;
   emptyMessage: string;
   excludeIds?: string[];
   localItems: () => T[];
@@ -36,7 +35,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
   const listboxId = createUniqueId();
 
   let listRef: HTMLDivElement | undefined;
-  const { activeIndex, setActiveIndex, optionId, activeOptionId } = createListboxActiveIndex(
+  const { activeIndex, setActiveIndex, optionId } = createListboxActiveIndex(
     () => items().length,
     listboxId,
     () => listRef,
@@ -106,11 +105,6 @@ export default function ComposePicker<T extends PickerItem>(props: {
   return (
     <div class="compose-picker">
       <input
-        aria-activedescendant={activeOptionId()}
-        aria-autocomplete="list"
-        aria-controls={listboxId}
-        aria-expanded={true}
-        aria-label={props.ariaLabel}
         autofocus
         autocomplete="off"
         class="compose-picker-input"
@@ -121,13 +115,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
         type="text"
         value={query()}
       />
-      <div
-        aria-busy={searching()}
-        aria-label={props.ariaLabel}
-        class="compose-picker-list"
-        id={listboxId}
-        ref={listRef}
-      >
+      <div class="compose-picker-list" id={listboxId} ref={listRef}>
         <Show
           fallback={
             <div class="compose-picker-empty">
@@ -143,7 +131,6 @@ export default function ComposePicker<T extends PickerItem>(props: {
           <For each={items()}>
             {(item, index) => (
               <button
-                aria-selected={activeIndex() === index()}
                 class="compose-picker-row btn-reset flex-align-center"
                 classList={{ active: activeIndex() === index() }}
                 id={optionId(index())}

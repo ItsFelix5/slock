@@ -156,7 +156,7 @@ export default function GlobalSearch(props: {
     if (!hasQuery()) return [];
     return [{ kind: "message-search" }, ...rows()];
   });
-  const { activeIndex, setActiveIndex, activeOptionId } = createListboxActiveIndex(
+  const { activeIndex, setActiveIndex } = createListboxActiveIndex(
     () => items().length,
     listboxId,
     () => document.getElementById(listboxId) ?? undefined,
@@ -243,11 +243,6 @@ export default function GlobalSearch(props: {
       <div class="global-search-input-row flex-align-center">
         <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
         <input
-          aria-activedescendant={activeOptionId()}
-          aria-autocomplete="list"
-          aria-controls={listboxId}
-          aria-expanded={hasQuery()}
-          aria-label="Search channels, people, and conversations"
           autofocus
           autocomplete="off"
           class="global-search-input input-reset"
@@ -284,7 +279,6 @@ export default function GlobalSearch(props: {
         onPerson={goToPerson}
         query={query()}
         rows={rows()}
-        searching={searching()}
         status={searchStatus()}
       />
     </Modal>

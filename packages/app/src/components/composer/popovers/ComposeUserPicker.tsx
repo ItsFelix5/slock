@@ -24,7 +24,6 @@ export default function ComposeUserPicker(props: {
 
   return (
     <ComposePicker<User>
-      ariaLabel="Find a person"
       emptyMessage="No matches"
       excludeIds={props.excludeUserIds}
       localItems={localUsers}

@@ -30,7 +30,6 @@ export default function GlobalSearchResults(props: {
   onPerson: (userId: string) => void;
   query: string;
   rows: GlobalSearchRow[];
-  searching: boolean;
   status: string;
 }) {
   const optionId = (index: number) => `${props.listboxId}-option-${index}`;
@@ -43,14 +42,8 @@ export default function GlobalSearchResults(props: {
         }
         when={props.hasQuery}
       >
-        <div
-          aria-busy={props.searching}
-          aria-label="Search suggestions"
-          class="global-search-options"
-          id={props.listboxId}
-        >
+        <div class="global-search-options" id={props.listboxId}>
           <button
-            aria-selected={props.activeIndex === 0}
             class="global-search-result global-search-message-action btn-reset flex-align-center"
             classList={{ active: props.activeIndex === 0 }}
             id={optionId(0)}
@@ -72,7 +65,6 @@ export default function GlobalSearchResults(props: {
                 return (
                   <SplitNavigation onSplit={() => openConversationInSplit(channel.id)}>
                     <button
-                      aria-selected={props.activeIndex === itemIndex()}
                       class="global-search-result global-search-jump btn-reset flex-align-center"
                       classList={{ active: props.activeIndex === itemIndex() }}
                       id={optionId(itemIndex())}
@@ -97,7 +89,6 @@ export default function GlobalSearchResults(props: {
                 return (
                   <SplitNavigation onSplit={() => openConversationInSplit(dm.id)}>
                     <button
-                      aria-selected={props.activeIndex === itemIndex()}
                       class="global-search-result global-search-jump btn-reset flex-align-center"
                       classList={{ active: props.activeIndex === itemIndex() }}
                       id={optionId(itemIndex())}
@@ -116,7 +107,6 @@ export default function GlobalSearchResults(props: {
                 const file = row.data;
                 return (
                   <button
-                    aria-selected={props.activeIndex === itemIndex()}
                     class="global-search-result global-search-jump btn-reset flex-align-center"
                     classList={{ active: props.activeIndex === itemIndex() }}
                     id={optionId(itemIndex())}
@@ -138,7 +128,6 @@ export default function GlobalSearchResults(props: {
               const user = row.data;
               return (
                 <button
-                  aria-selected={props.activeIndex === itemIndex()}
                   class="global-search-result global-search-jump btn-reset flex-align-center"
                   classList={{ active: props.activeIndex === itemIndex() }}
                   id={optionId(itemIndex())}
@@ -155,9 +144,7 @@ export default function GlobalSearchResults(props: {
           </For>
         </div>
         <Show when={props.status}>
-          <div aria-live="polite" class="global-search-status empty-state">
-            {props.status}
-          </div>
+          <div class="global-search-status empty-state">{props.status}</div>
         </Show>
       </Show>
     </div>

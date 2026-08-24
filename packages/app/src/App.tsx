@@ -89,6 +89,7 @@ function App() {
             renderPane={(pane) => <PaneSwitch pane={pane} />}
             tabLabel={paneTabLabel}
           />
+
           <ContextActions />
           <SplitDropZone />
           <ViewModal />
