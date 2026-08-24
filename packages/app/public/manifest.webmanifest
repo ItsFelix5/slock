@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "slock",
+  "short_name": "slock",
+  "description": "A Slack client.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#111318",
+  "background_color": "#111318",
+  "icons": [
+    { "src": "/slack-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "share-title",
+      "text": "share-text",
+      "url": "share-url"
+    }
+  },
+  "protocol_handlers": [{ "protocol": "web+slock", "url": "/?url=%s" }]
+}

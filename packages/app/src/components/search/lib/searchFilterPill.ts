@@ -1,3 +1,4 @@
+import { getEmbedBlot } from "@slock/ui";
 import Quill from "quill";
 
 export interface FilterPillValue {
@@ -6,9 +7,7 @@ export interface FilterPillValue {
   negated: boolean;
 }
 
-const Embed = Quill.import("blots/embed") as typeof import("quill/blots/embed").default;
-
-export class FilterPillBlot extends Embed {
+export class FilterPillBlot extends getEmbedBlot() {
   static blotName = "filter";
   static tagName = "span";
 

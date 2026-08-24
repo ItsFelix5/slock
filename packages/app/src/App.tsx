@@ -25,6 +25,7 @@ import UsergroupHoverCard from "./components/usergroup/UsergroupHoverCard";
 import { fetchPermalinkMessage } from "./lib/api";
 import { channelDisplayName, conversationDisplayName, dmDisplayName } from "./lib/displayName";
 import { actionFeedback } from "./lib/feedback";
+import { consumeSharedProtocolLink } from "./lib/incomingLinks";
 import { handleMessageCopy } from "./lib/messageCopy";
 import {
   createSlackPermalinkOpener,
@@ -158,6 +159,7 @@ function App() {
   onMount(() => {
     document.addEventListener("click", openSlackPermalink);
     document.addEventListener("copy", handleMessageCopy);
+    consumeSharedProtocolLink(permalinkOpener);
     onCleanup(() => {
       permalinkOpener.invalidate();
       document.removeEventListener("click", openSlackPermalink);

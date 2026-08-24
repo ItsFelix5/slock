@@ -2,6 +2,7 @@ import { plainKey, useEscapeClose, useShortcut } from "@slock/ui";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../lib/channelSectionMutations";
 import { actionFeedback } from "../../lib/feedback";
+import { consumeShareTarget, pendingShareText } from "../../lib/incomingLinks";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { store } from "../../lib/store";
 import "./Sidebar.css";
@@ -30,7 +31,8 @@ export default function Sidebar() {
       store.viewState.nav() === "search",
   );
   createEffect(() => setSharedSidebarWidth(feedMode() ? feedWidth() : width()));
-  const [searchOpen, setSearchOpen] = createSignal(false);
+  consumeShareTarget();
+  const [searchOpen, setSearchOpen] = createSignal(!!pendingShareText());
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
   useEscapeClose(() => setUnreadsOnly(false), unreadsOnly);

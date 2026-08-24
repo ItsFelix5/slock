@@ -1,4 +1,5 @@
 import { emojiUrl } from "@slock/blockkit";
+import { getEmbedBlot } from "@slock/ui";
 import Quill from "quill";
 import { standardEmojiUnicode } from "../../../lib/emojiSearch";
 
@@ -6,9 +7,7 @@ interface EmojiValue {
   name: string;
 }
 
-const Embed = Quill.import("blots/embed") as typeof import("quill/blots/embed").default;
-
-class EmojiBlot extends Embed {
+class EmojiBlot extends getEmbedBlot() {
   static blotName = "emoji";
   static tagName = "span";
 

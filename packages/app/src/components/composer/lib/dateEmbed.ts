@@ -1,4 +1,5 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
+import { getEmbedBlot } from "@slock/ui";
 import Quill from "quill";
 
 export interface DateValue {
@@ -7,9 +8,7 @@ export interface DateValue {
   fallback: string;
 }
 
-const Embed = Quill.import("blots/embed") as typeof import("quill/blots/embed").default;
-
-class DateBlot extends Embed {
+class DateBlot extends getEmbedBlot() {
   static blotName = "date";
   static tagName = "span";
 

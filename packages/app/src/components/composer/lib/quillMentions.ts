@@ -1,4 +1,4 @@
-import { INLINE_MARKS } from "@slock/ui";
+import { getEmbedBlot, INLINE_MARKS } from "@slock/ui";
 import Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
@@ -23,9 +23,7 @@ function mentionValue(value: unknown): MentionValue | undefined {
     : undefined;
 }
 
-const Embed = Quill.import("blots/embed") as typeof import("quill/blots/embed").default;
-
-class MentionBlot extends Embed {
+class MentionBlot extends getEmbedBlot() {
   static blotName = "mention";
   static tagName = "span";
 
