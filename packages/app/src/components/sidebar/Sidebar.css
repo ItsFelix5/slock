@@ -59,20 +59,22 @@
 
 .sidebar-nav {
   flex-shrink: 0;
-  gap: 4px;
-  padding: 10px 10px 4px;
+  gap: 2px;
+  width: fit-content;
+  margin: 10px 10px 4px;
+  padding: 3px;
+  background: var(--rail-bg);
+  border-radius: var(--radius-pill);
 }
 
 .sidebar-nav-btn {
   position: relative;
-  flex: 1;
-  gap: 3px;
   align-items: center;
-  padding: 8px 2px 6px;
-  font-size: 11px;
-  font-weight: 600;
+  justify-content: center;
+  width: var(--header-action-size);
+  height: var(--header-action-size);
   color: var(--text-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
 }
 
 .sidebar-nav-btn:hover {
@@ -87,8 +89,8 @@
 
 .sidebar-nav-btn .sidebar-ping-dot {
   position: absolute;
-  top: 5px;
-  right: 15px;
+  top: 3px;
+  right: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,7 +101,7 @@
   font-weight: 700;
   color: transparent;
   background: var(--badge-bg);
-  border: 1.5px solid var(--sidebar-bg);
+  border: 1.5px solid var(--rail-bg);
   border-radius: var(--radius-circle);
 }
 

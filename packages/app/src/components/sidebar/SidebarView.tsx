@@ -103,7 +103,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
       />
       <div class="sidebar-nav flex-align-center">
         <button
-          class="sidebar-nav-btn btn-reset flex-col"
+          class="sidebar-nav-btn btn-reset flex-center"
           classList={{
             active: nav() === "home",
           }}
@@ -111,19 +111,18 @@ export default function SidebarView(props: { context: SidebarContext }) {
             if (nav() === "home") setUnreadsOnly(!unreadsOnly());
             else setNavView("home");
           }}
+          title={unreadsOnly() ? "Unread" : "Channels"}
           type="button"
         >
           <Icon name="home" size={16} />
-          <Show fallback="Channels" when={unreadsOnly()}>
-            Unread
-          </Show>
         </button>
         <button
-          class="sidebar-nav-btn btn-reset flex-col"
+          class="sidebar-nav-btn btn-reset flex-center"
           classList={{
             active: nav() === "activity",
           }}
           onClick={() => setNavView("activity")}
+          title="Activity"
           type="button"
         >
           <Show fallback={<Icon name="notifications" size={16} />} when={recentReactionEmoji()}>
@@ -133,7 +132,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
               </span>
             )}
           </Show>
-          Activity
           <Show when={hasUnreadActivity()}>
             <span class="sidebar-ping-dot" classList={{ "has-count": unreadPingCount() > 0 }}>
               <Show when={unreadPingCount() > 0}>{unreadPingCount()}</Show>
@@ -141,15 +139,15 @@ export default function SidebarView(props: { context: SidebarContext }) {
           </Show>
         </button>
         <button
-          class="sidebar-nav-btn btn-reset flex-col"
+          class="sidebar-nav-btn btn-reset flex-center"
           classList={{
             active: nav() === "later",
           }}
           onClick={() => setNavView("later")}
+          title="Later"
           type="button"
         >
           <Icon name="bookmark" size={16} />
-          Later
         </button>
       </div>
       <Show
