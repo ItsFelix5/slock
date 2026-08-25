@@ -48,7 +48,7 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
         <IconButton
           class="sidebar-global-search-btn"
           icon="sidebar-left"
-          label="Hide sidebar (Ctrl+\)"
+          label="Hide sidebar (Ctrl+Shift+S)"
           onClick={() => props.setSidebarVisible(false)}
         />
         <IconButton

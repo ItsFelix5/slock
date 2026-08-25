@@ -63,9 +63,9 @@ export default function Sidebar() {
   useShortcut({
     allowInInputs: true,
     handler: () => setSidebarVisible(!sidebarVisible()),
-    keys: "Ctrl/⌘ \\",
+    keys: "Ctrl/⌘ Shift S",
     label: "Show or hide the sidebar",
-    match: (e) => (e.ctrlKey || e.metaKey) && e.key === "\\",
+    match: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s",
     scope: "general",
   });
   useShortcut({

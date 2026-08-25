@@ -83,7 +83,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
         <div class="sidebar-rail flex-col" data-pane="sidebar-rail">
           <IconButton
             icon="sidebar-left"
-            label="Show sidebar (Ctrl+\)"
+            label="Show sidebar (Ctrl+Shift+S)"
             onClick={() => setSidebarVisible(true)}
           />
         </div>
