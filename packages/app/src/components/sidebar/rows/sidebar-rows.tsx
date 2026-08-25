@@ -113,9 +113,11 @@ export function DmRow(props: { dm: DirectMessage }) {
             <span class="sidebar-row-name truncate">{name()}</span>
             <span class="sidebar-row-end">
               {hasDraft() ? (
-                <span class="sidebar-row-draft" title="draft">
-                  <Icon name="edit" size={12} />
-                </span>
+                <Tooltip content="Draft">
+                  <span class="sidebar-row-draft">
+                    <Icon name="edit" size={12} />
+                  </span>
+                </Tooltip>
               ) : null}
               {!muted() && props.dm.mentions ? (
                 <Tooltip content={unreadTooltip()}>

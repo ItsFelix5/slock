@@ -50,9 +50,11 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           <span class="sidebar-row-name truncate">{channelDisplayName(props.channel)}</span>
           <span class="sidebar-row-end">
             {hasDraft() ? (
-              <span class="sidebar-row-draft" title="draft">
-                <Icon name="edit" size={12} />
-              </span>
+              <Tooltip content="Draft">
+                <span class="sidebar-row-draft">
+                  <Icon name="edit" size={12} />
+                </span>
+              </Tooltip>
             ) : null}
             {!muted() && props.channel.mentions ? (
               <Tooltip content={unreadTooltip()}>

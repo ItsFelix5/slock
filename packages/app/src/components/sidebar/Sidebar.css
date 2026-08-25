@@ -9,6 +9,15 @@
   background: var(--main-bg);
 }
 
+.sidebar-rail {
+  flex-shrink: 0;
+  align-items: center;
+  width: var(--header-action-size);
+  padding-top: 12px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+}
+
 .sidebar-view-panel {
   flex: 1;
   padding: 24px 28px;
@@ -148,8 +157,8 @@
 }
 
 .sidebar-section {
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin-top: 10px;
+  margin-bottom: 6px;
   border-top: 2px solid transparent;
   border-bottom: 2px solid transparent;
 }
@@ -304,12 +313,12 @@
 
 .sidebar-row {
   gap: 8px;
-  width: 100%;
-  padding: 5px 16px;
+  margin: 1px 6px;
+  padding: 6px 10px;
   font-size: 14px;
   color: var(--text-secondary);
   text-align: left;
-  border-radius: 0;
+  border-radius: var(--radius-control);
 }
 
 .sidebar-row:hover {

@@ -70,6 +70,7 @@ export interface SidebarContext {
   setRenameValue: Setter<string>;
   setSearchOpen: Setter<boolean>;
   setSectionMenuOpen: Setter<string | null>;
+  setSidebarVisible: (visible: boolean) => void;
   setChannelSectionSidebar: (
     sectionId: string,
     sidebar: ChannelSection["sidebar"],
@@ -78,6 +79,7 @@ export interface SidebarContext {
   settingsOpen: Accessor<boolean>;
   setUnreadsOnly: Setter<boolean>;
   setWidth: Setter<number>;
+  sidebarVisible: Accessor<boolean>;
   startRename: (cat: Category) => void;
   toggleCategory: (id: string) => void;
   unreadChannelIds: Record<string, boolean>;

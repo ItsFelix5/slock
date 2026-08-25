@@ -1,4 +1,4 @@
-import { Icon } from "@slock/ui";
+import { Icon, Tooltip } from "@slock/ui";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./SidebarUnreadEdgeIndicator.css";
 
@@ -63,24 +63,26 @@ export default function SidebarUnreadEdgeIndicator(props: {
   return (
     <>
       <Show when={above()}>
-        <button
-          class="sidebar-unread-edge sidebar-unread-edge-top"
-          onClick={() => scrollToward(-1)}
-          title="Unread channels above"
-          type="button"
-        >
-          <Icon name="caret-up-filled" size={12} />
-        </button>
+        <Tooltip content="Unread channels above">
+          <button
+            class="sidebar-unread-edge sidebar-unread-edge-top"
+            onClick={() => scrollToward(-1)}
+            type="button"
+          >
+            <Icon name="caret-up-filled" size={12} />
+          </button>
+        </Tooltip>
       </Show>
       <Show when={below()}>
-        <button
-          class="sidebar-unread-edge sidebar-unread-edge-bottom"
-          onClick={() => scrollToward(1)}
-          title="Unread channels below"
-          type="button"
-        >
-          <Icon name="caret-down-filled" size={12} />
-        </button>
+        <Tooltip content="Unread channels below">
+          <button
+            class="sidebar-unread-edge sidebar-unread-edge-bottom"
+            onClick={() => scrollToward(1)}
+            type="button"
+          >
+            <Icon name="caret-down-filled" size={12} />
+          </button>
+        </Tooltip>
       </Show>
     </>
   );

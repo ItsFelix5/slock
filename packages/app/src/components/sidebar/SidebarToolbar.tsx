@@ -15,6 +15,7 @@ type SidebarToolbarProps = Pick<
   | "searchOpen"
   | "setSearchOpen"
   | "setSettingsOpen"
+  | "setSidebarVisible"
   | "settingsOpen"
 >;
 
@@ -44,6 +45,12 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
           )}
         </Show>
         <DndButton />
+        <IconButton
+          class="sidebar-global-search-btn"
+          icon="sidebar-left"
+          label="Hide sidebar (Ctrl+\)"
+          onClick={() => props.setSidebarVisible(false)}
+        />
         <IconButton
           class="sidebar-global-search-btn"
           icon="settings"

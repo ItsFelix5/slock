@@ -3,6 +3,7 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../lib/channelSectionMutations";
 import { actionFeedback } from "../../lib/feedback";
 import { consumeShareTarget, pendingShareText } from "../../lib/incomingLinks";
+import { setSidebarVisible, sidebarVisible } from "../../lib/sidebarVisibility";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { store } from "../../lib/store";
 import "./Sidebar.css";
@@ -59,6 +60,14 @@ export default function Sidebar() {
     scope: "general",
   });
   useSidebarChannelCycle();
+  useShortcut({
+    allowInInputs: true,
+    handler: () => setSidebarVisible(!sidebarVisible()),
+    keys: "Ctrl/⌘ \\",
+    label: "Show or hide the sidebar",
+    match: (e) => (e.ctrlKey || e.metaKey) && e.key === "\\",
+    scope: "general",
+  });
   useShortcut({
     enabled: () => !unreadsOnly(),
     handler: () => {
@@ -277,8 +286,10 @@ export default function Sidebar() {
     setChannelSectionSidebar: store.channels.setChannelSectionSidebar,
     setSettingsOpen,
     settingsOpen,
+    setSidebarVisible,
     setUnreadsOnly,
     setWidth,
+    sidebarVisible,
     startRename,
     toggleCategory,
     unreadChannelIds: store.unread.unreadChannelIds,

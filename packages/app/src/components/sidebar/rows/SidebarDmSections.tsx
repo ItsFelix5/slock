@@ -1,3 +1,4 @@
+import { Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { DirectMessage } from "../../../lib/api";
 import { DmRow, SidebarSectionCaretRow } from "./sidebar-rows";
@@ -20,9 +21,9 @@ function DmSection(props: {
           <SidebarSectionCaretRow
             badge={
               <Show when={count() > 0 && !props.open()}>
-                <span class="sidebar-badge" title={`${count()} unread conversations`}>
-                  {count()}
-                </span>
+                <Tooltip content={`${count()} unread conversations`}>
+                  <span class="sidebar-badge">{count()}</span>
+                </Tooltip>
               </Show>
             }
             label={props.label}
