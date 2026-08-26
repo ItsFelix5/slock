@@ -19,6 +19,7 @@ function walk(dir, exts, out = []) {
 }
 
 const TEST_NAME_RE = /\.(test|spec)\.tsx?$/;
+const MIN_LINES = 15;
 const IGNORED_COMMENT_RE =
   /^(\/\/\s*biome-ignore|\/\/\s*@ts-expect-error|\/\/\s*@ts-ignore|\/\*\s*@refresh\s|\/\*\s*@vite-ignore\s)/;
 
@@ -33,6 +34,11 @@ for (const file of files) {
   }
 
   const source = readFileSync(file, "utf8");
+  const lineCount = source.trimEnd().split("\n").length;
+  if (lineCount < MIN_LINES) {
+    findings.push({ file: rel, line: 1, rule: "small-file", text: `${lineCount} lines` });
+  }
+
   const sourceFile = ts.createSourceFile(
     file,
     source,
@@ -80,7 +86,7 @@ for (const file of files) {
   visit(sourceFile);
 }
 
-const byRule = { "no-as-cast": [], "no-comments": [], "no-tests": [] };
+const byRule = { "no-as-cast": [], "no-comments": [], "no-tests": [], "small-file": [] };
 for (const f of findings) byRule[f.rule].push(f);
 
 function report(title, items, hint) {
@@ -105,36 +111,44 @@ report(
   byRule["no-tests"],
   "Delete this file, or move whatever it's checking into manual verification.",
 );
+report(
+  `Files under ${MIN_LINES} lines`,
+  byRule["small-file"],
+  "Fold it into its one consumer, unless it's genuinely shared state with no single natural home.",
+);
 
 let ok = byRule["no-comments"].length === 0 && byRule["no-tests"].length === 0;
 
+const RATCHET_RULES = ["no-as-cast", "small-file"];
+const defaultBaseline = Object.fromEntries(RATCHET_RULES.map((rule) => [rule, 0]));
 const baseline = existsSync(BASELINE_FILE)
-  ? JSON.parse(readFileSync(BASELINE_FILE, "utf8"))
-  : { "no-as-cast": 0 };
-const asCastCount = byRule["no-as-cast"].length;
+  ? { ...defaultBaseline, ...JSON.parse(readFileSync(BASELINE_FILE, "utf8")) }
+  : defaultBaseline;
+const counts = Object.fromEntries(RATCHET_RULES.map((rule) => [rule, byRule[rule].length]));
 
 if (updateBaseline) {
-  writeFileSync(BASELINE_FILE, `${JSON.stringify({ "no-as-cast": asCastCount }, null, 2)}\n`);
-  console.log(`\nUpdated baseline: no-as-cast = ${asCastCount}`);
-} else if (asCastCount > baseline["no-as-cast"]) {
-  console.log(
-    `\n'as' casts went up: ${baseline["no-as-cast"]} -> ${asCastCount}. This rule doesn't ` +
-      "block on the existing debt, only on adding to it - narrow the type in your new code " +
-      "instead of asserting it away. If the baseline count is genuinely wrong, rerun with " +
-      "--update-baseline.",
-  );
-  ok = false;
-} else if (asCastCount < baseline["no-as-cast"]) {
-  console.log(
-    `\n'as' casts went down: ${baseline["no-as-cast"]} -> ${asCastCount}. Nice - rerun with ` +
-      "--update-baseline to lock that in.",
-  );
+  writeFileSync(BASELINE_FILE, `${JSON.stringify(counts, null, 2)}\n`);
+  console.log(`\nUpdated baseline: ${JSON.stringify(counts)}`);
+} else {
+  for (const rule of RATCHET_RULES) {
+    if (counts[rule] > baseline[rule]) {
+      console.log(
+        `\n${rule} went up: ${baseline[rule]} -> ${counts[rule]}. This rule doesn't block on ` +
+          "the existing debt, only on adding to it. If the baseline count is genuinely wrong, " +
+          "rerun with --update-baseline.",
+      );
+      ok = false;
+    } else if (counts[rule] < baseline[rule]) {
+      console.log(
+        `\n${rule} went down: ${baseline[rule]} -> ${counts[rule]}. Nice - rerun with ` +
+          "--update-baseline to lock that in.",
+      );
+    }
+  }
 }
 
 if (ok) {
-  console.log(
-    `\nNo blocking CLAUDE.md violations (${asCastCount} pre-existing 'as' casts within baseline).`,
-  );
+  console.log(`\nNo blocking CLAUDE.md violations (${JSON.stringify(counts)} within baseline).`);
 } else {
   console.log(`\n${findings.length} CLAUDE.md violation(s) found.`);
   process.exit(1);

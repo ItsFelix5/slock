@@ -12,12 +12,22 @@ import { findMessageLocations } from "../../../messageLocations";
 import { dedupeMessages } from "../../../messageMerge";
 import { undoStack } from "../../../undo";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
-import { withBroadcastMentions } from "./broadcastMentions";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
+
+const BROADCAST_MENTION_RE = /(?<![<!\w])@(channel|here)\b/gi;
+
+function withBroadcastMentions(text: string): { text: string; hasBroadcast: boolean } {
+  let hasBroadcast = false;
+  const converted = text.replace(BROADCAST_MENTION_RE, (_match, kind: string) => {
+    hasBroadcast = true;
+    return `<!${kind.toLowerCase()}>`;
+  });
+  return { hasBroadcast, text: converted };
+}
 
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;

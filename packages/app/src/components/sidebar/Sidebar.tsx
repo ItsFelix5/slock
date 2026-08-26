@@ -3,7 +3,7 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../lib/channelSectionMutations";
 import { actionFeedback } from "../../lib/feedback";
 import { consumeShareTarget, pendingShareText } from "../../lib/incomingLinks";
-import { setSidebarVisible, sidebarVisible } from "../../lib/sidebarVisibility";
+import { createLocalPref } from "../../lib/localPref";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { store } from "../../lib/store";
 import "./Sidebar.css";
@@ -18,6 +18,8 @@ const FEED_DEFAULT_WIDTH = 420;
 const FEED_MIN_WIDTH = 340;
 const FEED_MAX_WIDTH = 640;
 const SLACK_USER_ID = "USLACK";
+const [sidebarVisible, setSidebarVisible] = createLocalPref("sidebarVisible", true);
+
 export default function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
   const [unreadDmsOpen, setUnreadDmsOpen] = createSignal(true);
