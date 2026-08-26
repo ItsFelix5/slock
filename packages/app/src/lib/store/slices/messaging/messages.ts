@@ -1,11 +1,18 @@
 import { produce } from "solid-js/store";
 import type { ActivityItem, ConversationViewData, Message, User } from "../../../api";
-import { broadcastReply, deleteMessage, editMessage, postMessage } from "../../../api";
+import {
+  broadcastReply,
+  deleteMessage,
+  editMessage,
+  postBroadcastMessage,
+  postMessage,
+} from "../../../api";
 import { actionFeedback } from "../../../feedback";
 import { findMessageLocations } from "../../../messageLocations";
 import { dedupeMessages } from "../../../messageMerge";
 import { undoStack } from "../../../undo";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
+import { withBroadcastMentions } from "./broadcastMentions";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { createMessageReactionToggle } from "./messageReactionToggle";
@@ -121,6 +128,7 @@ export function createMessagesSlice(deps: {
   ) {
     const trimmed = text.trim();
     if (!(trimmed || blocks)) return;
+    const { text: withBroadcast, hasBroadcast } = withBroadcastMentions(trimmed);
     const me = deps.currentUser();
     const now = Date.now();
     const optimistic: Message = {
@@ -128,7 +136,7 @@ export function createMessagesSlice(deps: {
       day: "Today",
       id: `pending-${now}`,
       kind: "normal",
-      text: trimmed,
+      text: withBroadcast,
       time: new Date().toLocaleTimeString([], {
         hour: "numeric",
         minute: "2-digit",
@@ -156,7 +164,9 @@ export function createMessagesSlice(deps: {
       );
     }
     try {
-      const res = await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
+      const res = hasBroadcast
+        ? await postBroadcastMessage(channelId, withBroadcast, threadTs, blocks, suppressUnfurl)
+        : await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
       const realTs = res.ts as string;
 
       const resolvePending = (list: Message[]) =>

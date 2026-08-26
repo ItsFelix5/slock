@@ -129,3 +129,26 @@ export async function callSlackEdge(
     };
   }
 }
+
+export function botToken(): string | undefined {
+  return Bun.env.SLACK_BOT_TOKEN;
+}
+
+export async function callSlackBot(method: string, params: Record<string, string>): Promise<any> {
+  const token = botToken();
+  if (!token) return { error: "bot_not_configured", ok: false };
+  try {
+    const res = await fetch(`https://slack.com/api/${method}`, {
+      body: new URLSearchParams(params).toString(),
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
+    });
+    return await parseSlackResponse(res);
+  } catch (error) {
+    return { error: errorMessage(error, "Slack bot request failed"), ok: false };
+  }
+}

@@ -1,6 +1,7 @@
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { lookupFlaronChannel } from "../../lookup/flaronChannel.ts";
+import { fetchChannelManagerAssignments, managerIdsFromAssignments } from "../../permissions.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
 import { trimChannel, trimUser } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
@@ -178,11 +179,7 @@ export const channelDirectoryRoutes: Route[] = [
   }),
 
   route("GET", "/api/channels/:id/managers", async (ctx) => {
-    const data = await callSlack(
-      "admin.roles.entity.listAssignments",
-      { entity_id: ctx.params.id },
-      ctx.creds,
-    );
+    const data = await fetchChannelManagerAssignments(ctx.params.id, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(
         data,
@@ -191,11 +188,10 @@ export const channelDirectoryRoutes: Route[] = [
         ctx.acceptEncoding,
       );
     }
-    const assignments: any[] = Array.isArray(data.role_assignments) ? data.role_assignments : [];
     return jsonResponse(
       {
         ok: true,
-        userIds: [...new Set(assignments.flatMap((a) => a.users ?? []))],
+        userIds: managerIdsFromAssignments(data),
       },
       ctx.creds,
       ctx.acceptEncoding,

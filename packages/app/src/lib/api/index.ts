@@ -90,6 +90,7 @@ export {
   fetchSearchAutocomplete,
   getPermalink,
   markChannelRead,
+  postBroadcastMessage,
   postMessage,
   searchMessages,
   togglePin,
