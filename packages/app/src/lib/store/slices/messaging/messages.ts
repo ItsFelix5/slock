@@ -93,6 +93,10 @@ export function createMessagesSlice(deps: {
   });
   const findAllMessageLocations = (channelId: string, ts: string) =>
     findMessageLocations(messagesByChannel, threadMessages, reactionMessages, channelId, ts);
+  const messagesInChannel = (channelId: string) => messagesByChannel[channelId];
+  const messagesInThread = (threadTs: string) => threadMessages[threadTs];
+  const reactionMessageFor = (channelId: string, ts: string) =>
+    reactionMessages[`${channelId}:${ts}`]?.[0];
   const setStore = {
     channel: setMessagesByChannel,
     reaction: setReactionMessages,
@@ -261,7 +265,10 @@ export function createMessagesSlice(deps: {
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
+    messagesInChannel,
+    messagesInThread,
     patchMessage,
+    reactionMessageFor,
     removeMessage,
     setMessagesByChannel,
     setReactionMessages,

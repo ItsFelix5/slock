@@ -24,7 +24,7 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
 
   let messagesRef: HTMLDivElement | undefined;
   let cancelJump: (() => void) | undefined;
-  const messages = createMemo(() => store.messages.threadMessages[thread().ts] ?? []);
+  const messages = createMemo(() => store.messages.messagesInThread(thread().ts) ?? []);
   const messageFocus = createMessageFocus(
     messages,
     () => messagesRef,

@@ -156,8 +156,7 @@ export function createStoreSlices({
   cacheResolvedMessagesRef.current = (resolved) => {
     for (const [key, message] of resolved) messages.setReactionMessages(key, [message]);
   };
-  reactionMessageForRef.current = (channelId, ts) =>
-    messages.reactionMessages[`${channelId}:${ts}`]?.[0];
+  reactionMessageForRef.current = messages.reactionMessageFor;
   const realtime = createRealtimeSlice({
     addJoinedChannel: channels.addJoinedChannel,
     allDirectMessages: dms.allDirectMessages,

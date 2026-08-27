@@ -19,7 +19,7 @@ export default function MessageList() {
   const messages = createMemo(() => {
     const v = paneView();
     if (!v) return [];
-    return store.messages.messagesByChannel[v.id] ?? [];
+    return store.messages.messagesInChannel(v.id) ?? [];
   });
   const activeChannelId = () => paneView()?.id ?? "";
   const messageFocus = createMessageFocus(messages, () => scrollRef, activeChannelId, {

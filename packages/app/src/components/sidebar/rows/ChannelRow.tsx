@@ -21,7 +21,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
     unreadSummary({
       currentUserId: store.users.currentUser()?.id,
       lastRead: store.unread.lastReadByChannel[props.channel.id],
-      loadedMessages: store.messages.messagesByChannel[props.channel.id],
+      loadedMessages: store.messages.messagesInChannel(props.channel.id),
       mentions: props.channel.mentions,
     }),
   );

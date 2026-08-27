@@ -1,4 +1,4 @@
-export const FLASH_MS = 1500;
+const FLASH_MS = 1500;
 
 interface ScrollAnchor {
   el: HTMLElement;
@@ -36,7 +36,7 @@ export function restoreScrollAnchor(container: HTMLElement, anchor: ScrollAnchor
   container.scrollTop += newOffset - anchor.offset;
 }
 
-export function flashMessageElement(el: HTMLElement) {
+function flashMessageElement(el: HTMLElement) {
   el.classList.add("message-flash");
   const timer = setTimeout(() => el.classList.remove("message-flash"), FLASH_MS);
   return () => {
@@ -75,10 +75,6 @@ export function waitForMessageElement(
   observer.observe(container, { childList: true, subtree: true });
   timeout = setTimeout(stop, FLASH_RENDER_TIMEOUT_MS);
   return stop;
-}
-
-export function flashMessageWhenRendered(container: HTMLElement, ts: string): () => void {
-  return waitForMessageElement(container, ts, flashMessageElement);
 }
 
 export function jumpToMessageInContainer(container: HTMLElement, ts: string) {

@@ -83,7 +83,7 @@ export function DmRow(props: { dm: DirectMessage }) {
     unreadSummary({
       currentUserId: store.users.currentUser()?.id,
       lastRead: store.unread.lastReadByChannel[props.dm.id],
-      loadedMessages: store.messages.messagesByChannel[props.dm.id],
+      loadedMessages: store.messages.messagesInChannel(props.dm.id),
       mentions: props.dm.mentions,
     }),
   );
