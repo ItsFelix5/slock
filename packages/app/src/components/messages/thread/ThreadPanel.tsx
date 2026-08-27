@@ -8,6 +8,8 @@ import { closeTile } from "../../../lib/paneActions";
 import { store } from "../../../lib/store";
 import type { ThreadPaneContent } from "../../../lib/store/slices/types";
 import Composer from "../../composer/Composer";
+import InPaneSearchBar from "../InPaneSearchBar";
+import { createInPaneSearch } from "../inPaneSearch";
 import MessageRows from "../MessageRows";
 import { createMessageFocus } from "../messageFocus";
 import ReplyReferenceRow from "../parts/ReplyReferenceRow";
@@ -34,6 +36,11 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
   );
 
   const replyTargetMessage = createMemo(() => messages().find((m) => m.ts === replyTarget()?.ts));
+  const inPaneSearch = createInPaneSearch(
+    messages,
+    () => messagesRef,
+    () => props.pane.id,
+  );
 
   const typingNames = createMemo(() => {
     const t = thread();
@@ -207,6 +214,17 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
         onScroll={handleMessagesScroll}
         ref={messagesRef}
       >
+        <Show when={inPaneSearch.open()}>
+          <InPaneSearchBar
+            matchCount={inPaneSearch.matchCount()}
+            matchIndex={inPaneSearch.matchIndex()}
+            onClose={inPaneSearch.close}
+            onNext={inPaneSearch.goNext}
+            onPrev={inPaneSearch.goPrev}
+            onQueryInput={inPaneSearch.setQuery}
+            query={inPaneSearch.query()}
+          />
+        </Show>
         <MessageRows
           channelId={thread().channelId}
           editingTs={messageFocus.editingTs}

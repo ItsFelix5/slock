@@ -3,6 +3,8 @@ import { createMemo, Show } from "solid-js";
 import { channelDisplayName, dmDisplayName } from "../../lib/displayName";
 import { usePaneView } from "../../lib/paneView";
 import { store } from "../../lib/store";
+import InPaneSearchBar from "./InPaneSearchBar";
+import { createInPaneSearch } from "./inPaneSearch";
 import "./MessageList.css";
 import MessageRows from "./MessageRows";
 import { createMessageFocus } from "./messageFocus";
@@ -10,7 +12,7 @@ import { createMessageListScroll } from "./messageListScroll";
 import MessageListDateNav from "./parts/MessageListDateNav";
 
 export default function MessageList() {
-  const { clearMessageTarget, messageTarget, view: paneView } = usePaneView();
+  const { clearMessageTarget, messageTarget, paneId, view: paneView } = usePaneView();
 
   let scrollRef: HTMLDivElement | undefined;
 
@@ -26,6 +28,11 @@ export default function MessageList() {
       if (v) store.viewState.openThread(v.id, ts, ts, opts);
     },
   });
+  const inPaneSearch = createInPaneSearch(
+    messages,
+    () => scrollRef,
+    () => paneId,
+  );
 
   const {
     handleTouchEnd,
@@ -66,6 +73,17 @@ export default function MessageList() {
       on:wheel={{ handleEvent: handleWheel, passive: true }}
       ref={scrollRef}
     >
+      <Show when={inPaneSearch.open()}>
+        <InPaneSearchBar
+          matchCount={inPaneSearch.matchCount()}
+          matchIndex={inPaneSearch.matchIndex()}
+          onClose={inPaneSearch.close}
+          onNext={inPaneSearch.goNext}
+          onPrev={inPaneSearch.goPrev}
+          onQueryInput={inPaneSearch.setQuery}
+          query={inPaneSearch.query()}
+        />
+      </Show>
       <Show when={!store.resources.bootstrap.loading}>
         <Show when={paneView()}>
           {(v) => (

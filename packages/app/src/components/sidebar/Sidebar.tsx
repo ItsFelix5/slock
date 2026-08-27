@@ -56,9 +56,9 @@ export default function Sidebar() {
     allowInInputs: true,
     allowRepeat: false,
     handler: () => store.viewState.openMessageSearch(""),
-    keys: "Ctrl/⌘ F or G",
-    label: "Search messages",
-    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && ["f", "g"].includes(e.key.toLowerCase()),
+    keys: "Ctrl/⌘ G",
+    label: "Search all messages",
+    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "g",
     scope: "general",
   });
   useSidebarChannelCycle();
