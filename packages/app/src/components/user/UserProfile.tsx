@@ -10,8 +10,15 @@ import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
 import { isCustomFieldDef, mergeMissingProfileFieldValues } from "./userProfileFieldValues";
-import { blurOnEnter } from "./userProfileOptions";
 import { createLastSeenText, createLocalTime } from "./userProfileTime";
+
+function blurOnEnter(event: KeyboardEvent) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    (event.currentTarget as HTMLElement).blur();
+  }
+}
+
 export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const profileUserId = () => props.pane.content.userId;
   const [nameInput, setNameInput] = createSignal("");

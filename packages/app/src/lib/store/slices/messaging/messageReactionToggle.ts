@@ -1,10 +1,20 @@
 import { createStore, produce } from "solid-js/store";
-import type { Message, User } from "../../../api";
+import type { Message, Reaction, User } from "../../../api";
 import { toggleReaction } from "../../../api";
 import { actionFeedback } from "../../../feedback";
-import { restoreFailedReaction } from "../../../reactionRollback";
 import { undoStack } from "../../../undo";
 import type { MessageLocation } from "../types";
+
+function restoreFailedReaction(
+  current: Reaction[] | undefined,
+  name: string,
+  previous: Reaction | undefined,
+  previousIndex: number,
+): Reaction[] | undefined {
+  const restored = (current ?? []).filter((reaction) => reaction.name !== name);
+  if (previous) restored.splice(Math.min(previousIndex, restored.length), 0, previous);
+  return restored.length ? restored : undefined;
+}
 
 export function createMessageReactionToggle(deps: {
   currentUser: () => User | undefined;
