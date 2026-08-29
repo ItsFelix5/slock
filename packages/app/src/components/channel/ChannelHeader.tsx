@@ -49,7 +49,7 @@ export default function ChannelHeader() {
   };
   const canvases = () => {
     const channelId = activeChannelId();
-    return channelId ? (store.canvas.canvasesByChannel[channelId] ?? []) : [];
+    return channelId ? store.canvas.canvasesFor(channelId) : [];
   };
   let lastCanvasChannelId: string | undefined;
   createEffect(() => {

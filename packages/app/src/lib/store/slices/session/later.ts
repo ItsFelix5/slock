@@ -120,6 +120,10 @@ export function createLaterSlice() {
     return !!laterMessageError[`${channelId}:${ts}`];
   }
 
+  function laterMessageFor(channelId: string, ts: string): Message | null | undefined {
+    return laterMessages[`${channelId}:${ts}`];
+  }
+
   function isLaterMessageLoading(channelId: string, ts: string): boolean {
     return !!laterMessageLoading[`${channelId}:${ts}`];
   }
@@ -135,7 +139,7 @@ export function createLaterSlice() {
     laterLoaded,
     laterLoading,
     laterLoadError,
-    laterMessages,
+    laterMessageFor,
     toggleSaveForLater,
   };
 }

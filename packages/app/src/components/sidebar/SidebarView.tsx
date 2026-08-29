@@ -73,7 +73,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
     unreadDms,
     unreadDmsOpen,
     setUnreadDmsOpen,
-    unreadChannelIds,
+    isChannelUnread,
     actionFeedback,
   } = props.context;
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement>();
@@ -312,7 +312,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
                                     !store.preferences.isChannelMuted(ch.id))
                                 }
                               >
-                                <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />
+                                <ChannelRow channel={ch} unread={isChannelUnread(ch.id)} />
                               </Show>
                             );
                           }}

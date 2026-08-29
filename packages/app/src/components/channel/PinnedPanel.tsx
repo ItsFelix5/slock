@@ -19,10 +19,10 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
   let listRef: HTMLDivElement | undefined;
   const channelId = () => props.pane.content.channelId;
 
-  const pins = () => store.pinned.pinnedMessagesCache[channelId()];
+  const pins = () => store.pinned.pinnedMessagesFor(channelId());
   initRovingTabIndexDefault(() => listRef, pins);
-  const loading = () => !!store.pinned.pinnedMessagesLoading[channelId()];
-  const loadError = () => !!store.pinned.pinnedMessagesError[channelId()];
+  const loading = () => store.pinned.isPinnedMessagesLoading(channelId());
+  const loadError = () => store.pinned.hasPinnedMessagesError(channelId());
 
   const title = () =>
     `Pinned in ${conversationDisplayName(channelId(), store.channels.channelById, store.dms.dmById, store.users.userById)}`;

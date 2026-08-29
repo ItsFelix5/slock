@@ -14,12 +14,6 @@ export function createCanvasSlice(deps: {
   const [canvasesByChannel, setCanvasesByChannel] = createStore<Record<string, CanvasListItem[]>>(
     {},
   );
-  const [canvasCheckingByChannel, setCanvasCheckingByChannel] = createStore<
-    Record<string, boolean>
-  >({});
-  const [canvasCheckErrorByChannel, setCanvasCheckErrorByChannel] = createStore<
-    Record<string, boolean>
-  >({});
   const canvasChecks = new Map<string, Promise<void>>();
 
   function cacheChannelCanvases(channelId: string, canvases: CanvasListItem[]): void {
@@ -47,20 +41,20 @@ export function createCanvasSlice(deps: {
     const existing = canvasChecks.get(channelId);
     if (existing) return existing;
 
-    setCanvasCheckingByChannel(channelId, true);
-    setCanvasCheckErrorByChannel(channelId, false);
     const request = fetchChannelCanvases(channelId)
       .then((canvases) => cacheChannelCanvases(channelId, canvases))
       .catch((err) => {
         console.error("Failed to check for channel canvas", err);
-        setCanvasCheckErrorByChannel(channelId, true);
       })
       .finally(() => {
         canvasChecks.delete(channelId);
-        setCanvasCheckingByChannel(channelId, false);
       });
     canvasChecks.set(channelId, request);
     return request;
+  }
+
+  function canvasesFor(channelId: string): CanvasListItem[] {
+    return canvasesByChannel[channelId] ?? [];
   }
 
   function openCanvasPane(fileId: string, title: string): void {
@@ -81,9 +75,7 @@ export function createCanvasSlice(deps: {
   }
 
   return {
-    canvasCheckErrorByChannel,
-    canvasCheckingByChannel,
-    canvasesByChannel,
+    canvasesFor,
     ensureCanvasChecked,
     loadCanvasContent,
     loadCanvasFileUrl,

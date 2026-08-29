@@ -82,7 +82,7 @@ export function DmRow(props: { dm: DirectMessage }) {
   const unreadTooltip = createMemo(() =>
     unreadSummary({
       currentUserId: store.users.currentUser()?.id,
-      lastRead: store.unread.lastReadByChannel[props.dm.id],
+      lastRead: store.unread.lastReadFor(props.dm.id),
       loadedMessages: store.messages.messagesInChannel(props.dm.id),
       mentions: props.dm.mentions,
     }),
@@ -97,7 +97,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             classList={{
               active: isActive(),
               muted: muted(),
-              unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
+              unread: store.unread.isChannelUnread(props.dm.id) && !muted(),
             }}
             data-channel-id={props.dm.id}
             data-nav-row

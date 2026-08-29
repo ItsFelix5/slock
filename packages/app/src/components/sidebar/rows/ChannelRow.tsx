@@ -20,7 +20,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
   const unreadTooltip = createMemo(() =>
     unreadSummary({
       currentUserId: store.users.currentUser()?.id,
-      lastRead: store.unread.lastReadByChannel[props.channel.id],
+      lastRead: store.unread.lastReadFor(props.channel.id),
       loadedMessages: store.messages.messagesInChannel(props.channel.id),
       mentions: props.channel.mentions,
     }),

@@ -93,7 +93,7 @@ export default function Sidebar() {
       store.channels.channels(),
       store.channels.sections,
       unreadsOnly,
-      store.unread.unreadChannelIds,
+      store.unread.isChannelUnread,
       store.channels.isChannelStarred,
       store.channels.isChannelLeft,
       (id) => {
@@ -205,7 +205,7 @@ export default function Sidebar() {
     void store.channels.reorderChannelSection(id, target);
   };
   const isDmUnread = (dm: { id: string }) =>
-    !!store.unread.unreadChannelIds[dm.id] && !store.preferences.isChannelMuted(dm.id);
+    store.unread.isChannelUnread(dm.id) && !store.preferences.isChannelMuted(dm.id);
   const visibleDms = createMemo(() =>
     store.dms.directMessages().filter((dm) => {
       const view = store.viewState.activeView();
@@ -294,7 +294,7 @@ export default function Sidebar() {
     sidebarVisible,
     startRename,
     toggleCategory,
-    unreadChannelIds: store.unread.unreadChannelIds,
+    isChannelUnread: store.unread.isChannelUnread,
     unreadDms,
     unreadDmsOpen,
     unreadsOnly,
