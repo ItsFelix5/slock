@@ -145,7 +145,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
     }
     if (deps.allDirectMessages().some((d) => d.id === channel)) {
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
-    } else if (channel.startsWith("D") && me && msg.userId !== me.id) {
+    } else if (isDmId(channel, () => false) && me && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
     } else if (deps.channels().some((c) => c.id === channel)) {
       deps.patchChannel(channel, { lastActivity: Date.now() });
