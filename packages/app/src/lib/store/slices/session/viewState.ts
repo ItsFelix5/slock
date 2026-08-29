@@ -14,14 +14,22 @@ interface NavSnapshot {
 
 type RawPane = { kind: "raw"; id: string };
 
+function conversationKindIn(
+  id: string,
+  data: { directMessages: DirectMessage[] } | undefined,
+): "channel" | "dm" {
+  return isDmId(id, (candidate) => !!data?.directMessages.some((d) => d.id === candidate))
+    ? "dm"
+    : "channel";
+}
+
 export function resolveActiveView(
   nav: Nav,
   selected: View | null,
   data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
 ): View | null {
   if (selected) {
-    const isDm = isDmId(selected.id, (id) => !!data?.directMessages.some((d) => d.id === id));
-    const kind = isDm ? "dm" : "channel";
+    const kind = conversationKindIn(selected.id, data);
     return kind === selected.kind ? selected : { id: selected.id, kind };
   }
   if (nav !== "home" || !data) return null;
@@ -54,8 +62,7 @@ function resolvePaneContent(
   data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
 ): PaneContent {
   if (raw.kind !== "raw") return raw;
-  const isDm = isDmId(raw.id, (id) => !!data?.directMessages.some((d) => d.id === id));
-  return { id: raw.id, kind: isDm ? "dm" : "channel" };
+  return { id: raw.id, kind: conversationKindIn(raw.id, data) };
 }
 
 function serializePaneSegment(content: PaneContent): string {
@@ -236,8 +243,7 @@ export function createViewStateSlice(deps: {
       for (const pane of untrack(panes.panes)) {
         const c = pane.content;
         if (!c || (c.kind !== "channel" && c.kind !== "dm")) continue;
-        const isDm = isDmId(c.id, (id) => data.directMessages.some((d) => d.id === id));
-        const kind = isDm ? "dm" : "channel";
+        const kind = conversationKindIn(c.id, data);
         if (kind !== c.kind) panes.setPaneContent(pane.id, { id: c.id, kind });
       }
     });

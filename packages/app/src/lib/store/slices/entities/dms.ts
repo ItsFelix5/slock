@@ -2,6 +2,7 @@ import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { DirectMessage, User } from "../../../api";
 import { closeDm, fetchChannelMembers, openDm } from "../../../api";
+import { isDmId } from "../../../dmId";
 import { actionFeedback } from "../../../feedback";
 import type { View } from "../types";
 
@@ -38,6 +39,10 @@ export function createDmsSlice(deps: {
 
   function dmById(id: string): DirectMessage | undefined {
     return allDirectMessages().find((d) => d.id === id);
+  }
+
+  function conversationKind(id: string): "channel" | "dm" {
+    return isDmId(id, (candidate) => !!dmById(candidate)) ? "dm" : "channel";
   }
 
   function dmIdForUser(userId: string): string | undefined {
@@ -130,6 +135,7 @@ export function createDmsSlice(deps: {
     allDirectMessages,
     closeDmConversation,
     closedDmIds,
+    conversationKind,
     directMessages,
     dmById,
     dmIdForUser,
