@@ -1,5 +1,5 @@
 import { produce, type SetStoreFunction } from "solid-js/store";
-import { isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
+import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
 import type { ActivityItem, FeedEntry, Message, User } from "../../../../api";
 
 export function createEntryResolution(deps: {
@@ -32,14 +32,15 @@ export function createEntryResolution(deps: {
     await deps.fetchMessagesByIds(toFetch, (batch) => {
       deps.cacheResolvedMessages?.(batch);
       for (const entry of toFetch)
-        if (!seen.has(entry.id) && batch.has(`${entry.channelId}:${entry.ts}`)) push(entry, batch);
+        if (!seen.has(entry.id) && batch.has(channelPostKey(entry.channelId, entry.ts)))
+          push(entry, batch);
     });
 
     const unresolvedChannelEntries = toFetch.filter(
       (entry) =>
         entry.kind === "channel_all" &&
         !seen.has(entry.id) &&
-        !seenChannelPosts.has(`${entry.channelId}:${entry.ts}`),
+        !seenChannelPosts.has(channelPostKey(entry.channelId, entry.ts)),
     );
     const historyResults = await Promise.allSettled(
       unresolvedChannelEntries.map(async (entry) => ({
@@ -52,7 +53,7 @@ export function createEntryResolution(deps: {
       const { entry, page } = result.value;
       const message = page.messages.find((candidate) => candidate.ts === entry.ts);
       if (!message) continue;
-      const batch = new Map([[`${entry.channelId}:${entry.ts}`, message]]);
+      const batch = new Map([[channelPostKey(entry.channelId, entry.ts), message]]);
       deps.cacheResolvedMessages?.(batch);
       push(entry, batch);
     }
@@ -66,19 +67,19 @@ export function createEntryResolution(deps: {
     seenReactions: Set<string>,
   ) {
     const pushItem = (item: ActivityItem) => {
-      const channelPostKey = `${item.channelId}:${item.ts}`;
+      const postKey = channelPostKey(item.channelId, item.ts);
       const reactionKey = reactionActivityKey(item);
       if (
         seen.has(item.id) ||
         (!!reactionKey && seenReactions.has(reactionKey)) ||
         isOwnOrUnresolved(item, me) ||
-        (item.kind === "channel_all" && seenChannelPosts.has(channelPostKey)) ||
+        (item.kind === "channel_all" && seenChannelPosts.has(postKey)) ||
         (item.kind === "reaction" && !!item.userId && deps.isBotUser?.(item.userId))
       )
         return;
       seen.add(item.id);
       if (reactionKey) seenReactions.add(reactionKey);
-      if (item.kind === "channel_all") seenChannelPosts.add(channelPostKey);
+      if (item.kind === "channel_all") seenChannelPosts.add(postKey);
       deps.setActivityItems(
         produce((list) => {
           list.push(item);

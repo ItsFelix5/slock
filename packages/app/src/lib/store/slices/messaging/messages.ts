@@ -8,7 +8,7 @@ import {
   postMessage,
 } from "../../../api";
 import { actionFeedback } from "../../../feedback";
-import { findMessageLocations } from "../../../messageLocations";
+import { findMessageLocations, reactionMessageKey } from "../../../messageLocations";
 import { dedupeMessages } from "../../../messageMerge";
 import { undoStack } from "../../../undo";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
@@ -96,7 +96,7 @@ export function createMessagesSlice(deps: {
   const messagesInChannel = (channelId: string) => messagesByChannel[channelId];
   const messagesInThread = (threadTs: string) => threadMessages[threadTs];
   const reactionMessageFor = (channelId: string, ts: string) =>
-    reactionMessages[`${channelId}:${ts}`]?.[0];
+    reactionMessages[reactionMessageKey(channelId, ts)]?.[0];
   const setStore = {
     channel: setMessagesByChannel,
     reaction: setReactionMessages,

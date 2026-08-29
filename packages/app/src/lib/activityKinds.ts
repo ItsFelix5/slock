@@ -17,6 +17,10 @@ export function reactionActivityKey(item: ActivityItem): string | undefined {
   return `${item.channelId}:${item.ts}:${item.reactionName}:${item.userId}`;
 }
 
+export function channelPostKey(channelId: string, ts: string): string {
+  return `${channelId}:${ts}`;
+}
+
 export const GATEWAY_PING_COUNT_KEYS = new Set([
   "at_user",
   "dm",

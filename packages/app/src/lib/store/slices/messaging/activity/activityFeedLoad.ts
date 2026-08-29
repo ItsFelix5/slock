@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
-import { isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
+import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
 import type { ActivityItem, Channel, FeedEntry, HistoryPage, Message, User } from "../../../../api";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import { fetchChannelActivityItems } from "./channelActivity";
@@ -73,7 +73,7 @@ export function createActivityFeedLoad(deps: {
     const seenChannelPosts = new Set(
       items
         .filter((item) => item.kind === "channel_all")
-        .map((item) => `${item.channelId}:${item.ts}`),
+        .map((item) => channelPostKey(item.channelId, item.ts)),
     );
     const seenReactions = new Set(
       items.map(reactionActivityKey).filter((key): key is string => !!key),
@@ -113,14 +113,14 @@ export function createActivityFeedLoad(deps: {
               entry.kind !== "reaction" &&
               (entry.kind !== "channel_all" || (!!entry.userId && !!entry.text)),
           )
-          .map((entry) => `${entry.channelId}:${entry.ts}`),
+          .map((entry) => channelPostKey(entry.channelId, entry.ts)),
       );
       const pending = entries.filter((entry) => !seen.has(entry.id));
 
       const stale = entries.filter((entry) => seen.has(entry.id));
       const { push, pushItem } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       for (const item of channelItems)
-        if (!addressedFeedPosts.has(`${item.channelId}:${item.ts}`)) pushItem(item);
+        if (!addressedFeedPosts.has(channelPostKey(item.channelId, item.ts))) pushItem(item);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
         const toFetch = stale.filter((entry) => !!entry.channelId);
