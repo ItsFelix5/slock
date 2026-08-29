@@ -13,6 +13,7 @@ import { actionFeedback } from "../../lib/feedback";
 import { closeTile } from "../../lib/paneActions";
 import { store } from "../../lib/store";
 import type { PinnedPaneContent } from "../../lib/store/slices/types";
+import { viewForConversation } from "../navigation/SplitNavigation";
 import "./PinnedPanel.css";
 
 export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
@@ -29,7 +30,7 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
 
   const goTo = (ts: string) => {
     const id = channelId();
-    store.viewState.setActiveView({ id, kind: store.channels.channelById(id) ? "channel" : "dm" });
+    store.viewState.setActiveView(viewForConversation(id));
     store.viewState.openThread(id, ts, ts);
     closeTile(props.pane.id);
   };

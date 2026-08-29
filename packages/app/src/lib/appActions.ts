@@ -1,5 +1,5 @@
 import { batch } from "solid-js";
-import { isDmId } from "./dmId";
+import { conversationKind } from "./dmId";
 import { buildSearchQuery, EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 import type { ChannelMessageTarget, Nav, View } from "./store/slices/types";
 import type { createStoreSlices } from "./store/storeSlices";
@@ -39,7 +39,7 @@ export function createAppActions(deps: AppActionsDeps) {
     channelId: string,
     options?: { keepNav?: boolean; target?: ChannelMessageTarget },
   ) {
-    const kind = isDmId(channelId, (id) => !!dms.dmById(id)) ? "dm" : "channel";
+    const kind = conversationKind(channelId, (id) => !!dms.dmById(id));
     batch(() => {
       closeThreadIfDifferentChannel(channelId);
       viewState.setSelected({ id: channelId, kind });

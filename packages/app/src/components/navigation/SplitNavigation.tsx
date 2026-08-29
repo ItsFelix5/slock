@@ -1,10 +1,11 @@
 import type { JSX } from "solid-js";
+import { conversationKind } from "../../lib/dmId";
 import { store } from "../../lib/store";
 
-function viewForConversation(channelId: string) {
+export function viewForConversation(channelId: string) {
   return {
     id: channelId,
-    kind: store.dms.dmById(channelId) ? ("dm" as const) : ("channel" as const),
+    kind: conversationKind(channelId, (id) => !!store.dms.dmById(id)),
   };
 }
 
