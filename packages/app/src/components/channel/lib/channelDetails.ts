@@ -20,9 +20,9 @@ import {
   setChannelTopic,
   setMemberPermissions,
   unarchiveChannel,
-} from "./api";
-import { actionFeedback } from "./feedback";
-import { store } from "./store";
+} from "../../../lib/api";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 export type ChannelDetailsTab = "about" | "members" | "settings";

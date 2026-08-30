@@ -1,7 +1,9 @@
+import { formatSlackDate } from "@slock/blockkit";
 import {
   focusedPaneId,
   focusPaneById,
   InlineFeedback,
+  indexAlignedText,
   plainKey,
   QuillEditor,
   scrollActiveListOption,
@@ -14,17 +16,13 @@ import { consumeComposerAutofocusSuppression } from "../../lib/composerFocus";
 import { actionFeedback, composerFeedbackKey } from "../../lib/feedback";
 import "./Composer.css";
 import ComposerAttachMenu from "./ComposerAttachMenu";
-import { createComposerSubmitHandler } from "./composerSubmit";
 import ComposerSuggestPopover from "./ComposerSuggestPopover";
+import { createComposerSubmitHandler } from "./composerSubmit";
 import type { ComposerProps } from "./composerTypes";
 import FileChip from "./FileChip";
 import { createComposerDraftState, createPendingFileState, draftCacheKey } from "./lib/drafts";
-import {
-  indexAlignedText,
-  insertSuggestionAt,
-  loadMrkdwnIntoQuill,
-  mrkdwnText,
-} from "./lib/quillMentions";
+import { wireEmojiAutoconvert } from "./lib/quillEmoji";
+import { insertSuggestionAt, loadMrkdwnIntoQuill, mrkdwnText } from "./lib/quillMentions";
 import { createSuggestionController } from "./lib/suggestionController";
 import { type SuggestState, suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
@@ -154,7 +152,19 @@ export default function Composer(props: ComposerProps) {
     return false;
   };
 
-  const handleDateSelect = (_timestamp: number, _format: string) => setDateOpen(false);
+  const handleDateSelect = (timestamp: number, format: string) => {
+    setDateOpen(false);
+    if (!quill) return;
+    const index = quill.getSelection(true)?.index ?? quill.getLength();
+    quill.insertEmbed(index, "date", {
+      fallback: formatSlackDate(timestamp),
+      format,
+      ts: timestamp,
+    });
+    quill.insertText(index + 1, " ");
+    quill.setSelection(index + 2, 0);
+    quill.focus();
+  };
 
   const feedback = () => actionFeedback.get(feedbackKey());
 
@@ -214,6 +224,7 @@ export default function Composer(props: ComposerProps) {
               quill = q;
               const initial = props.editing?.initialText ?? pendingInitialText;
               if (initial) loadMrkdwnIntoQuill(q, initial);
+              wireEmojiAutoconvert(q);
               q.on("text-change", () => {
                 setText(mrkdwnText(q).replace(TRAILING_NEWLINE_RE, ""));
                 const aligned = indexAlignedText(q).replace(TRAILING_NEWLINE_RE, "");

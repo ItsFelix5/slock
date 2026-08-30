@@ -90,6 +90,7 @@ export {
   fetchSearchAutocomplete,
   getPermalink,
   markChannelRead,
+  postBroadcastMessage,
   postMessage,
   searchMessages,
   togglePin,
@@ -109,7 +110,7 @@ export {
   setThemeColorsPref,
   setThemeShapePref,
 } from "./preferences";
-export { mapBrowsableChannels, searchGlobal } from "./search";
+export { mapBrowsableChannels, saveSearchHistory, searchGlobal } from "./search";
 export {
   fetchUsergroup,
   fetchUsergroupDetails,

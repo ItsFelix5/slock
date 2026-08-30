@@ -1,6 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { Button, Icon, InlineFeedback, ResizeHandle } from "@slock/ui";
-import { For, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
 import MessageSearchView from "../search/MessageSearchView";
 import ActivityView from "./activity/ActivityView";
@@ -10,6 +10,7 @@ import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSecti
 import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/sidebar-rows";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
+import SidebarUnreadEdgeIndicator from "./SidebarUnreadEdgeIndicator";
 import type { SidebarContext } from "./sidebarCategories";
 
 export default function SidebarView(props: { context: SidebarContext }) {
@@ -70,9 +71,10 @@ export default function SidebarView(props: { context: SidebarContext }) {
     unreadDms,
     unreadDmsOpen,
     setUnreadDmsOpen,
-    unreadChannelIds,
+    isChannelUnread,
     actionFeedback,
   } = props.context;
+  const [scrollEl, setScrollEl] = createSignal<HTMLDivElement>();
   return (
     <div
       class="sidebar flex-col"
@@ -101,7 +103,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
       />
       <div class="sidebar-nav flex-align-center">
         <button
-          class="sidebar-nav-btn btn-reset flex-col"
+          class="sidebar-nav-btn btn-reset flex-center"
           classList={{
             active: nav() === "home",
           }}
@@ -112,12 +114,9 @@ export default function SidebarView(props: { context: SidebarContext }) {
           type="button"
         >
           <Icon name="home" size={16} />
-          <Show fallback="Channels" when={unreadsOnly()}>
-            Unread
-          </Show>
         </button>
         <button
-          class="sidebar-nav-btn btn-reset flex-col"
+          class="sidebar-nav-btn btn-reset flex-center"
           classList={{
             active: nav() === "activity",
           }}
@@ -131,7 +130,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
               </span>
             )}
           </Show>
-          Activity
           <Show when={hasUnreadActivity()}>
             <span class="sidebar-ping-dot" classList={{ "has-count": unreadPingCount() > 0 }}>
               <Show when={unreadPingCount() > 0}>{unreadPingCount()}</Show>
@@ -139,7 +137,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
           </Show>
         </button>
         <button
-          class="sidebar-nav-btn btn-reset flex-col"
+          class="sidebar-nav-btn btn-reset flex-center"
           classList={{
             active: nav() === "later",
           }}
@@ -147,7 +145,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
           type="button"
         >
           <Icon name="bookmark" size={16} />
-          Later
         </button>
       </div>
       <Show
@@ -166,7 +163,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
         }
         when={!feedMode()}
       >
-        <div class="sidebar-scroll">
+        <div class="sidebar-scroll" ref={setScrollEl}>
           <Show
             fallback={<SidebarSkeleton />}
             when={!(bootstrap.loading || sectionsLoading() || preferencesLoading())}
@@ -298,7 +295,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
                                 ((ch.mentions ?? 0) > 0 && !store.preferences.isChannelMuted(ch.id))
                               }
                             >
-                              <ChannelRow channel={ch} unread={!!unreadChannelIds[ch.id]} />
+                              <ChannelRow channel={ch} unread={isChannelUnread(ch.id)} />
                             </Show>
                           );
                         }}
@@ -312,6 +309,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
               {...{ appDms, appsOpen, dmsOpen, peopleDms, setAppsOpen, setDmsOpen, unreadsOnly }}
             />
           </Show>
+          <SidebarUnreadEdgeIndicator containerRef={scrollEl} />
         </div>
       </Show>
     </div>

@@ -2,7 +2,7 @@ import { createEffect, createSignal } from "solid-js";
 import { PING_KINDS } from "../../../activityKinds";
 import type { ActivityItem, Channel, DirectMessage, User, UserPrefs } from "../../../api";
 import { conversationDisplayName } from "../../../displayName";
-import { createLocalPref } from "../../localPref";
+import { createLocalPref } from "../../../localPref";
 
 export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const supported = typeof window !== "undefined" && "Notification" in window;

@@ -578,8 +578,7 @@
 .bk-alert--success {
   border-left-color: var(--bk-button-primary);
 }
-.bk-quote,
-.composer-quote {
+.bk-quote {
   padding: 2px 0 2px 12px;
   margin: 2px 0;
   color: var(--text-secondary);

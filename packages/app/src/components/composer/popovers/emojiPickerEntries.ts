@@ -1,4 +1,4 @@
-import type { EmojiEntry } from "../../../lib/emojiSearch";
+import type { EmojiEntry } from "../lib/emojiSearch";
 
 export function prioritizeEmojiEntries(
   entries: EmojiEntry[],

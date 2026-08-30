@@ -30,7 +30,7 @@ function resolveCanvasFileInfo(fileId: string): Promise<CanvasFileInfo> {
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
       return {
         title: info.title,
-        url: info.url ? resolveMediaUrl(info.url) : null,
+        url: info.url_private_download ? resolveMediaUrl(info.url_private_download) : null,
       };
     })
     .catch((error) => {

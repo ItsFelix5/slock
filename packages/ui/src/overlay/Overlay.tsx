@@ -35,7 +35,6 @@ export default function Overlay(props: OverlayProps) {
     [...(overlayRef?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [])].filter(
       (element) =>
         !element.hidden &&
-        element.getAttribute("aria-hidden") !== "true" &&
         element.getClientRects().length > 0 &&
         getComputedStyle(element).visibility !== "hidden",
     );

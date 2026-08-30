@@ -16,7 +16,8 @@ export {
   type DebouncedRequestOptions,
 } from "./debouncedRequest";
 export { debugMode, setDebugMode } from "./debugPreferences";
-export { default as QuillEditor, type QuillEditorProps } from "./editor/QuillEditor";
+export { default as QuillEditor, INLINE_MARKS, type QuillEditorProps } from "./editor/QuillEditor";
+export { getEmbedBlot, indexAlignedText } from "./editor/quillText";
 export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
 export { createCopyFeedback } from "./feedback/copyFeedback";
@@ -36,8 +37,6 @@ export {
 } from "./fontPresets";
 export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
-export type { ComboItem } from "./form/FilterCombobox";
-export { default as FilterCombobox } from "./form/FilterCombobox";
 export {
   createListboxActiveIndex,
   gridNavigationIndex,
@@ -49,6 +48,8 @@ export type { OklchColorPickerProps } from "./form/OklchColorPicker";
 export { default as OklchColorPicker } from "./form/OklchColorPicker";
 export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
+export type { SuggestionListProps } from "./form/SuggestionList";
+export { default as SuggestionList } from "./form/SuggestionList";
 export type { SwitchProps } from "./form/Switch";
 export { default as Switch } from "./form/Switch";
 export { formatDuration } from "./formatDuration";
@@ -126,6 +127,7 @@ export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
 export { focusedPaneId } from "./panes/focusedPane";
 export { consumeMouseButtonPop, hoveredPaneId } from "./panes/hoveredPane";
+export { useNarrowPaneRow } from "./panes/narrowLayout";
 export { default as PaneRow, type PaneRowProps } from "./panes/PaneRow";
 export {
   closePane,
@@ -158,6 +160,8 @@ export {
   themeColors,
 } from "./themeColors";
 export { setThemeShape, type ThemeShape, themeShape } from "./themeShape";
+export type { UndoEntry } from "./undoStack";
+export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useEscapeClose } from "./useEscapeClose";
 export {

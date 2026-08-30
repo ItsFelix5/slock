@@ -5,7 +5,7 @@ import "./ConnectSlack.css";
 const CONTENT_TYPE_BOUNDARY_CURL = /-H\s*['"]content-type:[^'"]*boundary=([^\s'";]+)['"]/i;
 const CONTENT_TYPE_BOUNDARY_JSON = /"content-type":\s*"[^"]*boundary=([^"\\]+)"/i;
 const NEWLINE_SPLIT = /\r?\n/;
-const BOUNDARY_MARKER = /^-{2,}(.+)$/;
+const BOUNDARY_MARKER = /^--(.+)$/;
 const UNESCAPE_CONTROL = /\\(r|n|t|\\|"|')/g;
 const FORM_DATA_DISPOSITION = /Content-Disposition:\s*form-data;\s*name="([^"]+)"/i;
 const CONTINUATION_JOIN = /\\\r?\n/g;

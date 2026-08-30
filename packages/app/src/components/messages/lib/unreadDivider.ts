@@ -1,4 +1,4 @@
-import type { Message } from "./api";
+import type { Message } from "../../../lib/api";
 
 export function isUnreadDividerBoundary(
   ts: string,

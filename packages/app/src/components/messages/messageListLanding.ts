@@ -2,7 +2,7 @@ import { createEffect, createSignal } from "solid-js";
 import type { Message } from "../../lib/api";
 import type { ChannelMessageTarget, View } from "../../lib/store";
 import { store } from "../../lib/store";
-import { findUnreadDividerIndex } from "../../lib/unreadDivider";
+import { findUnreadDividerIndex } from "./lib/unreadDivider";
 import { jumpToMessageInContainer, scrollToBottom, waitForMessageElement } from "./scrollAnchor";
 
 const MAX_BACKFILL_LOADS = 5;

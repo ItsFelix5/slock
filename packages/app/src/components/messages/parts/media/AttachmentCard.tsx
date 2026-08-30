@@ -10,8 +10,8 @@ import { ConstrainedImage, Icon, MediaFrame, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { Attachment } from "../../../../lib/api";
 import { channelIconName, conversationDisplayName } from "../../../../lib/displayName";
-import { isDmId } from "../../../../lib/dmId";
 import { store } from "../../../../lib/store";
+import { viewForConversation } from "../../../navigation/SplitNavigation";
 import { MessageAuthorButton } from "../../message-author-buttons";
 import "./AttachmentCard.css";
 import MessageFiles from "./MessageFiles";
@@ -160,10 +160,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
     )
       return;
     event.preventDefault();
-    store.viewState.setActiveView({
-      id: a.channelId,
-      kind: isDmId(a.channelId, (id) => !!store.dms.dmById(id)) ? "dm" : "channel",
-    });
+    store.viewState.setActiveView(viewForConversation(a.channelId));
   };
 
   return (

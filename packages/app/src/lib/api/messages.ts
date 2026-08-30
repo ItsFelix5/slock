@@ -75,6 +75,31 @@ export async function postMessage(
   return data;
 }
 
+const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
+  bot_not_configured: "The broadcast bot isn't set up on this server.",
+  not_a_channel_manager: "Only channel managers can send @channel or @here here.",
+};
+
+export async function postBroadcastMessage(
+  channelId: string,
+  text: string,
+  threadTs?: string,
+  blocks?: unknown,
+  suppressUnfurl?: boolean,
+) {
+  const body: Record<string, unknown> = { text };
+  if (threadTs) body.threadTs = threadTs;
+  if (blocks) body.blocks = blocks;
+  if (suppressUnfurl) body.suppressUnfurl = true;
+  const data = await apiPost(`/api/channels/${channelId}/messages/broadcast`, body);
+  if (!data.ok) {
+    throw new Error(
+      BROADCAST_ERROR_MESSAGES[data.error] ?? data.error ?? "chat.postMessage failed",
+    );
+  }
+  return data;
+}
+
 export async function editMessage(channelId: string, ts: string, text: string, blocks?: unknown) {
   const body: Record<string, unknown> = { text };
   if (blocks) body.blocks = blocks;

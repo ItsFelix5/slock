@@ -112,33 +112,6 @@ select:focus-visible,
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
 }
-.chip {
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  background: none;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-}
-.chip:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-.chip.active {
-  color: var(--text-on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.chip.subtle {
-  background: var(--main-bg);
-}
-.chip.subtle.active {
-  color: var(--text-primary);
-  background: var(--active-bg);
-  border-color: var(--accent);
-}
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;

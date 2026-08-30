@@ -4,7 +4,7 @@ import {
   archiveChannelById,
   convertChannelToPrivateById,
   unarchiveChannelById,
-} from "../../../lib/channelDetails";
+} from "../lib/channelDetails";
 
 export default function ChannelDangerZone(props: {
   archived: boolean;

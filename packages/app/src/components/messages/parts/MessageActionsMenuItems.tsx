@@ -97,7 +97,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
       threadContainsMessage(
         props.channelId,
         props.threadTs,
-        store.messages.threadMessages[props.threadTs ?? ""] ?? [],
+        store.messages.messagesInThread(props.threadTs ?? "") ?? [],
         channelId,
         ts,
       ),

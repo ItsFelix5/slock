@@ -12,7 +12,9 @@
     "build": "tsc -b && bun run --filter slock-web build",
     "start": "bun run --filter slock-web build && bun run --filter @slock/server start",
     "preview": "bun run --filter slock-web preview",
-    "check": "biome check . --write"
+    "check": "biome check . --write && bun scripts/check-claude-md.mjs",
+    "check:claude-md": "bun scripts/check-claude-md.mjs",
+    "check:claude-md:update-baseline": "bun scripts/check-claude-md.mjs --update-baseline"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",

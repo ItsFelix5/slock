@@ -5,7 +5,6 @@ export { default as Context } from "./blocks/Context";
 export { default as Divider } from "./blocks/Divider";
 export { default as Header } from "./blocks/Header";
 export { Table } from "./blocks/Table";
-export { MRKDWN_CLIPBOARD_TYPE } from "./clipboard";
 export type {
   BlockKitMentionInfo,
   BlockKitResolver,
@@ -29,7 +28,14 @@ export {
   startOfDayMs,
   TIME_FORMAT_OPTIONS,
 } from "./dateFormat";
-export { fragmentToMrkdwn, HEADING_TAG_RE, serializeNode } from "./domToMrkdwn";
+export {
+  fragmentToMrkdwn,
+  HEADING_TAG_RE,
+  type InlineDialect,
+  MRKDWN_CLIPBOARD_TYPE,
+  MRKDWN_DIALECT,
+  serializeNode,
+} from "./domToMrkdwn";
 export { default as EmojiText } from "./emoji/EmojiText";
 export type { StandardEmoji } from "./emoji/emoji";
 export { standardEmojiEntries } from "./emoji/emoji";
@@ -43,8 +49,6 @@ export {
   loadCustomEmoji,
 } from "./emoji/emojiCache";
 export { decodeTextEntities } from "./entities";
-export type { InlineDialect } from "./inlineDialect";
-export { MRKDWN_DIALECT } from "./inlineDialect";
 export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
 export { default as Mrkdwn, Link, Mention, TimeAwareText } from "./mrkdwn";
 export { stripTrackingParams } from "./urlCleanup";

@@ -108,7 +108,6 @@ export default function AudioFile(props: { file: SlackFile }) {
       >
         <div class="audio-file-controls flex-align-center">
           <button
-            aria-label={playing() ? "Pause" : "Play"}
             class="audio-file-play btn-reset flex-align-center"
             onClick={togglePlayback}
             type="button"
@@ -116,13 +115,8 @@ export default function AudioFile(props: { file: SlackFile }) {
             <Icon name={playing() ? "pause-filled" : "play-filled"} size={16} />
           </button>
           <div
-            aria-disabled={duration() <= 0}
-            aria-label={`Playback position for ${props.file.title || props.file.name}`}
-            aria-valuemax={duration()}
-            aria-valuemin={0}
-            aria-valuenow={currentTime()}
-            aria-valuetext={`${formatDuration(currentTime())} of ${formatDuration(duration())}`}
             class="audio-file-waveform"
+            classList={{ disabled: duration() <= 0 }}
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               seekTo((event.clientX - rect.left) / rect.width);

@@ -1,0 +1,39 @@
+.suggestion-row {
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm);
+  color: var(--text-secondary);
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.suggestion-row:hover,
+.suggestion-row.active {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+.suggestion-icon {
+  flex-shrink: 0;
+  width: var(--space-lg);
+  height: var(--space-lg);
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+}
+.suggestion-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.suggestion-label {
+  flex-shrink: 0;
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+}
+.suggestion-desc {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-caption);
+  font-weight: 400;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -102,6 +102,14 @@ export function createUnreadSlice(deps: {
     return unreadDividerTs[channelId];
   }
 
+  function isChannelUnread(channelId: string) {
+    return !!unreadChannelIds[channelId];
+  }
+
+  function lastReadFor(channelId: string) {
+    return lastReadByChannel[channelId];
+  }
+
   function wireReadTracking(readDeps: {
     visibleViews: () => View[];
     messagesByChannel: Record<string, Message[]>;
@@ -178,7 +186,9 @@ export function createUnreadSlice(deps: {
 
   return {
     clearChannelUnread,
+    isChannelUnread,
     lastReadByChannel,
+    lastReadFor,
     setLastReadByChannel,
     setChannelRead,
     setUnreadChannelIds,

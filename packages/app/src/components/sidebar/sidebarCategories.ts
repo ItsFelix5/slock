@@ -80,7 +80,7 @@ export interface SidebarContext {
   setWidth: Setter<number>;
   startRename: (cat: Category) => void;
   toggleCategory: (id: string) => void;
-  unreadChannelIds: Record<string, boolean>;
+  isChannelUnread: (id: string) => boolean;
   unreadDms: Accessor<DirectMessage[]>;
   unreadDmsOpen: Accessor<boolean>;
   unreadsOnly: Accessor<boolean>;
@@ -108,7 +108,7 @@ export function buildCategories(
       }[]
     | undefined,
   unreadsOnly: () => boolean,
-  unreadChannelIds: Record<string, boolean>,
+  isChannelUnread: (id: string) => boolean,
   isChannelStarred: (id: string) => boolean,
   isChannelLeft: (id: string) => boolean,
   isChannelOpen: (id: string) => boolean,
@@ -116,7 +116,7 @@ export function buildCategories(
 ): Category[] {
   const visibleChannels = allChannels.filter((c) => !isChannelLeft(c.id));
 
-  const isUnread = (c: Channel) => !!unreadChannelIds[c.id] && !isChannelMuted(c.id);
+  const isUnread = (c: Channel) => isChannelUnread(c.id) && !isChannelMuted(c.id);
   const matches = (c: Channel, sidebar: Category["sidebar"]) => {
     if (isChannelOpen(c.id)) return true;
     return sectionShowsAllChannels(sidebar, unreadsOnly()) || isUnread(c);

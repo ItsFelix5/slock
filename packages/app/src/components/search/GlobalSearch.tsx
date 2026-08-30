@@ -12,12 +12,15 @@ import {
   createSignal,
   createUniqueId,
   onCleanup,
+  Show,
   untrack,
 } from "solid-js";
 import type { Channel, DirectMessage, SlackFile, User } from "../../lib/api";
 import { type GlobalSearchResults as SearchResults, searchGlobal } from "../../lib/api";
 import { dmDisplayName } from "../../lib/displayName";
+import { clearPendingShare, pendingShareText } from "../../lib/incomingLinks";
 import { store } from "../../lib/store";
+import { cacheDraftLocally, persistDraft } from "../composer/lib/drafts";
 import "./GlobalSearch.css";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
@@ -153,7 +156,7 @@ export default function GlobalSearch(props: {
     if (!hasQuery()) return [];
     return [{ kind: "message-search" }, ...rows()];
   });
-  const { activeIndex, setActiveIndex, activeOptionId } = createListboxActiveIndex(
+  const { activeIndex, setActiveIndex } = createListboxActiveIndex(
     () => items().length,
     listboxId,
     () => document.getElementById(listboxId) ?? undefined,
@@ -165,18 +168,33 @@ export default function GlobalSearch(props: {
     if (searchError()) return "Search couldn't be completed.";
     return "No matching people, channels, or files.";
   });
+  const deliverPendingShare = (channelId: string) => {
+    const text = pendingShareText();
+    if (!text) return;
+    cacheDraftLocally(channelId, undefined, text);
+    persistDraft(channelId, undefined, text);
+    clearPendingShare();
+  };
   const goToChannel = (c: JumpChannel) => {
     store.viewState.setActiveView({ id: c.id, kind: "channel" });
+    deliverPendingShare(c.id);
     props.onClose();
   };
-  const goToPerson = (userId: string) => {
+  const goToPerson = async (userId: string) => {
     const dm = store.dms.directMessages().find((d) => d.userId === userId);
-    if (dm) store.viewState.setActiveView({ id: dm.id, kind: "dm" });
-    else store.dms.openDmWithUser(userId);
+    if (dm) {
+      store.viewState.setActiveView({ id: dm.id, kind: "dm" });
+      deliverPendingShare(dm.id);
+    } else {
+      await store.dms.openDmWithUser(userId);
+      const opened = store.viewState.activeView();
+      if (opened?.kind === "dm") deliverPendingShare(opened.id);
+    }
     props.onClose();
   };
   const goToDm = (dm: DirectMessage) => {
     store.viewState.setActiveView({ id: dm.id, kind: "dm" });
+    deliverPendingShare(dm.id);
     props.onClose();
   };
   const goToMessageSearch = () => {
@@ -214,14 +232,17 @@ export default function GlobalSearch(props: {
   };
   return (
     <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
+      <Show when={pendingShareText()}>
+        {(text) => (
+          <div class="global-search-share-banner flex-align-center">
+            <Icon class="flex-shrink-0" name="share" size={13} />
+            <span class="truncate">Pick where to send: {text()}</span>
+          </div>
+        )}
+      </Show>
       <div class="global-search-input-row flex-align-center">
         <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
         <input
-          aria-activedescendant={activeOptionId()}
-          aria-autocomplete="list"
-          aria-controls={listboxId}
-          aria-expanded={hasQuery()}
-          aria-label="Search channels, people, and conversations"
           autofocus
           autocomplete="off"
           class="global-search-input input-reset"
@@ -258,7 +279,6 @@ export default function GlobalSearch(props: {
         onPerson={goToPerson}
         query={query()}
         rows={rows()}
-        searching={searching()}
         status={searchStatus()}
       />
     </Modal>

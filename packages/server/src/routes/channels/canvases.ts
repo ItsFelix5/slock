@@ -14,7 +14,7 @@ export const canvasRoutes: Route[] = [
       {
         ok: true,
         title: file?.title?.trim() || file?.name?.trim() || null,
-        url: file?.url_private_download ?? file?.url_private ?? null,
+        url_private_download: file?.url_private_download ?? file?.url_private ?? null,
       },
       ctx.creds,
       ctx.acceptEncoding,

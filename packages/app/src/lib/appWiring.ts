@@ -1,6 +1,6 @@
 import { createEffect } from "solid-js";
 import type { createAppActions } from "./appActions";
-import { createMarkAllAsRead } from "./store/markAllAsRead";
+import { createMarkAllAsRead } from "./markAllAsRead";
 import type { createStoreSlices } from "./store/storeSlices";
 
 type AppWiringDeps = Pick<

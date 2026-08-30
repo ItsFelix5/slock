@@ -1,11 +1,8 @@
 import type { JSX } from "solid-js";
 import { store } from "../../lib/store";
 
-function viewForConversation(channelId: string) {
-  return {
-    id: channelId,
-    kind: store.dms.dmById(channelId) ? ("dm" as const) : ("channel" as const),
-  };
+export function viewForConversation(channelId: string) {
+  return { id: channelId, kind: store.dms.conversationKind(channelId) };
 }
 
 export function openConversationInSplit(channelId: string, ts?: string) {

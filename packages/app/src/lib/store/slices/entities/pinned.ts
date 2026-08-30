@@ -1,6 +1,7 @@
 import { createStore, produce } from "solid-js/store";
 import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "../../../api";
 import { actionFeedback } from "../../../feedback";
+import { undoStack } from "../../../undo";
 import type { createPanesSlice } from "../session/panes";
 
 export function createPinnedSlice(deps: {
@@ -51,6 +52,10 @@ export function createPinnedSlice(deps: {
     setPinnedByChannel(channelId, ts, !currentlyPinned);
     try {
       await togglePin(channelId, ts, currentlyPinned);
+      undoStack.push({
+        label: currentlyPinned ? "unpin message" : "pin message",
+        undo: () => void togglePinMessage(channelId, ts),
+      });
       return true;
     } catch (err) {
       console.error("Failed to toggle pin", err);
@@ -81,6 +86,18 @@ export function createPinnedSlice(deps: {
     }
   }
 
+  function pinnedMessagesFor(channelId: string) {
+    return pinnedMessagesCache[channelId];
+  }
+
+  function isPinnedMessagesLoading(channelId: string): boolean {
+    return !!pinnedMessagesLoading[channelId];
+  }
+
+  function hasPinnedMessagesError(channelId: string): boolean {
+    return !!pinnedMessagesError[channelId];
+  }
+
   function openPinnedPanel(channelId: string) {
     deps.panes.openInNewPane({ channelId, kind: "pinned" });
     refreshPinnedMessages(channelId);
@@ -94,12 +111,12 @@ export function createPinnedSlice(deps: {
   return {
     closePinnedPanel,
     ensurePinsLoaded,
+    hasPinnedMessagesError,
     isMessagePinned,
+    isPinnedMessagesLoading,
     isPinPending,
     openPinnedPanel,
-    pinnedMessagesCache,
-    pinnedMessagesError,
-    pinnedMessagesLoading,
+    pinnedMessagesFor,
     refreshPinnedMessages,
     togglePinMessage,
   };

@@ -68,16 +68,15 @@ export default function LaterView() {
           >
             <For each={store.later.laterItems}>
               {(item) => {
-                const key = `${item.channelId}:${item.ts}`;
                 onMount(() => store.later.ensureLaterMessageLoaded(item));
-                const isLoaded = createMemo(() => key in store.later.laterMessages);
+                const msg = createMemo(() => store.later.laterMessageFor(item.channelId, item.ts));
+                const isLoaded = createMemo(() => msg() !== undefined);
                 const isLoading = createMemo(() =>
                   store.later.isLaterMessageLoading(item.channelId, item.ts),
                 );
                 const loadError = createMemo(() =>
                   store.later.hasLaterMessageError(item.channelId, item.ts),
                 );
-                const msg = createMemo(() => store.later.laterMessages[key]);
 
                 const authorId = createMemo(() => resolveProfileUserId(msg() ?? { userId: "" }));
                 const author = createMemo(() => {

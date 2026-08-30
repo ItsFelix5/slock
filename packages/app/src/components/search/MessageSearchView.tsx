@@ -1,36 +1,33 @@
-import {
-  createDebouncedRequest,
-  createListboxActiveIndex,
-  Icon,
-  listNavigationIndex,
-} from "@slock/ui";
-import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from "solid-js";
-import { fetchSearchAutocomplete, searchMessages, type SearchResult } from "../../lib/api";
+import { createDebouncedRequest, createListboxActiveIndex, Icon, SuggestionList } from "@slock/ui";
+import { createMemo, createSignal, createUniqueId, onCleanup, onMount, Show } from "solid-js";
+import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "../../lib/api";
 import { type SortMode, sortParams } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
 import "./GlobalSearch.css";
+import { createSearchQueryEditor } from "./lib/searchQueryEditor";
 import MessageSearchResults from "./MessageSearchResults";
 import "./MessageSearchView.css";
 import {
   type QuerySuggestion,
   type QuerySuggestionContext,
   querySuggestions,
-  queryToken,
 } from "./querySuggestions";
 import { navigateToSearchResult } from "./searchResultNavigation";
 
 export default function MessageSearchView() {
-  const [query, setQuery] = createSignal("");
+  let containerEl: HTMLDivElement | undefined;
+  let suggestionsListRef: HTMLDivElement | undefined;
+
+  const [serializedQuery, setSerializedQuery] = createSignal("");
+  const [cursor, setCursor] = createSignal(0);
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
   const [remoteSuggestions, setRemoteSuggestions] = createSignal<string[]>([]);
-  const [cursor, setCursor] = createSignal(0);
   const [dismissedSuggestionsFor, setDismissedSuggestionsFor] = createSignal<string>();
   const [sortMode, setSortMode] = createSignal<SortMode>("relevant");
   const suggestionListId = createUniqueId();
 
-  let suggestionsListRef: HTMLDivElement | undefined;
   const searchRequest = createDebouncedRequest(
     (value) => searchMessages(value, sortParams(sortMode())),
     {
@@ -43,7 +40,7 @@ export default function MessageSearchView() {
       },
       onResult: (found) => {
         setResults(found);
-        store.searchHistory.recordSearch(query());
+        store.searchHistory.recordSearch(serializedQuery());
       },
     },
   );
@@ -52,20 +49,12 @@ export default function MessageSearchView() {
     onReset: () => setRemoteSuggestions([]),
     onResult: setRemoteSuggestions,
   });
-  const updateQuery = (value: string, selectionStart = value.length) => {
-    setQuery(value);
-    setCursor(selectionStart);
-    setDismissedSuggestionsFor(undefined);
-  };
   const runSearch = (immediate = true) => {
-    store.viewState.setSearchScreenQuery(query());
-    searchRequest.run(query(), { immediate });
-  };
-  const runAutocomplete = () => {
-    autocompleteRequest.run(query());
+    store.viewState.setSearchScreenQuery(serializedQuery());
+    searchRequest.run(serializedQuery(), { immediate });
   };
   const runHistorySearch = (q: string) => {
-    updateQuery(q);
+    editor.setQueryText(q);
     autocompleteRequest.run("");
     runSearch();
   };
@@ -93,9 +82,30 @@ export default function MessageSearchView() {
     }
     return { currentUserId };
   });
+  const editor = createSearchQueryEditor({
+    getActiveSuggestion: () => activeSuggestion(),
+    getSuggestions: () => suggestions(),
+    onEscapeWithNoSuggestions: () => store.viewState.setNavView("home"),
+    onQueryChange: (query, nextCursor, typed) => {
+      setSerializedQuery(query);
+      setCursor(nextCursor);
+      if (typed) {
+        setDismissedSuggestionsFor(undefined);
+        autocompleteRequest.run(query);
+      }
+    },
+    onSubmit: () => {
+      setDismissedSuggestionsFor(serializedQuery());
+      runSearch();
+    },
+    onSuggestionsShouldClose: () => setDismissedSuggestionsFor(serializedQuery()),
+    setActiveSuggestion: (index) => setActiveSuggestion(index),
+    suggestionsOpen: () => suggestionsOpen(),
+  });
+
   const localSuggestions = createMemo<QuerySuggestion[]>(() =>
     querySuggestions(
-      query(),
+      editor.alignedText(),
       cursor(),
       store.users.knownUsers(),
       store.resources.bootstrap()?.channels ?? [],
@@ -113,7 +123,7 @@ export default function MessageSearchView() {
     ].slice(0, 8);
   });
   const suggestionsOpen = createMemo(
-    () => suggestions().length > 0 && dismissedSuggestionsFor() !== query(),
+    () => suggestions().length > 0 && dismissedSuggestionsFor() !== serializedQuery(),
   );
   const { activeIndex: activeSuggestion, setActiveIndex: setActiveSuggestion } =
     createListboxActiveIndex(
@@ -121,24 +131,12 @@ export default function MessageSearchView() {
       suggestionListId,
       () => suggestionsListRef,
     );
-  const applySuggestion = (suggestion: QuerySuggestion) => {
-    const current = query();
-    const selection = cursor();
-    const token = queryToken(current, selection);
-    const complete = !suggestion.value.endsWith(":");
-    const next = suggestion.replaceToken
-      ? `${current.slice(0, token.start)}${suggestion.value}${complete ? " " : ""}${current.slice(token.end)}`
-      : suggestion.value;
-    const nextCursor = suggestion.replaceToken
-      ? token.start + suggestion.value.length + (complete ? 1 : 0)
-      : next.length;
-    updateQuery(next, nextCursor);
-    autocompleteRequest.run(next);
-    runSearch();
-  };
+
   onMount(() => {
-    const initialQuery = store.viewState.searchScreenQuery();
-    updateQuery(initialQuery);
+    if (!containerEl) return;
+    const quill = editor.mount(containerEl);
+    quill.focus();
+    editor.setQueryText(store.viewState.searchScreenQuery());
     runSearch();
   });
   onCleanup(() => {
@@ -148,108 +146,44 @@ export default function MessageSearchView() {
   const goToMessage = (r: SearchResult) => {
     navigateToSearchResult(r, store.viewState, { keepNav: true });
   };
-  const canSearch = createMemo(() => !!query().trim());
+  const canSearch = createMemo(() => !!serializedQuery().trim());
   const optionId = (index: number) => `${suggestionListId}-option-${index}`;
-  const activeSuggestionId = () => {
-    const active = activeSuggestion();
-    return suggestionsOpen() && active !== null ? optionId(active) : undefined;
-  };
-  const moveSuggestion = (key: string) => {
-    const next = listNavigationIndex(key, activeSuggestion(), suggestions().length);
-    if (next !== undefined) setActiveSuggestion(next);
-  };
+
   return (
     <div class="message-search-view">
       <div class="message-search-header flex-align-center">
         <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
-        <input
-          autofocus
-          aria-activedescendant={activeSuggestionId()}
-          aria-autocomplete="list"
-          aria-controls={suggestionListId}
-          aria-expanded={suggestionsOpen()}
-          aria-label="Search every message"
-          autocomplete="off"
-          class="global-search-input message-search-input input-reset"
-          onInput={(e) => {
-            updateQuery(
-              e.currentTarget.value,
-              e.currentTarget.selectionStart ?? e.currentTarget.value.length,
-            );
-            runAutocomplete();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown" && suggestionsOpen()) {
-              e.preventDefault();
-              moveSuggestion(e.key);
-            } else if (e.key === "ArrowUp" && suggestionsOpen()) {
-              e.preventDefault();
-              moveSuggestion(e.key);
-            } else if (e.key === "Tab" && suggestionsOpen()) {
-              const selected = activeSuggestion();
-              const suggestion = selected === null ? undefined : suggestions()[selected];
-              if (!suggestion || e.isComposing) return;
-              e.preventDefault();
-              applySuggestion(suggestion);
-            } else if (e.key === "Enter" && !e.isComposing) {
-              e.preventDefault();
-              setDismissedSuggestionsFor(query());
-              runSearch();
-            } else if (e.key === "Escape") {
-              if (suggestionsOpen()) {
-                e.preventDefault();
-                setDismissedSuggestionsFor(query());
-              } else {
-                store.viewState.setNavView("home");
-              }
-            }
-          }}
-          onKeyUp={(e) => {
-            if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
-              setCursor(e.currentTarget.selectionStart ?? e.currentTarget.value.length);
-            }
-          }}
-          placeholder="Search every message…"
-          spellcheck={false}
-          type="text"
-          value={query()}
-        />
+        <div class="ql-editor-root message-search-input" ref={containerEl} />
       </div>
       <Show when={suggestionsOpen()}>
-        <div
-          aria-label="Search suggestions"
+        <SuggestionList
+          activeIndex={activeSuggestion()}
           class="message-search-suggestions"
           id={suggestionListId}
-          ref={suggestionsListRef}
-        >
-          <For each={suggestions()}>
-            {(suggestion, index) => (
-              <button
-                aria-selected={activeSuggestion() === index()}
-                class="message-search-suggestion btn-reset"
-                classList={{ active: activeSuggestion() === index() }}
-                id={optionId(index())}
-                onClick={() => applySuggestion(suggestion)}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setActiveSuggestion(index())}
-                tabIndex={-1}
-                type="button"
-              >
-                <Icon
-                  class="text-dim"
-                  name={suggestion.replaceToken ? "filters" : "search"}
-                  size={13}
-                />
-                <span>{suggestion.label}</span>
-                <Show when={suggestion.description}>
-                  <span class="message-search-suggestion-description">
-                    {suggestion.description}
-                  </span>
-                </Show>
-              </button>
-            )}
-          </For>
-        </div>
+          itemId={optionId}
+          items={suggestions()}
+          onHover={setActiveSuggestion}
+          onPick={(index) => {
+            const suggestion = suggestions()[index];
+            if (suggestion) editor.applySuggestion(suggestion);
+          }}
+          ref={(el) => {
+            suggestionsListRef = el;
+          }}
+          renderItem={(suggestion) => (
+            <>
+              <Icon
+                class="suggestion-icon flex-center"
+                name={suggestion.replaceToken ? "filters" : "search"}
+                size={13}
+              />
+              <span class="suggestion-label">{suggestion.label}</span>
+              <Show when={suggestion.description}>
+                <span class="suggestion-desc">{suggestion.description}</span>
+              </Show>
+            </>
+          )}
+        />
       </Show>
       <MessageSearchResults
         canSearch={canSearch()}

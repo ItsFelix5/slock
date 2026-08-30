@@ -37,9 +37,8 @@ export function MessageAuthorButton(props: {
 }) {
   return (
     <span
-      aria-disabled={props.disabled}
       class="message-author btn-reset"
-      classList={{ [`message-author-${props.status}`]: !!props.status }}
+      classList={{ disabled: props.disabled, [`message-author-${props.status}`]: !!props.status }}
       onClick={() => {
         if (!props.disabled) props.onClick();
       }}

@@ -176,7 +176,7 @@ export function createMessageFocus(
         threadContainsMessage(
           channelId(),
           threadTs,
-          store.messages.threadMessages[threadTs ?? ""] ?? [],
+          store.messages.messagesInThread(threadTs ?? "") ?? [],
           candidateChannelId,
           ts,
         ),

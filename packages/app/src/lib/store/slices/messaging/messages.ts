@@ -1,15 +1,33 @@
 import { produce } from "solid-js/store";
 import type { ActivityItem, ConversationViewData, Message, User } from "../../../api";
-import { broadcastReply, deleteMessage, editMessage, postMessage } from "../../../api";
+import {
+  broadcastReply,
+  deleteMessage,
+  editMessage,
+  postBroadcastMessage,
+  postMessage,
+} from "../../../api";
 import { actionFeedback } from "../../../feedback";
-import { findMessageLocations } from "../../../messageLocations";
+import { findMessageLocations, reactionMessageKey } from "../../../messageLocations";
 import { dedupeMessages } from "../../../messageMerge";
+import { undoStack } from "../../../undo";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
+
+const BROADCAST_MENTION_RE = /(?<![<!\w])@(channel|here)\b/gi;
+
+function withBroadcastMentions(text: string): { text: string; hasBroadcast: boolean } {
+  let hasBroadcast = false;
+  const converted = text.replace(BROADCAST_MENTION_RE, (_match, kind: string) => {
+    hasBroadcast = true;
+    return `<!${kind.toLowerCase()}>`;
+  });
+  return { hasBroadcast, text: converted };
+}
 
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;
@@ -75,6 +93,10 @@ export function createMessagesSlice(deps: {
   });
   const findAllMessageLocations = (channelId: string, ts: string) =>
     findMessageLocations(messagesByChannel, threadMessages, reactionMessages, channelId, ts);
+  const messagesInChannel = (channelId: string) => messagesByChannel[channelId];
+  const messagesInThread = (threadTs: string) => threadMessages[threadTs];
+  const reactionMessageFor = (channelId: string, ts: string) =>
+    reactionMessages[reactionMessageKey(channelId, ts)]?.[0];
   const setStore = {
     channel: setMessagesByChannel,
     reaction: setReactionMessages,
@@ -120,6 +142,7 @@ export function createMessagesSlice(deps: {
   ) {
     const trimmed = text.trim();
     if (!(trimmed || blocks)) return;
+    const { text: withBroadcast, hasBroadcast } = withBroadcastMentions(trimmed);
     const me = deps.currentUser();
     const now = Date.now();
     const optimistic: Message = {
@@ -127,7 +150,7 @@ export function createMessagesSlice(deps: {
       day: "Today",
       id: `pending-${now}`,
       kind: "normal",
-      text: trimmed,
+      text: withBroadcast,
       time: new Date().toLocaleTimeString([], {
         hour: "numeric",
         minute: "2-digit",
@@ -155,7 +178,9 @@ export function createMessagesSlice(deps: {
       );
     }
     try {
-      const res = await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
+      const res = hasBroadcast
+        ? await postBroadcastMessage(channelId, withBroadcast, threadTs, blocks, suppressUnfurl)
+        : await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
       const realTs = res.ts as string;
 
       const resolvePending = (list: Message[]) =>
@@ -174,6 +199,7 @@ export function createMessagesSlice(deps: {
   async function editMessageText(channelId: string, ts: string, text: string, blocks?: unknown) {
     const trimmed = text.trim();
     if (!trimmed) return false;
+    const previous = findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
     try {
       await editMessage(channelId, ts, trimmed, blocks);
       patchMessage(channelId, ts, {
@@ -181,6 +207,12 @@ export function createMessagesSlice(deps: {
         edited: true,
         text: trimmed,
       });
+      if (previous && previous.text !== trimmed) {
+        undoStack.push({
+          label: "edit message",
+          undo: () => void editMessageText(channelId, ts, previous.text, previous.blocks),
+        });
+      }
       return true;
     } catch (err) {
       console.error("Failed to edit message", err);
@@ -233,7 +265,10 @@ export function createMessagesSlice(deps: {
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
+    messagesInChannel,
+    messagesInThread,
     patchMessage,
+    reactionMessageFor,
     removeMessage,
     setMessagesByChannel,
     setReactionMessages,

@@ -1,6 +1,6 @@
 import { createEffect } from "solid-js";
 import type { Message } from "../../../api";
-import { HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
+import { fetchUserPresence, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
 import { isDmId } from "../../../dmId";
 import { mergeMessages } from "../../../messageMerge";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
@@ -29,6 +29,26 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
 
   function send(payload: unknown) {
     return connection.send(payload);
+  }
+  function presenceSubIds(): string[] {
+    const selfId = deps.currentUser()?.id;
+    const ids = new Set<string>();
+    for (const dm of deps.allDirectMessages()) {
+      if (dm.userId) ids.add(dm.userId);
+      for (const id of dm.memberIds ?? []) ids.add(id);
+    }
+    if (selfId) ids.delete(selfId);
+    return [...ids];
+  }
+  const presenceHydrated = new Set<string>();
+  function hydratePresence(ids: string[]) {
+    for (const id of ids) {
+      if (presenceHydrated.has(id)) continue;
+      presenceHydrated.add(id);
+      fetchUserPresence(id)
+        .then((presence) => presence && deps.setPresenceOverrides(id, presence))
+        .catch(() => presenceHydrated.delete(id));
+    }
   }
   function handleIncomingMessage(payload: any) {
     const { channel, subtype, ts } = payload;
@@ -125,7 +145,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
     }
     if (deps.allDirectMessages().some((d) => d.id === channel)) {
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
-    } else if (channel.startsWith("D") && me && msg.userId !== me.id) {
+    } else if (isDmId(channel, () => false) && me && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
     } else if (deps.channels().some((c) => c.id === channel)) {
       deps.patchChannel(channel, { lastActivity: Date.now() });
@@ -245,6 +265,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
           ts: thread.ts,
           type: "watch_thread",
         });
+      send({ ids: presenceSubIds(), type: "watch_presence" });
     },
     url: wsUrl,
   });
@@ -254,6 +275,11 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
   createEffect(() => {
     for (const thread of deps.visibleThreads())
       send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
+  });
+  createEffect(() => {
+    const ids = presenceSubIds();
+    send({ ids, type: "watch_presence" });
+    hydratePresence(ids);
   });
   return {
     connectionState: connection.connectionState,

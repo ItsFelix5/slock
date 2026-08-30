@@ -1,4 +1,5 @@
-import { createLocalPref } from "../../localPref";
+import { saveSearchHistory } from "../../../api";
+import { createLocalPref } from "../../../localPref";
 
 const MAX_ENTRIES = 15;
 
@@ -13,6 +14,7 @@ export function createSearchHistorySlice() {
       ...searchHistory().filter((q) => q.toLowerCase() !== trimmed.toLowerCase()),
     ];
     persist(deduped.slice(0, MAX_ENTRIES));
+    saveSearchHistory(trimmed);
   }
 
   function removeSearchHistoryEntry(query: string) {

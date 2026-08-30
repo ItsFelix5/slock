@@ -1,7 +1,7 @@
 import { customEmojiNames, emojiUrl, standardEmojiEntries } from "@slock/blockkit";
 import { fuzzySearch } from "@slock/ui";
-import { mergeEmojiEntries } from "../components/composer/popovers/emojiPickerEntries";
-import { store } from "./store";
+import { store } from "../../../lib/store";
+import { mergeEmojiEntries } from "../popovers/emojiPickerEntries";
 
 export interface EmojiEntry {
   name: string;

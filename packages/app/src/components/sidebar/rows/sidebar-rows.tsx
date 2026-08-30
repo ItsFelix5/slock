@@ -13,11 +13,13 @@ import type { JSX } from "solid-js";
 import { createMemo, For, Show } from "solid-js";
 import type { DirectMessage } from "../../../lib/api";
 import { dmDisplayName } from "../../../lib/displayName";
+import { splitDragProps } from "../../../lib/dragSplitTarget";
 import { actionFeedback } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
+import { unreadSummary } from "../lib/unreadSummary";
 
 export function SidebarSectionCaretRow(props: {
   badge?: JSX.Element;
@@ -77,6 +79,14 @@ export function DmRow(props: { dm: DirectMessage }) {
   const muted = createMemo(() => store.preferences.isChannelMuted(props.dm.id));
   const hasDraft = createMemo(() => channelHasDraft(props.dm.id));
   const ctxMenu = useContextMenu();
+  const unreadTooltip = createMemo(() =>
+    unreadSummary({
+      currentUserId: store.users.currentUser()?.id,
+      lastRead: store.unread.lastReadFor(props.dm.id),
+      loadedMessages: store.messages.messagesInChannel(props.dm.id),
+      mentions: props.dm.mentions,
+    }),
+  );
 
   return (
     <Show when={ready()}>
@@ -87,7 +97,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             classList={{
               active: isActive(),
               muted: muted(),
-              unread: !!store.unread.unreadChannelIds[props.dm.id] && !muted(),
+              unread: store.unread.isChannelUnread(props.dm.id) && !muted(),
             }}
             data-channel-id={props.dm.id}
             data-nav-row
@@ -95,6 +105,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             onContextMenu={ctxMenu.open}
             tabIndex={-1}
             type="button"
+            {...splitDragProps({ channelId: props.dm.id })}
           >
             <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>
               {(u) => <Avatar showPresence size="small" user={u()} />}
@@ -102,12 +113,16 @@ export function DmRow(props: { dm: DirectMessage }) {
             <span class="sidebar-row-name truncate">{name()}</span>
             <span class="sidebar-row-end">
               {hasDraft() ? (
-                <span class="sidebar-row-draft" title="draft">
-                  <Icon name="edit" size={12} />
-                </span>
+                <Tooltip content="Draft">
+                  <span class="sidebar-row-draft">
+                    <Icon name="edit" size={12} />
+                  </span>
+                </Tooltip>
               ) : null}
               {!muted() && props.dm.mentions ? (
-                <span class="sidebar-badge">{props.dm.mentions}</span>
+                <Tooltip content={unreadTooltip()}>
+                  <span class="sidebar-badge">{props.dm.mentions}</span>
+                </Tooltip>
               ) : null}
             </span>
           </button>

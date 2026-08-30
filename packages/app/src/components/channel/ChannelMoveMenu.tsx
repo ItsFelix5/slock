@@ -151,8 +151,8 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
 
       <div class="channel-move-menu-destinations">
         <MenuItem
-          aria-current={isStarred() ? "true" : undefined}
           class="channel-move-menu-destination"
+          classList={{ active: isStarred() }}
           disabled={isPending()}
           icon={isStarred() ? "star-filled" : "star"}
           onClick={() => void moveToStarred()}
@@ -163,8 +163,8 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
           </Show>
         </MenuItem>
         <MenuItem
-          aria-current={isInChannels() ? "true" : undefined}
           class="channel-move-menu-destination"
+          classList={{ active: isInChannels() }}
           disabled={isPending()}
           icon="channel"
           onClick={() => void moveToChannels()}
@@ -182,8 +182,8 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
               const selected = () => !isStarred() && currentSectionId() === section.id;
               return (
                 <MenuItem
-                  aria-current={selected() ? "true" : undefined}
                   class="channel-move-menu-destination"
+                  classList={{ active: selected() }}
                   disabled={isPending()}
                   icon="section"
                   onClick={() => void moveToSection(section.id)}

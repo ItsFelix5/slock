@@ -2,6 +2,7 @@ import { plainKey, useEscapeClose, useShortcut } from "@slock/ui";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../lib/channelSectionMutations";
 import { actionFeedback } from "../../lib/feedback";
+import { consumeShareTarget, pendingShareText } from "../../lib/incomingLinks";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { store } from "../../lib/store";
 import "./Sidebar.css";
@@ -16,6 +17,7 @@ const FEED_DEFAULT_WIDTH = 420;
 const FEED_MIN_WIDTH = 340;
 const FEED_MAX_WIDTH = 640;
 const SLACK_USER_ID = "USLACK";
+
 export default function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
   const [unreadDmsOpen, setUnreadDmsOpen] = createSignal(true);
@@ -30,7 +32,8 @@ export default function Sidebar() {
       store.viewState.nav() === "search",
   );
   createEffect(() => setSharedSidebarWidth(feedMode() ? feedWidth() : width()));
-  const [searchOpen, setSearchOpen] = createSignal(false);
+  consumeShareTarget();
+  const [searchOpen, setSearchOpen] = createSignal(!!pendingShareText());
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
   useEscapeClose(() => setUnreadsOnly(false), unreadsOnly);
@@ -51,9 +54,9 @@ export default function Sidebar() {
     allowInInputs: true,
     allowRepeat: false,
     handler: () => store.viewState.openMessageSearch(""),
-    keys: "Ctrl/⌘ F or G",
-    label: "Search messages",
-    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && ["f", "g"].includes(e.key.toLowerCase()),
+    keys: "Ctrl/⌘ G",
+    label: "Search all messages",
+    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "g",
     scope: "general",
   });
   useSidebarChannelCycle();
@@ -80,7 +83,7 @@ export default function Sidebar() {
       store.channels.channels(),
       store.channels.sections,
       unreadsOnly,
-      store.unread.unreadChannelIds,
+      store.unread.isChannelUnread,
       store.channels.isChannelStarred,
       store.channels.isChannelLeft,
       (id) => {
@@ -192,7 +195,7 @@ export default function Sidebar() {
     void store.channels.reorderChannelSection(id, target);
   };
   const isDmUnread = (dm: { id: string }) =>
-    !!store.unread.unreadChannelIds[dm.id] && !store.preferences.isChannelMuted(dm.id);
+    store.unread.isChannelUnread(dm.id) && !store.preferences.isChannelMuted(dm.id);
   const visibleDms = createMemo(() =>
     store.dms.directMessages().filter((dm) => {
       const view = store.viewState.activeView();
@@ -279,7 +282,7 @@ export default function Sidebar() {
     setWidth,
     startRename,
     toggleCategory,
-    unreadChannelIds: store.unread.unreadChannelIds,
+    isChannelUnread: store.unread.isChannelUnread,
     unreadDms,
     unreadDmsOpen,
     unreadsOnly,

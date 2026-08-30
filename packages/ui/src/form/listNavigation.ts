@@ -43,9 +43,7 @@ export function rovingTabIndex(rows: HTMLElement[], activeIndex: number) {
 
 export function scrollActiveListOption(listbox: () => HTMLElement | undefined) {
   queueMicrotask(() =>
-    listbox()
-      ?.querySelector<HTMLElement>('[aria-selected="true"]')
-      ?.scrollIntoView({ block: "nearest" }),
+    listbox()?.querySelector<HTMLElement>(".active")?.scrollIntoView({ block: "nearest" }),
   );
 }
 

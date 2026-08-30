@@ -21,6 +21,15 @@ class DividerBlot extends BlockEmbed {
 
 Quill.register(DividerBlot);
 
+const ESCAPE_RE = /[.*+?^${}()|[\]\\]/g;
+const WHITESPACE_RE = /\s/;
+export const INLINE_MARKS: [char: string, format: string][] = [
+  ["*", "bold"],
+  ["_", "italic"],
+  ["~", "strike"],
+  ["`", "code"],
+];
+
 export default function QuillEditor(props: QuillEditorProps) {
   let container: HTMLDivElement | undefined;
   let quill: Quill | undefined;
@@ -40,6 +49,8 @@ export default function QuillEditor(props: QuillEditorProps) {
         "code-block",
         "divider",
         "mention",
+        "emoji",
+        "date",
       ],
       modules: {
         keyboard: {
@@ -61,42 +72,67 @@ export default function QuillEditor(props: QuillEditorProps) {
       placeholder: props.placeholder,
     });
 
-    quill.keyboard.addBinding({ key: "-" }, { prefix: /--/, offset: 2 }, (range) => {
+    quill.keyboard.addBinding({ key: "-" }, { prefix: /^--$/, offset: 2 }, (range) => {
       quill!.deleteText(range.index - 3, 3);
       quill!.insertEmbed(range.index - 2, "divider", true);
       if (quill!.getLength() <= range.index) quill!.insertText(range.index, "\n");
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: />/, offset: 1 }, (range) => {
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^>$/, offset: 1 }, (range) => {
       quill!.deleteText(range.index - 1, 1);
       quill!.formatLine(range.index, 1, "blockquote");
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /#/, offset: 1 }, (range) => {
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^#$/, offset: 1 }, (range) => {
       quill!.deleteText(range.index - 1, 1);
       quill!.formatLine(range.index, 1, "header", 1);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /##/, offset: 2 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 2);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^##$/, offset: 2 }, (range) => {
+      quill!.deleteText(range.index - 2, 2);
+      quill!.formatLine(range.index - 2, 1, "header", 2);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /###/, offset: 3 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 3);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^###$/, offset: 3 }, (range) => {
+      quill!.deleteText(range.index - 3, 3);
+      quill!.formatLine(range.index - 3, 1, "header", 3);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /####/, offset: 4 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 4);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^####$/, offset: 4 }, (range) => {
+      quill!.deleteText(range.index - 4, 4);
+      quill!.formatLine(range.index - 4, 1, "header", 4);
       return false;
     });
-    quill.keyboard.addBinding({ key: " " }, { prefix: /#####/, offset: 5 }, (range) => {
-      quill!.deleteText(range.index - 1, 1);
-      quill!.formatLine(range.index, 1, "header", 5);
+    quill.keyboard.addBinding({ key: " " }, { prefix: /^#####$/, offset: 5 }, (range) => {
+      quill!.deleteText(range.index - 5, 5);
+      quill!.formatLine(range.index - 5, 1, "header", 5);
       return false;
     });
+
+    for (const [char, format] of INLINE_MARKS) {
+      const escaped = char.replace(ESCAPE_RE, "\\$&");
+      const prefix = new RegExp(`${escaped}([^${escaped}\\n]+)$`);
+      quill.keyboard.addBinding({ key: char }, { prefix }, (range, context) => {
+        const match = context.prefix.match(prefix);
+        if (!match) return true;
+        const start = range.index - match[0].length;
+        const before = context.prefix[start - 1];
+        if (before !== undefined && !WHITESPACE_RE.test(before)) return true;
+        quill!.deleteText(start, match[0].length);
+        quill!.insertText(start, match[1], format, true);
+        quill!.setSelection(start + match[1].length, 0, "silent");
+        quill!.format(format, false, "silent");
+        return false;
+      });
+    }
+    quill.keyboard.addBinding(
+      { key: "x", shiftKey: true, shortKey: true },
+      {},
+      (_range, context) => {
+        quill!.format("strike", !context.format.strike, "user");
+        return false;
+      },
+    );
 
     if (props.autofocus) quill.focus();
     props.onReady(quill);

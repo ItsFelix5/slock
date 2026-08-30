@@ -19,10 +19,10 @@
 .message-author:hover {
   text-decoration: underline;
 }
-.message-author[aria-disabled="true"] {
+.message-author.disabled {
   cursor: default;
 }
-.message-author[aria-disabled="true"]:hover {
+.message-author.disabled:hover {
   text-decoration: none;
 }
 .message-author-unverified,

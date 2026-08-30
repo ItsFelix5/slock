@@ -25,8 +25,11 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
   }, 1000);
   onCleanup(() => clearInterval(sweepTimer));
 
+  const typingKey = (channelId: string, threadTs?: string) =>
+    threadTs ? `${channelId}:${threadTs}` : channelId;
+
   function recordTyping(channelId: string, threadTs: string | undefined, userId: string) {
-    const key = threadTs ? `${channelId}:${threadTs}` : channelId;
+    const key = typingKey(channelId, threadTs);
     const expiresAt = Date.now() + TYPING_TTL_MS;
     setTypingByKey(
       produce((s) => {
@@ -37,7 +40,7 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
   }
 
   function clearTyping(channelId: string, threadTs: string | undefined, userId: string) {
-    const key = threadTs ? `${channelId}:${threadTs}` : channelId;
+    const key = typingKey(channelId, threadTs);
     if (!typingByKey[key]?.[userId]) return;
     setTypingByKey(
       key,
@@ -56,7 +59,7 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
   }
 
   function typingUsersInThread(channelId: string, ts: string): User[] {
-    const entries = typingByKey[`${channelId}:${ts}`];
+    const entries = typingByKey[typingKey(channelId, ts)];
     if (!entries) return [];
     return Object.keys(entries)
       .map(deps.userById)

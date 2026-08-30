@@ -50,18 +50,43 @@ export function createMessageListScroll(deps: {
     queueMicrotask(updateTopVisible);
   });
 
-  createEffect(() => {
-    deps.messages();
-    const el = deps.scrollRef();
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
+  let resizeObserver: ResizeObserver | undefined;
+  let observedContainer: HTMLDivElement | undefined;
+  const observedRows = new Set<HTMLElement>();
+  function ensureResizeObserver(el: HTMLDivElement) {
+    if (resizeObserver && observedContainer === el) return resizeObserver;
+    resizeObserver?.disconnect();
+    observedRows.clear();
+    observedContainer = el;
+    resizeObserver = new ResizeObserver(() => {
       const current = deps.scrollRef();
       if (!current) return;
       if (shouldFollowBottom()) scrollToBottom(current);
       else if (lastAnchor?.el.isConnected) restoreScrollAnchor(current, lastAnchor);
     });
-    for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) observer.observe(row);
-    onCleanup(() => observer.disconnect());
+    return resizeObserver;
+  }
+  createEffect(() => {
+    deps.messages();
+    const el = deps.scrollRef();
+    if (!el) return;
+    const observer = ensureResizeObserver(el);
+    const currentRows = new Set(el.querySelectorAll<HTMLElement>("[data-message-ts]"));
+    for (const row of observedRows) {
+      if (currentRows.has(row)) continue;
+      observer.unobserve(row);
+      observedRows.delete(row);
+    }
+    for (const row of currentRows) {
+      if (observedRows.has(row)) continue;
+      observer.observe(row);
+      observedRows.add(row);
+    }
+  });
+  onCleanup(() => {
+    resizeObserver?.disconnect();
+    resizeObserver = undefined;
+    observedRows.clear();
   });
 
   async function loadNewerMessages(channelId: string) {
@@ -73,11 +98,14 @@ export function createMessageListScroll(deps: {
     }
   }
 
+  const OLDER_LOAD_COOLDOWN_MS = 250;
+  let olderLoadCooldownUntil = 0;
   async function loadOlderMessagesPreservingScroll(channelId: string) {
     const el = deps.scrollRef();
     if (!el) return;
     const prevScrollHeight = el.scrollHeight;
     await store.messages.loadOlderMessages(channelId);
+    olderLoadCooldownUntil = Date.now() + OLDER_LOAD_COOLDOWN_MS;
     if (deps.scrollRef() !== el || deps.paneView()?.id !== channelId) return;
     el.scrollTop += el.scrollHeight - prevScrollHeight;
   }
@@ -126,6 +154,7 @@ export function createMessageListScroll(deps: {
     if (
       direction !== "newer" &&
       nearTop &&
+      Date.now() >= olderLoadCooldownUntil &&
       store.messages.hasMoreHistory(view.id) &&
       !store.messages.hasOlderHistoryError(view.id)
     )

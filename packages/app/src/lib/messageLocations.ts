@@ -1,6 +1,10 @@
 import type { Message } from "./api";
 import type { MessageLocation } from "./store/slices/types";
 
+export function reactionMessageKey(channelId: string, ts: string): string {
+  return `${channelId}:${ts}`;
+}
+
 export function findMessageLocations(
   messagesByChannel: Record<string, Message[]>,
   threadMessages: Record<string, Message[]>,
@@ -16,7 +20,7 @@ export function findMessageLocations(
     const list = threadMessages[key];
     if (list?.some((m) => m.ts === ts)) results.push({ list, location: { key, store: "thread" } });
   }
-  const reactionKey = `${channelId}:${ts}`;
+  const reactionKey = reactionMessageKey(channelId, ts);
   const reacted = reactionMessages[reactionKey];
   if (reacted?.some((m) => m.ts === ts))
     results.push({ list: reacted, location: { key: reactionKey, store: "reaction" } });

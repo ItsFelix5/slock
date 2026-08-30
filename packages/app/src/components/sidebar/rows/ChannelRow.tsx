@@ -1,11 +1,13 @@
-import { ContextMenu, Icon, useContextMenu } from "@slock/ui";
+import { ContextMenu, Icon, Tooltip, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
 import type { Channel } from "../../../lib/api";
 import { channelDisplayName, channelIconName } from "../../../lib/displayName";
+import { splitDragProps } from "../../../lib/dragSplitTarget";
 import { store } from "../../../lib/store";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
+import { unreadSummary } from "../lib/unreadSummary";
 
 export default function ChannelRow(props: { channel: Channel; unread: boolean }) {
   const ctxMenu = useContextMenu();
@@ -15,6 +17,14 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
   });
   const muted = createMemo(() => store.preferences.isChannelMuted(props.channel.id));
   const hasDraft = createMemo(() => channelHasDraft(props.channel.id));
+  const unreadTooltip = createMemo(() =>
+    unreadSummary({
+      currentUserId: store.users.currentUser()?.id,
+      lastRead: store.unread.lastReadFor(props.channel.id),
+      loadedMessages: store.messages.messagesInChannel(props.channel.id),
+      mentions: props.channel.mentions,
+    }),
+  );
 
   return (
     <>
@@ -32,6 +42,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           onContextMenu={ctxMenu.open}
           tabIndex={-1}
           type="button"
+          {...splitDragProps({ channelId: props.channel.id })}
         >
           <span class="sidebar-row-icon">
             <Icon name={channelIconName(props.channel.private)} size={13} />
@@ -39,12 +50,16 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           <span class="sidebar-row-name truncate">{channelDisplayName(props.channel)}</span>
           <span class="sidebar-row-end">
             {hasDraft() ? (
-              <span class="sidebar-row-draft" title="draft">
-                <Icon name="edit" size={12} />
-              </span>
+              <Tooltip content="Draft">
+                <span class="sidebar-row-draft">
+                  <Icon name="edit" size={12} />
+                </span>
+              </Tooltip>
             ) : null}
             {!muted() && props.channel.mentions ? (
-              <span class="sidebar-badge">{props.channel.mentions}</span>
+              <Tooltip content={unreadTooltip()}>
+                <span class="sidebar-badge">{props.channel.mentions}</span>
+              </Tooltip>
             ) : null}
           </span>
         </button>

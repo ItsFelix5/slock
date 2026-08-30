@@ -14,10 +14,10 @@ export function createLaterSlice() {
   const [laterMessageError, setLaterMessageError] = createStore<Record<string, boolean>>({});
   const [savePending, setSavePending] = createStore<Record<string, boolean>>({});
 
-  const savePendingKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
+  const laterKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
 
   function isSaveForLaterPending(channelId: string, ts: string): boolean {
-    return !!savePending[savePendingKey(channelId, ts)];
+    return !!savePending[laterKey(channelId, ts)];
   }
 
   function isSavedForLater(channelId: string, ts: string): boolean {
@@ -25,7 +25,7 @@ export function createLaterSlice() {
   }
 
   async function toggleSaveForLater(channelId: string, ts: string): Promise<boolean> {
-    const pendingKey = savePendingKey(channelId, ts);
+    const pendingKey = laterKey(channelId, ts);
     if (laterLoading() || savePending[pendingKey]) return false;
     setSavePending(pendingKey, true);
     const currentlySaved = isSavedForLater(channelId, ts);
@@ -76,12 +76,12 @@ export function createLaterSlice() {
 
   async function loadLaterMessages(items: SavedItem[], force = false) {
     const pending = items.filter((item) => {
-      const key = `${item.channelId}:${item.ts}`;
+      const key = laterKey(item.channelId, item.ts);
       return !laterMessageLoading[key] && (force || !(key in laterMessages));
     });
     if (!pending.length) return;
     for (const item of pending) {
-      const key = `${item.channelId}:${item.ts}`;
+      const key = laterKey(item.channelId, item.ts);
       setLaterMessageLoading(key, true);
       setLaterMessageError(key, false);
     }
@@ -94,19 +94,19 @@ export function createLaterSlice() {
         }
       });
       for (const item of pending) {
-        const key = `${item.channelId}:${item.ts}`;
+        const key = laterKey(item.channelId, item.ts);
         setLaterMessages(key, messages.get(key) ?? null);
       }
     } catch (err) {
       console.error("Failed to load saved message", err);
       for (const item of pending) {
-        const key = `${item.channelId}:${item.ts}`;
+        const key = laterKey(item.channelId, item.ts);
         if (!resolved.has(key)) setLaterMessageError(key, true);
       }
     } finally {
       setLaterMessageLoading(
         produce((loading) => {
-          for (const item of pending) delete loading[`${item.channelId}:${item.ts}`];
+          for (const item of pending) delete loading[laterKey(item.channelId, item.ts)];
         }),
       );
     }
@@ -117,11 +117,15 @@ export function createLaterSlice() {
   }
 
   function hasLaterMessageError(channelId: string, ts: string): boolean {
-    return !!laterMessageError[`${channelId}:${ts}`];
+    return !!laterMessageError[laterKey(channelId, ts)];
+  }
+
+  function laterMessageFor(channelId: string, ts: string): Message | null | undefined {
+    return laterMessages[laterKey(channelId, ts)];
   }
 
   function isLaterMessageLoading(channelId: string, ts: string): boolean {
-    return !!laterMessageLoading[`${channelId}:${ts}`];
+    return !!laterMessageLoading[laterKey(channelId, ts)];
   }
 
   return {
@@ -135,7 +139,7 @@ export function createLaterSlice() {
     laterLoaded,
     laterLoading,
     laterLoadError,
-    laterMessages,
+    laterMessageFor,
     toggleSaveForLater,
   };
 }

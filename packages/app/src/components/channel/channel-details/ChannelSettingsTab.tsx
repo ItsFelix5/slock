@@ -1,11 +1,11 @@
 import { Button } from "@slock/ui";
 import { createMemo, createResource, createSignal, Show } from "solid-js";
+import { store } from "../../../lib/store";
 import {
   loadChannelManagerIds,
   updateChannelRetention,
   updateMemberPermissions,
-} from "../../../lib/channelDetails";
-import { store } from "../../../lib/store";
+} from "../lib/channelDetails";
 import "../../settings/Settings.css";
 import ChannelDangerZone from "./ChannelDangerZone";
 import "./ChannelDetails.css";

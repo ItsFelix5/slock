@@ -1,8 +1,8 @@
 import { Avatar, Button, Icon, Switch, Tooltip } from "@slock/ui";
 import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
-import { loadChannelPostingPrefs, updateChannelPostingPrefs } from "../../../lib/channelDetails";
 import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
+import { loadChannelPostingPrefs, updateChannelPostingPrefs } from "../lib/channelDetails";
 
 export default function ChannelPostingPermissions(props: {
   channelId: string;

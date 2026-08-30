@@ -34,6 +34,9 @@ export function createActivityRowDisplay(deps: {
   const isPinging = createMemo(() => isPingingActivity(deps.latest()));
   const isStandaloneActivity = createMemo(() => !deps.latest().channelId);
   const hasKnownActor = createMemo(() => hasRealMessageAuthor(deps.latest()));
+  const hasAnyActor = createMemo(
+    () => hasKnownActor() || !!deps.latest().botId || !!deps.latest().botName,
+  );
   const showsActivityVerb = createMemo(
     () => deps.latest().kind === "other" || isStandaloneActivity(),
   );
@@ -54,7 +57,7 @@ export function createActivityRowDisplay(deps: {
 
   const reactedMessage = createMemo(() =>
     deps.latest().kind === "reaction"
-      ? store.messages.reactionMessages[`${deps.latest().channelId}:${deps.latest().ts}`]?.[0]
+      ? store.messages.reactionMessageFor(deps.latest().channelId, deps.latest().ts)
       : undefined,
   );
   const matchingReaction = createMemo(() =>
@@ -65,6 +68,7 @@ export function createActivityRowDisplay(deps: {
     avatarUrl,
     channelLabel,
     displayName,
+    hasAnyActor,
     hasKnownActor,
     interactorNames,
     isPinging,

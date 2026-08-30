@@ -15,6 +15,7 @@ import {
   emojiUseScore as calculateEmojiUseScore,
   frecencyScore as calculateFrecencyScore,
 } from "../../../frecency";
+import { undoStack } from "../../../undo";
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -101,6 +102,10 @@ export function createPreferencesSlice(deps: {
     const allMuted = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
     try {
       await setMutedChannels(allMuted);
+      undoStack.push({
+        label: next ? "mute channel" : "unmute channel",
+        undo: () => void toggleMuteChannel(channelId),
+      });
       return true;
     } catch (err) {
       console.error("Failed to set channel mute preference", err);

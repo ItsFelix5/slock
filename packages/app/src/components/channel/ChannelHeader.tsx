@@ -1,13 +1,13 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { Icon, IconButton, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
-import { openChannelDetails } from "../../lib/channelDetails";
 import { channelIconName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
 import { closeTile } from "../../lib/paneActions";
 import { usePaneView } from "../../lib/paneView";
 import { store } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
+import { openChannelDetails } from "./lib/channelDetails";
 import "./ChannelHeader.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
 import { createChannelHeaderState } from "./channelHeaderState";
@@ -49,7 +49,7 @@ export default function ChannelHeader() {
   };
   const canvases = () => {
     const channelId = activeChannelId();
-    return channelId ? (store.canvas.canvasesByChannel[channelId] ?? []) : [];
+    return channelId ? store.canvas.canvasesFor(channelId) : [];
   };
   let lastCanvasChannelId: string | undefined;
   createEffect(() => {

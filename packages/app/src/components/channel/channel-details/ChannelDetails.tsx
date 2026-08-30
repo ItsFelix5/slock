@@ -9,6 +9,10 @@ import {
   useEscapeClose,
 } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
+import { channelIconName } from "../../../lib/displayName";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
+import MrkdwnComposer from "../../composer/MrkdwnComposer";
 import {
   type ChannelDetailsTab,
   channelDetailsId,
@@ -18,11 +22,7 @@ import {
   renameChannelById,
   updateChannelPurpose,
   updateChannelTopic,
-} from "../../../lib/channelDetails";
-import { channelIconName } from "../../../lib/displayName";
-import { actionFeedback } from "../../../lib/feedback";
-import { store } from "../../../lib/store";
-import MrkdwnComposer from "../../composer/MrkdwnComposer";
+} from "../lib/channelDetails";
 import "./ChannelDetails.css";
 import ChannelMembersTab from "./ChannelMembersTab";
 import ChannelSettingsTab from "./ChannelSettingsTab";
@@ -111,7 +111,12 @@ export default function ChannelDetails() {
     const id = channelDetailsId();
     const v = nameInput().trim().replace(LEADING_HASH_RE, "");
     const previous = details()?.name;
-    if (!(id && v) || previous === undefined || v === previous || savingName()) return;
+    if (!id || previous === undefined || v === previous || savingName()) return;
+    if (!v) {
+      setNameInput(previous);
+      actionFeedback.flash(id, "Channel name can't be empty.", "error");
+      return;
+    }
     await saveEditableField({
       next: v,
       persist: (next) => renameChannelById(id, next),

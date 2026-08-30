@@ -1,9 +1,9 @@
 import { confirmDialog, debugMode, MenuItem, showDebugInfo } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { openChannelDetails } from "../../lib/channelDetails";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import ChannelMoveMenu from "./ChannelMoveMenu";
+import { openChannelDetails } from "./lib/channelDetails";
 
 export interface ChannelActionsMenuItemsProps {
   channelId: string;

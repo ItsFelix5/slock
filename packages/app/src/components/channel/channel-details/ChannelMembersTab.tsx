@@ -10,16 +10,16 @@ import {
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import type { ChannelMembersPage, User } from "../../../lib/api";
+import { actionFeedback } from "../../../lib/feedback";
+import { store } from "../../../lib/store";
+import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import {
   inviteUsersToChannel,
   loadChannelManagerIds,
   loadChannelMembers,
   type MemberFilter,
   removeUserFromChannel,
-} from "../../../lib/channelDetails";
-import { actionFeedback } from "../../../lib/feedback";
-import { store } from "../../../lib/store";
-import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
+} from "../lib/channelDetails";
 import "./ChannelDetails.css";
 import { createKeyedPageLoader } from "./keyedPageLoader";
 

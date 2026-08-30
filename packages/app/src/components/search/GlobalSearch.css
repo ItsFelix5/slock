@@ -11,6 +11,16 @@
   border-bottom: 1px solid var(--border);
 }
 
+.global-search-share-banner {
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--accent-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
 .global-search-input {
   flex: 1;
   font-size: 15px;
