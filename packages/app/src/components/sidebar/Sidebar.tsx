@@ -3,7 +3,6 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../lib/channelSectionMutations";
 import { actionFeedback } from "../../lib/feedback";
 import { consumeShareTarget, pendingShareText } from "../../lib/incomingLinks";
-import { createLocalPref } from "../../lib/localPref";
 import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { store } from "../../lib/store";
 import "./Sidebar.css";
@@ -18,7 +17,6 @@ const FEED_DEFAULT_WIDTH = 420;
 const FEED_MIN_WIDTH = 340;
 const FEED_MAX_WIDTH = 640;
 const SLACK_USER_ID = "USLACK";
-const [sidebarVisible, setSidebarVisible] = createLocalPref("sidebarVisible", true);
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
@@ -62,14 +60,6 @@ export default function Sidebar() {
     scope: "general",
   });
   useSidebarChannelCycle();
-  useShortcut({
-    allowInInputs: true,
-    handler: () => setSidebarVisible(!sidebarVisible()),
-    keys: "Ctrl/⌘ Shift S",
-    label: "Show or hide the sidebar",
-    match: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s",
-    scope: "general",
-  });
   useShortcut({
     enabled: () => !unreadsOnly(),
     handler: () => {
@@ -288,10 +278,8 @@ export default function Sidebar() {
     setChannelSectionSidebar: store.channels.setChannelSectionSidebar,
     setSettingsOpen,
     settingsOpen,
-    setSidebarVisible,
     setUnreadsOnly,
     setWidth,
-    sidebarVisible,
     startRename,
     toggleCategory,
     isChannelUnread: store.unread.isChannelUnread,

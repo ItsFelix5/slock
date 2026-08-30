@@ -15,14 +15,19 @@
 }
 
 .thread-panel-title {
+  flex-shrink: 0;
   font-size: var(--font-size-heading-xs);
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .thread-panel-subtitle {
+  overflow: hidden;
+  min-width: 0;
   font-size: var(--font-size-meta);
   color: var(--text-dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 

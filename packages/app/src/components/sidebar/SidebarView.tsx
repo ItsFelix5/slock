@@ -1,5 +1,5 @@
 import { EmojiText } from "@slock/blockkit";
-import { Button, Icon, IconButton, InlineFeedback, ResizeHandle } from "@slock/ui";
+import { Button, Icon, InlineFeedback, ResizeHandle } from "@slock/ui";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
 import MessageSearchView from "../search/MessageSearchView";
@@ -30,8 +30,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
     setSearchOpen,
     settingsOpen,
     setSettingsOpen,
-    sidebarVisible,
-    setSidebarVisible,
     nav,
     setNavView,
     unreadsOnly,
@@ -78,258 +76,242 @@ export default function SidebarView(props: { context: SidebarContext }) {
   } = props.context;
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement>();
   return (
-    <Show
-      fallback={
-        <div class="sidebar-rail flex-col" data-pane="sidebar-rail">
-          <IconButton
-            icon="sidebar-left"
-            label="Show sidebar (Ctrl+Shift+S)"
-            onClick={() => setSidebarVisible(true)}
-          />
-        </div>
-      }
-      when={sidebarVisible()}
+    <div
+      class="sidebar flex-col"
+      classList={{ feed: feedMode() }}
+      data-pane="sidebar"
+      style={{ width: `${feedMode() ? feedWidth() : width()}px` }}
     >
-      <div
-        class="sidebar flex-col"
-        classList={{ feed: feedMode() }}
-        data-pane="sidebar"
-        style={{ width: `${feedMode() ? feedWidth() : width()}px` }}
-      >
-        <ResizeHandle
-          direction={1}
-          label="Resize sidebar"
-          max={feedMode() ? feedMaxWidth : maxWidth}
-          min={feedMode() ? feedMinWidth : minWidth}
-          setWidth={feedMode() ? setFeedWidth : setWidth}
-          side="right"
-          width={feedMode() ? feedWidth : width}
-        />
-        <SidebarToolbar
-          {...{
-            currentUser,
-            openUserProfile,
-            searchOpen,
-            setSearchOpen,
-            setSettingsOpen,
-            settingsOpen,
-            setSidebarVisible,
+      <ResizeHandle
+        direction={1}
+        label="Resize sidebar"
+        max={feedMode() ? feedMaxWidth : maxWidth}
+        min={feedMode() ? feedMinWidth : minWidth}
+        setWidth={feedMode() ? setFeedWidth : setWidth}
+        side="right"
+        width={feedMode() ? feedWidth : width}
+      />
+      <SidebarToolbar
+        {...{
+          currentUser,
+          openUserProfile,
+          searchOpen,
+          setSearchOpen,
+          setSettingsOpen,
+          settingsOpen,
+        }}
+      />
+      <div class="sidebar-nav flex-align-center">
+        <button
+          class="sidebar-nav-btn btn-reset flex-center"
+          classList={{
+            active: nav() === "home",
           }}
-        />
-        <div class="sidebar-nav flex-align-center">
-          <button
-            class="sidebar-nav-btn btn-reset flex-center"
-            classList={{
-              active: nav() === "home",
-            }}
-            onClick={() => {
-              if (nav() === "home") setUnreadsOnly(!unreadsOnly());
-              else setNavView("home");
-            }}
-            type="button"
-          >
-            <Icon name="home" size={16} />
-          </button>
-          <button
-            class="sidebar-nav-btn btn-reset flex-center"
-            classList={{
-              active: nav() === "activity",
-            }}
-            onClick={() => setNavView("activity")}
-            type="button"
-          >
-            <Show fallback={<Icon name="notifications" size={16} />} when={recentReactionEmoji()}>
-              {(name) => (
-                <span class="sidebar-nav-reaction-emoji">
-                  <EmojiText text={`:${name()}:`} />
-                </span>
-              )}
-            </Show>
-            <Show when={hasUnreadActivity()}>
-              <span class="sidebar-ping-dot" classList={{ "has-count": unreadPingCount() > 0 }}>
-                <Show when={unreadPingCount() > 0}>{unreadPingCount()}</Show>
-              </span>
-            </Show>
-          </button>
-          <button
-            class="sidebar-nav-btn btn-reset flex-center"
-            classList={{
-              active: nav() === "later",
-            }}
-            onClick={() => setNavView("later")}
-            type="button"
-          >
-            <Icon name="bookmark" size={16} />
-          </button>
-        </div>
-        <Show
-          fallback={
-            <Switch>
-              <Match when={nav() === "activity"}>
-                <ActivityView />
-              </Match>
-              <Match when={nav() === "later"}>
-                <LaterView />
-              </Match>
-              <Match when={nav() === "search"}>
-                <MessageSearchView />
-              </Match>
-            </Switch>
-          }
-          when={!feedMode()}
+          onClick={() => {
+            if (nav() === "home") setUnreadsOnly(!unreadsOnly());
+            else setNavView("home");
+          }}
+          type="button"
         >
-          <div class="sidebar-scroll" ref={setScrollEl}>
-            <Show
-              fallback={<SidebarSkeleton />}
-              when={!(bootstrap.loading || sectionsLoading() || preferencesLoading())}
-            >
-              <Show when={preferencesError()}>
-                <div class="sidebar-resource-error">
-                  <span>Couldn't load preferences.</span>
-                  <Button
-                    disabled={preferencesLoading()}
-                    onClick={() => void retryPreferences()}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    {preferencesLoading() ? "Retrying…" : "Try again"}
-                  </Button>
-                </div>
-              </Show>
-              <Show when={sectionsError()}>
-                <div class="sidebar-resource-error">
-                  <span>Couldn't load custom sections.</span>
-                  <Button
-                    disabled={sectionsLoading()}
-                    onClick={() => void retrySections()}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    {sectionsLoading() ? "Retrying…" : "Try again"}
-                  </Button>
-                </div>
-              </Show>
-              <SidebarUnreadDmSection {...{ setUnreadDmsOpen, unreadDms, unreadDmsOpen }} />
-              <div
-                class="sidebar-section-list"
-                onDragLeave={handleSectionsDragLeave}
-                onDragOver={handleSectionsDragOver}
-                onDrop={handleSectionDrop}
-                ref={setSectionListRef}
-              >
-                <For each={categories()}>
-                  {(cat) => (
-                    <div
-                      class="sidebar-section"
-                      classList={{
-                        "sidebar-section-dragging":
-                          cat.reorderable && draggingSectionId() === cat.id,
-                        "sidebar-section-drop-after":
-                          cat.reorderable &&
-                          dropTarget()?.id === cat.id &&
-                          dropTarget()?.before === false,
-                        "sidebar-section-drop-before":
-                          cat.reorderable &&
-                          dropTarget()?.id === cat.id &&
-                          dropTarget()?.before === true,
-                      }}
-                      data-reorderable={cat.reorderable ? "true" : undefined}
-                      data-section-id={cat.id}
-                    >
-                      <div
-                        class="sidebar-section-header flex-align-center"
-                        classList={{
-                          "sidebar-section-header-draggable":
-                            cat.reorderable && !sectionStructurePending(),
-                        }}
-                        draggable={
-                          cat.reorderable && renamingId() !== cat.id && !sectionStructurePending()
-                        }
-                        onDragEnd={handleSectionDragEnd}
-                        onDragStart={(e) => cat.reorderable && handleSectionDragStart(e, cat.id)}
-                      >
-                        <Show
-                          fallback={
-                            <input
-                              aria-busy={sectionStructurePending()}
-                              autofocus
-                              class="sidebar-section-rename-input"
-                              onBlur={() => void commitRename()}
-                              onInput={(e) => setRenameValue(e.currentTarget.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") void commitRename();
-                                if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  setRenamingId(null);
-                                }
-                              }}
-                              readOnly={sectionStructurePending()}
-                              value={renameValue()}
-                            />
-                          }
-                          when={renamingId() !== cat.id}
-                        >
-                          <SidebarSectionCaretRow
-                            caretIcon={
-                              collapsed().has(cat.id)
-                                ? "caret-right-filled"
-                                : cat.sidebar === "hid"
-                                  ? "section"
-                                  : "caret-down-filled"
-                            }
-                            label={cat.name}
-                            labelAriaLabel={`Toggle read channels in ${cat.name}`}
-                            onLabelClick={() => toggleSectionFilter(cat.id)}
-                            onToggleOpen={() => toggleCategory(cat.id)}
-                            open={!collapsed().has(cat.id)}
-                          />
-                        </Show>
-                        <InlineFeedback
-                          class="sidebar-section-feedback"
-                          feedback={actionFeedback.get(cat.id)}
-                        />
-                        <Show when={cat.filterable && renamingId() !== cat.id}>
-                          <SidebarSectionMenu cat={cat} context={props.context} />
-                        </Show>
-                      </div>
-                      <div>
-                        <For each={cat.channels}>
-                          {(ch) => {
-                            const isActiveChannel = () => {
-                              const v = store.viewState.activeView();
-                              return (
-                                store.viewState.nav() === "home" &&
-                                v?.kind === "channel" &&
-                                v.id === ch.id
-                              );
-                            };
-                            return (
-                              <Show
-                                when={
-                                  !collapsed().has(cat.id) ||
-                                  isActiveChannel() ||
-                                  ((ch.mentions ?? 0) > 0 &&
-                                    !store.preferences.isChannelMuted(ch.id))
-                                }
-                              >
-                                <ChannelRow channel={ch} unread={isChannelUnread(ch.id)} />
-                              </Show>
-                            );
-                          }}
-                        </For>
-                      </div>
-                    </div>
-                  )}
-                </For>
-              </div>
-              <SidebarDmSections
-                {...{ appDms, appsOpen, dmsOpen, peopleDms, setAppsOpen, setDmsOpen, unreadsOnly }}
-              />
-            </Show>
-            <SidebarUnreadEdgeIndicator containerRef={scrollEl} />
-          </div>
-        </Show>
+          <Icon name="home" size={16} />
+        </button>
+        <button
+          class="sidebar-nav-btn btn-reset flex-center"
+          classList={{
+            active: nav() === "activity",
+          }}
+          onClick={() => setNavView("activity")}
+          type="button"
+        >
+          <Show fallback={<Icon name="notifications" size={16} />} when={recentReactionEmoji()}>
+            {(name) => (
+              <span class="sidebar-nav-reaction-emoji">
+                <EmojiText text={`:${name()}:`} />
+              </span>
+            )}
+          </Show>
+          <Show when={hasUnreadActivity()}>
+            <span class="sidebar-ping-dot" classList={{ "has-count": unreadPingCount() > 0 }}>
+              <Show when={unreadPingCount() > 0}>{unreadPingCount()}</Show>
+            </span>
+          </Show>
+        </button>
+        <button
+          class="sidebar-nav-btn btn-reset flex-center"
+          classList={{
+            active: nav() === "later",
+          }}
+          onClick={() => setNavView("later")}
+          type="button"
+        >
+          <Icon name="bookmark" size={16} />
+        </button>
       </div>
-    </Show>
+      <Show
+        fallback={
+          <Switch>
+            <Match when={nav() === "activity"}>
+              <ActivityView />
+            </Match>
+            <Match when={nav() === "later"}>
+              <LaterView />
+            </Match>
+            <Match when={nav() === "search"}>
+              <MessageSearchView />
+            </Match>
+          </Switch>
+        }
+        when={!feedMode()}
+      >
+        <div class="sidebar-scroll" ref={setScrollEl}>
+          <Show
+            fallback={<SidebarSkeleton />}
+            when={!(bootstrap.loading || sectionsLoading() || preferencesLoading())}
+          >
+            <Show when={preferencesError()}>
+              <div class="sidebar-resource-error">
+                <span>Couldn't load preferences.</span>
+                <Button
+                  disabled={preferencesLoading()}
+                  onClick={() => void retryPreferences()}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {preferencesLoading() ? "Retrying…" : "Try again"}
+                </Button>
+              </div>
+            </Show>
+            <Show when={sectionsError()}>
+              <div class="sidebar-resource-error">
+                <span>Couldn't load custom sections.</span>
+                <Button
+                  disabled={sectionsLoading()}
+                  onClick={() => void retrySections()}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {sectionsLoading() ? "Retrying…" : "Try again"}
+                </Button>
+              </div>
+            </Show>
+            <SidebarUnreadDmSection {...{ setUnreadDmsOpen, unreadDms, unreadDmsOpen }} />
+            <div
+              class="sidebar-section-list"
+              onDragLeave={handleSectionsDragLeave}
+              onDragOver={handleSectionsDragOver}
+              onDrop={handleSectionDrop}
+              ref={setSectionListRef}
+            >
+              <For each={categories()}>
+                {(cat) => (
+                  <div
+                    class="sidebar-section"
+                    classList={{
+                      "sidebar-section-dragging": cat.reorderable && draggingSectionId() === cat.id,
+                      "sidebar-section-drop-after":
+                        cat.reorderable &&
+                        dropTarget()?.id === cat.id &&
+                        dropTarget()?.before === false,
+                      "sidebar-section-drop-before":
+                        cat.reorderable &&
+                        dropTarget()?.id === cat.id &&
+                        dropTarget()?.before === true,
+                    }}
+                    data-reorderable={cat.reorderable ? "true" : undefined}
+                    data-section-id={cat.id}
+                  >
+                    <div
+                      class="sidebar-section-header flex-align-center"
+                      classList={{
+                        "sidebar-section-header-draggable":
+                          cat.reorderable && !sectionStructurePending(),
+                      }}
+                      draggable={
+                        cat.reorderable && renamingId() !== cat.id && !sectionStructurePending()
+                      }
+                      onDragEnd={handleSectionDragEnd}
+                      onDragStart={(e) => cat.reorderable && handleSectionDragStart(e, cat.id)}
+                    >
+                      <Show
+                        fallback={
+                          <input
+                            aria-busy={sectionStructurePending()}
+                            autofocus
+                            class="sidebar-section-rename-input"
+                            onBlur={() => void commitRename()}
+                            onInput={(e) => setRenameValue(e.currentTarget.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void commitRename();
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                setRenamingId(null);
+                              }
+                            }}
+                            readOnly={sectionStructurePending()}
+                            value={renameValue()}
+                          />
+                        }
+                        when={renamingId() !== cat.id}
+                      >
+                        <SidebarSectionCaretRow
+                          caretIcon={
+                            collapsed().has(cat.id)
+                              ? "caret-right-filled"
+                              : cat.sidebar === "hid"
+                                ? "section"
+                                : "caret-down-filled"
+                          }
+                          label={cat.name}
+                          labelAriaLabel={`Toggle read channels in ${cat.name}`}
+                          onLabelClick={() => toggleSectionFilter(cat.id)}
+                          onToggleOpen={() => toggleCategory(cat.id)}
+                          open={!collapsed().has(cat.id)}
+                        />
+                      </Show>
+                      <InlineFeedback
+                        class="sidebar-section-feedback"
+                        feedback={actionFeedback.get(cat.id)}
+                      />
+                      <Show when={cat.filterable && renamingId() !== cat.id}>
+                        <SidebarSectionMenu cat={cat} context={props.context} />
+                      </Show>
+                    </div>
+                    <div>
+                      <For each={cat.channels}>
+                        {(ch) => {
+                          const isActiveChannel = () => {
+                            const v = store.viewState.activeView();
+                            return (
+                              store.viewState.nav() === "home" &&
+                              v?.kind === "channel" &&
+                              v.id === ch.id
+                            );
+                          };
+                          return (
+                            <Show
+                              when={
+                                !collapsed().has(cat.id) ||
+                                isActiveChannel() ||
+                                ((ch.mentions ?? 0) > 0 && !store.preferences.isChannelMuted(ch.id))
+                              }
+                            >
+                              <ChannelRow channel={ch} unread={isChannelUnread(ch.id)} />
+                            </Show>
+                          );
+                        }}
+                      </For>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+            <SidebarDmSections
+              {...{ appDms, appsOpen, dmsOpen, peopleDms, setAppsOpen, setDmsOpen, unreadsOnly }}
+            />
+          </Show>
+          <SidebarUnreadEdgeIndicator containerRef={scrollEl} />
+        </div>
+      </Show>
+    </div>
   );
 }
