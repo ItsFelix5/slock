@@ -6,38 +6,41 @@ import {
   ColorField,
   copyableThemePalette,
   createCopyFeedback,
-  DEFAULT_FONT,
+  effectiveFont,
   FONT_PRESETS,
+  getColorFormula,
   getEffectiveColor,
+  Icon,
   IconButton,
   logDeletedMessages,
   resetThemeColor,
   Slider,
   Switch,
+  setFont,
   setLogDeletedMessages,
+  setShowUserStatuses,
   setThemeColors,
   setThemeShape,
-  THEME_COLOR_KEYS,
+  showUserStatuses,
+  THEME_ADVANCED_COLOR_KEYS,
+  THEME_BASE_COLOR_KEYS,
   THEME_COLOR_LABELS,
   THEME_PRESETS,
-  Tooltip,
   themeShape,
 } from "@slock/ui";
-import { createEffect, createSignal, For } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import "./Settings.css";
-
-const DENSITY_LABELS = ["Compact", "Default", "Spacious"];
-const ROUNDNESS_LABELS = ["Sharp", "Default", "Round"];
+import "./SettingsAppearanceTab.css";
 
 export default function SettingsAppearanceTab() {
-  const [fontDraft, setFontDraft] = createSignal(getEffectiveColor("font"));
+  const [fontDraft, setFontDraft] = createSignal(effectiveFont());
   const [copiedKey, copy] = createCopyFeedback();
   const [pasteResult, setPasteResult] = createSignal<"pasted" | "failed" | null>(null);
-  createEffect(() => setFontDraft(getEffectiveColor("font")));
+  const [advancedOpen, setAdvancedOpen] = createSignal(false);
+  createEffect(() => setFontDraft(effectiveFont()));
 
   function commitFont(value: string) {
-    const trimmed = value.trim();
-    setThemeColors({ font: trimmed || DEFAULT_FONT });
+    setFont(value.trim());
   }
 
   async function copyTheme() {
@@ -61,7 +64,7 @@ export default function SettingsAppearanceTab() {
         <div class="settings-row-label">Density</div>
         <Slider
           ariaLabel="Density"
-          labels={DENSITY_LABELS}
+          labels={["Compact", "Default", "Spacious"]}
           max={2}
           min={0}
           onChange={(value) => setThemeShape({ density: value })}
@@ -73,7 +76,7 @@ export default function SettingsAppearanceTab() {
         <div class="settings-row-label">Roundness</div>
         <Slider
           ariaLabel="Roundness"
-          labels={ROUNDNESS_LABELS}
+          labels={["Sharp", "Default", "Round"]}
           max={2}
           min={0}
           onChange={(value) => setThemeShape({ roundness: value })}
@@ -83,11 +86,12 @@ export default function SettingsAppearanceTab() {
 
       <div class="settings-row flex-between">
         <div class="settings-row-label">Log deleted messages</div>
-        <Switch
-          checked={logDeletedMessages()}
-          onChange={setLogDeletedMessages}
-          title="Log deleted messages"
-        />
+        <Switch checked={logDeletedMessages()} onChange={setLogDeletedMessages} />
+      </div>
+
+      <div class="settings-row flex-between">
+        <div class="settings-row-label">Show user statuses</div>
+        <Switch checked={showUserStatuses()} onChange={setShowUserStatuses} />
       </div>
 
       <div class="settings-section">
@@ -95,18 +99,20 @@ export default function SettingsAppearanceTab() {
         <div class="settings-preset-group">
           <For each={FONT_PRESETS}>
             {(preset) => (
-              <Tooltip content={preset.label}>
-                <button
-                  aria-label={preset.label}
-                  class="settings-preset-btn btn-reset flex-align-center"
-                  classList={{ active: activeFontPreset() === preset.id }}
-                  onClick={() => setThemeColors({ font: preset.value })}
-                  style={{ "font-family": preset.value }}
-                  type="button"
-                >
-                  {preset.label}
-                </button>
-              </Tooltip>
+              <label
+                class="settings-preset-btn flex-align-center"
+                style={{ "font-family": preset.value }}
+              >
+                <input
+                  checked={activeFontPreset() === preset.id}
+                  class="sr-input"
+                  name="font-preset"
+                  onChange={() => setFont(preset.value)}
+                  type="radio"
+                  value={preset.id}
+                />
+                {preset.label}
+              </label>
             )}
           </For>
         </div>
@@ -116,22 +122,11 @@ export default function SettingsAppearanceTab() {
             class="settings-status-input"
             onChange={(e) => commitFont(e.currentTarget.value)}
             onInput={(e) => setFontDraft(e.currentTarget.value)}
-            placeholder={DEFAULT_FONT}
             spellcheck={false}
             style={{ "font-family": fontDraft() }}
             type="text"
             value={fontDraft()}
           />
-          <Tooltip content="Reset to default">
-            <button
-              aria-label="Reset font to default"
-              class="settings-status-clear btn-reset"
-              onClick={() => resetThemeColor("font")}
-              type="button"
-            >
-              Reset
-            </button>
-          </Tooltip>
         </div>
       </div>
 
@@ -140,26 +135,30 @@ export default function SettingsAppearanceTab() {
         <div class="settings-preset-group">
           <For each={THEME_PRESETS}>
             {(preset) => (
-              <button
-                aria-label={preset.label}
-                class="settings-preset-btn settings-theme-preset-btn btn-reset flex-align-center"
-                classList={{ active: activePreset() === preset.id }}
-                onClick={() => applyPreset(preset)}
+              <label
+                class="settings-preset-btn settings-theme-preset-btn flex-align-center"
                 style={{
                   "--theme-preview-overlay": preset.colors.textPrimary,
                   background: preset.colors.mainBg,
                   "border-color": preset.colors.borderStrong ?? preset.colors.border,
                   color: preset.colors.textPrimary,
                 }}
-                type="button"
               >
+                <input
+                  checked={activePreset() === preset.id}
+                  class="sr-input"
+                  name="theme-preset"
+                  onChange={() => applyPreset(preset)}
+                  type="radio"
+                  value={preset.id}
+                />
                 <span
                   aria-hidden="true"
                   class="settings-theme-preset-dot"
                   style={{ background: preset.colors.accent }}
                 />
                 {preset.label}
-              </button>
+              </label>
             )}
           </For>
         </div>
@@ -184,9 +183,10 @@ export default function SettingsAppearanceTab() {
           </div>
         </div>
         <div class="settings-color-list">
-          <For each={THEME_COLOR_KEYS}>
+          <For each={THEME_BASE_COLOR_KEYS}>
             {(key) => (
               <ColorField
+                displayValue={getColorFormula(key)}
                 label={THEME_COLOR_LABELS[key]}
                 onChange={(v) => setThemeColors({ [key]: v })}
                 onReset={() => resetThemeColor(key)}
@@ -195,6 +195,31 @@ export default function SettingsAppearanceTab() {
             )}
           </For>
         </div>
+
+        <button
+          aria-expanded={advancedOpen()}
+          class="settings-advanced-toggle btn-reset flex-align-center"
+          onClick={() => setAdvancedOpen((open) => !open)}
+          type="button"
+        >
+          <Icon name={advancedOpen() ? "caret-down-filled" : "caret-right-filled"} size={12} />
+          Advanced
+        </button>
+        <Show when={advancedOpen()}>
+          <div class="settings-color-list">
+            <For each={THEME_ADVANCED_COLOR_KEYS}>
+              {(key) => (
+                <ColorField
+                  displayValue={getColorFormula(key)}
+                  label={THEME_COLOR_LABELS[key]}
+                  onChange={(v) => setThemeColors({ [key]: v })}
+                  onReset={() => resetThemeColor(key)}
+                  value={getEffectiveColor(key)}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
       </div>
     </>
   );

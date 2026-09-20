@@ -5,7 +5,11 @@ import type { Attachment, Message } from "../../../lib/api";
 import { parseSlackPermalink } from "../../../lib/navigation/slackPermalink";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
-import MessageLinkHoverCard from "./MessageLinkHoverCard";
+import MessageLinkHoverCard, {
+  attachmentToHoverPreview,
+  type HoverPreview,
+  messageToHoverPreview,
+} from "./MessageLinkHoverCard";
 import { resolveMessageAuthorAvatar } from "./messageRenderState";
 import "./ReplyReferenceRow.css";
 
@@ -19,6 +23,12 @@ export default function ReplyReferenceRow(props: {
   const snippet = (msg: Message) =>
     (parseReplyLink(msg.text)?.rest ?? msg.text).replace(/\n+/g, " ");
   const permalinkTarget = () => (props.permalink ? parseSlackPermalink(props.permalink) : null);
+  const knownPreview = (): HoverPreview | undefined => {
+    if (props.message) return messageToHoverPreview(props.message);
+    const { attachment } = props;
+    if (!attachment?.authorName) return;
+    return attachmentToHoverPreview(attachment);
+  };
   const contents = (
     <>
       <Icon name={props.icon ?? "email-reply"} size={13} />
@@ -40,6 +50,7 @@ export default function ReplyReferenceRow(props: {
                 </Show>
                 <span class="reply-reference-snippet">
                   <Mrkdwn
+                    inline
                     text={(attachment().text ?? attachment().title ?? "Original message").replace(
                       /\n+/g,
                       " ",
@@ -59,7 +70,7 @@ export default function ReplyReferenceRow(props: {
               <Avatar size="small" user={author()} />
               <span class="reply-reference-name">{author().name}</span>
               <span class="reply-reference-snippet">
-                <Mrkdwn text={snippet(msg())} />
+                <Mrkdwn inline text={snippet(msg())} />
               </span>
             </>
           );
@@ -84,6 +95,7 @@ export default function ReplyReferenceRow(props: {
       {(target) => (
         <MessageLinkHoverCard
           channelId={target().channelId}
+          knownPreview={knownPreview()}
           messageTs={target().messageTs}
           threadTs={target().threadTs}
         >

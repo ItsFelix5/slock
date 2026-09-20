@@ -4,8 +4,8 @@ import { trimMessage } from "../../trim/slackEntities.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 export const messageActionRoutes: Route[] = [
-  route("POST", "/api/messages/:channel/:ts/reactions", async (ctx) => {
-    const { name } = (await ctx.body.json()) as { name?: string };
+  route("POST", "messages/:channel/:ts/reactions", async (ctx) => {
+    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
     if (!name) return errorResponse("invalid_reaction", 400);
     return mutate(
       "reactions.add",
@@ -13,8 +13,8 @@ export const messageActionRoutes: Route[] = [
       ctx,
     );
   }),
-  route("DELETE", "/api/messages/:channel/:ts/reactions", async (ctx) => {
-    const { name } = (await ctx.body.json()) as { name?: string };
+  route("DELETE", "messages/:channel/:ts/reactions", async (ctx) => {
+    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
     if (!name) return errorResponse("invalid_reaction", 400);
     return mutate(
       "reactions.remove",
@@ -22,13 +22,13 @@ export const messageActionRoutes: Route[] = [
       ctx,
     );
   }),
-  route("POST", "/api/messages/:channel/:ts/pin", (ctx) =>
+  route("POST", "messages/:channel/:ts/pin", (ctx) =>
     mutate("pins.add", { channel: ctx.params.channel, timestamp: ctx.params.ts }, ctx),
   ),
-  route("DELETE", "/api/messages/:channel/:ts/pin", (ctx) =>
+  route("DELETE", "messages/:channel/:ts/pin", (ctx) =>
     mutate("pins.remove", { channel: ctx.params.channel, timestamp: ctx.params.ts }, ctx),
   ),
-  route("GET", "/api/channels/:id/pins", async (ctx) => {
+  route("GET", "channels/:id/pins", async (ctx) => {
     const data = await callSlack("pins.list", { channel: ctx.params.id }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "pins.list", ctx.creds, ctx.acceptEncoding);
     const items: any[] = Array.isArray(data.items) ? data.items : [];
@@ -44,27 +44,25 @@ export const messageActionRoutes: Route[] = [
       ctx.acceptEncoding,
     );
   }),
-  route("POST", "/api/channels/:id/star", (ctx) =>
-    mutate("stars.add", { channel: ctx.params.id }, ctx),
-  ),
-  route("DELETE", "/api/channels/:id/star", (ctx) =>
+  route("POST", "channels/:id/star", (ctx) => mutate("stars.add", { channel: ctx.params.id }, ctx)),
+  route("DELETE", "channels/:id/star", (ctx) =>
     mutate("stars.remove", { channel: ctx.params.id }, ctx),
   ),
-  route("POST", "/api/messages/:channel/:ts/save", (ctx) =>
+  route("POST", "messages/:channel/:ts/save", (ctx) =>
     mutate(
       "saved.add",
       { item_id: ctx.params.channel, item_type: "message", ts: ctx.params.ts },
       ctx,
     ),
   ),
-  route("DELETE", "/api/messages/:channel/:ts/save", (ctx) =>
+  route("DELETE", "messages/:channel/:ts/save", (ctx) =>
     mutate(
       "saved.delete",
       { item_id: ctx.params.channel, item_type: "message", ts: ctx.params.ts },
       ctx,
     ),
   ),
-  route("GET", "/api/saved", async (ctx) => {
+  route("GET", "saved", async (ctx) => {
     const data = await callSlack("saved.list", { limit: "40" }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "saved.list", ctx.creds, ctx.acceptEncoding);
 
@@ -78,14 +76,14 @@ export const messageActionRoutes: Route[] = [
       .filter((item) => !!item.channelId && !!item.ts);
     return jsonResponse({ items: normalized, ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
-  route("POST", "/api/reminders", async (ctx) => {
-    const requestBody = (await ctx.body.json()) as {
+  route("POST", "reminders", async (ctx) => {
+    const requestBody = await (ctx.body.json() as Promise<{
       text?: string;
       time?: string;
       channelId?: string;
       ts?: string;
       dateDue?: number;
-    };
+    }>);
 
     if (requestBody.channelId && requestBody.ts && requestBody.dateDue !== undefined) {
       return mutate(

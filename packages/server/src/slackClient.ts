@@ -1,12 +1,13 @@
-import { type Credentials, slackCookieHeader } from "./auth.ts";
-import { errorMessage } from "./http/errorMessage.ts";
+import { type Credentials } from "./auth.ts";
+import { errorMessage } from "./http/compressedResponse.ts";
 
 async function parseSlackResponse(res: Response): Promise<any> {
   const text = await res.text();
+  const retryAfter = res.headers.get("retry-after");
   try {
-    return JSON.parse(text);
+    const data = JSON.parse(text);
+    return retryAfter ? { ...data, retry_after: retryAfter } : data;
   } catch {
-    const retryAfter = res.headers.get("retry-after");
     return {
       error:
         text.trim().slice(0, 500) ||
@@ -17,14 +18,13 @@ async function parseSlackResponse(res: Response): Promise<any> {
   }
 }
 
-const SLACK_CALL_TIMEOUT_MS = 15_000;
-
 function slackRequestBody(
   method: string,
   params: Record<string, string>,
   token: string,
 ): { body: FormData | string; headers: Record<string, string> } {
   if (
+    method === "activity.archive" ||
     method === "activity.markRead" ||
     method === "conversations.view" ||
     method === "saved.get" ||
@@ -60,10 +60,10 @@ export async function callSlack(
       body,
       headers: {
         ...headers,
-        cookie: slackCookieHeader(creds),
+        cookie: `d=${creds.slackSession}`,
       },
       method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
+      signal: AbortSignal.timeout(15_000),
     });
     return await parseSlackResponse(res);
   } catch (error) {
@@ -90,7 +90,7 @@ export async function callSlackMultipart(
   try {
     const res = await fetch(url, {
       body,
-      headers: { cookie: slackCookieHeader(creds) },
+      headers: { cookie: `d=${creds.slackSession}` },
       method: "POST",
       signal: AbortSignal.timeout(60_000),
     });
@@ -116,10 +116,10 @@ export async function callSlackEdge(
       }),
       headers: {
         "content-type": "application/json",
-        cookie: slackCookieHeader(creds),
+        cookie: `d=${creds.slackSession}`,
       },
       method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
+      signal: AbortSignal.timeout(15_000),
     });
     return await parseSlackResponse(res);
   } catch (error) {
@@ -145,7 +145,7 @@ export async function callSlackBot(method: string, params: Record<string, string
         "content-type": "application/x-www-form-urlencoded",
       },
       method: "POST",
-      signal: AbortSignal.timeout(SLACK_CALL_TIMEOUT_MS),
+      signal: AbortSignal.timeout(15_000),
     });
     return await parseSlackResponse(res);
   } catch (error) {

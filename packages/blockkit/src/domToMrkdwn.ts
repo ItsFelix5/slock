@@ -1,5 +1,5 @@
 import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/types";
-import { DEFAULT_DATE_FORMAT, formatSlackDate } from "./dateFormat";
+import { formatSlackDate } from "./dateFormat";
 
 export interface InlineDialect {
   bold: string;
@@ -53,8 +53,8 @@ export function serializeNode(node: Node, dialect: InlineDialect): string {
   if (node.nodeType === Node.TEXT_NODE) {
     return (node.textContent ?? "").replace(ZERO_WIDTH_SPACE_RE, "").replace(NBSP_RE, " ");
   }
-  if (node.nodeType !== Node.ELEMENT_NODE) return "";
-  const el = node as HTMLElement;
+  if (!(node instanceof HTMLElement)) return "";
+  const el = node;
   if (el.dataset.mentionId) return `<@${el.dataset.mentionId}>`;
   if (el.dataset.userLinkId) {
     const domain = getCachedWorkspaceDomain();
@@ -66,7 +66,7 @@ export function serializeNode(node: Node, dialect: InlineDialect): string {
 
   if (el.dataset.dateTs) {
     const timestamp = Number(el.dataset.dateTs);
-    const format = el.dataset.dateFormat || DEFAULT_DATE_FORMAT;
+    const format = el.dataset.dateFormat || "{date_short_pretty} at {time}";
     const fallback = el.dataset.dateFallback || formatSlackDate(timestamp);
     return `<!date^${el.dataset.dateTs}^${format}|${fallback}>`;
   }

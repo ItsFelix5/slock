@@ -6,15 +6,7 @@ import {
   listNavigationIndex,
   Modal,
 } from "@slock/ui";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  createUniqueId,
-  onCleanup,
-  Show,
-  untrack,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, createUniqueId, Show, untrack } from "solid-js";
 import type { Channel, DirectMessage, SlackFile, User } from "../../lib/api";
 import { type GlobalSearchResults as SearchResults, searchGlobal } from "../../lib/api";
 import { dmDisplayName } from "../../lib/displayName";
@@ -22,6 +14,7 @@ import { clearPendingShare, pendingShareText } from "../../lib/incomingLinks";
 import { store } from "../../lib/store";
 import { cacheDraftLocally, persistDraft } from "../composer/lib/drafts";
 import "./GlobalSearch.css";
+import GlobalSearchInput from "./GlobalSearchInput";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
 type Candidate = { row: GlobalSearchRow; name: string; id: string };
@@ -51,14 +44,11 @@ export default function GlobalSearch(props: {
     },
     onResult: setRemoteResults,
   });
-  onCleanup(() => {
-    searchRequest.dispose();
-  });
-  const hasQuery = createMemo(() => !!query().trim());
+  const hasQuery = () => !!query().trim();
   const localChannelMatches = createMemo<Channel[]>(() => {
     const q = query().trim();
     if (!q) return [];
-    return fuzzySearch(store.resources.bootstrap()?.channels ?? [], {
+    return fuzzySearch(store.resources.bootstrap.data?.channels ?? [], {
       frequency: (c) => store.preferences.frecencyScore(c.id),
       query: q,
       text: (c) => c.name,
@@ -230,6 +220,11 @@ export default function GlobalSearch(props: {
     const next = listNavigationIndex(key, activeIndex(), items().length);
     if (next !== undefined) setActiveIndex(next);
   };
+  const submitActiveRow = () => {
+    const index = activeIndex();
+    if (index === null) goToMessageSearch();
+    else activateItem(index);
+  };
   return (
     <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
       <Show when={pendingShareText()}>
@@ -240,33 +235,13 @@ export default function GlobalSearch(props: {
           </div>
         )}
       </Show>
-      <div class="global-search-input-row flex-align-center">
-        <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
-        <input
-          autofocus
-          autocomplete="off"
-          class="global-search-input input-reset"
-          onInput={(e) => searchDirectories(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-              e.preventDefault();
-              moveActive(e.key);
-            } else if ((e.key === "Home" || e.key === "End") && hasQuery()) {
-              e.preventDefault();
-              moveActive(e.key);
-            } else if (e.key === "Enter" && hasQuery()) {
-              e.preventDefault();
-              const index = activeIndex();
-              if (index === null) goToMessageSearch();
-              else activateItem(index);
-            }
-          }}
-          placeholder="Search channels, people, conversations…"
-          spellcheck={false}
-          type="text"
-          value={query()}
-        />
-      </div>
+      <GlobalSearchInput
+        hasQuery={hasQuery}
+        onNavigateRows={moveActive}
+        onQuery={searchDirectories}
+        onSubmitRow={submitActiveRow}
+        query={query}
+      />
       <GlobalSearchResults
         activeIndex={activeIndex()}
         hasQuery={hasQuery()}

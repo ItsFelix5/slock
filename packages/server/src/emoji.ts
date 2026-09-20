@@ -4,7 +4,7 @@ import { compressedResponse } from "./http/compressedResponse.ts";
 const EMOJI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const EMOJI_LIST_HEADERS = {
   "cache-control": "private, max-age=86400",
-  "content-type": "text/plain; charset=utf-8",
+  "content-type": "application/json; charset=utf-8",
   vary: "Cookie",
 };
 
@@ -17,6 +17,7 @@ type SlackFetcher = (
 type EmojiCacheData = {
   names: string[];
   urls: Record<string, string>;
+  aliasesToBuiltinNames: Record<string, string>;
 };
 type EmojiCacheEntry = {
   data?: EmojiCacheData;
@@ -30,35 +31,48 @@ function emojiCacheKey(creds: Credentials): string {
   return `${creds.domain}|${creds.route}`;
 }
 
-function resolveEmojiUrl(raw: Record<string, string>, name: string): string | null {
-  let value = raw[name];
+export function invalidateEmojiCache(creds: Credentials): void {
+  emojiCache.delete(emojiCacheKey(creds));
+}
+
+function resolveEmojiChain(
+  raw: Record<string, string>,
+  name: string,
+): { url: string | null; endName: string } {
+  let endName = name;
+  let value = raw[endName];
   const seen = new Set<string>();
   while (typeof value === "string" && value.startsWith("alias:")) {
-    const alias = value.slice("alias:".length);
-    if (seen.has(alias)) return null;
-    seen.add(alias);
-    value = raw[alias];
+    endName = value.slice("alias:".length);
+    if (seen.has(endName)) return { endName, url: null };
+    seen.add(endName);
+    value = raw[endName];
   }
-  return typeof value === "string" && value.startsWith("http") ? value : null;
+  const url = typeof value === "string" && value.startsWith("http") ? value : null;
+  return { endName, url };
 }
 
 function normalizeEmojiList(raw: Record<string, string>): EmojiCacheData {
   const names: string[] = [];
   const urls: Record<string, string> = {};
+  const aliasesToBuiltinNames: Record<string, string> = {};
   for (const name of Object.keys(raw)) {
-    const url = resolveEmojiUrl(raw, name);
-    if (!url) continue;
-    names.push(name);
-    urls[name] = url;
+    const { url, endName } = resolveEmojiChain(raw, name);
+    if (url) {
+      names.push(name);
+      urls[name] = url;
+    } else if (endName !== name) {
+      aliasesToBuiltinNames[name] = endName;
+    }
   }
-  return { names, urls };
+  return { aliasesToBuiltinNames, names, urls };
 }
 
 function loadEmojiData(
   creds: Credentials | null,
   callSlack: SlackFetcher,
 ): Promise<EmojiCacheData> {
-  if (!creds) return Promise.resolve({ names: [], urls: {} });
+  if (!creds) return Promise.resolve({ aliasesToBuiltinNames: {}, names: [], urls: {} });
   const key = emojiCacheKey(creds);
   const now = Date.now();
   const cached = emojiCache.get(key);
@@ -85,7 +99,11 @@ export async function emojiListResponse(
   acceptEncoding: string | null,
 ): Promise<Response> {
   const data = await loadEmojiData(creds, callSlack);
-  return compressedResponse(data.names.join("\n"), EMOJI_LIST_HEADERS, acceptEncoding);
+  const body = JSON.stringify({
+    aliasesToBuiltinNames: data.aliasesToBuiltinNames,
+    names: data.names,
+  });
+  return compressedResponse(body, EMOJI_LIST_HEADERS, acceptEncoding);
 }
 
 export async function emojiImageUrl(

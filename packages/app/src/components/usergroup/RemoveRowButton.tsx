@@ -1,4 +1,4 @@
-import { Icon, Tooltip } from "@slock/ui";
+import { IconButton } from "@slock/ui";
 
 export interface RemoveRowButtonProps {
   disabled?: boolean;
@@ -8,16 +8,13 @@ export interface RemoveRowButtonProps {
 
 export default function RemoveRowButton(props: RemoveRowButtonProps) {
   return (
-    <Tooltip content={props.label}>
-      <button
-        aria-label={props.label}
-        class="usergroup-details-row-remove btn-reset flex-center"
-        disabled={props.disabled}
-        onClick={props.onClick}
-        type="button"
-      >
-        <Icon name="close-filled" size={14} />
-      </button>
-    </Tooltip>
+    <IconButton
+      class="usergroup-details-row-remove"
+      disabled={props.disabled}
+      icon="close-filled"
+      iconSize={14}
+      label={props.label}
+      onClick={props.onClick}
+    />
   );
 }

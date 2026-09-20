@@ -12,8 +12,34 @@ function threadTsFromMatch(match: { permalink?: string; thread_ts?: string }): s
   } catch {}
 }
 
+const HIGHLIGHT_MARKER = /[-]/;
+
+function extractHighlights(raw: string): { highlights: string[]; text: string } {
+  const parts = raw.split(HIGHLIGHT_MARKER);
+  if (parts.length === 1) return { highlights: [], text: raw };
+  const highlights = new Set<string>();
+  const [first, ...rest] = parts;
+  let text = first;
+  for (const [i, part] of rest.entries()) {
+    if (i % 2 === 0) highlights.add(part);
+    text += part;
+  }
+  return { highlights: [...highlights], text };
+}
+
+function botIconFromMatch(match: any): string | undefined {
+  return (
+    match.icons?.image_72 ??
+    match.icons?.image_48 ??
+    match.icons?.image_36 ??
+    match.bot_profile?.icons?.image_72 ??
+    match.bot_profile?.icons?.image_48 ??
+    match.bot_profile?.icons?.image_36
+  );
+}
+
 export const searchRoutes: Route[] = [
-  route("GET", "/api/search", async (ctx) => {
+  route("GET", "search", async (ctx) => {
     let query = (ctx.searchParams.get("query") ?? "").trim();
     if (!query)
       return jsonResponse(
@@ -33,8 +59,19 @@ export const searchRoutes: Route[] = [
 
     const [peopleData, channelsData, filesData] = await Promise.all([
       scope === "channels" || scope === "files"
-        ? Promise.resolve({ items: [], ok: true })
-        : callSlack("search.modules.people", { count: "30", module: "people", query }, ctx.creds),
+        ? Promise.resolve({ ok: true, results: [] })
+        : callSlackEdge(
+            "users/search",
+            {
+              count: 30,
+              default_workspace: ctx.creds ? teamIdFromRoute(ctx.creds.route) : undefined,
+              enable_workspace_ranking: true,
+              fuzz: 1,
+              include_profile_only_users: true,
+              query,
+            },
+            ctx.creds,
+          ),
       scope === "files" || scope === "users"
         ? Promise.resolve({ results: [] })
         : callSlackEdge(
@@ -77,7 +114,7 @@ export const searchRoutes: Route[] = [
           ),
     ]);
     if (!peopleData.ok)
-      return slackErrorResponse(peopleData, "search.modules.people", ctx.creds, ctx.acceptEncoding);
+      return slackErrorResponse(peopleData, "users.search", ctx.creds, ctx.acceptEncoding);
     if (!Array.isArray(channelsData.results))
       return slackErrorResponse(
         channelsData,
@@ -92,65 +129,79 @@ export const searchRoutes: Route[] = [
         channels: channelsData.results.map(trimChannel),
         files: (Array.isArray(filesData.items) ? filesData.items : []).map(trimFile),
         ok: true,
-        users: (Array.isArray(peopleData.items) ? peopleData.items : []).map(trimUser),
+        users: (Array.isArray(peopleData.results) ? peopleData.results : []).map(trimUser),
       },
       ctx.creds,
       ctx.acceptEncoding,
     );
   }),
 
-  route("GET", "/api/search/messages", async (ctx) => {
+  route("GET", "search/messages", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ ok: true, results: [] }, ctx.creds, ctx.acceptEncoding);
     const sort = ctx.searchParams.get("sort") === "score" ? "score" : "timestamp";
     const sortDir = ctx.searchParams.get("sortDir") === "asc" ? "asc" : "desc";
     const data = await callSlack(
-      "search.messages",
-      { count: "40", query, sort, sort_dir: sortDir },
+      "search.modules.messages",
+      {
+        count: "40",
+        extra_message_data: "1",
+        module: "messages",
+        no_user_profile: "1",
+        page: "1",
+        query,
+        query_rewrite_disabled: "false",
+        search_context: "desktop_messages_tab",
+        search_exclude_bots: "false",
+        search_only_my_channels: "false",
+        sort,
+        sort_dir: sortDir,
+      },
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "search.messages", ctx.creds, ctx.acceptEncoding);
+      return slackErrorResponse(data, "search.modules.messages", ctx.creds, ctx.acceptEncoding);
     }
-    const matches: any[] = data.messages?.matches ?? [];
+    const groups: any[] = Array.isArray(data.items) ? data.items : [];
+    const matches = groups.flatMap((group) =>
+      (Array.isArray(group?.messages) ? group.messages : []).map((message: any) => ({
+        ...message,
+        channel: group.channel,
+      })),
+    );
     return jsonResponse(
       {
         ok: true,
         results: matches
           .filter((match) => !!(match?.channel?.id && match.ts))
-          .map((match) => ({
-            channelId: match.channel.id,
-            channelName: match.channel.name ?? match.channel.id,
-            text: match.text ?? "",
-            threadTs: threadTsFromMatch(match),
-            ts: match.ts,
-            userId: match.user ?? "",
-          })),
+          .map((match) => {
+            const { highlights, text } = extractHighlights(match.text ?? "");
+            return {
+              botIcon: botIconFromMatch(match),
+              botId: match.bot_id,
+              botName: match.username ?? match.bot_profile?.name,
+              channelId: match.channel.id,
+              channelName: match.channel.name ?? match.channel.id,
+              highlights,
+              text,
+              threadTs: threadTsFromMatch(match),
+              ts: match.ts,
+              userId: match.user ?? match.bot_id ?? "",
+            };
+          }),
       },
       ctx.creds,
       ctx.acceptEncoding,
     );
   }),
 
-  route("POST", "/api/search/save", async (ctx) => {
-    const { query } = (await ctx.body.json()) as { query?: string };
+  route("POST", "search/save", async (ctx) => {
+    const { query } = await (ctx.body.json() as Promise<{ query?: string }>);
     if (query?.trim()) {
       try {
         await callSlack("search.save", { module: "messages", query: query.trim() }, ctx.creds);
       } catch {}
     }
     return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
-  }),
-
-  route("GET", "/api/search/autocomplete", async (ctx) => {
-    const query = ctx.searchParams.get("query")?.trim();
-    if (!query) return jsonResponse({ ok: true, suggestions: [] }, ctx.creds, ctx.acceptEncoding);
-    const data = await callSlack("search.autocomplete", { query }, ctx.creds);
-    if (!data.ok) return jsonResponse({ ok: true, suggestions: [] }, ctx.creds, ctx.acceptEncoding);
-    return jsonResponse(
-      { ok: true, suggestions: data.suggestions?.text ?? [] },
-      ctx.creds,
-      ctx.acceptEncoding,
-    );
   }),
 ];

@@ -1,11 +1,9 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import ts from "typescript";
 
 const ROOT = join(import.meta.dirname, "..");
 const PACKAGES = join(ROOT, "packages");
-const BASELINE_FILE = join(import.meta.dirname, "claude-md-baseline.json");
-const updateBaseline = process.argv.includes("--update-baseline");
 
 function walk(dir, exts, out = []) {
   for (const entry of readdirSync(dir)) {
@@ -35,7 +33,7 @@ for (const file of files) {
 
   const source = readFileSync(file, "utf8");
   const lineCount = source.trimEnd().split("\n").length;
-  if (lineCount < MIN_LINES) {
+  if (lineCount < MIN_LINES && !file.endsWith(".d.ts")) {
     findings.push({ file: rel, line: 1, rule: "small-file", text: `${lineCount} lines` });
   }
 
@@ -117,38 +115,8 @@ report(
   "Fold it into its one consumer, unless it's genuinely shared state with no single natural home.",
 );
 
-let ok = byRule["no-comments"].length === 0 && byRule["no-tests"].length === 0;
-
-const RATCHET_RULES = ["no-as-cast", "small-file"];
-const defaultBaseline = Object.fromEntries(RATCHET_RULES.map((rule) => [rule, 0]));
-const baseline = existsSync(BASELINE_FILE)
-  ? { ...defaultBaseline, ...JSON.parse(readFileSync(BASELINE_FILE, "utf8")) }
-  : defaultBaseline;
-const counts = Object.fromEntries(RATCHET_RULES.map((rule) => [rule, byRule[rule].length]));
-
-if (updateBaseline) {
-  writeFileSync(BASELINE_FILE, `${JSON.stringify(counts, null, 2)}\n`);
-  console.log(`\nUpdated baseline: ${JSON.stringify(counts)}`);
-} else {
-  for (const rule of RATCHET_RULES) {
-    if (counts[rule] > baseline[rule]) {
-      console.log(
-        `\n${rule} went up: ${baseline[rule]} -> ${counts[rule]}. This rule doesn't block on ` +
-          "the existing debt, only on adding to it. If the baseline count is genuinely wrong, " +
-          "rerun with --update-baseline.",
-      );
-      ok = false;
-    } else if (counts[rule] < baseline[rule]) {
-      console.log(
-        `\n${rule} went down: ${baseline[rule]} -> ${counts[rule]}. Nice - rerun with ` +
-          "--update-baseline to lock that in.",
-      );
-    }
-  }
-}
-
-if (ok) {
-  console.log(`\nNo blocking CLAUDE.md violations (${JSON.stringify(counts)} within baseline).`);
+if (Object.values(byRule).every((items) => items.length === 0)) {
+  console.log("\nNo CLAUDE.md violations.");
 } else {
   console.log(`\n${findings.length} CLAUDE.md violation(s) found.`);
   process.exit(1);

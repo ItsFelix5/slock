@@ -1,4 +1,6 @@
 .inline-feedback {
+  display: inline-block;
+  max-width: 100%;
   font-size: 12px;
   animation: inline-feedback-in 0.15s ease-out;
 }
@@ -9,6 +11,11 @@
 
 .inline-feedback-error {
   color: var(--danger);
+}
+
+.inline-feedback-icon {
+  display: inline-flex;
+  align-items: center;
 }
 
 @keyframes inline-feedback-in {

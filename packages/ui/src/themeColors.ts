@@ -1,11 +1,22 @@
 import { createSignal } from "solid-js";
+import { cssColorToOklch, formatOklch, resolvedCssColor } from "./form/oklchColor";
 import type { ThemeColors, ThemePreset } from "./themeColorDefinitions";
-import { THEME_COLOR_VARS } from "./themeColorDefinitions";
-import { dependentThemeColorKeys, withDerivedThemeColors } from "./themeDerivations";
+import { isThemeColorKey, THEME_COLOR_KEYS, THEME_COLOR_VARS } from "./themeColorDefinitions";
+import {
+  DERIVED_COLOR_REFS,
+  isColorRef,
+  isDerivedColorKey,
+  resolveThemeColorValue,
+} from "./themeDerivations";
 import { THEME_PRESETS as PRESETS } from "./themePresets";
 
 export type { ThemeColors, ThemePreset } from "./themeColorDefinitions";
-export { THEME_COLOR_LABELS } from "./themeColorDefinitions";
+export {
+  THEME_ADVANCED_COLOR_KEYS,
+  THEME_BASE_COLOR_KEYS,
+  THEME_COLOR_KEYS,
+  THEME_COLOR_LABELS,
+} from "./themeColorDefinitions";
 export { colorScheme, themeColors };
 
 const THEME_COLORS_KEY = "slock-theme-colors";
@@ -15,10 +26,12 @@ const THEME_COLOR_SCHEME_KEY = "slock-theme-color-scheme";
 function loadThemeColors(): ThemeColors {
   try {
     const presetId = localStorage.getItem(THEME_PRESET_KEY) ?? undefined;
-    const preset = PRESETS.find((candidate) => candidate.id === presetId);
+    const preset =
+      PRESETS.find((candidate) => candidate.id === presetId) ??
+      PRESETS.find((candidate) => candidate.id === "dark");
     const raw = localStorage.getItem(THEME_COLORS_KEY);
     const overrides = raw ? JSON.parse(raw) : {};
-    return preset ? { ...preset.colors, ...overrides } : overrides;
+    return { ...preset?.colors, ...overrides };
   } catch {
     return {};
   }
@@ -42,10 +55,14 @@ function applyThemeColorScheme(scheme: "dark" | "light", persist: boolean) {
 }
 
 function applyThemeColors(colors: ThemeColors) {
-  for (const key of Object.keys(colors) as (keyof ThemeColors)[]) {
+  for (const key of Object.keys(colors)) {
+    if (!isThemeColorKey(key)) continue;
     const value = colors[key];
     if (value !== undefined)
-      document.documentElement.style.setProperty(THEME_COLOR_VARS[key], value);
+      document.documentElement.style.setProperty(
+        THEME_COLOR_VARS[key],
+        resolveThemeColorValue(value),
+      );
   }
 }
 
@@ -54,10 +71,9 @@ applyThemeColors(themeColors());
 applyThemeColorScheme(loadThemeColorScheme(), false);
 
 export function setThemeColors(overrides: ThemeColors): void {
-  const expanded = withDerivedThemeColors(overrides);
-  const merged = { ...themeColors(), ...expanded };
+  const merged = { ...themeColors(), ...overrides };
   setThemeColorsSignal(merged);
-  applyThemeColors(expanded);
+  applyThemeColors(overrides);
   localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(merged));
 }
 
@@ -66,17 +82,20 @@ export function replaceThemeColors(colors: ThemeColors, scheme: "dark" | "light"
     document.documentElement.style.removeProperty(cssVar);
   }
   localStorage.removeItem(THEME_PRESET_KEY);
-  const expanded = withDerivedThemeColors(colors);
-  setThemeColorsSignal(expanded);
-  applyThemeColors(expanded);
-  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(expanded));
+  setThemeColorsSignal(colors);
+  applyThemeColors(colors);
+  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(colors));
   applyThemeColorScheme(scheme, true);
 }
 
-export function resetThemeColors(): void {
+function clearThemeColorVars(): void {
   for (const cssVar of Object.values(THEME_COLOR_VARS)) {
     document.documentElement.style.removeProperty(cssVar);
   }
+}
+
+export function resetThemeColors(): void {
+  clearThemeColorVars();
   setThemeColorsSignal({});
   localStorage.removeItem(THEME_COLORS_KEY);
   localStorage.removeItem(THEME_PRESET_KEY);
@@ -86,36 +105,45 @@ export function resetThemeColors(): void {
 
 export function resetThemeColor(key: keyof ThemeColors): void {
   const next = { ...themeColors() };
+  delete next[key];
   const presetId = localStorage.getItem(THEME_PRESET_KEY) ?? undefined;
   const presetValue = PRESETS.find((preset) => preset.id === presetId)?.colors[key];
-  const resetKeys = [key, ...dependentThemeColorKeys(key)];
-  if (presetValue === undefined) {
-    for (const resetKey of resetKeys) {
-      delete next[resetKey];
-      document.documentElement.style.removeProperty(THEME_COLOR_VARS[resetKey]);
-    }
-  } else {
-    const preset = PRESETS.find((candidate) => candidate.id === presetId);
-    for (const resetKey of resetKeys) {
-      const value = preset?.colors[resetKey];
-      if (value === undefined) continue;
-      next[resetKey] = value;
-      document.documentElement.style.setProperty(THEME_COLOR_VARS[resetKey], value);
-    }
-  }
+  const fallback = presetValue ?? (isDerivedColorKey(key) ? DERIVED_COLOR_REFS[key] : undefined);
+  if (fallback === undefined) document.documentElement.style.removeProperty(THEME_COLOR_VARS[key]);
+  else
+    document.documentElement.style.setProperty(
+      THEME_COLOR_VARS[key],
+      resolveThemeColorValue(fallback),
+    );
   setThemeColorsSignal(next);
   localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(next));
 }
 
-export function getEffectiveColor(key: keyof ThemeColors): string {
+function effectiveRawValue(key: keyof ThemeColors): string {
   const override = themeColors()[key];
-  if (override) return override;
-  return getComputedStyle(document.documentElement).getPropertyValue(THEME_COLOR_VARS[key]).trim();
+  if (override !== undefined) return override;
+  const computed = getComputedStyle(document.documentElement)
+    .getPropertyValue(THEME_COLOR_VARS[key])
+    .trim();
+  if (isDerivedColorKey(key)) {
+    const formula = DERIVED_COLOR_REFS[key];
+    if (resolvedCssColor(computed) === resolvedCssColor(resolveThemeColorValue(formula)))
+      return formula;
+  }
+  return computed;
+}
+
+export function getEffectiveColor(key: keyof ThemeColors): string {
+  return resolveThemeColorValue(effectiveRawValue(key));
+}
+
+export function getColorFormula(key: keyof ThemeColors): string {
+  const raw = effectiveRawValue(key);
+  return isColorRef(raw) ? raw : formatOklch(cssColorToOklch(resolveThemeColorValue(raw)));
 }
 
 export function copyableThemePalette(): string {
-  const styles = getComputedStyle(document.documentElement);
-  return THEME_COLOR_KEYS.map((key) => styles.getPropertyValue(THEME_COLOR_VARS[key]).trim()).join(
+  return THEME_COLOR_KEYS.map((key) => formatOklch(cssColorToOklch(getEffectiveColor(key)))).join(
     "|",
   );
 }
@@ -133,10 +161,11 @@ export function applyCopiedThemePalette(payload: string): boolean {
 }
 
 export function applyPreset(preset: ThemePreset): void {
-  resetThemeColors();
+  clearThemeColorVars();
   setThemeColorsSignal(preset.colors);
   applyThemeColors(preset.colors);
   localStorage.setItem(THEME_PRESET_KEY, preset.id);
+  localStorage.removeItem(THEME_COLORS_KEY);
   applyThemeColorScheme(preset.colorScheme ?? "dark", true);
 }
 
@@ -144,16 +173,13 @@ export function activePreset(): string {
   const colors = themeColors();
   if (!THEME_COLOR_KEYS.some((key) => colors[key] !== undefined)) return "dark";
   for (const preset of PRESETS) {
-    const matches = (Object.keys(preset.colors) as (keyof ThemeColors)[]).every(
-      (key) => colors[key]?.trim().toLowerCase() === preset.colors[key]?.trim().toLowerCase(),
-    );
+    const matches = Object.keys(preset.colors).every((key) => {
+      if (!isThemeColorKey(key)) return true;
+      return colors[key]?.trim().toLowerCase() === preset.colors[key]?.trim().toLowerCase();
+    });
     if (matches) return preset.id;
   }
   return "custom";
 }
-
-export const THEME_COLOR_KEYS = Object.keys(THEME_COLOR_VARS).filter(
-  (key) => key !== "font",
-) as Exclude<keyof ThemeColors, "font">[];
 
 export const THEME_PRESETS = PRESETS;

@@ -1,16 +1,24 @@
-import { createDebouncedRequest, createListboxActiveIndex, Icon, SuggestionList } from "@slock/ui";
-import { createMemo, createSignal, createUniqueId, onCleanup, onMount, Show } from "solid-js";
-import { fetchSearchAutocomplete, type SearchResult, searchMessages } from "../../lib/api";
+import {
+  createDebouncedRequest,
+  createListboxActiveIndex,
+  FloatingPanel,
+  Icon,
+  SuggestionList,
+} from "@slock/ui";
+import { createMemo, createSignal, createUniqueId, onMount } from "solid-js";
+import { fetchBrowsableChannels, type SearchResult, searchMessages } from "../../lib/api";
 import { type SortMode, sortParams } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
 import "./GlobalSearch.css";
 import { createSearchQueryEditor } from "./lib/searchQueryEditor";
+import { createTokenEntitySearch, mergeById } from "./lib/tokenEntitySearch";
 import MessageSearchResults from "./MessageSearchResults";
 import "./MessageSearchView.css";
 import {
+  activeViewSuggestionContext,
   type QuerySuggestion,
-  type QuerySuggestionContext,
   querySuggestions,
+  renderQuerySuggestion,
 } from "./querySuggestions";
 import { navigateToSearchResult } from "./searchResultNavigation";
 
@@ -23,7 +31,6 @@ export default function MessageSearchView() {
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
-  const [remoteSuggestions, setRemoteSuggestions] = createSignal<string[]>([]);
   const [dismissedSuggestionsFor, setDismissedSuggestionsFor] = createSignal<string>();
   const [sortMode, setSortMode] = createSignal<SortMode>("relevant");
   const suggestionListId = createUniqueId();
@@ -44,44 +51,19 @@ export default function MessageSearchView() {
       },
     },
   );
-  const autocompleteRequest = createDebouncedRequest(fetchSearchAutocomplete, {
-    delay: 150,
-    onReset: () => setRemoteSuggestions([]),
-    onResult: setRemoteSuggestions,
-  });
   const runSearch = (immediate = true) => {
     store.viewState.setSearchScreenQuery(serializedQuery());
     searchRequest.run(serializedQuery(), { immediate });
   };
   const runHistorySearch = (q: string) => {
     editor.setQueryText(q);
-    autocompleteRequest.run("");
     runSearch();
   };
   const changeSort = (mode: SortMode) => {
     setSortMode(mode);
     if (canSearch()) runSearch();
   };
-  const suggestionContext = createMemo<QuerySuggestionContext>(() => {
-    const view = store.viewState.activeView();
-    const currentUserId = store.users.currentUser()?.id;
-    if (view?.kind === "channel") {
-      const channel = store.channels.channelById(view.id);
-      return {
-        currentChannel: channel ? { id: channel.id, name: channel.name } : undefined,
-        currentUserId,
-      };
-    }
-    if (view?.kind === "dm") {
-      const userId = store.dms.dmById(view.id)?.userId;
-      const user = userId ? store.users.userById(userId) : undefined;
-      return {
-        currentDmUser: user ? { id: user.id, name: user.name } : undefined,
-        currentUserId,
-      };
-    }
-    return { currentUserId };
-  });
+  const suggestionContext = activeViewSuggestionContext;
   const editor = createSearchQueryEditor({
     getActiveSuggestion: () => activeSuggestion(),
     getSuggestions: () => suggestions(),
@@ -89,10 +71,7 @@ export default function MessageSearchView() {
     onQueryChange: (query, nextCursor, typed) => {
       setSerializedQuery(query);
       setCursor(nextCursor);
-      if (typed) {
-        setDismissedSuggestionsFor(undefined);
-        autocompleteRequest.run(query);
-      }
+      if (typed) setDismissedSuggestionsFor(undefined);
     },
     onSubmit: () => {
       setDismissedSuggestionsFor(serializedQuery());
@@ -103,25 +82,21 @@ export default function MessageSearchView() {
     suggestionsOpen: () => suggestionsOpen(),
   });
 
-  const localSuggestions = createMemo<QuerySuggestion[]>(() =>
+  const { remoteUsers, remoteChannels } = createTokenEntitySearch({
+    cursor,
+    query: () => editor.alignedText(),
+    searchChannels: fetchBrowsableChannels,
+    searchUsers: (term) => store.users.searchUsers(term),
+  });
+  const suggestions = createMemo<QuerySuggestion[]>(() =>
     querySuggestions(
       editor.alignedText(),
       cursor(),
-      store.users.knownUsers(),
-      store.resources.bootstrap()?.channels ?? [],
+      mergeById(store.users.knownUsers(), remoteUsers()),
+      mergeById(store.resources.bootstrap.data?.channels ?? [], remoteChannels()),
       suggestionContext(),
-    ),
+    ).slice(0, 8),
   );
-  const suggestions = createMemo<QuerySuggestion[]>(() => {
-    const local = localSuggestions();
-    const localValues = new Set(local.map((item) => item.value));
-    return [
-      ...local,
-      ...remoteSuggestions()
-        .filter((value) => !localValues.has(value))
-        .map((value) => ({ id: `remote-${value}`, label: value, value })),
-    ].slice(0, 8);
-  });
   const suggestionsOpen = createMemo(
     () => suggestions().length > 0 && dismissedSuggestionsFor() !== serializedQuery(),
   );
@@ -139,52 +114,38 @@ export default function MessageSearchView() {
     editor.setQueryText(store.viewState.searchScreenQuery());
     runSearch();
   });
-  onCleanup(() => {
-    searchRequest.dispose();
-    autocompleteRequest.dispose();
-  });
   const goToMessage = (r: SearchResult) => {
     navigateToSearchResult(r, store.viewState, { keepNav: true });
   };
-  const canSearch = createMemo(() => !!serializedQuery().trim());
+  const canSearch = () => !!serializedQuery().trim();
   const optionId = (index: number) => `${suggestionListId}-option-${index}`;
 
   return (
     <div class="message-search-view">
-      <div class="message-search-header flex-align-center">
-        <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
-        <div class="ql-editor-root message-search-input" ref={containerEl} />
+      <div class="message-search-anchor">
+        <div class="message-search-header flex-align-center">
+          <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
+          <div class="ql-editor-root message-search-input" ref={containerEl} />
+        </div>
+        <FloatingPanel anchor={() => containerEl} open={suggestionsOpen()}>
+          <SuggestionList
+            activeIndex={activeSuggestion()}
+            class="menu-panel message-search-suggestions"
+            id={suggestionListId}
+            itemId={optionId}
+            items={suggestions()}
+            onHover={setActiveSuggestion}
+            onPick={(index) => {
+              const suggestion = suggestions()[index];
+              if (suggestion) editor.applySuggestion(suggestion);
+            }}
+            ref={(el) => {
+              suggestionsListRef = el;
+            }}
+            renderItem={renderQuerySuggestion}
+          />
+        </FloatingPanel>
       </div>
-      <Show when={suggestionsOpen()}>
-        <SuggestionList
-          activeIndex={activeSuggestion()}
-          class="message-search-suggestions"
-          id={suggestionListId}
-          itemId={optionId}
-          items={suggestions()}
-          onHover={setActiveSuggestion}
-          onPick={(index) => {
-            const suggestion = suggestions()[index];
-            if (suggestion) editor.applySuggestion(suggestion);
-          }}
-          ref={(el) => {
-            suggestionsListRef = el;
-          }}
-          renderItem={(suggestion) => (
-            <>
-              <Icon
-                class="suggestion-icon flex-center"
-                name={suggestion.replaceToken ? "filters" : "search"}
-                size={13}
-              />
-              <span class="suggestion-label">{suggestion.label}</span>
-              <Show when={suggestion.description}>
-                <span class="suggestion-desc">{suggestion.description}</span>
-              </Show>
-            </>
-          )}
-        />
-      </Show>
       <MessageSearchResults
         canSearch={canSearch()}
         loading={loading()}

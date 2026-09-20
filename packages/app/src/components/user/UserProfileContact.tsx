@@ -1,42 +1,28 @@
-import { createCopyFeedback, Icon, Tooltip } from "@slock/ui";
+import { createCopyFeedback, IconButton } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { ProfileFieldDef, User } from "../../lib/api";
+import { formatStartDate } from "./userProfileTime";
 import "./UserProfileContact.css";
 
 const URL_VALUE_RE = /^https?:\/\/\S+$/i;
 
-type CustomField = { label: string; value: string; alt?: string };
+type CustomField = { label: string; value: string; alt?: string; type?: string };
 export default function UserProfileContact(props: {
   user: User;
   isSelf: boolean;
+  startDate: string | undefined;
   customFields: CustomField[];
   editableFields: ProfileFieldDef[];
   values: Record<string, string>;
   isSavingField: (id: string) => boolean;
   setValue: (id: string, value: string) => void;
   saveField: (id: string) => void;
-  onKeyDown: (event: KeyboardEvent) => void;
+  onKeyDown: (event: KeyboardEvent & { currentTarget: HTMLElement }) => void;
 }) {
   const [copiedKey, copy] = createCopyFeedback();
   return (
     <div class="user-profile-section">
       <h3 class="user-profile-section-title">Contact information</h3>
-      <div class="user-profile-field">
-        <div class="user-profile-field-label text-muted">User ID</div>
-        <div class="user-profile-copyable-value">
-          <code class="user-profile-field-value">{props.user.id}</code>
-          <Tooltip content={copiedKey() === props.user.id ? "Copied" : "Copy user ID"}>
-            <button
-              aria-label="Copy user ID"
-              class="user-profile-copy-btn btn-reset flex-center"
-              onClick={() => void copy(props.user.id, props.user.id)}
-              type="button"
-            >
-              <Icon name={copiedKey() === props.user.id ? "check" : "copy"} size={15} />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
       <Show when={props.user.email}>
         <div class="user-profile-field">
           <div class="user-profile-field-label text-muted">Email</div>
@@ -52,6 +38,12 @@ export default function UserProfileContact(props: {
         <div class="user-profile-field">
           <div class="user-profile-field-label text-muted">Phone</div>
           <div class="user-profile-field-value">{props.user.phone}</div>
+        </div>
+      </Show>
+      <Show when={formatStartDate(props.startDate)}>
+        <div class="user-profile-field">
+          <div class="user-profile-field-label text-muted">Start date</div>
+          <div class="user-profile-field-value">{formatStartDate(props.startDate)}</div>
         </div>
       </Show>
       <Show
@@ -72,7 +64,7 @@ export default function UserProfileContact(props: {
                   onBlur={() => props.saveField(field.id)}
                   onInput={(event) => props.setValue(field.id, event.currentTarget.value)}
                   onKeyDown={props.onKeyDown}
-                  type="text"
+                  type={field.type === "date" ? "date" : "text"}
                   value={props.values[field.id] ?? ""}
                 />
               </div>
@@ -86,22 +78,47 @@ export default function UserProfileContact(props: {
             <div class="user-profile-field">
               <div class="user-profile-field-label text-muted">{field.label}</div>
               <Show
-                fallback={<div class="user-profile-field-value">{field.alt || field.value}</div>}
-                when={URL_VALUE_RE.test(field.value)}
+                fallback={
+                  <Show
+                    fallback={
+                      <div class="user-profile-field-value">{field.alt || field.value}</div>
+                    }
+                    when={URL_VALUE_RE.test(field.value)}
+                  >
+                    <a
+                      class="user-profile-field-value user-profile-field-link"
+                      href={field.value}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {field.alt || field.value}
+                    </a>
+                  </Show>
+                }
+                when={field.type === "date"}
               >
-                <a
-                  class="user-profile-field-value user-profile-field-link"
-                  href={field.value}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  {field.alt || field.value}
-                </a>
+                <div class="user-profile-field-value">
+                  {formatStartDate(field.value) ?? field.value}
+                </div>
               </Show>
             </div>
           )}
         </For>
       </Show>
+      <div class="user-profile-field">
+        <div class="user-profile-field-label text-muted">User ID</div>
+        <div class="user-profile-copyable-value">
+          <code class="user-profile-field-value">{props.user.id}</code>
+          <IconButton
+            class="user-profile-copy-btn"
+            icon={copiedKey() === props.user.id ? "check" : "copy"}
+            iconSize={15}
+            label={copiedKey() === props.user.id ? "Copied" : "Copy user ID"}
+            onClick={() => void copy(props.user.id, props.user.id)}
+            size="sm"
+          />
+        </div>
+      </div>
     </div>
   );
 }

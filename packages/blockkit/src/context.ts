@@ -1,3 +1,4 @@
+import type { Attachment } from "@slock/types";
 import { createContext, type JSX, useContext } from "solid-js";
 
 export interface BlockKitMentionInfo {
@@ -20,7 +21,7 @@ export interface BlockKitResolver {
 
   wrapChannelMention?(id: string, trigger: JSX.Element): JSX.Element;
 
-  wrapLink?(url: string, trigger: JSX.Element): JSX.Element;
+  wrapLink?(url: string, trigger: JSX.Element, attachments?: Attachment[]): JSX.Element;
 
   wrapUserMention?(id: string, trigger: JSX.Element): JSX.Element;
 
@@ -52,4 +53,26 @@ export const TimeAnchorContext = createContext<TimeAnchor | undefined>(undefined
 
 export function useTimeAnchor(): TimeAnchor | undefined {
   return useContext(TimeAnchorContext);
+}
+
+export const HighlightWordsContext = createContext<() => string[]>(() => []);
+
+export function useHighlightWords(): () => string[] {
+  return useContext(HighlightWordsContext);
+}
+
+export const MessageAttachmentsContext = createContext<() => Attachment[] | undefined>(
+  () => undefined,
+);
+
+export function useMessageAttachments(): () => Attachment[] | undefined {
+  return useContext(MessageAttachmentsContext);
+}
+
+export type EmojiFreeze = "hover" | "play" | "still";
+
+export const EmojiFreezeContext = createContext<EmojiFreeze>("play");
+
+export function useEmojiFreeze(): EmojiFreeze {
+  return useContext(EmojiFreezeContext);
 }

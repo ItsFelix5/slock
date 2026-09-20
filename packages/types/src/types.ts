@@ -1,4 +1,5 @@
 import type { Block } from "./blocks";
+import type { RawFile } from "./rawTypes";
 
 export interface UserCustomField {
   alt?: string;
@@ -30,6 +31,7 @@ export interface User {
 
   presence?: "active" | "away";
   pronouns?: string;
+  realName?: string;
   startDate?: string;
   statusEmoji?: string;
   statusText?: string;
@@ -61,11 +63,41 @@ export interface ProfileFieldDef {
   fieldName?: string;
   id: string;
   label: string;
+  type?: string;
 }
 
 export interface CanvasListItem {
   fileId: string;
   title: string;
+}
+
+export interface CanvasListEntry {
+  checked?: boolean;
+  indent: number;
+  text: string;
+}
+
+export interface CanvasBlock {
+  colWidths?: number[];
+  columns?: string[];
+  files?: RawFile[];
+  items?: CanvasListEntry[];
+  level?: number;
+  rows?: string[][];
+  text: string;
+  type:
+    | "title"
+    | "paragraph"
+    | "heading"
+    | "code"
+    | "callout"
+    | "blockquote"
+    | "section"
+    | "bulletList"
+    | "orderedList"
+    | "checklist"
+    | "table"
+    | "image";
 }
 
 export interface Reaction {
@@ -98,6 +130,7 @@ export interface SlackFile {
   transcriptionLines?: { endMs: number; startMs: number; text: string }[];
   transcriptionPreview?: string;
   urlPrivate: string;
+  urlPrivateDownload?: string;
 
   vtt?: string;
   waveform?: number[];

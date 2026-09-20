@@ -4,7 +4,7 @@ import { callSlack } from "../../slackClient.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 export const appRoutes: Route[] = [
-  route("GET", "/api/message-shortcuts", async (ctx) => {
+  route("GET", "message-shortcuts", async (ctx) => {
     const data = await callSlack(
       "client.appCommands",
       { _x_reason: "app-commands-conditional-fetching" },
@@ -33,12 +33,12 @@ export const appRoutes: Route[] = [
     return jsonResponse({ ok: true, shortcuts }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  route("POST", "/api/message-shortcuts/:actionId/run", async (ctx) => {
-    const { appId, channelId, messageTs } = (await ctx.body.json()) as {
+  route("POST", "message-shortcuts/:actionId/run", async (ctx) => {
+    const { appId, channelId, messageTs } = await (ctx.body.json() as Promise<{
       appId?: string;
       channelId?: string;
       messageTs?: string;
-    };
+    }>);
     if (!(appId && channelId && messageTs)) return errorResponse("invalid_shortcut_run", 400);
     return mutate(
       "apps.actions.v2.execute",
@@ -56,7 +56,7 @@ export const appRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/apps/:id/profile", async (ctx) => {
+  route("GET", "apps/:id/profile", async (ctx) => {
     const botId = ctx.searchParams.get("bot");
     if (!botId) return errorResponse("invalid_bot", 400);
     const data = await callSlack(
@@ -74,14 +74,14 @@ export const appRoutes: Route[] = [
     return jsonResponse({ desc: data.app_profile?.desc, ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
 
-  route("POST", "/api/blocks/actions", async (ctx) => {
-    const body = (await ctx.body.json()) as {
+  route("POST", "blocks/actions", async (ctx) => {
+    const body = await (ctx.body.json() as Promise<{
       action?: Record<string, unknown>;
       appId?: string;
       botId?: string;
       channelId?: string;
       messageTs?: string;
-    };
+    }>);
     if (!(body.action && body.appId && body.botId && body.channelId && body.messageTs)) {
       return errorResponse("invalid_block_action", 400);
     }
@@ -105,8 +105,8 @@ export const appRoutes: Route[] = [
     );
   }),
 
-  route("POST", "/api/attachments/actions", async (ctx) => {
-    const body = (await ctx.body.json()) as {
+  route("POST", "attachments/actions", async (ctx) => {
+    const body = await (ctx.body.json() as Promise<{
       action?: { name?: string; style?: string; text?: string; value?: string };
       attachmentId?: number;
       botId?: string;
@@ -115,7 +115,7 @@ export const appRoutes: Route[] = [
       channelId?: string;
       isEphemeral?: boolean;
       messageTs?: string;
-    };
+    }>);
     if (
       !(
         body.action?.name &&

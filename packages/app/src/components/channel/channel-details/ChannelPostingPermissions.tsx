@@ -1,13 +1,11 @@
-import { Avatar, Button, Icon, Switch, Tooltip } from "@slock/ui";
+import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
 import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import { loadChannelPostingPrefs, updateChannelPostingPrefs } from "../lib/channelDetails";
+import SettingsLoadError, { errorMessage } from "./SettingsLoadError";
 
-export default function ChannelPostingPermissions(props: {
-  channelId: string;
-  isManager: () => boolean;
-}) {
+export default function ChannelPostingPermissions(props: { channelId: string }) {
   const [postingPrefs, { refetch: refetchPostingPrefs }] = createResource(
     () => props.channelId,
     loadChannelPostingPrefs,
@@ -32,10 +30,7 @@ export default function ChannelPostingPermissions(props: {
     }),
   );
 
-  const canEdit = () => !!postingPrefs() && props.isManager() && !savingPostingPrefs();
-
-  const errorMessage = (error: unknown, fallback: string) =>
-    error instanceof Error && error.message ? error.message : fallback;
+  const canEdit = () => !!postingPrefs() && !savingPostingPrefs();
 
   const savePostingPrefs = async (
     patch: Parameters<typeof updateChannelPostingPrefs>[1],
@@ -116,17 +111,11 @@ export default function ChannelPostingPermissions(props: {
         <p class="channel-details-meta">Loading posting permissions…</p>
       </Show>
       <Show when={postingPrefs.error}>
-        <div class="channel-details-settings-warning flex-between">
-          <div>
-            <div>Posting permissions couldn't be loaded.</div>
-            <div class="channel-details-settings-error-code">
-              {errorMessage(postingPrefs.error, "Unknown error")}
-            </div>
-          </div>
-          <Button onClick={retryPostingPrefs} size="sm">
-            Try again
-          </Button>
-        </div>
+        <SettingsLoadError
+          error={postingPrefs.error}
+          message="Posting permissions couldn't be loaded."
+          onRetry={retryPostingPrefs}
+        />
       </Show>
       <Show when={postingPrefsSaveError()}>
         <div class="channel-details-settings-warning">
@@ -142,26 +131,18 @@ export default function ChannelPostingPermissions(props: {
           checked={postingRestricted()}
           disabled={!canEdit()}
           onChange={savePostingRestriction}
-          title="Only channel managers can post"
         />
       </div>
       <Show when={postingRestricted()}>
         <div class="channel-details-exceptions">
           <div class="channel-details-exceptions-header flex-align-center">
-            <div>
-              <div class="settings-row-label">Exceptions</div>
-              <div class="settings-row-hint text-dim">
-                These people can post even when posting is restricted.
-              </div>
-            </div>
-            <button
-              class="channel-details-add-btn btn-reset flex-align-center"
+            <div class="settings-row-label">Exceptions</div>
+            <AddRowButton
               disabled={!canEdit() || postingExceptionUserIds().length >= 100}
+              icon="user-add"
+              label="Add people"
               onClick={() => setAddingPostingException(true)}
-              type="button"
-            >
-              <Icon name="user-add" size={15} /> Add people
-            </button>
+            />
           </div>
           <Show
             fallback={<p class="channel-details-meta">No exceptions.</p>}
@@ -184,23 +165,18 @@ export default function ChannelPostingPermissions(props: {
                         </>
                       )}
                     </Show>
-                    <Tooltip content="Remove exception">
-                      <button
-                        class="channel-details-exception-remove btn-reset flex-center"
-                        disabled={!canEdit()}
-                        onClick={() => removePostingException(userId)}
-                        type="button"
-                      >
-                        <Icon name="close-filled" size={14} />
-                      </button>
-                    </Tooltip>
+                    <IconButton
+                      class="channel-details-exception-remove"
+                      disabled={!canEdit()}
+                      icon="close-filled"
+                      iconSize={14}
+                      label="Remove exception"
+                      onClick={() => removePostingException(userId)}
+                    />
                   </div>
                 )}
               </For>
             </div>
-          </Show>
-          <Show when={postingExceptionUserIds().length >= 100}>
-            <p class="channel-details-meta">Slack allows up to 100 exceptions per channel.</p>
           </Show>
           <Show when={addingPostingException()}>
             <div class="channel-details-picker">
@@ -222,7 +198,6 @@ export default function ChannelPostingPermissions(props: {
           checked={threadsRestricted()}
           disabled={!canEdit()}
           onChange={saveThreadsRestriction}
-          title="Only channel managers can reply in threads"
         />
       </div>
       <div class="settings-row">
@@ -233,7 +208,6 @@ export default function ChannelPostingPermissions(props: {
           checked={allowChannelMentions()}
           disabled={!canEdit()}
           onChange={saveChannelMentions}
-          title="Allow @channel and @here mentions"
         />
       </div>
     </div>

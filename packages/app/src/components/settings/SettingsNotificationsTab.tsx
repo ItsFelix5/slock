@@ -1,10 +1,28 @@
 import { Button, Icon, InlineFeedback, Switch } from "@slock/ui";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, type JSX, Show } from "solid-js";
 import { channelDisplayName, channelIconName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import "./Settings.css";
 import "./SettingsNotificationsTab.css";
+
+function RowAction(props: {
+  children: JSX.Element;
+  disabled?: boolean;
+  onClick?: () => void;
+  type?: "button" | "submit";
+}) {
+  return (
+    <button
+      class="settings-list-row-action btn-reset text-muted"
+      disabled={props.disabled}
+      onClick={props.onClick}
+      type={props.type ?? "button"}
+    >
+      {props.children}
+    </button>
+  );
+}
 
 export default function SettingsNotificationsTab() {
   const [newWord, setNewWord] = createSignal("");
@@ -24,12 +42,11 @@ export default function SettingsNotificationsTab() {
         <div class="settings-preferences-error flex-between">
           <span>Couldn't load your saved preferences. Changes are disabled to protect them.</span>
           <Button
-            disabled={store.resources.userPrefs.loading}
+            disabled={store.resources.userPrefs.isFetching}
             onClick={() => void store.resources.retryUserPrefs()}
             size="sm"
-            variant="ghost"
           >
-            {store.resources.userPrefs.loading ? "Retrying…" : "Try again"}
+            {store.resources.userPrefs.isFetching ? "Retrying…" : "Try again"}
           </Button>
         </div>
       </Show>
@@ -42,14 +59,12 @@ export default function SettingsNotificationsTab() {
               fallback={
                 <Show
                   fallback={
-                    <button
-                      class="settings-list-row-action btn-reset text-muted"
+                    <RowAction
                       disabled={!store.preferences.preferencesReady()}
                       onClick={store.desktopNotifications.requestPermission}
-                      type="button"
                     >
                       Enable
-                    </button>
+                    </RowAction>
                   }
                   when={store.desktopNotifications.permission() === "denied"}
                 >
@@ -62,7 +77,6 @@ export default function SettingsNotificationsTab() {
                 checked={store.desktopNotifications.enabled()}
                 disabled={!store.preferences.preferencesReady()}
                 onChange={store.desktopNotifications.setNotificationsEnabled}
-                title="Desktop notifications"
               />
             </Show>
           </div>
@@ -71,31 +85,39 @@ export default function SettingsNotificationsTab() {
       </Show>
 
       <div class="settings-section">
-        <div class="settings-row-label">Muted channels</div>
+        <div class="settings-row-label">Pingwords</div>
+        <form class="settings-add-row flex-align-center" onSubmit={submitNewWord}>
+          <input
+            class="search-input"
+            disabled={store.preferences.isHighlightWordsPending()}
+            onInput={(event) => setNewWord(event.currentTarget.value)}
+            placeholder="Add a word or phrase"
+            type="text"
+            value={newWord()}
+          />
+          <RowAction
+            disabled={!newWord().trim() || store.preferences.isHighlightWordsPending()}
+            type="submit"
+          >
+            Add
+          </RowAction>
+        </form>
+        <InlineFeedback feedback={actionFeedback.get("pingwords")} />
         <Show
-          fallback={<div class="settings-list-empty text-dim text-sm">No muted channels.</div>}
-          when={store.preferences.mutedChannels().length > 0}
+          fallback={<div class="settings-list-empty text-dim text-sm">No pingwords yet.</div>}
+          when={store.preferences.highlightWords().length > 0}
         >
           <div class="settings-list flex-col">
-            <For each={store.preferences.mutedChannels()}>
-              {(c) => (
+            <For each={store.preferences.highlightWords()}>
+              {(word) => (
                 <div class="settings-list-row flex-between">
-                  <span class="settings-list-row-name flex-align-center">
-                    <Icon name={channelIconName(c.private)} size={12} /> {channelDisplayName(c)}
-                  </span>
-                  <InlineFeedback
-                    class="settings-list-row-feedback"
-                    feedback={actionFeedback.get(c.id)}
-                    priority={2}
-                  />
-                  <button
-                    class="settings-list-row-action btn-reset text-muted"
-                    disabled={store.preferences.isMutePending(c.id)}
-                    onClick={() => store.preferences.toggleMuteChannel(c.id)}
-                    type="button"
+                  <span class="settings-list-row-name">{word}</span>
+                  <RowAction
+                    disabled={store.preferences.isHighlightWordsPending()}
+                    onClick={() => store.preferences.removeHighlightWord(word)}
                   >
-                    Unmute
-                  </button>
+                    Remove
+                  </RowAction>
                 </div>
               )}
             </For>
@@ -125,14 +147,12 @@ export default function SettingsNotificationsTab() {
                     feedback={actionFeedback.get(c.id)}
                     priority={2}
                   />
-                  <button
-                    class="settings-list-row-action btn-reset text-muted"
+                  <RowAction
                     disabled={store.preferences.isNotifyAllPending(c.id)}
                     onClick={() => store.preferences.toggleNotifyAllChannel(c.id)}
-                    type="button"
                   >
                     Reset to mentions only
-                  </button>
+                  </RowAction>
                 </div>
               )}
             </For>
@@ -141,42 +161,29 @@ export default function SettingsNotificationsTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Pingwords</div>
-        <form class="settings-add-row flex-align-center" onSubmit={submitNewWord}>
-          <input
-            class="search-input"
-            disabled={store.preferences.isHighlightWordsPending()}
-            onInput={(event) => setNewWord(event.currentTarget.value)}
-            placeholder="Add a word or phrase"
-            type="text"
-            value={newWord()}
-          />
-          <button
-            class="settings-list-row-action btn-reset text-muted"
-            disabled={!newWord().trim() || store.preferences.isHighlightWordsPending()}
-            type="submit"
-          >
-            Add
-          </button>
-        </form>
-        <InlineFeedback feedback={actionFeedback.get("pingwords")} />
+        <div class="settings-row-label">Muted channels</div>
         <Show
-          fallback={<div class="settings-list-empty text-dim text-sm">No pingwords yet.</div>}
-          when={store.preferences.highlightWords().length > 0}
+          fallback={<div class="settings-list-empty text-dim text-sm">No muted channels.</div>}
+          when={store.preferences.mutedChannels().length > 0}
         >
           <div class="settings-list flex-col">
-            <For each={store.preferences.highlightWords()}>
-              {(word) => (
+            <For each={store.preferences.mutedChannels()}>
+              {(c) => (
                 <div class="settings-list-row flex-between">
-                  <span class="settings-list-row-name">{word}</span>
-                  <button
-                    class="settings-list-row-action btn-reset text-muted"
-                    disabled={store.preferences.isHighlightWordsPending()}
-                    onClick={() => store.preferences.removeHighlightWord(word)}
-                    type="button"
+                  <span class="settings-list-row-name flex-align-center">
+                    <Icon name={channelIconName(c.private)} size={12} /> {channelDisplayName(c)}
+                  </span>
+                  <InlineFeedback
+                    class="settings-list-row-feedback"
+                    feedback={actionFeedback.get(c.id)}
+                    priority={2}
+                  />
+                  <RowAction
+                    disabled={store.preferences.isMutePending(c.id)}
+                    onClick={() => store.preferences.toggleMuteChannel(c.id)}
                   >
-                    Remove
-                  </button>
+                    Unmute
+                  </RowAction>
                 </div>
               )}
             </For>

@@ -2,14 +2,21 @@ import type { CanvasListItem, ChannelDetails, ConversationViewData } from "@sloc
 import { apiGet, HIDE_SUBTYPES, mapChannel, mapMessage, mapUser } from "@slock/types";
 
 function mapCanvasTabs(channel: any): CanvasListItem[] {
-  const tabs: any[] = Array.isArray(channel?.properties?.tabs) ? channel.properties.tabs : [];
   const seen = new Set<string>();
-  return tabs.flatMap((tab) => {
+  const result: CanvasListItem[] = [];
+  const defaultFileId = channel?.properties?.canvas?.file_id;
+  if (typeof defaultFileId === "string" && defaultFileId) {
+    seen.add(defaultFileId);
+    result.push({ fileId: defaultFileId, title: "" });
+  }
+  const tabs: any[] = Array.isArray(channel?.properties?.tabs) ? channel.properties.tabs : [];
+  for (const tab of tabs) {
     const fileId = tab?.type === "canvas" ? tab.data?.file_id : undefined;
-    if (!fileId || seen.has(fileId)) return [];
+    if (!fileId || seen.has(fileId)) continue;
     seen.add(fileId);
-    return [{ fileId, title: typeof tab.label === "string" ? tab.label.trim() : "" }];
-  });
+    result.push({ fileId, title: typeof tab.label === "string" ? tab.label.trim() : "" });
+  }
+  return result;
 }
 
 const inFlight = new Map<string, Promise<ConversationViewData>>();

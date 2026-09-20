@@ -43,9 +43,14 @@
   border-radius: inherit;
 }
 
+.video-player-wrap:focus {
+  outline: none;
+}
+
 .video-player-wrap:fullscreen {
   display: flex;
   align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
 }
@@ -55,15 +60,14 @@
 }
 
 .video-player-wrap:fullscreen video {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   max-width: none;
   max-height: none;
+  aspect-ratio: auto !important;
   object-fit: contain;
 }
 
-/* Same buttons everyone else uses (@slock/ui's IconButton, .icon-btn /
-   .icon-action), just recolored for legibility over arbitrary video. */
 .video-player-chrome.icon-action,
 .video-player-speed.video-player-chrome {
   color: #fff;
@@ -76,8 +80,6 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* Idle affordance: just play + length, bottom-left. Hidden on hover — the
-   full bar takes over. */
 .video-player-idle {
   position: absolute;
   bottom: 8px;
@@ -96,7 +98,6 @@
   pointer-events: none;
 }
 
-/* Everything below only shows up on hover/focus. */
 .video-player-corner,
 .video-player-controls {
   opacity: 0;
@@ -105,9 +106,7 @@
 }
 
 .video-player-wrap:hover .video-player-corner,
-.video-player-wrap:hover .video-player-controls,
-.video-player-wrap:focus-within .video-player-corner,
-.video-player-wrap:focus-within .video-player-controls {
+.video-player-wrap:hover .video-player-controls {
   opacity: 1;
   pointer-events: auto;
 }

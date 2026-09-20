@@ -1,12 +1,13 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { HoverCard, Icon } from "@slock/ui";
-import { createMemo, type JSX, Show } from "solid-js";
+import type { JSX } from "solid-js";
+import { Show } from "solid-js";
 import { store } from "../../lib/store";
 import { openUsergroupDetails } from "../../lib/usergroupDetails";
 import "./UsergroupHoverCard.css";
 
 export default function UsergroupHoverCard(props: { usergroupId: string; children: JSX.Element }) {
-  const details = createMemo(() => store.usergroups.usergroupDetailsById(props.usergroupId));
+  const details = () => store.usergroups.usergroupDetailsById(props.usergroupId);
 
   return (
     <HoverCard

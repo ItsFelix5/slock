@@ -5,6 +5,21 @@ interface ScrollAnchor {
   offset: number;
 }
 
+export interface RememberedScrollAnchor {
+  offset: number;
+  ts: string;
+}
+
+const rememberedAnchors = new Map<string, RememberedScrollAnchor>();
+
+export function rememberScrollAnchor(viewId: string, anchor: RememberedScrollAnchor) {
+  rememberedAnchors.set(viewId, anchor);
+}
+
+export function getRememberedScrollAnchor(viewId: string): RememberedScrollAnchor | undefined {
+  return rememberedAnchors.get(viewId);
+}
+
 const BOTTOM_EPSILON_PX = 2;
 const FLASH_RENDER_TIMEOUT_MS = 2000;
 
@@ -36,7 +51,7 @@ export function restoreScrollAnchor(container: HTMLElement, anchor: ScrollAnchor
   container.scrollTop += newOffset - anchor.offset;
 }
 
-function flashMessageElement(el: HTMLElement) {
+export function flashMessageElement(el: HTMLElement) {
   el.classList.add("message-flash");
   const timer = setTimeout(() => el.classList.remove("message-flash"), FLASH_MS);
   return () => {
@@ -82,20 +97,5 @@ export function jumpToMessageInContainer(container: HTMLElement, ts: string) {
   if (!el) return () => {};
   el.scrollIntoView({ behavior: "smooth", block: "center" });
   const stopFlash = flashMessageElement(el);
-
-  const resizeObserver = new ResizeObserver(() => el.scrollIntoView({ block: "center" }));
-  for (const row of container.querySelectorAll<HTMLElement>("[data-message-ts]"))
-    resizeObserver.observe(row);
-
-  let stopped = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const stop = () => {
-    if (stopped) return;
-    stopped = true;
-    clearTimeout(timer);
-    resizeObserver.disconnect();
-    stopFlash();
-  };
-  timer = setTimeout(stop, FLASH_MS);
-  return stop;
+  return stopFlash;
 }

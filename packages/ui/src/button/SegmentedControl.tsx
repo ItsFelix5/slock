@@ -15,7 +15,8 @@ export default function SegmentedControl(props: SegmentedControlProps) {
     const segments = [
       ...(rootRef?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []),
     ];
-    const current = segments.indexOf(document.activeElement as HTMLButtonElement);
+    const active = document.activeElement;
+    const current = active instanceof HTMLButtonElement ? segments.indexOf(active) : -1;
     if (current < 0) return;
     const next = listNavigationIndex(
       event.key === "ArrowRight" ? "ArrowDown" : "ArrowUp",

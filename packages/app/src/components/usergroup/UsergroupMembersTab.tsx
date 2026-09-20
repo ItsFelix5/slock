@@ -1,4 +1,4 @@
-import { Avatar, confirmDialog, Icon, initRovingTabIndexDefault } from "@slock/ui";
+import { AddRowButton, Avatar, confirmDialog, initRovingTabIndexDefault } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { User } from "../../lib/api";
 import { store } from "../../lib/store";
@@ -57,14 +57,12 @@ export default function UsergroupMembersTab(props: {
           type="text"
           value={query()}
         />
-        <button
-          class="usergroup-details-add-btn btn-reset flex-align-center"
+        <AddRowButton
           disabled={props.disabled}
+          icon="user-add"
+          label="Add people"
           onClick={() => setAddingPeople(true)}
-          type="button"
-        >
-          <Icon name="user-add" size={15} /> Add people
-        </button>
+        />
       </div>
       <Show when={addingPeople()}>
         <div class="usergroup-details-picker">

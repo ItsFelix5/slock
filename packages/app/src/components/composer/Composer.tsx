@@ -4,7 +4,6 @@ import {
   focusPaneById,
   InlineFeedback,
   indexAlignedText,
-  plainKey,
   QuillEditor,
   scrollActiveListOption,
   useEscapeClose,
@@ -12,7 +11,8 @@ import {
 } from "@slock/ui";
 import type Quill from "quill";
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
-import { consumeComposerAutofocusSuppression } from "../../lib/composerFocus";
+import type { Block } from "../../lib/api";
+import { consumeComposerAutofocusSuppression } from "../../lib/composerAutofocus";
 import { actionFeedback, composerFeedbackKey } from "../../lib/feedback";
 import "./Composer.css";
 import ComposerAttachMenu from "./ComposerAttachMenu";
@@ -23,6 +23,7 @@ import FileChip from "./FileChip";
 import { createComposerDraftState, createPendingFileState, draftCacheKey } from "./lib/drafts";
 import { wireEmojiAutoconvert } from "./lib/quillEmoji";
 import { insertSuggestionAt, loadMrkdwnIntoQuill, mrkdwnText } from "./lib/quillMentions";
+import { buildRichTextBlocks, loadRichTextIntoQuill } from "./lib/richTextBuild";
 import { createSuggestionController } from "./lib/suggestionController";
 import { type SuggestState, suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
@@ -33,6 +34,7 @@ const TRAILING_NEWLINE_RE = /\n$/;
 export default function Composer(props: ComposerProps) {
   let quill: Quill | undefined;
   let pendingInitialText: string | undefined;
+  let pendingInitialBlocks: Block[] | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
   let caretIndex = 0;
   const [text, setText] = createSignal("");
@@ -55,11 +57,11 @@ export default function Composer(props: ComposerProps) {
   });
 
   useShortcut({
+    combo: { key: "i" },
     enabled: () => !props.editing && !!props.paneId && focusedPaneId() === props.paneId,
     handler: () => quill?.focus(),
-    keys: "i",
+    id: "composer.focus",
     label: "Focus the message box",
-    match: plainKey("i"),
     scope: "composer",
   });
   useEscapeClose(
@@ -79,15 +81,22 @@ export default function Composer(props: ComposerProps) {
         : draftCacheKey(props.channelId, props.threadTs),
   });
 
-  const loadIntoEditor = (value: string) => {
-    if (quill) loadMrkdwnIntoQuill(quill, value);
-    else pendingInitialText = value;
+  const loadIntoEditor = (value: string, blocks?: unknown) => {
+    const richBlocks: Block[] | undefined = Array.isArray(blocks) ? blocks : undefined;
+    if (quill) {
+      if (richBlocks?.length) loadRichTextIntoQuill(quill, richBlocks);
+      else loadMrkdwnIntoQuill(quill, value);
+    } else {
+      pendingInitialText = value;
+      pendingInitialBlocks = richBlocks;
+    }
     setText(value);
   };
 
   const draftState = props.editing
     ? undefined
     : createComposerDraftState({
+        blocks: () => (quill ? buildRichTextBlocks(quill) : undefined),
         channelId: () => props.channelId,
         editing: () => false,
         key: () => (props.channelId ? draftCacheKey(props.channelId, props.threadTs) : undefined),
@@ -98,7 +107,9 @@ export default function Composer(props: ComposerProps) {
         threadTs: () => props.threadTs,
       });
 
-  onCleanup(() => draftState?.cacheLocal());
+  onCleanup(() => {
+    if (!sending()) draftState?.cacheLocal();
+  });
 
   const handleSubmit = createComposerSubmitHandler({
     channelId: () => props.channelId,
@@ -107,6 +118,7 @@ export default function Composer(props: ComposerProps) {
     getQuill: () => quill,
     onSent: () => props.replyTo?.onSent(),
     pendingFiles,
+    replyTo: () => props.replyTo,
     sending,
     setSending,
     threadTs: () => props.threadTs,
@@ -140,7 +152,7 @@ export default function Composer(props: ComposerProps) {
       suggestions.moveActiveSuggestion(-1);
       return true;
     }
-    if (event.key === "Enter" || event.key === "Tab") {
+    if (event.key === "Tab" || event.key === "Enter") {
       suggestions.applySuggestion();
       return true;
     }
@@ -220,13 +232,16 @@ export default function Composer(props: ComposerProps) {
           <QuillEditor
             autofocus={autofocus}
             onKeyDownCapture={handleKeyDownCapture}
+            onPasteFiles={props.editing ? undefined : (files) => pendingFiles.add(files)}
             onReady={(q) => {
               quill = q;
+              const initialBlocks = props.editing?.initialBlocks ?? pendingInitialBlocks;
               const initial = props.editing?.initialText ?? pendingInitialText;
-              if (initial) loadMrkdwnIntoQuill(q, initial);
+              if (initialBlocks?.length) loadRichTextIntoQuill(q, initialBlocks);
+              else if (initial) loadMrkdwnIntoQuill(q, initial);
               wireEmojiAutoconvert(q);
               q.on("text-change", () => {
-                setText(mrkdwnText(q).replace(TRAILING_NEWLINE_RE, ""));
+                setText(mrkdwnText(q));
                 const aligned = indexAlignedText(q).replace(TRAILING_NEWLINE_RE, "");
                 caretIndex = q.getSelection()?.index ?? aligned.length;
                 suggestions.updateSuggestions(aligned, caretIndex);
@@ -261,11 +276,6 @@ export default function Composer(props: ComposerProps) {
                 ? `uploading ${pendingFiles.files().length === 1 ? "file" : `${pendingFiles.files().length} files`}…`
                 : "sending…"}
           </span>
-        </Show>
-        <Show when={props.editing}>
-          <button onClick={() => props.editing?.onCancel()} type="button">
-            cancel
-          </button>
         </Show>
       </div>
     </div>

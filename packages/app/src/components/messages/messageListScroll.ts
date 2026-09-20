@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import type { Message } from "../../lib/api";
 import type { ChannelMessageTarget, View } from "../../lib/store";
 import { store } from "../../lib/store";
@@ -27,6 +27,7 @@ export function createMessageListScroll(deps: {
     readyViewId,
     setShouldFollowBottom,
     shouldFollowBottom,
+    trackScrollAnchor,
   } = createMessageListLanding(deps);
 
   let lastScrollTop = 0;
@@ -37,57 +38,35 @@ export function createMessageListScroll(deps: {
 
   function updateTopVisible() {
     const el = deps.scrollRef();
+    const view = deps.paneView();
     if (!el) return;
     lastAnchor = captureScrollAnchor(el);
-    setTopVisibleTs(lastAnchor?.el.dataset.messageTs);
+    const ts = lastAnchor?.el.dataset.messageTs;
+    setTopVisibleTs(ts);
+    if (view && ts && lastAnchor) trackScrollAnchor(view.id, { offset: lastAnchor.offset, ts });
   }
 
-  const visibleDay = createMemo(() => deps.messages().find((m) => m.ts === topVisibleTs())?.day);
+  const visibleDay = () => {
+    const messageByTs = new Map(deps.messages().map((m) => [m.ts, m]));
+    return messageByTs.get(topVisibleTs() ?? "")?.day;
+  };
 
+  function correctScrollForContentChange() {
+    const el = deps.scrollRef();
+    if (!el) return;
+    if (shouldFollowBottom()) scrollToBottom(el);
+    else if (lastAnchor?.el.isConnected) restoreScrollAnchor(el, lastAnchor);
+  }
   createEffect(() => {
     deps.messages();
     readyViewId();
-    queueMicrotask(updateTopVisible);
-  });
-
-  let resizeObserver: ResizeObserver | undefined;
-  let observedContainer: HTMLDivElement | undefined;
-  const observedRows = new Set<HTMLElement>();
-  function ensureResizeObserver(el: HTMLDivElement) {
-    if (resizeObserver && observedContainer === el) return resizeObserver;
-    resizeObserver?.disconnect();
-    observedRows.clear();
-    observedContainer = el;
-    resizeObserver = new ResizeObserver(() => {
-      const current = deps.scrollRef();
-      if (!current) return;
-      if (shouldFollowBottom()) scrollToBottom(current);
-      else if (lastAnchor?.el.isConnected) restoreScrollAnchor(current, lastAnchor);
+    queueMicrotask(() => {
+      correctScrollForContentChange();
+      updateTopVisible();
     });
-    return resizeObserver;
-  }
-  createEffect(() => {
-    deps.messages();
-    const el = deps.scrollRef();
-    if (!el) return;
-    const observer = ensureResizeObserver(el);
-    const currentRows = new Set(el.querySelectorAll<HTMLElement>("[data-message-ts]"));
-    for (const row of observedRows) {
-      if (currentRows.has(row)) continue;
-      observer.unobserve(row);
-      observedRows.delete(row);
-    }
-    for (const row of currentRows) {
-      if (observedRows.has(row)) continue;
-      observer.observe(row);
-      observedRows.add(row);
-    }
   });
-  onCleanup(() => {
-    resizeObserver?.disconnect();
-    resizeObserver = undefined;
-    observedRows.clear();
-  });
+  window.addEventListener("resize", correctScrollForContentChange);
+  onCleanup(() => window.removeEventListener("resize", correctScrollForContentChange));
 
   async function loadNewerMessages(channelId: string) {
     setIsLoadingNewer(true);
@@ -103,11 +82,12 @@ export function createMessageListScroll(deps: {
   async function loadOlderMessagesPreservingScroll(channelId: string) {
     const el = deps.scrollRef();
     if (!el) return;
-    const prevScrollHeight = el.scrollHeight;
+    const anchor = captureScrollAnchor(el);
     await store.messages.loadOlderMessages(channelId);
     olderLoadCooldownUntil = Date.now() + OLDER_LOAD_COOLDOWN_MS;
     if (deps.scrollRef() !== el || deps.paneView()?.id !== channelId) return;
-    el.scrollTop += el.scrollHeight - prevScrollHeight;
+    if (anchor?.el.isConnected) restoreScrollAnchor(el, anchor);
+    updateTopVisible();
   }
 
   let scrollCheckRaf = 0;

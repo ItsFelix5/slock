@@ -5,15 +5,14 @@ import type { createStoreSlices } from "./store/storeSlices";
 
 type AppWiringDeps = Pick<
   ReturnType<typeof createStoreSlices>,
-  | "activity"
   | "channels"
   | "desktopNotifications"
+  | "desktopNotificationImplRef"
   | "dms"
   | "messages"
   | "pinned"
   | "preferences"
   | "unread"
-  | "users"
   | "viewState"
   | "visibleThreads"
   | "visibleViews"
@@ -24,15 +23,14 @@ type AppWiringDeps = Pick<
 export function wireAppState(deps: AppWiringDeps) {
   const {
     actions,
-    activity,
     channels,
     desktopNotifications,
+    desktopNotificationImplRef,
     dms,
     messages,
     pinned,
     preferences,
     unread,
-    users,
     viewState,
     visibleThreads,
     visibleViews,
@@ -54,20 +52,18 @@ export function wireAppState(deps: AppWiringDeps) {
     if (view) void pinned.ensurePinsLoaded(view.id);
   });
   unread.wireReadTracking({
+    hasNewerHistory: messages.hasNewerHistory,
     messagesByChannel: messages.messagesByChannel,
     threadMessages: messages.threadMessages,
     visibleThreads,
     visibleViews,
   });
-  desktopNotifications.wireNotifications({
-    activeView: viewState.activeView,
-    activityItems: activity.activityItems,
-    channelById: channels.channelById,
-    dmById: dms.dmById,
-    isChannelMuted: preferences.isChannelMuted,
-    isDndActive: preferences.isDndActive,
-    openChannelPeek: actions.openChannelPeek,
-    userById: users.userById,
-  });
+  desktopNotificationImplRef.current = (payload) =>
+    desktopNotifications.showGatewayNotification(payload, {
+      activeView: viewState.activeView,
+      isChannelMuted: preferences.isChannelMuted,
+      isDndActive: preferences.isDndActive,
+      openChannelPeek: actions.openChannelPeek,
+    });
   return { markAllAsRead };
 }

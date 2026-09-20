@@ -1,18 +1,17 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { HoverCard, Icon } from "@slock/ui";
-import { createMemo, type JSX, Show } from "solid-js";
+import { type JSX, Show } from "solid-js";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
 import "./ChannelHoverCard.css";
 
 export default function ChannelHoverCard(props: { channelId: string; children: JSX.Element }) {
-  const channel = createMemo(() => store.channels.channelById(props.channelId));
-  const isMember = createMemo(() => store.channels.isChannelMember(props.channelId));
+  const channel = () => store.channels.channelById(props.channelId);
   const name = () => channelDisplayName(channel(), props.channelId);
 
   return (
     <HoverCard
-      content={(close) => (
+      content={() => (
         <Show when={channel()}>
           {(c) => (
             <>
@@ -36,35 +35,6 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
                     {count()} {count() === 1 ? "member" : "members"}
                   </div>
                 )}
-              </Show>
-
-              <Show
-                fallback={
-                  <button
-                    class="hover-card-action btn-reset flex-center"
-                    onClick={() => {
-                      close();
-                      store.viewState.setActiveView({ id: props.channelId, kind: "channel" });
-                    }}
-                    type="button"
-                  >
-                    <Icon name="arrow-right-channel" size={14} />
-                    Open channel
-                  </button>
-                }
-                when={!isMember()}
-              >
-                <button
-                  class="hover-card-action btn-reset flex-center"
-                  onClick={() => {
-                    close();
-                    store.channels.joinChannelById(props.channelId);
-                  }}
-                  type="button"
-                >
-                  <Icon name="plus" size={14} />
-                  Join channel
-                </button>
               </Show>
             </>
           )}

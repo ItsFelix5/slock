@@ -29,7 +29,6 @@ export {
   renameSection,
   reorderSection,
   setChannelNotifyAll,
-  setSectionSidebar,
   updateSectionChannels,
 } from "./channels/sections";
 export { fetchChannelCanvases, fetchConversationView } from "./conversationView";
@@ -43,6 +42,11 @@ export const fetchChannel = createBatchedIdFetcher<Channel | null>(async (ids) =
   const channels: Record<string, any> = data.channels ?? {};
   return new Map(ids.map((id) => [id, channels[id] ? mapChannel(channels[id]) : null]));
 }, MAX_CHANNELS_PER_BATCH);
+
+export async function reportChannelNamesToFlaron(names: string[]): Promise<void> {
+  const data = await apiPost("/api/channels/flaron-report", { names });
+  if (!data.ok) throw new Error(data.error ?? "flaron-report failed");
+}
 
 export async function fetchBrowsableChannels(query: string): Promise<BrowsableChannel[]> {
   const q = query.trim();
@@ -143,6 +147,11 @@ export {
   setChannelPostingPrefs,
 } from "./channelPostingPrefs";
 
+export async function fetchChannelRetention(channelId: string): Promise<number | null> {
+  const data = await apiGet(`/api/channels/${channelId}/retention`);
+  if (!data.ok) throw new Error(data.error ?? "conversations.getRetention failed");
+  return data.days ?? null;
+}
 export async function setChannelRetention(channelId: string, days: number | null): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/retention`, { days });
   if (!data.ok) throw new Error(data.error ?? "conversations.setRetention failed");

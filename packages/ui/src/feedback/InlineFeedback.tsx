@@ -1,4 +1,6 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import Icon from "../media/Icon";
+import Tooltip from "../overlay/Tooltip";
 import type { Feedback } from "./keyedFeedback";
 import "./InlineFeedback.css";
 
@@ -6,6 +8,7 @@ export interface InlineFeedbackProps {
   class?: string;
   feedback: Feedback | undefined;
   priority?: number;
+  variant?: "text" | "icon";
 }
 
 interface FeedbackClaim {
@@ -74,12 +77,29 @@ export default function InlineFeedback(props: InlineFeedbackProps) {
   return (
     <Show when={visibleFeedback()}>
       {(f) => (
-        <span
-          class={`inline-feedback inline-feedback-${f().kind} ${props.class ?? ""}`}
-          role={f().kind === "error" ? "alert" : "status"}
+        <Show
+          fallback={
+            <span
+              class={`inline-feedback inline-feedback-${f().kind} ${props.class ?? ""}`}
+              role={f().kind === "error" ? "alert" : "status"}
+            >
+              {f().text}
+            </span>
+          }
+          when={props.variant === "icon"}
         >
-          {f().text}
-        </span>
+          <Tooltip content={f().text}>
+            <span
+              class={`inline-feedback inline-feedback-icon inline-feedback-${f().kind} ${props.class ?? ""}`}
+              role={f().kind === "error" ? "alert" : "status"}
+            >
+              <Icon
+                name={f().kind === "error" ? "warning-filled" : "check-circle-filled"}
+                size={14}
+              />
+            </span>
+          </Tooltip>
+        </Show>
       )}
     </Show>
   );

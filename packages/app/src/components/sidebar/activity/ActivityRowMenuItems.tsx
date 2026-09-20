@@ -1,8 +1,8 @@
 import { debugMode, MenuItem, showDebugInfo } from "@slock/ui";
 import { Show } from "solid-js";
 import { copyMessageLink } from "../../../lib/messageLinks";
+import { openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
-import { openConversationInSplit } from "../../navigation/SplitNavigation";
 import type { ActivityRow } from "./ActivityRow";
 
 export interface ActivityRowMenuItemsProps {
@@ -13,10 +13,14 @@ export interface ActivityRowMenuItemsProps {
 
 export default function ActivityRowMenuItems(props: ActivityRowMenuItemsProps) {
   const latest = () => props.row.items[0];
-  const canUnsubscribe = () =>
-    props.row.isThread &&
-    !!latest().threadTs &&
-    !store.messages.isThreadUnsubscribed(latest().channelId, latest().threadTs as string);
+  const canUnsubscribe = () => {
+    const item = latest();
+    return (
+      props.row.isThread &&
+      !!item.threadTs &&
+      !store.messages.isThreadUnsubscribed(item.channelId, item.threadTs)
+    );
+  };
   const isUnread = () => store.activity.isActivityItemUnread(latest());
 
   const run = (fn: () => void) => {
@@ -35,7 +39,10 @@ export default function ActivityRowMenuItems(props: ActivityRowMenuItemsProps) {
   };
 
   const markRead = () => props.onSeen(props.row.items);
-  const markUnread = () => store.messages.markMessageUnread(latest().channelId, latest().ts);
+  const markUnread = () => {
+    store.messages.markMessageUnread(latest().channelId, latest().ts, latest().threadTs);
+    store.activity.markActivityItemUnread(latest());
+  };
 
   const unsubscribe = () => {
     const item = latest();

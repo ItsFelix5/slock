@@ -1,11 +1,12 @@
 import {
   Button,
+  blurOnEnter,
   createCopyFeedback,
   Icon,
   InlineFeedback,
-  listNavigationIndex,
   Overlay,
   PanelHeader,
+  tabStripKeyDown,
   useEscapeClose,
 } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
@@ -19,6 +20,7 @@ import {
   channelDetailsTab,
   closeChannelDetails,
   loadChannelDetails,
+  loadChannelManagerIds,
   renameChannelById,
   updateChannelPurpose,
   updateChannelTopic,
@@ -31,7 +33,6 @@ import {
   editableChannelDetails,
   mergeChannelDetailsDraft,
 } from "./fieldSave/channelDetailsDraft";
-import { saveEditableField } from "./fieldSave/fieldSaveController";
 
 const LEADING_HASH_RE = /^#/;
 
@@ -47,15 +48,34 @@ export default function ChannelDetails() {
   const [topicInput, setTopicInput] = createSignal("");
   const [purposeInput, setPurposeInput] = createSignal("");
   const [nameInput, setNameInput] = createSignal("");
-  const [savingName, setSavingName] = createSignal(false);
-  const [savingTopic, setSavingTopic] = createSignal(false);
-  const [savingPurpose, setSavingPurpose] = createSignal(false);
+  const [saving, setSaving] = createSignal(false);
 
   useEscapeClose(closeChannelDetails, () => !!channelDetailsId());
 
   const [details, { refetch }] = createResource(channelDetailsId, loadChannelDetails);
 
+  const currentDetails = createMemo(() => {
+    const d = details();
+    const id = channelDetailsId();
+    return d && id && d.id === id ? d : undefined;
+  });
+
+  const [managerIds] = createResource(channelDetailsId, loadChannelManagerIds);
+  const isManager = createMemo(() => {
+    const me = store.users.currentUser();
+    if (!me) return false;
+    if (me.isWorkspaceAdmin) return true;
+    const creatorId = currentDetails()?.creatorId;
+    if (creatorId && me.id === creatorId) return true;
+    if (managerIds.error) return false;
+    return (managerIds() ?? []).includes(me.id);
+  });
+  const visibleTabs = () => TABS.filter((t) => t.key !== "settings" || isManager());
+
   createEffect(on(channelDetailsId, () => setTab(channelDetailsTab())));
+  createEffect(() => {
+    if (tab() === "settings" && !managerIds.loading && !isManager()) setTab("about");
+  });
 
   let seededDetails: EditableChannelDetails | undefined;
   createEffect(
@@ -73,70 +93,61 @@ export default function ChannelDetails() {
     }),
   );
 
-  const saveTopic = async () => {
-    const id = channelDetailsId();
-    const v = topicInput().trim();
-    const previous = details()?.topic;
-    if (!id || previous === undefined || v === previous || savingTopic()) return;
-    await saveEditableField({
-      next: v,
-      persist: (next) => updateChannelTopic(id, next),
-      previous,
-      refresh: async () => {
-        await Promise.resolve(refetch());
-      },
-      restore: setTopicInput,
-      setPending: setSavingTopic,
-    });
+  const nameDirty = () => {
+    const d = details();
+    return !!d && nameInput().trim().replace(LEADING_HASH_RE, "") !== d.name;
+  };
+  const topicDirty = () => {
+    const d = details();
+    return !!d && topicInput().trim() !== d.topic;
+  };
+  const purposeDirty = () => {
+    const d = details();
+    return !!d && purposeInput().trim() !== d.purpose;
+  };
+  const anyDirty = () => nameDirty() || topicDirty() || purposeDirty();
+
+  const discardChanges = () => {
+    const d = details();
+    if (!d) return;
+    setNameInput(d.name);
+    setTopicInput(d.topic);
+    setPurposeInput(d.purpose);
   };
 
-  const savePurpose = async () => {
+  const saveChanges = async () => {
     const id = channelDetailsId();
-    const v = purposeInput().trim();
-    const previous = details()?.purpose;
-    if (!id || previous === undefined || v === previous || savingPurpose()) return;
-    await saveEditableField({
-      next: v,
-      persist: (next) => updateChannelPurpose(id, next),
-      previous,
-      refresh: async () => {
-        await Promise.resolve(refetch());
-      },
-      restore: setPurposeInput,
-      setPending: setSavingPurpose,
-    });
-  };
+    const d = details();
+    if (!(id && d) || saving()) return;
 
-  const saveName = async () => {
-    const id = channelDetailsId();
-    const v = nameInput().trim().replace(LEADING_HASH_RE, "");
-    const previous = details()?.name;
-    if (!id || previous === undefined || v === previous || savingName()) return;
-    if (!v) {
-      setNameInput(previous);
+    const nextName = nameInput().trim().replace(LEADING_HASH_RE, "");
+    if (!nextName) {
+      setNameInput(d.name);
       actionFeedback.flash(id, "Channel name can't be empty.", "error");
       return;
     }
-    await saveEditableField({
-      next: v,
-      persist: (next) => renameChannelById(id, next),
-      previous,
-      refresh: async () => {
-        await Promise.resolve(refetch());
-      },
-      restore: setNameInput,
-      setPending: setSavingName,
-    });
+    const nextTopic = topicInput().trim();
+    const nextPurpose = purposeInput().trim();
+
+    setSaving(true);
+    const [nameOk, topicOk, purposeOk] = await Promise.all([
+      nextName === d.name ? true : renameChannelById(id, nextName),
+      nextTopic === d.topic ? true : updateChannelTopic(id, nextTopic),
+      nextPurpose === d.purpose ? true : updateChannelPurpose(id, nextPurpose),
+    ]);
+    await Promise.resolve(refetch()).catch(() => {});
+    setSaving(false);
+
+    if (!nameOk) setNameInput(d.name);
+    if (!topicOk) setTopicInput(d.topic);
+    if (!purposeOk) setPurposeInput(d.purpose);
+    if (nameOk && topicOk && purposeOk) actionFeedback.flash(id, "Channel updated.");
   };
 
   const [copiedKey, copy] = createCopyFeedback(1200, () => {
     const id = channelDetailsId();
     if (id) actionFeedback.flash(id, "Couldn't copy to the clipboard.", "error");
   });
-
-  const blurOnEnter = (e: KeyboardEvent) => {
-    if (e.key === "Enter") (e.currentTarget as HTMLElement).blur();
-  };
 
   const createdLine = createMemo(() => {
     const d = details();
@@ -154,7 +165,9 @@ export default function ChannelDetails() {
     <Show when={channelDetailsId()}>
       {(id) => (
         <Overlay
-          ariaLabel={details()?.name ? `Details for #${details()?.name}` : "Channel details"}
+          ariaLabel={
+            currentDetails()?.name ? `Details for #${currentDetails()?.name}` : "Channel details"
+          }
           onClose={closeChannelDetails}
         >
           <Show
@@ -179,33 +192,26 @@ export default function ChannelDetails() {
                 </Show>
               </div>
             }
-            when={details()}
+            when={currentDetails()}
           >
             {(d) => (
               <div class="channel-details-card flex-col">
                 <PanelHeader
                   bottom={
                     <div class="channel-details-tabs" role="tablist">
-                      <For each={TABS}>
+                      <For each={visibleTabs()}>
                         {(t, i) => (
                           <button
                             aria-selected={tab() === t.key}
                             class="channel-details-tab btn-reset flex-align-center"
                             classList={{ active: tab() === t.key }}
                             onClick={() => setTab(t.key)}
-                            onKeyDown={(e) => {
-                              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-                              e.preventDefault();
-                              const next = listNavigationIndex(
-                                e.key === "ArrowRight" ? "ArrowDown" : "ArrowUp",
-                                i(),
-                                TABS.length,
-                                { wrap: true },
-                              );
-                              if (next === undefined) return;
-                              setTab(TABS[next].key);
-                              tabButtonRefs[next]?.focus();
-                            }}
+                            onKeyDown={(e) =>
+                              tabStripKeyDown(e, visibleTabs(), i(), (next, nextIndex) => {
+                                setTab(next.key);
+                                tabButtonRefs[nextIndex]?.focus();
+                              })
+                            }
                             ref={(el) => {
                               tabButtonRefs[i()] = el;
                             }}
@@ -226,7 +232,7 @@ export default function ChannelDetails() {
                 >
                   <div class="channel-details-title">
                     <Icon name={channelIconName(d().private)} size={14} />
-                    {d().name}
+                    <span>{d().name}</span>
                   </div>
                 </PanelHeader>
 
@@ -248,9 +254,8 @@ export default function ChannelDetails() {
                         </span>
                         <input
                           class="channel-details-input"
-                          disabled={savingName()}
+                          disabled={saving()}
                           id="channel-details-name"
-                          onBlur={saveName}
                           onInput={(e) => setNameInput(e.currentTarget.value)}
                           onKeyDown={blurOnEnter}
                           type="text"
@@ -264,10 +269,10 @@ export default function ChannelDetails() {
                       </label>
                       <MrkdwnComposer
                         ariaLabel="Topic"
-                        ariaBusy={savingTopic()}
-                        disabled={savingTopic()}
+                        ariaBusy={saving()}
+                        channelId={d().id}
+                        disabled={saving()}
                         id="channel-details-topic"
-                        onBlur={saveTopic}
                         onInput={setTopicInput}
                         placeholder="Add a topic"
                         value={topicInput()}
@@ -279,11 +284,11 @@ export default function ChannelDetails() {
                       </label>
                       <MrkdwnComposer
                         ariaLabel="Description"
-                        ariaBusy={savingPurpose()}
-                        disabled={savingPurpose()}
+                        ariaBusy={saving()}
+                        channelId={d().id}
+                        disabled={saving()}
                         id="channel-details-purpose"
                         multiline
-                        onBlur={savePurpose}
                         onInput={setPurposeInput}
                         placeholder="Add a description"
                         value={purposeInput()}
@@ -339,16 +344,27 @@ export default function ChannelDetails() {
                     />
                   </Show>
 
-                  <Show when={tab() === "settings"}>
+                  <Show when={tab() === "settings" && isManager()}>
                     <ChannelSettingsTab
                       archived={d().archived}
                       channelId={d().id}
-                      creatorId={d().creatorId}
                       onChanged={refetch}
                       private={d().private}
                     />
                   </Show>
                 </div>
+
+                <Show when={anyDirty()}>
+                  <div class="channel-details-save-bar flex-align-center">
+                    <span class="channel-details-save-hint text-dim">Unsaved changes</span>
+                    <Button disabled={saving()} onClick={discardChanges} size="sm">
+                      Discard
+                    </Button>
+                    <Button disabled={saving()} onClick={saveChanges} size="sm" variant="primary">
+                      {saving() ? "Saving…" : "Save"}
+                    </Button>
+                  </div>
+                </Show>
               </div>
             )}
           </Show>

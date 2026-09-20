@@ -7,16 +7,22 @@
   justify-content: center;
   width: 26px;
   height: 18px;
-  color: var(--text-on-danger);
-  background: var(--badge-bg);
-  border: 1px solid var(--sidebar-bg);
+  color: var(--text-primary);
+  background: var(--palette-charcoal-700);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
   transform: translateX(-50%);
 }
 
+.sidebar-unread-edge.mention {
+  color: var(--text-on-danger);
+  background: var(--badge-bg);
+  border-color: var(--sidebar-bg);
+}
+
 .sidebar-unread-edge:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.15);
 }
 
 .sidebar-unread-edge-top {

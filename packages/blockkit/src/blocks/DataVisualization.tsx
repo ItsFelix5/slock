@@ -1,4 +1,4 @@
-import type { Chart, ChartAxisConfig, ChartSeries, DataVisualizationBlock } from "@slock/types";
+import type { ChartAxisConfig, ChartSeries, DataVisualizationBlock } from "@slock/types";
 import { For, Match, Show, Switch } from "solid-js";
 
 const CHART_W = 300;
@@ -179,43 +179,43 @@ function seriesLegend(series: ChartSeries[]) {
 }
 
 export function DataVisualization(props: { block: DataVisualizationBlock }) {
-  const chart = () => props.block.chart as Chart;
   return (
     <section class="bk-chart">
       <div class="bk-chart-title">{props.block.title}</div>
-      <Switch fallback={<div class="bk-chart-empty">Unsupported chart: {chart().type}</div>}>
-        <Match when={chart().type === "pie"}>
-          <PieChart
-            segments={(chart() as { segments: { label: string; value: number }[] }).segments}
-          />
+      <Switch
+        fallback={<div class="bk-chart-empty">Unsupported chart: {props.block.chart.type}</div>}
+      >
+        <Match keyed when={props.block.chart.type === "pie" ? props.block.chart : undefined}>
+          {(c) => <PieChart segments={c.segments} />}
         </Match>
-        <Match when={chart().type === "bar"}>
-          {(() => {
-            const c = chart() as { axis_config: ChartAxisConfig; series: ChartSeries[] };
-            return (
-              <>
-                <BarChart categories={c.axis_config.categories} series={c.series} />
-                <Legend items={seriesLegend(c.series)} />
-                <AxisCaption axisConfig={c.axis_config} />
-              </>
-            );
-          })()}
+        <Match keyed when={props.block.chart.type === "bar" ? props.block.chart : undefined}>
+          {(c) => (
+            <>
+              <BarChart categories={c.axis_config.categories} series={c.series} />
+              <Legend items={seriesLegend(c.series)} />
+              <AxisCaption axisConfig={c.axis_config} />
+            </>
+          )}
         </Match>
-        <Match when={chart().type === "line" || chart().type === "area"}>
-          {(() => {
-            const c = chart() as { axis_config: ChartAxisConfig; series: ChartSeries[] };
-            return (
-              <>
-                <LineChart
-                  categories={c.axis_config.categories}
-                  filled={chart().type === "area"}
-                  series={c.series}
-                />
-                <Legend items={seriesLegend(c.series)} />
-                <AxisCaption axisConfig={c.axis_config} />
-              </>
-            );
-          })()}
+        <Match
+          keyed
+          when={
+            props.block.chart.type === "line" || props.block.chart.type === "area"
+              ? props.block.chart
+              : undefined
+          }
+        >
+          {(c) => (
+            <>
+              <LineChart
+                categories={c.axis_config.categories}
+                filled={c.type === "area"}
+                series={c.series}
+              />
+              <Legend items={seriesLegend(c.series)} />
+              <AxisCaption axisConfig={c.axis_config} />
+            </>
+          )}
         </Match>
       </Switch>
     </section>

@@ -10,6 +10,13 @@ export type UserSuggestItem = {
   user: User;
   notInChannel?: boolean;
 };
+export type SpecialMentionSuggestItem = {
+  kind: "special";
+  id: "channel" | "here";
+  name: string;
+  description: string;
+};
+export type UsergroupSuggestItem = { kind: "usergroup"; id: string; name: string };
 export type ChannelSuggestItem = {
   kind: "channel";
   id: string;
@@ -26,12 +33,19 @@ export type CommandSuggestItem = {
 export type EmojiSuggestItem = { kind: "emoji"; name: string; unicode?: string };
 export type SuggestItem =
   | UserSuggestItem
+  | SpecialMentionSuggestItem
+  | UsergroupSuggestItem
   | ChannelSuggestItem
   | CommandSuggestItem
   | EmojiSuggestItem;
 
 export type SuggestState =
-  | { kind: "user"; start: number; items: UserSuggestItem[]; active: number }
+  | {
+      kind: "user";
+      start: number;
+      items: (UserSuggestItem | SpecialMentionSuggestItem | UsergroupSuggestItem)[];
+      active: number;
+    }
   | { kind: "userlink"; start: number; items: UserSuggestItem[]; active: number }
   | { kind: "channel"; start: number; items: ChannelSuggestItem[]; active: number }
   | { kind: "command"; start: number; items: CommandSuggestItem[]; active: number }
@@ -51,6 +65,16 @@ export function suggestItemContent(item: SuggestItem) {
           {item.notInChannel ? <span class="suggestion-desc">not in channel</span> : null}
         </>
       );
+    case "special":
+      return (
+        <>
+          <span class="suggestion-icon flex-center">
+            <Icon name="megaphone" size={12} />
+          </span>
+          <span class="suggestion-label">{item.name}</span>
+          <span class="suggestion-desc">{item.description}</span>
+        </>
+      );
     case "channel":
       return (
         <>
@@ -59,6 +83,15 @@ export function suggestItemContent(item: SuggestItem) {
           </span>
           <span class="suggestion-label">{item.name}</span>
           {item.notInChannel ? <span class="suggestion-desc">not in channel</span> : null}
+        </>
+      );
+    case "usergroup":
+      return (
+        <>
+          <span class="suggestion-icon flex-center">
+            <Icon name="user-groups" size={12} />
+          </span>
+          <span class="suggestion-label">{item.name}</span>
         </>
       );
     case "command":

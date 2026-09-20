@@ -4,7 +4,7 @@
   right: 0;
   z-index: 10;
   width: 220px;
-  padding: 6px;
+  padding: 8px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -30,7 +30,7 @@
 .compose-picker-row {
   gap: 8px;
   width: 100%;
-  padding: 6px 8px;
+  padding: calc(6px + var(--row-padding-offset)) 8px;
   text-align: left;
   border-radius: var(--radius-control);
 }

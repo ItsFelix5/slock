@@ -18,11 +18,17 @@ export function createLocalTime(user: Accessor<User | undefined>, now: Accessor<
   });
 }
 
-export function createLastSeenText(user: Accessor<User | undefined>, now: Accessor<number>) {
+export function createLastSeenText(
+  user: Accessor<User | undefined>,
+  now: Accessor<number>,
+  latestMessageTs: Accessor<number | undefined>,
+) {
   return createMemo(() => {
     const u = user();
-    if (!u || u.presence === "active" || !u.lastSeen) return null;
-    return formatLastSeen(u.lastSeen, now());
+    if (!u || u.presence === "active") return null;
+    const seenAt = Math.max(u.lastSeen ?? 0, latestMessageTs() ?? 0);
+    if (!seenAt) return null;
+    return formatLastSeen(seenAt, now());
   });
 }
 

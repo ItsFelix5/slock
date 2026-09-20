@@ -10,6 +10,7 @@ export function createMessageStatusActions(deps: {
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
+  setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
   hasMoreHistory: (channelId: string) => boolean;
   messagesByChannel: Record<string, Message[]>;
   threadMessages: Record<string, Message[]>;
@@ -80,7 +81,21 @@ export function createMessageStatusActions(deps: {
     deps.setLastReadByChannel(channelId, parseFloat(latest) * 1000);
     return true;
   }
-  async function markMessageUnread(channelId: string, ts: string): Promise<boolean> {
+  async function markMessageUnread(
+    channelId: string,
+    ts: string,
+    threadTs?: string,
+  ): Promise<boolean> {
+    if (threadTs) {
+      const list = threadMessages[threadTs] ?? [];
+      const idx = list.findIndex((m) => m.ts === ts);
+      const previousTs = idx > 0 ? list[idx - 1].ts : (parseFloat(ts) - 0.000001).toFixed(6);
+      if (!(await deps.setThreadRead(channelId, threadTs, previousTs))) {
+        actionFeedback.flash(ts, "Failed to mark as unread.", "error");
+        return false;
+      }
+      return true;
+    }
     const list = messagesByChannel[channelId] ?? [];
     const idx = list.findIndex((m) => m.ts === ts);
     const atRealStart = idx === 0 && !deps.hasMoreHistory(channelId);

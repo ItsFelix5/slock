@@ -1,4 +1,3 @@
-import { Mrkdwn } from "@slock/blockkit";
 import {
   Button,
   ClickableInline,
@@ -6,28 +5,33 @@ import {
   DEFAULT_AVATAR_COLOR,
   IconButton,
   InlineFeedback,
+  initRovingTabIndexDefault,
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
-import {
-  openConversation,
-  openConversationInSplit,
-} from "../../components/navigation/SplitNavigation";
 import { formatTime } from "../../lib/api";
 import { conversationDisplayName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
+import { openConversation, openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
 import MessageActionsMenuItems from "../messages/parts/MessageActionsMenuItems";
+import MessageReferenceSnippet from "../messages/parts/MessageReferenceSnippet";
 import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   resolveProfileUserId,
 } from "../messages/parts/messageRenderState";
 import ResultMessageCard from "../messages/parts/ResultMessageCard";
+import { SplitNavigation } from "../navigation/SplitNavigation";
 import "./LaterView.css";
 
 export default function LaterView() {
   onMount(() => store.later.ensureLaterLoaded());
+  let listRef: HTMLDivElement | undefined;
+  initRovingTabIndexDefault(
+    () => listRef,
+    () => store.later.laterItems,
+  );
 
   const goTo = (channelId: string, ts: string, rootTs?: string) => {
     if (rootTs) store.viewState.openChannelPeek(channelId, rootTs, ts, { keepNav: true });
@@ -35,7 +39,7 @@ export default function LaterView() {
   };
 
   return (
-    <div class="later-view sidebar-view-panel">
+    <div class="later-view sidebar-view-panel" ref={listRef}>
       <Show
         fallback={<div class="later-empty empty-state">Loading saved items…</div>}
         when={store.later.laterLoaded() || store.later.laterLoadError()}
@@ -108,14 +112,16 @@ export default function LaterView() {
                         name: authorName(),
                       }}
                       context={
-                        <ClickableInline onActivate={() => openConversation(item.channelId)}>
-                          {conversationDisplayName(
-                            item.channelId,
-                            store.channels.channelById,
-                            store.dms.dmById,
-                            store.users.userById,
-                          )}
-                        </ClickableInline>
+                        <SplitNavigation onSplit={() => openConversationInSplit(item.channelId)}>
+                          <ClickableInline onActivate={() => openConversation(item.channelId)}>
+                            {conversationDisplayName(
+                              item.channelId,
+                              store.channels.channelById,
+                              store.dms.dmById,
+                              store.users.userById,
+                            )}
+                          </ClickableInline>
+                        </SplitNavigation>
                       }
                       ctxMenu={isLoaded() ? ctxMenu : undefined}
                       name={authorName()}
@@ -129,8 +135,14 @@ export default function LaterView() {
                         );
                       }}
                       onSplit={() => {
-                        const rootTs = msg()?.threadTs;
-                        openConversationInSplit(item.channelId, rootTs ?? item.ts);
+                        const threadTs = msg()?.threadTs;
+                        if (threadTs && threadTs !== item.ts) {
+                          store.viewState.openThread(item.channelId, threadTs, item.ts, {
+                            pinned: true,
+                          });
+                        } else {
+                          openConversationInSplit(item.channelId, item.ts);
+                        }
                       }}
                       snippet={
                         <Show
@@ -138,10 +150,23 @@ export default function LaterView() {
                           when={isLoaded()}
                         >
                           <Show fallback="Message unavailable" when={msg()}>
-                            {(message) => <Mrkdwn text={message().text} />}
+                            {(message) => (
+                              <MessageReferenceSnippet
+                                blocks={message().blocks}
+                                botId={message().botId}
+                                botUserId={message().userId}
+                                channelId={item.channelId}
+                                edited={message().edited}
+                                text={message().text}
+                                threadTs={message().threadTs}
+                                ts={message().ts}
+                                tz={author()?.tz}
+                              />
+                            )}
                           </Show>
                         </Show>
                       }
+                      tabIndex={-1}
                       time={formatTime(item.ts)}
                       timeTitle={timeTitle()}
                       userId={authorId()}
@@ -164,7 +189,6 @@ export default function LaterView() {
                               store.later.isSaveForLaterPending(item.channelId, item.ts)
                             }
                             icon="bookmark-filled"
-                            label="Remove from Later"
                             onClick={() => store.later.toggleSaveForLater(item.channelId, item.ts)}
                             tone="accent"
                           />

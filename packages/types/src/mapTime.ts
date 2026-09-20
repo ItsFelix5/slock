@@ -1,6 +1,9 @@
+export function formatTimeFromMs(ms: number) {
+  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
 export function formatTime(ts: string) {
-  const date = new Date(parseFloat(ts) * 1000);
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return formatTimeFromMs(parseFloat(ts) * 1000);
 }
 
 export function formatDayFromMs(ms: number) {
@@ -18,6 +21,7 @@ export function formatDayFromMs(ms: number) {
     day: "numeric",
     month: "long",
     weekday: "long",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
   });
 }
 

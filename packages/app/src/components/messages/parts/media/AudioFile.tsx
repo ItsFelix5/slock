@@ -1,5 +1,13 @@
 import { formatDuration } from "@slock/blockkit";
-import { createMediaVolume, Icon, VolumeControl } from "@slock/ui";
+import {
+  ContextMenu,
+  createMediaVolume,
+  Icon,
+  IconButton,
+  MenuItem,
+  useContextMenu,
+  VolumeControl,
+} from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import "./AudioFile.css";
@@ -27,6 +35,19 @@ export default function AudioFile(props: { file: SlackFile }) {
   const [currentTime, setCurrentTime] = createSignal(0);
   const [mediaDuration, setMediaDuration] = createSignal<number>();
   const [loadError, setLoadError] = createSignal(false);
+  const ctxMenu = useContextMenu();
+
+  const download = () => {
+    const link = document.createElement("a");
+    link.href = props.file.urlPrivateDownload ?? props.file.urlPrivate;
+    link.download = props.file.name;
+    link.rel = "noopener noreferrer";
+    link.click();
+  };
+
+  const copyLink = () => {
+    if (props.file.permalink) void navigator.clipboard.writeText(props.file.permalink);
+  };
   const samples = () => {
     const waveform = resample(props.file.waveform ?? []);
     return waveform.length > 0 ? waveform : Array.from({ length: BAR_COUNT }, () => 16);
@@ -78,7 +99,11 @@ export default function AudioFile(props: { file: SlackFile }) {
   });
 
   return (
-    <div class="audio-file">
+    <div
+      class="audio-file"
+      onContextMenu={ctxMenu.open}
+      title={props.file.title || props.file.name}
+    >
       <Show
         fallback={
           <div class="audio-file-error">
@@ -94,26 +119,17 @@ export default function AudioFile(props: { file: SlackFile }) {
             >
               Try again
             </button>
-            <a
-              class="audio-file-action"
-              href={props.file.urlPrivate}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Open audio
-            </a>
           </div>
         }
         when={!loadError()}
       >
         <div class="audio-file-controls flex-align-center">
-          <button
-            class="audio-file-play btn-reset flex-align-center"
+          <IconButton
+            class="audio-file-play"
+            icon={playing() ? "pause-filled" : "play-filled"}
+            label={playing() ? "Pause" : "Play"}
             onClick={togglePlayback}
-            type="button"
-          >
-            <Icon name={playing() ? "pause-filled" : "play-filled"} size={16} />
-          </button>
+          />
           <div
             class="audio-file-waveform"
             classList={{ disabled: duration() <= 0 }}
@@ -162,6 +178,28 @@ export default function AudioFile(props: { file: SlackFile }) {
         }}
         src={resolveMediaUrl(props.file.urlPrivate)}
       />
+      <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
+        <MenuItem
+          icon="download"
+          onClick={() => {
+            ctxMenu.close();
+            download();
+          }}
+        >
+          Download
+        </MenuItem>
+        <Show when={props.file.permalink}>
+          <MenuItem
+            icon="link"
+            onClick={() => {
+              ctxMenu.close();
+              copyLink();
+            }}
+          >
+            Copy link
+          </MenuItem>
+        </Show>
+      </ContextMenu>
     </div>
   );
 }

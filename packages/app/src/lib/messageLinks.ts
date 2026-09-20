@@ -37,6 +37,16 @@ export async function copyMessageLink(channelId: string, ts: string, threadTs?: 
   }
 }
 
+export async function copyCanvasLink(fileId: string, permalink: string | null) {
+  try {
+    if (!permalink) throw new Error("no permalink");
+    await navigator.clipboard.writeText(permalink);
+  } catch (err) {
+    console.error("Failed to copy canvas link", err);
+    actionFeedback.flash(fileId, "Couldn't copy the canvas link.", "error");
+  }
+}
+
 export async function prepareReplyLink(
   channelId: string,
   ts: string,

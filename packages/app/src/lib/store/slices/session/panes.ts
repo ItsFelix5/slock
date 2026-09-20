@@ -11,6 +11,7 @@ import {
   replacePaneContent,
   resizePanes,
 } from "@slock/ui";
+import { createEffect, createSignal } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
   ChannelMessageTarget,
@@ -40,18 +41,53 @@ export function createPanesSlice() {
     Record<string, ChannelMessageTarget | undefined>
   >({});
 
-  function currentFocusedId(): string {
+  const [activePaneId, setActivePaneId] = createSignal<string | null>(null);
+
+  createEffect(() => {
     const id = focusedPaneId();
+    if (id && findPane(state.panes, id)) setActivePaneId(id);
+  });
+
+  function activateId(id: string) {
+    setActivePaneId(id);
+    focusPaneSoon(id);
+  }
+
+  function currentFocusedId(): string {
+    const id = activePaneId() ?? focusedPaneId();
     return id && findPane(state.panes, id) ? id : state.panes[0].id;
   }
 
+  function isConversationPane(pane: Pane<PaneContent | null>): boolean {
+    return pane.content?.kind === "channel" || pane.content?.kind === "dm";
+  }
+
+  function nearestConversationPaneId(fromId: string): string {
+    const panes = state.panes;
+    const fromIndex = panes.findIndex((p) => p.id === fromId);
+    if (fromIndex === -1) return panes[0].id;
+    for (let i = fromIndex; i >= 0; i--) {
+      if (isConversationPane(panes[i])) return panes[i].id;
+    }
+    for (let i = fromIndex + 1; i < panes.length; i++) {
+      if (isConversationPane(panes[i])) return panes[i].id;
+    }
+    return panes[0].id;
+  }
+
+  function focusedConversationContent(): PaneContent | null {
+    const id = nearestConversationPaneId(currentFocusedId());
+    return findPane(state.panes, id)?.content ?? null;
+  }
+
   function navigateFocusedPane(content: View, target?: ChannelMessageTarget) {
-    const id = currentFocusedId();
+    const id = nearestConversationPaneId(currentFocusedId());
     setState(
       "panes",
       reconcile(replacePaneContent(unwrap(state.panes), id, content), { key: "id" }),
     );
     setMessageTargets(id, target);
+    activateId(id);
   }
 
   function setPaneContent(id: string, content: PaneContent | null) {
@@ -77,6 +113,17 @@ export function createPanesSlice() {
     );
   }
 
+  function insertContentPane(content: PaneContent, afterId: string | null): string {
+    const id = createPaneId();
+    const fraction = content.kind === "channel" || content.kind === "dm" ? 0.5 : 0.32;
+    setState(
+      "panes",
+      reconcile(insertPane(unwrap(state.panes), afterId, content, id, fraction), { key: "id" }),
+    );
+    activateId(id);
+    return id;
+  }
+
   function openInNewPane(content: PaneContent): string {
     const focusedId = currentFocusedId();
     if (isSingletonKind(content)) {
@@ -92,7 +139,7 @@ export function createPanesSlice() {
           "panes",
           reconcile(replacePaneContent(unwrap(state.panes), existing.id, content), { key: "id" }),
         );
-        focusPaneSoon(existing.id);
+        activateId(existing.id);
         return existing.id;
       }
       if (existing) {
@@ -110,33 +157,27 @@ export function createPanesSlice() {
             { key: "id" },
           ),
         );
-        focusPaneSoon(id);
+        activateId(id);
         return id;
       }
     }
-    const id = createPaneId();
-    const fraction = content.kind === "channel" || content.kind === "dm" ? 0.5 : 0.32;
-    setState(
-      "panes",
-      reconcile(insertPane(unwrap(state.panes), focusedId, content, id, fraction), {
-        key: "id",
-      }),
-    );
-    focusPaneSoon(id);
-    return id;
+    return insertContentPane(content, focusedId);
   }
 
   function closePane(id: string) {
     if (state.panes.length <= 1) return;
+    const hadFocus = activePaneId() === id || focusedPaneId() === id;
+    const index = state.panes.findIndex((p) => p.id === id);
     setState("panes", reconcile(closePaneInList(unwrap(state.panes), id), { key: "id" }));
     setMessageTargets(id, undefined);
+    if (hadFocus) {
+      const next = state.panes[Math.min(index, state.panes.length - 1)];
+      if (next) activateId(next.id);
+    }
   }
 
   function closeUnpinnedThread() {
-    const thread = findPaneByContent(
-      state.panes,
-      (c) => !!c && c.kind === "thread" && !(c as ThreadPaneContent).pinned,
-    );
+    const thread = findPaneByContent(state.panes, (c) => !!c && c.kind === "thread" && !c.pinned);
     if (thread) closePane(thread.id);
   }
 
@@ -166,6 +207,10 @@ export function createPanesSlice() {
       .filter((c): c is View => c?.kind === "channel" || c?.kind === "dm");
   }
 
+  function isOpenInAnyPane(id: string, kind: "channel" | "dm"): boolean {
+    return visibleViews().some((v) => v.kind === kind && v.id === id);
+  }
+
   function visibleThreads(): ThreadRef[] {
     return state.panes
       .map((p) => p.content)
@@ -174,10 +219,15 @@ export function createPanesSlice() {
   }
 
   return {
+    activatePane: activateId,
+    activePaneId,
     clearMessageTarget,
     closePane,
     closeUnpinnedThread,
     currentFocusedId,
+    focusedConversationContent,
+    insertContentPane,
+    isOpenInAnyPane,
     messageTarget,
     navigateFocusedPane,
     openInNewPane,

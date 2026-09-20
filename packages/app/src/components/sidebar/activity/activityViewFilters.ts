@@ -1,10 +1,21 @@
 import type { IconName } from "@slock/ui";
 import { ACTIVITY_KIND_FEED_TYPES, type ActivityItem } from "../../../lib/api";
 import type { ActivityRow as ActivityRowData } from "./ActivityRow";
-import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
+
+export const ACTIVITY_KIND_ICONS: Record<ActivityItem["kind"], IconName> = {
+  channel_all: "notifications-all-new-posts",
+  channel_mention: "megaphone",
+  dm: "direct-messages",
+  keyword: "sparkles",
+  mention: "mentions",
+  other: "notifications",
+  reaction: "emoji",
+  thread_reply: "threads",
+  usergroup_mention: "user-groups",
+};
 
 export type Tag = ActivityItem["kind"];
-export type ReadState = "all" | "unread" | "read" | "reacted";
+export type ReadState = "all" | "unread" | "read" | "archived";
 export type RowStatus = Exclude<ReadState, "all"> | "pending";
 
 export type ActivityListEntry =
@@ -43,7 +54,7 @@ export const READ_STATES: { key: ReadState; label: string }[] = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
   { key: "read", label: "Read" },
-  { key: "reacted", label: "Reacted" },
+  { key: "archived", label: "Complete" },
 ];
 
 export function latestItem(row: ActivityRowData) {

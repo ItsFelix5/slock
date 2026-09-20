@@ -1,33 +1,26 @@
 import { produce } from "solid-js/store";
-import type { ActivityItem, ConversationViewData, Message, User } from "../../../api";
+import type { ActivityItem, Block, ConversationViewData, Message, User } from "../../../api";
 import {
+  broadcastRangeFromBlocks,
   broadcastReply,
   deleteMessage,
   editMessage,
   postBroadcastMessage,
   postMessage,
 } from "../../../api";
-import { actionFeedback } from "../../../feedback";
-import { findMessageLocations, reactionMessageKey } from "../../../messageLocations";
+import { flashError, undoStack } from "../../../feedback";
+import {
+  latestMessageTsMsByUser as findLatestMessageTsMsByUser,
+  findMessageLocations,
+  reactionMessageKey,
+} from "../../../messageLocations";
 import { dedupeMessages } from "../../../messageMerge";
-import { undoStack } from "../../../undo";
 import type { ChannelMessageTarget, MessageLocation, ThreadRef, View } from "../types";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
-
-const BROADCAST_MENTION_RE = /(?<![<!\w])@(channel|here)\b/gi;
-
-function withBroadcastMentions(text: string): { text: string; hasBroadcast: boolean } {
-  let hasBroadcast = false;
-  const converted = text.replace(BROADCAST_MENTION_RE, (_match, kind: string) => {
-    hasBroadcast = true;
-    return `<!${kind.toLowerCase()}>`;
-  });
-  return { hasBroadcast, text: converted };
-}
 
 export function createMessagesSlice(deps: {
   currentUser: () => User | undefined;
@@ -38,6 +31,7 @@ export function createMessagesSlice(deps: {
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
+  setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
   visibleMessageTargets: () => ChannelMessageTarget[];
   visibleViews: () => View[];
   visibleThreads: () => ThreadRef[];
@@ -56,8 +50,8 @@ export function createMessagesSlice(deps: {
     setReactionMessages,
     loadedChannels,
     threadMessages,
-    setThreadMessages,
-    loadedThreads,
+    setThreadMessages: setThreadMessagesRaw,
+    isThreadKnown,
     loadOlderMessages,
     loadOlderMessagesThrough,
     loadNewerMessages,
@@ -74,7 +68,9 @@ export function createMessagesSlice(deps: {
     ensureThreadRepliesLoaded,
     jumpToBeginning,
     jumpToDate,
+    refreshThreadReplies,
   } = history;
+  const setThreadMessages: typeof setMessagesByChannel = setThreadMessagesRaw;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
     hasMoreHistory,
@@ -82,6 +78,7 @@ export function createMessagesSlice(deps: {
     patchMessage: (channelId, ts, patch) => patchMessage(channelId, ts, patch),
     setLastReadByChannel: deps.setLastReadByChannel,
     setChannelRead: deps.setChannelRead,
+    setThreadRead: deps.setThreadRead,
     setUnreadChannelIds: deps.setUnreadChannelIds,
     setUnreadDividerTs: deps.setUnreadDividerTs,
     syncChannelRead: deps.syncChannelRead,
@@ -93,6 +90,8 @@ export function createMessagesSlice(deps: {
   });
   const findAllMessageLocations = (channelId: string, ts: string) =>
     findMessageLocations(messagesByChannel, threadMessages, reactionMessages, channelId, ts);
+  const latestMessageTsMsByUser = (userId: string) =>
+    findLatestMessageTsMsByUser(messagesByChannel, threadMessages, userId);
   const messagesInChannel = (channelId: string) => messagesByChannel[channelId];
   const messagesInThread = (threadTs: string) => threadMessages[threadTs];
   const reactionMessageFor = (channelId: string, ts: string) =>
@@ -104,12 +103,8 @@ export function createMessagesSlice(deps: {
   } as const;
   function patchMessage(channelId: string, ts: string, patch: Partial<Message>) {
     for (const { location } of findAllMessageLocations(channelId, ts)) {
-      setStore[location.store](
-        location.key,
-        produce((list) => {
-          const msg = list.find((m) => m.ts === ts);
-          if (msg) Object.assign(msg, patch);
-        }),
+      setStore[location.store](location.key, (list) =>
+        list.map((m) => (m.ts === ts ? { ...m, ...patch } : m)),
       );
     }
   }
@@ -137,20 +132,20 @@ export function createMessagesSlice(deps: {
     channelId: string,
     text: string,
     threadTs?: string,
-    blocks?: unknown,
+    blocks?: Block[],
     suppressUnfurl?: boolean,
   ) {
     const trimmed = text.trim();
     if (!(trimmed || blocks)) return;
-    const { text: withBroadcast, hasBroadcast } = withBroadcastMentions(trimmed);
+    const hasBroadcast = !!broadcastRangeFromBlocks(blocks);
     const me = deps.currentUser();
     const now = Date.now();
     const optimistic: Message = {
-      blocks: blocks as Message["blocks"],
+      blocks,
       day: "Today",
       id: `pending-${now}`,
       kind: "normal",
-      text: withBroadcast,
+      text: trimmed,
       time: new Date().toLocaleTimeString([], {
         hour: "numeric",
         minute: "2-digit",
@@ -179,9 +174,9 @@ export function createMessagesSlice(deps: {
     }
     try {
       const res = hasBroadcast
-        ? await postBroadcastMessage(channelId, withBroadcast, threadTs, blocks, suppressUnfurl)
+        ? await postBroadcastMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl)
         : await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl);
-      const realTs = res.ts as string;
+      const realTs = res.ts;
 
       const resolvePending = (list: Message[]) =>
         dedupeMessages(list.map((m) => (m.id === optimistic.id ? { ...m, ts: realTs } : m)));
@@ -196,14 +191,15 @@ export function createMessagesSlice(deps: {
       throw err;
     }
   }
-  async function editMessageText(channelId: string, ts: string, text: string, blocks?: unknown) {
+  async function editMessageText(channelId: string, ts: string, text: string, blocks?: Block[]) {
     const trimmed = text.trim();
     if (!trimmed) return false;
     const previous = findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
+    const relayed = !!previous && previous.userId !== deps.currentUser()?.id;
     try {
-      await editMessage(channelId, ts, trimmed, blocks);
+      await editMessage(channelId, ts, trimmed, blocks, relayed);
       patchMessage(channelId, ts, {
-        blocks: blocks as Message["blocks"],
+        blocks,
         edited: true,
         text: trimmed,
       });
@@ -216,7 +212,7 @@ export function createMessagesSlice(deps: {
       return true;
     } catch (err) {
       console.error("Failed to edit message", err);
-      actionFeedback.flash(ts, "Failed to edit message.", "error");
+      flashError(ts, "Failed to edit message.");
       return false;
     }
   }
@@ -229,17 +225,19 @@ export function createMessagesSlice(deps: {
         mergeActions.insertMessageInOrder(channelId, broadcasted);
     } catch (err) {
       console.error("Failed to broadcast reply", err);
-      actionFeedback.flash(ts, "Failed to send to channel.", "error");
+      flashError(ts, "Failed to send to channel.");
       patchMessage(channelId, ts, { isBroadcast: false });
     }
   }
   async function deleteMessageAt(channelId: string, ts: string) {
+    const previous = findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
+    const relayed = !!previous && previous.userId !== deps.currentUser()?.id;
     try {
-      await deleteMessage(channelId, ts);
+      await deleteMessage(channelId, ts, relayed);
       patchMessage(channelId, ts, { deleted: true });
     } catch (err) {
       console.error("Failed to delete message", err);
-      actionFeedback.flash(ts, "Failed to delete message.", "error");
+      flashError(ts, "Failed to delete message.");
     }
   }
   return {
@@ -256,10 +254,11 @@ export function createMessagesSlice(deps: {
     isLoadingHistory,
     isLoadingThread,
     isReactionPending,
+    isThreadKnown,
     jumpToBeginning,
     jumpToDate,
+    latestMessageTsMsByUser,
     loadedChannels,
-    loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
     loadNewerMessages,
@@ -269,6 +268,7 @@ export function createMessagesSlice(deps: {
     messagesInThread,
     patchMessage,
     reactionMessageFor,
+    refreshThreadReplies,
     removeMessage,
     setMessagesByChannel,
     setReactionMessages,

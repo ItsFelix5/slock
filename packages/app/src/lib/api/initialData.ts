@@ -1,6 +1,9 @@
+import { ApiError, getOrCreateRetryablePromise } from "@slock/types";
+
 export type InitialData = {
   channels?: any[];
   error?: Record<string, string>;
+  retry_after?: Record<string, string>;
   ims?: any[];
   mpims?: any[];
   notifications?: any;
@@ -8,27 +11,22 @@ export type InitialData = {
   self?: any;
   snooze?: { endtime?: number } | null;
   starred?: any[];
-  subteams?: { self?: string[] };
+  subteams?: { all?: string[]; self?: string[] };
   unreads?: any;
   [key: string]: any;
 };
 
-let initialDataPromise: Promise<InitialData> | null = null;
-const FEED_ROUTE_RE = /^\/(activity|later|search)(?:\/|$)/;
+const initialDataCache = new Map<"bootstrap", Promise<InitialData>>();
 
 export function fetchInitialData(): Promise<InitialData> {
-  if (initialDataPromise) return initialDataPromise;
-  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
-  const startsInConversationList = !FEED_ROUTE_RE.test(pathname);
-  const request = fetch(`/api/bootstrap?sections=${startsInConversationList}`)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Bootstrap failed (${response.status})`);
-      return response.json() as Promise<InitialData>;
-    })
-    .catch((error) => {
-      if (initialDataPromise === request) initialDataPromise = null;
-      throw error;
-    });
-  initialDataPromise = request;
-  return request;
+  return getOrCreateRetryablePromise(initialDataCache, "bootstrap", async () => {
+    const response = await fetch("/api/bootstrap");
+    if (!response.ok) {
+      throw new ApiError(
+        `Bootstrap failed (${response.status})`,
+        response.headers.get("retry-after") ?? undefined,
+      );
+    }
+    return response.json();
+  });
 }

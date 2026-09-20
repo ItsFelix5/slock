@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import type { User } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import UserHoverCard from "../../user/UserHoverCard";
-import { MessageAvatarButton } from "../message-author-buttons";
+import { MessageAvatarButton } from "../MessageAuthorButtons";
 
 export default function MessageRowAvatar(props: {
   avatarUrl: string | undefined;

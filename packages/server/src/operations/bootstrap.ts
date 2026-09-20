@@ -7,6 +7,7 @@ import {
   trimCountGroups,
   trimUser,
 } from "../trim/slackEntities.ts";
+import { type Route, route } from "../routes/router.ts";
 
 function trimUserBoot(data: any): any {
   const trimIm = (im: any) => ({
@@ -113,26 +114,25 @@ function trimSections(data: any): Record<string, any> {
 export async function bootstrapResponse(
   creds: Credentials | null,
   acceptEncoding: string | null,
-  includeSections: boolean,
 ): Promise<Response> {
   const [rawBoot, rawCounts, rawPrefs, rawDnd, rawSections] = await Promise.all([
     callSlack("client.userBoot", {}, creds),
     callSlack("client.counts", {}, creds).catch(() => ({ ok: false })),
     callSlack("users.prefs.get", {}, creds),
     callSlack("dnd.info", {}, creds),
-    includeSections
-      ? callSlack("users.channelSections.list", {}, creds)
-      : Promise.resolve(undefined),
+    callSlack("users.channelSections.list", {}, creds),
   ]);
+  const failed = [
+    ["bootstrap", rawBoot],
+    ["notification_prefs", rawPrefs],
+    ["snooze", rawDnd],
+    ["sections", rawSections],
+  ].filter(([, data]) => data && !data.ok);
   const errors = Object.fromEntries(
-    [
-      ["bootstrap", rawBoot],
-      ["notification_prefs", rawPrefs],
-      ["snooze", rawDnd],
-      ["sections", rawSections],
-    ]
-      .filter(([, data]) => data && !data.ok)
-      .map(([name, data]) => [name, data.error ?? `${name} failed`]),
+    failed.map(([name, data]) => [name, data.error ?? `${name} failed`]),
+  );
+  const retryAfter = Object.fromEntries(
+    failed.filter(([, data]) => data.retry_after).map(([name, data]) => [name, data.retry_after]),
   );
   const counts = rawCounts.ok ? trimBootstrapCounts(rawCounts) : {};
 
@@ -144,8 +144,13 @@ export async function bootstrapResponse(
       sections: rawSections?.ok ? trimSections(rawSections) : undefined,
       snooze: rawDnd.ok ? trimDndInfo(rawDnd) : undefined,
       error: Object.keys(errors).length > 0 ? errors : undefined,
+      retry_after: Object.keys(retryAfter).length > 0 ? retryAfter : undefined,
     },
     creds,
     acceptEncoding,
   );
 }
+
+export const bootstrapRoutes: Route[] = [
+  route("GET", "bootstrap", (ctx) => bootstrapResponse(ctx.creds, ctx.acceptEncoding)),
+];

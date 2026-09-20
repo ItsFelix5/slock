@@ -1,7 +1,5 @@
-import { colorScheme, replaceThemeColors, setThemeShape, themeColors, themeShape } from "@slock/ui";
-import { createEffect, type Resource, type Setter } from "solid-js";
+import { createEffect } from "solid-js";
 import type { Bootstrap, DirectMessage, UserPrefs } from "../api";
-import { setThemeColorsPref, setThemeShapePref } from "../api";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -13,7 +11,6 @@ import { createMessagesSlice } from "./slices/messaging/messages";
 import { createRealtimeSlice } from "./slices/messaging/realtime";
 import { createTypingSlice } from "./slices/messaging/typing";
 import { createUnreadSlice } from "./slices/messaging/unread";
-import { createChannelTabsSlice } from "./slices/session/channelTabs";
 import { createCommandsSlice } from "./slices/session/commands";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
@@ -21,7 +18,6 @@ import { createModalsSlice } from "./slices/session/modals";
 import { createPanesSlice } from "./slices/session/panes";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
-import { createSyncedThemeValue } from "./slices/session/themeSync";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { View } from "./slices/types";
 
@@ -30,9 +26,9 @@ export function createStoreSlices({
   userPrefs,
   mutateUserPrefs,
 }: {
-  bootstrap: Resource<Bootstrap>;
-  userPrefs: Resource<UserPrefs>;
-  mutateUserPrefs: Setter<UserPrefs | undefined>;
+  bootstrap: () => Bootstrap | undefined;
+  userPrefs: () => UserPrefs | undefined;
+  mutateUserPrefs: (updater: (current: UserPrefs | undefined) => UserPrefs | undefined) => void;
 }) {
   const panes = createPanesSlice();
   const viewState = createViewStateSlice({ bootstrap, panes });
@@ -47,17 +43,24 @@ export function createStoreSlices({
     panes,
   });
   const usergroups = createUsergroupsSlice({
+    allUsergroupIds: () => bootstrap()?.allUsergroupIds ?? [],
     selfUsergroupIds: () => bootstrap()?.selfUsergroupIds ?? [],
   });
   const typing = createTypingSlice({ userById: users.userById });
-  const setActiveViewImplRef: { current: (view: View) => void } = {
+  const setActiveViewImplRef: {
+    current: (view: View, options?: { autofocus?: boolean }) => void;
+  } = {
     current: () => {},
   };
-  const setActiveView = (view: View) => setActiveViewImplRef.current(view);
+  const setActiveView = (view: View, options?: { autofocus?: boolean }) =>
+    setActiveViewImplRef.current(view, options);
 
   const patchDmImplRef: {
     current: (id: string, patch: Partial<DirectMessage>) => void;
   } = {
+    current: () => {},
+  };
+  const desktopNotificationImplRef: { current: (payload: any) => void } = {
     current: () => {},
   };
   const patchDm = (id: string, patch: Partial<DirectMessage>) => patchDmImplRef.current(id, patch);
@@ -86,18 +89,10 @@ export function createStoreSlices({
   } = { current: () => undefined };
   const activity = createActivitySlice({
     cacheResolvedMessages: (messages) => cacheResolvedMessagesRef.current(messages),
-    channels: channels.channels,
-    channelsInActivity: () => userPrefs()?.globalNotifications.channelsInActivity !== false,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     isBotUser: (userId) => !!users.userById(userId)?.isBot,
     lastReadByChannel: unread.lastReadByChannel,
-    notifyAllChannelIds: () => {
-      const prefs = userPrefs();
-      return prefs?.globalNotifications.desktop === "everything"
-        ? channels.channels().map((channel) => channel.id)
-        : (prefs?.notifyAllChannels ?? []);
-    },
     reactionMessageFor: (channelId, ts) => reactionMessageForRef.current(channelId, ts),
     setLastReadByChannel: unread.setLastReadByChannel,
     syncChannelRead: unread.syncChannelRead,
@@ -105,31 +100,15 @@ export function createStoreSlices({
     visibleThreads,
   });
   createEffect(() => activity.setGatewayActivityBadgeCounts(bootstrap()?.activityCounts));
-  createSyncedThemeValue({
-    apply: (value) => replaceThemeColors(value.colors, value.colorScheme),
-    label: "theme-colors",
-    read: (prefs) => prefs.themeColors,
-    signal: () => ({ colorScheme: colorScheme(), colors: themeColors() as Record<string, string> }),
-    userPrefs,
-    write: setThemeColorsPref,
-  });
-  createSyncedThemeValue({
-    apply: setThemeShape,
-    label: "theme-shape",
-    read: (prefs) => prefs.themeShape,
-    signal: themeShape,
-    userPrefs,
-    write: setThemeShapePref,
-  });
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
   const searchHistory = createSearchHistorySlice();
-  const channelTabsSlice = createChannelTabsSlice();
   const later = createLaterSlice();
   const dms = createDmsSlice({
     activeView: viewState.activeView,
     bootstrap,
     closeUserProfile: users.closeUserProfile,
     currentUser: users.currentUser,
+    openInPane: panes.openInNewPane,
     setActiveView,
   });
   patchDmImplRef.current = dms.patchDm;
@@ -146,6 +125,7 @@ export function createStoreSlices({
     pushActivity: activity.pushActivity,
     setLastReadByChannel: unread.setLastReadByChannel,
     setChannelRead: unread.setChannelRead,
+    setThreadRead: unread.setThreadRead,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     setUnreadDividerTs: unread.setUnreadDividerTs,
     syncChannelRead: unread.syncChannelRead,
@@ -160,17 +140,28 @@ export function createStoreSlices({
   const realtime = createRealtimeSlice({
     addJoinedChannel: channels.addJoinedChannel,
     allDirectMessages: dms.allDirectMessages,
+    dmById: dms.dmById,
+    applyDndSnoozeEvent: preferences.applyDndSnoozeEvent,
+    applyPinEvent: pinned.applyPinEvent,
     applyReactionEvent: messages.realtimeHooks.applyReactionEvent,
+    applySavedEvent: later.applySavedEvent,
+    applyThreadMarked: activity.applyThreadMarked,
     channels: channels.channels,
+    isChannelMember: channels.isChannelMember,
     clearTyping: typing.clearTyping,
     closedDmIds: dms.closedDmIds,
     currentUser: users.currentUser,
     ensureDm: dms.ensureDm,
+    ensureMpdm: dms.ensureMpdm,
     findAllMessageLocations: messages.findAllMessageLocations,
+    handleCanvasCreated: canvas.handleCanvasCreated,
     insertMessageInOrder: messages.realtimeHooks.insertMessageInOrder,
     invalidateUser: users.invalidateUser,
+    invalidateUsergroup: usergroups.invalidateUsergroup,
+    isThreadKnown: messages.isThreadKnown,
     loadedChannels: messages.loadedChannels,
-    loadedThreads: messages.loadedThreads,
+    loadRecentHistory: messages.loadRecentHistory,
+    refreshThreadReplies: messages.refreshThreadReplies,
     markChannelLeft: channels.markChannelLeft,
     mergeIncomingMessage: messages.realtimeHooks.mergeIncomingMessage,
     messagesByChannel: messages.messagesByChannel,
@@ -180,6 +171,7 @@ export function createStoreSlices({
     patchMessage: messages.patchMessage,
     recordTyping: typing.recordTyping,
     refreshActivityFeed: activity.requestActivityRefresh,
+    setChannelStarred: channels.setStarredChannelIds,
     setGatewayActivityBadgeCounts: activity.setGatewayActivityBadgeCounts,
     setClosedDmIds: dms.setClosedDmIds,
     setLastReadByChannel: unread.setLastReadByChannel,
@@ -187,7 +179,9 @@ export function createStoreSlices({
     setPresenceOverrides: users.setPresenceOverrides,
     setThreadMessages: messages.setThreadMessages,
     setUnreadChannelIds: unread.setUnreadChannelIds,
+    showGatewayNotification: (payload) => desktopNotificationImplRef.current(payload),
     threadMessages: messages.threadMessages,
+    updateModalView: modals.updateView,
     visibleThreads,
     visibleViews,
   });
@@ -197,9 +191,9 @@ export function createStoreSlices({
     activity,
     canvas,
     channels,
-    channelTabsSlice,
     commands,
     desktopNotifications,
+    desktopNotificationImplRef,
     dms,
     later,
     messages,

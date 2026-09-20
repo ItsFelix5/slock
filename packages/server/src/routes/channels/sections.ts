@@ -4,7 +4,7 @@ import { trimChannelSections } from "../../trim/slackEntities.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 export const sectionRoutes: Route[] = [
-  route("GET", "/api/sections", async (ctx) => {
+  route("GET", "sections", async (ctx) => {
     const data = await callSlack("users.channelSections.list", {}, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "users.channelSections.list", ctx.creds, ctx.acceptEncoding);
@@ -12,8 +12,8 @@ export const sectionRoutes: Route[] = [
     return jsonResponse(trimChannelSections(data), ctx.creds, ctx.acceptEncoding);
   }),
 
-  route("POST", "/api/sections", async (ctx) => {
-    const { name } = (await ctx.body.json()) as { name?: string };
+  route("POST", "sections", async (ctx) => {
+    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
     if (!name) return errorResponse("invalid_name", 400);
     const data = await callSlack(
       "users.channelSections.create",
@@ -43,30 +43,20 @@ export const sectionRoutes: Route[] = [
     );
   }),
 
-  route("PATCH", "/api/sections/:id", async (ctx) => {
-    const body = (await ctx.body.json()) as {
-      name?: string;
-      sidebar?: "hid" | "active" | "all";
-    };
-    if (body.name === undefined && body.sidebar === undefined) {
-      return errorResponse("invalid_patch", 400);
-    }
-    const params: Record<string, string> = {
-      channel_section_id: ctx.params.id,
-    };
-    if (body.name !== undefined) params.name = body.name;
-    if (body.sidebar !== undefined) params.sidebar = body.sidebar;
-    return mutate("users.channelSections.update", params, ctx);
+  route("PATCH", "sections/:id", async (ctx) => {
+    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
+    if (!name) return errorResponse("invalid_patch", 400);
+    return mutate("users.channelSections.set", { channel_section_id: ctx.params.id, name }, ctx);
   }),
 
-  route("DELETE", "/api/sections/:id", (ctx) =>
+  route("DELETE", "sections/:id", (ctx) =>
     mutate("users.channelSections.delete", { channel_section_id: ctx.params.id }, ctx),
   ),
 
-  route("PUT", "/api/sections/:id/order", async (ctx) => {
-    const { nextSectionId } = (await ctx.body.json()) as {
+  route("PUT", "sections/:id/order", async (ctx) => {
+    const { nextSectionId } = await (ctx.body.json() as Promise<{
       nextSectionId?: string | null;
-    };
+    }>);
     return mutate(
       "users.channelSections.set",
       {
@@ -77,11 +67,11 @@ export const sectionRoutes: Route[] = [
     );
   }),
 
-  route("PUT", "/api/sections/:id/channels", async (ctx) => {
-    const { insertChannelIds, removeChannelIds } = (await ctx.body.json()) as {
+  route("PUT", "sections/:id/channels", async (ctx) => {
+    const { insertChannelIds, removeChannelIds } = await (ctx.body.json() as Promise<{
       insertChannelIds?: string[];
       removeChannelIds?: string[];
-    };
+    }>);
     const insert = insertChannelIds?.length
       ? [{ channel_ids: insertChannelIds, channel_section_id: ctx.params.id }]
       : [];
@@ -99,11 +89,11 @@ export const sectionRoutes: Route[] = [
     );
   }),
 
-  route("PUT", "/api/channels/:id/notifications", async (ctx) => {
-    const { target, value } = (await ctx.body.json()) as {
+  route("PUT", "channels/:id/notifications", async (ctx) => {
+    const { target, value } = await (ctx.body.json() as Promise<{
       target?: "desktop" | "mobile";
       value?: string;
-    };
+    }>);
     if (!(target && value)) return errorResponse("invalid_notification_target", 400);
     return mutate(
       "users.prefs.setNotifications",
@@ -112,8 +102,8 @@ export const sectionRoutes: Route[] = [
     );
   }),
 
-  route("POST", "/api/dms", async (ctx) => {
-    const { userId } = (await ctx.body.json()) as { userId?: string };
+  route("POST", "dms", async (ctx) => {
+    const { userId } = await (ctx.body.json() as Promise<{ userId?: string }>);
     if (!userId) return errorResponse("invalid_user_id", 400);
     const data = await callSlack("conversations.open", { users: userId }, ctx.creds);
     if (!data.ok) {

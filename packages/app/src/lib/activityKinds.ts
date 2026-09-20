@@ -6,7 +6,11 @@ export function isPingingActivity(item: ActivityItem): boolean {
   return PING_KINDS.has(item.kind);
 }
 
-const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>(["channel_all", "thread_reply"]);
+const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([
+  "channel_all",
+  "thread_reply",
+  "dm",
+]);
 export function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
   return OwnMessageFilteredKinds.has(item.kind) && (!item.userId || item.userId === me.id);
 }

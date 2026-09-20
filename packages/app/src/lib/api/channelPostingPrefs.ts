@@ -24,12 +24,11 @@ function parseAccessPref(value: unknown): {
     };
   }
   if (!(value && typeof value === "object")) return { types: ["ra"], userIds: [] };
-  const access = value as { type?: unknown; user?: unknown };
   return {
-    types: splitPrefValues(access.type).map((part) =>
+    types: splitPrefValues("type" in value ? value.type : undefined).map((part) =>
       part.startsWith("type:") ? part.slice(5) : part,
     ),
-    userIds: splitPrefValues(access.user).map((part) =>
+    userIds: splitPrefValues("user" in value ? value.user : undefined).map((part) =>
       part.startsWith("user:") ? part.slice(5) : part,
     ),
   };
@@ -40,7 +39,7 @@ function parseEnabledPref(value: unknown): boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") return value !== "false";
   if (value && typeof value === "object") {
-    return parseEnabledPref((value as { enabled?: unknown }).enabled);
+    return parseEnabledPref("enabled" in value ? value.enabled : undefined);
   }
   return true;
 }
@@ -54,15 +53,17 @@ export function parseChannelPostingPrefs(value: unknown): ChannelPostingPrefs {
       normalized = {};
     }
   }
-  const prefs = (normalized && typeof normalized === "object" ? normalized : {}) as Record<
-    string,
-    unknown
-  >;
-  const posting = parseAccessPref(prefs.who_can_post);
-  const threads = parseAccessPref(prefs.can_thread);
+  const prefs = normalized && typeof normalized === "object" ? normalized : {};
+  const posting = parseAccessPref("who_can_post" in prefs ? prefs.who_can_post : undefined);
+  const threads = parseAccessPref("can_thread" in prefs ? prefs.can_thread : undefined);
+  const channelMentionsEnabled = parseEnabledPref(
+    "enable_at_channel" in prefs ? prefs.enable_at_channel : undefined,
+  );
+  const hereMentionsEnabled = parseEnabledPref(
+    "enable_at_here" in prefs ? prefs.enable_at_here : undefined,
+  );
   return {
-    allowChannelMentions:
-      parseEnabledPref(prefs.enable_at_channel) && parseEnabledPref(prefs.enable_at_here),
+    allowChannelMentions: channelMentionsEnabled && hereMentionsEnabled,
     postingExceptionUserIds: [...new Set(posting.userIds)].slice(0, MAX_POSTING_EXCEPTIONS),
     postingRestrictedToManagers: posting.types.includes("admin"),
     threadsRestrictedToManagers: threads.types.includes("admin"),

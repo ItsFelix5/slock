@@ -1,4 +1,4 @@
-import { ADDABLE_CHANNEL_TABS } from "../../lib/channelTabMeta";
+import { focusPaneById } from "@slock/ui";
 import { channelDisplayName, dmDisplayName } from "../../lib/displayName";
 import {
   closeFilesLinksPanel,
@@ -8,7 +8,7 @@ import {
 import { store } from "../../lib/store";
 import type { View } from "../../lib/store/slices/types";
 
-export function createChannelHeaderState(view: () => View | null) {
+export function createChannelHeaderState(view: () => View | null, paneId: string) {
   const channelTitle = () => {
     const v = view();
     if (!v) return "";
@@ -51,8 +51,6 @@ export function createChannelHeaderState(view: () => View | null) {
         .find((s) => s.channelIds.includes(v.id))?.id ?? null
     );
   };
-  const availableChannelTabs = (id: string) =>
-    ADDABLE_CHANNEL_TABS.filter((tab) => !store.channelTabs.tabsForChannel(id).includes(tab.type));
   const filesLinksOpen = () => {
     const v = view();
     return !!v && filesLinksChannelId() === v.id;
@@ -62,6 +60,7 @@ export function createChannelHeaderState(view: () => View | null) {
     if (!v) return;
     if (filesLinksChannelId() === v.id) closeFilesLinksPanel();
     else openFilesLinksPanel(v.id);
+    queueMicrotask(() => focusPaneById(paneId));
   };
   const openCurrentDmProfile = () => {
     const v = view();
@@ -71,7 +70,6 @@ export function createChannelHeaderState(view: () => View | null) {
     }
   };
   return {
-    availableChannelTabs,
     channelMemberCount,
     channelTitle,
     channelTopic,

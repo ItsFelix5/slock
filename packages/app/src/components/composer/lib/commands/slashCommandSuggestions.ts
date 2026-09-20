@@ -1,9 +1,8 @@
 import { createSignal } from "solid-js";
 import { fetchSlashCommands } from "../../../../lib/api";
+import type { CommandSuggestItem } from "../suggestTypes";
 
-export const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<
-  { name: string; desc: string; icon: string | null }[]
->([]);
+export const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<CommandSuggestItem[]>([]);
 export const [slashCommandsLoading, setSlashCommandsLoading] = createSignal(false);
 export const [slashCommandsLoadError, setSlashCommandsLoadError] = createSignal(false);
 
@@ -18,7 +17,7 @@ export function loadSlashCommandSuggestions(): Promise<void> {
   setSlashCommandsLoadError(false);
   const request = fetchSlashCommands()
     .then((commands) => {
-      setSlashCommandsGlobal(commands);
+      setSlashCommandsGlobal(commands.map((c) => ({ ...c, kind: "command" })));
       loaded = true;
     })
     .catch(() => {
@@ -30,6 +29,11 @@ export function loadSlashCommandSuggestions(): Promise<void> {
     });
   loadPromise = request;
   return request;
+}
+
+export function invalidateSlashCommandSuggestions(): void {
+  loaded = false;
+  loadPromise = null;
 }
 
 export function createSlashCommandSuggestionState(text: () => string) {

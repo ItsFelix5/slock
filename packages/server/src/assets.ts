@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { type Credentials, jsonHeaders, slackCookieHeader } from "./auth.ts";
-import { errorMessage } from "./http/errorMessage.ts";
+import { type Credentials, jsonHeaders } from "./auth.ts";
+import { errorMessage } from "./http/compressedResponse.ts";
 
 const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 
@@ -63,11 +63,27 @@ function slackImgsProxyUrl(value: string): string | null {
   return `https://slack-imgs.com/?c=1&o1=ro&url=${encodeURIComponent(value)}`;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function hydrateAvatarHash(value: Record<string, unknown>): void {
+  const profile = value.profile;
+  const id = value.id;
+  if (!(isRecord(profile) && typeof id === "string")) return;
+  if (profile.image_192 || profile.image_72 || profile.image_48) return;
+  const hash = profile.avatar_hash;
+  const team = profile.team ?? value.team_id;
+  if (typeof hash !== "string" || typeof team !== "string") return;
+  profile.image_192 = `https://ca.slack-edge.com/${team}-${id}-${hash}-192`;
+}
+
 export function rewriteSlackAssetUrls(value: unknown, creds: Credentials | null): unknown {
   if (!(creds && value) || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map((entry) => rewriteSlackAssetUrls(entry, creds));
+  if (isRecord(value)) hydrateAvatarHash(value);
   const rewritten: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, entry] of Object.entries(value)) {
     if (typeof entry === "string" && SLACK_ASSET_KEY_RE.test(key)) {
       if (isAllowedSlackUrl(entry)) {
         rewritten[key] = `/api/assets/${createCapability(entry, "download", creds)}`;
@@ -90,6 +106,7 @@ async function slackFileResponse(
   fileUrl: string,
   creds: Credentials | null,
   acceptEncoding: string | null,
+  range: string | null,
 ): Promise<Response> {
   let parsed: URL;
   try {
@@ -116,8 +133,9 @@ async function slackFileResponse(
     fileRes = await fetch(parsed, {
       decompress: false,
       headers: {
-        cookie: slackCookieHeader(creds),
+        cookie: `d=${creds.slackSession}`,
         ...(acceptEncoding ? { "accept-encoding": acceptEncoding } : {}),
+        ...(range ? { range } : {}),
       },
       signal: controller.signal,
     });
@@ -136,13 +154,19 @@ async function slackFileResponse(
     });
   }
   const contentEncoding = fileRes.headers.get("content-encoding");
+  const contentRange = fileRes.headers.get("content-range");
+  const contentLength = fileRes.headers.get("content-length");
   return new Response(fileRes.body, {
     headers: {
+      "accept-ranges": "bytes",
       "cache-control": "private, max-age=3600",
       "content-type": fileRes.headers.get("content-type") ?? "application/octet-stream",
       vary: "Accept-Encoding",
       ...(contentEncoding ? { "content-encoding": contentEncoding } : {}),
+      ...(contentRange ? { "content-range": contentRange } : {}),
+      ...(contentLength ? { "content-length": contentLength } : {}),
     },
+    status: fileRes.status,
   });
 }
 
@@ -150,25 +174,25 @@ export function slackAssetResponse(
   capability: string | null,
   creds: Credentials | null,
   acceptEncoding: string | null,
+  range: string | null,
 ): Promise<Response> {
-  if (!(capability && creds)) {
+  if (!(capability && creds))
     return Promise.resolve(new Response("not found", { headers: jsonHeaders, status: 404 }));
-  }
   const url = readCapability(capability, "download", creds);
   if (!url)
     return Promise.resolve(new Response("not found", { headers: jsonHeaders, status: 404 }));
-  return slackFileResponse(url, creds, acceptEncoding);
+  return slackFileResponse(url, creds, acceptEncoding, range);
 }
 
 export function namedSlackAssetResponse(
   fileUrl: string | null,
   creds: Credentials | null,
   acceptEncoding: string | null,
+  range: string | null,
 ): Promise<Response> {
-  if (!fileUrl) {
+  if (!fileUrl)
     return Promise.resolve(new Response("not found", { headers: jsonHeaders, status: 404 }));
-  }
-  return slackFileResponse(fileUrl, creds, acceptEncoding);
+  return slackFileResponse(fileUrl, creds, acceptEncoding, range);
 }
 
 export function uploadCapability(uploadUrl: string, creds: Credentials): string | null {

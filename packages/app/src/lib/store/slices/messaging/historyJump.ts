@@ -2,7 +2,7 @@ import type { SetStoreFunction, Store } from "solid-js/store";
 import type { Message } from "../../../api";
 import { mergeMessages } from "../../../messageMerge";
 
-type HistoryMeta = {
+export type HistoryMeta = {
   anchored?: boolean;
   hasMore: boolean;
   hasNewer?: boolean;

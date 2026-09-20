@@ -1,8 +1,9 @@
-import type {
-  BlockElement,
-  ButtonElement,
-  ImageElement as ImageElementType,
-  OverflowElement,
+import {
+  type BlockElement,
+  type ButtonElement,
+  type ImageElement as ImageElementType,
+  narrowByType,
+  type OverflowElement,
 } from "@slock/types";
 import { Show } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
@@ -23,23 +24,22 @@ export default function ElementRenderer(props: {
           fallback={
             <Show
               fallback={<Controls blockId={props.blockId} context={props.context} el={props.el} />}
-              when={props.el.type === "overflow"}
+              keyed
+              when={narrowByType<BlockElement, OverflowElement>(props.el, "overflow")}
             >
-              <Overflow
-                blockId={props.blockId}
-                context={props.context}
-                el={props.el as OverflowElement}
-              />
+              {(el) => <Overflow blockId={props.blockId} context={props.context} el={el} />}
             </Show>
           }
-          when={props.el.type === "image"}
+          keyed
+          when={narrowByType<BlockElement, ImageElementType>(props.el, "image")}
         >
-          <ImageElement el={props.el as ImageElementType} />
+          {(el) => <ImageElement el={el} />}
         </Show>
       }
-      when={props.el.type === "button"}
+      keyed
+      when={narrowByType<BlockElement, ButtonElement>(props.el, "button")}
     >
-      <Button blockId={props.blockId} context={props.context} el={props.el as ButtonElement} />
+      {(el) => <Button blockId={props.blockId} context={props.context} el={el} />}
     </Show>
   );
 }

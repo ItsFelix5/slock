@@ -5,20 +5,21 @@ export function useHoverIntent(openDelay = 350, closeDelay = 160) {
   let openTimer: ReturnType<typeof setTimeout> | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
+  const close = () => {
+    clearTimeout(openTimer);
+    clearTimeout(closeTimer);
+    setOpen(false);
+  };
+
   const scheduleOpen = () => {
     clearTimeout(closeTimer);
     openTimer = setTimeout(() => setOpen(true), openDelay);
   };
   const scheduleClose = () => {
     clearTimeout(openTimer);
-    closeTimer = setTimeout(() => setOpen(false), closeDelay);
+    closeTimer = setTimeout(close, closeDelay);
   };
   const cancelClose = () => clearTimeout(closeTimer);
-  const close = () => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
-    setOpen(false);
-  };
   const openNow = () => {
     clearTimeout(openTimer);
     clearTimeout(closeTimer);

@@ -1,4 +1,4 @@
-import { Icon, Tooltip } from "@slock/ui";
+import { IconButton } from "@slock/ui";
 import { createSignal, onCleanup, Show } from "solid-js";
 
 function FileChipThumbnail(props: { file: File }) {
@@ -69,16 +69,14 @@ export default function FileChip(props: {
           </button>
         </Show>
       </span>
-      <Tooltip content="Remove">
-        <button
-          class="composer-file-chip-remove btn-reset"
-          disabled={props.disabled}
-          onClick={props.onRemove}
-          type="button"
-        >
-          <Icon name="close" size={16} />
-        </button>
-      </Tooltip>
+      <IconButton
+        class="composer-file-chip-remove"
+        disabled={props.disabled}
+        icon="close"
+        label="Remove"
+        onClick={props.onRemove}
+        size="sm"
+      />
     </span>
   );
 }

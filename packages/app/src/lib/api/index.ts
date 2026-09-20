@@ -1,10 +1,12 @@
 export * from "@slock/types";
 
 export {
+  fetchAccountIdentity,
   fetchProfileFieldDefs,
   fetchUser,
   fetchUserPresence,
   fetchUserProfile,
+  fetchUserStatus,
   setPresence,
   setProfileFields,
   setStatus,
@@ -12,6 +14,7 @@ export {
 } from "./account";
 export {
   ACTIVITY_KIND_FEED_TYPES,
+  archiveActivityItem,
   fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
   fetchMessagesByIds,
@@ -35,6 +38,7 @@ export {
   fetchChannelManagerIds,
   fetchChannelMembers,
   fetchChannelPostingPrefs,
+  fetchChannelRetention,
   fetchConversationView,
   fetchFreshSections,
   fetchSections,
@@ -48,6 +52,7 @@ export {
   renameChannel,
   renameSection,
   reorderSection,
+  reportChannelNamesToFlaron,
   searchChannelFilesAndLinks,
   serializeChannelPostingPrefsPatch,
   serializeMemberPermissionsPatch,
@@ -57,13 +62,13 @@ export {
   setChannelRetention,
   setChannelTopic,
   setMemberPermissions,
-  setSectionSidebar,
   unarchiveChannel,
   updateSectionChannels,
 } from "./channels";
 export {
   fetchCanvas,
   fetchCanvasFileUrl,
+  fetchCanvasPermalink,
   fetchCanvasTitle,
   fetchFileDetail,
   fetchLinkPreview,
@@ -87,7 +92,6 @@ export {
   fetchPinnedMessages,
   fetchPins,
   fetchReplies,
-  fetchSearchAutocomplete,
   getPermalink,
   markChannelRead,
   postBroadcastMessage,
@@ -97,6 +101,7 @@ export {
   toggleReaction,
   toggleSaved,
   toggleStar,
+  isMine,
 } from "./messages";
 export { markThreadRead, toggleThreadSubscription } from "./messages/threads";
 export {
@@ -107,8 +112,6 @@ export {
   setDndSnooze,
   setHighlightWords,
   setMutedChannels,
-  setThemeColorsPref,
-  setThemeShapePref,
 } from "./preferences";
 export { mapBrowsableChannels, saveSearchHistory, searchGlobal } from "./search";
 export {
@@ -119,4 +122,3 @@ export {
   setUsergroupSectionEnabled,
   updateUsergroupProfile,
 } from "./usergroups";
-export { fetchUserStatus } from "./userStatus";

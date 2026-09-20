@@ -2,7 +2,7 @@ import type { RawBot, RawUser, RawUserProfile } from "./rawTypes";
 import { resolveMediaUrl } from "./server";
 import type { User, UserCustomField } from "./types";
 
-const SLACK_USER_ID = "USLACK";
+export const SLACK_USER_ID = "USLACK";
 const SLACK_AVATAR_URL = "/slack-logo.svg";
 
 function colorFromHex(hex: string | undefined) {
@@ -17,13 +17,6 @@ function tzLabelFromOffset(seconds: number | undefined): string | undefined {
   const whole = Math.floor(abs);
   const minutes = Math.round((abs - whole) * 60);
   return `UTC${sign}${whole}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
-}
-
-function avatarUrlFromHash(raw: RawUser): string | undefined {
-  const hash = raw.profile?.avatar_hash;
-  const team = raw.profile?.team ?? raw.team_id;
-  if (!(hash && team)) return;
-  return `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192`;
 }
 
 export function mapCustomFields(
@@ -44,16 +37,24 @@ export function mapStartDate(profile: RawUserProfile | undefined): string | unde
   return profile?.start_date || undefined;
 }
 
+export function mapProfileIdentity(profile: RawUserProfile | undefined): {
+  name: string;
+  avatarUrl?: string;
+} {
+  return {
+    avatarUrl: profile?.image_192 || profile?.image_72 || profile?.image_48 || undefined,
+    name: profile?.display_name || profile?.real_name || "",
+  };
+}
+
 export function mapUser(raw: RawUser): User {
   const isSlack = raw.id === SLACK_USER_ID;
-  const name = raw.profile?.display_name || raw.profile?.real_name || raw.real_name || raw.name;
+  const realName = raw.profile?.real_name || raw.real_name;
+  const name = raw.profile?.display_name || realName || raw.name;
   const customFields = mapCustomFields(raw.profile);
   const avatarUrl: string | undefined = isSlack
     ? SLACK_AVATAR_URL
-    : raw.profile?.image_192 ||
-      raw.profile?.image_72 ||
-      raw.profile?.image_48 ||
-      avatarUrlFromHash(raw);
+    : raw.profile?.image_192 || raw.profile?.image_72 || raw.profile?.image_48 || undefined;
   return {
     appId: raw.profile?.api_app_id || undefined,
     avatarColor: isSlack ? "transparent" : colorFromHex(raw.color),
@@ -71,6 +72,7 @@ export function mapUser(raw: RawUser): User {
 
     presence: raw.presence === "active" || raw.presence === "away" ? raw.presence : undefined,
     pronouns: raw.profile?.pronouns || undefined,
+    realName: realName && realName !== name ? realName : undefined,
     startDate: mapStartDate(raw.profile),
     statusEmoji: raw.profile?.status_emoji || undefined,
     statusText: raw.profile?.status_text || undefined,

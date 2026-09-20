@@ -11,9 +11,10 @@ import {
 import { allEmojiEntries, frequentEmoji, searchEmoji } from "./emojiSearch";
 import type {
   ChannelSuggestItem,
-  CommandSuggestItem,
   EmojiSuggestItem,
+  SpecialMentionSuggestItem,
   SuggestState,
+  UsergroupSuggestItem,
   UserSuggestItem,
 } from "./suggestTypes";
 import { detectMentionTrigger } from "./textDetection";
@@ -23,19 +24,52 @@ type SuggestionOptions = {
   setSuggest: Setter<SuggestState | null>;
   applyTextSuggestion: (item: SuggestState["items"][number], state: SuggestState) => void;
   includeCommands?: boolean;
+  includeBroadcastMentions?: boolean;
 
   channelId?: () => string | undefined;
 };
 
-export function suggestionText(
-  item: SuggestState["items"][number],
-  kind: SuggestState["kind"],
-): string {
+export function suggestionText(item: SuggestState["items"][number]): string {
   if (item.kind === "command") return `/${item.name} `;
   if (item.kind === "emoji") return `:${item.name}: `;
-  if (kind === "userlink") return `@${item.name} `;
   if (item.kind === "user") return `<@${item.id}> `;
   return `<#${item.id}|${item.name}> `;
+}
+
+const LEADING_AT_RE = /^@/;
+
+const SPECIAL_MENTIONS: Omit<SpecialMentionSuggestItem, "kind">[] = [
+  { description: "Notify everyone in this channel", id: "channel", name: "channel" },
+  { description: "Notify online people in this channel", id: "here", name: "here" },
+];
+
+function specialMentionItems(
+  triggerKind: "user" | "userlink",
+  query: string,
+  canBroadcast: boolean,
+): SpecialMentionSuggestItem[] {
+  if (triggerKind !== "user" || !canBroadcast) return [];
+  return SPECIAL_MENTIONS.filter((m) => m.id.startsWith(query)).map(
+    (m): SpecialMentionSuggestItem => ({ ...m, kind: "special" }),
+  );
+}
+
+function usergroupItems(triggerKind: "user" | "userlink", query: string): UsergroupSuggestItem[] {
+  if (triggerKind !== "user") return [];
+  return fuzzySearch(store.usergroups.mentionableUsergroups(), {
+    query,
+    text: (g) => g.name.replace(LEADING_AT_RE, ""),
+  })
+    .slice(0, 8)
+    .map((g) => ({ id: g.id, kind: "usergroup", name: g.name.replace(LEADING_AT_RE, "") }));
+}
+
+function isChannelBroadcastManager(channelId: string | undefined): boolean {
+  if (!channelId) return false;
+  const me = store.users.currentUser();
+  if (!me) return false;
+  if (me.isWorkspaceAdmin) return true;
+  return store.channels.channelManagerIds(channelId)?.has(me.id) ?? false;
 }
 
 type ChannelCandidate = { id: string; name: string; private: boolean };
@@ -49,14 +83,7 @@ function createStaticSuggestion(
     const items = fuzzySearch(slashCommandsGlobal(), {
       query,
       text: (c) => c.name,
-    }).map(
-      (c): CommandSuggestItem => ({
-        desc: c.desc,
-        icon: c.icon,
-        kind: "command",
-        name: c.name,
-      }),
-    );
+    }).slice(0, 8);
     return items.length > 0 ? { active: 0, items, kind, start } : null;
   }
   const entries = allEmojiEntries();
@@ -76,28 +103,46 @@ function updateUserSuggestions(
 ) {
   const me = store.users.currentUser()?.id;
   const channelId = trigger.kind === "user" ? opts.channelId?.() : undefined;
-  const roster = channelId ? store.channels.channelMemberIds(channelId) : undefined;
-  const toItems = (users: User[]): UserSuggestItem[] =>
-    fuzzySearch(users, {
+  const roster = channelId ? store.channels.channelRosterIds(channelId) : undefined;
+  const managerIds = channelId ? store.channels.channelManagerIds(channelId) : undefined;
+  const canBroadcast = (id: string | undefined) =>
+    opts.includeBroadcastMentions !== false && isChannelBroadcastManager(id);
+  const specials = specialMentionItems(trigger.kind, query, canBroadcast(channelId));
+  const groups = usergroupItems(trigger.kind, query);
+  const toItems = (
+    users: User[],
+  ): (UserSuggestItem | SpecialMentionSuggestItem | UsergroupSuggestItem)[] => [
+    ...specials,
+    ...groups,
+    ...fuzzySearch(users, {
       frequency: (u) => store.preferences.frecencyScore(u.id),
       query,
       text: (u) => u.name,
     })
       .slice(0, 8)
-      .map((u) => ({
-        id: u.id,
-        kind: "user",
-        name: u.name,
-        notInChannel: roster ? !roster.has(u.id) : false,
-        user: u,
-      }));
+      .map(
+        (u): UserSuggestItem => ({
+          id: u.id,
+          kind: "user",
+          name: u.name,
+          notInChannel: roster ? !roster.has(u.id) : false,
+          user: u,
+        }),
+      ),
+  ];
   const localUsers = store.users.knownUsers().filter((u) => u.id !== me);
-  opts.setSuggest({
-    active: 0,
-    items: toItems(localUsers),
-    kind: trigger.kind,
-    start: trigger.start,
-  });
+  const buildState = (
+    items: (UserSuggestItem | SpecialMentionSuggestItem | UsergroupSuggestItem)[],
+  ): SuggestState =>
+    trigger.kind === "user"
+      ? { active: 0, items, kind: "user", start: trigger.start }
+      : {
+          active: 0,
+          items: items.filter((item): item is UserSuggestItem => item.kind === "user"),
+          kind: "userlink",
+          start: trigger.start,
+        };
+  opts.setSuggest(buildState(toItems(localUsers)));
   if (channelId && !roster) {
     store.channels.ensureChannelRoster(channelId).then((resolved) => {
       if (requestId !== currentRequestId() || !resolved) return;
@@ -105,13 +150,25 @@ function updateUserSuggestions(
         prev?.kind === trigger.kind
           ? {
               ...prev,
-              items: prev.items.map((item) => ({
-                ...item,
-                notInChannel: !resolved.has(item.id),
-              })),
+              items: prev.items.map((item) =>
+                item.kind === "user" ? { ...item, notInChannel: !resolved.has(item.id) } : item,
+              ),
             }
           : prev,
       );
+    });
+  }
+  if (channelId && !managerIds && trigger.kind === "user") {
+    store.channels.ensureChannelManagers(channelId).then(() => {
+      if (requestId !== currentRequestId()) return;
+      opts.setSuggest((prev) => {
+        if (prev?.kind !== "user") return prev;
+        const items = prev.items.filter((item) => item.kind !== "special");
+        return {
+          ...prev,
+          items: [...specialMentionItems("user", query, canBroadcast(channelId)), ...items],
+        };
+      });
     });
   }
   if (!query) return;
@@ -122,7 +179,7 @@ function updateUserSuggestions(
       const merged = new Map<string, User>(localUsers.map((u) => [u.id, u]));
       for (const user of found) merged.set(user.id, user);
       opts.setSuggest((prev) =>
-        prev?.kind === trigger.kind ? { ...prev, items: toItems([...merged.values()]) } : prev,
+        prev?.kind === trigger.kind ? buildState(toItems([...merged.values()])) : prev,
       );
     })
     .catch(() => {});
@@ -211,7 +268,7 @@ export function createSuggestionController(opts: SuggestionOptions) {
     if (trigger.kind === "user" || trigger.kind === "userlink") {
       updateUserSuggestions(
         opts,
-        { kind: trigger.kind as "user" | "userlink", start: trigger.start },
+        { kind: trigger.kind, start: trigger.start },
         q,
         reqId,
         () => suggestRequestId,

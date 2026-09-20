@@ -1,4 +1,4 @@
-.btn-reset {
+:where(.btn-reset) {
   padding: 0;
   font: inherit;
   color: inherit;
@@ -6,7 +6,7 @@
   background: none;
   border: none;
 }
-.input-reset {
+:where(.input-reset) {
   font: inherit;
   color: var(--text-primary);
   outline: none;
@@ -21,6 +21,23 @@ select:focus-visible,
 [tabindex]:focus-visible,
 .input-reset:focus-visible,
 .btn-reset:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+.input-plain:focus-visible {
+  outline: none;
+}
+.sr-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+}
+label:has(> .sr-input:focus-visible) {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 2px;
 }
@@ -75,14 +92,6 @@ select:focus-visible,
 .flex-shrink-0 {
   flex-shrink: 0;
 }
-.menu-label {
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 .divider {
   height: 1px;
   margin: 4px 2px;
@@ -93,7 +102,6 @@ select:focus-visible,
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-strong);
 }
 .surface-card {
   background: var(--main-bg);

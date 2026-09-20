@@ -7,6 +7,16 @@ const TYPING_TTL_MS = 4000;
 export function createTypingSlice(deps: { userById: (id: string) => User | undefined }) {
   const [typingByKey, setTypingByKey] = createStore<Record<string, Record<string, number>>>({});
 
+  function pruneIfEmpty(key: string) {
+    if (Object.keys(typingByKey[key] ?? {}).length === 0) {
+      setTypingByKey(
+        produce((s) => {
+          delete s[key];
+        }),
+      );
+    }
+  }
+
   const sweepTimer: ReturnType<typeof setInterval> = setInterval(() => {
     const now = Date.now();
     for (const key of Object.keys(typingByKey)) {
@@ -21,6 +31,7 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
           );
         }
       }
+      pruneIfEmpty(key);
     }
   }, 1000);
   onCleanup(() => clearInterval(sweepTimer));
@@ -48,6 +59,7 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
         delete e[userId];
       }),
     );
+    pruneIfEmpty(key);
   }
 
   function typingUsersInChannel(channelId: string): User[] {

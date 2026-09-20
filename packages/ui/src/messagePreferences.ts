@@ -10,4 +10,14 @@ export function setLogDeletedMessages(on: boolean) {
   localStorage.setItem(LOG_DELETED_KEY, on ? "1" : "0");
 }
 
-export { logDeletedMessages };
+const SHOW_USER_STATUSES_KEY = "slock-show-user-statuses";
+const [showUserStatuses, setShowUserStatusesSignal] = createSignal(
+  localStorage.getItem(SHOW_USER_STATUSES_KEY) !== "0",
+);
+
+export function setShowUserStatuses(on: boolean) {
+  setShowUserStatusesSignal(on);
+  localStorage.setItem(SHOW_USER_STATUSES_KEY, on ? "1" : "0");
+}
+
+export { logDeletedMessages, showUserStatuses };

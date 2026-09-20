@@ -44,26 +44,23 @@ export function createActivityReadState(deps: {
 
   function activityItemReadState(item: ActivityItem): ActivityItemReadState {
     if (item.kind === "reaction") return "read";
-
-    if (item.kind === "thread_reply" && item.unreadCount !== undefined)
-      return item.unreadCount > 0 ? "unread" : "read";
     if (readActivityIds[item.id]) return "read";
     if (item.unread !== undefined) return item.unread ? "unread" : "read";
-    if (item.kind !== "channel_all") return "pending";
-    const lastRead = deps.lastReadByChannel[item.channelId];
-    if (item.channelId && lastRead === undefined) return "pending";
-    return item.time > (lastRead ?? 0) ? "unread" : "read";
+    return "pending";
   }
 
   function isActivityItemUnread(item: ActivityItem): boolean {
     return activityItemReadState(item) === "unread";
   }
 
+  function markActivityItemUnread(item: ActivityItem) {
+    setReadActivityIds(item.id, false);
+  }
+
   const attemptedReadCursorBackfill = new Set<string>();
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
     if (!item.channelId) return false;
-    if (item.kind !== "channel_all") return false;
     return deps.lastReadByChannel[item.channelId] === undefined;
   }
 
@@ -120,7 +117,7 @@ export function createActivityReadState(deps: {
       if (item.kind === "thread_reply" && item.unreadCount !== undefined)
         deps.setActivityItems((i) => i.id === item.id, "unreadCount", 0);
       if (!item.channelId) continue;
-      if (item.kind === "thread_reply" && item.threadTs) {
+      if (item.threadTs) {
         const key = `${item.channelId}:${item.threadTs}`;
         const prev = latestByThread.get(key);
         if (!prev || parseFloat(item.ts) > parseFloat(prev.ts))
@@ -157,6 +154,7 @@ export function createActivityReadState(deps: {
     hasUnreadActivity,
     isActivityItemUnread,
     markActivityItemsRead,
+    markActivityItemUnread,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,

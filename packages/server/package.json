@@ -3,20 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "start": "bun --env-file=../../.env run src/index.ts"
-  },
   "dependencies": {
     "@slock/types": "workspace:*"
   },
-  "exports": {
-    "./dev-plugin": "./src/dev-plugin.ts"
-  },
   "devDependencies": {
+    "@babel/core": "^8.0.6",
+    "@babel/preset-typescript": "^8.0.1",
     "@types/node": "^24.13.2",
-    "@types/ws": "^8.18.1",
-    "bun-types": "^1.3.14",
-    "vite": "^8.1.1",
-    "ws": "^8.21.3"
+    "babel-preset-solid": "^1.9.15",
+    "bun-types": "^1.3.14"
   }
 }

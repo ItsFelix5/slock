@@ -1,13 +1,14 @@
 import {
   Button,
   Icon,
-  type IconName,
   initRovingTabIndexDefault,
+  isOneOf,
   Tooltip,
   useEscapeClose,
 } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { SlackFile, SlackLink } from "../../lib/api";
+import { fileIconName } from "../../lib/fileSummary";
 import type { FilesLinksEntry } from "../../lib/filesLinksPanel";
 import {
   closeFilesLinksPanel,
@@ -20,15 +21,23 @@ import {
   retryFilesLinks,
   setFilesLinksQuery,
 } from "../../lib/filesLinksPanel";
+import {
+  formatDate,
+  groupByMonth,
+  linkDomain,
+  type MonthGroup,
+  matchesTypeFilter,
+  SORT_MODES,
+  type SortMode,
+  sortEntries,
+  type TypeFilter,
+} from "../../lib/filesLinksPanelView";
+import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
-import { formatSize } from "../messages/parts/media/MessageFiles";
+import { formatSize } from "../messages/parts/media/FileCardInfo";
+import { SplitNavigation } from "../navigation/SplitNavigation";
 import FileDetailModal from "./FileDetailModal";
 import "./FilesLinksPanel.css";
-
-const WWW_PREFIX_RE = /^www\./;
-
-type TypeFilter = "all" | "images" | "files" | "links";
-type SortMode = "newest" | "oldest" | "name";
 
 const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
   { label: "All", value: "all" },
@@ -36,60 +45,6 @@ const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
   { label: "Files", value: "files" },
   { label: "Links", value: "links" },
 ];
-
-function fileIconName(file: SlackFile): IconName {
-  if (file.isPdf) return "pdf-file";
-  if (file.isVideo) return "video";
-  if (file.isMail) return "email";
-  if (file.isAudio) return "sound";
-  return "file";
-}
-
-function formatDate(seconds: number | undefined): string {
-  if (!seconds) return "";
-  return new Date(seconds * 1000).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function monthLabel(seconds: number): string {
-  if (!seconds) return "Undated";
-  return new Date(seconds * 1000).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-}
-
-function linkDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(WWW_PREFIX_RE, "");
-  } catch {
-    return url;
-  }
-}
-
-function entryTitle(entry: FilesLinksEntry): string {
-  return entry.kind === "file"
-    ? entry.file.title || entry.file.name || ""
-    : entry.link.title || entry.link.url;
-}
-
-function matchesTypeFilter(entry: FilesLinksEntry, filter: TypeFilter): boolean {
-  if (filter === "all") return true;
-  if (filter === "links") return entry.kind === "link";
-  if (entry.kind !== "file") return false;
-  return filter === "images" ? entry.file.isImage : !entry.file.isImage;
-}
-
-function groupByMonth(entries: FilesLinksEntry[]): { entries: FilesLinksEntry[]; label: string }[] {
-  const groups: { entries: FilesLinksEntry[]; label: string }[] = [];
-  for (const entry of entries) {
-    const label = monthLabel(entry.sortTs);
-    const current = groups.at(-1);
-    if (current?.label === label) current.entries.push(entry);
-    else groups.push({ entries: [entry], label });
-  }
-  return groups;
-}
 
 function FileCard(props: { file: SlackFile; onOpen: (file: SlackFile) => void }) {
   return (
@@ -158,9 +113,11 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
         </span>
       </a>
       <Tooltip content="Jump to message">
-        <button class="files-links-card-jump btn-reset" onClick={jumpToMessage} type="button">
-          <Icon name="message" size={13} />
-        </button>
+        <SplitNavigation onSplit={() => openConversationInSplit(props.channelId, props.link.ts)}>
+          <button class="files-links-card-jump btn-reset" onClick={jumpToMessage} type="button">
+            <Icon name="message" size={13} />
+          </button>
+        </SplitNavigation>
       </Tooltip>
     </div>
   );
@@ -198,16 +155,12 @@ export default function FilesLinksPanel() {
     return filesLinksEntries().filter((entry) => matchesTypeFilter(entry, filter));
   });
 
-  const sorted = createMemo(() => {
-    const mode = sortMode();
-    if (mode === "newest") return filtered();
-    const list = [...filtered()];
-    if (mode === "oldest") list.sort((a, b) => a.sortTs - b.sortTs);
-    else list.sort((a, b) => entryTitle(a).localeCompare(entryTitle(b)));
-    return list;
-  });
+  const sorted = createMemo(() => sortEntries(filtered(), sortMode()));
 
-  const groups = createMemo(() => (sortMode() === "name" ? null : groupByMonth(sorted())));
+  const groupsCache = new Map<string, MonthGroup>();
+  const groups = createMemo(() =>
+    sortMode() === "name" ? null : groupByMonth(sorted(), groupsCache),
+  );
 
   initRovingTabIndexDefault(() => bodyRef, sorted);
 
@@ -235,7 +188,7 @@ export default function FilesLinksPanel() {
             <div class="files-links-searchbar">
               <Icon class="files-links-search-icon" name="search" size={14} />
               <input
-                class="files-links-search-input input-reset"
+                class="files-links-search-input input-reset input-plain"
                 onInput={(e) => setFilesLinksQuery(e.currentTarget.value)}
                 onKeyDown={onSearchKeyDown}
                 placeholder="Filter files & links, Enter to search messages"
@@ -243,29 +196,34 @@ export default function FilesLinksPanel() {
                 value={filesLinksQuery()}
               />
             </div>
-            <fieldset class="files-links-filters">
-              <For each={TYPE_FILTERS}>
-                {(f) => (
-                  <button
-                    class="files-links-filter-chip"
-                    classList={{ active: typeFilter() === f.value }}
-                    onClick={() => setTypeFilter(f.value)}
-                    type="button"
-                  >
-                    {f.label}
-                  </button>
-                )}
-              </For>
-            </fieldset>
-            <select
-              class="files-links-sort-select input-reset"
-              onChange={(e) => setSortMode(e.currentTarget.value as SortMode)}
-              value={sortMode()}
-            >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="name">Name</option>
-            </select>
+            <Show when={filesLinksEntries().length > 0}>
+              <fieldset class="files-links-filters">
+                <For each={TYPE_FILTERS}>
+                  {(f) => (
+                    <button
+                      class="files-links-filter-chip"
+                      classList={{ active: typeFilter() === f.value }}
+                      onClick={() => setTypeFilter(f.value)}
+                      type="button"
+                    >
+                      {f.label}
+                    </button>
+                  )}
+                </For>
+              </fieldset>
+              <select
+                class="files-links-sort-select input-reset"
+                onChange={(e) => {
+                  const { value } = e.currentTarget;
+                  if (isOneOf(value, SORT_MODES)) setSortMode(value);
+                }}
+                value={sortMode()}
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="name">Name</option>
+              </select>
+            </Show>
           </div>
           <div
             class="files-links-body"

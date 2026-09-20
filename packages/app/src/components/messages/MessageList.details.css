@@ -29,21 +29,21 @@
 .message-author-unverified:hover {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: var(--moderation-unverified);
+  text-decoration-color: var(--user-status-unverified);
   text-decoration-thickness: 1px;
 }
 .message-author-over_18,
 .message-author-over_18:hover {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: var(--moderation-restricted);
+  text-decoration-color: var(--user-status-over-18);
   text-decoration-thickness: 1px;
 }
 .message-author-banned,
 .message-author-banned:hover {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: var(--moderation-banned);
+  text-decoration-color: var(--user-status-banned);
   text-decoration-thickness: 1px;
 }
 .message-time {
@@ -174,19 +174,14 @@ button.message-bot-badge {
   position: absolute;
   right: 16px;
   bottom: 6px;
-  max-width: calc(100% - 32px);
-  padding: 3px var(--space-sm);
+  padding: 3px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  pointer-events: none;
+  border-radius: 50%;
+  pointer-events: auto;
 }
 .message-replies:hover .message-replies-last {
   color: var(--text-secondary);
-}
-.message-meta .icon,
-.message-replies > .icon {
-  transform: translateY(var(--icon-optical-shift));
 }
 .pronouns {
   min-width: 0;
@@ -200,6 +195,7 @@ button.message-bot-badge {
 .message-status-emoji {
   display: inline-flex;
   align-items: center;
+  align-self: center;
   font-size: var(--font-size-secondary);
   cursor: default;
 }

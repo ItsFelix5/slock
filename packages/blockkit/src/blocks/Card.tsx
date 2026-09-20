@@ -1,5 +1,5 @@
-import type { BlockElement, CardBlock, CarouselBlock } from "@slock/types";
-import { Icon, type IconName } from "@slock/ui";
+import type { CardBlock, CarouselBlock } from "@slock/types";
+import { ICON_NAMES, Icon, type IconName, isOneOf } from "@slock/ui";
 import { For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
@@ -16,7 +16,8 @@ const SLACK_ICON_NAME_MAP: Record<string, IconName> = {
 };
 
 function slackIconName(name: string): IconName {
-  return SLACK_ICON_NAME_MAP[name] ?? (name as IconName);
+  if (SLACK_ICON_NAME_MAP[name]) return SLACK_ICON_NAME_MAP[name];
+  return isOneOf(name, ICON_NAMES) ? name : "help";
 }
 
 export function Card(props: { block: CardBlock; context?: BlockActionContext }) {
@@ -70,11 +71,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
           <div class="bk-card-actions">
             <For each={props.block.actions}>
               {(el) => (
-                <ElementRenderer
-                  blockId={props.block.block_id}
-                  context={props.context}
-                  el={el as BlockElement}
-                />
+                <ElementRenderer blockId={props.block.block_id} context={props.context} el={el} />
               )}
             </For>
           </div>

@@ -33,7 +33,7 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.activity-item.reacted {
+.activity-item.archived {
   opacity: 0.72;
 }
 
@@ -43,7 +43,7 @@
   align-items: flex-start;
   width: 100%;
   min-width: 0;
-  padding: 8px 30px 8px 10px;
+  padding: calc(8px + var(--row-padding-offset)) 30px calc(8px + var(--row-padding-offset)) 10px;
   text-align: left;
   border-radius: var(--radius-md);
 }
@@ -54,7 +54,7 @@
 .activity-unsubscribe-toggle:focus-visible,
 .activity-type-button:focus-visible,
 .activity-read-toggle button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 1px;
 }
 
@@ -153,14 +153,15 @@
 
 .activity-reaction-slot {
   padding: 0 30px 6px 38px;
-  margin-top: -2px;
+  margin-top: calc(-2px - var(--row-padding-offset));
+  cursor: pointer;
 }
 
 .activity-reaction-slot .reaction-row {
   margin-top: 0;
 }
 
-.activity-reacted-label {
+.activity-archived-label {
   display: inline-flex;
   gap: 2px;
   align-items: center;
@@ -183,6 +184,13 @@
   -webkit-line-clamp: 1;
 }
 
+.activity-file-fallback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+}
+
 .activity-time {
   margin-left: 6px;
   font-size: 10px;
@@ -201,6 +209,7 @@
 
 .activity-unsubscribe-toggle,
 .activity-mark-read-toggle,
+.activity-archive-toggle,
 .activity-save-toggle {
   width: 21px;
   height: 21px;
@@ -211,9 +220,11 @@
 
 .activity-item-wrap:hover .activity-unsubscribe-toggle,
 .activity-item-wrap:hover .activity-mark-read-toggle,
+.activity-item-wrap:hover .activity-archive-toggle,
 .activity-item-wrap:hover .activity-save-toggle,
 .activity-unsubscribe-toggle:focus-visible,
 .activity-mark-read-toggle:focus-visible,
+.activity-archive-toggle:focus-visible,
 .activity-save-toggle:focus-visible,
 .activity-save-toggle.active {
   opacity: 1;
@@ -221,6 +232,7 @@
 
 .activity-unsubscribe-toggle:hover,
 .activity-mark-read-toggle:hover,
+.activity-archive-toggle:hover,
 .activity-save-toggle:hover {
   color: var(--text-primary);
   background: var(--active-bg);

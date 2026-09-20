@@ -3,11 +3,13 @@ import { ConstrainedImage, Icon, Overlay, PanelHeader, VideoPlayer } from "@sloc
 import { createResource, createSignal, For, Match, Show, Switch } from "solid-js";
 import { fetchFileDetail, resolveMediaUrl, type SlackFile } from "../../lib/api";
 import { closeFilesLinksPanel } from "../../lib/filesLinksPanel";
+import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
 import AudioFile from "../messages/parts/media/AudioFile";
+import { formatSize } from "../messages/parts/media/FileCardInfo";
 import FileViewerTrigger from "../messages/parts/media/FileViewer";
-import { formatSize } from "../messages/parts/media/MessageFiles";
 import TranscriptPopover from "../messages/parts/media/TranscriptPopover";
+import { SplitNavigation } from "../navigation/SplitNavigation";
 import "./FileDetailModal.css";
 
 function formatDateTime(value: number | string | undefined): string {
@@ -80,6 +82,8 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
                   ariaLabel={file().title || file().name}
                   captionsSrc={file().vtt}
                   class="file-detail-video"
+                  downloadHref={file().urlPrivateDownload}
+                  downloadName={file().name}
                   duration={file().duration}
                   height={file().height}
                   openHref={file().urlPrivate}
@@ -127,19 +131,25 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
               <div class="file-detail-shares-label text-dim">Shared in</div>
               <For each={detail()?.shares}>
                 {(share) => (
-                  <button
-                    class="file-detail-share-row btn-reset"
-                    onClick={() => jumpToShare(share.channelId, share.ts)}
-                    type="button"
+                  <SplitNavigation
+                    onSplit={() => openConversationInSplit(share.channelId, share.ts)}
                   >
-                    <span class="file-detail-share-channel truncate">#{share.channelName}</span>
-                    <span class="file-detail-share-time text-dim">{formatDateTime(share.ts)}</span>
-                    <Show when={share.replyCount}>
-                      {(count) => (
-                        <span class="file-detail-share-replies text-dim">{count()} replies</span>
-                      )}
-                    </Show>
-                  </button>
+                    <button
+                      class="file-detail-share-row btn-reset"
+                      onClick={() => jumpToShare(share.channelId, share.ts)}
+                      type="button"
+                    >
+                      <span class="file-detail-share-channel truncate">#{share.channelName}</span>
+                      <span class="file-detail-share-time text-dim">
+                        {formatDateTime(share.ts)}
+                      </span>
+                      <Show when={share.replyCount}>
+                        {(count) => (
+                          <span class="file-detail-share-replies text-dim">{count()} replies</span>
+                        )}
+                      </Show>
+                    </button>
+                  </SplitNavigation>
                 )}
               </For>
             </div>

@@ -49,10 +49,6 @@
   background: var(--hover-bg);
 }
 
-.thread-panel-subscribe-btn .icon {
-  transform: translateY(var(--icon-optical-shift));
-}
-
 .thread-panel-subscribe-btn:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -117,10 +113,6 @@
   height: var(--composer-action-size);
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
-}
-
-.thread-reply-preview-cancel .icon {
-  transform: translateY(var(--icon-optical-shift));
 }
 
 .thread-reply-preview-cancel:hover {

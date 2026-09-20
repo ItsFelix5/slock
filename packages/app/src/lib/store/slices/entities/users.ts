@@ -1,3 +1,4 @@
+import { SLACK_USER_ID } from "@slock/types";
 import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { User } from "../../../api";
@@ -56,6 +57,7 @@ export function createUsersSlice(
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
     {},
   );
+  const pendingPresence = new Set<string>();
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
 
   const [nicknames, persistNicknames] = createLocalPref<Record<string, string>>("nicknames", {});
@@ -106,6 +108,20 @@ export function createUsersSlice(
     return withNickname(presence ? { ...known, presence } : known);
   }
 
+  function presenceFor(id: string): "active" | "away" | undefined {
+    if (!id || id === SLACK_USER_ID || id.startsWith("B")) return;
+    if (id === deps.currentUserBase()?.id) return currentUser()?.presence;
+    const known = presenceOverrides[id];
+    if (known !== undefined || pendingPresence.has(id)) return known;
+    pendingPresence.add(id);
+    api
+      .fetchUserPresence(id)
+      .then((presence) => presence && recordPeerPresence(id, presence))
+      .catch(() => {})
+      .finally(() => pendingPresence.delete(id));
+    return known;
+  }
+
   function invalidateUser(id: string) {
     setExtraUsers(
       produce((s) => {
@@ -114,6 +130,10 @@ export function createUsersSlice(
     );
     pendingUsers.delete(id);
     unresolvableUsers.delete(id);
+  }
+
+  function recordPeerPresence(id: string, presence: "active" | "away") {
+    setPresenceOverrides(id, presence);
   }
 
   async function searchUsers(query: string, excludeId?: string): Promise<User[]> {
@@ -177,12 +197,6 @@ export function createUsersSlice(
 
   function openUserProfile(id: string) {
     deps.panes.openInNewPane({ kind: "profile", userId: id });
-
-    if (id === deps.currentUserBase()?.id) return;
-    api
-      .fetchUserPresence(id)
-      .then((presence) => presence && setPresenceOverrides(id, presence))
-      .catch(() => {});
   }
 
   function closeUserProfile() {
@@ -242,10 +256,11 @@ export function createUsersSlice(
     knownUsers,
     nicknameFor,
     openUserProfile,
+    presenceFor,
     profileStartDateFor,
     searchUsers,
     setNickname,
-    setPresenceOverrides,
+    setPresenceOverrides: recordPeerPresence,
     updateMyPresence,
     updateMyProfilePhoto,
     updateMyProfile,

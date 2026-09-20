@@ -1,4 +1,10 @@
-import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
+import {
+  BlockKit,
+  HighlightWordsContext,
+  MessageAttachmentsContext,
+  Mrkdwn,
+  TimeAnchorContext,
+} from "@slock/blockkit";
 import { Show } from "solid-js";
 import type { Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
@@ -40,40 +46,48 @@ export default function MessageTextContent(props: {
       }
       when={!props.isEditing}
     >
-      <div
-        class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
-        classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
-      >
-        <TimeAnchorContext.Provider value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}>
-          <Show
-            fallback={
-              <>
-                <Mrkdwn text={props.messageText} />
-                <Show when={props.msg.edited}>
-                  <span class="message-edited"> (edited)</span>
+      <Show when={props.messageText || props.renderBlocks}>
+        <div
+          class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
+          classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
+        >
+          <HighlightWordsContext.Provider value={store.preferences.highlightWords}>
+            <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
+              <TimeAnchorContext.Provider
+                value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
+              >
+                <Show
+                  fallback={
+                    <>
+                      <Mrkdwn text={props.messageText} />
+                      <Show when={props.msg.edited}>
+                        <span class="message-edited"> (edited)</span>
+                      </Show>
+                    </>
+                  }
+                  when={props.renderBlocks}
+                >
+                  {(blocks) => (
+                    <BlockKit
+                      blocks={blocks()}
+                      context={{
+                        botId: props.msg.botId,
+                        botUserId: props.msg.userId,
+                        channelId: props.channelId,
+                        messageTs: props.msg.ts,
+                        threadTs: props.msg.threadTs,
+                      }}
+                      trailing={
+                        props.msg.edited ? <span class="message-edited"> (edited)</span> : undefined
+                      }
+                    />
+                  )}
                 </Show>
-              </>
-            }
-            when={props.renderBlocks}
-          >
-            {(blocks) => (
-              <BlockKit
-                blocks={blocks()}
-                context={{
-                  botId: props.msg.botId,
-                  botUserId: props.msg.userId,
-                  channelId: props.channelId,
-                  messageTs: props.msg.ts,
-                  threadTs: props.msg.threadTs,
-                }}
-                trailing={
-                  props.msg.edited ? <span class="message-edited"> (edited)</span> : undefined
-                }
-              />
-            )}
-          </Show>
-        </TimeAnchorContext.Provider>
-      </div>
+              </TimeAnchorContext.Provider>
+            </MessageAttachmentsContext.Provider>
+          </HighlightWordsContext.Provider>
+        </div>
+      </Show>
     </Show>
   );
 }

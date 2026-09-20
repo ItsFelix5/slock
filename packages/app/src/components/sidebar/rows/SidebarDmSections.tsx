@@ -1,7 +1,7 @@
 import { Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { DirectMessage } from "../../../lib/api";
-import { DmRow, SidebarSectionCaretRow } from "./sidebar-rows";
+import { DmRow, SidebarSectionCaretRow } from "./SidebarRows";
 
 function DmSection(props: {
   count?: () => number;

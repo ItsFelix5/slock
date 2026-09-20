@@ -1,4 +1,4 @@
-import { createEffect, type JSX, onCleanup } from "solid-js";
+import { createEffect, getOwner, type JSX, onCleanup, runWithOwner } from "solid-js";
 import { useClickOutside } from "../../useClickOutside";
 import { useEscapeClose } from "../../useEscapeClose";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
@@ -23,6 +23,7 @@ export default function Menu(props: MenuProps) {
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;
   let hoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
+  const owner = getOwner();
 
   const cancelHoverClose = () => {
     if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
@@ -51,7 +52,11 @@ export default function Menu(props: MenuProps) {
   const roving = createMenuRovingFocus(() => panelRef, { requireVisible: true });
 
   const onRootKeyDown = (event: KeyboardEvent) => {
-    if (!props.open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+    if (
+      !runWithOwner(owner, () => props.open) ||
+      (event.key !== "ArrowDown" && event.key !== "ArrowUp")
+    )
+      return;
     event.preventDefault();
     event.stopPropagation();
     roving.focusMenuItem(event.key === "ArrowDown" ? 0 : roving.menuItems().length - 1);

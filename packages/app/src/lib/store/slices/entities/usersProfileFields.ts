@@ -1,7 +1,20 @@
 import { createStore } from "solid-js/store";
 import type { User, UserCustomField } from "../../../api";
 import { actionFeedback } from "../../../feedback";
-import { createSerialMutationQueue } from "../../mutations/serialMutationQueue";
+
+export function createSerialMutationQueue() {
+  let tail = Promise.resolve();
+
+  return function runSerially<T>(mutation: () => Promise<T>): Promise<T> {
+    const result = tail.then(mutation);
+
+    tail = result.then(
+      () => {},
+      () => {},
+    );
+    return result;
+  };
+}
 
 export function createUserProfileFields(
   deps: { currentUserBase: () => User | undefined },
@@ -27,6 +40,7 @@ export function createUserProfileFields(
   >({});
   const loadedCustomFields = new Set<string>();
   const pendingCustomFields = new Set<string>();
+  const customFieldsVersion = new Map<string, number>();
 
   function customFieldsFor(id: string): UserCustomField[] | undefined {
     const known = customFieldsById[id];
@@ -34,10 +48,13 @@ export function createUserProfileFields(
     pendingCustomFields.add(id);
 
     const routeId = id === deps.currentUserBase()?.id ? "me" : id;
+    const startVersion = customFieldsVersion.get(id) ?? 0;
     api
       .fetchUserProfile(routeId)
       .then((profile) => {
-        setCustomFieldsById(id, profile.customFields ?? []);
+        if ((customFieldsVersion.get(id) ?? 0) === startVersion) {
+          setCustomFieldsById(id, profile.customFields ?? []);
+        }
         setProfileStartDatesById(id, profile.startDate);
       })
       .catch(() => {})
@@ -95,6 +112,7 @@ export function createUserProfileFields(
           }
           setCustomFieldsById(selfId, [...merged.values()]);
           loadedCustomFields.add(selfId);
+          customFieldsVersion.set(selfId, (customFieldsVersion.get(selfId) ?? 0) + 1);
         }
         return true;
       } catch (err) {

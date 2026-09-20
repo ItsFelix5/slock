@@ -1,10 +1,12 @@
 import type { UserPrefs } from "@slock/types";
-import { apiDelete, apiPut } from "@slock/types";
+import { ApiError, apiDelete, apiPut } from "@slock/types";
 import { fetchInitialData } from "./initialData";
 
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const data = await fetchInitialData();
-  if (data.error?.notification_prefs) throw new Error(data.error.notification_prefs);
+  if (data.error?.notification_prefs) {
+    throw new ApiError(data.error.notification_prefs, data.retry_after?.notification_prefs);
+  }
   const prefs = data;
   const parse = (key: string) => {
     try {
@@ -60,7 +62,6 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
         .filter(Boolean)
     : globalKeywords;
   const globalNotifications = {
-    channelsInActivity: notificationGlobal.global_channels_in_activity !== false,
     desktop: notificationGlobal.global_desktop ?? "mentions_dms",
     desktopPushEnabled: notificationGlobal.global_desktop_push_enabled !== false,
     keywords: globalKeywords,
@@ -86,6 +87,7 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
   const parsedSectionPrefs = parse("channel_sections") ?? {};
   const sectionSort: Record<string, "recent"> = {};
   const sectionSidebar: Record<string, "hid" | "active" | "all"> = {};
+  const sectionCollapsed: Record<string, boolean> = {};
   const channelSections: Record<string, Record<string, unknown>> = {};
   if (parsedSectionPrefs && typeof parsedSectionPrefs === "object") {
     for (const [id, value] of Object.entries<any>(parsedSectionPrefs)) {
@@ -93,25 +95,9 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       if (value?.sort === "recent") sectionSort[id] = "recent";
       if (value?.sidebar === "hid" || value?.sidebar === "active" || value?.sidebar === "all")
         sectionSidebar[id] = value.sidebar;
+      if (typeof value?.collapsed === "boolean") sectionCollapsed[id] = value.collapsed;
     }
   }
-  const parsedThemeColors = parse("slock_theme_colors");
-  const themeColors: UserPrefs["themeColors"] =
-    parsedThemeColors &&
-    typeof parsedThemeColors === "object" &&
-    parsedThemeColors.colors &&
-    (parsedThemeColors.colorScheme === "dark" || parsedThemeColors.colorScheme === "light")
-      ? { colors: parsedThemeColors.colors, colorScheme: parsedThemeColors.colorScheme }
-      : undefined;
-
-  const parsedThemeShape = parse("slock_theme_shape");
-  const themeShape: UserPrefs["themeShape"] =
-    parsedThemeShape &&
-    typeof parsedThemeShape.density === "number" &&
-    typeof parsedThemeShape.roundness === "number"
-      ? { density: parsedThemeShape.density, roundness: parsedThemeShape.roundness }
-      : undefined;
-
   return {
     channelFrecency,
     channelNotifications,
@@ -122,9 +108,8 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
     notifyAllChannels,
     sectionSort,
     sectionSidebar,
+    sectionCollapsed,
     channelSections,
-    themeColors,
-    themeShape,
   };
 }
 
@@ -142,22 +127,6 @@ export async function setMutedChannels(channelIds: string[]): Promise<void> {
 
 export async function setHighlightWords(words: string[]): Promise<void> {
   const data = await apiPut("/api/preferences/highlight-words", { words });
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
-}
-
-export async function setThemeColorsPref(theme: {
-  colors: Record<string, string>;
-  colorScheme: "dark" | "light";
-}): Promise<void> {
-  const data = await apiPut("/api/preferences/theme-colors", theme);
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
-}
-
-export async function setThemeShapePref(shape: {
-  density: number;
-  roundness: number;
-}): Promise<void> {
-  const data = await apiPut("/api/preferences/theme-shape", shape);
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }
 

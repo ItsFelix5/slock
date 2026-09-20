@@ -85,14 +85,21 @@ function timeSecs(date: Date): string {
 function ago(date: Date): string {
   const seconds = Math.round((Date.now() - date.getTime()) / 1000);
   const absoluteSeconds = Math.abs(seconds);
+  const day = 86_400;
+  const month = day * 30;
+  const year = day * 365;
   const [value, unit] =
     absoluteSeconds < 60
       ? [absoluteSeconds, "second"]
       : absoluteSeconds < 3600
         ? [Math.round(absoluteSeconds / 60), "minute"]
-        : absoluteSeconds < 86_400
+        : absoluteSeconds < day
           ? [Math.round(absoluteSeconds / 3600), "hour"]
-          : [Math.round(absoluteSeconds / 86_400), "day"];
+          : absoluteSeconds < month
+            ? [Math.round(absoluteSeconds / day), "day"]
+            : absoluteSeconds < year
+              ? [Math.round(absoluteSeconds / month), "month"]
+              : [Math.round(absoluteSeconds / year), "year"];
   const period = `${value} ${unit}${value === 1 ? "" : "s"}`;
   return seconds >= 0 ? `${period} ago` : `in ${period}`;
 }
@@ -112,8 +119,6 @@ const TOKEN_FORMATTERS: Record<string, (date: Date) => string> = {
 
 const TOKEN_RE = /\{([a-z_]+)\}/g;
 
-export const DEFAULT_DATE_FORMAT = "{date_short_pretty} at {time}";
-
 export function formatSlackDate(timestamp: number, fallback?: string): string {
   try {
     const value = new Date(timestamp * 1000).toISOString();
@@ -131,7 +136,6 @@ export function formatFullDateTime(timestamp: number): string {
     minute: "2-digit",
     month: "long",
     second: "2-digit",
-    timeZoneName: "short",
     weekday: "long",
     year: "numeric",
   });
@@ -145,6 +149,11 @@ export function formatFullDate(timestamp: number): string {
     weekday: "long",
     year: "numeric",
   });
+}
+
+export function formatHoverDateTime(timestamp: number, dateOnly?: boolean): string {
+  const absolute = dateOnly ? formatFullDate(timestamp) : formatFullDateTime(timestamp);
+  return `${absolute} · ${formatSlackDateTokens("{ago}", timestamp)}`;
 }
 
 export function formatSlackDateTokens(
@@ -208,11 +217,6 @@ export function zonedDateTimeToMs(
   return utcGuess - timeZoneOffsetAt(utcGuess, zone) * 60_000;
 }
 
-export function timeZoneOffsetAtAnchor(anchorMs: number, timeZone?: string): number {
-  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return timeZoneOffsetAt(anchorMs, zone);
-}
-
 export function zonedWallTimeToMs(
   anchorMs: number,
   hour: number,
@@ -223,34 +227,6 @@ export function zonedWallTimeToMs(
   const anchor = partsInZone(anchorMs, zone);
   return zonedDateTimeToMs(anchor.year, anchor.month, anchor.day, hour, minute, 0, zone);
 }
-
-export function relativeDayMs(anchorMs: number, dayOffset: number, timeZone?: string): number {
-  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const anchor = partsInZone(anchorMs, zone);
-  return zonedDateTimeToMs(anchor.year, anchor.month, anchor.day + dayOffset, 12, 0, 0, zone);
-}
-
-export const DATE_FORMAT_OPTIONS = [
-  { format: "{date_num}", label: "Year-month-day" },
-  { format: "{date}", label: "Natural" },
-  { format: "{date_short}", label: "Abbreviated" },
-  { format: "{date_long}", label: "With weekday" },
-  { format: "{date_pretty}", label: "Natural, relative" },
-  { format: "{date_short_pretty}", label: "Abbreviated, relative" },
-  { format: "{date_long_pretty}", label: "With weekday, relative" },
-];
-
-export const DATE_FORMAT_OPTION_PAIRS = [
-  { normal: DATE_FORMAT_OPTIONS[0] },
-  { normal: DATE_FORMAT_OPTIONS[1], relative: DATE_FORMAT_OPTIONS[4] },
-  { normal: DATE_FORMAT_OPTIONS[2], relative: DATE_FORMAT_OPTIONS[5] },
-  { normal: DATE_FORMAT_OPTIONS[3], relative: DATE_FORMAT_OPTIONS[6] },
-];
-
-export const TIME_FORMAT_OPTIONS = [
-  { format: "{time}", label: "Hours and minutes" },
-  { format: "{time_secs}", label: "Including seconds" },
-];
 
 export { formatDuration } from "@slock/ui";
 
@@ -283,9 +259,4 @@ export function formatLastSeen(seenAt: number, now: number): string {
   });
 }
 
-export function formatTime(time: number): string {
-  return new Date(time).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+export { formatTimeFromMs as formatTime } from "@slock/types";

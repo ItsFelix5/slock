@@ -1,3 +1,54 @@
+@font-face {
+  font-family: "OpenDyslexic";
+  font-style: normal;
+  font-weight: 400;
+  size-adjust: 74%;
+  src: url("/public/fonts/opendyslexic-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "OpenDyslexic";
+  font-style: normal;
+  font-weight: 700;
+  size-adjust: 74%;
+  src: url("/public/fonts/opendyslexic-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Comic Neue";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/public/fonts/comic-neue-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Comic Neue";
+  font-style: normal;
+  font-weight: 700;
+  src: url("/public/fonts/comic-neue-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/public/fonts/lato-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 900;
+  src: url("/public/fonts/lato-latin-900-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/public/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 700;
+  src: url("/public/fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2");
+}
+
 :root {
   color-scheme: dark;
 
@@ -34,8 +85,8 @@
   --sidebar-bg: var(--palette-charcoal-950);
   --main-bg: var(--palette-charcoal-850);
   --composer-bg: var(--palette-charcoal-800);
-  --border: color-mix(in oklch, var(--palette-charcoal-300) 10%, transparent);
-  --border-strong: color-mix(in oklch, var(--palette-charcoal-300) 18%, transparent);
+  --border: rgb(from var(--palette-charcoal-300) r g b / 10%);
+  --border-strong: rgb(from var(--palette-charcoal-300) r g b / 18%);
   --text-primary: var(--palette-charcoal-100);
   --text-secondary: var(--palette-charcoal-300);
   --text-dim: var(--palette-charcoal-500);
@@ -47,57 +98,53 @@
   --accent-hover: var(--palette-blue-400);
   --text-on-accent: var(--palette-charcoal-950);
   --presence-active: var(--palette-green-500);
-  --presence-away: var(--palette-charcoal-500);
-  --hover-bg: color-mix(in oklch, var(--palette-charcoal-100) 6%, transparent);
-  --active-bg: color-mix(in oklch, var(--palette-charcoal-100) 10%, transparent);
+  --presence-away: var(--text-dim);
+  --hover-bg: rgb(from var(--text-primary) r g b / 6%);
+  --active-bg: rgb(from var(--text-primary) r g b / 10%);
   --badge-bg: var(--palette-red-500);
   --danger: var(--palette-red-400);
   --warning: var(--palette-amber-400);
-  --success: var(--palette-green-400);
+  --success: oklch(from var(--presence-active) calc(l + 0.08) c h);
   --error-text: var(--danger);
-  --error-bg: color-mix(in oklch, var(--danger) 12%, transparent);
-  --code-bg: color-mix(in oklch, var(--palette-charcoal-1000) 48%, transparent);
-  --link-color: var(--palette-blue-400);
-  --highlight-bg: color-mix(in oklch, var(--palette-amber-400) 28%, transparent);
+  --error-bg: rgb(from var(--danger) r g b / 12%);
+  --code-bg: rgb(from var(--palette-charcoal-1000) r g b / 48%);
+  --link-color: var(--mention-text);
+  --highlight-bg: rgb(from var(--warning) r g b / 28%);
 
-  --accent-subtle: color-mix(in oklch, var(--accent) 8%, transparent);
-  --accent-muted: color-mix(in oklch, var(--accent) 14%, transparent);
-  --accent-emphasis: color-mix(in oklch, var(--accent) 20%, transparent);
-  --accent-border: color-mix(in oklch, var(--accent) 52%, transparent);
-  --accent-border-strong: color-mix(in oklch, var(--accent) 82%, transparent);
-  --danger-subtle: color-mix(in oklch, var(--danger) 8%, transparent);
-  --danger-muted: color-mix(in oklch, var(--danger) 12%, transparent);
-  --warning-subtle: color-mix(in oklch, var(--warning) 8%, transparent);
-  --warning-muted: color-mix(in oklch, var(--warning) 18%, transparent);
-  --warning-emphasis: color-mix(in oklch, var(--warning) 38%, transparent);
+  --accent-subtle: rgb(from var(--accent) r g b / 8%);
+  --accent-muted: rgb(from var(--accent) r g b / 14%);
+  --accent-emphasis: rgb(from var(--accent) r g b / 20%);
+  --accent-border: rgb(from var(--accent) r g b / 52%);
+  --accent-border-strong: rgb(from var(--accent) r g b / 82%);
+  --danger-subtle: rgb(from var(--danger) r g b / 8%);
+  --danger-muted: rgb(from var(--danger) r g b / 12%);
+  --warning-subtle: rgb(from var(--warning) r g b / 8%);
+  --warning-muted: rgb(from var(--warning) r g b / 18%);
+  --warning-emphasis: rgb(from var(--warning) r g b / 38%);
 
   --mention-text: var(--palette-blue-400);
-  --mention-bg: color-mix(in oklch, var(--mention-text) 16%, transparent);
-  --mention-hover-bg: color-mix(in oklch, var(--mention-text) 30%, transparent);
-  --mention-self-text: var(--palette-amber-400);
-  --mention-self-bg: color-mix(in oklch, var(--mention-self-text) 20%, transparent);
-  --mention-self-hover-bg: color-mix(in oklch, var(--mention-self-text) 34%, transparent);
+  --mention-bg: rgb(from var(--mention-text) r g b / 16%);
+  --mention-hover-bg: rgb(from var(--mention-text) r g b / 30%);
+  --mention-self-text: var(--warning);
+  --mention-self-bg: rgb(from var(--mention-self-text) r g b / 20%);
+  --mention-self-hover-bg: rgb(from var(--mention-self-text) r g b / 34%);
   --mention-inaccessible-text: var(--palette-charcoal-400);
-  --mention-inaccessible-bg: color-mix(in oklch, var(--mention-inaccessible-text) 14%, transparent);
-  --mention-inaccessible-hover-bg: color-mix(
-    in oklch,
-    var(--mention-inaccessible-text) 24%,
-    transparent
-  );
+  --mention-inaccessible-bg: rgb(from var(--mention-inaccessible-text) r g b / 14%);
+  --mention-inaccessible-hover-bg: rgb(from var(--mention-inaccessible-text) r g b / 24%);
 
-  --moderation-unverified: var(--palette-blue-500);
-  --moderation-restricted: var(--palette-amber-500);
-  --moderation-banned: var(--palette-red-500);
-  --scrim-strong: color-mix(in oklch, var(--palette-charcoal-1000) 72%, transparent);
-  --overlay-backdrop: color-mix(in oklch, var(--palette-charcoal-1000) 68%, transparent);
+  --user-status-unverified: var(--accent);
+  --user-status-over-18: oklch(from var(--warning) calc(l - 0.08) c h);
+  --user-status-banned: var(--badge-bg);
+  --scrim-strong: rgb(from var(--palette-charcoal-1000) r g b / 72%);
+  --overlay-backdrop: rgb(from var(--palette-charcoal-1000) r g b / 68%);
   --embedded-content-bg: var(--palette-charcoal-50);
-  --media-lens-border: color-mix(in oklch, var(--palette-charcoal-50) 88%, transparent);
+  --media-lens-border: rgb(from var(--palette-charcoal-50) r g b / 88%);
   --media-editor-control: var(--palette-charcoal-50);
-  --media-editor-shadow: color-mix(in oklch, var(--palette-charcoal-1000) 35%, transparent);
-  --control-contrast-border: color-mix(in oklch, var(--palette-charcoal-400) 42%, transparent);
+  --media-editor-shadow: rgb(from var(--palette-charcoal-1000) r g b / 35%);
+  --control-contrast-border: rgb(from var(--palette-charcoal-400) r g b / 42%);
 
-  --shadow-color: color-mix(in oklch, var(--palette-charcoal-1000) 72%, transparent);
-  --shadow-color-soft: color-mix(in oklch, var(--palette-charcoal-1000) 48%, transparent);
+  --shadow-color: rgb(from var(--palette-charcoal-1000) r g b / 72%);
+  --shadow-color-soft: rgb(from var(--palette-charcoal-1000) r g b / 48%);
   --shadow-tooltip: 0 4px 14px var(--shadow-color-soft);
   --shadow-popover: 0 8px 24px var(--shadow-color-soft);
   --shadow-hovercard: 0 8px 26px var(--shadow-color-soft);
@@ -107,8 +154,8 @@
   --shadow-media: 0 4px 18px var(--shadow-color);
   --shadow-inset: inset 0 0 0 1px var(--shadow-color-soft);
 
-  --bk-button-primary: var(--palette-green-600);
-  --bk-button-danger: var(--palette-red-600);
+  --bk-button-primary: oklch(from var(--presence-active) calc(l - 0.08) c h);
+  --bk-button-danger: oklch(from var(--badge-bg) calc(l - 0.08) c h);
   --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-size-caption: 11px;
   --font-size-meta: 12px;
@@ -136,8 +183,8 @@
   --focus-ring-width: 2px;
   --focus-ring-color: var(--accent);
   --header-height: 48px;
-  --header-padding-inline: var(--space-lg);
-  --header-action-size: 32px;
+  --header-padding-inline: var(--space-md);
+  --header-action-size: 24px;
   --header-divider-width: 1px;
   --composer-frame-inline: 12px;
   --composer-frame-block-end: 8px;
@@ -151,6 +198,7 @@
   --message-avatar-margin-top: 2px;
   --message-avatar-font-size: 14px;
   --message-meta-gap: 6px;
+  --row-padding-offset: 0px;
 }
 
 :root[data-color-scheme="light"] {

@@ -119,7 +119,6 @@
 }
 
 .usergroup-details-input:disabled,
-.usergroup-details-add-btn:disabled,
 .usergroup-details-row-remove:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -172,20 +171,6 @@
   line-height: 1.4;
 }
 
-.usergroup-details-add-btn {
-  gap: 6px;
-  padding: 0 12px;
-  font-size: 13px;
-  color: var(--text-primary);
-  white-space: nowrap;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-}
-
-.usergroup-details-add-btn:hover:not(:disabled) {
-  background: var(--hover-bg);
-}
-
 .usergroup-details-picker {
   position: relative;
 }
@@ -206,7 +191,7 @@
   flex: 1;
   gap: 10px;
   min-width: 0;
-  padding: 6px 8px;
+  padding: calc(6px + var(--row-padding-offset)) 8px;
   font-size: 13px;
   color: var(--text-primary);
   text-align: left;

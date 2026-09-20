@@ -1,20 +1,10 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "../ui"
-    },
-    {
-      "path": "../types"
-    },
-    {
-      "path": "../blockkit"
-    }
-  ]
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+  },
+  "extends": "../../tsconfig.base.json",
+  "exclude": ["src/**/*.test.ts"],
+  "include": ["src/**/*", "src/**/*.json", "../../types/css.d.ts", "../../types/importMeta.d.ts"],
+  "references": [{ "path": "../ui" }, { "path": "../types" }, { "path": "../blockkit" }]
 }

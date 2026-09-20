@@ -1,4 +1,6 @@
+import { focusPaneById } from "@slock/ui";
 import { batch } from "solid-js";
+import { suppressNextComposerAutofocus } from "./composerAutofocus";
 import { buildSearchQuery, EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 import type { ChannelMessageTarget, Nav, View } from "./store/slices/types";
 import type { createStoreSlices } from "./store/storeSlices";
@@ -13,11 +15,25 @@ type AppActionsDeps = Pick<
   | "setActiveView"
   | "setActiveViewImplRef"
   | "unread"
+  | "users"
   | "viewState"
 >;
 
 export function createAppActions(deps: AppActionsDeps) {
-  const { dms, panes, realtime, setActiveView, setActiveViewImplRef, unread, viewState } = deps;
+  const { dms, panes, realtime, setActiveView, setActiveViewImplRef, unread, users, viewState } =
+    deps;
+
+  function closeTile(paneId: string) {
+    const pane = panes.panes().find((p) => p.id === paneId);
+    if (pane?.content?.kind === "thread") {
+      realtime.send({ ts: pane.content.ts, type: "unwatch_thread" });
+    }
+    panes.closePane(paneId);
+  }
+
+  function canCloseTile(): boolean {
+    return panes.panes().length > 1;
+  }
 
   function closeThread() {
     const thread = panes.panes().find((p) => p.content?.kind === "thread" && !p.content.pinned);
@@ -36,11 +52,13 @@ export function createAppActions(deps: AppActionsDeps) {
 
   function switchToConversation(
     channelId: string,
-    options?: { keepNav?: boolean; target?: ChannelMessageTarget },
+    options?: { autofocus?: boolean; keepNav?: boolean; target?: ChannelMessageTarget },
   ) {
+    if (options?.autofocus === false) suppressNextComposerAutofocus();
     const kind = dms.conversationKind(channelId);
     batch(() => {
       closeThreadIfDifferentChannel(channelId);
+      users.closeUserProfile();
       viewState.setSelected({ id: channelId, kind });
       if (!options?.keepNav) viewState.setNav("home");
       unread.clearChannelUnread(channelId);
@@ -49,20 +67,21 @@ export function createAppActions(deps: AppActionsDeps) {
     });
   }
 
-  setActiveViewImplRef.current = (view: View) => switchToConversation(view.id);
+  setActiveViewImplRef.current = (view: View, options?: { autofocus?: boolean }) =>
+    switchToConversation(view.id, options);
 
   function setNavView(next: Nav) {
     viewState.setNav(next);
-    if (next === "later") void deps.later.ensureLaterLoaded();
-    if (next === "activity") void deps.activity.ensureActivityLoaded();
+    if (next !== "search") queueMicrotask(() => focusPaneById("sidebar"));
   }
 
   function openThread(
     channelId: string,
     ts: string,
     highlightTs?: string,
-    opts?: { pinned?: boolean },
+    opts?: { autofocus?: boolean; pinned?: boolean },
   ) {
+    if (opts?.autofocus === false) suppressNextComposerAutofocus();
     panes.openInNewPane({ channelId, highlightTs, kind: "thread", pinned: opts?.pinned, ts });
   }
 
@@ -89,12 +108,15 @@ export function createAppActions(deps: AppActionsDeps) {
   }
 
   return {
+    canCloseTile,
     closeThread,
+    closeTile,
     openChannelMessage,
     openChannelPeek,
     openMessageSearch,
     openThread,
     setActiveView,
     setNavView,
+    switchToConversation,
   };
 }

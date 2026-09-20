@@ -1,21 +1,23 @@
 import { apiGet } from "./server";
 
-let emojiMapPromise: Promise<Record<string, string>> | null = null;
+export interface EmojiListData {
+  urls: Record<string, string>;
+  aliasesToBuiltinNames: Record<string, string>;
+}
 
-export function fetchAllEmoji(): Promise<Record<string, string>> {
+let emojiMapPromise: Promise<EmojiListData> | null = null;
+
+export function fetchAllEmoji(): Promise<EmojiListData> {
   if (!emojiMapPromise) {
     emojiMapPromise = fetch("/api/emoji")
       .then((res) => {
         if (!res.ok) throw new Error(`Emoji list failed (${res.status})`);
-        return res.text();
+        return res.json();
       })
-      .then((text) => {
-        const names = text ? text.split("\n") : [];
-        const resolved: Record<string, string> = {};
-        for (const name of names) {
-          resolved[name] = `/api/emoji/${encodeURIComponent(name)}`;
-        }
-        return resolved;
+      .then((data: { names: string[]; aliasesToBuiltinNames: Record<string, string> }) => {
+        const urls: Record<string, string> = {};
+        for (const name of data.names) urls[name] = `/api/emoji/${encodeURIComponent(name)}`;
+        return { aliasesToBuiltinNames: data.aliasesToBuiltinNames, urls };
       })
       .catch((error) => {
         emojiMapPromise = null;

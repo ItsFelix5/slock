@@ -1,4 +1,4 @@
-@import "quill/dist/quill.core.css";
+@import "../../../../ui/src/editor/quill.css";
 
 .message-search-view {
   display: flex;
@@ -8,8 +8,11 @@
   background: var(--main-bg);
 }
 
-.message-search-header {
+.message-search-anchor {
   flex-shrink: 0;
+}
+
+.message-search-header {
   gap: 8px;
   padding: 10px 12px;
   background: var(--main-bg);
@@ -29,12 +32,6 @@
   white-space: nowrap;
 }
 
-.message-search-input .ql-editor.ql-blank::before {
-  left: 0;
-  color: var(--text-tertiary, var(--text-dim));
-  font-style: normal;
-}
-
 .search-filter-pill {
   cursor: pointer;
 }
@@ -46,10 +43,9 @@
 }
 
 .message-search-suggestions {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--border);
+  width: 280px;
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 .message-search-results {
@@ -114,4 +110,8 @@
 .message-search-history-item:hover .message-search-history-remove,
 .message-search-history-item:focus-within .message-search-history-remove {
   opacity: 1;
+}
+
+::highlight(message-search-match) {
+  background-color: var(--highlight-bg);
 }

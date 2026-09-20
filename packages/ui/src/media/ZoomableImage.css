@@ -8,7 +8,7 @@
 }
 
 .zoomable-image-trigger:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
@@ -16,7 +16,7 @@
   display: block;
 }
 
-.zoomable-image.zoomable-image-framed {
+.zoomable-image-framed {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -65,22 +65,9 @@
 }
 
 .zoomable-image-close {
-  position: absolute;
   top: 20px;
   right: 20px;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  color: var(--text-primary);
-  cursor: pointer;
-  background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-circle);
-  box-shadow: var(--shadow-modal);
 }
 
 .zoomable-image-navigation {
@@ -97,12 +84,11 @@
   cursor: pointer;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-circle);
+  border-radius: var(--radius-control);
   box-shadow: var(--shadow-modal);
   transform: translateY(-50%);
 }
 
-.zoomable-image-close:hover,
 .zoomable-image-navigation:hover:not(:disabled) {
   background: color-mix(in oklch, var(--main-bg), var(--text-primary) 7%);
 }

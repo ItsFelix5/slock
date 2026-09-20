@@ -16,6 +16,20 @@
 
 .channel-details-setting-select {
   width: min(190px, 55%);
+  appearance: none;
+  padding-right: 28px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) center,
+    calc(100% - 10px) center;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+}
+
+.channel-details-setting-select:disabled {
+  background-image: none;
 }
 
 .channel-details-exceptions {
@@ -26,10 +40,6 @@
 .channel-details-exceptions-header {
   justify-content: space-between;
   gap: 12px;
-}
-
-.channel-details-exceptions-header .settings-row-hint {
-  margin-bottom: 0;
 }
 
 .channel-details-exception-list {

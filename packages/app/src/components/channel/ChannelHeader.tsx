@@ -1,20 +1,18 @@
-import { Mrkdwn } from "@slock/blockkit";
+import { EmojiFreezeContext, Mrkdwn } from "@slock/blockkit";
 import { Icon, IconButton, InlineFeedback, Menu, MenuItem, Tooltip } from "@slock/ui";
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { channelIconName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
-import { closeTile } from "../../lib/paneActions";
 import { usePaneView } from "../../lib/paneView";
 import { store } from "../../lib/store";
 import ChannelActionsMenuItems from "./ChannelActionsMenuItems";
-import { openChannelDetails } from "./lib/channelDetails";
 import "./ChannelHeader.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
 import { createChannelHeaderState } from "./channelHeaderState";
+import { openChannelDetails } from "./lib/channelDetails";
 
 export default function ChannelHeader() {
   const { paneId, view } = usePaneView();
-  const canClose = () => store.panes.panes().length > 1;
   const {
     channelMemberCount,
     channelTitle,
@@ -25,7 +23,7 @@ export default function ChannelHeader() {
     isPrivateChannel,
     openCurrentDmProfile,
     searchCurrentConversation,
-  } = createChannelHeaderState(view);
+  } = createChannelHeaderState(view, paneId);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [canvasMenuOpen, setCanvasMenuOpen] = createSignal(false);
   const [topicEl, setTopicEl] = createSignal<HTMLSpanElement>();
@@ -33,12 +31,9 @@ export default function ChannelHeader() {
   createEffect(() => {
     channelTopic();
     const el = topicEl();
-    if (el) setTopicOverflowing(el.scrollWidth > el.clientWidth);
-  });
-  createEffect(() => {
-    const el = topicEl();
     if (!el) return;
     const measure = () => setTopicOverflowing(el.scrollWidth > el.clientWidth);
+    measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     onCleanup(() => observer.disconnect());
@@ -57,156 +52,149 @@ export default function ChannelHeader() {
     if (channelId !== lastCanvasChannelId) setCanvasMenuOpen(false);
     lastCanvasChannelId = channelId;
   });
-  createEffect(() => {
-    const channelId = activeChannelId();
-    if (channelId) store.canvas.ensureCanvasChecked(channelId);
-  });
   return (
-    <div class="channel-header">
-      <div class="channel-header-top flex-align-center">
-        <div class="channel-header-context flex-align-center">
-          <div class="channel-header-identity flex-align-center">
-            <Show when={isChannelView() && view()?.id}>
-              {(id) => <ChannelMoveMenu channelId={id()} channelTitle={channelTitle()} />}
-            </Show>
-            <span class="channel-header-icon">
-              <Show fallback={null} when={view()?.kind !== "dm"}>
-                <Icon name={channelIconName(isPrivateChannel())} size={14} />
-              </Show>
-            </span>
-            <button
-              class="channel-header-title channel-header-title-btn btn-reset"
-              onClick={() => {
-                const v = view();
-                if (!v) return;
-                if (v.kind === "channel") openChannelDetails(v.id);
-                else openCurrentDmProfile();
-              }}
-              type="button"
-            >
-              {channelTitle()}
-            </button>
-            <Show when={isArchivedChannel()}>
-              <span class="channel-header-archived-badge">Archived</span>
-            </Show>
-          </div>
-          <Show when={channelTopic()}>
-            <span
-              class="channel-header-topic-wrap"
-              classList={{ "is-overflowing": topicOverflowing() }}
-              tabIndex={topicOverflowing() ? 0 : undefined}
-            >
-              <span class="channel-header-topic truncate text-dim text-sm" ref={setTopicEl}>
-                <Mrkdwn text={channelTopic()} />
-              </span>
-              <span class="channel-header-topic-tooltip text-dim text-sm">
-                <Mrkdwn text={channelTopic()} />
-              </span>
-            </span>
+    <div class="channel-header flex-align-center">
+      <div class="channel-header-context flex-align-center">
+        <div class="flex-align-center">
+          <Show when={isChannelView() && view()?.id}>
+            {(id) => <ChannelMoveMenu channelId={id()} channelTitle={channelTitle()} />}
           </Show>
-          <Show when={view()?.id}>
-            {(id) => (
-              <InlineFeedback class="channel-header-feedback" feedback={actionFeedback.get(id())} />
-            )}
+          <button
+            class="channel-header-title channel-header-title-btn btn-reset"
+            onClick={() => {
+              const v = view();
+              if (!v) return;
+              if (v.kind === "channel") openChannelDetails(v.id);
+              else openCurrentDmProfile();
+            }}
+            type="button"
+          >
+            <Show fallback={null} when={view()?.kind !== "dm"}>
+              <Icon
+                class="channel-header-icon"
+                name={channelIconName(isPrivateChannel())}
+                size={16}
+              />
+            </Show>
+            <span class="truncate">{channelTitle()}</span>
+          </button>
+          <Show when={isArchivedChannel()}>
+            <span class="channel-header-archived-badge">Archived</span>
           </Show>
         </div>
-        <div class="channel-header-actions">
-          <Show when={canvases().length > 0}>
+        <span
+          class="channel-header-topic-wrap"
+          classList={{ "is-overflowing": topicOverflowing() }}
+          hidden={!channelTopic()}
+          tabIndex={topicOverflowing() ? 0 : undefined}
+        >
+          <EmojiFreezeContext.Provider value="hover">
+            <span class="channel-header-topic truncate text-dim text-sm" ref={setTopicEl}>
+              <Mrkdwn text={channelTopic()} />
+            </span>
+            <span class="channel-header-topic-tooltip text-dim text-sm">
+              <Mrkdwn text={channelTopic()} />
+            </span>
+          </EmojiFreezeContext.Provider>
+        </span>
+        <Show when={view()?.id}>
+          {(id) => (
+            <InlineFeedback class="channel-header-feedback" feedback={actionFeedback.get(id())} />
+          )}
+        </Show>
+      </div>
+      <div class="channel-header-actions">
+        <Show when={canvases().length > 0}>
+          <Menu
+            align="end"
+            class="channel-header-canvas-wrap"
+            onClose={() => setCanvasMenuOpen(false)}
+            open={canvasMenuOpen()}
+            panelClass="menu-panel channel-header-canvas-menu"
+            trigger={
+              <IconButton
+                class="channel-header-btn"
+                icon="canvas-browser"
+                onClick={() => setCanvasMenuOpen(!canvasMenuOpen())}
+                size="md"
+              />
+            }
+          >
+            <For each={canvases()}>
+              {(canvas) => (
+                <MenuItem
+                  icon="canvas-content"
+                  onClick={() => {
+                    setCanvasMenuOpen(false);
+                    store.canvas.openCanvasPane(canvas.fileId, canvas.title);
+                  }}
+                >
+                  <span class="truncate">
+                    <Mrkdwn text={canvas.title || "Untitled canvas"} />
+                  </span>
+                </MenuItem>
+              )}
+            </For>
+          </Menu>
+        </Show>
+        <Show when={isChannelView() && channelMemberCount()}>
+          {(count) => (
+            <Tooltip content="View members">
+              <button
+                class="channel-header-members-btn btn-reset icon-btn icon-action"
+                onClick={() => {
+                  const v = view();
+                  if (v?.kind === "channel") openChannelDetails(v.id, "members");
+                }}
+                type="button"
+              >
+                <Icon name="user-groups" size={16} />
+                <span>{count()}</span>
+              </button>
+            </Tooltip>
+          )}
+        </Show>
+        <IconButton
+          active={filesLinksOpen()}
+          class="channel-header-btn"
+          icon="search"
+          onClick={searchCurrentConversation}
+          size="md"
+        />
+        <Show when={view()}>
+          {(v) => (
             <Menu
               align="end"
-              class="channel-header-canvas-wrap"
-              onClose={() => setCanvasMenuOpen(false)}
-              open={canvasMenuOpen()}
-              panelClass="menu-panel channel-header-canvas-menu"
+              class="channel-header-more-wrap"
+              onClose={() => setMoreOpen(false)}
+              open={moreOpen()}
+              panelClass="menu-panel channel-header-menu"
               trigger={
                 <IconButton
                   class="channel-header-btn"
-                  icon="canvas-browser"
-                  label="Canvases"
-                  onClick={() => setCanvasMenuOpen(!canvasMenuOpen())}
+                  icon="ellipsis-vertical-filled"
+                  onClick={() => setMoreOpen(!moreOpen())}
                   size="md"
                 />
               }
             >
-              <For each={canvases()}>
-                {(canvas) => (
-                  <MenuItem
-                    icon="canvas-content"
-                    onClick={() => {
-                      setCanvasMenuOpen(false);
-                      store.canvas.openCanvasPane(canvas.fileId, canvas.title);
-                    }}
-                  >
-                    <span class="truncate">
-                      <Mrkdwn text={canvas.title} />
-                    </span>
-                  </MenuItem>
-                )}
-              </For>
+              <ChannelActionsMenuItems
+                channelId={v().id}
+                channelTitle={channelTitle()}
+                isDm={v().kind === "dm"}
+                onClose={() => setMoreOpen(false)}
+              />
             </Menu>
-          </Show>
-          <Show when={isChannelView() && channelMemberCount()}>
-            {(count) => (
-              <Tooltip content="View members">
-                <button
-                  class="channel-header-members-btn btn-reset flex-align-center"
-                  onClick={() => {
-                    const v = view();
-                    if (v?.kind === "channel") openChannelDetails(v.id, "members");
-                  }}
-                  type="button"
-                >
-                  <Icon name="user-groups" size={14} />
-                  <span>{count()}</span>
-                </button>
-              </Tooltip>
-            )}
-          </Show>
+          )}
+        </Show>
+        <Show when={store.viewState.canCloseTile()}>
           <IconButton
-            active={filesLinksOpen()}
             class="channel-header-btn"
-            icon="search"
-            label="Files & links"
-            onClick={searchCurrentConversation}
+            icon="close"
+            onClick={() => store.viewState.closeTile(paneId)}
             size="md"
           />
-          <Show when={view()}>
-            {(v) => (
-              <Menu
-                align="end"
-                class="channel-header-more-wrap"
-                onClose={() => setMoreOpen(false)}
-                open={moreOpen()}
-                panelClass="menu-panel channel-header-menu"
-                trigger={
-                  <IconButton
-                    class="channel-header-btn"
-                    icon="ellipsis-vertical-filled"
-                    label="More"
-                    onClick={() => setMoreOpen(!moreOpen())}
-                    size="md"
-                  />
-                }
-              >
-                <ChannelActionsMenuItems
-                  channelId={v().id}
-                  channelTitle={channelTitle()}
-                  isDm={v().kind === "dm"}
-                  onClose={() => setMoreOpen(false)}
-                />
-              </Menu>
-            )}
-          </Show>
-          <Show when={canClose()}>
-            <IconButton
-              class="channel-header-btn"
-              icon="close"
-              label="Close"
-              onClick={() => closeTile(paneId)}
-              size="md"
-            />
-          </Show>
-        </div>
+        </Show>
       </div>
     </div>
   );

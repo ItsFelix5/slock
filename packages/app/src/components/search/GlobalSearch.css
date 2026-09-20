@@ -4,6 +4,10 @@
   max-height: 70vh;
 }
 
+.global-search-input-anchor {
+  flex-shrink: 0;
+}
+
 .global-search-input-row {
   flex-shrink: 0;
   gap: 8px;
@@ -50,7 +54,7 @@
 .global-search-result {
   gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: calc(10px + var(--row-padding-offset)) 12px;
   font-size: 14px;
   text-align: left;
   background: transparent;

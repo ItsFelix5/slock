@@ -1,7 +1,7 @@
-import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
-import { Match, Switch } from "solid-js";
+import { EmojiText } from "@slock/blockkit";
+import { focusedPaneId, narrowPaneContent, type Pane, useEscapeClose } from "@slock/ui";
+import { type JSX, lazy, Match, Switch } from "solid-js";
 import { conversationDisplayName } from "../../lib/displayName";
-import { closeTile } from "../../lib/paneActions";
 import { store } from "../../lib/store";
 import type {
   CanvasPaneContent,
@@ -12,14 +12,15 @@ import type {
   UsergroupDetailsPaneContent,
   View,
 } from "../../lib/store/slices/types";
-import CanvasPanel from "../channel/CanvasPanel";
-import PinnedPanel from "../channel/PinnedPanel";
 import ThreadPanel from "../messages/thread/ThreadPanel";
 import UserProfile from "../user/UserProfile";
 import UsergroupDetails from "../usergroup/UsergroupDetails";
 import MainPane from "./MainPane";
 
-export function paneTabLabel(pane: Pane<PaneContent | null>): string {
+const CanvasPanel = lazy(() => import("../channel/CanvasPanel"));
+const PinnedPanel = lazy(() => import("../channel/PinnedPanel"));
+
+export function paneTabLabel(pane: Pane<PaneContent | null>): JSX.Element {
   const content = pane.content;
   if (!content) return "…";
   switch (content.kind) {
@@ -40,32 +41,43 @@ export function paneTabLabel(pane: Pane<PaneContent | null>): string {
     case "pinned":
       return `Pinned in ${conversationDisplayName(content.channelId, store.channels.channelById, store.dms.dmById, store.users.userById)}`;
     case "canvas":
-      return content.title;
+      return <EmojiText text={content.title} />;
   }
+}
+
+function asViewPane(pane: Pane<PaneContent | null>): Pane<View | null> {
+  const generic: any = pane;
+  return generic;
 }
 
 export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   useEscapeClose(
-    () => closeTile(props.pane.id),
+    () => store.viewState.closeTile(props.pane.id),
     () => focusedPaneId() === props.pane.id,
   );
 
   return (
-    <Switch fallback={<MainPane pane={props.pane as Pane<View | null>} />}>
-      <Match when={props.pane.content?.kind === "thread"}>
-        <ThreadPanel pane={props.pane as Pane<ThreadPaneContent>} />
+    <Switch fallback={<MainPane pane={asViewPane(props.pane)} />}>
+      <Match keyed when={narrowPaneContent<PaneContent, ThreadPaneContent>(props.pane, "thread")}>
+        {(pane) => <ThreadPanel pane={pane} />}
       </Match>
-      <Match when={props.pane.content?.kind === "profile"}>
-        <UserProfile pane={props.pane as Pane<ProfilePaneContent>} />
+      <Match keyed when={narrowPaneContent<PaneContent, ProfilePaneContent>(props.pane, "profile")}>
+        {(pane) => <UserProfile pane={pane} />}
       </Match>
-      <Match when={props.pane.content?.kind === "usergroup-details"}>
-        <UsergroupDetails pane={props.pane as Pane<UsergroupDetailsPaneContent>} />
+      <Match
+        keyed
+        when={narrowPaneContent<PaneContent, UsergroupDetailsPaneContent>(
+          props.pane,
+          "usergroup-details",
+        )}
+      >
+        {(pane) => <UsergroupDetails pane={pane} />}
       </Match>
-      <Match when={props.pane.content?.kind === "pinned"}>
-        <PinnedPanel pane={props.pane as Pane<PinnedPaneContent>} />
+      <Match keyed when={narrowPaneContent<PaneContent, PinnedPaneContent>(props.pane, "pinned")}>
+        {(pane) => <PinnedPanel pane={pane} />}
       </Match>
-      <Match when={props.pane.content?.kind === "canvas"}>
-        <CanvasPanel pane={props.pane as Pane<CanvasPaneContent>} />
+      <Match keyed when={narrowPaneContent<PaneContent, CanvasPaneContent>(props.pane, "canvas")}>
+        {(pane) => <CanvasPanel pane={pane} />}
       </Match>
     </Switch>
   );

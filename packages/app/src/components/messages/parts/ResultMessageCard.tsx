@@ -1,10 +1,10 @@
 import type { AvatarUser, useContextMenu } from "@slock/ui";
 import { Avatar, openContextMenuFromKeyboard, Tooltip } from "@slock/ui";
 import type { JSX } from "solid-js";
-import { createMemo, Show } from "solid-js";
+import { Show } from "solid-js";
 import { isRealUserId } from "../../messages/parts/messageRenderState";
 import { SplitNavigation } from "../../navigation/SplitNavigation";
-import ClickableAuthorName from "../../user/ClickableAuthorName";
+import { ClickableAuthorName } from "../../user/AppBadge";
 import "./ResultMessageCard.css";
 
 export default function ResultMessageCard(props: {
@@ -15,7 +15,6 @@ export default function ResultMessageCard(props: {
   navRow?: boolean;
   onOpen: () => void;
   onSplit: () => void;
-  rowKey?: string;
   snippet: JSX.Element;
   tabIndex?: number;
   time?: string;
@@ -23,14 +22,13 @@ export default function ResultMessageCard(props: {
   trailing?: JSX.Element;
   userId?: string;
 }) {
-  const profileUserId = createMemo(() => (isRealUserId(props.userId) ? props.userId : undefined));
+  const profileUserId = () => (isRealUserId(props.userId) ? props.userId : undefined);
   return (
     <div class="result-message-card">
       <SplitNavigation onSplit={props.onSplit}>
         <button
           class="result-message-card-main btn-reset"
           data-nav-row={props.navRow ? true : undefined}
-          data-row-key={props.rowKey}
           onClick={props.onOpen}
           onContextMenu={props.ctxMenu?.open}
           onKeyDown={(e) => props.ctxMenu && openContextMenuFromKeyboard(e, props.ctxMenu.openAt)}

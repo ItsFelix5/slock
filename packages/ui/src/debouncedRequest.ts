@@ -1,3 +1,5 @@
+import { onCleanup } from "solid-js";
+
 export interface DebouncedRequestOptions<T> {
   delay?: number;
   onError?: (error: unknown, query: string) => void;
@@ -44,12 +46,12 @@ export function createDebouncedRequest<T>(
     else timer = setTimeout(fire, options.delay ?? 250);
   };
 
-  const dispose = () => {
+  onCleanup(() => {
     disposed = true;
     requestId += 1;
     clearTimeout(timer);
     timer = undefined;
-  };
+  });
 
-  return { dispose, run };
+  return { run };
 }

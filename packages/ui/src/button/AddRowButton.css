@@ -1,0 +1,18 @@
+.add-row-btn {
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.add-row-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+
+.add-row-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}

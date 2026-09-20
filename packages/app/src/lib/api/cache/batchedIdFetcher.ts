@@ -21,7 +21,7 @@ export function createBatchedIdFetcher<T>(
       try {
         const values = await loadBatch(batchIds);
         for (const id of batchIds) {
-          for (const request of requests.get(id) ?? []) request.resolve(values.get(id) as T);
+          for (const request of requests.get(id) ?? []) request.resolve(values.get(id)!);
         }
       } catch (error) {
         for (const id of batchIds) {

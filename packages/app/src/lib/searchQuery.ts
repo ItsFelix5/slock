@@ -15,21 +15,6 @@ export type SortMode = "relevant" | "newest" | "oldest";
 
 export const EMPTY_FILTERS: SearchFilters = {};
 
-export function hasActiveFilters(f: SearchFilters): boolean {
-  return !!(
-    f.fromUserId ||
-    f.inChannelId ||
-    f.hasLink ||
-    f.hasStar ||
-    f.hasPin ||
-    f.hasReaction ||
-    f.after ||
-    f.before ||
-    f.isThread ||
-    f.isSaved
-  );
-}
-
 export function buildSearchQuery(text: string, f: SearchFilters): string {
   const parts: string[] = [];
   const trimmed = text.trim();

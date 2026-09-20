@@ -84,7 +84,7 @@ export default function MessageList() {
           query={inPaneSearch.query()}
         />
       </Show>
-      <Show when={!store.resources.bootstrap.loading}>
+      <Show when={!store.resources.bootstrap.isFetching}>
         <Show when={paneView()}>
           {(v) => (
             <>

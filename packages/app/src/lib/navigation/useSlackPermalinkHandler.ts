@@ -4,15 +4,28 @@ import { actionFeedback } from "../feedback";
 import { consumeSharedProtocolLink } from "../incomingLinks";
 import { handleMessageCopy } from "../messageCopy";
 import { store } from "../store";
+import { openConversationInSplit } from "./conversationNav";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
+  parseSlackCanvasLink,
   parseSlackPermalink,
 } from "./slackPermalink";
 
 export function useSlackPermalinkHandler(): void {
   const permalinkOpener = createSlackPermalinkOpener({
-    navigate: (target, options) => navigateToSlackPermalink(target, store.viewState, options),
+    navigate: (target, options) => {
+      if (options?.split) {
+        if (target.threadTs === target.messageTs)
+          openConversationInSplit(target.channelId, target.messageTs);
+        else
+          store.viewState.openThread(target.channelId, target.threadTs, target.messageTs, {
+            pinned: true,
+          });
+        return;
+      }
+      navigateToSlackPermalink(target, store.viewState, options);
+    },
     onError: (error) => {
       console.error("Failed to open Slack permalink", error);
       actionFeedback.flash("navigation", "Couldn't open that message. Try again.", "error");
@@ -29,16 +42,24 @@ export function useSlackPermalinkHandler(): void {
       event.button !== 0 ||
       event.metaKey ||
       event.ctrlKey ||
-      event.shiftKey ||
       event.altKey
     )
       return;
 
+    const split = event.shiftKey;
+
     permalinkOpener.invalidate();
 
     const element = event.target instanceof Element ? event.target : null;
-    const anchor = element?.closest("a[href]") as HTMLAnchorElement | null;
+    const anchor = element?.closest<HTMLAnchorElement>("a[href]") ?? null;
     if (!anchor) return;
+
+    const canvas = parseSlackCanvasLink(anchor.href);
+    if (canvas) {
+      event.preventDefault();
+      store.canvas.openCanvasPane(canvas.fileId);
+      return;
+    }
 
     const target = parseSlackPermalink(anchor.href);
     if (!target) return;
@@ -48,7 +69,7 @@ export function useSlackPermalinkHandler(): void {
 
     const nav = store.viewState.nav();
     const keepNav = nav === "later" || nav === "activity";
-    void permalinkOpener.open(target, { keepNav });
+    void permalinkOpener.open(target, { keepNav, split });
   };
 
   onMount(() => {

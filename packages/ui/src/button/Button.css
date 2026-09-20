@@ -8,7 +8,10 @@
   cursor: pointer;
   border: none;
   border-radius: var(--radius-control);
-  transition: all 0.15s ease-in-out;
+  transition:
+    background-color 0.15s ease-in-out,
+    color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out;
 }
 
 .btn-sm {
@@ -28,7 +31,7 @@
 
 .btn-icon {
   padding: 0;
-  border-radius: var(--radius-circle);
+  border-radius: var(--radius-control);
 }
 
 .btn-icon.btn-sm {
@@ -68,16 +71,6 @@
 .btn-secondary.active {
   color: var(--text-primary);
   background: var(--active-bg);
-}
-
-.btn-ghost {
-  color: var(--text-secondary);
-  background: none;
-}
-
-.btn-ghost:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .btn-danger {

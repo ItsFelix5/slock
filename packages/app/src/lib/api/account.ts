@@ -1,11 +1,14 @@
-import type { ProfileFieldDef, User, UserProfile } from "@slock/types";
+import type { ProfileFieldDef, User, UserProfile, UserStatus } from "@slock/types";
 import {
+  ApiError,
   apiGet,
   apiPost,
   apiPut,
   apiUpload,
+  getOrCreateRetryablePromise,
   mapBot,
   mapCustomFields,
+  mapProfileIdentity,
   mapStartDate,
   mapUser,
 } from "@slock/types";
@@ -43,9 +46,15 @@ export async function fetchUserProfile(id: string): Promise<UserProfile> {
   };
 }
 
+export async function fetchAccountIdentity(): Promise<{ name: string; avatarUrl?: string }> {
+  const data = await apiGet("/api/users/me/profile");
+  if (!data.ok) throw new Error(data.error ?? "users.profile.get failed");
+  return mapProfileIdentity(data.profile);
+}
+
 export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
   const data = await apiGet("/api/profile-fields");
-  if (!data.ok) throw new Error(data.error ?? "team.profile.get failed");
+  if (!data.ok) throw new ApiError(data.error ?? "team.profile.get failed", data.retry_after);
   return data.fields ?? [];
 }
 
@@ -94,6 +103,15 @@ export async function uploadProfilePhoto(file: File): Promise<string | undefined
 export async function setPresence(presence: "auto" | "away"): Promise<void> {
   const data = await apiPut("/api/presence", { presence });
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
+}
+
+const userStatusCache = new Map<string, Promise<UserStatus>>();
+export function fetchUserStatus(userId: string): Promise<UserStatus> {
+  return getOrCreateRetryablePromise(userStatusCache, userId, async () => {
+    const data = await apiGet(`/api/user-status/${userId}`);
+    if (!data.ok) throw new Error(data.error ?? "user status lookup failed");
+    return data.status;
+  });
 }
 
 export async function fetchUserPresence(id: string): Promise<"active" | "away" | null> {

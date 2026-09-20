@@ -1,6 +1,7 @@
-import { confirmDialog, Icon, Switch } from "@slock/ui";
+import { AddRowButton, confirmDialog, Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelDisplayName } from "../../lib/displayName";
+import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
 import {
   addUsergroupChannels,
@@ -8,6 +9,7 @@ import {
   setUsergroupChannelSectionEnabled,
 } from "../../lib/usergroupDetails";
 import ComposeChannelPicker from "../composer/popovers/ComposeChannelPicker";
+import { SplitNavigation } from "../navigation/SplitNavigation";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
 
@@ -20,15 +22,11 @@ export default function UsergroupChannelsTab(props: {
   const [query, setQuery] = createSignal("");
   const [addingChannel, setAddingChannel] = createSignal(false);
 
-  const channels = createMemo(() =>
-    props.channelIds.map((id) => ({ channel: store.channels.channelById(id), id })),
-  );
-
-  const filteredChannels = createMemo(() => {
+  const filteredChannelIds = createMemo(() => {
     const q = query().trim().toLowerCase();
-    if (!q) return channels();
-    return channels().filter(({ id, channel }) =>
-      channelDisplayName(channel, id).toLowerCase().includes(q),
+    if (!q) return props.channelIds;
+    return props.channelIds.filter((id) =>
+      channelDisplayName(store.channels.channelById(id), id).toLowerCase().includes(q),
     );
   });
 
@@ -67,7 +65,6 @@ export default function UsergroupChannelsTab(props: {
           checked={props.sectionEnabled}
           disabled={props.disabled || props.channelIds.length === 0}
           onChange={(enabled) => void setUsergroupChannelSectionEnabled(props.usergroupId, enabled)}
-          title="Add group channels as a section in Home"
         />
       </div>
       <div class="usergroup-details-list-bar">
@@ -79,14 +76,12 @@ export default function UsergroupChannelsTab(props: {
           type="text"
           value={query()}
         />
-        <button
-          class="usergroup-details-add-btn btn-reset flex-align-center"
+        <AddRowButton
           disabled={props.disabled}
+          icon="channel-add"
+          label="Add channel"
           onClick={() => setAddingChannel(true)}
-          type="button"
-        >
-          <Icon name="channel-add" size={15} /> Add channel
-        </button>
+        />
       </div>
       <Show when={addingChannel()}>
         <div class="usergroup-details-picker">
@@ -99,33 +94,38 @@ export default function UsergroupChannelsTab(props: {
       </Show>
       <div class="flex-col">
         <For
-          each={filteredChannels()}
+          each={filteredChannelIds()}
           fallback={<p class="usergroup-details-empty">No default channels.</p>}
         >
-          {({ id, channel }) => (
-            <div class="usergroup-details-row">
-              <button
-                class="usergroup-details-row-main btn-reset flex-align-center"
-                onClick={() => store.viewState.setActiveView({ id, kind: "channel" })}
-                type="button"
-              >
-                <Show
-                  fallback={<span class="usergroup-details-row-hash">#</span>}
-                  when={channel?.private}
-                >
-                  <Icon name="lock" size={13} />
-                </Show>
-                <span class="usergroup-details-row-name truncate">
-                  {channelDisplayName(channel, id)}
-                </span>
-              </button>
-              <RemoveRowButton
-                disabled={props.disabled}
-                label="Remove channel"
-                onClick={() => removeChannel(id, channelDisplayName(channel, id))}
-              />
-            </div>
-          )}
+          {(id) => {
+            const channel = createMemo(() => store.channels.channelById(id));
+            return (
+              <div class="usergroup-details-row">
+                <SplitNavigation onSplit={() => openConversationInSplit(id)}>
+                  <button
+                    class="usergroup-details-row-main btn-reset flex-align-center"
+                    onClick={() => store.viewState.setActiveView({ id, kind: "channel" })}
+                    type="button"
+                  >
+                    <Show
+                      fallback={<span class="usergroup-details-row-hash">#</span>}
+                      when={channel()?.private}
+                    >
+                      <Icon name="lock" size={13} />
+                    </Show>
+                    <span class="usergroup-details-row-name truncate">
+                      {channelDisplayName(channel(), id)}
+                    </span>
+                  </button>
+                </SplitNavigation>
+                <RemoveRowButton
+                  disabled={props.disabled}
+                  label="Remove channel"
+                  onClick={() => removeChannel(id, channelDisplayName(channel(), id))}
+                />
+              </div>
+            );
+          }}
         </For>
       </div>
     </div>

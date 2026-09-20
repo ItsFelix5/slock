@@ -2,8 +2,8 @@ import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Channel, DirectMessage, Message } from "../../../api";
 import { markChannelRead, markThreadRead } from "../../../api";
-import { isDmId } from "../../../dmId";
 import { actionFeedback } from "../../../feedback";
+import { isDmId } from "../entities/dms";
 import type { ThreadRef, View } from "../types";
 import { createLatestValueSync } from "./readSync/latestValueSync";
 
@@ -88,6 +88,10 @@ export function createUnreadSlice(deps: {
     return threadReadSync.requestLatest({ channelId, threadTs, ts });
   }
 
+  function setThreadRead(channelId: string, threadTs: string, ts: string): Promise<boolean> {
+    return threadReadSync.force({ channelId, threadTs, ts });
+  }
+
   function clearChannelUnread(channelId: string) {
     setUnreadChannelIds(channelId, false);
     const isDm = isDmId(
@@ -115,12 +119,14 @@ export function createUnreadSlice(deps: {
     messagesByChannel: Record<string, Message[]>;
     visibleThreads: () => ThreadRef[];
     threadMessages: Record<string, Message[]>;
+    hasNewerHistory: (channelId: string) => boolean;
   }) {
     const dividerAnchoredChannels = new Set<string>();
     createEffect(() => {
       if (!lastReadSeeded()) return;
       for (const { id } of readDeps.visibleViews()) {
         if (dividerAnchoredChannels.has(id)) continue;
+        if (readDeps.hasNewerHistory(id)) continue;
 
         const list = readDeps.messagesByChannel[id];
         if (!list?.length) continue;
@@ -150,6 +156,7 @@ export function createUnreadSlice(deps: {
     createEffect(() => {
       for (const view of readDeps.visibleViews()) {
         if (unreadDividerTs[view.id] === undefined) continue;
+        if (readDeps.hasNewerHistory(view.id)) continue;
         const list = readDeps.messagesByChannel[view.id];
         const latest = list?.[list.length - 1];
         if (!latest || latest.id.startsWith("pending-")) continue;
@@ -191,6 +198,7 @@ export function createUnreadSlice(deps: {
     lastReadFor,
     setLastReadByChannel,
     setChannelRead,
+    setThreadRead,
     setUnreadChannelIds,
     setUnreadDividerTs,
     syncChannelRead,

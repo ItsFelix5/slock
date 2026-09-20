@@ -1,22 +1,19 @@
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
-import { lookupFlaronChannel } from "../../lookup/flaronChannel.ts";
+import { cachedEntityForId } from "../../lookup/cachedEntity.ts";
+import { lookupFlaronChannel, reportFlaronChannelNames } from "../../lookup/flaronChannel.ts";
 import { fetchChannelManagerAssignments, managerIdsFromAssignments } from "../../permissions.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
 import { trimChannel, trimUser } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
 
 function cachedChannelForId(data: any, id: string): any | undefined {
-  if (data.channels?.[id]) return data.channels[id];
-  if (Array.isArray(data.channels)) return data.channels.find((channel: any) => channel.id === id);
-  if (data.results?.[id]) return data.results[id];
-  if (Array.isArray(data.results)) return data.results.find((channel: any) => channel.id === id);
-  return data.channel?.id === id ? data.channel : undefined;
+  return cachedEntityForId(data, id, "channels", "channel");
 }
 
 export const channelDirectoryRoutes: Route[] = [
-  route("POST", "/api/channels/lookup", async (ctx) => {
-    const { ids } = (await ctx.body.json()) as { ids?: string[] };
+  route("POST", "channels/lookup", async (ctx) => {
+    const { ids } = await (ctx.body.json() as Promise<{ ids?: string[] }>);
     if (!ids?.length) return errorResponse("invalid_ids", 400);
     const data = await callSlackEdge(
       "channels/info",
@@ -53,7 +50,14 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/channels/browse", async (ctx) => {
+  route("POST", "channels/flaron-report", async (ctx) => {
+    const { names } = await (ctx.body.json() as Promise<{ names?: string[] }>);
+    if (!names?.length) return errorResponse("invalid_names", 400);
+    await reportFlaronChannelNames(names);
+    return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
+  }),
+
+  route("GET", "channels/browse", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ items: [], ok: true }, ctx.creds, ctx.acceptEncoding);
     const { results } = await callSlackEdge(
@@ -79,7 +83,7 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/channels/:id/members", async (ctx) => {
+  route("GET", "channels/:id/members", async (ctx) => {
     const filter = ctx.searchParams.get("filter") === "apps" ? "apps" : "everyone";
     const marker = ctx.searchParams.get("marker") ?? undefined;
     const data = await callSlackEdge(
@@ -108,7 +112,7 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/channels/:id/files-links", async (ctx) => {
+  route("GET", "channels/:id/files-links", async (ctx) => {
     const channelId = ctx.params.id;
     const channelName = ctx.searchParams.get("channelName")?.trim() ?? "";
     const query = ctx.searchParams.get("query")?.trim() ?? "";
@@ -178,7 +182,7 @@ export const channelDirectoryRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/channels/:id/managers", async (ctx) => {
+  route("GET", "channels/:id/managers", async (ctx) => {
     const data = await fetchChannelManagerAssignments(ctx.params.id, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(

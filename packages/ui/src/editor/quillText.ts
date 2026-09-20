@@ -14,6 +14,9 @@ export function indexAlignedText(quill: Quill): string {
 let embedBlot: typeof EmbedBlot | undefined;
 
 export function getEmbedBlot(): typeof EmbedBlot {
-  embedBlot ??= QuillNamespace.import("blots/embed") as typeof EmbedBlot;
-  return embedBlot;
+  if (!embedBlot) {
+    const imported: any = QuillNamespace.import("blots/embed");
+    embedBlot = imported;
+  }
+  return embedBlot!;
 }

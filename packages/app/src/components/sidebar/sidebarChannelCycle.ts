@@ -1,40 +1,56 @@
-import { paneRowsById, plainKey, useShortcut } from "@slock/ui";
-import { suppressNextComposerAutofocus } from "../../lib/composerFocus";
+import { paneRowsById, useShortcut } from "@slock/ui";
+import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
-import { openConversationInSplit } from "../navigation/SplitNavigation";
 
-function cycleTargetRow(key: string) {
+function cycleTargetRow(direction: -1 | 1) {
   const rows = paneRowsById("sidebar");
   if (rows.length === 0) return;
   const current = rows.findIndex((row) => row.classList.contains("active"));
-  const direction = key.toLowerCase() === "j" ? 1 : -1;
   return rows[(current + direction + rows.length) % rows.length];
 }
 
 export function useSidebarChannelCycle() {
+  const enabled = () => store.viewState.nav() === "home";
   useShortcut({
     allowRepeat: true,
-    enabled: () => store.viewState.nav() === "home",
-    handler: (e) => {
-      const target = cycleTargetRow(e.key);
-      suppressNextComposerAutofocus();
-      target?.click();
-    },
-    keys: "j / k",
-    label: "Go to the previous / next channel",
-    match: plainKey("j", "k"),
+    combo: { key: "j" },
+    enabled,
+    handler: () => cycleTargetRow(1)?.click(),
+    id: "sidebar.cycleNext",
+    label: "Go to the next channel",
     scope: "general",
   });
   useShortcut({
     allowRepeat: true,
-    enabled: () => store.viewState.nav() === "home",
-    handler: (e) => {
-      const id = cycleTargetRow(e.key)?.dataset.channelId;
+    combo: { key: "k" },
+    enabled,
+    handler: () => cycleTargetRow(-1)?.click(),
+    id: "sidebar.cyclePrev",
+    label: "Go to the previous channel",
+    scope: "general",
+  });
+  useShortcut({
+    allowRepeat: true,
+    combo: { key: "j", shift: true },
+    enabled,
+    handler: () => {
+      const id = cycleTargetRow(1)?.dataset.channelId;
       if (id) openConversationInSplit(id);
     },
-    keys: "Ctrl/⌘ J / K",
-    label: "Open the previous / next channel in a new split",
-    match: (e) => (e.ctrlKey || e.metaKey) && ["j", "k"].includes(e.key.toLowerCase()),
+    id: "sidebar.cycleNextSplit",
+    label: "Open the next channel in a new split",
+    scope: "general",
+  });
+  useShortcut({
+    allowRepeat: true,
+    combo: { key: "k", shift: true },
+    enabled,
+    handler: () => {
+      const id = cycleTargetRow(-1)?.dataset.channelId;
+      if (id) openConversationInSplit(id);
+    },
+    id: "sidebar.cyclePrevSplit",
+    label: "Open the previous channel in a new split",
     scope: "general",
   });
 }

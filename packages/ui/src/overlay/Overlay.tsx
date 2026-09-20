@@ -1,6 +1,6 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
-import { FloatingMountContext } from "./floating/floatingMountContext";
+import { FloatingMountContext } from "./floating/FloatingPanel";
 import "./Overlay.css";
 
 const FOCUSABLE_SELECTOR = [

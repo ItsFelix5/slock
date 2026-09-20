@@ -24,17 +24,14 @@ export default function Modal(props: ModalProps) {
 
 export interface ModalCloseButtonProps {
   class?: string;
-  label?: string;
   onClose: () => void;
 }
 
 export function ModalCloseButton(props: ModalCloseButtonProps) {
-  const label = () => props.label ?? "Close";
   return (
     <IconButton
       class={props.class ? `panel-close-btn ${props.class}` : "panel-close-btn"}
       onClick={props.onClose}
-      label={label()}
       icon="close"
       iconSize={12}
     />

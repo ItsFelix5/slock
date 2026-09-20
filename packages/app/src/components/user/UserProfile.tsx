@@ -1,7 +1,6 @@
-import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
+import { Button, blurOnEnter, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import { actionFeedback } from "../../lib/feedback";
-import { closeTile } from "../../lib/paneActions";
 import { store } from "../../lib/store";
 import type { ProfilePaneContent } from "../../lib/store/slices/types";
 import "../settings/Settings.css";
@@ -11,13 +10,6 @@ import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
 import { isCustomFieldDef, mergeMissingProfileFieldValues } from "./userProfileFieldValues";
 import { createLastSeenText, createLocalTime } from "./userProfileTime";
-
-function blurOnEnter(event: KeyboardEvent) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    (event.currentTarget as HTMLElement).blur();
-  }
-}
 
 export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const profileUserId = () => props.pane.content.userId;
@@ -33,16 +25,20 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const [savingProfilePhoto, setSavingProfilePhoto] = createSignal(false);
   const [photoToEdit, setPhotoToEdit] = createSignal<File>();
   const [savingProfileFields, setSavingProfileFields] = createSignal<Record<string, boolean>>({});
-  const user = createMemo(() => store.users.userById(profileUserId()));
-  const isSelf = createMemo(() => user()?.id === store.users.currentUser()?.id);
-  const botBio = createMemo(() =>
-    user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
-  );
+  const user = createMemo(() => {
+    const base = store.users.userById(profileUserId());
+    if (!base) return base;
+    const presence = store.users.presenceFor(base.id);
+    return presence ? { ...base, presence } : base;
+  });
+  const isSelf = () => user()?.id === store.users.currentUser()?.id;
+  const botBio = () =>
+    user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined;
   createEffect(() => {
     store.resources.loadProfileFieldDefs();
   });
   createEffect(
-    on(profileUserId, (id) => {
+    on([profileUserId, () => store.users.currentUser()?.id], ([id]) => {
       const me = store.users.currentUser();
       if (id === me?.id) {
         setStatusText(me.statusText ?? "");
@@ -56,7 +52,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   );
 
   createEffect(() => {
-    const defs = store.resources.profileFieldDefs();
+    const defs = store.resources.profileFieldDefs.data;
     const id = user()?.id;
     const me = store.users.currentUser();
     if (!(defs && id && me && id === me.id)) return;
@@ -90,9 +86,11 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   };
   const saveNickname = () => {
     const id = profileUserId();
-    const v = nicknameInput();
-    if (v.trim() === (store.users.nicknameFor(id) ?? "")) return;
-    store.users.setNickname(id, v);
+    const realName = user()?.originalName ?? user()?.name ?? "";
+    const v = nicknameInput().trim();
+    const next = v === realName ? "" : v;
+    if (next === (store.users.nicknameFor(id) ?? "")) return;
+    store.users.setNickname(id, next);
   };
   const saveCustomField = (id: string) => {
     const v = (customFieldInputs()[id] ?? "").trim();
@@ -148,13 +146,14 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
   onCleanup(() => clearInterval(clockTimer));
   const localTime = createLocalTime(user, now);
-  const lastSeenText = createLastSeenText(user, now);
+  const latestMessageTs = createMemo(() => store.messages.latestMessageTsMsByUser(profileUserId()));
+  const lastSeenText = createLastSeenText(user, now, latestMessageTs);
   const startDate = createMemo(() => {
     const u = user();
     return u?.startDate ?? (u ? store.users.profileStartDateFor(u.id) : undefined);
   });
   const customFields = createMemo(() => {
-    const defs = store.resources.profileFieldDefs();
+    const defs = store.resources.profileFieldDefs.data;
     const id = user()?.id;
     const values = id ? store.users.customFieldsFor(id) : undefined;
     if (!(defs && values?.length)) return [];
@@ -162,18 +161,26 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     return values
       .map((f) => ({ ...f, definition: definitionById.get(f.id) }))
       .filter(
-        (f): f is typeof f & { definition: { label: string } } =>
+        (f): f is typeof f & { definition: { label: string; type?: string } } =>
           !!f.definition?.label && isCustomFieldDef(f.definition),
       )
-      .map(({ definition, ...field }) => ({ ...field, label: definition.label }));
+      .map(({ definition, ...field }) => ({
+        ...field,
+        label: definition.label,
+        type: definition.type,
+      }));
   });
   const editableCustomFields = createMemo(() =>
-    (store.resources.profileFieldDefs() ?? []).filter(isCustomFieldDef),
+    (store.resources.profileFieldDefs.data ?? []).filter(isCustomFieldDef),
   );
   return (
     <>
       <div class="user-profile-panel" data-pane={props.pane.id}>
-        <PanelHeader onClose={() => closeTile(props.pane.id)} title="Profile" />
+        <PanelHeader
+          canClose={store.viewState.canCloseTile()}
+          onClose={() => store.viewState.closeTile(props.pane.id)}
+          title="Profile"
+        />
         <Show when={user()}>
           {(u) => (
             <div class="user-profile-body">
@@ -211,7 +218,6 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 setTitleInput={setTitleInput}
                 statusEmoji={statusEmoji}
                 statusText={statusText}
-                startDate={startDate}
                 titleInput={titleInput}
                 user={u}
               />
@@ -223,6 +229,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 onKeyDown={blurOnEnter}
                 saveField={saveCustomField}
                 setValue={(id, value) => setCustomFieldInputs((prev) => ({ ...prev, [id]: value }))}
+                startDate={startDate()}
                 user={u()}
                 values={customFieldInputs()}
               />
@@ -230,12 +237,11 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 <div class="user-profile-fields-warning flex-between">
                   <span>Additional profile fields are unavailable.</span>
                   <Button
-                    disabled={store.resources.profileFieldDefs.loading}
+                    disabled={store.resources.profileFieldDefs.isFetching}
                     onClick={() => void store.resources.retryProfileFieldDefs()}
                     size="sm"
-                    variant="ghost"
                   >
-                    {store.resources.profileFieldDefs.loading ? "Retrying…" : "Try again"}
+                    {store.resources.profileFieldDefs.isFetching ? "Retrying…" : "Try again"}
                   </Button>
                 </div>
               </Show>

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git stash*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(git checkout -- *)",
+      "Bash(git checkout .*)",
+      "Bash(git restore*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git branch -D*)",
+      "Bash(git rebase*)",
+      "Bash(git filter-branch*)",
+      "Bash(git gc*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun scripts/check-claude-md-file.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

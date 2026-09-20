@@ -12,14 +12,15 @@ export class FilterPillBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: FilterPillValue) {
-    const node = super.create(value) as HTMLElement;
+    const node = document.createElement("span");
     node.className = "bk-mention search-filter-pill";
     node.classList.toggle("negated", value.negated);
     node.dataset.token = value.token;
     node.dataset.label = value.label;
     node.dataset.negated = String(value.negated);
     node.textContent = value.negated ? `-${value.label}` : value.label;
-    node.title = value.negated ? "Excluded - click to include" : "Click to exclude";
+    node.title = "Click to change";
+    node.contentEditable = "false";
     return node;
   }
 
@@ -31,15 +32,29 @@ export class FilterPillBlot extends getEmbedBlot() {
 
 Quill.register(FilterPillBlot);
 
+function isPillShaped(
+  value: unknown,
+): value is { token?: unknown; label?: unknown; negated?: unknown } {
+  return !!value && typeof value === "object";
+}
+
 export function filterPillValue(value: unknown): FilterPillValue | undefined {
-  if (!value || typeof value !== "object") return;
-  const { token, label, negated } = value as Record<string, unknown>;
+  if (!isPillShaped(value)) return;
+  const { token, label, negated } = value;
   return typeof token === "string" && typeof label === "string"
     ? { label, negated: !!negated, token }
     : undefined;
 }
 
-const MODIFIER_RE = /(-)?(from|with|in|has|hasmy|is|during|after|before|type):(\S+)/;
+function isFilterOp(value: unknown): value is { filter?: unknown } {
+  return !!value && typeof value === "object";
+}
+
+export function filterPillFromOpInsert(insert: unknown): FilterPillValue | undefined {
+  return isFilterOp(insert) ? filterPillValue(insert.filter) : undefined;
+}
+
+const MODIFIER_RE = /(-)?(from|with|in|has|hasmy|is|during|after|before|type):(<[^>]+>|\S+)/;
 const TRAILING_NEWLINE_RE = /\n$/;
 
 export function suggestionToPill(
@@ -59,7 +74,7 @@ export function serializeQuery(quill: Quill): string {
     .getContents()
     .ops.map((op) => {
       if (typeof op.insert === "string") return op.insert;
-      const pill = op.insert ? filterPillValue(op.insert.filter) : undefined;
+      const pill = filterPillFromOpInsert(op.insert);
       return pill ? `${pill.negated ? "-" : ""}${pill.token}` : "";
     })
     .join("")

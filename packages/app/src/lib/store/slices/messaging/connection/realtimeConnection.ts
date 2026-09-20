@@ -3,11 +3,12 @@ import { createReconnectScheduler } from "./reconnectScheduler";
 
 export type RealtimeConnectionState = "connected" | "connecting" | "offline" | "reconnecting";
 
-const ONLINE_GRACE_MS = 10_000;
+const ONLINE_GRACE_MS = 45_000;
 
 export function createRealtimeConnection(opts: {
   onMessage: (raw: string) => void;
   onOpen: () => void;
+  onReconnect: () => void;
   url: () => string;
 }) {
   const online = () => navigator.onLine;
@@ -16,7 +17,7 @@ export function createRealtimeConnection(opts: {
   );
   const [rtmConnected, setRtmConnected] = createSignal(false);
   const isTrulyOnline = () => online() && rtmConnected();
-  const [recentlyOnline, setRecentlyOnline] = createSignal(isTrulyOnline());
+  const [recentlyOnline, setRecentlyOnline] = createSignal(online());
   let onlineGraceTimer: ReturnType<typeof setTimeout> | null = null;
   createEffect(() => {
     if (isTrulyOnline()) {
@@ -131,8 +132,12 @@ export function createRealtimeConnection(opts: {
       }
     },
     setGatewayConnected(connected: boolean) {
+      const wasConnected = hasConnected;
       setRtmConnected(connected);
-      if (connected) hasConnected = true;
+      if (connected) {
+        hasConnected = true;
+        if (wasConnected) opts.onReconnect();
+      }
       setConnectionState(connected ? "connected" : online() ? "reconnecting" : "offline");
     },
   };

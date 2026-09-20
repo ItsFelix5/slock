@@ -1,4 +1,5 @@
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
+import { cachedEntityForId } from "../../lookup/cachedEntity.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
 import { mutate, type Route, route } from "../router.ts";
 
@@ -18,15 +19,12 @@ function trimUsergroup(group: any): any {
 }
 
 function cachedUsergroupForId(data: any, id: string): any | undefined {
-  if (data.usergroups?.[id]) return data.usergroups[id];
-  if (Array.isArray(data.usergroups)) return data.usergroups.find((group: any) => group.id === id);
-  if (Array.isArray(data.results)) return data.results.find((group: any) => group.id === id);
-  return data.usergroup?.id === id ? data.usergroup : undefined;
+  return cachedEntityForId(data, id, "usergroups", "usergroup");
 }
 
 export const usergroupRoutes: Route[] = [
-  route("POST", "/api/usergroups/lookup", async (ctx) => {
-    const { ids } = (await ctx.body.json()) as { ids?: string[] };
+  route("POST", "usergroups/lookup", async (ctx) => {
+    const { ids } = await (ctx.body.json() as Promise<{ ids?: string[] }>);
     if (!ids?.length) return errorResponse("invalid_ids", 400);
     const data = await callSlackEdge("usergroups/info", { ids }, ctx.creds);
     if (!data.ok) {
@@ -47,7 +45,7 @@ export const usergroupRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/usergroups/:id/members", async (ctx) => {
+  route("GET", "usergroups/:id/members", async (ctx) => {
     const data = await callSlack("usergroups.users.list", { usergroup: ctx.params.id }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "usergroups.users.list", ctx.creds, ctx.acceptEncoding);
@@ -59,14 +57,14 @@ export const usergroupRoutes: Route[] = [
     );
   }),
 
-  route("PATCH", "/api/usergroups/:id", async (ctx) => {
-    const body = (await ctx.body.json()) as {
+  route("PATCH", "usergroups/:id", async (ctx) => {
+    const body = await (ctx.body.json() as Promise<{
       name?: string;
       handle?: string;
       description?: string;
       channelIds?: string[];
       sectionEnabled?: boolean;
-    };
+    }>);
     const params: Record<string, string> = { usergroup: ctx.params.id };
     if (body.name !== undefined) params.name = body.name;
     if (body.handle !== undefined) params.handle = body.handle;
@@ -77,8 +75,8 @@ export const usergroupRoutes: Route[] = [
     return mutate("usergroups.update", params, ctx);
   }),
 
-  route("PUT", "/api/usergroups/:id/members", async (ctx) => {
-    const { userIds } = (await ctx.body.json()) as { userIds?: string[] };
+  route("PUT", "usergroups/:id/members", async (ctx) => {
+    const { userIds } = await (ctx.body.json() as Promise<{ userIds?: string[] }>);
     if (!userIds) return errorResponse("invalid_user_ids", 400);
     return mutate(
       "usergroups.users.update",

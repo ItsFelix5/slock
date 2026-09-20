@@ -19,10 +19,14 @@ const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
 
 const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
 
+function sameItems(a: ActivityRowData["items"], b: ActivityRowData["items"]) {
+  if (a.length !== b.length) return false;
+  return a.every((item, i) => item === b[i]);
+}
+
 export default function ActivityView() {
   let listRef: HTMLDivElement | undefined;
   const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
-  const [keyword, setKeyword] = createSignal("");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
   createEffect(() => {
@@ -33,56 +37,62 @@ export default function ActivityView() {
       void untrack(() => store.activity.ensureActivityLoaded());
   });
 
+  let rowsCache = new Map<string, ActivityRowData>();
   const rows = createMemo<ActivityRowData[]>(() => {
-    const groups = new Map<string, ActivityRowData>();
-    const ordered: ActivityRowData[] = [];
+    const buckets = new Map<string, ActivityRowData["items"]>();
+    const order: string[] = [];
     const items = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
     for (const item of items) {
       const threadTs = item.kind === "thread_reply" ? (item.threadTs ?? item.ts) : undefined;
-      if (!threadTs) {
-        ordered.push({ isThread: false, items: [item], key: `single:${item.id}` });
-        continue;
+      const key = threadTs ? `thread:${item.channelId}:${threadTs}` : `single:${item.id}`;
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = [];
+        buckets.set(key, bucket);
+        order.push(key);
       }
-      const key = `thread:${item.channelId}:${threadTs}`;
-      let row = groups.get(key);
-      if (!row) {
-        row = { isThread: true, items: [], key };
-        groups.set(key, row);
-        ordered.push(row);
-      }
-      row.items.push(item);
+      bucket.push(item);
     }
+    const nextCache = new Map<string, ActivityRowData>();
+    const ordered = order.map((key) => {
+      const bucketItems = buckets.get(key)!;
+      const cached = rowsCache.get(key);
+      const row =
+        cached && sameItems(cached.items, bucketItems)
+          ? cached
+          : { isThread: key.startsWith("thread:"), items: bucketItems, key };
+      nextCache.set(key, row);
+      return row;
+    });
+    rowsCache = nextCache;
     return ordered;
   });
 
   const statusFor = (row: ActivityRowData): RowStatus => {
     const latest = latestItem(row);
-    if (store.activity.isActivityItemReacted(latest)) return "reacted";
+    if (store.activity.isActivityItemArchived(latest)) return "archived";
     if (store.activity.activityItemReadState(latest) === "pending") return "pending";
     if (store.activity.isActivityItemUnread(latest)) return "unread";
     return "read";
   };
 
-  const tagAndSearchRows = createMemo(() => {
+  const tagRows = createMemo(() => {
     const tag = selectedTag();
-    const query = keyword().trim().toLowerCase();
-    return rows().filter((row) => {
-      if (tag !== "all") {
-        const matches = row.items.some((item) => item.kind === tag);
-        if (!matches) return false;
-      }
-      return !query || row.items.some((item) => item.text.toLowerCase().includes(query));
-    });
+    if (tag === "all") return rows();
+    return rows().filter((row) => row.items.some((item) => item.kind === tag));
   });
+
+  const rowsWithStatus = createMemo(() =>
+    tagRows().map((row) => ({ row, status: statusFor(row) })),
+  );
 
   const statusCounts = createMemo(() => {
     const counts: Record<Exclude<ReadState, "all">, number> = {
-      reacted: 0,
+      archived: 0,
       read: 0,
       unread: 0,
     };
-    for (const row of tagAndSearchRows()) {
-      const status = statusFor(row);
+    for (const { status } of rowsWithStatus()) {
       if (status !== "pending") counts[status] += 1;
     }
     return counts;
@@ -97,28 +107,45 @@ export default function ActivityView() {
       !store.activity.activityHasMore(feedTypesForTag(selectedTag()), true),
   );
   const tabCount = (key: ReadState): number | undefined => {
-    if (key === "all") return generalScopeExhausted() ? tagAndSearchRows().length : undefined;
+    if (key === "all")
+      return generalScopeExhausted() ? tagRows().length - statusCounts().archived : undefined;
     if (key === "unread") return unreadScopeExhausted() ? statusCounts().unread : undefined;
     return generalScopeExhausted() ? statusCounts()[key] : undefined;
   };
 
   const visibleRows = createMemo(() => {
     const state = readState();
-    if (state === "all") return tagAndSearchRows();
-    return tagAndSearchRows().filter((row) => statusFor(row) === state);
+    const entries =
+      state === "all"
+        ? rowsWithStatus().filter(({ status }) => status !== "archived")
+        : rowsWithStatus().filter(({ status }) => status === state);
+    return entries.map(({ row }) => row);
   });
 
+  let entriesCache = new Map<string, ActivityListEntry>();
   const groupedVisibleRows = createMemo<ActivityListEntry[]>(() => {
+    const nextCache = new Map<string, ActivityListEntry>();
     const entries: ActivityListEntry[] = [];
     let lastDay: string | undefined;
     for (const row of visibleRows()) {
       const day = formatDayFromMs(latestItem(row).time);
       if (day !== lastDay) {
-        entries.push({ day, kind: "divider" });
+        const dividerKey = `divider:${day}`;
+        const cached = entriesCache.get(dividerKey);
+        const divider = cached?.kind === "divider" ? cached : { day, kind: "divider" as const };
+        entries.push(divider);
+        nextCache.set(dividerKey, divider);
         lastDay = day;
       }
-      entries.push({ key: row.key, kind: "row", row });
+      const cached = entriesCache.get(row.key);
+      const entry =
+        cached?.kind === "row" && cached.row === row
+          ? cached
+          : { key: row.key, kind: "row" as const, row };
+      entries.push(entry);
+      nextCache.set(row.key, entry);
     }
+    entriesCache = nextCache;
     return entries;
   });
 
@@ -151,7 +178,7 @@ export default function ActivityView() {
     visibleRows();
     const types = activeFeedTypes();
     const unreadOnly = activeUnreadOnly();
-    const key = `${selectedTag()}|${readState()}|${keyword()}`;
+    const key = `${selectedTag()}|${readState()}`;
     if (key !== topUpKey) {
       topUpKey = key;
       topUpAttempts = 0;
@@ -174,8 +201,6 @@ export default function ActivityView() {
       ref={scrollRef}
     >
       <ActivityToolbar
-        keyword={keyword()}
-        onKeywordInput={setKeyword}
         onReadStateChange={setReadState}
         onSelectTag={setSelectedTag}
         readState={readState()}

@@ -4,7 +4,6 @@ import {
   type ChannelPlacementOutcome,
   isChannelPlacementApplied,
 } from "../../lib/channelSectionMutations";
-import { channelIconName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import "./ChannelMoveMenu.css";
@@ -24,15 +23,12 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
 
   let newSectionInputRef: HTMLInputElement | undefined;
 
-  const sections = createMemo(
-    () => store.channels.sections()?.filter((section) => section.type === "standard") ?? [],
-  );
-  const currentSectionId = createMemo(
-    () => sections().find((section) => section.channelIds.includes(props.channelId))?.id ?? null,
-  );
-  const isStarred = createMemo(() => store.channels.isChannelStarred(props.channelId));
-  const isInChannels = createMemo(() => !(isStarred() || currentSectionId()));
-  const isPrivate = createMemo(() => !!store.channels.channelById(props.channelId)?.private);
+  const sections = () =>
+    store.channels.sections()?.filter((section) => section.type === "standard") ?? [];
+  const currentSectionId = () =>
+    sections().find((section) => section.channelIds.includes(props.channelId))?.id ?? null;
+  const isStarred = () => store.channels.isChannelStarred(props.channelId);
+  const isInChannels = () => !(isStarred() || currentSectionId());
   const isPending = createMemo(
     () =>
       creatingSection() ||
@@ -109,14 +105,15 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
 
   const trigger = () =>
     props.variant === "menu-item" ? (
-      <MenuItem class="channel-move-menu-trigger" icon="folder" onClick={() => setOpen(!open())}>
+      <MenuItem icon="folder" onClick={() => setOpen(!open())}>
         Move to…
-        <Icon class="channel-move-menu-trigger-caret" name="caret-right" size={13} />
+        <Icon class="menu-item-caret" name="caret-right" size={13} />
       </MenuItem>
     ) : (
       <IconButton
-        class="channel-header-star"
+        class="channel-header-move"
         icon={isStarred() ? "star-filled" : "section"}
+        iconSize={16}
         label="Move to…"
         onClick={() => setOpen(!open())}
         size="sm"
@@ -128,26 +125,19 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
     <Menu
       align={props.variant === "menu-item" ? "start" : undefined}
       class={
-        props.variant === "menu-item" ? "channel-move-menu-item-wrap" : "channel-header-star-wrap"
+        props.variant === "menu-item" ? "channel-move-menu-item-wrap" : "channel-header-move-wrap"
       }
       onClose={() => close()}
+      onOpen={() => setOpen(true)}
       open={open()}
+      openOnHover={props.variant === "menu-item"}
       panelClass="menu-panel channel-move-menu"
       placement={props.variant === "menu-item" ? "right" : "bottom"}
       trigger={trigger()}
     >
-      <div class="channel-move-menu-heading">
-        <span class="menu-label">Move to</span>
-        <span class="channel-move-menu-channel truncate">
-          <Icon name={channelIconName(isPrivate())} size={11} />
-          {props.channelTitle}
-        </span>
-        <Show when={isPending()}>
-          <span class="channel-move-menu-status">
-            {creatingSection() ? "Creating…" : "Moving…"}
-          </span>
-        </Show>
-      </div>
+      <Show when={isPending()}>
+        <span class="channel-move-menu-status">{creatingSection() ? "Creating…" : "Moving…"}</span>
+      </Show>
 
       <div class="channel-move-menu-destinations">
         <MenuItem
@@ -159,7 +149,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
         >
           <span>Starred</span>
           <Show when={isStarred()}>
-            <Icon class="channel-move-menu-check" name="check" size={13} />
+            <Icon class="menu-item-check" name="check" size={13} />
           </Show>
         </MenuItem>
         <MenuItem
@@ -171,12 +161,11 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
         >
           <span>Channels</span>
           <Show when={isInChannels()}>
-            <Icon class="channel-move-menu-check" name="check" size={13} />
+            <Icon class="menu-item-check" name="check" size={13} />
           </Show>
         </MenuItem>
 
         <Show when={sections().length > 0}>
-          <div class="channel-move-menu-section-label menu-label">Sections</div>
           <For each={sections()}>
             {(section) => {
               const selected = () => !isStarred() && currentSectionId() === section.id;
@@ -190,7 +179,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
                 >
                   <span class="truncate">{section.name}</span>
                   <Show when={selected()}>
-                    <Icon class="channel-move-menu-check" name="check" size={13} />
+                    <Icon class="menu-item-check" name="check" size={13} />
                   </Show>
                 </MenuItem>
               );

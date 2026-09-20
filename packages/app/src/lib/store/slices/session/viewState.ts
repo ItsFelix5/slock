@@ -1,8 +1,9 @@
-import { consumeMouseButtonPop, focusedPaneId, hoveredPaneId } from "@slock/ui";
 import { batch, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import type { Channel, DirectMessage } from "../../../api";
-import { isDmId } from "../../../dmId";
+import { suppressNextComposerAutofocus } from "../../../composerAutofocus";
 import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
+import { resolveCanvasPaneTitle } from "../entities/canvas";
+import { isDmId } from "../entities/dms";
 import type { Nav, PaneContent, View } from "../types";
 import type { createPanesSlice } from "./panes";
 
@@ -39,8 +40,16 @@ export function resolveActiveView(
   return firstDirectMessage ? { id: firstDirectMessage.id, kind: "dm" } : null;
 }
 
+const CANVAS_DELIM_LITERAL_OR_PERCENT_ENCODED_RE = /\^|%5e/i;
+
 function parsePaneSegment(segment: string): PaneContent | RawPane | null {
   if (!segment) return null;
+  const canvasDelim = segment.match(CANVAS_DELIM_LITERAL_OR_PERCENT_ENCODED_RE);
+  if (canvasDelim?.index !== undefined) {
+    const fileId = segment.slice(0, canvasDelim.index);
+    const title = segment.slice(canvasDelim.index + canvasDelim[0].length);
+    return { fileId, kind: "canvas", title: decodeURIComponent(title) };
+  }
   if (segment.includes("~")) {
     const [channelId, rest] = segment.split("~");
     const pinned = rest.endsWith("!");
@@ -48,11 +57,8 @@ function parsePaneSegment(segment: string): PaneContent | RawPane | null {
     return { channelId, kind: "thread", pinned: pinned || undefined, ts };
   }
   if (segment.endsWith("*")) return { channelId: segment.slice(0, -1), kind: "pinned" };
-  if (segment.includes("^")) {
-    const [fileId, title] = segment.split("^");
-    return { fileId, kind: "canvas", title: decodeURIComponent(title) };
-  }
-  if (segment.startsWith("U")) return { kind: "profile", userId: segment };
+  if (segment.startsWith("U") || segment.startsWith("B"))
+    return { kind: "profile", userId: segment };
   if (segment.startsWith("S")) return { kind: "usergroup-details", usergroupId: segment };
   return { id: segment, kind: "raw" };
 }
@@ -120,7 +126,12 @@ export function createViewStateSlice(deps: {
   bootstrap: () => { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
   panes: Pick<
     ReturnType<typeof createPanesSlice>,
-    "closePane" | "currentFocusedId" | "panes" | "setAllPanes" | "setPaneContent"
+    | "closePane"
+    | "focusedConversationContent"
+    | "insertContentPane"
+    | "panes"
+    | "setAllPanes"
+    | "setPaneContent"
   >;
 }) {
   const { panes } = deps;
@@ -129,16 +140,67 @@ export function createViewStateSlice(deps: {
   const [searchScreenQuery, setSearchScreenQuery] = createSignal("");
   const [searchScreenFilters, setSearchScreenFilters] = createSignal<SearchFilters>(EMPTY_FILTERS);
 
-  const activeView = createMemo<View | null>(() =>
-    resolveActiveView(nav(), selected(), deps.bootstrap()),
-  );
+  const activeView = createMemo<View | null>(() => {
+    const data = deps.bootstrap();
+    const live = panes.focusedConversationContent();
+    if (live && (live.kind === "channel" || live.kind === "dm")) {
+      const kind = conversationKindIn(live.id, data);
+      return kind === live.kind ? live : { id: live.id, kind };
+    }
+    return resolveActiveView(nav(), selected(), data);
+  });
 
   let lastNavSerialized: string | null = null;
   let lastStructuralKey: string | null = null;
   let syncingFromPopState = false;
 
+  function liveIdContentPairs(): { id: string; content: PaneContent }[] {
+    return panes.panes().flatMap((p) => (p.content ? [{ content: p.content, id: p.id }] : []));
+  }
+
   function livePaneContents(): PaneContent[] {
-    return panes.panes().flatMap((p) => (p.content ? [p.content] : []));
+    return liveIdContentPairs().map((p) => p.content);
+  }
+
+  function resolvePendingCanvasTitles() {
+    for (const { id, content } of liveIdContentPairs()) {
+      if (content.kind === "canvas" && !content.title) {
+        resolveCanvasPaneTitle(id, content.fileId, panes.setPaneContent);
+      }
+    }
+  }
+
+  function reconcilePanesToward(target: PaneContent[]) {
+    const live = liveIdContentPairs();
+    const eq = (a: PaneContent, b: PaneContent) => JSON.stringify(a) === JSON.stringify(b);
+
+    let prefix = 0;
+    while (
+      prefix < live.length &&
+      prefix < target.length &&
+      eq(live[prefix].content, target[prefix])
+    )
+      prefix++;
+
+    let suffix = 0;
+    while (
+      suffix < live.length - prefix &&
+      suffix < target.length - prefix &&
+      eq(live[live.length - 1 - suffix].content, target[target.length - 1 - suffix])
+    )
+      suffix++;
+
+    const liveMid = live.slice(prefix, live.length - suffix);
+    const targetMid = target.slice(prefix, target.length - suffix);
+
+    const shared = Math.min(liveMid.length, targetMid.length);
+    for (let i = 0; i < shared; i++) panes.setPaneContent(liveMid[i].id, targetMid[i]);
+    for (let i = liveMid.length - 1; i >= shared; i--) panes.closePane(liveMid[i].id);
+
+    let afterId = liveMid[shared - 1]?.id ?? live[prefix - 1]?.id ?? null;
+    for (let i = shared; i < targetMid.length; i++) {
+      afterId = panes.insertContentPane(targetMid[i], afterId);
+    }
   }
 
   function structuralKey(snap: Pick<NavSnapshot, "nav" | "panes">): string {
@@ -156,7 +218,7 @@ export function createViewStateSlice(deps: {
   function pushOrReplace(snap: NavSnapshot, replace: boolean) {
     const serialized = JSON.stringify(snap);
     lastNavSerialized = serialized;
-    const entry = { slockNav: JSON.parse(serialized) as NavSnapshot };
+    const entry = { slockNav: JSON.parse(serialized) };
     const path = navSnapshotToPath(snap);
     if (replace) window.history.replaceState(entry, "", path);
     else window.history.pushState(entry, "", path);
@@ -177,6 +239,7 @@ export function createViewStateSlice(deps: {
       if (initial.nav === "search" && initial.searchQuery)
         setSearchScreenQuery(initial.searchQuery);
     });
+    resolvePendingCanvasTitles();
     const initialSnap: NavSnapshot = {
       nav: initial.nav,
       panes: initialPanes,
@@ -186,34 +249,21 @@ export function createViewStateSlice(deps: {
     lastStructuralKey = structuralKey(initialSnap);
 
     const onPopState = (e: PopStateEvent) => {
-      const popped = (e.state as { slockNav?: NavSnapshot } | null)?.slockNav;
+      const popped: NavSnapshot | undefined = e.state?.slockNav;
       if (!popped) return;
 
-      const usedMouseButton = consumeMouseButtonPop();
-      const targetId =
-        (usedMouseButton && hoveredPaneId()) || focusedPaneId() || panes.currentFocusedId();
-
-      const live = panes.panes();
-      const targetIndex = live.findIndex((p) => p.id === targetId);
-      const index = targetIndex === -1 ? 0 : targetIndex;
-      const targetPaneId = live[index]?.id;
-
+      suppressNextComposerAutofocus();
       syncingFromPopState = true;
       batch(() => {
         setNav(popped.nav);
         if (popped.nav === "search") setSearchScreenQuery(popped.searchQuery ?? "");
-        if (targetPaneId) {
-          const poppedContent = popped.panes[index];
-          if (poppedContent) {
-            panes.setPaneContent(targetPaneId, poppedContent);
-            if (poppedContent.kind === "channel" || poppedContent.kind === "dm") {
-              setSelected(poppedContent);
-            }
-          } else {
-            panes.closePane(targetPaneId);
-          }
+        reconcilePanesToward(popped.panes);
+        const focused = panes.focusedConversationContent();
+        if (focused && (focused.kind === "channel" || focused.kind === "dm")) {
+          setSelected(focused);
         }
       });
+      resolvePendingCanvasTitles();
 
       const merged: NavSnapshot = {
         nav: popped.nav,

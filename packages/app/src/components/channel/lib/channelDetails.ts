@@ -9,6 +9,7 @@ import {
   fetchChannelManagerIds,
   fetchChannelMembers,
   fetchChannelPostingPrefs,
+  fetchChannelRetention,
   fetchConversationView,
   inviteToChannel,
   type MemberPermissionsPatch,
@@ -21,7 +22,7 @@ import {
   setMemberPermissions,
   unarchiveChannel,
 } from "../../../lib/api";
-import { actionFeedback } from "../../../lib/feedback";
+import { flashCaughtError } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
 
 export type MemberFilter = "everyone" | "managers" | "apps";
@@ -49,7 +50,7 @@ function setup() {
     try {
       return await action();
     } catch (err) {
-      actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
+      flashCaughtError(id, err, fallbackMessage);
       return fallback;
     }
   }
@@ -62,7 +63,7 @@ function setup() {
     try {
       return await action();
     } catch (err) {
-      actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
+      flashCaughtError(id, err, fallbackMessage);
       throw err;
     }
   }
@@ -76,7 +77,7 @@ function setup() {
     );
   }
 
-  function loadChannelMembers(
+  function loadChannelMembersPage(
     id: string,
     filter: "everyone" | "apps",
     cursor?: string,
@@ -94,6 +95,10 @@ function setup() {
 
   function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs> {
     return fetchChannelPostingPrefs(id);
+  }
+
+  function loadChannelRetention(id: string): Promise<number | null> {
+    return fetchChannelRetention(id);
   }
 
   function renameChannelById(id: string, name: string): Promise<boolean> {
@@ -184,8 +189,9 @@ function setup() {
     inviteUsersToChannel,
     loadChannelDetails,
     loadChannelManagerIds,
-    loadChannelMembers,
+    loadChannelMembersPage,
     loadChannelPostingPrefs,
+    loadChannelRetention,
     openChannelDetails,
     removeUserFromChannel,
     renameChannelById,
@@ -206,9 +212,10 @@ export const {
   closeChannelDetails,
   convertChannelToPrivateById,
   loadChannelDetails,
-  loadChannelMembers,
+  loadChannelMembersPage,
   loadChannelManagerIds,
   loadChannelPostingPrefs,
+  loadChannelRetention,
   renameChannelById,
   unarchiveChannelById,
   updateChannelTopic,

@@ -1,24 +1,35 @@
-import { Mrkdwn } from "@slock/blockkit";
 import {
   Button,
   ClickableInline,
   ContextMenu,
-  createRovingFocus,
   DEFAULT_AVATAR_COLOR,
+  findTextRanges,
   Icon,
   IconButton,
+  indexElementText,
+  initRovingTabIndexDefault,
+  isOneOf,
   MenuItem,
   useContextMenu,
 } from "@slock/ui";
-import { For, Show } from "solid-js";
+import { createEffect, For, onCleanup, Show } from "solid-js";
 import { formatDay, formatTime, type SearchResult } from "../../lib/api";
 import { channelIconName, dmDisplayName } from "../../lib/displayName";
 import { copyMessageLink } from "../../lib/messageLinks";
+import { openConversation, openConversationInSplit } from "../../lib/navigation/conversationNav";
 import type { SortMode } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
+import MessageReferenceSnippet from "../messages/parts/MessageReferenceSnippet";
+import {
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  resolveProfileUserId,
+} from "../messages/parts/messageRenderState";
 import ResultMessageCard from "../messages/parts/ResultMessageCard";
-import { openConversation, openConversationInSplit } from "../navigation/SplitNavigation";
+import { SplitNavigation } from "../navigation/SplitNavigation";
 import { SORT_OPTIONS } from "./messageSearchOptions";
+
+const SEARCH_TERM_HIGHLIGHT = "message-search-match";
 
 export default function MessageSearchResults(props: {
   canSearch: boolean;
@@ -31,19 +42,31 @@ export default function MessageSearchResults(props: {
   searchError: boolean;
   sortMode: SortMode;
 }) {
-  const roving = createRovingFocus(
+  let containerRef: HTMLDivElement | undefined;
+  initRovingTabIndexDefault(
+    () => containerRef,
     () => props.results,
-    (r) => `${r.channelId}:${r.ts}`,
   );
 
+  createEffect(() => {
+    void props.results;
+    const container = containerRef;
+    const ranges: Range[] = [];
+    if (container) {
+      for (const el of container.querySelectorAll<HTMLElement>("[data-search-terms]")) {
+        const terms: string[] = JSON.parse(el.dataset.searchTerms ?? "[]");
+        if (terms.length === 0) continue;
+        const index = indexElementText(el);
+        for (const term of terms) ranges.push(...findTextRanges(index, term));
+      }
+    }
+    if (ranges.length > 0) CSS.highlights.set(SEARCH_TERM_HIGHLIGHT, new Highlight(...ranges));
+    else CSS.highlights.delete(SEARCH_TERM_HIGHLIGHT);
+  });
+  onCleanup(() => CSS.highlights.delete(SEARCH_TERM_HIGHLIGHT));
+
   return (
-    <div
-      aria-busy={props.loading}
-      class="message-search-results"
-      onFocusIn={roving.onContainerFocusIn}
-      onFocusOut={roving.onContainerFocusOut}
-      ref={roving.setContainerRef}
-    >
+    <div aria-busy={props.loading} class="message-search-results" ref={containerRef}>
       <Show
         fallback={
           <Show
@@ -61,7 +84,6 @@ export default function MessageSearchResults(props: {
                   class="message-search-history-clear"
                   onClick={() => store.searchHistory.clearSearchHistory()}
                   size="sm"
-                  variant="ghost"
                 >
                   Clear all
                 </Button>
@@ -80,7 +102,6 @@ export default function MessageSearchResults(props: {
                     <IconButton
                       class="message-search-history-remove"
                       icon="close"
-                      label="Remove from recent searches"
                       onClick={() => store.searchHistory.removeSearchHistoryEntry(query)}
                       size="sm"
                       tone="dim"
@@ -101,7 +122,11 @@ export default function MessageSearchResults(props: {
           </span>
           <select
             class="message-search-sort-select input-reset"
-            onChange={(e) => props.onSortModeChange(e.currentTarget.value as SortMode)}
+            onChange={(e) => {
+              const { value } = e.currentTarget;
+              const modes = SORT_OPTIONS.map((opt) => opt.key);
+              if (isOneOf(value, modes)) props.onSortModeChange(value);
+            }}
             value={props.sortMode}
           >
             <For each={SORT_OPTIONS}>{(opt) => <option value={opt.key}>{opt.label}</option>}</For>
@@ -128,8 +153,14 @@ export default function MessageSearchResults(props: {
             >
               <For each={props.results}>
                 {(result) => {
-                  const user = () =>
-                    result.userId ? store.users.userById(result.userId) : undefined;
+                  const profileUserId = () => resolveProfileUserId(result);
+                  const user = () => {
+                    const id = profileUserId();
+                    return id ? store.users.userById(id) : undefined;
+                  };
+                  const displayName = () =>
+                    resolveAuthorDisplayName(result, user()?.name, "Someone");
+                  const avatarUrl = () => resolveAuthorAvatarUrl(result, user()?.avatarUrl);
                   const channelLabel = () => {
                     const dm = store.dms.dmById(result.channelId);
                     if (dm)
@@ -162,28 +193,42 @@ export default function MessageSearchResults(props: {
                       <ResultMessageCard
                         avatarUser={{
                           avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
-                          avatarUrl: user()?.avatarUrl,
-                          id: result.userId,
-                          name: user()?.name ?? "Someone",
+                          avatarUrl: avatarUrl(),
+                          id: profileUserId() ?? result.userId,
+                          name: displayName(),
                         }}
                         context={
-                          <ClickableInline onActivate={() => openConversation(result.channelId)}>
-                            {channelLabel()}
-                          </ClickableInline>
+                          <SplitNavigation
+                            onSplit={() => openConversationInSplit(result.channelId)}
+                          >
+                            <ClickableInline onActivate={() => openConversation(result.channelId)}>
+                              {channelLabel()}
+                            </ClickableInline>
+                          </SplitNavigation>
                         }
                         ctxMenu={ctxMenu}
-                        name={user()?.name ?? "Someone"}
+                        name={displayName()}
                         navRow
                         onOpen={() => props.onResult(result)}
                         onSplit={() =>
                           openConversationInSplit(result.channelId, result.threadTs ?? result.ts)
                         }
-                        rowKey={`${result.channelId}:${result.ts}`}
-                        snippet={<Mrkdwn text={result.text} />}
-                        tabIndex={roving.rowProps(`${result.channelId}:${result.ts}`).tabIndex}
+                        snippet={
+                          <span data-search-terms={JSON.stringify(result.highlights ?? [])}>
+                            <MessageReferenceSnippet
+                              botId={result.botId}
+                              botUserId={result.userId}
+                              channelId={result.channelId}
+                              text={result.text}
+                              threadTs={result.threadTs}
+                              ts={result.ts}
+                            />
+                          </span>
+                        }
+                        tabIndex={-1}
                         time={formatTime(result.ts)}
                         timeTitle={`${formatDay(result.ts)} at ${formatTime(result.ts)}`}
-                        userId={result.userId}
+                        userId={profileUserId()}
                       />
                       <ContextMenu
                         onClose={ctxMenu.close}

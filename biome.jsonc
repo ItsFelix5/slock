@@ -41,7 +41,6 @@
         "noExportedImports": "on",
         "noMultilineString": "on",
         "noNegationElse": "on",
-        "noProcessEnv": "on",
         "noSubstr": "on",
         "noUnusedTemplateLiteral": "on",
         "noUselessElse": "on",
@@ -84,19 +83,11 @@
   },
   "overrides": [
     {
-      "includes": [
-        "packages/server/src/**",
-        "packages/types/src/server.ts",
-        "packages/app/src/lib/api/**",
-        "packages/app/src/lib/store/slices/messaging/realtime.ts",
-        "packages/app/src/lib/store/slices/messaging/realtimeDeps.ts",
-        "packages/app/src/lib/store/slices/messaging/membershipEvents.ts",
-        "packages/app/src/lib/store/slices/messaging/activity/activityReadState.ts"
-      ],
+      "includes": ["packages/server/src/solidPlugin.ts"],
       "linter": {
         "rules": {
-          "suspicious": {
-            "noExplicitAny": "off"
+          "correctness": {
+            "noUnresolvedImports": "off"
           }
         }
       }

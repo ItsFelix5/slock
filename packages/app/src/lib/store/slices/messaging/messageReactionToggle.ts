@@ -1,8 +1,7 @@
 import { createStore, produce } from "solid-js/store";
 import type { Message, Reaction, User } from "../../../api";
 import { toggleReaction } from "../../../api";
-import { actionFeedback } from "../../../feedback";
-import { undoStack } from "../../../undo";
+import { flashError, undoStack } from "../../../feedback";
 import type { MessageLocation } from "../types";
 
 function restoreFailedReaction(
@@ -70,7 +69,7 @@ export function createMessageReactionToggle(deps: {
       });
     } catch (err) {
       console.error("Failed to toggle reaction", err);
-      actionFeedback.flash(msg.ts, "Failed to update reaction.", "error");
+      flashError(msg.ts, "Failed to update reaction.");
       const current = deps
         .findAllMessageLocations(channelId, msg.ts)[0]
         ?.list.find((candidate) => candidate.ts === msg.ts)?.reactions;

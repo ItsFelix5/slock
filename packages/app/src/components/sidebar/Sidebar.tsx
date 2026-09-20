@@ -1,14 +1,16 @@
-import { plainKey, useEscapeClose, useShortcut } from "@slock/ui";
+import { SLACK_USER_ID } from "@slock/types";
+import { useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../lib/channelSectionMutations";
 import { actionFeedback } from "../../lib/feedback";
 import { consumeShareTarget, pendingShareText } from "../../lib/incomingLinks";
-import { setSidebarWidth as setSharedSidebarWidth } from "../../lib/sidebarWidth";
 import { store } from "../../lib/store";
+import type { SettingsTab } from "../settings/Settings";
 import "./Sidebar.css";
 import SidebarView from "./SidebarView";
 import { buildCategories, type Category } from "./sidebarCategories";
 import { useSidebarChannelCycle } from "./sidebarChannelCycle";
+import { useSidebarGeneralShortcuts } from "./sidebarGeneralShortcuts";
 
 const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
@@ -16,10 +18,13 @@ const MAX_WIDTH = 420;
 const FEED_DEFAULT_WIDTH = 420;
 const FEED_MIN_WIDTH = 340;
 const FEED_MAX_WIDTH = 640;
-const SLACK_USER_ID = "USLACK";
+
+const [sidebarWidth, setSharedSidebarWidth] = createSignal(DEFAULT_WIDTH);
+
+export { sidebarWidth };
 
 export default function Sidebar() {
-  const [collapsed, setCollapsed] = createSignal<Set<string>>(new Set());
+  const collapsed = store.channels.collapsedIds;
   const [unreadDmsOpen, setUnreadDmsOpen] = createSignal(true);
   const [dmsOpen, setDmsOpen] = createSignal(true);
   const [appsOpen, setAppsOpen] = createSignal(true);
@@ -35,6 +40,7 @@ export default function Sidebar() {
   consumeShareTarget();
   const [searchOpen, setSearchOpen] = createSignal(!!pendingShareText());
   const [settingsOpen, setSettingsOpen] = createSignal(false);
+  const [settingsTab, setSettingsTab] = createSignal<SettingsTab>("account");
   const [unreadsOnly, setUnreadsOnly] = createSignal(false);
   useEscapeClose(() => setUnreadsOnly(false), unreadsOnly);
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
@@ -42,41 +48,15 @@ export default function Sidebar() {
   const [renameValue, setRenameValue] = createSignal("");
   const [draggingSectionId, setDraggingSectionId] = createSignal<string | null>(null);
   const [dropTarget, setDropTarget] = createSignal<{ id: string; before: boolean } | null>(null);
-  useShortcut({
-    allowInInputs: true,
-    handler: () => setSearchOpen(true),
-    keys: "Ctrl/⌘ K",
-    label: "Jump to a channel or person",
-    match: (e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k",
-    scope: "general",
-  });
-  useShortcut({
-    allowInInputs: true,
-    allowRepeat: false,
-    handler: () => store.viewState.openMessageSearch(""),
-    keys: "Ctrl/⌘ G",
-    label: "Search all messages",
-    match: (e) => (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "g",
-    scope: "general",
+  useSidebarGeneralShortcuts({
+    setSearchOpen,
+    setSettingsOpen,
+    setSettingsTab,
+    setUnreadsOnly,
+    unreadsOnly,
   });
   useSidebarChannelCycle();
-  useShortcut({
-    enabled: () => !unreadsOnly(),
-    handler: () => {
-      store.viewState.setNavView("home");
-      setUnreadsOnly(true);
-    },
-    keys: "Shift U",
-    label: "Show unread channels only",
-    match: plainKey("U"),
-    scope: "general",
-  });
-  const toggleCategory = (id: string) => {
-    const next = new Set(collapsed());
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setCollapsed(next);
-  };
+  const toggleCategory = (id: string) => void store.channels.toggleCategoryCollapsed(id);
   const toggleSectionFilter = (id: string) => store.channels.toggleSectionFilter(id);
   const categories = createMemo<Category[]>(() =>
     buildCategories(
@@ -86,13 +66,15 @@ export default function Sidebar() {
       store.unread.isChannelUnread,
       store.channels.isChannelStarred,
       store.channels.isChannelLeft,
-      (id) => {
-        const view = store.viewState.activeView();
-        return view?.kind === "channel" && view.id === id;
-      },
+      (id) => store.panes.isOpenInAnyPane(id, "channel"),
       store.preferences.isChannelMuted,
     ),
   );
+  const channelById = createMemo(() => {
+    const map = new Map<string, Category["channels"][number]>();
+    for (const cat of categories()) for (const ch of cat.channels) map.set(ch.id, ch);
+    return map;
+  });
   const startRename = (cat: Category) => {
     setSectionMenuOpen(null);
     setRenamingId(cat.id);
@@ -127,24 +109,27 @@ export default function Sidebar() {
     e.preventDefault();
     const rows = Array.from(
       sectionListEl.querySelectorAll<HTMLElement>('[data-reorderable="true"]'),
-    ).filter((row) => row.dataset.sectionId !== draggedId);
+    );
     if (rows.length === 0) return;
-    let bestId = rows[0].dataset.sectionId as string;
+    let bestId = rows[0].dataset.sectionId ?? "";
     let bestBefore = true;
     let bestDist = Number.POSITIVE_INFINITY;
     for (const row of rows) {
       const dist = Math.abs(e.clientY - row.getBoundingClientRect().top);
       if (dist < bestDist) {
         bestDist = dist;
-        bestId = row.dataset.sectionId as string;
+        bestId = row.dataset.sectionId ?? "";
         bestBefore = true;
       }
     }
-    const last = rows[rows.length - 1];
-    const bottomDist = Math.abs(e.clientY - last.getBoundingClientRect().bottom);
-    if (bottomDist < bestDist) {
-      bestId = last.dataset.sectionId as string;
-      bestBefore = false;
+    const others = rows.filter((row) => row.dataset.sectionId !== draggedId);
+    const last = others[others.length - 1];
+    if (last) {
+      const bottomDist = Math.abs(e.clientY - last.getBoundingClientRect().bottom);
+      if (bottomDist < bestDist) {
+        bestId = last.dataset.sectionId ?? "";
+        bestBefore = false;
+      }
     }
     setDropTarget({ before: bestBefore, id: bestId });
   };
@@ -198,8 +183,7 @@ export default function Sidebar() {
     store.unread.isChannelUnread(dm.id) && !store.preferences.isChannelMuted(dm.id);
   const visibleDms = createMemo(() =>
     store.dms.directMessages().filter((dm) => {
-      const view = store.viewState.activeView();
-      const isOpen = view?.kind === "dm" && view.id === dm.id;
+      const isOpen = store.panes.isOpenInAnyPane(dm.id, "dm");
       return isOpen || !unreadsOnly() || isDmUnread(dm);
     }),
   );
@@ -227,6 +211,7 @@ export default function Sidebar() {
     bootstrap: store.resources.bootstrap,
     canMoveSection,
     categories,
+    channelById,
     collapsed,
     commitRename,
     currentUser: store.users.currentUser,
@@ -254,7 +239,7 @@ export default function Sidebar() {
     openUserProfile: store.users.openUserProfile,
     peopleDms,
     preferencesError: () => store.resources.userPrefs.error,
-    preferencesLoading: () => store.resources.userPrefs.loading,
+    preferencesLoading: () => store.resources.userPrefs.isFetching,
     isSectionSidebarPending: store.channels.isSectionSidebarPending,
     renameValue,
     renamingId,
@@ -278,6 +263,8 @@ export default function Sidebar() {
     setChannelSectionSidebar: store.channels.setChannelSectionSidebar,
     setSettingsOpen,
     settingsOpen,
+    setSettingsTab,
+    settingsTab,
     setUnreadsOnly,
     setWidth,
     startRename,

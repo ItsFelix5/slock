@@ -34,52 +34,14 @@
 
 .pinned-panel-item {
   position: relative;
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px;
-  border-radius: var(--radius-control);
 }
 
 .pinned-panel-feedback {
   position: absolute;
-  right: 8px;
+  right: 12px;
   bottom: 2px;
-  left: 8px;
+  left: 12px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.pinned-panel-item:hover {
-  background: var(--hover-bg);
-}
-
-.pinned-panel-item-main {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--text-primary);
-  text-align: left;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
-.pinned-panel-unpin {
-  flex-shrink: 0;
-  padding: 3px 8px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  background: none;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-}
-
-.pinned-panel-unpin:hover:not(:disabled) {
-  background: var(--hover-bg);
-}
-
-.pinned-panel-unpin:disabled {
-  cursor: wait;
-  opacity: 0.55;
 }

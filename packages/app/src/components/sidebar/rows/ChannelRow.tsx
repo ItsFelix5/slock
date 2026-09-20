@@ -2,19 +2,19 @@ import { ContextMenu, Icon, Tooltip, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
 import type { Channel } from "../../../lib/api";
 import { channelDisplayName, channelIconName } from "../../../lib/displayName";
-import { splitDragProps } from "../../../lib/dragSplitTarget";
+import { openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
 import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
-import { openConversationInSplit, SplitNavigation } from "../../navigation/SplitNavigation";
+import { SplitNavigation } from "../../navigation/SplitNavigation";
 import { unreadSummary } from "../lib/unreadSummary";
 
 export default function ChannelRow(props: { channel: Channel; unread: boolean }) {
   const ctxMenu = useContextMenu();
-  const isActive = createMemo(() => {
-    const v = store.viewState.activeView();
-    return store.viewState.nav() === "home" && v?.kind === "channel" && v.id === props.channel.id;
-  });
+  const isActive = createMemo(
+    () =>
+      store.viewState.nav() === "home" && store.panes.isOpenInAnyPane(props.channel.id, "channel"),
+  );
   const muted = createMemo(() => store.preferences.isChannelMuted(props.channel.id));
   const hasDraft = createMemo(() => channelHasDraft(props.channel.id));
   const unreadTooltip = createMemo(() =>
@@ -30,7 +30,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
     <>
       <SplitNavigation onSplit={() => openConversationInSplit(props.channel.id)}>
         <button
-          class="sidebar-row btn-reset flex-align-center"
+          class="sidebar-row sidebar-row-channel btn-reset flex-align-center"
           classList={{
             active: isActive(),
             muted: muted(),
@@ -38,11 +38,15 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           }}
           data-channel-id={props.channel.id}
           data-nav-row
-          onClick={() => store.viewState.setActiveView({ id: props.channel.id, kind: "channel" })}
+          onClick={(e) =>
+            store.viewState.setActiveView(
+              { id: props.channel.id, kind: "channel" },
+              { autofocus: e.isTrusted },
+            )
+          }
           onContextMenu={ctxMenu.open}
           tabIndex={-1}
           type="button"
-          {...splitDragProps({ channelId: props.channel.id })}
         >
           <span class="sidebar-row-icon">
             <Icon name={channelIconName(props.channel.private)} size={13} />

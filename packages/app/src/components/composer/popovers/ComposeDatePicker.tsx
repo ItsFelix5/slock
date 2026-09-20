@@ -1,11 +1,6 @@
-import {
-  DATE_FORMAT_OPTION_PAIRS,
-  DATE_FORMAT_OPTIONS,
-  formatSlackDateTokens,
-  TIME_FORMAT_OPTIONS,
-} from "@slock/blockkit";
-import { Icon, Tooltip, useClickOutside, useEscapeClose } from "@slock/ui";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { formatSlackDateTokens } from "@slock/blockkit";
+import { IconButton, useClickOutside, useEscapeClose } from "@slock/ui";
+import { createSignal, For, Show } from "solid-js";
 import "./ComposeDatePicker.css";
 
 function nextHour(): Date {
@@ -29,13 +24,13 @@ export default function ComposeDatePicker(props: {
   onClose: () => void;
 }) {
   const [date, setDate] = createSignal(nextHour());
-  const [dateFormat, setDateFormat] = createSignal(DATE_FORMAT_OPTIONS[5].format);
-  const [timeFormat, setTimeFormat] = createSignal(TIME_FORMAT_OPTIONS[0].format);
+  const [dateFormat, setDateFormat] = createSignal("{date_pretty}");
+  const [timeFormat, setTimeFormat] = createSignal("{time}");
   const [useAgo, setUseAgo] = createSignal(false);
-  const format = createMemo(() => {
+  const format = () => {
     if (useAgo()) return "{ago}";
     return [dateFormat(), timeFormat()].filter(Boolean).join(" at ");
-  });
+  };
 
   useEscapeClose(props.onClose);
   useClickOutside(".compose-date-picker", props.onClose);
@@ -87,31 +82,34 @@ export default function ComposeDatePicker(props: {
           >
             <span>No date</span>
           </button>
-          <For each={DATE_FORMAT_OPTION_PAIRS}>
+          <For
+            each={[
+              { label: "Abbreviated", normal: "{date_short}", relative: "{date_short_pretty}" },
+              { label: "Natural", normal: "{date}", relative: "{date_pretty}" },
+              { label: "With weekday", normal: "{date_long}", relative: "{date_long_pretty}" },
+            ]}
+          >
             {(pair) => (
               <div class="compose-date-option-pair" classList={{ single: !pair.relative }}>
                 <button
                   class="compose-date-option"
-                  classList={{ active: !useAgo() && dateFormat() === pair.normal.format }}
-                  onClick={() => selectDateFormat(pair.normal.format)}
+                  classList={{ active: !useAgo() && dateFormat() === pair.normal }}
+                  onClick={() => selectDateFormat(pair.normal)}
                   type="button"
                 >
-                  <span>{formatSlackDateTokens(pair.normal.format, dateToTs(date()))}</span>
-                  <span class="compose-date-option-detail">{pair.normal.label}</span>
+                  <span>{formatSlackDateTokens(pair.normal, dateToTs(date()))}</span>
+                  <span class="compose-date-option-detail">{pair.label}</span>
                 </button>
                 <Show when={pair.relative}>
                   {(relative) => (
-                    <Tooltip content={`Use ${relative().label.toLowerCase()} date`}>
-                      <button
-                        aria-label={`Use ${relative().label.toLowerCase()} date`}
-                        class="compose-date-relative-option btn-reset"
-                        classList={{ active: !useAgo() && dateFormat() === relative().format }}
-                        onClick={() => selectDateFormat(relative().format)}
-                        type="button"
-                      >
-                        <Icon name="history" size={14} />
-                      </button>
-                    </Tooltip>
+                    <IconButton
+                      active={!useAgo() && dateFormat() === relative()}
+                      class="compose-date-relative-option"
+                      icon="history"
+                      iconSize={14}
+                      label="Use yesterday/today/tomorrow when applicable"
+                      onClick={() => selectDateFormat(relative())}
+                    />
                   )}
                 </Show>
               </div>
@@ -130,7 +128,12 @@ export default function ComposeDatePicker(props: {
           >
             <span>No time</span>
           </button>
-          <For each={TIME_FORMAT_OPTIONS}>
+          <For
+            each={[
+              { format: "{time}", label: "Hours and minutes" },
+              { format: "{time_secs}", label: "Including seconds" },
+            ]}
+          >
             {(option) => (
               <button
                 class="compose-date-option"

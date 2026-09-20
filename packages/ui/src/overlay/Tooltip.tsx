@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import { getOwner, type JSX, runWithOwner } from "solid-js";
 import { useHoverIntent } from "../useHoverIntent";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";
 import "./Tooltip.css";
@@ -15,13 +15,16 @@ export interface TooltipProps {
 export default function Tooltip(props: TooltipProps) {
   let anchorRef: HTMLSpanElement | undefined;
   const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const owner = getOwner();
 
-  const showable = () => !props.disabled && props.content != null && props.content !== "";
+  const showable = () =>
+    runWithOwner(owner, () => !props.disabled && props.content != null && props.content !== "") ??
+    false;
 
   return (
     <span
       class={`tooltip-anchor${props.class ? ` ${props.class}` : ""}`}
-      onFocusIn={() => showable() && scheduleOpen()}
+      onFocusIn={(event) => showable() && event.target.matches(":focus-visible") && scheduleOpen()}
       onFocusOut={scheduleClose}
       onMouseEnter={() => showable() && scheduleOpen()}
       onMouseLeave={scheduleClose}

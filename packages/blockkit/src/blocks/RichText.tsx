@@ -1,9 +1,10 @@
-import type {
-  RichTextBlock as RichTextBlockType,
-  RichTextInlineElement,
-  RichTextList as RichTextListType,
-  RichTextSection,
-  RichTextSubBlock,
+import {
+  isRichTextSubBlock,
+  type RichTextBlock as RichTextBlockType,
+  type RichTextInlineElement,
+  type RichTextList as RichTextListType,
+  type RichTextSection,
+  type RichTextSubBlock,
 } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
@@ -11,7 +12,7 @@ import { useBlockKitResolver } from "../context";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
 import { DateToken, Link, Mention, TimeAwareText, UsergroupMention } from "../mrkdwn";
-import { parseUserProfileLink } from "../userProfileLink";
+import { parseUserProfileLink } from "../mrkdwnInline";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
   const { el } = props;
@@ -46,9 +47,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       return unicode ? <span class="emoji">{unicode}</span> : <EmojiText text={`:${el.name}:`} />;
     }
     case "user":
-      return el.user_id ? <Mention id={el.user_id} kind="user" /> : null;
+      return el.user_id ? (
+        <Mention bold={el.style?.bold} id={el.user_id} kind="user" />
+      ) : null;
     case "channel":
-      return el.channel_id ? <Mention id={el.channel_id} kind="channel" /> : null;
+      return el.channel_id ? (
+        <Mention bold={el.style?.bold} id={el.channel_id} kind="channel" />
+      ) : null;
     case "usergroup":
       return el.usergroup_id ? <UsergroupMention id={el.usergroup_id} /> : null;
     case "broadcast":
@@ -135,13 +140,6 @@ function RichTextListView(props: { list: RichTextListType }) {
   );
 }
 
-const SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
-  "rich_text_section",
-  "rich_text_list",
-  "rich_text_preformatted",
-  "rich_text_quote",
-]);
-
 function SubBlockView(props: { sub: RichTextSubBlock }) {
   const { sub } = props;
   switch (sub.type) {
@@ -175,11 +173,11 @@ function QuoteContent(props: { elements: (RichTextInlineElement | RichTextSubBlo
     run = [];
   };
   for (const el of props.elements) {
-    if (SUB_BLOCK_TYPES.has(el.type as RichTextSubBlock["type"])) {
+    if (isRichTextSubBlock(el)) {
       flushRun();
-      nodes.push(<SubBlockView sub={el as RichTextSubBlock} />);
+      nodes.push(<SubBlockView sub={el} />);
     } else {
-      run.push(el as RichTextInlineElement);
+      run.push(el);
     }
   }
   flushRun();

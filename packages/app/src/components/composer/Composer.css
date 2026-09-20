@@ -104,9 +104,6 @@
   cursor: wait;
   opacity: 0.5;
 }
-.composer-file-chip-remove .icon {
-  transform: translateY(var(--icon-optical-shift));
-}
 .composer-send-status {
   align-self: center;
   margin: 0 var(--space-xs);
@@ -131,7 +128,6 @@
   min-width: 0;
   min-height: var(--composer-action-size);
 }
-/* same .bk-mention pill the sent message renders with - not clickable while composing though */
 .composer-input-wrap .bk-mention {
   cursor: text;
 }

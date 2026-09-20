@@ -58,7 +58,7 @@
   opacity: 0.65;
 }
 
-.user-profile-status-clear {
+button.user-profile-status-clear {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -68,17 +68,17 @@
   transition: opacity 0.1s;
 }
 
-.user-profile-status-edit:hover .user-profile-status-clear,
-.user-profile-status-edit:focus-within .user-profile-status-clear {
+.user-profile-status-edit:hover button.user-profile-status-clear,
+.user-profile-status-edit:focus-within button.user-profile-status-clear {
   opacity: 1;
 }
 
-.user-profile-status-clear:hover {
+button.user-profile-status-clear:hover {
   color: var(--text-primary);
   background: var(--hover-bg);
 }
 
-.user-profile-status-clear:disabled {
+button.user-profile-status-clear:disabled {
   cursor: wait;
   opacity: 0.65;
 }

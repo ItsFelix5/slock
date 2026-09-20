@@ -12,7 +12,8 @@ class EmojiBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: EmojiValue) {
-    const node = super.create(value) as HTMLElement;
+    const node = super.create(value);
+    if (!(node instanceof HTMLElement)) throw new Error("emoji blot produced a non-element node");
     node.className = "bk-composer-emoji";
     node.dataset.name = value.name;
     node.title = `:${value.name}:`;
@@ -43,7 +44,6 @@ export function resolvedEmojiName(name: string): boolean {
 }
 
 export function emojiValue(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") return;
-  const { name } = value as Record<string, unknown>;
-  return typeof name === "string" ? name : undefined;
+  if (!(value && typeof value === "object" && "name" in value)) return;
+  return typeof value.name === "string" ? value.name : undefined;
 }

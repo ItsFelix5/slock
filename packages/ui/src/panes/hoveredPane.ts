@@ -8,13 +8,14 @@ if (typeof document !== "undefined") {
   document.addEventListener(
     "mouseover",
     (event) => {
-      const pane = (event.target as Element | null)?.closest<HTMLElement>("[data-pane]");
+      const target = event.target instanceof Element ? event.target : null;
+      const pane = target?.closest<HTMLElement>("[data-pane]");
       setHoveredPaneId(pane?.dataset.pane ?? null);
     },
     true,
   );
   document.addEventListener("mouseout", (event) => {
-    const related = event.relatedTarget as Element | null;
+    const related = event.relatedTarget instanceof Element ? event.relatedTarget : null;
     if (!related?.closest("[data-pane]")) setHoveredPaneId(null);
   });
   window.addEventListener(

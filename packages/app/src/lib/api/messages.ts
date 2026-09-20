@@ -8,6 +8,7 @@ import {
   HIDE_SUBTYPES,
   mapMessage,
 } from "@slock/types";
+import { store } from "../store";
 
 export { fetchHistory, fetchHistoryAround, fetchHistoryNewer } from "./messageHistory";
 
@@ -75,6 +76,10 @@ export async function postMessage(
   return data;
 }
 
+export function isMine(msg: Message): boolean {
+  return store.users.currentUser()?.id === msg.userId; // || (msg.botId === "B0BU242DJHM" && );
+}
+
 const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
   bot_not_configured: "The broadcast bot isn't set up on this server.",
   not_a_channel_manager: "Only channel managers can send @channel or @here here.",
@@ -100,9 +105,16 @@ export async function postBroadcastMessage(
   return data;
 }
 
-export async function editMessage(channelId: string, ts: string, text: string, blocks?: unknown) {
+export async function editMessage(
+  channelId: string,
+  ts: string,
+  text: string,
+  blocks?: unknown,
+  relayed?: boolean,
+) {
   const body: Record<string, unknown> = { text };
   if (blocks) body.blocks = blocks;
+  if (relayed) body.relayed = true;
   const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
@@ -116,8 +128,11 @@ export async function broadcastReply(channelId: string, ts: string) {
   return data;
 }
 
-export async function deleteMessage(channelId: string, ts: string) {
-  const data = await apiDelete(`/api/channels/${channelId}/messages/${ts}`);
+export async function deleteMessage(channelId: string, ts: string, relayed?: boolean) {
+  const data = await apiDelete(
+    `/api/channels/${channelId}/messages/${ts}`,
+    relayed ? { relayed: true } : undefined,
+  );
   if (!data.ok) throw new Error(data.error ?? "chat.delete failed");
   return data;
 }
@@ -209,11 +224,4 @@ export async function searchMessages(
   const data = await apiGet(`/api/search/messages?${params}`);
   if (!data.ok) throw new Error(data.error ?? "search.messages failed");
   return data.results ?? [];
-}
-
-export async function fetchSearchAutocomplete(query: string): Promise<string[]> {
-  if (!query.trim()) return [];
-  const data = await apiGet(`/api/search/autocomplete?query=${encodeURIComponent(query)}`);
-  if (!data.ok) return [];
-  return data.suggestions ?? [];
 }

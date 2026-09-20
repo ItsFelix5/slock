@@ -13,7 +13,8 @@ class DateBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: DateValue) {
-    const node = super.create(value) as HTMLElement;
+    const node = super.create(value);
+    if (!(node instanceof HTMLElement)) throw new Error("date blot produced a non-element node");
     node.className = "bk-date";
     node.dataset.ts = String(value.ts);
     node.dataset.format = value.format;
@@ -31,8 +32,17 @@ class DateBlot extends getEmbedBlot() {
 Quill.register(DateBlot);
 
 export function dateValue(value: unknown): DateValue | undefined {
-  if (!value || typeof value !== "object") return;
-  const { ts, format, fallback } = value as Record<string, unknown>;
+  if (
+    !(
+      value &&
+      typeof value === "object" &&
+      "ts" in value &&
+      "format" in value &&
+      "fallback" in value
+    )
+  )
+    return;
+  const { ts, format, fallback } = value;
   return typeof ts === "number" && typeof format === "string" && typeof fallback === "string"
     ? { fallback, format, ts }
     : undefined;

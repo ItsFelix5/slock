@@ -1,5 +1,4 @@
 import { Avatar } from "@slock/ui";
-import { createMemo } from "solid-js";
 import type { User } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import ComposePicker from "./ComposePicker";
@@ -11,16 +10,16 @@ export default function ComposeUserPicker(props: {
   onSelect: (userId: string) => void;
   onClose: () => void;
 }) {
-  const excludedUserIds = createMemo(() => new Set(props.excludeUserIds ?? []));
+  const excludedUserIds = () => new Set(props.excludeUserIds ?? []);
 
-  const localUsers = createMemo(() => {
+  const localUsers = () => {
     const me = store.users.currentUser();
     const users = new Map(store.users.knownUsers().map((user) => [user.id, user]));
     if (props.includeCurrentUser && me) users.set(me.id, me);
     return [...users.values()].filter(
       (user) => !excludedUserIds().has(user.id) && (props.includeCurrentUser || user.id !== me?.id),
     );
-  });
+  };
 
   return (
     <ComposePicker<User>

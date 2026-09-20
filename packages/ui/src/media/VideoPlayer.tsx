@@ -1,12 +1,17 @@
 import { createEffect, createSignal, For, type JSX, on, onCleanup, Show } from "solid-js";
 import IconButton from "../button/IconButton";
-import { formatDuration } from "../formatDuration";
 import Menu from "../overlay/menu/Menu";
 import MenuItem from "../overlay/menu/MenuItem";
+import { startFrameCoalescedPointerDrag } from "../pointerDrag";
 import { createMediaVolume } from "./createMediaVolume";
 import Icon from "./Icon";
 import "./VideoPlayer.css";
 import VolumeControl from "./VolumeControl";
+
+export function formatDuration(seconds: number | undefined): string {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds ?? 0)) : 0;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const pipSupported = typeof document !== "undefined" && document.pictureInPictureEnabled;
@@ -15,6 +20,8 @@ export interface VideoPlayerProps {
   ariaLabel: string;
   captionsSrc?: string;
   class?: string;
+  downloadHref?: string;
+  downloadName?: string;
   duration?: number;
   height?: number;
   openHref?: string;
@@ -41,7 +48,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [speedOpen, setSpeedOpen] = createSignal(false);
   const [captionsOn, setCaptionsOn] = createSignal(false);
 
-  const duration = () => mediaDuration() ?? props.duration ?? 0;
+  const duration = () => props.duration ?? mediaDuration() ?? 0;
   const progress = () =>
     duration() > 0 ? Math.min(1, Math.max(0, currentTime() / duration())) : 0;
 
@@ -88,19 +95,26 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     seekTo((event.clientX - rect.left) / rect.width);
   };
 
-  const startScrub = (event: PointerEvent) => {
-    const track = event.currentTarget as HTMLElement;
+  const startScrub = (event: PointerEvent & { currentTarget: HTMLElement }) => {
+    const track = event.currentTarget;
     seekFromPointer(event, track);
-    const onMove = (moveEvent: PointerEvent) => seekFromPointer(moveEvent, track);
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    startFrameCoalescedPointerDrag((moveEvent) => seekFromPointer(moveEvent, track));
   };
 
-  const handleSeekKeyDown = (event: KeyboardEvent) => {
+  const handlePlayerKeyDown = (event: KeyboardEvent) => {
+    switch (event.key) {
+      case " ":
+      case "k":
+        event.preventDefault();
+        void togglePlayback();
+        return;
+      case "m":
+        mediaVolume.setMuted(!mediaVolume.muted());
+        return;
+      case "f":
+        toggleFullscreen();
+        return;
+    }
     if (duration() <= 0) return;
     let nextTime: number | undefined;
     if (event.key === "ArrowLeft") nextTime = currentTime() - 5;
@@ -173,12 +187,16 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       }
       when={!failed()}
     >
-      <div class="video-player-wrap" ref={wrapRef}>
+      <div class="video-player-wrap" onKeyDown={handlePlayerKeyDown} ref={wrapRef} tabIndex={-1}>
         <video
           aria-label={props.ariaLabel}
           class={props.class}
           height={props.height}
-          onClick={togglePlayback}
+          width={props.width}
+          onClick={() => {
+            togglePlayback();
+            wrapRef?.focus();
+          }}
           onEnded={() => setPlaying(false)}
           onError={() => setFailed(true)}
           onLoadedMetadata={(event) => {
@@ -201,6 +219,14 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             props.ref?.(element);
           }}
           src={props.src}
+          style={
+            props.width && props.height
+              ? {
+                  "aspect-ratio": `${props.width} / ${props.height}`,
+                  width: `min(${props.width}px, 100%)`,
+                }
+              : undefined
+          }
         >
           <Show when={props.captionsSrc}>
             {(src) => <track kind="captions" label="Transcript" src={src()} srclang="en" />}
@@ -209,7 +235,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
         <div class="video-player-idle flex-align-center">
           <IconButton
-            aria-label={playing() ? "Pause" : "Play"}
             circular
             class="video-player-chrome"
             icon={playing() ? "pause-filled" : "play-filled"}
@@ -218,7 +243,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             size="sm"
           />
           <Show when={duration()}>
-            <span class="video-player-time">{formatDuration(duration())}</span>
+            <span class="video-player-time">
+              {formatDuration(currentTime() > 0 ? currentTime() : duration())}
+            </span>
           </Show>
         </div>
 
@@ -227,7 +254,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           <a
             aria-label="Download"
             class="btn-reset icon-btn icon-action video-player-chrome sm"
-            href={props.openHref}
+            download={props.downloadName ?? ""}
+            href={props.downloadHref ?? props.openHref}
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -235,7 +263,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           </a>
           <Show when={pipSupported}>
             <IconButton
-              aria-label="Picture in picture"
               class="video-player-chrome"
               icon="open-in-window"
               iconSize={14}
@@ -244,7 +271,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             />
           </Show>
           <IconButton
-            aria-label={fullscreen() ? "Exit fullscreen" : "Fullscreen"}
             class="video-player-chrome"
             icon={fullscreen() ? "reduce-diagonal" : "expand-diagonal"}
             iconSize={14}
@@ -261,7 +287,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             aria-valuenow={currentTime()}
             aria-valuetext={`${formatDuration(currentTime())} of ${formatDuration(duration())}`}
             class="video-player-seek"
-            onKeyDown={handleSeekKeyDown}
             onPointerDown={startScrub}
             role="slider"
             tabIndex={0}
@@ -280,7 +305,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
           <div class="video-player-controls-row flex-align-center">
             <IconButton
-              aria-label={playing() ? "Pause" : "Play"}
               class="video-player-chrome"
               icon={playing() ? "pause-filled" : "play-filled"}
               iconSize={15}
@@ -330,7 +354,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
               <Show when={props.captionsSrc}>
                 <IconButton
                   active={captionsOn()}
-                  aria-label={captionsOn() ? "Hide captions" : "Show captions"}
                   class="video-player-chrome"
                   icon={captionsOn() ? "closed-caption-filled" : "closed-caption"}
                   iconSize={14}

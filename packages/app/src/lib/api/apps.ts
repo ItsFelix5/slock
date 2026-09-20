@@ -1,9 +1,15 @@
 import type { MessageShortcut } from "@slock/types";
-import { apiGet, apiPost, getOrCreateRetryablePromise, resolveMediaUrl } from "@slock/types";
+import {
+  ApiError,
+  apiGet,
+  apiPost,
+  getOrCreateRetryablePromise,
+  resolveMediaUrl,
+} from "@slock/types";
 
 export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
   const data = await apiGet("/api/message-shortcuts");
-  if (!data.ok) throw new Error(data.error ?? "client.appCommands failed");
+  if (!data.ok) throw new ApiError(data.error ?? "client.appCommands failed", data.retry_after);
   const shortcuts: any[] = data.shortcuts ?? [];
   return shortcuts.map((s) => ({
     ...s,

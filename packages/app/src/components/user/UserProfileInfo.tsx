@@ -1,12 +1,11 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Icon } from "@slock/ui";
+import { AvatarImage, Icon } from "@slock/ui";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import type { User } from "../../lib/api";
 import { store } from "../../lib/store";
-import AppBadge from "./AppBadge";
+import { AppBadge } from "./AppBadge";
 import UserProfileStatus from "./UserProfileStatus";
-import { formatStartDate } from "./userProfileTime";
 
 interface UserProfileInfoProps {
   isSelf: () => boolean;
@@ -31,12 +30,11 @@ interface UserProfileInfoProps {
   nicknameInput: () => string;
   setNicknameInput: (value: string) => void;
   savingProfileFields: () => Record<string, boolean>;
-  blurOnEnter: (e: KeyboardEvent) => void;
+  blurOnEnter: (e: KeyboardEvent & { currentTarget: HTMLElement }) => void;
   statusText: () => string;
   setStatusText: (value: string) => void;
   statusEmoji: () => string;
   setStatusEmoji: (value: string) => void;
-  startDate: () => string | undefined;
   savingStatus: () => boolean;
   saveStatus: () => Promise<void>;
   clearStatus: () => Promise<void>;
@@ -51,13 +49,26 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
   const u = props.user;
 
   let titleRef: HTMLTextAreaElement | undefined;
-  let titleResizeObserver: ResizeObserver | undefined;
   const [photoInputRef, setPhotoInputRef] = createSignal<HTMLInputElement>();
   createEffect(() => {
     props.titleInput();
     if (titleRef) autoGrowTitle(titleRef);
   });
-  onCleanup(() => titleResizeObserver?.disconnect());
+  const onWindowResize = () => titleRef && autoGrowTitle(titleRef);
+  window.addEventListener("resize", onWindowResize);
+  onCleanup(() => window.removeEventListener("resize", onWindowResize));
+  const onWindowPaste = (event: ClipboardEvent) => {
+    if (!props.isSelf() || props.isSavingProfilePhoto()) return;
+    const target = event.target;
+    if (target instanceof HTMLElement && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+    const item = Array.from(event.clipboardData?.items ?? []).find((i) =>
+      i.type.startsWith("image/"),
+    );
+    const file = item?.getAsFile();
+    if (file) props.onProfilePhotoSelected(file);
+  };
+  window.addEventListener("paste", onWindowPaste);
+  onCleanup(() => window.removeEventListener("paste", onWindowPaste));
   return (
     <>
       <div class="user-profile-avatar-wrap">
@@ -80,14 +91,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
           style={{ background: u().avatarColor }}
           type={props.isSelf() ? "button" : undefined}
         >
-          <span aria-hidden="true">?</span>
-          <img
-            alt=""
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-            src={u().avatarUrl}
-          />
+          <AvatarImage avatarUrl={u().avatarUrl} />
           <Show when={props.isSelf()}>
             <input
               accept="image/*"
@@ -157,9 +161,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
               placeholder="Title"
               ref={(el) => {
                 titleRef = el;
-                titleResizeObserver?.disconnect();
-                titleResizeObserver = new ResizeObserver(() => autoGrowTitle(el));
-                titleResizeObserver.observe(el.parentElement ?? el);
+                autoGrowTitle(el);
               }}
               rows={1}
               value={props.titleInput()}
@@ -179,34 +181,41 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
         }
         when={!props.isSelf()}
       >
-        <h2 class="user-profile-name">
-          <span class="user-profile-name-label">{u().originalName ?? u().name}</span>
+        <div class="user-profile-name">
+          <input
+            aria-label="Name"
+            class="user-profile-name-input"
+            onBlur={props.saveNickname}
+            onInput={(e) => props.setNicknameInput(e.currentTarget.value)}
+            onKeyDown={props.blurOnEnter}
+            type="text"
+            value={props.nicknameInput() || (u().originalName ?? u().name)}
+          />
           <Show when={u().isBot}>
             <AppBadge />
           </Show>
-          <Show when={u().pronouns}>
-            <span class="pronouns">({u().pronouns})</span>
+          <Show when={!props.nicknameInput().trim() && u().realName && u().realName !== u().name}>
+            <span class="text-dim text-sm">({u().realName})</span>
           </Show>
-        </h2>
+        </div>
+        <Show
+          when={
+            props.nicknameInput().trim() &&
+            props.nicknameInput().trim() !== (u().originalName ?? u().name)
+          }
+        >
+          <p class="user-profile-original-name text-dim text-sm">{u().originalName ?? u().name}</p>
+        </Show>
         <Show when={u().title || props.botBio()}>
-          <p class="user-profile-title text-muted">
+          <p class="user-profile-title">
             <Show fallback={<Mrkdwn text={props.botBio() ?? ""} />} when={u().title}>
               {u().title}
             </Show>
           </p>
         </Show>
-        <div class="user-profile-nickname">
-          <input
-            aria-label="Nickname"
-            class="user-profile-nickname-input"
-            onBlur={props.saveNickname}
-            onInput={(e) => props.setNicknameInput(e.currentTarget.value)}
-            onKeyDown={props.blurOnEnter}
-            placeholder="Add a nickname"
-            type="text"
-            value={props.nicknameInput()}
-          />
-        </div>
+        <Show when={u().pronouns}>
+          <p class="user-profile-title pronouns">{u().pronouns}</p>
+        </Show>
       </Show>
       <UserProfileStatus
         clearStatus={props.clearStatus}
@@ -227,17 +236,12 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
       <Show when={props.lastSeenText()}>
         <p class="user-profile-meta text-muted text-sm">Last seen {props.lastSeenText()}</p>
       </Show>
-      <Show when={formatStartDate(props.startDate())}>
-        <p class="user-profile-meta text-muted text-sm">
-          Started {formatStartDate(props.startDate())}
-        </p>
-      </Show>
       <Show when={!props.isSelf()}>
         <div class="user-profile-actions">
           <button
             class="user-profile-message-btn flex-center"
             disabled={store.dms.isOpenDmPending(u().id)}
-            onClick={() => store.dms.openDmWithUser(u().id)}
+            onClick={(e) => store.dms.openDmWithUser(u().id, { split: e.shiftKey })}
             type="button"
           >
             <Icon name="direct-messages-filled" size={15} />

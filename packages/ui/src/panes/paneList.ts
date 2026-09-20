@@ -4,6 +4,14 @@ export interface Pane<T> {
   size: number;
 }
 
+export function narrowPaneContent<AllContent extends { kind: string }, T extends AllContent>(
+  pane: Pane<AllContent | null>,
+  kind: T["kind"],
+): Pane<T> | undefined {
+  const generic: any = pane;
+  return pane.content?.kind === kind ? generic : undefined;
+}
+
 let nextId = 0;
 export function createPaneId(): string {
   nextId += 1;
@@ -36,7 +44,7 @@ export function insertPane<T>(
   fraction = 0.5,
 ): Pane<T>[] {
   const index = afterId ? panes.findIndex((p) => p.id === afterId) : -1;
-  const insertAt = index === -1 ? panes.length : index + 1;
+  const insertAt = index + 1;
   const sizes = redistributeForInsert(
     panes.map((p) => p.size),
     insertAt,

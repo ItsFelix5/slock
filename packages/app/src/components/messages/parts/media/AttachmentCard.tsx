@@ -6,16 +6,24 @@ import {
   LegacyAttachmentActions,
   Mrkdwn,
 } from "@slock/blockkit";
-import { ConstrainedImage, Icon, MediaFrame, VideoPlayer } from "@slock/ui";
+import {
+  ConstrainedImage,
+  constrainMediaDimensions,
+  Icon,
+  MediaFrame,
+  VideoPlayer,
+} from "@slock/ui";
 import { For, Show } from "solid-js";
-import type { Attachment } from "../../../../lib/api";
+import { type Attachment, fetchMessagesByIds } from "../../../../lib/api";
 import { channelIconName, conversationDisplayName } from "../../../../lib/displayName";
+import {
+  openConversationInSplit,
+  viewForConversation,
+} from "../../../../lib/navigation/conversationNav";
 import { store } from "../../../../lib/store";
-import { viewForConversation } from "../../../navigation/SplitNavigation";
-import { MessageAuthorButton } from "../../message-author-buttons";
+import { MessageAuthorButton } from "../../MessageAuthorButtons";
 import "./AttachmentCard.css";
 import MessageFiles from "./MessageFiles";
-import { constrainMediaDimensions } from "./mediaDimensions";
 
 const URL_SUFFIX_PATTERN = /[?#]/;
 
@@ -28,8 +36,8 @@ function AttachmentImage(props: { attachment: Attachment; large?: boolean }) {
   const a = props.attachment;
   const dimensions = () =>
     props.large
-      ? constrainMediaDimensions(a.imageWidth, a.imageHeight, 360, 320, 360, 180, true)
-      : constrainMediaDimensions(a.imageWidth, a.imageHeight, 240, 200, 240, 160, true);
+      ? constrainMediaDimensions(a.imageWidth, a.imageHeight, 360, 320, 360, 180)
+      : constrainMediaDimensions(a.imageWidth, a.imageHeight, 240, 200, 240, 160);
   return (
     <Show when={a.imageUrl}>
       {(url) => (
@@ -136,6 +144,12 @@ function MessageUnfurl(props: { attachment: Attachment }) {
   const dm = () => (a.channelId ? store.dms.dmById(a.channelId) : undefined);
   const channel = () =>
     a.channelId && !dm() ? store.channels.channelById(a.channelId) : undefined;
+  const canViewMessage = () => {
+    if (!a.channelId) return false;
+    if (store.dms.conversationKind(a.channelId) === "dm") return !!dm();
+    const c = channel();
+    return !c?.private || store.channels.isChannelMember(c.id);
+  };
   const location = () =>
     a.channelId
       ? conversationDisplayName(
@@ -150,17 +164,22 @@ function MessageUnfurl(props: { attachment: Attachment }) {
     return label.startsWith("#") ? label.slice(1) : label;
   };
   const openConversation = (event: MouseEvent) => {
-    if (
-      !a.channelId ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    )
+    if (!a.channelId || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey)
       return;
     event.preventDefault();
+    if (event.shiftKey) {
+      openConversationInSplit(a.channelId);
+      return;
+    }
     store.viewState.setActiveView(viewForConversation(a.channelId));
+  };
+  const openAuthorProfile = async () => {
+    const channelId = a.channelId;
+    const ts = a.ts;
+    if (!(channelId && ts)) return;
+    const messages = await fetchMessagesByIds([{ channelId, ts }]);
+    const userId = messages.get(`${channelId}:${ts}`)?.userId;
+    if (userId) store.users.openUserProfile(userId);
   };
 
   return (
@@ -177,7 +196,11 @@ function MessageUnfurl(props: { attachment: Attachment }) {
               <img alt="" class="attachment-message-author-icon" loading="lazy" src={icon()} />
             )}
           </Show>
-          <MessageAuthorButton disabled name={a.authorName ?? ""} onClick={() => {}} />
+          <MessageAuthorButton
+            disabled={!(a.channelId && a.ts)}
+            name={a.authorName ?? ""}
+            onClick={openAuthorProfile}
+          />
         </div>
       </Show>
       <AttachmentContent attachment={a} isUnfurl />
@@ -203,7 +226,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
                 </>
               )}
             </Show>
-            <Show when={a.fromUrl}>
+            <Show when={a.fromUrl && canViewMessage() ? a.fromUrl : undefined}>
               {(url) => (
                 <>
                   <span aria-hidden="true">|</span>

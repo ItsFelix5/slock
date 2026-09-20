@@ -20,8 +20,11 @@
   opacity: 0.55;
 }
 
-.mrkdwn-composer-input.composer-input {
+.mrkdwn-composer .ql-editor-root {
   min-width: 0;
+}
+
+.mrkdwn-composer .ql-editor {
   min-height: 36px;
   max-height: 120px;
   padding: 8px 10px;
@@ -32,26 +35,22 @@
   color: var(--text-primary);
   word-break: break-word;
   cursor: text;
-  resize: none;
-  field-sizing: content;
-  background: transparent;
-  border: 0;
 }
 
-.mrkdwn-composer.multiline .mrkdwn-composer-input {
+.mrkdwn-composer.multiline .ql-editor {
   min-height: 64px;
 }
 
-.mrkdwn-composer-input:focus {
+.mrkdwn-composer .ql-editor:focus {
   outline: none;
 }
 
-.mrkdwn-composer-input::placeholder {
-  color: var(--text-dim);
-  opacity: 1;
+.mrkdwn-composer .bk-mention,
+.mrkdwn-composer .bk-composer-emoji {
+  cursor: text;
 }
 
-.mrkdwn-composer > .composer-suggest-popover {
+.mrkdwn-composer > .menu-panel.composer-suggest-popover {
   top: calc(100% + 4px);
   right: 0;
   bottom: auto;

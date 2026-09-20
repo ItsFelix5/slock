@@ -1,9 +1,9 @@
-import { EmojiText } from "@slock/blockkit";
-import { Icon, Tooltip } from "@slock/ui";
+import { EmojiFreezeContext, EmojiText } from "@slock/blockkit";
+import { Icon, showUserStatuses, Tooltip, useElementVisible } from "@slock/ui";
 import { type Accessor, createResource, Show } from "solid-js";
 import { fetchUserStatus, type Message, type User } from "../../lib/api";
 import UserHoverCard from "../user/UserHoverCard";
-import { MessageAuthorButton } from "./message-author-buttons";
+import { MessageAuthorButton } from "./MessageAuthorButtons";
 import { isRealUserId } from "./parts/messageRenderState";
 
 export default function MessageMeta(props: {
@@ -11,6 +11,7 @@ export default function MessageMeta(props: {
   user: Accessor<User | undefined>;
   displayName: () => string;
   isPinned: () => boolean;
+  isSaved: () => boolean;
   botUserId?: string;
   onOpenBot: () => void;
   onOpenUser: () => void;
@@ -19,15 +20,17 @@ export default function MessageMeta(props: {
   userId?: string;
 }) {
   const msg = props.message;
+  const { ref: visibleRef, visible } = useElementVisible();
   const [status] = createResource(
     () => {
       const user = props.user();
+      if (!(showUserStatuses() && visible())) return;
       return isRealUserId(props.userId) && user && !user.isBot ? props.userId : undefined;
     },
     (userId) => fetchUserStatus(userId).catch(() => undefined),
   );
   return (
-    <div class="message-meta">
+    <div class="message-meta" ref={visibleRef}>
       <Show
         fallback={<MessageAuthorButton disabled name={props.displayName()} onClick={() => {}} />}
         when={props.userId}
@@ -38,7 +41,7 @@ export default function MessageMeta(props: {
               disabled={false}
               name={props.displayName()}
               onClick={props.onOpenUser}
-              status={status()}
+              status={showUserStatuses() ? status() : undefined}
               tabbable={props.tabbable?.()}
             />
           </UserHoverCard>
@@ -48,7 +51,9 @@ export default function MessageMeta(props: {
         {(emoji) => (
           <Tooltip content={props.user()?.statusText}>
             <span class="message-status-emoji">
-              <EmojiText text={emoji()} />
+              <EmojiFreezeContext.Provider value="still">
+                <EmojiText text={emoji()} />
+              </EmojiFreezeContext.Provider>
             </span>
           </Tooltip>
         )}
@@ -79,7 +84,7 @@ export default function MessageMeta(props: {
           Only visible to you
         </span>
       </Show>
-      <Show when={props.message.isSaved}>
+      <Show when={props.isSaved()}>
         <span class="message-saved-badge">
           <Icon name="bookmark-filled" size={11} />
           Saved

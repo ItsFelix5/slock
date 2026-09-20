@@ -1,19 +1,28 @@
-import { Mrkdwn } from "@slock/blockkit";
 import {
   Button,
+  ContextMenu,
+  DEFAULT_AVATAR_COLOR,
+  IconButton,
   InlineFeedback,
   initRovingTabIndexDefault,
   type Pane,
   PanelHeader,
-  Tooltip,
+  useContextMenu,
 } from "@slock/ui";
-import { For, Show } from "solid-js";
+import { createEffect, For, on, Show } from "solid-js";
 import { conversationDisplayName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
-import { closeTile } from "../../lib/paneActions";
+import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
 import type { PinnedPaneContent } from "../../lib/store/slices/types";
-import { viewForConversation } from "../navigation/SplitNavigation";
+import MessageActionsMenuItems from "../messages/parts/MessageActionsMenuItems";
+import MessageReferenceSnippet from "../messages/parts/MessageReferenceSnippet";
+import {
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  resolveProfileUserId,
+} from "../messages/parts/messageRenderState";
+import ResultMessageCard from "../messages/parts/ResultMessageCard";
 import "./PinnedPanel.css";
 
 export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
@@ -25,14 +34,17 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
   const loading = () => store.pinned.isPinnedMessagesLoading(channelId());
   const loadError = () => store.pinned.hasPinnedMessagesError(channelId());
 
+  createEffect(on(channelId, (id) => store.pinned.refreshPinnedMessages(id)));
+
   const title = () =>
     `Pinned in ${conversationDisplayName(channelId(), store.channels.channelById, store.dms.dmById, store.users.userById)}`;
 
-  const goTo = (ts: string) => {
+  const goTo = (ts: string, threadTs: string | undefined) => {
     const id = channelId();
-    store.viewState.setActiveView(viewForConversation(id));
-    store.viewState.openThread(id, ts, ts);
-    closeTile(props.pane.id);
+    if (threadTs && threadTs !== ts)
+      store.viewState.openChannelPeek(id, threadTs, ts, { keepNav: true });
+    else store.viewState.openChannelMessage(id, ts, { keepNav: true });
+    store.viewState.closeTile(props.pane.id);
   };
 
   const unpin = async (id: string, ts: string) => {
@@ -43,7 +55,10 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
 
   return (
     <div class="pinned-panel-card surface-card" data-pane={props.pane.id}>
-      <PanelHeader onClose={() => closeTile(props.pane.id)}>
+      <PanelHeader
+        canClose={store.viewState.canCloseTile()}
+        onClose={() => store.viewState.closeTile(props.pane.id)}
+      >
         <div class="pinned-panel-title">{title()}</div>
       </PanelHeader>
       <div class="pinned-panel-list" ref={listRef}>
@@ -69,34 +84,83 @@ export default function PinnedPanel(props: { pane: Pane<PinnedPaneContent> }) {
             >
               {(pin) => (
                 <Show when={pin.message}>
-                  {(msg) => (
-                    <div class="pinned-panel-item">
-                      <button
-                        class="pinned-panel-item-main btn-reset"
-                        data-nav-row
-                        onClick={() => goTo(pin.ts)}
-                        tabIndex={-1}
-                        type="button"
-                      >
-                        <Mrkdwn text={msg().text} />
-                      </button>
-                      <Tooltip content="Unpin">
-                        <button
-                          class="pinned-panel-unpin"
-                          disabled={store.pinned.isPinPending(channelId(), pin.ts)}
-                          onClick={() => unpin(channelId(), pin.ts)}
-                          type="button"
+                  {(msg) => {
+                    const profileUserId = () => resolveProfileUserId(msg());
+                    const user = () => {
+                      const id = profileUserId();
+                      return id ? store.users.userById(id) : undefined;
+                    };
+                    const displayName = () =>
+                      resolveAuthorDisplayName(msg(), user()?.name, "Unknown");
+                    const avatarUrl = () => resolveAuthorAvatarUrl(msg(), user()?.avatarUrl);
+                    const pending = () => store.pinned.isPinPending(channelId(), pin.ts);
+                    const ctxMenu = useContextMenu();
+                    const openMessage = () => goTo(pin.ts, msg().threadTs);
+                    return (
+                      <div class="pinned-panel-item">
+                        <ResultMessageCard
+                          avatarUser={{
+                            avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
+                            avatarUrl: avatarUrl(),
+                            id: profileUserId() ?? msg().userId,
+                            name: displayName(),
+                          }}
+                          ctxMenu={ctxMenu}
+                          name={displayName()}
+                          navRow
+                          onOpen={openMessage}
+                          onSplit={() =>
+                            openConversationInSplit(channelId(), msg().threadTs ?? pin.ts)
+                          }
+                          snippet={
+                            <MessageReferenceSnippet
+                              blocks={msg().blocks}
+                              botId={msg().botId}
+                              botUserId={msg().userId}
+                              channelId={channelId()}
+                              edited={msg().edited}
+                              text={msg().text}
+                              threadTs={msg().threadTs}
+                              ts={msg().ts}
+                              tz={user()?.tz}
+                            />
+                          }
+                          tabIndex={-1}
+                          time={msg().time}
+                          timeTitle={`${msg().day} at ${msg().time}`}
+                          trailing={
+                            <IconButton
+                              disabled={pending()}
+                              icon="pin-filled"
+                              label="Unpin from channel"
+                              onClick={() => unpin(channelId(), pin.ts)}
+                              tone="accent"
+                            />
+                          }
+                          userId={profileUserId()}
+                        />
+                        <InlineFeedback
+                          class="pinned-panel-feedback"
+                          feedback={actionFeedback.get(pin.ts)}
+                          priority={2}
+                        />
+                        <ContextMenu
+                          onClose={ctxMenu.close}
+                          open={ctxMenu.isOpen()}
+                          x={ctxMenu.x()}
+                          y={ctxMenu.y()}
                         >
-                          Unpin
-                        </button>
-                      </Tooltip>
-                      <InlineFeedback
-                        class="pinned-panel-feedback"
-                        feedback={actionFeedback.get(pin.ts)}
-                        priority={2}
-                      />
-                    </div>
-                  )}
+                          <MessageActionsMenuItems
+                            channelId={channelId()}
+                            msg={msg()}
+                            onClose={ctxMenu.close}
+                            onEditRequest={openMessage}
+                            threadTs={msg().threadTs}
+                          />
+                        </ContextMenu>
+                      </div>
+                    );
+                  }}
                 </Show>
               )}
             </For>

@@ -1,7 +1,20 @@
-import { createEffect, type JSX, onCleanup, Show, useContext } from "solid-js";
+import {
+  createContext,
+  createEffect,
+  getOwner,
+  type JSX,
+  onCleanup,
+  runWithOwner,
+  Show,
+  useContext,
+} from "solid-js";
 import { Portal } from "solid-js/web";
-import { FloatingMountContext } from "./floatingMountContext";
-import { clamp } from "./viewportClamp";
+
+export const FloatingMountContext = createContext<() => Element | undefined>();
+
+export function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
 
 export type VerticalPlacement = "top" | "bottom";
 export type HorizontalPlacement = "left" | "right";
@@ -71,6 +84,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
   let frame: number | undefined;
   let resizeObserver: ResizeObserver | undefined;
   const parentMount = useContext(FloatingMountContext);
+  const owner = getOwner();
 
   const position = () => {
     const anchorElement = props.anchor();
@@ -118,18 +132,24 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     cancelAnimationFrame(frame ?? 0);
     frame = requestAnimationFrame(() => {
       frame = undefined;
-      position();
+      runWithOwner(owner, position);
     });
   };
 
   const handleScroll = (e: Event) => {
     if (panel && e.target instanceof Node && panel.contains(e.target)) return;
+    const anchorElement = props.anchor();
+    if (!(e.target instanceof Node && anchorElement)) return;
+    const scrollAffectsAnchor = e.target === anchorElement || e.target.contains(anchorElement);
+    if (!scrollAffectsAnchor) return;
     props.onScroll?.();
   };
 
+  const onResize = () => runWithOwner(owner, schedulePosition);
+
   createEffect(() => {
     if (!props.open) return;
-    window.addEventListener("resize", schedulePosition);
+    window.addEventListener("resize", onResize);
     if (props.onScroll) window.addEventListener("scroll", handleScroll, true);
     onCleanup(() => {
       cancelAnimationFrame(frame ?? 0);
@@ -137,7 +157,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
       resizeObserver = undefined;
       panel = undefined;
       props.panelRef?.(undefined);
-      window.removeEventListener("resize", schedulePosition);
+      window.removeEventListener("resize", onResize);
       if (props.onScroll) window.removeEventListener("scroll", handleScroll, true);
     });
   });
@@ -155,7 +175,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
             panel = element;
             props.panelRef?.(element);
             resizeObserver?.disconnect();
-            resizeObserver = new ResizeObserver(schedulePosition);
+            resizeObserver = new ResizeObserver(() => runWithOwner(owner, schedulePosition));
             resizeObserver.observe(element);
             const anchorElement = props.anchor();
             if (anchorElement) resizeObserver.observe(anchorElement);

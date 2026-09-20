@@ -183,13 +183,7 @@ export function trimMessage(message: any): any {
     icons: trimIcons(message.icons),
     is_ephemeral: message.is_ephemeral,
     latest_reply: message.latest_reply,
-    metadata: message.metadata?.event_payload?.source_user_id
-      ? {
-          event_payload: {
-            source_user_id: message.metadata.event_payload.source_user_id,
-          },
-        }
-      : undefined,
+    metadata: message.metadata,
     reactions: Array.isArray(message.reactions)
       ? message.reactions.map((reaction: any) => ({
           count: reaction?.count,
@@ -261,6 +255,12 @@ export function trimChannel(channel: any): any {
     properties: channel.properties
       ? {
           has_custom_mpdm_name: channel.properties.has_custom_mpdm_name,
+          canvas: channel.properties.canvas?.file_id
+            ? {
+                file_id: channel.properties.canvas.file_id,
+                quip_thread_id: channel.properties.canvas.quip_thread_id,
+              }
+            : undefined,
           channel_email_addresses: Array.isArray(channel.properties.channel_email_addresses)
             ? channel.properties.channel_email_addresses.map((entry: any) => ({
                 address: entry?.address,

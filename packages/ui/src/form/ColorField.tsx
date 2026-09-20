@@ -5,6 +5,7 @@ import OklchColorPicker from "./OklchColorPicker";
 import "./ColorField.css";
 
 export interface ColorFieldProps {
+  displayValue?: string;
   label: string;
   onChange: (value: string) => void;
   onReset: () => void;
@@ -13,12 +14,12 @@ export interface ColorFieldProps {
 
 export default function ColorField(props: ColorFieldProps) {
   const [value, setValue] = createSignal(props.value);
-  const [draft, setDraft] = createSignal(value());
+  const [draft, setDraft] = createSignal(props.displayValue ?? props.value);
   const [pickerOpen, setPickerOpen] = createSignal(false);
 
   createEffect(() => {
     setValue(props.value);
-    setDraft(props.value);
+    setDraft(props.displayValue ?? props.value);
   });
 
   function commit(next: string) {
@@ -51,7 +52,9 @@ export default function ColorField(props: ColorFieldProps) {
       >
         <OklchColorPicker label={props.label} onChange={commit} value={value()} />
       </Popover>
-      <div class="color-field-name">{props.label}</div>
+      <div class="color-field-name" title={props.label}>
+        {props.label}
+      </div>
       <input
         class="color-field-text"
         onChange={(e) => commit(e.currentTarget.value.trim())}

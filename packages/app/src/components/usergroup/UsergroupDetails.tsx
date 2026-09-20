@@ -1,7 +1,13 @@
-import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
+import {
+  Button,
+  blurOnEnter,
+  InlineFeedback,
+  type Pane,
+  PanelHeader,
+  tabStripKeyDown,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { actionFeedback } from "../../lib/feedback";
-import { closeTile } from "../../lib/paneActions";
 import { store } from "../../lib/store";
 import type { UsergroupDetailsPaneContent } from "../../lib/store/slices/types";
 import {
@@ -15,6 +21,11 @@ import MrkdwnComposer from "../composer/MrkdwnComposer";
 import UsergroupChannelsTab from "./UsergroupChannelsTab";
 import "./UsergroupDetails.css";
 import UsergroupMembersTab from "./UsergroupMembersTab";
+import {
+  type EditableUsergroupDetails,
+  editableUsergroupDetails,
+  mergeUsergroupDetailsDraft,
+} from "./usergroupDetailsDraft";
 
 const LEADING_AT_RE = /^@/;
 
@@ -26,13 +37,10 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "channels", label: "Channels" },
 ];
 
-const blurOnEnter = (event: KeyboardEvent) => {
-  if (event.key === "Enter") (event.currentTarget as HTMLElement).blur();
-};
-
 export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPaneContent> }) {
   const usergroupId = () => props.pane.content.usergroupId;
   const [tab, setTab] = createSignal<Tab>("about");
+  const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   const [nameInput, setNameInput] = createSignal("");
   const [handleInput, setHandleInput] = createSignal("");
   const [descriptionInput, setDescriptionInput] = createSignal("");
@@ -41,12 +49,21 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
 
   createEffect(on(usergroupId, () => setTab("about")));
 
+  createEffect(on(usergroupId, (id) => void loadUsergroupDetails(id)));
+
+  let seededDetails: EditableUsergroupDetails | undefined;
   createEffect(
     on(details, (d) => {
       if (!d) return;
-      setNameInput(d.title);
-      setHandleInput(d.handle);
-      setDescriptionInput(d.description);
+      const merged = mergeUsergroupDetailsDraft(
+        { description: descriptionInput(), handle: handleInput(), title: nameInput() },
+        seededDetails,
+        d,
+      );
+      setNameInput(merged.title);
+      setHandleInput(merged.handle);
+      setDescriptionInput(merged.description);
+      seededDetails = editableUsergroupDetails(d);
     }),
   );
 
@@ -70,7 +87,11 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
 
   return (
     <div class="usergroup-details-panel" data-pane={props.pane.id}>
-      <PanelHeader onClose={() => closeTile(props.pane.id)} title="Pinggroup" />
+      <PanelHeader
+        canClose={store.viewState.canCloseTile()}
+        onClose={() => store.viewState.closeTile(props.pane.id)}
+        title="Pinggroup"
+      />
       <InlineFeedback
         class="usergroup-details-feedback"
         feedback={actionFeedback.get(usergroupId())}
@@ -120,14 +141,25 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
         >
           {(d) => (
             <>
-              <div class="usergroup-details-tabs">
+              <div class="usergroup-details-tabs" role="tablist">
                 <For each={TABS}>
-                  {(t) => (
+                  {(t, i) => (
                     <button
-                      aria-pressed={tab() === t.key}
+                      aria-selected={tab() === t.key}
                       class="usergroup-details-tab btn-reset flex-align-center"
                       classList={{ active: tab() === t.key }}
                       onClick={() => setTab(t.key)}
+                      onKeyDown={(e) =>
+                        tabStripKeyDown(e, TABS, i(), (next, nextIndex) => {
+                          setTab(next.key);
+                          tabButtonRefs[nextIndex]?.focus();
+                        })
+                      }
+                      ref={(el) => {
+                        tabButtonRefs[i()] = el;
+                      }}
+                      role="tab"
+                      tabIndex={tab() === t.key ? 0 : -1}
                       type="button"
                     >
                       {t.label}

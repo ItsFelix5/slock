@@ -1,5 +1,6 @@
 import { customEmojiNames, emojiUrl, standardEmojiEntries } from "@slock/blockkit";
 import { fuzzySearch } from "@slock/ui";
+import { createMemo, createRoot } from "solid-js";
 import { store } from "../../../lib/store";
 import { mergeEmojiEntries } from "../popovers/emojiPickerEntries";
 
@@ -29,8 +30,12 @@ function customEmojiEntries(): EmojiEntry[] {
     .map((name): EmojiEntry => ({ name, searchText: name }));
 }
 
+const allEmojiEntriesMemo = createRoot(() =>
+  createMemo(() => mergeEmojiEntries(customEmojiEntries(), STANDARD_EMOJI_ENTRIES)),
+);
+
 export function allEmojiEntries(): EmojiEntry[] {
-  return mergeEmojiEntries(customEmojiEntries(), STANDARD_EMOJI_ENTRIES);
+  return allEmojiEntriesMemo();
 }
 
 export function searchEmoji(entries: EmojiEntry[], query: string): EmojiEntry[] {

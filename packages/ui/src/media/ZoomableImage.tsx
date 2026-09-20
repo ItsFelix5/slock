@@ -1,4 +1,5 @@
 import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import IconButton from "../button/IconButton";
 import Overlay from "../overlay/Overlay";
 import { useEscapeClose } from "../useEscapeClose";
 import Icon from "./Icon";
@@ -126,9 +127,10 @@ function ImageLightbox(props: {
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [naturalSize, setNaturalSize] = createSignal<{ w: number; h: number } | null>(null);
-  const image = () => props.gallery[props.index];
-  const hasPrevious = () => props.index > 0;
-  const hasNext = () => props.index < props.gallery.length - 1;
+  const index = () => Math.min(props.index, props.gallery.length - 1);
+  const image = () => props.gallery[index()];
+  const hasPrevious = () => index() > 0;
+  const hasNext = () => index() < props.gallery.length - 1;
 
   createEffect(
     on(
@@ -203,20 +205,18 @@ function ImageLightbox(props: {
       ariaLabel={image().alt ? `Image preview: ${image().alt}` : "Image preview"}
       onClose={props.onClose}
     >
-      <button
-        aria-label="Close image preview"
-        class="zoomable-image-close"
+      <IconButton
+        class="panel-close-btn floating zoomable-image-close"
+        icon="close"
+        iconSize={18}
         onClick={props.onClose}
-        type="button"
-      >
-        <Icon name="close" size={20} />
-      </button>
+      />
       <Show when={props.gallery.length > 1}>
         <button
           aria-label="Previous image"
           class="zoomable-image-navigation zoomable-image-previous"
-          disabled={!hasPrevious()}
-          onClick={() => props.onIndexChange(props.index - 1)}
+          hidden={!hasPrevious()}
+          onClick={() => props.onIndexChange(index() - 1)}
           type="button"
         >
           <Icon name="arrow-left" size={20} />
@@ -224,8 +224,8 @@ function ImageLightbox(props: {
         <button
           aria-label="Next image"
           class="zoomable-image-navigation zoomable-image-next"
-          disabled={!hasNext()}
-          onClick={() => props.onIndexChange(props.index + 1)}
+          hidden={!hasNext()}
+          onClick={() => props.onIndexChange(index() + 1)}
           type="button"
         >
           <Icon name="arrow-right" size={20} />

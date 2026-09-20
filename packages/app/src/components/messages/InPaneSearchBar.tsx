@@ -1,4 +1,4 @@
-import { Icon, Tooltip } from "@slock/ui";
+import { Icon, IconButton } from "@slock/ui";
 import { onMount, Show } from "solid-js";
 import "./InPaneSearchBar.css";
 
@@ -20,7 +20,7 @@ export default function InPaneSearchBar(props: {
         <Icon class="text-dim flex-shrink-0" name="search" size={14} />
         <input
           aria-label="Search in this view"
-          class="in-pane-search-input"
+          class="in-pane-search-input input-plain"
           onInput={(e) => props.onQueryInput(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
@@ -37,38 +37,29 @@ export default function InPaneSearchBar(props: {
             {props.matchCount > 0 ? `${props.matchIndex + 1}/${props.matchCount}` : "0/0"}
           </span>
         </Show>
-        <Tooltip content="Previous match">
-          <button
-            aria-label="Previous match"
-            class="btn-reset flex-center"
-            disabled={props.matchCount === 0}
-            onClick={props.onPrev}
-            type="button"
-          >
-            <Icon name="caret-up" size={14} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Next match">
-          <button
-            aria-label="Next match"
-            class="btn-reset flex-center"
-            disabled={props.matchCount === 0}
-            onClick={props.onNext}
-            type="button"
-          >
-            <Icon name="caret-down" size={14} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Close search">
-          <button
-            aria-label="Close search"
-            class="btn-reset flex-center"
-            onClick={props.onClose}
-            type="button"
-          >
-            <Icon name="close" size={14} />
-          </button>
-        </Tooltip>
+        <IconButton
+          disabled={props.matchCount === 0}
+          icon="caret-up"
+          iconSize={14}
+          label="Previous match"
+          onClick={props.onPrev}
+          size="sm"
+        />
+        <IconButton
+          disabled={props.matchCount === 0}
+          icon="caret-down"
+          iconSize={14}
+          label="Next match"
+          onClick={props.onNext}
+          size="sm"
+        />
+        <IconButton
+          icon="close"
+          iconSize={14}
+          label="Close search"
+          onClick={props.onClose}
+          size="sm"
+        />
       </div>
     </div>
   );

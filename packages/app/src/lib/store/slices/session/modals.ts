@@ -16,9 +16,16 @@ export function createModalsSlice() {
     setViewStack((stack) => stack.slice(0, -1));
   }
 
+  function updateView(view: ModalView) {
+    setViewStack((stack) => {
+      const idx = stack.findIndex((v) => v.id === view.id);
+      return idx === -1 ? stack : [...stack.slice(0, idx), view];
+    });
+  }
+
   function closeAllViews() {
     setViewStack([]);
   }
 
-  return { closeAllViews, openView, popView, viewStack, topView };
+  return { closeAllViews, openView, popView, updateView, viewStack, topView };
 }

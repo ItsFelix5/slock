@@ -1,8 +1,23 @@
-import { createEffect, createSignal } from "solid-js";
-import { PING_KINDS } from "../../../activityKinds";
-import type { ActivityItem, Channel, DirectMessage, User, UserPrefs } from "../../../api";
-import { conversationDisplayName } from "../../../displayName";
+import { createSignal } from "solid-js";
+import type { UserPrefs } from "../../../api";
 import { createLocalPref } from "../../../localPref";
+
+type DesktopNotificationEvent = {
+  avatarImage?: string;
+  channel?: string;
+  content?: string;
+  event_ts?: string;
+  launchUri?: string;
+  msg?: string;
+  subtitle?: string;
+  title?: string;
+};
+
+function parseSlackDeepLink(uri: string | undefined): { channel?: string; ts?: string } {
+  if (!uri?.includes("?")) return {};
+  const params = new URLSearchParams(uri.slice(uri.indexOf("?") + 1));
+  return { channel: params.get("id") ?? undefined, ts: params.get("message") ?? undefined };
+}
 
 export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPrefs | undefined }) {
   const supported = typeof window !== "undefined" && "Notification" in window;
@@ -27,66 +42,35 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     if (result === "granted") setNotificationsEnabled(true);
   }
 
-  function wireNotifications(deps: {
-    activityItems: ActivityItem[];
-    userById: (id: string) => User | undefined;
-    channelById: (id: string) => Channel | undefined;
-    dmById: (id: string) => DirectMessage | undefined;
-    isChannelMuted: (id: string) => boolean;
-    isDndActive: () => boolean;
-    activeView: () => { kind: string; id: string } | null;
-    openChannelPeek: (channelId: string, ts: string, highlightTs?: string) => void;
-  }) {
-    if (!supported) return;
+  function showGatewayNotification(
+    payload: DesktopNotificationEvent,
+    notifyDeps: {
+      isChannelMuted: (id: string) => boolean;
+      isDndActive: () => boolean;
+      activeView: () => { kind: string; id: string } | null;
+      openChannelPeek: (channelId: string, ts: string) => void;
+    },
+  ) {
+    if (!supported || permission() !== "granted" || !enabled() || notifyDeps.isDndActive()) return;
+    if (document.hasFocus() && document.visibilityState === "visible") return;
+    const link = parseSlackDeepLink(payload.launchUri);
+    const channelId = payload.channel ?? link.channel;
+    if (!channelId || notifyDeps.isChannelMuted(channelId)) return;
+    if (notifyDeps.activeView()?.id === channelId) return;
 
-    function showNotification(item: ActivityItem) {
-      const user = deps.userById(item.userId);
-      const title =
-        item.kind === "dm"
-          ? (user?.name ?? "New message")
-          : `${user?.name ?? "Someone"} in ${conversationDisplayName(
-              item.channelId,
-              deps.channelById,
-              deps.dmById,
-              deps.userById,
-            )}`;
-      const notification = new Notification(title, {
-        body: item.text.slice(0, 200),
-        icon: user?.avatarUrl,
-        tag: item.id,
-      });
-      notification.onclick = () => {
-        window.focus();
-        deps.openChannelPeek(
-          item.channelId,
-          item.threadTs ?? item.ts,
-          item.threadTs ? item.ts : undefined,
-        );
-        notification.close();
-      };
-    }
-
-    let lastSeenTs = Date.now();
-    let firstRun = true;
-    createEffect(() => {
-      const items = deps.activityItems;
-      if (firstRun) {
-        firstRun = false;
-        return;
-      }
-      if (permission() !== "granted" || !enabled() || deps.isDndActive()) return;
-
-      if (document.hasFocus() && document.visibilityState === "visible") return;
-      let newest = lastSeenTs;
-      for (const item of items) {
-        if (item.time <= lastSeenTs) continue;
-        if (item.time > newest) newest = item.time;
-        if (!PING_KINDS.has(item.kind)) continue;
-        if (deps.isChannelMuted(item.channelId)) continue;
-        showNotification(item);
-      }
-      lastSeenTs = newest;
+    const body = (payload.msg ?? payload.content ?? "").slice(0, 200);
+    const title = payload.title || payload.subtitle || "New message";
+    const notification = new Notification(title, {
+      body,
+      icon: payload.avatarImage,
+      tag: payload.event_ts ?? channelId,
     });
+    const ts = link.ts ?? payload.event_ts;
+    notification.onclick = () => {
+      window.focus();
+      if (ts) notifyDeps.openChannelPeek(channelId, ts);
+      notification.close();
+    };
   }
 
   return {
@@ -94,7 +78,7 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     permission,
     requestPermission,
     setNotificationsEnabled,
+    showGatewayNotification,
     supported,
-    wireNotifications,
   };
 }

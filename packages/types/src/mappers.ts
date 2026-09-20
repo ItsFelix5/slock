@@ -1,3 +1,4 @@
+import { blockPreviewText } from "./blocks";
 import { formatDay, formatTime } from "./mapTime";
 import type {
   RawAttachment,
@@ -20,8 +21,15 @@ import type {
 } from "./types";
 
 export { buildUnreadMap, parseBadgeCounts } from "./mapCounts";
-export { formatDay, formatDayFromMs, formatTime } from "./mapTime";
-export { mapBot, mapCustomFields, mapStartDate, mapUser } from "./mapUsers";
+export { formatDay, formatDayFromMs, formatTime, formatTimeFromMs } from "./mapTime";
+export {
+  mapBot,
+  mapCustomFields,
+  mapProfileIdentity,
+  mapStartDate,
+  mapUser,
+  SLACK_USER_ID,
+} from "./mapUsers";
 export type {
   RawAttachment,
   RawBot,
@@ -123,6 +131,9 @@ export function mapFile(f: RawFile): SlackFile {
     transcriptionPreview: f.transcription?.preview?.content,
 
     urlPrivate: f.url_private ?? "",
+    urlPrivateDownload: f.url_private_download
+      ? resolveMediaUrl(f.url_private_download)
+      : undefined,
     vtt: f.vtt ? resolveMediaUrl(f.vtt) : undefined,
     waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
     width: thumb?.w ?? f.original_w,
@@ -230,8 +241,8 @@ export function mapMessage(m: RawMessage): Message {
     reactions: m.reactions,
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
-    sourceUserId: m.metadata?.event_payload?.source_user_id,
-    text: m.text ?? "",
+    sourceUserId: m.metadata?.event_payload?.real_user_id,
+    text: m.text || blockPreviewText(m.blocks),
     threadRoot: m.root ? mapMessage(m.root) : undefined,
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     time: formatTime(m.ts),

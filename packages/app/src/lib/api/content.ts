@@ -1,5 +1,14 @@
-import type { FileUploadInput, LinkPreview, SavedItem, SlackFileDetail } from "@slock/types";
+import type {
+  CanvasBlock,
+  FileUploadInput,
+  LinkPreview,
+  RawFile,
+  SavedItem,
+  SlackFileDetail,
+} from "@slock/types";
 import { apiGet, apiPost, mapFile, mapFileShare, resolveMediaUrl } from "@slock/types";
+import { toCanvasBlocks } from "../canvas/canvasBlocks";
+import { parseLoadDataResponse } from "../canvas/canvasParse";
 
 export async function fetchSlashCommands(): Promise<
   { name: string; desc: string; icon: string | null }[]
@@ -15,54 +24,79 @@ export async function fetchSaved(): Promise<SavedItem[]> {
   return data.items ?? [];
 }
 
-interface CanvasFileInfo {
-  title: string | null;
-  url: string | null;
-}
+const canvasFileRequests = new Map<string, Promise<RawFile>>();
 
-const canvasFileInfoRequests = new Map<string, Promise<CanvasFileInfo>>();
-
-function resolveCanvasFileInfo(fileId: string): Promise<CanvasFileInfo> {
-  const existing = canvasFileInfoRequests.get(fileId);
+function resolveCanvasFile(fileId: string): Promise<RawFile> {
+  const existing = canvasFileRequests.get(fileId);
   if (existing) return existing;
   const request = apiGet(`/api/canvases/${fileId}/file-info`)
     .then((info) => {
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
-      return {
-        title: info.title,
-        url: info.url_private_download ? resolveMediaUrl(info.url_private_download) : null,
-      };
+      const file: RawFile = info.file;
+      return file;
     })
     .catch((error) => {
-      canvasFileInfoRequests.delete(fileId);
+      canvasFileRequests.delete(fileId);
       throw error;
     });
-  canvasFileInfoRequests.set(fileId, request);
+  canvasFileRequests.set(fileId, request);
   return request;
 }
 
 export async function fetchCanvasTitle(fileId: string): Promise<string | null> {
   try {
-    return (await resolveCanvasFileInfo(fileId)).title;
+    const file = await resolveCanvasFile(fileId);
+    return file.title?.trim() || file.name?.trim() || null;
   } catch {
     return null;
   }
 }
 
-export async function fetchCanvas(fileId: string): Promise<string | null> {
-  const { url } = await resolveCanvasFileInfo(fileId);
-  if (!url) return null;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Canvas download failed (${res.status})`);
-  return res.text();
+export async function fetchCanvasPermalink(fileId: string): Promise<string | null> {
+  try {
+    return (await resolveCanvasFile(fileId)).permalink ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchCanvasFileUrl(fileId: string): Promise<string | null> {
   try {
-    return (await resolveCanvasFileInfo(fileId)).url;
+    const file = await resolveCanvasFile(fileId);
+    return file.url_private_download ? resolveMediaUrl(file.url_private_download) : null;
   } catch {
     return null;
   }
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export async function fetchCanvas(fileId: string): Promise<CanvasBlock[]> {
+  const data = await apiGet(`/api/canvases/${fileId}/raw`);
+  if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
+  const { blocks, embedsById } = parseLoadDataResponse(base64ToBytes(data.raw));
+  const fileIds = new Set<string>();
+  for (const embed of embedsById.values()) if (embed.type === "file") fileIds.add(embed.fileId);
+  for (const block of blocks)
+    if (block.type === "image") for (const id of block.fileIds) fileIds.add(id);
+  const entries = await Promise.all(
+    [...fileIds].map(async (id) => {
+      try {
+        return [id, await resolveCanvasFile(id)] as const;
+      } catch {
+        return [id, null] as const;
+      }
+    }),
+  );
+  const filesById = new Map(
+    entries.filter((entry): entry is [string, RawFile] => entry[1] !== null),
+  );
+  return toCanvasBlocks(blocks, embedsById, filesById);
 }
 
 export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> {

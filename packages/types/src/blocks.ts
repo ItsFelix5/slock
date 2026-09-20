@@ -240,6 +240,14 @@ export type Block =
   | RichTextBlock
   | UnknownBlock;
 
+export function narrowByType<All extends { type: string }, T extends All>(
+  value: All | undefined,
+  type: T["type"],
+): T | undefined {
+  const generic: any = value;
+  return value?.type === type ? generic : undefined;
+}
+
 export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {
   return broadcastRangeFromRichTextBlocks(
     (blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
@@ -247,10 +255,14 @@ export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {
 }
 
 export function blockPreviewText(blocks: readonly Block[] | undefined): string {
-  const richTextBlocks = (blocks ?? []).filter(
-    (block): block is RichTextBlock => block.type === "rich_text",
-  );
-  return richTextBlocks.length ? richTextBlocksToPlainText(richTextBlocks) : "";
+  const parts = (blocks ?? []).flatMap((block) => {
+    const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
+    if (richText) return [richTextBlocksToPlainText([richText])];
+    const header = narrowByType<Block, HeaderBlock>(block, "header");
+    if (header) return [header.text.text];
+    return [];
+  });
+  return parts.join("\n").trim();
 }
 
 export interface ModalView {

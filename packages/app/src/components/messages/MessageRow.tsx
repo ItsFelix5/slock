@@ -7,10 +7,10 @@ import {
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import type { Message } from "../../lib/api";
-import { splitDragProps } from "../../lib/dragSplitTarget";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import { isMessageBackgroundContextMenu } from "./messageContextMenuTarget";
+import type { OpenThreadHandler } from "./messageFocus";
 import "./MessageList.css";
 import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";
@@ -33,9 +33,10 @@ import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 export type MessageRowProps = {
   message: Message;
   messages: Message[];
+  messageByTs: () => Map<string, Message>;
   channelId: string;
   threadTs?: string;
-  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
+  onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
   index: () => number;
@@ -47,7 +48,12 @@ export type MessageRowProps = {
 
 export default function MessageRow(props: MessageRowProps) {
   const msg = () => props.message;
-  const prev = () => props.messages[props.index() - 1];
+  const prev = () => {
+    for (let i = props.index() - 1; i >= 0; i -= 1) {
+      const candidate = props.messages[i];
+      if (!candidate.deleted || logDeletedMessages()) return candidate;
+    }
+  };
   const isPinned = () => store.pinned.isMessagePinned(props.channelId, msg().ts);
   const renderState = createMemo(() =>
     resolveMessageRenderState(msg(), prev(), {
@@ -71,7 +77,7 @@ export default function MessageRow(props: MessageRowProps) {
     const ref = replyRef();
     if (!ref) return;
     return (
-      props.messages.find((m) => m.ts === ref.ts) ??
+      props.messageByTs().get(ref.ts) ??
       store.messages
         .findAllMessageLocations(ref.channelId, ref.ts)[0]
         ?.list.find((m) => m.ts === ref.ts)
@@ -85,7 +91,7 @@ export default function MessageRow(props: MessageRowProps) {
   const threadParent = createMemo(() =>
     showThreadContext()
       ? (msg().threadRoot ??
-        props.messages.find((m) => m.ts === msg().threadTs) ??
+        props.messageByTs().get(msg().threadTs ?? "") ??
         store.messages
           .findAllMessageLocations(props.channelId, msg().threadTs ?? "")[0]
           ?.list.find((m) => m.ts === msg().threadTs))
@@ -193,25 +199,21 @@ export default function MessageRow(props: MessageRowProps) {
             fallback={<div class="message-avatar-spacer">{msg().time.split(" ")[0]}</div>}
             when={!sameAuthorAsPrev()}
           >
-            <div
-              class="message-avatar-drag-handle"
-              {...splitDragProps({ channelId: props.channelId, ts: msg().ts })}
-            >
-              <MessageRowAvatar
-                avatarUrl={avatarUrl()}
-                displayName={displayName()}
-                fallbackUserId={msg().userId}
-                focused={focused()}
-                profileUserId={profileUserId()}
-                user={user()}
-              />
-            </div>
+            <MessageRowAvatar
+              avatarUrl={avatarUrl()}
+              displayName={displayName()}
+              fallbackUserId={msg().userId}
+              focused={focused()}
+              profileUserId={profileUserId()}
+              user={user()}
+            />
           </Show>
           <div class="message-body">
             <Show when={!sameAuthorAsPrev()}>
               <MessageMeta
                 displayName={displayName}
                 isPinned={isPinned}
+                isSaved={() => store.later.isSavedForLater(props.channelId, msg().ts)}
                 botUserId={botProfileUserId()}
                 onOpenBot={() => {
                   const id = botProfileUserId();
@@ -219,12 +221,7 @@ export default function MessageRow(props: MessageRowProps) {
                 }}
                 showBroadcastBadge={showBroadcastBadge}
                 tabbable={focused}
-                message={
-                  {
-                    ...msg(),
-                    isSaved: store.later.isSavedForLater(props.channelId, msg().ts),
-                  } as Message
-                }
+                message={msg()}
                 onOpenUser={() => {
                   const id = profileUserId();
                   if (id) store.users.openUserProfile(id);
@@ -255,6 +252,7 @@ export default function MessageRow(props: MessageRowProps) {
             <Show when={msg().reactions?.length ? msg().reactions : undefined}>
               {(reactions) => (
                 <ReactionRow
+                  allowAdd
                   feedbackKey={msg().ts}
                   isPending={(name) =>
                     store.messages.isReactionPending(props.channelId, msg().ts, name)
@@ -268,6 +266,7 @@ export default function MessageRow(props: MessageRowProps) {
               class="message-feedback"
               feedback={actionFeedback.get(msg().ts)}
               priority={props.threadTs ? 1 : 0}
+              variant="icon"
             />
             <Show when={props.onOpenThread && (msg().replyCount ?? 0) > 0}>
               <MessageRepliesButton msg={msg()} onOpenThread={props.onOpenThread ?? (() => {})} />

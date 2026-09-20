@@ -1,28 +1,29 @@
-import type { JSX } from "solid-js";
-import { store } from "../../lib/store";
-
-export function viewForConversation(channelId: string) {
-  return { id: channelId, kind: store.dms.conversationKind(channelId) };
-}
-
-export function openConversationInSplit(channelId: string, ts?: string) {
-  const view = viewForConversation(channelId);
-  const paneId = store.panes.openInNewPane(view);
-  if (ts) store.panes.setMessageTarget(paneId, { channelId, ts });
-}
-
-export function openConversation(channelId: string) {
-  store.viewState.setActiveView(viewForConversation(channelId));
-}
+import { type JSX, onCleanup } from "solid-js";
 
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
+  const onClick = (event: MouseEvent) => {
+    if (!event.shiftKey || event.defaultPrevented) return;
+    event.preventDefault();
+    event.stopPropagation();
+    props.onSplit();
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" || !event.shiftKey || event.defaultPrevented) return;
+    event.preventDefault();
+    event.stopPropagation();
+    props.onSplit();
+  };
+
   return (
     <span
-      onClick={(event) => {
-        if (!(event.ctrlKey || event.metaKey) || event.defaultPrevented) return;
-        event.preventDefault();
-        event.stopPropagation();
-        props.onSplit();
+      ref={(el) => {
+        el.addEventListener("click", onClick, true);
+        el.addEventListener("keydown", onKeyDown, true);
+        onCleanup(() => {
+          el.removeEventListener("click", onClick, true);
+          el.removeEventListener("keydown", onKeyDown, true);
+        });
       }}
       style={{ display: "contents" }}
     >

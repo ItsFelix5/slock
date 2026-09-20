@@ -11,7 +11,14 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { type ActivityItem, type Block, formatDayFromMs, type Message } from "../../../lib/api";
+import {
+  type ActivityItem,
+  type Block,
+  formatDayFromMs,
+  type Message,
+  type SlackFile,
+} from "../../../lib/api";
+import { openConversation, openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
 import MessageActionsMenuItems from "../../messages/parts/MessageActionsMenuItems";
 import {
@@ -19,14 +26,10 @@ import {
   resolveProfileUserId,
 } from "../../messages/parts/messageRenderState";
 import ReactionRow from "../../messages/parts/ReactionRow";
-import {
-  openConversation,
-  openConversationInSplit,
-  SplitNavigation,
-} from "../../navigation/SplitNavigation";
-import ClickableAuthorName from "../../user/ClickableAuthorName";
-import { ACTIVITY_KIND_ICONS } from "./activityKindIcons";
+import { SplitNavigation } from "../../navigation/SplitNavigation";
+import { ClickableAuthorName } from "../../user/AppBadge";
 import { activityVerb } from "./activityMetadata";
+import { ACTIVITY_KIND_ICONS } from "./activityViewFilters";
 import "./ActivityRow.css";
 import { ActivityRowActions } from "./ActivityRowActions";
 import ActivityRowMenuItems from "./ActivityRowMenuItems";
@@ -50,6 +53,7 @@ function TimelineRow(props: {
   author: MessageAuthorFields;
   blocks?: Block[];
   channelId: string;
+  files?: SlackFile[];
   isFirst: boolean;
   isLast: boolean;
   isRoot: boolean;
@@ -67,6 +71,7 @@ function TimelineRow(props: {
         author={props.author}
         blocks={props.blocks}
         eventLabel={props.isRoot ? "started the thread" : undefined}
+        files={props.files}
         isFirst={props.isFirst}
         isLast={props.isLast}
         isRoot={props.isRoot}
@@ -105,7 +110,7 @@ export default function ActivityRow(props: {
   const [expanded, setExpanded] = createSignal(false);
   const ctxMenu = useContextMenu();
   const latest = createMemo(() => props.row.items[0]);
-  const isThreadGroup = createMemo(() => props.row.isThread);
+  const isThreadGroup = () => props.row.isThread;
   const threadTs = createMemo(() => latest().threadTs ?? rowTarget(props.row).ts);
   const saveTarget = createMemo(() => rowTarget(props.row));
   const isSaved = createMemo(() =>
@@ -123,8 +128,8 @@ export default function ActivityRow(props: {
     displayName,
     hasAnyActor,
     interactorNames,
+    isArchived,
     isPinging,
-    isReacted,
     isStandaloneActivity,
     isUnread,
     matchingReaction,
@@ -139,6 +144,7 @@ export default function ActivityRow(props: {
     earlierMessageCount,
     entryAuthor,
     entryBlocks,
+    entryFiles,
     entryText,
     entryUnread,
     firstTimelineTs,
@@ -192,6 +198,7 @@ export default function ActivityRow(props: {
         author={entryAuthor(entry)}
         blocks={entryBlocks(entry)}
         channelId={latest().channelId}
+        files={entryFiles(entry)}
         isFirst={entry.ts === firstTimelineTs()}
         isLast={entry.ts === lastTimelineTs()}
         isRoot={entry.isRoot}
@@ -211,8 +218,8 @@ export default function ActivityRow(props: {
         class="activity-item"
         classList={{
           "activity-item-thread": isThreadGroup(),
+          archived: isArchived(),
           pinging: isPinging(),
-          reacted: isReacted(),
           unread: isUnread(),
         }}
       >
@@ -302,17 +309,21 @@ export default function ActivityRow(props: {
                 </Show>
                 <Show when={latest().kind !== "dm" && !isStandaloneActivity()}>
                   <span class="activity-channel">
-                    <ClickableInline onActivate={() => openConversation(latest().channelId)}>
-                      {channelLabel()}
-                    </ClickableInline>
+                    <SplitNavigation onSplit={() => openConversationInSplit(latest().channelId)}>
+                      <ClickableInline
+                        onActivate={() => openConversation(latest().channelId, { keepNav: true })}
+                      >
+                        {channelLabel()}
+                      </ClickableInline>
+                    </SplitNavigation>
                   </span>
                 </Show>
                 <Show when={props.row.items.length > 1}>
                   <span class="activity-reply-count">{props.row.items.length}</span>
                 </Show>
-                <Show when={isReacted()}>
-                  <span class="activity-reacted-label">
-                    <Icon name="check" size={11} /> Reacted
+                <Show when={isArchived()}>
+                  <span class="activity-archived-label">
+                    <Icon name="check" size={11} /> Complete
                   </span>
                 </Show>
                 <Tooltip
@@ -323,7 +334,11 @@ export default function ActivityRow(props: {
               </span>
               <Show when={!isThreadGroup()}>
                 <span class="activity-snippet">
-                  <ActivityMessageText blocks={latest().blocks} text={latest().text} />
+                  <ActivityMessageText
+                    blocks={latest().blocks}
+                    files={latest().files}
+                    text={latest().text}
+                  />
                 </span>
               </Show>
             </span>
@@ -332,18 +347,20 @@ export default function ActivityRow(props: {
 
         <Show when={isThreadGroup() ? undefined : matchingReaction()}>
           {(reaction) => (
-            <div class="activity-reaction-slot">
-              <ReactionRow
-                isPending={(name) =>
-                  store.messages.isReactionPending(latest().channelId, latest().ts, name)
-                }
-                onToggle={(name) => {
-                  const msg = reactedMessage();
-                  if (msg) store.messages.reactToMessage(latest().channelId, msg, name);
-                }}
-                reactions={[reaction()]}
-              />
-            </div>
+            <SplitNavigation onSplit={openRowInSplit}>
+              <div class="activity-reaction-slot" data-nav-row onClick={openRow}>
+                <ReactionRow
+                  isPending={(name) =>
+                    store.messages.isReactionPending(latest().channelId, latest().ts, name)
+                  }
+                  onToggle={(name) => {
+                    const msg = reactedMessage();
+                    if (msg) store.messages.reactToMessage(latest().channelId, msg, name);
+                  }}
+                  reactions={[reaction()]}
+                />
+              </div>
+            </SplitNavigation>
           )}
         </Show>
 
@@ -371,11 +388,13 @@ export default function ActivityRow(props: {
       </div>
 
       <ActivityRowActions
+        isArchived={isArchived()}
         isSaved={isSaved()}
         isThread={
           isThreadGroup() && !store.messages.isThreadUnsubscribed(latest().channelId, threadTs())
         }
         isUnread={isUnread()}
+        onArchive={() => store.activity.archiveActivity(latest())}
         onMarkRead={() => props.onSeen(props.row.items)}
         onToggleSave={() => store.later.toggleSaveForLater(saveTarget().channelId, saveTarget().ts)}
         onUnsubscribe={() => {

@@ -31,7 +31,7 @@ function failure(lookup: Lookup, error: unknown): LookupFailure {
 }
 
 export const userStatusRoutes: Route[] = [
-  route("GET", "/api/user-status/:id", async (ctx) => {
+  route("GET", "user-status/:id", async (ctx) => {
     if (!ctx.creds) return errorResponse("not configured", 401);
     const { id } = ctx.params;
     if (!USER_ID_RE.test(id)) return errorResponse("invalid_user", 400);

@@ -58,7 +58,6 @@ export default function TranscriptPopover(props: {
       panelClass="transcript-popover-panel"
       trigger={
         <IconButton
-          aria-label="Show transcript"
           class={props.triggerClass}
           icon="transcript"
           iconSize={14}

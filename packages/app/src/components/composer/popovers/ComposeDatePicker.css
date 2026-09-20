@@ -1,6 +1,6 @@
 .compose-date-picker {
   width: 320px;
-  padding: 10px;
+  padding: 8px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -64,7 +64,7 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 29px;
-  padding: 5px 8px;
+  padding: calc(5px + var(--row-padding-offset)) 8px;
   font: inherit;
   font-size: 12px;
   color: var(--text-primary);
@@ -76,7 +76,7 @@
   flex: 1;
   min-width: 0;
 }
-.compose-date-relative-option {
+button.compose-date-relative-option {
   display: grid;
   width: 28px;
   margin: 2px;
@@ -88,8 +88,8 @@
 .compose-date-option.active {
   background: var(--hover-bg);
 }
-.compose-date-relative-option:hover,
-.compose-date-relative-option.active {
+button.compose-date-relative-option:hover,
+button.compose-date-relative-option.active {
   color: var(--accent);
   background: var(--hover-bg);
 }

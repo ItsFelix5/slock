@@ -1,0 +1,45 @@
+.keybind-field {
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.keybind-field-btn {
+  min-width: 120px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.keybind-field-btn:hover {
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
+
+.keybind-field-btn kbd {
+  padding: 0;
+  font-family: monospace;
+  font-size: 11px;
+  color: inherit;
+  background: none;
+  border: none;
+}
+
+.keybind-field-btn.recording {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.keybind-field-reset {
+  padding: 4px 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.keybind-field-reset:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}

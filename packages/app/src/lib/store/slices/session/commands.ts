@@ -1,4 +1,4 @@
-import { addReminder, runSlashCommand, setChannelTopic } from "../../../api";
+import { addReminder, type Block, runSlashCommand, setChannelTopic } from "../../../api";
 import { actionFeedback, composerFeedbackKey } from "../../../feedback";
 
 const SLASH_COMMAND_RE = /^\/(\S+)\s*(.*)$/s;
@@ -8,7 +8,7 @@ export function createCommandsSlice(deps: {
     channelId: string,
     text: string,
     threadTs?: string,
-    blocks?: unknown,
+    blocks?: Block[],
   ) => Promise<void>;
 }) {
   async function handleSlashCommand(

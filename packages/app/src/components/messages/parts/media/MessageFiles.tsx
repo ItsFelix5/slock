@@ -1,12 +1,17 @@
-import { Mrkdwn } from "@slock/blockkit";
-import { ConstrainedImage, Icon, type IconName, MediaFrame, VideoPlayer } from "@slock/ui";
-import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import { ConstrainedImage, constrainMediaDimensions, MediaFrame, VideoPlayer } from "@slock/ui";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
+import { fileSummaryLabel } from "../../../../lib/fileSummary";
+import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
+import FileCardInfo from "./FileCardInfo";
 import FileViewerTrigger from "./FileViewer";
-import { constrainMediaDimensions } from "./mediaDimensions";
 import "./MessageFiles.css";
 import TranscriptPopover from "./TranscriptPopover";
+
+function isCanvasFile(file: SlackFile) {
+  return file.filetype === "quip";
+}
 
 function imageGallery(files: SlackFile[]) {
   return files
@@ -19,32 +24,6 @@ function imageGallery(files: SlackFile[]) {
 
 function imageGalleryIndex(files: SlackFile[], file: SlackFile) {
   return files.filter((item) => item.isImage && item.thumbUrl && item.urlPrivate).indexOf(file);
-}
-
-export function formatSize(bytes: number | undefined): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function FileCardInfo(props: { file: SlackFile; icon: IconName; mrkdwnTitle?: boolean }) {
-  const name = () => props.file.title || props.file.name;
-  return (
-    <>
-      <Icon name={props.icon} size={20} />
-      <span class="message-file-info">
-        <span class="message-file-name">
-          <Show fallback={name()} when={props.mrkdwnTitle}>
-            <Mrkdwn text={name()} />
-          </Show>
-        </span>
-        <span class="message-file-meta">
-          {props.file.filetype?.toUpperCase()} {formatSize(props.file.size)}
-        </span>
-      </span>
-    </>
-  );
 }
 
 function isInlineMedia(file: SlackFile) {
@@ -62,7 +41,7 @@ function InlineMedia(props: {
       <Match when={file.isImage ? file.thumbUrl : undefined}>
         {(thumb) => {
           const dimensions = () =>
-            constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180, true);
+            constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180);
           return (
             <ConstrainedImage
               alt={file.title || file.name}
@@ -88,13 +67,16 @@ function InlineMedia(props: {
 function VideoFile(props: { file: SlackFile }) {
   const [video, setVideo] = createSignal<HTMLVideoElement>();
   const { file } = props;
+  const dimensions = () => constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180);
   return (
     <VideoPlayer
       ariaLabel={file.title || file.name}
       captionsSrc={file.vtt}
       class="message-file-video"
+      downloadHref={file.urlPrivateDownload}
+      downloadName={file.name}
       duration={file.duration}
-      height={file.height}
+      height={dimensions().height}
       openHref={file.urlPrivate}
       poster={file.thumbUrl}
       ref={setVideo}
@@ -104,7 +86,7 @@ function VideoFile(props: { file: SlackFile }) {
           <TranscriptPopover file={file} media={video} triggerClass="video-player-chrome" />
         </Show>
       }
-      width={file.width}
+      width={dimensions().width}
     />
   );
 }
@@ -137,18 +119,24 @@ function OtherFile(props: { file: SlackFile }) {
           <FileCardInfo file={file} icon="email" />
         </FileViewerTrigger>
       </Match>
+      <Match when={isCanvasFile(file)}>
+        <button
+          class="message-file-card flex-align-center btn-reset"
+          onClick={() => store.canvas.openCanvasPane(file.id, file.title || file.name)}
+          type="button"
+        >
+          <FileCardInfo file={file} icon="canvas" />
+        </button>
+      </Match>
     </Switch>
   );
 }
 
 export default function MessageFiles(props: { files: SlackFile[] }) {
-  const mediaFiles = createMemo(() => props.files.filter(isInlineMedia));
-  const otherFiles = createMemo(() => props.files.filter((file) => !isInlineMedia(file)));
+  const mediaFiles = () => props.files.filter(isInlineMedia);
+  const otherFiles = () => props.files.filter((file) => !isInlineMedia(file));
   const gallery = () => imageGallery(props.files);
-  const mediaTitle = () => {
-    const files = mediaFiles();
-    return files.length === 1 ? files[0].title || files[0].name : `${files.length} files`;
-  };
+  const mediaTitle = () => fileSummaryLabel(mediaFiles());
 
   return (
     <div class="message-files">

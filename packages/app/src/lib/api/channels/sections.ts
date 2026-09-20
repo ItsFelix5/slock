@@ -57,13 +57,6 @@ export async function renameSection(sectionId: string, name: string): Promise<bo
   const data = await apiPatch(`/api/sections/${sectionId}`, { name });
   return !!data.ok;
 }
-export async function setSectionSidebar(
-  sectionId: string,
-  sidebar: "hid" | "active" | "all",
-): Promise<boolean> {
-  const data = await apiPatch(`/api/sections/${sectionId}`, { sidebar });
-  return !!data.ok;
-}
 export async function deleteSection(sectionId: string): Promise<boolean> {
   const data = await apiDelete(`/api/sections/${sectionId}`);
   return !!data.ok;

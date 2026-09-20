@@ -115,6 +115,7 @@ export interface RawFile {
     preview?: { content?: string; has_more?: boolean };
   };
   url_private?: string;
+  url_private_download?: string;
   vtt?: string;
 }
 
@@ -187,7 +188,10 @@ export interface RawMessage {
   icons?: { image_36?: string; image_48?: string; image_72?: string };
   is_ephemeral?: boolean;
   latest_reply?: string;
-  metadata?: { event_payload?: { source_user_id?: string } };
+  metadata?: {
+    event_type?: string;
+    event_payload?: { real_user_id?: string };
+  };
   reactions?: Reaction[];
   reply_count?: number;
   reply_users?: string[];

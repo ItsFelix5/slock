@@ -3,8 +3,7 @@ import { okResponse, slackErrorResponse } from "../http/jsonResponse.ts";
 import { callSlack } from "../slackClient.ts";
 
 export type BodyReader = {
-  json(): Promise<Record<string, unknown>>;
-  text(): Promise<string>;
+  json(): Promise<any>;
   buffer(): Promise<Uint8Array>;
 };
 
@@ -12,9 +11,9 @@ export type RouteCtx = {
   params: Record<string, string>;
   searchParams: URLSearchParams;
   creds: Credentials | null;
-  secure: boolean;
   acceptEncoding: string | null;
   body: BodyReader;
+  range: string | null;
 };
 
 export type Route = {
@@ -23,12 +22,8 @@ export type Route = {
   handler: (ctx: RouteCtx) => Promise<Response>;
 };
 
-function splitPath(pathname: string): string[] {
-  return pathname.split("/").filter(Boolean);
-}
-
 export function route(method: string, path: string, handler: Route["handler"]): Route {
-  return { handler, method, segments: splitPath(path) };
+  return { handler, method, segments: path.split("/").filter(Boolean) };
 }
 
 export async function mutate(
@@ -57,7 +52,7 @@ export function matchRoute(
   method: string,
   pathname: string,
 ): { route: Route; params: Record<string, string> } | null {
-  const parts = splitPath(pathname);
+  const parts = pathname.split("/").filter(Boolean);
   for (const candidate of routes) {
     if (candidate.method !== method) continue;
     const params = matchSegments(candidate.segments, parts);

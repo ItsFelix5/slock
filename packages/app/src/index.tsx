@@ -1,5 +1,3 @@
-/* @refresh reload */
-
 import { render } from "solid-js/web";
 import ConnectSlack from "./components/setup/ConnectSlack";
 import { isConfigured } from "./lib/api";

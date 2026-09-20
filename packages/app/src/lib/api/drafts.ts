@@ -1,7 +1,10 @@
 import type { DraftEntry } from "@slock/types";
 import { apiDelete, apiGet, apiPut } from "@slock/types";
 
-const draftState = new Map<string, { draftId: string; clientMsgId: string }>();
+const draftState = new Map<
+  string,
+  { draftId: string; clientMsgId: string; lastUpdatedTs?: string }
+>();
 function draftKey(channelId: string, threadTs?: string): string {
   return threadTs ? `${channelId}:${threadTs}` : channelId;
 }
@@ -14,6 +17,7 @@ export async function fetchDrafts(): Promise<DraftEntry[]> {
     draftState.set(draftKey(d.channelId, d.threadTs), {
       clientMsgId: d.clientMsgId,
       draftId: d.id,
+      lastUpdatedTs: d.lastUpdatedTs,
     });
     return { blocks: d.blocks, channelId: d.channelId, text: d.text, threadTs: d.threadTs };
   });
@@ -30,7 +34,9 @@ export async function saveDraft(
 
   if (!text.trim()) {
     if (existing) {
-      const data = await apiDelete(`/api/drafts/${existing.draftId}`);
+      const data = await apiDelete(`/api/drafts/${existing.draftId}`, {
+        lastUpdatedTs: existing.lastUpdatedTs,
+      });
       if (data.ok === false) throw new Error(data.error ?? "drafts.delete failed");
       draftState.delete(key);
     }
@@ -48,5 +54,5 @@ export async function saveDraft(
   });
   if (data.ok === false) throw new Error(data.error ?? "drafts.create failed");
   if (!data.id) throw new Error("drafts.create returned no draft id");
-  draftState.set(key, { clientMsgId, draftId: data.id });
+  draftState.set(key, { clientMsgId, draftId: data.id, lastUpdatedTs: data.lastUpdatedTs });
 }

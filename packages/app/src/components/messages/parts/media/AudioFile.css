@@ -19,7 +19,7 @@
   height: 32px;
   color: var(--text-on-accent);
   background: var(--accent);
-  border-radius: var(--radius-circle);
+  border-radius: var(--radius-control);
 }
 
 .audio-file-play:hover {
@@ -28,7 +28,7 @@
 
 .audio-file-play:focus-visible,
 .audio-file-waveform:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 

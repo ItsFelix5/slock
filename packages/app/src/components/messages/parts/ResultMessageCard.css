@@ -1,5 +1,4 @@
 .result-message-card {
-  position: relative;
   display: flex;
   align-items: flex-start;
   margin-bottom: 6px;
@@ -22,7 +21,7 @@
   flex: 1;
   gap: 10px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: calc(10px + var(--row-padding-offset)) 12px;
   text-align: left;
 }
 

@@ -1,65 +1,177 @@
-import { routeApiRequest } from "./api";
-import { type Credentials, parseCredsCookie } from "./auth";
-import { compressResponse } from "./http/compressedResponse";
-import { errorMessage } from "./http/errorMessage";
+import { resolve } from "node:path";
+import { rm } from "node:fs/promises";
+import { renderIndexHtml } from "./indexHtml";
+import { resolveBuildAssets } from "./resolveBuildAssets";
+import { solidPlugin } from "./solidPlugin";
+import { bootstrapRoutes } from "./operations/bootstrap.ts";
+import { accountRoutes } from "./routes/account/account.ts";
+import { activityRoutes } from "./routes/account/activity.ts";
+import { preferenceRoutes } from "./routes/account/preferences.ts";
+import { sessionRoutes } from "./routes/account/session.ts";
+import { userStatusRoutes } from "./routes/account/userStatus.ts";
+import { canvasRoutes } from "./routes/channels/canvases.ts";
+import { channelDirectoryRoutes } from "./routes/channels/channelDirectory.ts";
+import { channelRoutes } from "./routes/channels/channels.ts";
+import { sectionRoutes } from "./routes/channels/sections.ts";
+import { conversationViewRoutes } from "./routes/messages/conversationView.ts";
+import { draftRoutes } from "./routes/messages/drafts.ts";
+import { fileRoutes } from "./routes/messages/files.ts";
+import { messageActionRoutes } from "./routes/messages/messageActions.ts";
+import { messageRoutes } from "./routes/messages/messages.ts";
+import { threadRoutes } from "./routes/messages/threads.ts";
+import { appRoutes } from "./routes/workspace/apps.ts";
+import { assetRoutes } from "./routes/workspace/assets.ts";
+import { commandRoutes } from "./routes/workspace/commands.ts";
+import { emojiRoutes } from "./routes/workspace/emoji.ts";
+import { searchRoutes } from "./routes/workspace/search.ts";
+import { usergroupRoutes } from "./routes/workspace/usergroups.ts";
+import { authPayloadError, type Credentials } from "./auth";
+import { compressResponse, errorMessage } from "./http/compressedResponse";
 import {
   handleClientDisconnect,
   handleClientMessage,
   handleClientOpen,
   statusMessage,
 } from "./realtime";
+import { matchRoute, type Route } from "./routes/router";
 
-const PORT = 5174;
-const DIST_DIR = `${import.meta.dir}/../dist`;
+const APP_DIR = resolve(import.meta.dir, "../../app");
+const DEV = Bun.argv.includes("--dev");
 
-async function serveStatic(pathname: string): Promise<Response | null> {
-  if (pathname.includes("..")) return null;
-  const rel = pathname === "/" ? "/index.html" : pathname;
-  const file = Bun.file(`${DIST_DIR}${rel}`);
-  if (await file.exists()) return new Response(file);
+let files: Map<string, { contents: Blob; contentType: string }>;
 
-  if (!rel.slice(rel.lastIndexOf("/") + 1).includes(".")) {
-    const index = Bun.file(`${DIST_DIR}/index.html`);
-    if (await index.exists()) return new Response(index);
-  }
-  return null;
+async function build(minify?: boolean): Promise<{ html: string; outputs: Bun.BuildArtifact[] }> {
+  const result = await Bun.build({
+    entrypoints: [`${APP_DIR}/src/index.tsx`],
+    external: ["/public/*"],
+    naming: {
+      asset: "assets/[name]-[hash].[ext]",
+      chunk: "assets/[name]-[hash].[ext]",
+      entry: "assets/[name]-[hash].[ext]",
+    },
+    minify: !!minify,
+    plugins: [solidPlugin],
+    sourcemap: minify ? "linked" : "inline",
+    splitting: true,
+    target: "browser",
+  });
+
+  for (const log of result.logs) console.error(log);
+  if (!result.success) throw new Error("Build failed");
+
+  files = new Map();
+  const toUrl = (path: string) => "/" + (path.startsWith("./") ? path.slice(2) : path);
+  for (const output of result.outputs)
+    files.set(toUrl(output.path), { contents: output, contentType: output.type });
+
+  const { entryPath, entryCssPaths, staleCssPaths } = resolveBuildAssets(result.outputs, toUrl);
+  return {
+    html: renderIndexHtml(entryPath, entryCssPaths),
+    outputs: result.outputs.filter((output) => !staleCssPaths.includes(toUrl(output.path))),
+  };
 }
+
+if (Bun.argv.includes("--build")) {
+  await rm(`${APP_DIR}/dist`, { force: true, recursive: true });
+  const { html, outputs } = await build(true);
+  await Bun.write(`${APP_DIR}/dist/index.html`, html);
+  for (const output of outputs) {
+    const path = output.path.startsWith("./") ? output.path.slice(2) : output.path;
+    await Bun.write(`${APP_DIR}/dist/${path}`, output);
+  }
+  process.exit();
+}
+
+const ROUTES: Route[] = [
+  ...messageActionRoutes,
+  ...messageRoutes,
+  ...threadRoutes,
+  ...conversationViewRoutes,
+  ...canvasRoutes,
+  ...channelDirectoryRoutes,
+  ...channelRoutes,
+  ...sectionRoutes,
+  ...draftRoutes,
+  ...fileRoutes,
+  ...accountRoutes,
+  ...usergroupRoutes,
+  ...appRoutes,
+  ...searchRoutes,
+  ...preferenceRoutes,
+  ...activityRoutes,
+  ...commandRoutes,
+  ...userStatusRoutes,
+  ...bootstrapRoutes,
+  ...emojiRoutes,
+  ...assetRoutes,
+  ...sessionRoutes,
+];
 
 Bun.serve<{ creds: Credentials | null }>({
   async fetch(req, server) {
     try {
       const url = new URL(req.url);
-      const creds = parseCredsCookie(req.headers.get("cookie"));
+      let creds: Credentials | null = null;
+      const cookieHeader = req.headers.get("cookie");
+      for (const part of cookieHeader?.split(";") ?? []) {
+        const eq = part.indexOf("=");
+        if (eq === -1) continue;
+        if (part.slice(0, eq).trim() !== "slock_creds") continue;
+        try {
+          const parsed = JSON.parse(decodeURIComponent(part.slice(eq + 1).trim()));
+          creds = authPayloadError(parsed) === null ? parsed : null;
+        } catch {}
+      }
 
       if (url.pathname === "/ws") {
         if (server.upgrade(req, { data: { creds } })) return;
         return new Response("upgrade failed", { status: 400 });
       }
 
-      const apiResponse = await routeApiRequest(
-        req.method,
-        url.pathname,
-        url.searchParams,
-        creds,
-        url.protocol === "https:",
-        req.headers.get("accept-encoding"),
-        {
-          buffer: async () => new Uint8Array(await req.arrayBuffer()),
-          json: () => req.json().catch(() => ({})) as Promise<Record<string, unknown>>,
-          text: () => req.text().catch(() => ""),
-        },
-      );
-      if (apiResponse) return compressResponse(apiResponse, req.headers.get("accept-encoding"));
+      let res: Response | undefined;
+      if (url.pathname.startsWith("/api/")) {
+        const matched = matchRoute(ROUTES, req.method, url.pathname.slice("/api".length));
+        if (matched) {
+          res = await matched.route.handler({
+            acceptEncoding: req.headers.get("accept-encoding"),
+            body: {
+              buffer: async () => new Uint8Array(await req.arrayBuffer()),
+              json: req.json.bind(req),
+            },
+            creds,
+            params: matched.params,
+            searchParams: url.searchParams,
+            range: req.headers.get("range"),
+          });
+        }
+      } else if (req.method === "GET") {
+        let file:
+          | { contents: Blob | string | Bun.BunFile; contentType: string }
+          | Bun.BunFile
+          | undefined = undefined;
+        if (url.pathname.startsWith("/public/")) {
+          if (!url.pathname.includes("..")) file = Bun.file(`${APP_DIR}${url.pathname}`);
+        } else if (url.pathname.startsWith("/assets/")) {
+          if (!url.pathname.includes(".."))
+            file = DEV ? files?.get(url.pathname) : Bun.file(`${APP_DIR}/dist${url.pathname}`);
+        } else {
+          if (DEV) file = { contents: (await build()).html, contentType: "text/html" };
+          else file = Bun.file(`${APP_DIR}/dist/index.html`);
+        }
 
-      if (req.method === "GET") {
-        const asset = await serveStatic(url.pathname);
-        if (asset) return compressResponse(asset, req.headers.get("accept-encoding"));
+        if (file && !("contents" in file) && (await file.exists()))
+          file = { contents: file, contentType: file.type };
+        if (file && "contents" in file)
+          res = new Response(file.contents, { headers: { "content-type": file.contentType } });
       }
 
-      return compressResponse(
-        new Response("not found", { status: 404 }),
-        req.headers.get("accept-encoding"),
+      if (!res) return new Response("not found", { status: 404 });
+      res.headers.set(
+        "content-security-policy",
+        "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://slack-imgs.com; media-src 'self' https://slack-imgs.com; font-src 'self' data:; connect-src 'self'; frame-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
       );
+      res.headers.set("x-content-type-options", "nosniff");
+      return compressResponse(res, req.headers.get("accept-encoding"));
     } catch (error) {
       return Response.json(
         { error: errorMessage(error, "Server request failed") },
@@ -68,7 +180,7 @@ Bun.serve<{ creds: Credentials | null }>({
     }
   },
   hostname: "0.0.0.0",
-  port: PORT,
+  port: 5175,
   websocket: {
     close(ws) {
       handleClientDisconnect(ws);
@@ -82,3 +194,5 @@ Bun.serve<{ creds: Credentials | null }>({
     },
   },
 });
+
+console.log(`(${DEV ? "dev" : "production"}): http://localhost:${5175}`);

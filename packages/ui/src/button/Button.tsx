@@ -5,7 +5,7 @@ export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>
   disabled?: boolean;
   icon?: boolean;
   size?: "sm" | "md" | "lg";
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  variant?: "primary" | "secondary" | "danger";
 }
 
 export default function Button(props: ButtonProps) {

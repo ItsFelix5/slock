@@ -1,13 +1,9 @@
-import {
-  ACTIVITY_FEED_TYPES_PARAM,
-  type RichTextBlock,
-  richTextBlocksToPlainText,
-} from "@slock/types";
+import { ACTIVITY_FEED_TYPES_PARAM, richTextBlocksToPlainText } from "@slock/types";
 import type { Credentials } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import { trimActivityCounts } from "../../trim/slackEntities.ts";
-import { type Route, route } from "../router.ts";
+import { mutate, type Route, route } from "../router.ts";
 
 function trimActivityMessage(message: any): any {
   if (!message || typeof message !== "object") return message;
@@ -16,9 +12,7 @@ function trimActivityMessage(message: any): any {
     bot_id: message.bot_id,
     bot_profile: message.bot_profile ? { name: message.bot_profile.name } : undefined,
     channel: message.channel,
-    metadata: message.metadata?.event_payload?.source_user_id
-      ? { event_payload: { source_user_id: message.metadata.event_payload.source_user_id } }
-      : undefined,
+    metadata: message.metadata,
     text: message.text,
     thread_ts: message.thread_ts,
     ts: message.ts,
@@ -64,7 +58,7 @@ async function fetchReminderTexts(
     ...new Set(
       rawItems
         .filter((raw) => raw?.item?.type === "saved_reminder" && raw.item.linked_item_id)
-        .map((raw) => raw.item.linked_item_id as string),
+        .map((raw) => raw.item.linked_item_id),
     ),
   ];
   const texts = new Map<string, string>();
@@ -80,7 +74,7 @@ async function fetchReminderTexts(
   );
   if (!data.ok) return texts;
   for (const savedItem of data.saved_items ?? []) {
-    const blocks = savedItem?.description as RichTextBlock[] | undefined;
+    const blocks = savedItem?.description;
     if (savedItem?.item_id && Array.isArray(blocks))
       texts.set(savedItem.item_id, richTextBlocksToPlainText(blocks));
   }
@@ -171,20 +165,27 @@ function trimActivityItem(raw: any, reminderTexts: Map<string, string>): any {
 }
 
 export const activityRoutes: Route[] = [
-  route("POST", "/api/activity/read", async (ctx) => {
-    const { feedTs, key, type } = (await ctx.body.json()) as {
+  route("POST", "activity/archive", async (ctx) => {
+    const { key, ts, type } = await (ctx.body.json() as Promise<{
+      key?: string;
+      ts?: string;
+      type?: string;
+    }>);
+    if (!(key && ts && type)) return errorResponse("invalid_activity_entry", 400);
+    return mutate("activity.archive", { key, ts, type }, ctx);
+  }),
+
+  route("POST", "activity/read", async (ctx) => {
+    const { feedTs, key, type } = await (ctx.body.json() as Promise<{
       feedTs?: string;
       key?: string;
       type?: string;
-    };
+    }>);
     if (!(feedTs && key && type)) return errorResponse("invalid_activity_entry", 400);
-    const data = await callSlack("activity.markRead", { feed_ts: feedTs, key, type }, ctx.creds);
-    if (!data.ok)
-      return slackErrorResponse(data, "activity.markRead", ctx.creds, ctx.acceptEncoding);
-    return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
+    return mutate("activity.markRead", { feed_ts: feedTs, key, type }, ctx);
   }),
 
-  route("GET", "/api/activity/counts", async (ctx) => {
+  route("GET", "activity/counts", async (ctx) => {
     const data = await callSlack("client.counts", {}, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "client.counts", ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
@@ -194,7 +195,7 @@ export const activityRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/activity", async (ctx) => {
+  route("GET", "activity", async (ctx) => {
     const limit = ctx.searchParams.get("limit") ?? "50";
     const cursor = ctx.searchParams.get("cursor") ?? undefined;
     const types = ctx.searchParams.get("types") ?? ACTIVITY_FEED_TYPES_PARAM;

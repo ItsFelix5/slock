@@ -1,5 +1,5 @@
 import type { ActivityItem, Message } from "../../../api";
-import { blockPreviewText, fetchPermalinkMessage } from "../../../api";
+import { fetchPermalinkMessage } from "../../../api";
 import type { MessageLocation } from "../types";
 
 export function createReactionEvents(deps: {
@@ -24,7 +24,7 @@ export function createReactionEvents(deps: {
       id: `rx-${channel}-${ts}-${name}-${userId}-${Date.now()}`,
       kind: "reaction",
       reactionName: name,
-      text: msg.text || blockPreviewText(msg.blocks),
+      text: msg.text,
       threadTs: msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined),
       time: Date.now(),
       ts,

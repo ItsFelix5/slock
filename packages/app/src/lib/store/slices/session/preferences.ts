@@ -1,3 +1,4 @@
+import { splitHighlightWords } from "@slock/blockkit";
 import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Channel, UserPrefs } from "../../../api";
@@ -10,16 +11,11 @@ import {
   setHighlightWords as setHighlightWordsApi,
   setMutedChannels,
 } from "../../../api";
-import { actionFeedback } from "../../../feedback";
+import { flashError, undoStack } from "../../../feedback";
 import {
   emojiUseScore as calculateEmojiUseScore,
   frecencyScore as calculateFrecencyScore,
 } from "../../../frecency";
-import { undoStack } from "../../../undo";
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 export function createPreferencesSlice(deps: {
   channels: () => Channel[];
@@ -53,17 +49,13 @@ export function createPreferencesSlice(deps: {
 
   function requirePreferences(feedbackKey: string): boolean {
     if (preferencesReady()) return true;
-    actionFeedback.flash(
-      feedbackKey,
-      "Preferences are unavailable. Try loading them again.",
-      "error",
-    );
+    flashError(feedbackKey, "Preferences are unavailable. Try loading them again.");
     return false;
   }
 
   createEffect(() => {
     if (dndStatus.error) {
-      actionFeedback.flash("dnd", "Couldn't load Do Not Disturb status. Click to retry.", "error");
+      flashError("dnd", "Couldn't load Do Not Disturb status. Click to retry.");
       return;
     }
     const status = dndStatus();
@@ -109,7 +101,7 @@ export function createPreferencesSlice(deps: {
       return true;
     } catch (err) {
       console.error("Failed to set channel mute preference", err);
-      actionFeedback.flash(channelId, "Failed to update mute setting.", "error");
+      flashError(channelId, "Failed to update mute setting.");
       setMutedChannelIds(channelId, !next);
       return false;
     } finally {
@@ -135,7 +127,7 @@ export function createPreferencesSlice(deps: {
       return true;
     } catch (err) {
       console.error("Failed to set pingwords", err);
-      actionFeedback.flash("pingwords", "Failed to update pingwords.", "error");
+      flashError("pingwords", "Failed to update pingwords.");
       setHighlightWordsSignal(previous);
       return false;
     } finally {
@@ -168,12 +160,11 @@ export function createPreferencesSlice(deps: {
       return true;
     } catch (err) {
       console.error("Failed to set channel notification preference", err);
-      actionFeedback.flash(
+      flashError(
         channelId,
         err instanceof PairedPreferenceWriteError && !err.rollbackComplete
           ? "Slack only updated part of this notification setting. Reload to verify it."
           : "Failed to update notification preference.",
-        "error",
       );
       setNotifyAllChannelIds(channelId, !next);
       return false;
@@ -190,9 +181,7 @@ export function createPreferencesSlice(deps: {
   );
 
   function matchingHighlightWord(text: string): string | undefined {
-    return highlightWords().find((word) =>
-      new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(text),
-    );
+    return splitHighlightWords(text, highlightWords()).find((seg) => seg.highlighted)?.text;
   }
 
   function isDndActive(): boolean {
@@ -217,6 +206,10 @@ export function createPreferencesSlice(deps: {
     } catch {}
   }
 
+  function applyDndSnoozeEvent(snoozedUntil: number | null): void {
+    setDndSnoozedUntil(snoozedUntil);
+  }
+
   async function snoozeDnd(minutes: number): Promise<boolean> {
     if (dndPending()) return false;
     const previous = dndSnoozedUntil();
@@ -228,7 +221,7 @@ export function createPreferencesSlice(deps: {
       return true;
     } catch (err) {
       console.error("Failed to set DND snooze", err);
-      actionFeedback.flash("dnd", "Failed to enable Do Not Disturb.", "error");
+      flashError("dnd", "Failed to enable Do Not Disturb.");
       setDndSnoozedUntil(previous);
       return false;
     } finally {
@@ -246,7 +239,7 @@ export function createPreferencesSlice(deps: {
       return true;
     } catch (err) {
       console.error("Failed to end DND snooze", err);
-      actionFeedback.flash("dnd", "Failed to disable Do Not Disturb.", "error");
+      flashError("dnd", "Failed to disable Do Not Disturb.");
       setDndSnoozedUntil(previous);
       return false;
     } finally {
@@ -275,6 +268,7 @@ export function createPreferencesSlice(deps: {
     notifyAllChannels,
     preferencesReady,
     removeHighlightWord,
+    applyDndSnoozeEvent,
     retryDndStatus,
     snoozeDnd,
     toggleMuteChannel,

@@ -2,8 +2,9 @@ import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { DirectMessage, SlackFile, User } from "../../lib/api";
 import { channelIconName, dmDisplayName } from "../../lib/displayName";
+import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
-import { openConversationInSplit, SplitNavigation } from "../navigation/SplitNavigation";
+import { SplitNavigation } from "../navigation/SplitNavigation";
 
 export interface JumpChannel {
   id: string;
@@ -127,18 +128,20 @@ export default function GlobalSearchResults(props: {
               }
               const user = row.data;
               return (
-                <button
-                  class="global-search-result global-search-jump btn-reset flex-align-center"
-                  classList={{ active: props.activeIndex === itemIndex() }}
-                  id={optionId(itemIndex())}
-                  onClick={() => props.onPerson(user.id)}
-                  onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                  tabIndex={-1}
-                  type="button"
-                >
-                  <Avatar size="small" user={user} />
-                  {user.name}
-                </button>
+                <SplitNavigation onSplit={() => store.dms.openDmWithUser(user.id, { split: true })}>
+                  <button
+                    class="global-search-result global-search-jump btn-reset flex-align-center"
+                    classList={{ active: props.activeIndex === itemIndex() }}
+                    id={optionId(itemIndex())}
+                    onClick={() => props.onPerson(user.id)}
+                    onMouseEnter={() => props.onActiveIndex(itemIndex())}
+                    tabIndex={-1}
+                    type="button"
+                  >
+                    <Avatar size="small" user={user} />
+                    {user.name}
+                  </button>
+                </SplitNavigation>
               );
             }}
           </For>

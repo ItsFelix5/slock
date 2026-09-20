@@ -35,7 +35,6 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
           class="sidebar-section-menu-btn"
           icon="ellipsis-vertical-filled"
           iconSize={14}
-          label="Section options"
           onClick={() =>
             setSectionMenuOpen(sectionMenuOpen() === props.cat.id ? null : props.cat.id)
           }

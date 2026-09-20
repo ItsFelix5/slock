@@ -8,6 +8,7 @@
 }
 
 .pane-cell {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -44,7 +45,7 @@
 }
 
 .pane-divider:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: -2px;
 }
 
@@ -61,10 +62,17 @@
   border-bottom: 1px solid var(--border);
 }
 
-.pane-tab {
+.pane-tab-wrap {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+button.pane-tab {
   flex-shrink: 0;
   max-width: 160px;
-  padding: 6px 12px;
+  padding: 6px 26px 6px 12px;
   overflow: hidden;
   font-size: var(--font-size-meta);
   color: var(--text-dim);
@@ -73,24 +81,42 @@
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
-.pane-tab:hover {
+.pane-tab .emoji-img {
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+}
+
+button.pane-tab:hover {
   color: var(--text-secondary);
   background: var(--hover-bg);
 }
 
-.pane-tab.active {
+button.pane-tab.active {
   color: var(--text-primary);
   background: var(--main-bg);
   box-shadow: inset 0 -2px var(--accent);
 }
 
-.pane-tab-content {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+button.pane-tab-close {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: none;
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+  border-radius: var(--radius-sm);
+  transform: translateY(-50%);
 }
 
-.pane-tab-content .pane-cell {
-  position: absolute;
-  inset: 0;
+.pane-tab-wrap:hover .pane-tab-close,
+.pane-tab-wrap:focus-within .pane-tab-close,
+.pane-tab-wrap.active .pane-tab-close {
+  display: flex;
+}
+
+button.pane-tab-close:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
 }

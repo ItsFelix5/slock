@@ -1,4 +1,5 @@
 import type { Block } from "./blocks";
+import type { SlackFile } from "./types";
 
 export const ACTIVITY_FEED_TYPES = [
   "at_user",
@@ -35,6 +36,7 @@ export interface ActivityItem {
   blocks?: Block[];
   broadcastRange?: "channel" | "here" | "everyone";
   channelId: string;
+  files?: SlackFile[];
   id: string;
   kind:
     | "mention"

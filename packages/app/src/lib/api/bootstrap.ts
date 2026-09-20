@@ -1,5 +1,5 @@
 import type { Bootstrap, Channel, DirectMessage, User } from "@slock/types";
-import { buildUnreadMap, mapUser, type RawCounts, type RawUser } from "@slock/types";
+import { ApiError, buildUnreadMap, mapUser, type RawCounts, type RawUser } from "@slock/types";
 import { fetchInitialData } from "./initialData";
 
 interface RawBootChannel {
@@ -45,17 +45,20 @@ interface RawBoot {
   ok?: boolean;
   self?: RawUser;
   starred?: (string | { channel?: string; id?: string })[];
-  subteams?: { self?: string[] };
+  subteams?: { all?: string[]; self?: string[] };
 }
 
 export async function fetchBootstrap(): Promise<Bootstrap> {
   const initial = await fetchInitialData();
-  if (initial.error?.bootstrap) throw new Error(initial.error.bootstrap);
-  const boot = initial as RawBoot;
-  const counts = {
+  if (initial.error?.bootstrap) {
+    throw new ApiError(initial.error.bootstrap, initial.retry_after?.bootstrap);
+  }
+  const rawInitial: any = initial;
+  const boot: RawBoot = rawInitial;
+  const counts: RawCounts = {
     ...initial.unreads,
     activity_v2: initial.notifications,
-  } as RawCounts;
+  };
 
   const unreadMap = buildUnreadMap(counts);
 
@@ -139,7 +142,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       lastActivity:
         latestByMpim.get(g.id) || g.updated || (g.created ? g.created * 1000 : undefined),
       memberIds: (g.members ?? []).filter((id) => id !== boot.self?.id),
-
+      mentions: unreadMap[g.id]?.mentions || undefined,
       name: g.properties?.has_custom_mpdm_name ? g.name : undefined,
       unread: !!unreadMap[g.id]?.unread,
     }));
@@ -159,9 +162,11 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     .filter((id): id is string => !!id);
 
   const selfUsergroupIds = boot.subteams?.self ?? [];
+  const allUsergroupIds = boot.subteams?.all ?? [];
 
   return {
     activityCounts: counts.activity_v2,
+    allUsergroupIds,
     channels,
     currentUser,
     directMessages,

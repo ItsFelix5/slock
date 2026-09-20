@@ -26,8 +26,11 @@ const ACTIVITY_TYPE_KINDS = {
   unjoined_channel_mention: "channel_mention",
 } as const satisfies Record<(typeof ACTIVITY_FEED_TYPES)[number], ActivityItem["kind"]>;
 
+const ACTIVITY_TYPE_KINDS_BY_STRING: Record<string, ActivityItem["kind"] | undefined> =
+  ACTIVITY_TYPE_KINDS;
+
 function activityKindFor(type: string): ActivityItem["kind"] {
-  return ACTIVITY_TYPE_KINDS[type as keyof typeof ACTIVITY_TYPE_KINDS] ?? "other";
+  return ACTIVITY_TYPE_KINDS_BY_STRING[type] ?? "other";
 }
 
 export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = Object.entries(
@@ -92,6 +95,7 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
   const type = raw.item?.type;
   if (typeof type !== "string") return;
   const kind = activityKindFor(type);
+  const unread = typeof raw.is_unread === "boolean" ? raw.is_unread : undefined;
   if (raw.item.type === "message_reaction") {
     const { message, reaction } = raw.item;
     if (message && reaction)
@@ -107,6 +111,7 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
           message.thread_ts && message.thread_ts !== message.ts ? message.thread_ts : undefined,
         time,
         ts: message.ts,
+        unread,
         userId: reaction.user,
       };
   }
@@ -134,6 +139,7 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
         threadTs: thread.thread_ts,
         time,
         ts: thread.latest_ts,
+        unread,
         unreadCount: thread.unread_msg_count,
         userId,
       };
@@ -185,6 +191,7 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
       text,
       time,
       ts: String(raw.item?.ts ?? raw.feed_ts ?? raw.key),
+      unread,
       userId,
     };
   }
@@ -214,8 +221,7 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     time,
     ts,
     text,
-    unread: typeof raw.is_unread === "boolean" ? raw.is_unread : undefined,
-
+    unread,
     userId,
   };
 }

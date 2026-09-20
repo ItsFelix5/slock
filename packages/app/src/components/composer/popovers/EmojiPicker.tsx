@@ -68,7 +68,7 @@ export default function EmojiPicker(props: {
     requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
   });
 
-  const allEntries = createMemo(() => allEmojiEntries());
+  const allEntries = allEmojiEntries;
 
   const reactionByName = createMemo(() => {
     const map = new Map<string, boolean>();
@@ -91,7 +91,7 @@ export default function EmojiPicker(props: {
     return prioritizeEmojiEntries(entries, reactedEntries(), frequent);
   });
 
-  const isEmpty = createMemo(() => visibleEntries().length === 0);
+  const isEmpty = () => visibleEntries().length === 0;
 
   const blocks = createMemo(() => buildBlocks([{ entries: visibleEntries() }]));
 
@@ -113,10 +113,10 @@ export default function EmojiPicker(props: {
 
   onMount(() => {
     if (!bodyRef) return;
-    setViewportHeight(bodyRef.clientHeight);
-    const ro = new ResizeObserver(() => bodyRef && setViewportHeight(bodyRef.clientHeight));
-    ro.observe(bodyRef);
-    onCleanup(() => ro.disconnect());
+    const measure = () => bodyRef && setViewportHeight(bodyRef.clientHeight);
+    measure();
+    window.addEventListener("resize", measure);
+    onCleanup(() => window.removeEventListener("resize", measure));
   });
 
   createEffect(
@@ -125,6 +125,7 @@ export default function EmojiPicker(props: {
       () => {
         setScrollTop(0);
         if (bodyRef) bodyRef.scrollTop = 0;
+        setActiveIndex(0);
       },
       { defer: true },
     ),
@@ -164,6 +165,14 @@ export default function EmojiPicker(props: {
   const GridKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"];
 
   const handleGridKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      const entry = visibleEntries()[activeIndex()];
+      if (entry) {
+        e.preventDefault();
+        props.onSelect(entry.name);
+      }
+      return;
+    }
     if (!GridKeys.includes(e.key)) return;
     const { target } = e;
     const fromSearch = target === searchInputRef;
@@ -206,7 +215,7 @@ export default function EmojiPicker(props: {
       <Show when={hasEmojiLoadError()}>
         <div class="emoji-picker-notice emoji-picker-error">
           <span>Couldn't load workspace emoji.</span>
-          <Button onClick={() => void loadCustomEmoji()} size="sm" variant="ghost">
+          <Button onClick={() => void loadCustomEmoji()} size="sm">
             Try again
           </Button>
         </div>
@@ -249,14 +258,14 @@ function EmojiButton(props: {
   onSelect: (name: string) => void;
   reactionByName: () => Map<string, boolean>;
 }) {
-  const url = createMemo(() => emojiUrl(props.entry.name));
-  const mine = createMemo(() => props.reactionByName().get(props.entry.name) === true);
-  const reacted = createMemo(() => props.reactionByName().has(props.entry.name));
-  const tooltip = createMemo(() => {
+  const url = () => emojiUrl(props.entry.name);
+  const mine = () => props.reactionByName().get(props.entry.name) === true;
+  const reacted = () => props.reactionByName().has(props.entry.name);
+  const tooltip = () => {
     if (mine()) return `:${props.entry.name}: · you reacted`;
     if (reacted()) return `:${props.entry.name}: · already reacted`;
     return `:${props.entry.name}:`;
-  });
+  };
   return (
     <Tooltip content={tooltip()}>
       <button

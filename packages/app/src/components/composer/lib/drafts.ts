@@ -1,4 +1,5 @@
 import { createEffect, createSignal } from "solid-js";
+import { createStore } from "solid-js/store";
 import { fetchDrafts, saveDraft } from "../../../lib/api";
 
 export function draftCacheKey(channelId: string, threadTs?: string): string {
@@ -63,31 +64,49 @@ export function createPendingFileState(opts: {
 export const drafts: Record<string, DraftValue> = {};
 const [draftsReady, setDraftsReady] = createSignal(false);
 const [draftErrorKeys, setDraftErrorKeys] = createSignal<Set<string>>(new Set());
-const [draftsVersion, setDraftsVersion] = createSignal(0);
 const locallyTouchedKeys = new Set<string>();
 let draftsHydrated = false;
 let draftHydrationPromise: Promise<boolean> | null = null;
 
 export { draftsReady };
 
+function channelIdFromDraftKey(key: string): string {
+  const idx = key.indexOf(":thread:");
+  return idx === -1 ? key : key.slice(0, idx);
+}
+
+const draftKeysByChannel = new Map<string, Set<string>>();
+const [channelDraftFlags, setChannelDraftFlags] = createStore<Record<string, boolean>>({});
+
+function updateChannelDraftFlag(key: string, hasText: boolean) {
+  const channelId = channelIdFromDraftKey(key);
+  let keys = draftKeysByChannel.get(channelId);
+  if (hasText) {
+    if (!keys) {
+      keys = new Set();
+      draftKeysByChannel.set(channelId, keys);
+    }
+    keys.add(key);
+  } else if (keys) {
+    keys.delete(key);
+    if (keys.size === 0) draftKeysByChannel.delete(channelId);
+  }
+  const has = (draftKeysByChannel.get(channelId)?.size ?? 0) > 0;
+  if (channelDraftFlags[channelId] !== has) setChannelDraftFlags(channelId, has);
+}
+
 function setDraft(key: string, value: DraftValue) {
   drafts[key] = value;
-  setDraftsVersion((v) => v + 1);
+  updateChannelDraftFlag(key, !!value.text.trim());
 }
 
 function removeDraft(key: string) {
   delete drafts[key];
-  setDraftsVersion((v) => v + 1);
+  updateChannelDraftFlag(key, false);
 }
 
 export function channelHasDraft(channelId: string): boolean {
-  draftsVersion();
-  if (drafts[channelId]?.text.trim()) return true;
-  const threadPrefix = `${channelId}:thread:`;
-  for (const key in drafts) {
-    if (key.startsWith(threadPrefix) && drafts[key]?.text.trim()) return true;
-  }
-  return false;
+  return !!channelDraftFlags[channelId];
 }
 
 function hydrateDrafts(): Promise<boolean> {

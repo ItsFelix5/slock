@@ -1,8 +1,8 @@
-import { Button } from "@slock/ui";
-import { createMemo, createResource, createSignal, Show } from "solid-js";
-import { store } from "../../../lib/store";
+import { Button, blurOnEnter } from "@slock/ui";
+import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
+import { actionFeedback } from "../../../lib/feedback";
 import {
-  loadChannelManagerIds,
+  loadChannelRetention,
   updateChannelRetention,
   updateMemberPermissions,
 } from "../lib/channelDetails";
@@ -11,48 +11,71 @@ import ChannelDangerZone from "./ChannelDangerZone";
 import "./ChannelDetails.css";
 import ChannelPostingPermissions from "./ChannelPostingPermissions";
 import "./ChannelSettingsTab.css";
+import SettingsLoadError from "./SettingsLoadError";
 import {
-  type AppliedPermissionChoice,
   type AppliedRetentionChoice,
-  memberPermissionPatch,
+  memberPermissionsDirty,
+  memberPermissionsPatch,
+  type PermissionChoice,
   retentionValue,
 } from "./settings/channelPolicy";
+
+type RetentionChoice = "" | AppliedRetentionChoice;
+
+function asPermissionChoice(value: string): PermissionChoice {
+  return value === "allow" || value === "restrict" ? value : "";
+}
+
+function asRetentionChoice(value: string): RetentionChoice {
+  return value === "keep" || value === "delete" ? value : "";
+}
 
 export default function ChannelSettingsTab(props: {
   archived: boolean;
   channelId: string;
-  creatorId?: string;
   onChanged?: () => void;
   private: boolean;
 }) {
-  const [managerIds] = createResource(() => props.channelId, loadChannelManagerIds);
-  const isManager = createMemo(() => {
-    const me = store.users.currentUser();
-    if (!me) return false;
-    if (me.isWorkspaceAdmin) return true;
-    if (props.creatorId && me.id === props.creatorId) return true;
-    if (managerIds.error) return false;
-    return (managerIds() ?? []).includes(me.id);
-  });
-
-  type PermissionChoice = "" | AppliedPermissionChoice;
   const [invitePermission, setInvitePermission] = createSignal<PermissionChoice>("");
+  const [committedInvite, setCommittedInvite] = createSignal<PermissionChoice>("");
   const [topicPermission, setTopicPermission] = createSignal<PermissionChoice>("");
+  const [committedTopic, setCommittedTopic] = createSignal<PermissionChoice>("");
   const [purposePermission, setPurposePermission] = createSignal<PermissionChoice>("");
-  const [savingMemberPermissions, setSavingMemberPermissions] = createSignal(false);
+  const [committedPurpose, setCommittedPurpose] = createSignal<PermissionChoice>("");
 
-  type RetentionChoice = "" | AppliedRetentionChoice;
+  const permissionDrafts = () => ({
+    invite: { committed: committedInvite(), current: invitePermission() },
+    purpose: { committed: committedPurpose(), current: purposePermission() },
+    topic: { committed: committedTopic(), current: topicPermission() },
+  });
+  const permissionsDirty = () => memberPermissionsDirty(permissionDrafts());
+
+  const [retention, { refetch: refetchRetention }] = createResource(
+    () => props.channelId,
+    loadChannelRetention,
+  );
+  const retryRetention = () => void Promise.resolve(refetchRetention()).catch(() => {});
+
   const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>("");
   const [retentionDays, setRetentionDays] = createSignal(90);
   const [savedRetention, setSavedRetention] = createSignal<{
     choice: AppliedRetentionChoice;
     days: number;
   } | null>(null);
-  const [savingRetention, setSavingRetention] = createSignal(false);
 
-  const retentionDaysValid = createMemo(
-    () => Number.isInteger(retentionDays()) && retentionDays() >= 1,
+  const [saving, setSaving] = createSignal(false);
+
+  createEffect(
+    on(retention, (days) => {
+      if (days === undefined) return;
+      const choice: AppliedRetentionChoice = days === null ? "keep" : "delete";
+      setRetentionChoice(choice);
+      setRetentionDays(days ?? retentionDays());
+      setSavedRetention({ choice, days: days ?? retentionDays() });
+    }),
   );
+
+  const retentionDaysValid = () => Number.isInteger(retentionDays()) && retentionDays() >= 1;
 
   const retentionDirty = createMemo(() => {
     const choice = retentionChoice();
@@ -64,71 +87,64 @@ export default function ChannelSettingsTab(props: {
     );
   });
 
-  const saveRetention = async () => {
-    const choice = retentionChoice();
-    if (!choice) return;
-    const days = retentionDays();
-    setSavingRetention(true);
-    const ok = await updateChannelRetention(props.channelId, retentionValue(choice, days));
-    if (ok) setSavedRetention({ choice, days });
-    setSavingRetention(false);
+  const anyDirty = () => permissionsDirty() || retentionDirty();
+
+  const discardChanges = () => {
+    setInvitePermission(committedInvite());
+    setTopicPermission(committedTopic());
+    setPurposePermission(committedPurpose());
+    const saved = savedRetention();
+    if (saved) {
+      setRetentionChoice(saved.choice);
+      setRetentionDays(saved.days);
+    }
   };
 
-  const saveMemberPermission = async (
-    permission: "invite" | "topic" | "purpose",
-    choice: PermissionChoice,
-  ) => {
-    if (!(choice && isManager() && !savingMemberPermissions())) return;
-    const current = {
-      invite: invitePermission(),
-      purpose: purposePermission(),
-      topic: topicPermission(),
-    };
-    const setChoice =
-      permission === "invite"
-        ? setInvitePermission
-        : permission === "topic"
-          ? setTopicPermission
-          : setPurposePermission;
-    setChoice(choice);
-    setSavingMemberPermissions(true);
-    const ok = await updateMemberPermissions(
-      props.channelId,
-      memberPermissionPatch(permission, choice),
-    );
-    if (!ok) setChoice(current[permission]);
-    setSavingMemberPermissions(false);
-  };
+  const saveChanges = async () => {
+    if (saving()) return;
+    setSaving(true);
+    let ok = true;
 
-  const blurOnEnter = (e: KeyboardEvent) => {
-    if (e.key === "Enter") (e.currentTarget as HTMLElement).blur();
+    if (permissionsDirty()) {
+      const drafts = permissionDrafts();
+      if (await updateMemberPermissions(props.channelId, memberPermissionsPatch(drafts))) {
+        setCommittedInvite(drafts.invite.current);
+        setCommittedTopic(drafts.topic.current);
+        setCommittedPurpose(drafts.purpose.current);
+      } else {
+        ok = false;
+      }
+    }
+
+    if (retentionDirty()) {
+      const choice = retentionChoice();
+      const days = retentionDays();
+      if (choice && (await updateChannelRetention(props.channelId, retentionValue(choice, days)))) {
+        setSavedRetention({ choice, days });
+      } else {
+        ok = false;
+      }
+    }
+
+    setSaving(false);
+    if (ok) actionFeedback.flash(props.channelId, "Settings updated.");
   };
 
   return (
     <>
-      <Show when={!(managerIds.loading || isManager())}>
-        <p class="channel-details-meta">Only channel managers can change these settings.</p>
-      </Show>
-
-      <ChannelPostingPermissions channelId={props.channelId} isManager={isManager} />
+      <ChannelPostingPermissions channelId={props.channelId} />
 
       <div class="settings-section">
         <div class="settings-row-label">Member permissions</div>
-        <p class="channel-details-meta">
-          Slack doesn't expose the current values here. Choose an explicit policy to change only
-          that permission.
-        </p>
         <div class="settings-row flex-between">
           <label class="settings-row-label" for="channel-member-invite-permission">
             Who can invite others
           </label>
           <select
             class="channel-details-input channel-details-setting-select"
-            disabled={!isManager() || savingMemberPermissions()}
+            disabled={saving()}
             id="channel-member-invite-permission"
-            onChange={(event) =>
-              saveMemberPermission("invite", event.currentTarget.value as PermissionChoice)
-            }
+            onChange={(event) => setInvitePermission(asPermissionChoice(event.currentTarget.value))}
             value={invitePermission()}
           >
             <option disabled value="">
@@ -144,11 +160,9 @@ export default function ChannelSettingsTab(props: {
           </label>
           <select
             class="channel-details-input channel-details-setting-select"
-            disabled={!isManager() || savingMemberPermissions()}
+            disabled={saving()}
             id="channel-member-topic-permission"
-            onChange={(event) =>
-              saveMemberPermission("topic", event.currentTarget.value as PermissionChoice)
-            }
+            onChange={(event) => setTopicPermission(asPermissionChoice(event.currentTarget.value))}
             value={topicPermission()}
           >
             <option disabled value="">
@@ -164,10 +178,10 @@ export default function ChannelSettingsTab(props: {
           </label>
           <select
             class="channel-details-input channel-details-setting-select"
-            disabled={!isManager() || savingMemberPermissions()}
+            disabled={saving()}
             id="channel-member-purpose-permission"
             onChange={(event) =>
-              saveMemberPermission("purpose", event.currentTarget.value as PermissionChoice)
+              setPurposePermission(asPermissionChoice(event.currentTarget.value))
             }
             value={purposePermission()}
           >
@@ -182,33 +196,34 @@ export default function ChannelSettingsTab(props: {
 
       <div class="settings-section">
         <div class="settings-row-label">Message retention</div>
-        <p class="channel-details-meta">
-          The current retention policy isn't exposed here. Choose a policy to apply an explicit
-          change; saving posts a system message to the channel.
-        </p>
+        <Show when={retention.error}>
+          <SettingsLoadError
+            error={retention.error}
+            message="Retention policy couldn't be loaded."
+            onRetry={retryRetention}
+          />
+        </Show>
         <div class="settings-row flex-between">
           <label class="settings-row-label" for="channel-retention-policy">
-            New retention policy
+            Retention policy
           </label>
-          <select
-            class="channel-details-input channel-details-setting-select"
-            disabled={!isManager() || savingRetention()}
-            id="channel-retention-policy"
-            onChange={(event) => setRetentionChoice(event.currentTarget.value as RetentionChoice)}
-            value={retentionChoice()}
-          >
-            <option disabled value="">
-              Choose a policy…
-            </option>
-            <option value="keep">Keep all messages</option>
-            <option value="delete">Delete messages after…</option>
-          </select>
-        </div>
-        <Show when={retentionChoice() === "delete"}>
           <div class="channel-details-retention-row flex-align-center">
+            <select
+              class="channel-details-input channel-details-setting-select"
+              disabled={retention() === undefined || saving()}
+              id="channel-retention-policy"
+              onChange={(event) => setRetentionChoice(asRetentionChoice(event.currentTarget.value))}
+              value={retentionChoice()}
+            >
+              <option disabled value="">
+                {retention.loading ? "Loading…" : "Choose a policy…"}
+              </option>
+              <option value="keep">Keep all messages</option>
+              <option value="delete">Delete after…</option>
+            </select>
             <input
               class="channel-details-input channel-details-retention-input"
-              disabled={!isManager() || savingRetention()}
+              disabled={retentionChoice() !== "delete" || saving()}
               min="1"
               onInput={(e) => setRetentionDays(Math.trunc(Number(e.currentTarget.value)))}
               onKeyDown={blurOnEnter}
@@ -217,26 +232,29 @@ export default function ChannelSettingsTab(props: {
             />
             <span class="channel-details-meta">days</span>
           </div>
-          <Show when={!retentionDaysValid()}>
-            <p class="channel-details-meta channel-details-retention-invalid">
-              Enter a whole number of days, 1 or greater.
-            </p>
-          </Show>
+        </div>
+        <Show when={retentionChoice() === "delete" && !retentionDaysValid()}>
+          <p class="channel-details-meta channel-details-retention-invalid">
+            Enter a whole number of days, 1 or greater.
+          </p>
         </Show>
-        <Button
-          class="channel-details-retention-save"
-          disabled={!(isManager() && retentionDirty()) || savingRetention()}
-          onClick={saveRetention}
-          variant="primary"
-        >
-          {savingRetention() ? "Saving…" : "Save retention"}
-        </Button>
       </div>
+
+      <Show when={anyDirty()}>
+        <div class="channel-details-save-bar flex-align-center">
+          <span class="channel-details-save-hint text-dim">Unsaved changes</span>
+          <Button disabled={saving()} onClick={discardChanges} size="sm">
+            Discard
+          </Button>
+          <Button disabled={saving()} onClick={saveChanges} size="sm" variant="primary">
+            {saving() ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </Show>
 
       <ChannelDangerZone
         archived={props.archived}
         channelId={props.channelId}
-        isManager={isManager}
         onChanged={props.onChanged}
         private={props.private}
       />

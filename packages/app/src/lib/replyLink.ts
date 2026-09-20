@@ -1,9 +1,8 @@
-import type { Block, Message, RichTextBlock } from "./api";
+import { type Block, type Message, narrowByType, type RichTextBlock } from "./api";
 
 const BRACKETED_LINK_RE = /^<(https?:\/\/[^\s|>]+)(?:\|([^>]*))?>/;
 const BARE_PERMALINK_RE = /^(https?:\/\/[^\s<>]+)/;
 const PERMALINK_RE = /\/archives\/([A-Z0-9]+)\/p(\d+)/;
-const LEADING_NEWLINE_RE = /^[ \t]*\r?\n/;
 
 function permalinkToChannelTs(url: string): { channelId: string; ts: string } | null {
   const match = PERMALINK_RE.exec(url);
@@ -14,10 +13,6 @@ function permalinkToChannelTs(url: string): { channelId: string; ts: string } | 
 
 function isBareLabel(label: string | undefined): boolean {
   return label === undefined || label === "" || label === "." || label === "​";
-}
-
-function stripLeadingNewline(text: string): string {
-  return text.replace(LEADING_NEWLINE_RE, "");
 }
 
 export function encodeReplyLink(permalink: string): string {
@@ -57,13 +52,13 @@ export function parseReplyLink(
 
     const bare = isBareLabel(label) || label === bracketed[1];
     const remainder = text.slice(bracketed[0].length);
-    const linkedThreadMessage = isThreadMessage?.(channelId, ts) ?? false;
     if (!remainder.trim()) return null;
-    if (!(bare || linkedThreadMessage)) return null;
+    const allowed = isThreadMessage ? isThreadMessage(channelId, ts) : bare;
+    if (!allowed) return null;
     return {
       channelId,
       prefix: bracketed[0],
-      rest: bare ? stripLeadingNewline(remainder) : `${label}${remainder}`,
+      rest: bare ? remainder.trim() : `${label}${remainder}`,
       ts,
       url: bracketed[1],
     };
@@ -75,10 +70,11 @@ export function parseReplyLink(
   if (!parsed) return null;
   const rest = text.slice(bareLink[0].length);
   if (!rest.trim()) return null;
+  if (isThreadMessage && !isThreadMessage(parsed.channelId, parsed.ts)) return null;
   return {
     ...parsed,
     prefix: bareLink[0],
-    rest: stripLeadingNewline(rest),
+    rest: rest.trim(),
     url: bareLink[1],
   };
 }
@@ -86,9 +82,8 @@ export function parseReplyLink(
 export function parseReplyLinkFromBlocks(
   blocks: readonly Block[],
 ): { ts: string; channelId: string; url: string; blocks: Block[] } | null {
-  const [rawRichText] = blocks;
-  if (rawRichText?.type !== "rich_text") return null;
-  const richText = rawRichText as RichTextBlock;
+  const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");
+  if (!richText) return null;
   const [section] = richText.elements;
   if (section?.type !== "rich_text_section") return null;
   const [mention] = section.elements;
@@ -107,7 +102,7 @@ export function parseReplyLinkFromBlocks(
   if (firstRest?.type === "text") {
     restSectionElements[0] = {
       ...firstRest,
-      text: stripLeadingNewline(firstRest.text),
+      text: firstRest.text.trim(),
     };
   }
   const restRichTextElements = richText.elements.slice(1);

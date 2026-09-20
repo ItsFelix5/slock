@@ -103,7 +103,7 @@ function parseHex(value: string): OklchColor | undefined {
   );
 }
 
-function resolvedCssColor(value: string): string {
+export function resolvedCssColor(value: string): string {
   if (typeof document === "undefined") return value;
   const probe = document.createElement("span");
   probe.style.color = value;

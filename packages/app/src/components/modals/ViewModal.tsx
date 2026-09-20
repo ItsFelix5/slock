@@ -1,5 +1,5 @@
 import { BkText, BlockKit } from "@slock/blockkit";
-import { Button, Icon, Modal, ModalHeader, Tooltip, useEscapeClose } from "@slock/ui";
+import { Button, IconButton, Modal, ModalHeader, Tooltip, useEscapeClose } from "@slock/ui";
 import { Show } from "solid-js";
 import { store } from "../../lib/store";
 import "./ViewModal.css";
@@ -19,16 +19,13 @@ export default function ViewModal() {
         >
           <ModalHeader onClose={store.modals.closeAllViews} title={<BkText text={v().title} />}>
             <Show when={canGoBack()}>
-              <Tooltip content="Back">
-                <button
-                  aria-label="Back"
-                  class="panel-close-btn"
-                  onClick={store.modals.popView}
-                  type="button"
-                >
-                  <Icon name="arrow-left" size={14} />
-                </button>
-              </Tooltip>
+              <IconButton
+                class="panel-close-btn"
+                icon="arrow-left"
+                iconSize={14}
+                label="Back"
+                onClick={store.modals.popView}
+              />
             </Show>
           </ModalHeader>
 

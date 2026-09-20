@@ -1,19 +1,49 @@
-import { createEffect, createMemo, createSignal, type Setter } from "solid-js";
+import { createReactiveQueryCache } from "../../../reactiveQueryCache";
+import { queryOptions } from "@tanstack/solid-query";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { BrowsableChannel, Channel, UserPrefs } from "../../../api";
+
 import {
   fetchBrowsableChannels,
   fetchChannel,
   fetchChannelDetails,
+  fetchChannelManagerIds,
   fetchChannelMembers,
   joinChannel,
   leaveChannel,
 } from "../../../api";
-import { isDmId } from "../../../dmId";
 import { actionFeedback } from "../../../feedback";
+import { queryClient } from "../../../queryClient";
 import type { Nav, View } from "../types";
 import { createChannelSections } from "./channelSections";
 import { createChannelStarPlacement } from "./channelStarPlacement";
+import { isDmId } from "./dms";
+
+export function channelRosterQueryOptions(channelId: string) {
+  return queryOptions({
+    queryKey: ["channelRosters", channelId],
+    queryFn: async () => {
+      const ids = new Set<string>();
+      for (const filter of ["everyone", "apps"] as const) {
+        let cursor: string | undefined;
+        do {
+          const page = await fetchChannelMembers(channelId, filter, cursor);
+          for (const member of page.members) ids.add(member.id);
+          cursor = page.nextCursor;
+        } while (cursor);
+      }
+      return ids;
+    },
+  });
+}
+
+export function channelManagerQueryOptions(channelId: string) {
+  return queryOptions({
+    queryKey: ["channelManagers", channelId],
+    queryFn: async () => new Set(await fetchChannelManagerIds(channelId)),
+  });
+}
 
 export function createChannelsSlice(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;
@@ -21,7 +51,7 @@ export function createChannelsSlice(deps: {
   nav: () => Nav;
   setActiveView: (view: View) => void;
   userPrefs: () => UserPrefs | undefined;
-  mutateUserPrefs: Setter<UserPrefs | undefined>;
+  mutateUserPrefs: (updater: (current: UserPrefs | undefined) => UserPrefs | undefined) => void;
 }) {
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
 
@@ -63,18 +93,21 @@ export function createChannelsSlice(deps: {
     for (const id of data.starredChannelIds) setStarredChannelIds(id, true);
   });
 
-  const channels = createMemo<Channel[]>(() => {
+  const baseChannelsById = createMemo(() => {
     const base = deps.bootstrap()?.channels ?? [];
     const extra = extraChannels.filter((c) => !base.some((b) => b.id === c.id));
-    return [...base, ...extra].map((c) =>
-      channelPatches[c.id] ? { ...c, ...channelPatches[c.id] } : c,
-    );
+    return new Map([...base, ...extra].map((c) => [c.id, c]));
   });
+  const channels = createMemo<Channel[]>(() =>
+    [...baseChannelsById().values()].map((c) =>
+      channelPatches[c.id] ? { ...c, ...channelPatches[c.id] } : c,
+    ),
+  );
 
   function patchChannel(id: string, patch: Partial<Channel>) {
     const known: Partial<Channel> = {};
     for (const [key, value] of Object.entries(patch)) {
-      if (value !== undefined) (known as Record<string, unknown>)[key] = value;
+      if (value !== undefined) known[key] = value;
     }
     setChannelPatches(id, { ...channelPatches[id], ...known });
   }
@@ -87,8 +120,9 @@ export function createChannelsSlice(deps: {
   }
 
   function channelById(id: string): Channel | undefined {
-    const known =
-      channels().find((c) => c.id === id) ?? discoveredChannels.find((c) => c.id === id);
+    const base = baseChannelsById().get(id) ?? discoveredChannels.find((c) => c.id === id);
+    const patch = channelPatches[id];
+    const known = base && patch ? { ...base, ...patch } : base;
     if (known) return known;
 
     if (!deps.bootstrap()) return;
@@ -107,7 +141,7 @@ export function createChannelsSlice(deps: {
   }
 
   function ensureChannelTopic(id: string): void {
-    const known = channels().find((c) => c.id === id);
+    const known = channelById(id);
     if (
       !known ||
       (known.topic && known.memberCount !== undefined) ||
@@ -128,41 +162,41 @@ export function createChannelsSlice(deps: {
   }
 
   function isChannelMember(id: string): boolean {
-    return channels().some((c) => c.id === id);
+    return baseChannelsById().has(id);
   }
 
-  const channelRosters = new Map<string, Set<string>>();
-  const rosterLoads = new Map<string, Promise<Set<string> | undefined>>();
+  const channelRosters = createReactiveQueryCache<Set<string>>(
+    queryClient,
+    "channelRosters",
+    channelRosterQueryOptions,
+  );
 
-  function channelMemberIds(channelId: string): Set<string> | undefined {
-    return channelRosters.get(channelId);
+  function channelRosterIds(channelId: string): Set<string> | undefined {
+    return channelRosters.entry(channelId);
   }
 
   function ensureChannelRoster(channelId: string): Promise<Set<string> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
-    const cached = channelRosters.get(channelId);
-    if (cached) return Promise.resolve(cached);
-    const inFlight = rosterLoads.get(channelId);
-    if (inFlight) return inFlight;
-    const load = (async () => {
-      try {
-        const ids = new Set<string>();
-        let cursor: string | undefined;
-        do {
-          const page = await fetchChannelMembers(channelId, "everyone", cursor);
-          for (const member of page.members) ids.add(member.id);
-          cursor = page.nextCursor;
-        } while (cursor);
-        channelRosters.set(channelId, ids);
-        return ids;
-      } catch (err) {
-        console.error("Failed to load channel roster", err);
-      } finally {
-        rosterLoads.delete(channelId);
-      }
-    })();
-    rosterLoads.set(channelId, load);
-    return load;
+    return queryClient.ensureQueryData(channelRosterQueryOptions(channelId));
+  }
+
+  function invalidateChannelRoster(channelId: string): void {
+    channelRosters.invalidate(channelId);
+  }
+
+  const channelManagers = createReactiveQueryCache<Set<string>>(
+    queryClient,
+    "channelManagers",
+    channelManagerQueryOptions,
+  );
+
+  function channelManagerIds(channelId: string): Set<string> | undefined {
+    return channelManagers.entry(channelId);
+  }
+
+  function ensureChannelManagers(channelId: string): Promise<Set<string> | undefined> {
+    if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
+    return queryClient.ensureQueryData(channelManagerQueryOptions(channelId));
   }
 
   function isChannelLeft(channelId: string): boolean {
@@ -239,10 +273,13 @@ export function createChannelsSlice(deps: {
     addJoinedChannel,
     browsableChannels,
     channelById,
-    channelMemberIds,
+    channelManagerIds,
+    channelRosterIds,
     channels,
+    ensureChannelManagers,
     ensureChannelRoster,
     ensureChannelTopic,
+    invalidateChannelRoster,
     isChannelLeft,
     isChannelMember,
     isChannelPlacementPending,
@@ -255,6 +292,7 @@ export function createChannelsSlice(deps: {
     moveChannelToSection,
     patchChannel,
     searchBrowsableChannels,
+    setStarredChannelIds,
     toggleChannelStar,
     ...channelSections,
   };

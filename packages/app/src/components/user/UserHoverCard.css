@@ -4,7 +4,7 @@
 
 .user-hovercard {
   gap: 10px;
-  padding: 14px;
+  padding: 12px 14px;
 }
 
 .user-hovercard-top {
@@ -78,17 +78,16 @@
   white-space: nowrap;
 }
 
+.user-hovercard-title {
+  word-break: break-word;
+}
+
 .user-hovercard-status {
   gap: 6px;
 }
 
 .user-hovercard-meta {
   gap: 6px;
-}
-
-.user-hovercard-actions {
-  display: flex;
-  gap: 8px;
 }
 
 .user-hovercard-btn {

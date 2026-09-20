@@ -1,5 +1,6 @@
 const SLACK_HOST_RE: RegExp = /(^|\.)slack\.com$/i;
 const ARCHIVE_PATH_RE = /^\/archives\/([A-Z0-9]+)\/p(\d+)\/?$/i;
+const DOCS_PATH_RE = /^\/docs\/[A-Z0-9]+\/([A-Z0-9]+)\/?$/i;
 const SLACK_TS_RE = /^\d+\.\d+$/;
 
 export interface SlackPermalinkTarget {
@@ -20,7 +21,10 @@ export interface SlackPermalinkNavigator {
 }
 
 export interface SlackPermalinkOpenerDeps {
-  navigate: (target: SlackPermalinkTarget, options?: { keepNav?: boolean }) => void;
+  navigate: (
+    target: SlackPermalinkTarget,
+    options?: { keepNav?: boolean; split?: boolean },
+  ) => void;
   onError: (error: unknown) => void;
   onUnavailable: () => void;
   probe: (target: SlackPermalinkTarget) => Promise<boolean>;
@@ -33,7 +37,10 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
     requestId++;
   }
 
-  async function open(target: SlackPermalinkTarget, options?: { keepNav?: boolean }) {
+  async function open(
+    target: SlackPermalinkTarget,
+    options?: { keepNav?: boolean; split?: boolean },
+  ) {
     const currentRequestId = ++requestId;
     try {
       const available = await deps.probe(target);
@@ -85,4 +92,20 @@ export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {
     requestedThreadTs && SLACK_TS_RE.test(requestedThreadTs) ? requestedThreadTs : messageTs;
 
   return { channelId, messageTs, threadTs };
+}
+
+export function parseSlackCanvasLink(href: string): { fileId: string } | null {
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "https:" || !SLACK_HOST_RE.test(url.hostname)) return null;
+
+  const match = DOCS_PATH_RE.exec(url.pathname);
+  if (!match) return null;
+
+  return { fileId: match[1] };
 }

@@ -5,17 +5,13 @@
   overflow: hidden;
   background: var(--main-bg);
   border-bottom: 1px solid var(--border);
+  gap: 8px;
+  min-width: 0;
+  padding: 0 var(--header-padding-inline);
 }
 
 .channel-header:has(.channel-header-topic-wrap.is-overflowing:hover) {
   overflow: visible;
-}
-
-.channel-header-top {
-  gap: 8px;
-  min-width: 0;
-  height: calc(var(--header-height) - var(--header-divider-width));
-  padding: 0 var(--header-padding-inline);
 }
 
 .channel-header-context {
@@ -29,32 +25,27 @@
   overflow: visible;
 }
 
-.channel-header-identity {
-  flex-shrink: 0;
-  gap: 8px;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.channel-header-star {
-  font-size: 15px;
-}
-
 .channel-header-icon {
-  font-size: 15px;
+  flex-shrink: 0;
   color: var(--text-secondary);
 }
 
 .channel-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   flex: 1;
   min-width: 0;
-  padding: 0;
-  overflow: hidden;
+  min-height: var(--header-action-size);
+  padding: 0 var(--space-sm);
   font-size: var(--font-size-heading-xs);
   font-weight: 700;
   color: var(--text-primary);
-  white-space: nowrap;
+  border-radius: var(--radius-control);
+}
+
+.channel-header-title > span {
+  min-width: 0;
 }
 
 .channel-header-archived-badge {
@@ -72,7 +63,7 @@
 }
 
 .channel-header-title-btn:hover {
-  text-decoration: underline;
+  background: var(--hover-bg);
 }
 
 .channel-header-topic-wrap {
@@ -136,28 +127,12 @@
   height: var(--header-action-size);
 }
 
-.channel-header-btn .icon {
-  transform: translateY(var(--icon-optical-shift));
-}
-
 .channel-header-members-btn {
-  flex-shrink: 0;
   gap: var(--space-xs);
   min-height: var(--header-action-size);
   padding: 0 var(--space-sm);
   font-size: var(--font-size-meta);
   font-weight: 500;
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-}
-
-.channel-header-members-btn .icon {
-  transform: translateY(var(--icon-optical-shift));
-}
-
-.channel-header-members-btn:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .channel-header-menu.menu-panel {

@@ -5,7 +5,7 @@ import { type Route, route } from "../router.ts";
 const LEADING_SLASH_RE = /^\//;
 
 export const commandRoutes: Route[] = [
-  route("GET", "/api/commands", async (ctx) => {
+  route("GET", "commands", async (ctx) => {
     const data = await callSlack(
       "client.appCommands",
       { _x_reason: "app-commands-conditional-fetching" },
@@ -34,12 +34,12 @@ export const commandRoutes: Route[] = [
     );
   }),
 
-  route("POST", "/api/commands/run", async (ctx) => {
-    const { channelId, command, text } = (await ctx.body.json()) as {
+  route("POST", "commands/run", async (ctx) => {
+    const { channelId, command, text } = await (ctx.body.json() as Promise<{
       channelId?: string;
       command?: string;
       text?: string;
-    };
+    }>);
     if (!(channelId && command)) return errorResponse("invalid_command", 400);
     const data = await callSlack(
       "chat.command",

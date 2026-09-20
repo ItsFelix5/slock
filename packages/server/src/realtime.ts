@@ -1,7 +1,32 @@
 import { rewriteSlackAssetUrls } from "./assets.js";
-import { type Credentials, slackCookieHeader, teamIdFromRoute } from "./auth.js";
-import { recordSeenActive } from "./presence/lastSeen.js";
+import { type Credentials, teamIdFromRoute } from "./auth.js";
+import { invalidateEmojiCache } from "./emoji.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
+
+const lastSeenByKey = new Map<string, number>();
+const LAST_SEEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const LAST_SEEN_PRUNE_THRESHOLD = 5000;
+
+function lastSeenKeyFor(teamId: string, userId: string): string {
+  return `${teamId}:${userId}`;
+}
+
+function pruneLastSeen(now: number): void {
+  if (lastSeenByKey.size < LAST_SEEN_PRUNE_THRESHOLD) return;
+  for (const [key, seenAt] of lastSeenByKey) {
+    if (now - seenAt > LAST_SEEN_MAX_AGE_MS) lastSeenByKey.delete(key);
+  }
+}
+
+export function recordSeenActive(teamId: string, userId: string): void {
+  const now = Date.now();
+  pruneLastSeen(now);
+  lastSeenByKey.set(lastSeenKeyFor(teamId, userId), now);
+}
+
+export function getLastSeen(teamId: string, userId: string): number | undefined {
+  return lastSeenByKey.get(lastSeenKeyFor(teamId, userId));
+}
 
 export type ClientSocket = { send(data: string): void };
 
@@ -85,7 +110,7 @@ function connectGateway(state: ConnectionState) {
   if (state.closed || state.gatewaySocket) return;
   try {
     const socket = new WebSocket(buildGatewayUrl(state.creds), {
-      headers: { cookie: slackCookieHeader(state.creds) },
+      headers: { cookie: `d=${state.creds.slackSession}` },
     });
     state.gatewaySocket = socket;
 
@@ -108,6 +133,7 @@ function connectGateway(state: ConnectionState) {
             for (const id of ids) recordSeenActive(teamId, id);
           }
         }
+        if (payload?.type === "emoji_changed") invalidateEmojiCache(state.creds);
         const trimmed = trimSlackGatewayPayload(payload);
         if (trimmed) send(state, rewriteSlackAssetUrls(trimmed, state.creds));
       } catch {}

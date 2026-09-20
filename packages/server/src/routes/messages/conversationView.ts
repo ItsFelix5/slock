@@ -4,15 +4,14 @@ import { trimChannel, trimMessage, trimUser } from "../../trim/slackEntities.ts"
 import { type Route, route } from "../router.ts";
 
 export const conversationViewRoutes: Route[] = [
-  route("GET", "/api/channels/:id/view", async (ctx) => {
+  route("GET", "channels/:id/view", async (ctx) => {
     const data = await callSlack(
       "conversations.view",
       {
         canonical_avatars: "true",
         channel: ctx.params.id,
-        count: "28",
+        count: "30",
         ignore_replies: "true",
-        include_free_team_extra_messages: "true",
         include_full_users: "true",
         include_mutation_timestamps: "true",
         include_stories: "true",
@@ -23,9 +22,8 @@ export const conversationViewRoutes: Route[] = [
       },
       ctx.creds,
     );
-    if (!data.ok) {
+    if (!data.ok)
       return slackErrorResponse(data, "conversations.view", ctx.creds, ctx.acceptEncoding);
-    }
     return jsonResponse(
       {
         channel: trimChannel(data.channel),

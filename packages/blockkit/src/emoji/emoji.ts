@@ -26,7 +26,8 @@ const STANDARD_EMOJI: Record<string, string> = {};
 
 const STANDARD_EMOJI_LIST: StandardEmoji[] = [];
 const canonicalByName = new Map<string, StandardEmoji>();
-const entries = Object.values(emojiData) as EmojiEntry[];
+const emojiRecords: any = emojiData;
+const entries: EmojiEntry[] = Object.values(emojiRecords);
 for (const entry of entries) {
   const glyph = hexCodepointsToEmoji(entry.unicode);
   if (glyph) {
@@ -51,8 +52,10 @@ for (const entry of entries) {
 }
 
 export function resolveStandardEmoji(name: string): string | undefined {
-  return STANDARD_EMOJI[name] ?? hexCodepointsToEmoji(name);
+  return STANDARD_EMOJI[name.toLowerCase()] ?? hexCodepointsToEmoji(name);
 }
+
+export const EMOJI_TOKEN_RE = /:([a-z0-9_+'-]+):/gi;
 
 export function standardEmojiEntries(): StandardEmoji[] {
   return STANDARD_EMOJI_LIST;

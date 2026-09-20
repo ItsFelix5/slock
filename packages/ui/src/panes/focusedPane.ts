@@ -6,7 +6,8 @@ if (typeof document !== "undefined") {
   document.addEventListener(
     "focusin",
     (event) => {
-      const pane = (event.target as Element | null)?.closest<HTMLElement>("[data-pane]");
+      const target = event.target instanceof Element ? event.target : null;
+      const pane = target?.closest<HTMLElement>("[data-pane]");
       if (pane?.dataset.pane) setFocusedPaneId(pane.dataset.pane);
     },
     true,

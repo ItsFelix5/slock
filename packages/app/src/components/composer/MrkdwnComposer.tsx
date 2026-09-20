@@ -1,7 +1,10 @@
-import { scrollActiveListOption } from "@slock/ui";
+import { indexAlignedText, QuillEditor, scrollActiveListOption } from "@slock/ui";
+import type Quill from "quill";
 import { createEffect, createSignal, Show } from "solid-js";
 import ComposerSuggestPopover from "./ComposerSuggestPopover";
-import { createSuggestionController, suggestionText } from "./lib/suggestionController";
+import { wireEmojiAutoconvert } from "./lib/quillEmoji";
+import { insertSuggestionAt, loadMrkdwnIntoQuill, mrkdwnText } from "./lib/quillMentions";
+import { createSuggestionController } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
 import { suggestOpen } from "./lib/suggestTypes";
 import { useSuggestUi } from "./lib/useSuggestUi";
@@ -17,24 +20,30 @@ export default function MrkdwnComposer(props: {
   disabled?: boolean;
   multiline?: boolean;
   ariaBusy?: boolean;
+  channelId?: string;
 }) {
+  let quill: Quill | undefined;
+  let caretIndex = 0;
+  let lastEmitted: string | undefined;
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  let inputRef: HTMLTextAreaElement | undefined;
 
   let rootRef: HTMLDivElement | undefined;
-
   let suggestPopoverRef: HTMLDivElement | undefined;
+
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {
-      if (!inputRef) return;
-      inputRef.setRangeText(
-        suggestionText(item, state.kind),
+      if (!quill) return;
+      caretIndex = insertSuggestionAt(
+        quill,
         state.start,
-        inputRef.selectionStart,
-        "end",
+        caretIndex - state.start,
+        item,
+        state.kind,
       );
-      props.onInput(inputRef.value);
+      quill.setSelection(caretIndex, 0);
     },
+    channelId: () => props.channelId,
+    includeBroadcastMentions: false,
     includeCommands: false,
     setSuggest,
     suggest,
@@ -43,57 +52,19 @@ export default function MrkdwnComposer(props: {
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
 
   createEffect(() => {
-    if (inputRef && inputRef.value !== props.value) inputRef.value = props.value;
-  });
-
-  createEffect(() => {
     suggest();
     scrollActiveListOption(() => suggestPopoverRef);
   });
 
-  const updateSuggestions = (input: HTMLTextAreaElement) => {
-    suggestions.updateSuggestions(input.value, input.selectionStart);
-  };
+  createEffect(() => {
+    if (!quill || props.value === lastEmitted) return;
+    lastEmitted = props.value;
+    loadMrkdwnIntoQuill(quill, props.value);
+  });
 
-  const applySuggestion = (index?: number) => {
-    suggestions.applySuggestion(index);
-  };
-
-  const onInput = (event: InputEvent) => {
-    const input = event.currentTarget as HTMLTextAreaElement;
-    props.onInput(input.value);
-    updateSuggestions(input);
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.isComposing) return;
-    const input = event.currentTarget as HTMLTextAreaElement;
-    const state = suggest();
-    if (state?.items.length && !(event.metaKey || event.ctrlKey || event.altKey)) {
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        suggestions.moveActiveSuggestion(event.key === "ArrowDown" ? 1 : -1);
-        return;
-      }
-      if (event.key === "Enter" || event.key === "Tab") {
-        event.preventDefault();
-        applySuggestion();
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setSuggest(null);
-        return;
-      }
-    }
-    if (!props.multiline && event.key === "Enter") {
-      event.preventDefault();
-      input.blur();
-      return;
-    }
-    if (["ArrowLeft", "ArrowRight", "End", "Home"].includes(event.key)) setSuggest(null);
-    queueMicrotask(() => updateSuggestions(input));
-  };
+  createEffect(() => {
+    quill?.enable(!props.disabled);
+  });
 
   const onFocusOut = () => {
     queueMicrotask(() => {
@@ -101,6 +72,28 @@ export default function MrkdwnComposer(props: {
       setSuggest(null);
       props.onBlur?.();
     });
+  };
+
+  const handleKeyDownCapture = (event: KeyboardEvent): boolean => {
+    if (!suggestOpen(suggest())) return false;
+    if (event.key === "ArrowDown") {
+      suggestions.moveActiveSuggestion(1);
+      return true;
+    }
+    if (event.key === "ArrowUp") {
+      suggestions.moveActiveSuggestion(-1);
+      return true;
+    }
+    if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
+      suggestions.applySuggestion();
+      return true;
+    }
+    if (event.key === "Escape") {
+      setSuggest(null);
+      return true;
+    }
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) setSuggest(null);
+    return false;
   };
 
   return (
@@ -111,26 +104,35 @@ export default function MrkdwnComposer(props: {
       onFocusOut={onFocusOut}
       ref={rootRef}
     >
-      <textarea
-        aria-label={props.ariaLabel}
-        aria-multiline={props.multiline ?? false}
-        class="mrkdwn-composer-input composer-input input-reset"
-        disabled={props.disabled}
+      <QuillEditor
+        ariaLabel={props.ariaLabel}
+        ariaMultiline={props.multiline ?? false}
+        extendedFormats={false}
         id={props.id}
-        onInput={onInput}
-        onKeyDown={onKeyDown}
-        placeholder={props.placeholder}
-        ref={(el) => {
-          inputRef = el;
-          el.value = props.value;
+        onKeyDownCapture={handleKeyDownCapture}
+        onReady={(q) => {
+          quill = q;
+          loadMrkdwnIntoQuill(q, props.value);
+          lastEmitted = props.value;
+          wireEmojiAutoconvert(q);
+          q.enable(!props.disabled);
+          q.on("text-change", () => {
+            const next = mrkdwnText(q);
+            lastEmitted = next;
+            props.onInput(next);
+            const aligned = indexAlignedText(q);
+            caretIndex = q.getSelection()?.index ?? aligned.length;
+            suggestions.updateSuggestions(aligned, caretIndex);
+          });
         }}
-        rows={props.multiline ? 3 : 1}
+        onSubmit={props.multiline ? undefined : () => quill?.root.blur()}
+        placeholder={props.placeholder}
       />
       <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
         {(state) => (
           <ComposerSuggestPopover
             onHover={suggestions.setActiveSuggestion}
-            onPick={applySuggestion}
+            onPick={suggestions.applySuggestion}
             ref={(el) => {
               suggestPopoverRef = el;
             }}

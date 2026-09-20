@@ -4,11 +4,11 @@ import { trimChannel } from "../../trim/slackEntities.ts";
 import { mutate, type Route, type RouteCtx, route } from "../router.ts";
 
 export const channelRoutes: Route[] = [
-  route("POST", "/api/channels", async (ctx) => {
-    const { name, isPrivate } = (await ctx.body.json()) as {
+  route("POST", "channels", async (ctx) => {
+    const { name, isPrivate } = await (ctx.body.json() as Promise<{
       name?: string;
       isPrivate?: boolean;
-    };
+    }>);
     if (!name) return errorResponse("invalid_name", 400);
     const data = await callSlack(
       "conversations.create",
@@ -25,7 +25,7 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/channels/:id", async (ctx) => {
+  route("GET", "channels/:id", async (ctx) => {
     const data = await callSlack(
       "conversations.info",
       { channel: ctx.params.id, include_num_members: "true" },
@@ -41,8 +41,8 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("PATCH", "/api/channels/:id", async (ctx) => {
-    const { name } = (await ctx.body.json()) as { name?: string };
+  route("PATCH", "channels/:id", async (ctx) => {
+    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
     if (!name) return errorResponse("invalid_name", 400);
     const data = await callSlack(
       "conversations.rename",
@@ -59,20 +59,33 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("PUT", "/api/channels/:id/purpose", async (ctx) => {
-    const { purpose } = (await ctx.body.json()) as { purpose?: string };
+  route("PUT", "channels/:id/purpose", async (ctx) => {
+    const { purpose } = await (ctx.body.json() as Promise<{ purpose?: string }>);
     if (purpose === undefined) return errorResponse("invalid_purpose", 400);
     return mutate("conversations.setPurpose", { channel: ctx.params.id, purpose }, ctx);
   }),
 
-  route("PUT", "/api/channels/:id/topic", async (ctx) => {
-    const { topic } = (await ctx.body.json()) as { topic?: string };
+  route("PUT", "channels/:id/topic", async (ctx) => {
+    const { topic } = await (ctx.body.json() as Promise<{ topic?: string }>);
     if (topic === undefined) return errorResponse("invalid_topic", 400);
     return mutate("conversations.setTopic", { channel: ctx.params.id, topic }, ctx);
   }),
 
-  route("PUT", "/api/channels/:id/retention", async (ctx) => {
-    const { days } = (await ctx.body.json()) as { days?: number | null };
+  route("GET", "channels/:id/retention", async (ctx) => {
+    const data = await callSlack(
+      "conversations.getRetention",
+      { channel: ctx.params.id },
+      ctx.creds,
+    );
+    if (!data.ok) {
+      return slackErrorResponse(data, "conversations.getRetention", ctx.creds, ctx.acceptEncoding);
+    }
+    const days = data.retention_type === "1" ? Number(data.retention_duration) || null : null;
+    return jsonResponse({ days, ok: true }, ctx.creds, ctx.acceptEncoding);
+  }),
+
+  route("PUT", "channels/:id/retention", async (ctx) => {
+    const { days } = await (ctx.body.json() as Promise<{ days?: number | null }>);
     return mutate(
       "conversations.setRetention",
       {
@@ -84,10 +97,10 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("PUT", "/api/channels/:id/member-permissions", async (ctx) => {
-    const { permissions } = (await ctx.body.json()) as {
+  route("PUT", "channels/:id/member-permissions", async (ctx) => {
+    const { permissions } = await (ctx.body.json() as Promise<{
       permissions?: { is_allowed: boolean; permission: string }[];
-    };
+    }>);
     if (!permissions?.length) return okNoop(ctx);
     return mutate(
       "conversations.permissions.accountTypes.set",
@@ -100,7 +113,7 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("GET", "/api/channels/:id/posting-prefs", async (ctx) => {
+  route("GET", "channels/:id/posting-prefs", async (ctx) => {
     const data = await callSlack("conversations.info", { channel: ctx.params.id }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.info", ctx.creds, ctx.acceptEncoding);
@@ -124,10 +137,10 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("PUT", "/api/channels/:id/posting-prefs", async (ctx) => {
-    const { prefs } = (await ctx.body.json()) as {
+  route("PUT", "channels/:id/posting-prefs", async (ctx) => {
+    const { prefs } = await (ctx.body.json() as Promise<{
       prefs?: Record<string, string>;
-    };
+    }>);
     if (!prefs) return errorResponse("invalid_prefs", 400);
     return mutate(
       "conversations.setConversationPrefs",
@@ -136,32 +149,32 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("POST", "/api/channels/:id/join", (ctx) =>
+  route("POST", "channels/:id/join", (ctx) =>
     mutateChannel("conversations.join", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "/api/channels/:id/leave", (ctx) =>
+  route("POST", "channels/:id/leave", (ctx) =>
     mutate("conversations.leave", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "/api/channels/:id/archive", (ctx) =>
+  route("POST", "channels/:id/archive", (ctx) =>
     mutate("conversations.archive", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "/api/channels/:id/unarchive", (ctx) =>
+  route("POST", "channels/:id/unarchive", (ctx) =>
     mutate("conversations.unarchive", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "/api/channels/:id/convert-to-private", (ctx) =>
+  route("POST", "channels/:id/convert-to-private", (ctx) =>
     mutate("conversations.convertToPrivate", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "/api/channels/:id/close", (ctx) =>
+  route("POST", "channels/:id/close", (ctx) =>
     mutate("conversations.close", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "/api/channels/:id/members", async (ctx) => {
-    const { userIds } = (await ctx.body.json()) as { userIds?: string[] };
+  route("POST", "channels/:id/members", async (ctx) => {
+    const { userIds } = await (ctx.body.json() as Promise<{ userIds?: string[] }>);
     if (!userIds?.length) return errorResponse("invalid_user_ids", 400);
     return mutate(
       "conversations.invite",
@@ -170,7 +183,7 @@ export const channelRoutes: Route[] = [
     );
   }),
 
-  route("DELETE", "/api/channels/:id/members/:userId", (ctx) =>
+  route("DELETE", "channels/:id/members/:userId", (ctx) =>
     mutate("conversations.kick", { channel: ctx.params.id, user: ctx.params.userId }, ctx),
   ),
 ];

@@ -51,7 +51,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-on-avatar);
-  background: color-mix(in oklch, var(--composer-bg) 72%, transparent);
+  background: rgb(from var(--composer-bg) r g b / 72%);
   border-radius: 50%;
   opacity: 0;
   transition:
@@ -64,5 +64,5 @@
 }
 .composer-file-chip-image .composer-file-chip-remove:hover {
   color: var(--text-on-avatar);
-  background: color-mix(in oklch, var(--composer-bg) 88%, transparent);
+  background: rgb(from var(--composer-bg) r g b / 88%);
 }

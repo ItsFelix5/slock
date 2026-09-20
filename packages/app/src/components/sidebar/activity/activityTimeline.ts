@@ -1,5 +1,5 @@
 import { createEffect, createMemo, untrack } from "solid-js";
-import type { ActivityItem, Block, Message } from "../../../lib/api";
+import type { ActivityItem, Block, Message, SlackFile } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import type { MessageAuthorFields } from "../../messages/parts/messageRenderState";
 
@@ -21,7 +21,7 @@ export function createActivityTimeline(deps: {
   threadTs: () => string;
 }) {
   createEffect(() => {
-    if (!(deps.isThreadGroup() && deps.expanded())) return;
+    if (!deps.isThreadGroup()) return;
     store.messages.ensureThreadRepliesLoaded(deps.latest().channelId, deps.threadTs());
   });
   const fullThread = createMemo(() => store.messages.messagesInThread(deps.threadTs()));
@@ -36,18 +36,36 @@ export function createActivityTimeline(deps: {
     deps.items().find((item) => item.kind === "thread_reply" && (item.unreadCount ?? 0) > 1),
   );
 
+  let timelineCache = new Map<string, TimelineEntry>();
+  function timelineEntry(
+    ts: string,
+    isRoot: boolean,
+    item: ActivityItem | undefined,
+    message: Message | undefined,
+  ): TimelineEntry {
+    const cached = timelineCache.get(ts);
+    return cached && cached.isRoot === isRoot && cached.item === item && cached.message === message
+      ? cached
+      : { isRoot, item, message, ts };
+  }
   const timeline = createMemo<TimelineEntry[]>(() => {
     const list = fullThread();
-    if (list && list.length > 0) {
-      const byTs = activityByTs();
-      return list.map((message) => ({
-        isRoot: message.ts === deps.threadTs(),
-        item: byTs.get(message.ts),
-        message,
-        ts: message.ts,
-      }));
-    }
-    return orderedItems().map((item) => ({ isRoot: false, item, ts: item.ts }));
+    const entries =
+      list && list.length > 0
+        ? (() => {
+            const byTs = activityByTs();
+            return list.map((message) =>
+              timelineEntry(
+                message.ts,
+                message.ts === deps.threadTs(),
+                byTs.get(message.ts),
+                message,
+              ),
+            );
+          })()
+        : orderedItems().map((item) => timelineEntry(item.ts, false, item, undefined));
+    timelineCache = new Map(entries.map((entry) => [entry.ts, entry]));
+    return entries;
   });
 
   function entryUserId(entry: TimelineEntry): string {
@@ -74,6 +92,10 @@ export function createActivityTimeline(deps: {
 
   function entryBlocks(entry: TimelineEntry): Block[] | undefined {
     return entry.message?.blocks ?? entry.item?.blocks;
+  }
+
+  function entryFiles(entry: TimelineEntry): SlackFile[] | undefined {
+    return entry.message?.files ?? entry.item?.files;
   }
 
   function entryAuthor(entry: TimelineEntry): MessageAuthorFields {
@@ -113,6 +135,7 @@ export function createActivityTimeline(deps: {
     earlierMessageCount,
     entryAuthor,
     entryBlocks,
+    entryFiles,
     entryText,
     entryUnread,
     firstTimelineTs,

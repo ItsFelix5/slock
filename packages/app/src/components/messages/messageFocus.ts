@@ -1,14 +1,22 @@
-import { plainKey, useShortcut } from "@slock/ui";
+import { useShortcut } from "@slock/ui";
 import { type Accessor, createEffect, createSignal } from "solid-js";
-import type { Message } from "../../lib/api";
+import { isMine, type Message } from "../../lib/api";
 import { copyMessageLink } from "../../lib/messageLinks";
 import { threadContainsMessage } from "../../lib/replyLink";
 import { store } from "../../lib/store";
+import { findUnreadDividerIndex } from "./lib/unreadDivider";
 import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
 import { resolveProfileUserId } from "./parts/messageRenderState";
 
+export interface OpenThreadOptions {
+  autofocus?: boolean;
+  pinned?: boolean;
+}
+
+export type OpenThreadHandler = (ts: string, opts?: OpenThreadOptions) => void;
+
 export interface MessageFocusCallbacks {
-  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
+  onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
 
   threadTs?: Accessor<string | undefined>;
@@ -32,15 +40,20 @@ export function createMessageFocus(
       return;
     }
     if (current === null || !list.some((m) => m.ts === current)) {
-      setFocusedTs(list[list.length - 1].ts);
+      const anchor = store.unread.unreadDividerTsForChannel(channelId());
+      const unreadIndex = findUnreadDividerIndex(list, anchor);
+      setFocusedTs(list[unreadIndex >= 0 ? unreadIndex : list.length - 1].ts);
     }
   });
 
-  function focusRow(ts: string) {
+  function focusRow(ts: string, opts?: { preventScroll?: boolean }) {
     setFocusedTs(ts);
     const row = container()?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
-    row?.focus();
-    row?.scrollIntoView({ block: "nearest" });
+    if (opts?.preventScroll) row?.focus({ preventScroll: true });
+    else {
+      row?.focus();
+      row?.scrollIntoView({ block: "nearest" });
+    }
   }
 
   function moveFocus(delta: number) {
@@ -63,9 +76,8 @@ export function createMessageFocus(
 
   const isOwnEditableMessage = () => {
     const msg = focusedMessage();
-    return (
-      !!msg && msg.userId === store.users.currentUser()?.id && !msg.deleted && !msg.isEphemeral
-    );
+    if (!msg || msg.deleted || msg.isEphemeral) return false;
+    return isMine(msg);
   };
 
   const startEdit = (ts: string) => {
@@ -85,88 +97,100 @@ export function createMessageFocus(
 
   useShortcut({
     allowRepeat: true,
+    combo: { key: "ArrowDown" },
     enabled: () => listFocused() && focusedTs() !== null,
-    handler: (e) => moveFocus(e.key === "ArrowDown" ? 1 : -1),
-    keys: "↑ / ↓",
-    label: "Move focus between messages",
-    match: (e) => e.key === "ArrowDown" || e.key === "ArrowUp",
+    handler: () => moveFocus(1),
+    id: "messages.focusNext",
+    label: "Move focus to the next message",
+    scope: "messages",
+  });
+
+  useShortcut({
+    allowRepeat: true,
+    combo: { key: "ArrowUp" },
+    enabled: () => listFocused() && focusedTs() !== null,
+    handler: () => moveFocus(-1),
+    id: "messages.focusPrev",
+    label: "Move focus to the previous message",
     scope: "messages",
   });
 
   const messageActionEnabled = () => listFocused() && focusedTs() !== null;
 
   useShortcut({
+    combo: { key: "r" },
     enabled: () => messageActionEnabled() && (!!callbacks.onOpenThread || !!callbacks.onReplyLink),
     handler: () => {
       const msg = focusedMessage();
       if (!msg) return;
-      if (callbacks.onOpenThread) callbacks.onOpenThread(msg.ts);
+      if (callbacks.onOpenThread) callbacks.onOpenThread(msg.ts, { autofocus: false });
       else callbacks.onReplyLink?.(msg);
     },
-    keys: "r",
+    id: "messages.reply",
     label: "Reply",
-    match: plainKey("r"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "r", shift: true },
     enabled: () => messageActionEnabled() && !!callbacks.onOpenThread,
     handler: () => {
       const msg = focusedMessage();
-      if (msg) callbacks.onOpenThread?.(msg.ts, { pinned: true });
+      if (!msg) return;
+      callbacks.onOpenThread?.(msg.ts, { autofocus: false, pinned: true });
     },
-    keys: "Shift R",
+    id: "messages.replySplit",
     label: "Reply in a new split",
-    match: plainKey("R"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "a" },
     enabled: messageActionEnabled,
     handler: () => clickRowButton("React"),
-    keys: "a",
+    id: "messages.react",
     label: "Add a reaction",
-    match: plainKey("a"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "s" },
     enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.later.toggleSaveForLater(channelId(), ts);
     },
-    keys: "s",
+    id: "messages.saveForLater",
     label: "Save / unsave for later",
-    match: plainKey("s"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "p" },
     enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.pinned.togglePinMessage(channelId(), ts);
     },
-    keys: "p",
+    id: "messages.pin",
     label: "Pin / unpin",
-    match: plainKey("p"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "c" },
     enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) copyMessageLink(channelId(), ts, callbacks.threadTs?.());
     },
-    keys: "c",
+    id: "messages.copyLink",
     label: "Copy link",
-    match: plainKey("c"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "y" },
     enabled: messageActionEnabled,
     handler: () => {
       const msg = focusedMessage();
@@ -182,85 +206,84 @@ export function createMessageFocus(
         ),
       );
     },
-    keys: "y",
+    id: "messages.copyText",
     label: "Copy text",
-    match: plainKey("y"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "v" },
     enabled: messageActionEnabled,
     handler: () => {
       const msg = focusedMessage();
       const id = msg && resolveProfileUserId(msg);
       if (id) store.users.openUserProfile(id);
     },
-    keys: "v",
+    id: "messages.viewProfile",
     label: "View author's profile",
-    match: plainKey("v"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "u" },
     enabled: messageActionEnabled,
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) store.messages.markMessageUnread(channelId(), ts);
     },
-    keys: "u",
+    id: "messages.markUnread",
     label: "Mark unread",
-    match: plainKey("u"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "e" },
     enabled: () => listFocused() && isOwnEditableMessage(),
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) startEdit(ts);
     },
-    keys: "e",
+    id: "messages.edit",
     label: "Edit message",
-    match: plainKey("e"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "d" },
     enabled: () => listFocused() && isOwnEditableMessage(),
     handler: () => {
       const ts = focusedTs();
       if (ts !== null) confirmAndDeleteMessage(channelId(), ts);
     },
-    keys: "d",
+    id: "messages.delete",
     label: "Delete message",
-    match: plainKey("d"),
     scope: "messages",
   });
 
   useShortcut({
+    combo: { key: "." },
     enabled: messageActionEnabled,
     handler: () => clickRowButton("More actions"),
-    keys: ".",
+    id: "messages.moreActions",
     label: "More actions (remind me, also send to channel, app shortcuts, …)",
-    match: plainKey("."),
     scope: "messages",
   });
 
   return {
     editingTs,
+    focusMessage: (ts: string) => focusRow(ts, { preventScroll: true }),
     focusedTs,
 
     listFocused,
     onContainerFocusIn: (e: FocusEvent) => {
       setListFocused(true);
 
-      const ts = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-message-ts]")
-        ?.dataset.messageTs;
+      const target = e.target instanceof Element ? e.target : null;
+      const ts = target?.closest<HTMLElement>("[data-message-ts]")?.dataset.messageTs;
       if (ts) setFocusedTs(ts);
     },
-    onContainerFocusOut: (e: FocusEvent) => {
-      const el = e.currentTarget as HTMLElement;
-      if (!(e.relatedTarget instanceof Node && el.contains(e.relatedTarget))) {
+    onContainerFocusOut: (e: FocusEvent & { currentTarget: HTMLElement }) => {
+      if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
         setListFocused(false);
       }
     },

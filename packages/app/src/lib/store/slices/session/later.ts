@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
 import type { Message, SavedItem } from "../../../api";
 import { fetchMessagesByIds, fetchSaved, toggleSaved } from "../../../api";
@@ -20,8 +20,12 @@ export function createLaterSlice() {
     return !!savePending[laterKey(channelId, ts)];
   }
 
+  const savedKeys = createMemo(
+    () => new Set(laterItems.map((item) => laterKey(item.channelId, item.ts))),
+  );
+
   function isSavedForLater(channelId: string, ts: string): boolean {
-    return laterItems.some((item) => item.channelId === channelId && item.ts === ts);
+    return savedKeys().has(laterKey(channelId, ts));
   }
 
   async function toggleSaveForLater(channelId: string, ts: string): Promise<boolean> {
@@ -128,7 +132,24 @@ export function createLaterSlice() {
     return !!laterMessageLoading[laterKey(channelId, ts)];
   }
 
+  function applySavedEvent(action: "add" | "remove" | "clear", channelId?: string, ts?: string) {
+    if (!laterLoaded()) return;
+    if (action === "clear") {
+      setLaterItems([]);
+      return;
+    }
+    if (!(channelId && ts)) return;
+    if (action === "remove") {
+      setLaterItems((list) =>
+        list.filter((item) => item.channelId !== channelId || item.ts !== ts),
+      );
+    } else if (!isSavedForLater(channelId, ts)) {
+      setLaterItems(produce((list) => list.push({ channelId, ts })));
+    }
+  }
+
   return {
+    applySavedEvent,
     ensureLaterLoaded,
     ensureLaterMessageLoaded,
     hasLaterMessageError,

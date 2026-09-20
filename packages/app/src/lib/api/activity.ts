@@ -3,7 +3,6 @@ import {
   ACTIVITY_FEED_TYPES_PARAM,
   apiGet,
   apiPost,
-  blockPreviewText,
   broadcastRangeFromBlocks,
   HIDE_SUBTYPES,
   mapMessage,
@@ -23,6 +22,11 @@ export async function markActivityRead(type: string, feedTs: string, key: string
   if (!data.ok) throw new Error(data.error ?? "activity.markRead failed");
 }
 
+export async function archiveActivityItem(type: string, key: string, ts: string): Promise<void> {
+  const data = await apiPost("/api/activity/archive", { key, ts, type });
+  if (!data.ok) throw new Error(data.error ?? "activity.archive failed");
+}
+
 export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
@@ -34,7 +38,7 @@ export async function fetchActivityFeedEntries(
   if (unreadOnly) query.set("unreadOnly", "true");
   const data = await apiGet(`/api/activity?${query}`);
   if (!data.ok) throw new Error(data.error ?? "activity.feed failed");
-  const entries = ((data.items ?? []) as any[])
+  const entries = (data.items ?? [])
     .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts) * 1000))
     .filter((entry): entry is FeedEntry => !!entry);
   return {
@@ -112,7 +116,7 @@ export async function fetchMessagesByIds(
       throw new Error(data.error ?? "messages.list failed while resolving activity");
     }
     const batch = new Map<string, Message>();
-    for (const [channelId, entry] of Object.entries(data.messages ?? {}) as [string, any][]) {
+    for (const [channelId, entry] of Object.entries(data.messages ?? {})) {
       for (const raw of rawMessagesFromMessagesListEntry(entry)) {
         if (raw?.ts && !HIDE_SUBTYPES.has(raw.subtype)) {
           const key = `${channelId}:${raw.ts}`;
@@ -146,8 +150,9 @@ export function resolveActivityEntry(
     botIcon: !isReaction && msg ? msg.botIcon : entry.botIcon,
     botId: !isReaction && msg ? msg.botId : entry.botId,
     botName: !isReaction && msg ? msg.botName : entry.botName,
+    files: msg?.files ?? entry.files,
     kind: entry.kind === "channel_all" && broadcastRange ? "channel_mention" : entry.kind,
-    text: msg?.text || entry.text || blockPreviewText(msg?.blocks) || "",
+    text: msg?.text || entry.text || "",
 
     threadTs:
       entry.kind === "reaction"

@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, type Setter } from "solid-js";
+import { createMemo, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { ChannelSection, UserPrefs } from "../../../api";
 import {
@@ -10,14 +10,18 @@ import {
   fetchFreshSections,
   fetchSections,
 } from "../../../api";
-import { reorderSections, setSectionSidebarPreference } from "../../../channelSectionMutations";
+import {
+  reorderSections,
+  setSectionCollapsedPreference,
+  setSectionSidebarPreference,
+} from "../../../channelSectionMutations";
 import { actionFeedback } from "../../../feedback";
 import type { Nav } from "../types";
 
 export function createChannelSections(deps: {
   nav: () => Nav;
   userPrefs: () => UserPrefs | undefined;
-  mutateUserPrefs: Setter<UserPrefs | undefined>;
+  mutateUserPrefs: (updater: (current: UserPrefs | undefined) => UserPrefs | undefined) => void;
 }) {
   let sectionsLoaded = false;
   const loadSections = () => {
@@ -173,6 +177,34 @@ export function createChannelSections(deps: {
     void setChannelSectionSidebar(sectionId, section.sidebar === "all" ? "hid" : "all");
   }
 
+  const collapsedIds = createMemo(() => {
+    const sectionCollapsed = deps.userPrefs()?.sectionCollapsed ?? {};
+    return new Set(Object.keys(sectionCollapsed).filter((id) => sectionCollapsed[id]));
+  });
+
+  async function toggleCategoryCollapsed(sectionId: string): Promise<boolean> {
+    const prev = deps.userPrefs();
+    if (!prev) return false;
+    const wasCollapsed = !!prev.sectionCollapsed[sectionId];
+    deps.mutateUserPrefs((current) =>
+      current ? setSectionCollapsedPreference(current, sectionId, !wasCollapsed) : current,
+    );
+    const rollback = () =>
+      deps.mutateUserPrefs((current) =>
+        current ? setSectionCollapsedPreference(current, sectionId, wasCollapsed) : current,
+      );
+    try {
+      const ok = await apiSetChannelSectionsPreference(deps.userPrefs()?.channelSections ?? {});
+      if (ok) return true;
+      rollback();
+      return false;
+    } catch (err) {
+      console.error("Failed to update section collapse state", err);
+      rollback();
+      return false;
+    }
+  }
+
   async function reorderChannelSection(
     sectionId: string,
     nextSectionId: string | null,
@@ -203,6 +235,7 @@ export function createChannelSections(deps: {
   }
 
   return {
+    collapsedIds,
     createChannelSection,
     deleteChannelSection,
     isSectionSidebarPending,
@@ -216,6 +249,7 @@ export function createChannelSections(deps: {
     sections,
     sectionsError: () => rawSections.error,
     sectionsLoading: () => rawSections.loading && rawSections() === undefined,
+    toggleCategoryCollapsed,
     toggleSectionFilter,
   };
 }

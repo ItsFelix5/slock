@@ -10,18 +10,8 @@ import {
 import { mergeMessages } from "../../../messageMerge";
 import type { ChannelMessageTarget, ThreadRef, View } from "../types";
 import { createRequestEpochs } from "./history/requestEpoch";
-import { createHistoryJump } from "./historyJump";
+import { createHistoryJump, type HistoryMeta } from "./historyJump";
 import { createThreadReplies } from "./threadReplies";
-
-type HistoryMeta = {
-  anchored?: boolean;
-  hasMore: boolean;
-  hasNewer?: boolean;
-  initialError?: boolean;
-  loading: boolean;
-  newerError?: boolean;
-  olderError?: boolean;
-};
 
 type MessageHistoryApi = {
   fetchChannelDetails: typeof fetchChannelDetails;
@@ -56,7 +46,8 @@ export function createMessageHistory(
     ensureThreadRepliesLoaded,
     hasThreadError,
     isLoadingThread,
-    loadedThreads,
+    isThreadKnown,
+    refreshThreadReplies,
     setThreadMessages,
     threadMessages,
   } = createThreadReplies({ visibleThreads: deps.visibleThreads });
@@ -267,16 +258,17 @@ export function createMessageHistory(
     historyMeta,
     isLoadingHistory,
     isLoadingThread,
+    isThreadKnown,
     jumpToBeginning,
     jumpToDate,
     loadedChannels,
-    loadedThreads,
     loadOlderMessages,
     loadOlderMessagesThrough,
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
     reactionMessages,
+    refreshThreadReplies,
     setMessagesByChannel,
     setReactionMessages,
     setThreadMessages,

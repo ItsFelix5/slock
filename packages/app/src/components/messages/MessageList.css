@@ -5,6 +5,7 @@
   padding-bottom: 12px;
   overflow-x: hidden;
   overflow-y: auto;
+  overflow-anchor: none;
   scrollbar-width: none;
 }
 .message-list::-webkit-scrollbar {
@@ -100,6 +101,9 @@
     var(--message-row-inline-start);
   outline: none;
 }
+.message-row:focus-visible {
+  outline: none;
+}
 .message-row-group {
   position: relative;
 }
@@ -123,6 +127,12 @@
 }
 .message-row.message-flash {
   animation: message-flash 1.2s ease;
+}
+::highlight(search-match) {
+  background-color: var(--highlight-bg);
+}
+::highlight(search-match-current) {
+  background-color: var(--warning-emphasis);
 }
 .message-hover-actions {
   position: absolute;
@@ -164,9 +174,6 @@
 }
 .message-hover-btn.active {
   color: var(--accent);
-}
-.message-hover-btn .icon {
-  transform: translateY(var(--icon-optical-shift));
 }
 .message-hover-picker-wrap {
   position: relative;
@@ -238,10 +245,6 @@
   width: 36px;
   height: 36px;
   vertical-align: -7px;
-}
-.message-avatar-drag-handle {
-  flex-shrink: 0;
-  width: var(--message-avatar-size);
 }
 .message-avatar-button {
   flex-shrink: 0;

@@ -1,5 +1,6 @@
 import type { IconName } from "@slock/ui";
 import type { Channel, DirectMessage, User } from "./api";
+import { isDmId } from "./store/slices/entities/dms";
 
 export function channelDisplayName(
   channel: Pick<Channel, "id" | "name" | "private"> | undefined,
@@ -28,6 +29,19 @@ export function dmDisplayName(
   return "";
 }
 
+export function formatInteractorNames(
+  ids: string[],
+  currentUserId: string | undefined,
+  userById: (id: string) => User | undefined,
+): string {
+  const names = ids.map((id) => (id === currentUserId ? "you" : (userById(id)?.name ?? "someone")));
+  return names.reduce(
+    (previous, current, index, all) =>
+      (previous ? previous + (index < all.length - 1 ? ", " : " and ") : "") + current,
+    "",
+  );
+}
+
 export function conversationDisplayName(
   id: string,
   channelById: (id: string) => Pick<Channel, "id" | "name" | "private"> | undefined,
@@ -35,6 +49,6 @@ export function conversationDisplayName(
   userById: (id: string) => User | undefined,
 ): string {
   const dm = dmById(id);
-  if (dm) return dmDisplayName(dm, userById) || id;
+  if (isDmId(id, () => !!dm)) return dmDisplayName(dm, userById) || id;
   return `#${channelDisplayName(channelById(id), id)}`;
 }

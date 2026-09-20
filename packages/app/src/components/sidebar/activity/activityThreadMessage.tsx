@@ -1,8 +1,9 @@
-import { BlockKit, formatTime, Link, Mrkdwn } from "@slock/blockkit";
-import type { Block, RichTextBlock } from "@slock/types";
-import { Avatar, DEFAULT_AVATAR_COLOR, Tooltip } from "@slock/ui";
+import { BlockKit, formatTime, Mrkdwn } from "@slock/blockkit";
+import type { Block } from "@slock/types";
+import { Avatar, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
 import { createMemo, type JSX, Show } from "solid-js";
-import { formatDayFromMs } from "../../../lib/api";
+import { formatDayFromMs, type SlackFile } from "../../../lib/api";
+import { fileSummaryIcon, fileSummaryLabel } from "../../../lib/fileSummary";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
 import {
@@ -13,30 +14,41 @@ import {
   resolveProfileUserId,
   unresolvedAuthorFallback,
 } from "../../messages/parts/messageRenderState";
-import ClickableAuthorName from "../../user/ClickableAuthorName";
+import { ClickableAuthorName } from "../../user/AppBadge";
 
-export function ActivityMessageText(props: { blocks?: Block[]; text: string }) {
+export function ActivityMessageText(props: {
+  blocks?: Block[];
+  files?: SlackFile[];
+  text: string;
+}) {
   const ref = createMemo(() => parseReplyLink(props.text));
-  const richTextBlocks = createMemo(() =>
-    (props.blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
-  );
+  const renderBlocks = createMemo(() => (props.blocks?.length ? props.blocks : undefined));
+  const filesOnly = createMemo(() => {
+    if (props.text.trim() || renderBlocks()) return;
+    return props.files?.length ? props.files : undefined;
+  });
   return (
     <Show
       fallback={
-        <Show fallback={<Mrkdwn text={props.text} />} when={richTextBlocks().length > 0}>
-          <BlockKit blocks={richTextBlocks()} />
+        <Show
+          fallback={
+            <Show fallback={<Mrkdwn inline text={props.text} />} when={renderBlocks()}>
+              {(blocks) => <BlockKit blocks={blocks()} />}
+            </Show>
+          }
+          when={filesOnly()}
+        >
+          {(files) => (
+            <span class="activity-file-fallback">
+              <Icon name={fileSummaryIcon(files())} size={12} />
+              {fileSummaryLabel(files())}
+            </span>
+          )}
         </Show>
       }
       when={ref()}
     >
-      {(r) => (
-        <>
-          <Link label="Original message" url={r().url} />
-          <Show when={r().rest.trim()}>
-            <Mrkdwn text={r().rest} />
-          </Show>
-        </>
-      )}
+      {(r) => <Mrkdwn inline text={r().rest} />}
     </Show>
   );
 }
@@ -45,6 +57,7 @@ export function ThreadMessageRow(props: {
   author: MessageAuthorFields;
   blocks?: Block[];
   eventLabel?: JSX.Element;
+  files?: SlackFile[];
   isFirst?: boolean;
   isLast?: boolean;
   isRoot?: boolean;
@@ -107,16 +120,16 @@ export function ThreadMessageRow(props: {
           <Show when={props.eventLabel}>
             <span class="activity-thread-event">{props.eventLabel}</span>
           </Show>
-          <Show when={props.time !== undefined}>
-            <Tooltip
-              content={`${formatDayFromMs(props.time as number)} at ${formatTime(props.time as number)}`}
-            >
-              <span class="activity-thread-message-time">{formatTime(props.time as number)}</span>
-            </Tooltip>
+          <Show keyed when={props.time === undefined ? undefined : props.time}>
+            {(time) => (
+              <Tooltip content={`${formatDayFromMs(time)} at ${formatTime(time)}`}>
+                <span class="activity-thread-message-time">{formatTime(time)}</span>
+              </Tooltip>
+            )}
           </Show>
         </span>
         <span class="activity-thread-message-text">
-          <ActivityMessageText blocks={props.blocks} text={props.text} />
+          <ActivityMessageText blocks={props.blocks} files={props.files} text={props.text} />
         </span>
       </span>
     </button>

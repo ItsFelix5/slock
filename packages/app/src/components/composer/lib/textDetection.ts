@@ -1,33 +1,18 @@
-import type { Attachment, LinkPreview } from "../../../lib/api";
-
-const URL_RE = /https?:\/\/[^\s<>]+/g;
-const TRAILING_PUNCTUATION_RE = /[),.!?;:'"]+$/;
-export function detectUrls(value: string): string[] {
-  const found = new Set<string>();
-  for (const m of value.matchAll(URL_RE)) {
-    const clean = m[0].replace(TRAILING_PUNCTUATION_RE, "");
-    if (clean) found.add(clean);
-  }
-  return [...found];
-}
-
-export function linkPreviewToAttachment(preview: LinkPreview): Attachment {
-  return {
-    footer: preview.siteName,
-    imageUrl: preview.imageUrl,
-    text: preview.description,
-    title: preview.title || preview.url,
-    titleLink: preview.url,
-  };
-}
-
-const USERGROUP_PING_RE = /<!subteam\^/;
-export function hasUsergroupPing(value: string): boolean {
-  return USERGROUP_PING_RE.test(value);
-}
-
 export const WHITESPACE_RE = /\s/;
 const EMOJI_QUERY_RE = /^[a-z0-9_+'-]*$/i;
+const EMOJI_SHORTCODE_RE = /:([a-z0-9_+'-]+):$/i;
+
+export function matchTypedEmojiShortcode(
+  before: string,
+): { start: number; end: number; name: string } | null {
+  const match = before.match(EMOJI_SHORTCODE_RE);
+  if (!match) return null;
+  const [whole, name] = match;
+  const start = before.length - whole.length;
+  const prevChar = before[start - 1];
+  if (prevChar !== undefined && !WHITESPACE_RE.test(prevChar)) return null;
+  return { end: before.length, name, start };
+}
 
 export function detectMentionTrigger(
   value: string,

@@ -1,18 +1,13 @@
-@import "quill/dist/quill.core.css";
+@import "quill.css";
 
 .ql-editor-root {
   flex: 1;
   min-width: 0;
-}
-
-.ql-editor {
-  padding: 0;
   font-size: inherit;
-  font-family: inherit;
 }
 
-.ql-editor.ql-blank::before {
-  color: var(--text-tertiary, #888);
+.ql-editor-root .ql-editor.ql-blank::before {
+  color: var(--text-dim);
   font-style: normal;
   left: 0;
 }

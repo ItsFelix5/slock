@@ -1,5 +1,17 @@
 import { gzipSync } from "node:zlib";
 
+export function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error) return error;
+  if (error != null) {
+    try {
+      const message = JSON.stringify(error);
+      if (message) return message;
+    } catch {}
+  }
+  return fallback;
+}
+
 const COMPRESSIBLE_CONTENT_TYPE_RE =
   /^(?:text\/|application\/(?:javascript|json|xml|wasm)|image\/svg\+xml)/i;
 

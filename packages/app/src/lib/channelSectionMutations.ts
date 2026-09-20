@@ -51,3 +51,22 @@ export function setSectionSidebarPreference(
   channelSections[sectionId] = entry;
   return { ...prefs, sectionSidebar, channelSections };
 }
+
+export function setSectionCollapsedPreference(
+  prefs: UserPrefs,
+  sectionId: string,
+  collapsed: boolean,
+): UserPrefs {
+  const sectionCollapsed = { ...prefs.sectionCollapsed };
+  const channelSections = { ...prefs.channelSections };
+  const entry = { ...channelSections[sectionId] };
+  if (collapsed) {
+    sectionCollapsed[sectionId] = true;
+    entry.collapsed = true;
+  } else {
+    delete sectionCollapsed[sectionId];
+    entry.collapsed = false;
+  }
+  channelSections[sectionId] = entry;
+  return { ...prefs, sectionCollapsed, channelSections };
+}

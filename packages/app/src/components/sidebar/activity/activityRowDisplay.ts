@@ -1,8 +1,7 @@
 import { createMemo } from "solid-js";
 import { isPingingActivity } from "../../../lib/activityKinds";
 import type { ActivityItem } from "../../../lib/api";
-import { conversationDisplayName } from "../../../lib/displayName";
-import { formatInteractorNames } from "../../../lib/interactorNames";
+import { conversationDisplayName, formatInteractorNames } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
 import {
   hasRealMessageAuthor,
@@ -30,7 +29,7 @@ export function createActivityRowDisplay(deps: {
     );
   });
   const isUnread = createMemo(() => store.activity.isActivityItemUnread(deps.latest()));
-  const isReacted = createMemo(() => store.activity.isActivityItemReacted(deps.latest()));
+  const isArchived = createMemo(() => store.activity.isActivityItemArchived(deps.latest()));
   const isPinging = createMemo(() => isPingingActivity(deps.latest()));
   const isStandaloneActivity = createMemo(() => !deps.latest().channelId);
   const hasKnownActor = createMemo(() => hasRealMessageAuthor(deps.latest()));
@@ -71,8 +70,8 @@ export function createActivityRowDisplay(deps: {
     hasAnyActor,
     hasKnownActor,
     interactorNames,
+    isArchived,
     isPinging,
-    isReacted,
     isStandaloneActivity,
     isUnread,
     matchingReaction,

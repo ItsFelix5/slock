@@ -5,6 +5,7 @@ import Tooltip from "../overlay/Tooltip";
 export interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
   circular?: boolean;
+  hideTooltip?: boolean;
   icon: IconName;
   iconSize?: number;
   label?: string;
@@ -17,6 +18,7 @@ export default function IconButton(props: IconButtonProps) {
     "active",
     "circular",
     "class",
+    "hideTooltip",
     "icon",
     "iconSize",
     "label",
@@ -44,5 +46,9 @@ export default function IconButton(props: IconButtonProps) {
     </button>
   );
 
-  return local.label ? <Tooltip content={local.label}>{button}</Tooltip> : button;
+  return local.label && !local.hideTooltip ? (
+    <Tooltip content={local.label}>{button}</Tooltip>
+  ) : (
+    button
+  );
 }

@@ -1,19 +1,30 @@
-import { Button, Icon, type Pane, PanelHeader, Tooltip, TypingIndicator } from "@slock/ui";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { Button, IconButton, type Pane, PanelHeader, TypingIndicator } from "@slock/ui";
+import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import type { Message } from "../../../lib/api";
 import { conversationDisplayName } from "../../../lib/displayName";
 import { actionFeedback } from "../../../lib/feedback";
 import { prepareReplyLink } from "../../../lib/messageLinks";
-import { closeTile } from "../../../lib/paneActions";
+import { openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
 import type { ThreadPaneContent } from "../../../lib/store/slices/types";
+import "../../channel/JoinChannelBar.css";
+import JoinChannelBar from "../../channel/JoinChannelBar";
 import Composer from "../../composer/Composer";
+import { SplitNavigation } from "../../navigation/SplitNavigation";
 import InPaneSearchBar from "../InPaneSearchBar";
 import { createInPaneSearch } from "../inPaneSearch";
 import MessageRows from "../MessageRows";
 import { createMessageFocus } from "../messageFocus";
 import ReplyReferenceRow from "../parts/ReplyReferenceRow";
-import { isScrolledToBottom, jumpToMessageInContainer, scrollToBottom } from "../scrollAnchor";
+import {
+  captureScrollAnchor,
+  getRememberedScrollAnchor,
+  isScrolledToBottom,
+  jumpToMessageInContainer,
+  rememberScrollAnchor,
+  restoreScrollAnchor,
+  scrollToBottom,
+} from "../scrollAnchor";
 import "./ThreadPanel.css";
 
 export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
@@ -35,7 +46,7 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     },
   );
 
-  const replyTargetMessage = createMemo(() => messages().find((m) => m.ts === replyTarget()?.ts));
+  const replyTargetMessage = () => messages().find((m) => m.ts === replyTarget()?.ts);
   const inPaneSearch = createInPaneSearch(
     messages,
     () => messagesRef,
@@ -47,8 +58,10 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     return store.typing.typingUsersInThread(t.channelId, t.ts).map((u) => u.name);
   });
 
+  const isMember = () => store.channels.isChannelMember(thread().channelId);
   const toggleSubscription = () => {
     const t = thread();
+    if (!isMember()) return;
     store.messages.toggleThreadSubscribed(t.channelId, t.ts);
   };
   const jumpToReplyTarget = () => jumpToMessage(replyTarget()?.ts ?? "");
@@ -58,24 +71,61 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     store.viewState.openChannelMessage(t.channelId, t.ts, { keepNav: true });
   };
 
-  createEffect(() => {
-    thread();
-    cancelJump?.();
-    cancelJump = undefined;
-    setReplyTarget(null);
-  });
+  createEffect(
+    on(
+      () => thread().ts,
+      () => {
+        cancelJump?.();
+        cancelJump = undefined;
+        setReplyTarget(null);
+      },
+    ),
+  );
   onCleanup(() => cancelJump?.());
 
-  let handledHighlightRequest: ThreadPaneContent | null = null;
-  let highlightedRequestJustHandled: ThreadPaneContent | null = null;
+  let handledFocusKey: string | undefined;
+  let readyTs: string | undefined;
+  let justHandledTs: string | undefined;
   createEffect(() => {
-    const t = thread();
-    if (!t.highlightTs) return;
-    if (handledHighlightRequest === t) return;
-    if (!messages().some((m) => m.ts === t.highlightTs)) return;
-    handledHighlightRequest = t;
-    highlightedRequestJustHandled = t;
-    queueMicrotask(() => jumpToMessage(t.highlightTs ?? ""));
+    const { highlightTs, ts } = thread();
+    const key = `${ts}:${highlightTs ?? ""}`;
+    if (handledFocusKey === key) return;
+    const msgs = messages();
+    const [first] = msgs;
+    if (!first) return;
+    const highlightMissing = highlightTs !== undefined && !msgs.some((m) => m.ts === highlightTs);
+    if (highlightMissing && store.messages.isLoadingThread(ts)) return;
+    handledFocusKey = key;
+    readyTs = ts;
+    justHandledTs = ts;
+
+    if (highlightTs) {
+      const targetTs = msgs.some((m) => m.ts === highlightTs) ? highlightTs : first.ts;
+      queueMicrotask(() => {
+        jumpToMessage(targetTs);
+        messageFocus.focusMessage(targetTs);
+      });
+      return;
+    }
+
+    const remembered = getRememberedScrollAnchor(ts);
+    if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
+      queueMicrotask(() => {
+        if (!messagesRef) return;
+        const row = messagesRef.querySelector<HTMLElement>(
+          `[data-message-ts="${CSS.escape(remembered.ts)}"]`,
+        );
+        if (row) restoreScrollAnchor(messagesRef, { el: row, offset: remembered.offset });
+        else jumpToMessage(first.ts);
+      });
+      return;
+    }
+
+    const firstTs = first.ts;
+    queueMicrotask(() => {
+      jumpToMessage(firstTs);
+      messageFocus.focusMessage(firstTs);
+    });
   });
 
   let lastThreadTs: string | undefined;
@@ -88,12 +138,12 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
     if (switchedThread) shouldFollowBottom = true;
     if (!(messagesRef && msgs.length > 0)) return;
 
-    if (highlightedRequestJustHandled === t) {
-      highlightedRequestJustHandled = null;
+    if (justHandledTs === t.ts) {
+      justHandledTs = undefined;
       shouldFollowBottom = false;
       return;
     }
-    if (t.highlightTs && handledHighlightRequest !== t) return;
+    if (readyTs !== t.ts) return;
 
     if (shouldFollowBottom) {
       queueMicrotask(() => {
@@ -102,17 +152,6 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
         shouldFollowBottom = isScrolledToBottom(messagesRef);
       });
     }
-  });
-
-  createEffect(() => {
-    messages();
-    const el = messagesRef;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      if (shouldFollowBottom) scrollToBottom(el);
-    });
-    for (const row of el.querySelectorAll<HTMLElement>("[data-message-ts]")) observer.observe(row);
-    onCleanup(() => observer.disconnect());
   });
 
   const channelName = createMemo(() =>
@@ -142,52 +181,54 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
   }
 
   function handleMessagesScroll() {
-    if (messagesRef) shouldFollowBottom = isScrolledToBottom(messagesRef);
+    if (!messagesRef) return;
+    shouldFollowBottom = isScrolledToBottom(messagesRef);
+    if (readyTs !== thread().ts) return;
+    const anchor = captureScrollAnchor(messagesRef);
+    const ts = anchor?.el.dataset.messageTs;
+    if (anchor && ts) rememberScrollAnchor(thread().ts, { offset: anchor.offset, ts });
   }
 
   return (
     <div class="thread-panel" data-pane={props.pane.id}>
       <PanelHeader
-        canClose={store.panes.panes().length > 1}
-        onClose={() => closeTile(props.pane.id)}
+        canClose={store.viewState.canCloseTile()}
+        onClose={() => store.viewState.closeTile(props.pane.id)}
       >
         <div class="thread-panel-header-info flex-align-center">
           <div class="thread-panel-title">Thread</div>
-          <button
-            aria-label={`View thread message in ${channelName()}`}
-            class="thread-panel-subtitle btn-reset flex-align-center"
-            onClick={openThreadMessageInChannel}
-            type="button"
-          >
-            {channelName()}
-          </button>
-          <Tooltip
-            content={
-              store.messages.isThreadSubscribed(thread().ts)
-                ? "Unfollow thread"
-                : "Get notified about new replies"
-            }
-          >
+          <SplitNavigation onSplit={() => openConversationInSplit(thread().channelId, thread().ts)}>
             <button
-              class="thread-panel-subscribe-btn btn-reset flex-center"
-              classList={{ subscribed: store.messages.isThreadSubscribed(thread().ts) }}
-              disabled={
-                messages().length === 0 ||
-                store.messages.isThreadSubscriptionPending(thread().channelId, thread().ts)
-              }
-              onClick={toggleSubscription}
+              aria-label={`View thread message in ${channelName()}`}
+              class="thread-panel-subtitle btn-reset flex-align-center"
+              onClick={openThreadMessageInChannel}
               type="button"
             >
-              <Icon
-                name={
-                  store.messages.isThreadSubscribed(thread().ts)
-                    ? "notifications-check"
-                    : "notifications"
-                }
-                size={16}
-              />
+              {channelName()}
             </button>
-          </Tooltip>
+          </SplitNavigation>
+          <IconButton
+            class="thread-panel-subscribe-btn"
+            classList={{ subscribed: store.messages.isThreadSubscribed(thread().ts) }}
+            disabled={
+              !isMember() ||
+              messages().length === 0 ||
+              store.messages.isThreadSubscriptionPending(thread().channelId, thread().ts)
+            }
+            icon={
+              store.messages.isThreadSubscribed(thread().ts)
+                ? "notifications-check"
+                : "notifications"
+            }
+            label={
+              isMember()
+                ? store.messages.isThreadSubscribed(thread().ts)
+                  ? "Unfollow thread"
+                  : "Get notified about new replies"
+                : "Join the channel to get notified"
+            }
+            onClick={toggleSubscription}
+          />
         </div>
       </PanelHeader>
       <Show when={store.messages.isLoadingThread(thread().ts) && messages().length === 0}>
@@ -242,28 +283,30 @@ export default function ThreadPanel(props: { pane: Pane<ThreadPaneContent> }) {
         <Show when={replyTarget()}>
           <div class="thread-reply-preview flex-align-center">
             <ReplyReferenceRow message={replyTargetMessage()} onJump={jumpToReplyTarget} />
-            <Tooltip content="Cancel reply">
-              <button
-                aria-label="Cancel reply"
-                class="thread-reply-preview-cancel btn-reset flex-center"
-                onClick={cancelReply}
-                type="button"
-              >
-                <Icon name="close" size={16} />
-              </button>
-            </Tooltip>
+            <IconButton
+              class="thread-reply-preview-cancel"
+              icon="close"
+              label="Cancel reply"
+              onClick={cancelReply}
+            />
           </div>
         </Show>
-        <Composer
-          channelId={thread().channelId}
-          paneId={props.pane.id}
-          placeholder="Reply…"
-          replyTo={(() => {
-            const rt = replyTarget();
-            return rt ? { onSent: () => setReplyTarget(null), permalink: rt.permalink } : undefined;
-          })()}
-          threadTs={thread().ts}
-        />
+        <Show fallback={<JoinChannelBar channelId={thread().channelId} />} when={isMember()}>
+          <Show keyed when={thread().ts}>
+            <Composer
+              channelId={thread().channelId}
+              paneId={props.pane.id}
+              placeholder="Reply…"
+              replyTo={(() => {
+                const rt = replyTarget();
+                return rt
+                  ? { onSent: () => setReplyTarget(null), permalink: rt.permalink }
+                  : undefined;
+              })()}
+              threadTs={thread().ts}
+            />
+          </Show>
+        </Show>
       </div>
     </div>
   );

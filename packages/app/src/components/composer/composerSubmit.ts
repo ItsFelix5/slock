@@ -1,10 +1,12 @@
 import type Quill from "quill";
-import { uploadFiles } from "../../lib/api";
+import { blockPreviewText, uploadFiles } from "../../lib/api";
 import { actionFeedback } from "../../lib/feedback";
+import { encodeReplyLink } from "../../lib/replyLink";
 import { store } from "../../lib/store";
 import type { ComposerProps } from "./composerTypes";
 import { clearPersistedDraft, type createPendingFileState } from "./lib/drafts";
 import { mrkdwnText } from "./lib/quillMentions";
+import { blocksHaveProfileLink, buildRichTextBlocks } from "./lib/richTextBuild";
 import { submitComposerPayload } from "./lib/submission";
 
 export function createComposerSubmitHandler(deps: {
@@ -14,6 +16,7 @@ export function createComposerSubmitHandler(deps: {
   getQuill: () => Quill | undefined;
   onSent: () => void;
   pendingFiles: ReturnType<typeof createPendingFileState>;
+  replyTo: () => ComposerProps["replyTo"];
   sending: () => boolean;
   setSending: (sending: boolean) => void;
   threadTs: () => string | undefined;
@@ -28,14 +31,24 @@ export function createComposerSubmitHandler(deps: {
     try {
       const editing = deps.editing();
       if (editing) {
-        await editing.onSave(text);
+        const blocks = buildRichTextBlocks(quill);
+        await editing.onSave(blockPreviewText(blocks) || text, blocks);
         return;
       }
       const channelId = deps.channelId();
       if (!channelId) return;
       const threadTs = deps.threadTs();
       const isSlashAttempt = text.startsWith("/");
+      const replyTo = deps.replyTo();
+      const blocks = isSlashAttempt ? undefined : buildRichTextBlocks(quill);
+      const suppressUnfurl = !!blocks && blocksHaveProfileLink(blocks);
+      const fallbackText = blocks ? blockPreviewText(blocks) || text : text;
+      const outgoing =
+        replyTo && !isSlashAttempt
+          ? encodeReplyLink(replyTo.permalink) + fallbackText
+          : fallbackText;
       await submitComposerPayload({
+        blocks,
         files: deps.pendingFiles.files(),
         isSlashAttempt,
         onSuccess: () => {
@@ -44,13 +57,14 @@ export function createComposerSubmitHandler(deps: {
           deps.onSent();
         },
         runCommand: () => store.commands.handleSlashCommand(channelId, threadTs, text),
-        sendMessage: () => store.messages.sendMessage(channelId, text, threadTs),
+        sendMessage: () =>
+          store.messages.sendMessage(channelId, outgoing, threadTs, blocks, suppressUnfurl),
         uploadFiles: () =>
           uploadFiles(
             channelId,
             deps.pendingFiles.files().map((file) => ({ file })),
             threadTs,
-            text,
+            outgoing,
           ),
       });
     } catch (err) {

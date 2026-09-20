@@ -20,6 +20,7 @@ export interface ActivityFeedPage {
 
 export interface Bootstrap {
   activityCounts: Record<string, number> | undefined;
+  allUsergroupIds: string[];
   channels: Channel[];
   currentUser: User;
   directMessages: DirectMessage[];
@@ -80,7 +81,13 @@ export interface FileUploadInput {
   title?: string;
 }
 
-export type DraftEntry = { channelId: string; threadTs?: string; text: string; blocks?: unknown };
+export type DraftEntry = {
+  channelId: string;
+  threadTs?: string;
+  text: string;
+  blocks?: unknown;
+  lastUpdatedTs?: string;
+};
 
 export interface PinnedMessage {
   message: Message | null;
@@ -88,8 +95,12 @@ export interface PinnedMessage {
 }
 
 export interface SearchResult {
+  botIcon?: string;
+  botId?: string;
+  botName?: string;
   channelId: string;
   channelName: string;
+  highlights?: string[];
   text: string;
   threadTs?: string;
   ts: string;
@@ -105,12 +116,10 @@ export type UserPrefs = {
   highlightWords: string[];
   sectionSort: Record<string, "recent">;
   sectionSidebar: Record<string, "hid" | "active" | "all">;
+  sectionCollapsed: Record<string, boolean>;
 
   channelSections: Record<string, Record<string, unknown>>;
-  themeColors?: { colors: Record<string, string>; colorScheme: "dark" | "light" };
-  themeShape?: { density: number; roundness: number };
   globalNotifications: {
-    channelsInActivity: boolean;
     desktop: string;
     desktopPushEnabled: boolean;
     keywords: string[];

@@ -2,16 +2,40 @@ import type { MemberPermissionsPatch } from "../../../../lib/api";
 
 export type AppliedPermissionChoice = "allow" | "restrict";
 export type AppliedRetentionChoice = "keep" | "delete";
+export type PermissionChoice = "" | AppliedPermissionChoice;
 
-export function memberPermissionPatch(
-  permission: "invite" | "topic" | "purpose",
-  choice: AppliedPermissionChoice,
-): MemberPermissionsPatch {
-  const allowed = choice === "allow";
+export interface PermissionDraft {
+  current: PermissionChoice;
+  committed: PermissionChoice;
+}
+
+function isPermissionDirty(draft: PermissionDraft): boolean {
+  return draft.current !== "" && draft.current !== draft.committed;
+}
+
+export function memberPermissionsDirty(drafts: {
+  invite: PermissionDraft;
+  purpose: PermissionDraft;
+  topic: PermissionDraft;
+}): boolean {
+  return (
+    isPermissionDirty(drafts.invite) ||
+    isPermissionDirty(drafts.purpose) ||
+    isPermissionDirty(drafts.topic)
+  );
+}
+
+export function memberPermissionsPatch(drafts: {
+  invite: PermissionDraft;
+  purpose: PermissionDraft;
+  topic: PermissionDraft;
+}): MemberPermissionsPatch {
+  const allowed = (draft: PermissionDraft) =>
+    isPermissionDirty(draft) ? draft.current === "allow" : undefined;
   return {
-    invite: permission === "invite" ? allowed : undefined,
-    setPurpose: permission === "purpose" ? allowed : undefined,
-    setTopic: permission === "topic" ? allowed : undefined,
+    invite: allowed(drafts.invite),
+    setPurpose: allowed(drafts.purpose),
+    setTopic: allowed(drafts.topic),
   };
 }
 

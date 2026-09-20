@@ -11,6 +11,7 @@ import {
 
 const USER_TOKEN_RE = /^(from|with):<@([A-Z0-9]+)>$/;
 const CHANNEL_TOKEN_RE = /^in:<#([A-Z0-9]+)>$/;
+const NEGATION_RE = /^-/;
 
 function resolveTokenLabel(token: string): string {
   const userMatch = token.match(USER_TOKEN_RE);
@@ -44,7 +45,7 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     if (!quill) return;
     if (!suggestion.replaceToken) {
       setQueryText(suggestion.value);
-      deps.onSubmit();
+      deps.onSuggestionsShouldClose();
       return;
     }
     const token = queryToken(indexAlignedText(quill), quill.getSelection()?.index ?? 0);
@@ -55,12 +56,10 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
       quill.insertText(token.start + 1, " ");
       quill.setSelection(token.start + 2, 0);
     } else {
-      const text = `${suggestion.value} `;
-      quill.insertText(token.start, text);
-      quill.setSelection(token.start + text.length, 0);
+      quill.insertText(token.start, suggestion.value);
+      quill.setSelection(token.start + suggestion.value.length, 0);
     }
     deps.onSuggestionsShouldClose();
-    deps.onSubmit();
   }
 
   function setQueryText(text: string) {
@@ -69,17 +68,19 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     quill.setSelection(quill.getLength() - 1, 0);
   }
 
-  function toggleFilterAt(node: HTMLElement) {
+  function editPillAt(node: HTMLElement) {
     if (!quill) return;
     const blot = Quill.find(node);
     if (!(blot && "offset" in blot)) return;
     const index = blot.offset(quill.scroll);
     const value = FilterPillBlot.value(node);
     if (!value) return;
-    quill.deleteText(index, 1);
-    quill.insertEmbed(index, "filter", { ...value, negated: !value.negated });
-    quill.setSelection(index + 1, 0);
-    deps.onSubmit();
+    const [modifier] = value.token.replace(NEGATION_RE, "").split(":");
+    const text = `${value.negated ? "-" : ""}${modifier}:`;
+    quill.deleteText(index, 1, "user");
+    quill.insertText(index, text, "user");
+    quill.setSelection(index + text.length, 0);
+    quill.focus();
   }
 
   function alignedText(): string {
@@ -104,6 +105,20 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return true;
   }
 
+  function pillifyTokenBeforeCursor() {
+    if (!quill) return;
+    const cursor = quill.getSelection()?.index;
+    if (cursor === undefined) return;
+    const text = indexAlignedText(quill);
+    if (text[cursor - 1] !== " ") return;
+    const token = queryToken(text, cursor - 1);
+    const pill = suggestionToPill(token.value, token.value);
+    if (!pill) return;
+    quill.deleteText(token.start, cursor - 1 - token.start, "silent");
+    quill.insertEmbed(token.start, "filter", pill.pill, "silent");
+    quill.setSelection(token.start + 2, "silent");
+  }
+
   function mount(container: HTMLDivElement): Quill {
     quill = new Quill(container, {
       formats: ["filter"],
@@ -112,9 +127,14 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
         history: true,
         keyboard: {
           bindings: {
-            submit: { handler: submit, key: "Enter" },
-            submitShift: { handler: submit, key: "Enter", shiftKey: true },
-            space: { handler: () => !acceptActiveSuggestion(), key: " " },
+            submit: {
+              altKey: null,
+              ctrlKey: null,
+              handler: submit,
+              key: "Enter",
+              metaKey: null,
+              shiftKey: null,
+            },
             tab: {
               handler: () => {
                 acceptActiveSuggestion();
@@ -130,6 +150,7 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     const q = quill;
 
     q.on("text-change", (_delta, _old, source) => {
+      if (source === "user") pillifyTokenBeforeCursor();
       const cursor = q.getSelection()?.index ?? indexAlignedText(q).length;
       deps.onQueryChange(serializeQuery(q), cursor, source === "user");
     });
@@ -139,8 +160,23 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     q.root.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const pill = target?.closest<HTMLElement>(".search-filter-pill");
-      if (pill) toggleFilterAt(pill);
+      if (pill) editPillAt(pill);
     });
+    q.root.addEventListener(
+      "paste",
+      (event) => {
+        const text = event.clipboardData?.getData("text/plain");
+        if (text === undefined) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const range = q.getSelection(true);
+        const flat = text.replace(/\r\n|\r|\n/g, " ");
+        q.deleteText(range.index, range.length, "user");
+        q.insertText(range.index, flat, "user");
+        q.setSelection(range.index + flat.length, 0);
+      },
+      true,
+    );
     q.root.addEventListener("keydown", (event) => {
       if ((event.key === "ArrowDown" || event.key === "ArrowUp") && deps.suggestionsOpen()) {
         event.preventDefault();
@@ -160,5 +196,5 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return q;
   }
 
-  return { alignedText, applySuggestion, mount, setQueryText, toggleFilterAt };
+  return { alignedText, applySuggestion, mount, setQueryText };
 }

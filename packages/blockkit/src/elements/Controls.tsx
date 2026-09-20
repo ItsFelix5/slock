@@ -1,4 +1,5 @@
 import { type BlockElement, runBlockAction, type TextObject } from "@slock/types";
+import { Icon, Tooltip } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
@@ -28,6 +29,11 @@ type ElementData = {
   workflow?: { trigger?: { url?: string } };
 };
 
+function asElementData(el: BlockElement): ElementData {
+  const generic: any = el;
+  return generic;
+}
+
 function allOptions(el: ElementData) {
   return [...(el.options ?? []), ...(el.option_groups ?? []).flatMap((group) => group.options)];
 }
@@ -41,7 +47,7 @@ export default function Controls(props: {
   context?: BlockActionContext;
   el: BlockElement;
 }) {
-  const el = () => props.el as unknown as ElementData;
+  const el = () => asElementData(props.el);
   const [pending, setPending] = createSignal(false);
 
   const dispatch = (payload: Record<string, unknown>) => {
@@ -113,24 +119,28 @@ export default function Controls(props: {
   if (el().type === "feedback_buttons") {
     return (
       <div class="bk-feedback-buttons">
-        <button
-          aria-label={el().positive_button?.text.text ?? "Helpful"}
-          class="bk-feedback-button"
-          disabled={pending()}
-          onClick={() => dispatch({ value: el().positive_button?.value })}
-          type="button"
-        >
-          <BkText text={el().positive_button?.text} />
-        </button>
-        <button
-          aria-label={el().negative_button?.text.text ?? "Not helpful"}
-          class="bk-feedback-button"
-          disabled={pending()}
-          onClick={() => dispatch({ value: el().negative_button?.value })}
-          type="button"
-        >
-          <BkText text={el().negative_button?.text} />
-        </button>
+        <Tooltip content={el().positive_button?.text.text ?? "Good response"}>
+          <button
+            aria-label={el().positive_button?.text.text ?? "Good response"}
+            class="bk-feedback-button bk-feedback-button--positive"
+            disabled={pending()}
+            onClick={() => dispatch({ value: el().positive_button?.value })}
+            type="button"
+          >
+            <Icon name="thumbs-up" size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip content={el().negative_button?.text.text ?? "Bad response"}>
+          <button
+            aria-label={el().negative_button?.text.text ?? "Bad response"}
+            class="bk-feedback-button bk-feedback-button--negative"
+            disabled={pending()}
+            onClick={() => dispatch({ value: el().negative_button?.value })}
+            type="button"
+          >
+            <Icon name="thumbs-down" size={15} />
+          </button>
+        </Tooltip>
       </div>
     );
   }

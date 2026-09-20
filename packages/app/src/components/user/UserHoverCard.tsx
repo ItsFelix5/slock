@@ -1,11 +1,10 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
-import { HoverCard, Icon } from "@slock/ui";
+import { AvatarImage, HoverCard, Icon } from "@slock/ui";
 import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
-import AppBadge from "./AppBadge";
-import { createLocalTime } from "./userProfileTime";
-import ViewProfileButton from "./ViewProfileButton";
+import { AppBadge } from "./AppBadge";
 import "./UserHoverCard.css";
+import { createLocalTime } from "./userProfileTime";
 
 export default function UserHoverCard(props: { userId: string; children: JSX.Element }) {
   const [cardOpen, setCardOpen] = createSignal(false);
@@ -13,6 +12,9 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
   const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
   const botBio = createMemo(() =>
     cardOpen() && user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
+  );
+  const presence = createMemo(() =>
+    cardOpen() ? store.users.presenceFor(props.userId) : undefined,
   );
 
   const localTime = createLocalTime(user, Date.now);
@@ -29,19 +31,11 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                   class="user-hovercard-avatar flex-center"
                   style={{ background: u().avatarColor }}
                 >
-                  <span aria-hidden="true">?</span>
-                  <img
-                    alt=""
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                    src={u().avatarUrl}
-                  />
-                  <Show when={u().presence}>
-                    <span
-                      class="user-hovercard-presence"
-                      classList={{ away: u().presence === "away" }}
-                    />
+                  <AvatarImage avatarUrl={u().avatarUrl} />
+                  <Show when={presence()}>
+                    {(p) => (
+                      <span class="user-hovercard-presence" classList={{ away: p() === "away" }} />
+                    )}
                   </Show>
                 </div>
                 <div class="user-hovercard-heading">
@@ -84,34 +78,20 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                 </div>
               </Show>
 
-              <div class="user-hovercard-actions">
-                <Show
-                  fallback={
-                    <ViewProfileButton
-                      onClose={close}
-                      onViewProfile={() => store.users.openUserProfile(u().id)}
-                    />
-                  }
-                  when={!isSelf()}
+              <Show when={!isSelf()}>
+                <button
+                  class="user-hovercard-btn hover-card-action btn-reset flex-center"
+                  disabled={store.dms.isOpenDmPending(u().id)}
+                  onClick={(e) => {
+                    close();
+                    store.dms.openDmWithUser(u().id, { split: e.shiftKey });
+                  }}
+                  type="button"
                 >
-                  <button
-                    class="user-hovercard-btn hover-card-action btn-reset flex-center"
-                    disabled={store.dms.isOpenDmPending(u().id)}
-                    onClick={() => {
-                      close();
-                      store.dms.openDmWithUser(u().id);
-                    }}
-                    type="button"
-                  >
-                    <Icon name="direct-messages-filled" size={14} />
-                    Message
-                  </button>
-                  <ViewProfileButton
-                    onClose={close}
-                    onViewProfile={() => store.users.openUserProfile(u().id)}
-                  />
-                </Show>
-              </div>
+                  <Icon name="direct-messages-filled" size={14} />
+                  Message
+                </button>
+              </Show>
             </>
           )}
         </Show>

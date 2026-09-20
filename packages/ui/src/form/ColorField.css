@@ -43,7 +43,7 @@
 
 .color-field-text {
   flex-shrink: 0;
-  width: 220px;
+  width: 140px;
   padding: 5px 8px;
   font-family: monospace;
   font-size: 12px;
@@ -68,16 +68,4 @@
 .color-field-reset:hover {
   color: var(--text-primary);
   background: var(--hover-bg);
-}
-
-@media (max-width: 560px) {
-  .color-field {
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) 24px;
-  }
-
-  .color-field-text {
-    grid-column: 2 / 4;
-    width: 100%;
-  }
 }

@@ -1,17 +1,18 @@
 import { AvatarStack, Icon, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
 import type { Message } from "../../../lib/api";
-import { formatInteractorNames } from "../../../lib/interactorNames";
+import { formatInteractorNames } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
+import type { OpenThreadHandler } from "../messageFocus";
 
 export default function MessageRepliesButton(props: {
   msg: Message;
-  onOpenThread: (ts: string, opts?: { pinned?: boolean }) => void;
+  onOpenThread: OpenThreadHandler;
 }) {
   return (
     <button
       class="message-replies btn-reset flex-align-center"
-      onClick={(e) => props.onOpenThread(props.msg.ts, { pinned: e.ctrlKey || e.metaKey })}
+      onClick={(e) => props.onOpenThread(props.msg.ts, { pinned: e.shiftKey })}
       type="button"
     >
       <Show
@@ -30,7 +31,7 @@ export default function MessageRepliesButton(props: {
               users={users()
                 .map((id) => store.users.userById(id))
                 .filter((u) => u !== undefined)}
-              max={3}
+              max={5}
             />
           </Tooltip>
         )}

@@ -5,9 +5,15 @@ import {
   setUsergroupSectionEnabled,
   updateUsergroupProfile,
 } from "./api";
-import { actionFeedback } from "./feedback";
+import { flashCaughtError } from "./feedback";
+import { queryClient } from "./queryClient";
 import { store } from "./store";
-import { createSerialMutationQueue } from "./store/mutations/serialMutationQueue";
+import { usergroupDetailsQueryOptions } from "./store/slices/entities/usergroups";
+import { createSerialMutationQueue } from "./store/slices/entities/usersProfileFields";
+
+function refreshUsergroupDetails(id: string) {
+  return queryClient.query(usergroupDetailsQueryOptions(id));
+}
 
 function setup() {
   const [usergroupDetailsLoading, setUsergroupDetailsLoading] = createSignal(false);
@@ -22,17 +28,13 @@ function setup() {
     setUsergroupDetailsLoading(true);
     setUsergroupDetailsLoadError(false);
     try {
-      const details = await store.usergroups.refreshUsergroupDetails(id);
+      const details = await refreshUsergroupDetails(id);
       if (!details) throw new Error("Pinggroup details are unavailable.");
       return true;
     } catch (err) {
       if (epoch !== loadEpoch) return false;
       setUsergroupDetailsLoadError(true);
-      actionFeedback.flash(
-        id,
-        err instanceof Error ? err.message : "Failed to load pinggroup details.",
-        "error",
-      );
+      flashCaughtError(id, err, "Failed to load pinggroup details.");
       return false;
     } finally {
       if (epoch === loadEpoch) setUsergroupDetailsLoading(false);
@@ -41,7 +43,6 @@ function setup() {
 
   function openUsergroupDetails(id: string) {
     store.panes.openInNewPane({ kind: "usergroup-details", usergroupId: id });
-    void loadUsergroupDetails(id);
   }
 
   function closeUsergroupDetails() {
@@ -62,11 +63,11 @@ function setup() {
     return runMutation(async () => {
       try {
         await action();
-        const details = await store.usergroups.refreshUsergroupDetails(id);
+        const details = await refreshUsergroupDetails(id);
         if (!details) throw new Error("Pinggroup details are unavailable.");
         return true;
       } catch (err) {
-        actionFeedback.flash(id, err instanceof Error ? err.message : fallbackMessage, "error");
+        flashCaughtError(id, err, fallbackMessage);
         return false;
       } finally {
         pendingMutationCount--;

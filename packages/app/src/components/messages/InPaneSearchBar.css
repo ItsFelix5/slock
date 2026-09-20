@@ -17,6 +17,12 @@
   border-radius: var(--radius-control);
   box-shadow: var(--shadow-popover);
 }
+.in-pane-search:focus-within {
+  border-color: var(--accent-border-strong);
+  box-shadow:
+    var(--shadow-popover),
+    0 0 0 var(--focus-ring-width) var(--accent-subtle);
+}
 .in-pane-search-input {
   width: 180px;
   padding: 4px 2px;
@@ -30,13 +36,6 @@
   padding: 0 2px;
   font-size: var(--font-size-control);
   white-space: nowrap;
-}
-.in-pane-search button {
-  padding: 4px;
-  border-radius: var(--radius-control);
-}
-.in-pane-search button:not(:disabled):hover {
-  background: var(--hover-bg);
 }
 .in-pane-search button:disabled {
   color: var(--text-dim);

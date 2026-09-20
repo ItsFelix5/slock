@@ -2,31 +2,32 @@ export { default as BkText } from "./BkText";
 export type { BlockActionContext } from "./BlockKit";
 export { default as BlockKit } from "./BlockKit";
 export { default as Context } from "./blocks/Context";
-export { default as Divider } from "./blocks/Divider";
-export { default as Header } from "./blocks/Header";
 export { Table } from "./blocks/Table";
 export type {
   BlockKitMentionInfo,
   BlockKitResolver,
+  EmojiFreeze,
   TimeAnchor,
 } from "./context";
 export {
   BlockKitResolverContext,
+  EmojiFreezeContext,
+  HighlightWordsContext,
+  MessageAttachmentsContext,
   TimeAnchorContext,
   useBlockKitResolver,
+  useEmojiFreeze,
+  useHighlightWords,
+  useMessageAttachments,
   useTimeAnchor,
 } from "./context";
 export {
-  DATE_FORMAT_OPTION_PAIRS,
-  DATE_FORMAT_OPTIONS,
-  DEFAULT_DATE_FORMAT,
   formatDuration,
   formatLastSeen,
   formatSlackDate,
   formatSlackDateTokens,
   formatTime,
   startOfDayMs,
-  TIME_FORMAT_OPTIONS,
 } from "./dateFormat";
 export {
   fragmentToMrkdwn,
@@ -42,14 +43,17 @@ export { standardEmojiEntries } from "./emoji/emoji";
 
 export {
   customEmojiNames,
+  emojiAliasTarget,
   emojiUrl,
   hasEmojiLoadError,
+  invalidateCustomEmoji,
   isEmojiLoaded,
   isEmojiLoading,
   loadCustomEmoji,
 } from "./emoji/emojiCache";
-export { decodeTextEntities } from "./entities";
+export { decodeTextEntities, encodeTextEntities } from "./entities";
+export { escapeRegExp, type HighlightSegment, splitHighlightWords } from "./highlightWords";
 export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
 export { default as Mrkdwn, Link, Mention, TimeAwareText } from "./mrkdwn";
+export { parseUserProfileLink } from "./mrkdwnInline";
 export { stripTrackingParams } from "./urlCleanup";
-export { parseUserProfileLink } from "./userProfileLink";

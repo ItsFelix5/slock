@@ -2,9 +2,13 @@ import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { DirectMessage, User } from "../../../api";
 import { closeDm, fetchChannelMembers, openDm } from "../../../api";
-import { isDmId } from "../../../dmId";
 import { actionFeedback } from "../../../feedback";
+import { queryClient } from "../../../queryClient";
 import type { View } from "../types";
+
+export function isDmId(id: string, isKnownDm: (id: string) => boolean): boolean {
+  return id.startsWith("D") || isKnownDm(id);
+}
 
 export function createDmsSlice(deps: {
   bootstrap: () => { directMessages: DirectMessage[] } | undefined;
@@ -12,6 +16,7 @@ export function createDmsSlice(deps: {
   currentUser: () => User | undefined;
   activeView: () => View | null;
   setActiveView: (view: View) => void;
+  openInPane: (view: View) => string;
 }) {
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
   const [closedDmIds, setClosedDmIds] = createStore<Record<string, boolean>>({});
@@ -19,15 +24,17 @@ export function createDmsSlice(deps: {
   const [dmPatches, setDmPatches] = createStore<Record<string, Partial<DirectMessage>>>({});
   const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<string, boolean>>({});
   const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<string, boolean>>({});
-  const pendingMpdms = new Set<string>();
 
-  const allDirectMessages = createMemo<DirectMessage[]>(() => {
+  const baseDmsById = createMemo(() => {
     const base = deps.bootstrap()?.directMessages ?? [];
     const extra = extraDms.filter((dm) => !base.some((b) => b.id === dm.id));
-    return [...base, ...extra].map((dm) =>
-      dmPatches[dm.id] ? { ...dm, ...dmPatches[dm.id] } : dm,
-    );
+    return new Map([...base, ...extra].map((dm) => [dm.id, dm]));
   });
+  const allDirectMessages = createMemo<DirectMessage[]>(() =>
+    [...baseDmsById().values()].map((dm) =>
+      dmPatches[dm.id] ? { ...dm, ...dmPatches[dm.id] } : dm,
+    ),
+  );
 
   function patchDm(id: string, patch: Partial<DirectMessage>) {
     setDmPatches(id, { ...dmPatches[id], ...patch });
@@ -37,8 +44,16 @@ export function createDmsSlice(deps: {
     allDirectMessages().filter((dm) => !closedDmIds[dm.id]),
   );
 
+  const dmsByUserId = createMemo(() => {
+    const map = new Map<string, DirectMessage>();
+    for (const dm of allDirectMessages()) if (dm.userId) map.set(dm.userId, dm);
+    return map;
+  });
+
   function dmById(id: string): DirectMessage | undefined {
-    return allDirectMessages().find((d) => d.id === id);
+    const base = baseDmsById().get(id);
+    const patch = dmPatches[id];
+    return base && patch ? { ...base, ...patch } : base;
   }
 
   function conversationKind(id: string): "channel" | "dm" {
@@ -46,25 +61,26 @@ export function createDmsSlice(deps: {
   }
 
   function dmIdForUser(userId: string): string | undefined {
-    return allDirectMessages().find((d) => d.userId === userId)?.id;
+    return dmsByUserId().get(userId)?.id;
   }
 
   function ensureDm(channelId: string, userId: string) {
-    if (allDirectMessages().some((d) => d.id === channelId)) return;
+    if (baseDmsById().has(channelId)) return;
     setExtraDms(produce((list) => list.push({ id: channelId, unread: true, userId })));
   }
 
   async function ensureMpdm(channelId: string) {
-    if (allDirectMessages().some((d) => d.id === channelId) || pendingMpdms.has(channelId)) return;
-    pendingMpdms.add(channelId);
-    try {
-      const { members } = await fetchChannelMembers(channelId, "everyone");
-      const selfId = deps.currentUser()?.id;
-      const memberIds = members.map((u) => u.id).filter((id) => id !== selfId);
-      setExtraDms(produce((list) => list.push({ id: channelId, memberIds, unread: false })));
-    } catch {
-      pendingMpdms.delete(channelId);
-    }
+    if (baseDmsById().has(channelId)) return;
+    await queryClient.ensureQueryData({
+      queryKey: ["mpdmMembers", channelId],
+      queryFn: async () => {
+        const { members } = await fetchChannelMembers(channelId, "everyone");
+        const selfId = deps.currentUser()?.id;
+        const memberIds = members.map((u) => u.id).filter((id) => id !== selfId);
+        setExtraDms(produce((list) => list.push({ id: channelId, memberIds, unread: false })));
+        return true;
+      },
+    });
   }
 
   function isOpenDmPending(userId: string): boolean {
@@ -75,13 +91,15 @@ export function createDmsSlice(deps: {
     return !!closeDmPendingById[dmId];
   }
 
-  async function openDmWithUser(userId: string): Promise<boolean> {
+  async function openDmWithUser(userId: string, options?: { split?: boolean }): Promise<boolean> {
     if (isOpenDmPending(userId)) return false;
     setOpenDmPendingByUser(userId, true);
+    const openView = (view: View) =>
+      options?.split ? deps.openInPane(view) : deps.setActiveView(view);
     try {
-      const existing = allDirectMessages().find((d) => d.userId === userId);
+      const existing = dmsByUserId().get(userId);
       if (existing && !closedDmIds[existing.id]) {
-        deps.setActiveView({ id: existing.id, kind: "dm" });
+        openView({ id: existing.id, kind: "dm" });
         deps.closeUserProfile();
         return true;
       }
@@ -98,7 +116,7 @@ export function createDmsSlice(deps: {
               list.push({ id: channelId, unread: false, userId });
           }),
         );
-      deps.setActiveView({ id: channelId, kind: "dm" });
+      openView({ id: channelId, kind: "dm" });
       deps.closeUserProfile();
       return true;
     } catch (err) {

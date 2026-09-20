@@ -41,6 +41,27 @@ export function rovingTabIndex(rows: HTMLElement[], activeIndex: number) {
   });
 }
 
+export function tabStripKeyDown<T>(
+  event: KeyboardEvent,
+  items: T[],
+  currentIndex: number,
+  activate: (item: T, index: number) => void,
+  orientation: "horizontal" | "vertical" = "horizontal",
+) {
+  const forwardKey = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
+  const backwardKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
+  if (event.key !== forwardKey && event.key !== backwardKey) return;
+  event.preventDefault();
+  const next = listNavigationIndex(
+    event.key === forwardKey ? "ArrowDown" : "ArrowUp",
+    currentIndex,
+    items.length,
+    { wrap: true },
+  );
+  if (next === undefined) return;
+  activate(items[next], next);
+}
+
 export function scrollActiveListOption(listbox: () => HTMLElement | undefined) {
   queueMicrotask(() =>
     listbox()?.querySelector<HTMLElement>(".active")?.scrollIntoView({ block: "nearest" }),

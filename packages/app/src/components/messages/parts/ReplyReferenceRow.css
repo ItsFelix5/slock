@@ -26,10 +26,6 @@
   color: var(--text-primary);
 }
 
-.reply-reference-row > .icon {
-  transform: translateY(var(--icon-optical-shift));
-}
-
 .reply-reference-avatar {
   display: flex;
   flex-shrink: 0;
@@ -64,8 +60,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.reply-reference-snippet .mrkdwn > * {
-  display: inline;
 }

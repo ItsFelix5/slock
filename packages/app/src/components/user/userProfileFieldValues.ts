@@ -1,7 +1,10 @@
 import type { ProfileFieldDef } from "../../lib/api";
 
+const BUILT_IN_LABELS = new Set(["title", "start date"]);
+
 export function isCustomFieldDef(field: ProfileFieldDef): boolean {
-  return field.fieldName !== "start_date" && field.label.trim().toLowerCase() !== "title";
+  if (field.fieldName === "start_date") return false;
+  return !BUILT_IN_LABELS.has(field.label.trim().toLowerCase());
 }
 
 export function mergeMissingProfileFieldValues(

@@ -1,7 +1,8 @@
-import { Icon, Menu, Tooltip } from "@slock/ui";
+import { IconButton, Menu } from "@slock/ui";
 import { createMemo, createSignal, lazy, Show } from "solid-js";
-import type { Message } from "../../../lib/api";
+import { isMine, type Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
+import type { OpenThreadHandler } from "../messageFocus";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
 
 const FloatingEmojiPicker = lazy(() => import("./FloatingEmojiPicker"));
@@ -10,7 +11,7 @@ export default function MessageActionsBar(props: {
   channelId: string;
   msg: Message;
   threadTs?: string;
-  onOpenThread?: (ts: string, opts?: { pinned?: boolean }) => void;
+  onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
 
@@ -51,18 +52,24 @@ export default function MessageActionsBar(props: {
 
   return (
     <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
+      <Show when={isMine(props.msg)}>
+        <IconButton
+          class="message-hover-btn"
+          icon="edit"
+          label="Edit message"
+          onClick={props.onEditRequest}
+          tabIndex={props.rowFocused() ? undefined : -1}
+        />
+      </Show>
+
       <div class="message-hover-picker-wrap" ref={pickerWrapRef}>
-        <Tooltip content="React">
-          <button
-            aria-label="React"
-            class="message-hover-btn btn-reset flex-center"
-            onClick={togglePicker}
-            tabIndex={props.rowFocused() ? undefined : -1}
-            type="button"
-          >
-            <Icon name="emoji" size={16} />
-          </button>
-        </Tooltip>
+        <IconButton
+          class="message-hover-btn"
+          icon="emoji"
+          label="React"
+          onClick={togglePicker}
+          tabIndex={props.rowFocused() ? undefined : -1}
+        />
         <Show when={pickerOpen()}>
           <FloatingEmojiPicker
             anchor={() => pickerWrapRef}
@@ -75,51 +82,38 @@ export default function MessageActionsBar(props: {
       </div>
 
       <Show when={props.onOpenThread}>
-        <Tooltip content="Reply in thread">
-          <button
-            aria-label="Reply in thread"
-            class="message-hover-btn btn-reset flex-center"
-            onClick={(e) =>
-              props.onOpenThread?.(threadRootTs(), { pinned: e.ctrlKey || e.metaKey })
-            }
-            tabIndex={props.rowFocused() ? undefined : -1}
-            type="button"
-          >
-            <Icon name="threads" size={16} />
-          </button>
-        </Tooltip>
+        <IconButton
+          class="message-hover-btn"
+          icon="threads"
+          label="Reply in thread"
+          onClick={(e) => props.onOpenThread?.(threadRootTs(), { pinned: e.shiftKey })}
+          tabIndex={props.rowFocused() ? undefined : -1}
+        />
       </Show>
 
       <Show when={props.onReplyLink}>
-        <Tooltip content="Reply">
-          <button
-            aria-label="Reply"
-            class="message-hover-btn btn-reset flex-center"
-            onClick={() => props.onReplyLink?.(props.msg)}
-            tabIndex={props.rowFocused() ? undefined : -1}
-            type="button"
-          >
-            <Icon name="email-reply" size={16} />
-          </button>
-        </Tooltip>
+        <IconButton
+          class="message-hover-btn"
+          icon="email-reply"
+          label="Reply"
+          onClick={() => props.onReplyLink?.(props.msg)}
+          tabIndex={props.rowFocused() ? undefined : -1}
+        />
       </Show>
 
-      <Tooltip content={isSaved() ? "Remove from Later" : "Save for later"}>
-        <button
-          aria-label={isSaved() ? "Remove from Later" : "Save for later"}
-          class="message-hover-btn btn-reset flex-center"
-          classList={{ active: isSaved() }}
-          disabled={
-            store.later.laterLoading() ||
-            store.later.isSaveForLaterPending(props.channelId, props.msg.ts)
-          }
-          onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
-          tabIndex={props.rowFocused() ? undefined : -1}
-          type="button"
-        >
-          <Icon name={isSaved() ? "bookmark-filled" : "bookmark"} size={15} />
-        </button>
-      </Tooltip>
+      <IconButton
+        active={isSaved()}
+        class="message-hover-btn"
+        disabled={
+          store.later.laterLoading() ||
+          store.later.isSaveForLaterPending(props.channelId, props.msg.ts)
+        }
+        icon={isSaved() ? "bookmark-filled" : "bookmark"}
+        iconSize={15}
+        label={isSaved() ? "Remove from Later" : "Save for later"}
+        onClick={() => store.later.toggleSaveForLater(props.channelId, props.msg.ts)}
+        tabIndex={props.rowFocused() ? undefined : -1}
+      />
 
       <Menu
         align="end"
@@ -128,17 +122,13 @@ export default function MessageActionsBar(props: {
         open={moreOpen()}
         panelClass="menu-panel message-more-menu"
         trigger={
-          <Tooltip content="More actions">
-            <button
-              aria-label="More actions"
-              class="message-hover-btn btn-reset flex-center"
-              onClick={toggleMore}
-              tabIndex={props.rowFocused() ? undefined : -1}
-              type="button"
-            >
-              <Icon name="ellipsis-vertical-filled" size={16} />
-            </button>
-          </Tooltip>
+          <IconButton
+            class="message-hover-btn"
+            icon="ellipsis-vertical-filled"
+            label="More actions"
+            onClick={toggleMore}
+            tabIndex={props.rowFocused() ? undefined : -1}
+          />
         }
       >
         <MessageActionsMenuItems

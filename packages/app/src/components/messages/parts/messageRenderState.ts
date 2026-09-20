@@ -1,12 +1,14 @@
 import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
-import type {
-  Attachment,
-  Block,
-  Message,
-  RichTextBlock,
-  RichTextInlineElement,
-  RichTextSubBlock,
-  TextObject,
+import {
+  type Attachment,
+  type Block,
+  isRichTextSubBlock,
+  type Message,
+  narrowByType,
+  type RichTextBlock,
+  type RichTextInlineElement,
+  type RichTextSubBlock,
+  type TextObject,
 } from "../../../lib/api";
 import {
   parseReplyLink,
@@ -17,17 +19,8 @@ import { isUnreadDividerBoundary } from "../lib/unreadDivider";
 
 const USER_PROFILE_ID_RE = /^[UW]/;
 const BOT_PROFILE_ID_RE = /^B/;
-const RICH_TEXT_SUB_BLOCK_TYPES = new Set<RichTextSubBlock["type"]>([
-  "rich_text_section",
-  "rich_text_list",
-  "rich_text_preformatted",
-  "rich_text_quote",
-]);
-export function isRichTextSubBlock(
-  element: RichTextInlineElement | RichTextSubBlock,
-): element is RichTextSubBlock {
-  return RICH_TEXT_SUB_BLOCK_TYPES.has(element.type as RichTextSubBlock["type"]);
-}
+
+export { isRichTextSubBlock };
 
 export function resolveBotProfileUserId(
   msg: Pick<Message, "botId" | "botName" | "userId">,
@@ -98,11 +91,12 @@ export function resolveMessageAuthorAvatar(
   msg: MessageAuthorFields,
   userById: (id: string) => { avatarColor?: string; avatarUrl?: string; name: string } | undefined,
 ): MessageAuthorAvatarView {
-  const user = hasRealMessageAuthor(msg) ? userById(msg.userId) : undefined;
+  const profileUserId = resolveProfileUserId(msg);
+  const user = hasRealMessageAuthor(msg) && profileUserId ? userById(profileUserId) : undefined;
   return {
     avatarColor: user?.avatarColor ?? DEFAULT_AVATAR_COLOR,
     avatarUrl: resolveAuthorAvatarUrl(msg, user?.avatarUrl),
-    id: msg.userId,
+    id: profileUserId ?? msg.userId,
     name: resolveAuthorDisplayName(msg, user?.name, "Unknown"),
   };
 }
@@ -155,12 +149,18 @@ function emojiOnlyRichTextCount(block: RichTextBlock): number | undefined {
     }
     return true;
   };
+  const isInlineElement = (
+    el: RichTextInlineElement | RichTextSubBlock,
+  ): el is RichTextInlineElement => !isRichTextSubBlock(el);
+
   const addSubBlock = (subBlock: RichTextSubBlock) => {
     if (subBlock.type === "rich_text_list")
       return subBlock.elements.every((section) => addElements(section.elements));
-
-    if (subBlock.elements.some(isRichTextSubBlock)) return false;
-    return addElements(subBlock.elements as RichTextInlineElement[]);
+    if (subBlock.type === "rich_text_quote") {
+      if (!subBlock.elements.every(isInlineElement)) return false;
+      return addElements(subBlock.elements);
+    }
+    return addElements(subBlock.elements);
   };
 
   return block.elements.every(addSubBlock) ? count : undefined;
@@ -177,16 +177,24 @@ function emojiOnlyBlockMessage(blocks: Block[]): number {
   };
 
   for (const block of blocks) {
-    if (block.type === "rich_text") {
-      const richTextCount = emojiOnlyRichTextCount(block as RichTextBlock);
+    const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
+    if (richText) {
+      const richTextCount = emojiOnlyRichTextCount(richText);
       if (richTextCount === undefined) return 0;
       count += richTextCount;
-    } else if (block.type === "section") {
-      const section = block as Extract<Block, { type: "section" }>;
+      continue;
+    }
+    const section = narrowByType<Block, Extract<Block, { type: "section" }>>(block, "section");
+    if (section) {
       if (section.accessory || section.fields?.length || !addText(section.text)) return 0;
-    } else if (block.type === "header") {
-      if (!addText((block as Extract<Block, { type: "header" }>).text)) return 0;
-    } else return 0;
+      continue;
+    }
+    const header = narrowByType<Block, Extract<Block, { type: "header" }>>(block, "header");
+    if (header) {
+      if (!addText(header.text)) return 0;
+      continue;
+    }
+    return 0;
   }
 
   return count > 0 && count < MAX_ENLARGED_EMOJI ? count : 0;
@@ -213,7 +221,7 @@ export function resolveMessageRenderState(
     context.unreadDividerTs != null &&
     isUnreadDividerBoundary(message.ts, prev?.ts, context.unreadDividerTs);
   const parsedTextReplyRef = parseReplyLink(message.text, (channelId, ts) =>
-    threadContainsMessage(context.channelId, context.threadTs, context.messages, channelId, ts),
+    threadContainsMessage(context.channelId, message.threadTs, context.messages, channelId, ts),
   );
   const textReplyRef =
     parsedTextReplyRef?.channelId === context.channelId ? parsedTextReplyRef : null;
@@ -246,7 +254,6 @@ export function resolveMessageRenderState(
     prev.userId === message.userId &&
     prev.botName === message.botName &&
     prev.botIcon === message.botIcon &&
-    prev.sourceUserId === message.sourceUserId &&
     !dayChangedRaw &&
     prev.kind === message.kind &&
     !context.isPinned &&

@@ -1,6 +1,6 @@
 import { Button, debugMode, fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import type { Message, MessageShortcut } from "../../../lib/api";
+import { isMine, type Message, type MessageShortcut } from "../../../lib/api";
 import { copyMessageLink, REMINDER_OPTIONS, remindAboutMessage } from "../../../lib/messageLinks";
 import { threadContainsMessage } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
@@ -43,14 +43,14 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
   const [remindOpen, setRemindOpen] = createSignal(false);
   const [customReminderTime, setCustomReminderTime] = createSignal(nextHourInputValue());
   const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
-  const customReminderDateDue = createMemo(() => dateDueFromInput(customReminderTime()));
+  const customReminderDateDue = () => dateDueFromInput(customReminderTime());
   const [shortcutQuery, setShortcutQuery] = createSignal("");
 
   const filteredShortcuts = createMemo(() => {
-    const all: MessageShortcut[] = store.resources.messageShortcuts() ?? [];
+    const all: MessageShortcut[] = store.resources.messageShortcuts.data ?? [];
     const q = shortcutQuery().trim();
     if (!q) return all;
-    return fuzzySearch(all, { query: q, text: (s) => `${s.appName} ${s.name}` });
+    return fuzzySearch(all, { altText: (s) => s.appName, query: q, text: (s) => s.name });
   });
 
   const toggleShortcuts = () => {
@@ -58,11 +58,9 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     setShortcutsOpen(!shortcutsOpen());
   };
 
-  const isMine = createMemo(() => store.users.currentUser()?.id === props.msg.userId);
-  const isPinned = createMemo(() => store.pinned.isMessagePinned(props.channelId, props.msg.ts));
-  const canBroadcast = createMemo(
-    () => !!props.threadTs && props.threadTs !== props.msg.ts && !props.msg.isBroadcast,
-  );
+  const isPinned = () => store.pinned.isMessagePinned(props.channelId, props.msg.ts);
+  const canBroadcast = () =>
+    !!props.threadTs && props.threadTs !== props.msg.ts && !props.msg.isBroadcast;
 
   const close = () => {
     setRemindOpen(false);
@@ -88,7 +86,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const markUnread = () => {
     close();
-    store.messages.markMessageUnread(props.channelId, props.msg.ts);
+    store.messages.markMessageUnread(props.channelId, props.msg.ts, props.threadTs);
   };
 
   const copyText = () => {
@@ -138,6 +136,11 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   return (
     <>
+      <Show when={isMine(props.msg)}>
+        <MenuItem icon="edit" onClick={requestEdit}>
+          Edit message
+        </MenuItem>
+      </Show>
       <MenuItem icon="link" onClick={copyLink}>
         Copy link
       </MenuItem>
@@ -198,18 +201,18 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
           Show debug info
         </MenuItem>
       </Show>
-      <Show when={store.resources.messageShortcuts.loading}>
+      <Show when={store.resources.messageShortcuts.isFetching}>
         <div aria-live="polite" class="menu-item disabled">
           <Icon name="apps" size={15} />
-          Loading message shortcuts…
+          Loading shortcuts…
         </div>
       </Show>
       <Show when={store.resources.messageShortcuts.error}>
         <MenuItem icon="refresh" onClick={store.resources.retryMessageShortcuts}>
-          Retry message shortcuts
+          Retry
         </MenuItem>
       </Show>
-      <Show when={store.resources.messageShortcuts()?.length}>
+      <Show when={store.resources.messageShortcuts.data?.length}>
         <Menu
           class="message-more-item-wrap"
           onClose={() => {
@@ -221,7 +224,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
           placement="left"
           trigger={
             <MenuItem icon="apps" onClick={toggleShortcuts}>
-              More message shortcuts
+              Message shortcuts
             </MenuItem>
           }
         >
@@ -254,10 +257,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
           </div>
         </Menu>
       </Show>
-      <Show when={isMine()}>
-        <MenuItem icon="edit" onClick={requestEdit}>
-          Edit message
-        </MenuItem>
+      <Show when={isMine(props.msg)}>
         <MenuItem danger icon="trash" onClick={requestDelete}>
           Delete message
         </MenuItem>

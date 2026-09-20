@@ -1,12 +1,12 @@
 import { createEffect } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { PING_KINDS, reactionActivityKey } from "../../../activityKinds";
-import type { ActivityItem, Channel, Message, User } from "../../../api";
+import type { ActivityItem, Message, User } from "../../../api";
 import {
+  archiveActivityItem,
   fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
   fetchChannelLastRead,
-  fetchHistory,
   fetchHistoryAround,
   fetchMessagesByIds,
   markActivityRead,
@@ -19,10 +19,10 @@ import { createActivityReadSync } from "./activity/activityReadSync";
 import { createRecentReactionFlash } from "./activity/recentReaction";
 
 type ActivityApi = {
+  archiveActivityItem: typeof archiveActivityItem;
   fetchActivityBadgeCounts: typeof fetchActivityBadgeCounts;
   fetchActivityFeedEntries: typeof fetchActivityFeedEntries;
   fetchChannelLastRead: typeof fetchChannelLastRead;
-  fetchHistory: typeof fetchHistory;
   fetchHistoryAround: typeof fetchHistoryAround;
   fetchMessagesByIds: typeof fetchMessagesByIds;
   markActivityRead: typeof markActivityRead;
@@ -30,10 +30,10 @@ type ActivityApi = {
 };
 
 const DEFAULT_ACTIVITY_API: ActivityApi = {
+  archiveActivityItem,
   fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
   fetchChannelLastRead,
-  fetchHistory,
   fetchHistoryAround,
   fetchMessagesByIds,
   markActivityRead,
@@ -43,12 +43,9 @@ const DEFAULT_ACTIVITY_API: ActivityApi = {
 export function createActivitySlice(
   deps: {
     cacheResolvedMessages?: (messages: Map<string, Message>) => void;
-    channels?: () => readonly Channel[];
-    channelsInActivity?: () => boolean;
     currentUser: () => User | undefined;
     isBotUser?: (userId: string) => boolean;
     lastReadByChannel: Record<string, number>;
-    notifyAllChannelIds?: () => readonly string[];
     reactionMessageFor?: (channelId: string, ts: string) => Message | undefined;
     setLastReadByChannel: (channelId: string, ts: number) => void;
     clearChannelUnread: (channelId: string) => void;
@@ -60,6 +57,7 @@ export function createActivitySlice(
 ) {
   const api = { ...DEFAULT_ACTIVITY_API, ...apiOverrides };
   const [activityItems, setActivityItems] = createStore<ActivityItem[]>([]);
+  const [archivedIds, setArchivedIds] = createStore<Record<string, boolean>>({});
   const activityReadSync = createActivityReadSync(deps.syncChannelRead);
   const {
     activityItemReadState,
@@ -67,6 +65,7 @@ export function createActivitySlice(
     hasUnreadActivity,
     isActivityItemUnread,
     markActivityItemsRead,
+    markActivityItemUnread,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,
@@ -89,10 +88,7 @@ export function createActivitySlice(
     if (!open?.length) return;
     const openKeys = new Set(open.map((t) => `${t.channelId}:${t.ts}`));
     const toMark = activityItems.filter(
-      (item) =>
-        item.kind === "thread_reply" &&
-        item.threadTs &&
-        openKeys.has(`${item.channelId}:${item.threadTs}`),
+      (item) => item.threadTs && openKeys.has(`${item.channelId}:${item.threadTs}`),
     );
     if (toMark.length) markActivityItemsRead(toMark);
   });
@@ -109,6 +105,13 @@ export function createActivitySlice(
       }),
     );
     if (item.kind === "reaction" && item.reactionName) recentReactionFlash.flash(item.reactionName);
+  }
+
+  function applyThreadMarked(threadTs: string, unreadCount: number): void {
+    setActivityItems(
+      (item) => item.kind === "thread_reply" && item.threadTs === threadTs,
+      { unread: unreadCount > 0, unreadCount },
+    );
   }
 
   function sameActivityItem(existing: ActivityItem, next: ActivityItem): boolean {
@@ -131,25 +134,35 @@ export function createActivitySlice(
     activityItems,
     backfillMissingReadCursors,
     cacheResolvedMessages: deps.cacheResolvedMessages,
-    channels: deps.channels,
-    channelsInActivity: deps.channelsInActivity,
     currentUser: deps.currentUser,
     fetchActivityFeedEntries: api.fetchActivityFeedEntries,
-    fetchHistory: api.fetchHistory,
     fetchHistoryAround: api.fetchHistoryAround,
     fetchMessagesByIds: api.fetchMessagesByIds,
     isBotUser: deps.isBotUser,
-    lastReadByChannel: deps.lastReadByChannel,
-    notifyAllChannelIds: deps.notifyAllChannelIds,
     resolveActivityEntry: api.resolveActivityEntry,
     setActivityItems,
   });
 
-  function isActivityItemReacted(item: ActivityItem): boolean {
+  function isActivityItemArchived(item: ActivityItem): boolean {
+    if (archivedIds[item.id]) return true;
     const me = deps.currentUser();
     if (!me) return false;
     const message = deps.reactionMessageFor?.(item.channelId, item.ts);
     return !!message?.reactions?.some((reaction) => reaction.users.includes(me.id));
+  }
+
+  const archivePending = new Set<string>();
+
+  async function archiveActivity(item: ActivityItem): Promise<void> {
+    if (isActivityItemArchived(item) || archivePending.has(item.id)) return;
+    archivePending.add(item.id);
+    try {
+      await api.archiveActivityItem(item.activityType ?? item.kind, item.id, item.ts);
+      setArchivedIds(item.id, true);
+      markActivityItemsRead([item]);
+    } finally {
+      archivePending.delete(item.id);
+    }
   }
 
   return {
@@ -163,12 +176,15 @@ export function createActivitySlice(
     activityLoadMoreError,
     activityReadSyncError: activityReadSync.error,
     activityReadSyncPending: activityReadSync.isPending,
+    applyThreadMarked,
+    archiveActivity,
     ensureActivityLoaded,
     hasUnreadActivity,
-    isActivityItemReacted,
+    isActivityItemArchived,
     isActivityItemUnread,
     loadMoreActivity,
     markActivityItemsRead,
+    markActivityItemUnread,
     pushActivity,
     recentReactionEmoji: recentReactionFlash.recentReactionEmoji,
     requestActivityRefresh,

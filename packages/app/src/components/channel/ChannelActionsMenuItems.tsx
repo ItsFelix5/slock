@@ -1,7 +1,8 @@
-import { confirmDialog, debugMode, MenuItem, showDebugInfo } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
+import { confirmDialog, debugMode, Icon, Menu, MenuItem, showDebugInfo } from "@slock/ui";
+import { createSignal, Show } from "solid-js";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
+import "./ChannelActionsMenuItems.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
 import { openChannelDetails } from "./lib/channelDetails";
 
@@ -14,8 +15,15 @@ export interface ChannelActionsMenuItemsProps {
 }
 
 export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsProps) {
-  const muted = createMemo(() => store.preferences.isChannelMuted(props.channelId));
-  const notifyAll = createMemo(() => store.preferences.isChannelNotifyAll(props.channelId));
+  const [notifOpen, setNotifOpen] = createSignal(false);
+  const muted = () => store.preferences.isChannelMuted(props.channelId);
+  const notifyAll = () => store.preferences.isChannelNotifyAll(props.channelId);
+  const notifIcon = () =>
+    muted()
+      ? "notifications-off"
+      : notifyAll()
+        ? "notifications-all-new-posts"
+        : "notifications-just-mentions";
 
   const run = (fn: () => void) => {
     props.onClose();
@@ -64,20 +72,35 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
       <MenuItem icon="pin" onClick={() => run(() => store.pinned.openPinnedPanel(props.channelId))}>
         View pinned items
       </MenuItem>
-      <MenuItem
-        disabled={store.preferences.isMutePending(props.channelId)}
-        icon={muted() ? "notifications" : "notifications-off"}
-        onClick={() => run(() => store.preferences.toggleMuteChannel(props.channelId))}
+      <Menu
+        onClose={() => setNotifOpen(false)}
+        onOpen={() => setNotifOpen(true)}
+        open={notifOpen()}
+        openOnHover
+        panelClass="menu-panel channel-notifications-submenu"
+        placement="right"
+        trigger={
+          <MenuItem icon={notifIcon()} onClick={() => setNotifOpen(!notifOpen())}>
+            Notifications
+            <Icon class="menu-item-caret" name="caret-right" size={13} />
+          </MenuItem>
+        }
       >
-        {muted() ? "Unmute channel" : "Mute channel"}
-      </MenuItem>
-      <MenuItem
-        disabled={store.preferences.isNotifyAllPending(props.channelId)}
-        icon={notifyAll() ? "notifications-just-mentions" : "notifications-all-new-posts"}
-        onClick={() => run(() => store.preferences.toggleNotifyAllChannel(props.channelId))}
-      >
-        {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
-      </MenuItem>
+        <MenuItem
+          disabled={store.preferences.isMutePending(props.channelId)}
+          icon={muted() ? "notifications" : "notifications-off"}
+          onClick={() => run(() => store.preferences.toggleMuteChannel(props.channelId))}
+        >
+          {muted() ? "Unmute channel" : "Mute channel"}
+        </MenuItem>
+        <MenuItem
+          disabled={store.preferences.isNotifyAllPending(props.channelId)}
+          icon={notifyAll() ? "notifications-just-mentions" : "notifications-all-new-posts"}
+          onClick={() => run(() => store.preferences.toggleNotifyAllChannel(props.channelId))}
+        >
+          {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
+        </MenuItem>
+      </Menu>
       <MenuItem icon="link" onClick={() => run(copyConversationLink)}>
         {props.isDm ? "Copy link to conversation" : "Copy link to channel"}
       </MenuItem>

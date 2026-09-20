@@ -21,7 +21,7 @@
   gap: 8px;
   align-items: center;
   width: 100%;
-  padding: 7px 10px;
+  padding: calc(7px + var(--row-padding-offset)) 10px;
   font-size: 13px;
   color: var(--text-primary);
   text-align: left;
@@ -61,4 +61,14 @@
   width: 15px;
   height: 15px;
   border-radius: var(--radius-sm);
+}
+
+.menu-item-caret {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+
+.menu-item-check {
+  margin-left: auto;
+  color: var(--accent);
 }

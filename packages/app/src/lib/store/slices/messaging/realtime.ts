@@ -1,8 +1,12 @@
+import { invalidateCustomEmoji } from "@slock/blockkit";
+import { SLACK_USER_ID } from "@slock/types";
 import { createEffect } from "solid-js";
+import { invalidateSlashCommandSuggestions } from "../../../../components/composer/lib/commands/slashCommandSuggestions";
 import type { Message } from "../../../api";
 import { fetchUserPresence, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
-import { isDmId } from "../../../dmId";
+import { filesLinksChannelId, retryFilesLinks } from "../../../filesLinksPanel";
 import { mergeMessages } from "../../../messageMerge";
+import { isDmId } from "../entities/dms";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
 import { createMembershipEvents } from "./membershipEvents";
 import type { RealtimeDeps } from "./realtimeDeps";
@@ -37,7 +41,8 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       if (dm.userId) ids.add(dm.userId);
       for (const id of dm.memberIds ?? []) ids.add(id);
     }
-    if (selfId) ids.delete(selfId);
+    if (selfId) ids.add(selfId);
+    ids.delete(SLACK_USER_ID);
     return [...ids];
   }
   const presenceHydrated = new Set<string>();
@@ -56,11 +61,14 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       const updated = payload.message;
       if (!updated?.ts) return;
       const isBroadcast = updated.subtype === "thread_broadcast";
+      const mapped = mapMessage(updated);
       deps.patchMessage(channel, updated.ts, {
         blocks: updated.blocks,
         edited: !!updated.edited,
         isBroadcast,
         text: updated.text,
+        attachments: mapped.attachments,
+        files: mapped.files,
       });
       if (isBroadcast && deps.loadedChannels.has(channel)) {
         const msg = deps
@@ -109,7 +117,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
           (reply) =>
             (reply.ts === msg.ts || reply.id === msg.id) && !reply.id.startsWith("pending-"),
         );
-      if (deps.loadedThreads.has(payload.thread_ts)) {
+      if (deps.isThreadKnown(payload.thread_ts)) {
         deps.setThreadMessages(payload.thread_ts, (existing: Message[] = []) =>
           deps.mergeIncomingMessage(existing, msg),
         );
@@ -143,11 +151,11 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
     ) {
       deps.setUnreadChannelIds(channel, true);
     }
-    if (deps.allDirectMessages().some((d) => d.id === channel)) {
+    if (deps.dmById(channel)) {
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
     } else if (isDmId(channel, () => false) && me && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
-    } else if (deps.channels().some((c) => c.id === channel)) {
+    } else if (deps.isChannelMember(channel)) {
       deps.patchChannel(channel, { lastActivity: Date.now() });
     }
   }
@@ -174,7 +182,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         }
         break;
       case "_replies_snapshot":
-        if (deps.loadedThreads.has(payload.ts)) {
+        if (deps.isThreadKnown(payload.ts)) {
           const fresh = (payload.messages ?? [])
             .filter((m: any) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
             .map(mapMessage);
@@ -203,9 +211,8 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         break;
       case "presence_change": {
         const presence = payload.presence === "away" ? "away" : "active";
-        const selfId = deps.currentUser()?.id;
         const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
-        for (const id of ids) if (id !== selfId) deps.setPresenceOverrides(id, presence);
+        for (const id of ids) deps.setPresenceOverrides(id, presence);
         break;
       }
       case "user_typing": {
@@ -217,7 +224,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       case "badge_counts_updated": {
         for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(payload))) {
           deps.setUnreadChannelIds(id, unread);
-          const isDm = isDmId(id, (dmId) => deps.allDirectMessages().some((d) => d.id === dmId));
+          const isDm = isDmId(id, (dmId) => !!deps.dmById(dmId));
           if (isDm) deps.patchDm(id, { mentions });
           else deps.patchChannel(id, { mentions });
         }
@@ -228,8 +235,8 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       }
       case "channel_marked": {
         if (!payload.channel) break;
-        deps.setUnreadChannelIds(payload.channel, false);
-        deps.patchChannel(payload.channel, { mentions: 0 });
+        deps.setUnreadChannelIds(payload.channel, (payload.unread_count ?? 0) > 0);
+        deps.patchChannel(payload.channel, { mentions: payload.mention_count ?? 0 });
         const readTs = Number(payload.ts) * 1000;
         if (Number.isFinite(readTs)) deps.setLastReadByChannel(payload.channel, readTs);
         break;
@@ -245,12 +252,99 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       case "group_left":
       case "member_left_channel":
       case "im_created":
+      case "im_close":
+      case "im_open":
+      case "mpim_close":
+      case "mpim_open":
+      case "mpim_joined":
+      case "channel_rename":
+      case "group_rename":
+      case "channel_archive":
+      case "channel_unarchive":
+      case "group_archive":
+      case "group_unarchive":
+      case "channel_deleted":
         membershipEvents.handleMembershipEvent(payload);
         break;
       case "view_opened":
         if (payload.view_type === "modal" && payload.view) deps.openModalView(payload.view);
         break;
+      case "view_updated":
+        if (payload.view_type === "modal" && payload.view) deps.updateModalView(payload.view);
+        break;
+      case "pin_added":
+      case "pin_removed":
+        if (payload.channel_id && payload.ts)
+          deps.applyPinEvent(payload.channel_id, payload.ts, payload.type === "pin_added");
+        break;
+      case "star_added":
+      case "star_removed":
+        if (payload.item?.type === "channel" && payload.item.channel)
+          deps.setChannelStarred(payload.item.channel, payload.type === "star_added");
+        break;
+      case "saved_added":
+      case "saved_deleted":
+        deps.applySavedEvent(
+          payload.type === "saved_added" ? "add" : "remove",
+          payload.item?.channel,
+          payload.item?.ts,
+        );
+        break;
+      case "saved_clear":
+        deps.applySavedEvent("clear");
+        break;
+      case "subteam_created":
+      case "subteam_updated":
+      case "subteam_deleted":
+        if (payload.subteam?.id) deps.invalidateUsergroup(payload.subteam.id);
+        break;
+      case "subteam_members_changed":
+        if (payload.subteam_id) deps.invalidateUsergroup(payload.subteam_id);
+        break;
+      case "user_change":
+        if (payload.user?.id) deps.invalidateUser(payload.user.id);
+        break;
+      case "dnd_updated":
+        deps.applyDndSnoozeEvent(payload.snoozed_until ?? null);
+        break;
+      case "canvas_created":
+        if (payload.channel_id) deps.handleCanvasCreated(payload.channel_id);
+        break;
+      case "bot_added":
+      case "bot_changed":
+        if (payload.bot?.id) deps.invalidateUser(payload.bot.id);
+        break;
+      case "commands_changed":
+        invalidateSlashCommandSuggestions();
+        break;
+      case "emoji_changed":
+        invalidateCustomEmoji();
+        break;
+      case "thread_marked":
+        if (payload.thread_ts && typeof payload.unread_count === "number")
+          deps.applyThreadMarked(payload.thread_ts, payload.unread_count);
+        break;
+      case "thread_subscribed":
+      case "thread_unsubscribed":
+        if (payload.channel && payload.thread_ts)
+          deps.patchMessage(payload.channel, payload.thread_ts, {
+            isSubscribed: payload.type === "thread_subscribed",
+          });
+        break;
+      case "manual_presence_change": {
+        const selfId = deps.currentUser()?.id;
+        if (selfId)
+          deps.setPresenceOverrides(selfId, payload.presence === "away" ? "away" : "active");
+        break;
+      }
+      case "desktop_notification":
+        deps.showGatewayNotification(payload);
+        break;
       default:
+        if (typeof payload.type === "string" && payload.type.startsWith("file_")) {
+          if (filesLinksChannelId()) retryFilesLinks();
+          break;
+        }
         console.debug("[ws] unhandled message type:", payload.type, payload);
         break;
     }
@@ -266,6 +360,10 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
           type: "watch_thread",
         });
       send({ ids: presenceSubIds(), type: "watch_presence" });
+    },
+    onReconnect: () => {
+      for (const channel of deps.loadedChannels) deps.loadRecentHistory(channel);
+      for (const thread of deps.visibleThreads()) deps.refreshThreadReplies(thread.ts);
     },
     url: wsUrl,
   });

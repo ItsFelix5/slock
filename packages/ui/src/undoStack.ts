@@ -36,15 +36,14 @@ export function useGlobalUndoShortcut(
   useShortcut({
     allowInInputs: false,
     allowRepeat: false,
+    combo: { key: "z", mod: true },
     handler: () => {
       void stack.undo().then((label) => {
         if (label) onUndo?.(label);
       });
     },
-    keys: "Ctrl/⌘ Z",
+    id: "general.undo",
     label: "Undo last action",
-    match: (e) =>
-      (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "z",
     scope: "general",
   });
 }

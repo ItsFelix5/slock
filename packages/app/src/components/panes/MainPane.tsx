@@ -1,20 +1,33 @@
 import type { Pane } from "@slock/ui";
-import { TypingIndicator } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
+import { Icon, TypingIndicator } from "@slock/ui";
+import { createMemo, lazy, Show } from "solid-js";
 import { filesLinksChannelId } from "../../lib/filesLinksPanel";
 import { PaneViewProvider } from "../../lib/paneView";
 import { store } from "../../lib/store";
 import type { View } from "../../lib/store/slices/types";
-import ArchivedChannelBar from "../channel/ArchivedChannelBar";
+import "../channel/JoinChannelBar.css";
 import ChannelHeader from "../channel/ChannelHeader";
 import { createChannelHeaderState } from "../channel/channelHeaderState";
-import FilesLinksPanel from "../channel/FilesLinksPanel";
 import JoinChannelBar from "../channel/JoinChannelBar";
 import Composer from "../composer/Composer";
 import MessageList from "../messages/MessageList";
 
+const FilesLinksPanel = lazy(() => import("../channel/FilesLinksPanel"));
+
+function ArchivedChannelBar() {
+  return (
+    <div class="channel-notice-bar flex-align-center">
+      <Icon name="archive" size={14} />
+      <div class="channel-notice-bar-text">
+        This channel has been archived. You can still view its history, but new messages can't be
+        sent.
+      </div>
+    </div>
+  );
+}
+
 export default function MainPane(props: { pane: Pane<View | null> }) {
-  const { isArchivedChannel } = createChannelHeaderState(() => props.pane.content);
+  const { isArchivedChannel } = createChannelHeaderState(() => props.pane.content, props.pane.id);
   const unjoinedChannelId = () => {
     const view = props.pane.content;
     return view?.kind === "channel" && !store.channels.isChannelMember(view.id)

@@ -53,11 +53,10 @@ export interface RichTextBroadcastElement {
 export type BroadcastRange = RichTextBroadcastElement["range"];
 
 export function isRichTextBroadcast(value: unknown): value is RichTextBroadcastElement {
-  if (!(value && typeof value === "object")) return false;
-  const element = value as { range?: unknown; type?: unknown };
+  if (!(value && typeof value === "object" && "type" in value && "range" in value)) return false;
   return (
-    element.type === "broadcast" &&
-    (element.range === "here" || element.range === "channel" || element.range === "everyone")
+    value.type === "broadcast" &&
+    (value.range === "here" || value.range === "channel" || value.range === "everyone")
   );
 }
 
@@ -142,6 +141,12 @@ export interface RichTextBlock {
   type: "rich_text";
 }
 
+export function isRichTextSubBlock(
+  el: RichTextInlineElement | RichTextSubBlock,
+): el is RichTextSubBlock {
+  return "elements" in el;
+}
+
 function broadcastRangeFromElements(elements: readonly unknown[]): BroadcastRange | undefined {
   for (const element of elements) {
     if (isRichTextBroadcast(element)) return element.range;
@@ -181,7 +186,7 @@ function richTextInlineToPlainText(el: RichTextInlineElement): string {
     case "usergroup":
       return `<!subteam^${el.usergroup_id}>`;
     case "broadcast":
-      return `<!${el.range}>`;
+      return `@${el.range}`;
     case "message_mention":
       return el.text ?? "";
     case "date":

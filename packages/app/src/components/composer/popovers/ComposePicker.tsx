@@ -7,7 +7,7 @@ import {
   useEscapeClose,
 } from "@slock/ui";
 import type { JSX } from "solid-js";
-import { createMemo, createSignal, createUniqueId, For, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import "./ComposeUserPicker.css";
 
@@ -44,7 +44,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
   useEscapeClose(props.onClose);
   useClickOutside(".compose-picker", props.onClose);
 
-  const excludedIds = createMemo(() => new Set(props.excludeIds ?? []));
+  const excludedIds = () => new Set(props.excludeIds ?? []);
   const remoteRequest = createDebouncedRequest(
     async (q) => (await props.remoteSearch(q)).filter((item) => !excludedIds().has(item.id)),
     {
@@ -57,13 +57,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
       onResult: setRemoteResults,
     },
   );
-  onCleanup(() => {
-    remoteRequest.dispose();
-  });
-
-  const localFiltered = createMemo(() =>
-    props.localItems().filter((item) => !excludedIds().has(item.id)),
-  );
+  const localFiltered = () => props.localItems().filter((item) => !excludedIds().has(item.id));
 
   const onInput = (value: string) => {
     setQuery(value);

@@ -10,7 +10,7 @@ export function createLocalPref<T>(key: string, fallback: T) {
   const read = (): T => {
     try {
       const raw = localStorage.getItem(storageKey);
-      return raw == null ? fallback : (JSON.parse(raw) as T);
+      return raw == null ? fallback : JSON.parse(raw);
     } catch {
       return fallback;
     }

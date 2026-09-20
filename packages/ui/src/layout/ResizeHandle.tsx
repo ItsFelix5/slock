@@ -1,6 +1,27 @@
-import { onCleanup } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 import "./ResizeHandle.css";
-import { resizeWidth } from "./resizeMath";
+import { startFrameCoalescedPointerDrag } from "../pointerDrag";
+
+function resizeWidth(
+  width: number,
+  pointerDelta: number,
+  direction: 1 | -1,
+  min: number,
+  max: number,
+) {
+  return Math.min(max, Math.max(min, width + pointerDelta * direction));
+}
+
+let cachedWindowWidth: (() => number) | undefined;
+
+export function windowWidth(): number {
+  if (!cachedWindowWidth) {
+    const [get, set] = createSignal(window.innerWidth);
+    window.addEventListener("resize", () => set(window.innerWidth));
+    cachedWindowWidth = get;
+  }
+  return cachedWindowWidth();
+}
 
 export default function ResizeHandle(props: {
   width: () => number;
@@ -11,21 +32,13 @@ export default function ResizeHandle(props: {
   side: "left" | "right";
   label?: string;
 }) {
-  let startX = 0;
   let startWidth = 0;
+  let stopDragging: (() => void) | undefined;
 
-  const stopDragging = () => {
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("pointerup", stopDragging);
-    window.removeEventListener("pointercancel", stopDragging);
-    window.removeEventListener("blur", stopDragging);
+  const endDrag = () => {
+    stopDragging?.();
+    stopDragging = undefined;
     window.removeEventListener("keydown", onDragKeyDown);
-  };
-
-  const onPointerMove = (event: PointerEvent) => {
-    props.setWidth(
-      resizeWidth(startWidth, event.clientX - startX, props.direction, props.min, props.max),
-    );
   };
 
   const onDragKeyDown = (event: KeyboardEvent) => {
@@ -33,20 +46,21 @@ export default function ResizeHandle(props: {
     event.preventDefault();
     event.stopPropagation();
     props.setWidth(startWidth);
-    stopDragging();
+    endDrag();
   };
 
   const onPointerDown = (e: PointerEvent) => {
     if (!e.isPrimary || e.button !== 0) return;
     e.preventDefault();
-    stopDragging();
-    startX = e.clientX;
+    endDrag();
+    const startX = e.clientX;
     startWidth = props.width();
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", stopDragging);
-    window.addEventListener("pointercancel", stopDragging);
-    window.addEventListener("blur", stopDragging);
     window.addEventListener("keydown", onDragKeyDown);
+    stopDragging = startFrameCoalescedPointerDrag((event) => {
+      props.setWidth(
+        resizeWidth(startWidth, event.clientX - startX, props.direction, props.min, props.max),
+      );
+    });
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -62,7 +76,7 @@ export default function ResizeHandle(props: {
     props.setWidth(next);
   };
 
-  onCleanup(stopDragging);
+  onCleanup(endDrag);
 
   return (
     <hr

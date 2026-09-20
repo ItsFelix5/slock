@@ -16,6 +16,8 @@ type SidebarToolbarProps = Pick<
   | "setSearchOpen"
   | "setSettingsOpen"
   | "settingsOpen"
+  | "setSettingsTab"
+  | "settingsTab"
 >;
 
 export default function SidebarToolbar(props: SidebarToolbarProps) {
@@ -47,13 +49,14 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
         <IconButton
           class="sidebar-global-search-btn"
           icon="settings"
-          label="Settings"
-          onClick={() => props.setSettingsOpen(true)}
+          onClick={() => {
+            props.setSettingsTab("account");
+            props.setSettingsOpen(true);
+          }}
         />
         <IconButton
           class="sidebar-global-search-btn"
           icon="search"
-          label="Search (Ctrl+K)"
           onClick={() => props.setSearchOpen(true)}
         />
       </div>
@@ -64,7 +67,7 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
         {(file) => <FileDetailModal file={file()} onClose={() => setOpenFile()} />}
       </Show>
       <Show when={props.settingsOpen()}>
-        <Settings onClose={() => props.setSettingsOpen(false)} />
+        <Settings initialTab={props.settingsTab()} onClose={() => props.setSettingsOpen(false)} />
       </Show>
     </>
   );

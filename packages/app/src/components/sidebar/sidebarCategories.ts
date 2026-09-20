@@ -2,6 +2,7 @@ import type { createKeyedFeedback } from "@slock/ui";
 import type { Accessor, Setter } from "solid-js";
 import type { Channel, ChannelSection, DirectMessage, User } from "../../lib/api";
 import type { Nav } from "../../lib/store";
+import type { SettingsTab } from "../settings/Settings";
 
 export interface Category {
   channels: Channel[];
@@ -19,8 +20,9 @@ export interface SidebarContext {
   actionFeedback: KeyedFeedback;
   appDms: Accessor<DirectMessage[]>;
   appsOpen: Accessor<boolean>;
-  bootstrap: { loading: boolean };
+  bootstrap: { isFetching: boolean };
   categories: Accessor<Category[]>;
+  channelById: Accessor<Map<string, Channel>>;
   collapsed: Accessor<Set<string>>;
   commitRename: () => Promise<void>;
   currentUser: Accessor<User | undefined>;
@@ -76,6 +78,8 @@ export interface SidebarContext {
   ) => Promise<boolean>;
   setSettingsOpen: Setter<boolean>;
   settingsOpen: Accessor<boolean>;
+  setSettingsTab: Setter<SettingsTab>;
+  settingsTab: Accessor<SettingsTab>;
   setUnreadsOnly: Setter<boolean>;
   setWidth: Setter<number>;
   startRename: (cat: Category) => void;
@@ -85,6 +89,10 @@ export interface SidebarContext {
   unreadDmsOpen: Accessor<boolean>;
   unreadsOnly: Accessor<boolean>;
   width: Accessor<number>;
+}
+
+export function idsEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
 }
 
 export function sectionShowsAllChannels(

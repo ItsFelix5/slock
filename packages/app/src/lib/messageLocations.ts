@@ -26,3 +26,21 @@ export function findMessageLocations(
     results.push({ list: reacted, location: { key: reactionKey, store: "reaction" } });
   return results;
 }
+
+export function latestMessageTsMsByUser(
+  messagesByChannel: Record<string, Message[]>,
+  threadMessages: Record<string, Message[]>,
+  userId: string,
+): number | undefined {
+  let latest: number | undefined;
+  const scan = (list: Message[] | undefined) => {
+    for (const m of list ?? []) {
+      if (m.userId !== userId || m.deleted || m.kind !== "normal") continue;
+      const ms = Number(m.ts) * 1000;
+      if (!latest || ms > latest) latest = ms;
+    }
+  };
+  for (const list of Object.values(messagesByChannel)) scan(list);
+  for (const list of Object.values(threadMessages)) scan(list);
+  return latest;
+}

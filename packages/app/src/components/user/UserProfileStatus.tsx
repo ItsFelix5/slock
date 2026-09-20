@@ -1,5 +1,5 @@
 import { EmojiText } from "@slock/blockkit";
-import { Icon, Popover, Tooltip } from "@slock/ui";
+import { Icon, IconButton, Popover } from "@slock/ui";
 import { createSignal, lazy, Show } from "solid-js";
 import "./UserProfileStatus.css";
 
@@ -14,7 +14,7 @@ interface UserProfileStatusProps {
   savingStatus: () => boolean;
   saveStatus: () => Promise<void>;
   clearStatus: () => Promise<void>;
-  blurOnEnter: (event: KeyboardEvent) => void;
+  blurOnEnter: (event: KeyboardEvent & { currentTarget: HTMLElement }) => void;
 }
 
 export default function UserProfileStatus(props: UserProfileStatusProps) {
@@ -73,17 +73,14 @@ export default function UserProfileStatus(props: UserProfileStatusProps) {
           value={props.statusText()}
         />
         <Show when={hasStatus()}>
-          <Tooltip content="Clear status">
-            <button
-              aria-label="Clear status"
-              class="user-profile-status-clear btn-reset flex-center"
-              disabled={props.savingStatus()}
-              onClick={props.clearStatus}
-              type="button"
-            >
-              <Icon name="close" size={12} />
-            </button>
-          </Tooltip>
+          <IconButton
+            class="user-profile-status-clear"
+            disabled={props.savingStatus()}
+            icon="close"
+            iconSize={12}
+            label="Clear status"
+            onClick={props.clearStatus}
+          />
         </Show>
       </div>
     </Show>
