@@ -1,9 +1,10 @@
-import { newSectionId } from "@slock/canvas";
+import { type DiffEntry, newSectionId } from "@slock/canvas";
 import { Button, indexAlignedText, scrollActiveListOption } from "@slock/ui";
 import type Quill from "quill";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { type LoadedCanvas, postCanvasEdit } from "../../lib/api";
 import { type CanvasDocModel, canvasTitle, canvasToOps } from "../../lib/canvas/canvasDelta";
+import { diffToOps } from "../../lib/canvas/canvasDiffView";
 import { applyIdFixes } from "../../lib/canvas/canvasEditorSetup";
 import { createCanvasNames } from "../../lib/canvas/canvasNames";
 import {
@@ -41,6 +42,7 @@ const STATUS_LABELS: Record<CanvasSaveStatus, string> = {
 };
 
 export default function CanvasEditor(props: {
+  diff?: DiffEntry[];
   doc: CanvasDocModel;
   editable: boolean;
   fileId: string;
@@ -53,7 +55,7 @@ export default function CanvasEditor(props: {
   const names = createCanvasNames();
   const [title, setTitle] = createSignal(canvasTitle(props.doc));
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  const ops = canvasToOps(props.doc, names);
+  const ops = props.diff ? diffToOps(props.diff, props.doc, names) : canvasToOps(props.doc, names);
   const [headings, setHeadings] = createSignal<OutlineItem[]>([]);
   const [active, setActive] = createSignal<Quill>();
   const surfaces = new Map<Quill, () => string>();

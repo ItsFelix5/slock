@@ -1,0 +1,82 @@
+.canvas-history-slot {
+  position: sticky;
+  top: var(--space-md);
+  z-index: 4;
+  flex: none;
+  align-self: flex-start;
+  width: 0;
+  height: 0;
+}
+
+.canvas-history {
+  position: absolute;
+  top: 0;
+  right: var(--space-md);
+  width: 240px;
+  max-height: 70vh;
+  padding: var(--space-md);
+  overflow-y: auto;
+  font-size: var(--font-size-meta);
+}
+
+.canvas-history-header {
+  margin-bottom: var(--space-sm);
+}
+
+.canvas-history-actions {
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.canvas-history-buttons {
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.canvas-history-note {
+  padding: var(--space-sm) 0;
+}
+
+.canvas-history-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.canvas-history-item {
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.canvas-history-item:hover,
+.canvas-history-item[aria-pressed="true"] {
+  background: var(--hover-bg);
+}
+
+.canvas-history-time {
+  font-weight: 600;
+}
+
+.canvas-history-toggle {
+  gap: var(--space-md);
+}
+
+.canvas-version-view {
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas-version-banner {
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) var(--space-xl) 0;
+  font-size: var(--font-size-meta);
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border-radius: var(--radius-sm);
+}

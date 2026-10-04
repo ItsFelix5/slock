@@ -177,3 +177,36 @@
 .canvas-callout-swatch[data-color="8"] {
   background: rgb(234 234 234);
 }
+
+.canvas-editor .ql-editor [data-diff="added"] {
+  box-shadow: inset 3px 0 0 var(--success, #2eb67d);
+}
+
+.canvas-editor .ql-editor [data-diff="added"]:not([data-f0="callout"]) {
+  background-color: color-mix(in srgb, var(--success, #2eb67d) 12%, transparent);
+}
+
+.canvas-editor .ql-editor [data-diff="removed"] {
+  text-decoration: line-through;
+  box-shadow: inset 3px 0 0 var(--error-text, #e01e5a);
+  opacity: 0.85;
+}
+
+.canvas-editor .ql-editor [data-diff="removed"]:not([data-f0="callout"]) {
+  background-color: color-mix(in srgb, var(--error-text, #e01e5a) 12%, transparent);
+}
+
+.canvas-editor .ql-editor [data-diff="changed"] {
+  box-shadow: inset 3px 0 0 var(--warning, #ecb22e);
+}
+
+.canvas-editor .ql-editor .canvas-diff-added {
+  background-color: color-mix(in srgb, var(--success, #2eb67d) 28%, transparent);
+  border-radius: 2px;
+}
+
+.canvas-editor .ql-editor .canvas-diff-removed {
+  text-decoration: line-through;
+  background-color: color-mix(in srgb, var(--error-text, #e01e5a) 24%, transparent);
+  border-radius: 2px;
+}

@@ -52,11 +52,21 @@ export interface SlackFileShare {
   ts: string;
 }
 
+export interface SlackFileAccess {
+  orgLevel: string;
+  users: { access: string; userId: string }[];
+}
+
 export interface SlackFileDetail {
+  access: SlackFileAccess;
   content: string | null;
   contentTruncated: boolean;
+  editable: boolean;
   file: SlackFile;
+  ownerId: string | null;
   shares: SlackFileShare[];
+  starred: boolean;
+  viewerCount: number | null;
 }
 
 export interface Attachment {

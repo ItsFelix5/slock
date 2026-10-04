@@ -8,12 +8,15 @@ import {
 
 export const SECTION_ID_ATTRIBUTE = "sid";
 export const LAYOUT_ATTRIBUTE = "layout";
+export const DIFF_ATTRIBUTE = "diff";
+export const DIFF_MARK = "diffmark";
 
 const INLINE_FORMATS = [
   "bold",
   "canvasControl",
   "code",
   "date",
+  DIFF_MARK,
   "emoji",
   "italic",
   "link",
@@ -24,6 +27,7 @@ const INLINE_FORMATS = [
 
 const BLOCK_FORMATS = [
   "code-block",
+  DIFF_ATTRIBUTE,
   "header",
   "indent",
   LAYOUT_ATTRIBUTE,

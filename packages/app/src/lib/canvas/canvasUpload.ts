@@ -1,4 +1,4 @@
-import type { CanvasFile, CanvasImage, RawFile } from "@slock/types";
+import { type CanvasFile, type CanvasImage, mapFile, type RawFile } from "@slock/types";
 import { resolveCanvasFile, uploadFilesForEdit } from "../api";
 import type { FileEmbedValue, ImageEmbedValue } from "./canvasEmbedValues";
 
@@ -15,8 +15,7 @@ function wait(ms: number): Promise<void> {
 async function processedFile(id: string): Promise<RawFile> {
   let file = await resolveCanvasFile(id);
   for (let attempt = 0; attempt < IMAGE_RETRIES; attempt++) {
-    const image = file.mimetype?.startsWith("image/") ?? false;
-    if (!image || file.original_w) break;
+    if (!mapFile(file).isImage || file.original_w) break;
     await wait(IMAGE_RETRY_MS);
     file = await resolveCanvasFile(id);
   }
@@ -33,7 +32,7 @@ function imageNode(file: RawFile, id: string): CanvasImage {
     height,
     id,
     kind: "image",
-    mimetype: file.mimetype ?? "image/png",
+    mimetype: mapFile(file).mimetype ?? "image/png",
     name: file.name ?? "image",
     thumbs: [
       ...SQUARE_THUMBS.map((size) => ({ height: size, name: `thumb_${size}`, width: size })),
@@ -66,7 +65,7 @@ export async function uploadCanvasBlocks(
     const file = await processedFile(fileId);
     const id = newId();
     blocks.push(
-      file.mimetype?.startsWith("image/")
+      mapFile(file).isImage
         ? { id, name: "canvasImage", value: { file, node: imageNode(file, id) } }
         : { id, name: "canvasFile", value: { file, node: fileNode(file, id) } },
     );

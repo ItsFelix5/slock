@@ -63,18 +63,26 @@ function decodeMeta(document: RawMessage): CanvasMeta | null {
   };
 }
 
-export function decodeLoadData(bytes: Uint8Array): DecodedCanvas {
-  const root = decodeRaw(bytes);
-  const payload = asMessage(field(root, 2));
-  const document = payload && asMessage(field(payload, 2));
-  if (!document) return { meta: null, records: [] };
-  const records: SectionRecord[] = [];
-  for (const entry of document.get(7) ?? []) {
+function recordsIn(message: RawMessage | null, num: number): SectionRecord[] {
+  return (message?.get(num) ?? []).flatMap((entry) => {
     const msg = asMessage(entry);
     const record = msg && decodeSection(msg);
-    if (record) records.push(record);
-  }
-  return { meta: decodeMeta(document), records };
+    return record ? [record] : [];
+  });
+}
+
+export function decodeRecords(bytes: Uint8Array, path: number[]): SectionRecord[] {
+  let message: RawMessage | null = decodeRaw(bytes);
+  for (const num of path.slice(0, -1)) message = message && asMessage(field(message, num));
+  const last = path.at(-1);
+  return last === undefined ? [] : recordsIn(message, last);
+}
+
+export function decodeLoadData(bytes: Uint8Array): DecodedCanvas {
+  const payload = asMessage(field(decodeRaw(bytes), 2));
+  const document = payload && asMessage(field(payload, 2));
+  if (!document) return { meta: null, records: [] };
+  return { meta: decodeMeta(document), records: recordsIn(document, 7) };
 }
 
 const SECTION_ID_RE = /^temp:C:[A-Za-z0-9_-]{3}[0-9a-f]{25}$/;

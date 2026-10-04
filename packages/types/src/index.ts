@@ -71,6 +71,7 @@ export type {
   LayoutFrame,
 } from "./canvasEdit";
 export { parseCanvasEdit } from "./canvasEdit";
+export type { CanvasVersion } from "./canvasHistory";
 export { fetchAllEmoji, fetchSlashCommands, invalidateEmojiCache } from "./content";
 export type { ActivityItem, LinkPreview, SavedItem } from "./contentTypes";
 export {
@@ -83,6 +84,7 @@ export type {
   AttachmentAction,
   PendingFile,
   SlackFile,
+  SlackFileAccess,
   SlackFileDetail,
   SlackLink,
 } from "./fileTypes";

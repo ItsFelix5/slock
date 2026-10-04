@@ -1,4 +1,5 @@
 import { slackUploadResponse, uploadCapability } from "../../assets.ts";
+import { applyCanvasEdit } from "../../canvasEdit.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import type {
@@ -39,17 +40,48 @@ export const fileRoutes: Route[] = [
     if (!sharesData.ok) {
       return slackErrorResponse(sharesData, "files.getShares", ctx.creds, ctx.acceptEncoding);
     }
+    const { file } = infoData;
     return jsonResponse(
       {
+        access: {
+          org_level: file.org_or_workspace_access ?? "none",
+          users: (file.dm_mpdm_users_with_file_access ?? []).flatMap((entry) =>
+            entry.user_id ? [{ access: entry.access ?? "read", user_id: entry.user_id }] : [],
+          ),
+        },
         content: infoData.content ?? null,
         contentTruncated: !!infoData.is_truncated,
-        file: trimFile(infoData.file),
+        editable: file.editable !== false,
+        file: trimFile(file),
         ok: true,
+        owner: file.canvas_creator_id ?? file.user ?? null,
         shares: flattenShares(sharesData.conversation_shares?.shares),
+        starred: !!file.is_starred,
+        viewer_count: sharesData.viewer_count ?? null,
       },
       ctx.creds,
       ctx.acceptEncoding,
     );
+  }),
+  route("POST", "files/:id/rename", async (ctx) => {
+    if (!ctx.creds) return errorResponse("not_configured", 400);
+    const { title } = await ctx.body.json<{ title?: string }>();
+    const name = title?.trim();
+    if (!name) return errorResponse("invalid_title", 400);
+    const info = await callSlack<FileInfoReply>("files.info", { file: ctx.params.id }, ctx.creds);
+    if (!info.ok) return slackErrorResponse(info, "files.info", ctx.creds, ctx.acceptEncoding);
+    if (info.file.quip_thread_id) {
+      const result = await applyCanvasEdit(
+        info.file.quip_thread_id,
+        { controls: [], deleted: [], title: name, upserts: [] },
+        ctx.creds,
+      );
+      if (!result.ok) return errorResponse(result.error, result.status);
+      return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
+    }
+    const edited = await callSlack("files.edit", { file: ctx.params.id, title: name }, ctx.creds);
+    if (!edited.ok) return slackErrorResponse(edited, "files.edit", ctx.creds, ctx.acceptEncoding);
+    return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
   }),
   route("POST", "files/reserve", async (ctx) => {
     const params = await ctx.body.json<Record<string, string>>();

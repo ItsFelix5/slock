@@ -2,7 +2,7 @@ import Quill from "quill";
 import "./CanvasControlBlot";
 import "./SoftBreakBlot";
 import "./embeds";
-import { LAYOUT_ATTRIBUTE, SECTION_ID_ATTRIBUTE } from "./formats";
+import { DIFF_ATTRIBUTE, DIFF_MARK, LAYOUT_ATTRIBUTE, SECTION_ID_ATTRIBUTE } from "./formats";
 
 const Parchment = Quill.import("parchment");
 
@@ -15,6 +15,19 @@ Quill.register(
 Quill.register(
   new Parchment.Attributor(LAYOUT_ATTRIBUTE, "data-layout", {
     scope: Parchment.Scope.BLOCK_ATTRIBUTE,
+  }),
+);
+
+Quill.register(
+  new Parchment.Attributor(DIFF_ATTRIBUTE, "data-diff", {
+    scope: Parchment.Scope.BLOCK_ATTRIBUTE,
+  }),
+);
+
+Quill.register(
+  new Parchment.ClassAttributor(DIFF_MARK, "canvas-diff", {
+    scope: Parchment.Scope.INLINE_ATTRIBUTE,
+    whitelist: ["added", "removed"],
   }),
 );
 

@@ -1,5 +1,7 @@
+export type { DiffEntry, DiffStatus } from "./diff.ts";
+export { diffNodes } from "./diff.ts";
 export type { CanvasDocument } from "./document.ts";
-export { readCanvas } from "./document.ts";
+export { readCanvas, readCanvasVersion } from "./document.ts";
 export type { CanvasEmbed } from "./embeds.ts";
 export {
   framesFromAttribute,

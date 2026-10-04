@@ -34,6 +34,10 @@ export type ChannelInfoReply = {
 
 export type UserReply = { user: RawUser };
 
+export type CanvasVersionsReply = {
+  versions?: { author?: string; created_ms?: number; sequence?: number; version_id?: string }[];
+};
+
 export type AuthTestReply = { user_id: string };
 
 export type PostMessageReply = { ts?: string };
@@ -67,11 +71,22 @@ export type TeamProfileReply = {
 
 export type FileInfoReply = {
   content?: string;
-  file: RawFile & { editable?: boolean; quip_thread_id?: string };
+  file: RawFile & {
+    canvas_creator_id?: string;
+    dm_mpdm_users_with_file_access?: { access?: string; user_id?: string }[];
+    editable?: boolean;
+    is_starred?: boolean;
+    org_or_workspace_access?: string;
+    quip_thread_id?: string;
+    user?: string;
+  };
   is_truncated?: boolean;
 };
 
-export type FileSharesReply = { conversation_shares?: { shares?: unknown } };
+export type FileSharesReply = {
+  conversation_shares?: { shares?: unknown };
+  viewer_count?: number;
+};
 
 export type FilesSearchReply = {
   items?: RawFile[];

@@ -2,7 +2,13 @@ import type { CanvasNode } from "@slock/types";
 import { type CanvasEmbed, parseEmbedRecord } from "./embeds.ts";
 import { titleText } from "./flow.ts";
 import { buildFlow } from "./read.ts";
-import { type CanvasMeta, decodeLoadData, ORPHANED_EMBED_RECORDS_ANCHOR } from "./sections.ts";
+import {
+  type CanvasMeta,
+  type DecodedCanvas,
+  decodeLoadData,
+  decodeRecords,
+  ORPHANED_EMBED_RECORDS_ANCHOR,
+} from "./sections.ts";
 
 export interface CanvasDocument {
   embeds: Map<string, CanvasEmbed>;
@@ -12,8 +18,7 @@ export interface CanvasDocument {
   title: string;
 }
 
-export function readCanvas(bytes: Uint8Array): CanvasDocument | null {
-  const decoded = decodeLoadData(bytes);
+function documentFrom(decoded: DecodedCanvas): CanvasDocument | null {
   if (!decoded.meta) return null;
   const embeds = new Map<string, CanvasEmbed>();
   for (const record of decoded.records) {
@@ -33,4 +38,12 @@ export function readCanvas(bytes: Uint8Array): CanvasDocument | null {
     nodes,
     title: flow.title ? titleText(flow.title) : "",
   };
+}
+
+export function readCanvas(bytes: Uint8Array): CanvasDocument | null {
+  return documentFrom(decodeLoadData(bytes));
+}
+
+export function readCanvasVersion(bytes: Uint8Array, meta: CanvasMeta): CanvasDocument | null {
+  return documentFrom({ meta, records: decodeRecords(bytes, [1, 1, 1]) });
 }

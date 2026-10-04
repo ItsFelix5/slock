@@ -16,6 +16,13 @@ export interface CanvasDocModel extends CanvasDocument {
   files: Map<string, RawFile>;
 }
 
+export interface OpsView {
+  attributes?(node: CanvasNode): Record<string, unknown>;
+  inline?(node: CanvasLine, ops: Op[]): Op[];
+}
+
+type OpsSource = Pick<CanvasDocModel, "embeds" | "files">;
+
 function splitOnSoftBreaks(inline: Op[]): Op[][] {
   const lines: Op[][] = [[]];
   for (const op of inline) {
@@ -49,8 +56,9 @@ function framesOf(node: CanvasNode, depth: number): LayoutFrame[] {
 export function nodesToOps(
   nodes: CanvasNode[],
   depth: number,
-  doc: Pick<CanvasDocModel, "embeds" | "files">,
+  doc: OpsSource,
   names: CanvasNames,
+  view: OpsView = {},
 ): Op[] {
   const ops: Op[] = [];
   const resolve = (controlId: string) => embedToValue(doc.embeds.get(controlId), controlId, names);
@@ -68,12 +76,16 @@ export function nodesToOps(
         if (next) run.push(next);
         index += 1;
       }
-      ops.push(columnsOp(first.id, first.weights, run, depth, doc, names));
+      ops.push(columnsOp(first.id, first.weights, run, depth, { doc, names, view }));
       continue;
     }
     const layout = layoutAttribute(frames);
-    const withLayout = (attributes: Record<string, unknown>) =>
-      layout ? { ...attributes, layout } : attributes;
+    const extra = view.attributes?.(node) ?? {};
+    const withLayout = (attributes: Record<string, unknown>) => ({
+      ...attributes,
+      ...extra,
+      ...(layout ? { layout } : {}),
+    });
     if (!isLineNode(node)) {
       ops.push(atomOp(node, withLayout, doc, resolve));
       continue;
@@ -82,7 +94,8 @@ export function nodesToOps(
       ops.push({ attributes: withLayout({ sid: node.id }), insert: { [DIVIDER_EMBED]: true } });
       continue;
     }
-    const inline = htmlToOps(node.html, resolve, node.kind === "code");
+    const parsed = htmlToOps(node.html, resolve, node.kind === "code");
+    const inline = view.inline?.(node, parsed) ?? parsed;
     if (node.kind === "code") {
       for (const part of splitOnSoftBreaks(inline))
         ops.push(...part, {
@@ -106,9 +119,9 @@ function columnsOp(
   weights: number[],
   run: CanvasNode[],
   depth: number,
-  doc: Pick<CanvasDocModel, "embeds" | "files">,
-  names: CanvasNames,
+  context: { doc: OpsSource; names: CanvasNames; view: OpsView },
 ): Op {
+  const { doc, names, view } = context;
   const byIndex = new Map<number, CanvasNode[]>();
   for (const node of run) {
     const frame = node.frames[depth];
@@ -117,7 +130,7 @@ function columnsOp(
   }
   const columns = [...byIndex.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([, members]) => nodesToOps(members, depth + 1, doc, names));
+    .map(([, members]) => nodesToOps(members, depth + 1, doc, names, view));
   return {
     attributes: { sid: id },
     insert: { [COLUMNS_EMBED]: { columns, id, weights } },
@@ -127,7 +140,7 @@ function columnsOp(
 function atomOp(
   node: Exclude<CanvasNode, CanvasLine>,
   withLayout: (attributes: Record<string, unknown>) => Record<string, unknown>,
-  doc: Pick<CanvasDocModel, "embeds" | "files">,
+  doc: OpsSource,
   resolve: (controlId: string) => Record<string, unknown>,
 ): Op {
   const attributes = withLayout({ sid: node.id });

@@ -1,6 +1,7 @@
-import { readCanvas } from "@slock/canvas";
+import { type CanvasDocument, type CanvasMeta, readCanvas, readCanvasVersion } from "@slock/canvas";
 import type {
   CanvasEdit,
+  CanvasVersion,
   FileUploadInput,
   LinkPreview,
   RawFile,
@@ -81,11 +82,7 @@ export interface LoadedCanvas {
   editable: boolean;
 }
 
-export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
-  const data = await apiGet<{ editable?: boolean; raw: string }>(`/api/canvases/${fileId}/raw`);
-  if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
-  const document = readCanvas(base64ToBytes(data.raw));
-  if (!document) return { doc: null, editable: false };
+async function withFiles(document: CanvasDocument): Promise<CanvasDocModel> {
   const entries = await Promise.all(
     document.fileIds.map(async (id) => {
       try {
@@ -96,7 +93,45 @@ export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
     }),
   );
   const files = new Map(entries.filter((entry): entry is [string, RawFile] => entry[1] !== null));
-  return { doc: { ...document, files }, editable: data.editable !== false };
+  return { ...document, files };
+}
+
+export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
+  const data = await apiGet<{ editable?: boolean; raw: string }>(`/api/canvases/${fileId}/raw`);
+  if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
+  const document = readCanvas(base64ToBytes(data.raw));
+  if (!document) return { doc: null, editable: false };
+  return { doc: await withFiles(document), editable: data.editable !== false };
+}
+
+export async function fetchCanvasVersions(fileId: string): Promise<CanvasVersion[]> {
+  const data = await apiGet<{ versions: CanvasVersion[] }>(`/api/canvases/${fileId}/versions`);
+  if (!data.ok) throw new Error(data.error ?? "Canvas history failed");
+  return data.versions;
+}
+
+export async function fetchCanvasVersion(
+  fileId: string,
+  version: CanvasVersion,
+  meta: CanvasMeta,
+): Promise<CanvasDocModel | null> {
+  const query = new URLSearchParams({
+    document: meta.documentId,
+    sequence: String(version.sequence),
+  });
+  const data = await apiGet<{ raw: string }>(
+    `/api/canvases/${fileId}/versions/${version.versionId}?${query}`,
+  );
+  if (!data.ok) throw new Error(data.error ?? "Canvas version failed");
+  const document = readCanvasVersion(base64ToBytes(data.raw), meta);
+  return document ? withFiles(document) : null;
+}
+
+export async function restoreCanvasVersion(fileId: string, version: CanvasVersion): Promise<void> {
+  const data = await apiPost(`/api/canvases/${fileId}/versions/${version.versionId}/restore`, {
+    sequence: version.sequence,
+  });
+  if (!data.ok) throw new Error(data.error ?? "Couldn't restore this version");
 }
 
 export async function postCanvasEdit(fileId: string, edit: CanvasEdit): Promise<void> {
@@ -106,18 +141,36 @@ export async function postCanvasEdit(fileId: string, edit: CanvasEdit): Promise<
 
 export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> {
   const data = await apiGet<{
+    access: { org_level: string; users: { access: string; user_id: string }[] };
     content?: string | null;
     contentTruncated?: boolean;
+    editable?: boolean;
     file: RawFile;
+    owner?: string | null;
     shares?: RawFileShare[];
+    starred?: boolean;
+    viewer_count?: number | null;
   }>(`/api/files/${fileId}/detail`);
   if (!data.ok) throw new Error(data.error ?? "files.info failed");
   return {
+    access: {
+      orgLevel: data.access.org_level,
+      users: data.access.users.map((entry) => ({ access: entry.access, userId: entry.user_id })),
+    },
     content: data.content ?? null,
     contentTruncated: !!data.contentTruncated,
+    editable: data.editable !== false,
     file: mapFile(data.file),
+    ownerId: data.owner ?? null,
     shares: (data.shares ?? []).map(mapFileShare),
+    starred: !!data.starred,
+    viewerCount: data.viewer_count ?? null,
   };
+}
+
+export async function renameFile(fileId: string, title: string): Promise<void> {
+  const data = await apiPost(`/api/files/${fileId}/rename`, { title });
+  if (!data.ok) throw new Error(data.error ?? "Couldn't rename the file");
 }
 
 export async function runSlashCommand(

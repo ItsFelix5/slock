@@ -91,3 +91,34 @@ export async function fetchCanvasRaw(
   if (!response.ok) return { error: response.error, ok: false };
   return { bytes: response.value, ok: true };
 }
+
+function encodeVersionRequest(
+  version: { documentId: string; sequence: number; versionId: string },
+  threadId: string,
+): string {
+  const bytes = [
+    ...lenDelim(1, strBytes(threadId)),
+    ...lenDelim(2, strBytes(version.documentId)),
+    ...lenDelim(3, strBytes(version.versionId)),
+    ...varintField(5, version.sequence),
+  ];
+  return Buffer.from(bytes).toString("base64");
+}
+
+export async function fetchCanvasVersion(
+  threadId: string,
+  version: { documentId: string; sequence: number; versionId: string },
+  creds: Credentials,
+): Promise<{ bytes: Uint8Array; ok: true } | { error: string; ok: false }> {
+  const response = await postCanvas(
+    "call-handler/load-document-version",
+    {
+      handler: "114",
+      request_binary: encodeVersionRequest(version, threadId),
+      secret_paths: "{}",
+    },
+    creds,
+  );
+  if (!response.ok) return { error: response.error, ok: false };
+  return { bytes: response.value, ok: true };
+}
