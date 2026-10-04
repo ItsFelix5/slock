@@ -17,6 +17,7 @@ import { encodeRawMessage, withFields } from "./rawEncode.ts";
 import type { SectionRecord } from "./sections.ts";
 import {
   blankWrite,
+  escapeCanvasHtml,
   rawMessage,
   rawString,
   rawVarint,
@@ -207,7 +208,16 @@ export function titleWrite(
   write.content = encodeRawMessage(
     withFields(
       content,
-      new Map([[58, [rawMessage(withFields(titleMessage, new Map([[1, [rawString(text)]]])))]]]),
+      new Map([
+        [
+          58,
+          [
+            rawMessage(
+              withFields(titleMessage, new Map([[1, [rawString(escapeCanvasHtml(text))]]])),
+            ),
+          ],
+        ],
+      ]),
     ),
   );
   if (existing) {

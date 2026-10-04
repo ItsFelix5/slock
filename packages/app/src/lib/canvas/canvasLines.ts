@@ -1,7 +1,8 @@
+import { escapeCanvasHtml } from "@slock/canvas";
 import type { CanvasControl, CanvasLine } from "@slock/types";
 import type { Op } from "quill";
 import { type CanvasNames, valueKey, valueToControl } from "./canvasEmbeds";
-import { type EmbedValue, escapeHtml, opsToHtml } from "./canvasHtml";
+import { type EmbedValue, opsToHtml } from "./canvasHtml";
 
 export interface LineEntry {
   id: string;
@@ -79,7 +80,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
     const { canvasControl, emoji, mention } = embed;
     if (typeof emoji === "object" && emoji && "name" in emoji && isStringValue(emoji.name)) {
       const text = ctx.names.emojiText(emoji.name);
-      if (text) return escapeHtml(text);
+      if (text) return escapeCanvasHtml(text);
     }
     if (typeof canvasControl === "object" && canvasControl && "id" in canvasControl)
       return `<control id="${String(canvasControl.id)}"></control>`;
@@ -92,7 +93,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
       if (!control) {
         const name =
           typeof mention === "object" && mention && "name" in mention ? mention.name : "";
-        return escapeHtml(`@${String(name)}`);
+        return escapeCanvasHtml(`@${String(name)}`);
       }
       ctx.controls.push(control);
     }

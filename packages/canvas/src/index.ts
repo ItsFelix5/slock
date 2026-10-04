@@ -14,3 +14,4 @@ export { planEdit } from "./plan.ts";
 export { positionBetween } from "./positions.ts";
 export type { CanvasMeta, DecodedCanvas, SectionRecord } from "./sections.ts";
 export { decodeLoadData, isSectionId, newSectionId } from "./sections.ts";
+export { escapeCanvasHtml } from "./sectionWrite.ts";

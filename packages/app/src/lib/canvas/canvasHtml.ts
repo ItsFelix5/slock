@@ -1,3 +1,4 @@
+import { escapeCanvasHtml } from "@slock/canvas";
 import type { Op } from "quill";
 
 export type EmbedValue = Record<string, unknown>;
@@ -24,22 +25,12 @@ const SERIALIZED_MARKS = [
   ["bold", "b"],
 ] as const;
 
-const AMPERSAND_RE = /&/g;
-const LESS_THAN_RE = /</g;
-const GREATER_THAN_RE = />/g;
 const QUOTE_RE = /"/g;
 const SPACE_RE = / /g;
 const NBSP_RE = /\u00a0/g;
 
-export function escapeHtml(text: string): string {
-  return text
-    .replace(AMPERSAND_RE, "&amp;")
-    .replace(LESS_THAN_RE, "&lt;")
-    .replace(GREATER_THAN_RE, "&gt;");
-}
-
 function escapeAttribute(text: string): string {
-  return escapeHtml(text).replace(QUOTE_RE, "&quot;");
+  return escapeCanvasHtml(text).replace(QUOTE_RE, "&quot;");
 }
 
 function pushText(ops: Op[], text: string, marks: Record<string, unknown>, code: boolean) {
@@ -83,7 +74,7 @@ export function htmlToOps(html: string, resolve: EmbedResolver, code: boolean): 
 }
 
 function wrapText(text: string, attributes: Record<string, unknown>): string {
-  let out = escapeHtml(text);
+  let out = escapeCanvasHtml(text);
   if (typeof attributes.link === "string")
     out = `<a href="${escapeAttribute(attributes.link)}">${out}</a>`;
   for (const [name, tag] of SERIALIZED_MARKS.toReversed()) {

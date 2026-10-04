@@ -3,6 +3,16 @@ import { type Bytes, boolField, messageField, stringField, varintField } from ".
 import { encodeRawMessage, withFields } from "./rawEncode.ts";
 
 const encoder = new TextEncoder();
+const AMPERSAND_RE = /&/g;
+const LESS_THAN_RE = /</g;
+const GREATER_THAN_RE = />/g;
+
+export function escapeCanvasHtml(text: string): string {
+  return text
+    .replace(AMPERSAND_RE, "&amp;")
+    .replace(LESS_THAN_RE, "&lt;")
+    .replace(GREATER_THAN_RE, "&gt;");
+}
 
 export interface SectionWrite {
   attrs: Bytes | null;

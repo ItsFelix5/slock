@@ -229,6 +229,7 @@ export default function CanvasEditor(props: {
         ariaMultiline
         formats={CANVAS_FORMATS}
         id={`canvas-editor-${props.fileId}`}
+        keepPastedHeaders
         onReady={mount}
         placeholder="Write something…"
       />

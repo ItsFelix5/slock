@@ -1,3 +1,4 @@
+import { decodeTextEntities } from "@slock/blockkit";
 import { type CanvasEmbed, type CanvasMeta, lineShapeForStyle, type RawBlock } from "@slock/canvas";
 import type { RawFile } from "@slock/types";
 import type { Op } from "quill";
@@ -75,6 +76,7 @@ export function canvasToOps(doc: CanvasDocModel, names: CanvasNames): Op[] {
 }
 
 export function canvasTitle(doc: CanvasDocModel): string {
-  for (const block of doc.blocks) if (block.type === "title") return block.text;
+  for (const block of doc.blocks)
+    if (block.type === "title") return decodeTextEntities(block.text).replaceAll("&nbsp;", " ");
   return "";
 }

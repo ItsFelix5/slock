@@ -1,4 +1,4 @@
-import { encodeTextEntities } from "@slock/blockkit";
+import { decodeTextEntities, encodeTextEntities } from "@slock/blockkit";
 import type { CanvasEmbed, RawBlock } from "@slock/canvas";
 import type { CanvasBlock, RawFile } from "@slock/types";
 
@@ -31,6 +31,20 @@ function embedToMrkdwn(embed: CanvasEmbed, filesById: Map<string, RawFile>): str
   }
 }
 
+const BREAK_RE = /<br\s*\/?>/gi;
+const ANY_TAG_RE = /<[^>]+>/g;
+
+function codeText(html: string): string {
+  return decodeTextEntities(html.replace(BREAK_RE, "\n").replace(ANY_TAG_RE, "")).replaceAll(
+    "&nbsp;",
+    " ",
+  );
+}
+
+function plainText(html: string): string {
+  return encodeTextEntities(decodeTextEntities(html.replaceAll("&nbsp;", " ")));
+}
+
 const INLINE_MRKDWN: Record<string, string> = { b: "*", i: "_", s: "~", strong: "*" };
 const HREF_ATTR_RE = /href=(?:"([^"]*)"|'([^']*)')/;
 const ID_ATTR_RE = /\bid=(?:"([^"]*)"|'([^']*)')/;
@@ -53,7 +67,7 @@ export function toMrkdwn(
     const textBefore = raw.slice(lastIndex, match.index);
     lastIndex = match.index + full.length;
     if (linkHref !== null) linkLabel += textBefore;
-    else if (skipDepth === 0 && textBefore) out += encodeTextEntities(textBefore);
+    else if (skipDepth === 0 && textBefore) out += plainText(textBefore);
 
     const lower = tag.toLowerCase();
     if (lower === "control") {
@@ -69,11 +83,13 @@ export function toMrkdwn(
     }
     if (skipDepth > 0) continue;
     if (lower === "annotation") continue;
+    if (lower === "br") {
+      if (linkHref === null) out += "\n";
+      continue;
+    }
     if (lower === "a") {
       if (closing) {
-        out += linkHref
-          ? `<${encodeTextEntities(linkHref)}|${encodeTextEntities(linkLabel)}>`
-          : linkLabel;
+        out += linkHref ? `<${encodeTextEntities(linkHref)}|${plainText(linkLabel)}>` : linkLabel;
         linkHref = null;
         linkLabel = "";
       } else {
@@ -87,7 +103,7 @@ export function toMrkdwn(
   }
   const tail = raw.slice(lastIndex);
   if (linkHref !== null) linkLabel += tail;
-  else if (skipDepth === 0) out += encodeTextEntities(tail);
+  else if (skipDepth === 0) out += plainText(tail);
   return out;
 }
 
@@ -138,7 +154,7 @@ export function toCanvasBlock(
       return { text: mrkdwn(block.text), type: "title" };
     case "paragraph": {
       const text = mrkdwn(block.text);
-      if (block.style === 4) return { text, type: "code" };
+      if (block.style === 4) return { text: codeText(block.text), type: "code" };
       if (block.style >= 1 && block.style <= 3)
         return { level: block.style, text, type: "heading" };
       return { text, type: "paragraph" };

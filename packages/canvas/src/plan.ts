@@ -26,8 +26,11 @@ type Slot = { entry: FlowEntry; kind: "entry" } | { group: PlannedGroup; kind: "
 
 const MAX_HTML_LENGTH = 200_000;
 const MAX_INDENT = 8;
+const MAX_ITEMS = 5000;
 
 function validate(edit: CanvasEdit): string | null {
+  if (Math.max(edit.upserts.length, edit.deleted.length, edit.controls.length) > MAX_ITEMS)
+    return "edit_too_large";
   for (const control of edit.controls) if (!isSectionId(control.id)) return "invalid_id";
   for (const { line } of edit.upserts) {
     if (!isSectionId(line.id)) return "invalid_id";

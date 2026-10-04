@@ -28,6 +28,7 @@ export interface QuillEditorProps {
   extendedFormats?: boolean;
   formats?: string[];
   id?: string;
+  keepPastedHeaders?: boolean;
   ariaLabel?: string;
   ariaMultiline?: boolean;
   onPasteFiles?: (files: FileList) => void;
@@ -138,7 +139,9 @@ export default function QuillEditor(props: QuillEditorProps) {
           },
         },
         history: true,
-        clipboard: { matchers: [["h1, h2, h3, h4, h5, h6", stripPastedHeader]] },
+        clipboard: {
+          matchers: props.keepPastedHeaders ? [] : [["h1, h2, h3, h4, h5, h6", stripPastedHeader]],
+        },
       },
       placeholder: props.placeholder,
     });
