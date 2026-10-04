@@ -1,0 +1,27 @@
+.canvas-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  margin: 0 calc(-1 * var(--space-2xl)) var(--space-md);
+  padding: var(--space-xs) var(--space-2xl);
+  background: var(--main-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.canvas-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-sm);
+  align-items: center;
+  min-width: 0;
+}
+
+.canvas-toolbar-group {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+}

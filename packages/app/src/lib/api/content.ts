@@ -79,9 +79,9 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 export interface LoadedCanvas {
+  blocks: CanvasBlock[];
   doc: CanvasDocModel | null;
   editable: boolean;
-  blocks: CanvasBlock[];
 }
 
 export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {

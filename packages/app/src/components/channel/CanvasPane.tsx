@@ -8,7 +8,8 @@ import {
   PanelHeader,
   useShortcut,
 } from "@slock/ui";
-import { createEffect, createResource, createSignal, Show } from "solid-js";
+import { createEffect, createResource, createSignal, on, Show } from "solid-js";
+import type { OutlineItem, OutlineSource } from "../../lib/canvas/canvasOutline";
 import { actionFeedback } from "../../lib/feedback";
 import { copyCanvasLink } from "../../lib/messageLinks";
 import { store } from "../../lib/store";
@@ -21,7 +22,7 @@ import CanvasOutlineNav from "./CanvasOutlineNav";
 export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const fileId = () => props.pane.content.fileId;
 
-  const [content, { refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
+  const [content, { mutate, refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
   const [permalink] = createResource(fileId, store.canvas.loadCanvasPermalink);
 
   let bodyRef: HTMLDivElement | undefined;
@@ -29,15 +30,26 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   const blocks = () => content()?.blocks ?? [];
 
-  const headings = () =>
-    blocks()
-      .map((block, index) => ({ block, index }))
-      .filter(({ block }) => block.type === "title" || block.type === "heading");
+  const readOutline: OutlineSource = {
+    element: (index) =>
+      bodyRef?.querySelector<HTMLElement>(`[data-canvas-index="${index}"]`) ?? null,
+    items: () =>
+      blocks().flatMap((block, index) =>
+        block.type === "title" || block.type === "heading"
+          ? [{ index, level: block.type === "title" ? 0 : (block.level ?? 1), text: block.text }]
+          : [],
+      ),
+  };
+  const [editorOutline, setEditorOutline] = createSignal<OutlineSource | null>(null);
+  createEffect(on(fileId, () => setEditorOutline(null)));
+  const outline = () => editorOutline() ?? readOutline;
+  const headings = (): OutlineItem[] =>
+    outline()
+      .items()
+      .filter((item) => item.text);
 
   function jumpTo(index: number) {
-    bodyRef
-      ?.querySelector(`[data-canvas-index="${index}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    outline().element(index)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function jumpRelative(delta: number) {
@@ -74,7 +86,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
     const containerTop = bodyRef.getBoundingClientRect().top;
     let current = items[0].index;
     for (const { index } of items) {
-      const el = bodyRef.querySelector(`[data-canvas-index="${index}"]`);
+      const el = outline().element(index);
       if (el && el.getBoundingClientRect().top - containerTop <= 32) current = index;
     }
     setActiveIndex(current);
@@ -82,6 +94,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   createEffect(() => {
     content();
+    outline().items();
     queueMicrotask(updateActiveHeading);
   });
 
@@ -132,31 +145,30 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
           </div>
         </Show>
         <Show when={!content.loading && content() != null}>
-          <Show
-            fallback={
-              <div class="canvas-panel-scroll-row">
-                <CanvasContent blocks={blocks()} />
-                <CanvasOutlineNav
-                  activeIndex={activeIndex()}
-                  headings={headings()}
-                  onNavigate={jumpTo}
-                />
-              </div>
-            }
-            keyed
-            when={content()?.editable ? content()?.doc : undefined}
-          >
-            {(doc) => (
-              <div class="canvas-panel-scroll-row">
+          <div class="canvas-panel-scroll-row">
+            <Show
+              fallback={<CanvasContent blocks={blocks()} />}
+              keyed
+              when={content()?.editable ? content()?.doc : undefined}
+            >
+              {(doc) => (
                 <CanvasEditor
                   doc={doc}
                   fileId={fileId()}
+                  onOutline={setEditorOutline}
+                  fetchLatest={() => store.canvas.loadCanvasContent(fileId())}
+                  onRemoteChange={(latest) => mutate(latest)}
                   onReload={() => void refetch()}
                   onTitle={(title) => store.canvas.setCanvasTitle(props.pane.id, fileId(), title)}
                 />
-              </div>
-            )}
-          </Show>
+              )}
+            </Show>
+            <CanvasOutlineNav
+              activeIndex={activeIndex()}
+              headings={headings()}
+              onNavigate={jumpTo}
+            />
+          </div>
         </Show>
       </div>
     </div>

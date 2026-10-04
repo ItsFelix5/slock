@@ -4,39 +4,41 @@
   min-width: 0;
   max-width: 640px;
   margin: 0 auto;
-  padding: 20px var(--space-2xl) 20vh;
+  padding: 0 var(--space-2xl) 20vh;
   font-size: var(--font-size-secondary);
   line-height: 1.5;
   color: var(--text-primary);
 }
 
 .canvas-editor-status {
-  position: sticky;
-  top: var(--space-sm);
-  z-index: 2;
   display: flex;
-  gap: var(--space-sm);
+  flex-shrink: 0;
   align-items: center;
-  justify-content: flex-end;
-  height: 0;
+  align-self: center;
+  margin-left: auto;
   font-size: var(--font-size-meta);
   color: var(--text-dim);
-  pointer-events: none;
 }
 
-.canvas-editor-status > * {
-  position: relative;
-  top: -4px;
-  pointer-events: auto;
+.canvas-editor-status-pill {
+  display: inline-flex;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: 2px var(--space-sm);
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  transition: opacity 0.2s ease;
 }
 
-.canvas-editor-status[data-status="error"],
-.canvas-editor-status[data-status="conflict"] {
+.canvas-editor-status[data-status="saved"] .canvas-editor-status-pill {
+  opacity: 0.55;
+}
+
+.canvas-editor-status[data-status="error"] .canvas-editor-status-pill,
+.canvas-editor-status[data-status="conflict"] .canvas-editor-status-pill {
+  padding-right: 4px;
   color: var(--error-text);
-}
-
-.canvas-editor-status[data-status="saved"] {
-  opacity: 0.6;
+  background: var(--error-bg);
 }
 
 .canvas-editor-title {
@@ -44,7 +46,7 @@
   box-sizing: border-box;
   width: 100%;
   padding: 0;
-  margin: 0 0 0.5em;
+  margin: 20px 0 0.5em;
   overflow: hidden;
   font: inherit;
   font-size: 22px;

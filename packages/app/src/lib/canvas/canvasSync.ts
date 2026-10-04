@@ -155,7 +155,26 @@ export function createCanvasSync(options: CanvasSyncOptions) {
     return inflight;
   }
 
+  function differsFromRemote(remoteOps: Op[], remoteTitle: string): boolean {
+    const remote = opsToLines(remoteOps, {
+      baselineHtml: () => undefined,
+      controls: [],
+      names: options.names,
+      newId,
+      pool: buildPool(
+        baseline.entries.flatMap((entry) =>
+          entry.line ? [{ html: entry.line.html, id: entry.id }] : [],
+        ),
+        controlKeys,
+      ),
+      retired: new Set(),
+    });
+    const next = { entries: remote.entries, title: remoteTitle };
+    return diffSnapshots(baseline, next, []) !== null;
+  }
+
   return {
+    differsFromRemote,
     dispose() {
       disposed = true;
       clearTimeout(timer);

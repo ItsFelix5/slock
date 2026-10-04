@@ -1,14 +1,10 @@
 import { Mrkdwn } from "@slock/blockkit";
-import type { CanvasBlock } from "@slock/types";
 import { For, Show } from "solid-js";
+import type { OutlineItem } from "../../lib/canvas/canvasOutline";
 import "./CanvasOutlineNav.css";
 
-function headingLevel(block: CanvasBlock): number {
-  return block.type === "title" ? 0 : (block.level ?? 1);
-}
-
 export default function CanvasOutlineNav(props: {
-  headings: { block: CanvasBlock; index: number }[];
+  headings: OutlineItem[];
   activeIndex: number | null;
   onNavigate: (index: number) => void;
 }) {
@@ -17,13 +13,13 @@ export default function CanvasOutlineNav(props: {
       <nav class="canvas-outline-nav">
         <div class="canvas-outline-rail flex-col">
           <For each={props.headings}>
-            {({ block, index }) => (
+            {({ index, level }) => (
               <button
                 classList={{
                   "canvas-outline-mark": true,
                   active: index === props.activeIndex,
                 }}
-                data-level={headingLevel(block)}
+                data-level={level}
                 onClick={() => props.onNavigate(index)}
                 type="button"
               />
@@ -32,18 +28,18 @@ export default function CanvasOutlineNav(props: {
         </div>
         <div class="canvas-outline-popout">
           <For each={props.headings}>
-            {({ block, index }) => (
+            {({ index, level, text }) => (
               <button
                 classList={{
                   "canvas-outline-popout-row": true,
                   truncate: true,
                   active: index === props.activeIndex,
                 }}
-                data-level={headingLevel(block)}
+                data-level={level}
                 onClick={() => props.onNavigate(index)}
                 type="button"
               >
-                <Mrkdwn text={block.text} />
+                <Mrkdwn text={text} />
               </button>
             )}
           </For>
