@@ -6,10 +6,12 @@ export const STYLE_DIVIDER = 18;
 export const STYLE_LIST_BULLET = 5;
 export const STYLE_LIST_ORDERED = 6;
 export const STYLE_LIST_CHECKLIST = 7;
+export const STYLE_QUOTE = 50;
 export const STYLE_TITLE = 48;
 export const TYPE_TEXT = 0;
 export const TYPE_LIST = 1;
 export const TYPE_DIVIDER = 16;
+export const TYPE_QUOTE = 71;
 export const TYPE_TITLE = 64;
 
 const HEADING_STYLES = [1, 2, 3, 39, 40, 41];
@@ -34,6 +36,10 @@ export function listStyleForKind(kind: CanvasLine["kind"]): number | null {
   if (kind === "ordered") return STYLE_LIST_ORDERED;
   if (kind === "checklist") return STYLE_LIST_CHECKLIST;
   return null;
+}
+
+export function groupStyleForKind(kind: CanvasLine["kind"]): number | null {
+  return kind === "quote" ? STYLE_QUOTE : listStyleForKind(kind);
 }
 
 export function listKindForStyle(style: number): CanvasLine["kind"] | null {

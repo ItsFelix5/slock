@@ -30,6 +30,7 @@ export type RawBlock =
       childIds: string[];
       childTexts: string[];
       id: string | null;
+      plain: boolean;
       type: "blockquote";
     }
   | { anchor: string; columns: string[]; id: string | null; type: "section" }
@@ -89,6 +90,9 @@ export function parseLoadDataResponse(bytes: Uint8Array): ParsedCanvas {
 
 export function parseCanvas({ meta, records }: DecodedCanvas): ParsedCanvas {
   const embedsById = new Map<string, CanvasEmbed>();
+  const recordsById = new Map(
+    records.flatMap((record) => (record.id ? [[record.id, record] as const] : [])),
+  );
   const positioned: PositionedRecord[] = [];
   const textById = new Map<string, string>();
   const anchorById = new Map<string, string>();
@@ -176,13 +180,26 @@ export function parseCanvas({ meta, records }: DecodedCanvas): ParsedCanvas {
     } else if (record.kind === "callout" || record.kind === "blockquote") {
       const childTexts = record.childIds.map((childId) => textById.get(childId) ?? "");
       const anchor = anchorById.get(record.childIds[0] ?? "") ?? record.anchor;
-      blocks.push({
-        anchor,
-        childIds: record.childIds,
-        childTexts,
-        id: record.id,
-        type: record.kind,
-      });
+      if (record.kind === "callout")
+        blocks.push({
+          anchor,
+          childIds: record.childIds,
+          childTexts,
+          id: record.id,
+          type: "callout",
+        });
+      else
+        blocks.push({
+          anchor,
+          childIds: record.childIds,
+          childTexts,
+          id: record.id,
+          plain: record.childIds.every((childId) => {
+            const child = recordsById.get(childId);
+            return child?.type === 0 && child.style === 0 && child.parentIds.length === 0;
+          }),
+          type: "blockquote",
+        });
     } else if (record.kind === "section") {
       const columns = record.childIds.map((childId) => textById.get(childId) ?? "");
       const anchor = anchorById.get(record.childIds[0] ?? "") ?? record.anchor;

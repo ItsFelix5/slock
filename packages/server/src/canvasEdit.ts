@@ -32,5 +32,8 @@ export async function applyCanvasEdit(
     creds,
   );
   if (response.ok) return { ok: true };
-  return { error: response.error, ok: false, status: response.status === 400 ? 422 : 502 };
+  console.error(`[canvas] edit-document failed: ${response.status} ${response.error}`);
+  return response.status === 400
+    ? { error: "invalid_content", ok: false, status: 422 }
+    : { error: "slack_error", ok: false, status: 502 };
 }

@@ -5,17 +5,26 @@ import {
   changedLineWrite,
   controlWrite,
   deleteWrite,
-  movedContainerWrite,
   newContainerWrite,
   newLineWrite,
   type Placement,
   titleWrite,
+  updatedContainerWrite,
 } from "./entryWrites.ts";
 import { buildFlow, type Flow, type FlowEntry, ownPosition } from "./flow.ts";
 import { groupLists, type PlannedGroup } from "./groups.ts";
+import { blockquoteChildIds } from "./layoutContent.ts";
+import { STYLE_QUOTE } from "./lineStyles.ts";
 import { positionBetween } from "./positions.ts";
+import { asMessage, field } from "./protobufRaw.ts";
 import type { Bytes } from "./protobufWrite.ts";
-import { type CanvasMeta, type DecodedCanvas, isSectionId, newSectionId } from "./sections.ts";
+import {
+  type CanvasMeta,
+  type DecodedCanvas,
+  isSectionId,
+  newSectionId,
+  type SectionRecord,
+} from "./sections.ts";
 import { encodeDocumentData, type SectionWrite } from "./sectionWrite.ts";
 
 export type PlanResult =
@@ -62,17 +71,28 @@ function slotPosition(slot: Slot, flow: Flow): string | null {
   return existing && existing.containerId === null ? existing.position : null;
 }
 
+function previousStyle(entry: FlowEntry, flow: Flow): number | null {
+  const id = entry.existing?.containerId;
+  return id ? (flow.containers.get(id)?.style ?? null) : null;
+}
+
+function quoteMemberIds(record: SectionRecord): string[] {
+  const content = asMessage(field(record.msg, 12));
+  return content ? blockquoteChildIds(content) : [];
+}
+
 function memberWrites(
   group: PlannedGroup,
-  containerPlacement: Placement,
-  moved: boolean,
+  container: { moved: boolean; placement: Placement },
+  ceiling: string | null,
   flow: Flow,
 ): SectionWrite[] {
+  const quote = group.style === STYLE_QUOTE;
   const positions = assignPositions(
     group.members.map((member) =>
       member.existing?.containerId === group.id ? member.existing.position : null,
     ),
-    null,
+    quote ? { ceiling, floor: container.placement.position } : { floor: null },
     flow.usedPositions,
   );
   const writes: SectionWrite[] = [];
@@ -81,10 +101,11 @@ function memberWrites(
     const position = positions[index];
     if (!(line && position)) return;
     const placement: Placement = {
-      forcePath: moved,
-      parent: { id: group.id, style: group.style },
-      path: `${containerPlacement.path}-${position}`,
+      forcePath: container.moved && !quote,
+      group: { id: group.id, style: group.style },
+      path: quote ? position : `${container.placement.path}-${position}`,
       position,
+      previousStyle: previousStyle(member, flow),
     };
     const write = member.existing
       ? changedLineWrite(member, line, placement)
@@ -108,7 +129,7 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
   const floor = flow.title ? ownPosition(flow.title) : null;
   const positions = assignPositions(
     slots.map((slot) => slotPosition(slot, flow)),
-    floor,
+    { floor },
     flow.usedPositions,
   );
 
@@ -122,7 +143,13 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
   slots.forEach((slot, index) => {
     const position = positions[index];
     if (!position) return;
-    const placement: Placement = { forcePath: false, parent: null, path: position, position };
+    const placement: Placement = {
+      forcePath: false,
+      group: null,
+      path: position,
+      position,
+      previousStyle: slot.kind === "entry" ? previousStyle(slot.entry, flow) : null,
+    };
     if (slot.kind === "entry") {
       const { entry } = slot;
       if (!entry.line) return;
@@ -134,10 +161,21 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
     }
     const { group } = slot;
     const existing = flow.containers.get(group.id);
+    const memberIds = group.members.map((member) => member.id);
     const moved = !existing || existing.position !== position;
-    if (group.isNew) writes.push(newContainerWrite(group.id, group.style, placement));
-    else if (existing && moved) writes.push(movedContainerWrite(existing, placement));
-    writes.push(...memberWrites(group, placement, moved, flow));
+    const idsChanged =
+      group.style === STYLE_QUOTE &&
+      !!existing &&
+      quoteMemberIds(existing.record).join(",") !== memberIds.join(",");
+    if (group.isNew) writes.push(newContainerWrite(group.id, group.style, memberIds, placement));
+    else if (existing && (moved || idsChanged))
+      writes.push(
+        updatedContainerWrite(existing, {
+          memberIds: idsChanged ? memberIds : null,
+          placement: moved ? placement : null,
+        }),
+      );
+    writes.push(...memberWrites(group, { moved, placement }, positions[index + 1] ?? null, flow));
   });
 
   for (const entry of applied.removed) {

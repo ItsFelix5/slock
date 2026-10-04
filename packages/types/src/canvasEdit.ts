@@ -7,7 +7,8 @@ export type CanvasLineKind =
   | "divider"
   | "heading"
   | "ordered"
-  | "paragraph";
+  | "paragraph"
+  | "quote";
 
 export interface CanvasLine {
   checked: boolean;
@@ -45,6 +46,7 @@ const LINE_KINDS: readonly string[] = [
   "heading",
   "ordered",
   "paragraph",
+  "quote",
 ];
 
 function isCanvasLine(value: unknown): value is CanvasLine {

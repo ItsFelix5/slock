@@ -52,7 +52,8 @@ const GROUPS: ToolbarAction[][] = [
   ],
   [
     {
-      active: (formats) => !(formats.header || formats.list || formats["code-block"]),
+      active: (formats) =>
+        !(formats.header || formats.list || formats["code-block"] || formats.blockquote),
       icon: "paragraph",
       label: "Text",
       run: setParagraph,
@@ -86,6 +87,12 @@ const GROUPS: ToolbarAction[][] = [
     inline("code", "code", "Inline code"),
   ],
   [
+    {
+      active: (formats) => !!formats.blockquote,
+      icon: "quote",
+      label: "Quote",
+      run: (quill) => toggleBlock(quill, "blockquote", true),
+    },
     {
       active: (formats) => !!formats["code-block"],
       icon: "code-block",

@@ -1,7 +1,14 @@
 import type { CanvasLine } from "@slock/types";
 import { parseCanvas } from "./canvasParse.ts";
 import { descendantIds } from "./descendants.ts";
-import { lineShapeForStyle, listKindForStyle, TYPE_TITLE } from "./lineStyles.ts";
+import {
+  lineShapeForStyle,
+  listKindForStyle,
+  STYLE_QUOTE,
+  TYPE_LIST,
+  TYPE_QUOTE,
+  TYPE_TITLE,
+} from "./lineStyles.ts";
 import { asMessage, asString, field } from "./protobufRaw.ts";
 import type { DecodedCanvas, SectionRecord } from "./sections.ts";
 
@@ -76,7 +83,9 @@ export function buildFlow(decoded: DecodedCanvas): Flow {
     if (!record.id) continue;
     records.set(record.id, record);
     if (record.type === TYPE_TITLE) title = record;
-    if (listKindForStyle(record.style) && record.type === 1) {
+    const isList = listKindForStyle(record.style) !== null && record.type === TYPE_LIST;
+    const isQuote = record.style === STYLE_QUOTE && record.type === TYPE_QUOTE;
+    if (isList || isQuote) {
       containers.set(record.id, {
         position: ownPosition(record),
         record,
@@ -113,6 +122,25 @@ export function buildFlow(decoded: DecodedCanvas): Flow {
           existing: { containerId, position: ownPosition(record), record },
           id: item.id,
           line: textLine(record, item.id, kind),
+          touched: false,
+        });
+      }
+    } else if (block.type === "blockquote" && block.plain && block.id) {
+      for (const childId of block.childIds) {
+        const record = records.get(childId);
+        if (!record) continue;
+        entries.push({
+          descendants: [],
+          existing: { containerId: block.id, position: ownPosition(record), record },
+          id: childId,
+          line: {
+            checked: false,
+            html: sectionText(record),
+            id: childId,
+            indent: 0,
+            kind: "quote",
+            level: 0,
+          },
           touched: false,
         });
       }

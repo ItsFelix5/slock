@@ -14,6 +14,7 @@ Quill.register(
 );
 
 export const CANVAS_FORMATS = [
+  "blockquote",
   "bold",
   "canvasBlock",
   "canvasControl",

@@ -27,6 +27,16 @@ const SAVE_DELAY_MS = 700;
 const RETRY_BASE_MS = 1500;
 const RETRY_MAX_MS = 30_000;
 const CONFLICT_CODES = new Set(["unknown_anchor", "opaque_block", "no_document"]);
+const PERMANENT_CODES = new Set([
+  "edit_too_large",
+  "invalid_content",
+  "invalid_edit",
+  "invalid_id",
+  "invalid_indent",
+  "invalid_level",
+  "line_too_long",
+  "not_editable",
+]);
 const CONTROL_REF_RE = /<control id="([^"]+)"><\/control>/g;
 
 export class CanvasEditError extends Error {
@@ -144,7 +154,8 @@ export function createCanvasSync(options: CanvasSyncOptions) {
         attempts += 1;
         setStatus("error");
         changedWhileSaving = false;
-        if (!disposed) schedule(Math.min(RETRY_BASE_MS * 2 ** (attempts - 1), RETRY_MAX_MS));
+        if (!(disposed || PERMANENT_CODES.has(code)))
+          schedule(Math.min(RETRY_BASE_MS * 2 ** (attempts - 1), RETRY_MAX_MS));
       })
       .finally(() => {
         inflight = null;

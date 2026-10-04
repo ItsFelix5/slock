@@ -5,10 +5,12 @@ import {
   lineShapeForStyle,
   listStyleForKind,
   STYLE_DIVIDER,
+  STYLE_QUOTE,
   STYLE_TITLE,
   styleForLine,
   TYPE_DIVIDER,
   TYPE_LIST,
+  TYPE_QUOTE,
   TYPE_TEXT,
   TYPE_TITLE,
 } from "./lineStyles.ts";
@@ -27,9 +29,10 @@ import {
 
 export interface Placement {
   forcePath: boolean;
-  parent: { id: string; style: number } | null;
+  group: { id: string; style: number } | null;
   path: string;
   position: string;
+  previousStyle: number | null;
 }
 
 const CONTROL_CLASS = 1;
@@ -77,6 +80,18 @@ function assignPlacement(write: SectionWrite, placement: Placement) {
   write.path = placement.path;
 }
 
+function quoteContent(memberIds: string[]): number[] {
+  const members = new Map([[1, memberIds.map(rawString)]]);
+  return encodeRawMessage(new Map([[65, [rawMessage(members)]]]));
+}
+
+function parentsFor(placement: Placement): SectionWrite["parents"] {
+  const { group } = placement;
+  return group && group.style !== STYLE_QUOTE
+    ? { containerStyle: group.style, id: group.id }
+    : "none";
+}
+
 export function newLineWrite(line: CanvasLine, placement: Placement): SectionWrite {
   const write = blankWrite(line.id);
   const listStyle = listStyleForKind(line.kind);
@@ -90,9 +105,8 @@ export function newLineWrite(line: CanvasLine, placement: Placement): SectionWri
     write.content = textContent(null, null, line.html);
   }
   write.attrs = attributesFor(null, line, listStyle);
-  write.parents = placement.parent
-    ? { containerStyle: placement.parent.style, id: placement.parent.id }
-    : "none";
+  write.parents = parentsFor(placement);
+  write.layoutParent = placement.group?.style === STYLE_QUOTE;
   assignPlacement(write, placement);
   return write;
 }
@@ -110,11 +124,12 @@ export function changedLineWrite(
   write.type = record.type;
   let changed = false;
   const listStyle = listStyleForKind(line.kind);
-  const wasList = existing.containerId !== null;
+  const wasListItem = placement.previousStyle !== null && placement.previousStyle !== STYLE_QUOTE;
   const shape = lineShapeForStyle(record.style);
+  const plainKind = line.kind === "quote" ? "paragraph" : line.kind;
   const shapeChanged =
-    wasList !== (listStyle !== null) ||
-    (listStyle === null && (shape.kind !== line.kind || shape.level !== line.level));
+    wasListItem !== (listStyle !== null) ||
+    (listStyle === null && (shape.kind !== plainKind || shape.level !== line.level));
   if (shapeChanged) {
     write.style = listStyle === null ? styleForLine(line) : 0;
     changed = true;
@@ -129,11 +144,15 @@ export function changedLineWrite(
     write.attrs = attributesFor(attrs, line, listStyle);
     changed = true;
   }
-  const parentChanged = (placement.parent?.id ?? null) !== existing.containerId;
+  const parentChanged = (placement.group?.id ?? null) !== existing.containerId;
   if (parentChanged) {
-    write.parents = placement.parent
-      ? { containerStyle: placement.parent.style, id: placement.parent.id }
-      : "none";
+    write.parents = parentsFor(placement);
+    changed = true;
+  }
+  const wasLayout = placement.previousStyle === STYLE_QUOTE;
+  const isLayout = placement.group?.style === STYLE_QUOTE;
+  if (wasLayout !== isLayout) {
+    write.layoutParent = isLayout;
     changed = true;
   }
   if (parentChanged || placement.forcePath || placement.position !== existing.position) {
@@ -143,25 +162,32 @@ export function changedLineWrite(
   return changed ? write : null;
 }
 
-export function newContainerWrite(id: string, style: number, placement: Placement): SectionWrite {
+export function newContainerWrite(
+  id: string,
+  style: number,
+  memberIds: string[],
+  placement: Placement,
+): SectionWrite {
   const write = blankWrite(id);
-  write.type = TYPE_LIST;
+  const quote = style === STYLE_QUOTE;
+  write.type = quote ? TYPE_QUOTE : TYPE_LIST;
   write.style = style;
-  write.content = [];
+  write.content = quote ? quoteContent(memberIds) : [];
   write.attrs = encodeRawMessage(new Map([[4, [rawVarint(0)]]]));
   assignPlacement(write, placement);
   return write;
 }
 
-export function movedContainerWrite(
+export function updatedContainerWrite(
   container: ExistingContainer,
-  placement: Placement,
+  update: { memberIds: string[] | null; placement: Placement | null },
 ): SectionWrite {
   const write = blankWrite(container.record.id ?? "");
   write.sequence = container.record.sequence;
-  write.type = TYPE_LIST;
+  write.type = container.record.type;
   write.style = container.style;
-  assignPlacement(write, placement);
+  if (update.placement) assignPlacement(write, update.placement);
+  if (update.memberIds) write.content = quoteContent(update.memberIds);
   return write;
 }
 

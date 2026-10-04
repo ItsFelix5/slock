@@ -2,7 +2,7 @@ import type Quill from "quill";
 
 export type InlineFormat = "bold" | "code" | "italic" | "strike" | "underline";
 
-const BLOCK_FORMATS = ["header", "list", "code-block", "indent"];
+const BLOCK_FORMATS = ["header", "list", "code-block", "blockquote", "indent"];
 
 export function currentFormats(quill: Quill): Record<string, unknown> {
   return quill.getSelection() ? quill.getFormat() : {};
@@ -14,7 +14,7 @@ export function toggleInline(quill: Quill, format: InlineFormat) {
 
 export function toggleBlock(
   quill: Quill,
-  format: "code-block" | "header" | "list",
+  format: "blockquote" | "code-block" | "header" | "list",
   value: unknown,
 ) {
   const current = quill.getFormat()[format];

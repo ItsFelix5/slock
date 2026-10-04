@@ -1,7 +1,8 @@
 import type { ExistingContainer, FlowEntry } from "./flow.ts";
-import { listStyleForKind } from "./lineStyles.ts";
+import { groupStyleForKind } from "./lineStyles.ts";
 
 export interface PlannedGroup {
+  absorbed: Set<string>;
   id: string;
   isNew: boolean;
   members: FlowEntry[];
@@ -41,14 +42,16 @@ export function groupLists(
   }
 
   for (const entry of entries) {
-    const style = entry.line ? listStyleForKind(entry.line.kind) : null;
+    const style = entry.line ? groupStyleForKind(entry.line.kind) : null;
     if (style === null) {
       current = null;
       continue;
     }
     const candidate = candidateContainer(entry, style, containers);
     const sameStyle = current?.style === style;
-    if (current && sameStyle && (candidate === null || candidate === current.sourceId)) {
+    const continuesCurrent =
+      candidate === null || candidate === current?.sourceId || current?.absorbed.has(candidate);
+    if (current && sameStyle && continuesCurrent) {
       join(current, entry);
       continue;
     }
@@ -63,11 +66,13 @@ export function groupLists(
     }
     const boundaryTouched = entry.touched || (current?.members.at(-1)?.touched ?? false);
     if (current && sameStyle && candidate !== null && boundaryTouched) {
+      current.absorbed.add(candidate);
       join(current, entry);
       continue;
     }
     const reuse = candidate !== null && !claimed.has(candidate);
     const group: PlannedGroup = {
+      absorbed: new Set(),
       id: reuse ? candidate : makeId(),
       isNew: !reuse,
       members: [],

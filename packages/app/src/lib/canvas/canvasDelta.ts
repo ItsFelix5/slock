@@ -65,6 +65,13 @@ export function canvasToOps(doc: CanvasDocModel, names: CanvasNames): Op[] {
           ...(item.indent > 0 ? { indent: item.indent } : {}),
         });
       }
+    } else if (block.type === "blockquote" && block.plain) {
+      block.childIds.forEach((childId, index) => {
+        pushLine(htmlToOps(block.childTexts[index] ?? "", resolve, false), {
+          blockquote: true,
+          sid: childId,
+        });
+      });
     } else if (block.type === "divider" && block.id) {
       ops.push({ attributes: { sid: block.id }, insert: { divider: true } });
     } else if (block.id && block.type !== "unsupported") {

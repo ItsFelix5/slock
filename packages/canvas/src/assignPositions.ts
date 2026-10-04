@@ -1,13 +1,22 @@
 import { longestIncreasing } from "./increasing.ts";
 import { positionBetween } from "./positions.ts";
 
+export interface PositionBounds {
+  ceiling?: string | null;
+  floor: string | null;
+}
+
 export function assignPositions(
   existing: (string | null)[],
-  floor: string | null,
+  bounds: PositionBounds,
   used: Set<string>,
 ): string[] {
+  const { floor } = bounds;
+  const ceiling = bounds.ceiling ?? null;
   const usable = existing.map((value) =>
-    value !== null && (floor === null || value > floor) ? value : null,
+    value !== null && (floor === null || value > floor) && (ceiling === null || value < ceiling)
+      ? value
+      : null,
   );
   const kept = longestIncreasing(usable, (a, b) => a < b);
   const out: string[] = [];
@@ -18,7 +27,7 @@ export function assignPositions(
       prev = value;
       return;
     }
-    let upper: string | null = null;
+    let upper: string | null = ceiling;
     for (let next = index + 1; next < existing.length; next++) {
       if (kept.has(next)) {
         upper = existing[next] ?? null;

@@ -39,7 +39,7 @@ export interface ParsedLines {
   fixes: IdFix[];
 }
 
-const BLOCK_KEYS = ["code-block", "header", "indent", "list", "sid"];
+const BLOCK_KEYS = ["blockquote", "code-block", "header", "indent", "list", "sid"];
 
 function blockAttributes(attributes: Op["attributes"]): Record<string, unknown> {
   return Object.fromEntries(
@@ -60,6 +60,7 @@ function lineShape(
   if (block.list === "ordered") return { checked: false, indent, kind: "ordered", level: 0 };
   if (block.list === "checked" || block.list === "unchecked")
     return { checked: block.list === "checked", indent, kind: "checklist", level: 0 };
+  if (block.blockquote) return { checked: false, indent: 0, kind: "quote", level: 0 };
   if (block["code-block"]) return { checked: false, indent: 0, kind: "code", level: 0 };
   if (typeof block.header === "number")
     return { checked: false, indent: 0, kind: "heading", level: block.header };

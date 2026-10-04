@@ -34,7 +34,7 @@ import "./CanvasEditorLists.css";
 const STATUS_LABELS: Record<CanvasSaveStatus, string> = {
   conflict: "This canvas changed somewhere else",
   dirty: "Saving…",
-  error: "Couldn't save",
+  error: "Couldn't save changes",
   saved: "Saved",
   saving: "Saving…",
 };
