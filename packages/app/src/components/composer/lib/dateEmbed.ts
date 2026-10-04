@@ -10,6 +10,7 @@ export interface DateValue {
 
 class DateBlot extends getEmbedBlot() {
   static blotName = "date";
+  static className = "bk-date";
   static tagName = "span";
 
   static create(value: DateValue) {

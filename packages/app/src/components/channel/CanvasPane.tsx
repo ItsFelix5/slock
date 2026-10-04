@@ -15,6 +15,7 @@ import { store } from "../../lib/store";
 import type { CanvasPaneContent } from "../../lib/store/slices/types";
 import "./CanvasPane.css";
 import CanvasContent from "./CanvasContent";
+import CanvasEditor from "./CanvasEditor";
 import CanvasOutlineNav from "./CanvasOutlineNav";
 
 export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
@@ -26,8 +27,10 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   let bodyRef: HTMLDivElement | undefined;
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
 
+  const blocks = () => content()?.blocks ?? [];
+
   const headings = () =>
-    (content() ?? [])
+    blocks()
       .map((block, index) => ({ block, index }))
       .filter(({ block }) => block.type === "title" || block.type === "heading");
 
@@ -129,14 +132,31 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
           </div>
         </Show>
         <Show when={!content.loading && content() != null}>
-          <div class="canvas-panel-scroll-row">
-            <CanvasContent blocks={content() ?? []} />
-            <CanvasOutlineNav
-              activeIndex={activeIndex()}
-              headings={headings()}
-              onNavigate={jumpTo}
-            />
-          </div>
+          <Show
+            fallback={
+              <div class="canvas-panel-scroll-row">
+                <CanvasContent blocks={blocks()} />
+                <CanvasOutlineNav
+                  activeIndex={activeIndex()}
+                  headings={headings()}
+                  onNavigate={jumpTo}
+                />
+              </div>
+            }
+            keyed
+            when={content()?.editable ? content()?.doc : undefined}
+          >
+            {(doc) => (
+              <div class="canvas-panel-scroll-row">
+                <CanvasEditor
+                  doc={doc}
+                  fileId={fileId()}
+                  onReload={() => void refetch()}
+                  onTitle={(title) => store.canvas.setCanvasTitle(props.pane.id, fileId(), title)}
+                />
+              </div>
+            )}
+          </Show>
         </Show>
       </div>
     </div>

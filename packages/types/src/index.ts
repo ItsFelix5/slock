@@ -54,6 +54,14 @@ export type {
 } from "./blocks";
 export { blockPreviewText, broadcastRangeFromBlocks, narrowByType } from "./blocks";
 export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./bootstrapPayload";
+export type {
+  CanvasControl,
+  CanvasEdit,
+  CanvasLine,
+  CanvasLineKind,
+  CanvasLineUpsert,
+} from "./canvasEdit";
+export { parseCanvasEdit } from "./canvasEdit";
 export { fetchAllEmoji, fetchSlashCommands, invalidateEmojiCache } from "./content";
 export type { ActivityItem, LinkPreview, SavedItem } from "./contentTypes";
 export {

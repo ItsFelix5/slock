@@ -9,7 +9,7 @@ import {
 } from "../../lib/canvasListMarkers";
 import "./CanvasContent.css";
 
-function CanvasBlockView(props: { block: CanvasBlock; index: number }) {
+export function CanvasBlockView(props: { block: CanvasBlock; index: number }) {
   return (
     <Switch>
       <Match when={props.block.type === "title"}>
@@ -34,6 +34,9 @@ function CanvasBlockView(props: { block: CanvasBlock; index: number }) {
       </Match>
       <Match when={props.block.type === "code"}>
         <pre class="canvas-panel-code">{props.block.text}</pre>
+      </Match>
+      <Match when={props.block.type === "divider"}>
+        <hr class="canvas-panel-divider" />
       </Match>
       <Match when={props.block.type === "callout"}>
         <div class="canvas-panel-callout">

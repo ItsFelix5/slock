@@ -15,6 +15,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@slock/blockkit": "workspace:*",
+        "@slock/canvas": "workspace:*",
         "@slock/types": "workspace:*",
         "@slock/ui": "workspace:*",
         "@tanstack/solid-query": "^5.102.8",
@@ -31,10 +32,18 @@
         "solid-js": "^1.9.13",
       },
     },
+    "packages/canvas": {
+      "name": "@slock/canvas",
+      "version": "0.0.0",
+      "dependencies": {
+        "@slock/types": "workspace:*",
+      },
+    },
     "packages/server": {
       "name": "@slock/server",
       "version": "0.0.0",
       "dependencies": {
+        "@slock/canvas": "workspace:*",
         "@slock/types": "workspace:*",
       },
       "devDependencies": {
@@ -164,6 +173,8 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@slock/blockkit": ["@slock/blockkit@workspace:packages/blockkit"],
+
+    "@slock/canvas": ["@slock/canvas@workspace:packages/canvas"],
 
     "@slock/server": ["@slock/server@workspace:packages/server"],
 

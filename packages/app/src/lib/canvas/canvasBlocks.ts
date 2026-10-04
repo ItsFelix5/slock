@@ -1,6 +1,6 @@
 import { encodeTextEntities } from "@slock/blockkit";
+import type { CanvasEmbed, RawBlock } from "@slock/canvas";
 import type { CanvasBlock, RawFile } from "@slock/types";
-import type { CanvasEmbed, RawBlock } from "./canvasParse";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -91,66 +91,65 @@ export function toMrkdwn(
   return out;
 }
 
+export function toCanvasBlock(
+  block: RawBlock,
+  embedsById: Map<string, CanvasEmbed>,
+  filesById: Map<string, RawFile>,
+): CanvasBlock | null {
+  const mrkdwn = (raw: string) => toMrkdwn(raw, embedsById, filesById);
+  switch (block.type) {
+    case "unsupported":
+      return null;
+    case "divider":
+      return { text: "", type: "divider" };
+    case "callout":
+    case "blockquote":
+      return { text: block.childTexts.map(mrkdwn).join("\n"), type: block.type };
+    case "section":
+      return { columns: block.columns.map(mrkdwn), text: "", type: "section" };
+    case "image":
+      return {
+        files: block.fileIds
+          .map((fileId) => filesById.get(fileId))
+          .filter((file): file is RawFile => file !== undefined),
+        text: "",
+        type: "image",
+      };
+    case "bulletList":
+    case "orderedList":
+    case "checklist":
+      return {
+        items: block.items.map((item) => ({
+          checked: item.checked,
+          indent: item.indent,
+          text: mrkdwn(item.text),
+        })),
+        text: "",
+        type: block.type,
+      };
+    case "table":
+      return {
+        colWidths: block.colWidths,
+        rows: block.rows.map((row) => row.map(mrkdwn)),
+        text: "",
+        type: "table",
+      };
+    case "title":
+      return { text: mrkdwn(block.text), type: "title" };
+    case "paragraph": {
+      const text = mrkdwn(block.text);
+      if (block.style === 4) return { text, type: "code" };
+      if (block.style >= 1 && block.style <= 3)
+        return { level: block.style, text, type: "heading" };
+      return { text, type: "paragraph" };
+    }
+  }
+}
+
 export function toCanvasBlocks(
   blocks: RawBlock[],
   embedsById: Map<string, CanvasEmbed>,
   filesById: Map<string, RawFile>,
 ): CanvasBlock[] {
-  const mrkdwn = (raw: string) => toMrkdwn(raw, embedsById, filesById);
-  const result: CanvasBlock[] = [];
-  for (const block of blocks) {
-    switch (block.type) {
-      case "unsupported":
-        break;
-      case "callout":
-      case "blockquote":
-        result.push({ text: block.childTexts.map(mrkdwn).join("\n"), type: block.type });
-        break;
-      case "section":
-        result.push({ columns: block.columns.map(mrkdwn), text: "", type: "section" });
-        break;
-      case "image":
-        result.push({
-          files: block.fileIds
-            .map((fileId) => filesById.get(fileId))
-            .filter((file): file is RawFile => file !== undefined),
-          text: "",
-          type: "image",
-        });
-        break;
-      case "bulletList":
-      case "orderedList":
-      case "checklist":
-        result.push({
-          items: block.items.map((item) => ({
-            checked: item.checked,
-            indent: item.indent,
-            text: mrkdwn(item.text),
-          })),
-          text: "",
-          type: block.type,
-        });
-        break;
-      case "table":
-        result.push({
-          colWidths: block.colWidths,
-          rows: block.rows.map((row) => row.map(mrkdwn)),
-          text: "",
-          type: "table",
-        });
-        break;
-      case "title":
-        result.push({ text: mrkdwn(block.text), type: "title" });
-        break;
-      case "paragraph": {
-        const text = mrkdwn(block.text);
-        if (block.style === 4) result.push({ text, type: "code" });
-        else if (block.style >= 1 && block.style <= 3)
-          result.push({ level: block.style, text, type: "heading" });
-        else result.push({ text, type: "paragraph" });
-        break;
-      }
-    }
-  }
-  return result;
+  return blocks.flatMap((block) => toCanvasBlock(block, embedsById, filesById) ?? []);
 }

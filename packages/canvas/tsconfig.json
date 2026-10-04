@@ -6,12 +6,9 @@
     "noEmit": false,
     "outDir": "./dist",
     "rootDir": "./src",
-    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
-    "types": ["node", "bun-types"],
-
-    "lib": ["ES2023"]
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../tsconfig.base.json",
   "include": ["src"],
-  "references": [{ "path": "../canvas" }, { "path": "../types" }]
+  "references": [{ "path": "../types" }]
 }

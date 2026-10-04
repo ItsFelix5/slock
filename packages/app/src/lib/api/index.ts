@@ -63,6 +63,7 @@ export {
   unarchiveChannel,
   updateSectionChannels,
 } from "./channels";
+export type { LoadedCanvas } from "./content";
 export {
   fetchCanvas,
   fetchCanvasFileUrl,
@@ -72,6 +73,7 @@ export {
   fetchFileDetail,
   fetchLinkPreview,
   fetchSaved,
+  postCanvasEdit,
   runSlashCommand,
   uploadFile,
   uploadFiles,

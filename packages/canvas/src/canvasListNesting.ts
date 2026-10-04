@@ -63,6 +63,7 @@ export function groupListItems(
     items.push({
       anchor: record.anchor,
       checked: owner.kind === "checklist" ? record.checked : undefined,
+      id: record.id,
       indent: record.indent,
       text: record.text,
     });

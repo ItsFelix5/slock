@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/types" },
+    { "path": "./packages/canvas" },
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
     { "path": "./packages/server" },

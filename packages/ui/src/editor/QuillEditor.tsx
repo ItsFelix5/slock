@@ -13,8 +13,20 @@ import { INLINE_MARKS, wireArrowDownExit, wireMarkdownAutoformat } from "./markd
 import { getEmbedBlot } from "./quillText";
 import "./editor.css";
 
+const BASE_FORMATS = ["bold", "code", "italic", "link", "strike", "mention", "emoji"];
+const EXTENDED_FORMATS = [
+  "blockquote",
+  "context",
+  "header",
+  "list",
+  "code-block",
+  "divider",
+  "date",
+];
+
 export interface QuillEditorProps {
   extendedFormats?: boolean;
+  formats?: string[];
   id?: string;
   ariaLabel?: string;
   ariaMultiline?: boolean;
@@ -53,26 +65,19 @@ export default function QuillEditor(props: QuillEditorProps) {
   let quill: Quill | undefined;
   const linkEdit = createLinkEditController(() => quill);
   useEditorShortcuts(() => quill, {
-    extendedFormats: props.extendedFormats ?? true,
+    extendedFormats: props.formats?.includes("code-block") ?? props.extendedFormats ?? true,
     onSubmit: () => props.onSubmit,
   });
 
   onMount(() => {
     if (!container) return;
-    const extendedFormats = props.extendedFormats ?? true;
+    const formats =
+      props.formats ??
+      ((props.extendedFormats ?? true) ? [...BASE_FORMATS, ...EXTENDED_FORMATS] : BASE_FORMATS);
+    const has = (name: string) => formats.includes(name);
+    const blockFormats = formats.some((name) => EXTENDED_FORMATS.includes(name));
     const editor = new Quill(container, {
-      formats: [
-        "bold",
-        "code",
-        "italic",
-        "link",
-        "strike",
-        "mention",
-        "emoji",
-        ...(extendedFormats
-          ? ["blockquote", "context", "header", "list", "code-block", "divider", "date"]
-          : []),
-      ],
+      formats,
       modules: {
         keyboard: {
           bindings: {
@@ -110,11 +115,11 @@ export default function QuillEditor(props: QuillEditorProps) {
                 },
               ]),
             ),
-            ...(extendedFormats
+            ...(blockFormats
               ? {
                   "header enter": false,
                   ...Object.fromEntries(
-                    UNFORMAT_ON_BACKSPACE.map((format) => [
+                    UNFORMAT_ON_BACKSPACE.filter(has).map((format) => [
                       `${format} backspace`,
                       {
                         key: "Backspace",
@@ -145,13 +150,13 @@ export default function QuillEditor(props: QuillEditorProps) {
     if (props.ariaMultiline !== undefined)
       editor.root.setAttribute("aria-multiline", String(props.ariaMultiline));
 
-    if (extendedFormats) {
-      DividerBlot.bindShortcut(editor);
-      ContextBlot.bindShortcut(editor);
-      for (const lineFormat of LINE_PREFIX_FORMATS) bindLinePrefix(editor, lineFormat);
+    if (has("divider")) DividerBlot.bindShortcut(editor);
+    if (has("context")) ContextBlot.bindShortcut(editor);
+    for (const lineFormat of LINE_PREFIX_FORMATS) {
+      if (has(lineFormat.format)) bindLinePrefix(editor, lineFormat);
     }
 
-    wireMarkdownAutoformat(editor, extendedFormats);
+    wireMarkdownAutoformat(editor, has("code-block"));
     wireArrowDownExit(editor);
     wireLinkAutoconvert(editor);
     onCleanup(wireEmbedCaretEscape(editor));

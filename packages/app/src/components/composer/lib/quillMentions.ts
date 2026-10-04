@@ -55,6 +55,7 @@ export const MENTION_PREFIX: Record<MentionValue["kind"], string> = {
 
 class MentionBlot extends getEmbedBlot() {
   static blotName = "mention";
+  static className = "bk-mention";
   static tagName = "span";
 
   static create(value: MentionValue) {

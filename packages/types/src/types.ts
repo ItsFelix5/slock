@@ -27,6 +27,7 @@ export interface CanvasBlock {
     | "paragraph"
     | "heading"
     | "code"
+    | "divider"
     | "callout"
     | "blockquote"
     | "section"

@@ -67,7 +67,7 @@ export type TeamProfileReply = {
 
 export type FileInfoReply = {
   content?: string;
-  file: RawFile & { quip_thread_id?: string };
+  file: RawFile & { editable?: boolean; quip_thread_id?: string };
   is_truncated?: boolean;
 };
 

@@ -1,4 +1,4 @@
-import type { CanvasBlock, CanvasListItem } from "@slock/types";
+import type { CanvasListItem } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
 import { createSignal } from "solid-js";
 import {
@@ -8,6 +8,7 @@ import {
   fetchCanvasTitle,
   fetchCanvasTitleOrVisibility,
   fetchChannelCanvases,
+  type LoadedCanvas,
 } from "../../../api";
 import { queryClient } from "../../../queryClient";
 import { createReactiveQueryCache } from "../../../reactiveQueryCache";
@@ -104,7 +105,7 @@ export function createCanvasSlice(deps: {
     resolveCanvasPaneTitle(id, fileId, deps.panes.setPaneContent);
   }
 
-  async function loadCanvasContent(fileId: string): Promise<CanvasBlock[] | null> {
+  async function loadCanvasContent(fileId: string): Promise<LoadedCanvas | null> {
     try {
       return await fetchCanvas(fileId);
     } catch (err) {
@@ -112,6 +113,11 @@ export function createCanvasSlice(deps: {
       console.error("Failed to load canvas", err);
       return null;
     }
+  }
+
+  function setCanvasTitle(paneId: string, fileId: string, title: string): void {
+    setCanvasTitles((titles) => ({ ...titles, [fileId]: title }));
+    deps.panes.setPaneContent(paneId, { fileId, kind: "canvas", title });
   }
 
   function loadCanvasFileUrl(fileId: string): Promise<string | null> {
@@ -131,5 +137,6 @@ export function createCanvasSlice(deps: {
     loadCanvasFileUrl,
     loadCanvasPermalink,
     openCanvasPane,
+    setCanvasTitle,
   };
 }
