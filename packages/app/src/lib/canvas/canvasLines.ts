@@ -33,6 +33,7 @@ export interface ControlPool {
 }
 
 export interface LineContext {
+  annotations: Set<string>;
   baselineHtml(id: string): string | undefined;
   controls: CanvasControl[];
   names: CanvasNames;
@@ -56,6 +57,7 @@ export interface ParsedLines {
 
 const BLOCK_KEYS = ["blockquote", "code-block", "header", "indent", "layout", "list", "sid"];
 const HEX_LENGTH = 25;
+const ANNOTATION_RE = /<annotation id="([^"]+)"/g;
 
 function blockAttributes(attributes: Op["attributes"]): Record<string, unknown> {
   return Object.fromEntries(
@@ -118,6 +120,15 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
     return `<control id="${controlId}"></control>`;
   }
 
+  function registerAnnotations(html: string) {
+    for (const match of html.matchAll(ANNOTATION_RE)) {
+      const id = match[1];
+      if (!id || ctx.annotations.has(id)) continue;
+      ctx.annotations.add(id);
+      ctx.controls.push({ id, kind: "annotation" });
+    }
+  }
+
   function cellHtml(cellOps: Op[], contentId: string): string {
     const inline: Op[] = [];
     for (const op of cellOps) {
@@ -126,7 +137,9 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
         if (text) inline.push({ attributes: inlineAttributes(op.attributes), insert: text });
       } else if (op.insert) inline.push(op);
     }
-    return opsToHtml(inline, (embed) => serialize(contentId, embed), false);
+    const html = opsToHtml(inline, (embed) => serialize(contentId, embed), false);
+    registerAnnotations(html);
+    return html;
   }
 
   function tableNode(value: TableEmbedValue, id: string, frames: LayoutFrame[]): CanvasTable {
@@ -165,6 +178,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
         (sid === null || sid === previous.sid)
       ) {
         const extra = opsToHtml(inline, (embed) => serialize(previous.sid ?? "", embed), true);
+        registerAnnotations(extra);
         previousLine.html += `<br>${extra}`;
         previous.members.push({ at, sid });
       } else {

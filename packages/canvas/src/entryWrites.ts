@@ -37,7 +37,7 @@ export interface Placement {
 }
 
 const CONTROL_CLASS = 1;
-const CONTROL_TYPES = { channel: 49, date: 68, emoji: 54, user: 50 } as const;
+const CONTROL_TYPES = { annotation: 9, channel: 49, date: 68, emoji: 54, user: 50 } as const;
 
 function contentOf(record: SectionRecord): RawMessage | null {
   return asMessage(field(record.msg, 12));
@@ -210,9 +210,22 @@ export function deleteWrite(record: SectionRecord): SectionWrite {
   return write;
 }
 
-function controlContent(control: CanvasControl): RawMessage {
+function controlContent(control: CanvasControl, secretPath: string): RawMessage {
   const message = (num: number, fields: Map<number, ReturnType<typeof rawString>[]>) =>
     new Map([[num, [rawMessage(fields)]]]);
+  if (control.kind === "annotation")
+    return message(
+      7,
+      new Map([
+        [1, [rawMessage(new Map([[9, [rawString(secretPath)]]]))]],
+        [4, [rawVarint(0)]],
+        [5, [rawVarint(0)]],
+        [9, [rawVarint(2)]],
+        [10, [rawMessage(new Map())]],
+        [11, [rawMessage(new Map())]],
+        [13, [rawVarint(0)]],
+      ]),
+    );
   if (control.kind === "user")
     return message(44, new Map([[1, [rawString(`su:${control.userId}`)]]]));
   if (control.kind === "channel")
@@ -222,12 +235,13 @@ function controlContent(control: CanvasControl): RawMessage {
   return message(62, new Map([[1, [rawVarint(control.ms)]]]));
 }
 
-export function controlWrite(control: CanvasControl): SectionWrite {
+export function controlWrite(control: CanvasControl, secretPath: string): SectionWrite {
   const write = blankWrite(control.id);
   write.sectionClass = CONTROL_CLASS;
   write.type = CONTROL_TYPES[control.kind];
-  write.content = encodeRawMessage(controlContent(control));
+  write.content = encodeRawMessage(controlContent(control, secretPath));
   if (control.kind === "date") write.label = control.label;
+  if (control.kind === "annotation") write.label = "";
   return write;
 }
 

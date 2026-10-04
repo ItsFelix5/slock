@@ -35,13 +35,23 @@ export type {
   RawUserProfile,
 } from "./rawTypes";
 
+const FILE_CHANNEL_PREFIX = "FC:";
+const CANVAS_COMMENTS_LABEL = "Canvas comments";
+
+export function canvasFileIdOf(raw: Pick<RawChannel, "id" | "is_file" | "name_normalized">) {
+  const hosted = raw.is_file || raw.name_normalized?.startsWith(FILE_CHANNEL_PREFIX);
+  return hosted ? `F${raw.id.slice(1)}` : undefined;
+}
+
 export function mapChannel(raw: RawChannel): Channel {
+  const canvasFileId = canvasFileIdOf(raw);
   return {
     archived: !!raw.is_archived,
+    canvasFileId,
     id: raw.id,
     lastActivity: raw.latest ? Number.parseFloat(raw.latest) * 1000 : undefined,
     memberCount: raw.num_members ?? raw.member_count,
-    name: raw.name ?? raw.id,
+    name: canvasFileId ? CANVAS_COMMENTS_LABEL : (raw.name ?? raw.id),
     private: !!raw.is_private,
     topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
     unread: (raw.unread_count_display ?? raw.unread_count ?? 0) > 0,
@@ -56,7 +66,7 @@ export function mapChannelDetails(raw: RawChannel): ChannelDetails {
     email: raw.properties?.channel_email_addresses?.[0]?.address || undefined,
     id: raw.id,
     memberCount: raw.num_members,
-    name: raw.name ?? raw.id,
+    name: canvasFileIdOf(raw) ? CANVAS_COMMENTS_LABEL : (raw.name ?? raw.id),
     private: !!raw.is_private,
     purpose: typeof raw.purpose === "string" ? raw.purpose : (raw.purpose?.value ?? ""),
     topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),

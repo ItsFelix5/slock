@@ -56,7 +56,9 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
     flow.usedPositions,
   );
 
-  const writes: SectionWrite[] = edit.controls.map(controlWrite);
+  const writes: SectionWrite[] = edit.controls.map((control) =>
+    controlWrite(control, meta.secretPath),
+  );
   if (edit.title !== null) {
     const first = positions[0] ?? null;
     const position = flow.title ? "" : positionBetween(null, first, flow.usedPositions);

@@ -5,7 +5,7 @@ import type {
   RawFile,
   RawUser,
 } from "@slock/types";
-import { apiGet, apiPost, mapFile, mapUser } from "@slock/types";
+import { apiGet, apiPost, canvasFileIdOf, mapFile, mapUser } from "@slock/types";
 
 export function mapBrowsableChannels(items: RawChannel[]): BrowsableChannel[] {
   return items
@@ -17,6 +17,7 @@ export function mapBrowsableChannels(items: RawChannel[]): BrowsableChannel[] {
           channel.is_mpim ||
           channel.is_im ||
           channel.is_record_channel ||
+          canvasFileIdOf(channel) ||
           channel.name?.startsWith("mpdm-")
         ),
     )

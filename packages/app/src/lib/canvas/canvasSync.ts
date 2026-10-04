@@ -40,6 +40,7 @@ const PERMANENT_CODES = new Set([
   "not_editable",
 ]);
 const CONTROL_REF_RE = /<control id="([^"]+)"><\/control>/g;
+const ANNOTATION_RE = /<annotation id="([^"]+)"/g;
 
 export class CanvasEditError extends Error {
   readonly code: string;
@@ -51,6 +52,7 @@ export class CanvasEditError extends Error {
 }
 
 function controlKey(control: CanvasControl): string {
+  if (control.kind === "annotation") return `annotation:${control.id}`;
   if (control.kind === "user") return `user:${control.userId}`;
   if (control.kind === "channel") return `channel:${control.channelId}`;
   if (control.kind === "emoji") return `emoji:${control.name}`;
@@ -84,14 +86,22 @@ function buildPool(
   return { take: (lineId, key) => byLine.get(lineId)?.get(key)?.shift() ?? null };
 }
 
+function annotationIds(nodes: CanvasNode[]): string[] {
+  return poolLines(nodes).flatMap(({ html }) =>
+    [...html.matchAll(ANNOTATION_RE)].flatMap((match) => match[1] ?? []),
+  );
+}
+
 export function createCanvasSync(options: CanvasSyncOptions) {
   const [status, setStatus] = createSignal<CanvasSaveStatus>("saved");
   const [failure, setFailure] = createSignal<string | null>(null);
   const controlKeys = new Map<string, string>();
   for (const [id, embed] of options.embeds) controlKeys.set(id, embedKey(embed, id));
   const retired = new Set<string>();
+  const annotations = new Set(annotationIds(options.initialNodes));
   const newId = () => newSectionId(options.shardChars);
   const initial = opsToLines(options.initialOps, {
+    annotations,
     baselineHtml: () => undefined,
     controls: [],
     names: options.names,
@@ -119,6 +129,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
       ),
     );
     const parsed = opsToLines(options.getOps(), {
+      annotations: new Set(annotations),
       baselineHtml: (id) => baselineLines.get(id),
       controls,
       names: options.names,
@@ -138,6 +149,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
     for (const entry of baseline.entries) if (!nextIds.has(entry.id)) retired.add(entry.id);
     for (const control of controls) {
       controlKeys.set(control.id, controlKey(control));
+      if (control.kind === "annotation") annotations.add(control.id);
     }
     baseline = next;
   }
@@ -179,6 +191,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
 
   function differsFromRemote(remoteOps: Op[], remoteTitle: string): boolean {
     const remote = opsToLines(remoteOps, {
+      annotations: new Set(annotations),
       baselineHtml: () => undefined,
       controls: [],
       names: options.names,

@@ -54,6 +54,7 @@ export interface Message {
 
 export interface Channel {
   archived: boolean;
+  canvasFileId?: string;
   id: string;
   lastActivity?: number;
   memberCount?: number;

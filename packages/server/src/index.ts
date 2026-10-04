@@ -17,6 +17,7 @@ import { hackclubAuthRoutes } from "./routes/account/hackclubAuth.ts";
 import { preferenceRoutes } from "./routes/account/preferences.ts";
 import { sessionRoutes } from "./routes/account/session.ts";
 import { userStatusRoutes } from "./routes/account/userStatus.ts";
+import { canvasCommentRoutes } from "./routes/channels/canvasComments.ts";
 import { canvasRoutes } from "./routes/channels/canvases.ts";
 import { channelDirectoryRoutes } from "./routes/channels/channelDirectory.ts";
 import { channelRoutes } from "./routes/channels/channels.ts";
@@ -89,6 +90,7 @@ const ROUTES: Route[] = [
   ...threadRoutes,
   ...conversationViewRoutes,
   ...canvasRoutes,
+  ...canvasCommentRoutes,
   ...channelDirectoryRoutes,
   ...channelRoutes,
   ...sectionRoutes,

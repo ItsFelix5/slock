@@ -7,6 +7,7 @@ import type {
   RawUser,
 } from "@slock/types";
 import {
+  isHostedChannel,
   trimActivityCounts,
   trimChannel,
   trimCountGroup,
@@ -121,7 +122,9 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
       };
     case "channel_joined":
     case "group_joined":
-      return channel ? { channel: trimChannel(channel), type: payload.type } : null;
+      return channel && !isHostedChannel(channel)
+        ? { channel: trimChannel(channel), type: payload.type }
+        : null;
     case "im_created":
       return channel
         ? { channel: { ...trimChannel(channel), user: channel.user }, type: payload.type, user }
@@ -159,7 +162,9 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
       return { type: payload.type };
     case "channel_rename":
     case "group_rename":
-      return { channel: { id: channel?.id, name: channel?.name }, type: payload.type };
+      return channel && !isHostedChannel(channel)
+        ? { channel: { id: channel.id, name: channel.name }, type: payload.type }
+        : null;
     case "channel_archive":
     case "channel_unarchive":
     case "group_archive":

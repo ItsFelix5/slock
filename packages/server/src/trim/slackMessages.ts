@@ -111,6 +111,7 @@ export function trimMessage(message: RawMessage): RawMessage {
           name: message.bot_profile.name,
         }
       : undefined,
+    document_comment: message.document_comment,
     edited: message.edited,
     files: message.files?.map(trimFile),
     icons: trimIcons(message.icons),

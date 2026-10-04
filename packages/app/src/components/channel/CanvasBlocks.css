@@ -161,3 +161,13 @@
 .canvas-surface.nested .ql-editor > :last-child {
   margin-bottom: 0;
 }
+
+.canvas-editor .ql-editor [data-annotation] {
+  cursor: pointer;
+  background: color-mix(in srgb, var(--warning, #ecb22e) 22%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--warning, #ecb22e) 70%, transparent);
+}
+
+.canvas-editor .ql-editor [data-annotation]:hover {
+  background: color-mix(in srgb, var(--warning, #ecb22e) 38%, transparent);
+}

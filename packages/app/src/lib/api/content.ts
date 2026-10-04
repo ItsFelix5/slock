@@ -1,11 +1,13 @@
 import { type CanvasDocument, type CanvasMeta, readCanvas, readCanvasVersion } from "@slock/canvas";
 import type {
+  CanvasCommentThread,
   CanvasEdit,
   CanvasVersion,
   FileUploadInput,
   LinkPreview,
   RawFile,
   RawFileShare,
+  RawMessage,
   SavedItem,
   SlackFile,
   SlackFileDetail,
@@ -132,6 +134,39 @@ export async function restoreCanvasVersion(fileId: string, version: CanvasVersio
     sequence: version.sequence,
   });
   if (!data.ok) throw new Error(data.error ?? "Couldn't restore this version");
+}
+
+export async function fetchCanvasComments(fileId: string): Promise<CanvasCommentThread[]> {
+  const data = await apiGet<{ threads: RawMessage[] }>(`/api/canvases/${fileId}/comments`);
+  if (!data.ok) throw new Error(data.error ?? "Canvas comments failed");
+  return data.threads.flatMap((message) => {
+    const threadId = message.document_comment?.thread_id;
+    if (!threadId) return [];
+    return [
+      {
+        archived: !!message.document_comment?.is_archived,
+        authorIds: message.reply_users ?? [],
+        latestReply: message.latest_reply ?? null,
+        quote: message.text ?? "",
+        reactions: message.reactions ?? [],
+        replyCount: message.reply_count ?? 0,
+        threadId,
+        ts: message.ts,
+      },
+    ];
+  });
+}
+
+export async function openCanvasComment(
+  fileId: string,
+  annotationId: string,
+): Promise<{ channelId: string; ts: string }> {
+  const data = await apiPost<{ channelId: string; ts: string }>(
+    `/api/canvases/${fileId}/comments/open`,
+    { annotationId },
+  );
+  if (!data.ok) throw new Error(data.error ?? "Couldn't open the comment");
+  return { channelId: data.channelId, ts: data.ts };
 }
 
 export async function postCanvasEdit(fileId: string, edit: CanvasEdit): Promise<void> {

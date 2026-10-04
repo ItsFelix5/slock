@@ -11,7 +11,12 @@ import {
   useShortcut,
 } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
-import { fetchCanvasVersion, fetchCanvasVersions, restoreCanvasVersion } from "../../lib/api";
+import {
+  fetchCanvasVersion,
+  fetchCanvasVersions,
+  openCanvasComment,
+  restoreCanvasVersion,
+} from "../../lib/api";
 import type { OutlineItem, OutlineSource } from "../../lib/canvas/canvasOutline";
 import { actionFeedback, flashCaughtError } from "../../lib/feedback";
 import { copyCanvasLink } from "../../lib/messageLinks";
@@ -71,6 +76,15 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
       setSelected(null);
     }),
   );
+
+  async function openComment(annotationId: string) {
+    try {
+      const { channelId, ts } = await openCanvasComment(fileId(), annotationId);
+      store.viewState.openThread(channelId, ts, undefined, { pinned: true });
+    } catch (error) {
+      flashCaughtError(fileId(), error, "Couldn't open the comment");
+    }
+  }
 
   async function restore(version: CanvasVersion) {
     try {
@@ -229,6 +243,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                       doc={doc}
                       editable={content()?.editable ?? false}
                       fileId={fileId()}
+                      onComment={(annotationId) => void openComment(annotationId)}
                       onOutline={setEditorOutline}
                       fetchLatest={() => store.canvas.loadCanvasContent(fileId())}
                       onRemoteChange={(latest) => mutate(latest)}

@@ -6,6 +6,7 @@ import { type LoadedCanvas, postCanvasEdit } from "../../lib/api";
 import { type CanvasDocModel, canvasTitle, canvasToOps } from "../../lib/canvas/canvasDelta";
 import { diffToOps } from "../../lib/canvas/canvasDiffView";
 import { applyIdFixes } from "../../lib/canvas/canvasEditorSetup";
+import { annotateSelection, commentAnchorAt } from "../../lib/canvas/canvasFormatting";
 import { createCanvasNames } from "../../lib/canvas/canvasNames";
 import {
   headingElement,
@@ -48,6 +49,7 @@ export default function CanvasEditor(props: {
   fileId: string;
   onOutline: (source: OutlineSource | null) => void;
   fetchLatest: () => Promise<LoadedCanvas | null>;
+  onComment?: (annotationId: string) => void;
   onRemoteChange: (latest: LoadedCanvas) => void;
   onReload: () => void;
   onTitle?: (title: string) => void;
@@ -182,7 +184,24 @@ export default function CanvasEditor(props: {
     sync.dispose();
   });
 
+  async function startComment(quill: Quill) {
+    const existing = commentAnchorAt(quill);
+    if (existing) {
+      props.onComment?.(existing);
+      return;
+    }
+    const id = newId();
+    if (!annotateSelection(quill, id)) return;
+    await sync.flush();
+    props.onComment?.(id);
+  }
+
   function focusEnd(event: MouseEvent) {
+    const mark = event.target instanceof Element ? event.target.closest("[data-annotation]") : null;
+    if (mark instanceof HTMLElement && mark.dataset.annotation) {
+      props.onComment?.(mark.dataset.annotation);
+      return;
+    }
     if (event.target !== event.currentTarget || !root) return;
     root.focus();
     root.setSelection(Math.max(root.getLength() - 1, 0), 0);
@@ -197,7 +216,11 @@ export default function CanvasEditor(props: {
       }}
     >
       <Show when={props.editable}>
-        <CanvasToolbar editor={active} newId={newId}>
+        <CanvasToolbar
+          editor={active}
+          newId={newId}
+          onComment={(quill) => void startComment(quill)}
+        >
           <div class="canvas-editor-status" data-status={sync.status()} role="status">
             <div class="canvas-editor-status-pill">
               <span>{STATUS_LABELS[sync.status()]}</span>

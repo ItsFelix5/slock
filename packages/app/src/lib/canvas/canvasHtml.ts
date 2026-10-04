@@ -62,7 +62,14 @@ function walk(
   }
   const mark = MARK_TAGS[tag];
   const href = tag === "a" ? node.getAttribute("href") : null;
-  const next = mark ? { ...marks, [mark]: true } : href ? { ...marks, link: href } : marks;
+  const annotation = tag === "annotation" ? node.getAttribute("id") : null;
+  const next = mark
+    ? { ...marks, [mark]: true }
+    : href
+      ? { ...marks, link: href }
+      : annotation
+        ? { ...marks, annotation }
+        : marks;
   for (const child of node.childNodes) walk(child, next, ops, resolve, code);
 }
 
@@ -80,6 +87,8 @@ function wrapText(text: string, attributes: Record<string, unknown>): string {
   for (const [name, tag] of SERIALIZED_MARKS.toReversed()) {
     if (attributes[name]) out = `<${tag}>${out}</${tag}>`;
   }
+  if (typeof attributes.annotation === "string")
+    out = `<annotation id="${escapeAttribute(attributes.annotation)}">${out}</annotation>`;
   return out;
 }
 

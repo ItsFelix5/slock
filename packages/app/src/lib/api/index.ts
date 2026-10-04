@@ -66,6 +66,7 @@ export {
 export type { LoadedCanvas } from "./content";
 export {
   fetchCanvas,
+  fetchCanvasComments,
   fetchCanvasFileUrl,
   fetchCanvasPermalink,
   fetchCanvasTitle,
@@ -75,6 +76,7 @@ export {
   fetchFileDetail,
   fetchLinkPreview,
   fetchSaved,
+  openCanvasComment,
   postCanvasEdit,
   renameFile,
   resolveCanvasFile,

@@ -107,6 +107,7 @@ export default function CanvasToolbar(props: {
   children?: JSX.Element;
   editor: Accessor<Quill | undefined>;
   newId: () => string;
+  onComment: (quill: Quill) => void;
 }) {
   const [formats, setFormats] = createSignal<Record<string, unknown>>({});
 
@@ -147,6 +148,16 @@ export default function CanvasToolbar(props: {
           )}
         </For>
         <div class="canvas-toolbar-group">
+          <IconButton
+            icon="add-comment"
+            label="Comment"
+            onClick={() => {
+              const quill = props.editor();
+              if (quill) props.onComment(quill);
+            }}
+            onMouseDown={(event) => event.preventDefault()}
+            size="sm"
+          />
           <CanvasInsertMenu editor={props.editor} formats={formats} newId={props.newId} />
         </div>
       </div>

@@ -2,7 +2,7 @@ import { framesFromAttribute, layoutAttribute, withCallout, withQuote } from "@s
 import type { LayoutFrame } from "@slock/types";
 import Quill from "quill";
 import { BlockEmbed } from "quill/blots/block";
-import { LAYOUT_ATTRIBUTE } from "../../components/channel/canvasBlots";
+import { ANNOTATION_ATTRIBUTE, LAYOUT_ATTRIBUTE } from "../../components/channel/canvasBlots";
 import {
   COLUMNS_EMBED,
   type ColumnsEmbedValue,
@@ -89,6 +89,26 @@ export function calloutColorAt(formats: Record<string, unknown>): number | null 
 
 export function quoteActive(formats: Record<string, unknown>): boolean {
   return framesFromAttribute(formats[LAYOUT_ATTRIBUTE]).some((frame) => frame.kind === "quote");
+}
+
+export function commentAnchorAt(quill: Quill): string | null {
+  const range = quill.getSelection();
+  if (!range) return null;
+  const annotation = quill.getFormat(range.index, range.length).annotation;
+  return typeof annotation === "string" ? annotation : null;
+}
+
+export function annotateSelection(quill: Quill, id: string): boolean {
+  const range = quill.getSelection(true);
+  const [line, offset] = quill.getLine(range.index);
+  if (!line) return false;
+  const start = quill.getIndex(line);
+  const lineEnd = start + line.length() - 1;
+  const from = range.length > 0 ? range.index : start;
+  const to = range.length > 0 ? Math.min(range.index + range.length, lineEnd) : lineEnd;
+  if (to <= from || offset < 0) return false;
+  quill.formatText(from, to - from, ANNOTATION_ATTRIBUTE, id, "user");
+  return true;
 }
 
 function blockInsertIndex(quill: Quill): number {

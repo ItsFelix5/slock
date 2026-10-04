@@ -10,6 +10,7 @@ import type {
   UserBootReply,
 } from "../slackReplies.ts";
 import {
+  isHostedChannel,
   trimActivityCounts,
   trimBootChannel,
   trimCountGroup,
@@ -19,7 +20,7 @@ import { trimUser } from "../trim/slackEntities.ts";
 
 function trimUserBoot(data: UserBootReply): BootstrapPayload {
   return {
-    channels: data.channels?.map(trimBootChannel),
+    channels: data.channels?.filter((channel) => !isHostedChannel(channel)).map(trimBootChannel),
     ims: data.ims?.map((im) => ({
       created: im.created,
       id: im.id,

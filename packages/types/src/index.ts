@@ -55,6 +55,7 @@ export type {
 export { blockPreviewText, broadcastRangeFromBlocks, narrowByType } from "./blocks";
 export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./bootstrapPayload";
 export type {
+  CanvasCommentThread,
   CanvasControl,
   CanvasEdit,
   CanvasFile,
@@ -68,10 +69,10 @@ export type {
   CanvasTableColumn,
   CanvasTableRow,
   CanvasUpsert,
+  CanvasVersion,
   LayoutFrame,
 } from "./canvasEdit";
 export { parseCanvasEdit } from "./canvasEdit";
-export type { CanvasVersion } from "./canvasHistory";
 export { fetchAllEmoji, fetchSlashCommands, invalidateEmojiCache } from "./content";
 export type { ActivityItem, LinkPreview, SavedItem } from "./contentTypes";
 export {
@@ -98,6 +99,7 @@ export { mapFile, mapFileShare, mapLink } from "./mapFiles";
 export {
   buildUnreadMap,
   CLOCK_24H,
+  canvasFileIdOf,
   extractChannelSections,
   formatDay,
   formatDayFromMs,

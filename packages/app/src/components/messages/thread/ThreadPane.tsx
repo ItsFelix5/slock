@@ -165,6 +165,11 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     }
   });
 
+  const hostedFileId = () => store.channels.channelById(thread().channelId)?.canvasFileId;
+  const hostedTitle = () => {
+    const fileId = hostedFileId();
+    return fileId ? (store.canvas.canvasTitle(fileId) ?? "Canvas") : "";
+  };
   const channelName = createMemo(() =>
     conversationDisplayName(
       thread().channelId,
@@ -211,17 +216,35 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
         onClose={() => store.viewState.closeTile(props.pane.id)}
       >
         <div class="thread-panel-header-info flex-align-center">
-          <div class="thread-panel-title">Thread</div>
-          <SplitNavigation onSplit={() => openConversationInSplit(thread().channelId, thread().ts)}>
-            <button
-              aria-label={`View thread message in ${channelName()}`}
-              class="thread-panel-subtitle btn-reset flex-align-center truncate"
-              onClick={openThreadMessageInChannel}
-              type="button"
-            >
-              {channelName()}
-            </button>
-          </SplitNavigation>
+          <div class="thread-panel-title">{hostedFileId() ? "Comment" : "Thread"}</div>
+          <Show
+            fallback={
+              <SplitNavigation
+                onSplit={() => openConversationInSplit(thread().channelId, thread().ts)}
+              >
+                <button
+                  aria-label={`View thread message in ${channelName()}`}
+                  class="thread-panel-subtitle btn-reset flex-align-center truncate"
+                  onClick={openThreadMessageInChannel}
+                  type="button"
+                >
+                  {channelName()}
+                </button>
+              </SplitNavigation>
+            }
+            when={hostedFileId()}
+          >
+            {(fileId) => (
+              <button
+                aria-label={`Open the canvas ${hostedTitle()}`}
+                class="thread-panel-subtitle btn-reset flex-align-center truncate"
+                onClick={() => store.canvas.openCanvasPane(fileId(), hostedTitle())}
+                type="button"
+              >
+                {hostedTitle()}
+              </button>
+            )}
+          </Show>
           <IconButton
             class="thread-panel-subscribe-btn icon-shift"
             classList={{ subscribed: store.messages.isThreadSubscribed(thread().ts) }}

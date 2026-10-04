@@ -208,7 +208,10 @@ export type SearchMessageMatch = RawMessage & {
 };
 
 export type MessagesSearchReply = {
-  items?: { channel?: { id?: string; name?: string }; messages?: SearchMessageMatch[] }[];
+  items?: {
+    channel?: { id?: string; is_file?: boolean; name?: string; name_normalized?: string };
+    messages?: SearchMessageMatch[];
+  }[];
 };
 
 export type BotReply = { bot: RawBot };

@@ -67,6 +67,19 @@ function trimChannelProperties(properties: RawChannelProperties): RawChannelProp
   };
 }
 
+const HOSTED_CHANNEL_NAME = "Canvas comments";
+const HOSTED_NAME_PREFIX = "FC:";
+
+type NamedChannel = Pick<RawChannel, "is_file" | "name" | "name_normalized">;
+
+export function isHostedChannel(channel: NamedChannel): boolean {
+  return !!channel.is_file || !!channel.name_normalized?.startsWith(HOSTED_NAME_PREFIX);
+}
+
+export function publicName(channel: NamedChannel): string | undefined {
+  return isHostedChannel(channel) ? HOSTED_CHANNEL_NAME : channel.name;
+}
+
 export function trimChannel(channel: RawChannel): RawChannel {
   return {
     created: channel.created,
@@ -74,6 +87,7 @@ export function trimChannel(channel: RawChannel): RawChannel {
     id: channel.id,
     is_archived: channel.is_archived,
     is_channel: channel.is_channel,
+    is_file: isHostedChannel(channel) || undefined,
     is_group: channel.is_group,
     is_im: channel.is_im,
     is_member: channel.is_member,
@@ -84,7 +98,7 @@ export function trimChannel(channel: RawChannel): RawChannel {
     latest: channel.latest,
     members: channel.members,
     member_count: channel.member_count,
-    name: channel.name,
+    name: publicName(channel),
     num_members: channel.num_members,
     properties: channel.properties ? trimChannelProperties(channel.properties) : undefined,
     purpose: trimChannelText(channel.purpose),
@@ -100,11 +114,12 @@ export function trimBootChannel(channel: RawChannel): RawChannel {
     id: channel.id,
     is_archived: channel.is_archived,
     is_channel: channel.is_channel,
+    is_file: isHostedChannel(channel) || undefined,
     is_group: channel.is_group,
     is_mpim: channel.is_mpim,
     is_private: channel.is_private,
     members: channel.is_mpim ? channel.members : undefined,
-    name: channel.name,
+    name: publicName(channel),
     properties: channel.properties
       ? { has_custom_mpdm_name: channel.properties.has_custom_mpdm_name }
       : undefined,

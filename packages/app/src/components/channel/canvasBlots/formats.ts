@@ -10,8 +10,10 @@ export const SECTION_ID_ATTRIBUTE = "sid";
 export const LAYOUT_ATTRIBUTE = "layout";
 export const DIFF_ATTRIBUTE = "diff";
 export const DIFF_MARK = "diffmark";
+export const ANNOTATION_ATTRIBUTE = "annotation";
 
 const INLINE_FORMATS = [
+  ANNOTATION_ATTRIBUTE,
   "bold",
   "canvasControl",
   "code",

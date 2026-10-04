@@ -8,7 +8,7 @@ import type {
   MessagesSearchReply,
   SearchMessageMatch,
 } from "../../slackReplies.ts";
-import { trimChannel } from "../../trim/slackChannels.ts";
+import { publicName, trimChannel } from "../../trim/slackChannels.ts";
 import { trimUser } from "../../trim/slackEntities.ts";
 import { trimFile } from "../../trim/slackMessages.ts";
 import { type Route, route } from "../router.ts";
@@ -197,7 +197,7 @@ export const searchRoutes: Route[] = [
               botId: match.bot_id,
               botName: match.username ?? match.bot_profile?.name,
               channelId: match.channel.id,
-              channelName: match.channel.name ?? match.channel.id,
+              channelName: publicName(match.channel) ?? match.channel.id,
               highlights,
               text,
               threadTs: threadTsFromMatch(match),

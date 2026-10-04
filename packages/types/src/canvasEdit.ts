@@ -1,4 +1,5 @@
 import { isRecord } from "./rawTypes";
+import type { Reaction } from "./types";
 
 export type CanvasLineKind =
   | "bullet"
@@ -77,11 +78,30 @@ export interface CanvasTable {
 export type CanvasNode = CanvasFile | CanvasImage | CanvasLine | CanvasTable;
 
 export type CanvasControl = { id: string } & (
+  | { kind: "annotation" }
   | { channelId: string; kind: "channel" }
   | { kind: "date"; label: string; ms: number }
   | { kind: "emoji"; name: string; teamId: string }
   | { kind: "user"; userId: string }
 );
+
+export interface CanvasVersion {
+  authorId: string;
+  createdMs: number;
+  sequence: number;
+  versionId: string;
+}
+
+export interface CanvasCommentThread {
+  archived: boolean;
+  authorIds: string[];
+  latestReply: string | null;
+  quote: string;
+  reactions: Reaction[];
+  replyCount: number;
+  threadId: string;
+  ts: string;
+}
 
 export interface CanvasUpsert {
   after: string | null;
