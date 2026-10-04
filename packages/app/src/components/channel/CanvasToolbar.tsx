@@ -4,14 +4,16 @@ import { type Accessor, createEffect, createSignal, For, type JSX, onCleanup } f
 import {
   currentFormats,
   type InlineFormat,
-  insertDivider,
+  quoteActive,
   redo,
   setParagraph,
   shiftIndent,
   toggleBlock,
   toggleInline,
+  toggleQuote,
   undo,
 } from "../../lib/canvas/canvasFormatting";
+import CanvasInsertMenu from "./CanvasInsertMenu";
 import "./CanvasToolbar.css";
 
 interface ToolbarAction {
@@ -52,8 +54,7 @@ const GROUPS: ToolbarAction[][] = [
   ],
   [
     {
-      active: (formats) =>
-        !(formats.header || formats.list || formats["code-block"] || formats.blockquote),
+      active: (formats) => !(formats.header || formats.list || formats["code-block"]),
       icon: "paragraph",
       label: "Text",
       run: setParagraph,
@@ -88,10 +89,10 @@ const GROUPS: ToolbarAction[][] = [
   ],
   [
     {
-      active: (formats) => !!formats.blockquote,
+      active: quoteActive,
       icon: "quote",
       label: "Quote",
-      run: (quill) => toggleBlock(quill, "blockquote", true),
+      run: toggleQuote,
     },
     {
       active: (formats) => !!formats["code-block"],
@@ -99,13 +100,13 @@ const GROUPS: ToolbarAction[][] = [
       label: "Code block",
       run: (quill) => toggleBlock(quill, "code-block", true),
     },
-    { active: () => false, icon: "divider", label: "Divider", run: insertDivider },
   ],
 ];
 
 export default function CanvasToolbar(props: {
   children?: JSX.Element;
   editor: Accessor<Quill | undefined>;
+  newId: () => string;
 }) {
   const [formats, setFormats] = createSignal<Record<string, unknown>>({});
 
@@ -113,6 +114,7 @@ export default function CanvasToolbar(props: {
     const quill = props.editor();
     if (!quill) return;
     const update = () => setFormats(currentFormats(quill));
+    update();
     quill.on("editor-change", update);
     onCleanup(() => quill.off("editor-change", update));
   });
@@ -144,6 +146,9 @@ export default function CanvasToolbar(props: {
             </div>
           )}
         </For>
+        <div class="canvas-toolbar-group">
+          <CanvasInsertMenu editor={props.editor} formats={formats} newId={props.newId} />
+        </div>
       </div>
       {props.children}
     </div>

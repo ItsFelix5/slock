@@ -1,11 +1,10 @@
 import Quill from "quill";
-import "./CanvasBlockBlot";
 import "./CanvasControlBlot";
 import "./SoftBreakBlot";
+import "./embeds";
+import { LAYOUT_ATTRIBUTE, SECTION_ID_ATTRIBUTE } from "./formats";
 
 const Parchment = Quill.import("parchment");
-
-export const SECTION_ID_ATTRIBUTE = "sid";
 
 Quill.register(
   new Parchment.Attributor(SECTION_ID_ATTRIBUTE, "data-sid", {
@@ -13,24 +12,16 @@ Quill.register(
   }),
 );
 
-export const CANVAS_FORMATS = [
-  "blockquote",
-  "bold",
-  "canvasBlock",
-  "canvasControl",
-  "code",
-  "code-block",
-  "date",
-  "divider",
-  "emoji",
-  "header",
-  "indent",
-  "italic",
-  "link",
-  "list",
-  "mention",
-  "sid",
-  "softbreak",
-  "strike",
-  "underline",
-];
+Quill.register(
+  new Parchment.Attributor(LAYOUT_ATTRIBUTE, "data-layout", {
+    scope: Parchment.Scope.BLOCK_ATTRIBUTE,
+  }),
+);
+
+export {
+  CANVAS_FORMATS,
+  CELL_FORMATS,
+  COLUMN_FORMATS,
+  LAYOUT_ATTRIBUTE,
+  SECTION_ID_ATTRIBUTE,
+} from "./formats";

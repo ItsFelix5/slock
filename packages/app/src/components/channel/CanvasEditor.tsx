@@ -1,23 +1,21 @@
-import { Button, indexAlignedText, QuillEditor, scrollActiveListOption } from "@slock/ui";
+import { newSectionId } from "@slock/canvas";
+import { Button, indexAlignedText, scrollActiveListOption } from "@slock/ui";
 import type Quill from "quill";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { type LoadedCanvas, postCanvasEdit } from "../../lib/api";
 import { type CanvasDocModel, canvasTitle, canvasToOps } from "../../lib/canvas/canvasDelta";
-import { applyIdFixes, bindCanvasKeys } from "../../lib/canvas/canvasEditorSetup";
+import { applyIdFixes } from "../../lib/canvas/canvasEditorSetup";
 import { createCanvasNames } from "../../lib/canvas/canvasNames";
 import {
+  headingElement,
   type OutlineItem,
   type OutlineSource,
-  outlineFromOps,
+  outlineFromDom,
   titleItem,
 } from "../../lib/canvas/canvasOutline";
 import { type CanvasSaveStatus, createCanvasSync } from "../../lib/canvas/canvasSync";
-import { store } from "../../lib/store";
 import ComposerSuggestPopover from "../composer/ComposerSuggestPopover";
-import { createMentionHoverController } from "../composer/lib/mentionHover";
-import { useMentionResolution } from "../composer/lib/mentionResolution";
 import { insertSuggestionAt } from "../composer/lib/mrkdwnInsert";
-import { wireEmojiAutoconvert } from "../composer/lib/quillEmoji";
 import {
   createSuggestionController,
   syncSuggestionsAfterChange,
@@ -25,10 +23,13 @@ import {
 import { type SuggestState, suggestOpen } from "../composer/lib/suggestTypes";
 import { useSuggestShortcuts } from "../composer/lib/useSuggestShortcuts";
 import { useSuggestUi } from "../composer/lib/useSuggestUi";
-import MentionHoverCard from "../composer/MentionHoverCard";
+import CanvasSurface from "./CanvasSurface";
 import CanvasToolbar from "./CanvasToolbar";
 import { CANVAS_FORMATS } from "./canvasBlots";
+import { type CanvasServices, provideCanvasServices } from "./canvasBlots/canvasServices";
+import "./CanvasBlocks.css";
 import "./CanvasEditor.css";
+import "./CanvasLayouts.css";
 import "./CanvasEditorLists.css";
 
 const STATUS_LABELS: Record<CanvasSaveStatus, string> = {
@@ -41,6 +42,7 @@ const STATUS_LABELS: Record<CanvasSaveStatus, string> = {
 
 export default function CanvasEditor(props: {
   doc: CanvasDocModel;
+  editable: boolean;
   fileId: string;
   onOutline: (source: OutlineSource | null) => void;
   fetchLatest: () => Promise<LoadedCanvas | null>;
@@ -52,26 +54,26 @@ export default function CanvasEditor(props: {
   const [title, setTitle] = createSignal(canvasTitle(props.doc));
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   const ops = canvasToOps(props.doc, names);
-  const [headings, setHeadings] = createSignal<OutlineItem[]>(outlineFromOps(ops));
+  const [headings, setHeadings] = createSignal<OutlineItem[]>([]);
+  const [active, setActive] = createSignal<Quill>();
+  const surfaces = new Map<Quill, () => string>();
+  let root: Quill | undefined;
   let outlineTimer: ReturnType<typeof setTimeout> | undefined;
-  const [editor, setEditor] = createSignal<Quill>();
-  let quill: Quill | undefined;
   let caretIndex = 0;
   let titleRef: HTMLTextAreaElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
-  const resolveMention = useMentionResolution(() => quill);
-  const mentionHover = createMentionHoverController();
+  const newId = () => newSectionId(props.doc.meta.shardChars);
+
+  function findSurface(scope: string): Quill | undefined {
+    for (const [quill, scopeOf] of surfaces) if (scopeOf() === scope) return quill;
+  }
+
   const sync = createCanvasSync({
-    applyFixes: (fixes) => quill && applyIdFixes(quill, fixes),
+    applyFixes: (fixes) => applyIdFixes(findSurface, fixes),
     embeds: props.doc.embeds,
-    getOps: () => quill?.getContents().ops ?? [],
+    getOps: () => root?.getContents().ops ?? [],
     getTitle: title,
-    initialLines: props.doc.blocks.flatMap((block) => {
-      if (block.type === "paragraph" && block.id) return [{ html: block.text, id: block.id }];
-      if (block.type === "bulletList" || block.type === "orderedList" || block.type === "checklist")
-        return block.items.flatMap((item) => (item.id ? [{ html: item.text, id: item.id }] : []));
-      return [];
-    }),
+    initialNodes: props.doc.nodes,
     initialOps: ops,
     initialTitle: title(),
     names,
@@ -81,6 +83,7 @@ export default function CanvasEditor(props: {
 
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {
+      const quill = active();
       if (!quill) return;
       caretIndex = insertSuggestionAt(
         quill,
@@ -102,18 +105,35 @@ export default function CanvasEditor(props: {
     suggest();
     scrollActiveListOption(() => suggestPopoverRef);
   });
+
   function refreshOutline() {
     clearTimeout(outlineTimer);
     outlineTimer = setTimeout(() => {
-      if (quill) setHeadings(outlineFromOps(quill.getContents().ops));
+      if (root) setHeadings(outlineFromDom(root.root));
     }, 250);
   }
 
+  const services: CanvasServices = {
+    activate: setActive,
+    afterChange(quill) {
+      sync.markDirty();
+      refreshOutline();
+      syncSuggestionsAfterChange(quill, indexAlignedText(quill), suggestions, (index) => {
+        caretIndex = index;
+      });
+    },
+    names,
+    newId,
+    readOnly: !props.editable,
+    register(scope, quill) {
+      surfaces.set(quill, scope);
+      return () => surfaces.delete(quill);
+    },
+  };
+
   props.onOutline({
     element: (index) =>
-      index === 0
-        ? (titleRef ?? null)
-        : (quill?.root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6")[index - 1] ?? null),
+      index === 0 ? (titleRef ?? null) : root ? headingElement(root.root, index) : null,
     items: () => [titleItem(title()), ...headings()],
   });
   onCleanup(() => {
@@ -127,36 +147,20 @@ export default function CanvasEditor(props: {
     titleRef.style.height = `${titleRef.scrollHeight}px`;
   }
 
-  function mount(instance: Quill) {
-    const editor = instance;
-    quill = editor;
-    setEditor(editor);
-    editor.setContents(ops, "silent");
-    for (const embed of props.doc.embeds.values()) {
-      if (embed.type === "user" && !store.users.userById(embed.userId))
-        resolveMention(embed.userId);
-    }
-    bindCanvasKeys(editor);
-    wireEmojiAutoconvert(editor);
-    onCleanup(mentionHover.bind(editor));
-    editor.on("text-change", (_delta, _old, source) => {
-      if (source === "silent") return;
-      sync.markDirty();
-      refreshOutline();
-      syncSuggestionsAfterChange(editor, indexAlignedText(editor), suggestions, (index) => {
-        caretIndex = index;
-      });
-    });
-    editor.root.addEventListener("blur", () => void sync.flush());
+  function ready(quill: Quill) {
+    root = quill;
+    setActive(quill);
+    setHeadings(outlineFromDom(quill.root));
+    quill.root.addEventListener("blur", () => void sync.flush());
   }
 
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (sync.isPending()) event.preventDefault();
   };
   async function checkRemote() {
-    if (sync.isPending() || quill?.hasFocus()) return;
+    if (sync.isPending() || root?.hasFocus()) return;
     const latest = await props.fetchLatest();
-    if (!latest?.doc || sync.isPending() || quill?.hasFocus()) return;
+    if (!latest?.doc || sync.isPending() || root?.hasFocus()) return;
     if (sync.differsFromRemote(canvasToOps(latest.doc, names), canvasTitle(latest.doc)))
       props.onRemoteChange(latest);
   }
@@ -177,30 +181,38 @@ export default function CanvasEditor(props: {
   });
 
   function focusEnd(event: MouseEvent) {
-    if (event.target !== event.currentTarget || !quill) return;
-    quill.focus();
-    quill.setSelection(Math.max(quill.getLength() - 1, 0), 0);
+    if (event.target !== event.currentTarget || !root) return;
+    root.focus();
+    root.setSelection(Math.max(root.getLength() - 1, 0), 0);
   }
 
   return (
-    <div class="canvas-editor" onClick={focusEnd}>
-      <CanvasToolbar editor={editor}>
-        <div class="canvas-editor-status" data-status={sync.status()} role="status">
-          <div class="canvas-editor-status-pill">
-            <span>{STATUS_LABELS[sync.status()]}</span>
-            <Show when={sync.status() === "error"}>
-              <Button onClick={() => void sync.retry()} size="sm">
-                Retry
-              </Button>
-            </Show>
-            <Show when={sync.status() === "conflict"}>
-              <Button onClick={props.onReload} size="sm">
-                Reload
-              </Button>
-            </Show>
+    <div
+      class="canvas-editor"
+      onClick={focusEnd}
+      ref={(element) => {
+        onCleanup(provideCanvasServices(element, services));
+      }}
+    >
+      <Show when={props.editable}>
+        <CanvasToolbar editor={active} newId={newId}>
+          <div class="canvas-editor-status" data-status={sync.status()} role="status">
+            <div class="canvas-editor-status-pill">
+              <span>{STATUS_LABELS[sync.status()]}</span>
+              <Show when={sync.status() === "error"}>
+                <Button onClick={() => void sync.retry()} size="sm">
+                  Retry
+                </Button>
+              </Show>
+              <Show when={sync.status() === "conflict"}>
+                <Button onClick={props.onReload} size="sm">
+                  Reload
+                </Button>
+              </Show>
+            </div>
           </div>
-        </div>
-      </CanvasToolbar>
+        </CanvasToolbar>
+      </Show>
       <textarea
         aria-label="Canvas title"
         class="canvas-editor-title"
@@ -213,10 +225,11 @@ export default function CanvasEditor(props: {
         onKeyDown={(event) => {
           if (event.key !== "Enter") return;
           event.preventDefault();
-          quill?.focus();
-          quill?.setSelection(0, 0);
+          root?.focus();
+          root?.setSelection(0, 0);
         }}
         placeholder="Untitled"
+        readOnly={!props.editable}
         ref={(el) => {
           titleRef = el;
           queueMicrotask(resizeTitle);
@@ -224,16 +237,16 @@ export default function CanvasEditor(props: {
         rows={1}
         value={title()}
       />
-      <QuillEditor
+      <CanvasSurface
         ariaLabel="Canvas"
-        ariaMultiline
         formats={CANVAS_FORMATS}
         id={`canvas-editor-${props.fileId}`}
-        keepPastedHeaders
-        onReady={mount}
-        placeholder="Write something…"
+        initialOps={ops}
+        onReady={ready}
+        placeholder={props.editable ? "Write something…" : ""}
+        scope={() => ""}
+        services={services}
       />
-      <MentionHoverCard hoverIntent={mentionHover.hoverIntent} state={mentionHover.state} />
       <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
         {(state) => (
           <ComposerSuggestPopover

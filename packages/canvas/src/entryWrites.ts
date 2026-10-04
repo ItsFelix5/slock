@@ -1,16 +1,17 @@
-import type { CanvasControl, CanvasLine } from "@slock/types";
-import type { ExistingContainer, FlowEntry } from "./flow.ts";
-import { sectionText } from "./flow.ts";
+import type { CanvasControl, CanvasFile, CanvasImage, CanvasLine } from "@slock/types";
+import { fileContent, imageContent } from "./fileContent.ts";
+import { type FlowEntry, sectionText } from "./flow.ts";
 import {
   lineShapeForStyle,
   listStyleForKind,
   STYLE_DIVIDER,
-  STYLE_QUOTE,
+  STYLE_FILE,
+  STYLE_IMAGE,
   STYLE_TITLE,
   styleForLine,
   TYPE_DIVIDER,
-  TYPE_LIST,
-  TYPE_QUOTE,
+  TYPE_FILE,
+  TYPE_IMAGE,
   TYPE_TEXT,
   TYPE_TITLE,
 } from "./lineStyles.ts";
@@ -29,10 +30,10 @@ import {
 
 export interface Placement {
   forcePath: boolean;
-  group: { id: string; style: number } | null;
+  layoutParent: boolean;
+  list: { id: string; style: number } | null;
   path: string;
   position: string;
-  previousStyle: number | null;
 }
 
 const CONTROL_CLASS = 1;
@@ -80,35 +81,52 @@ function assignPlacement(write: SectionWrite, placement: Placement) {
   write.path = placement.path;
 }
 
-function quoteContent(memberIds: string[]): number[] {
-  const members = new Map([[1, memberIds.map(rawString)]]);
-  return encodeRawMessage(new Map([[65, [rawMessage(members)]]]));
+function parentsFor(placement: Placement): SectionWrite["parents"] {
+  const { list } = placement;
+  return list ? { containerStyle: list.style, id: list.id } : "none";
 }
 
-function parentsFor(placement: Placement): SectionWrite["parents"] {
-  const { group } = placement;
-  return group && group.style !== STYLE_QUOTE
-    ? { containerStyle: group.style, id: group.id }
-    : "none";
+function shapeStyle(line: CanvasLine, listStyle: number | null): number {
+  if (line.kind === "divider") return STYLE_DIVIDER;
+  return listStyle === null ? styleForLine(line) : 0;
+}
+
+function plainKind(record: SectionRecord): CanvasLine["kind"] {
+  return record.type === TYPE_DIVIDER ? "divider" : lineShapeForStyle(record.style).kind;
 }
 
 export function newLineWrite(line: CanvasLine, placement: Placement): SectionWrite {
   const write = blankWrite(line.id);
   const listStyle = listStyleForKind(line.kind);
-  if (line.kind === "divider") {
-    write.type = TYPE_DIVIDER;
-    write.style = STYLE_DIVIDER;
-    write.content = [];
-  } else {
-    write.type = TYPE_TEXT;
-    write.style = listStyle === null ? styleForLine(line) : 0;
-    write.content = textContent(null, null, line.html);
-  }
+  write.type = line.kind === "divider" ? TYPE_DIVIDER : TYPE_TEXT;
+  write.style = shapeStyle(line, listStyle);
+  write.content = line.kind === "divider" ? [] : textContent(null, null, line.html);
   write.attrs = attributesFor(null, line, listStyle);
   write.parents = parentsFor(placement);
-  write.layoutParent = placement.group?.style === STYLE_QUOTE;
+  write.layoutParent = placement.layoutParent;
   assignPlacement(write, placement);
   return write;
+}
+
+function structureChanges(write: SectionWrite, entry: FlowEntry, placement: Placement): boolean {
+  const { existing } = entry;
+  if (!existing) return false;
+  let changed = false;
+  const listChanged = (placement.list?.id ?? null) !== existing.listId;
+  if (listChanged) {
+    write.parents = parentsFor(placement);
+    changed = true;
+  }
+  if (existing.record.layoutParent !== placement.layoutParent) {
+    write.layoutParent = placement.layoutParent;
+    changed = true;
+  }
+  const moved = placement.position !== existing.position;
+  if (listChanged || placement.forcePath || moved) {
+    assignPlacement(write, placement);
+    changed = true;
+  }
+  return changed;
 }
 
 export function changedLineWrite(
@@ -124,14 +142,14 @@ export function changedLineWrite(
   write.type = record.type;
   let changed = false;
   const listStyle = listStyleForKind(line.kind);
-  const wasListItem = placement.previousStyle !== null && placement.previousStyle !== STYLE_QUOTE;
   const shape = lineShapeForStyle(record.style);
-  const plainKind = line.kind === "quote" ? "paragraph" : line.kind;
-  const shapeChanged =
-    wasListItem !== (listStyle !== null) ||
-    (listStyle === null && (shape.kind !== plainKind || shape.level !== line.level));
-  if (shapeChanged) {
-    write.style = listStyle === null ? styleForLine(line) : 0;
+  const kindChanged =
+    (existing.listId !== null) !== (listStyle !== null) ||
+    (listStyle === null &&
+      (plainKind(record) !== line.kind || (line.kind !== "divider" && shape.level !== line.level)));
+  if (kindChanged) {
+    write.type = line.kind === "divider" ? TYPE_DIVIDER : TYPE_TEXT;
+    write.style = shapeStyle(line, listStyle);
     changed = true;
   }
   if (line.kind !== "divider" && line.html !== sectionText(record)) {
@@ -140,55 +158,46 @@ export function changedLineWrite(
     changed = true;
   }
   const attrs = asMessage(field(record.msg, 16));
-  if (shapeChanged || (listStyle !== null && attrsDiffer(attrs, line))) {
+  if (kindChanged || (listStyle !== null && attrsDiffer(attrs, line))) {
     write.attrs = attributesFor(attrs, line, listStyle);
     changed = true;
   }
-  const parentChanged = (placement.group?.id ?? null) !== existing.containerId;
-  if (parentChanged) {
-    write.parents = parentsFor(placement);
-    changed = true;
-  }
-  const wasLayout = placement.previousStyle === STYLE_QUOTE;
-  const isLayout = placement.group?.style === STYLE_QUOTE;
-  if (wasLayout !== isLayout) {
-    write.layoutParent = isLayout;
-    changed = true;
-  }
-  if (parentChanged || placement.forcePath || placement.position !== existing.position) {
-    assignPlacement(write, placement);
-    changed = true;
-  }
+  if (structureChanges(write, entry, placement)) changed = true;
   return changed ? write : null;
 }
 
-export function newContainerWrite(
-  id: string,
-  style: number,
-  memberIds: string[],
-  placement: Placement,
-): SectionWrite {
-  const write = blankWrite(id);
-  const quote = style === STYLE_QUOTE;
-  write.type = quote ? TYPE_QUOTE : TYPE_LIST;
-  write.style = style;
-  write.content = quote ? quoteContent(memberIds) : [];
+export function newFileWrite(node: CanvasFile, placement: Placement): SectionWrite {
+  const write = blankWrite(node.id);
+  write.type = TYPE_FILE;
+  write.style = STYLE_FILE;
+  write.content = fileContent(node);
   write.attrs = encodeRawMessage(new Map([[4, [rawVarint(0)]]]));
+  write.parents = "none";
+  write.layoutParent = placement.layoutParent;
   assignPlacement(write, placement);
   return write;
 }
 
-export function updatedContainerWrite(
-  container: ExistingContainer,
-  update: { memberIds: string[] | null; placement: Placement | null },
-): SectionWrite {
-  const write = blankWrite(container.record.id ?? "");
-  write.sequence = container.record.sequence;
-  write.type = container.record.type;
-  write.style = container.style;
-  if (update.placement) assignPlacement(write, update.placement);
-  if (update.memberIds) write.content = quoteContent(update.memberIds);
+export function newImageWrite(node: CanvasImage, placement: Placement): SectionWrite {
+  const write = blankWrite(node.id);
+  write.type = TYPE_IMAGE;
+  write.style = STYLE_IMAGE;
+  write.content = imageContent(node);
+  write.attrs = encodeRawMessage(new Map([[4, [rawVarint(0)]]]));
+  write.parents = "none";
+  write.layoutParent = placement.layoutParent;
+  assignPlacement(write, placement);
   return write;
+}
+
+export function movedAtomWrite(entry: FlowEntry, placement: Placement): SectionWrite | null {
+  const { existing } = entry;
+  if (!existing) return null;
+  const write = blankWrite(entry.id);
+  write.sequence = existing.record.sequence;
+  write.type = existing.record.type;
+  write.style = existing.record.style;
+  return structureChanges(write, entry, placement) ? write : null;
 }
 
 export function deleteWrite(record: SectionRecord): SectionWrite {
@@ -218,6 +227,7 @@ export function controlWrite(control: CanvasControl): SectionWrite {
   write.sectionClass = CONTROL_CLASS;
   write.type = CONTROL_TYPES[control.kind];
   write.content = encodeRawMessage(controlContent(control));
+  if (control.kind === "date") write.label = control.label;
   return write;
 }
 

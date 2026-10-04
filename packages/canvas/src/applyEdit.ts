@@ -15,12 +15,13 @@ export function applyEdit(flowEntries: FlowEntry[], edit: CanvasEdit): ApplyResu
   const deleted = new Set(edit.deleted);
   const entries = flowEntries.filter((entry) => !deleted.has(entry.id));
   const removed = flowEntries.filter((entry) => deleted.has(entry.id));
-  for (const { after, line } of edit.upserts) {
-    const current = entries.findIndex((entry) => entry.id === line.id);
+  for (const { after, node } of edit.upserts) {
+    const current = entries.findIndex((entry) => entry.id === node.id);
     const entry = current >= 0 ? entries[current] : undefined;
-    if (entry && entry.line === null) return { error: "opaque_block", ok: false };
+    if (entry && entry.node === null) return { error: "opaque_block", ok: false };
     if (entry) {
-      entry.line = line;
+      entry.node = node;
+      entry.frames = node.frames;
       entry.touched = true;
       const predecessor = current > 0 ? (entries[current - 1]?.id ?? null) : null;
       if (predecessor === after) continue;
@@ -32,7 +33,14 @@ export function applyEdit(flowEntries: FlowEntry[], edit: CanvasEdit): ApplyResu
     }
     const index = indexAfter(entries, after);
     if (index < 0) return { error: "unknown_anchor", ok: false };
-    entries.splice(index, 0, { descendants: [], existing: null, id: line.id, line, touched: true });
+    entries.splice(index, 0, {
+      descendants: [],
+      existing: null,
+      frames: node.frames,
+      id: node.id,
+      node,
+      touched: true,
+    });
   }
   return { entries, ok: true, removed };
 }

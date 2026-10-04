@@ -1,6 +1,5 @@
-import { parseLoadDataResponse } from "@slock/canvas";
+import { readCanvas } from "@slock/canvas";
 import type {
-  CanvasBlock,
   CanvasEdit,
   FileUploadInput,
   LinkPreview,
@@ -11,7 +10,6 @@ import type {
   SlackFileDetail,
 } from "@slock/types";
 import { apiGet, apiPost, mapFile, mapFileShare, resolveMediaUrl } from "@slock/types";
-import { toCanvasBlocks } from "../canvas/canvasBlocks";
 import type { CanvasDocModel } from "../canvas/canvasDelta";
 import { CanvasEditError } from "../canvas/canvasSync";
 
@@ -23,7 +21,7 @@ export async function fetchSaved(): Promise<SavedItem[]> {
 
 const canvasFileRequests = new Map<string, Promise<RawFile>>();
 
-function resolveCanvasFile(fileId: string): Promise<RawFile> {
+export function resolveCanvasFile(fileId: string): Promise<RawFile> {
   const existing = canvasFileRequests.get(fileId);
   if (existing) return existing;
   const request = apiGet<{ file: RawFile }>(`/api/canvases/${fileId}/file-info`)
@@ -79,7 +77,6 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 export interface LoadedCanvas {
-  blocks: CanvasBlock[];
   doc: CanvasDocModel | null;
   editable: boolean;
 }
@@ -87,13 +84,10 @@ export interface LoadedCanvas {
 export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
   const data = await apiGet<{ editable?: boolean; raw: string }>(`/api/canvases/${fileId}/raw`);
   if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
-  const { blocks, embedsById, meta } = parseLoadDataResponse(base64ToBytes(data.raw));
-  const fileIds = new Set<string>();
-  for (const embed of embedsById.values()) if (embed.type === "file") fileIds.add(embed.fileId);
-  for (const block of blocks)
-    if (block.type === "image") for (const id of block.fileIds) fileIds.add(id);
+  const document = readCanvas(base64ToBytes(data.raw));
+  if (!document) return { doc: null, editable: false };
   const entries = await Promise.all(
-    [...fileIds].map(async (id) => {
+    document.fileIds.map(async (id) => {
       try {
         return [id, await resolveCanvasFile(id)] as const;
       } catch {
@@ -102,11 +96,7 @@ export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
     }),
   );
   const files = new Map(entries.filter((entry): entry is [string, RawFile] => entry[1] !== null));
-  return {
-    blocks: toCanvasBlocks(blocks, embedsById, files),
-    doc: meta ? { blocks, embeds: embedsById, files, meta } : null,
-    editable: data.editable !== false && meta !== null,
-  };
+  return { doc: { ...document, files }, editable: data.editable !== false };
 }
 
 export async function postCanvasEdit(fileId: string, edit: CanvasEdit): Promise<void> {

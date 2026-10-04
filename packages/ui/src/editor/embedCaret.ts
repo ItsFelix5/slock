@@ -5,9 +5,9 @@ export function wireEmbedCaretEscape(quill: Quill) {
     const selection = document.getSelection();
     const anchor = selection?.anchorNode;
     if (!(selection?.isCollapsed && anchor && quill.root.contains(anchor))) return;
-    const content = (anchor instanceof Element ? anchor : anchor.parentElement)?.closest(
-      '[contenteditable="false"]',
-    );
+    const anchorElement = anchor instanceof Element ? anchor : anchor.parentElement;
+    if (anchorElement?.closest('[contenteditable="true"]') !== quill.root) return;
+    const content = anchorElement.closest('[contenteditable="false"]');
     const blot = content && Quill.find(content, true);
     if (!blot || blot instanceof Quill || blot === quill.scroll) return;
     const index = quill.getIndex(blot);

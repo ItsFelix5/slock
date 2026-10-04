@@ -1,7 +1,14 @@
-export { compareAnchors } from "./canvasListNesting.ts";
-export type { ParsedCanvas, PositionedRecord, RawBlock, RawListItem } from "./canvasParse.ts";
-export { parseCanvas, parseLoadDataResponse } from "./canvasParse.ts";
+export type { CanvasDocument } from "./document.ts";
+export { readCanvas } from "./document.ts";
 export type { CanvasEmbed } from "./embeds.ts";
+export {
+  framesFromAttribute,
+  isLineNode,
+  layoutAttribute,
+  sameFrames,
+  withCallout,
+  withQuote,
+} from "./frames.ts";
 export { longestIncreasing } from "./increasing.ts";
 export {
   lineShapeForStyle,

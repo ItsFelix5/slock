@@ -1,11 +1,11 @@
 import type { CanvasEmbed } from "@slock/canvas";
 import { newSectionId } from "@slock/canvas";
-import type { CanvasControl, CanvasEdit } from "@slock/types";
+import type { CanvasControl, CanvasEdit, CanvasNode } from "@slock/types";
 import type { Op } from "quill";
 import { createSignal } from "solid-js";
 import { type CanvasSnapshot, diffSnapshots } from "./canvasDiff";
 import type { CanvasNames } from "./canvasEmbeds";
-import { embedKey } from "./canvasEmbeds";
+import { displayTs, embedKey } from "./canvasEmbeds";
 import { type ControlPool, type IdFix, opsToLines } from "./canvasLines";
 
 export type CanvasSaveStatus = "conflict" | "dirty" | "error" | "saved" | "saving";
@@ -15,7 +15,7 @@ export interface CanvasSyncOptions {
   embeds: Map<string, CanvasEmbed>;
   getOps(): Op[];
   getTitle(): string;
-  initialLines: { html: string; id: string }[];
+  initialNodes: CanvasNode[];
   initialOps: Op[];
   initialTitle: string;
   names: CanvasNames;
@@ -33,7 +33,9 @@ const PERMANENT_CODES = new Set([
   "invalid_edit",
   "invalid_id",
   "invalid_indent",
+  "invalid_layout",
   "invalid_level",
+  "invalid_table",
   "line_too_long",
   "not_editable",
 ]);
@@ -52,7 +54,17 @@ function controlKey(control: CanvasControl): string {
   if (control.kind === "user") return `user:${control.userId}`;
   if (control.kind === "channel") return `channel:${control.channelId}`;
   if (control.kind === "emoji") return `emoji:${control.name}`;
-  return `date:${Math.floor(control.ms / 1000)}`;
+  return `date:${displayTs(control.ms)}`;
+}
+
+export function poolLines(nodes: CanvasNode[]): { html: string; id: string }[] {
+  return nodes.flatMap((node) => {
+    if (node.kind === "table")
+      return node.rows.flatMap((row) =>
+        row.cells.map((cell) => ({ html: cell.html, id: cell.contentId })),
+      );
+    return "html" in node ? [{ html: node.html, id: node.id }] : [];
+  });
 }
 
 function buildPool(
@@ -84,7 +96,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
     controls: [],
     names: options.names,
     newId,
-    pool: buildPool(options.initialLines, controlKeys),
+    pool: buildPool(poolLines(options.initialNodes), controlKeys),
     retired,
   });
   let baseline: CanvasSnapshot = { entries: initial.entries, title: options.initialTitle };
@@ -101,18 +113,17 @@ export function createCanvasSync(options: CanvasSyncOptions) {
 
   function snapshot() {
     const controls: CanvasControl[] = [];
-    const baselineLines = new Map(baseline.entries.map((entry) => [entry.id, entry.line?.html]));
+    const baselineLines = new Map(
+      baseline.entries.flatMap((entry) =>
+        "html" in entry.node ? [[entry.id, entry.node.html] as const] : [],
+      ),
+    );
     const parsed = opsToLines(options.getOps(), {
       baselineHtml: (id) => baselineLines.get(id),
       controls,
       names: options.names,
       newId,
-      pool: buildPool(
-        baseline.entries.flatMap((entry) =>
-          entry.line ? [{ html: entry.line.html, id: entry.id }] : [],
-        ),
-        controlKeys,
-      ),
+      pool: buildPool(poolLines(baseline.entries.map((entry) => entry.node)), controlKeys),
       retired,
     });
     if (parsed.fixes.length > 0) options.applyFixes(parsed.fixes);
@@ -172,12 +183,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
       controls: [],
       names: options.names,
       newId,
-      pool: buildPool(
-        baseline.entries.flatMap((entry) =>
-          entry.line ? [{ html: entry.line.html, id: entry.id }] : [],
-        ),
-        controlKeys,
-      ),
+      pool: buildPool(poolLines(baseline.entries.map((entry) => entry.node)), controlKeys),
       retired: new Set(),
     });
     const next = { entries: remote.entries, title: remoteTitle };

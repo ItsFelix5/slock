@@ -29,6 +29,7 @@ export interface QuillEditorProps {
   formats?: string[];
   id?: string;
   keepPastedHeaders?: boolean;
+  linePrefixes?: LinePrefixFormat[];
   ariaLabel?: string;
   ariaMultiline?: boolean;
   onPasteFiles?: (files: FileList) => void;
@@ -155,7 +156,7 @@ export default function QuillEditor(props: QuillEditorProps) {
 
     if (has("divider")) DividerBlot.bindShortcut(editor);
     if (has("context")) ContextBlot.bindShortcut(editor);
-    for (const lineFormat of LINE_PREFIX_FORMATS) {
+    for (const lineFormat of [...LINE_PREFIX_FORMATS, ...(props.linePrefixes ?? [])]) {
       if (has(lineFormat.format)) bindLinePrefix(editor, lineFormat);
     }
 

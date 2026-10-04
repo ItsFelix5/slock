@@ -2,34 +2,48 @@ import { asDouble, asMessage, asString, field, type RawMessage } from "./protobu
 
 export interface RawTable {
   cellContentIds: Map<string, string>;
+  cellIds: Map<string, string>;
   colIds: string[];
+  colKeys: Map<string, string>;
   colWidths: number[];
   rowIds: string[];
+  rowKeys: Map<string, string>;
+}
+
+const FIELD_TABLE = 30;
+
+function byKey(entries: { id: string; key: string }[]): string[] {
+  return entries
+    .map((entry, index) => ({ ...entry, index }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.index - b.index))
+    .map((entry) => entry.id);
 }
 
 export function tableGrid(content: RawMessage): RawTable | null {
-  const table = asMessage(field(content, 30));
+  const table = asMessage(field(content, FIELD_TABLE));
   if (!table) return null;
-  const rowIds: string[] = [];
+  const rows: { id: string; key: string }[] = [];
   for (const rowEntry of table.get(1) ?? []) {
     const rowMsg = asMessage(rowEntry);
     const rowIdMsg = rowMsg && asMessage(field(rowMsg, 1));
-    const rowId = rowIdMsg && asString(field(rowIdMsg, 14));
-    if (rowId) rowIds.push(rowId);
+    const id = rowIdMsg && asString(field(rowIdMsg, 14));
+    if (rowMsg && id) rows.push({ id, key: asString(field(rowMsg, 2)) ?? "" });
   }
-  const cols: { colId: string; orderKey: string; width: number }[] = [];
+  const cols: { id: string; key: string; width: number }[] = [];
   for (const colEntry of table.get(2) ?? []) {
     const colMsg = asMessage(colEntry);
-    const colId = colMsg && asString(field(colMsg, 1));
-    if (!colId) continue;
-    const orderKey = asString(field(colMsg, 2)) ?? "";
-    const width = asDouble(field(colMsg, 3)) ?? 0;
-    cols.push({ colId, orderKey, width });
+    const id = colMsg && asString(field(colMsg, 1));
+    if (!(colMsg && id)) continue;
+    cols.push({
+      id,
+      key: asString(field(colMsg, 2)) ?? "",
+      width: asDouble(field(colMsg, 3)) ?? 0,
+    });
   }
-  cols.sort((a, b) => a.orderKey.localeCompare(b.orderKey));
-  const colIds = cols.map((col) => col.colId);
-  const colWidths = cols.map((col) => col.width);
+  const colIds = byKey(cols);
+  const widthOf = new Map(cols.map((col) => [col.id, col.width]));
   const cellContentIds = new Map<string, string>();
+  const cellIds = new Map<string, string>();
   for (const cellEntry of table.get(3) ?? []) {
     const cellMsg = asMessage(cellEntry);
     if (!cellMsg) continue;
@@ -37,7 +51,17 @@ export function tableGrid(content: RawMessage): RawTable | null {
     const rowId = rowRefMsg && asString(field(rowRefMsg, 14));
     const colId = asString(field(cellMsg, 3));
     const contentId = asString(field(cellMsg, 4));
+    const cellId = asString(field(cellMsg, 1));
     if (rowId && colId && contentId) cellContentIds.set(`${rowId} ${colId}`, contentId);
+    if (rowId && colId && cellId) cellIds.set(`${rowId} ${colId}`, cellId);
   }
-  return { cellContentIds, colIds, colWidths, rowIds };
+  return {
+    cellContentIds,
+    cellIds,
+    colIds,
+    colKeys: new Map(cols.map((col) => [col.id, col.key])),
+    colWidths: colIds.map((id) => widthOf.get(id) ?? 0),
+    rowIds: byKey(rows),
+    rowKeys: new Map(rows.map((row) => [row.id, row.key])),
+  };
 }

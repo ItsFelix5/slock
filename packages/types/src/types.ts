@@ -1,41 +1,11 @@
 import type { Block } from "./blocks";
 import type { Attachment, PendingFile, SlackFile } from "./fileTypes";
-import type { RawFile, RawMessage } from "./rawTypes";
+import type { RawMessage } from "./rawTypes";
 import type { User } from "./userTypes";
 
 export interface CanvasListItem {
   fileId: string;
   title: string;
-}
-
-export interface CanvasListEntry {
-  checked?: boolean;
-  indent: number;
-  text: string;
-}
-
-export interface CanvasBlock {
-  colWidths?: number[];
-  columns?: string[];
-  files?: RawFile[];
-  items?: CanvasListEntry[];
-  level?: number;
-  rows?: string[][];
-  text: string;
-  type:
-    | "title"
-    | "paragraph"
-    | "heading"
-    | "code"
-    | "divider"
-    | "callout"
-    | "blockquote"
-    | "section"
-    | "bulletList"
-    | "orderedList"
-    | "checklist"
-    | "table"
-    | "image";
 }
 
 export interface Reaction {

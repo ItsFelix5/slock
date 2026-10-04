@@ -74,6 +74,7 @@ export {
   fetchLinkPreview,
   fetchSaved,
   postCanvasEdit,
+  resolveCanvasFile,
   runSlashCommand,
   uploadFile,
   uploadFiles,

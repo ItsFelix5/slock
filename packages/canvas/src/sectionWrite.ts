@@ -19,6 +19,7 @@ export interface SectionWrite {
   content: Bytes | null;
   deleted: boolean;
   id: string;
+  label: string | null;
   layoutParent: boolean | null;
   parents: { containerStyle: number; id: string } | "none" | null;
   position: string | null;
@@ -35,6 +36,7 @@ export function blankWrite(id: string): SectionWrite {
     content: null,
     deleted: false,
     id,
+    label: null,
     layoutParent: null,
     parents: null,
     path: null,
@@ -75,6 +77,7 @@ export function encodeSection(write: SectionWrite): Bytes {
   if (write.style !== null) out.push(...varintField(10, write.style));
   if (write.sectionClass !== null) out.push(...varintField(11, write.sectionClass));
   if (write.content !== null) out.push(...messageField(12, write.content));
+  if (write.label !== null) out.push(...stringField(14, write.label));
   if (write.parents === "none") out.push(...messageField(13, []));
   else if (write.parents)
     out.push(

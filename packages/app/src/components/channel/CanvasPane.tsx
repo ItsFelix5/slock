@@ -15,7 +15,6 @@ import { copyCanvasLink } from "../../lib/messageLinks";
 import { store } from "../../lib/store";
 import type { CanvasPaneContent } from "../../lib/store/slices/types";
 import "./CanvasPane.css";
-import CanvasContent from "./CanvasContent";
 import CanvasEditor from "./CanvasEditor";
 import CanvasOutlineNav from "./CanvasOutlineNav";
 
@@ -28,28 +27,13 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   let bodyRef: HTMLDivElement | undefined;
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
 
-  const blocks = () => content()?.blocks ?? [];
-
-  const readOutline: OutlineSource = {
-    element: (index) =>
-      bodyRef?.querySelector<HTMLElement>(`[data-canvas-index="${index}"]`) ?? null,
-    items: () =>
-      blocks().flatMap((block, index) =>
-        block.type === "title" || block.type === "heading"
-          ? [{ index, level: block.type === "title" ? 0 : (block.level ?? 1), text: block.text }]
-          : [],
-      ),
-  };
   const [editorOutline, setEditorOutline] = createSignal<OutlineSource | null>(null);
   createEffect(on(fileId, () => setEditorOutline(null)));
-  const outline = () => editorOutline() ?? readOutline;
-  const headings = (): OutlineItem[] =>
-    outline()
-      .items()
-      .filter((item) => item.text);
+  const outline = () => editorOutline();
+  const headings = (): OutlineItem[] => (outline()?.items() ?? []).filter((item) => item.text);
 
   function jumpTo(index: number) {
-    outline().element(index)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    outline()?.element(index)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function jumpRelative(delta: number) {
@@ -86,7 +70,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
     const containerTop = bodyRef.getBoundingClientRect().top;
     let current = items[0].index;
     for (const { index } of items) {
-      const el = outline().element(index);
+      const el = outline()?.element(index);
       if (el && el.getBoundingClientRect().top - containerTop <= 32) current = index;
     }
     setActiveIndex(current);
@@ -94,7 +78,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   createEffect(() => {
     content();
-    outline().items();
+    outline()?.items();
     queueMicrotask(updateActiveHeading);
   });
 
@@ -127,7 +111,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
         <Show when={content.loading}>
           <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
         </Show>
-        <Show when={!content.loading && content() === null}>
+        <Show when={!(content.loading || content()?.doc)}>
           <div class="canvas-panel-load-error flex-center flex-col" role="alert">
             <Show
               fallback={
@@ -144,16 +128,13 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             </Show>
           </div>
         </Show>
-        <Show when={!content.loading && content() != null}>
+        <Show when={!content.loading && content()?.doc}>
           <div class="canvas-panel-scroll-row">
-            <Show
-              fallback={<CanvasContent blocks={blocks()} />}
-              keyed
-              when={content()?.editable ? content()?.doc : undefined}
-            >
+            <Show keyed when={content()?.doc}>
               {(doc) => (
                 <CanvasEditor
                   doc={doc}
+                  editable={content()?.editable ?? false}
                   fileId={fileId()}
                   onOutline={setEditorOutline}
                   fetchLatest={() => store.canvas.loadCanvasContent(fileId())}

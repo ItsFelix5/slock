@@ -12,6 +12,30 @@ export interface CanvasNames {
 
 export const CANVAS_DATE_FORMAT = "{date_short_pretty}";
 
+const MONTH_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" });
+
+export function displayTs(ms: number): number {
+  const day = new Date(ms);
+  return Math.floor(
+    new Date(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()).getTime() / 1000,
+  );
+}
+
+export function dateMs(ts: number): number {
+  const day = new Date(ts * 1000);
+  return Date.UTC(day.getFullYear(), day.getMonth(), day.getDate());
+}
+
+function ordinal(day: number): string {
+  const tens = day % 100;
+  if (tens >= 11 && tens <= 13) return `${day}th`;
+  return `${day}${["th", "st", "nd", "rd"][day % 10] ?? "th"}`;
+}
+
+export function dateLabel(ms: number): string {
+  return `${MONTH_FORMAT.format(ms)} ${ordinal(new Date(ms).getUTCDate())}`;
+}
+
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -25,7 +49,7 @@ export function embedKey(embed: CanvasEmbed, controlId: string): string {
     case "emoji":
       return `emoji:${embed.shortcode}`;
     case "date":
-      return `date:${Math.floor(embed.ms / 1000)}`;
+      return `date:${displayTs(embed.ms)}`;
     default:
       return `raw:${controlId}`;
   }
@@ -58,11 +82,7 @@ export function embedToValue(
   if (embed?.type === "emoji" && embed.shortcode) return { emoji: { name: embed.shortcode } };
   if (embed?.type === "date") {
     return {
-      date: {
-        fallback: new Date(embed.ms).toLocaleDateString(),
-        format: CANVAS_DATE_FORMAT,
-        ts: Math.floor(embed.ms / 1000),
-      },
+      date: { fallback: dateLabel(embed.ms), format: CANVAS_DATE_FORMAT, ts: displayTs(embed.ms) },
     };
   }
   return {
@@ -83,6 +103,6 @@ export function valueToControl(
   if (isRecord(emoji) && isString(emoji.name))
     return { id, kind: "emoji", name: emoji.name, teamId: names.teamId };
   if (isRecord(date) && typeof date.ts === "number")
-    return { id, kind: "date", ms: date.ts * 1000 };
+    return { id, kind: "date", label: dateLabel(dateMs(date.ts)), ms: dateMs(date.ts) };
   return null;
 }

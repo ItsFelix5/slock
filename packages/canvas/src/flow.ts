@@ -1,32 +1,28 @@
-import type { CanvasLine } from "@slock/types";
-import { parseCanvas } from "./canvasParse.ts";
-import { descendantIds } from "./descendants.ts";
-import {
-  lineShapeForStyle,
-  listKindForStyle,
-  STYLE_QUOTE,
-  TYPE_LIST,
-  TYPE_QUOTE,
-  TYPE_TITLE,
-} from "./lineStyles.ts";
+import type { CanvasNode, LayoutFrame } from "@slock/types";
 import { asMessage, asString, field } from "./protobufRaw.ts";
-import type { DecodedCanvas, SectionRecord } from "./sections.ts";
+import type { SectionRecord } from "./sections.ts";
+
+export type ContainerKind = "callout" | "columns" | "list" | "quote";
 
 export interface ExistingEntry {
-  containerId: string | null;
+  layoutIds: string[];
+  listId: string | null;
   position: string;
   record: SectionRecord;
+  wrapperId: string | null;
 }
 
 export interface FlowEntry {
   descendants: string[];
   existing: ExistingEntry | null;
+  frames: LayoutFrame[];
   id: string;
-  line: CanvasLine | null;
+  node: CanvasNode | null;
   touched: boolean;
 }
 
 export interface ExistingContainer {
+  kind: ContainerKind;
   position: string;
   record: SectionRecord;
   style: number;
@@ -52,112 +48,8 @@ export function sectionText(record: SectionRecord): string {
   return (paragraph && asString(field(paragraph, 1))) ?? "";
 }
 
-function attributes(record: SectionRecord) {
-  const attrs = asMessage(field(record.msg, 16));
-  return {
-    checked: Number(attrs ? (field(attrs, 2)?.varint ?? 0n) : 0n) !== 0,
-    indent: Number(attrs ? (field(attrs, 1)?.varint ?? 0n) : 0n),
-  };
-}
-
-function textLine(record: SectionRecord, id: string, listKind: CanvasLine["kind"] | null) {
-  const { checked, indent } = attributes(record);
-  const shape = lineShapeForStyle(record.style);
-  return {
-    checked: listKind === "checklist" && checked,
-    html: sectionText(record),
-    id,
-    indent: listKind ? indent : 0,
-    kind: listKind ?? shape.kind,
-    level: listKind ? 0 : shape.level,
-  };
-}
-
-export function buildFlow(decoded: DecodedCanvas): Flow {
-  const records = new Map<string, SectionRecord>();
-  const usedPositions = new Set<string>();
-  const containers = new Map<string, ExistingContainer>();
-  let title: SectionRecord | null = null;
-  for (const record of decoded.records) {
-    usedPositions.add(ownPosition(record));
-    if (!record.id) continue;
-    records.set(record.id, record);
-    if (record.type === TYPE_TITLE) title = record;
-    const isList = listKindForStyle(record.style) !== null && record.type === TYPE_LIST;
-    const isQuote = record.style === STYLE_QUOTE && record.type === TYPE_QUOTE;
-    if (isList || isQuote) {
-      containers.set(record.id, {
-        position: ownPosition(record),
-        record,
-        style: record.style,
-      });
-    }
-  }
-
-  const entries: FlowEntry[] = [];
-  for (const block of parseCanvas(decoded).blocks) {
-    if (block.type === "title") continue;
-    if (block.type === "paragraph") {
-      const record = block.id ? records.get(block.id) : undefined;
-      if (!(record && block.id)) continue;
-      entries.push({
-        descendants: [],
-        existing: { containerId: null, position: ownPosition(record), record },
-        id: block.id,
-        line: textLine(record, block.id, null),
-        touched: false,
-      });
-    } else if (
-      block.type === "bulletList" ||
-      block.type === "orderedList" ||
-      block.type === "checklist"
-    ) {
-      for (const item of block.items) {
-        const record = item.id ? records.get(item.id) : undefined;
-        if (!(record && item.id)) continue;
-        const containerId = record.parentIds[0] ?? block.containerId;
-        const kind = listKindForStyle(containers.get(containerId ?? "")?.style ?? -1);
-        entries.push({
-          descendants: [],
-          existing: { containerId, position: ownPosition(record), record },
-          id: item.id,
-          line: textLine(record, item.id, kind),
-          touched: false,
-        });
-      }
-    } else if (block.type === "blockquote" && block.plain && block.id) {
-      for (const childId of block.childIds) {
-        const record = records.get(childId);
-        if (!record) continue;
-        entries.push({
-          descendants: [],
-          existing: { containerId: block.id, position: ownPosition(record), record },
-          id: childId,
-          line: {
-            checked: false,
-            html: sectionText(record),
-            id: childId,
-            indent: 0,
-            kind: "quote",
-            level: 0,
-          },
-          touched: false,
-        });
-      }
-    } else if (block.id) {
-      const record = records.get(block.id);
-      if (!record) continue;
-      entries.push({
-        descendants: descendantIds(record),
-        existing: { containerId: null, position: block.anchor, record },
-        id: block.id,
-        line:
-          block.type === "divider"
-            ? { checked: false, html: "", id: block.id, indent: 0, kind: "divider", level: 0 }
-            : null,
-        touched: false,
-      });
-    }
-  }
-  return { containers, entries, records, title, usedPositions };
+export function titleText(record: SectionRecord): string {
+  const content = asMessage(field(record.msg, 12));
+  const title = content && asMessage(field(content, 58));
+  return (title && asString(field(title, 1))) ?? "";
 }

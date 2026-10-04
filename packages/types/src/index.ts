@@ -57,9 +57,18 @@ export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./bootstrapP
 export type {
   CanvasControl,
   CanvasEdit,
+  CanvasFile,
+  CanvasImage,
+  CanvasImageThumb,
   CanvasLine,
   CanvasLineKind,
-  CanvasLineUpsert,
+  CanvasNode,
+  CanvasTable,
+  CanvasTableCell,
+  CanvasTableColumn,
+  CanvasTableRow,
+  CanvasUpsert,
+  LayoutFrame,
 } from "./canvasEdit";
 export { parseCanvasEdit } from "./canvasEdit";
 export { fetchAllEmoji, fetchSlashCommands, invalidateEmojiCache } from "./content";
@@ -162,8 +171,6 @@ export {
 } from "./server";
 export type {
   BrowsableChannel,
-  CanvasBlock,
-  CanvasListEntry,
   CanvasListItem,
   Channel,
   ChannelDetails,
