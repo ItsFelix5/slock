@@ -80,3 +80,14 @@
   background: var(--hover-bg);
   border-radius: var(--radius-sm);
 }
+
+.canvas-comment-thread {
+  gap: var(--space-xs);
+  padding-bottom: var(--space-sm);
+}
+
+.canvas-comment-quote {
+  padding-left: var(--space-sm);
+  border-left: 2px solid var(--border);
+  white-space: pre-wrap;
+}

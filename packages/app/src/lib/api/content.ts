@@ -136,10 +136,17 @@ export async function restoreCanvasVersion(fileId: string, version: CanvasVersio
   if (!data.ok) throw new Error(data.error ?? "Couldn't restore this version");
 }
 
-export async function fetchCanvasComments(fileId: string): Promise<CanvasCommentThread[]> {
-  const data = await apiGet<{ threads: RawMessage[] }>(`/api/canvases/${fileId}/comments`);
+export interface CanvasComments {
+  channelId: string;
+  threads: CanvasCommentThread[];
+}
+
+export async function fetchCanvasComments(fileId: string): Promise<CanvasComments> {
+  const data = await apiGet<{ channelId?: string; threads: RawMessage[] }>(
+    `/api/canvases/${fileId}/comments`,
+  );
   if (!data.ok) throw new Error(data.error ?? "Canvas comments failed");
-  return data.threads.flatMap((message) => {
+  const threads = data.threads.flatMap((message) => {
     const threadId = message.document_comment?.thread_id;
     if (!threadId) return [];
     return [
@@ -155,6 +162,7 @@ export async function fetchCanvasComments(fileId: string): Promise<CanvasComment
       },
     ];
   });
+  return { channelId: data.channelId ?? "", threads };
 }
 
 export async function openCanvasComment(

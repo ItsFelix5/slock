@@ -12,6 +12,7 @@ import {
 } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
 import {
+  fetchCanvasComments,
   fetchCanvasVersion,
   fetchCanvasVersions,
   openCanvasComment,
@@ -23,6 +24,7 @@ import { copyCanvasLink } from "../../lib/messageLinks";
 import { store } from "../../lib/store";
 import type { CanvasPaneContent } from "../../lib/store/slices/types";
 import "./CanvasPane.css";
+import CanvasComments from "./CanvasComments";
 import CanvasEditor from "./CanvasEditor";
 import CanvasHistory, { versionAuthor, versionLabel } from "./CanvasHistory";
 import CanvasOutlineNav from "./CanvasOutlineNav";
@@ -36,6 +38,11 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   const [detailOpen, setDetailOpen] = createSignal(false);
   const [historyOpen, setHistoryOpen] = createSignal(false);
+  const [commentsOpen, setCommentsOpen] = createSignal(false);
+  const [comments, { refetch: refetchComments }] = createResource(
+    () => (commentsOpen() ? fileId() : undefined),
+    fetchCanvasComments,
+  );
   const [selected, setSelected] = createSignal<CanvasVersion | null>(null);
   const [showChanges, setShowChanges] = createSignal(true);
   const [versions] = createResource(
@@ -73,6 +80,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   createEffect(
     on(fileId, () => {
       setHistoryOpen(false);
+      setCommentsOpen(false);
       setSelected(null);
     }),
   );
@@ -185,6 +193,18 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             size="sm"
           />
           <IconButton
+            active={commentsOpen()}
+            icon="message"
+            iconSize={15}
+            label="Comments"
+            onClick={() => {
+              setCommentsOpen(!commentsOpen());
+              setHistoryOpen(false);
+              setSelected(null);
+            }}
+            size="sm"
+          />
+          <IconButton
             active={historyOpen()}
             class="canvas-panel-history"
             icon="history"
@@ -192,6 +212,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             label="Version history"
             onClick={() => {
               setHistoryOpen(!historyOpen());
+              setCommentsOpen(false);
               setSelected(null);
             }}
             size="sm"
@@ -296,6 +317,22 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                   selected={selected()}
                   showChanges={showChanges()}
                   versions={versions() ?? []}
+                />
+              </div>
+            </Show>
+            <Show when={commentsOpen()}>
+              <div class="canvas-history-slot">
+                <CanvasComments
+                  channelId={comments()?.channelId ?? ""}
+                  error={!!comments.error}
+                  fileId={fileId()}
+                  html={(content()?.doc?.nodes ?? []).flatMap((node) =>
+                    "html" in node ? [node.html] : [],
+                  )}
+                  loading={comments.loading}
+                  onClose={() => setCommentsOpen(false)}
+                  onRefresh={() => void refetchComments()}
+                  threads={comments()?.threads ?? []}
                 />
               </div>
             </Show>
