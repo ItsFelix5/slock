@@ -25,7 +25,7 @@ export function showDebugInfo(title: string, data: unknown) {
   setPending({ title, data });
 }
 
-export function DebugInfoDialogHost() {
+export function DebugInfoDialog() {
   const [copiedKey, copy] = createCopyFeedback();
   const json = createMemo(() => JSON.stringify(pending()?.data, null, 2) ?? "");
   const close = () => setPending(null);

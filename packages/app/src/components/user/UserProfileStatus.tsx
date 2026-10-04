@@ -14,7 +14,6 @@ interface UserProfileStatusProps {
   savingStatus: () => boolean;
   saveStatus: () => Promise<void>;
   clearStatus: () => Promise<void>;
-  blurOnEnter: (event: KeyboardEvent & { currentTarget: HTMLElement }) => void;
 }
 
 export default function UserProfileStatus(props: UserProfileStatusProps) {
@@ -67,7 +66,7 @@ export default function UserProfileStatus(props: UserProfileStatusProps) {
           disabled={props.savingStatus()}
           onBlur={props.saveStatus}
           onInput={(e) => props.setStatusText(e.currentTarget.value)}
-          onKeyDown={props.blurOnEnter}
+          data-commit-on-enter
           placeholder="What's your status?"
           type="text"
           value={props.statusText()}

@@ -9,7 +9,7 @@
   width: max-content;
   max-width: 240px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   line-height: 1.35;
   color: var(--text-primary);
   pointer-events: none;

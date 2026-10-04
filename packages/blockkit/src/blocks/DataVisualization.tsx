@@ -1,5 +1,6 @@
 import type { ChartAxisConfig, ChartSeries, DataVisualizationBlock } from "@slock/types";
 import { For, Match, Show, Switch } from "solid-js";
+import "./DataVisualization.css";
 
 const CHART_W = 300;
 const CHART_H = 140;
@@ -20,7 +21,7 @@ function Legend(props: { items: { label: string; color: string }[] }) {
     <div class="bk-chart-legend">
       <For each={props.items}>
         {(item) => (
-          <div class="bk-chart-legend-item">
+          <div class="bk-chart-legend-item flex-align-center">
             <i style={{ background: item.color }} />
             <span>{item.label}</span>
           </div>
@@ -162,7 +163,7 @@ function PieChart(props: { segments: { label: string; value: number }[] }) {
       .join(", ");
   };
   return (
-    <div class="bk-chart-pie-wrap">
+    <div class="bk-chart-pie-wrap flex-align-center">
       <div class="bk-chart-pie" style={{ background: `conic-gradient(${gradient()})` }} />
       <Legend
         items={props.segments.map((s, i) => ({

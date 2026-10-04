@@ -1,5 +1,5 @@
+import type { Channel, DirectMessage, User } from "@slock/types";
 import type { IconName } from "@slock/ui";
-import type { Channel, DirectMessage, User } from "./api";
 import { isDmId } from "./store/slices/entities/dms";
 
 export function channelDisplayName(
@@ -12,7 +12,8 @@ export function channelDisplayName(
   return id;
 }
 
-export function channelIconName(isPrivate: boolean | undefined): IconName {
+export function channelIconName(isPrivate: boolean | undefined, isArchived?: boolean): IconName {
+  if (isArchived) return "archive";
   return isPrivate ? "lock" : "channel";
 }
 
@@ -33,13 +34,15 @@ export function formatInteractorNames(
   ids: string[],
   currentUserId: string | undefined,
   userById: (id: string) => User | undefined,
+  max = ids.length,
 ): string {
   const names = ids.map((id) => (id === currentUserId ? "you" : (userById(id)?.name ?? "someone")));
-  return names.reduce(
-    (previous, current, index, all) =>
-      (previous ? previous + (index < all.length - 1 ? ", " : " and ") : "") + current,
-    "",
-  );
+  const shownCount = names.length - max === 1 ? names.length : max;
+  const shown = names.slice(0, shownCount);
+  const hidden = names.length - shownCount;
+  if (hidden > 0) shown.push(`${hidden} others`);
+  if (shown.length < 2) return shown.join("");
+  return `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}`;
 }
 
 export function conversationDisplayName(

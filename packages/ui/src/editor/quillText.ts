@@ -1,6 +1,5 @@
 import type Quill from "quill";
-import QuillNamespace from "quill";
-import type EmbedBlot from "quill/blots/embed";
+import EmbedBlot from "quill/blots/embed";
 
 const OBJECT_REPLACEMENT_CHAR = "￼";
 
@@ -11,12 +10,6 @@ export function indexAlignedText(quill: Quill): string {
     .join("");
 }
 
-let embedBlot: typeof EmbedBlot | undefined;
-
 export function getEmbedBlot(): typeof EmbedBlot {
-  if (!embedBlot) {
-    const imported: any = QuillNamespace.import("blots/embed");
-    embedBlot = imported;
-  }
-  return embedBlot!;
+  return EmbedBlot;
 }

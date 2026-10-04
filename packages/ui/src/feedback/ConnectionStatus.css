@@ -3,12 +3,9 @@
   top: 8px;
   left: 50%;
   z-index: 50;
-  display: flex;
-  gap: 8px;
-  align-items: center;
   max-width: calc(100vw - 24px);
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-primary);
   text-align: center;
   background: var(--composer-bg);

@@ -1,35 +1,25 @@
 import { blockPreviewText } from "./blocks";
+import { mapAttachment, mapFile } from "./mapFiles";
 import { formatDay, formatTime } from "./mapTime";
-import type {
-  RawAttachment,
-  RawChannel,
-  RawChannelSection,
-  RawFile,
-  RawFileShare,
-  RawLink,
-  RawMessage,
-} from "./rawTypes";
+import type { RawChannel, RawChannelSection, RawMessage } from "./rawTypes";
 import { resolveMediaUrl } from "./server";
-import type {
-  Attachment,
-  Channel,
-  Message,
-  MessageKind,
-  SlackFile,
-  SlackFileShare,
-  SlackLink,
-} from "./types";
+import type { Channel, ChannelDetails, Message, MessageKind } from "./types";
+import type { User } from "./userTypes";
 
 export { buildUnreadMap, parseBadgeCounts } from "./mapCounts";
-export { formatDay, formatDayFromMs, formatTime, formatTimeFromMs } from "./mapTime";
+
+export { CLOCK_24H, formatDay, formatDayFromMs, formatTime, formatTimeFromMs } from "./mapTime";
+
 export {
   mapBot,
   mapCustomFields,
   mapProfileIdentity,
   mapStartDate,
   mapUser,
+  SLACK_SYSTEM_USER,
   SLACK_USER_ID,
 } from "./mapUsers";
+
 export type {
   RawAttachment,
   RawBot,
@@ -58,6 +48,21 @@ export function mapChannel(raw: RawChannel): Channel {
   };
 }
 
+export function mapChannelDetails(raw: RawChannel): ChannelDetails {
+  return {
+    archived: !!raw.is_archived,
+    created: raw.created ?? 0,
+    creatorId: raw.creator || undefined,
+    email: raw.properties?.channel_email_addresses?.[0]?.address || undefined,
+    id: raw.id,
+    memberCount: raw.num_members,
+    name: raw.name ?? raw.id,
+    private: !!raw.is_private,
+    purpose: typeof raw.purpose === "string" ? raw.purpose : (raw.purpose?.value ?? ""),
+    topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
+  };
+}
+
 const SYSTEM_SUBTYPES = new Set([
   "channel_join",
   "channel_leave",
@@ -78,133 +83,26 @@ const SYSTEM_SUBTYPES = new Set([
   "pinned_item",
   "unpinned_item",
 ]);
-export const HIDE_SUBTYPES = new Set([
+
+const HIDE_SUBTYPES = new Set([
   "message_changed",
   "message_deleted",
   "message_replied",
   "reply_broadcast",
 ]);
 
-export function mapFile(f: RawFile): SlackFile {
-  const mimetype: string | undefined = f.mimetype;
-
-  const thumb =
-    (f.thumb_800 && f.thumb_800_w && f.thumb_800_h
-      ? { h: f.thumb_800_h, url: f.thumb_800, w: f.thumb_800_w }
-      : undefined) ??
-    (f.thumb_720 && f.thumb_720_w && f.thumb_720_h
-      ? { h: f.thumb_720_h, url: f.thumb_720, w: f.thumb_720_w }
-      : undefined) ??
-    (f.thumb_480 && f.thumb_480_w && f.thumb_480_h
-      ? { h: f.thumb_480_h, url: f.thumb_480, w: f.thumb_480_w }
-      : undefined) ??
-    (f.thumb_360 && f.thumb_360_w && f.thumb_360_h
-      ? { h: f.thumb_360_h, url: f.thumb_360, w: f.thumb_360_w }
-      : undefined) ??
-    (f.thumb_160 ? { h: f.original_h, url: f.thumb_160, w: f.original_w } : undefined) ??
-    (f.thumb_video ? { h: f.thumb_video_h, url: f.thumb_video, w: f.thumb_video_w } : undefined);
-  return {
-    created: f.created,
-
-    duration: f.duration ?? (typeof f.duration_ms === "number" ? f.duration_ms / 1000 : undefined),
-    filetype: f.filetype,
-    height: thumb?.h ?? f.original_h,
-    id: f.id,
-    isAudio: !!mimetype?.startsWith("audio/"),
-    isImage: !!mimetype?.startsWith("image/"),
-    isMail: mimetype === "message/rfc822" || f.filetype === "eml",
-    isPdf: mimetype === "application/pdf" || f.filetype === "pdf",
-    isVideo: !!mimetype?.startsWith("video/"),
-    mimetype,
-    name: f.name ?? "file",
-    permalink: f.permalink,
-    size: f.size,
-    thumbTiny: f.thumb_tiny,
-    thumbUrl: thumb ? resolveMediaUrl(thumb.url) : undefined,
-    title: f.title,
-    transcriptionHasMore: f.transcription?.preview?.has_more,
-    transcriptionLines: f.transcription?.lines?.map((line) => ({
-      endMs: line.end_time_ms ?? 0,
-      startMs: line.start_time_ms ?? 0,
-      text: line.contents ?? "",
-    })),
-    transcriptionPreview: f.transcription?.preview?.content,
-
-    urlPrivate: f.url_private ?? "",
-    urlPrivateDownload: f.url_private_download
-      ? resolveMediaUrl(f.url_private_download)
-      : undefined,
-    vtt: f.vtt ? resolveMediaUrl(f.vtt) : undefined,
-    waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
-    width: thumb?.w ?? f.original_w,
-  };
+function isVisibleSubtype(raw: RawMessage): boolean {
+  return !(raw.subtype && HIDE_SUBTYPES.has(raw.subtype));
 }
 
-export function mapLink(raw: RawLink): SlackLink {
-  return {
-    iconUrl: raw.icon_url ? resolveMediaUrl(raw.icon_url) : undefined,
-    thumbHeight: raw.thumb_height ?? undefined,
-    thumbUrl: raw.thumb_url ? resolveMediaUrl(raw.thumb_url) : undefined,
-    thumbWidth: raw.thumb_width ?? undefined,
-    title: raw.title,
-    ts: raw.timestamp,
-    url: raw.url,
-  };
+export function mapVisibleMessage(raw: RawMessage): Message | undefined {
+  return isVisibleSubtype(raw) ? mapMessage(raw) : undefined;
 }
 
-export function mapFileShare(raw: RawFileShare): SlackFileShare {
-  return {
-    channelId: raw.channel_id,
-    channelName: raw.channel_name ?? raw.channel_id,
-    replyCount: raw.reply_count,
-    sharedByUserId: raw.share_user_id,
-    threadTs: raw.thread_ts,
-    ts: raw.ts,
-  };
-}
-
-function mapAttachment(a: RawAttachment): Attachment {
-  return {
-    actions: a.actions?.flatMap((action) =>
-      action.type === "button" && action.name && action.text
-        ? [
-            {
-              name: action.name,
-              style: action.style,
-              text: action.text,
-              url: action.url,
-              value: action.value,
-            },
-          ]
-        : [],
-    ),
-    authorIcon: a.author_icon ? resolveMediaUrl(a.author_icon) : undefined,
-    authorName: a.author_name,
-    blocks: a.blocks,
-    callbackId: a.callback_id,
-    channelId: a.channel_id,
-    color: a.color,
-    fallback: a.fallback,
-    fields: a.fields,
-    files: Array.isArray(a.files) ? a.files.map(mapFile) : undefined,
-    footer: a.footer,
-    footerIcon: a.footer_icon ? resolveMediaUrl(a.footer_icon) : undefined,
-    fromUrl: a.from_url,
-    id: a.id,
-    imageHeight: a.image_height,
-    imageUrl: a.image_url ? resolveMediaUrl(a.image_url) : undefined,
-    imageWidth: a.image_width,
-    isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
-    postedAt: a.ts ? `${formatDay(a.ts)} at ${formatTime(a.ts)}` : undefined,
-    pretext: a.pretext,
-    text: a.text,
-    title: a.title,
-    titleLink: a.title_link,
-    ts: a.ts,
-    videoHeight: a.video_height,
-    videoUrl: a.video_url ? resolveMediaUrl(a.video_url) : undefined,
-    videoWidth: a.video_width,
-  };
+export function mapVisibleMessages(raws: RawMessage[]): Message[] {
+  return raws
+    .filter((raw) => raw.type === "message")
+    .flatMap((raw) => mapVisibleMessage(raw) ?? []);
 }
 
 export function mapMessage(m: RawMessage): Message {
@@ -238,10 +136,10 @@ export function mapMessage(m: RawMessage): Message {
     lastReplyLabel: m.latest_reply
       ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
       : undefined,
+    metadata: m.metadata,
     reactions: m.reactions,
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
-    sourceUserId: m.metadata?.event_payload?.real_user_id,
     text: m.text || blockPreviewText(m.blocks),
     threadRoot: m.root ? mapMessage(m.root) : undefined,
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
@@ -275,4 +173,13 @@ export function extractChannelSections(
       type: s.type ?? "standard",
     }))
     .filter((s): s is ChannelSectionSummary => !!s.id);
+}
+
+export const RELAY_BOT_ID = "B0BU242DJHM";
+
+export function isMyRelayedMessage(
+  msg: Pick<Message, "botId" | "botName">,
+  user: Pick<User, "name" | "originalName"> | undefined,
+): boolean {
+  return msg.botId === RELAY_BOT_ID && !!user && msg.botName === (user.originalName ?? user.name);
 }

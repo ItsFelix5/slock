@@ -1,43 +1,52 @@
 import { BlockKitResolverContext } from "@slock/blockkit";
 import {
   Button,
-  ConfirmDialogHost,
+  ConfirmDialog,
   ConnectionStatus,
-  DebugInfoDialogHost,
+  DebugInfoDialog,
   InlineFeedback,
   PaneRow,
+  useCloseShortcut,
+  useFieldCommitShortcut,
   useGlobalUndoShortcut,
   usePaneNavigation,
   windowWidth,
 } from "@slock/ui";
 import { QueryClientProvider } from "@tanstack/solid-query";
-import { createEffect, lazy, Show } from "solid-js";
+import { createEffect, createSignal, lazy, Show } from "solid-js";
 import { blockKitRenderResolver } from "./components/blockKitRender";
+import { useMessageShortcuts } from "./components/messages/useMessageShortcuts";
 import PaneSwitch, { paneTabLabel } from "./components/panes/PaneSwitch";
 import Sidebar, { sidebarWidth } from "./components/sidebar/Sidebar";
 import { blockKitDataResolver } from "./lib/blockKitResolver";
 import { conversationDisplayName } from "./lib/displayName";
 import { actionFeedback, undoStack } from "./lib/feedback";
 import { useSlackPermalinkHandler } from "./lib/navigation/useSlackPermalinkHandler";
+import { confirmLogout, logoutAndReload } from "./lib/session";
 import { queryClient, store } from "./lib/store";
 
 const ChannelDetails = lazy(() => import("./components/channel/channel-details/ChannelDetails"));
 const ViewModal = lazy(() => import("./components/modals/ViewModal"));
 
 function App() {
+  useCloseShortcut();
+  useFieldCommitShortcut();
   usePaneNavigation();
+  useMessageShortcuts();
   useGlobalUndoShortcut(undoStack, (label) => actionFeedback.flash("undo", `Undid: ${label}`));
   useSlackPermalinkHandler();
 
+  const [loggingOut, setLoggingOut] = createSignal(false);
+
+  async function handleLogout() {
+    if (!(await confirmLogout())) return;
+    setLoggingOut(true);
+    await logoutAndReload();
+  }
+
   createEffect(() => {
-    const nav = store.viewState.nav();
     const view = store.viewState.activeView();
     document.title =
-      {
-        activity: "Activity",
-        later: "Later",
-        search: "Search",
-      }[nav] ||
       (view
         ? conversationDisplayName(
             view.id,
@@ -45,8 +54,7 @@ function App() {
             store.dms.dmById,
             store.users.userById,
           )
-        : "") ||
-      "slock";
+        : "") || "slock";
   });
 
   return (
@@ -54,18 +62,28 @@ function App() {
       <BlockKitResolverContext.Provider
         value={{ ...blockKitDataResolver, ...blockKitRenderResolver }}
       >
+        <ConfirmDialog />
         <Show
           fallback={
             <main class="app-bootstrap-error flex-center flex-col">
               <h1>Couldn't load your workspace</h1>
-              <p>Check your connection and try again.</p>
-              <Button
-                disabled={store.resources.bootstrap.isFetching}
-                onClick={() => void store.resources.retryBootstrap()}
-                variant="primary"
-              >
-                {store.resources.bootstrap.isFetching ? "Retrying…" : "Try again"}
-              </Button>
+              <p>Check your connection and try again or log in again.</p>
+              <div class="flex-center app-bootstrap-error-actions">
+                <Button
+                  disabled={store.resources.bootstrap.isFetching}
+                  onClick={() => void store.resources.retryBootstrap()}
+                  variant="primary"
+                >
+                  {store.resources.bootstrap.isFetching ? "Retrying…" : "Try again"}
+                </Button>
+                <Button
+                  disabled={loggingOut()}
+                  onClick={() => void handleLogout()}
+                  variant="secondary"
+                >
+                  {loggingOut() ? "Logging out…" : "Log out"}
+                </Button>
+              </div>
             </main>
           }
           when={!store.resources.bootstrap.error}
@@ -76,12 +94,12 @@ function App() {
           />
           <div class="app">
             <InlineFeedback
-              class="app-navigation-feedback"
+              class="app-navigation-feedback surface-popover"
               feedback={actionFeedback.get("navigation")}
               priority={2}
             />
             <InlineFeedback
-              class="app-navigation-feedback"
+              class="app-navigation-feedback surface-popover"
               feedback={actionFeedback.get("undo")}
               priority={1}
             />
@@ -100,8 +118,7 @@ function App() {
 
             <ViewModal />
             <ChannelDetails />
-            <ConfirmDialogHost />
-            <DebugInfoDialogHost />
+            <DebugInfoDialog />
           </div>
         </Show>
       </BlockKitResolverContext.Provider>

@@ -1,8 +1,10 @@
-import { type OverflowElement, runBlockAction } from "@slock/types";
+import type { OverflowElement } from "@slock/types";
 import { confirmDialog, Icon, Menu } from "@slock/ui";
-import { createSignal, For, onCleanup, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
+import { useBlockActionDispatch } from "../useBlockActionDispatch";
+import "./Controls.css";
 
 export default function Overflow(props: {
   blockId?: string;
@@ -10,21 +12,9 @@ export default function Overflow(props: {
   el: OverflowElement;
 }) {
   const [open, setOpen] = createSignal(false);
-  const [unsupported, setUnsupported] = createSignal(false);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let active = true;
-  const canDispatch = () => !!(props.context?.botId && props.el.action_id);
-
-  onCleanup(() => {
-    active = false;
-    clearTimeout(timer);
-  });
-
-  const flashUnsupported = () => {
-    clearTimeout(timer);
-    setUnsupported(true);
-    timer = setTimeout(() => setUnsupported(false), 2000);
-  };
+  const { canDispatch, dispatch, flashUnsupported, unsupported } = useBlockActionDispatch(
+    () => props.context,
+  );
 
   const selectOption = async (opt: OverflowElement["options"][number]) => {
     if (opt.url) {
@@ -43,44 +33,35 @@ export default function Overflow(props: {
       });
       if (!ok) return;
     }
-    const ctx = props.context;
-    if (!(ctx?.botId && props.el.action_id)) {
+    if (!canDispatch(props.el.action_id)) {
       flashUnsupported();
       return;
     }
     setOpen(false);
-    runBlockAction({
-      action: {
-        action_id: props.el.action_id,
-        block_id: props.blockId,
-        selected_option: {
-          text: opt.text,
-          ...(opt.value === undefined ? {} : { value: opt.value }),
-        },
-        type: "overflow",
+    dispatch({
+      action_id: props.el.action_id,
+      block_id: props.blockId,
+      selected_option: {
+        text: opt.text,
+        ...(opt.value === undefined ? {} : { value: opt.value }),
       },
-      botId: ctx.botId,
-      channelId: ctx.channelId,
-      messageTs: ctx.messageTs,
-    }).catch(() => {
-      if (active) flashUnsupported();
+      type: "overflow",
     });
   };
 
   return (
     <Menu
       class="bk-overflow-wrap"
-      onClose={() => {
-        setOpen(false);
-        setUnsupported(false);
-      }}
+      onClose={() => setOpen(false)}
       open={open()}
       panelClass="menu-panel bk-overflow-menu"
       trigger={
         <button
           class="bk-overflow-btn"
           onClick={() => setOpen(!open())}
-          title={canDispatch() ? "More options" : "This menu needs its app to respond"}
+          title={
+            canDispatch(props.el.action_id) ? "More options" : "This menu needs its app to respond"
+          }
           type="button"
         >
           <Icon name="ellipsis-vertical-filled" size={16} />

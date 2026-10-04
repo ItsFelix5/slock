@@ -1,16 +1,17 @@
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
-import { trimChannel } from "../../trim/slackEntities.ts";
+import type { ChannelInfoReply, ChannelReply, RetentionReply } from "../../slackReplies.ts";
+import { trimChannel } from "../../trim/slackChannels.ts";
 import { mutate, type Route, type RouteCtx, route } from "../router.ts";
 
 export const channelRoutes: Route[] = [
   route("POST", "channels", async (ctx) => {
-    const { name, isPrivate } = await (ctx.body.json() as Promise<{
+    const { name, isPrivate } = await ctx.body.json<{
       name?: string;
       isPrivate?: boolean;
-    }>);
+    }>();
     if (!name) return errorResponse("invalid_name", 400);
-    const data = await callSlack(
+    const data = await callSlack<ChannelReply>(
       "conversations.create",
       { is_private: isPrivate ? "true" : "false", name },
       ctx.creds,
@@ -26,7 +27,7 @@ export const channelRoutes: Route[] = [
   }),
 
   route("GET", "channels/:id", async (ctx) => {
-    const data = await callSlack(
+    const data = await callSlack<ChannelInfoReply>(
       "conversations.info",
       { channel: ctx.params.id, include_num_members: "true" },
       ctx.creds,
@@ -42,9 +43,9 @@ export const channelRoutes: Route[] = [
   }),
 
   route("PATCH", "channels/:id", async (ctx) => {
-    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
+    const { name } = await ctx.body.json<{ name?: string }>();
     if (!name) return errorResponse("invalid_name", 400);
-    const data = await callSlack(
+    const data = await callSlack<ChannelReply>(
       "conversations.rename",
       { channel: ctx.params.id, name },
       ctx.creds,
@@ -53,26 +54,26 @@ export const channelRoutes: Route[] = [
       return slackErrorResponse(data, "conversations.rename", ctx.creds, ctx.acceptEncoding);
     }
     return jsonResponse(
-      { channel: { name: data.channel?.name ?? name }, ok: true },
+      { channel: { name: data.channel.name ?? name }, ok: true },
       ctx.creds,
       ctx.acceptEncoding,
     );
   }),
 
   route("PUT", "channels/:id/purpose", async (ctx) => {
-    const { purpose } = await (ctx.body.json() as Promise<{ purpose?: string }>);
+    const { purpose } = await ctx.body.json<{ purpose?: string }>();
     if (purpose === undefined) return errorResponse("invalid_purpose", 400);
     return mutate("conversations.setPurpose", { channel: ctx.params.id, purpose }, ctx);
   }),
 
   route("PUT", "channels/:id/topic", async (ctx) => {
-    const { topic } = await (ctx.body.json() as Promise<{ topic?: string }>);
+    const { topic } = await ctx.body.json<{ topic?: string }>();
     if (topic === undefined) return errorResponse("invalid_topic", 400);
     return mutate("conversations.setTopic", { channel: ctx.params.id, topic }, ctx);
   }),
 
   route("GET", "channels/:id/retention", async (ctx) => {
-    const data = await callSlack(
+    const data = await callSlack<RetentionReply>(
       "conversations.getRetention",
       { channel: ctx.params.id },
       ctx.creds,
@@ -85,7 +86,7 @@ export const channelRoutes: Route[] = [
   }),
 
   route("PUT", "channels/:id/retention", async (ctx) => {
-    const { days } = await (ctx.body.json() as Promise<{ days?: number | null }>);
+    const { days } = await ctx.body.json<{ days?: number | null }>();
     return mutate(
       "conversations.setRetention",
       {
@@ -98,9 +99,9 @@ export const channelRoutes: Route[] = [
   }),
 
   route("PUT", "channels/:id/member-permissions", async (ctx) => {
-    const { permissions } = await (ctx.body.json() as Promise<{
+    const { permissions } = await ctx.body.json<{
       permissions?: { is_allowed: boolean; permission: string }[];
-    }>);
+    }>();
     if (!permissions?.length) return okNoop(ctx);
     return mutate(
       "conversations.permissions.accountTypes.set",
@@ -114,23 +115,26 @@ export const channelRoutes: Route[] = [
   }),
 
   route("GET", "channels/:id/posting-prefs", async (ctx) => {
-    const data = await callSlack("conversations.info", { channel: ctx.params.id }, ctx.creds);
+    const data = await callSlack<ChannelInfoReply>(
+      "conversations.info",
+      { channel: ctx.params.id },
+      ctx.creds,
+    );
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.info", ctx.creds, ctx.acceptEncoding);
     }
-    const prefs = data.channel?.pref;
+    const { pref } = data.channel;
     return jsonResponse(
       {
         ok: true,
-        prefs:
-          prefs && typeof prefs === "object"
-            ? {
-                can_thread: prefs.can_thread,
-                enable_at_channel: prefs.enable_at_channel,
-                enable_at_here: prefs.enable_at_here,
-                who_can_post: prefs.who_can_post,
-              }
-            : {},
+        prefs: pref
+          ? {
+              can_thread: pref.can_thread,
+              enable_at_channel: pref.enable_at_channel,
+              enable_at_here: pref.enable_at_here,
+              who_can_post: pref.who_can_post,
+            }
+          : {},
       },
       ctx.creds,
       ctx.acceptEncoding,
@@ -138,9 +142,9 @@ export const channelRoutes: Route[] = [
   }),
 
   route("PUT", "channels/:id/posting-prefs", async (ctx) => {
-    const { prefs } = await (ctx.body.json() as Promise<{
+    const { prefs } = await ctx.body.json<{
       prefs?: Record<string, string>;
-    }>);
+    }>();
     if (!prefs) return errorResponse("invalid_prefs", 400);
     return mutate(
       "conversations.setConversationPrefs",
@@ -174,7 +178,7 @@ export const channelRoutes: Route[] = [
   ),
 
   route("POST", "channels/:id/members", async (ctx) => {
-    const { userIds } = await (ctx.body.json() as Promise<{ userIds?: string[] }>);
+    const { userIds } = await ctx.body.json<{ userIds?: string[] }>();
     if (!userIds?.length) return errorResponse("invalid_user_ids", 400);
     return mutate(
       "conversations.invite",
@@ -193,7 +197,7 @@ async function mutateChannel(
   params: Record<string, string>,
   ctx: RouteCtx,
 ): Promise<Response> {
-  const data = await callSlack(slackMethod, params, ctx.creds);
+  const data = await callSlack<ChannelReply>(slackMethod, params, ctx.creds);
   if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds, ctx.acceptEncoding);
   return jsonResponse(
     { channel: trimChannel(data.channel), ok: true },

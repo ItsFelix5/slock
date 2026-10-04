@@ -1,5 +1,6 @@
 import { type ImageElement as ImageElementType, resolveMediaUrl } from "@slock/types";
 import { ZoomableImage } from "@slock/ui";
+import "./ImageElement.css";
 
 export default function ImageElement(props: { el: ImageElementType }) {
   const src = props.el.image_url ?? props.el.slack_file?.url;

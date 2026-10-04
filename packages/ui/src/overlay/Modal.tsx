@@ -51,7 +51,7 @@ export function ModalHeader(props: ModalHeaderProps) {
       <div class="modal-header-title flex-between">
         {props.children}
         <Show when={props.title}>
-          <h2>{props.title}</h2>
+          <h2 class="truncate">{props.title}</h2>
         </Show>
       </div>
       <div class="modal-header-actions flex-align-center">

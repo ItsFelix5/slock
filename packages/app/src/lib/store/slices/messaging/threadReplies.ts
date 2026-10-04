@@ -1,25 +1,40 @@
+import type { Message } from "@slock/types";
 import { createKeyedAsyncCache } from "@slock/ui";
 import { createEffect } from "solid-js";
-import type { Message } from "../../../api";
-import { fetchReplies } from "../../../api";
+import { fetchReplies, fetchReplyWindow } from "../../../api";
 import { mergeMessages } from "../../../messageMerge";
 import type { ThreadRef } from "../types";
 
 export function createThreadReplies(
   deps: { visibleThreads: () => ThreadRef[] },
-  api: { fetchReplies: typeof fetchReplies } = { fetchReplies },
+  api: { fetchReplies: typeof fetchReplies; fetchReplyWindow: typeof fetchReplyWindow } = {
+    fetchReplies,
+    fetchReplyWindow,
+  },
 ) {
   const channelForThread = new Map<string, string>();
 
-  const cache = createKeyedAsyncCache<Message[]>(async (ts) => {
-    const channelId = channelForThread.get(ts);
-    const messages = channelId ? await api.fetchReplies(channelId, ts) : [];
-    return mergeMessages(cache.entry(ts) ?? [], messages);
-  });
+  const cache = createKeyedAsyncCache<Message[]>(
+    async (ts): Promise<Message[]> => {
+      const channelId = channelForThread.get(ts);
+      const messages = channelId ? await api.fetchReplies(channelId, ts) : [];
+      return mergeMessages(cache.entry(ts) ?? [], messages);
+    },
+    { onError: (err, ts) => console.error("Failed to load thread", ts, err) },
+  );
 
   function ensureThreadRepliesLoaded(channelId: string, ts: string): void {
     channelForThread.set(ts, channelId);
     void cache.ensure(ts);
+  }
+  async function ensureThreadMessage(channelId: string, threadTs: string, ts: string) {
+    if (cache.entry(threadTs)?.some((m) => m.ts === ts)) return;
+    try {
+      const window = await api.fetchReplyWindow(channelId, threadTs, ts);
+      cache.update(threadTs, (current) => mergeMessages(current ?? [], window));
+    } catch (err) {
+      console.error("Failed to fetch thread reply", err);
+    }
   }
   createEffect(() => {
     for (const thread of deps.visibleThreads())
@@ -37,6 +52,7 @@ export function createThreadReplies(
   }
 
   return {
+    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     hasThreadError,
     isLoadingThread,

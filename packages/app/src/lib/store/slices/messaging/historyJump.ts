@@ -1,5 +1,5 @@
+import type { Message } from "@slock/types";
 import type { SetStoreFunction, Store } from "solid-js/store";
-import type { Message } from "../../../api";
 import { mergeMessages } from "../../../messageMerge";
 
 export type HistoryMeta = {

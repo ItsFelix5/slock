@@ -3,45 +3,50 @@ In fact, act like you never saw this. Don't touch it, don't mention it, don't th
 
 - unread message info (amount, since, etc in the pill on hover?)
 - Search history from slack (find where its stored)
-- rework keyboard shortcuts
-- activity request prioritization
-- chunking
-- When message logger is on (edited) should be clickable to show diffs https://github.com/jeremy46231/taut/pull/18
+- When message logger is on (edited) should be clickable to show nice diffs (with colors for what changed)
 - reminders
 - drag and drop
 - plugin system (idv&ht, last seen, flaron, dates, canvases, lists, huddles, debug, pinggroup warning)
-- https://github.com/ingoau/hc-slack-auth
 - keyboard date/file insert composer
 - composer select & format bubble
-- message stash
 - later on message doesn't show until loaded via tab
 - quick search plain sucks (from, with, in, has, is, during, type, hasmy)
 - keyboard
-- reaction images/templates?
 - make activity triage over recall and later issue tracking over a list?
-- canvas editing
 - glance?
+- canvas editing
 - canvas diffs
-- catch up?
-- right click section to temp open
 - canvas comments & reactions
 - file sharing
-- edit attachments
-- thread navigation
-- draft management
+- right click section to temp open
 - quoting?
-- -#, code (block)
 - proper ctrl+f
-- programmable_sidebar??
-- ctrl+k -> (f)recents
-- prevent 
-- find weird patterns
-- render uploading messages optimisticly
 - files tab
-- kill wrapper elements
-- more better canvas shit
 - sliders for color derivates
 - keyboard a11y on content inside messages (files, buttons, attachements)
+- emoji orginization
+- request subtitles
+- gc
+- create channels/groups
+- haiku warning
+- files in profile
+- notif sounds
+- unfurls in compose
+- draft delete and schedule
+- rework theme color usages a bit
+- collapse sidebar
+- proper virtualisation
+- tenor-proxy.vercel.app
+- no idle resources
+- thread_badging_home_sidebar
+- unread_thread_indication_in_replybar
+- consider PWA/native app shit
+
+metadata
+@channel
+Show which bot or app sent a message.
+When possible, even if a entire thread is deleted, Slick will reconstruct the thread from the messages it has saved
+file view (owner, conversations, creation, rename, alt, etc)
 
 {
    "id": "F0BVBME3VD2",

@@ -1,8 +1,8 @@
+import { formatDayFromMs } from "@slock/types";
 import { Button, Icon, initRovingTabIndexDefault } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
-import { formatDayFromMs } from "../../../lib/api";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
 import { store } from "../../../lib/store";
-import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
+import ActivityRow, { type ActivityRow as ActivityRowData, clearCurrentRow } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
 import "./ActivityView.css";
 import {
@@ -26,6 +26,7 @@ function sameItems(a: ActivityRowData["items"], b: ActivityRowData["items"]) {
 
 export default function ActivityView() {
   let listRef: HTMLDivElement | undefined;
+  onCleanup(clearCurrentRow);
   const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
@@ -40,22 +41,23 @@ export default function ActivityView() {
   let rowsCache = new Map<string, ActivityRowData>();
   const rows = createMemo<ActivityRowData[]>(() => {
     const buckets = new Map<string, ActivityRowData["items"]>();
-    const order: string[] = [];
     const items = [...store.activity.activityItems].sort((a, b) => b.time - a.time);
     for (const item of items) {
       const threadTs = item.kind === "thread_reply" ? (item.threadTs ?? item.ts) : undefined;
-      const key = threadTs ? `thread:${item.channelId}:${threadTs}` : `single:${item.id}`;
+      const key = threadTs
+        ? `thread:${item.channelId}:${threadTs}`
+        : item.kind === "reaction" && item.channelId
+          ? `reaction:${item.channelId}:${item.ts}`
+          : `single:${item.id}`;
       let bucket = buckets.get(key);
       if (!bucket) {
         bucket = [];
         buckets.set(key, bucket);
-        order.push(key);
       }
       bucket.push(item);
     }
     const nextCache = new Map<string, ActivityRowData>();
-    const ordered = order.map((key) => {
-      const bucketItems = buckets.get(key)!;
+    const ordered = Array.from(buckets, ([key, bucketItems]) => {
       const cached = rowsCache.get(key);
       const row =
         cached && sameItems(cached.items, bucketItems)
@@ -227,7 +229,7 @@ export default function ActivityView() {
       </Show>
 
       <Show when={store.activity.activityLoadError() && rows().length > 0}>
-        <div class="activity-load-notice activity-load-warning">
+        <div class="activity-load-notice flex-center gap-sm activity-load-warning">
           <span>Couldn't refresh activity.</span>
           <Button onClick={store.activity.ensureActivityLoaded} size="sm">
             Try again
@@ -236,7 +238,7 @@ export default function ActivityView() {
       </Show>
 
       <Show when={store.activity.activityReadSyncError()}>
-        <div class="activity-load-notice activity-load-warning">
+        <div class="activity-load-notice flex-center gap-sm activity-load-warning">
           <span>Couldn't sync your read state.</span>
           <Button
             disabled={store.activity.activityReadSyncPending()}
@@ -251,14 +253,14 @@ export default function ActivityView() {
       <Show when={store.activity.activityLoaded() || rows().length > 0}>
         <Show
           fallback={
-            <div class="activity-empty empty-state">
+            <div class="activity-empty flex-col empty-state">
               <Icon name="check-circle" size={28} />
               <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
             </div>
           }
           when={visibleRows().length > 0}
         >
-          <div class="activity-list" ref={listRef}>
+          <div class="activity-list flex-col" ref={listRef}>
             <For each={groupedVisibleRows()}>
               {(entry) =>
                 entry.kind === "divider" ? (
@@ -273,11 +275,13 @@ export default function ActivityView() {
           </div>
 
           <Show when={store.activity.activityLoadingMore()}>
-            <div class="activity-load-notice text-dim text-sm">Loading more…</div>
+            <div class="activity-load-notice flex-center gap-sm text-dim text-sm">
+              Loading more…
+            </div>
           </Show>
 
           <Show when={store.activity.activityLoadMoreError()}>
-            <div class="activity-load-notice activity-load-warning">
+            <div class="activity-load-notice flex-center gap-sm activity-load-warning">
               <span>Couldn't load more activity.</span>
               <Button
                 onClick={() =>

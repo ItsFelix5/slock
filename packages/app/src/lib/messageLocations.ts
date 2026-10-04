@@ -1,4 +1,4 @@
-import type { Message } from "./api";
+import type { Message } from "@slock/types";
 import type { MessageLocation } from "./store/slices/types";
 
 export function reactionMessageKey(channelId: string, ts: string): string {

@@ -1,7 +1,7 @@
+import type { ActivityItem, Message, User } from "@slock/types";
 import { createEffect } from "solid-js";
-import { createStore, produce } from "solid-js/store";
-import { PING_KINDS, reactionActivityKey } from "../../../activityKinds";
-import type { ActivityItem, Message, User } from "../../../api";
+import { createStore } from "solid-js/store";
+import { PING_KINDS } from "../../../activityKinds";
 import {
   archiveActivityItem,
   fetchActivityBadgeCounts,
@@ -93,31 +93,19 @@ export function createActivitySlice(
     if (toMark.length) markActivityItemsRead(toMark);
   });
 
+  function removeActivityForMessage(channelId: string, ts: string): void {
+    setActivityItems((items) =>
+      items.filter((item) => item.channelId !== channelId || item.ts !== ts),
+    );
+  }
+
   const recentReactionFlash = createRecentReactionFlash();
 
-  function pushActivity(item: ActivityItem) {
-    if (item.kind === "reaction" && item.userId && deps.isBotUser?.(item.userId)) return;
-    setActivityItems(
-      produce((list) => {
-        if (list.some((existing) => sameActivityItem(existing, item))) return;
-        list.unshift(item);
-        if (list.length > 300) list.length = 300;
-      }),
-    );
-    if (item.kind === "reaction" && item.reactionName) recentReactionFlash.flash(item.reactionName);
-  }
-
   function applyThreadMarked(threadTs: string, unreadCount: number): void {
-    setActivityItems(
-      (item) => item.kind === "thread_reply" && item.threadTs === threadTs,
-      { unread: unreadCount > 0, unreadCount },
-    );
-  }
-
-  function sameActivityItem(existing: ActivityItem, next: ActivityItem): boolean {
-    if (existing.id === next.id) return true;
-    const existingReaction = reactionActivityKey(existing);
-    return !!existingReaction && existingReaction === reactionActivityKey(next);
+    setActivityItems((item) => item.kind === "thread_reply" && item.threadTs === threadTs, {
+      unread: unreadCount > 0,
+      unreadCount,
+    });
   }
 
   const {
@@ -139,6 +127,7 @@ export function createActivitySlice(
     fetchHistoryAround: api.fetchHistoryAround,
     fetchMessagesByIds: api.fetchMessagesByIds,
     isBotUser: deps.isBotUser,
+    onReactionPushed: recentReactionFlash.flash,
     resolveActivityEntry: api.resolveActivityEntry,
     setActivityItems,
   });
@@ -185,8 +174,8 @@ export function createActivitySlice(
     loadMoreActivity,
     markActivityItemsRead,
     markActivityItemUnread,
-    pushActivity,
     recentReactionEmoji: recentReactionFlash.recentReactionEmoji,
+    removeActivityForMessage,
     requestActivityRefresh,
     retryActivityReadSync: activityReadSync.retry,
     setGatewayActivityBadgeCounts,

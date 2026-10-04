@@ -1,4 +1,4 @@
-import { Button, blurOnEnter } from "@slock/ui";
+import { Button } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
 import { actionFeedback } from "../../../lib/feedback";
 import {
@@ -141,7 +141,7 @@ export default function ChannelSettingsTab(props: {
             Who can invite others
           </label>
           <select
-            class="channel-details-input channel-details-setting-select"
+            class="text-field channel-details-setting-select"
             disabled={saving()}
             id="channel-member-invite-permission"
             onChange={(event) => setInvitePermission(asPermissionChoice(event.currentTarget.value))}
@@ -159,7 +159,7 @@ export default function ChannelSettingsTab(props: {
             Who can change the topic
           </label>
           <select
-            class="channel-details-input channel-details-setting-select"
+            class="text-field channel-details-setting-select"
             disabled={saving()}
             id="channel-member-topic-permission"
             onChange={(event) => setTopicPermission(asPermissionChoice(event.currentTarget.value))}
@@ -177,7 +177,7 @@ export default function ChannelSettingsTab(props: {
             Who can change the description
           </label>
           <select
-            class="channel-details-input channel-details-setting-select"
+            class="text-field channel-details-setting-select"
             disabled={saving()}
             id="channel-member-purpose-permission"
             onChange={(event) =>
@@ -209,7 +209,7 @@ export default function ChannelSettingsTab(props: {
           </label>
           <div class="channel-details-retention-row flex-align-center">
             <select
-              class="channel-details-input channel-details-setting-select"
+              class="text-field channel-details-setting-select"
               disabled={retention() === undefined || saving()}
               id="channel-retention-policy"
               onChange={(event) => setRetentionChoice(asRetentionChoice(event.currentTarget.value))}
@@ -222,11 +222,11 @@ export default function ChannelSettingsTab(props: {
               <option value="delete">Delete after…</option>
             </select>
             <input
-              class="channel-details-input channel-details-retention-input"
+              class="text-field channel-details-retention-input"
               disabled={retentionChoice() !== "delete" || saving()}
               min="1"
               onInput={(e) => setRetentionDays(Math.trunc(Number(e.currentTarget.value)))}
-              onKeyDown={blurOnEnter}
+              data-commit-on-enter
               type="number"
               value={Number.isNaN(retentionDays()) ? "" : retentionDays()}
             />

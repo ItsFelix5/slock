@@ -14,16 +14,17 @@ interface MimePart {
 
 const FOLDED_HEADER_RE = /\n[ \t]+/g;
 const NON_WHITESPACE_STRIP_RE = /\s+/g;
-const SOFT_LINE_BREAK_RE = /=\n/g;
 const QUOTED_PRINTABLE_HEX_RE = /^[\dA-Fa-f]{2}$/;
 const CHARSET_RE = /charset\s*=\s*(?:"([^"]+)"|([^;\s]+))/i;
 const ENCODED_WORD_RE = /=\?([^?]+)\?([bq])\?([^?]*)\?=/gi;
-const UNDERSCORE_RE = /_/g;
 const BOUNDARY_RE = /boundary\s*=\s*(?:"([^"]+)"|([^;\s]+))/i;
-const ATTACHMENT_DISPOSITION_RE = /attachment/i;
-const LEADING_NEWLINE_RE = /^\n/;
-const TRAILING_NEWLINE_RE = /\n$/;
-const CRLF_RE = /\r\n/g;
+function stripLeadingNewline(text: string): string {
+  return text.startsWith("\n") ? text.slice(1) : text;
+}
+
+function stripTrailingNewline(text: string): string {
+  return text.endsWith("\n") ? text.slice(0, -1) : text;
+}
 
 function splitPart(raw: string): MimePart {
   const headerEnd = raw.indexOf("\n\n");
@@ -46,7 +47,7 @@ function bytesFromBase64(value: string): Uint8Array {
 }
 
 function bytesFromQuotedPrintable(value: string): Uint8Array {
-  const unfolded = value.replace(SOFT_LINE_BREAK_RE, "");
+  const unfolded = value.replaceAll("=\n", "");
   const bytes: number[] = [];
   for (let index = 0; index < unfolded.length; index += 1) {
     const hex = unfolded.slice(index + 1, index + 3);
@@ -90,7 +91,7 @@ function decodeHeader(value: string | undefined): string | undefined {
         const bytes =
           encoding.toLowerCase() === "b"
             ? bytesFromBase64(encoded)
-            : bytesFromQuotedPrintable(encoded.replace(UNDERSCORE_RE, " "));
+            : bytesFromQuotedPrintable(encoded.replaceAll("_", " "));
         return decodeBytes(bytes, charset);
       } catch {
         return encoded;
@@ -105,7 +106,7 @@ function boundaryFrom(contentType: string): string | undefined {
 }
 
 function collectBodies(part: MimePart, parsed: ParsedMail, depth = 0) {
-  if (depth > 8 || ATTACHMENT_DISPOSITION_RE.test(part.headers["content-disposition"] ?? ""))
+  if (depth > 8 || (part.headers["content-disposition"] ?? "").toLowerCase().includes("attachment"))
     return;
   const contentType = part.headers["content-type"] ?? "text/plain";
   const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
@@ -114,11 +115,7 @@ function collectBodies(part: MimePart, parsed: ParsedMail, depth = 0) {
     const chunks = part.body.split(`--${boundary}`).slice(1);
     for (const chunk of chunks) {
       if (chunk.startsWith("--")) break;
-      collectBodies(
-        splitPart(chunk.replace(LEADING_NEWLINE_RE, "").replace(TRAILING_NEWLINE_RE, "")),
-        parsed,
-        depth + 1,
-      );
+      collectBodies(splitPart(stripTrailingNewline(stripLeadingNewline(chunk))), parsed, depth + 1);
     }
     return;
   }
@@ -130,7 +127,7 @@ function collectBodies(part: MimePart, parsed: ParsedMail, depth = 0) {
 }
 
 export function parseEml(raw: string): ParsedMail {
-  const normalized = raw.replace(CRLF_RE, "\n");
+  const normalized = raw.replaceAll("\r\n", "\n");
   const root = splitPart(normalized);
   const parsed: ParsedMail = {
     date: decodeHeader(root.headers.date),

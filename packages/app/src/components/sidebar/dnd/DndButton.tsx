@@ -57,7 +57,7 @@ export default function DndButton() {
       ref={wrapRef}
     >
       <IconButton
-        class="sidebar-global-search-btn"
+        class="sidebar-global-search-btn icon-shift"
         disabled={store.preferences.isDndPending()}
         icon={store.preferences.isDndActive() ? "moon-filled" : "moon"}
         label={

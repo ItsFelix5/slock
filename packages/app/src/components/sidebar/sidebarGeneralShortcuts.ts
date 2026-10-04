@@ -15,7 +15,8 @@ export function useSidebarGeneralShortcuts(props: {
     combo: { key: "k", mod: true },
     handler: () => props.setSearchOpen(true),
     id: "sidebar.quickSwitcher",
-    label: "Jump to a channel or person",
+    label: "Quick Switcher",
+    group: "Channels and search",
     scope: "general",
   });
   useShortcut({
@@ -25,6 +26,7 @@ export function useSidebarGeneralShortcuts(props: {
     handler: () => store.viewState.openMessageSearch(""),
     id: "sidebar.searchMessages",
     label: "Search all messages",
+    group: "Channels and search",
     scope: "general",
   });
   useShortcut({
@@ -37,6 +39,7 @@ export function useSidebarGeneralShortcuts(props: {
     },
     id: "general.showShortcuts",
     label: "Open keybind settings",
+    group: "App",
     scope: "general",
   });
   useShortcut({
@@ -48,6 +51,7 @@ export function useSidebarGeneralShortcuts(props: {
     },
     id: "sidebar.unreadsOnly",
     label: "Show unread channels only",
+    group: "Channels and search",
     scope: "general",
   });
 }

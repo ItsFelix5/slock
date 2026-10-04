@@ -1,44 +1,19 @@
-import type { ActivityItem, Message } from "../../../api";
-import { fetchPermalinkMessage } from "../../../api";
+import type { Message } from "@slock/types";
 import type { MessageLocation } from "../types";
 
 export function createReactionEvents(deps: {
-  currentUser: () => { id: string } | undefined;
-  pushActivity: (item: ActivityItem) => void;
   findAllMessageLocations: (
     channelId: string,
     ts: string,
   ) => { location: MessageLocation; list: Message[] }[];
   patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
 }) {
-  function pushReactionActivity(
-    channel: string,
-    ts: string,
-    name: string,
-    userId: string,
-    msg: Message,
-  ) {
-    deps.pushActivity({
-      blocks: msg.blocks,
-      channelId: channel,
-      id: `rx-${channel}-${ts}-${name}-${userId}-${Date.now()}`,
-      kind: "reaction",
-      reactionName: name,
-      text: msg.text,
-      threadTs: msg.threadTs ?? ((msg.replyCount ?? 0) > 0 ? msg.ts : undefined),
-      time: Date.now(),
-      ts,
-      userId,
-    });
-  }
-
   function applyReactionEvent(
     channel: string,
     ts: string,
     name: string,
     userId: string,
     added: boolean,
-    itemUserId?: string,
   ) {
     const locations = deps.findAllMessageLocations(channel, ts);
     const msg = locations[0]?.list.find((m) => m.ts === ts);
@@ -69,20 +44,6 @@ export function createReactionEvents(deps: {
       }
       deps.patchMessage(channel, ts, { reactions: next });
     }
-    const me = deps.currentUser();
-    if (!(added && me && userId !== me.id)) return;
-    if (msg) {
-      if (msg.userId === me.id) pushReactionActivity(channel, ts, name, userId, msg);
-      return;
-    }
-
-    if (itemUserId !== undefined && itemUserId !== me.id) return;
-    fetchPermalinkMessage(channel, ts, ts)
-      .then((fetched) => {
-        if (fetched && fetched.userId === me.id)
-          pushReactionActivity(channel, ts, name, userId, fetched);
-      })
-      .catch(() => {});
   }
 
   return { applyReactionEvent };

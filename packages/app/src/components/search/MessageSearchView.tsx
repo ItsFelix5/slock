@@ -1,3 +1,4 @@
+import type { SearchResult } from "@slock/types";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,
@@ -6,7 +7,8 @@ import {
   SuggestionList,
 } from "@slock/ui";
 import { createMemo, createSignal, createUniqueId, onMount } from "solid-js";
-import { fetchBrowsableChannels, type SearchResult, searchMessages } from "../../lib/api";
+import { fetchBrowsableChannels, searchMessages } from "../../lib/api";
+import { navigateToSlackPermalink } from "../../lib/navigation/slackPermalink";
 import { type SortMode, sortParams } from "../../lib/searchQuery";
 import { store } from "../../lib/store";
 import "./GlobalSearch.css";
@@ -20,7 +22,6 @@ import {
   querySuggestions,
   renderQuerySuggestion,
 } from "./querySuggestions";
-import { navigateToSearchResult } from "./searchResultNavigation";
 
 export default function MessageSearchView() {
   let containerEl: HTMLDivElement | undefined;
@@ -115,13 +116,16 @@ export default function MessageSearchView() {
     runSearch();
   });
   const goToMessage = (r: SearchResult) => {
-    navigateToSearchResult(r, store.viewState, { keepNav: true });
+    navigateToSlackPermalink(
+      { channelId: r.channelId, messageTs: r.ts, threadTs: r.threadTs ?? r.ts },
+      store.viewState,
+    );
   };
   const canSearch = () => !!serializedQuery().trim();
   const optionId = (index: number) => `${suggestionListId}-option-${index}`;
 
   return (
-    <div class="message-search-view">
+    <div class="message-search-view flex-col">
       <div class="message-search-anchor">
         <div class="message-search-header flex-align-center">
           <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />

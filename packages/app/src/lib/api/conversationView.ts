@@ -1,20 +1,25 @@
-import type { CanvasListItem, ChannelDetails, ConversationViewData } from "@slock/types";
-import { apiGet, HIDE_SUBTYPES, mapChannel, mapMessage, mapUser } from "@slock/types";
+import type {
+  CanvasListItem,
+  ConversationViewData,
+  RawChannel,
+  RawMessage,
+  RawUser,
+} from "@slock/types";
+import { apiGet, mapChannel, mapChannelDetails, mapUser, mapVisibleMessages } from "@slock/types";
 
-function mapCanvasTabs(channel: any): CanvasListItem[] {
+function mapCanvasTabs(channel: RawChannel): CanvasListItem[] {
   const seen = new Set<string>();
   const result: CanvasListItem[] = [];
-  const defaultFileId = channel?.properties?.canvas?.file_id;
-  if (typeof defaultFileId === "string" && defaultFileId) {
+  const defaultFileId = channel.properties?.canvas?.file_id;
+  if (defaultFileId) {
     seen.add(defaultFileId);
     result.push({ fileId: defaultFileId, title: "" });
   }
-  const tabs: any[] = Array.isArray(channel?.properties?.tabs) ? channel.properties.tabs : [];
-  for (const tab of tabs) {
-    const fileId = tab?.type === "canvas" ? tab.data?.file_id : undefined;
+  for (const tab of channel.properties?.tabs ?? []) {
+    const fileId = tab.type === "canvas" ? tab.data?.file_id : undefined;
     if (!fileId || seen.has(fileId)) continue;
     seen.add(fileId);
-    result.push({ fileId, title: typeof tab.label === "string" ? tab.label.trim() : "" });
+    result.push({ fileId, title: tab.label?.trim() ?? "" });
   }
   return result;
 }
@@ -23,26 +28,13 @@ const inFlight = new Map<string, Promise<ConversationViewData>>();
 const recent = new Map<string, { data: ConversationViewData; expiresAt: number }>();
 const DEDUPE_WINDOW_MS = 5_000;
 
-function mapChannelDetails(channel: any): ChannelDetails {
-  return {
-    archived: !!channel.is_archived,
-    created: channel.created ?? 0,
-    creatorId: channel.creator || undefined,
-    email: channel.properties?.channel_email_addresses?.[0]?.address || undefined,
-    id: channel.id,
-    memberCount: channel.num_members,
-    name: channel.name ?? channel.id,
-    private: !!channel.is_private,
-    purpose: typeof channel.purpose === "string" ? channel.purpose : (channel.purpose?.value ?? ""),
-    topic: typeof channel.topic === "string" ? channel.topic : (channel.topic?.value ?? ""),
-  };
-}
-
 async function loadConversationView(channelId: string): Promise<ConversationViewData> {
-  const data = await apiGet(`/api/channels/${channelId}/view`);
+  const data = await apiGet<{
+    channel?: RawChannel;
+    history?: { has_more?: boolean; messages?: RawMessage[] };
+    users?: RawUser[];
+  }>(`/api/channels/${channelId}/view`);
   if (!data.ok) throw new Error(data.error ?? "conversations.view failed");
-  const rawMessages: any[] = data.history?.messages ?? [];
-  const rawUsers: any[] = data.users ?? [];
 
   return {
     canvases: data.channel ? mapCanvasTabs(data.channel) : [],
@@ -68,11 +60,8 @@ async function loadConversationView(channelId: string): Promise<ConversationView
           topic: "",
         },
     hasMore: !!data.history?.has_more,
-    messages: rawMessages
-      .filter((message) => message.type === "message" && !HIDE_SUBTYPES.has(message.subtype))
-      .map(mapMessage)
-      .reverse(),
-    users: rawUsers.filter((user) => user?.id).map(mapUser),
+    messages: mapVisibleMessages(data.history?.messages ?? []).reverse(),
+    users: (data.users ?? []).filter((user) => user.id).map(mapUser),
   };
 }
 

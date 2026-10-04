@@ -4,8 +4,8 @@ import { useClickOutside } from "../../useClickOutside";
 import { useEscapeClose } from "../../useEscapeClose";
 import { clamp, FloatingMountContext } from "../floating/FloatingPanel";
 import "./ContextMenu.css";
-import "./MenuButton.css";
-import { createMenuRovingFocus } from "./rovingMenuFocus";
+import "./Menu.css";
+import { createMenuRovingFocus, useMenuShortcuts } from "./rovingMenuFocus";
 
 export interface ContextMenuProps {
   children: JSX.Element;
@@ -17,16 +17,6 @@ export interface ContextMenuProps {
 }
 
 export default function ContextMenu(props: ContextMenuProps) {
-  let panelRef: HTMLDivElement | undefined;
-
-  useClickOutside(
-    () => panelRef,
-    () => {
-      if (props.open) props.onClose();
-    },
-  );
-  useEscapeClose(props.onClose, () => props.open);
-
   createEffect(() => {
     if (!props.open) return;
     const previouslyFocused =
@@ -39,14 +29,7 @@ export default function ContextMenu(props: ContextMenuProps) {
   return (
     <Show when={props.open}>
       <Portal mount={document.body}>
-        <ContextMenuPanel
-          class={props.class}
-          setRef={(el) => {
-            panelRef = el;
-          }}
-          x={props.x}
-          y={props.y}
-        >
+        <ContextMenuPanel class={props.class} onClose={props.onClose} x={props.x} y={props.y}>
           {props.children}
         </ContextMenuPanel>
       </Portal>
@@ -58,7 +41,7 @@ function ContextMenuPanel(props: {
   x: number;
   y: number;
   class?: string;
-  setRef: (el: HTMLDivElement) => void;
+  onClose: () => void;
   children: JSX.Element;
 }) {
   let ref: HTMLDivElement | undefined;
@@ -67,7 +50,6 @@ function ContextMenuPanel(props: {
 
   onMount(() => {
     if (!ref) return;
-    props.setRef(ref);
     ref.dataset.menuPanel = "";
     const rect = ref.getBoundingClientRect();
     const left = clamp(props.x, 8, window.innerWidth - rect.width - 8);
@@ -77,19 +59,13 @@ function ContextMenuPanel(props: {
     roving.focusMenuItem(0);
   });
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (roving.moveByKey(current, event.key)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  };
+  useMenuShortcuts(roving, () => ref);
+  useClickOutside(() => ref, props.onClose);
+  useEscapeClose(props.onClose);
 
   return (
     <div
       class={`menu-panel context-menu ${props.class ?? ""}`}
-      onKeyDown={onKeyDown}
       ref={ref}
       style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >

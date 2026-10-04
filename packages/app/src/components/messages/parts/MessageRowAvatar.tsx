@@ -1,8 +1,8 @@
+import type { User } from "@slock/types";
 import { Show } from "solid-js";
-import type { User } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import UserHoverCard from "../../user/UserHoverCard";
-import { MessageAvatarButton } from "../MessageAuthorButtons";
+import { MessageAvatarButton } from "../MessageAvatarButton";
 
 export default function MessageRowAvatar(props: {
   avatarUrl: string | undefined;

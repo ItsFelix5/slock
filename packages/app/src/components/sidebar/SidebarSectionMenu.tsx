@@ -1,6 +1,7 @@
 import { confirmDialog, IconButton, Menu, MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
 import type { Category, SidebarContext } from "./sidebarCategories";
+import "./rows/SidebarSection.css";
 
 export default function SidebarSectionMenu(props: { cat: Category; context: SidebarContext }) {
   const {

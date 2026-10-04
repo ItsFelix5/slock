@@ -15,26 +15,3 @@
   height: 20px;
   vertical-align: -4px;
 }
-
-.emoji-hover-freeze {
-  position: relative;
-  display: inline-block;
-}
-
-.emoji-hover-freeze canvas.emoji-img,
-.emoji-hover-freeze .emoji-hover-live {
-  position: absolute;
-  inset: 0;
-}
-
-.emoji-hover-freeze .emoji-hover-live {
-  opacity: 0;
-}
-
-.emoji-hover-freeze:hover .emoji-hover-live {
-  opacity: 1;
-}
-
-.emoji-hover-freeze:hover canvas.emoji-img {
-  opacity: 0;
-}

@@ -34,6 +34,14 @@ const allEmojiEntriesMemo = createRoot(() =>
   createMemo(() => mergeEmojiEntries(customEmojiEntries(), STANDARD_EMOJI_ENTRIES)),
 );
 
+const emojiByNameMemo = createRoot(() =>
+  createMemo(() => new Map(allEmojiEntriesMemo().map((entry) => [entry.name, entry]))),
+);
+
+export function emojiEntryByName(name: string): EmojiEntry | undefined {
+  return emojiByNameMemo().get(name);
+}
+
 export function allEmojiEntries(): EmojiEntry[] {
   return allEmojiEntriesMemo();
 }
@@ -48,10 +56,14 @@ export function searchEmoji(entries: EmojiEntry[], query: string): EmojiEntry[] 
   });
 }
 
-export function frequentEmoji(entries: EmojiEntry[]): EmojiEntry[] {
-  return entries
-    .map((e) => ({ e, score: store.preferences.emojiUseScore(e.name) }))
-    .filter((x) => x.score > 0)
+export function frequentEmoji(): EmojiEntry[] {
+  return store.preferences
+    .usedEmojiNames()
+    .flatMap((name) => {
+      const entry = emojiEntryByName(name);
+      const score = store.preferences.emojiUseScore(name);
+      return entry && score > 0 ? [{ entry, score }] : [];
+    })
     .sort((a, b) => b.score - a.score)
-    .map((x) => x.e);
+    .map((x) => x.entry);
 }

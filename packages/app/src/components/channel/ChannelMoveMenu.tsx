@@ -1,4 +1,4 @@
-import { Icon, IconButton, InlineFeedback, Menu, MenuItem } from "@slock/ui";
+import { Icon, IconButton, InlineFeedback, Menu, MenuItem, useEditShortcuts } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   type ChannelPlacementOutcome,
@@ -7,6 +7,11 @@ import {
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import "./ChannelMoveMenu.css";
+
+type Destination =
+  | { kind: "stars" }
+  | { kind: "channels" }
+  | { kind: "section"; id: string; name: string };
 
 export interface ChannelMoveMenuProps {
   channelId: string;
@@ -22,9 +27,31 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
   const [creatingSection, setCreatingSection] = createSignal(false);
 
   let newSectionInputRef: HTMLInputElement | undefined;
+  useEditShortcuts({
+    cancel: () => {
+      setAddingSection(false);
+      setNewSectionName("");
+    },
+    enabled: addingSection,
+    root: () => newSectionInputRef,
+  });
 
   const sections = () =>
     store.channels.sections()?.filter((section) => section.type === "standard") ?? [];
+  const destinations = () => {
+    const ordered: Destination[] = [];
+    for (const section of store.channels.sections() ?? []) {
+      if (section.type === "stars") ordered.push({ kind: "stars" });
+      else if (section.type === "channels") ordered.push({ kind: "channels" });
+      else if (section.type === "standard")
+        ordered.push({ kind: "section", id: section.id, name: section.name });
+    }
+    if (!ordered.some((destination) => destination.kind === "stars"))
+      ordered.push({ kind: "stars" });
+    if (!ordered.some((destination) => destination.kind === "channels"))
+      ordered.push({ kind: "channels" });
+    return ordered;
+  };
   const currentSectionId = () =>
     sections().find((section) => section.channelIds.includes(props.channelId))?.id ?? null;
   const isStarred = () => store.channels.isChannelStarred(props.channelId);
@@ -140,56 +167,48 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       </Show>
 
       <div class="channel-move-menu-destinations">
-        <MenuItem
-          class="channel-move-menu-destination"
-          classList={{ active: isStarred() }}
-          disabled={isPending()}
-          icon={isStarred() ? "star-filled" : "star"}
-          onClick={() => void moveToStarred()}
-        >
-          <span>Starred</span>
-          <Show when={isStarred()}>
-            <Icon class="menu-item-check" name="check" size={13} />
-          </Show>
-        </MenuItem>
-        <MenuItem
-          class="channel-move-menu-destination"
-          classList={{ active: isInChannels() }}
-          disabled={isPending()}
-          icon="channel"
-          onClick={() => void moveToChannels()}
-        >
-          <span>Channels</span>
-          <Show when={isInChannels()}>
-            <Icon class="menu-item-check" name="check" size={13} />
-          </Show>
-        </MenuItem>
-
-        <Show when={sections().length > 0}>
-          <For each={sections()}>
-            {(section) => {
-              const selected = () => !isStarred() && currentSectionId() === section.id;
-              return (
-                <MenuItem
-                  class="channel-move-menu-destination"
-                  classList={{ active: selected() }}
-                  disabled={isPending()}
-                  icon="section"
-                  onClick={() => void moveToSection(section.id)}
-                >
-                  <span class="truncate">{section.name}</span>
-                  <Show when={selected()}>
-                    <Icon class="menu-item-check" name="check" size={13} />
-                  </Show>
-                </MenuItem>
-              );
-            }}
-          </For>
-        </Show>
+        <For each={destinations()}>
+          {(destination) => {
+            const selected = () => {
+              if (destination.kind === "stars") return isStarred();
+              if (destination.kind === "channels") return isInChannels();
+              return !isStarred() && currentSectionId() === destination.id;
+            };
+            const move = () => {
+              if (destination.kind === "stars") return moveToStarred();
+              if (destination.kind === "channels") return moveToChannels();
+              return moveToSection(destination.id);
+            };
+            const icon = () => {
+              if (destination.kind === "stars") return isStarred() ? "star-filled" : "star";
+              return destination.kind === "channels" ? "channel" : "section";
+            };
+            return (
+              <MenuItem
+                class="channel-move-menu-destination"
+                classList={{ active: selected() }}
+                disabled={isPending()}
+                icon={icon()}
+                onClick={() => void move()}
+              >
+                <span class="truncate">
+                  {destination.kind === "section"
+                    ? destination.name
+                    : destination.kind === "stars"
+                      ? "Starred"
+                      : "Channels"}
+                </span>
+                <Show when={selected()}>
+                  <Icon class="menu-item-check" name="check" size={13} />
+                </Show>
+              </MenuItem>
+            );
+          }}
+        </For>
       </div>
 
       <InlineFeedback
-        class="channel-move-menu-feedback"
+        class="channel-move-menu-feedback truncate"
         feedback={actionFeedback.get(props.channelId)}
         priority={1}
       />
@@ -212,15 +231,9 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       >
         <form class="channel-move-menu-form" onSubmit={submitNewSection}>
           <input
-            class="channel-move-menu-input search-input"
+            class="channel-move-menu-input text-field"
             disabled={creatingSection()}
             onInput={(event) => setNewSectionName(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Escape") return;
-              event.preventDefault();
-              setAddingSection(false);
-              setNewSectionName("");
-            }}
             placeholder="Section name"
             ref={newSectionInputRef}
             value={newSectionName()}

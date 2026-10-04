@@ -3,6 +3,7 @@ import { createSignal, For, onMount, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
+import "./Section.css";
 
 export default function Section(props: { block: SectionBlock; context?: BlockActionContext }) {
   const [expanded, setExpanded] = createSignal(false);

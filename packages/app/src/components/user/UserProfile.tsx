@@ -1,4 +1,4 @@
-import { Button, blurOnEnter, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
+import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
@@ -9,7 +9,12 @@ import "./UserProfile.css";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
 import { isCustomFieldDef, mergeMissingProfileFieldValues } from "./userProfileFieldValues";
-import { createLastSeenText, createLocalTime } from "./userProfileTime";
+import {
+  createLastSeenText,
+  createLocalTime,
+  createTzDiff,
+  createTzSuffix,
+} from "./userProfileTime";
 
 export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const profileUserId = () => props.pane.content.userId;
@@ -28,7 +33,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const user = createMemo(() => {
     const base = store.users.userById(profileUserId());
     if (!base) return base;
-    const presence = store.users.presenceFor(base.id);
+    const presence = base.isBot ? undefined : store.users.presenceFor(base.id);
     return presence ? { ...base, presence } : base;
   });
   const isSelf = () => user()?.id === store.users.currentUser()?.id;
@@ -146,6 +151,8 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
   onCleanup(() => clearInterval(clockTimer));
   const localTime = createLocalTime(user, now);
+  const tzDiff = createTzDiff(user, now);
+  const tzSuffix = createTzSuffix(user, tzDiff);
   const latestMessageTs = createMemo(() => store.messages.latestMessageTsMsByUser(profileUserId()));
   const lastSeenText = createLastSeenText(user, now, latestMessageTs);
   const startDate = createMemo(() => {
@@ -175,22 +182,30 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   );
   return (
     <>
-      <div class="user-profile-panel" data-pane={props.pane.id}>
+      <div class="user-profile-panel flex-col" data-pane={props.pane.id}>
         <PanelHeader
           canClose={store.viewState.canCloseTile()}
           onClose={() => store.viewState.closeTile(props.pane.id)}
           title="Profile"
         />
-        <Show when={user()}>
+        <Show
+          fallback={
+            <div class="user-profile-body text-muted">
+              {store.users.isUnresolvableUser(profileUserId())
+                ? "Profile unavailable"
+                : "Loading profile…"}
+            </div>
+          }
+          when={user()}
+        >
           {(u) => (
             <div class="user-profile-body">
               <InlineFeedback
-                class="user-profile-feedback"
+                class="user-profile-feedback truncate"
                 feedback={actionFeedback.get(isSelf() ? "me" : u().id)}
                 priority={2}
               />
               <UserProfileInfo
-                blurOnEnter={blurOnEnter}
                 botBio={botBio}
                 clearStatus={clearStatus}
                 isSavingProfilePhoto={savingProfilePhoto}
@@ -198,6 +213,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 isSelf={isSelf}
                 lastSeenText={lastSeenText}
                 localTime={localTime}
+                tzSuffix={tzSuffix}
                 nameInput={nameInput}
                 nicknameInput={nicknameInput}
                 onProfilePhotoSelected={setPhotoToEdit}
@@ -226,7 +242,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 editableFields={editableCustomFields()}
                 isSelf={isSelf()}
                 isSavingField={(id) => !!savingProfileFields()[`custom:${id}`]}
-                onKeyDown={blurOnEnter}
+                data-commit-on-enter
                 saveField={saveCustomField}
                 setValue={(id, value) => setCustomFieldInputs((prev) => ({ ...prev, [id]: value }))}
                 startDate={startDate()}

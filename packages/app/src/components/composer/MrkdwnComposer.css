@@ -27,10 +27,10 @@
 .mrkdwn-composer .ql-editor {
   min-height: 36px;
   max-height: 120px;
-  padding: 8px 10px;
+  padding: var(--space-sm) 10px;
   overflow-y: auto;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--font-size-control);
   line-height: 1.45;
   color: var(--text-primary);
   word-break: break-word;
@@ -45,14 +45,6 @@
   outline: none;
 }
 
-.mrkdwn-composer .bk-mention,
-.mrkdwn-composer .bk-composer-emoji {
-  cursor: text;
-}
-
 .mrkdwn-composer > .menu-panel.composer-suggest-popover {
-  top: calc(100% + 4px);
-  right: 0;
-  bottom: auto;
-  left: 0;
+  inset: calc(100% + 4px) 0 auto;
 }

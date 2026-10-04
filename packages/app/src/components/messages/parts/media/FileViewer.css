@@ -11,25 +11,20 @@
 
 .file-viewer-title {
   min-width: 0;
-  overflow: hidden;
-  font-size: 14px;
+  font-size: var(--font-size-secondary);
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .file-viewer-header-main {
-  display: flex;
   flex: 1;
-  gap: 16px;
-  align-items: center;
+  gap: var(--space-lg);
   min-width: 0;
 }
 
 .file-viewer-open-link {
   flex-shrink: 0;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--accent);
   text-decoration: none;
@@ -64,7 +59,7 @@
 
 .file-viewer-error {
   flex: 1;
-  gap: 12px;
+  gap: var(--space-md);
   color: var(--text-secondary);
 }
 
@@ -75,18 +70,18 @@
 
 .file-viewer-mail-headers {
   flex-shrink: 0;
-  padding: 12px 16px;
+  padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--border);
 }
 
 .file-viewer-mail-subject {
   margin-bottom: 6px;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-weight: 700;
 }
 
 .file-viewer-mail-meta {
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
 }
 
@@ -96,17 +91,14 @@
 
 .file-viewer-mail-text {
   flex: 1;
-  padding: 16px;
+  padding: var(--space-lg);
   margin: 0;
   overflow: auto;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   white-space: pre-wrap;
 }
 
 .file-viewer-mail-empty {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }

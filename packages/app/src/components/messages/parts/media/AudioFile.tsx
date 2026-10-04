@@ -1,4 +1,5 @@
 import { formatDuration } from "@slock/blockkit";
+import { resolveMediaUrl, type SlackFile } from "@slock/types";
 import {
   ContextMenu,
   createMediaVolume,
@@ -6,10 +7,10 @@ import {
   IconButton,
   MenuItem,
   useContextMenu,
+  useSeekShortcuts,
   VolumeControl,
 } from "@slock/ui";
 import { createSignal, For, onCleanup, Show } from "solid-js";
-import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import "./AudioFile.css";
 import TranscriptPopover from "./TranscriptPopover";
 
@@ -29,6 +30,7 @@ function resample(raw: number[]): number[] {
 
 export default function AudioFile(props: { file: SlackFile }) {
   let audioRef: HTMLAudioElement | undefined;
+  let waveformRef: HTMLDivElement | undefined;
   const [audioElement, setAudioElement] = createSignal<HTMLAudioElement>();
   const mediaVolume = createMediaVolume(audioElement);
   const [playing, setPlaying] = createSignal(false);
@@ -80,17 +82,7 @@ export default function AudioFile(props: { file: SlackFile }) {
     if (Number.isFinite(audio.duration) && audio.duration > 0) setMediaDuration(audio.duration);
   };
 
-  const handleSeekKeyDown = (event: KeyboardEvent) => {
-    if (duration() <= 0) return;
-    let nextTime: number | undefined;
-    if (event.key === "ArrowLeft") nextTime = currentTime() - 5;
-    if (event.key === "ArrowRight") nextTime = currentTime() + 5;
-    if (event.key === "Home") nextTime = 0;
-    if (event.key === "End") nextTime = duration();
-    if (nextTime === undefined) return;
-    event.preventDefault();
-    seekTo(nextTime / duration());
-  };
+  useSeekShortcuts({ currentTime, duration, root: () => waveformRef, seekTo });
 
   onCleanup(() => {
     audioRef?.pause();
@@ -106,7 +98,7 @@ export default function AudioFile(props: { file: SlackFile }) {
     >
       <Show
         fallback={
-          <div class="audio-file-error">
+          <div class="audio-file-error flex-align-center gap-sm">
             <Icon name="warning" size={18} />
             <span>Audio unavailable.</span>
             <button
@@ -137,7 +129,7 @@ export default function AudioFile(props: { file: SlackFile }) {
               const rect = event.currentTarget.getBoundingClientRect();
               seekTo((event.clientX - rect.left) / rect.width);
             }}
-            onKeyDown={handleSeekKeyDown}
+            ref={waveformRef}
             tabIndex={0}
           >
             <For each={samples()}>

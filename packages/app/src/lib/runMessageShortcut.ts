@@ -1,4 +1,4 @@
-import type { MessageShortcut } from "./api";
+import type { MessageShortcut } from "@slock/types";
 import { runMessageShortcut } from "./api";
 import { actionFeedback } from "./feedback";
 

@@ -5,8 +5,8 @@ import {
   Mrkdwn,
   TimeAnchorContext,
 } from "@slock/blockkit";
+import type { Message } from "@slock/types";
 import { Show } from "solid-js";
-import type { Message } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import Composer from "../../composer/Composer";
 import type { MessageRenderState } from "./messageRenderState";
@@ -29,14 +29,16 @@ export default function MessageTextContent(props: {
           channelId={props.channelId}
           editing={{
             initialBlocks: props.replyRef ? undefined : props.msg.blocks,
+            initialFiles: props.replyRef ? undefined : props.msg.files,
             initialText: props.replyRef?.rest ?? props.msg.text,
             onCancel: () => props.onStopEdit?.(),
-            onSave: async (text, blocks) => {
+            onSave: async (text, blocks, fileIds) => {
               const saved = await store.messages.editMessageText(
                 props.channelId,
                 props.msg.ts,
                 (props.replyRef?.prefix ?? "") + text,
                 blocks,
+                fileIds,
               );
               if (saved) props.onStopEdit?.();
               return saved;

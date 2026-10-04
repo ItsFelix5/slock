@@ -1,9 +1,9 @@
 import type Quill from "quill";
+import { TRAILING_PUNCTUATION_RE } from "../textHighlight";
 import { indexAlignedText } from "./quillText";
 
 const URL_TAIL_RE = /https?:\/\/[^\s<>]+$/;
 const BARE_URL_RE = /^https?:\/\/\S+$/;
-const TRAILING_PUNCTUATION_RE = /[),.!?;:'"]+$/;
 const BOUNDARY_RE = /[ \n]/;
 
 function insertedLength(delta: { ops?: { insert?: unknown }[] }): number {

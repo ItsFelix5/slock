@@ -15,8 +15,8 @@ export function createRealtimeConnection(opts: {
   const [connectionState, setConnectionState] = createSignal<RealtimeConnectionState>(
     online() ? "connecting" : "offline",
   );
-  const [rtmConnected, setRtmConnected] = createSignal(false);
-  const isTrulyOnline = () => online() && rtmConnected();
+  const [gatewayConnected, writeGatewayConnected] = createSignal(false);
+  const isTrulyOnline = () => online() && gatewayConnected();
   const [recentlyOnline, setRecentlyOnline] = createSignal(online());
   let onlineGraceTimer: ReturnType<typeof setTimeout> | null = null;
   createEffect(() => {
@@ -46,6 +46,7 @@ export function createRealtimeConnection(opts: {
     try {
       current = new WebSocket(opts.url());
     } catch {
+      console.error("Failed to connect 3:");
       setConnectionState("reconnecting");
       scheduler.schedule();
       return;
@@ -53,7 +54,6 @@ export function createRealtimeConnection(opts: {
     socket = current;
     current.addEventListener("open", () => {
       if (socket !== current) return;
-      scheduler.connected();
       setConnectionState(hasConnected ? "reconnecting" : "connecting");
       opts.onOpen();
     });
@@ -63,7 +63,7 @@ export function createRealtimeConnection(opts: {
     current.addEventListener("close", () => {
       if (socket !== current) return;
       socket = null;
-      setRtmConnected(false);
+      writeGatewayConnected(false);
       setConnectionState(online() ? "reconnecting" : "offline");
       scheduler.schedule();
     });
@@ -78,13 +78,13 @@ export function createRealtimeConnection(opts: {
   const handleOffline = () => {
     scheduler.pause();
     disconnectCurrent();
-    setRtmConnected(false);
+    writeGatewayConnected(false);
     setConnectionState("offline");
   };
   const handleOnline = () => {
     if (!online()) return;
     disconnectCurrent();
-    setRtmConnected(false);
+    writeGatewayConnected(false);
     setConnectionState(hasConnected ? "reconnecting" : "connecting");
     scheduler.reconnectNow();
   };
@@ -116,11 +116,11 @@ export function createRealtimeConnection(opts: {
         return;
       }
       disconnectCurrent();
-      setRtmConnected(false);
+      writeGatewayConnected(false);
       setConnectionState(hasConnected ? "reconnecting" : "connecting");
       scheduler.reconnectNow();
     },
-    rtmConnected,
+    gatewayConnected,
     send(payload: unknown) {
       if (socket?.readyState !== WebSocket.OPEN) return false;
       try {
@@ -133,8 +133,9 @@ export function createRealtimeConnection(opts: {
     },
     setGatewayConnected(connected: boolean) {
       const wasConnected = hasConnected;
-      setRtmConnected(connected);
+      writeGatewayConnected(connected);
       if (connected) {
+        scheduler.connected();
         hasConnected = true;
         if (wasConnected) opts.onReconnect();
       }

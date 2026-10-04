@@ -1,26 +1,10 @@
 import type { DraftEntry } from "@slock/types";
 import { apiDelete, apiGet, apiPut } from "@slock/types";
 
-const draftState = new Map<
-  string,
-  { draftId: string; clientMsgId: string; lastUpdatedTs?: string }
->();
-function draftKey(channelId: string, threadTs?: string): string {
-  return threadTs ? `${channelId}:${threadTs}` : channelId;
-}
-
 export async function fetchDrafts(): Promise<DraftEntry[]> {
-  const data = await apiGet("/api/drafts");
-  if (data.ok === false) throw new Error(data.error ?? "drafts.list failed");
-  const drafts: any[] = data.drafts ?? [];
-  return drafts.map((d) => {
-    draftState.set(draftKey(d.channelId, d.threadTs), {
-      clientMsgId: d.clientMsgId,
-      draftId: d.id,
-      lastUpdatedTs: d.lastUpdatedTs,
-    });
-    return { blocks: d.blocks, channelId: d.channelId, text: d.text, threadTs: d.threadTs };
-  });
+  const data = await apiGet<{ drafts?: DraftEntry[] }>("/api/drafts");
+  if (!data.ok) throw new Error(data.error ?? "drafts.list failed");
+  return data.drafts ?? [];
 }
 
 export async function saveDraft(
@@ -28,31 +12,29 @@ export async function saveDraft(
   threadTs: string | undefined,
   text: string,
   blocks?: unknown,
-) {
-  const key = draftKey(channelId, threadTs);
-  const existing = draftState.get(key);
-
-  if (!text.trim()) {
-    if (existing) {
-      const data = await apiDelete(`/api/drafts/${existing.draftId}`, {
-        lastUpdatedTs: existing.lastUpdatedTs,
-      });
-      if (data.ok === false) throw new Error(data.error ?? "drafts.delete failed");
-      draftState.delete(key);
-    }
-    return;
-  }
-
-  const clientMsgId = existing?.clientMsgId ?? crypto.randomUUID();
-  const data = await apiPut("/api/drafts", {
+  draftId?: string,
+  clientMsgId?: string,
+  lastUpdatedTs?: string,
+): Promise<{ id: string; clientMsgId: string; lastUpdatedTs?: string }> {
+  const data = await apiPut<{ id?: string; lastUpdatedTs?: string }>("/api/drafts", {
     blocks,
     channelId,
-    clientMsgId,
-    draftId: existing?.draftId,
+    clientMsgId: clientMsgId ?? crypto.randomUUID(),
+    draftId,
+    lastUpdatedTs,
     text,
     threadTs,
   });
-  if (data.ok === false) throw new Error(data.error ?? "drafts.create failed");
+  if (!data.ok) throw new Error(data.error ?? "drafts.create failed");
   if (!data.id) throw new Error("drafts.create returned no draft id");
-  draftState.set(key, { clientMsgId, draftId: data.id, lastUpdatedTs: data.lastUpdatedTs });
+  return {
+    clientMsgId: clientMsgId ?? "",
+    id: data.id,
+    lastUpdatedTs: data.lastUpdatedTs,
+  };
+}
+
+export async function deleteDraft(draftId: string, lastUpdatedTs?: string): Promise<void> {
+  const data = await apiDelete(`/api/drafts/${draftId}`, { lastUpdatedTs });
+  if (!data.ok) throw new Error(data.error ?? "drafts.delete failed");
 }

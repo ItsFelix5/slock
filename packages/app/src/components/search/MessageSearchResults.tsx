@@ -1,3 +1,4 @@
+import { formatDay, formatTime, type SearchResult } from "@slock/types";
 import {
   Button,
   ClickableInline,
@@ -13,7 +14,6 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createEffect, For, onCleanup, Show } from "solid-js";
-import { formatDay, formatTime, type SearchResult } from "../../lib/api";
 import { channelIconName, dmDisplayName } from "../../lib/displayName";
 import { copyMessageLink } from "../../lib/messageLinks";
 import { openConversation, openConversationInSplit } from "../../lib/navigation/conversationNav";
@@ -24,9 +24,10 @@ import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   resolveProfileUserId,
-} from "../messages/parts/messageRenderState";
+} from "../messages/parts/messageAuthor";
 import ResultMessageCard from "../messages/parts/ResultMessageCard";
 import { SplitNavigation } from "../navigation/SplitNavigation";
+import { readableQuery } from "./lib/searchQueryEditor";
 import { SORT_OPTIONS } from "./messageSearchOptions";
 
 const SEARCH_TERM_HIGHLIGHT = "message-search-match";
@@ -90,14 +91,14 @@ export default function MessageSearchResults(props: {
               </div>
               <For each={store.searchHistory.searchHistory()}>
                 {(query) => (
-                  <div class="message-search-history-item">
+                  <div class="message-search-history-item flex-align-center gap-xs">
                     <button
                       class="global-search-result message-search-history-query btn-reset flex-align-center"
                       onClick={() => props.onHistorySearch(query)}
                       type="button"
                     >
                       <Icon class="global-search-jump-icon" name="search" size={13} />
-                      {query}
+                      {readableQuery(query)}
                     </button>
                     <IconButton
                       class="message-search-history-remove"
@@ -138,7 +139,7 @@ export default function MessageSearchResults(props: {
         >
           <Show
             fallback={
-              <div class="message-search-error empty-state">
+              <div class="message-search-error flex-center empty-state">
                 <span>Couldn't search messages.</span>
                 <Button onClick={props.onRetry} size="sm">
                   Try again
@@ -165,21 +166,17 @@ export default function MessageSearchResults(props: {
                     const dm = store.dms.dmById(result.channelId);
                     if (dm)
                       return (
-                        <span class="result-message-card-context-text">
-                          {dmDisplayName(dm, store.users.userById)}
-                        </span>
+                        <span class="truncate">{dmDisplayName(dm, store.users.userById)}</span>
                       );
                     if (result.channelName?.startsWith("mpdm-")) {
                       store.dms.ensureMpdm(result.channelId);
-                      return <span class="result-message-card-context-text">Group message</span>;
+                      return <span class="truncate">Group message</span>;
                     }
                     const channel = store.channels.channelById(result.channelId);
                     return (
                       <>
                         <Icon name={channelIconName(channel?.private)} size={11} />
-                        <span class="result-message-card-context-text">
-                          {result.channelName ?? result.channelId}
-                        </span>
+                        <span class="truncate">{result.channelName ?? result.channelId}</span>
                       </>
                     );
                   };

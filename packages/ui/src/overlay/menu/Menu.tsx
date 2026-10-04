@@ -1,8 +1,7 @@
-import { createEffect, getOwner, type JSX, onCleanup, runWithOwner } from "solid-js";
-import { useClickOutside } from "../../useClickOutside";
-import { useEscapeClose } from "../../useEscapeClose";
+import { createEffect, type JSX, onCleanup, Show } from "solid-js";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
-import "./MenuButton.css";
+import "./Menu.css";
+import MenuOpenBehavior from "./MenuOpenBehavior";
 import { createMenuRovingFocus } from "./rovingMenuFocus";
 
 export interface MenuProps {
@@ -23,7 +22,6 @@ export default function Menu(props: MenuProps) {
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;
   let hoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
-  const owner = getOwner();
 
   const cancelHoverClose = () => {
     if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
@@ -51,47 +49,6 @@ export default function Menu(props: MenuProps) {
   };
   const roving = createMenuRovingFocus(() => panelRef, { requireVisible: true });
 
-  const onRootKeyDown = (event: KeyboardEvent) => {
-    if (
-      !runWithOwner(owner, () => props.open) ||
-      (event.key !== "ArrowDown" && event.key !== "ArrowUp")
-    )
-      return;
-    event.preventDefault();
-    event.stopPropagation();
-    roving.focusMenuItem(event.key === "ArrowDown" ? 0 : roving.menuItems().length - 1);
-  };
-
-  const onPanelKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    const { target } = event;
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement ||
-      (target instanceof HTMLElement && target.isContentEditable)
-    )
-      return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      props.onClose();
-      queueMicrotask(focusTrigger);
-      return;
-    }
-    if (event.key === "Enter" || event.key === " ") restoreAfterKeyboardAction = true;
-    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (roving.moveByKey(current, event.key)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  };
-
-  useClickOutside([() => rootRef, () => panelRef], () => {
-    if (props.open) props.onClose();
-  });
-  useEscapeClose(props.onClose, () => props.open);
-
   createEffect(() => {
     const isOpen = props.open;
     const triggerElement = trigger();
@@ -107,17 +64,27 @@ export default function Menu(props: MenuProps) {
   return (
     <div
       class={props.class}
-      onKeyDown={onRootKeyDown}
       onMouseEnter={openFromHover}
       onMouseLeave={closeFromHover}
       ref={rootRef}
     >
       {props.trigger}
+      <Show when={props.open}>
+        <MenuOpenBehavior
+          focusTrigger={focusTrigger}
+          onClose={props.onClose}
+          panel={() => panelRef}
+          roving={roving}
+          root={() => rootRef}
+        />
+      </Show>
       <FloatingPanel
         align={props.align ?? "start"}
         anchor={() => rootRef}
         class={props.panelClass}
-        onKeyDown={onPanelKeyDown}
+        onClick={(event) => {
+          restoreAfterKeyboardAction = event.detail === 0;
+        }}
         onMouseEnter={openFromHover}
         onMouseLeave={closeFromHover}
         onScroll={props.onClose}

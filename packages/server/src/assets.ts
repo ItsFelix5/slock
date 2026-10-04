@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { isRecord } from "@slock/types";
 import { type Credentials, jsonHeaders } from "./auth.ts";
 import { errorMessage } from "./http/compressedResponse.ts";
 
@@ -56,20 +57,15 @@ function isAllowedSlackUrl(value: string): boolean {
 function slackImgsProxyUrl(value: string): string | null {
   try {
     const parsed = new URL(value);
-    if (parsed.protocol !== "https:") return null;
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
   } catch {
     return null;
   }
   return `https://slack-imgs.com/?c=1&o1=ro&url=${encodeURIComponent(value)}`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
 function hydrateAvatarHash(value: Record<string, unknown>): void {
-  const profile = value.profile;
-  const id = value.id;
+  const { profile, id } = value;
   if (!(isRecord(profile) && typeof id === "string")) return;
   if (profile.image_192 || profile.image_72 || profile.image_48) return;
   const hash = profile.avatar_hash;

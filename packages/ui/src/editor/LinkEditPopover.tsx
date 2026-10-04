@@ -2,6 +2,7 @@ import { createEffect, createSignal } from "solid-js";
 import FloatingPanel from "../overlay/floating/FloatingPanel";
 import { useClickOutside } from "../useClickOutside";
 import { useEscapeClose } from "../useEscapeClose";
+import { useEditShortcuts } from "../useNavShortcuts";
 import "./LinkEditPopover.css";
 
 export interface LinkEditPopoverProps {
@@ -39,23 +40,22 @@ export default function LinkEditPopover(props: LinkEditPopoverProps) {
   });
   useEscapeClose(props.onClose, () => props.open);
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    commitAndClose();
-  };
+  useEditShortcuts({
+    commit: commitAndClose,
+    enabled: () => props.open,
+    root: () => panelRef,
+  });
 
-  const handleFocusOut = () => {
-    queueMicrotask(() => {
-      if (panelRef?.contains(document.activeElement)) return;
-      if (props.open) commitAndClose();
-    });
+  const handleFocusOut = (event: FocusEvent) => {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || panelRef?.contains(next)) return;
+    if (props.open) commitAndClose();
   };
 
   return (
     <FloatingPanel
       anchor={props.anchor}
-      class="link-edit-popover"
+      class="link-edit-popover surface-popover"
       onFocusOut={handleFocusOut}
       onScroll={props.onClose}
       open={props.open}
@@ -63,23 +63,21 @@ export default function LinkEditPopover(props: LinkEditPopoverProps) {
         panelRef = element;
       }}
     >
-      <div class="link-edit-form">
-        <label class="link-edit-field">
+      <div class="link-edit-form flex-col gap-sm">
+        <label class="link-edit-field flex-col gap-xs">
           <span>Text</span>
           <input
-            class="input-reset"
+            class="text-field"
             onInput={(event) => setText(event.currentTarget.value)}
-            onKeyDown={handleKeyDown}
             type="text"
             value={text()}
           />
         </label>
-        <label class="link-edit-field">
+        <label class="link-edit-field flex-col gap-xs">
           <span>Link</span>
           <input
-            class="input-reset"
+            class="text-field"
             onInput={(event) => setUrl(event.currentTarget.value)}
-            onKeyDown={handleKeyDown}
             ref={urlInput}
             type="text"
             value={url()}

@@ -1,9 +1,5 @@
-@import "../../../../ui/src/editor/quill.css";
-
 .message-search-view {
-  display: flex;
   flex: 1;
-  flex-direction: column;
   overflow: hidden;
   background: var(--main-bg);
 }
@@ -13,8 +9,8 @@
 }
 
 .message-search-header {
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md);
   background: var(--main-bg);
   border-bottom: 1px solid var(--border);
 }
@@ -27,7 +23,7 @@
 .message-search-input .ql-editor {
   padding: 0;
   overflow-x: auto;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-family: inherit;
   white-space: nowrap;
 }
@@ -51,7 +47,7 @@
 .message-search-results {
   flex: 1;
   min-height: 0;
-  padding: 8px 10px 16px;
+  padding: var(--space-sm) 10px var(--space-lg);
   overflow-y: auto;
 }
 
@@ -62,8 +58,8 @@
 
 .message-search-sort-select {
   flex-shrink: 0;
-  padding: 6px 8px;
-  font-size: 12px;
+  padding: 6px var(--space-sm);
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--text-dim);
   background: var(--composer-bg);
@@ -72,29 +68,20 @@
 }
 
 .message-search-error {
-  display: flex;
   gap: 10px;
-  align-items: center;
-  justify-content: center;
 }
 
 .message-search-history {
-  padding-top: 4px;
+  padding-top: var(--space-xs);
 }
 
 .message-search-history-header {
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: var(--space-sm) 10px;
 }
 
 .message-search-history-clear {
   color: var(--text-dim);
-}
-
-.message-search-history-item {
-  display: flex;
-  gap: 4px;
-  align-items: center;
 }
 
 .message-search-history-query {

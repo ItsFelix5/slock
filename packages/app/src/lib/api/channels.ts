@@ -5,6 +5,10 @@ import type {
   ChannelFilesAndLinks,
   ChannelMembersPage,
   MemberPermissionsPatch,
+  RawChannel,
+  RawFile,
+  RawLink,
+  RawUser,
 } from "@slock/types";
 import {
   apiDelete,
@@ -13,6 +17,7 @@ import {
   apiPost,
   apiPut,
   mapChannel,
+  mapChannelDetails,
   mapFile,
   mapLink,
   mapUser,
@@ -37,9 +42,12 @@ export { PairedPreferenceWriteError } from "./preferences/pairedPreferenceWrite"
 const MAX_CHANNELS_PER_BATCH = 100;
 
 export const fetchChannel = createBatchedIdFetcher<Channel | null>(async (ids) => {
-  const data = await apiPost("/api/channels/lookup", { ids });
+  const data = await apiPost<{ channels?: Record<string, RawChannel | null> }>(
+    "/api/channels/lookup",
+    { ids },
+  );
   if (!data.ok) throw new Error(data.error ?? "edge channels/info failed");
-  const channels: Record<string, any> = data.channels ?? {};
+  const channels = data.channels ?? {};
   return new Map(ids.map((id) => [id, channels[id] ? mapChannel(channels[id]) : null]));
 }, MAX_CHANNELS_PER_BATCH);
 
@@ -51,9 +59,11 @@ export async function reportChannelNamesToFlaron(names: string[]): Promise<void>
 export async function fetchBrowsableChannels(query: string): Promise<BrowsableChannel[]> {
   const q = query.trim();
   if (!q) return [];
-  const data = await apiGet(`/api/channels/browse?query=${encodeURIComponent(q)}`);
+  const data = await apiGet<{ items?: RawChannel[] }>(
+    `/api/channels/browse?query=${encodeURIComponent(q)}`,
+  );
   if (!data.ok) throw new Error(data.error ?? "search.modules.channels failed");
-  return mapBrowsableChannels(Array.isArray(data.items) ? data.items : []);
+  return mapBrowsableChannels(data.items ?? []);
 }
 
 export async function searchChannelFilesAndLinks(
@@ -67,10 +77,16 @@ export async function searchChannelFilesAndLinks(
     page: String(page),
     query,
   });
-  const data = await apiGet(`/api/channels/${channelId}/files-links?${params}`);
+  const data = await apiGet<{
+    files?: RawFile[];
+    filesTotal?: number;
+    hasMore?: boolean;
+    links?: RawLink[];
+    linksTotal?: number;
+  }>(`/api/channels/${channelId}/files-links?${params}`);
   if (!data.ok) throw new Error(data.error ?? "channel files & links search failed");
-  const files: any[] = Array.isArray(data.files) ? data.files : [];
-  const links: any[] = Array.isArray(data.links) ? data.links : [];
+  const files = data.files ?? [];
+  const links = data.links ?? [];
   return {
     files: files.map(mapFile),
     filesTotal: data.filesTotal ?? files.length,
@@ -81,44 +97,35 @@ export async function searchChannelFilesAndLinks(
 }
 
 export async function fetchChannelLastRead(channelId: string): Promise<number> {
-  const data = await apiGet(`/api/channels/${channelId}`);
+  const data = await apiGet<{ channel: RawChannel }>(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
-  return (parseFloat(data.channel?.last_read ?? "") || 0) * 1000;
+  return (parseFloat(data.channel.last_read ?? "") || 0) * 1000;
 }
 export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
-  const data = await apiGet(`/api/channels/${channelId}`);
+  const data = await apiGet<{ channel: RawChannel }>(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
-  const c = data.channel;
-  return {
-    archived: !!c.is_archived,
-    created: c.created ?? 0,
-    creatorId: c.creator || undefined,
-    email: c.properties?.channel_email_addresses?.[0]?.address || undefined,
-    id: c.id,
-    memberCount: c.num_members,
-    name: c.name,
-    private: !!c.is_private,
-    purpose: c.purpose?.value ?? "",
-    topic: typeof c.topic === "string" ? c.topic : (c.topic?.value ?? ""),
-  };
+  return mapChannelDetails(data.channel);
 }
 export async function fetchChannelMembers(
   channelId: string,
   filter: "everyone" | "apps",
   marker?: string,
+  search?: string,
 ): Promise<ChannelMembersPage> {
   const query = new URLSearchParams({ filter });
   if (marker) query.set("marker", marker);
-  const data = await apiGet(`/api/channels/${channelId}/members?${query}`);
+  if (search) query.set("query", search);
+  const data = await apiGet<{ next_marker?: string; results?: RawUser[] }>(
+    `/api/channels/${channelId}/members?${query}`,
+  );
   if (!data.ok) throw new Error(data.error ?? "edge users/list failed");
-  const results: any[] = data.results ?? [];
   return {
-    members: results.filter((u) => !u.deleted).map(mapUser),
+    members: (data.results ?? []).filter((u) => !u.deleted).map(mapUser),
     nextCursor: data.next_marker || undefined,
   };
 }
 export async function fetchChannelManagerIds(channelId: string): Promise<string[]> {
-  const data = await apiGet(`/api/channels/${channelId}/managers`);
+  const data = await apiGet<{ userIds?: string[] }>(`/api/channels/${channelId}/managers`);
   if (!data.ok) throw new Error(data.error ?? "admin.roles.entity.listAssignments failed");
   return data.userIds ?? [];
 }
@@ -131,7 +138,9 @@ export async function removeFromChannel(channelId: string, userId: string): Prom
   if (!data.ok) throw new Error(data.error ?? "conversations.kick failed");
 }
 export async function renameChannel(channelId: string, name: string): Promise<string> {
-  const data = await apiPatch(`/api/channels/${channelId}`, { name });
+  const data = await apiPatch<{ channel?: { name?: string } }>(`/api/channels/${channelId}`, {
+    name,
+  });
   if (!data.ok) throw new Error(data.error ?? "conversations.rename failed");
   return data.channel?.name ?? name;
 }
@@ -148,7 +157,7 @@ export {
 } from "./channelPostingPrefs";
 
 export async function fetchChannelRetention(channelId: string): Promise<number | null> {
-  const data = await apiGet(`/api/channels/${channelId}/retention`);
+  const data = await apiGet<{ days?: number | null }>(`/api/channels/${channelId}/retention`);
   if (!data.ok) throw new Error(data.error ?? "conversations.getRetention failed");
   return data.days ?? null;
 }
@@ -194,30 +203,14 @@ export async function setMemberPermissions(
   if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.set failed");
 }
 export async function joinChannel(channelId: string): Promise<Channel> {
-  const data = await apiPost(`/api/channels/${channelId}/join`);
+  const data = await apiPost<{ channel: RawChannel }>(`/api/channels/${channelId}/join`);
   if (!data.ok) throw new Error(data.error ?? "conversations.join failed");
-  const c = data.channel;
-  return {
-    archived: false,
-    id: c.id,
-    name: c.name,
-    private: !!c.is_private,
-    topic: typeof c.topic === "string" ? c.topic : (c.topic?.value ?? ""),
-    unread: false,
-  };
+  return mapChannel(data.channel);
 }
 export async function createChannel(name: string, isPrivate: boolean): Promise<Channel> {
-  const data = await apiPost("/api/channels", { isPrivate, name });
+  const data = await apiPost<{ channel: RawChannel }>("/api/channels", { isPrivate, name });
   if (!data.ok) throw new Error(data.error ?? "conversations.create failed");
-  const c = data.channel;
-  return {
-    archived: false,
-    id: c.id,
-    name: c.name,
-    private: !!c.is_private,
-    topic: "",
-    unread: false,
-  };
+  return mapChannel(data.channel);
 }
 export async function leaveChannel(channelId: string) {
   const data = await apiPost(`/api/channels/${channelId}/leave`);

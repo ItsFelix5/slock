@@ -1,5 +1,11 @@
+import type {
+  Bootstrap,
+  DesktopNotificationEvent,
+  DirectMessage,
+  Message,
+  UserPrefs,
+} from "@slock/types";
 import { createEffect } from "solid-js";
-import type { Bootstrap, DirectMessage, UserPrefs } from "../api";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -12,6 +18,7 @@ import { createRealtimeSlice } from "./slices/messaging/realtime";
 import { createTypingSlice } from "./slices/messaging/typing";
 import { createUnreadSlice } from "./slices/messaging/unread";
 import { createCommandsSlice } from "./slices/session/commands";
+import { createComposerTemplatesSlice } from "./slices/session/composerTemplates";
 import { createDesktopNotificationsSlice } from "./slices/session/desktopNotifications";
 import { createLaterSlice } from "./slices/session/later";
 import { createModalsSlice } from "./slices/session/modals";
@@ -19,7 +26,7 @@ import { createPanesSlice } from "./slices/session/panes";
 import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
 import { createViewStateSlice } from "./slices/session/viewState";
-import type { View } from "./slices/types";
+import type { ChannelMessageTarget, View } from "./slices/types";
 
 export function createStoreSlices({
   bootstrap,
@@ -48,11 +55,11 @@ export function createStoreSlices({
   });
   const typing = createTypingSlice({ userById: users.userById });
   const setActiveViewImplRef: {
-    current: (view: View, options?: { autofocus?: boolean }) => void;
+    current: (view: View, options?: { target?: ChannelMessageTarget }) => void;
   } = {
     current: () => {},
   };
-  const setActiveView = (view: View, options?: { autofocus?: boolean }) =>
+  const setActiveView = (view: View, options?: { target?: ChannelMessageTarget }) =>
     setActiveViewImplRef.current(view, options);
 
   const patchDmImplRef: {
@@ -60,7 +67,7 @@ export function createStoreSlices({
   } = {
     current: () => {},
   };
-  const desktopNotificationImplRef: { current: (payload: any) => void } = {
+  const desktopNotificationImplRef: { current: (payload: DesktopNotificationEvent) => void } = {
     current: () => {},
   };
   const patchDm = (id: string, patch: Partial<DirectMessage>) => patchDmImplRef.current(id, patch);
@@ -82,10 +89,10 @@ export function createStoreSlices({
     patchDm,
   });
   const cacheResolvedMessagesRef: {
-    current: (messages: Map<string, import("../api").Message>) => void;
+    current: (messages: Map<string, Message>) => void;
   } = { current: () => {} };
   const reactionMessageForRef: {
-    current: (channelId: string, ts: string) => import("../api").Message | undefined;
+    current: (channelId: string, ts: string) => Message | undefined;
   } = { current: () => undefined };
   const activity = createActivitySlice({
     cacheResolvedMessages: (messages) => cacheResolvedMessagesRef.current(messages),
@@ -101,6 +108,7 @@ export function createStoreSlices({
   });
   createEffect(() => activity.setGatewayActivityBadgeCounts(bootstrap()?.activityCounts));
   const desktopNotifications = createDesktopNotificationsSlice({ userPrefs });
+  const composerTemplates = createComposerTemplatesSlice();
   const searchHistory = createSearchHistorySlice();
   const later = createLaterSlice();
   const dms = createDmsSlice({
@@ -122,7 +130,9 @@ export function createStoreSlices({
       channels.patchChannel(view.channel.id, view.channel);
       users.cacheUsers(view.users);
     },
-    pushActivity: activity.pushActivity,
+    onMessageDeleted: activity.removeActivityForMessage,
+    lastReadFor: unread.lastReadFor,
+    unreadDividerTsFor: unread.unreadDividerTsForChannel,
     setLastReadByChannel: unread.setLastReadByChannel,
     setChannelRead: unread.setChannelRead,
     setThreadRead: unread.setThreadRead,
@@ -170,9 +180,11 @@ export function createStoreSlices({
     patchDm: dms.patchDm,
     patchMessage: messages.patchMessage,
     recordTyping: typing.recordTyping,
+    removeMessage: messages.removeMessage,
     refreshActivityFeed: activity.requestActivityRefresh,
     setChannelStarred: channels.setStarredChannelIds,
     setGatewayActivityBadgeCounts: activity.setGatewayActivityBadgeCounts,
+    isStaleReadEcho: unread.isStaleReadEcho,
     setClosedDmIds: dms.setClosedDmIds,
     setLastReadByChannel: unread.setLastReadByChannel,
     setMessagesByChannel: messages.setMessagesByChannel,
@@ -192,6 +204,7 @@ export function createStoreSlices({
     canvas,
     channels,
     commands,
+    composerTemplates,
     desktopNotifications,
     desktopNotificationImplRef,
     dms,

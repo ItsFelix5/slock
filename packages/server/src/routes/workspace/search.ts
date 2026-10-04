@@ -1,7 +1,16 @@
 import { teamIdFromRoute } from "../../auth.ts";
 import { jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
-import { callSlack, callSlackEdge } from "../../slackClient.ts";
-import { trimChannel, trimFile, trimUser } from "../../trim/slackEntities.ts";
+import { callSlack, callSlackEdge, type SlackReply } from "../../slackClient.ts";
+import type {
+  EdgeChannelsReply,
+  EdgeUsersReply,
+  FilesSearchReply,
+  MessagesSearchReply,
+  SearchMessageMatch,
+} from "../../slackReplies.ts";
+import { trimChannel } from "../../trim/slackChannels.ts";
+import { trimUser } from "../../trim/slackEntities.ts";
+import { trimFile } from "../../trim/slackMessages.ts";
 import { type Route, route } from "../router.ts";
 
 function threadTsFromMatch(match: { permalink?: string; thread_ts?: string }): string | undefined {
@@ -12,7 +21,8 @@ function threadTsFromMatch(match: { permalink?: string; thread_ts?: string }): s
   } catch {}
 }
 
-const HIGHLIGHT_MARKER = /[-]/;
+const HIGHLIGHT_MARKER_SRC = "[\uE000-\uF8FF]";
+const HIGHLIGHT_MARKER = new RegExp(HIGHLIGHT_MARKER_SRC);
 
 function extractHighlights(raw: string): { highlights: string[]; text: string } {
   const parts = raw.split(HIGHLIGHT_MARKER);
@@ -27,7 +37,11 @@ function extractHighlights(raw: string): { highlights: string[]; text: string } 
   return { highlights: [...highlights], text };
 }
 
-function botIconFromMatch(match: any): string | undefined {
+const NO_USERS: SlackReply<EdgeUsersReply> = { ok: true, results: [] };
+const NO_CHANNELS: SlackReply<EdgeChannelsReply> = { ok: true, results: [] };
+const NO_FILES: SlackReply<FilesSearchReply> = { items: [], ok: true };
+
+function botIconFromMatch(match: SearchMessageMatch): string | undefined {
   return (
     match.icons?.image_72 ??
     match.icons?.image_48 ??
@@ -59,8 +73,8 @@ export const searchRoutes: Route[] = [
 
     const [peopleData, channelsData, filesData] = await Promise.all([
       scope === "channels" || scope === "files"
-        ? Promise.resolve({ ok: true, results: [] })
-        : callSlackEdge(
+        ? Promise.resolve(NO_USERS)
+        : callSlackEdge<EdgeUsersReply>(
             "users/search",
             {
               count: 30,
@@ -73,8 +87,8 @@ export const searchRoutes: Route[] = [
             ctx.creds,
           ),
       scope === "files" || scope === "users"
-        ? Promise.resolve({ results: [] })
-        : callSlackEdge(
+        ? Promise.resolve(NO_CHANNELS)
+        : callSlackEdge<EdgeChannelsReply>(
             "channels/search",
             {
               check_membership: true,
@@ -88,8 +102,8 @@ export const searchRoutes: Route[] = [
             ctx.creds,
           ),
       scope === "channels" || scope === "users"
-        ? Promise.resolve({ items: [], ok: true })
-        : callSlack(
+        ? Promise.resolve(NO_FILES)
+        : callSlack<FilesSearchReply>(
             "search.modules.files",
             {
               count: "20",
@@ -115,7 +129,7 @@ export const searchRoutes: Route[] = [
     ]);
     if (!peopleData.ok)
       return slackErrorResponse(peopleData, "users.search", ctx.creds, ctx.acceptEncoding);
-    if (!Array.isArray(channelsData.results))
+    if (!channelsData.ok)
       return slackErrorResponse(
         channelsData,
         "edge channels/search",
@@ -126,10 +140,10 @@ export const searchRoutes: Route[] = [
       return slackErrorResponse(filesData, "search.modules.files", ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
       {
-        channels: channelsData.results.map(trimChannel),
-        files: (Array.isArray(filesData.items) ? filesData.items : []).map(trimFile),
+        channels: (channelsData.results ?? []).map(trimChannel),
+        files: (filesData.items ?? []).map(trimFile),
         ok: true,
-        users: (Array.isArray(peopleData.results) ? peopleData.results : []).map(trimUser),
+        users: (peopleData.results ?? []).map(trimUser),
       },
       ctx.creds,
       ctx.acceptEncoding,
@@ -141,11 +155,12 @@ export const searchRoutes: Route[] = [
     if (!query) return jsonResponse({ ok: true, results: [] }, ctx.creds, ctx.acceptEncoding);
     const sort = ctx.searchParams.get("sort") === "score" ? "score" : "timestamp";
     const sortDir = ctx.searchParams.get("sortDir") === "asc" ? "asc" : "desc";
-    const data = await callSlack(
+    const data = await callSlack<MessagesSearchReply>(
       "search.modules.messages",
       {
         count: "40",
         extra_message_data: "1",
+        highlight: "1",
         module: "messages",
         no_user_profile: "1",
         page: "1",
@@ -154,6 +169,7 @@ export const searchRoutes: Route[] = [
         search_context: "desktop_messages_tab",
         search_exclude_bots: "false",
         search_only_my_channels: "false",
+        spell_correction: "FUZZY_MATCH",
         sort,
         sort_dir: sortDir,
       },
@@ -162,18 +178,18 @@ export const searchRoutes: Route[] = [
     if (!data.ok) {
       return slackErrorResponse(data, "search.modules.messages", ctx.creds, ctx.acceptEncoding);
     }
-    const groups: any[] = Array.isArray(data.items) ? data.items : [];
-    const matches = groups.flatMap((group) =>
-      (Array.isArray(group?.messages) ? group.messages : []).map((message: any) => ({
-        ...message,
-        channel: group.channel,
-      })),
+    const matches = (data.items ?? []).flatMap((group) =>
+      (group.messages ?? []).map((message) => ({ ...message, channel: group.channel })),
     );
     return jsonResponse(
       {
         ok: true,
         results: matches
-          .filter((match) => !!(match?.channel?.id && match.ts))
+          .flatMap((match) =>
+            match.channel?.id && match.ts
+              ? [{ ...match, channel: match.channel, ts: match.ts }]
+              : [],
+          )
           .map((match) => {
             const { highlights, text } = extractHighlights(match.text ?? "");
             return {
@@ -196,7 +212,7 @@ export const searchRoutes: Route[] = [
   }),
 
   route("POST", "search/save", async (ctx) => {
-    const { query } = await (ctx.body.json() as Promise<{ query?: string }>);
+    const { query } = await ctx.body.json<{ query?: string }>();
     if (query?.trim()) {
       try {
         await callSlack("search.save", { module: "messages", query: query.trim() }, ctx.creds);

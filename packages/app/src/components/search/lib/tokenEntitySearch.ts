@@ -1,11 +1,14 @@
+import type { User } from "@slock/types";
 import { createDebouncedRequest } from "@slock/ui";
 import { createEffect, createSignal } from "solid-js";
-import type { User } from "../../../lib/api";
 import { queryToken } from "../querySuggestions";
 
-const NEGATION_RE = /^-/;
 const PEOPLE_MODIFIERS = new Set(["from", "with"]);
 type NamedEntity = { id: string; name: string };
+
+export function stripNegation(token: string): string {
+  return token.startsWith("-") ? token.slice(1) : token;
+}
 
 export function mergeById<T extends { id: string }>(local: T[], remote: T[]): T[] {
   const merged = new Map(local.map((item): [string, T] => [item.id, item]));
@@ -14,7 +17,7 @@ export function mergeById<T extends { id: string }>(local: T[], remote: T[]): T[
 }
 
 function currentToken(query: string, cursor: number): { modifier: string; term: string } {
-  const raw = queryToken(query, cursor).value.replace(NEGATION_RE, "");
+  const raw = stripNegation(queryToken(query, cursor).value);
   const [modifier, term = ""] = raw.split(":", 2);
   return { modifier, term };
 }

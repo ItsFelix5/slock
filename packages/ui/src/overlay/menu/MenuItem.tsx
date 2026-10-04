@@ -1,6 +1,6 @@
 import { type JSX, Show, splitProps } from "solid-js";
 import Icon, { type IconName } from "../../media/Icon";
-import "./MenuButton.css";
+import "./Menu.css";
 
 export interface MenuItemProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   danger?: boolean;

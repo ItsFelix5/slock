@@ -1,10 +1,12 @@
+import type { Message } from "@slock/types";
 import { createStore, produce } from "solid-js/store";
-import type { Message } from "../../../api";
 import { toggleThreadSubscription } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 
 export function createMessageStatusActions(deps: {
   clearChannelUnread: (channelId: string) => void;
+  lastReadFor: (channelId: string) => number | undefined;
+  unreadDividerTsFor: (channelId: string) => number | undefined;
   setLastReadByChannel: (channelId: string, ts: number) => void;
   setUnreadDividerTs: (channelId: string, ts: number) => void;
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
@@ -12,6 +14,7 @@ export function createMessageStatusActions(deps: {
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
   hasMoreHistory: (channelId: string) => boolean;
+  hasNewerHistory: (channelId: string) => boolean;
   messagesByChannel: Record<string, Message[]>;
   threadMessages: Record<string, Message[]>;
   patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
@@ -74,12 +77,44 @@ export function createMessageStatusActions(deps: {
     }
   }
   async function markCurrentChannelRead(channelId: string): Promise<boolean> {
-    const list = messagesByChannel[channelId];
-    const latest = list?.[list.length - 1]?.ts ?? (Date.now() / 1000).toFixed(6);
+    const loadedLatest = deps.hasNewerHistory(channelId)
+      ? undefined
+      : messagesByChannel[channelId]?.at(-1)?.ts;
+    const latest = loadedLatest ?? (Date.now() / 1000).toFixed(6);
+    const latestMs = parseFloat(latest) * 1000;
+    if (latestMs <= (deps.lastReadFor(channelId) ?? 0)) {
+      deps.clearChannelUnread(channelId);
+      return true;
+    }
     if (!(await deps.syncChannelRead(channelId, latest))) return false;
     deps.clearChannelUnread(channelId);
-    deps.setLastReadByChannel(channelId, parseFloat(latest) * 1000);
+    deps.setLastReadByChannel(channelId, latestMs);
     return true;
+  }
+  function isMessageUnread(channelId: string, ts: string, threadTs?: string) {
+    if (threadTs) return false;
+    const anchor = deps.unreadDividerTsFor(channelId) ?? deps.lastReadFor(channelId) ?? 0;
+    return parseFloat(ts) * 1000 > anchor;
+  }
+  async function markMessageRead(channelId: string, ts: string): Promise<boolean> {
+    const priorLastRead = deps.lastReadFor(channelId);
+    const priorDivider = deps.unreadDividerTsFor(channelId);
+    deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
+    deps.setUnreadDividerTs(channelId, parseFloat(ts) * 1000);
+    if (!(await deps.setChannelRead(channelId, ts))) {
+      deps.setLastReadByChannel(channelId, priorLastRead ?? 0);
+      deps.setUnreadDividerTs(channelId, priorDivider ?? Infinity);
+      actionFeedback.flash(ts, "Failed to mark as read.", "error");
+      return false;
+    }
+    const latest = messagesByChannel[channelId]?.at(-1)?.ts;
+    if (!deps.hasNewerHistory(channelId) && (!latest || latest === ts))
+      deps.clearChannelUnread(channelId);
+    return true;
+  }
+  function toggleMessageUnread(channelId: string, ts: string, threadTs?: string) {
+    if (isMessageUnread(channelId, ts, threadTs)) return markMessageRead(channelId, ts);
+    return markMessageUnread(channelId, ts, threadTs);
   }
   async function markMessageUnread(
     channelId: string,
@@ -102,13 +137,17 @@ export function createMessageStatusActions(deps: {
     const previousTs =
       idx > 0 ? list[idx - 1].ts : atRealStart ? "0" : (parseFloat(ts) - 0.000001).toFixed(6);
     const previousMs = parseFloat(previousTs) * 1000;
-    if (!(await deps.setChannelRead(channelId, previousTs))) {
-      actionFeedback.flash(ts, "Failed to mark as unread.", "error");
-      return false;
-    }
+    const priorLastRead = deps.lastReadFor(channelId);
     deps.setLastReadByChannel(channelId, previousMs);
     deps.setUnreadDividerTs(channelId, previousMs);
     deps.setUnreadChannelIds(channelId, true);
+    if (!(await deps.setChannelRead(channelId, previousTs))) {
+      deps.setLastReadByChannel(channelId, priorLastRead ?? 0);
+      deps.setUnreadDividerTs(channelId, priorLastRead ?? Infinity);
+      deps.setUnreadChannelIds(channelId, false);
+      actionFeedback.flash(ts, "Failed to mark as unread.", "error");
+      return false;
+    }
     return true;
   }
   return {
@@ -116,7 +155,9 @@ export function createMessageStatusActions(deps: {
     isThreadSubscriptionPending,
     isThreadUnsubscribed,
     markCurrentChannelRead,
+    isMessageUnread,
     markMessageUnread,
+    toggleMessageUnread,
     toggleThreadSubscribed,
     unsubscribeFromThread,
   };

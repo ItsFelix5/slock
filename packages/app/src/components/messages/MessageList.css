@@ -2,9 +2,8 @@
 .message-list {
   flex: 1;
   min-height: 0;
-  padding-bottom: 12px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  padding-bottom: calc(var(--composer-overlay-h, 0px) + 12px);
+  overflow: hidden auto;
   overflow-anchor: none;
   scrollbar-width: none;
 }
@@ -21,10 +20,7 @@
   text-align: center;
 }
 .message-list-load-error {
-  display: flex;
   gap: 10px;
-  align-items: center;
-  justify-content: center;
   padding: var(--space-sm) var(--message-row-inline-end);
   font-size: var(--font-size-control);
   color: var(--text-secondary);
@@ -53,10 +49,7 @@
   color: var(--text-secondary);
 }
 .message-list-error {
-  display: flex;
-  flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-sm);
 }
 
 .message-list-error .message-list-intro-icon,
@@ -106,6 +99,9 @@
 }
 .message-row-group {
   position: relative;
+}
+.message-row-group.pending .message-row {
+  opacity: 0.6;
 }
 .message-row-group:hover,
 .message-row-group:has(.message-row:focus-visible) {
@@ -192,21 +188,16 @@
 }
 .custom-reminder-time {
   display: grid;
-  gap: 8px;
+  gap: var(--space-sm);
   width: 236px;
-  padding: 8px 6px 6px;
+  padding: var(--space-sm) 6px 6px;
   border-top: 1px solid var(--border);
-}
-.custom-reminder-time label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 .custom-reminder-time input {
   width: 100%;
-  padding: 6px 8px;
+  padding: 6px var(--space-sm);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
@@ -220,7 +211,7 @@
   min-width: 220px;
   max-width: 260px;
 }
-.message-shortcuts-menu .search-input {
+.message-shortcuts-menu .text-field {
   margin-bottom: var(--space-xs);
 }
 .message-shortcuts-list {

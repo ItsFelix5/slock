@@ -1,25 +1,23 @@
+import type { MessageShortcut } from "@slock/types";
 import { teamIdFromRoute } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
+import type { AppCommandsReply, AppProfileReply } from "../../slackReplies.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 export const appRoutes: Route[] = [
   route("GET", "message-shortcuts", async (ctx) => {
-    const data = await callSlack(
-      "client.appCommands",
-      { _x_reason: "app-commands-conditional-fetching" },
-      ctx.creds,
-    );
+    const data = await callSlack<AppCommandsReply>("client.appCommands", {}, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "client.appCommands", ctx.creds, ctx.acceptEncoding);
     }
-    const apps: any[] = Array.isArray(data.app_actions) ? data.app_actions : [];
-    const shortcuts: any[] = [];
-    for (const app of apps) {
+    const shortcuts: MessageShortcut[] = [];
+    for (const app of data.app_actions ?? []) {
       const icon =
         app.icons?.image_48 ?? app.icons?.image_72 ?? app.icons?.image_32 ?? app.icons?.image_64;
       for (const action of app.actions ?? []) {
-        if (action.type !== "message_action") continue;
+        if (action.type !== "message_action" || !action.action_id || !action.name) continue;
+        if (!(app.app_id && app.app_name)) continue;
         shortcuts.push({
           actionId: action.action_id,
           appId: app.app_id,
@@ -34,16 +32,15 @@ export const appRoutes: Route[] = [
   }),
 
   route("POST", "message-shortcuts/:actionId/run", async (ctx) => {
-    const { appId, channelId, messageTs } = await (ctx.body.json() as Promise<{
+    const { appId, channelId, messageTs } = await ctx.body.json<{
       appId?: string;
       channelId?: string;
       messageTs?: string;
-    }>);
+    }>();
     if (!(appId && channelId && messageTs)) return errorResponse("invalid_shortcut_run", 400);
     return mutate(
       "apps.actions.v2.execute",
       {
-        _x_reason: "message-shortcuts-menu",
         action_id: ctx.params.actionId,
         app_id: appId,
         client_token: `web-${Date.now()}`,
@@ -59,7 +56,7 @@ export const appRoutes: Route[] = [
   route("GET", "apps/:id/profile", async (ctx) => {
     const botId = ctx.searchParams.get("bot");
     if (!botId) return errorResponse("invalid_bot", 400);
-    const data = await callSlack(
+    const data = await callSlack<AppProfileReply>(
       "apps.profile.get",
       {
         app: ctx.params.id,
@@ -75,13 +72,13 @@ export const appRoutes: Route[] = [
   }),
 
   route("POST", "blocks/actions", async (ctx) => {
-    const body = await (ctx.body.json() as Promise<{
+    const body = await ctx.body.json<{
       action?: Record<string, unknown>;
       appId?: string;
       botId?: string;
       channelId?: string;
       messageTs?: string;
-    }>);
+    }>();
     if (!(body.action && body.appId && body.botId && body.channelId && body.messageTs)) {
       return errorResponse("invalid_block_action", 400);
     }
@@ -106,7 +103,7 @@ export const appRoutes: Route[] = [
   }),
 
   route("POST", "attachments/actions", async (ctx) => {
-    const body = await (ctx.body.json() as Promise<{
+    const body = await ctx.body.json<{
       action?: { name?: string; style?: string; text?: string; value?: string };
       attachmentId?: number;
       botId?: string;
@@ -115,7 +112,7 @@ export const appRoutes: Route[] = [
       channelId?: string;
       isEphemeral?: boolean;
       messageTs?: string;
-    }>);
+    }>();
     if (
       !(
         body.action?.name &&

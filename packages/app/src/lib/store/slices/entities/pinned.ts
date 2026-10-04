@@ -1,9 +1,10 @@
-import { createReactiveQueryCache } from "../../../reactiveQueryCache";
+import type { PinnedMessage } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
 import { createStore, produce } from "solid-js/store";
-import { fetchPinnedMessages, fetchPins, type PinnedMessage, togglePin } from "../../../api";
+import { fetchPinnedMessages, fetchPins, togglePin } from "../../../api";
 import { flashError, undoStack } from "../../../feedback";
 import { queryClient } from "../../../queryClient";
+import { createReactiveQueryCache } from "../../../reactiveQueryCache";
 import type { createPanesSlice } from "../session/panes";
 
 export function pinsQueryOptions(channelId: string) {
@@ -109,24 +110,24 @@ export function createPinnedSlice(deps: {
     return pinnedMessages.hasError(channelId);
   }
 
-  function openPinnedPanel(channelId: string) {
+  function openPinnedPane(channelId: string) {
     deps.panes.openInNewPane({ channelId, kind: "pinned" });
   }
 
-  function closePinnedPanel() {
+  function closePinnedPane() {
     const pane = deps.panes.panes().find((p) => p.content?.kind === "pinned");
     if (pane) deps.panes.closePane(pane.id);
   }
 
   return {
     applyPinEvent,
-    closePinnedPanel,
+    closePinnedPane,
     ensurePinsLoaded,
     hasPinnedMessagesError,
     isMessagePinned,
     isPinnedMessagesLoading,
     isPinPending,
-    openPinnedPanel,
+    openPinnedPane,
     pinnedMessagesFor,
     refreshPinnedMessages,
     togglePinMessage,

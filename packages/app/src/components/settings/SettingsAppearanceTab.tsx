@@ -119,7 +119,7 @@ export default function SettingsAppearanceTab() {
         <div class="settings-font-custom flex-align-center">
           <input
             aria-label="Custom font"
-            class="settings-status-input"
+            class="settings-status-input text-field"
             onChange={(e) => commitFont(e.currentTarget.value)}
             onInput={(e) => setFontDraft(e.currentTarget.value)}
             spellcheck={false}

@@ -1,13 +1,15 @@
+import type { SlackFile, SlackLink } from "@slock/types";
 import {
   Button,
   Icon,
   initRovingTabIndexDefault,
+  inside,
   isOneOf,
   Tooltip,
+  useConfirmShortcut,
   useEscapeClose,
 } from "@slock/ui";
-import { createMemo, createSignal, For, Show } from "solid-js";
-import type { SlackFile, SlackLink } from "../../lib/api";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { fileIconName } from "../../lib/fileSummary";
 import type { FilesLinksEntry } from "../../lib/filesLinksPanel";
 import {
@@ -17,7 +19,10 @@ import {
   filesLinksLoadError,
   filesLinksLoading,
   filesLinksQuery,
+  jumpToFilesLinksMessage,
   loadMoreFilesLinks,
+  openFileMessage,
+  openLinkMessage,
   retryFilesLinks,
   setFilesLinksQuery,
 } from "../../lib/filesLinksPanel";
@@ -46,49 +51,66 @@ const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
   { label: "Links", value: "links" },
 ];
 
-function FileCard(props: { file: SlackFile; onOpen: (file: SlackFile) => void }) {
+function JumpButton(props: { onJump: () => void; onSplit: () => void }) {
   return (
-    <button
-      class="files-links-card btn-reset"
-      data-nav-row
-      onClick={() => props.onOpen(props.file)}
-      tabIndex={-1}
-      type="button"
-    >
-      <Show
-        fallback={
-          <span class="files-links-card-icon">
-            <Icon name={fileIconName(props.file)} size={26} />
-          </span>
-        }
-        when={props.file.isImage && props.file.thumbUrl}
+    <Tooltip content="Jump to message">
+      <SplitNavigation onSplit={props.onSplit}>
+        <button class="files-links-card-jump btn-reset" onClick={props.onJump} type="button">
+          <Icon name="message" size={13} />
+        </button>
+      </SplitNavigation>
+    </Tooltip>
+  );
+}
+
+function FileCard(props: {
+  channelId: string;
+  file: SlackFile;
+  onOpen: (file: SlackFile) => void;
+}) {
+  return (
+    <div class="files-links-card files-links-card-jumpable">
+      <button
+        class="files-links-card-open btn-reset"
+        data-nav-row
+        onClick={() => props.onOpen(props.file)}
+        tabIndex={-1}
+        type="button"
       >
-        {(thumb) => <img alt="" class="files-links-card-thumb" src={thumb()} />}
-      </Show>
-      <span class="files-links-card-body">
-        <span class="files-links-card-title truncate">{props.file.title || props.file.name}</span>
-        <span class="files-links-card-meta text-dim truncate">
-          {[
-            props.file.filetype?.toUpperCase(),
-            formatSize(props.file.size),
-            formatDate(props.file.created),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+        <Show
+          fallback={
+            <span class="files-links-card-icon flex-center">
+              <Icon name={fileIconName(props.file)} size={26} />
+            </span>
+          }
+          when={props.file.isImage && props.file.thumbUrl}
+        >
+          {(thumb) => <img alt="" class="files-links-card-thumb" src={thumb()} />}
+        </Show>
+        <span class="files-links-card-body flex-col">
+          <span class="files-links-card-title truncate">{props.file.title || props.file.name}</span>
+          <span class="files-links-card-meta text-dim truncate">
+            {[
+              props.file.filetype?.toUpperCase(),
+              formatSize(props.file.size),
+              formatDate(props.file.created),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+      <JumpButton
+        onJump={() => openFileMessage(props.channelId, props.file.id, jumpToFilesLinksMessage)}
+        onSplit={() => openFileMessage(props.channelId, props.file.id, openConversationInSplit)}
+      />
+    </div>
   );
 }
 
 function LinkCard(props: { channelId: string; link: SlackLink }) {
-  const jumpToMessage = (e: MouseEvent) => {
-    e.preventDefault();
-    closeFilesLinksPanel();
-    store.viewState.openChannelMessage(props.channelId, props.link.ts, { keepNav: true });
-  };
   return (
-    <div class="files-links-card files-links-card-link">
+    <div class="files-links-card files-links-card-jumpable">
       <a
         class="files-links-card-open"
         data-nav-row
@@ -99,7 +121,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
       >
         <Show
           fallback={
-            <span class="files-links-card-icon">
+            <span class="files-links-card-icon flex-center">
               <Icon name="link" size={22} />
             </span>
           }
@@ -107,18 +129,15 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
         >
           {(icon) => <img alt="" class="files-links-card-favicon" src={icon()} />}
         </Show>
-        <span class="files-links-card-body">
+        <span class="files-links-card-body flex-col">
           <span class="files-links-card-title truncate">{props.link.title || props.link.url}</span>
           <span class="files-links-card-meta text-dim truncate">{linkDomain(props.link.url)}</span>
         </span>
       </a>
-      <Tooltip content="Jump to message">
-        <SplitNavigation onSplit={() => openConversationInSplit(props.channelId, props.link.ts)}>
-          <button class="files-links-card-jump btn-reset" onClick={jumpToMessage} type="button">
-            <Icon name="message" size={13} />
-          </button>
-        </SplitNavigation>
-      </Tooltip>
+      <JumpButton
+        onJump={() => openLinkMessage(props.channelId, props.link.ts, jumpToFilesLinksMessage)}
+        onSplit={() => openLinkMessage(props.channelId, props.link.ts, openConversationInSplit)}
+      />
     </div>
   );
 }
@@ -133,7 +152,7 @@ function EntryGrid(props: {
       <For each={props.entries}>
         {(entry) =>
           entry.kind === "file" ? (
-            <FileCard file={entry.file} onOpen={props.onOpenFile} />
+            <FileCard channelId={props.channelId} file={entry.file} onOpen={props.onOpenFile} />
           ) : (
             <LinkCard channelId={props.channelId} link={entry.link} />
           )
@@ -145,6 +164,7 @@ function EntryGrid(props: {
 
 export default function FilesLinksPanel() {
   let bodyRef: HTMLDivElement | undefined;
+  let searchInputRef: HTMLInputElement | undefined;
   useEscapeClose(closeFilesLinksPanel, () => !!filesLinksChannelId());
   const [typeFilter, setTypeFilter] = createSignal<TypeFilter>("all");
   const [sortMode, setSortMode] = createSignal<SortMode>("newest");
@@ -172,26 +192,30 @@ export default function FilesLinksPanel() {
     store.viewState.openMessageSearch(query, { inChannelId: channelId });
   };
 
-  const onSearchKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") searchMessagesInstead();
-  };
+  useConfirmShortcut(searchMessagesInstead, { target: inside(() => searchInputRef) });
 
   const loadMoreAtBottom = (body: HTMLDivElement) => {
     if (body.scrollTop + body.clientHeight >= body.scrollHeight - 160) loadMoreFilesLinks();
   };
 
+  createEffect(() => {
+    sorted();
+    if (filesLinksLoading() || !bodyRef) return;
+    queueMicrotask(() => bodyRef && loadMoreAtBottom(bodyRef));
+  });
+
   return (
     <Show when={filesLinksChannelId()}>
       {(id) => (
         <div class="files-links-view flex-col">
-          <div class="files-links-toolbar">
+          <div class="files-links-toolbar flex-align-center">
             <div class="files-links-searchbar">
               <Icon class="files-links-search-icon" name="search" size={14} />
               <input
                 class="files-links-search-input input-reset input-plain"
                 onInput={(e) => setFilesLinksQuery(e.currentTarget.value)}
-                onKeyDown={onSearchKeyDown}
                 placeholder="Filter files & links, Enter to search messages"
+                ref={searchInputRef}
                 type="text"
                 value={filesLinksQuery()}
               />
@@ -235,10 +259,10 @@ export default function FilesLinksPanel() {
                 filesLinksLoading() && filesLinksEntries().length === 0 && !filesLinksLoadError()
               }
             >
-              <div class="files-links-empty empty-state">Loading files & links…</div>
+              <div class="files-links-empty flex-col empty-state">Loading files & links…</div>
             </Show>
             <Show when={filesLinksLoadError()}>
-              <div class="files-links-empty empty-state">
+              <div class="files-links-empty flex-col empty-state">
                 <span>Couldn't load files & links.</span>
                 <Button onClick={retryFilesLinks} size="sm">
                   Try again
@@ -247,7 +271,7 @@ export default function FilesLinksPanel() {
             </Show>
             <Show when={!filesLinksLoadError()}>
               <Show when={sorted().length === 0 && !filesLinksLoading()}>
-                <div class="files-links-empty empty-state">
+                <div class="files-links-empty flex-col empty-state">
                   {filesLinksQuery() || typeFilter() !== "all"
                     ? "No files or links match."
                     : "No files or links yet."}

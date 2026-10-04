@@ -30,10 +30,33 @@
 }
 .suggestion-desc {
   min-width: 0;
-  overflow: hidden;
   font-size: var(--font-size-caption);
   font-weight: 400;
   color: var(--text-dim);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+.suggestion-item:hover,
+.suggestion-item.active {
+  background: var(--hover-bg);
+}
+.suggestion-item .suggestion-row {
+  flex: 1;
+  min-width: 0;
+  background: none;
+}
+.suggestion-action {
+  display: none;
+  margin-right: var(--space-xs);
+}
+.suggestion-item:hover .suggestion-action,
+.suggestion-item.active .suggestion-action,
+.suggestion-item:focus-within .suggestion-action {
+  display: flex;
+}
+.suggestion-action:hover {
+  color: var(--danger);
 }

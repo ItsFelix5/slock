@@ -17,7 +17,7 @@ export default function Slider(props: SliderProps) {
       ? (props.max - props.min) / (props.labels.length - 1)
       : 0;
   return (
-    <div class="slider">
+    <div class="slider flex-col">
       <input
         aria-label={props.ariaLabel}
         class="slider-input"

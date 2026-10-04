@@ -1,14 +1,14 @@
 .settings-preset-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-sm);
   margin-bottom: 10px;
 }
 
 .settings-preset-btn {
   gap: 6px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
   cursor: pointer;
   background: var(--hover-bg);
@@ -43,7 +43,7 @@
 }
 
 .settings-font-custom {
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .settings-font-custom .settings-status-input {
@@ -52,13 +52,13 @@
 
 .settings-color-list {
   gap: 2px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-md);
 }
 
 .settings-advanced-toggle {
   gap: 6px;
   padding: 6px 0;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
 }
 
@@ -67,5 +67,5 @@
 }
 
 .settings-theme-actions {
-  gap: 8px;
+  gap: var(--space-sm);
 }

@@ -6,6 +6,7 @@ import {
   LegacyAttachmentActions,
   Mrkdwn,
 } from "@slock/blockkit";
+import type { Attachment } from "@slock/types";
 import {
   ConstrainedImage,
   constrainMediaDimensions,
@@ -13,16 +14,17 @@ import {
   MediaFrame,
   VideoPlayer,
 } from "@slock/ui";
-import { For, Show } from "solid-js";
-import { type Attachment, fetchMessagesByIds } from "../../../../lib/api";
+import { createResource, For, Show } from "solid-js";
+import { fetchMessagesByIds } from "../../../../lib/api";
 import { channelIconName, conversationDisplayName } from "../../../../lib/displayName";
 import {
   openConversationInSplit,
   viewForConversation,
 } from "../../../../lib/navigation/conversationNav";
 import { store } from "../../../../lib/store";
-import { MessageAuthorButton } from "../../MessageAuthorButtons";
+import { MessageAuthorButton } from "../../MessageAuthorButton";
 import "./AttachmentCard.css";
+import { resolveAttachmentAuthorName } from "../messageAuthor";
 import MessageFiles from "./MessageFiles";
 
 const URL_SUFFIX_PATTERN = /[?#]/;
@@ -141,6 +143,7 @@ function AttachmentContent(props: {
 
 function MessageUnfurl(props: { attachment: Attachment }) {
   const a = props.attachment;
+  const authorName = () => resolveAttachmentAuthorName(a, store.users.userById);
   const dm = () => (a.channelId ? store.dms.dmById(a.channelId) : undefined);
   const channel = () =>
     a.channelId && !dm() ? store.channels.channelById(a.channelId) : undefined;
@@ -173,12 +176,22 @@ function MessageUnfurl(props: { attachment: Attachment }) {
     }
     store.viewState.setActiveView(viewForConversation(a.channelId));
   };
+  const lookupOriginal = (channelId: string, ts: string) =>
+    fetchMessagesByIds([{ channelId, ts }]).then((messages) => messages.get(`${channelId}:${ts}`));
+  const [original] = createResource(
+    () =>
+      a.blocks?.length && a.channelId && a.ts ? { channelId: a.channelId, ts: a.ts } : undefined,
+    ({ channelId, ts }) => lookupOriginal(channelId, ts),
+  );
+  const blockContext = (): BlockActionContext | undefined => {
+    const message = original();
+    if (!(message?.botId && a.channelId && a.ts)) return;
+    return { botId: message.botId, channelId: a.channelId, messageTs: a.ts };
+  };
   const openAuthorProfile = async () => {
-    const channelId = a.channelId;
-    const ts = a.ts;
+    const { channelId, ts } = a;
     if (!(channelId && ts)) return;
-    const messages = await fetchMessagesByIds([{ channelId, ts }]);
-    const userId = messages.get(`${channelId}:${ts}`)?.userId;
+    const userId = (await lookupOriginal(channelId, ts))?.userId;
     if (userId) store.users.openUserProfile(userId);
   };
 
@@ -189,7 +202,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
         "--attachment-unfurl-color": a.color ? `#${a.color.replace("#", "")}` : "var(--text-dim)",
       }}
     >
-      <Show when={a.authorName}>
+      <Show when={authorName()}>
         <div class="attachment-message-author flex-align-center">
           <Show when={a.authorIcon}>
             {(icon) => (
@@ -198,12 +211,13 @@ function MessageUnfurl(props: { attachment: Attachment }) {
           </Show>
           <MessageAuthorButton
             disabled={!(a.channelId && a.ts)}
-            name={a.authorName ?? ""}
+            name={authorName() ?? ""}
             onClick={openAuthorProfile}
+            truncate
           />
         </div>
       </Show>
-      <AttachmentContent attachment={a} isUnfurl />
+      <AttachmentContent attachment={a} context={blockContext()} isUnfurl />
       <Show when={a.channelId}>
         {(channelId) => (
           <div class="attachment-footer attachment-message-footer flex-align-center text-dim text-xs">
@@ -216,7 +230,7 @@ function MessageUnfurl(props: { attachment: Attachment }) {
               <Show when={channel()}>
                 {(c) => <Icon name={channelIconName(c().private)} size={11} />}
               </Show>
-              {locationLabel()}
+              <span class="truncate">{locationLabel()}</span>
             </a>
             <Show when={a.postedAt}>
               {(postedAt) => (
@@ -295,7 +309,12 @@ export default function AttachmentCard(props: {
                         <img alt="" class="attachment-author-icon" loading="lazy" src={icon()} />
                       )}
                     </Show>
-                    <Mrkdwn text={a.authorName ?? ""} />
+                    <span class="truncate">
+                      <Mrkdwn text={a.authorName ?? ""} />
+                    </span>
+                    <Show when={a.authorSubname}>
+                      {(subname) => <span class="attachment-author-subname">{subname()}</span>}
+                    </Show>
                   </div>
                 </Show>
                 <AttachmentContent attachment={a} context={props.context} />

@@ -1,5 +1,5 @@
+import type { Usergroup, UsergroupDetails } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
-import type { Usergroup, UsergroupDetails } from "../../../api";
 import { fetchUsergroup, fetchUsergroupDetails } from "../../../api";
 import { queryClient } from "../../../queryClient";
 import { createReactiveQueryCache } from "../../../reactiveQueryCache";

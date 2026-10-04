@@ -1,6 +1,6 @@
 .channel-hovercard {
-  gap: 8px;
-  padding: 12px 14px;
+  gap: var(--space-sm);
+  padding: var(--space-md) 14px;
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
@@ -10,7 +10,7 @@
 
 .channel-hovercard-heading {
   gap: 6px;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-weight: 800;
 }
 

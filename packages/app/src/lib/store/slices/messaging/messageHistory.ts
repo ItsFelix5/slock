@@ -1,6 +1,6 @@
+import type { ConversationViewData, Message } from "@slock/types";
 import { createEffect, untrack } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { ConversationViewData, Message } from "../../../api";
 import {
   fetchChannelDetails,
   fetchHistory,
@@ -27,6 +27,8 @@ const DEFAULT_HISTORY_API: MessageHistoryApi = {
   fetchHistoryNewer,
 };
 
+const MAX_LOADED_MESSAGES = 300;
+
 export function createMessageHistory(
   deps: {
     visibleMessageTargets: () => ChannelMessageTarget[];
@@ -43,6 +45,7 @@ export function createMessageHistory(
   const [historyMeta, setHistoryMeta] = createStore<Record<string, HistoryMeta>>({});
   const windowEpochs = createRequestEpochs();
   const {
+    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     hasThreadError,
     isLoadingThread,
@@ -53,6 +56,28 @@ export function createMessageHistory(
   } = createThreadReplies({ visibleThreads: deps.visibleThreads });
 
   const [reactionMessages, setReactionMessages] = createStore<Record<string, Message[]>>({});
+  function mergeOlder(channelId: string, older: Message[]) {
+    let cut = false;
+    setMessagesByChannel(channelId, (existing = []) => {
+      const merged = mergeMessages(existing, older);
+      cut = merged.length > MAX_LOADED_MESSAGES;
+      return merged.slice(0, MAX_LOADED_MESSAGES);
+    });
+    if (!cut) return;
+    newerHistoryBoundary.set(channelId, messagesByChannel[channelId].at(-1)?.ts ?? "");
+    setHistoryMeta(channelId, { anchored: true, hasNewer: true });
+  }
+  function mergeNewer(channelId: string, newer: Message[]) {
+    let cut = false;
+    setMessagesByChannel(channelId, (existing = []) => {
+      const merged = mergeMessages(existing, newer);
+      cut = merged.length > MAX_LOADED_MESSAGES;
+      return merged.slice(-MAX_LOADED_MESSAGES);
+    });
+    if (!cut) return;
+    historyCursor.set(channelId, `before:${messagesByChannel[channelId][0].ts}`);
+    setHistoryMeta(channelId, "hasMore", true);
+  }
   async function loadRecentHistory(channelId: string) {
     const previous = historyMeta[channelId];
     const replaceAnchoredWindow = previous?.anchored === true;
@@ -86,7 +111,6 @@ export function createMessageHistory(
     } catch (err) {
       console.error("Failed to load channel history", channelId, err);
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      if (!replaceAnchoredWindow) loadedChannels.delete(channelId);
       setHistoryMeta(channelId, {
         anchored: replaceAnchoredWindow,
         hasMore: previousHasMore,
@@ -131,7 +155,7 @@ export function createMessageHistory(
     try {
       const { messages: older, hasMore, nextCursor } = await api.fetchHistory(channelId, cursor);
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, older));
+      mergeOlder(channelId, older);
       historyCursor.set(channelId, nextCursor);
       setHistoryMeta(channelId, { hasMore, loading: false });
     } catch {
@@ -155,15 +179,11 @@ export function createMessageHistory(
     setHistoryMeta(channelId, "loading", true);
     setHistoryMeta(channelId, "newerError", false);
     try {
-      const {
-        messages: newer,
-        hasMore,
-        nextOldest,
-      } = await api.fetchHistoryNewer(channelId, boundary);
+      const { messages: newer, hasMore } = await api.fetchHistoryNewer(channelId, boundary);
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, newer));
-      const nextBoundary = nextOldest ?? newer.at(-1)?.ts;
-      if (nextBoundary) newerHistoryBoundary.set(channelId, nextBoundary);
+      mergeNewer(channelId, newer);
+      if (hasMore) newerHistoryBoundary.set(channelId, newer.at(-1)?.ts ?? boundary);
+      else newerHistoryBoundary.delete(channelId);
       setHistoryMeta(channelId, {
         anchored: hasMore,
         hasNewer: hasMore,
@@ -177,52 +197,6 @@ export function createMessageHistory(
     }
   }
 
-  async function loadOlderMessagesThrough(
-    channelId: string,
-    oldestTimestampMs: number,
-    maxPages: number,
-  ) {
-    if (!loadedChannels.has(channelId) || maxPages <= 0) return;
-    const meta = historyMeta[channelId];
-    if (meta?.loading || meta?.hasMore === false) return;
-    let cursor = historyCursor.get(channelId);
-    if (!cursor) {
-      setHistoryMeta(channelId, "hasMore", false);
-      return;
-    }
-
-    const epoch = windowEpochs.current(channelId);
-    let hasMore = true;
-    let olderMessages: Message[] = [];
-    setHistoryMeta(channelId, "loading", true);
-    setHistoryMeta(channelId, "olderError", false);
-    try {
-      for (let page = 0; page < maxPages && cursor; page += 1) {
-        const {
-          messages,
-          hasMore: pageHasMore,
-          nextCursor,
-        } = await api.fetchHistory(channelId, cursor);
-        if (!windowEpochs.isCurrent(channelId, epoch)) return;
-        olderMessages = mergeMessages(olderMessages, messages);
-        cursor = nextCursor;
-        hasMore = pageHasMore;
-
-        const [oldestLoaded] = olderMessages;
-        const reachedTimestamp =
-          oldestLoaded && parseFloat(oldestLoaded.ts) * 1000 <= oldestTimestampMs;
-        if (reachedTimestamp || !hasMore) break;
-      }
-
-      setMessagesByChannel(channelId, (existing = []) => mergeMessages(existing, olderMessages));
-      historyCursor.set(channelId, cursor);
-      setHistoryMeta(channelId, { hasMore, loading: false });
-    } catch {
-      if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      setHistoryMeta(channelId, "loading", false);
-      setHistoryMeta(channelId, "olderError", true);
-    }
-  }
   function hasHistoryError(channelId: string) {
     return historyMeta[channelId]?.initialError ?? false;
   }
@@ -247,6 +221,7 @@ export function createMessageHistory(
   });
   return {
     ensureChannelMessage,
+    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     hasHistoryError,
     hasMoreHistory,
@@ -263,7 +238,6 @@ export function createMessageHistory(
     jumpToDate,
     loadedChannels,
     loadOlderMessages,
-    loadOlderMessagesThrough,
     loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,

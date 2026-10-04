@@ -1,38 +1,44 @@
-import type { Message, PinnedMessage, SearchResult } from "@slock/types";
+import type { Message, PinnedMessage, RawMessage, SearchResult } from "@slock/types";
 import {
   apiDelete,
   apiGet,
   apiPatch,
   apiPost,
   getWorkspaceDomain,
-  HIDE_SUBTYPES,
+  isMyRelayedMessage,
   mapMessage,
+  mapVisibleMessage,
+  mapVisibleMessages,
 } from "@slock/types";
 import { store } from "../store";
 
 export { fetchHistory, fetchHistoryAround, fetchHistoryNewer } from "./messageHistory";
 
-export async function fetchReplies(
+type HistoryReply = {
+  has_more?: boolean;
+  messages?: RawMessage[];
+  response_metadata?: { next_cursor?: string };
+};
+
+export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
+  const data = await apiGet<HistoryReply>(
+    `/api/channels/${channelId}/threads/${threadTs}/messages?limit=200`,
+  );
+  if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
+  return mapVisibleMessages(data.messages ?? []);
+}
+
+export async function fetchReplyWindow(
   channelId: string,
   threadTs: string,
-  options?: { untilTs?: string },
+  ts: string,
 ): Promise<Message[]> {
-  const messages: Message[] = [];
-  let cursor: string | undefined;
-  for (;;) {
-    const query = new URLSearchParams({ limit: "200" });
-    if (cursor) query.set("cursor", cursor);
-    const data = await apiGet(`/api/channels/${channelId}/threads/${threadTs}/messages?${query}`);
-    if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
-    const raw: any[] = data.messages ?? [];
-    messages.push(
-      ...raw.filter((m) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype)).map(mapMessage),
-    );
-    const nextCursor = data.response_metadata?.next_cursor || undefined;
-    if (!(data.has_more && nextCursor)) return messages;
-    if (options?.untilTs && messages.some((m) => m.ts === options.untilTs)) return messages;
-    cursor = nextCursor;
-  }
+  const query = new URLSearchParams({ inclusive: "true", limit: "50", oldest: ts });
+  const data = await apiGet<HistoryReply>(
+    `/api/channels/${channelId}/threads/${threadTs}/messages?${query}`,
+  );
+  if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
+  return mapVisibleMessages(data.messages ?? []);
 }
 
 export async function fetchPermalinkMessage(
@@ -41,9 +47,7 @@ export async function fetchPermalinkMessage(
   threadTs: string,
 ): Promise<Message | undefined> {
   if (threadTs !== messageTs) {
-    const replies = await fetchReplies(channelId, threadTs, {
-      untilTs: messageTs,
-    });
+    const replies = await fetchReplyWindow(channelId, threadTs, messageTs);
     return replies.find((m) => m.ts === messageTs);
   }
   const query = new URLSearchParams({
@@ -52,11 +56,10 @@ export async function fetchPermalinkMessage(
     limit: "1",
     oldest: messageTs,
   });
-  const data = await apiGet(`/api/channels/${channelId}/messages?${query}`);
+  const data = await apiGet<HistoryReply>(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
-  const messages: any[] = data.messages ?? [];
-  const raw = messages.find((m) => m.ts === messageTs);
-  return raw && !HIDE_SUBTYPES.has(raw.subtype) ? mapMessage(raw) : undefined;
+  const raw = data.messages?.find((m) => m.ts === messageTs);
+  return raw && mapVisibleMessage(raw);
 }
 
 export async function postMessage(
@@ -65,23 +68,27 @@ export async function postMessage(
   threadTs?: string,
   blocks?: unknown,
   suppressUnfurl?: boolean,
+  fileIds?: string[],
 ) {
   const body: Record<string, unknown> = { text };
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
-
   if (suppressUnfurl) body.suppressUnfurl = true;
-  const data = await apiPost(`/api/channels/${channelId}/messages`, body);
+  if (fileIds?.length) body.fileIds = fileIds;
+  const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
   return data;
 }
 
 export function isMine(msg: Message): boolean {
-  return store.users.currentUser()?.id === msg.userId; // || (msg.botId === "B0BU242DJHM" && );
+  const me = store.users.currentUser();
+  return me?.id === msg.userId || isMyRelayedMessage(msg, me);
 }
 
 const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
   bot_not_configured: "The broadcast bot isn't set up on this server.",
+  org_user_not_in_team:
+    "The broadcast bot's workspace doesn't include you, so @channel can't be relayed.",
   not_a_channel_manager: "Only channel managers can send @channel or @here here.",
 };
 
@@ -96,10 +103,12 @@ export async function postBroadcastMessage(
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
   if (suppressUnfurl) body.suppressUnfurl = true;
-  const data = await apiPost(`/api/channels/${channelId}/messages/broadcast`, body);
+  const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages/broadcast`, body);
   if (!data.ok) {
     throw new Error(
-      BROADCAST_ERROR_MESSAGES[data.error] ?? data.error ?? "chat.postMessage failed",
+      (data.error && BROADCAST_ERROR_MESSAGES[data.error]) ??
+        data.error ??
+        "chat.postMessage failed",
     );
   }
   return data;
@@ -111,19 +120,21 @@ export async function editMessage(
   text: string,
   blocks?: unknown,
   relayed?: boolean,
+  fileIds?: string[],
 ) {
   const body: Record<string, unknown> = { text };
   if (blocks) body.blocks = blocks;
+  if (fileIds) body.fileIds = fileIds;
   if (relayed) body.relayed = true;
   const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
 
-export async function broadcastReply(channelId: string, ts: string) {
-  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, {
-    replyBroadcast: true,
-  });
+export async function broadcastReply(channelId: string, ts: string, relayed?: boolean) {
+  const body: Record<string, unknown> = { replyBroadcast: true };
+  if (relayed) body.relayed = true;
+  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }
@@ -164,20 +175,20 @@ export async function toggleStar(channelId: string, remove: boolean) {
   return data;
 }
 
+type PinsReply = { items?: { message?: RawMessage; ts: string }[] };
+
 export async function fetchPins(channelId: string): Promise<string[]> {
-  const data = await apiGet(`/api/channels/${channelId}/pins`);
+  const data = await apiGet<PinsReply>(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
-  const items: any[] = data.items ?? [];
-  return items.map((it) => it.ts).filter(Boolean);
+  return (data.items ?? []).map((it) => it.ts).filter(Boolean);
 }
 
 export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
-  const data = await apiGet(`/api/channels/${channelId}/pins`);
+  const data = await apiGet<PinsReply>(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
-  const items: any[] = data.items ?? [];
-  return items
-    .filter((it) => it.message)
-    .map((it) => ({ message: mapMessage(it.message), ts: it.ts }));
+  return (data.items ?? []).flatMap((it) =>
+    it.message ? [{ message: mapMessage(it.message), ts: it.ts }] : [],
+  );
 }
 
 export async function togglePin(channelId: string, ts: string, remove: boolean) {
@@ -187,19 +198,24 @@ export async function togglePin(channelId: string, ts: string, remove: boolean) 
   return data;
 }
 
+export async function getChannelLink(channelId: string): Promise<string | null> {
+  try {
+    return `https://${await getWorkspaceDomain()}/archives/${channelId}`;
+  } catch (err) {
+    console.error("Failed to resolve workspace domain for link", err);
+    return null;
+  }
+}
+
 export async function getPermalink(
   channelId: string,
   ts: string,
   threadTs?: string,
 ): Promise<string | null> {
-  try {
-    const domain = await getWorkspaceDomain();
-    const base = `https://${domain}/archives/${channelId}/p${ts.replace(".", "")}`;
-    return threadTs && threadTs !== ts ? `${base}?thread_ts=${threadTs}&cid=${channelId}` : base;
-  } catch (err) {
-    console.error("Failed to resolve workspace domain for permalink", err);
-    return null;
-  }
+  const channelLink = await getChannelLink(channelId);
+  if (!channelLink) return null;
+  const base = `${channelLink}/p${ts.replace(".", "")}`;
+  return threadTs && threadTs !== ts ? `${base}?thread_ts=${threadTs}&cid=${channelId}` : base;
 }
 
 export async function addReminder(text: string, time: string) {
@@ -221,7 +237,7 @@ export async function searchMessages(
   const params = new URLSearchParams({ query });
   if (opts?.sort) params.set("sort", opts.sort);
   if (opts?.sortDir) params.set("sortDir", opts.sortDir);
-  const data = await apiGet(`/api/search/messages?${params}`);
+  const data = await apiGet<{ results?: SearchResult[] }>(`/api/search/messages?${params}`);
   if (!data.ok) throw new Error(data.error ?? "search.messages failed");
   return data.results ?? [];
 }

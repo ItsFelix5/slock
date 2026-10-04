@@ -4,18 +4,22 @@ import { cachedEntityForId } from "../../lookup/cachedEntity.ts";
 import { lookupFlaronChannel, reportFlaronChannelNames } from "../../lookup/flaronChannel.ts";
 import { fetchChannelManagerAssignments, managerIdsFromAssignments } from "../../permissions.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
-import { trimChannel, trimUser } from "../../trim/slackEntities.ts";
+import type {
+  EdgeChannelsInfoReply,
+  EdgeChannelsReply,
+  EdgeUsersReply,
+  FilesSearchReply,
+  LinksSearchReply,
+} from "../../slackReplies.ts";
+import { trimChannel } from "../../trim/slackChannels.ts";
+import { trimUser } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
-
-function cachedChannelForId(data: any, id: string): any | undefined {
-  return cachedEntityForId(data, id, "channels", "channel");
-}
 
 export const channelDirectoryRoutes: Route[] = [
   route("POST", "channels/lookup", async (ctx) => {
-    const { ids } = await (ctx.body.json() as Promise<{ ids?: string[] }>);
+    const { ids } = await ctx.body.json<{ ids?: string[] }>();
     if (!ids?.length) return errorResponse("invalid_ids", 400);
-    const data = await callSlackEdge(
+    const data = await callSlackEdge<EdgeChannelsInfoReply>(
       "channels/info",
       { updated_ids: Object.fromEntries(ids.map((id) => [id, 0])) },
       ctx.creds,
@@ -26,8 +30,13 @@ export const channelDirectoryRoutes: Route[] = [
     }
     const entries = await Promise.all(
       ids.map(async (id) => {
-        const raw = data.ok ? cachedChannelForId(data, id) : undefined;
-        if (raw?.id) return [id, trimChannel(raw)] as const;
+        const raw = data.ok
+          ? cachedEntityForId(
+              { index: data.channels, results: data.results, single: data.channel },
+              id,
+            )
+          : undefined;
+        if (raw?.id && raw.name) return [id, trimChannel(raw)] as const;
 
         const flaron = await lookupFlaronChannel(id);
         return [
@@ -51,7 +60,7 @@ export const channelDirectoryRoutes: Route[] = [
   }),
 
   route("POST", "channels/flaron-report", async (ctx) => {
-    const { names } = await (ctx.body.json() as Promise<{ names?: string[] }>);
+    const { names } = await ctx.body.json<{ names?: string[] }>();
     if (!names?.length) return errorResponse("invalid_names", 400);
     await reportFlaronChannelNames(names);
     return jsonResponse({ ok: true }, ctx.creds, ctx.acceptEncoding);
@@ -60,7 +69,7 @@ export const channelDirectoryRoutes: Route[] = [
   route("GET", "channels/browse", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
     if (!query) return jsonResponse({ items: [], ok: true }, ctx.creds, ctx.acceptEncoding);
-    const { results } = await callSlackEdge(
+    const data = await callSlackEdge<EdgeChannelsReply>(
       "channels/search",
       {
         check_membership: true,
@@ -73,11 +82,16 @@ export const channelDirectoryRoutes: Route[] = [
       },
       ctx.creds,
     );
-    if (!Array.isArray(results)) {
-      return slackErrorResponse(results, "edge channels/search", ctx.creds, ctx.acceptEncoding);
+    if (!(data.ok && data.results)) {
+      return slackErrorResponse(
+        data.ok ? { error: "channels/search returned no results" } : data,
+        "edge channels/search",
+        ctx.creds,
+        ctx.acceptEncoding,
+      );
     }
     return jsonResponse(
-      { items: results.map(trimChannel), ok: true },
+      { items: data.results.map(trimChannel), ok: true },
       ctx.creds,
       ctx.acceptEncoding,
     );
@@ -86,26 +100,39 @@ export const channelDirectoryRoutes: Route[] = [
   route("GET", "channels/:id/members", async (ctx) => {
     const filter = ctx.searchParams.get("filter") === "apps" ? "apps" : "everyone";
     const marker = ctx.searchParams.get("marker") ?? undefined;
-    const data = await callSlackEdge(
-      "users/list",
-      {
-        channels: [ctx.params.id],
-        count: 50,
-        filter,
-        present_first: false,
-        ...(marker ? { marker } : {}),
-      },
+    const query = ctx.searchParams.get("query")?.trim();
+    const data = await callSlackEdge<EdgeUsersReply>(
+      query ? "users/search" : "users/list",
+      query
+        ? {
+            channels: [ctx.params.id],
+            count: 50,
+            filter: "people OR apps",
+            fuzz: 1,
+            include_profile_only_users: true,
+            index: "users_by_display_name",
+            locale: "en-US",
+            present_first: false,
+            query,
+            search_profile_fields: true,
+          }
+        : {
+            channels: [ctx.params.id],
+            count: 50,
+            filter,
+            present_first: false,
+            ...(marker ? { marker } : {}),
+          },
       ctx.creds,
     );
-    if (!data.ok) {
+    if (!data.ok && data.error !== "not_in_channel" && data.error !== "channel_not_found") {
       return slackErrorResponse(data, "edge users/list", ctx.creds, ctx.acceptEncoding);
     }
-    const results: any[] = Array.isArray(data.results) ? data.results : [];
     return jsonResponse(
       {
-        next_marker: data.next_marker,
+        next_marker: data.ok ? data.next_marker : undefined,
         ok: true,
-        results: results.map(trimUser),
+        results: (data.ok ? (data.results ?? []) : []).map(trimUser),
       },
       ctx.creds,
       ctx.acceptEncoding,
@@ -119,7 +146,7 @@ export const channelDirectoryRoutes: Route[] = [
     const page = Math.max(1, Number.parseInt(ctx.searchParams.get("page") ?? "1", 10) || 1);
     const filesQuery = `in:<#${channelId}${channelName ? `|${channelName}` : ""}> ${query}`.trim();
     const [filesData, linksData] = await Promise.all([
-      callSlack(
+      callSlack<FilesSearchReply>(
         "search.modules.files",
         {
           count: "50",
@@ -143,7 +170,7 @@ export const channelDirectoryRoutes: Route[] = [
         },
         ctx.creds,
       ),
-      callSlack(
+      callSlack<LinksSearchReply>(
         "conversations.searchLinks",
         {
           channel_id: channelId,
@@ -168,12 +195,12 @@ export const channelDirectoryRoutes: Route[] = [
     }
     return jsonResponse(
       {
-        files: Array.isArray(filesData.items) ? filesData.items : [],
+        files: filesData.items ?? [],
         filesTotal: filesData.pagination?.total_count ?? 0,
         hasMore:
           page * 50 < (filesData.pagination?.total_count ?? 0) ||
           page * 50 < (linksData.pagination?.total_count ?? 0),
-        links: Array.isArray(linksData.items) ? linksData.items : [],
+        links: linksData.items ?? [],
         linksTotal: linksData.pagination?.total_count ?? 0,
         ok: true,
       },

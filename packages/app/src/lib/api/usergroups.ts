@@ -1,19 +1,20 @@
-import type { Usergroup, UsergroupDetails } from "@slock/types";
+import type { RawUsergroup, Usergroup, UsergroupDetails } from "@slock/types";
 import { apiGet, apiPatch, apiPost, apiPut } from "@slock/types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 
-function mapUsergroup(raw: any): Usergroup | undefined {
-  if (typeof raw?.id !== "string") return;
-  const label = raw.handle || raw.name;
-  if (typeof label !== "string" || !label) return;
+function mapUsergroup(raw: RawUsergroup | undefined): Usergroup | undefined {
+  const label = raw?.handle || raw?.name;
+  if (!(raw && label)) return;
   return { id: raw.id, name: label.startsWith("@") ? label : `@${label}` };
 }
 
-function mapUsergroupDetails(raw: any): Omit<UsergroupDetails, "memberIds"> | undefined {
-  if (typeof raw?.id !== "string") return;
-  const channelIds = [raw.prefs?.channels, raw.prefs?.groups]
-    .flatMap((ids) => (Array.isArray(ids) ? ids : []))
-    .filter((id, index, ids): id is string => typeof id === "string" && ids.indexOf(id) === index);
+function mapUsergroupDetails(
+  raw: RawUsergroup | undefined,
+): Omit<UsergroupDetails, "memberIds"> | undefined {
+  if (!raw) return;
+  const channelIds = [...(raw.prefs?.channels ?? []), ...(raw.prefs?.groups ?? [])].filter(
+    (id, index, ids) => ids.indexOf(id) === index,
+  );
   return {
     channelIds,
     createdBy: raw.created_by || undefined,
@@ -29,9 +30,12 @@ function mapUsergroupDetails(raw: any): Omit<UsergroupDetails, "memberIds"> | un
 
 const MAX_USERGROUPS_PER_BATCH = 100;
 
-const fetchUsergroupRaw = createBatchedIdFetcher<any | undefined>(async (ids) => {
-  const data = await apiPost("/api/usergroups/lookup", { ids });
-  const usergroups: Record<string, any> = data.ok ? (data.usergroups ?? {}) : {};
+const fetchUsergroupRaw = createBatchedIdFetcher<RawUsergroup | undefined>(async (ids) => {
+  const data = await apiPost<{ usergroups?: Record<string, RawUsergroup | null> }>(
+    "/api/usergroups/lookup",
+    { ids },
+  );
+  const usergroups = data.ok ? (data.usergroups ?? {}) : {};
   return new Map(ids.map((id) => [id, usergroups[id] ?? undefined]));
 }, MAX_USERGROUPS_PER_BATCH);
 
@@ -40,7 +44,7 @@ export function fetchUsergroup(id: string): Promise<Usergroup | null> {
 }
 
 async function fetchUsergroupMemberIds(id: string): Promise<string[]> {
-  const data = await apiGet(`/api/usergroups/${id}/members`);
+  const data = await apiGet<{ userIds?: string[] }>(`/api/usergroups/${id}/members`);
   if (!data.ok) throw new Error(data.error ?? "usergroups.users.list failed");
   return data.userIds ?? [];
 }

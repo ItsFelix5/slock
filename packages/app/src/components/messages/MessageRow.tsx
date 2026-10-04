@@ -1,12 +1,6 @@
-import {
-  ContextMenu,
-  InlineFeedback,
-  logDeletedMessages,
-  openContextMenuFromKeyboard,
-  useContextMenu,
-} from "@slock/ui";
-import { createMemo, Show } from "solid-js";
-import type { Message } from "../../lib/api";
+import type { Message } from "@slock/types";
+import { ContextMenu, InlineFeedback, logDeletedMessages, useContextMenu } from "@slock/ui";
+import { createMemo, createSignal, Show } from "solid-js";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
 import { isMessageBackgroundContextMenu } from "./messageContextMenuTarget";
@@ -20,13 +14,15 @@ import MessageRepliesButton from "./parts/MessageRepliesButton";
 import MessageRowAvatar from "./parts/MessageRowAvatar";
 import MessageTextContent from "./parts/MessageTextContent";
 import MessageFiles from "./parts/media/MessageFiles";
+import PendingFiles from "./parts/media/PendingFiles";
 import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   resolveBotProfileUserId,
-  resolveMessageRenderState,
+  resolveLookupUserId,
   resolveProfileUserId,
-} from "./parts/messageRenderState";
+} from "./parts/messageAuthor";
+import { resolveMessageRenderState } from "./parts/messageRenderState";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 
@@ -44,6 +40,10 @@ export type MessageRowProps = {
   editingTs?: () => string | null;
   onStartEdit?: (ts: string) => void;
   onStopEdit?: () => void;
+  reactionPickerTs?: () => string | null;
+  onToggleReactionPicker?: (ts: string) => void;
+  moreMenuTs?: () => string | null;
+  onToggleMoreMenu?: (ts: string) => void;
 };
 
 export default function MessageRow(props: MessageRowProps) {
@@ -103,7 +103,7 @@ export default function MessageRow(props: MessageRowProps) {
   const profileUserId = () => resolveProfileUserId(msg());
   const botProfileUserId = () => resolveBotProfileUserId(msg());
   const user = createMemo(() => {
-    const id = profileUserId();
+    const id = resolveLookupUserId(msg());
     return id ? store.users.userById(id) : undefined;
   });
   const displayName = () => resolveAuthorDisplayName(msg(), user()?.name, "Unknown");
@@ -112,6 +112,12 @@ export default function MessageRow(props: MessageRowProps) {
   const ctxMenu = useContextMenu();
 
   const focused = () => props.focusedTs?.() === msg().ts;
+  const [engaged, setEngaged] = createSignal(false);
+  const showActions = () =>
+    engaged() ||
+    focused() ||
+    props.reactionPickerTs?.() === msg().ts ||
+    props.moreMenuTs?.() === msg().ts;
 
   return (
     <Show when={renderState().showMessage}>
@@ -136,6 +142,7 @@ export default function MessageRow(props: MessageRowProps) {
           deleted: msg().deleted,
           ephemeral: msg().isEphemeral,
           "is-first-message": props.index() === 0,
+          pending: msg().pending,
           saved: store.later.isSavedForLater(props.channelId, msg().ts),
         }}
       >
@@ -157,29 +164,32 @@ export default function MessageRow(props: MessageRowProps) {
         <div
           class="message-row"
           data-message-ts={msg().ts}
+          onFocusIn={() => setEngaged(true)}
+          onMouseEnter={() => setEngaged(true)}
           onContextMenu={(e) => {
             if (msg().deleted || msg().isEphemeral || isEditing()) return;
             if (!isMessageBackgroundContextMenu(e)) return;
             store.resources.loadMessageShortcuts();
             ctxMenu.open(e);
           }}
-          onKeyDown={(e) => {
-            if (msg().deleted || msg().isEphemeral || isEditing()) return;
-            store.resources.loadMessageShortcuts();
-            openContextMenuFromKeyboard(e, ctxMenu.openAt);
-          }}
           tabIndex={focused() ? 0 : -1}
         >
           <Show when={!(msg().deleted || msg().isEphemeral)}>
-            <MessageActionsBar
-              channelId={props.channelId}
-              msg={msg()}
-              onEditRequest={() => props.onStartEdit?.(msg().ts)}
-              onOpenThread={props.onOpenThread}
-              onReplyLink={props.onReplyLink}
-              rowFocused={focused}
-              threadTs={props.threadTs}
-            />
+            <Show when={showActions()}>
+              <MessageActionsBar
+                channelId={props.channelId}
+                moreMenuTs={() => props.moreMenuTs?.() ?? null}
+                msg={msg()}
+                onEditRequest={() => props.onStartEdit?.(msg().ts)}
+                onOpenThread={props.onOpenThread}
+                onReplyLink={props.onReplyLink}
+                onToggleMoreMenu={(ts) => props.onToggleMoreMenu?.(ts)}
+                onToggleReactionPicker={(ts) => props.onToggleReactionPicker?.(ts)}
+                reactionPickerTs={() => props.reactionPickerTs?.() ?? null}
+                rowFocused={focused}
+                threadTs={props.threadTs}
+              />
+            </Show>
             <ContextMenu
               onClose={ctxMenu.close}
               open={ctxMenu.isOpen()}
@@ -195,10 +205,7 @@ export default function MessageRow(props: MessageRowProps) {
               />
             </ContextMenu>
           </Show>
-          <Show
-            fallback={<div class="message-avatar-spacer">{msg().time.split(" ")[0]}</div>}
-            when={!sameAuthorAsPrev()}
-          >
+          <Show fallback={<div class="message-avatar-spacer" />} when={!sameAuthorAsPrev()}>
             <MessageRowAvatar
               avatarUrl={avatarUrl()}
               displayName={displayName()}
@@ -241,8 +248,11 @@ export default function MessageRow(props: MessageRowProps) {
               replyRef={replyRef()}
               tz={user()?.tz}
             />
-            <Show when={msg().files?.length ? msg().files : undefined}>
+            <Show when={!isEditing() && msg().files?.length ? msg().files : undefined}>
               {(files) => <MessageFiles files={files()} />}
+            </Show>
+            <Show when={msg().pendingFiles?.length ? msg().pendingFiles : undefined}>
+              {(files) => <PendingFiles files={files()} />}
             </Show>
             <MessageAttachmentList
               attachments={visibleAttachments()}

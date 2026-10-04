@@ -1,3 +1,4 @@
+import type { Message } from "@slock/types";
 import {
   findTextRanges,
   focusedPaneId,
@@ -7,7 +8,6 @@ import {
   useShortcut,
 } from "@slock/ui";
 import { type Accessor, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import type { Message } from "../../lib/api";
 import { jumpToMessageInContainer } from "./scrollAnchor";
 
 const ALL_MATCHES = "search-match";
@@ -103,7 +103,8 @@ export function createInPaneSearch(
     handler: () => setOpen(true),
     id: "messages.searchInPane",
     label: "Search in this view",
-    scope: "messages",
+    scope: "lists",
+    group: "Lists",
   });
   useEscapeClose(close, open);
   onCleanup(() => stopJump?.());

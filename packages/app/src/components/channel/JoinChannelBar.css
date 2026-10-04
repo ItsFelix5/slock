@@ -1,17 +1,16 @@
 .channel-notice-bar {
-  flex-shrink: 0;
-  gap: 12px;
-  padding: 14px 16px;
-  margin: 0 20px 20px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  gap: var(--space-sm);
+}
+
+.channel-notice-bar .btn {
+  height: var(--composer-action-size);
 }
 
 .channel-notice-bar-text {
   min-width: 0;
+  padding-left: 6px;
   overflow: hidden;
-  font-size: 14px;
+  font-size: var(--font-size-control);
   color: var(--text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;

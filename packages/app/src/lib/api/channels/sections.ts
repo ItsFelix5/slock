@@ -1,4 +1,4 @@
-import type { ChannelSection } from "@slock/types";
+import type { BootstrapSection, ChannelSection, RawChannelSection } from "@slock/types";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut, extractChannelSections } from "@slock/types";
 import { fetchInitialData } from "../initialData";
 import {
@@ -10,11 +10,10 @@ function normalizeSectionType(type: string): string {
   return type === "user_group" ? "usergroup" : type;
 }
 
-function mapSections(data: any): ChannelSection[] {
-  if (data && !data.ok && !Array.isArray(data.channel_sections))
-    throw new Error(data.error ?? "users.channelSections.list failed");
-  const sections = extractChannelSections(data);
-  return (sections ?? []).map((s) => ({
+async function fetchSectionList(): Promise<ChannelSection[]> {
+  const data = await apiGet<{ channel_sections?: RawChannelSection[] }>("/api/sections");
+  if (!data.ok) throw new Error(data.error ?? "users.channelSections.list failed");
+  return (extractChannelSections(data) ?? []).map((s) => ({
     channelIds: s.channelIds,
     id: s.id,
     name: s.name,
@@ -23,7 +22,7 @@ function mapSections(data: any): ChannelSection[] {
   }));
 }
 
-function mapInitialSections(sections: Record<string, any>): ChannelSection[] {
+function mapInitialSections(sections: Record<string, BootstrapSection>): ChannelSection[] {
   return Object.entries(sections).map(([id, section]) => ({
     channelIds: section.channel_ids ?? [],
     id,
@@ -37,21 +36,18 @@ function mapInitialSections(sections: Record<string, any>): ChannelSection[] {
 export async function fetchSections(): Promise<ChannelSection[]> {
   const initial = await fetchInitialData();
   if (initial.error?.sections) throw new Error(initial.error.sections);
-  return initial.sections === undefined
-    ? mapSections(await apiGet("/api/sections"))
-    : mapInitialSections(initial.sections);
+  return initial.sections === undefined ? fetchSectionList() : mapInitialSections(initial.sections);
 }
 
-export async function fetchFreshSections(): Promise<ChannelSection[]> {
-  return mapSections(await apiGet("/api/sections"));
-}
+export const fetchFreshSections = fetchSectionList;
+
 export async function createSection(name: string): Promise<{ id: string; name: string } | null> {
-  const data = await apiPost("/api/sections", { name });
+  const data = await apiPost<{ channel_section: RawChannelSection }>("/api/sections", { name });
   if (!data.ok) return null;
-  const created = data.channel_section ?? data;
-  const id = created?.channel_section_id ?? created?.id;
+  const created = data.channel_section;
+  const id = created.channel_section_id ?? created.id;
   if (!id) return null;
-  return { id, name: created?.name ?? name };
+  return { id, name: created.name ?? name };
 }
 export async function renameSection(sectionId: string, name: string): Promise<boolean> {
   const data = await apiPatch(`/api/sections/${sectionId}`, { name });
@@ -97,7 +93,7 @@ export async function setChannelNotifyAll(
   });
 }
 export async function openDm(userId: string): Promise<string | null> {
-  const data = await apiPost("/api/dms", { userId });
+  const data = await apiPost<{ channel: { id: string } }>("/api/dms", { userId });
   if (!data.ok) return null;
-  return data.channel?.id ?? null;
+  return data.channel.id;
 }

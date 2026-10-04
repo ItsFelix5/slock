@@ -14,9 +14,10 @@ export function handleMessageCopy(e: ClipboardEvent) {
   if (!anchor?.closest(MESSAGE_CONTENT_SELECTOR)) return;
   const container = document.createElement("div");
   container.appendChild(range.cloneContents());
-  const text = fragmentToMrkdwn(container);
-  if (!(text && e.clipboardData)) return;
-  e.clipboardData.setData("text/plain", text);
-  e.clipboardData.setData(MRKDWN_CLIPBOARD_TYPE, text);
+  const mrkdwn = fragmentToMrkdwn(container);
+  if (!(mrkdwn && e.clipboardData)) return;
+  e.clipboardData.setData("text/plain", sel.toString());
+  e.clipboardData.setData("text/html", container.innerHTML);
+  e.clipboardData.setData(MRKDWN_CLIPBOARD_TYPE, mrkdwn);
   e.preventDefault();
 }

@@ -1,8 +1,10 @@
-import { type BlockElement, runBlockAction, type TextObject } from "@slock/types";
+import type { BlockElement, RichTextBlock, TextObject } from "@slock/types";
 import { Icon, Tooltip } from "@slock/ui";
-import { createSignal, For, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
+import { useBlockActionDispatch } from "../useBlockActionDispatch";
+import "./Controls.css";
 
 type Option = { text: TextObject; value?: string };
 type ElementData = {
@@ -11,7 +13,7 @@ type ElementData = {
   icon?: string;
   initial_date?: string;
   initial_datetime?: number;
-  initial_value?: string;
+  initial_value?: string | RichTextBlock;
   negative_button?: { text: TextObject; value?: string };
   initial_option?: Option;
   initial_options?: Option[];
@@ -29,11 +31,6 @@ type ElementData = {
   workflow?: { trigger?: { url?: string } };
 };
 
-function asElementData(el: BlockElement): ElementData {
-  const generic: any = el;
-  return generic;
-}
-
 function allOptions(el: ElementData) {
   return [...(el.options ?? []), ...(el.option_groups ?? []).flatMap((group) => group.options)];
 }
@@ -47,24 +44,21 @@ export default function Controls(props: {
   context?: BlockActionContext;
   el: BlockElement;
 }) {
-  const el = () => asElementData(props.el);
-  const [pending, setPending] = createSignal(false);
+  const el = (): ElementData => props.el;
+  const {
+    canDispatch,
+    dispatch: dispatchAction,
+    pending,
+  } = useBlockActionDispatch(() => props.context);
+  const ready = () => !pending() && canDispatch(el().action_id);
 
-  const dispatch = (payload: Record<string, unknown>) => {
-    const ctx = props.context;
-    if (!(ctx?.botId && el().action_id) || pending()) {
-      return;
-    }
-    setPending(true);
-    runBlockAction({
-      action: { action_id: el().action_id, block_id: props.blockId, type: el().type, ...payload },
-      botId: ctx.botId,
-      channelId: ctx.channelId,
-      messageTs: ctx.messageTs,
-    })
-      .catch(() => undefined)
-      .finally(() => setPending(false));
-  };
+  const dispatch = (payload: Record<string, unknown>) =>
+    dispatchAction({
+      action_id: el().action_id,
+      block_id: props.blockId,
+      type: el().type,
+      ...payload,
+    });
 
   const selectOptions = () => allOptions(el());
   const isMulti = () => el().type.startsWith("multi_") || el().type === "checkboxes";
@@ -107,7 +101,7 @@ export default function Controls(props: {
     ) : (
       <button
         class="bk-button bk-button--primary"
-        disabled={pending()}
+        disabled={!ready()}
         onClick={() => dispatch({})}
         type="button"
       >
@@ -123,7 +117,7 @@ export default function Controls(props: {
           <button
             aria-label={el().positive_button?.text.text ?? "Good response"}
             class="bk-feedback-button bk-feedback-button--positive"
-            disabled={pending()}
+            disabled={!ready()}
             onClick={() => dispatch({ value: el().positive_button?.value })}
             type="button"
           >
@@ -134,7 +128,7 @@ export default function Controls(props: {
           <button
             aria-label={el().negative_button?.text.text ?? "Bad response"}
             class="bk-feedback-button bk-feedback-button--negative"
-            disabled={pending()}
+            disabled={!ready()}
             onClick={() => dispatch({ value: el().negative_button?.value })}
             type="button"
           >
@@ -150,7 +144,7 @@ export default function Controls(props: {
       <button
         aria-label={el().accessibility_label ?? el().text?.text ?? "Action"}
         class="bk-icon-button"
-        disabled={pending()}
+        disabled={!ready()}
         onClick={() => dispatch({ value: el().value })}
         title={el().text?.text}
         type="button"
@@ -184,16 +178,17 @@ export default function Controls(props: {
 
   if (el().type === "checkboxes" || el().type === "radio_buttons") {
     return (
-      <form class="bk-options" onChange={(event) => choose(event.currentTarget)}>
+      <form class="bk-options flex-col" onChange={(event) => choose(event.currentTarget)}>
         <For each={selectOptions()}>
           {(option, index) => {
             const key = option.value ?? option.text.text;
             const checked = () =>
               el().type === "checkboxes" ? initialValues().includes(key) : initialValue() === key;
             return (
-              <label class="bk-option">
+              <label class="bk-option flex-align-center">
                 <input
                   checked={checked()}
+                  disabled={!ready()}
                   name={`bk-${props.blockId}-${el().action_id}-${index()}`}
                   type={el().type === "checkboxes" ? "checkbox" : "radio"}
                   value={String(index())}
@@ -212,7 +207,7 @@ export default function Controls(props: {
     return (
       <select
         class="bk-control"
-        disabled={pending() || !options.length}
+        disabled={!(ready() && options.length)}
         multiple={isMulti()}
         onChange={(event) => select(event.currentTarget)}
         title={options.length ? undefined : "This menu loads its options from its app in Slack"}
@@ -247,7 +242,7 @@ export default function Controls(props: {
     return (
       <input
         class="bk-control"
-        disabled={pending()}
+        disabled={!ready()}
         onChange={(event) =>
           dispatch(
             el().type === "datepicker"
@@ -267,6 +262,10 @@ export default function Controls(props: {
     );
   }
 
+  const initialText = () => {
+    const value = el().initial_value;
+    return typeof value === "string" ? value : undefined;
+  };
   const inputType =
     el().type === "email_text_input"
       ? "email"
@@ -278,19 +277,19 @@ export default function Controls(props: {
   return el().multiline ? (
     <textarea
       class="bk-control bk-control--textarea"
-      disabled={pending()}
+      disabled={!ready()}
       onChange={(event) => dispatch({ value: event.currentTarget.value })}
       placeholder={placeholder()}
-      value={el().initial_value}
+      value={initialText()}
     />
   ) : (
     <input
       class="bk-control"
-      disabled={pending()}
+      disabled={!ready()}
       onChange={(event) => dispatch({ value: event.currentTarget.value })}
       placeholder={placeholder()}
       type={inputType}
-      value={el().initial_value}
+      value={initialText()}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { addMessageReminder, getPermalink } from "./api";
+import { addMessageReminder, getChannelLink, getPermalink } from "./api";
 import { actionFeedback } from "./feedback";
 
 function inMinutes(minutes: number): number {
@@ -34,6 +34,17 @@ export async function copyMessageLink(channelId: string, ts: string, threadTs?: 
   } catch (err) {
     console.error("Failed to get permalink", err);
     actionFeedback.flash(ts, "Couldn't copy the message link.", "error");
+  }
+}
+
+export async function copyChannelLink(channelId: string) {
+  try {
+    const link = await getChannelLink(channelId);
+    if (!link) throw new Error("no channel link");
+    await navigator.clipboard.writeText(link);
+  } catch (err) {
+    console.error("Failed to copy channel link", err);
+    actionFeedback.flash(channelId, "Couldn't copy the link.", "error");
   }
 }
 

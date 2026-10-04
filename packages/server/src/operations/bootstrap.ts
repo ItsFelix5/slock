@@ -1,156 +1,137 @@
-import type { Credentials } from "../auth.ts";
+import type { BootstrapPayload, BootstrapSection } from "@slock/types";
 import { jsonResponse } from "../http/jsonResponse.ts";
-import { callSlack } from "../slackClient.ts";
+import { type Route, route } from "../routes/router.ts";
+import { callSlack, type SlackFailure, type SlackReply } from "../slackClient.ts";
+import type {
+  ChannelSectionsReply,
+  CountsReply,
+  DndReply,
+  PrefsReply,
+  UserBootReply,
+} from "../slackReplies.ts";
 import {
   trimActivityCounts,
   trimBootChannel,
+  trimCountGroup,
   trimCountGroups,
-  trimUser,
-} from "../trim/slackEntities.ts";
-import { type Route, route } from "../routes/router.ts";
+} from "../trim/slackChannels.ts";
+import { trimUser } from "../trim/slackEntities.ts";
 
-function trimUserBoot(data: any): any {
-  const trimIm = (im: any) => ({
-    created: im?.created,
-    id: im?.id,
-    is_open: im?.is_open,
-    updated: im?.updated,
-    user: im?.user,
-  });
-  const trimMpim = (group: any) => ({
-    created: group?.created,
-    id: group?.id,
-    is_open: group?.is_open,
-    members: group?.members,
-    name: group?.name,
-    properties: group?.properties
-      ? { has_custom_mpdm_name: group.properties.has_custom_mpdm_name }
-      : undefined,
-    updated: group?.updated,
-  });
+function trimUserBoot(data: UserBootReply): BootstrapPayload {
   return {
-    channels: Array.isArray(data.channels) ? data.channels.map(trimBootChannel) : data.channels,
-    ims: Array.isArray(data.ims) ? data.ims.map(trimIm) : data.ims,
-    is_open: Array.isArray(data.is_open) ? data.is_open : undefined,
-    mpims: Array.isArray(data.mpims) ? data.mpims.map(trimMpim) : data.mpims,
-    self: trimUser(data.self),
-    starred: Array.isArray(data.starred)
-      ? data.starred.map((star: any) =>
-          typeof star === "string" ? star : { channel: star?.channel, id: star?.id },
-        )
-      : data.starred,
-    subteams: Array.isArray(data.subteams?.self) ? { self: data.subteams.self } : undefined,
+    channels: data.channels?.map(trimBootChannel),
+    ims: data.ims?.map((im) => ({
+      created: im.created,
+      id: im.id,
+      is_open: im.is_open,
+      updated: im.updated,
+      user: im.user,
+    })),
+    is_open: data.is_open,
+    mpims: data.mpims?.map((group) => ({
+      created: group.created,
+      id: group.id,
+      is_open: group.is_open,
+      members: group.members,
+      name: group.name,
+      properties: group.properties
+        ? { has_custom_mpdm_name: group.properties.has_custom_mpdm_name }
+        : undefined,
+      updated: group.updated,
+    })),
+    self: data.self ? trimUser(data.self) : undefined,
+    starred: data.starred?.map((star) =>
+      typeof star === "string" ? star : { channel: star.channel, id: star.id },
+    ),
+    subteams: data.subteams?.self ? { self: data.subteams.self } : undefined,
   };
 }
 
-function trimBootstrapCounts(data: any): any {
+function trimBootstrapCounts(data: CountsReply): BootstrapPayload {
   return {
     notifications: trimActivityCounts(data.activity_v2),
-    unreads: trimCountGroups(data, (group: any) => ({
-      has_unreads: group?.has_unreads,
-      id: group?.id,
-      is_unread: group?.is_unread,
-      last_read: group?.last_read,
-      latest: group?.latest,
-      mention_count: group?.mention_count,
-      mention_count_display: group?.mention_count_display,
-      unread_count: group?.unread_count,
-      unread_count_display: group?.unread_count_display,
-    })),
+    unreads: trimCountGroups(data, trimCountGroup),
   };
 }
 
-const USER_PREF_KEYS = [
-  "all_notifications_prefs",
-  "channel_sections",
-  "emoji_use",
-  "frecency",
-  "frecency_ent_jumper",
-  "frecency_jumper",
-  "highlight_words",
-  "muted_channels",
-] as const;
-
-function trimUserPrefs(data: any): any {
-  const prefs = data.prefs ?? {};
+function trimUserPrefs({ prefs = {} }: PrefsReply): BootstrapPayload {
   return {
-    ...Object.fromEntries(
-      USER_PREF_KEYS.filter((key) => key !== "all_notifications_prefs").map((key) => [
-        key,
-        prefs[key],
-      ]),
-    ),
+    channel_sections: prefs.channel_sections,
+    emoji_use: prefs.emoji_use,
+    frecency: prefs.frecency,
+    frecency_ent_jumper: prefs.frecency_ent_jumper,
+    frecency_jumper: prefs.frecency_jumper,
+    muted_channels: prefs.muted_channels,
     notification_prefs: prefs.all_notifications_prefs,
   };
 }
 
-function trimDndInfo(data: any): any {
+function trimDndInfo(data: DndReply): { endtime: number } | null {
   if (!(data.snooze_enabled && data.snooze_endtime)) return null;
   return { endtime: data.snooze_endtime };
 }
 
-function trimSections(data: any): Record<string, any> {
-  if (!Array.isArray(data.channel_sections)) return {};
+function trimSections(data: ChannelSectionsReply): Record<string, BootstrapSection> {
   return Object.fromEntries(
-    data.channel_sections
-      .map((section: any) => {
-        const id = section?.channel_section_id ?? section?.id;
-        if (!id) return null;
-        return [
+    (data.channel_sections ?? []).flatMap((section) => {
+      const id = section.channel_section_id ?? section.id;
+      if (!id) return [];
+      return [
+        [
           id,
           {
             channel_ids:
-              section?.channel_ids ?? section?.channel_ids_page?.channel_ids ?? section?.channels,
-            filtering: section?.sidebar,
-            name: section?.name,
-            type: section?.type,
+              section.channel_ids ?? section.channel_ids_page?.channel_ids ?? section.channels,
+            filtering: section.sidebar,
+            name: section.name,
+            type: section.type,
           },
-        ];
-      })
-      .filter(Boolean),
+        ],
+      ];
+    }),
   );
 }
 
-export async function bootstrapResponse(
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-): Promise<Response> {
-  const [rawBoot, rawCounts, rawPrefs, rawDnd, rawSections] = await Promise.all([
-    callSlack("client.userBoot", {}, creds),
-    callSlack("client.counts", {}, creds).catch(() => ({ ok: false })),
-    callSlack("users.prefs.get", {}, creds),
-    callSlack("dnd.info", {}, creds),
-    callSlack("users.channelSections.list", {}, creds),
-  ]);
-  const failed = [
-    ["bootstrap", rawBoot],
-    ["notification_prefs", rawPrefs],
-    ["snooze", rawDnd],
-    ["sections", rawSections],
-  ].filter(([, data]) => data && !data.ok);
-  const errors = Object.fromEntries(
-    failed.map(([name, data]) => [name, data.error ?? `${name} failed`]),
-  );
-  const retryAfter = Object.fromEntries(
-    failed.filter(([, data]) => data.retry_after).map(([name, data]) => [name, data.retry_after]),
-  );
-  const counts = rawCounts.ok ? trimBootstrapCounts(rawCounts) : {};
-
-  return jsonResponse(
-    {
-      ...(rawBoot.ok ? trimUserBoot(rawBoot) : {}),
-      ...(rawPrefs.ok ? trimUserPrefs(rawPrefs) : {}),
-      ...counts,
-      sections: rawSections?.ok ? trimSections(rawSections) : undefined,
-      snooze: rawDnd.ok ? trimDndInfo(rawDnd) : undefined,
-      error: Object.keys(errors).length > 0 ? errors : undefined,
-      retry_after: Object.keys(retryAfter).length > 0 ? retryAfter : undefined,
-    },
-    creds,
-    acceptEncoding,
-  );
+function failures(named: Record<string, SlackReply>): [string, SlackFailure][] {
+  return Object.entries(named).flatMap(([name, data]) => (data.ok ? [] : [[name, data]]));
 }
 
 export const bootstrapRoutes: Route[] = [
-  route("GET", "bootstrap", (ctx) => bootstrapResponse(ctx.creds, ctx.acceptEncoding)),
+  route("GET", "bootstrap", async ({ creds, acceptEncoding }) => {
+    const [rawBoot, rawCounts, rawPrefs, rawDnd, rawSections] = await Promise.all([
+      callSlack<UserBootReply>("client.userBoot", {}, creds),
+      callSlack<CountsReply>("client.counts", {}, creds).catch(
+        (): SlackFailure => ({
+          error: "counts_failed",
+          ok: false,
+        }),
+      ),
+      callSlack<PrefsReply>("users.prefs.get", {}, creds),
+      callSlack<DndReply>("dnd.info", {}, creds),
+      callSlack<ChannelSectionsReply>("users.channelSections.list", {}, creds),
+    ]);
+    const failed = failures({
+      bootstrap: rawBoot,
+      notification_prefs: rawPrefs,
+      sections: rawSections,
+      snooze: rawDnd,
+    });
+    const errors = Object.fromEntries(
+      failed.map(([name, data]) => [name, data.error || `${name} failed`]),
+    );
+    const retryAfter = Object.fromEntries(
+      failed.flatMap(([name, data]) => (data.retry_after ? [[name, data.retry_after]] : [])),
+    );
+
+    const payload: BootstrapPayload = {
+      ...(rawBoot.ok ? trimUserBoot(rawBoot) : {}),
+      ...(rawPrefs.ok ? trimUserPrefs(rawPrefs) : {}),
+      ...(rawCounts.ok ? trimBootstrapCounts(rawCounts) : {}),
+      error: Object.keys(errors).length > 0 ? errors : undefined,
+      retry_after: Object.keys(retryAfter).length > 0 ? retryAfter : undefined,
+      sections: rawSections.ok ? trimSections(rawSections) : undefined,
+      snooze: rawDnd.ok ? trimDndInfo(rawDnd) : undefined,
+    };
+    return jsonResponse(payload, creds, acceptEncoding);
+  }),
 ];

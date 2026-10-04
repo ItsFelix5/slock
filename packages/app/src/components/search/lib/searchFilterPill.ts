@@ -54,8 +54,9 @@ export function filterPillFromOpInsert(insert: unknown): FilterPillValue | undef
   return isFilterOp(insert) ? filterPillValue(insert.filter) : undefined;
 }
 
+const REPEATED_SPACE_RE = / {2,}/g;
+const LEADING_SPACE_RE = /^ /;
 const MODIFIER_RE = /(-)?(from|with|in|has|hasmy|is|during|after|before|type):(<[^>]+>|\S+)/;
-const TRAILING_NEWLINE_RE = /\n$/;
 
 export function suggestionToPill(
   value: string,
@@ -70,15 +71,17 @@ export function suggestionToPill(
 }
 
 export function serializeQuery(quill: Quill): string {
-  return quill
+  const serialized = quill
     .getContents()
     .ops.map((op) => {
       if (typeof op.insert === "string") return op.insert;
       const pill = filterPillFromOpInsert(op.insert);
-      return pill ? `${pill.negated ? "-" : ""}${pill.token}` : "";
+      return pill ? ` ${pill.negated ? "-" : ""}${pill.token} ` : "";
     })
     .join("")
-    .replace(TRAILING_NEWLINE_RE, "");
+    .replace(REPEATED_SPACE_RE, " ")
+    .replace(LEADING_SPACE_RE, "");
+  return serialized.endsWith("\n") ? serialized.slice(0, -1) : serialized;
 }
 
 export function loadQueryIntoQuill(

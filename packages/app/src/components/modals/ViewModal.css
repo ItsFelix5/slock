@@ -4,12 +4,12 @@
 }
 
 .view-modal-content {
-  padding: 16px 20px;
+  padding: var(--space-lg) 20px;
   overflow-y: auto;
 }
 
 .view-modal-footer {
-  gap: 8px;
+  gap: var(--space-sm);
   padding: 14px 20px;
   border-top: 1px solid var(--border);
 }

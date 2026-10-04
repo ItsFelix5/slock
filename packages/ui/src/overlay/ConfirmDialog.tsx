@@ -21,7 +21,7 @@ export function confirmDialog(options: ConfirmDialogOptions): Promise<boolean> {
   return new Promise((resolve) => setPending({ ...options, resolve }));
 }
 
-export function ConfirmDialogHost() {
+export function ConfirmDialog() {
   const close = (ok: boolean) => {
     pending()?.resolve(ok);
     setPending(null);

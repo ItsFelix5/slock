@@ -1,0 +1,41 @@
+.bk-root {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.bk-divider {
+  margin: var(--space-xs) 0;
+  border: none;
+  border-top: 1px solid var(--border-strong);
+}
+
+.bk-header {
+  font-weight: 800;
+  margin: 0;
+}
+
+.bk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.bk-unsupported {
+  font-size: var(--font-size-control);
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.bk-markdown {
+  font-size: var(--font-size-body);
+  line-height: 1.46;
+}
+
+.bk-file {
+  padding: 9px 11px;
+  font-size: var(--font-size-control);
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}

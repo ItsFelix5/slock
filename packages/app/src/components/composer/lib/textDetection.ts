@@ -1,4 +1,5 @@
-export const WHITESPACE_RE = /\s/;
+import { WHITESPACE_RE } from "@slock/ui";
+
 const EMOJI_QUERY_RE = /^[a-z0-9_+'-]*$/i;
 const EMOJI_SHORTCODE_RE = /:([a-z0-9_+'-]+):$/i;
 
@@ -18,7 +19,7 @@ export function detectMentionTrigger(
   value: string,
   cursor: number,
 ): {
-  kind: "user" | "userlink" | "channel" | "command" | "emoji";
+  kind: "user" | "userlink" | "channel" | "command" | "emoji" | "template";
   start: number;
   query: string;
 } | null {
@@ -29,18 +30,19 @@ export function detectMentionTrigger(
   const atIdx = before.lastIndexOf("@");
   const hashIdx = before.lastIndexOf("#");
   const colonIdx = before.lastIndexOf(":");
-  const idx = Math.max(atIdx, hashIdx, colonIdx);
+  const tildeIdx = before.lastIndexOf("~");
+  const idx = Math.max(atIdx, hashIdx, colonIdx, tildeIdx);
   if (idx === -1) return null;
   const prevChar = before[idx - 1];
   if (prevChar !== undefined && !WHITESPACE_RE.test(prevChar)) return null;
   let token = before.slice(idx + 1);
   if (WHITESPACE_RE.test(token)) return null;
-  let kind: "user" | "userlink" | "channel" | "emoji" =
-    idx === atIdx ? "user" : idx === hashIdx ? "channel" : "emoji";
+  let kind: "user" | "userlink" | "channel" | "emoji" | "template" =
+    idx === atIdx ? "user" : idx === hashIdx ? "channel" : idx === tildeIdx ? "template" : "emoji";
   if (kind === "user" && token.startsWith("/")) {
     kind = "userlink";
     token = token.slice(1);
   }
-  if (kind === "emoji" && !EMOJI_QUERY_RE.test(token)) return null;
+  if (kind === "emoji" && (!EMOJI_QUERY_RE.test(token) || token.length === 1)) return null;
   return { kind, query: token, start: idx };
 }

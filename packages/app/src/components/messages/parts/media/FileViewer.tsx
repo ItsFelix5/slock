@@ -1,3 +1,4 @@
+import { resolveMediaUrl, type SlackFile } from "@slock/types";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import {
   createResource,
@@ -9,7 +10,6 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import "./FileViewer.css";
 import { parseEml } from "./mailParse";
 
@@ -47,8 +47,8 @@ function FileLightbox(props: { file: SlackFile; kind: "pdf" | "mail"; onClose: (
     <Overlay ariaLabelledBy={titleId} onClose={props.onClose}>
       <div class="file-viewer-card flex-col">
         <PanelHeader onClose={props.onClose}>
-          <div class="file-viewer-header-main">
-            <div class="file-viewer-title" id={titleId}>
+          <div class="file-viewer-header-main flex-align-center">
+            <div class="file-viewer-title truncate" id={titleId}>
               {name()}
             </div>
             <a
@@ -135,7 +135,11 @@ function MailBody(props: { file: SlackFile }) {
     return text === undefined ? undefined : parseEml(text);
   };
   return (
-    <Switch fallback={<div class="file-viewer-mail-empty text-dim text-sm">No readable body.</div>}>
+    <Switch
+      fallback={
+        <div class="file-viewer-mail-empty flex-center text-dim text-sm">No readable body.</div>
+      }
+    >
       <Match when={raw.loading}>
         <div class="file-viewer-loading flex-center text-dim text-sm">Loading email…</div>
       </Match>
@@ -172,7 +176,9 @@ function MailBody(props: { file: SlackFile }) {
             </div>
             <Switch
               fallback={
-                <div class="file-viewer-mail-empty text-dim text-sm">No readable body.</div>
+                <div class="file-viewer-mail-empty flex-center text-dim text-sm">
+                  No readable body.
+                </div>
               }
             >
               <Match when={m().bodyHtml}>

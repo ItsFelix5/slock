@@ -25,7 +25,7 @@ export default function SettingsIconsTab() {
           <div class="settings-account-error">Couldn't copy to the clipboard.</div>
         </Show>
         <input
-          class="settings-status-input debug-icon-search"
+          class="settings-status-input text-field debug-icon-search"
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Filter icons…"
           type="text"
@@ -42,7 +42,7 @@ export default function SettingsIconsTab() {
                   type="button"
                 >
                   <Icon name={copiedKey() === name ? "check" : name} size={20} />
-                  <span class="debug-icon-cell-name">{name}</span>
+                  <span class="debug-icon-cell-name truncate">{name}</span>
                 </button>
               </Tooltip>
             )}

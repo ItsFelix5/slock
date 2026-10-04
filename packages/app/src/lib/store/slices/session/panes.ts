@@ -63,7 +63,7 @@ export function createPanesSlice() {
   }
 
   function nearestConversationPaneId(fromId: string): string {
-    const panes = state.panes;
+    const { panes } = state;
     const fromIndex = panes.findIndex((p) => p.id === fromId);
     if (fromIndex === -1) return panes[0].id;
     for (let i = fromIndex; i >= 0; i--) {

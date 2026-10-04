@@ -1,5 +1,5 @@
+import type { Attachment, Message } from "@slock/types";
 import { For, Show } from "solid-js";
-import type { Attachment, Message } from "../../../lib/api";
 import AttachmentCard from "./media/AttachmentCard";
 
 export default function MessageAttachmentList(props: {

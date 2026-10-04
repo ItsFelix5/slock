@@ -1,36 +1,22 @@
 .compose-date-picker {
   width: 320px;
-  padding: 8px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-popover);
+  padding: var(--space-sm);
 }
 .compose-date-preview {
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-dim);
   white-space: nowrap;
 }
 .compose-date-input {
-  width: 100%;
-  padding: 6px 8px;
-  margin-bottom: 4px;
-  font-family: inherit;
-  font-size: 12px;
-  color: var(--text-primary);
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-size-meta);
 }
 .compose-date-section {
-  margin-top: 8px;
+  margin-top: var(--space-sm);
 }
 .compose-date-section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-  font-size: 12px;
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -39,7 +25,7 @@
   height: 24px;
   padding: 0 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
   background-color: var(--hover-bg);
   border-radius: var(--radius-sm);
@@ -62,11 +48,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-md);
   min-height: 29px;
   padding: calc(5px + var(--row-padding-offset)) 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-primary);
   text-align: left;
   background: transparent;
@@ -101,22 +87,19 @@ button.compose-date-relative-option.active {
   color: var(--text-dim);
 }
 .compose-date-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   min-height: 32px;
-  padding: 8px 2px 0;
+  padding: var(--space-sm) 2px 0;
   margin-top: 6px;
   border-top: 1px solid var(--border);
 }
 .compose-date-empty {
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-dim);
 }
 .compose-date-insert {
   padding: 5px 10px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--text-on-accent);
   background: var(--accent);

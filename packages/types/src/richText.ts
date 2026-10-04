@@ -74,6 +74,7 @@ export interface RichTextDateElement {
 }
 
 export interface RichTextMessageMentionElement {
+  author_id?: string;
   channel_id?: string;
   message_ts?: string;
   text?: string;
@@ -192,7 +193,7 @@ function richTextInlineToPlainText(el: RichTextInlineElement): string {
     case "date":
       return el.fallback ?? "";
     case "canvas":
-      return el.text ?? "";
+      return el.text || "canvas";
     default:
       return "";
   }

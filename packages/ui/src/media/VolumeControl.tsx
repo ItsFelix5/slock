@@ -40,7 +40,7 @@ export default function VolumeControl(props: VolumeControlProps) {
       >
         <Icon name={icon()} size={16} />
       </button>
-      <div class="volume-control-panel">
+      <div class="volume-control-panel surface-popover">
         <output class="volume-control-value">{percentage()}%</output>
         <div class="volume-control-slider">
           <input

@@ -1,29 +1,20 @@
 import { parseUserProfileLink } from "@slock/blockkit";
+import {
+  type Block,
+  getCachedWorkspaceDomain,
+  isRichTextSubBlock,
+  narrowByType,
+  type RichTextBlock,
+  type RichTextInlineElement,
+  type RichTextStyle,
+  type RichTextSubBlock,
+  userProfileUrl,
+} from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui";
 import type Quill from "quill";
-import { Delta } from "quill";
-import type {
-  Block,
-  ContextBlock,
-  HeaderBlock,
-  RichTextBlock,
-  RichTextInlineElement,
-  RichTextStyle,
-  RichTextSubBlock,
-} from "../../../lib/api";
-import { narrowByType } from "../../../lib/api";
-import { channelDisplayName } from "../../../lib/displayName";
-import { store } from "../../../lib/store";
-import { isRichTextSubBlock } from "../../messages/parts/messageRenderState";
-import {
-  type DeltaLine,
-  type DeltaSegment,
-  deltaLines,
-  MENTION_PREFIX,
-  rawLineText,
-} from "./quillMentions";
-
-const LEADING_AT_RE = /^@/;
+import { parseSlackPermalink } from "../../../lib/navigation/slackPermalink";
+import { INVISIBLE_LABEL } from "../../../lib/replyLink";
+import { type DeltaLine, type DeltaSegment, deltaLines, MENTION_PREFIX } from "./quillMentions";
 
 function styleFromAttrs(
   attrs: Record<string, unknown> | undefined,
@@ -36,7 +27,7 @@ function styleFromAttrs(
 }
 
 function segmentElements(segment: DeltaSegment, forceBold: boolean): RichTextInlineElement[] {
-  const embed = segment.embed;
+  const { embed } = segment;
   if (embed?.mention) {
     if (embed.mention.kind === "special") {
       const range = embed.mention.id;
@@ -44,6 +35,13 @@ function segmentElements(segment: DeltaSegment, forceBold: boolean): RichTextInl
     }
     if (embed.mention.kind === "usergroup") {
       return [{ type: "usergroup", usergroup_id: embed.mention.id }];
+    }
+    if (embed.mention.kind === "userlink") {
+      const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", embed.mention.id);
+      return [{ text: embed.mention.name, type: "link", url }];
+    }
+    if (embed.mention.kind === "messagelink") {
+      return [{ type: "link", url: embed.mention.id }];
     }
     return [
       embed.mention.kind === "user"
@@ -76,7 +74,7 @@ function lineElements(line: DeltaLine, forceBold = false): RichTextInlineElement
 function headerPlainText(line: DeltaLine): string {
   return line.segments
     .map((segment) => {
-      const embed = segment.embed;
+      const { embed } = segment;
       if (embed?.mention) {
         const { kind, id, name } = embed.mention;
         if (kind !== "special") return `${MENTION_PREFIX[kind]}${name}`;
@@ -126,6 +124,38 @@ export function blocksHaveProfileLink(blocks: readonly Block[]): boolean {
     const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
     return !!richText && elementsHaveProfileLink(richText.elements);
   });
+}
+
+function collapseLeadingMessageLink(blocks: Block[]): Block[] {
+  const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");
+  if (!richText) return blocks;
+  const [sub] = richText.elements;
+  if (sub?.type !== "rich_text_section" && sub?.type !== "rich_text_quote") return blocks;
+  const [first] = sub.elements;
+  if (!first || isRichTextSubBlock(first) || first.type !== "link") return blocks;
+  if (first.text !== first.url || !parseSlackPermalink(first.url)) return blocks;
+
+  const label = { ...first, text: INVISIBLE_LABEL };
+  const updatedSub: RichTextSubBlock =
+    sub.type === "rich_text_section"
+      ? { ...sub, elements: [label, ...sub.elements.slice(1)] }
+      : { ...sub, elements: [label, ...sub.elements.slice(1)] };
+  return [
+    { ...richText, elements: [updatedSub, ...richText.elements.slice(1)] },
+    ...blocks.slice(1),
+  ];
+}
+
+export function withReplyLink(blocks: Block[], permalink: string): Block[] {
+  const link: RichTextInlineElement = { text: INVISIBLE_LABEL, type: "link", url: permalink };
+  const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");
+  if (!richText) return blocks;
+  const [sub, ...restSubs] = richText.elements;
+  const elements: RichTextSubBlock[] =
+    sub?.type === "rich_text_section"
+      ? [{ ...sub, elements: [link, { text: " ", type: "text" }, ...sub.elements] }, ...restSubs]
+      : [{ elements: [link], type: "rich_text_section" }, ...richText.elements];
+  return [{ ...richText, elements }, ...blocks.slice(1)];
 }
 
 export function buildRichTextBlocks(quill: Quill): Block[] {
@@ -216,7 +246,7 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
       flushQuote();
       flushList();
       codeLines ??= [];
-      codeLines.push(rawLineText(line));
+      codeLines.push(line.segments.map((s) => s.text).join(""));
       continue;
     }
     flushCode();
@@ -256,127 +286,5 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
     });
   }
 
-  return blocks;
-}
-
-type DeltaOp = { insert: string | Record<string, unknown>; attributes?: Record<string, unknown> };
-
-function styleToFormat(style: RichTextStyle | undefined): Record<string, true> {
-  const format: Record<string, true> = {};
-  for (const [, key] of INLINE_MARKS) if (style?.[key]) format[key] = true;
-  return format;
-}
-
-function inlineOps(elements: (RichTextInlineElement | RichTextSubBlock)[]): DeltaOp[] {
-  const ops: DeltaOp[] = [];
-  for (const el of elements) {
-    if (isRichTextSubBlock(el)) continue;
-    if (el.type === "text") {
-      if (!el.text) continue;
-      const attributes = styleToFormat(el.style);
-      ops.push(
-        Object.keys(attributes).length ? { attributes, insert: el.text } : { insert: el.text },
-      );
-    } else if (el.type === "user") {
-      ops.push({
-        insert: {
-          mention: {
-            id: el.user_id,
-            kind: "user",
-            name: store.users.userById(el.user_id)?.name ?? el.user_id,
-          },
-        },
-      });
-    } else if (el.type === "channel") {
-      ops.push({
-        insert: {
-          mention: {
-            id: el.channel_id,
-            kind: "channel",
-            name: channelDisplayName(store.channels.channelById(el.channel_id), el.channel_id),
-          },
-        },
-      });
-    } else if (el.type === "usergroup") {
-      ops.push({
-        insert: {
-          mention: {
-            id: el.usergroup_id,
-            kind: "usergroup",
-            name: (
-              store.usergroups.usergroupById(el.usergroup_id)?.name ?? el.usergroup_id
-            ).replace(LEADING_AT_RE, ""),
-          },
-        },
-      });
-    } else if (el.type === "emoji") {
-      ops.push({ insert: { emoji: { name: el.name } } });
-    } else if (el.type === "date") {
-      ops.push({
-        insert: { date: { fallback: el.fallback ?? "", format: el.format, ts: el.timestamp } },
-      });
-    } else if (el.type === "broadcast") {
-      ops.push(
-        el.range === "channel" || el.range === "here"
-          ? { insert: { mention: { id: el.range, kind: "special", name: el.range } } }
-          : { insert: `@${el.range}` },
-      );
-    } else if (el.type === "link") {
-      const attributes = { ...styleToFormat(el.style), link: el.url };
-      ops.push({ attributes, insert: el.text || el.url });
-    } else if ("text" in el && typeof el.text === "string" && el.text) {
-      ops.push({ insert: el.text });
-    }
-  }
-  return ops;
-}
-
-function pushLine(
-  ops: DeltaOp[],
-  elements: (RichTextInlineElement | RichTextSubBlock)[],
-  blockAttrs?: Record<string, unknown>,
-) {
-  ops.push(...inlineOps(elements));
-  ops.push(blockAttrs ? { attributes: blockAttrs, insert: "\n" } : { insert: "\n" });
-}
-
-function richTextDeltaOps(blocks: readonly Block[]): DeltaOp[] {
-  const ops: DeltaOp[] = [];
-  for (const block of blocks) {
-    const header = narrowByType<Block, HeaderBlock>(block, "header");
-    if (header) {
-      ops.push({ insert: header.text.text });
-      ops.push({ attributes: { header: header.level ?? 1 }, insert: "\n" });
-      continue;
-    }
-    const context = narrowByType<Block, ContextBlock>(block, "context");
-    if (context) {
-      const text = context.elements.map((el) => ("text" in el ? el.text : "")).join(" ");
-      ops.push({ insert: text });
-      ops.push({ attributes: { context: true }, insert: "\n" });
-      continue;
-    }
-    if (block.type === "divider") {
-      ops.push({ insert: { divider: true } });
-      ops.push({ insert: "\n" });
-      continue;
-    }
-    const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
-    if (!richText) continue;
-    for (const sub of richText.elements) {
-      if (sub.type === "rich_text_section") pushLine(ops, sub.elements);
-      else if (sub.type === "rich_text_preformatted")
-        pushLine(ops, sub.elements, { "code-block": true });
-      else if (sub.type === "rich_text_quote") pushLine(ops, sub.elements, { blockquote: true });
-      else if (sub.type === "rich_text_list") {
-        for (const item of sub.elements) pushLine(ops, item.elements, { list: sub.style });
-      }
-    }
-  }
-  return ops;
-}
-
-export function loadRichTextIntoQuill(quill: Quill, blocks: readonly Block[]): void {
-  const ops = richTextDeltaOps(blocks);
-  quill.setContents(new Delta(ops.length ? ops : [{ insert: "\n" }]));
+  return collapseLeadingMessageLink(blocks);
 }

@@ -68,9 +68,9 @@ export interface FloatingPanelProps {
   class?: string;
   gap?: number;
   onFocusOut?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
+  onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseEnter?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseLeave?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
-  onKeyDown?: JSX.EventHandlerUnion<HTMLDivElement, KeyboardEvent>;
   open: boolean;
   panelRef?: (element: HTMLDivElement | undefined) => void;
   placement?: Placement;
@@ -142,15 +142,26 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     if (!(e.target instanceof Node && anchorElement)) return;
     const scrollAffectsAnchor = e.target === anchorElement || e.target.contains(anchorElement);
     if (!scrollAffectsAnchor) return;
+    if (e.target instanceof Element) {
+      const containerRect = e.target.getBoundingClientRect();
+      const anchorRect = anchorElement.getBoundingClientRect();
+      const anchorStillVisible =
+        anchorRect.bottom > containerRect.top && anchorRect.top < containerRect.bottom;
+      if (anchorStillVisible) {
+        schedulePosition();
+        return;
+      }
+    }
     props.onScroll?.();
   };
 
   const onResize = () => runWithOwner(owner, schedulePosition);
+  const onWindowScroll = (e: Event) => runWithOwner(owner, () => handleScroll(e));
 
   createEffect(() => {
     if (!props.open) return;
     window.addEventListener("resize", onResize);
-    if (props.onScroll) window.addEventListener("scroll", handleScroll, true);
+    if (props.onScroll) window.addEventListener("scroll", onWindowScroll, true);
     onCleanup(() => {
       cancelAnimationFrame(frame ?? 0);
       resizeObserver?.disconnect();
@@ -158,7 +169,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
       panel = undefined;
       props.panelRef?.(undefined);
       window.removeEventListener("resize", onResize);
-      if (props.onScroll) window.removeEventListener("scroll", handleScroll, true);
+      if (props.onScroll) window.removeEventListener("scroll", onWindowScroll, true);
     });
   });
 
@@ -167,8 +178,8 @@ export default function FloatingPanel(props: FloatingPanelProps) {
       <Portal mount={parentMount?.() ?? document.body}>
         <div
           class={props.class}
+          onClick={props.onClick}
           onFocusOut={props.onFocusOut}
-          onKeyDown={props.onKeyDown}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
           ref={(element) => {

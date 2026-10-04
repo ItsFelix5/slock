@@ -8,10 +8,9 @@ import {
 } from "@slock/types";
 
 export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
-  const data = await apiGet("/api/message-shortcuts");
+  const data = await apiGet<{ shortcuts?: MessageShortcut[] }>("/api/message-shortcuts");
   if (!data.ok) throw new ApiError(data.error ?? "client.appCommands failed", data.retry_after);
-  const shortcuts: any[] = data.shortcuts ?? [];
-  return shortcuts.map((s) => ({
+  return (data.shortcuts ?? []).map((s) => ({
     ...s,
     icon: s.icon ? resolveMediaUrl(s.icon) : undefined,
   }));
@@ -35,7 +34,9 @@ export async function runMessageShortcut(
 const appDescriptionCache = new Map<string, Promise<string | undefined>>();
 export function fetchAppDescription(appId: string, botId: string): Promise<string | undefined> {
   return getOrCreateRetryablePromise(appDescriptionCache, appId, async () => {
-    const data = await apiGet(`/api/apps/${appId}/profile?bot=${encodeURIComponent(botId)}`);
+    const data = await apiGet<{ desc?: string }>(
+      `/api/apps/${appId}/profile?bot=${encodeURIComponent(botId)}`,
+    );
     if (!data.ok) throw new Error(data.error ?? "apps.profile.get failed");
     return data.desc || undefined;
   });

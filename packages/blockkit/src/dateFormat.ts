@@ -1,3 +1,5 @@
+import { CLOCK_24H, formatTimeFromMs } from "@slock/types";
+
 const MONTH_NAMES = [
   "January",
   "February",
@@ -72,15 +74,14 @@ function dateShort(date: Date): string {
 function dateLong(date: Date): string {
   return `${WEEKDAY_NAMES[date.getDay()]}, ${dateFull(date)}`;
 }
+function dateSlash(date: Date): string {
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()}`;
+}
 function time(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleTimeString([], CLOCK_24H);
 }
 function timeSecs(date: Date): string {
-  return date.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return date.toLocaleTimeString([], { ...CLOCK_24H, second: "2-digit" });
 }
 function ago(date: Date): string {
   const seconds = Math.round((Date.now() - date.getTime()) / 1000);
@@ -113,6 +114,8 @@ const TOKEN_FORMATTERS: Record<string, (date: Date) => string> = {
   date_pretty: (d) => relativeDayLabel(d) ?? dateFull(d),
   date_short: dateShort,
   date_short_pretty: (d) => relativeDayLabel(d) ?? dateShort(d),
+  date_slash: dateSlash,
+  date_slash_pretty: (d) => relativeDayLabel(d) ?? dateSlash(d),
   time,
   time_secs: timeSecs,
 };
@@ -131,9 +134,8 @@ export function formatSlackDate(timestamp: number, fallback?: string): string {
 export function formatFullDateTime(timestamp: number): string {
   const date = new Date(timestamp * 1000);
   return date.toLocaleString([], {
+    ...CLOCK_24H,
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
     month: "long",
     second: "2-digit",
     weekday: "long",
@@ -246,11 +248,7 @@ export function formatLastSeen(seenAt: number, now: number): string {
   if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
   const dayDiff = Math.round((startOfDayMs(now) - startOfDayMs(seenAt)) / day);
   if (dayDiff === 1) {
-    const timeStr = new Date(seenAt).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    return `yesterday at ${timeStr}`;
+    return `yesterday at ${formatTimeFromMs(seenAt)}`;
   }
   if (dayDiff < 7) return `${dayDiff}d ago`;
   return new Date(seenAt).toLocaleDateString([], {

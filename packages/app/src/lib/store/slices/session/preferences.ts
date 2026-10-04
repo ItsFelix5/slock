@@ -1,7 +1,7 @@
 import { splitHighlightWords } from "@slock/blockkit";
+import type { Channel, UserPrefs } from "@slock/types";
 import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { Channel, UserPrefs } from "../../../api";
 import {
   endDndSnooze,
   fetchDndStatus,
@@ -15,6 +15,8 @@ import { flashError, undoStack } from "../../../feedback";
 import {
   emojiUseScore as calculateEmojiUseScore,
   frecencyScore as calculateFrecencyScore,
+  recentIds as calculateRecentIds,
+  usedEmojiNames as calculateUsedEmojiNames,
 } from "../../../frecency";
 
 export function createPreferencesSlice(deps: {
@@ -54,10 +56,7 @@ export function createPreferencesSlice(deps: {
   }
 
   createEffect(() => {
-    if (dndStatus.error) {
-      flashError("dnd", "Couldn't load Do Not Disturb status. Click to retry.");
-      return;
-    }
+    if (dndStatus.error) return;
     const status = dndStatus();
     if (status !== undefined) setDndSnoozedUntil(status);
   });
@@ -190,7 +189,9 @@ export function createPreferencesSlice(deps: {
   }
 
   const frecencyScore = (id: string) => calculateFrecencyScore(deps.userPrefs(), id);
+  const recentIds = () => calculateRecentIds(deps.userPrefs());
   const emojiUseScore = (name: string) => calculateEmojiUseScore(deps.userPrefs(), name);
+  const usedEmojiNames = () => calculateUsedEmojiNames(deps.userPrefs());
 
   function isDndPending(): boolean {
     return dndPending() || dndStatus.loading;
@@ -253,6 +254,8 @@ export function createPreferencesSlice(deps: {
     endDnd,
     emojiUseScore,
     frecencyScore,
+    recentIds,
+    usedEmojiNames,
     highlightWords,
     hasDndStatusError,
     isChannelMuted,

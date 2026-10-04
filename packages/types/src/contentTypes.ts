@@ -1,5 +1,5 @@
 import type { Block } from "./blocks";
-import type { SlackFile } from "./types";
+import type { SlackFile } from "./fileTypes";
 
 export const ACTIVITY_FEED_TYPES = [
   "at_user",
@@ -51,9 +51,7 @@ export interface ActivityItem {
   activityType?: string;
   feedTs?: string;
 
-  matchedKeyword?: string;
   reactionName?: string;
-  sourceUserId?: string;
   text: string;
 
   threadTs?: string;

@@ -1,0 +1,121 @@
+.canvas-outline-nav {
+  position: sticky;
+  top: 16px;
+  align-self: flex-start;
+}
+
+.canvas-outline-rail {
+  align-items: flex-end;
+  gap: 3px;
+  padding: var(--space-sm) var(--space-xs);
+}
+
+.canvas-outline-mark {
+  height: 2px;
+  width: 14px;
+  padding: 0;
+  background: var(--text-dim);
+  border: none;
+  border-radius: 1px;
+  outline: none;
+  opacity: 0.55;
+  cursor: pointer;
+  transition:
+    background 0.1s ease,
+    opacity 0.1s ease;
+}
+
+.canvas-outline-mark:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 3px;
+}
+
+.canvas-outline-mark[data-level="1"] {
+  width: 11px;
+}
+
+.canvas-outline-mark[data-level="2"] {
+  width: 8px;
+}
+
+.canvas-outline-mark[data-level="3"] {
+  width: 5px;
+}
+
+.canvas-outline-mark:hover {
+  opacity: 0.85;
+}
+
+.canvas-outline-mark.active {
+  background: var(--text-primary);
+  opacity: 1;
+}
+
+.canvas-outline-popout {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 6px 0;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
+  opacity: 0;
+  transform: scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity 0.1s ease,
+    transform 0.1s ease;
+  pointer-events: none;
+}
+
+.canvas-outline-nav:hover .canvas-outline-popout,
+.canvas-outline-nav:focus-within .canvas-outline-popout {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.canvas-outline-popout-row {
+  padding: 5px 14px;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-meta);
+  text-align: left;
+  cursor: pointer;
+}
+
+.canvas-outline-popout-row:focus-visible {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.canvas-outline-popout-row[data-level="1"] {
+  padding-left: 22px;
+}
+
+.canvas-outline-popout-row[data-level="2"] {
+  padding-left: 30px;
+  font-size: var(--font-size-caption);
+}
+
+.canvas-outline-popout-row[data-level="3"] {
+  padding-left: 38px;
+  font-size: var(--font-size-caption);
+}
+
+.canvas-outline-popout-row:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.canvas-outline-popout-row.active {
+  color: var(--text-primary);
+  font-weight: 600;
+}

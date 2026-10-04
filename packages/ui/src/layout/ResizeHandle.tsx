@@ -1,6 +1,8 @@
 import { createSignal, onCleanup } from "solid-js";
 import "./ResizeHandle.css";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
+import { useCancelShortcut } from "../useEscapeClose";
+import { useAdjustShortcuts } from "../useNavShortcuts";
 
 function resizeWidth(
   width: number,
@@ -32,22 +34,39 @@ export default function ResizeHandle(props: {
   side: "left" | "right";
   label?: string;
 }) {
+  let rootRef: HTMLHRElement | undefined;
   let startWidth = 0;
   let stopDragging: (() => void) | undefined;
+  const [dragging, setDragging] = createSignal(false);
 
   const endDrag = () => {
     stopDragging?.();
     stopDragging = undefined;
-    window.removeEventListener("keydown", onDragKeyDown);
+    setDragging(false);
   };
 
-  const onDragKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    event.stopPropagation();
-    props.setWidth(startWidth);
-    endDrag();
-  };
+  useCancelShortcut(
+    () => {
+      props.setWidth(startWidth);
+      endDrag();
+    },
+    { enabled: dragging },
+  );
+
+  useAdjustShortcuts({
+    edge: (end) => props.setWidth(end === "start" ? props.min : props.max),
+    root: () => rootRef,
+    step: (direction, large) =>
+      props.setWidth(
+        resizeWidth(
+          props.width(),
+          direction * (large ? 40 : 10),
+          props.direction,
+          props.min,
+          props.max,
+        ),
+      ),
+  });
 
   const onPointerDown = (e: PointerEvent) => {
     if (!e.isPrimary || e.button !== 0) return;
@@ -55,25 +74,12 @@ export default function ResizeHandle(props: {
     endDrag();
     const startX = e.clientX;
     startWidth = props.width();
-    window.addEventListener("keydown", onDragKeyDown);
+    setDragging(true);
     stopDragging = startFrameCoalescedPointerDrag((event) => {
       props.setWidth(
         resizeWidth(startWidth, event.clientX - startX, props.direction, props.min, props.max),
       );
     });
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    let next: number | undefined;
-    if (event.key === "Home") next = props.min;
-    else if (event.key === "End") next = props.max;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      const pointerDelta = (event.key === "ArrowLeft" ? -1 : 1) * (event.shiftKey ? 40 : 10);
-      next = resizeWidth(props.width(), pointerDelta, props.direction, props.min, props.max);
-    }
-    if (next === undefined) return;
-    event.preventDefault();
-    props.setWidth(next);
   };
 
   onCleanup(endDrag);
@@ -87,8 +93,8 @@ export default function ResizeHandle(props: {
       aria-valuenow={Math.round(props.width())}
       class="resize-handle"
       classList={{ [props.side]: true }}
-      onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
+      ref={rootRef}
       tabIndex={0}
     />
   );

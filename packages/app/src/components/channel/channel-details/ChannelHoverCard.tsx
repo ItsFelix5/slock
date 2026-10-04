@@ -1,16 +1,23 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { HoverCard, Icon } from "@slock/ui";
+import { HoverCard, Icon, Skeleton, type useHoverIntent } from "@slock/ui";
 import { type JSX, Show } from "solid-js";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
 import "./ChannelHoverCard.css";
 
-export default function ChannelHoverCard(props: { channelId: string; children: JSX.Element }) {
+export default function ChannelHoverCard(props: {
+  channelId: string;
+  children?: JSX.Element;
+  anchor?: () => HTMLElement | undefined;
+  hoverIntent?: ReturnType<typeof useHoverIntent>;
+}) {
   const channel = () => store.channels.channelById(props.channelId);
   const name = () => channelDisplayName(channel(), props.channelId);
 
   return (
     <HoverCard
+      anchor={props.anchor}
+      hoverIntent={props.hoverIntent}
       content={() => (
         <Show when={channel()}>
           {(c) => (
@@ -19,7 +26,7 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
                 <Show fallback={<span class="channel-hovercard-hash">#</span>} when={c().private}>
                   <Icon name="lock" size={13} />
                 </Show>
-                <span class="channel-hovercard-name">{name()}</span>
+                <span class="channel-hovercard-name truncate">{name()}</span>
               </div>
 
               <Show when={c().topic}>
@@ -28,13 +35,21 @@ export default function ChannelHoverCard(props: { channelId: string; children: J
                 </div>
               </Show>
 
-              <Show when={c().memberCount}>
-                {(count) => (
-                  <div class="channel-hovercard-members flex-align-center text-muted text-sm">
-                    <Icon name="user-groups" size={13} />
-                    {count()} {count() === 1 ? "member" : "members"}
-                  </div>
-                )}
+              <Show
+                when={
+                  c().memberCount !== undefined || store.channels.isChannelMember(props.channelId)
+                }
+              >
+                <div class="channel-hovercard-members flex-align-center text-muted text-sm">
+                  <Icon name="user-groups" size={13} />
+                  <Show fallback={<Skeleton width={70} />} when={c().memberCount}>
+                    {(count) => (
+                      <span>
+                        {count()} {count() === 1 ? "member" : "members"}
+                      </span>
+                    )}
+                  </Show>
+                </div>
               </Show>
             </>
           )}

@@ -1,17 +1,46 @@
-import type { CanvasBlock } from "@slock/types";
-import { createReactiveQueryCache } from "../../../reactiveQueryCache";
+import type { CanvasBlock, CanvasListItem } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
-import type { CanvasListItem } from "../../../api";
+import { createSignal } from "solid-js";
 import {
   fetchCanvas,
   fetchCanvasFileUrl,
   fetchCanvasPermalink,
   fetchCanvasTitle,
+  fetchCanvasTitleOrVisibility,
   fetchChannelCanvases,
 } from "../../../api";
 import { queryClient } from "../../../queryClient";
+import { createReactiveQueryCache } from "../../../reactiveQueryCache";
 import type { createPanesSlice } from "../session/panes";
 import type { PaneContent } from "../types";
+
+const notVisibleFileIds = new Set<string>();
+const [notVisibleVersion, setNotVisibleVersion] = createSignal(0);
+
+function markCanvasNotVisible(fileId: string): void {
+  if (notVisibleFileIds.has(fileId)) return;
+  notVisibleFileIds.add(fileId);
+  setNotVisibleVersion((v) => v + 1);
+}
+
+function isCanvasNotVisible(fileId: string): boolean {
+  notVisibleVersion();
+  return notVisibleFileIds.has(fileId);
+}
+
+const [canvasTitles, setCanvasTitles] = createSignal<Record<string, string>>({});
+const requestedTitles = new Set<string>();
+
+function canvasTitle(fileId: string): string | undefined {
+  if (!requestedTitles.has(fileId)) {
+    requestedTitles.add(fileId);
+    void fetchCanvasTitleOrVisibility(fileId).then(({ notVisible, title }) => {
+      if (notVisible) markCanvasNotVisible(fileId);
+      if (title) setCanvasTitles((titles) => ({ ...titles, [fileId]: title }));
+    });
+  }
+  return canvasTitles()[fileId];
+}
 
 export function canvasesQueryOptions(channelId: string) {
   return queryOptions({
@@ -26,7 +55,8 @@ export function canvasesQueryOptions(channelId: string) {
 
 function resolvePendingTitles(channelId: string, canvases: CanvasListItem[]): void {
   for (const unresolved of canvases.filter((canvas) => !canvas.title)) {
-    void fetchCanvasTitle(unresolved.fileId).then((title) => {
+    void fetchCanvasTitleOrVisibility(unresolved.fileId).then(({ notVisible, title }) => {
+      if (notVisible) return markCanvasNotVisible(unresolved.fileId);
       if (!title) return;
       queryClient.setQueryData(
         ["canvases", channelId],
@@ -57,7 +87,10 @@ export function createCanvasSlice(deps: {
   );
 
   function canvasesFor(channelId: string): CanvasListItem[] {
-    return canvases.entry(channelId) ?? [];
+    notVisibleVersion();
+    return (canvases.entry(channelId) ?? []).filter(
+      (canvas) => !notVisibleFileIds.has(canvas.fileId),
+    );
   }
 
   function handleCanvasCreated(channelId: string): void {
@@ -65,6 +98,7 @@ export function createCanvasSlice(deps: {
   }
 
   function openCanvasPane(fileId: string, title?: string): void {
+    title ||= canvasTitles()[fileId];
     const id = deps.panes.openInNewPane({ fileId, kind: "canvas", title: title ?? "" });
     if (title) return;
     resolveCanvasPaneTitle(id, fileId, deps.panes.setPaneContent);
@@ -74,6 +108,7 @@ export function createCanvasSlice(deps: {
     try {
       return await fetchCanvas(fileId);
     } catch (err) {
+      if (err instanceof Error && err.message === "not_visible") markCanvasNotVisible(fileId);
       console.error("Failed to load canvas", err);
       return null;
     }
@@ -89,7 +124,9 @@ export function createCanvasSlice(deps: {
 
   return {
     canvasesFor,
+    canvasTitle,
     handleCanvasCreated,
+    isCanvasNotVisible,
     loadCanvasContent,
     loadCanvasFileUrl,
     loadCanvasPermalink,

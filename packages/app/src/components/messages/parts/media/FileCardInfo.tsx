@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
+import type { SlackFile } from "@slock/types";
 import { Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
-import type { SlackFile } from "../../../../lib/api";
 import "./MessageFiles.css";
 
 export function formatSize(bytes: number | undefined): string {
@@ -15,13 +15,24 @@ export default function FileCardInfo(props: {
   file: SlackFile;
   icon: IconName;
   mrkdwnTitle?: boolean;
+  linkUrl?: string;
 }) {
   const name = () => props.file.title || props.file.name;
   return (
-    <>
+    <Show
+      fallback={
+        <>
+          <Icon name="trash" size={20} />
+          <span class="message-file-info flex-col">
+            <span class="message-file-name truncate">Deleted file</span>
+          </span>
+        </>
+      }
+      when={!props.file.isDeleted}
+    >
       <Icon name={props.icon} size={20} />
-      <span class="message-file-info">
-        <span class="message-file-name">
+      <span class="message-file-info flex-col">
+        <span class="message-file-name truncate" data-link-url={props.linkUrl}>
           <Show fallback={name()} when={props.mrkdwnTitle}>
             <Mrkdwn text={name()} />
           </Show>
@@ -30,6 +41,6 @@ export default function FileCardInfo(props: {
           {props.file.filetype?.toUpperCase()} {formatSize(props.file.size)}
         </span>
       </span>
-    </>
+    </Show>
   );
 }

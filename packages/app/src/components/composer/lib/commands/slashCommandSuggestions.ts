@@ -1,5 +1,5 @@
+import { fetchSlashCommands } from "@slock/types";
 import { createSignal } from "solid-js";
-import { fetchSlashCommands } from "../../../../lib/api";
 import type { CommandSuggestItem } from "../suggestTypes";
 
 export const [slashCommandsGlobal, setSlashCommandsGlobal] = createSignal<CommandSuggestItem[]>([]);

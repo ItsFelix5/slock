@@ -1,22 +1,30 @@
+import type {
+  Channel,
+  DirectMessage,
+  GlobalSearchResults as SearchResults,
+  SlackFile,
+  User,
+} from "@slock/types";
 import {
   createDebouncedRequest,
   createListboxActiveIndex,
   fuzzySearch,
   Icon,
+  type ListDirection,
   listNavigationIndex,
   Modal,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, createUniqueId, Show, untrack } from "solid-js";
-import type { Channel, DirectMessage, SlackFile, User } from "../../lib/api";
-import { type GlobalSearchResults as SearchResults, searchGlobal } from "../../lib/api";
+import { searchGlobal } from "../../lib/api";
 import { dmDisplayName } from "../../lib/displayName";
 import { clearPendingShare, pendingShareText } from "../../lib/incomingLinks";
 import { store } from "../../lib/store";
-import { cacheDraftLocally, persistDraft } from "../composer/lib/drafts";
+import { seedDraft } from "../composer/lib/drafts";
 import "./GlobalSearch.css";
 import GlobalSearchInput from "./GlobalSearchInput";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 
+const MAX_ROWS = 30;
 type Candidate = { row: GlobalSearchRow; name: string; id: string };
 type SearchItem = { kind: "message-search" } | GlobalSearchRow;
 export default function GlobalSearch(props: {
@@ -76,7 +84,7 @@ export default function GlobalSearch(props: {
   });
   const searchDirectories = (value: string) => {
     setQuery(value);
-    setActiveIndex(value.trim() ? 0 : null);
+    setActiveIndex(0);
 
     setCommittedRows([]);
     searchRequest.run(value);
@@ -135,17 +143,37 @@ export default function GlobalSearch(props: {
       query: query(),
       text: (c) => c.name,
     });
-    return ranked.slice(0, 8).map((c) => c.row);
+    return ranked.slice(0, MAX_ROWS).map((c) => c.row);
   });
   createEffect(() => {
     if (!query().trim() || searching()) return;
     setCommittedRows(untrack(computedRows));
   });
-  const rows = committedRows;
-  const items = createMemo<SearchItem[]>(() => {
-    if (!hasQuery()) return [];
-    return [{ kind: "message-search" }, ...rows()];
+  const recentRows = createMemo<GlobalSearchRow[]>(() => {
+    const activeId = store.viewState.activeView()?.id;
+    const channels = new Map(
+      (store.resources.bootstrap.data?.channels ?? []).map((c) => [c.id, c]),
+    );
+    const dms = new Map(store.dms.directMessages().map((dm) => [dm.id, dm]));
+    const recent: GlobalSearchRow[] = [];
+    for (const id of store.preferences.recentIds()) {
+      if (recent.length === MAX_ROWS) break;
+      if (id === activeId) continue;
+      const channel = channels.get(id);
+      const dm = dms.get(id);
+      if (channel) {
+        recent.push({
+          data: { id, joined: true, name: channel.name, private: channel.private },
+          kind: "channel",
+        });
+      } else if (dm) recent.push({ data: dm, kind: "dm" });
+    }
+    return recent;
   });
+  const rows = () => (hasQuery() ? committedRows() : recentRows());
+  const items = createMemo<SearchItem[]>(() =>
+    hasQuery() ? [{ kind: "message-search" }, ...rows()] : rows(),
+  );
   const { activeIndex, setActiveIndex } = createListboxActiveIndex(
     () => items().length,
     listboxId,
@@ -161,8 +189,7 @@ export default function GlobalSearch(props: {
   const deliverPendingShare = (channelId: string) => {
     const text = pendingShareText();
     if (!text) return;
-    cacheDraftLocally(channelId, undefined, text);
-    persistDraft(channelId, undefined, text);
+    void seedDraft(channelId, undefined, text);
     clearPendingShare();
   };
   const goToChannel = (c: JumpChannel) => {
@@ -216,14 +243,13 @@ export default function GlobalSearch(props: {
     }
     goToPerson(item.data.id);
   };
-  const moveActive = (key: string) => {
-    const next = listNavigationIndex(key, activeIndex(), items().length);
+  const moveActive = (direction: ListDirection) => {
+    const next = listNavigationIndex(direction, activeIndex(), items().length);
     if (next !== undefined) setActiveIndex(next);
   };
   const submitActiveRow = () => {
     const index = activeIndex();
-    if (index === null) goToMessageSearch();
-    else activateItem(index);
+    if (index !== null) activateItem(index);
   };
   return (
     <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
@@ -236,7 +262,6 @@ export default function GlobalSearch(props: {
         )}
       </Show>
       <GlobalSearchInput
-        hasQuery={hasQuery}
         onNavigateRows={moveActive}
         onQuery={searchDirectories}
         onSubmitRow={submitActiveRow}

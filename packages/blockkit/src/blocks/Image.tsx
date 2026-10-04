@@ -2,6 +2,7 @@ import { type ImageBlock, resolveMediaUrl } from "@slock/types";
 import { constrainMediaDimensions, MediaFrame, ZoomableImage } from "@slock/ui";
 import { Show } from "solid-js";
 import EmojiText from "../emoji/EmojiText";
+import "./Image.css";
 
 const URL_SUFFIX_PATTERN = /[?#]/;
 const MAX_IMAGE_SIZE = 360;
@@ -34,7 +35,7 @@ export default function Image(props: { block: ImageBlock }) {
   return (
     <Show
       fallback={
-        <figure class="bk-image-block">
+        <figure class="bk-image-block flex-col">
           {image()}
           <Show when={props.block.title}>
             {(title) => (

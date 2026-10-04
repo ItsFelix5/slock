@@ -3,23 +3,17 @@ import type {
   FileUploadInput,
   LinkPreview,
   RawFile,
+  RawFileShare,
   SavedItem,
+  SlackFile,
   SlackFileDetail,
 } from "@slock/types";
 import { apiGet, apiPost, mapFile, mapFileShare, resolveMediaUrl } from "@slock/types";
 import { toCanvasBlocks } from "../canvas/canvasBlocks";
 import { parseLoadDataResponse } from "../canvas/canvasParse";
 
-export async function fetchSlashCommands(): Promise<
-  { name: string; desc: string; icon: string | null }[]
-> {
-  const data = await apiGet("/api/commands");
-  if (!data.ok) throw new Error(data.error ?? "fetching commands failed");
-  return data.commands ?? [];
-}
-
 export async function fetchSaved(): Promise<SavedItem[]> {
-  const data = await apiGet("/api/saved");
+  const data = await apiGet<{ items?: SavedItem[] }>("/api/saved");
   if (!data.ok) throw new Error(data.error ?? "saved.list failed");
   return data.items ?? [];
 }
@@ -29,11 +23,10 @@ const canvasFileRequests = new Map<string, Promise<RawFile>>();
 function resolveCanvasFile(fileId: string): Promise<RawFile> {
   const existing = canvasFileRequests.get(fileId);
   if (existing) return existing;
-  const request = apiGet(`/api/canvases/${fileId}/file-info`)
+  const request = apiGet<{ file: RawFile }>(`/api/canvases/${fileId}/file-info`)
     .then((info) => {
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
-      const file: RawFile = info.file;
-      return file;
+      return info.file;
     })
     .catch((error) => {
       canvasFileRequests.delete(fileId);
@@ -43,13 +36,19 @@ function resolveCanvasFile(fileId: string): Promise<RawFile> {
   return request;
 }
 
-export async function fetchCanvasTitle(fileId: string): Promise<string | null> {
+export async function fetchCanvasTitleOrVisibility(
+  fileId: string,
+): Promise<{ notVisible: boolean; title: string | null }> {
   try {
     const file = await resolveCanvasFile(fileId);
-    return file.title?.trim() || file.name?.trim() || null;
-  } catch {
-    return null;
+    return { notVisible: false, title: file.title?.trim() || file.name?.trim() || null };
+  } catch (err) {
+    return { notVisible: err instanceof Error && err.message === "not_visible", title: null };
   }
+}
+
+export async function fetchCanvasTitle(fileId: string): Promise<string | null> {
+  return (await fetchCanvasTitleOrVisibility(fileId)).title;
 }
 
 export async function fetchCanvasPermalink(fileId: string): Promise<string | null> {
@@ -77,7 +76,7 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 export async function fetchCanvas(fileId: string): Promise<CanvasBlock[]> {
-  const data = await apiGet(`/api/canvases/${fileId}/raw`);
+  const data = await apiGet<{ raw: string }>(`/api/canvases/${fileId}/raw`);
   if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
   const { blocks, embedsById } = parseLoadDataResponse(base64ToBytes(data.raw));
   const fileIds = new Set<string>();
@@ -100,13 +99,18 @@ export async function fetchCanvas(fileId: string): Promise<CanvasBlock[]> {
 }
 
 export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> {
-  const data = await apiGet(`/api/files/${fileId}/detail`);
+  const data = await apiGet<{
+    content?: string | null;
+    contentTruncated?: boolean;
+    file: RawFile;
+    shares?: RawFileShare[];
+  }>(`/api/files/${fileId}/detail`);
   if (!data.ok) throw new Error(data.error ?? "files.info failed");
   return {
     content: data.content ?? null,
     contentTruncated: !!data.contentTruncated,
     file: mapFile(data.file),
-    shares: Array.isArray(data.shares) ? data.shares.map(mapFileShare) : [],
+    shares: (data.shares ?? []).map(mapFileShare),
   };
 }
 
@@ -120,15 +124,29 @@ export async function runSlashCommand(
   return null;
 }
 
-export async function uploadFiles(
-  channelId: string,
+function uploadFileWithProgress(url: string, file: File, onProgress?: (fraction: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Failed to upload ${file.name}.`));
+    };
+    xhr.onerror = () => reject(new Error(`Failed to upload ${file.name}.`));
+    xhr.send(file);
+  });
+}
+
+async function reserveAndUploadFiles(
   files: FileUploadInput[],
-  threadTs?: string,
-  comment?: string,
-): Promise<void> {
-  if (files.length === 0) return;
+  onProgress?: (fileIndex: number, fraction: number) => void,
+): Promise<{ id: string; title: string }[]> {
   const uploaded: { id: string; title: string }[] = [];
-  for (const { file, title } of files) {
+  for (let i = 0; i < files.length; i++) {
+    const { file, title } = files[i];
     const reserve = await fetch("/api/files/reserve", {
       body: JSON.stringify({ filename: file.name, length: String(file.size) }),
       headers: { "content-type": "application/json" },
@@ -140,24 +158,49 @@ export async function uploadFiles(
     }
 
     const uploadUrl = `/api/files/upload/${reservation.upload_token}?filename=${encodeURIComponent(file.name)}`;
-    const putRes = await fetch(uploadUrl, { body: file, method: "POST" });
-    if (!putRes.ok) throw new Error(`Failed to upload ${file.name}.`);
+    await uploadFileWithProgress(uploadUrl, file, (fraction) => onProgress?.(i, fraction));
     uploaded.push({ id: reservation.file_id, title: title?.trim() || file.name });
   }
+  return uploaded;
+}
 
-  const completeParams: Record<string, string> = {
-    channel_id: channelId,
-    files: JSON.stringify(uploaded),
-  };
-  if (threadTs) completeParams.thread_ts = threadTs;
-  if (comment) completeParams.initial_comment = comment;
+async function completeUpload(
+  uploaded: { id: string; title: string }[],
+  extra?: Record<string, string>,
+): Promise<SlackFile[]> {
   const completeRes = await fetch("/api/files/complete", {
-    body: JSON.stringify(completeParams),
+    body: JSON.stringify({ files: JSON.stringify(uploaded), ...extra }),
     headers: { "content-type": "application/json" },
     method: "POST",
   });
   const complete = await completeRes.json();
   if (!completeRes.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
+  const files: RawFile[] = complete.files ?? [];
+  return files.map(mapFile);
+}
+
+export async function uploadFiles(
+  channelId: string,
+  files: FileUploadInput[],
+  threadTs?: string,
+  comment?: string,
+  onProgress?: (fileIndex: number, fraction: number) => void,
+): Promise<void> {
+  if (files.length === 0) return;
+  const uploaded = await reserveAndUploadFiles(files, onProgress);
+  const extra: Record<string, string> = { channel_id: channelId };
+  if (threadTs) extra.thread_ts = threadTs;
+  if (comment) extra.initial_comment = comment;
+  await completeUpload(uploaded, extra);
+}
+
+export async function uploadFilesForEdit(
+  files: FileUploadInput[],
+  onProgress?: (fileIndex: number, fraction: number) => void,
+): Promise<SlackFile[]> {
+  if (files.length === 0) return [];
+  const uploaded = await reserveAndUploadFiles(files, onProgress);
+  return completeUpload(uploaded);
 }
 
 export function uploadFile(

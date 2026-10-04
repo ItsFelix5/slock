@@ -1,0 +1,51 @@
+.bk-plan {
+  gap: 7px;
+}
+
+.bk-plan-title {
+  font-size: var(--font-size-secondary);
+  font-weight: 700;
+}
+
+.bk-task-card {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.bk-task-heading {
+  gap: 7px;
+  font-size: var(--font-size-secondary);
+}
+
+.bk-task-status {
+  width: 9px;
+  height: 9px;
+  background: var(--text-dim);
+  border-radius: var(--radius-circle);
+}
+
+.bk-task-status--complete {
+  background: var(--bk-button-primary);
+}
+
+.bk-task-status--error {
+  background: var(--bk-button-danger);
+}
+
+.bk-task-details,
+.bk-task-output,
+.bk-task-sources {
+  margin-top: 7px;
+  font-size: var(--font-size-control);
+}
+
+.bk-task-sources {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.bk-task-sources a {
+  font-weight: 600;
+}

@@ -1,0 +1,137 @@
+.bk-link {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.bk-link:hover {
+  text-decoration: underline;
+}
+
+.bk-date {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  padding: 0 var(--space-xs);
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.bk-date.bk-link:hover {
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
+
+.bk-canvas {
+  display: inline-flex;
+  gap: var(--space-xs);
+  align-items: center;
+  padding: 0 var(--space-xs);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  color: var(--mention-text);
+  cursor: pointer;
+  background: var(--mention-bg);
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.bk-canvas:hover {
+  background: var(--mention-hover-bg);
+}
+
+.bk-mention {
+  display: inline;
+  padding: 0 3px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--mention-text);
+  cursor: pointer;
+  background: var(--mention-bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  user-select: text;
+}
+
+.bk-mention-channel {
+  white-space: nowrap;
+}
+
+.bk-mention:hover {
+  background: var(--mention-hover-bg);
+}
+
+.bk-mention-bold {
+  font-weight: 700;
+}
+
+.bk-mention-broadcast {
+  cursor: default;
+}
+
+.bk-mention-self,
+.bk-mention-broadcast {
+  color: var(--mention-self-text);
+  background: var(--mention-self-bg);
+}
+
+.bk-mention-self:hover {
+  background: var(--mention-self-hover-bg);
+}
+
+.bk-mention-inaccessible {
+  color: var(--mention-inaccessible-text);
+  cursor: default;
+  background: var(--mention-inaccessible-bg);
+}
+
+.bk-mention-inaccessible:hover {
+  background: var(--mention-inaccessible-bg);
+}
+
+.bk-mention-link {
+  display: inline-block;
+  color: var(--mention-inaccessible-text);
+  text-decoration: none;
+  background: var(--mention-inaccessible-bg);
+}
+
+.bk-mention-message {
+  display: inline-flex;
+  gap: var(--space-xs);
+  align-items: center;
+  vertical-align: bottom;
+}
+
+.bk-mention-link:hover {
+  text-decoration: none;
+  background: var(--mention-inaccessible-hover-bg);
+}
+
+.bk-mention-link.bk-mention-visible {
+  color: var(--mention-text);
+  background: var(--mention-bg);
+}
+
+.bk-mention-link.bk-mention-visible:hover {
+  background: var(--mention-hover-bg);
+}
+
+.bk-highlight-word {
+  color: inherit;
+  background: var(--mention-self-bg);
+}
+
+.bk-time-mention {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-dim);
+}
+.tooltip-anchor.bk-time-mention-anchor {
+  display: inline;
+  vertical-align: baseline;
+}

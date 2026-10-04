@@ -11,8 +11,19 @@ import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "../context";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import { DateToken, Link, Mention, TimeAwareText, UsergroupMention } from "../mrkdwn";
-import { parseUserProfileLink } from "../mrkdwnInline";
+import { parseArchiveLink } from "../mrkdwnInline";
+import {
+  DateToken,
+  Link,
+  LinkToken,
+  Mention,
+  MessageLinkMention,
+  TimeAwareText,
+  UsergroupMention,
+} from "../mrkdwnTokens";
+import "./RichText.css";
+import "../mrkdwn.css";
+import "../mrkdwnTokens.css";
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
   const { el } = props;
@@ -24,7 +35,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
           class="bk-rt-text"
           classList={{
             "bk-rt-bold": !!s?.bold,
-            "bk-rt-code": !!s?.code,
+            "bk-inline-code": !!s?.code,
             "bk-rt-highlight": !!s?.highlight,
             "bk-rt-italic": !!s?.italic,
             "bk-rt-strike": !!s?.strike,
@@ -34,22 +45,14 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
         </span>
       );
     }
-    case "link": {
-      const userId = parseUserProfileLink(el.url);
-      return userId ? (
-        <Mention id={userId} kind="user" label={el.text} />
-      ) : (
-        <Link label={el.text} url={el.url} />
-      );
-    }
+    case "link":
+      return <LinkToken label={el.text} url={el.url} />;
     case "emoji": {
       const unicode = el.unicode && hexCodepointsToEmoji(el.unicode);
       return unicode ? <span class="emoji">{unicode}</span> : <EmojiText text={`:${el.name}:`} />;
     }
     case "user":
-      return el.user_id ? (
-        <Mention bold={el.style?.bold} id={el.user_id} kind="user" />
-      ) : null;
+      return el.user_id ? <Mention bold={el.style?.bold} id={el.user_id} kind="user" /> : null;
     case "channel":
       return el.channel_id ? (
         <Mention bold={el.style?.bold} id={el.channel_id} kind="channel" />
@@ -74,19 +77,27 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
           url={el.url}
         />
       );
-    case "message_mention":
-      return <Link label={el.text} url={el.url} />;
+    case "message_mention": {
+      const channelId = el.channel_id ?? parseArchiveLink(el.url)?.channelId;
+      return channelId ? (
+        <MessageLinkMention authorId={el.author_id} channelId={channelId} url={el.url} />
+      ) : (
+        <Link label={el.text} url={el.url} />
+      );
+    }
     case "canvas": {
       const resolver = useBlockKitResolver();
-      const label = el.text && el.text !== el.url ? el.text : "canvas";
+      const title = () =>
+        (el.text && el.text !== el.url ? el.text : resolver.resolveCanvasTitle(el.file_id)) ||
+        undefined;
       return (
         <button
           class="bk-canvas"
-          onClick={() => resolver.onCanvasClick(el.file_id, label)}
+          onClick={() => resolver.onCanvasClick(el.file_id, title())}
           type="button"
         >
           <Icon name="canvas-content" size={14} />
-          <EmojiText text={label} />
+          <EmojiText text={title() ?? "canvas"} />
         </button>
       );
     }
@@ -147,7 +158,7 @@ function SubBlockView(props: { sub: RichTextSubBlock }) {
       return <RichTextSectionView section={sub} />;
     case "rich_text_quote":
       return (
-        <blockquote class="bk-quote">
+        <blockquote class="bk-quote quote-bar">
           <QuoteContent elements={sub.elements} />
         </blockquote>
       );

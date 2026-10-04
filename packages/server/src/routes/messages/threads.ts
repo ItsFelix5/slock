@@ -14,7 +14,7 @@ export const threadRoutes: Route[] = [
   ),
 
   route("POST", "channels/:id/threads/:ts/read", async (ctx) => {
-    const { ts } = await (ctx.body.json() as Promise<{ ts?: string }>);
+    const { ts } = await ctx.body.json<{ ts?: string }>();
     if (!ts) return errorResponse("invalid_ts", 400);
     return mutate(
       "subscriptions.thread.mark",

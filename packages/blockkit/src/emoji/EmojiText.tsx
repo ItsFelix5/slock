@@ -43,22 +43,6 @@ function StillEmojiImg(props: { name: string; url: string; onError?: () => void 
   );
 }
 
-function HoverEmojiImg(props: { name: string; url: string; onError?: () => void }) {
-  return (
-    <span class="emoji-img emoji-hover-freeze" data-emoji-name={props.name}>
-      <StillEmojiImg name={props.name} onError={props.onError} url={props.url} />
-      <img
-        alt={`:${props.name}:`}
-        class="emoji-img emoji-hover-live"
-        data-emoji-name={props.name}
-        onError={props.onError}
-        src={props.url}
-        title={`:${props.name}:`}
-      />
-    </span>
-  );
-}
-
 export default function EmojiText(props: { text: string }) {
   const freeze = useEmojiFreeze();
   const text = createMemo(() => props.text);
@@ -100,19 +84,22 @@ export default function EmojiText(props: { text: string }) {
           >
             {(u) => {
               const onError = () => setBroken(true);
-              if (freeze === "still")
-                return <StillEmojiImg name={part.name} onError={onError} url={u()} />;
-              if (freeze === "hover")
-                return <HoverEmojiImg name={part.name} onError={onError} url={u()} />;
               return (
-                <img
-                  alt={`:${part.name}:`}
-                  class="emoji-img"
-                  data-emoji-name={part.name}
-                  onError={onError}
-                  src={u()}
-                  title={`:${part.name}:`}
-                />
+                <Show
+                  fallback={
+                    <img
+                      alt={`:${part.name}:`}
+                      class="emoji-img"
+                      data-emoji-name={part.name}
+                      onError={onError}
+                      src={u()}
+                      title={`:${part.name}:`}
+                    />
+                  }
+                  when={freeze()}
+                >
+                  <StillEmojiImg name={part.name} onError={onError} url={u()} />
+                </Show>
               );
             }}
           </Show>

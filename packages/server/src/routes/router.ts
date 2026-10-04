@@ -3,7 +3,7 @@ import { okResponse, slackErrorResponse } from "../http/jsonResponse.ts";
 import { callSlack } from "../slackClient.ts";
 
 export type BodyReader = {
-  json(): Promise<any>;
+  json<T>(): Promise<T>;
   buffer(): Promise<Uint8Array>;
 };
 
@@ -19,7 +19,7 @@ export type RouteCtx = {
 export type Route = {
   method: string;
   segments: string[];
-  handler: (ctx: RouteCtx) => Promise<Response>;
+  handler: (ctx: RouteCtx) => Response | Promise<Response>;
 };
 
 export function route(method: string, path: string, handler: Route["handler"]): Route {
@@ -28,7 +28,7 @@ export function route(method: string, path: string, handler: Route["handler"]): 
 
 export async function mutate(
   slackMethod: string,
-  params: Record<string, string>,
+  params: Record<string, string | string[]>,
   ctx: RouteCtx,
 ): Promise<Response> {
   const data = await callSlack(slackMethod, params, ctx.creds);

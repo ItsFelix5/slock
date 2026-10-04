@@ -1,10 +1,11 @@
 import { EmojiFreezeContext, EmojiText } from "@slock/blockkit";
+import type { Message, User } from "@slock/types";
 import { Icon, showUserStatuses, Tooltip, useElementVisible } from "@slock/ui";
 import { type Accessor, createResource, Show } from "solid-js";
-import { fetchUserStatus, type Message, type User } from "../../lib/api";
+import { fetchUserStatus } from "../../lib/api";
 import UserHoverCard from "../user/UserHoverCard";
-import { MessageAuthorButton } from "./MessageAuthorButtons";
-import { isRealUserId } from "./parts/messageRenderState";
+import { MessageAuthorButton } from "./MessageAuthorButton";
+import { isRealUserId } from "./parts/messageAuthor";
 
 export default function MessageMeta(props: {
   message: Message;
@@ -30,7 +31,7 @@ export default function MessageMeta(props: {
     (userId) => fetchUserStatus(userId).catch(() => undefined),
   );
   return (
-    <div class="message-meta" ref={visibleRef}>
+    <div class="message-meta icon-shift" ref={visibleRef}>
       <Show
         fallback={<MessageAuthorButton disabled name={props.displayName()} onClick={() => {}} />}
         when={props.userId}
@@ -51,7 +52,7 @@ export default function MessageMeta(props: {
         {(emoji) => (
           <Tooltip content={props.user()?.statusText}>
             <span class="message-status-emoji">
-              <EmojiFreezeContext.Provider value="still">
+              <EmojiFreezeContext.Provider value={() => true}>
                 <EmojiText text={emoji()} />
               </EmojiFreezeContext.Provider>
             </span>
@@ -76,7 +77,7 @@ export default function MessageMeta(props: {
         <span class="message-time">{msg.time}</span>
       </Tooltip>
       <Show when={props.user()?.pronouns}>
-        <span class="pronouns">• {props.user()?.pronouns}</span>
+        <span class="pronouns truncate">• {props.user()?.pronouns}</span>
       </Show>
       <Show when={msg.isEphemeral}>
         <span class="message-ephemeral-badge">

@@ -4,6 +4,7 @@ import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
 import { loadChannelPostingPrefs, updateChannelPostingPrefs } from "../lib/channelDetails";
 import SettingsLoadError, { errorMessage } from "./SettingsLoadError";
+import "./ChannelPostingPermissions.css";
 
 export default function ChannelPostingPermissions(props: { channelId: string }) {
   const [postingPrefs, { refetch: refetchPostingPrefs }] = createResource(

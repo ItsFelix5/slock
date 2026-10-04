@@ -1,4 +1,5 @@
-import type { ActivityItem } from "../../../lib/api";
+import type { ActivityItem } from "@slock/types";
+import { store } from "../../../lib/store";
 
 function otherActivityLabel(type?: string) {
   switch (type) {
@@ -33,8 +34,10 @@ export function activityVerb(item: ActivityItem): string {
       return "Mentioned you";
     case "dm":
       return item.activityType === "bot_dm_bundle" ? "Sent an app message" : "Sent you a message";
-    case "keyword":
-      return item.matchedKeyword ? `Said “${item.matchedKeyword}”` : "Used a pingword";
+    case "keyword": {
+      const matched = store.preferences.matchingHighlightWord(item.text);
+      return matched ? `Said “${matched}”` : "Used a pingword";
+    }
     case "thread_reply":
       return "Replied in a thread";
     case "channel_mention":

@@ -202,7 +202,7 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
         >
           <img
             alt=""
-            class="profile-photo-editor-image"
+            class="profile-photo-editor-image fill"
             onError={() => setError("This image couldn't be opened.")}
             onLoad={(event) => {
               const { naturalHeight: height, naturalWidth: width } = event.currentTarget;

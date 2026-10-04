@@ -5,17 +5,14 @@
   display: flex;
   justify-content: flex-end;
   width: 100%;
-  padding-right: 12px;
+  padding-right: var(--space-md);
   pointer-events: none;
 }
 .in-pane-search {
-  gap: 4px;
-  padding: 4px 6px;
+  --surface-radius: var(--radius-control);
+  gap: var(--space-xs);
+  padding: var(--space-xs) 6px;
   pointer-events: auto;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-popover);
 }
 .in-pane-search:focus-within {
   border-color: var(--accent-border-strong);
@@ -25,7 +22,7 @@
 }
 .in-pane-search-input {
   width: 180px;
-  padding: 4px 2px;
+  padding: var(--space-xs) 2px;
   font-size: var(--font-size-control);
   color: var(--text-primary);
   background: transparent;

@@ -3,10 +3,11 @@ import { Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
+import "./Input.css";
 
 export default function Input(props: { block: InputBlock; context?: BlockActionContext }) {
   return (
-    <div class="bk-input">
+    <div class="bk-input flex-col">
       <div class="bk-input-label">
         <BkText text={props.block.label} />
       </div>

@@ -1,8 +1,22 @@
+import { TRAILING_PUNCTUATION_RE } from "@slock/ui";
+
 const USER_PROFILE_LINK_RE =
   /^https:\/\/[a-z0-9-]+(?:\.enterprise)?\.slack\.com\/team\/([A-Z0-9]+)(?:[/?#].*)?$/i;
 
+const ARCHIVE_LINK_RE =
+  /^https:\/\/[a-z0-9-]+(?:\.enterprise)?\.slack\.com\/archives\/([A-Z0-9]+)(\/p\d+)?\/?(?:[?#].*)?$/i;
+
 export function parseUserProfileLink(url: string): string | null {
   return USER_PROFILE_LINK_RE.exec(url)?.[1] ?? null;
+}
+
+export function parseArchiveLink(url: string): { channelId: string; isMessage: boolean } | null {
+  const match = ARCHIVE_LINK_RE.exec(url);
+  return match ? { channelId: match[1], isMessage: !!match[2] } : null;
+}
+
+export function messageLinkLabel(channelName: string, authorName?: string): string {
+  return authorName ? `@${authorName} in ${channelName}` : `Message in ${channelName}`;
 }
 
 export type InlineNode =
@@ -13,7 +27,6 @@ export type InlineNode =
   | { t: "code"; nodes: InlineNode[] }
   | { t: "emoji"; name: string }
   | { t: "link"; url: string; label?: string }
-  | { t: "userlink"; id: string; label?: string; url: string }
   | { t: "user"; id: string }
   | { t: "channel"; id: string; label?: string }
   | { t: "usergroup"; id: string; label?: string }
@@ -29,7 +42,6 @@ export type InlineNode =
 
 const INLINE_RE =
   /`([^`]+)`|<([^<>]*)>|:([a-z0-9_+'-]+):|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|(?<![\p{L}\p{N}])_([^\n]+?)_(?![\p{L}\p{N}])|~([^~\n]+)~|(https?:\/\/[^\s<>]+)/giu;
-const TRAILING_PUNCTUATION_RE = /[),.!?;:'"]+$/;
 
 function splitOnce(text: string, sep: string): [string, string | undefined] {
   const index = text.indexOf(sep);
@@ -65,8 +77,7 @@ function parseToken(token: string): InlineNode {
     return { t: "text", text: `<${token}>` };
   }
   const [url, label] = splitOnce(token, "|");
-  const userId = parseUserProfileLink(url);
-  return userId ? { id: userId, label, t: "userlink", url } : { label, t: "link", url };
+  return { label, t: "link", url };
 }
 
 const CODE_TOKEN_RE = /<([^<>]*)>/g;

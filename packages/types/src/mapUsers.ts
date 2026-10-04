@@ -1,9 +1,9 @@
 import type { RawBot, RawUser, RawUserProfile } from "./rawTypes";
 import { resolveMediaUrl } from "./server";
-import type { User, UserCustomField } from "./types";
+import type { User, UserCustomField } from "./userTypes";
 
 export const SLACK_USER_ID = "USLACK";
-const SLACK_AVATAR_URL = "/slack-logo.svg";
+const SLACK_AVATAR_URL = "/public/slack-logo.svg";
 
 function colorFromHex(hex: string | undefined) {
   return hex ? `#${hex}` : "#616061";
@@ -46,6 +46,8 @@ export function mapProfileIdentity(profile: RawUserProfile | undefined): {
     name: profile?.display_name || profile?.real_name || "",
   };
 }
+
+export const SLACK_SYSTEM_USER: User = mapUser({ id: SLACK_USER_ID, name: "Slack" });
 
 export function mapUser(raw: RawUser): User {
   const isSlack = raw.id === SLACK_USER_ID;
@@ -92,6 +94,5 @@ export function mapBot(raw: RawBot): User {
     id: raw.id,
     isBot: true,
     name: raw.name ?? "",
-    presence: "active",
   };
 }

@@ -1,13 +1,13 @@
 import { invalidateCustomEmoji } from "@slock/blockkit";
-import { SLACK_USER_ID } from "@slock/types";
+import type { GatewayEvent } from "@slock/types";
+import { parseBadgeCounts, SLACK_USER_ID } from "@slock/types";
 import { createEffect } from "solid-js";
 import { invalidateSlashCommandSuggestions } from "../../../../components/composer/lib/commands/slashCommandSuggestions";
-import type { Message } from "../../../api";
-import { fetchUserPresence, HIDE_SUBTYPES, mapMessage, parseBadgeCounts } from "../../../api";
+import { fetchUserPresence } from "../../../api";
 import { filesLinksChannelId, retryFilesLinks } from "../../../filesLinksPanel";
-import { mergeMessages } from "../../../messageMerge";
 import { isDmId } from "../entities/dms";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
+import { createIncomingMessageHandler } from "./incomingMessages";
 import { createMembershipEvents } from "./membershipEvents";
 import type { RealtimeDeps } from "./realtimeDeps";
 
@@ -17,20 +17,7 @@ function wsUrl() {
 }
 export function createRealtimeSlice(deps: RealtimeDeps) {
   const membershipEvents = createMembershipEvents(deps);
-  const latestReplyByThread = new Map<string, string>();
-  const seenReplyKeys = new Set<string>();
-
-  function hasSeenReply(channel: string, ts: string) {
-    const key = `${channel}:${ts}`;
-    if (seenReplyKeys.has(key)) return true;
-    seenReplyKeys.add(key);
-    if (seenReplyKeys.size > 5000) {
-      const oldest = seenReplyKeys.values().next().value;
-      if (oldest) seenReplyKeys.delete(oldest);
-    }
-    return false;
-  }
-
+  const handleIncomingMessage = createIncomingMessageHandler(deps);
   function send(payload: unknown) {
     return connection.send(payload);
   }
@@ -55,112 +42,8 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         .catch(() => presenceHydrated.delete(id));
     }
   }
-  function handleIncomingMessage(payload: any) {
-    const { channel, subtype, ts } = payload;
-    if (subtype === "message_changed") {
-      const updated = payload.message;
-      if (!updated?.ts) return;
-      const isBroadcast = updated.subtype === "thread_broadcast";
-      const mapped = mapMessage(updated);
-      deps.patchMessage(channel, updated.ts, {
-        blocks: updated.blocks,
-        edited: !!updated.edited,
-        isBroadcast,
-        text: updated.text,
-        attachments: mapped.attachments,
-        files: mapped.files,
-      });
-      if (isBroadcast && deps.loadedChannels.has(channel)) {
-        const msg = deps
-          .findAllMessageLocations(channel, updated.ts)[0]
-          ?.list.find((m) => m.ts === updated.ts);
-        if (msg) deps.insertMessageInOrder(channel, msg);
-      }
-      return;
-    }
-    if (subtype === "message_replied") {
-      const updated = payload.message;
-      if (!updated?.ts) return;
-      const { lastReplyLabel, replyCount, replyUsers } = mapMessage(updated);
-      if (updated.latest_reply) latestReplyByThread.set(updated.ts, updated.latest_reply);
-      deps.patchMessage(channel, updated.ts, {
-        lastReplyLabel,
-        replyCount,
-        replyUsers,
-      });
-      return;
-    }
-    if (subtype === "message_deleted") {
-      const ts = payload.deleted_ts;
-      if (!ts) return;
-      deps.patchMessage(channel, ts, { deleted: true });
-      return;
-    }
-    if (!ts) return;
-    const msg = mapMessage(payload);
-    if (msg.isEphemeral) {
-      if (deps.loadedChannels.has(channel)) {
-        deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
-          deps.mergeIncomingMessage(existing, msg),
-        );
-      }
-      return;
-    }
-    const me = deps.currentUser();
-    const isThreadReply = !!payload.thread_ts && payload.thread_ts !== ts;
-    deps.clearTyping(channel, isThreadReply ? payload.thread_ts : undefined, msg.userId);
-    if (isThreadReply) {
-      const existingReplies = deps.threadMessages[payload.thread_ts] ?? [];
-      const alreadyMerged =
-        hasSeenReply(channel, msg.ts) ||
-        existingReplies.some(
-          (reply) =>
-            (reply.ts === msg.ts || reply.id === msg.id) && !reply.id.startsWith("pending-"),
-        );
-      if (deps.isThreadKnown(payload.thread_ts)) {
-        deps.setThreadMessages(payload.thread_ts, (existing: Message[] = []) =>
-          deps.mergeIncomingMessage(existing, msg),
-        );
-      }
-      const parentLocations = deps.findAllMessageLocations(channel, payload.thread_ts);
-      const parentMsg = parentLocations[0]?.list.find((m) => m.ts === payload.thread_ts);
-      const latestReplyTs = latestReplyByThread.get(payload.thread_ts);
-      const countAlreadyConfirmed =
-        latestReplyTs && parseFloat(latestReplyTs) >= parseFloat(msg.ts);
-      if (parentMsg && !alreadyMerged && !countAlreadyConfirmed) {
-        deps.patchMessage(channel, payload.thread_ts, {
-          replyCount: (parentMsg.replyCount ?? 0) + 1,
-        });
-      }
-      if (subtype === "thread_broadcast" && deps.loadedChannels.has(channel)) {
-        deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
-          deps.mergeIncomingMessage(existing, msg),
-        );
-      }
-    } else if (deps.loadedChannels.has(channel)) {
-      deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
-        deps.mergeIncomingMessage(existing, msg),
-      );
-    }
-
-    if (
-      me &&
-      msg.userId !== me.id &&
-      !isThreadReply &&
-      !deps.visibleViews().some((v) => v.id === channel)
-    ) {
-      deps.setUnreadChannelIds(channel, true);
-    }
-    if (deps.dmById(channel)) {
-      if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
-    } else if (isDmId(channel, () => false) && me && msg.userId !== me.id) {
-      deps.ensureDm(channel, msg.userId);
-    } else if (deps.isChannelMember(channel)) {
-      deps.patchChannel(channel, { lastActivity: Date.now() });
-    }
-  }
   function handleRawMessage(raw: string) {
-    let payload: any;
+    let payload: GatewayEvent;
     try {
       payload = JSON.parse(raw);
     } catch {
@@ -170,34 +53,12 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       case "_status":
         connection.setGatewayConnected(!!payload.connected);
         break;
-      case "_history_snapshot":
-        if (deps.loadedChannels.has(payload.channel)) {
-          const fresh = (payload.messages ?? [])
-            .filter((m: any) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
-            .map(mapMessage)
-            .reverse();
-          deps.setMessagesByChannel(payload.channel, (existing: Message[] = []) =>
-            mergeMessages(existing, fresh),
-          );
-        }
-        break;
-      case "_replies_snapshot":
-        if (deps.isThreadKnown(payload.ts)) {
-          const fresh = (payload.messages ?? [])
-            .filter((m: any) => m.type === "message" && !HIDE_SUBTYPES.has(m.subtype))
-            .map(mapMessage);
-          deps.setThreadMessages(payload.ts, (existing: Message[] = []) =>
-            mergeMessages(existing, fresh),
-          );
-        }
-        break;
       case "message":
         handleIncomingMessage(payload);
         break;
       case "reaction_added":
       case "reaction_removed":
-        if (!(payload.item?.channel && payload.item?.ts)) break;
-
+        if (!(payload.item.channel && payload.item.ts && payload.reaction && payload.user)) break;
         if (payload.user !== deps.currentUser()?.id) {
           deps.applyReactionEvent(
             payload.item.channel,
@@ -205,13 +66,12 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
             payload.reaction,
             payload.user,
             payload.type === "reaction_added",
-            payload.item_user,
           );
         }
         break;
       case "presence_change": {
         const presence = payload.presence === "away" ? "away" : "active";
-        const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
+        const ids = payload.users ?? (payload.user ? [payload.user] : []);
         for (const id of ids) deps.setPresenceOverrides(id, presence);
         break;
       }
@@ -234,7 +94,8 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         break;
       }
       case "channel_marked": {
-        if (!payload.channel) break;
+        if (!(payload.channel && payload.ts) || deps.isStaleReadEcho(payload.channel, payload.ts))
+          break;
         deps.setUnreadChannelIds(payload.channel, (payload.unread_count ?? 0) > 0);
         deps.patchChannel(payload.channel, { mentions: payload.mention_count ?? 0 });
         const readTs = Number(payload.ts) * 1000;
@@ -242,7 +103,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         break;
       }
       case "user_invalidated": {
-        const ids: string[] = payload.users ?? (payload.user ? [payload.user] : []);
+        const ids = payload.users ?? (payload.user ? [payload.user] : []);
         for (const id of ids) deps.invalidateUser(id);
         break;
       }
@@ -279,15 +140,15 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         break;
       case "star_added":
       case "star_removed":
-        if (payload.item?.type === "channel" && payload.item.channel)
+        if (payload.item.type === "channel" && payload.item.channel)
           deps.setChannelStarred(payload.item.channel, payload.type === "star_added");
         break;
       case "saved_added":
       case "saved_deleted":
         deps.applySavedEvent(
           payload.type === "saved_added" ? "add" : "remove",
-          payload.item?.channel,
-          payload.item?.ts,
+          payload.item.channel,
+          payload.item.ts,
         );
         break;
       case "saved_clear":
@@ -296,23 +157,23 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       case "subteam_created":
       case "subteam_updated":
       case "subteam_deleted":
-        if (payload.subteam?.id) deps.invalidateUsergroup(payload.subteam.id);
+        if (payload.subteam.id) deps.invalidateUsergroup(payload.subteam.id);
         break;
       case "subteam_members_changed":
         if (payload.subteam_id) deps.invalidateUsergroup(payload.subteam_id);
         break;
       case "user_change":
-        if (payload.user?.id) deps.invalidateUser(payload.user.id);
+        deps.invalidateUser(payload.user.id);
         break;
       case "dnd_updated":
-        deps.applyDndSnoozeEvent(payload.snoozed_until ?? null);
+        deps.applyDndSnoozeEvent(payload.snoozed_until);
         break;
       case "canvas_created":
         if (payload.channel_id) deps.handleCanvasCreated(payload.channel_id);
         break;
       case "bot_added":
       case "bot_changed":
-        if (payload.bot?.id) deps.invalidateUser(payload.bot.id);
+        if (payload.bot.id) deps.invalidateUser(payload.bot.id);
         break;
       case "commands_changed":
         invalidateSlashCommandSuggestions();
@@ -341,11 +202,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
         deps.showGatewayNotification(payload);
         break;
       default:
-        if (typeof payload.type === "string" && payload.type.startsWith("file_")) {
-          if (filesLinksChannelId()) retryFilesLinks();
-          break;
-        }
-        console.debug("[ws] unhandled message type:", payload.type, payload);
+        if (filesLinksChannelId()) retryFilesLinks();
         break;
     }
   }
@@ -362,7 +219,11 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       send({ ids: presenceSubIds(), type: "watch_presence" });
     },
     onReconnect: () => {
-      for (const channel of deps.loadedChannels) deps.loadRecentHistory(channel);
+      const visibleIds = new Set(deps.visibleViews().map((view) => view.id));
+      for (const channel of deps.loadedChannels) {
+        if (visibleIds.has(channel)) deps.loadRecentHistory(channel);
+        else deps.loadedChannels.delete(channel);
+      }
       for (const thread of deps.visibleThreads()) deps.refreshThreadReplies(thread.ts);
     },
     url: wsUrl,
@@ -383,7 +244,7 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
     connectionState: connection.connectionState,
     isSelfOnline: connection.isSelfOnline,
     retryConnection: connection.retry,
-    rtmConnected: connection.rtmConnected,
+    gatewayConnected: connection.gatewayConnected,
     send,
   };
 }

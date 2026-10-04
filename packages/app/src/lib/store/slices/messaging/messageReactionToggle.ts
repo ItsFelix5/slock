@@ -1,5 +1,5 @@
+import type { Message, Reaction, User } from "@slock/types";
 import { createStore, produce } from "solid-js/store";
-import type { Message, Reaction, User } from "../../../api";
 import { toggleReaction } from "../../../api";
 import { flashError, undoStack } from "../../../feedback";
 import type { MessageLocation } from "../types";

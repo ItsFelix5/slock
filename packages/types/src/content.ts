@@ -7,6 +7,10 @@ export interface EmojiListData {
 
 let emojiMapPromise: Promise<EmojiListData> | null = null;
 
+export function invalidateEmojiCache(): void {
+  emojiMapPromise = null;
+}
+
 export function fetchAllEmoji(): Promise<EmojiListData> {
   if (!emojiMapPromise) {
     emojiMapPromise = fetch("/api/emoji")
@@ -27,10 +31,14 @@ export function fetchAllEmoji(): Promise<EmojiListData> {
   return emojiMapPromise;
 }
 
-export async function fetchSlashCommands(): Promise<
-  { name: string; desc: string; icon: string | null }[]
-> {
-  const data = await apiGet("/api/commands");
+export interface SlashCommand {
+  desc: string;
+  icon: string | null;
+  name: string;
+}
+
+export async function fetchSlashCommands(): Promise<SlashCommand[]> {
+  const data = await apiGet<{ commands?: SlashCommand[] }>("/api/commands");
   if (!data.ok) throw new Error(data.error ?? "fetching commands failed");
   return data.commands ?? [];
 }

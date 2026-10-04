@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
+import type { Attachment, Message } from "@slock/types";
 import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
-import type { Attachment, Message } from "../../../lib/api";
 import { parseSlackPermalink } from "../../../lib/navigation/slackPermalink";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
@@ -10,7 +10,7 @@ import MessageLinkHoverCard, {
   type HoverPreview,
   messageToHoverPreview,
 } from "./MessageLinkHoverCard";
-import { resolveMessageAuthorAvatar } from "./messageRenderState";
+import { resolveAttachmentAuthorName, resolveMessageAuthorAvatar } from "./messageAuthor";
 import "./ReplyReferenceRow.css";
 
 export default function ReplyReferenceRow(props: {
@@ -34,21 +34,18 @@ export default function ReplyReferenceRow(props: {
       <Icon name={props.icon ?? "email-reply"} size={13} />
       <Show
         fallback={
-          <Show
-            fallback={<span class="reply-reference-snippet">Original message</span>}
-            when={props.attachment}
-          >
+          <Show fallback={<span class="truncate">Original message</span>} when={props.attachment}>
             {(attachment) => (
               <>
-                <span class="reply-reference-avatar reply-reference-bot">
+                <span class="reply-reference-avatar flex-center reply-reference-bot">
                   <Show fallback="💬" when={attachment().authorIcon}>
                     {(icon) => <img alt="" src={icon()} />}
                   </Show>
                 </span>
-                <Show when={attachment().authorName}>
-                  {(name) => <span class="reply-reference-name">{name()}</span>}
+                <Show when={resolveAttachmentAuthorName(attachment(), store.users.userById)}>
+                  {(name) => <span class="reply-reference-name truncate">{name()}</span>}
                 </Show>
-                <span class="reply-reference-snippet">
+                <span class="truncate">
                   <Mrkdwn
                     inline
                     text={(attachment().text ?? attachment().title ?? "Original message").replace(
@@ -68,8 +65,8 @@ export default function ReplyReferenceRow(props: {
           return (
             <>
               <Avatar size="small" user={author()} />
-              <span class="reply-reference-name">{author().name}</span>
-              <span class="reply-reference-snippet">
+              <span class="reply-reference-name truncate">{author().name}</span>
+              <span class="truncate">
                 <Mrkdwn inline text={snippet(msg())} />
               </span>
             </>
@@ -83,7 +80,7 @@ export default function ReplyReferenceRow(props: {
     <Show
       fallback={
         <button
-          class="reply-reference-row btn-reset flex-align-center"
+          class="reply-reference-row btn-reset flex-align-center icon-shift"
           onClick={props.onJump}
           type="button"
         >
@@ -94,12 +91,16 @@ export default function ReplyReferenceRow(props: {
     >
       {(target) => (
         <MessageLinkHoverCard
+          anchorClass="reply-reference-anchor"
           channelId={target().channelId}
           knownPreview={knownPreview()}
           messageTs={target().messageTs}
           threadTs={target().threadTs}
         >
-          <a class="reply-reference-row btn-reset flex-align-center" href={props.permalink}>
+          <a
+            class="reply-reference-row btn-reset flex-align-center icon-shift"
+            href={props.permalink}
+          >
             {contents}
           </a>
         </MessageLinkHoverCard>

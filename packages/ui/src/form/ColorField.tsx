@@ -33,7 +33,7 @@ export default function ColorField(props: ColorFieldProps) {
   }
 
   return (
-    <div class="color-field">
+    <div class="color-field flex-align-center">
       <Popover
         onClose={() => setPickerOpen(false)}
         open={pickerOpen()}
@@ -52,11 +52,11 @@ export default function ColorField(props: ColorFieldProps) {
       >
         <OklchColorPicker label={props.label} onChange={commit} value={value()} />
       </Popover>
-      <div class="color-field-name" title={props.label}>
+      <div class="color-field-name truncate" title={props.label}>
         {props.label}
       </div>
       <input
-        class="color-field-text"
+        class="color-field-text text-field"
         onChange={(e) => commit(e.currentTarget.value.trim())}
         onInput={(e) => setDraft(e.currentTarget.value)}
         spellcheck={false}

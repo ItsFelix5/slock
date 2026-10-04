@@ -1,18 +1,26 @@
-import type { ActivityFeedPage, ActivityItem, FeedEntry, Message } from "@slock/types";
+import type {
+  ActivityFeedPage,
+  ActivityItem,
+  FeedEntry,
+  Message,
+  RawActivityFeedEntry,
+  RawMessage,
+} from "@slock/types";
 import {
   ACTIVITY_FEED_TYPES_PARAM,
   apiGet,
   apiPost,
   broadcastRangeFromBlocks,
-  HIDE_SUBTYPES,
-  mapMessage,
+  isRawMessage,
+  isRecord,
+  mapVisibleMessage,
 } from "@slock/types";
 import { mapFeedEntry } from "./activityFeedEntry";
 
 export { ACTIVITY_KIND_FEED_TYPES } from "./activityFeedEntry";
 
 export async function fetchActivityBadgeCounts(): Promise<Record<string, number>> {
-  const data = await apiGet("/api/activity/counts");
+  const data = await apiGet<{ activityCounts?: Record<string, number> }>("/api/activity/counts");
   if (!data.ok) throw new Error(data.error ?? "client.counts failed");
   return data.activityCounts ?? {};
 }
@@ -36,10 +44,13 @@ export async function fetchActivityFeedEntries(
   const query = new URLSearchParams({ limit: String(limit), types });
   if (cursor) query.set("cursor", cursor);
   if (unreadOnly) query.set("unreadOnly", "true");
-  const data = await apiGet(`/api/activity?${query}`);
+  const data = await apiGet<{
+    items?: RawActivityFeedEntry[];
+    response_metadata?: { next_cursor?: string };
+  }>(`/api/activity?${query}`);
   if (!data.ok) throw new Error(data.error ?? "activity.feed failed");
   const entries = (data.items ?? [])
-    .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts) * 1000))
+    .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts ?? "") * 1000))
     .filter((entry): entry is FeedEntry => !!entry);
   return {
     entries,
@@ -78,13 +89,12 @@ function chunkMessageIds(messageGroups: MessageIdGroup[]): MessageIdGroup[][] {
   return chunks;
 }
 
-function rawMessagesFromMessagesListEntry(entry: any): any[] {
-  const messages = entry?.messages ?? entry;
-  if (!messages) return [];
+function rawMessagesFromMessagesListEntry(entry: unknown): RawMessage[] {
+  const messages = isRecord(entry) && "messages" in entry ? entry.messages : entry;
   if (Array.isArray(messages)) return messages;
-  if (messages.ts) return [messages];
-  if (typeof messages === "object") return Object.values(messages);
-  return [];
+  if (!isRecord(messages)) return [];
+  if (isRawMessage(messages)) return [messages];
+  return Object.values(messages).filter((value) => isRecord(value) && isRawMessage(value));
 }
 
 export async function fetchMessagesByIds(
@@ -105,7 +115,9 @@ export async function fetchMessagesByIds(
   }));
   const chunks = chunkMessageIds(messageGroups);
   const resolveChunk = async (messageIds: MessageIdGroup[]): Promise<void> => {
-    const data = await apiPost("/api/messages/lookup", { messageIds });
+    const data = await apiPost<{ messages?: Record<string, unknown> }>("/api/messages/lookup", {
+      messageIds,
+    });
     if (!data.ok) {
       if (data.error === "too_many_channels" && messageIds.length > 1) {
         const middle = Math.ceil(messageIds.length / 2);
@@ -118,9 +130,9 @@ export async function fetchMessagesByIds(
     const batch = new Map<string, Message>();
     for (const [channelId, entry] of Object.entries(data.messages ?? {})) {
       for (const raw of rawMessagesFromMessagesListEntry(entry)) {
-        if (raw?.ts && !HIDE_SUBTYPES.has(raw.subtype)) {
+        const message = mapVisibleMessage(raw);
+        if (message) {
           const key = `${channelId}:${raw.ts}`;
-          const message = mapMessage(raw);
           batch.set(key, message);
           byKey.set(key, message);
         }

@@ -7,6 +7,7 @@ export const blockKitDataResolver = {
   onChannelClick: (id: string) => store.viewState.setActiveView({ id, kind: "channel" as const }),
   onUserClick: store.users.openUserProfile,
   onUsergroupClick: openUsergroupDetails,
+  resolveCanvasTitle: store.canvas.canvasTitle,
   resolveChannel: (id: string) => {
     const channel = store.channels.channelById(id);
     if (channel) {

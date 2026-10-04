@@ -1,6 +1,5 @@
+import type { Channel, DirectMessage } from "@slock/types";
 import { batch, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
-import type { Channel, DirectMessage } from "../../../api";
-import { suppressNextComposerAutofocus } from "../../../composerAutofocus";
 import { EMPTY_FILTERS, type SearchFilters } from "../../../searchQuery";
 import { resolveCanvasPaneTitle } from "../entities/canvas";
 import { isDmId } from "../entities/dms";
@@ -90,33 +89,15 @@ function serializePaneSegment(content: PaneContent): string {
 }
 
 function parseNavPath(url: URL): {
-  nav: Nav;
   rawPanes: (PaneContent | RawPane)[];
-  searchQuery?: string;
 } {
   const segs = url.pathname.split("/").filter(Boolean);
-  const [firstSegment] = segs;
-
-  let nav: Nav = "home";
-  let searchQuery: string | undefined;
-  if (firstSegment === "search") {
-    nav = "search";
-    segs.shift();
-    searchQuery = url.searchParams.get("q") ?? undefined;
-  } else if (firstSegment === "activity" || firstSegment === "later") {
-    nav = firstSegment;
-    segs.shift();
-  }
-
   const rawPanes = segs.map(parsePaneSegment).filter((c): c is PaneContent | RawPane => c !== null);
-  return { nav, rawPanes, searchQuery };
+  return { rawPanes };
 }
 
 function navSnapshotToPath(snap: NavSnapshot): string {
-  const parts: string[] = [];
-  if (snap.nav !== "home") parts.push(snap.nav);
-  parts.push(...snap.panes.map(serializePaneSegment));
-  const path = `/${parts.join("/")}`;
+  const path = `/${snap.panes.map(serializePaneSegment).join("/")}`;
   return snap.nav === "search" && snap.searchQuery
     ? `${path}?q=${encodeURIComponent(snap.searchQuery)}`
     : path;
@@ -129,6 +110,7 @@ export function createViewStateSlice(deps: {
     | "closePane"
     | "focusedConversationContent"
     | "insertContentPane"
+    | "navigateFocusedPane"
     | "panes"
     | "setAllPanes"
     | "setPaneContent"
@@ -203,8 +185,8 @@ export function createViewStateSlice(deps: {
     }
   }
 
-  function structuralKey(snap: Pick<NavSnapshot, "nav" | "panes">): string {
-    return JSON.stringify({ nav: snap.nav, panes: snap.panes });
+  function structuralKey(snap: Pick<NavSnapshot, "panes">): string {
+    return JSON.stringify({ panes: snap.panes });
   }
 
   function currentNavSnapshot(): NavSnapshot {
@@ -229,22 +211,15 @@ export function createViewStateSlice(deps: {
     const initialData = untrack(deps.bootstrap);
     const initialPanes = initial.rawPanes.map((raw) => resolvePaneContent(raw, initialData));
     batch(() => {
-      setNav(initial.nav);
       setSelected(
         initialPanes[0] && (initialPanes[0].kind === "channel" || initialPanes[0].kind === "dm")
           ? initialPanes[0]
           : null,
       );
       panes.setAllPanes(initialPanes);
-      if (initial.nav === "search" && initial.searchQuery)
-        setSearchScreenQuery(initial.searchQuery);
     });
     resolvePendingCanvasTitles();
-    const initialSnap: NavSnapshot = {
-      nav: initial.nav,
-      panes: initialPanes,
-      searchQuery: initial.searchQuery,
-    };
+    const initialSnap: NavSnapshot = { nav: nav(), panes: initialPanes };
     pushOrReplace(initialSnap, true);
     lastStructuralKey = structuralKey(initialSnap);
 
@@ -252,11 +227,8 @@ export function createViewStateSlice(deps: {
       const popped: NavSnapshot | undefined = e.state?.slockNav;
       if (!popped) return;
 
-      suppressNextComposerAutofocus();
       syncingFromPopState = true;
       batch(() => {
-        setNav(popped.nav);
-        if (popped.nav === "search") setSearchScreenQuery(popped.searchQuery ?? "");
         reconcilePanesToward(popped.panes);
         const focused = panes.focusedConversationContent();
         if (focused && (focused.kind === "channel" || focused.kind === "dm")) {
@@ -265,11 +237,7 @@ export function createViewStateSlice(deps: {
       });
       resolvePendingCanvasTitles();
 
-      const merged: NavSnapshot = {
-        nav: popped.nav,
-        panes: livePaneContents(),
-        searchQuery: popped.nav === "search" ? popped.searchQuery : undefined,
-      };
+      const merged = currentNavSnapshot();
       pushOrReplace(merged, true);
       lastStructuralKey = structuralKey(merged);
       syncingFromPopState = false;
@@ -296,6 +264,12 @@ export function createViewStateSlice(deps: {
         const kind = conversationKindIn(c.id, data);
         if (kind !== c.kind) panes.setPaneContent(pane.id, { id: c.id, kind });
       }
+    });
+
+    createEffect(() => {
+      if (panes.focusedConversationContent()) return;
+      const view = resolveActiveView(nav(), selected(), deps.bootstrap());
+      if (view) panes.navigateFocusedPane(view);
     });
   }
 

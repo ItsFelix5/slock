@@ -30,7 +30,7 @@ export default function Popover(props: PopoverProps) {
       <FloatingPanel
         align={props.align ?? "start"}
         anchor={() => rootRef}
-        class={`popover ${props.panelClass || ""}`}
+        class={`popover surface-popover ${props.panelClass || ""}`}
         onScroll={props.onClose}
         open={props.open}
         panelRef={(element) => {

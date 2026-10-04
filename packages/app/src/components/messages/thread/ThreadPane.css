@@ -1,0 +1,87 @@
+.thread-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--main-bg);
+}
+
+.thread-panel-header-info {
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.thread-panel-title {
+  flex-shrink: 0;
+  font-size: var(--font-size-heading-xs);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.thread-panel-subtitle {
+  min-width: 0;
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.thread-panel-subtitle:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.thread-panel-subscribe-btn {
+  width: var(--header-action-size);
+  height: var(--header-action-size);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.thread-panel-subscribe-btn:hover:not(:disabled),
+.thread-panel-subscribe-btn.subscribed {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.thread-panel-subscribe-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.thread-panel-messages {
+  flex: 1;
+  padding: 10px 0 calc(var(--composer-overlay-h, 48px) + 12px);
+  overflow: hidden auto;
+}
+
+.thread-panel-error {
+  flex-shrink: 0;
+  gap: 10px;
+  padding: 10px var(--space-lg);
+  font-size: var(--font-size-control);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.thread-panel-status {
+  flex-shrink: 0;
+  padding: 10px var(--space-lg) 0;
+  font-size: var(--font-size-control);
+  text-align: center;
+}
+
+.thread-panel-jump {
+  position: absolute;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+}
+
+.thread-panel-jump-top {
+  top: calc(var(--header-height) + 10px);
+}
+
+.thread-panel-jump-bottom {
+  bottom: calc(var(--composer-overlay-h, 48px) + 12px);
+}

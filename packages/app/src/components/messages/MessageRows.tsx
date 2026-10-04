@@ -1,5 +1,5 @@
+import type { Message } from "@slock/types";
 import { createMemo, For } from "solid-js";
-import type { Message } from "../../lib/api";
 import MessageRow from "./MessageRow";
 import type { OpenThreadHandler } from "./messageFocus";
 
@@ -16,6 +16,11 @@ export type MessageRowsProps = {
   editingTs?: () => string | null;
   onStartEdit?: (ts: string) => void;
   onStopEdit?: () => void;
+
+  reactionPickerTs?: () => string | null;
+  onToggleReactionPicker?: (ts: string) => void;
+  moreMenuTs?: () => string | null;
+  onToggleMoreMenu?: (ts: string) => void;
 };
 
 export default function MessageRows(props: MessageRowsProps) {
@@ -36,11 +41,15 @@ export default function MessageRows(props: MessageRowsProps) {
           message={message}
           messageByTs={messageByTs}
           messages={props.messages}
+          moreMenuTs={props.moreMenuTs}
           onJumpToMessage={props.onJumpToMessage}
           onOpenThread={props.onOpenThread}
           onReplyLink={props.onReplyLink}
           onStartEdit={props.onStartEdit}
           onStopEdit={props.onStopEdit}
+          onToggleMoreMenu={props.onToggleMoreMenu}
+          onToggleReactionPicker={props.onToggleReactionPicker}
+          reactionPickerTs={props.reactionPickerTs}
           threadTs={props.threadTs}
         />
       )}

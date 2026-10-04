@@ -1,6 +1,7 @@
 import type { TableBlock } from "@slock/types";
 import { For, Show } from "solid-js";
 import RichText from "./RichText";
+import "./Table.css";
 
 function Cell(props: { cell: TableBlock["rows"][number][number] }) {
   return props.cell.type === "rich_text" ? (

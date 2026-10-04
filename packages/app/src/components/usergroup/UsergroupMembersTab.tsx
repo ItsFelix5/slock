@@ -1,6 +1,6 @@
-import { AddRowButton, Avatar, confirmDialog, initRovingTabIndexDefault } from "@slock/ui";
+import type { User } from "@slock/types";
+import { AddRowButton, Avatar, Button, confirmDialog, initRovingTabIndexDefault } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import type { User } from "../../lib/api";
 import { store } from "../../lib/store";
 import { addUsergroupMembers, removeUsergroupMember } from "../../lib/usergroupDetails";
 import ComposeUserPicker from "../composer/popovers/ComposeUserPicker";
@@ -16,9 +16,15 @@ export default function UsergroupMembersTab(props: {
   const [query, setQuery] = createSignal("");
   const [addingPeople, setAddingPeople] = createSignal(false);
 
-  const members = createMemo(() =>
-    props.memberIds.map((id) => store.users.userById(id)).filter((u): u is User => !!u),
-  );
+  const selfId = () => store.users.currentUser()?.id;
+  const isSelfMember = () => props.memberIds.includes(selfId() ?? "");
+
+  const members = createMemo(() => {
+    const users = props.memberIds
+      .map((id) => store.users.userById(id))
+      .filter((u): u is User => !!u);
+    return [...users.filter((u) => u.id === selfId()), ...users.filter((u) => u.id !== selfId())];
+  });
 
   const filteredMembers = createMemo(() => {
     const q = query().trim().toLowerCase();
@@ -50,7 +56,7 @@ export default function UsergroupMembersTab(props: {
     <div class="usergroup-details-tab-content flex-col">
       <div class="usergroup-details-list-bar">
         <input
-          class="usergroup-details-input"
+          class="text-field"
           disabled={props.disabled}
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Find members"
@@ -74,9 +80,28 @@ export default function UsergroupMembersTab(props: {
         </div>
       </Show>
       <div class="flex-col" ref={listRef}>
+        <Show when={!(isSelfMember() || query().trim()) && store.users.currentUser()}>
+          {(me) => (
+            <div class="usergroup-details-row flex-align-center usergroup-details-row-join">
+              <div class="usergroup-details-row-main flex-align-center">
+                <Avatar size="small" user={me()} />
+                <span class="usergroup-details-row-name truncate">{me().name}</span>
+                <span class="usergroup-details-row-hint truncate">Not in this pinggroup</span>
+              </div>
+              <Button
+                disabled={props.disabled}
+                onClick={() => addMember(me().id)}
+                size="sm"
+                variant="primary"
+              >
+                Join
+              </Button>
+            </div>
+          )}
+        </Show>
         <For each={filteredMembers()} fallback={<p class="usergroup-details-empty">No members.</p>}>
           {(u) => (
-            <div class="usergroup-details-row">
+            <div class="usergroup-details-row flex-align-center">
               <button
                 class="usergroup-details-row-main btn-reset flex-align-center"
                 data-nav-row

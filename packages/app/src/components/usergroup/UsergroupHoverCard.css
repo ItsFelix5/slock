@@ -1,10 +1,10 @@
 .usergroup-hovercard {
-  gap: 8px;
-  padding: 12px 14px;
+  gap: var(--space-sm);
+  padding: var(--space-md) 14px;
 }
 
 .usergroup-hovercard-heading {
   gap: 6px;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-weight: 800;
 }

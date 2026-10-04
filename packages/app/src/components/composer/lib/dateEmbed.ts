@@ -13,6 +13,7 @@ class DateBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: DateValue) {
+    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
     const node = super.create(value);
     if (!(node instanceof HTMLElement)) throw new Error("date blot produced a non-element node");
     node.className = "bk-date";

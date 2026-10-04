@@ -1,5 +1,12 @@
 import { EmojiText } from "@slock/blockkit";
-import { Button, Icon, InlineFeedback, ResizeHandle, tabStripKeyDown } from "@slock/ui";
+import {
+  Button,
+  Icon,
+  InlineFeedback,
+  ResizeHandle,
+  useEditShortcuts,
+  useTabStripShortcuts,
+} from "@slock/ui";
 import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
 import type { Nav } from "../../lib/store/slices/types";
@@ -8,7 +15,8 @@ import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
 import SidebarDmSections, { SidebarUnreadDmSection } from "./rows/SidebarDmSections";
-import { SidebarSectionCaretRow, SidebarSkeleton } from "./rows/SidebarRows";
+import { SidebarSectionCaretRow } from "./rows/SidebarSectionCaretRow";
+import { SidebarSkeleton } from "./rows/SidebarSkeleton";
 import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
 import SidebarUnreadEdgeIndicator from "./SidebarUnreadEdgeIndicator";
@@ -34,6 +42,13 @@ function SidebarCategorySection(props: { context: SidebarContext; id: string }) 
     handleSectionDragEnd,
     actionFeedback,
   } = props.context;
+  let sectionRef: HTMLDivElement | undefined;
+  useEditShortcuts({
+    cancel: () => setRenamingId(null),
+    commit: () => void commitRename(),
+    enabled: () => renamingId() === props.id,
+    root: () => sectionRef,
+  });
   const cat = createMemo(() => categories().find((c) => c.id === props.id));
   const channelIds = createMemo(() => cat()?.channels.map((ch) => ch.id) ?? [], undefined, {
     equals: idsEqual,
@@ -56,6 +71,7 @@ function SidebarCategorySection(props: { context: SidebarContext; id: string }) 
       }}
       data-reorderable={cat()?.reorderable ? "true" : undefined}
       data-section-id={props.id}
+      ref={sectionRef}
     >
       <div
         class="sidebar-section-header flex-align-center"
@@ -74,13 +90,6 @@ function SidebarCategorySection(props: { context: SidebarContext; id: string }) 
               class="sidebar-section-rename-input"
               onBlur={() => void commitRename()}
               onInput={(e) => setRenameValue(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void commitRename();
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setRenamingId(null);
-                }
-              }}
               readOnly={sectionStructurePending()}
               value={renameValue()}
             />
@@ -102,7 +111,10 @@ function SidebarCategorySection(props: { context: SidebarContext; id: string }) 
             open={!collapsed().has(props.id)}
           />
         </Show>
-        <InlineFeedback class="sidebar-section-feedback" feedback={actionFeedback.get(props.id)} />
+        <InlineFeedback
+          class="sidebar-section-feedback truncate"
+          feedback={actionFeedback.get(props.id)}
+        />
         <Show when={renamingId() !== props.id && cat()?.filterable ? cat() : undefined}>
           {(c) => <SidebarSectionMenu cat={c()} context={props.context} />}
         </Show>
@@ -198,11 +210,15 @@ export default function SidebarView(props: { context: SidebarContext }) {
   });
   const navTabRefs: (HTMLButtonElement | undefined)[] = [];
   const activeNavTabIndex = () => Math.max(SIDEBAR_NAV_TABS.indexOf(nav()), 0);
-  const navTabKeyDown = (event: KeyboardEvent, index: number) =>
-    tabStripKeyDown(event, SIDEBAR_NAV_TABS, index, (next, nextIndex) => {
+  let navTabListRef: HTMLDivElement | undefined;
+  useTabStripShortcuts({
+    activate: (next, nextIndex) => {
       setNavView(next);
       navTabRefs[nextIndex]?.focus();
-    });
+    },
+    items: () => SIDEBAR_NAV_TABS,
+    root: () => navTabListRef,
+  });
   return (
     <div
       class="sidebar flex-col"
@@ -231,7 +247,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
           settingsTab,
         }}
       />
-      <div class="sidebar-nav flex-align-center" role="tablist">
+      <div class="sidebar-nav flex-align-center" ref={navTabListRef} role="tablist">
         <button
           aria-selected={nav() === "home"}
           class="sidebar-nav-btn btn-reset flex-center"
@@ -242,7 +258,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
             if (nav() === "home") setUnreadsOnly(!unreadsOnly());
             else setNavView("home");
           }}
-          onKeyDown={(e) => navTabKeyDown(e, 0)}
           ref={(el) => {
             navTabRefs[0] = el;
           }}
@@ -259,7 +274,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
             active: nav() === "activity",
           }}
           onClick={() => setNavView("activity")}
-          onKeyDown={(e) => navTabKeyDown(e, 1)}
           ref={(el) => {
             navTabRefs[1] = el;
           }}
@@ -267,7 +281,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
           tabIndex={activeNavTabIndex() === 1 ? 0 : -1}
           type="button"
         >
-          <span class="sidebar-nav-btn-icon">
+          <span class="sidebar-nav-btn-icon flex-center">
             <Show fallback={<Icon name="notifications" size={16} />} when={recentReactionEmoji()}>
               {(name) => (
                 <span class="sidebar-nav-reaction-emoji">
@@ -289,7 +303,6 @@ export default function SidebarView(props: { context: SidebarContext }) {
             active: nav() === "later",
           }}
           onClick={() => setNavView("later")}
-          onKeyDown={(e) => navTabKeyDown(e, 2)}
           ref={(el) => {
             navTabRefs[2] = el;
           }}
@@ -323,7 +336,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
               when={!(bootstrap.isFetching || sectionsLoading() || preferencesLoading())}
             >
               <Show when={preferencesError()}>
-                <div class="sidebar-resource-error">
+                <div class="sidebar-resource-error flex-between">
                   <span>Couldn't load preferences.</span>
                   <Button
                     disabled={preferencesLoading()}
@@ -335,7 +348,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
                 </div>
               </Show>
               <Show when={sectionsError()}>
-                <div class="sidebar-resource-error">
+                <div class="sidebar-resource-error flex-between">
                   <span>Couldn't load custom sections.</span>
                   <Button
                     disabled={sectionsLoading()}

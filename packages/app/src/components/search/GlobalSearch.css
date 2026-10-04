@@ -10,16 +10,16 @@
 
 .global-search-input-row {
   flex-shrink: 0;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: var(--space-sm);
+  padding: 14px var(--space-lg);
   border-bottom: 1px solid var(--border);
 }
 
 .global-search-share-banner {
   flex-shrink: 0;
   gap: 6px;
-  padding: 8px 16px;
-  font-size: 12px;
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
   background: var(--accent-subtle);
   border-bottom: 1px solid var(--border);
@@ -27,35 +27,26 @@
 
 .global-search-input {
   flex: 1;
-  font-size: 15px;
+  font-size: var(--font-size-body);
 }
 
 .global-search-filter-label {
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   font-weight: 700;
   color: var(--text-secondary);
 }
 
 .global-search-results {
-  display: flex;
   flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
+  padding: var(--space-sm);
   overflow-y: auto;
 }
 
-.global-search-options {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .global-search-result {
-  gap: 8px;
+  gap: var(--space-sm);
   width: 100%;
   padding: calc(10px + var(--row-padding-offset)) 12px;
-  font-size: 14px;
+  font-size: var(--font-size-secondary);
   text-align: left;
   background: transparent;
   border-radius: var(--radius-md);
@@ -87,7 +78,7 @@
 
 .global-search-file-meta {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
 }
 
 .global-search-jump-icon {
@@ -99,6 +90,6 @@
 
 .global-search-hint,
 .global-search-status {
-  padding: 18px 16px;
+  padding: 18px var(--space-lg);
   line-height: 1.4;
 }

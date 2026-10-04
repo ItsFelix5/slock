@@ -21,8 +21,17 @@ export interface RawUserProfile {
   title?: string;
 }
 
+export interface RawIcons {
+  image_32?: string;
+  image_36?: string;
+  image_48?: string;
+  image_64?: string;
+  image_72?: string;
+}
+
 export interface RawUser {
   color?: string;
+  deleted?: boolean;
   id: string;
   is_admin?: boolean;
   is_bot?: boolean;
@@ -41,22 +50,49 @@ export interface RawUser {
 
 export interface RawBot {
   app_id?: string;
-  icons?: { image_36?: string; image_48?: string; image_72?: string };
+  icons?: RawIcons;
   id: string;
   name?: string;
+  user_id?: string;
+}
+
+export interface RawChannelText {
+  value?: string;
+}
+
+export interface RawChannelProperties {
+  canvas?: { file_id?: string; quip_thread_id?: string };
+  channel_email_addresses?: { address?: string }[];
+  has_custom_mpdm_name?: boolean;
+  tabs?: { data?: { file_id?: string }; label?: string; type?: string }[];
 }
 
 export interface RawChannel {
+  created?: number;
+  creator?: string;
   id: string;
   is_archived?: boolean;
+  is_channel?: boolean;
+  is_group?: boolean;
+  is_im?: boolean;
+  is_member?: boolean;
+  is_mpim?: boolean;
+  is_open?: boolean;
   is_private?: boolean;
+  is_record_channel?: boolean;
+  last_read?: string;
   latest?: string;
   member_count?: number;
+  members?: string[];
   name?: string;
   num_members?: number;
-  topic?: string | { value?: string };
+  properties?: RawChannelProperties;
+  purpose?: string | RawChannelText;
+  topic?: string | RawChannelText;
   unread_count?: number;
   unread_count_display?: number;
+  updated?: number;
+  user?: string;
 }
 
 export interface RawCountGroup {
@@ -86,6 +122,7 @@ export interface RawFile {
   filetype?: string;
   id: string;
   mimetype?: string;
+  mode?: string;
   name?: string;
   original_h?: number;
   original_w?: number;
@@ -148,7 +185,9 @@ export interface RawAttachment {
     value?: string;
   }[];
   author_icon?: string;
+  author_id?: string;
   author_name?: string;
+  author_subname?: string;
   blocks?: Block[];
   callback_id?: string;
   channel_id?: string;
@@ -180,17 +219,16 @@ export interface RawMessage {
   blocks?: Block[];
   bot_id?: string;
   bot_profile?: {
-    icons?: { image_36?: string; image_48?: string; image_72?: string };
+    icons?: RawIcons;
     name?: string;
   };
   edited?: unknown;
   files?: RawFile[];
-  icons?: { image_36?: string; image_48?: string; image_72?: string };
+  icons?: RawIcons;
   is_ephemeral?: boolean;
   latest_reply?: string;
   metadata?: {
     event_type?: string;
-    event_payload?: { real_user_id?: string };
   };
   reactions?: Reaction[];
   reply_count?: number;
@@ -215,4 +253,24 @@ export interface RawChannelSection {
   name?: string;
   sidebar?: string;
   type?: string;
+}
+
+export interface RawUsergroup {
+  created_by?: string;
+  date_create?: number;
+  description?: string;
+  handle?: string;
+  id: string;
+  is_section?: boolean;
+  name?: string;
+  prefs?: { channels?: string[]; groups?: string[] };
+  user_count?: number;
+}
+
+export function isRawMessage(value: object): value is RawMessage {
+  return "ts" in value && typeof value.ts === "string";
+}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }

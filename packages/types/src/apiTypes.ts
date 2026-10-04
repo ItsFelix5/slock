@@ -1,4 +1,6 @@
+import type { Block } from "./blocks";
 import type { ActivityItem } from "./contentTypes";
+import type { SlackFile, SlackLink } from "./fileTypes";
 import type {
   BrowsableChannel,
   CanvasListItem,
@@ -6,10 +8,8 @@ import type {
   ChannelDetails,
   DirectMessage,
   Message,
-  SlackFile,
-  SlackLink,
-  User,
 } from "./types";
+import type { User } from "./userTypes";
 
 export type FeedEntry = Omit<ActivityItem, "text"> & { text?: string };
 
@@ -70,22 +70,18 @@ export type HistoryPage = {
   view?: ConversationViewData;
 };
 
-export type NewerHistoryPage = {
-  hasMore: boolean;
-  messages: Message[];
-  nextOldest?: string;
-};
-
 export interface FileUploadInput {
   file: File;
   title?: string;
 }
 
 export type DraftEntry = {
+  id: string;
+  clientMsgId: string;
   channelId: string;
   threadTs?: string;
   text: string;
-  blocks?: unknown;
+  blocks?: Block[];
   lastUpdatedTs?: string;
 };
 

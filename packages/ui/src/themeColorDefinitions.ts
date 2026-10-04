@@ -44,13 +44,11 @@ export interface ThemeColors {
   shadowColor?: string;
   shadowColorSoft?: string;
   sidebarBg?: string;
-  success?: string;
   textDim?: string;
   textOnAccent?: string;
   textOnAvatar?: string;
   textOnDanger?: string;
   textOnSuccess?: string;
-  textDisabled?: string;
   textPrimary?: string;
   textSecondary?: string;
   userStatusBanned?: string;
@@ -118,13 +116,11 @@ const THEME_COLOR_DEFINITIONS = {
   shadowColor: ["--shadow-color", "Shadow"],
   shadowColorSoft: ["--shadow-color-soft", "Soft shadow"],
   sidebarBg: ["--sidebar-bg", "Sidebar background"],
-  success: ["--success", "Success"],
   textDim: ["--text-dim", "Text (dim)"],
   textOnAccent: ["--text-on-accent", "Text on accent"],
   textOnAvatar: ["--text-on-avatar", "Text on avatar"],
   textOnDanger: ["--text-on-danger", "Text on danger"],
   textOnSuccess: ["--text-on-success", "Text on success"],
-  textDisabled: ["--text-disabled", "Text (disabled)"],
   textPrimary: ["--text-primary", "Text (primary)"],
   textSecondary: ["--text-secondary", "Text (secondary)"],
   userStatusBanned: ["--user-status-banned", "User status (banned)"],
@@ -182,13 +178,11 @@ export const THEME_COLOR_KEYS = [
   "shadowColor",
   "shadowColorSoft",
   "sidebarBg",
-  "success",
   "textDim",
   "textOnAccent",
   "textOnAvatar",
   "textOnDanger",
   "textOnSuccess",
-  "textDisabled",
   "textPrimary",
   "textSecondary",
   "userStatusBanned",

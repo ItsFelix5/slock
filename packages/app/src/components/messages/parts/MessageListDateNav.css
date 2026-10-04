@@ -10,6 +10,7 @@
   pointer-events: none;
 }
 .message-list-date-pill {
+  --surface-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -18,10 +19,6 @@
   font-weight: 700;
   color: var(--text-secondary);
   pointer-events: auto;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-popover);
 }
 .message-list-date-pill:hover {
   color: var(--text-primary);
@@ -31,8 +28,6 @@
   padding: 6px;
 }
 .message-list-date-nav-actions {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
   margin-bottom: 6px;
 }
@@ -46,11 +41,7 @@
   background: var(--hover-bg);
 }
 .message-list-date-nav-input-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding: 6px 10px 4px;
+  padding: 6px 10px var(--space-xs);
   font-size: var(--font-size-meta);
   color: var(--text-secondary);
   border-top: 1px solid var(--border);

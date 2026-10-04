@@ -1,7 +1,7 @@
+import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
 import { createSignal } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
-import type { ActivityItem, FeedEntry, Message, User } from "../../../../api";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import { createEntryResolution } from "./entryResolution";
 
@@ -27,6 +27,7 @@ export function createActivityFeedLoad(deps: {
     entries: { channelId: string; ts: string }[],
   ) => Promise<Map<string, Message>>;
   isBotUser?: (userId: string) => boolean;
+  onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
   setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
@@ -35,6 +36,7 @@ export function createActivityFeedLoad(deps: {
     fetchHistoryAround: deps.fetchHistoryAround,
     fetchMessagesByIds: deps.fetchMessagesByIds,
     isBotUser: deps.isBotUser,
+    onReactionPushed: deps.onReactionPushed,
     resolveActivityEntry: deps.resolveActivityEntry,
     setActivityItems: deps.setActivityItems,
   });
@@ -107,11 +109,11 @@ export function createActivityFeedLoad(deps: {
                 continue;
               }
 
-              list[index] = {
+              Object.assign(list[index], {
                 ...resolved,
                 text: resolved.text || list[index].text,
                 userId: resolved.userId || list[index].userId,
-              };
+              });
             }
           }),
         );

@@ -1,12 +1,19 @@
-import { Icon } from "@slock/ui";
+import { Icon, type ListDirection, useListShortcuts } from "@slock/ui";
 
 export default function GlobalSearchInput(props: {
   query: () => string;
-  hasQuery: () => boolean;
   onQuery: (value: string) => void;
-  onNavigateRows: (key: "ArrowDown" | "ArrowUp" | "Home" | "End") => void;
+  onNavigateRows: (direction: ListDirection) => void;
   onSubmitRow: () => void;
 }) {
+  let inputRef: HTMLInputElement | undefined;
+
+  useListShortcuts({
+    move: props.onNavigateRows,
+    root: () => inputRef,
+    submit: props.onSubmitRow,
+  });
+
   return (
     <div class="global-search-input-anchor">
       <div class="global-search-input-row flex-align-center">
@@ -16,19 +23,8 @@ export default function GlobalSearchInput(props: {
           autocomplete="off"
           class="global-search-input input-reset input-plain"
           onInput={(e) => props.onQuery(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-              e.preventDefault();
-              props.onNavigateRows(e.key);
-            } else if ((e.key === "Home" || e.key === "End") && props.hasQuery()) {
-              e.preventDefault();
-              props.onNavigateRows(e.key);
-            } else if (e.key === "Enter" && props.hasQuery()) {
-              e.preventDefault();
-              props.onSubmitRow();
-            }
-          }}
           placeholder="Search channels, people, conversations…"
+          ref={inputRef}
           spellcheck={false}
           type="text"
           value={props.query()}

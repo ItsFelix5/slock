@@ -5,6 +5,7 @@ import {
   listNavigationIndex,
   useClickOutside,
   useEscapeClose,
+  useListShortcuts,
 } from "@slock/ui";
 import type { JSX } from "solid-js";
 import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
@@ -81,30 +82,29 @@ export default function ComposePicker<T extends PickerItem>(props: {
     }).slice(0, 40);
   });
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    const next = listNavigationIndex(event.key, activeIndex(), items().length);
-    if (next !== undefined) {
-      event.preventDefault();
-      setActiveIndex(next);
-      return;
-    }
-    if (event.key !== "Enter" || event.isComposing) return;
-    const index = activeIndex();
-    const item = index === null ? undefined : items()[index];
-    if (!item) return;
-    event.preventDefault();
-    props.onSelect(item.id);
-  };
+  let inputRef: HTMLInputElement | undefined;
+  useListShortcuts({
+    move: (direction) => {
+      const next = listNavigationIndex(direction, activeIndex(), items().length);
+      if (next !== undefined) setActiveIndex(next);
+    },
+    root: () => inputRef,
+    submit: () => {
+      const index = activeIndex();
+      const item = index === null ? undefined : items()[index];
+      if (item) props.onSelect(item.id);
+    },
+  });
 
   return (
-    <div class="compose-picker">
+    <div class="compose-picker surface-popover">
       <input
         autofocus
         autocomplete="off"
-        class="compose-picker-input"
+        class="compose-picker-input text-field"
         onInput={(e) => onInput(e.currentTarget.value)}
-        onKeyDown={onKeyDown}
         placeholder={props.placeholder}
+        ref={inputRef}
         spellcheck={false}
         type="text"
         value={query()}

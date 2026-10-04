@@ -1,5 +1,5 @@
 import { Button, Icon } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { channelDisplayName, dmDisplayName } from "../../lib/displayName";
 import { usePaneView } from "../../lib/paneView";
 import { store } from "../../lib/store";
@@ -15,6 +15,7 @@ export default function MessageList() {
   const { clearMessageTarget, messageTarget, paneId, view: paneView } = usePaneView();
 
   let scrollRef: HTMLDivElement | undefined;
+  const [contentRef, setContentRef] = createSignal<HTMLDivElement>();
 
   const messages = createMemo(() => {
     const v = paneView();
@@ -49,6 +50,7 @@ export default function MessageList() {
     visibleDay,
   } = createMessageListScroll({
     clearMessageTarget,
+    contentRef,
     messages,
     messageTarget,
     paneView,
@@ -97,10 +99,10 @@ export default function MessageList() {
                   />
                 )}
               </Show>
-              <div>
+              <div ref={setContentRef}>
                 <Show
                   fallback={
-                    <div class="message-list-intro message-list-error">
+                    <div class="message-list-intro message-list-error flex-col gap-sm">
                       <div class="message-list-intro-icon flex-center">
                         <Icon name="warning" size={26} />
                       </div>
@@ -114,7 +116,7 @@ export default function MessageList() {
                   when={!(store.messages.hasHistoryError(v().id) && messages().length === 0)}
                 >
                   <Show when={store.messages.hasHistoryError(v().id) && messages().length > 0}>
-                    <div class="message-list-load-error">
+                    <div class="message-list-load-error flex-center">
                       <span>Couldn't refresh this conversation.</span>
                       <Button onClick={() => store.messages.loadRecentHistory(v().id)} size="sm">
                         Try again
@@ -122,7 +124,7 @@ export default function MessageList() {
                     </div>
                   </Show>
                   <Show when={store.messages.hasOlderHistoryError(v().id)}>
-                    <div class="message-list-load-error">
+                    <div class="message-list-load-error flex-center">
                       <span>Couldn't load older messages.</span>
                       <Button
                         onClick={() => void loadOlderMessagesPreservingScroll(v().id)}
@@ -143,7 +145,7 @@ export default function MessageList() {
                   <Show when={!store.messages.hasMoreHistory(v().id)}>
                     <div class="message-list-intro">
                       <div class="message-list-intro-icon flex-center">#</div>
-                      <h2>{channelName()}</h2>
+                      <h2 class="truncate">{channelName()}</h2>
                     </div>
                   </Show>
                 </Show>
@@ -157,13 +159,17 @@ export default function MessageList() {
                   editingTs={messageFocus.editingTs}
                   focusedTs={messageFocus.focusedTs}
                   messages={messages()}
+                  moreMenuTs={messageFocus.moreMenuTs}
                   onJumpToMessage={jumpToMessage}
                   onOpenThread={(ts, opts) => store.viewState.openThread(v().id, ts, ts, opts)}
                   onStartEdit={messageFocus.onStartEdit}
                   onStopEdit={messageFocus.onStopEdit}
+                  onToggleMoreMenu={messageFocus.onToggleMoreMenu}
+                  onToggleReactionPicker={messageFocus.onToggleReactionPicker}
+                  reactionPickerTs={messageFocus.reactionPickerTs}
                 />
                 <Show when={store.messages.hasNewerHistoryError(v().id)}>
-                  <div class="message-list-load-error">
+                  <div class="message-list-load-error flex-center">
                     <span>Couldn't load newer messages.</span>
                     <Button onClick={() => void loadNewerMessages(v().id)} size="sm">
                       Try again

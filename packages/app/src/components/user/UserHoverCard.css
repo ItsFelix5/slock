@@ -4,12 +4,12 @@
 
 .user-hovercard {
   gap: 10px;
-  padding: 12px 14px;
+  padding: var(--space-md) 14px;
 }
 
 .user-hovercard-top {
   display: flex;
-  gap: 12px;
+  gap: var(--space-md);
   align-items: flex-start;
 }
 
@@ -50,32 +50,21 @@
 }
 
 .user-hovercard-heading {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
 .user-hovercard-name {
-  display: flex;
   gap: 6px;
-  align-items: center;
   min-width: 0;
   overflow: hidden;
-  font-size: 16px;
+  font-size: var(--font-size-heading-xs);
   font-weight: 800;
   white-space: nowrap;
 }
 
 .user-hovercard-name-label {
   flex-shrink: 0;
-}
-
-.user-hovercard-name .pronouns {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .user-hovercard-title {

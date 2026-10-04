@@ -1,10 +1,10 @@
 import type { AvatarUser, useContextMenu } from "@slock/ui";
-import { Avatar, openContextMenuFromKeyboard, Tooltip } from "@slock/ui";
+import { Avatar, Tooltip } from "@slock/ui";
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
-import { isRealUserId } from "../../messages/parts/messageRenderState";
 import { SplitNavigation } from "../../navigation/SplitNavigation";
 import { ClickableAuthorName } from "../../user/AppBadge";
+import { isRealUserId } from "./messageAuthor";
 import "./ResultMessageCard.css";
 
 export default function ResultMessageCard(props: {
@@ -31,7 +31,6 @@ export default function ResultMessageCard(props: {
           data-nav-row={props.navRow ? true : undefined}
           onClick={props.onOpen}
           onContextMenu={props.ctxMenu?.open}
-          onKeyDown={(e) => props.ctxMenu && openContextMenuFromKeyboard(e, props.ctxMenu.openAt)}
           tabIndex={props.navRow ? props.tabIndex : undefined}
           type="button"
         >
@@ -52,7 +51,7 @@ export default function ResultMessageCard(props: {
                 </Show>
               </span>
               <Show when={props.context}>
-                <span class="result-message-card-context">{props.context}</span>
+                <span class="result-message-card-context flex-align-center">{props.context}</span>
               </Show>
               <Show when={props.time}>
                 <Show
@@ -70,7 +69,7 @@ export default function ResultMessageCard(props: {
         </button>
       </SplitNavigation>
       <Show when={props.trailing}>
-        <div class="result-message-card-trailing">{props.trailing}</div>
+        <div class="result-message-card-trailing flex-align-center">{props.trailing}</div>
       </Show>
     </div>
   );

@@ -1,6 +1,6 @@
+import type { Channel, DirectMessage, Message } from "@slock/types";
 import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { Channel, DirectMessage, Message } from "../../../api";
 import { markChannelRead, markThreadRead } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 import { isDmId } from "../entities/dms";
@@ -44,6 +44,18 @@ export function createUnreadSlice(deps: {
   const isChannelGoneError = (error: unknown) =>
     error instanceof Error && error.message === "channel_not_found";
 
+  const sentReadTs: Record<string, { all: Set<string>; latest: string }> = {};
+  function recordSentRead({ channelId, ts }: { channelId: string; ts: string }) {
+    const sent = sentReadTs[channelId] ?? { all: new Set(), latest: ts };
+    sentReadTs[channelId] = sent;
+    sent.all.add(ts);
+    sent.latest = ts;
+  }
+  function isStaleReadEcho(channelId: string, ts: string) {
+    const sent = sentReadTs[channelId];
+    return !!sent && sent.all.has(ts) && sent.latest !== ts;
+  }
+
   const channelReadSync = createLatestValueSync<{
     channelId: string;
     ts: string;
@@ -77,10 +89,12 @@ export function createUnreadSlice(deps: {
   });
 
   function syncChannelRead(channelId: string, ts: string): Promise<boolean> {
+    recordSentRead({ channelId, ts });
     return channelReadSync.requestLatest({ channelId, ts });
   }
 
   function setChannelRead(channelId: string, ts: string): Promise<boolean> {
+    recordSentRead({ channelId, ts });
     return channelReadSync.force({ channelId, ts });
   }
 
@@ -160,10 +174,15 @@ export function createUnreadSlice(deps: {
         const list = readDeps.messagesByChannel[view.id];
         const latest = list?.[list.length - 1];
         if (!latest || latest.id.startsWith("pending-")) continue;
-        if (lastMarkedReadTs[view.id] === latest.ts) continue;
+        if (lastMarkedReadTs[view.id] === latest.ts) {
+          if (unreadChannelIds[view.id]) clearChannelUnread(view.id);
+          continue;
+        }
         lastMarkedReadTs[view.id] = latest.ts;
         clearChannelUnread(view.id);
-        setLastReadByChannel(view.id, parseFloat(latest.ts) * 1000);
+        const latestMs = parseFloat(latest.ts) * 1000;
+        if (latestMs <= (lastReadByChannel[view.id] ?? 0)) continue;
+        setLastReadByChannel(view.id, latestMs);
         void syncChannelRead(view.id, latest.ts).then((synced) => {
           if (!synced && lastMarkedReadTs[view.id] === latest.ts) delete lastMarkedReadTs[view.id];
         });
@@ -194,6 +213,7 @@ export function createUnreadSlice(deps: {
   return {
     clearChannelUnread,
     isChannelUnread,
+    isStaleReadEcho,
     lastReadByChannel,
     lastReadFor,
     setLastReadByChannel,

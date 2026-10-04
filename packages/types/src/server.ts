@@ -29,29 +29,37 @@ function hasError(data: unknown): data is { error: string } {
   );
 }
 
-async function readResponse<T>(res: Response): Promise<T> {
-  const responseBody: any = await res.text();
-  let data: any;
+export type ApiFailure = { error?: string; ok: false; retry_after?: string };
+export type ApiReply<T extends object = object> = (T & { ok: true }) | ApiFailure;
+
+function parseBody(responseBody: string, res: Response) {
   try {
-    data = JSON.parse(responseBody);
+    return JSON.parse(responseBody);
   } catch (error) {
-    if (!res.ok) {
-      throw new Error(responseBody || `request failed with ${res.status} ${res.statusText}`, {
-        cause: error,
-      });
-    }
-    return responseBody;
+    throw new Error(
+      res.ok
+        ? "expected a JSON response"
+        : responseBody || `request failed with ${res.status} ${res.statusText}`,
+      { cause: error },
+    );
   }
+}
+
+async function readResponse<T extends object>(res: Response): Promise<ApiReply<T>> {
+  const responseBody = await res.text();
+  const data = parseBody(responseBody, res);
+  if (hasError(data) && data.error === "not_configured" && isConfigured()) return forceReauth();
   if (!(res.ok || hasError(data))) {
     throw new Error(`request failed with ${res.status} ${res.statusText}: ${responseBody}`);
   }
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    return { ...data, ok: res.ok };
-  }
-  return data;
+  return { ...data, ok: res.ok };
 }
 
-async function request<T = any>(method: string, path: string, requestBody?: unknown): Promise<T> {
+async function request<T extends object>(
+  method: string,
+  path: string,
+  requestBody?: unknown,
+): Promise<ApiReply<T>> {
   const res = await fetch(path, {
     method,
     ...(requestBody === undefined
@@ -64,23 +72,38 @@ async function request<T = any>(method: string, path: string, requestBody?: unkn
   return readResponse<T>(res);
 }
 
-export function apiGet<T = any>(path: string): Promise<T> {
+export function apiGet<T extends object = object>(path: string): Promise<ApiReply<T>> {
   return request<T>("GET", path);
 }
-export function apiPost<T = any>(path: string, body: unknown = {}): Promise<T> {
+export function apiPost<T extends object = object>(
+  path: string,
+  body: unknown = {},
+): Promise<ApiReply<T>> {
   return request<T>("POST", path, body);
 }
-export function apiPut<T = any>(path: string, body: unknown = {}): Promise<T> {
+export function apiPut<T extends object = object>(
+  path: string,
+  body: unknown = {},
+): Promise<ApiReply<T>> {
   return request<T>("PUT", path, body);
 }
-export function apiPatch<T = any>(path: string, body: unknown = {}): Promise<T> {
+export function apiPatch<T extends object = object>(
+  path: string,
+  body: unknown = {},
+): Promise<ApiReply<T>> {
   return request<T>("PATCH", path, body);
 }
-export function apiDelete<T = any>(path: string, body?: unknown): Promise<T> {
+export function apiDelete<T extends object = object>(
+  path: string,
+  body?: unknown,
+): Promise<ApiReply<T>> {
   return request<T>("DELETE", path, body);
 }
 
-export async function apiUpload<T = any>(path: string, file: File): Promise<T> {
+export async function apiUpload<T extends object = object>(
+  path: string,
+  file: File,
+): Promise<ApiReply<T>> {
   const res = await fetch(path, {
     body: file,
     headers: file.type ? { "content-type": file.type } : undefined,
@@ -147,7 +170,17 @@ export async function submitAuthRequest(raw: unknown): Promise<{ ok: boolean; er
 
 export async function logout(): Promise<void> {
   cachedInfo = undefined;
+  const activeId = getActiveAccountId();
+  if (activeId) forgetAccount(activeId);
+  else clearActiveAccountId();
   await fetch("/api/session", { method: "DELETE" }).catch(() => {});
+}
+
+export function forceReauth(): Promise<never> {
+  return logout().then(() => {
+    location.reload();
+    return new Promise<never>(() => {});
+  });
 }
 
 export type StoredAccount = {

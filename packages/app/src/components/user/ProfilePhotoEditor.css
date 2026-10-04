@@ -3,7 +3,7 @@
 }
 
 .profile-photo-editor-content {
-  padding: 18px 22px 12px;
+  padding: 18px 22px var(--space-md);
 }
 
 .profile-photo-editor-stage {
@@ -19,17 +19,12 @@
 }
 
 .profile-photo-editor-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   object-fit: contain;
   pointer-events: none;
 }
 
 .profile-photo-editor-crop {
   position: absolute;
-  box-sizing: border-box;
   cursor: grab;
   border: 2px solid var(--media-editor-control);
 }
@@ -74,12 +69,12 @@
 }
 
 .profile-photo-editor-error {
-  margin: 12px 0 0;
-  font-size: 12px;
+  margin: var(--space-md) 0 0;
+  font-size: var(--font-size-meta);
   color: var(--danger);
 }
 
 .profile-photo-editor-actions {
-  padding: 12px 16px;
+  padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--border);
 }

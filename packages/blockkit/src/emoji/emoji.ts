@@ -26,8 +26,7 @@ const STANDARD_EMOJI: Record<string, string> = {};
 
 const STANDARD_EMOJI_LIST: StandardEmoji[] = [];
 const canonicalByName = new Map<string, StandardEmoji>();
-const emojiRecords: any = emojiData;
-const entries: EmojiEntry[] = Object.values(emojiRecords);
+const entries: EmojiEntry[] = Object.values(emojiData);
 for (const entry of entries) {
   const glyph = hexCodepointsToEmoji(entry.unicode);
   if (glyph) {

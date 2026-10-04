@@ -1,16 +1,15 @@
 import { EmojiText } from "@slock/blockkit";
+import type { Reaction } from "@slock/types";
 import {
   AvatarStack,
   ContextMenu,
   DEFAULT_AVATAR_COLOR,
   Icon,
   MenuItem,
-  openContextMenuFromKeyboard,
   Tooltip,
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, createSignal, For, lazy, Show } from "solid-js";
-import type { Reaction } from "../../../lib/api";
 import { formatInteractorNames } from "../../../lib/displayName";
 import { actionFeedback } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
@@ -72,7 +71,6 @@ export default function ReactionRow(props: {
                     props.onToggle(r.name);
                   }}
                   onContextMenu={(e) => ctxMenu.open(e)}
-                  onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
                   type="button"
                 >
                   <EmojiText text={`:${r.name}:`} />

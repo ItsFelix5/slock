@@ -31,7 +31,7 @@ export function AvatarImage(props: { alt?: string; avatarUrl: string | undefined
       <Show when={props.avatarUrl && !imageFailed()}>
         <img
           alt={props.alt ?? ""}
-          class="avatar-img"
+          class="avatar-img fill"
           fetchpriority="low"
           loading="lazy"
           onError={() => setImageFailed(true)}

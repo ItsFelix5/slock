@@ -1,8 +1,8 @@
+import type { Message, MessageShortcut } from "@slock/types";
 import { Button, debugMode, fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { isMine, type Message, type MessageShortcut } from "../../../lib/api";
+import { isMine } from "../../../lib/api";
 import { copyMessageLink, REMINDER_OPTIONS, remindAboutMessage } from "../../../lib/messageLinks";
-import { threadContainsMessage } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
 import { confirmAndDeleteMessage, copyMessageText, showMessageDebugInfo } from "../messageActions";
 
@@ -60,7 +60,10 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
 
   const isPinned = () => store.pinned.isMessagePinned(props.channelId, props.msg.ts);
   const canBroadcast = () =>
-    !!props.threadTs && props.threadTs !== props.msg.ts && !props.msg.isBroadcast;
+    !!props.threadTs &&
+    props.threadTs !== props.msg.ts &&
+    !props.msg.isBroadcast &&
+    isMine(props.msg);
 
   const close = () => {
     setRemindOpen(false);
@@ -84,22 +87,14 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
     store.messages.broadcastThreadReply(props.channelId, props.msg.ts);
   };
 
-  const markUnread = () => {
+  const toggleUnread = () => {
     close();
-    store.messages.markMessageUnread(props.channelId, props.msg.ts, props.threadTs);
+    store.messages.toggleMessageUnread(props.channelId, props.msg.ts, props.threadTs);
   };
 
   const copyText = () => {
     close();
-    void copyMessageText(props.msg, (channelId, ts) =>
-      threadContainsMessage(
-        props.channelId,
-        props.threadTs,
-        store.messages.messagesInThread(props.threadTs ?? "") ?? [],
-        channelId,
-        ts,
-      ),
-    );
+    copyMessageText(props.msg);
   };
 
   const showDebugInfo = () => {
@@ -190,8 +185,10 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
           </Button>
         </form>
       </Menu>
-      <MenuItem icon="mark-as-unread" onClick={markUnread}>
-        Mark unread
+      <MenuItem icon="mark-as-unread" onClick={toggleUnread}>
+        {store.messages.isMessageUnread(props.channelId, props.msg.ts, props.threadTs)
+          ? "Mark read"
+          : "Mark unread"}
       </MenuItem>
       <MenuItem icon="text" onClick={copyText}>
         Copy text
@@ -230,7 +227,7 @@ export default function MessageActionsMenuItems(props: MessageActionsMenuItemsPr
         >
           <input
             autofocus
-            class="search-input"
+            class="text-field"
             onInput={(e) => setShortcutQuery(e.currentTarget.value)}
             placeholder="Search shortcuts"
             type="text"

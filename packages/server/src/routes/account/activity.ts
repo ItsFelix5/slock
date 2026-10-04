@@ -1,12 +1,25 @@
-import { ACTIVITY_FEED_TYPES_PARAM, richTextBlocksToPlainText } from "@slock/types";
+import {
+  ACTIVITY_FEED_TYPES_PARAM,
+  isRecord,
+  type RawActivityEntry,
+  type RawActivityFeedEntry,
+  type RawActivityMessage,
+  type RawCounts,
+  richTextBlocksToPlainText,
+} from "@slock/types";
 import type { Credentials } from "../../auth.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
-import { trimActivityCounts } from "../../trim/slackEntities.ts";
+import type { ActivityFeedReply, SavedListReply } from "../../slackReplies.ts";
+import { trimActivityCounts } from "../../trim/slackChannels.ts";
 import { mutate, type Route, route } from "../router.ts";
 
-function trimActivityMessage(message: any): any {
-  if (!message || typeof message !== "object") return message;
+const MAX_NESTING_DEPTH = 5;
+
+function trimActivityMessage(
+  message: RawActivityMessage | undefined,
+): RawActivityMessage | undefined {
+  if (!message) return message;
   return {
     author_user_id: message.author_user_id,
     bot_id: message.bot_id,
@@ -21,26 +34,27 @@ function trimActivityMessage(message: any): any {
   };
 }
 
-function findActivityMessageReference(value: any, depth = 0): any {
-  if (!(value && typeof value === "object") || depth > 5) return;
-  const channel = value.channel ?? value.channel_id;
-  const ts = value.ts ?? value.message_ts ?? value.latest_ts;
-  if (channel && ts) {
-    return {
-      ...value,
-      channel,
-      ts,
-      user: value.user ?? value.user_id ?? value.latest_user_id,
-    };
-  }
+function isMessageReference(value: Record<string, unknown>): value is RawActivityMessage {
+  return typeof value.channel === "string" && typeof value.ts === "string";
+}
+
+function findActivityMessageReference(value: unknown, depth = 0): RawActivityMessage | undefined {
+  if (!isRecord(value) || depth > MAX_NESTING_DEPTH) return;
+  const reference = {
+    ...value,
+    channel: value.channel ?? value.channel_id,
+    ts: value.ts ?? value.message_ts ?? value.latest_ts,
+    user: value.user ?? value.user_id ?? value.latest_user_id,
+  };
+  if (isMessageReference(reference)) return reference;
   for (const nested of Object.values(value)) {
     const message = findActivityMessageReference(nested, depth + 1);
     if (message) return message;
   }
 }
 
-function findActivityText(value: any, depth = 0): string | undefined {
-  if (!(value && typeof value === "object") || depth > 5) return;
+function findActivityText(value: unknown, depth = 0): string | undefined {
+  if (!isRecord(value) || depth > MAX_NESTING_DEPTH) return;
   for (const candidate of [value.text, value.title, value.description]) {
     if (typeof candidate === "string" && candidate.trim()) return candidate;
   }
@@ -51,19 +65,21 @@ function findActivityText(value: any, depth = 0): string | undefined {
 }
 
 async function fetchReminderTexts(
-  rawItems: any[],
+  rawItems: RawActivityFeedEntry[],
   creds: Credentials | null,
 ): Promise<Map<string, string>> {
   const ids = [
     ...new Set(
-      rawItems
-        .filter((raw) => raw?.item?.type === "saved_reminder" && raw.item.linked_item_id)
-        .map((raw) => raw.item.linked_item_id),
+      rawItems.flatMap((raw) =>
+        raw.item?.type === "saved_reminder" && raw.item.linked_item_id
+          ? [raw.item.linked_item_id]
+          : [],
+      ),
     ),
   ];
   const texts = new Map<string, string>();
   if (ids.length === 0) return texts;
-  const data = await callSlack(
+  const data = await callSlack<SavedListReply>(
     "saved.get",
     {
       items: JSON.stringify(
@@ -74,71 +90,71 @@ async function fetchReminderTexts(
   );
   if (!data.ok) return texts;
   for (const savedItem of data.saved_items ?? []) {
-    const blocks = savedItem?.description;
-    if (savedItem?.item_id && Array.isArray(blocks))
-      texts.set(savedItem.item_id, richTextBlocksToPlainText(blocks));
+    if (savedItem.item_id && savedItem.description)
+      texts.set(savedItem.item_id, richTextBlocksToPlainText(savedItem.description));
   }
   return texts;
 }
 
-function trimActivityItem(raw: any, reminderTexts: Map<string, string>): any {
-  const item = raw?.item ?? {};
+function trimActivityEntry(entry: RawActivityEntry): RawActivityEntry {
+  return {
+    ...trimActivityMessage(entry),
+    channel_id: entry.channel_id,
+    latest_message: trimActivityMessage(entry.latest_message),
+    latest_msg: trimActivityMessage(entry.latest_msg),
+    latest_reply_actor_user_id: entry.latest_reply_actor_user_id,
+    latest_reply_user_id: entry.latest_reply_user_id,
+    latest_ts: entry.latest_ts,
+    latest_user_id: entry.latest_user_id,
+    message: trimActivityMessage(entry.message),
+    unread_msg_count: entry.unread_msg_count,
+    user_id: entry.user_id,
+  };
+}
+
+function trimActivityItem(
+  raw: RawActivityFeedEntry,
+  reminderTexts: Map<string, string>,
+): RawActivityFeedEntry {
+  const item = raw.item ?? {};
   const reminderText =
-    item.type === "saved_reminder" ? reminderTexts.get(item.linked_item_id) : undefined;
+    item.type === "saved_reminder" && item.linked_item_id
+      ? reminderTexts.get(item.linked_item_id)
+      : undefined;
   const payload = item.bundle_info?.payload;
-  const thread = payload?.thread_entry;
-  const dmEntry = payload?.dm_entry;
-  const channelEntry = payload?.channel_entry;
   const quietlyAdded = item.quietly_added_to_channel_payload;
   const hasBundlePayload =
-    thread || dmEntry || channelEntry || payload?.message || payload?.latest_message;
+    payload?.thread_entry ||
+    payload?.dm_entry ||
+    payload?.channel_entry ||
+    payload?.message ||
+    payload?.latest_message;
   const message = item.message ?? findActivityMessageReference(item);
   return {
-    feed_ts: raw?.feed_ts,
-    is_unread: raw?.is_unread,
+    feed_ts: raw.feed_ts,
+    is_unread: raw.is_unread,
     item: {
       activity_text: reminderText ?? findActivityText(item),
       actor_user_id: item.actor_user_id,
       author_user_id: item.author_user_id,
-      bundle_info: hasBundlePayload
-        ? {
-            payload: {
-              channel_entry: channelEntry
-                ? {
-                    ...trimActivityMessage(channelEntry),
-                    channel_id: channelEntry.channel_id,
-                    latest_message: trimActivityMessage(channelEntry.latest_message),
-                    latest_ts: channelEntry.latest_ts,
-                    latest_user_id: channelEntry.latest_user_id,
-                    message: trimActivityMessage(channelEntry.message),
-                    user_id: channelEntry.user_id,
-                  }
-                : undefined,
-              dm_entry: dmEntry
-                ? {
-                    latest_message: trimActivityMessage(dmEntry.latest_message),
-                  }
-                : undefined,
-              latest_message: trimActivityMessage(payload.latest_message),
-              message: trimActivityMessage(payload.message),
-              thread_entry: thread
-                ? {
-                    channel_id: thread.channel_id,
-                    latest_message: trimActivityMessage(thread.latest_message),
-                    latest_msg: trimActivityMessage(thread.latest_msg),
-                    latest_reply_actor_user_id: thread.latest_reply_actor_user_id,
-                    latest_reply_user_id: thread.latest_reply_user_id,
-                    latest_ts: thread.latest_ts,
-                    latest_user_id: thread.latest_user_id,
-                    message: trimActivityMessage(thread.message),
-                    thread_ts: thread.thread_ts,
-                    unread_msg_count: thread.unread_msg_count,
-                    user_id: thread.user_id,
-                  }
-                : undefined,
-            },
-          }
-        : undefined,
+      bundle_info:
+        payload && hasBundlePayload
+          ? {
+              payload: {
+                channel_entry: payload.channel_entry
+                  ? trimActivityEntry(payload.channel_entry)
+                  : undefined,
+                dm_entry: payload.dm_entry
+                  ? { latest_message: trimActivityMessage(payload.dm_entry.latest_message) }
+                  : undefined,
+                latest_message: trimActivityMessage(payload.latest_message),
+                message: trimActivityMessage(payload.message),
+                thread_entry: payload.thread_entry
+                  ? trimActivityEntry(payload.thread_entry)
+                  : undefined,
+              },
+            }
+          : undefined,
       channel: item.channel,
       channel_id: item.channel_id,
       invite: item.invite,
@@ -160,33 +176,33 @@ function trimActivityItem(raw: any, reminderTexts: Map<string, string>): any {
       user: item.user,
       user_id: item.user_id,
     },
-    key: raw?.key,
+    key: raw.key,
   };
 }
 
 export const activityRoutes: Route[] = [
   route("POST", "activity/archive", async (ctx) => {
-    const { key, ts, type } = await (ctx.body.json() as Promise<{
+    const { key, ts, type } = await ctx.body.json<{
       key?: string;
       ts?: string;
       type?: string;
-    }>);
+    }>();
     if (!(key && ts && type)) return errorResponse("invalid_activity_entry", 400);
     return mutate("activity.archive", { key, ts, type }, ctx);
   }),
 
   route("POST", "activity/read", async (ctx) => {
-    const { feedTs, key, type } = await (ctx.body.json() as Promise<{
+    const { feedTs, key, type } = await ctx.body.json<{
       feedTs?: string;
       key?: string;
       type?: string;
-    }>);
+    }>();
     if (!(feedTs && key && type)) return errorResponse("invalid_activity_entry", 400);
     return mutate("activity.markRead", { feed_ts: feedTs, key, type }, ctx);
   }),
 
   route("GET", "activity/counts", async (ctx) => {
-    const data = await callSlack("client.counts", {}, ctx.creds);
+    const data = await callSlack<RawCounts>("client.counts", {}, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "client.counts", ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
       { activityCounts: trimActivityCounts(data.activity_v2), ok: true },
@@ -200,7 +216,7 @@ export const activityRoutes: Route[] = [
     const cursor = ctx.searchParams.get("cursor") ?? undefined;
     const types = ctx.searchParams.get("types") ?? ACTIVITY_FEED_TYPES_PARAM;
     const unreadOnly = ctx.searchParams.get("unreadOnly") === "true";
-    const data = await callSlack(
+    const data = await callSlack<ActivityFeedReply>(
       "activity.feed",
       {
         archive_only: "false",
@@ -218,7 +234,7 @@ export const activityRoutes: Route[] = [
       ctx.creds,
     );
     if (!data.ok) return slackErrorResponse(data, "activity.feed", ctx.creds, ctx.acceptEncoding);
-    const rawItems: any[] = Array.isArray(data.items) ? data.items : [];
+    const rawItems = data.items ?? [];
     const reminderTexts = await fetchReminderTexts(rawItems, ctx.creds);
     return jsonResponse(
       {

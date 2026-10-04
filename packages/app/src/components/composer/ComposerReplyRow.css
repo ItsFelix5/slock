@@ -1,0 +1,32 @@
+.composer-reply-row {
+  gap: var(--space-xs);
+  padding: 2px 2px 2px var(--space-sm);
+  margin: var(--space-xs) 0 2px;
+  background: var(--hover-bg);
+  border-radius: var(--radius-md);
+}
+
+.composer-reply-row .reply-reference-row {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.composer-reply-row .reply-reference-row::before {
+  display: none;
+}
+
+.composer-reply-row .reply-reference-row > .icon {
+  color: var(--accent);
+}
+
+.composer-reply-cancel {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  border-radius: var(--radius-control);
+}
+
+.composer-reply-cancel:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}

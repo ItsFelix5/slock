@@ -1,10 +1,9 @@
+import type { ProfileFieldDef, User } from "@slock/types";
 import { createCopyFeedback, IconButton } from "@slock/ui";
 import { For, Show } from "solid-js";
-import type { ProfileFieldDef, User } from "../../lib/api";
+import UserProfileFieldValue from "./UserProfileFieldValue";
 import { formatStartDate } from "./userProfileTime";
 import "./UserProfileContact.css";
-
-const URL_VALUE_RE = /^https?:\/\/\S+$/i;
 
 type CustomField = { label: string; value: string; alt?: string; type?: string };
 export default function UserProfileContact(props: {
@@ -17,7 +16,6 @@ export default function UserProfileContact(props: {
   isSavingField: (id: string) => boolean;
   setValue: (id: string, value: string) => void;
   saveField: (id: string) => void;
-  onKeyDown: (event: KeyboardEvent & { currentTarget: HTMLElement }) => void;
 }) {
   const [copiedKey, copy] = createCopyFeedback();
   return (
@@ -63,7 +61,7 @@ export default function UserProfileContact(props: {
                   id={`profile-field-${field.id}`}
                   onBlur={() => props.saveField(field.id)}
                   onInput={(event) => props.setValue(field.id, event.currentTarget.value)}
-                  onKeyDown={props.onKeyDown}
+                  data-commit-on-enter
                   type={field.type === "date" ? "date" : "text"}
                   value={props.values[field.id] ?? ""}
                 />
@@ -77,48 +75,42 @@ export default function UserProfileContact(props: {
           {(field) => (
             <div class="user-profile-field">
               <div class="user-profile-field-label text-muted">{field.label}</div>
-              <Show
-                fallback={
-                  <Show
-                    fallback={
-                      <div class="user-profile-field-value">{field.alt || field.value}</div>
-                    }
-                    when={URL_VALUE_RE.test(field.value)}
-                  >
-                    <a
-                      class="user-profile-field-value user-profile-field-link"
-                      href={field.value}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      {field.alt || field.value}
-                    </a>
-                  </Show>
-                }
-                when={field.type === "date"}
-              >
-                <div class="user-profile-field-value">
-                  {formatStartDate(field.value) ?? field.value}
-                </div>
-              </Show>
+              <UserProfileFieldValue alt={field.alt} type={field.type} value={field.value} />
             </div>
           )}
         </For>
       </Show>
-      <div class="user-profile-field">
-        <div class="user-profile-field-label text-muted">User ID</div>
-        <div class="user-profile-copyable-value">
-          <code class="user-profile-field-value">{props.user.id}</code>
-          <IconButton
-            class="user-profile-copy-btn"
-            icon={copiedKey() === props.user.id ? "check" : "copy"}
-            iconSize={15}
-            label={copiedKey() === props.user.id ? "Copied" : "Copy user ID"}
-            onClick={() => void copy(props.user.id, props.user.id)}
-            size="sm"
-          />
-        </div>
-      </div>
+      <For
+        each={[
+          {
+            label: "User ID",
+            value: props.user.id === props.user.botId ? undefined : props.user.id,
+          },
+          { label: "Bot ID", value: props.user.botId },
+          { label: "App ID", value: props.user.appId },
+        ]}
+      >
+        {(entry) => (
+          <Show when={entry.value}>
+            {(value) => (
+              <div class="user-profile-field">
+                <div class="user-profile-field-label text-muted">{entry.label}</div>
+                <div class="user-profile-copyable-value flex-align-center gap-xs">
+                  <code class="user-profile-field-value truncate">{value()}</code>
+                  <IconButton
+                    class="user-profile-copy-btn"
+                    icon={copiedKey() === value() ? "check" : "copy"}
+                    iconSize={15}
+                    label={copiedKey() === value() ? "Copied" : `Copy ${entry.label}`}
+                    onClick={() => void copy(value(), value())}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
+          </Show>
+        )}
+      </For>
     </div>
   );
 }

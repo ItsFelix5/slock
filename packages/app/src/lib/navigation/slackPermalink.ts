@@ -11,20 +11,12 @@ export interface SlackPermalinkTarget {
 }
 
 export interface SlackPermalinkNavigator {
-  openChannelMessage: (channelId: string, ts: string, options?: { keepNav?: boolean }) => void;
-  openChannelPeek: (
-    channelId: string,
-    threadTs: string,
-    highlightTs?: string,
-    options?: { keepNav?: boolean },
-  ) => void;
+  openChannelMessage: (channelId: string, ts: string) => void;
+  openChannelPeek: (channelId: string, threadTs: string, highlightTs?: string) => void;
 }
 
 export interface SlackPermalinkOpenerDeps {
-  navigate: (
-    target: SlackPermalinkTarget,
-    options?: { keepNav?: boolean; split?: boolean },
-  ) => void;
+  navigate: (target: SlackPermalinkTarget, options?: { split?: boolean }) => void;
   onError: (error: unknown) => void;
   onUnavailable: () => void;
   probe: (target: SlackPermalinkTarget) => Promise<boolean>;
@@ -37,10 +29,7 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
     requestId++;
   }
 
-  async function open(
-    target: SlackPermalinkTarget,
-    options?: { keepNav?: boolean; split?: boolean },
-  ) {
+  async function open(target: SlackPermalinkTarget, options?: { split?: boolean }) {
     const currentRequestId = ++requestId;
     try {
       const available = await deps.probe(target);
@@ -61,13 +50,12 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
 export function navigateToSlackPermalink(
   target: SlackPermalinkTarget,
   navigator: SlackPermalinkNavigator,
-  options?: { keepNav?: boolean },
 ) {
   if (target.threadTs !== target.messageTs) {
-    navigator.openChannelPeek(target.channelId, target.threadTs, target.messageTs, options);
+    navigator.openChannelPeek(target.channelId, target.threadTs, target.messageTs);
     return;
   }
-  navigator.openChannelMessage(target.channelId, target.messageTs, options);
+  navigator.openChannelMessage(target.channelId, target.messageTs);
 }
 
 export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {

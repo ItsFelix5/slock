@@ -7,8 +7,7 @@ export function isOneOf<T extends string>(value: string, options: readonly T[]):
 }
 
 export function objectKeys<T extends object>(obj: T): (keyof T)[] {
-  const keys: any = Object.keys(obj);
-  return keys;
+  return Object.keys(obj).filter((key): key is Extract<keyof T, string> => key in obj);
 }
 
 export type IconName = keyof typeof ICONS;

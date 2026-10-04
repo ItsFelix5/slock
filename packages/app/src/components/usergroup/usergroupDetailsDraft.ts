@@ -1,4 +1,4 @@
-import type { UsergroupDetails } from "../../lib/api";
+import type { UsergroupDetails } from "@slock/types";
 
 export type UsergroupDetailsDraft = Pick<UsergroupDetails, "title" | "handle" | "description">;
 export type EditableUsergroupDetails = UsergroupDetailsDraft & Pick<UsergroupDetails, "id">;

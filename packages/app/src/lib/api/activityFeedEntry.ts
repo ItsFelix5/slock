@@ -1,4 +1,11 @@
-import type { ACTIVITY_FEED_TYPES, ActivityItem, FeedEntry } from "@slock/types";
+import type {
+  ACTIVITY_FEED_TYPES,
+  ActivityItem,
+  FeedEntry,
+  RawActivityFeedEntry,
+  RawActivityItem,
+  RawActivityMessage,
+} from "@slock/types";
 import { mapMessage } from "@slock/types";
 
 const ACTIVITY_TYPE_KINDS = {
@@ -53,32 +60,27 @@ export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = 
   },
 );
 
-function rawMessageText(message: any): string | undefined {
-  return typeof message?.text === "string" ? message.text : undefined;
-}
-
-function rawMessageUserId(message: any): string | undefined {
-  return message?.user ?? message?.author_user_id ?? message?.bot_id ?? undefined;
+function rawMessageUserId(message: RawActivityMessage | undefined): string | undefined {
+  return message?.user ?? message?.author_user_id ?? message?.bot_id;
 }
 
 function rawMessageAuthor(
-  message: any,
+  message: RawActivityMessage | undefined,
   userId: string,
-): Pick<ActivityItem, "botIcon" | "botId" | "botName" | "sourceUserId"> {
-  if (typeof message?.ts !== "string" || rawMessageUserId(message) !== userId) return {};
-  const { botIcon, botId, botName, sourceUserId } = mapMessage(message);
-  return { botIcon, botId, botName, sourceUserId };
+): Pick<ActivityItem, "botIcon" | "botId" | "botName"> {
+  if (!message?.ts || rawMessageUserId(message) !== userId) return {};
+  const { botIcon, botId, botName } = mapMessage({ ...message, ts: message.ts });
+  return { botIcon, botId, botName };
 }
 
-function rawActivityUserId(item: any): string | undefined {
+function rawActivityUserId(item: RawActivityItem): string | undefined {
   return (
-    item?.latest_reply_actor_user_id ??
-    item?.actor_user_id ??
-    item?.author_user_id ??
-    item?.latest_user_id ??
-    item?.user ??
-    item?.user_id ??
-    undefined
+    item.latest_reply_actor_user_id ??
+    item.actor_user_id ??
+    item.author_user_id ??
+    item.latest_user_id ??
+    item.user ??
+    item.user_id
   );
 }
 
@@ -91,65 +93,67 @@ function channelIdFromFeedKey(key: unknown): string | undefined {
   return key.match(EMBEDDED_CHANNEL_FEED_KEY_RE)?.[1];
 }
 
-export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
-  const type = raw.item?.type;
-  if (typeof type !== "string") return;
+export function mapFeedEntry(raw: RawActivityFeedEntry, time: number): FeedEntry | undefined {
+  const { item } = raw;
+  const type = item?.type;
+  if (!(item && type)) return;
   const kind = activityKindFor(type);
-  const unread = typeof raw.is_unread === "boolean" ? raw.is_unread : undefined;
-  if (raw.item.type === "message_reaction") {
-    const { message, reaction } = raw.item;
-    if (message && reaction)
-      return {
-        activityType: type,
-        channelId: message.channel,
-        feedTs: String(raw.feed_ts),
-        id: raw.key,
-        kind,
-        reactionName: reaction.name,
-        text: rawMessageText(message),
-        threadTs:
-          message.thread_ts && message.thread_ts !== message.ts ? message.thread_ts : undefined,
-        time,
-        ts: message.ts,
-        unread,
-        userId: reaction.user,
-      };
+  const unread = raw.is_unread;
+  const feedTs = String(raw.feed_ts);
+  const id = String(raw.key ?? `${type}:${raw.feed_ts}`);
+  const { message: reactedMessage, reaction } = item;
+  if (type === "message_reaction" && reactedMessage?.channel && reactedMessage.ts && reaction) {
+    return {
+      activityType: type,
+      channelId: reactedMessage.channel,
+      feedTs,
+      id,
+      kind,
+      reactionName: reaction.name,
+      text: reactedMessage.text,
+      threadTs:
+        reactedMessage.thread_ts && reactedMessage.thread_ts !== reactedMessage.ts
+          ? reactedMessage.thread_ts
+          : undefined,
+      time,
+      ts: reactedMessage.ts,
+      unread,
+      userId: reaction.user ?? "",
+    };
   }
-  if (raw.item.type === "thread_v2") {
-    const thread = raw.item.bundle_info?.payload?.thread_entry;
-    if (thread) {
-      const latestMessage =
-        thread.latest_message ?? thread.latest_msg ?? thread.message ?? raw.item.message;
-      const userId =
-        thread.latest_reply_actor_user_id ??
-        thread.latest_user_id ??
-        thread.latest_reply_user_id ??
-        thread.user_id ??
-        rawMessageUserId(latestMessage) ??
-        rawActivityUserId(raw.item) ??
-        "";
-      return {
-        activityType: type,
-        ...rawMessageAuthor(latestMessage, userId),
-        channelId: thread.channel_id,
-        feedTs: String(raw.feed_ts),
-        id: raw.key,
-        kind,
-        text: rawMessageText(latestMessage) ?? raw.item.activity_text,
-        threadTs: thread.thread_ts,
-        time,
-        ts: thread.latest_ts,
-        unread,
-        unreadCount: thread.unread_msg_count,
-        userId,
-      };
-    }
+  const payload = item.bundle_info?.payload;
+  const thread = payload?.thread_entry;
+  if (type === "thread_v2" && thread) {
+    const latestMessage =
+      thread.latest_message ?? thread.latest_msg ?? thread.message ?? item.message;
+    const userId =
+      thread.latest_reply_actor_user_id ??
+      thread.latest_user_id ??
+      thread.latest_reply_user_id ??
+      thread.user_id ??
+      rawMessageUserId(latestMessage) ??
+      rawActivityUserId(item) ??
+      "";
+    return {
+      activityType: type,
+      ...rawMessageAuthor(latestMessage, userId),
+      channelId: thread.channel_id ?? "",
+      feedTs,
+      id,
+      kind,
+      text: latestMessage?.text ?? item.activity_text,
+      threadTs: thread.thread_ts,
+      time,
+      ts: thread.latest_ts ?? "",
+      unread,
+      unreadCount: thread.unread_msg_count,
+      userId,
+    };
   }
-  const payload = raw.item.bundle_info?.payload;
   const channelEntry = payload?.channel_entry;
-  const quietlyAdded = raw.item.quietly_added_to_channel_payload;
+  const quietlyAdded = item.quietly_added_to_channel_payload;
   const message =
-    raw.item.message ??
+    item.message ??
     payload?.message ??
     payload?.latest_message ??
     payload?.dm_entry?.latest_message ??
@@ -167,30 +171,30 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     message?.channel ??
     channelEntry?.channel_id ??
     quietlyAdded?.channel_id ??
-    raw.item.channel_id ??
-    raw.item.channel ??
-    raw.item.invite ??
+    item.channel_id ??
+    item.channel ??
+    item.invite ??
     sparseChannelId;
   const ts =
     message?.ts ??
     channelEntry?.latest_ts ??
-    raw.item.message_ts ??
-    raw.item.ts ??
+    item.message_ts ??
+    item.ts ??
     (quietlyAdded?.channel_id ? raw.feed_ts : undefined) ??
     (sparseChannelId ? raw.feed_ts : undefined);
+  const text = message?.text ?? item.activity_text;
   if (!(channelId && ts)) {
-    const text = rawMessageText(message) ?? raw.item.activity_text;
-    const userId = rawMessageUserId(message) ?? rawActivityUserId(raw.item) ?? "";
+    const userId = rawMessageUserId(message) ?? rawActivityUserId(item) ?? "";
     return {
       activityType: type,
       ...rawMessageAuthor(message, userId),
       channelId: "",
-      feedTs: String(raw.feed_ts),
-      id: String(raw.key ?? `${type}:${raw.feed_ts}`),
+      feedTs,
+      id,
       kind,
       text,
       time,
-      ts: String(raw.item?.ts ?? raw.feed_ts ?? raw.key),
+      ts: String(item.ts ?? raw.feed_ts ?? raw.key),
       unread,
       userId,
     };
@@ -199,23 +203,18 @@ export function mapFeedEntry(raw: any, time: number): FeedEntry | undefined {
     rawMessageUserId(message) ??
     channelEntry?.latest_user_id ??
     channelEntry?.user_id ??
-    raw.item.latest_user_id ??
-    rawActivityUserId(raw.item) ??
+    item.latest_user_id ??
+    rawActivityUserId(item) ??
     quietlyAdded?.inviter_user_id ??
     "";
-  const text = rawMessageText(message) ?? raw.item.activity_text;
   return {
     activityType: type,
     ...rawMessageAuthor(message, userId),
     broadcastRange:
-      raw.item.type === "at_everyone"
-        ? "everyone"
-        : raw.item.type === "at_channel"
-          ? "channel"
-          : undefined,
+      type === "at_everyone" ? "everyone" : type === "at_channel" ? "channel" : undefined,
     channelId,
-    feedTs: String(raw.feed_ts),
-    id: raw.key,
+    feedTs,
+    id,
     kind,
     threadTs: message?.thread_ts && message.thread_ts !== ts ? message.thread_ts : undefined,
     time,

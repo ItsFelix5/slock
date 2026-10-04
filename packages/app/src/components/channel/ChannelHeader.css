@@ -5,7 +5,7 @@
   overflow: hidden;
   background: var(--main-bg);
   border-bottom: 1px solid var(--border);
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
   padding: 0 var(--header-padding-inline);
 }
@@ -16,7 +16,7 @@
 
 .channel-header-context {
   flex: 1;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
   overflow: hidden;
 }
@@ -31,9 +31,6 @@
 }
 
 .channel-header-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
   flex: 1;
   min-width: 0;
   min-height: var(--header-action-size);
@@ -46,16 +43,6 @@
 
 .channel-header-title > span {
   min-width: 0;
-}
-
-.channel-header-archived-badge {
-  flex-shrink: 0;
-  padding: 0 var(--space-sm);
-  font-size: var(--font-size-caption);
-  font-weight: 700;
-  color: var(--text-dim);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
 }
 
 .channel-header-title-btn {
@@ -108,17 +95,11 @@
 .channel-header-feedback {
   flex-shrink: 1;
   max-width: 220px;
-  overflow: hidden;
   margin-left: var(--space-sm);
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .channel-header-actions {
-  display: flex;
-  align-items: center;
   flex-shrink: 0;
-  gap: var(--space-xs);
   margin-left: auto;
 }
 

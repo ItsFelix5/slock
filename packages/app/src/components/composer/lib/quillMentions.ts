@@ -1,34 +1,46 @@
-import { decodeTextEntities, encodeTextEntities } from "@slock/blockkit";
+import {
+  encodeTextEntities,
+  messageLinkLabel,
+  parseArchiveLink,
+  parseUserProfileLink,
+} from "@slock/blockkit";
 import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/types";
 import { getEmbedBlot, INLINE_MARKS } from "@slock/ui";
 import Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
 import { type DateValue, dateMrkdwn, dateValue } from "./dateEmbed";
-import { emojiValue, resolvedEmojiName } from "./emojiEmbed";
-import { suggestionText } from "./suggestionController";
-import type { SuggestItem, SuggestState } from "./suggestTypes";
+import { emojiValue } from "./emojiEmbed";
 
-const TRIM_RE = /^(\s*)([\s\S]*?)(\s*)$/;
-const TRAILING_NEWLINE_RE = /\n$/;
-const LEADING_AT_RE = /^@/;
+export function stripLeadingAt(name: string): string {
+  return name.startsWith("@") ? name.slice(1) : name;
+}
 
 export interface MentionValue {
-  kind: "user" | "channel" | "special" | "usergroup";
+  kind: "user" | "channel" | "special" | "usergroup" | "userlink" | "messagelink";
   id: string;
   name: string;
 }
 
-const MENTION_KINDS: MentionValue["kind"][] = ["user", "channel", "special", "usergroup"];
+const MENTION_KINDS: MentionValue["kind"][] = [
+  "user",
+  "channel",
+  "special",
+  "usergroup",
+  "userlink",
+  "messagelink",
+];
+
+export function isMentionKind(kind: unknown): kind is MentionValue["kind"] {
+  return MENTION_KINDS.some((candidate) => candidate === kind);
+}
 
 function mentionValue(value: unknown): MentionValue | undefined {
   if (!(value && typeof value === "object" && "kind" in value && "id" in value && "name" in value))
     return;
   const { kind, id, name } = value;
-  return MENTION_KINDS.includes(kind as MentionValue["kind"]) &&
-    typeof id === "string" &&
-    typeof name === "string"
-    ? { id, kind: kind as MentionValue["kind"], name }
+  return isMentionKind(kind) && typeof id === "string" && typeof name === "string"
+    ? { id, kind, name }
     : undefined;
 }
 
@@ -37,6 +49,8 @@ export const MENTION_PREFIX: Record<MentionValue["kind"], string> = {
   special: "@",
   user: "@",
   usergroup: "@",
+  userlink: "@",
+  messagelink: "",
 };
 
 class MentionBlot extends getEmbedBlot() {
@@ -44,9 +58,20 @@ class MentionBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: MentionValue) {
+    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
     const node = super.create(value);
     if (!(node instanceof HTMLElement)) throw new Error("mention blot produced a non-element node");
-    node.className = value.kind === "special" ? "bk-mention bk-mention-broadcast" : "bk-mention";
+    const isSelf =
+      (value.kind === "user" && value.id === store.users.currentUser()?.id) ||
+      (value.kind === "usergroup" && store.usergroups.isSelfMember(value.id));
+    node.className =
+      value.kind === "special"
+        ? "bk-mention bk-mention-broadcast"
+        : value.kind === "userlink" || value.kind === "messagelink"
+          ? "bk-mention bk-mention-link"
+          : isSelf
+            ? "bk-mention bk-mention-self"
+            : "bk-mention";
     node.dataset.kind = value.kind;
     node.dataset.id = value.id;
     node.dataset.name = value.name;
@@ -56,13 +81,30 @@ class MentionBlot extends getEmbedBlot() {
 
   static value(node: HTMLElement): MentionValue | undefined {
     const { kind, id, name } = node.dataset;
-    return kind && MENTION_KINDS.includes(kind as MentionValue["kind"])
-      ? { id: id ?? "", kind: kind as MentionValue["kind"], name: name ?? "" }
-      : undefined;
+    return isMentionKind(kind) ? { id: id ?? "", kind, name: name ?? "" } : undefined;
   }
 }
 
 Quill.register(MentionBlot);
+
+export function linkMentionValue(
+  url: string,
+  label: string,
+  authorId?: string,
+): MentionValue | undefined {
+  const userId = parseUserProfileLink(url);
+  if (userId) return { id: userId, kind: "userlink", name: label };
+  const archive = parseArchiveLink(url);
+  if (!archive) return;
+  const channelName = channelDisplayName(
+    store.channels.channelById(archive.channelId),
+    archive.channelId,
+  );
+  if (!archive.isMessage) return { id: archive.channelId, kind: "channel", name: channelName };
+  if (label !== url) return;
+  const authorName = authorId ? store.users.userById(authorId)?.name : undefined;
+  return { id: url, kind: "messagelink", name: messageLinkLabel(channelName, authorName) };
+}
 
 export interface EmbedInsert {
   mention?: MentionValue;
@@ -86,6 +128,11 @@ function embedText(embed: EmbedInsert): string {
     if (embed.mention.kind === "user") return `<@${embed.mention.id}>`;
     if (embed.mention.kind === "special") return `<!${embed.mention.id}>`;
     if (embed.mention.kind === "usergroup") return `<!subteam^${embed.mention.id}>`;
+    if (embed.mention.kind === "userlink") {
+      const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", embed.mention.id);
+      return `<${url}|${embed.mention.name}>`;
+    }
+    if (embed.mention.kind === "messagelink") return `<${embed.mention.id}>`;
     return `<#${embed.mention.id}|${embed.mention.name}>`;
   }
   if (embed.emoji) return `:${embed.emoji}:`;
@@ -147,7 +194,12 @@ export function deltaLines(quill: Quill): DeltaLine[] {
     }
   }
   if (segments.length) lines.push({ blockAttributes: undefined, segments });
+  while (lines.length && isTrailingBlankLine(lines[lines.length - 1])) lines.pop();
   return lines;
+}
+
+function isTrailingBlankLine(line: DeltaLine): boolean {
+  return line.segments.length === 0 && !line.blockAttributes;
 }
 
 export function rawLineText(line: DeltaLine): string {
@@ -155,10 +207,11 @@ export function rawLineText(line: DeltaLine): string {
 }
 
 function wrapDelimited(text: string, delimiter: string): string {
-  const match = text.match(TRIM_RE);
-  if (!match) return text;
-  const [, lead, core, trail] = match;
-  return core ? `${lead}${delimiter}${core}${delimiter}${trail}` : text;
+  const core = text.trim();
+  if (!core) return text;
+  const lead = text.slice(0, text.length - text.trimStart().length);
+  const trail = text.slice(lead.length + core.length);
+  return `${lead}${delimiter}${core}${delimiter}${trail}`;
 }
 
 function inlineFormattedLineText(line: DeltaLine): string {
@@ -181,7 +234,8 @@ export function mrkdwnText(quill: Quill): string {
   let listCounter = 0;
   let codeBlock: string[] | null = null;
   const flushCodeBlock = () => {
-    if (codeBlock) out.push(`\`\`\`${codeBlock.join("\n")}\`\`\``);
+    const code = codeBlock?.join("\n");
+    if (code?.trim()) out.push(`\`\`\`${code}\`\`\``);
     codeBlock = null;
   };
 
@@ -209,124 +263,6 @@ export function mrkdwnText(quill: Quill): string {
     else out.push(text);
   }
   flushCodeBlock();
-  return out.join("\n").replace(TRAILING_NEWLINE_RE, "");
-}
-
-const MENTION_TOKEN_RE =
-  /<@([A-Z0-9]+)>|<#([A-Z0-9]+)(?:\|([^>]*))?>|<!(channel|here)>|<!subteam\^([A-Z0-9]+)(?:\|([^>]*))?>|:([a-zA-Z0-9_+'-]+):|<!date\^(\d+)\^([^|^>]+)\|([^>]*)>|<([^<>@#!][^<>]*)>/g;
-
-export function loadMrkdwnIntoQuill(quill: Quill, text: string): void {
-  quill.setText("\n");
-  if (!text) return;
-  let cursor = 0;
-  let lastIndex = 0;
-  const insertPlain = (segment: string) => {
-    if (!segment) return;
-    const decoded = decodeTextEntities(segment);
-    quill.insertText(cursor, decoded);
-    cursor += decoded.length;
-  };
-  for (const match of text.matchAll(MENTION_TOKEN_RE)) {
-    const [
-      whole,
-      userId,
-      channelId,
-      channelLabel,
-      broadcastRange,
-      usergroupId,
-      usergroupLabel,
-      emojiName,
-      dateTs,
-      dateFormat,
-      dateFallback,
-      linkToken,
-    ] = match;
-    const index = match.index ?? 0;
-    insertPlain(text.slice(lastIndex, index));
-    if (userId) {
-      const name = store.users.userById(userId)?.name ?? userId;
-      quill.insertEmbed(cursor, "mention", { id: userId, kind: "user", name });
-      cursor += 1;
-    } else if (channelId) {
-      const name =
-        channelLabel || channelDisplayName(store.channels.channelById(channelId), channelId);
-      quill.insertEmbed(cursor, "mention", { id: channelId, kind: "channel", name });
-      cursor += 1;
-    } else if (broadcastRange) {
-      quill.insertEmbed(cursor, "mention", {
-        id: broadcastRange,
-        kind: "special",
-        name: broadcastRange,
-      });
-      cursor += 1;
-    } else if (usergroupId) {
-      const name = (
-        usergroupLabel ||
-        store.usergroups.usergroupById(usergroupId)?.name ||
-        ""
-      ).replace(LEADING_AT_RE, "");
-      quill.insertEmbed(cursor, "mention", {
-        id: usergroupId,
-        kind: "usergroup",
-        name: name || usergroupId,
-      });
-      cursor += 1;
-    } else if (emojiName && resolvedEmojiName(emojiName)) {
-      quill.insertEmbed(cursor, "emoji", { name: emojiName });
-      cursor += 1;
-    } else if (dateTs && dateFormat) {
-      quill.insertEmbed(cursor, "date", {
-        fallback: dateFallback ?? "",
-        format: dateFormat,
-        ts: Number(dateTs),
-      });
-      cursor += 1;
-    } else if (linkToken) {
-      const pipeIndex = linkToken.indexOf("|");
-      const url = decodeTextEntities(pipeIndex === -1 ? linkToken : linkToken.slice(0, pipeIndex));
-      const label = decodeTextEntities(
-        pipeIndex === -1 ? linkToken : linkToken.slice(pipeIndex + 1),
-      );
-      quill.insertText(cursor, label, { link: url });
-      cursor += label.length;
-    } else {
-      insertPlain(whole);
-    }
-    lastIndex = index + whole.length;
-  }
-  insertPlain(text.slice(lastIndex));
-}
-
-export function insertSuggestionAt(
-  quill: Quill,
-  start: number,
-  deleteCount: number,
-  item: SuggestItem,
-  kind: SuggestState["kind"],
-): number {
-  quill.deleteText(start, deleteCount);
-  if (item.kind === "user" && kind === "userlink") {
-    const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", item.id);
-    quill.insertText(start, item.name, { link: url });
-    quill.insertText(start + item.name.length, " ");
-    return start + item.name.length + 2;
-  }
-  if (
-    (item.kind === "user" && kind !== "userlink") ||
-    item.kind === "channel" ||
-    item.kind === "special" ||
-    item.kind === "usergroup"
-  ) {
-    quill.insertEmbed(start, "mention", { id: item.id, kind: item.kind, name: item.name });
-    quill.insertText(start + 1, " ");
-    return start + 2;
-  }
-  if (item.kind === "emoji") {
-    quill.insertEmbed(start, "emoji", { name: item.name });
-    quill.insertText(start + 1, " ");
-    return start + 2;
-  }
-  const text = suggestionText(item);
-  quill.insertText(start, text);
-  return start + text.length;
+  const joined = out.join("\n");
+  return joined.endsWith("\n") ? joined.slice(0, -1) : joined;
 }

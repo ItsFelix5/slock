@@ -1,5 +1,5 @@
+import type { Message } from "@slock/types";
 import { createEffect, createSignal } from "solid-js";
-import type { Message } from "../../lib/api";
 import type { ChannelMessageTarget, View } from "../../lib/store";
 import { store } from "../../lib/store";
 import { findUnreadDividerIndex } from "./lib/unreadDivider";
@@ -13,7 +13,28 @@ import {
   waitForMessageElement,
 } from "./scrollAnchor";
 
-const MAX_BACKFILL_LOADS = 5;
+const PIN_MS = 1500;
+
+function pinToRow(
+  container: HTMLElement,
+  isStale: () => boolean,
+  pin: () => void,
+  onStop: () => void,
+) {
+  const observer = new ResizeObserver(() => {
+    if (isStale()) stop();
+    else pin();
+  });
+  const timer = setTimeout(stop, PIN_MS);
+  function stop() {
+    clearTimeout(timer);
+    observer.disconnect();
+    onStop();
+  }
+  observer.observe(container);
+  for (const child of container.children) observer.observe(child);
+  return stop;
+}
 
 export function createMessageListLanding(deps: {
   clearMessageTarget: () => void;
@@ -25,9 +46,9 @@ export function createMessageListLanding(deps: {
   let lastViewId: string | undefined;
   let positionedViewId: string | undefined;
   let landingRun = 0;
+  let pinnedRun = 0;
   let requestedMessageTarget: ReturnType<typeof deps.messageTarget> = null;
   let cancelPendingFlash: (() => void) | undefined;
-  const backfillAttempts: Record<string, number> = {};
 
   const [readyViewId, setReadyViewId] = createSignal<string>();
   const [shouldFollowBottom, setShouldFollowBottom] = createSignal(true);
@@ -51,8 +72,25 @@ export function createMessageListLanding(deps: {
     cancelPendingFlash?.();
     cancelPendingFlash = waitForMessageElement(el, ts, (row) => {
       if (run !== landingRun || deps.paneView()?.id !== viewId) return;
-      row.scrollIntoView({ block: align });
-      if (flash) cancelPendingFlash = flashMessageElement(row);
+      const pin = () => {
+        setShouldFollowBottom(false);
+        row.scrollIntoView({ block: align });
+      };
+      pin();
+      pinnedRun = run;
+      const stopPinning = pinToRow(
+        el,
+        () => run !== landingRun,
+        pin,
+        () => {
+          if (pinnedRun === run) pinnedRun = 0;
+        },
+      );
+      const stopFlash = flash ? flashMessageElement(row) : undefined;
+      cancelPendingFlash = () => {
+        stopPinning();
+        stopFlash?.();
+      };
       setReadyViewId(viewId);
     });
   }
@@ -103,25 +141,9 @@ export function createMessageListLanding(deps: {
   function landOnDividerOrBottom(view: View, msgs: Message[]) {
     const anchor = store.unread.unreadDividerTsForChannel(view.id);
     if (anchor === undefined) return;
-    const readCursorNotYetLoaded = parseFloat(msgs[0].ts) * 1000 > anchor;
-
-    const alreadyAttempted = (backfillAttempts[view.id] ?? 0) >= MAX_BACKFILL_LOADS;
-    let gaveUpBackfill = false;
-    if (readCursorNotYetLoaded && store.messages.hasMoreHistory(view.id)) {
-      if (store.messages.hasOlderHistoryError(view.id)) return;
-      if (store.messages.isLoadingHistory(view.id)) return;
-      if (!alreadyAttempted) {
-        backfillAttempts[view.id] = MAX_BACKFILL_LOADS;
-        store.messages.loadOlderMessagesThrough(view.id, anchor, MAX_BACKFILL_LOADS);
-        return;
-      }
-      gaveUpBackfill = true;
-    }
-
-    delete backfillAttempts[view.id];
     positionedViewId = view.id;
 
-    const dividerIndex = gaveUpBackfill ? -1 : findUnreadDividerIndex(msgs, anchor);
+    const dividerIndex = findUnreadDividerIndex(msgs, anchor);
     const dividerTs = dividerIndex >= 0 ? msgs[dividerIndex]?.ts : undefined;
     if (dividerTs) landOnDivider(view.id, dividerTs);
     else landOnBottom(view.id);
@@ -207,12 +229,15 @@ export function createMessageListLanding(deps: {
     }
   });
 
+  const isPinning = () => pinnedRun !== 0 && pinnedRun === landingRun;
+
   function trackScrollAnchor(viewId: string, anchor: { offset: number; ts: string }) {
     if (readyViewId() === viewId) rememberScrollAnchor(viewId, anchor);
   }
 
   return {
     cancelLanding,
+    isPinning,
     jumpToBeginning,
     jumpToDate,
     jumpToMessage,

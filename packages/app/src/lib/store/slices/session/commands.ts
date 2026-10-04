@@ -1,4 +1,5 @@
-import { addReminder, type Block, runSlashCommand, setChannelTopic } from "../../../api";
+import type { Block } from "@slock/types";
+import { addReminder, runSlashCommand, setChannelTopic } from "../../../api";
 import { actionFeedback, composerFeedbackKey } from "../../../feedback";
 
 const SLASH_COMMAND_RE = /^\/(\S+)\s*(.*)$/s;

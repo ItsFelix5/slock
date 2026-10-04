@@ -1,7 +1,13 @@
 import { slackUploadResponse, uploadCapability } from "../../assets.ts";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
-import { trimFile } from "../../trim/slackEntities.ts";
+import type {
+  FileInfoReply,
+  FileSharesReply,
+  FilesCompleteReply,
+  UploadReservationReply,
+} from "../../slackReplies.ts";
+import { trimFile } from "../../trim/slackMessages.ts";
 import { type Route, route } from "../router.ts";
 
 function flattenShares(sharesRoot: unknown): Record<string, unknown>[] {
@@ -20,12 +26,12 @@ function flattenShares(sharesRoot: unknown): Record<string, unknown>[] {
 export const fileRoutes: Route[] = [
   route("GET", "files/:id/detail", async (ctx) => {
     const [infoData, sharesData] = await Promise.all([
-      callSlack(
+      callSlack<FileInfoReply>(
         "files.info",
         { count: "1000", file: ctx.params.id, include_transcription: "true" },
         ctx.creds,
       ),
-      callSlack("files.getShares", { file_id: ctx.params.id }, ctx.creds),
+      callSlack<FileSharesReply>("files.getShares", { file_id: ctx.params.id }, ctx.creds),
     ]);
     if (!infoData.ok) {
       return slackErrorResponse(infoData, "files.info", ctx.creds, ctx.acceptEncoding);
@@ -46,16 +52,16 @@ export const fileRoutes: Route[] = [
     );
   }),
   route("POST", "files/reserve", async (ctx) => {
-    const params = await (ctx.body.json() as Promise<Record<string, string>>);
+    const params = await ctx.body.json<Record<string, string>>();
     if (!(params.filename && params.length)) return errorResponse("invalid_file", 400);
-    const reservation = await callSlack(
+    const reservation = await callSlack<UploadReservationReply>(
       "files.getUploadURLExternal",
       { filename: params.filename, length: params.length },
       ctx.creds,
     );
-    if (!(reservation.ok && reservation.upload_url && ctx.creds)) {
-      return errorResponse(reservation.error ?? "file reservation failed", 502);
-    }
+    if (!reservation.ok) return errorResponse(reservation.error, 502);
+    if (!(reservation.upload_url && ctx.creds))
+      return errorResponse("file reservation failed", 502);
     const capability = uploadCapability(reservation.upload_url, ctx.creds);
     if (!capability) return errorResponse("invalid_upload_url", 502);
     return jsonResponse(
@@ -73,9 +79,9 @@ export const fileRoutes: Route[] = [
     ),
   ),
   route("POST", "files/complete", async (ctx) => {
-    const data = await callSlack(
+    const data = await callSlack<FilesCompleteReply>(
       "files.completeUploadExternal",
-      await (ctx.body.json() as Promise<Record<string, string>>),
+      await ctx.body.json<Record<string, string>>(),
       ctx.creds,
     );
     if (!data.ok) {
@@ -86,6 +92,7 @@ export const fileRoutes: Route[] = [
         ctx.acceptEncoding,
       );
     }
-    return jsonResponse({}, ctx.creds, ctx.acceptEncoding);
+    const files = data.files?.map(trimFile) ?? [];
+    return jsonResponse({ files }, ctx.creds, ctx.acceptEncoding);
   }),
 ];

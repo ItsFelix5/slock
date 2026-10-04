@@ -1,10 +1,17 @@
 import { formatDuration } from "@slock/blockkit";
-import { ConstrainedImage, Icon, Overlay, PanelHeader, VideoPlayer } from "@slock/ui";
+import { CLOCK_24H, resolveMediaUrl, type SlackFile } from "@slock/types";
+import {
+  ConstrainedImage,
+  constrainMediaDimensions,
+  Icon,
+  Overlay,
+  PanelHeader,
+  VideoPlayer,
+} from "@slock/ui";
 import { createResource, createSignal, For, Match, Show, Switch } from "solid-js";
-import { fetchFileDetail, resolveMediaUrl, type SlackFile } from "../../lib/api";
-import { closeFilesLinksPanel } from "../../lib/filesLinksPanel";
+import { fetchFileDetail } from "../../lib/api";
+import { jumpToFilesLinksMessage } from "../../lib/filesLinksPanel";
 import { openConversationInSplit } from "../../lib/navigation/conversationNav";
-import { store } from "../../lib/store";
 import AudioFile from "../messages/parts/media/AudioFile";
 import { formatSize } from "../messages/parts/media/FileCardInfo";
 import FileViewerTrigger from "../messages/parts/media/FileViewer";
@@ -16,9 +23,8 @@ function formatDateTime(value: number | string | undefined): string {
   const seconds = typeof value === "string" ? Number.parseFloat(value) : value;
   if (!seconds) return "";
   return new Date(seconds * 1000).toLocaleString(undefined, {
+    ...CLOCK_24H,
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
     month: "short",
     year: "numeric",
   });
@@ -29,28 +35,34 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
   const file = () => detail()?.file ?? props.file;
   const [video, setVideo] = createSignal<HTMLVideoElement>();
 
-  const jumpToShare = (channelId: string, ts: string) => {
+  const jumpToShare = (channelId: string, ts: string, threadTs?: string) => {
     props.onClose();
-    closeFilesLinksPanel();
-    store.viewState.openChannelMessage(channelId, ts, { keepNav: true });
+    jumpToFilesLinksMessage(channelId, ts, threadTs);
   };
+
+  const imageDimensions = () =>
+    constrainMediaDimensions(file().width, file().height, 560, 420, 480, 320);
 
   return (
     <Overlay ariaLabel={file().title || file().name} onClose={props.onClose}>
       <div class="file-detail-card flex-col">
         <PanelHeader onClose={props.onClose} title={file().title || file().name} />
         <div class="file-detail-body flex-col">
-          <div class="file-detail-preview">
+          <div class="file-detail-preview flex-center">
             <Switch
               fallback={
                 <Show
                   fallback={
                     <div class="file-detail-fallback flex-col">
-                      <Icon name="file" size={40} />
-                      <span>{detail.error ? "File is no longer available" : "Loading file…"}</span>
+                      <Icon name="trash" size={40} />
+                      <span>
+                        {file().isDeleted || detail.error
+                          ? "File is no longer available"
+                          : "Loading file…"}
+                      </span>
                     </div>
                   }
-                  when={file().urlPrivate}
+                  when={!file().isDeleted && file().urlPrivate}
                 >
                   <a
                     class="file-detail-fallback flex-col"
@@ -72,9 +84,9 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
                   alt={file().title || file().name}
                   class="file-detail-image"
                   fullSrc={resolveMediaUrl(file().urlPrivate)}
-                  height={file().height || 480}
+                  height={imageDimensions().height}
                   src={file().thumbUrl ?? ""}
-                  width={file().width || 640}
+                  width={imageDimensions().width}
                 />
               </Match>
               <Match when={file().isVideo}>
@@ -136,7 +148,7 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
                   >
                     <button
                       class="file-detail-share-row btn-reset"
-                      onClick={() => jumpToShare(share.channelId, share.ts)}
+                      onClick={() => jumpToShare(share.channelId, share.ts, share.threadTs)}
                       type="button"
                     >
                       <span class="file-detail-share-channel truncate">#{share.channelName}</span>

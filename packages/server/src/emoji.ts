@@ -1,9 +1,10 @@
 import type { Credentials } from "./auth.ts";
 import { compressedResponse } from "./http/compressedResponse.ts";
+import type { SlackReply } from "./slackClient.ts";
 
 const EMOJI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const EMOJI_LIST_HEADERS = {
-  "cache-control": "private, max-age=86400",
+  "cache-control": "private, no-cache",
   "content-type": "application/json; charset=utf-8",
   vary: "Cookie",
 };
@@ -12,7 +13,7 @@ type SlackFetcher = (
   method: string,
   params: Record<string, string>,
   creds: Credentials | null,
-) => Promise<any>;
+) => Promise<SlackReply<{ emoji?: Record<string, string> }>>;
 
 type EmojiCacheData = {
   names: string[];

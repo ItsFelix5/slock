@@ -13,7 +13,7 @@ export interface PanelHeaderProps {
 export default function PanelHeader(props: PanelHeaderProps) {
   return (
     <div class="panel-header-wrap">
-      <div class="panel-header">
+      <div class="panel-header flex-between">
         {props.children ?? (props.title && <h2 class="panel-header-title">{props.title}</h2>)}
         <Show when={props.canClose ?? true}>
           <button aria-label="Close" class="panel-close-btn" onClick={props.onClose} type="button">

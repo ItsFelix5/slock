@@ -1,15 +1,10 @@
-import { useShortcut } from "@slock/ui";
-import { type Accessor, createEffect, createSignal } from "solid-js";
-import { isMine, type Message } from "../../lib/api";
-import { copyMessageLink } from "../../lib/messageLinks";
-import { threadContainsMessage } from "../../lib/replyLink";
+import type { Message } from "@slock/types";
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import { isMine } from "../../lib/api";
 import { store } from "../../lib/store";
 import { findUnreadDividerIndex } from "./lib/unreadDivider";
-import { confirmAndDeleteMessage, copyMessageText } from "./messageActions";
-import { resolveProfileUserId } from "./parts/messageRenderState";
 
 export interface OpenThreadOptions {
-  autofocus?: boolean;
   pinned?: boolean;
 }
 
@@ -22,6 +17,23 @@ export interface MessageFocusCallbacks {
   threadTs?: Accessor<string | undefined>;
 }
 
+export interface ActiveMessageFocus {
+  callbacks: MessageFocusCallbacks;
+  channelId: Accessor<string>;
+  focusEdge: (edge: "start" | "end") => void;
+  focusedMessage: () => Message | undefined;
+  focusedTs: Accessor<string | null>;
+  isOwnEditableMessage: () => boolean;
+  moveFocus: (delta: number) => void;
+  startEdit: (ts: string) => void;
+  toggleMoreMenu: (ts: string) => void;
+  toggleReactionPicker: (ts: string) => void;
+}
+
+const [active, setActive] = createSignal<ActiveMessageFocus>();
+
+export { active };
+
 export function createMessageFocus(
   messages: Accessor<Message[]>,
   container: Accessor<HTMLElement | undefined>,
@@ -31,6 +43,8 @@ export function createMessageFocus(
   const [focusedTs, setFocusedTs] = createSignal<string | null>(null);
   const [editingTs, setEditingTs] = createSignal<string | null>(null);
   const [listFocused, setListFocused] = createSignal(false);
+  const [reactionPickerTs, setReactionPickerTs] = createSignal<string | null>(null);
+  const [moreMenuTs, setMoreMenuTs] = createSignal<string | null>(null);
 
   createEffect(() => {
     const list = messages();
@@ -69,6 +83,14 @@ export function createMessageFocus(
     focusRow(next.ts);
   }
 
+  function focusEdge(edge: "start" | "end") {
+    const list = messages();
+    if (!list.length) return;
+    focusRow(list[edge === "start" ? 0 : list.length - 1].ts);
+    const scroller = container();
+    if (scroller) scroller.scrollTop = edge === "start" ? 0 : scroller.scrollHeight;
+  }
+
   const focusedMessage = () => {
     const ts = focusedTs();
     return ts === null ? undefined : messages().find((m) => m.ts === ts);
@@ -81,202 +103,44 @@ export function createMessageFocus(
   };
 
   const startEdit = (ts: string) => {
-    if (focusedTs() === ts) setEditingTs(ts);
+    setFocusedTs(ts);
+    setEditingTs(ts);
   };
   const stopEdit = () => setEditingTs(null);
 
-  const clickRowButton = (ariaLabel: string) => {
-    const ts = focusedTs();
-    if (ts === null) return;
-    const button = container()?.querySelector<HTMLElement>(
-      `[data-message-ts="${CSS.escape(ts)}"] [aria-label="${ariaLabel}"]`,
-    );
-    button?.focus();
-    button?.click();
+  const toggleReactionPicker = (ts: string) =>
+    setReactionPickerTs((current) => (current === ts ? null : ts));
+
+  const toggleMoreMenu = (ts: string) => {
+    if (moreMenuTs() !== ts) store.resources.loadMessageShortcuts();
+    setMoreMenuTs((current) => (current === ts ? null : ts));
   };
 
-  useShortcut({
-    allowRepeat: true,
-    combo: { key: "ArrowDown" },
-    enabled: () => listFocused() && focusedTs() !== null,
-    handler: () => moveFocus(1),
-    id: "messages.focusNext",
-    label: "Move focus to the next message",
-    scope: "messages",
-  });
-
-  useShortcut({
-    allowRepeat: true,
-    combo: { key: "ArrowUp" },
-    enabled: () => listFocused() && focusedTs() !== null,
-    handler: () => moveFocus(-1),
-    id: "messages.focusPrev",
-    label: "Move focus to the previous message",
-    scope: "messages",
-  });
-
-  const messageActionEnabled = () => listFocused() && focusedTs() !== null;
-
-  useShortcut({
-    combo: { key: "r" },
-    enabled: () => messageActionEnabled() && (!!callbacks.onOpenThread || !!callbacks.onReplyLink),
-    handler: () => {
-      const msg = focusedMessage();
-      if (!msg) return;
-      if (callbacks.onOpenThread) callbacks.onOpenThread(msg.ts, { autofocus: false });
-      else callbacks.onReplyLink?.(msg);
-    },
-    id: "messages.reply",
-    label: "Reply",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "r", shift: true },
-    enabled: () => messageActionEnabled() && !!callbacks.onOpenThread,
-    handler: () => {
-      const msg = focusedMessage();
-      if (!msg) return;
-      callbacks.onOpenThread?.(msg.ts, { autofocus: false, pinned: true });
-    },
-    id: "messages.replySplit",
-    label: "Reply in a new split",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "a" },
-    enabled: messageActionEnabled,
-    handler: () => clickRowButton("React"),
-    id: "messages.react",
-    label: "Add a reaction",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "s" },
-    enabled: messageActionEnabled,
-    handler: () => {
-      const ts = focusedTs();
-      if (ts !== null) store.later.toggleSaveForLater(channelId(), ts);
-    },
-    id: "messages.saveForLater",
-    label: "Save / unsave for later",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "p" },
-    enabled: messageActionEnabled,
-    handler: () => {
-      const ts = focusedTs();
-      if (ts !== null) store.pinned.togglePinMessage(channelId(), ts);
-    },
-    id: "messages.pin",
-    label: "Pin / unpin",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "c" },
-    enabled: messageActionEnabled,
-    handler: () => {
-      const ts = focusedTs();
-      if (ts !== null) copyMessageLink(channelId(), ts, callbacks.threadTs?.());
-    },
-    id: "messages.copyLink",
-    label: "Copy link",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "y" },
-    enabled: messageActionEnabled,
-    handler: () => {
-      const msg = focusedMessage();
-      if (!msg) return;
-      const threadTs = callbacks.threadTs?.();
-      void copyMessageText(msg, (candidateChannelId, ts) =>
-        threadContainsMessage(
-          channelId(),
-          threadTs,
-          store.messages.messagesInThread(threadTs ?? "") ?? [],
-          candidateChannelId,
-          ts,
-        ),
-      );
-    },
-    id: "messages.copyText",
-    label: "Copy text",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "v" },
-    enabled: messageActionEnabled,
-    handler: () => {
-      const msg = focusedMessage();
-      const id = msg && resolveProfileUserId(msg);
-      if (id) store.users.openUserProfile(id);
-    },
-    id: "messages.viewProfile",
-    label: "View author's profile",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "u" },
-    enabled: messageActionEnabled,
-    handler: () => {
-      const ts = focusedTs();
-      if (ts !== null) store.messages.markMessageUnread(channelId(), ts);
-    },
-    id: "messages.markUnread",
-    label: "Mark unread",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "e" },
-    enabled: () => listFocused() && isOwnEditableMessage(),
-    handler: () => {
-      const ts = focusedTs();
-      if (ts !== null) startEdit(ts);
-    },
-    id: "messages.edit",
-    label: "Edit message",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "d" },
-    enabled: () => listFocused() && isOwnEditableMessage(),
-    handler: () => {
-      const ts = focusedTs();
-      if (ts !== null) confirmAndDeleteMessage(channelId(), ts);
-    },
-    id: "messages.delete",
-    label: "Delete message",
-    scope: "messages",
-  });
-
-  useShortcut({
-    combo: { key: "." },
-    enabled: messageActionEnabled,
-    handler: () => clickRowButton("More actions"),
-    id: "messages.moreActions",
-    label: "More actions (remind me, also send to channel, app shortcuts, …)",
-    scope: "messages",
-  });
+  const self: ActiveMessageFocus = {
+    callbacks,
+    channelId,
+    focusEdge,
+    focusedMessage,
+    focusedTs,
+    isOwnEditableMessage,
+    moveFocus,
+    startEdit,
+    toggleMoreMenu,
+    toggleReactionPicker,
+  };
+  const deactivate = () => setActive((current) => (current === self ? undefined : current));
+  onCleanup(deactivate);
 
   return {
     editingTs,
+    focusEdge,
     focusMessage: (ts: string) => focusRow(ts, { preventScroll: true }),
     focusedTs,
 
     listFocused,
     onContainerFocusIn: (e: FocusEvent) => {
       setListFocused(true);
+      setActive(self);
 
       const target = e.target instanceof Element ? e.target : null;
       const ts = target?.closest<HTMLElement>("[data-message-ts]")?.dataset.messageTs;
@@ -285,9 +149,14 @@ export function createMessageFocus(
     onContainerFocusOut: (e: FocusEvent & { currentTarget: HTMLElement }) => {
       if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
         setListFocused(false);
+        deactivate();
       }
     },
     onStartEdit: startEdit,
     onStopEdit: stopEdit,
+    onToggleMoreMenu: toggleMoreMenu,
+    onToggleReactionPicker: toggleReactionPicker,
+    moreMenuTs,
+    reactionPickerTs,
   };
 }

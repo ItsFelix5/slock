@@ -1,4 +1,4 @@
-import type { ProfileFieldDef } from "../../lib/api";
+import type { ProfileFieldDef } from "@slock/types";
 
 const BUILT_IN_LABELS = new Set(["title", "start date"]);
 

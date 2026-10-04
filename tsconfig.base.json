@@ -13,7 +13,7 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
 
     /* Linting */
     "noUnusedLocals": true,

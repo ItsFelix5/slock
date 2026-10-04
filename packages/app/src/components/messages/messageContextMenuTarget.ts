@@ -43,6 +43,7 @@ export function isMessageBackgroundContextMenu(
 
   const contentElement = target.closest(MESSAGE_CONTENT_ELEMENT_SELECTOR);
   if (contentElement && currentTarget.contains(contentElement)) return false;
+  if (target === document.activeElement) return true;
   if (pointIntersectsText(currentTarget, event.clientX, event.clientY)) return false;
 
   let element: Element | null = target;

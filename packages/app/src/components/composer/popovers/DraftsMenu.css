@@ -1,0 +1,35 @@
+.composer-drafts-menu {
+  width: 300px;
+}
+.composer-drafts-menu .suggestion-label {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.composer-drafts-menu .suggestion-desc {
+  flex-shrink: 0;
+}
+.composer-drafts-name-form {
+  gap: 6px;
+  padding: 2px;
+}
+.composer-drafts-name-form input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-meta);
+}
+.composer-drafts-name-submit {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  place-items: center;
+  border-radius: var(--radius-sm);
+}
+.composer-drafts-name-submit:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--hover-bg);
+}
+.composer-drafts-name-submit:disabled {
+  opacity: 0.5;
+}

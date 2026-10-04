@@ -1,3 +1,4 @@
+import type { UserPrefs } from "@slock/types";
 import { createQuery } from "@tanstack/solid-query";
 import { createRoot, createSignal } from "solid-js";
 import {
@@ -5,7 +6,6 @@ import {
   fetchMessageShortcuts,
   fetchProfileFieldDefs,
   fetchUserPrefs,
-  type UserPrefs,
 } from "../api";
 import { createAppActions } from "../appActions";
 import { wireAppState } from "../appWiring";
@@ -28,22 +28,11 @@ export type {
   View,
 } from "./slices/types";
 
-declare global {
-  interface Window {
-    slock?: unknown;
-  }
-}
-
-function setup() {
+function setup(dispose: () => void) {
   const bootstrap = createQuery(
     () => ({ queryKey: ["bootstrap"], queryFn: fetchBootstrap }),
     () => queryClient,
   );
-  async function retryBootstrap(): Promise<void> {
-    try {
-      await bootstrap.refetch();
-    } catch {}
-  }
   const [messageShortcutsRequested, setMessageShortcutsRequested] = createSignal(false);
   const messageShortcuts = createQuery(
     () => ({
@@ -98,6 +87,7 @@ function setup() {
     preferences,
     unread,
     activity,
+    composerTemplates,
     desktopNotifications,
     searchHistory,
     later,
@@ -111,6 +101,15 @@ function setup() {
     setActiveView,
     setActiveViewImplRef,
   } = slices;
+  async function retryBootstrap(): Promise<void> {
+    try {
+      await bootstrap.refetch();
+    } catch {
+      return;
+    }
+    if (userPrefs.error) void retryUserPrefs();
+    if (channels.sectionsError()) void channels.retrySections();
+  }
   const actions = createAppActions({
     ...slices,
     setActiveView,
@@ -123,6 +122,7 @@ function setup() {
     canvas,
     channels,
     commands,
+    composerTemplates,
     desktopNotifications,
     dms,
     later,
@@ -154,8 +154,9 @@ function setup() {
       runMessageShortcutAt,
       userPrefs,
     },
+    teardown: dispose,
   };
-  globalThis.slock = store;
   return store;
 }
 export const store = createRoot(setup);
+Object.assign(globalThis, { slock: store });

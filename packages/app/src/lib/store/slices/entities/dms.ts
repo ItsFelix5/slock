@@ -1,6 +1,6 @@
+import type { DirectMessage, User } from "@slock/types";
 import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import type { DirectMessage, User } from "../../../api";
 import { closeDm, fetchChannelMembers, openDm } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 import { queryClient } from "../../../queryClient";

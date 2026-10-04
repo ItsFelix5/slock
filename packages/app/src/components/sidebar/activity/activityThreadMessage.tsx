@@ -1,8 +1,7 @@
-import { BlockKit, formatTime, Mrkdwn } from "@slock/blockkit";
-import type { Block } from "@slock/types";
+import { formatTime, Mrkdwn } from "@slock/blockkit";
+import { formatDayFromMs, type SlackFile } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
-import { createMemo, type JSX, Show } from "solid-js";
-import { formatDayFromMs, type SlackFile } from "../../../lib/api";
+import { createMemo, Show } from "solid-js";
 import { fileSummaryIcon, fileSummaryLabel } from "../../../lib/fileSummary";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
@@ -13,31 +12,19 @@ import {
   resolveAuthorDisplayName,
   resolveProfileUserId,
   unresolvedAuthorFallback,
-} from "../../messages/parts/messageRenderState";
+} from "../../messages/parts/messageAuthor";
 import { ClickableAuthorName } from "../../user/AppBadge";
 
-export function ActivityMessageText(props: {
-  blocks?: Block[];
-  files?: SlackFile[];
-  text: string;
-}) {
+export function ActivityMessageText(props: { files?: SlackFile[]; text: string }) {
   const ref = createMemo(() => parseReplyLink(props.text));
-  const renderBlocks = createMemo(() => (props.blocks?.length ? props.blocks : undefined));
   const filesOnly = createMemo(() => {
-    if (props.text.trim() || renderBlocks()) return;
+    if (props.text.trim()) return;
     return props.files?.length ? props.files : undefined;
   });
   return (
     <Show
       fallback={
-        <Show
-          fallback={
-            <Show fallback={<Mrkdwn inline text={props.text} />} when={renderBlocks()}>
-              {(blocks) => <BlockKit blocks={blocks()} />}
-            </Show>
-          }
-          when={filesOnly()}
-        >
+        <Show fallback={<Mrkdwn inline text={props.text} />} when={filesOnly()}>
           {(files) => (
             <span class="activity-file-fallback">
               <Icon name={fileSummaryIcon(files())} size={12} />
@@ -55,8 +42,6 @@ export function ActivityMessageText(props: {
 
 export function ThreadMessageRow(props: {
   author: MessageAuthorFields;
-  blocks?: Block[];
-  eventLabel?: JSX.Element;
   files?: SlackFile[];
   isFirst?: boolean;
   isLast?: boolean;
@@ -110,15 +95,12 @@ export function ThreadMessageRow(props: {
       </span>
       <span class="activity-thread-message-body">
         <span class="activity-thread-message-head flex-align-center">
-          <Show fallback={<strong>{displayName()}</strong>} when={profileUserId()}>
+          <Show fallback={<strong class="truncate">{displayName()}</strong>} when={profileUserId()}>
             {(id) => (
               <ClickableAuthorName userId={id()}>
-                <strong>{displayName()}</strong>
+                <strong class="truncate">{displayName()}</strong>
               </ClickableAuthorName>
             )}
-          </Show>
-          <Show when={props.eventLabel}>
-            <span class="activity-thread-event">{props.eventLabel}</span>
           </Show>
           <Show keyed when={props.time === undefined ? undefined : props.time}>
             {(time) => (
@@ -129,7 +111,7 @@ export function ThreadMessageRow(props: {
           </Show>
         </span>
         <span class="activity-thread-message-text">
-          <ActivityMessageText blocks={props.blocks} files={props.files} text={props.text} />
+          <ActivityMessageText files={props.files} text={props.text} />
         </span>
       </span>
     </button>

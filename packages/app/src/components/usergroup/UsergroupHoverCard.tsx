@@ -1,16 +1,23 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { HoverCard, Icon } from "@slock/ui";
+import { HoverCard, Icon, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
 import { store } from "../../lib/store";
 import { openUsergroupDetails } from "../../lib/usergroupDetails";
 import "./UsergroupHoverCard.css";
 
-export default function UsergroupHoverCard(props: { usergroupId: string; children: JSX.Element }) {
+export default function UsergroupHoverCard(props: {
+  usergroupId: string;
+  children?: JSX.Element;
+  anchor?: () => HTMLElement | undefined;
+  hoverIntent?: ReturnType<typeof useHoverIntent>;
+}) {
   const details = () => store.usergroups.usergroupDetailsById(props.usergroupId);
 
   return (
     <HoverCard
+      anchor={props.anchor}
+      hoverIntent={props.hoverIntent}
       content={(close) => (
         <Show when={details()}>
           {(d) => (

@@ -1,0 +1,41 @@
+.pinned-panel-card {
+  width: 100%;
+  height: 100%;
+}
+
+.pinned-panel-title {
+  font-size: var(--font-size-secondary);
+  font-weight: 700;
+}
+
+.pinned-panel-list {
+  flex: 1;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.pinned-panel-empty {
+  padding: var(--space-2xl);
+}
+
+.pinned-panel-refreshing {
+  padding: var(--space-xs) var(--space-sm);
+  text-align: center;
+}
+
+.pinned-panel-load-error {
+  gap: 10px;
+  padding: var(--space-2xl);
+}
+
+.pinned-panel-item {
+  position: relative;
+}
+
+.pinned-panel-feedback {
+  position: absolute;
+  right: 12px;
+  bottom: 2px;
+  left: 12px;
+}

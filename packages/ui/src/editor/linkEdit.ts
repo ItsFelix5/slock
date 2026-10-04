@@ -73,11 +73,19 @@ export function createLinkEditController(getQuill: () => Quill | undefined) {
     const cleanText = text || cleanUrl;
     if (!cleanText) return;
     if (cleanUrl === current.url && cleanText === current.text) return;
-    const attrs = quill.getFormat(current.index, current.length);
-    if (cleanUrl) attrs.link = cleanUrl;
-    else attrs.link = undefined;
-    quill.deleteText(current.index, current.length, "api");
-    quill.insertText(current.index, cleanText, attrs, "api");
+    const link = readLink(quill, current.anchorEl);
+    if (!link) return;
+    const attrs = quill.getFormat(link.index, link.length);
+    attrs.link = cleanUrl || undefined;
+    if (cleanText === current.text) {
+      quill.formatText(link.index, link.length, "link", attrs.link, "api");
+      return;
+    }
+    const Delta = Quill.import("delta");
+    quill.updateContents(
+      new Delta().retain(link.index).delete(link.length).insert(cleanText, attrs),
+      "api",
+    );
   };
 
   return { close, handleClick, handleDoubleClick, revalidate, state, update };

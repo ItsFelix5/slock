@@ -1,6 +1,6 @@
 .audio-file {
   max-width: min(360px, 100%);
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   overflow: visible;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
@@ -68,12 +68,9 @@
 }
 
 .audio-file-error {
-  display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
   min-height: 32px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
 }
 

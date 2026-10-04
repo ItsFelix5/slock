@@ -1,0 +1,13 @@
+.bk-image-block {
+  gap: 6px;
+  margin: 0;
+}
+
+.bk-image-block-img {
+  border-radius: var(--radius-control);
+}
+
+.bk-image-block-title {
+  font-size: var(--font-size-control);
+  font-weight: 700;
+}

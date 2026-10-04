@@ -1,6 +1,6 @@
-import { ContextMenu, Icon, Tooltip, useContextMenu } from "@slock/ui";
+import type { Channel } from "@slock/types";
+import { ContextMenu, HoverCard, Icon, Tooltip, useContextMenu } from "@slock/ui";
 import { createMemo } from "solid-js";
-import type { Channel } from "../../../lib/api";
 import { channelDisplayName, channelIconName } from "../../../lib/displayName";
 import { openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
@@ -8,6 +8,8 @@ import ChannelActionsMenuItems from "../../channel/ChannelActionsMenuItems";
 import { channelHasDraft } from "../../composer/lib/drafts";
 import { SplitNavigation } from "../../navigation/SplitNavigation";
 import { unreadSummary } from "../lib/unreadSummary";
+import DraftList from "./DraftList";
+import "./SidebarRow.css";
 
 export default function ChannelRow(props: { channel: Channel; unread: boolean }) {
   const ctxMenu = useContextMenu();
@@ -38,27 +40,25 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           }}
           data-channel-id={props.channel.id}
           data-nav-row
-          onClick={(e) =>
-            store.viewState.setActiveView(
-              { id: props.channel.id, kind: "channel" },
-              { autofocus: e.isTrusted },
-            )
-          }
+          onClick={() => store.viewState.setActiveView({ id: props.channel.id, kind: "channel" })}
           onContextMenu={ctxMenu.open}
           tabIndex={-1}
           type="button"
         >
           <span class="sidebar-row-icon">
-            <Icon name={channelIconName(props.channel.private)} size={13} />
+            <Icon name={channelIconName(props.channel.private, props.channel.archived)} size={13} />
           </span>
           <span class="sidebar-row-name truncate">{channelDisplayName(props.channel)}</span>
           <span class="sidebar-row-end">
             {hasDraft() ? (
-              <Tooltip content="Draft">
-                <span class="sidebar-row-draft">
+              <HoverCard
+                align="start"
+                content={(close) => <DraftList channelId={props.channel.id} close={close} />}
+              >
+                <span class="sidebar-row-draft flex-align-center">
                   <Icon name="edit" size={12} />
                 </span>
-              </Tooltip>
+              </HoverCard>
             ) : null}
             {!muted() && props.channel.mentions ? (
               <Tooltip content={unreadTooltip()}>

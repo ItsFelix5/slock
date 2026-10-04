@@ -7,19 +7,17 @@
 }
 
 .files-links-toolbar {
-  display: flex;
   flex-shrink: 0;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: center;
-  padding: 10px 16px;
+  padding: 10px var(--space-lg);
   background: var(--main-bg);
 }
 
 .files-links-searchbar {
   display: flex;
   flex: 1 1 220px;
-  gap: 8px;
+  gap: var(--space-sm);
   align-items: center;
   min-width: 180px;
   padding: 6px 10px;
@@ -35,7 +33,7 @@
 
 .files-links-search-input {
   flex: 1;
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .files-links-searchbar:focus-within {
@@ -45,7 +43,7 @@
 .files-links-filters {
   display: flex;
   flex-shrink: 0;
-  gap: 4px;
+  gap: var(--space-xs);
   padding: 3px;
   margin: 0;
   background: var(--composer-bg);
@@ -55,7 +53,7 @@
 
 .files-links-filter-chip {
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--text-dim);
   white-space: nowrap;
@@ -75,8 +73,8 @@
 
 .files-links-sort-select {
   flex-shrink: 0;
-  padding: 6px 8px;
-  font-size: 12px;
+  padding: 6px var(--space-sm);
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--text-dim);
   background: var(--composer-bg);
@@ -87,20 +85,18 @@
 .files-links-body {
   flex: 1;
   min-height: 0;
-  padding: 0 16px 20px;
+  padding: 0 var(--space-lg) 20px;
   overflow-y: auto;
 }
 
 .files-links-empty {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
   padding: 48px 20px;
   text-align: center;
 }
 
 .files-links-loading-more {
-  padding: 18px 0 4px;
+  padding: 18px 0 var(--space-xs);
   text-align: center;
 }
 
@@ -108,8 +104,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 14px 4px 8px;
-  font-size: 12px;
+  padding: 14px var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-meta);
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -147,9 +143,6 @@
 }
 
 .files-links-card-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   aspect-ratio: 1;
   width: 100%;
   color: var(--text-dim);
@@ -173,10 +166,8 @@
 }
 
 .files-links-card-body {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
-  padding: 8px 10px;
+  padding: var(--space-sm) 10px;
 }
 
 .files-links-card-title {
@@ -186,10 +177,10 @@
 }
 
 .files-links-card-meta {
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
-.files-links-card-link {
+.files-links-card-jumpable {
   position: relative;
 }
 
@@ -211,4 +202,9 @@
 .files-links-card-jump:hover {
   color: var(--text-primary);
   background: var(--hover-bg);
+}
+
+button.files-links-card-open {
+  width: 100%;
+  text-align: left;
 }

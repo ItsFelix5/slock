@@ -1,7 +1,8 @@
-import { IconButton } from "@slock/ui";
+import { IconButton, useEditShortcuts } from "@slock/ui";
 import { createSignal, onCleanup, Show } from "solid-js";
 
-function FileChipThumbnail(props: { file: File }) {
+function FileChipThumbnail(props: { file: File; thumbSrc?: string }) {
+  if (props.thumbSrc) return <img alt="" class="composer-file-chip-thumb" src={props.thumbSrc} />;
   if (!props.file.type.startsWith("image/")) return null;
   const url = URL.createObjectURL(props.file);
   onCleanup(() => URL.revokeObjectURL(url));
@@ -12,29 +13,39 @@ export default function FileChip(props: {
   file: File;
   disabled: boolean;
   onRemove: () => void;
-  onRename: (name: string) => void;
+  onRename?: (name: string) => void;
+  thumbSrc?: string;
 }) {
   const [renaming, setRenaming] = createSignal(false);
   const [draft, setDraft] = createSignal("");
-  const isImage = () => props.file.type.startsWith("image/");
+  let chipRef: HTMLSpanElement | undefined;
+  const isImage = () => !!props.thumbSrc || props.file.type.startsWith("image/");
 
   const startRename = () => {
-    if (props.disabled) return;
+    if (props.disabled || !props.onRename) return;
     setDraft(props.file.name);
     setRenaming(true);
   };
   const commit = () => {
     if (!renaming()) return;
     setRenaming(false);
-    props.onRename(draft());
+    props.onRename?.(draft());
   };
+
+  useEditShortcuts({
+    cancel: () => setRenaming(false),
+    commit,
+    enabled: renaming,
+    root: () => chipRef,
+  });
 
   return (
     <span
       class="composer-file-chip flex-align-center"
       classList={{ "composer-file-chip-image": isImage() }}
+      ref={chipRef}
     >
-      <FileChipThumbnail file={props.file} />
+      <FileChipThumbnail file={props.file} thumbSrc={props.thumbSrc} />
       <span class="composer-file-chip-details">
         <Show
           fallback={
@@ -43,16 +54,6 @@ export default function FileChip(props: {
               class="composer-file-chip-rename-input"
               onBlur={commit}
               onInput={(e) => setDraft(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commit();
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setRenaming(false);
-                }
-              }}
               ref={(el) => requestAnimationFrame(() => el.select())}
               value={draft()}
             />
@@ -70,7 +71,7 @@ export default function FileChip(props: {
         </Show>
       </span>
       <IconButton
-        class="composer-file-chip-remove"
+        class="composer-file-chip-remove icon-shift"
         disabled={props.disabled}
         icon="close"
         label="Remove"

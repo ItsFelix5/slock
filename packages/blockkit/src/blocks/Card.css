@@ -1,0 +1,61 @@
+.bk-card {
+  overflow: hidden;
+  width: min(360px, 100%);
+  background: var(--composer-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.bk-card > .bk-image-el {
+  display: block;
+  width: 100%;
+  max-width: none;
+  max-height: 180px;
+  border-radius: 0;
+}
+
+.bk-card-content {
+  padding: 10px;
+}
+
+.bk-card-heading .bk-image-el {
+  width: 32px;
+  height: 32px;
+}
+
+.bk-card-slack-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+}
+
+.bk-card-title {
+  font-weight: 700;
+}
+
+.bk-card-body {
+  margin-top: 9px;
+  font-size: var(--font-size-secondary);
+  line-height: 1.4;
+}
+
+.bk-card-subtext {
+  margin-top: var(--space-sm);
+}
+
+.bk-card-actions {
+  margin-top: 10px;
+}
+
+.bk-carousel {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+}
+
+.bk-carousel > .bk-card {
+  flex: 0 0 min(300px, 85%);
+}

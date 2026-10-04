@@ -58,26 +58,17 @@
   --palette-charcoal-850: oklch(0.21 0.012 255);
   --palette-charcoal-800: oklch(0.24 0.013 255);
   --palette-charcoal-700: oklch(0.33 0.012 255);
-  --palette-charcoal-600: oklch(0.425 0.011 255);
   --palette-charcoal-500: oklch(0.52 0.01 255);
   --palette-charcoal-400: oklch(0.61 0.009 255);
   --palette-charcoal-300: oklch(0.7 0.008 255);
-  --palette-charcoal-200: oklch(0.8 0.007 255);
   --palette-charcoal-100: oklch(0.89 0.006 255);
   --palette-charcoal-50: oklch(0.97 0.003 255);
 
-  --palette-blue-700: oklch(0.5 0.15 250);
-  --palette-blue-600: oklch(0.58 0.15 250);
   --palette-blue-500: oklch(0.69 0.15 250);
   --palette-blue-400: oklch(0.75 0.13 250);
-  --palette-green-600: oklch(0.58 0.14 155);
   --palette-green-500: oklch(0.66 0.14 155);
-  --palette-green-400: oklch(0.74 0.12 155);
-  --palette-amber-600: oklch(0.62 0.14 82);
   --palette-amber-500: oklch(0.7 0.14 82);
   --palette-amber-400: oklch(0.78 0.12 82);
-  --palette-red-700: oklch(0.5 0.17 25);
-  --palette-red-600: oklch(0.58 0.18 25);
   --palette-red-500: oklch(0.66 0.17 25);
   --palette-red-400: oklch(0.74 0.13 25);
 
@@ -90,7 +81,6 @@
   --text-primary: var(--palette-charcoal-100);
   --text-secondary: var(--palette-charcoal-300);
   --text-dim: var(--palette-charcoal-500);
-  --text-disabled: var(--palette-charcoal-600);
   --text-on-avatar: var(--palette-charcoal-50);
   --text-on-danger: var(--palette-charcoal-1000);
   --text-on-success: var(--palette-charcoal-1000);
@@ -104,7 +94,6 @@
   --badge-bg: var(--palette-red-500);
   --danger: var(--palette-red-400);
   --warning: var(--palette-amber-400);
-  --success: oklch(from var(--presence-active) calc(l + 0.08) c h);
   --error-text: var(--danger);
   --error-bg: rgb(from var(--danger) r g b / 12%);
   --code-bg: rgb(from var(--palette-charcoal-1000) r g b / 48%);
@@ -163,14 +152,11 @@
   --font-size-secondary: 14px;
   --font-size-body: 15px;
   --font-size-heading-xs: 16px;
-  --font-size-heading-sm: 18px;
-  --font-size-heading-lg: 24px;
   --font-size-display: 32px;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 12px;
   --space-lg: 16px;
-  --space-xl: 20px;
   --space-2xl: 24px;
   --space-3xl: 32px;
   --radius-sm: 4px;

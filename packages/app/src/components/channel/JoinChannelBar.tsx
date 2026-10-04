@@ -2,6 +2,7 @@ import { Button, Icon, InlineFeedback } from "@slock/ui";
 import { channelDisplayName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
+import "../composer/ComposerFrame.css";
 import "./JoinChannelBar.css";
 
 export default function JoinChannelBar(props: { channelId: string }) {
@@ -9,12 +10,12 @@ export default function JoinChannelBar(props: { channelId: string }) {
     channelDisplayName(store.channels.channelById(props.channelId), props.channelId);
 
   return (
-    <div class="channel-notice-bar flex-between">
-      <div class="channel-notice-bar-text">
+    <div class="channel-notice-bar composer-frame surface-popover flex-between">
+      <div class="channel-notice-bar-text truncate">
         You aren't a member of <strong>#{name()}</strong>.
       </div>
       <InlineFeedback
-        class="channel-notice-bar-feedback"
+        class="channel-notice-bar-feedback truncate"
         feedback={actionFeedback.get(props.channelId)}
         priority={2}
       />

@@ -1,5 +1,5 @@
+import type { ChannelSection } from "@slock/types";
 import { createStore } from "solid-js/store";
-import type { ChannelSection } from "../../../api";
 import { updateSectionChannels as apiUpdateSectionChannels, toggleStar } from "../../../api";
 import type { ChannelPlacementOutcome } from "../../../channelSectionMutations";
 import { actionFeedback } from "../../../feedback";

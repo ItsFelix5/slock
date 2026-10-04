@@ -1,0 +1,44 @@
+.connect-account-form {
+  gap: 14px;
+  margin-top: var(--space-sm);
+}
+
+.connect-account-fields {
+  gap: 10px;
+}
+
+.connect-account-divider {
+  margin: 0;
+  font-size: var(--font-size-control);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.connect-account-input {
+  width: 100%;
+  padding: 10px var(--space-md);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--font-size-meta);
+  line-height: 1.5;
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.connect-account-input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.connect-account-input:disabled {
+  opacity: 0.7;
+}
+
+.connect-account-error {
+  min-height: 18px;
+  margin: 0;
+  font-size: var(--font-size-control);
+  color: var(--danger);
+}

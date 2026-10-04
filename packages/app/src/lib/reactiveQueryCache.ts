@@ -19,12 +19,23 @@ export function createReactiveQueryCache<T>(
   },
 ): ReactiveQueryCache<T> {
   const [version, setVersion] = createSignal(0);
+  const loggedFailures = new Set<string>();
   queryClient.getQueryCache().subscribe((event) => {
     if (event.query.queryKey[0] === keyPrefix) setVersion((v) => v + 1);
   });
 
   function ensure(key: string): void {
-    void queryClient.ensureQueryData(toOptions(key));
+    const state = queryClient.getQueryState(toOptions(key).queryKey);
+    if (state?.fetchStatus === "fetching") return;
+    if ((state?.errorUpdateCount ?? 0) >= 3) {
+      if (!loggedFailures.has(key)) {
+        loggedFailures.add(key);
+        console.error(`[${keyPrefix}] gave up after 3 failed attempts for "${key}"`, state?.error);
+      }
+      return;
+    }
+    loggedFailures.delete(key);
+    void queryClient.ensureQueryData(toOptions(key)).catch(() => {});
   }
 
   function entry(key: string): T | undefined {

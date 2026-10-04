@@ -1,3 +1,5 @@
+import { isRecord } from "@slock/types";
+
 const CHANNEL_ID_RE = /^[A-Z][A-Z0-9]{1,31}$/;
 
 export type ChannelLookup = {
@@ -20,8 +22,8 @@ async function fetchFlaronChannel(
     );
     if (!(response.ok && response.headers.get("content-type")?.includes("application/json")))
       return null;
-    const data: any = await response.json();
-    if (typeof data?.name !== "string" || !data.name) return null;
+    const data = await response.json();
+    if (!isRecord(data) || typeof data.name !== "string" || !data.name) return null;
     return {
       id: typeof data.id === "string" ? data.id : value,
       name: data.name,
@@ -33,11 +35,11 @@ async function fetchFlaronChannel(
   }
 }
 
-export async function lookupFlaronChannel(
+export function lookupFlaronChannel(
   id: string,
   request: Requester = fetch,
 ): Promise<ChannelLookup | null> {
-  if (!CHANNEL_ID_RE.test(id)) return null;
+  if (!CHANNEL_ID_RE.test(id)) return Promise.resolve(null);
   return fetchFlaronChannel(id, request);
 }
 

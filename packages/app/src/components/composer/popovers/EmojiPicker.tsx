@@ -1,5 +1,13 @@
 import { emojiUrl, hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
-import { Button, gridNavigationIndex, Tooltip, useEscapeClose } from "@slock/ui";
+import {
+  Button,
+  gridNavigationIndex,
+  type NavDirection,
+  Tooltip,
+  useEscapeClose,
+  useGridShortcuts,
+  useListShortcuts,
+} from "@slock/ui";
 import {
   createEffect,
   createMemo,
@@ -12,6 +20,7 @@ import {
 } from "solid-js";
 import {
   allEmojiEntries,
+  emojiEntryByName,
   frequentEmoji,
   type EmojiEntry as PickerEntry,
   searchEmoji,
@@ -64,7 +73,6 @@ export default function EmojiPicker(props: {
 
   onMount(() => {
     void loadCustomEmoji();
-
     requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
   });
 
@@ -78,16 +86,15 @@ export default function EmojiPicker(props: {
 
   const reactedEntries = createMemo(() => {
     if (!props.existingReactions?.length) return [];
-    const byName = new Map(allEntries().map((entry) => [entry.name, entry]));
     return props.existingReactions
-      .map((r) => byName.get(r.name))
+      .map((r) => emojiEntryByName(r.name))
       .filter((entry) => entry !== undefined);
   });
 
   const visibleEntries = createMemo(() => {
     const entries = allEntries();
     if (query().trim()) return searchEmoji(entries, query());
-    const frequent = frequentEmoji(entries);
+    const frequent = frequentEmoji();
     return prioritizeEmojiEntries(entries, reactedEntries(), frequent);
   });
 
@@ -162,34 +169,25 @@ export default function EmojiPicker(props: {
     bodyRef.scrollTop = nextTop;
   };
 
-  const GridKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"];
+  const selectActive = () => {
+    const entry = visibleEntries()[activeIndex()];
+    if (entry) props.onSelect(entry.name);
+  };
 
-  const handleGridKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
-      const entry = visibleEntries()[activeIndex()];
-      if (entry) {
-        e.preventDefault();
-        props.onSelect(entry.name);
-      }
-      return;
-    }
-    if (!GridKeys.includes(e.key)) return;
-    const { target } = e;
-    const fromSearch = target === searchInputRef;
-
-    if (fromSearch && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    const indexAttr = target instanceof HTMLElement ? target.dataset.emojiIndex : undefined;
+  const moveGrid = (direction: NavDirection) => {
+    const { activeElement } = document;
+    const fromSearch = activeElement === searchInputRef;
+    const indexAttr =
+      activeElement instanceof HTMLElement ? activeElement.dataset.emojiIndex : undefined;
     const current = indexAttr === undefined ? null : Number(indexAttr);
 
-    if (!fromSearch && e.key === "ArrowUp" && current !== null && current < COLS) {
-      e.preventDefault();
+    if (!fromSearch && direction === "up" && current !== null && current < COLS) {
       searchInputRef?.focus();
       return;
     }
 
-    const next = gridNavigationIndex(e.key, current, visibleEntries().length, COLS);
+    const next = gridNavigationIndex(direction, current, visibleEntries().length, COLS);
     if (next === undefined) return;
-    e.preventDefault();
     setActiveIndex(next);
     scrollEmojiIndexIntoView(next);
     queueMicrotask(() =>
@@ -197,11 +195,19 @@ export default function EmojiPicker(props: {
     );
   };
 
+  useListShortcuts({
+    edges: false,
+    move: moveGrid,
+    root: () => searchInputRef,
+    submit: selectActive,
+  });
+  useGridShortcuts({ move: moveGrid, root: () => bodyRef, submit: selectActive });
+
   return (
-    <div class="emoji-picker" onKeyDown={handleGridKeyDown} onMouseDown={keepSearchFocused}>
+    <div class="emoji-picker surface-popover flex-col" onMouseDown={keepSearchFocused}>
       <div class="emoji-picker-search">
         <input
-          class="search-input"
+          class="text-field"
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Search emoji…"
           ref={searchInputRef}
@@ -210,10 +216,10 @@ export default function EmojiPicker(props: {
         />
       </div>
       <Show when={isEmojiLoading()}>
-        <div class="emoji-picker-notice">Loading workspace emoji…</div>
+        <div class="emoji-picker-notice flex-between gap-sm">Loading workspace emoji…</div>
       </Show>
       <Show when={hasEmojiLoadError()}>
-        <div class="emoji-picker-notice emoji-picker-error">
+        <div class="emoji-picker-notice flex-between gap-sm emoji-picker-error">
           <span>Couldn't load workspace emoji.</span>
           <Button onClick={() => void loadCustomEmoji()} size="sm">
             Try again
@@ -270,7 +276,6 @@ function EmojiButton(props: {
     <Tooltip content={tooltip()}>
       <button
         aria-label={`:${props.entry.name}:`}
-        aria-pressed={mine()}
         class="emoji-picker-btn btn-reset flex-center"
         classList={{ mine: mine(), reacted: reacted() }}
         data-emoji-index={props.index}

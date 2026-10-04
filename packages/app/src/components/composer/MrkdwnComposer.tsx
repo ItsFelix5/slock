@@ -1,13 +1,18 @@
 import { indexAlignedText, QuillEditor, scrollActiveListOption } from "@slock/ui";
 import type Quill from "quill";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import ComposerSuggestPopover from "./ComposerSuggestPopover";
+import { createMentionHoverController } from "./lib/mentionHover";
+import { useMentionResolution } from "./lib/mentionResolution";
+import { insertSuggestionAt, loadMrkdwnIntoQuill, pasteMrkdwnClipboard } from "./lib/mrkdwnInsert";
 import { wireEmojiAutoconvert } from "./lib/quillEmoji";
-import { insertSuggestionAt, loadMrkdwnIntoQuill, mrkdwnText } from "./lib/quillMentions";
-import { createSuggestionController } from "./lib/suggestionController";
+import { mrkdwnText } from "./lib/quillMentions";
+import { createSuggestionController, syncSuggestionsAfterChange } from "./lib/suggestionController";
 import type { SuggestState } from "./lib/suggestTypes";
 import { suggestOpen } from "./lib/suggestTypes";
+import { useSuggestShortcuts } from "./lib/useSuggestShortcuts";
 import { useSuggestUi } from "./lib/useSuggestUi";
+import MentionHoverCard from "./MentionHoverCard";
 import "./MrkdwnComposer.css";
 
 export default function MrkdwnComposer(props: {
@@ -26,6 +31,8 @@ export default function MrkdwnComposer(props: {
   let caretIndex = 0;
   let lastEmitted: string | undefined;
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
+  const resolveMention = useMentionResolution(() => quill);
+  const mentionHover = createMentionHoverController();
 
   let rootRef: HTMLDivElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
@@ -59,7 +66,7 @@ export default function MrkdwnComposer(props: {
   createEffect(() => {
     if (!quill || props.value === lastEmitted) return;
     lastEmitted = props.value;
-    loadMrkdwnIntoQuill(quill, props.value);
+    loadMrkdwnIntoQuill(quill, props.value, resolveMention);
   });
 
   createEffect(() => {
@@ -74,31 +81,10 @@ export default function MrkdwnComposer(props: {
     });
   };
 
-  const handleKeyDownCapture = (event: KeyboardEvent): boolean => {
-    if (!suggestOpen(suggest())) return false;
-    if (event.key === "ArrowDown") {
-      suggestions.moveActiveSuggestion(1);
-      return true;
-    }
-    if (event.key === "ArrowUp") {
-      suggestions.moveActiveSuggestion(-1);
-      return true;
-    }
-    if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
-      suggestions.applySuggestion();
-      return true;
-    }
-    if (event.key === "Escape") {
-      setSuggest(null);
-      return true;
-    }
-    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) setSuggest(null);
-    return false;
-  };
+  useSuggestShortcuts({ setSuggest, suggest, suggestions });
 
   return (
     <div
-      aria-busy={props.ariaBusy}
       class="mrkdwn-composer"
       classList={{ disabled: props.disabled, multiline: props.multiline }}
       onFocusOut={onFocusOut}
@@ -109,25 +95,28 @@ export default function MrkdwnComposer(props: {
         ariaMultiline={props.multiline ?? false}
         extendedFormats={false}
         id={props.id}
-        onKeyDownCapture={handleKeyDownCapture}
+        onPasteText={(q, event) => pasteMrkdwnClipboard(q, event, resolveMention)}
         onReady={(q) => {
           quill = q;
-          loadMrkdwnIntoQuill(q, props.value);
+          loadMrkdwnIntoQuill(q, props.value, resolveMention);
           lastEmitted = props.value;
           wireEmojiAutoconvert(q);
+          onCleanup(mentionHover.bind(q));
           q.enable(!props.disabled);
           q.on("text-change", () => {
             const next = mrkdwnText(q);
             lastEmitted = next;
             props.onInput(next);
             const aligned = indexAlignedText(q);
-            caretIndex = q.getSelection()?.index ?? aligned.length;
-            suggestions.updateSuggestions(aligned, caretIndex);
+            syncSuggestionsAfterChange(q, aligned, suggestions, (index) => {
+              caretIndex = index;
+            });
           });
         }}
         onSubmit={props.multiline ? undefined : () => quill?.root.blur()}
         placeholder={props.placeholder}
       />
+      <MentionHoverCard hoverIntent={mentionHover.hoverIntent} state={mentionHover.state} />
       <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
         {(state) => (
           <ComposerSuggestPopover

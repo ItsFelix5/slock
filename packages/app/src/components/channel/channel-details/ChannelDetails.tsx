@@ -1,15 +1,15 @@
 import {
   Button,
-  blurOnEnter,
   createCopyFeedback,
   Icon,
   InlineFeedback,
   Overlay,
   PanelHeader,
-  tabStripKeyDown,
   useEscapeClose,
+  useTabStripShortcuts,
 } from "@slock/ui";
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
+import { getChannelLink } from "../../../lib/api";
 import { channelIconName } from "../../../lib/displayName";
 import { actionFeedback } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
@@ -34,7 +34,9 @@ import {
   mergeChannelDetailsDraft,
 } from "./fieldSave/channelDetailsDraft";
 
-const LEADING_HASH_RE = /^#/;
+function stripLeadingHash(name: string): string {
+  return name.startsWith("#") ? name.slice(1) : name;
+}
 
 const TABS: { key: ChannelDetailsTab; label: string }[] = [
   { key: "about", label: "About" },
@@ -44,6 +46,7 @@ const TABS: { key: ChannelDetailsTab; label: string }[] = [
 
 export default function ChannelDetails() {
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
+  let tabListRef: HTMLDivElement | undefined;
   const [tab, setTab] = createSignal<ChannelDetailsTab>("about");
   const [topicInput, setTopicInput] = createSignal("");
   const [purposeInput, setPurposeInput] = createSignal("");
@@ -71,6 +74,14 @@ export default function ChannelDetails() {
     return (managerIds() ?? []).includes(me.id);
   });
   const visibleTabs = () => TABS.filter((t) => t.key !== "settings" || isManager());
+  useTabStripShortcuts({
+    activate: (next, nextIndex) => {
+      setTab(next.key);
+      tabButtonRefs[nextIndex]?.focus();
+    },
+    items: visibleTabs,
+    root: () => tabListRef,
+  });
 
   createEffect(on(channelDetailsId, () => setTab(channelDetailsTab())));
   createEffect(() => {
@@ -95,7 +106,7 @@ export default function ChannelDetails() {
 
   const nameDirty = () => {
     const d = details();
-    return !!d && nameInput().trim().replace(LEADING_HASH_RE, "") !== d.name;
+    return !!d && stripLeadingHash(nameInput().trim()) !== d.name;
   };
   const topicDirty = () => {
     const d = details();
@@ -120,7 +131,7 @@ export default function ChannelDetails() {
     const d = details();
     if (!(id && d) || saving()) return;
 
-    const nextName = nameInput().trim().replace(LEADING_HASH_RE, "");
+    const nextName = stripLeadingHash(nameInput().trim());
     if (!nextName) {
       setNameInput(d.name);
       actionFeedback.flash(id, "Channel name can't be empty.", "error");
@@ -172,7 +183,7 @@ export default function ChannelDetails() {
         >
           <Show
             fallback={
-              <div class="channel-details-card flex-col">
+              <div class="channel-details-card modal-card">
                 <PanelHeader onClose={closeChannelDetails} title="Channel details" />
                 <Show
                   fallback={
@@ -195,10 +206,10 @@ export default function ChannelDetails() {
             when={currentDetails()}
           >
             {(d) => (
-              <div class="channel-details-card flex-col">
+              <div class="channel-details-card modal-card">
                 <PanelHeader
                   bottom={
-                    <div class="channel-details-tabs" role="tablist">
+                    <div class="channel-details-tabs" ref={tabListRef} role="tablist">
                       <For each={visibleTabs()}>
                         {(t, i) => (
                           <button
@@ -206,12 +217,6 @@ export default function ChannelDetails() {
                             class="channel-details-tab btn-reset flex-align-center"
                             classList={{ active: tab() === t.key }}
                             onClick={() => setTab(t.key)}
-                            onKeyDown={(e) =>
-                              tabStripKeyDown(e, visibleTabs(), i(), (next, nextIndex) => {
-                                setTab(next.key);
-                                tabButtonRefs[nextIndex]?.focus();
-                              })
-                            }
                             ref={(el) => {
                               tabButtonRefs[i()] = el;
                             }}
@@ -230,14 +235,14 @@ export default function ChannelDetails() {
                   }
                   onClose={closeChannelDetails}
                 >
-                  <div class="channel-details-title">
-                    <Icon name={channelIconName(d().private)} size={14} />
-                    <span>{d().name}</span>
+                  <div class="channel-details-title flex-align-center">
+                    <Icon name={channelIconName(d().private, d().archived)} size={14} />
+                    <span class="truncate">{d().name}</span>
                   </div>
                 </PanelHeader>
 
                 <InlineFeedback
-                  class="channel-details-feedback"
+                  class="channel-details-feedback truncate"
                   feedback={actionFeedback.get(d().id)}
                   priority={2}
                 />
@@ -245,26 +250,26 @@ export default function ChannelDetails() {
                 <div class="channel-details-body flex-col">
                   <Show when={tab() === "about"}>
                     <div class="channel-details-field flex-col">
-                      <label class="channel-details-label" for="channel-details-name">
+                      <label class="field-label" for="channel-details-name">
                         Channel name
                       </label>
                       <div class="channel-details-name-wrap flex-align-center">
                         <span class="channel-details-name-prefix flex-align-center">
-                          <Icon name={channelIconName(d().private)} size={13} />
+                          <Icon name={channelIconName(d().private, d().archived)} size={13} />
                         </span>
                         <input
-                          class="channel-details-input"
+                          class="text-field"
                           disabled={saving()}
                           id="channel-details-name"
                           onInput={(e) => setNameInput(e.currentTarget.value)}
-                          onKeyDown={blurOnEnter}
+                          data-commit-on-enter
                           type="text"
                           value={nameInput()}
                         />
                       </div>
                     </div>
                     <div class="channel-details-field flex-col">
-                      <label class="channel-details-label" for="channel-details-topic">
+                      <label class="field-label" for="channel-details-topic">
                         Topic
                       </label>
                       <MrkdwnComposer
@@ -279,7 +284,7 @@ export default function ChannelDetails() {
                       />
                     </div>
                     <div class="channel-details-field flex-col">
-                      <label class="channel-details-label" for="channel-details-purpose">
+                      <label class="field-label" for="channel-details-purpose">
                         Description
                       </label>
                       <MrkdwnComposer
@@ -313,7 +318,10 @@ export default function ChannelDetails() {
                       </Show>
                       <button
                         class="channel-details-copy-row btn-reset flex-align-center"
-                        onClick={() => copy(`${location.origin}/#${d().id}`, "link")}
+                        onClick={async () => {
+                          const link = await getChannelLink(d().id);
+                          if (link) copy(link, "link");
+                        }}
                         type="button"
                       >
                         <Icon name="link" size={15} />
@@ -340,6 +348,9 @@ export default function ChannelDetails() {
                     <ChannelMembersTab
                       channelId={d().id}
                       channelName={d().name}
+                      memberCount={
+                        d().memberCount ?? store.channels.channelById(d().id)?.memberCount
+                      }
                       onMembersChanged={refetch}
                     />
                   </Show>

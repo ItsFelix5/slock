@@ -3,26 +3,26 @@
 }
 
 .confirm-dialog-body {
-  padding: 20px 20px 16px;
+  padding: 20px 20px var(--space-lg);
 }
 
 .confirm-dialog-title {
-  margin: 0 0 4px;
-  font-size: 15px;
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .confirm-dialog-message {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   line-height: 1.4;
   color: var(--text-primary);
 }
 
 .confirm-dialog-title + .confirm-dialog-message {
-  font-size: 14px;
+  font-size: var(--font-size-secondary);
   font-weight: 400;
   color: var(--text-secondary);
 }
@@ -30,6 +30,6 @@
 .confirm-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-sm);
   padding: 0 20px 20px;
 }

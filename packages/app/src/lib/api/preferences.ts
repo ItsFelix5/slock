@@ -2,41 +2,60 @@ import type { UserPrefs } from "@slock/types";
 import { ApiError, apiDelete, apiPut } from "@slock/types";
 import { fetchInitialData } from "./initialData";
 
+type FrecencyEntry = { count?: number; id?: string; visits?: number[] };
+type NotificationOverride = { desktop?: string; mobile?: string; muted?: boolean };
+type NotificationPrefs = {
+  channels?: Record<string, NotificationOverride>;
+  global?: {
+    global_desktop?: string;
+    global_desktop_push_enabled?: boolean;
+    global_keywords?: string;
+    global_mpdm_desktop?: string;
+    mobile_sound?: string;
+    no_text_in_notifications?: boolean;
+    push_idle_wait?: number | string;
+    push_show_preview?: boolean;
+    threads_everything?: boolean;
+  };
+};
+type SectionPref = { collapsed?: boolean; sidebar?: string; sort?: string };
+
+function parsePref<T>(raw: string | undefined): T | null {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchUserPrefs(): Promise<UserPrefs> {
   const data = await fetchInitialData();
   if (data.error?.notification_prefs) {
     throw new ApiError(data.error.notification_prefs, data.retry_after?.notification_prefs);
   }
-  const prefs = data;
-  const parse = (key: string) => {
-    try {
-      const raw = prefs[key];
-      return typeof raw === "string" ? JSON.parse(raw) : (raw ?? null);
-    } catch {
-      return null;
-    }
-  };
-
-  const emojiUse: Record<string, number> = parse("emoji_use") ?? {};
+  const emojiUse = parsePref<Record<string, number>>(data.emoji_use) ?? {};
 
   const jumper =
-    parse("frecency_ent_jumper") ?? parse("frecency_jumper") ?? parse("frecency") ?? {};
+    parsePref<Record<string, FrecencyEntry>>(data.frecency_ent_jumper) ??
+    parsePref<Record<string, FrecencyEntry>>(data.frecency_jumper) ??
+    parsePref<Record<string, FrecencyEntry>>(data.frecency) ??
+    {};
   const channelFrecency: Record<string, { count: number; lastVisit: number }> = {};
-  for (const entry of Object.values<any>(jumper)) {
-    const id = entry?.id;
-    const count = entry?.count ?? 0;
-    const lastVisit = Array.isArray(entry?.visits) ? Math.max(...entry.visits) : 0;
+  for (const entry of Object.values(jumper)) {
+    const { id } = entry;
+    const count = entry.count ?? 0;
+    const lastVisit = entry.visits ? Math.max(...entry.visits) : 0;
     if (!id) continue;
     const existing = channelFrecency[id];
     if (!existing || count > existing.count) channelFrecency[id] = { count, lastVisit };
   }
 
-  const mutedChannelsList: string[] = (prefs.muted_channels ?? "")
+  const mutedChannelsList = (data.muted_channels ?? "")
     .split(",")
-    .map((id: string) => id.trim())
+    .map((id) => id.trim())
     .filter(Boolean);
 
-  const allNotifications = parse("notification_prefs") ?? {};
+  const allNotifications = parsePref<NotificationPrefs>(data.notification_prefs) ?? {};
   const notificationGlobal = allNotifications.global ?? {};
   const notificationOverrides = allNotifications.channels ?? {};
 
@@ -46,21 +65,12 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       ...Object.keys(notificationOverrides).filter((id) => notificationOverrides[id]?.muted),
     ]),
   );
-  const hasGlobalKeywords = typeof notificationGlobal.global_keywords === "string";
-  const globalKeywords = hasGlobalKeywords
-    ? notificationGlobal.global_keywords
-        .split(",")
-        .map((word: string) => word.trim())
-        .filter(Boolean)
-    : [];
+  const globalKeywords = (notificationGlobal.global_keywords ?? "")
+    .split(",")
+    .map((word) => word.trim())
+    .filter(Boolean);
 
-  const hasHighlightWords = typeof prefs.highlight_words === "string";
-  const highlightWords: string[] = hasHighlightWords
-    ? prefs.highlight_words
-        .split(",")
-        .map((word: string) => word.trim())
-        .filter(Boolean)
-    : globalKeywords;
+  const highlightWords = globalKeywords;
   const globalNotifications = {
     desktop: notificationGlobal.global_desktop ?? "mentions_dms",
     desktopPushEnabled: notificationGlobal.global_desktop_push_enabled !== false,
@@ -78,25 +88,22 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
       notificationOverrides[id]?.mobile === "everything",
   );
   const channelNotifications: UserPrefs["channelNotifications"] = {};
-  for (const [id, override] of Object.entries<any>(notificationOverrides)) {
-    const desktop = typeof override?.desktop === "string" ? override.desktop : undefined;
-    const mobile = typeof override?.mobile === "string" ? override.mobile : undefined;
+  for (const [id, { desktop, mobile }] of Object.entries(notificationOverrides)) {
     if (desktop || mobile) channelNotifications[id] = { desktop, mobile };
   }
 
-  const parsedSectionPrefs = parse("channel_sections") ?? {};
+  const parsedSectionPrefs = parsePref<Record<string, SectionPref | null>>(data.channel_sections);
   const sectionSort: Record<string, "recent"> = {};
   const sectionSidebar: Record<string, "hid" | "active" | "all"> = {};
   const sectionCollapsed: Record<string, boolean> = {};
   const channelSections: Record<string, Record<string, unknown>> = {};
-  if (parsedSectionPrefs && typeof parsedSectionPrefs === "object") {
-    for (const [id, value] of Object.entries<any>(parsedSectionPrefs)) {
-      if (value && typeof value === "object") channelSections[id] = { ...value };
-      if (value?.sort === "recent") sectionSort[id] = "recent";
-      if (value?.sidebar === "hid" || value?.sidebar === "active" || value?.sidebar === "all")
-        sectionSidebar[id] = value.sidebar;
-      if (typeof value?.collapsed === "boolean") sectionCollapsed[id] = value.collapsed;
-    }
+  for (const [id, value] of Object.entries(parsedSectionPrefs ?? {})) {
+    if (!value) continue;
+    channelSections[id] = { ...value };
+    if (value.sort === "recent") sectionSort[id] = "recent";
+    if (value.sidebar === "hid" || value.sidebar === "active" || value.sidebar === "all")
+      sectionSidebar[id] = value.sidebar;
+    if (typeof value.collapsed === "boolean") sectionCollapsed[id] = value.collapsed;
   }
   return {
     channelFrecency,

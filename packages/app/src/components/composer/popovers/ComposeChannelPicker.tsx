@@ -44,7 +44,7 @@ export default function ComposeChannelPicker(props: {
       renderItem={(channel) => (
         <>
           <Icon name={channelIconName(channel.private)} size={12} />
-          {channel.name}
+          <span class="truncate">{channel.name}</span>
         </>
       )}
       searchingMessage="Searching…"

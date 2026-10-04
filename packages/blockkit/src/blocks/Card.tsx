@@ -5,6 +5,7 @@ import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
 import ImageElement from "../elements/ImageElement";
+import "./Card.css";
 
 const SLACK_ICON_NAME_MAP: Record<string, IconName> = {
   clipboard: "copy",
@@ -30,7 +31,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
             props.block.icon || props.block.slack_icon || props.block.title || props.block.subtitle
           }
         >
-          <div class="bk-card-heading">
+          <div class="bk-card-heading flex-align-center gap-sm">
             <Show
               fallback={
                 <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
@@ -38,7 +39,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
               when={props.block.slack_icon}
             >
               {(slackIcon) => (
-                <span class="bk-card-slack-icon">
+                <span class="bk-card-slack-icon flex-center">
                   <Icon name={slackIconName(slackIcon().name)} size={16} />
                 </span>
               )}
@@ -50,7 +51,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
                 </div>
               </Show>
               <Show when={props.block.subtitle}>
-                <div class="bk-card-subtitle">
+                <div class="text-muted text-sm">
                   <BkText text={props.block.subtitle} />
                 </div>
               </Show>
@@ -63,7 +64,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
           </div>
         </Show>
         <Show when={props.block.subtext}>
-          <div class="bk-card-subtext">
+          <div class="bk-card-subtext text-muted text-sm">
             <BkText text={props.block.subtext} />
           </div>
         </Show>

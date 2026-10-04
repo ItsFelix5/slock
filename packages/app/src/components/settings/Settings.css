@@ -1,22 +1,22 @@
 .settings-card {
   position: relative;
   flex-direction: row;
-  width: min(620px, calc(100vw - 32px));
-  height: min(85dvh, 650px);
+  width: min(880px, calc(100vw - 32px));
+  height: min(88dvh, 780px);
   max-height: calc(100dvh - 32px);
 }
 
 .settings-nav {
   flex-shrink: 0;
   gap: 2px;
-  width: 160px;
-  padding: 20px 8px;
+  width: 200px;
+  padding: var(--space-2xl) 10px;
   border-right: 1px solid var(--border);
 }
 
 .settings-nav-btn {
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 9px var(--space-md);
+  font-size: var(--font-size-secondary);
   color: var(--text-secondary);
   text-align: left;
   border-radius: var(--radius-control);
@@ -35,19 +35,19 @@
 .settings-content {
   flex: 1;
   min-width: 0;
-  padding: 20px 24px;
+  padding: var(--space-2xl) var(--space-3xl);
   overflow-y: auto;
 }
 
 .settings-content h2 {
-  margin: 0 0 16px;
-  font-size: 18px;
+  margin: 0 0 20px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .settings-section {
-  padding: 4px 16px;
+  padding: var(--space-xs) var(--space-lg);
   margin-bottom: 14px;
   background: var(--hover-bg);
   border: 1px solid var(--border);
@@ -57,7 +57,7 @@
 .settings-section > .settings-row-label:first-child {
   padding-top: calc(12px + var(--row-padding-offset));
   margin-bottom: 10px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--text-dim);
 }
@@ -72,7 +72,7 @@
 
 .settings-row-label {
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -85,36 +85,20 @@
   color: var(--danger);
 }
 
-.settings-kbd {
-  flex-shrink: 0;
-  padding: 2px 6px;
-  font-family: monospace;
-  font-size: 11px;
-  color: var(--text-dim);
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
 .settings-row-meta {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
 }
 
 .settings-account-error {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-meta);
   color: var(--danger);
 }
 
 .settings-status-input {
   flex: 1;
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: var(--space-sm) var(--space-md);
 }
 
 .settings-status-input::placeholder {
@@ -122,8 +106,8 @@
 }
 
 .settings-status-clear {
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-size-control);
   color: var(--text-primary);
   background: var(--hover-bg);
   border: 1px solid var(--border);
@@ -140,11 +124,11 @@
 }
 
 .settings-add-row {
-  gap: 8px;
-  margin: 8px 0;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0;
 }
 
-.settings-add-row .search-input {
+.settings-add-row .text-field {
   flex: 1;
 }
 
@@ -153,7 +137,7 @@
 }
 
 .settings-list-empty {
-  padding: 12px 0;
+  padding: var(--space-md) 0;
 }
 
 .settings-list-row {
@@ -164,23 +148,20 @@
   flex: 1;
   gap: 6px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   color: var(--text-primary);
 }
 
 .settings-list-row-feedback {
   flex-shrink: 0;
   max-width: 40%;
-  margin-left: 12px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  margin-left: var(--space-md);
 }
 
 .settings-list-row-action {
   flex-shrink: 0;
-  margin-left: 12px;
-  font-size: 12px;
+  margin-left: var(--space-md);
+  font-size: var(--font-size-meta);
 }
 
 .settings-list-row-action:hover:not(:disabled) {
@@ -205,21 +186,13 @@
   cursor: default;
 }
 
+.settings-list-row-name button.btn-reset {
+  text-align: left;
+}
+
 .settings-account-identity {
-  gap: 12px;
+  gap: var(--space-md);
   min-width: 0;
-}
-
-.settings-account-add-input {
-  width: 100%;
-  margin-top: 8px;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  resize: vertical;
-}
-
-.account-switcher-list {
-  display: flex;
-  flex-direction: column;
 }
 
 .account-switcher-actions {
@@ -229,9 +202,9 @@
 
 .settings-quiet-btn {
   gap: 6px;
-  padding: 6px 8px;
-  margin-top: 4px;
-  font-size: 13px;
+  padding: 6px var(--space-sm);
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-control);
   color: var(--text-secondary);
   border-radius: var(--radius-control);
 }
@@ -244,4 +217,9 @@
 .settings-quiet-btn:disabled {
   opacity: 0.6;
   pointer-events: none;
+}
+
+.settings-keybind-find {
+  flex-shrink: 0;
+  gap: 6px;
 }

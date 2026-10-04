@@ -1,6 +1,6 @@
 import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
+import type { Block } from "@slock/types";
 import { Show } from "solid-js";
-import type { Block } from "../../../lib/api";
 
 export default function MessageReferenceSnippet(props: {
   blocks?: Block[];

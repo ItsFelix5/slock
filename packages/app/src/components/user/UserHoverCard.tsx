@@ -1,12 +1,17 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
-import { AvatarImage, HoverCard, Icon } from "@slock/ui";
+import { AvatarImage, HoverCard, Icon, type useHoverIntent } from "@slock/ui";
 import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { store } from "../../lib/store";
 import { AppBadge } from "./AppBadge";
 import "./UserHoverCard.css";
-import { createLocalTime } from "./userProfileTime";
+import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime";
 
-export default function UserHoverCard(props: { userId: string; children: JSX.Element }) {
+export default function UserHoverCard(props: {
+  userId: string;
+  children?: JSX.Element;
+  anchor?: () => HTMLElement | undefined;
+  hoverIntent?: ReturnType<typeof useHoverIntent>;
+}) {
   const [cardOpen, setCardOpen] = createSignal(false);
   const user = createMemo(() => store.users.userById(props.userId));
   const isSelf = createMemo(() => props.userId === store.users.currentUser()?.id);
@@ -14,14 +19,19 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
     cardOpen() && user()?.isBot ? store.users.botBio(user()?.appId, user()?.botId) : undefined,
   );
   const presence = createMemo(() =>
-    cardOpen() ? store.users.presenceFor(props.userId) : undefined,
+    cardOpen() && !user()?.isBot ? store.users.presenceFor(props.userId) : undefined,
   );
 
-  const localTime = createLocalTime(user, Date.now);
+  const openUser = () => (cardOpen() ? user() : undefined);
+  const localTime = createLocalTime(openUser, Date.now);
+  const tzDiff = createTzDiff(openUser, Date.now);
+  const tzSuffix = createTzSuffix(openUser, tzDiff);
 
   return (
     <HoverCard
+      anchor={props.anchor}
       anchorClass="user-hovercard-anchor"
+      hoverIntent={props.hoverIntent}
       content={(close) => (
         <Show when={user()}>
           {(u) => (
@@ -38,8 +48,8 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                     )}
                   </Show>
                 </div>
-                <div class="user-hovercard-heading">
-                  <div class="user-hovercard-name">
+                <div class="user-hovercard-heading flex-col">
+                  <div class="user-hovercard-name flex-align-center">
                     <span
                       class="user-hovercard-name-label"
                       title={u().originalName && `really ${u().originalName}`}
@@ -50,7 +60,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                       <AppBadge />
                     </Show>
                     <Show when={u().pronouns}>
-                      <span class="pronouns">({u().pronouns})</span>
+                      <span class="pronouns truncate">({u().pronouns})</span>
                     </Show>
                   </div>
                   <Show when={u().title || botBio()}>
@@ -74,7 +84,7 @@ export default function UserHoverCard(props: { userId: string; children: JSX.Ele
                 <div class="user-hovercard-meta flex-align-center text-dim text-sm">
                   <Icon name="clock" size={13} />
                   {localTime()} local time
-                  {u().tzLabel ? ` (${u().tzLabel})` : ""}
+                  {tzSuffix()}
                 </div>
               </Show>
 

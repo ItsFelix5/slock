@@ -1,0 +1,73 @@
+.otp-input {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.otp-input-slot {
+  width: 44px;
+  height: 52px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  caret-color: transparent;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.otp-input-slot.filled {
+  background: var(--active-bg);
+  border-color: var(--border-strong);
+  animation: otp-pop 0.12s ease-out;
+}
+
+.otp-input-slot:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.otp-input-slot:disabled {
+  opacity: 0.6;
+}
+
+.otp-input.shake {
+  animation: otp-shake 0.32s ease;
+}
+
+.otp-input.shake .otp-input-slot {
+  border-color: var(--danger);
+}
+
+@keyframes otp-pop {
+  from {
+    transform: scale(0.85);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes otp-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .otp-input-slot,
+  .otp-input.shake {
+    animation: none;
+  }
+}

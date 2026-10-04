@@ -1,65 +1,48 @@
 import { createEffect, createSignal } from "solid-js";
 
+export type NavDirection = "down" | "end" | "left" | "right" | "start" | "up";
+export type ListDirection = "down" | "end" | "start" | "up";
+
 export function listNavigationIndex(
-  key: string,
+  direction: ListDirection,
   current: number | null,
   itemCount: number,
   options?: { wrap?: boolean },
 ): number | undefined {
   if (itemCount <= 0) return;
   const wrap = options?.wrap ?? false;
-  if (key === "ArrowDown") {
+  if (direction === "down") {
     if (current === null) return 0;
     return wrap ? (current + 1) % itemCount : Math.min(current + 1, itemCount - 1);
   }
-  if (key === "ArrowUp") {
+  if (direction === "up") {
     if (current === null) return itemCount - 1;
     return wrap ? (current - 1 + itemCount) % itemCount : Math.max(current - 1, 0);
   }
-  if (key === "Home") return 0;
-  if (key === "End") return itemCount - 1;
+  if (direction === "start") return 0;
+  if (direction === "end") return itemCount - 1;
 }
 
 export function gridNavigationIndex(
-  key: string,
+  direction: NavDirection,
   current: number | null,
   itemCount: number,
   columns: number,
 ): number | undefined {
   if (itemCount <= 0) return;
-  if (key === "Home") return 0;
-  if (key === "End") return itemCount - 1;
-  if (key === "ArrowRight") return current === null ? 0 : Math.min(current + 1, itemCount - 1);
-  if (key === "ArrowLeft") return current === null ? itemCount - 1 : Math.max(current - 1, 0);
-  if (key === "ArrowDown") return current === null ? 0 : Math.min(current + columns, itemCount - 1);
-  if (key === "ArrowUp") return current === null ? itemCount - 1 : Math.max(current - columns, 0);
+  if (direction === "start") return 0;
+  if (direction === "end") return itemCount - 1;
+  if (direction === "right") return current === null ? 0 : Math.min(current + 1, itemCount - 1);
+  if (direction === "left") return current === null ? itemCount - 1 : Math.max(current - 1, 0);
+  if (direction === "down")
+    return current === null ? 0 : Math.min(current + columns, itemCount - 1);
+  if (direction === "up") return current === null ? itemCount - 1 : Math.max(current - columns, 0);
 }
 
 export function rovingTabIndex(rows: HTMLElement[], activeIndex: number) {
   rows.forEach((row, index) => {
     row.tabIndex = index === activeIndex ? 0 : -1;
   });
-}
-
-export function tabStripKeyDown<T>(
-  event: KeyboardEvent,
-  items: T[],
-  currentIndex: number,
-  activate: (item: T, index: number) => void,
-  orientation: "horizontal" | "vertical" = "horizontal",
-) {
-  const forwardKey = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
-  const backwardKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
-  if (event.key !== forwardKey && event.key !== backwardKey) return;
-  event.preventDefault();
-  const next = listNavigationIndex(
-    event.key === forwardKey ? "ArrowDown" : "ArrowUp",
-    currentIndex,
-    items.length,
-    { wrap: true },
-  );
-  if (next === undefined) return;
-  activate(items[next], next);
 }
 
 export function scrollActiveListOption(listbox: () => HTMLElement | undefined) {

@@ -1,3 +1,4 @@
+import { isRecord } from "@slock/types";
 import { errorResponse, jsonResponse } from "../../http/jsonResponse.ts";
 import { type Route, route } from "../router.ts";
 
@@ -8,21 +9,25 @@ type LookupFailure = { lookup: Lookup; reason: string };
 const USER_ID_RE = /^[UW][A-Z0-9]+$/;
 const FETCH_TIMEOUT_MS = 8_000;
 
-async function fetchJson(lookup: Lookup, url: string): Promise<any> {
+function recordOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+async function fetchJson(lookup: Lookup, url: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`${lookup} responded ${res.status} ${res.statusText}`);
-  return res.json();
+  return recordOrEmpty(await res.json());
 }
 
-async function fetchTrustFactor(id: string): Promise<any> {
+async function fetchTrustFactor(id: string): Promise<Record<string, unknown> | null> {
   const res = await fetch(`https://hackatime.hackclub.com/api/v1/users/${id}/trust_factor`, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`hackatime responded ${res.status} ${res.statusText}`);
-  return res.json();
+  return recordOrEmpty(await res.json());
 }
 
 function failure(lookup: Lookup, error: unknown): LookupFailure {

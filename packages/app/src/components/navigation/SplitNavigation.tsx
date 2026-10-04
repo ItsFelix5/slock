@@ -1,15 +1,9 @@
 import { type JSX, onCleanup } from "solid-js";
 
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
-  const onClick = (event: MouseEvent) => {
+  const onActivate = (event: MouseEvent | KeyboardEvent) => {
     if (!event.shiftKey || event.defaultPrevented) return;
-    event.preventDefault();
-    event.stopPropagation();
-    props.onSplit();
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Enter" || !event.shiftKey || event.defaultPrevented) return;
+    if (event instanceof KeyboardEvent && (event.key !== "Enter" || isTyping(event.target))) return;
     event.preventDefault();
     event.stopPropagation();
     props.onSplit();
@@ -18,16 +12,24 @@ export function SplitNavigation(props: { children: JSX.Element; onSplit: () => v
   return (
     <span
       ref={(el) => {
-        el.addEventListener("click", onClick, true);
-        el.addEventListener("keydown", onKeyDown, true);
+        el.addEventListener("click", onActivate, true);
+        el.addEventListener("keydown", onActivate, true);
         onCleanup(() => {
-          el.removeEventListener("click", onClick, true);
-          el.removeEventListener("keydown", onKeyDown, true);
+          el.removeEventListener("click", onActivate, true);
+          el.removeEventListener("keydown", onActivate, true);
         });
       }}
       style={{ display: "contents" }}
     >
       {props.children}
     </span>
+  );
+}
+
+function isTyping(target: EventTarget | null) {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
   );
 }

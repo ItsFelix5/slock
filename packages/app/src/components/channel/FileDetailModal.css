@@ -12,15 +12,12 @@
 }
 
 .file-detail-body {
-  gap: 4px;
-  padding: 16px 20px 20px;
+  gap: var(--space-xs);
+  padding: var(--space-lg) 20px 20px;
   overflow-y: auto;
 }
 
 .file-detail-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 120px;
   margin-bottom: 10px;
   overflow: hidden;
@@ -35,17 +32,10 @@
   max-height: 50vh;
 }
 
-.file-detail-image {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 50vh;
-}
-
 .file-detail-snippet {
   width: 100%;
   max-height: 50vh;
-  padding: 14px 16px;
+  padding: 14px var(--space-lg);
   overflow: auto;
   font-family: var(--font-mono, monospace);
   font-size: 12.5px;
@@ -58,7 +48,7 @@
 .file-detail-fallback {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-sm);
   align-items: center;
   padding: 40px 20px;
   color: var(--text-dim);
@@ -79,14 +69,14 @@
 }
 
 .file-detail-shares {
-  padding-top: 12px;
+  padding-top: var(--space-md);
   margin-top: 10px;
   border-top: 1px solid var(--border);
 }
 
 .file-detail-shares-label {
   padding: 0 2px 6px;
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -97,7 +87,7 @@
   gap: 10px;
   align-items: center;
   width: 100%;
-  padding: 8px;
+  padding: var(--space-sm);
   text-align: left;
   border-radius: var(--radius-control);
 }
@@ -109,7 +99,7 @@
 .file-detail-share-channel {
   flex-shrink: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -117,7 +107,7 @@
 .file-detail-share-time,
 .file-detail-share-replies {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   white-space: nowrap;
 }
 

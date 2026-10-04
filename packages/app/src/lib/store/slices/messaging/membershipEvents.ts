@@ -1,5 +1,5 @@
-import type { Channel, DirectMessage, User } from "../../../api";
-import { mapChannel } from "../../../api";
+import type { MembershipEvent } from "@slock/types";
+import { type Channel, type DirectMessage, mapChannel, type User } from "@slock/types";
 
 export function createMembershipEvents(deps: {
   currentUser: () => User | undefined;
@@ -13,35 +13,29 @@ export function createMembershipEvents(deps: {
   ensureMpdm: (channelId: string) => void;
   patchChannel: (id: string, patch: Partial<Channel>) => void;
 }) {
-  function channelId(payload: any): string | undefined {
-    return typeof payload.channel === "string" ? payload.channel : payload.channel?.id;
-  }
-
-  function handleMembershipEvent(payload: any): void {
+  function handleMembershipEvent(payload: MembershipEvent): void {
     switch (payload.type) {
       case "channel_joined":
       case "group_joined":
-        if (payload.channel) deps.addJoinedChannel(mapChannel(payload.channel));
+        deps.addJoinedChannel(mapChannel(payload.channel));
         break;
       case "channel_left":
       case "group_left":
-      case "channel_deleted": {
-        const id = channelId(payload);
-        if (id) deps.markChannelLeft(id);
+      case "channel_deleted":
+        if (payload.channel) deps.markChannelLeft(payload.channel);
         break;
-      }
       case "member_left_channel":
         if (payload.channel && payload.user === deps.currentUser()?.id)
           deps.markChannelLeft(payload.channel);
         break;
       case "im_created": {
-        const dmChannel = payload.channel;
-        const userId = dmChannel?.user ?? payload.user;
-        if (dmChannel?.id && userId) {
-          if (deps.dmById(dmChannel.id)) {
-            if (deps.closedDmIds[dmChannel.id]) deps.setClosedDmIds(dmChannel.id, false);
+        const { channel } = payload;
+        const userId = channel.user ?? payload.user;
+        if (userId) {
+          if (deps.dmById(channel.id)) {
+            if (deps.closedDmIds[channel.id]) deps.setClosedDmIds(channel.id, false);
           } else {
-            deps.ensureDm(dmChannel.id, userId);
+            deps.ensureDm(channel.id, userId);
           }
         }
         break;
@@ -54,28 +48,22 @@ export function createMembershipEvents(deps: {
       case "mpim_open":
         if (payload.channel) deps.setClosedDmIds(payload.channel, false);
         break;
-      case "mpim_joined": {
-        const id = channelId(payload);
-        if (id) deps.ensureMpdm(id);
+      case "mpim_joined":
+        if (payload.channel) deps.ensureMpdm(payload.channel);
         break;
-      }
       case "channel_rename":
       case "group_rename":
-        if (payload.channel?.id)
+        if (payload.channel.id)
           deps.patchChannel(payload.channel.id, { name: payload.channel.name });
         break;
       case "channel_archive":
-      case "group_archive": {
-        const id = channelId(payload);
-        if (id) deps.patchChannel(id, { archived: true });
+      case "group_archive":
+        if (payload.channel) deps.patchChannel(payload.channel, { archived: true });
         break;
-      }
       case "channel_unarchive":
-      case "group_unarchive": {
-        const id = channelId(payload);
-        if (id) deps.patchChannel(id, { archived: false });
+      case "group_unarchive":
+        if (payload.channel) deps.patchChannel(payload.channel, { archived: false });
         break;
-      }
     }
   }
 

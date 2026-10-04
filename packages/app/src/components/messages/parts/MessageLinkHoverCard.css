@@ -1,6 +1,6 @@
 .message-link-hovercard {
   gap: 6px;
-  padding: 12px 14px;
+  padding: var(--space-md) 14px;
   color: var(--text-primary);
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
@@ -10,7 +10,7 @@
 
 .message-link-hovercard-head {
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 700;
 }
 

@@ -10,7 +10,6 @@ export type {
   FileUploadInput,
   GlobalSearchResults,
   HistoryPage,
-  NewerHistoryPage,
   PinnedMessage,
   SearchResult,
   UserPrefs,
@@ -54,38 +53,81 @@ export type {
   VideoBlock,
 } from "./blocks";
 export { blockPreviewText, broadcastRangeFromBlocks, narrowByType } from "./blocks";
-export { fetchAllEmoji, fetchSlashCommands } from "./content";
+export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./bootstrapPayload";
+export { fetchAllEmoji, fetchSlashCommands, invalidateEmojiCache } from "./content";
 export type { ActivityItem, LinkPreview, SavedItem } from "./contentTypes";
 export {
   ACTIVITY_FEED_TYPES,
   ACTIVITY_FEED_TYPES_PARAM,
 } from "./contentTypes";
 export { searchDirectory } from "./directory";
+export type {
+  Attachment,
+  AttachmentAction,
+  PendingFile,
+  SlackFile,
+  SlackFileDetail,
+  SlackLink,
+} from "./fileTypes";
+export type {
+  DesktopNotificationEvent,
+  GatewayEvent,
+  GatewayMessageEvent,
+  MembershipEvent,
+} from "./gatewayEvents";
+export { mapFile, mapFileShare, mapLink } from "./mapFiles";
 export {
   buildUnreadMap,
+  CLOCK_24H,
   extractChannelSections,
   formatDay,
   formatDayFromMs,
   formatTime,
   formatTimeFromMs,
-  HIDE_SUBTYPES,
+  isMyRelayedMessage,
   mapBot,
   mapChannel,
+  mapChannelDetails,
   mapCustomFields,
-  mapFile,
-  mapFileShare,
-  mapLink,
   mapMessage,
   mapProfileIdentity,
   mapStartDate,
   mapUser,
+  mapVisibleMessage,
+  mapVisibleMessages,
   parseBadgeCounts,
+  RELAY_BOT_ID,
+  SLACK_SYSTEM_USER,
   SLACK_USER_ID,
 } from "./mappers";
-export type { RawCounts, RawFile, RawMessage, RawUser } from "./rawTypes";
+export type {
+  RawActivityEntry,
+  RawActivityFeedEntry,
+  RawActivityItem,
+  RawActivityMessage,
+} from "./rawActivity";
+export type {
+  RawAttachment,
+  RawBot,
+  RawChannel,
+  RawChannelProperties,
+  RawChannelSection,
+  RawChannelText,
+  RawCountGroup,
+  RawCounts,
+  RawFile,
+  RawFileShare,
+  RawIcons,
+  RawLink,
+  RawMessage,
+  RawUser,
+  RawUsergroup,
+  RawUserProfile,
+} from "./rawTypes";
+export { isRawMessage, isRecord } from "./rawTypes";
 export { getOrCreateRetryablePromise } from "./retryablePromiseCache";
 export { isRichTextSubBlock, richTextBlocksToPlainText } from "./richText";
-export type { StoredAccount } from "./server";
+export type { ApiFailure, ApiReply, StoredAccount } from "./server";
 export {
   ApiError,
   apiDelete,
@@ -95,6 +137,7 @@ export {
   apiPut,
   apiUpload,
   extractSlackSession,
+  forceReauth,
   forgetAccount,
   getActiveAccountId,
   getCachedWorkspaceDomain,
@@ -110,8 +153,6 @@ export {
   userProfileUrl,
 } from "./server";
 export type {
-  Attachment,
-  AttachmentAction,
   BrowsableChannel,
   CanvasBlock,
   CanvasListEntry,
@@ -124,14 +165,13 @@ export type {
   MemberPermissionsPatch,
   Message,
   MessageShortcut,
-  ProfileFieldDef,
   Reaction,
-  SlackFile,
-  SlackFileDetail,
-  SlackLink,
+} from "./types";
+export type {
+  ProfileFieldDef,
   User,
   UserCustomField,
   Usergroup,
   UsergroupDetails,
   UserProfile,
-} from "./types";
+} from "./userTypes";

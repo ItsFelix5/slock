@@ -7,8 +7,6 @@
 }
 
 .connect-slack-card {
-  display: flex;
-  flex-direction: column;
   gap: 14px;
   width: 480px;
   max-width: 100%;
@@ -23,62 +21,6 @@
   margin: 0;
   font-size: 20px;
   color: var(--text-primary);
-}
-
-.connect-slack-intro {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.connect-slack-steps {
-  padding-left: 20px;
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.connect-slack-steps code {
-  padding: 1px 5px;
-  font-size: 13px;
-  background: var(--code-bg);
-  border-radius: var(--radius-sm);
-}
-
-.connect-slack-input {
-  width: 100%;
-  padding: 10px 12px;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  resize: vertical;
-  outline: none;
-  background: var(--main-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.connect-slack-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
-.connect-slack-input:focus {
-  border-color: var(--accent);
-}
-
-.connect-slack-input:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.connect-slack-error {
-  min-height: 18px;
-  margin: 0;
-  font-size: 13px;
-  color: var(--danger);
 }
 
 @media (max-height: 650px) {

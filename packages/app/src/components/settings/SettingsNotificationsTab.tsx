@@ -88,7 +88,7 @@ export default function SettingsNotificationsTab() {
         <div class="settings-row-label">Pingwords</div>
         <form class="settings-add-row flex-align-center" onSubmit={submitNewWord}>
           <input
-            class="search-input"
+            class="text-field"
             disabled={store.preferences.isHighlightWordsPending()}
             onInput={(event) => setNewWord(event.currentTarget.value)}
             placeholder="Add a word or phrase"
@@ -140,10 +140,11 @@ export default function SettingsNotificationsTab() {
               {(c) => (
                 <div class="settings-list-row flex-between">
                   <span class="settings-list-row-name flex-align-center">
-                    <Icon name={channelIconName(c.private)} size={12} /> {channelDisplayName(c)}
+                    <Icon name={channelIconName(c.private, c.archived)} size={12} />{" "}
+                    <span class="truncate">{channelDisplayName(c)}</span>
                   </span>
                   <InlineFeedback
-                    class="settings-list-row-feedback"
+                    class="settings-list-row-feedback truncate"
                     feedback={actionFeedback.get(c.id)}
                     priority={2}
                   />
@@ -171,10 +172,11 @@ export default function SettingsNotificationsTab() {
               {(c) => (
                 <div class="settings-list-row flex-between">
                   <span class="settings-list-row-name flex-align-center">
-                    <Icon name={channelIconName(c.private)} size={12} /> {channelDisplayName(c)}
+                    <Icon name={channelIconName(c.private, c.archived)} size={12} />{" "}
+                    <span class="truncate">{channelDisplayName(c)}</span>
                   </span>
                   <InlineFeedback
-                    class="settings-list-row-feedback"
+                    class="settings-list-row-feedback truncate"
                     feedback={actionFeedback.get(c.id)}
                     priority={2}
                   />

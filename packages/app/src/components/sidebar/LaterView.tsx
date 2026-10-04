@@ -1,3 +1,4 @@
+import { formatTime } from "@slock/types";
 import {
   Button,
   ClickableInline,
@@ -9,7 +10,6 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, For, onMount, Show } from "solid-js";
-import { formatTime } from "../../lib/api";
 import { conversationDisplayName } from "../../lib/displayName";
 import { actionFeedback } from "../../lib/feedback";
 import { openConversation, openConversationInSplit } from "../../lib/navigation/conversationNav";
@@ -20,7 +20,7 @@ import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   resolveProfileUserId,
-} from "../messages/parts/messageRenderState";
+} from "../messages/parts/messageAuthor";
 import ResultMessageCard from "../messages/parts/ResultMessageCard";
 import { SplitNavigation } from "../navigation/SplitNavigation";
 import "./LaterView.css";
@@ -34,8 +34,7 @@ export default function LaterView() {
   );
 
   const goTo = (channelId: string, ts: string, rootTs?: string) => {
-    if (rootTs) store.viewState.openChannelPeek(channelId, rootTs, ts, { keepNav: true });
-    else store.viewState.openChannelMessage(channelId, ts, { keepNav: true });
+    store.viewState.openChannelMessage(channelId, ts, rootTs);
   };
 
   return (
@@ -56,10 +55,12 @@ export default function LaterView() {
           when={store.later.laterLoaded() || !store.later.laterLoadError()}
         >
           <Show when={store.later.laterLoading() && store.later.laterLoaded()}>
-            <div class="later-load-notice text-dim text-sm">Refreshing saved items…</div>
+            <div class="later-load-notice flex-center gap-sm text-dim text-sm">
+              Refreshing saved items…
+            </div>
           </Show>
           <Show when={store.later.laterLoadError() && store.later.laterLoaded()}>
-            <div class="later-load-notice later-load-warning">
+            <div class="later-load-notice flex-center gap-sm later-load-warning">
               <span>Couldn't refresh saved items.</span>
               <Button onClick={store.later.ensureLaterLoaded} size="sm">
                 Try again
@@ -114,12 +115,14 @@ export default function LaterView() {
                       context={
                         <SplitNavigation onSplit={() => openConversationInSplit(item.channelId)}>
                           <ClickableInline onActivate={() => openConversation(item.channelId)}>
-                            {conversationDisplayName(
-                              item.channelId,
-                              store.channels.channelById,
-                              store.dms.dmById,
-                              store.users.userById,
-                            )}
+                            <span class="result-message-card-context-text">
+                              {conversationDisplayName(
+                                item.channelId,
+                                store.channels.channelById,
+                                store.dms.dmById,
+                                store.users.userById,
+                              )}
+                            </span>
                           </ClickableInline>
                         </SplitNavigation>
                       }
@@ -196,7 +199,7 @@ export default function LaterView() {
                       }
                     />
                     <InlineFeedback
-                      class="later-feedback"
+                      class="later-feedback truncate"
                       feedback={actionFeedback.get(item.ts)}
                       priority={2}
                     />

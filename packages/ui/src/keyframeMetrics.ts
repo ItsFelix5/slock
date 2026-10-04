@@ -22,9 +22,8 @@ export function metricsAt<T extends Record<string, number>>(
   const [fromAt, from] = keyframes[segmentEnd - 1];
   const [toAt, to] = keyframes[segmentEnd];
   const t = (clamped - fromAt) / (toAt - fromAt);
-  const result: any = {};
-  for (const key of objectKeys(from)) {
-    result[key] = lerp(from[key], to[key], t);
-  }
-  return result;
+  return {
+    ...from,
+    ...Object.fromEntries(objectKeys(from).map((key) => [key, lerp(from[key], to[key], t)])),
+  };
 }

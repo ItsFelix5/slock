@@ -1,9 +1,6 @@
+import { encodeTextEntities } from "@slock/blockkit";
 import type { CanvasBlock, RawFile } from "@slock/types";
 import type { CanvasEmbed, RawBlock } from "./canvasParse";
-
-function escapeMrkdwn(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -16,16 +13,16 @@ function embedToMrkdwn(embed: CanvasEmbed, filesById: Map<string, RawFile>): str
     case "user":
       return `<@${embed.userId}>`;
     case "date": {
-      const fallback = escapeMrkdwn(dateFormatter.format(new Date(embed.ms)));
+      const fallback = encodeTextEntities(dateFormatter.format(new Date(embed.ms)));
       return `<!date^${Math.floor(embed.ms / 1000)}^{date_short_pretty}|${fallback}>`;
     }
     case "file": {
       const file = filesById.get(embed.fileId);
-      if (!file?.permalink) return escapeMrkdwn(`[file ${embed.fileId}]`);
-      const title = escapeMrkdwn(file.title?.trim() || file.name?.trim() || embed.fileId);
+      if (!file?.permalink) return encodeTextEntities(`[file ${embed.fileId}]`);
+      const title = encodeTextEntities(file.title?.trim() || file.name?.trim() || embed.fileId);
       return file.filetype === "quip"
         ? `<!canvas^${embed.fileId}|${title}>`
-        : `<${escapeMrkdwn(file.permalink)}|${title}>`;
+        : `<${encodeTextEntities(file.permalink)}|${title}>`;
     }
     case "video":
       return "[video]";
@@ -56,7 +53,7 @@ export function toMrkdwn(
     const textBefore = raw.slice(lastIndex, match.index);
     lastIndex = match.index + full.length;
     if (linkHref !== null) linkLabel += textBefore;
-    else if (skipDepth === 0 && textBefore) out += escapeMrkdwn(textBefore);
+    else if (skipDepth === 0 && textBefore) out += encodeTextEntities(textBefore);
 
     const lower = tag.toLowerCase();
     if (lower === "control") {
@@ -74,7 +71,9 @@ export function toMrkdwn(
     if (lower === "annotation") continue;
     if (lower === "a") {
       if (closing) {
-        out += linkHref ? `<${escapeMrkdwn(linkHref)}|${escapeMrkdwn(linkLabel)}>` : linkLabel;
+        out += linkHref
+          ? `<${encodeTextEntities(linkHref)}|${encodeTextEntities(linkLabel)}>`
+          : linkLabel;
         linkHref = null;
         linkLabel = "";
       } else {
@@ -88,7 +87,7 @@ export function toMrkdwn(
   }
   const tail = raw.slice(lastIndex);
   if (linkHref !== null) linkLabel += tail;
-  else if (skipDepth === 0) out += escapeMrkdwn(tail);
+  else if (skipDepth === 0) out += encodeTextEntities(tail);
   return out;
 }
 

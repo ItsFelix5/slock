@@ -3,7 +3,6 @@ import {
   getActiveAccountId,
   getWorkspaceDomain,
   listStoredAccounts,
-  logout,
   rememberAccount,
   type StoredAccount,
   setActiveAccountId,
@@ -12,7 +11,6 @@ import {
 import {
   Avatar,
   Button,
-  confirmDialog,
   DEFAULT_AVATAR_COLOR,
   debugMode,
   Icon,
@@ -22,8 +20,9 @@ import {
 } from "@slock/ui";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { fetchAccountIdentity, reportChannelNamesToFlaron } from "../../lib/api";
-import { parseSlackCurl } from "../../lib/parseSlackCurl";
+import { confirmLogout, logoutAndReload } from "../../lib/session";
 import { store } from "../../lib/store";
+import ConnectAccountForm from "../setup/ConnectAccountForm";
 import "./Settings.css";
 
 export default function SettingsAccountTab() {
@@ -38,23 +37,16 @@ export default function SettingsAccountTab() {
   const [switching, setSwitching] = createSignal<string>();
   const [switchError, setSwitchError] = createSignal<string>();
   const [showAdd, setShowAdd] = createSignal(false);
-  const [addError, setAddError] = createSignal<string | null>(null);
 
   const [reportingFlaron, setReportingFlaron] = createSignal(false);
   const [flaronReported, setFlaronReported] = createSignal(false);
 
   async function handleLogout() {
-    const confirmed = await confirmDialog({
-      confirmLabel: "Log out",
-      danger: true,
-      message: "Log out? You'll need to paste a fresh request from devtools to reconnect.",
-    });
-    if (!confirmed) return;
+    if (!(await confirmLogout())) return;
     setLogoutError(undefined);
     setLoggingOut(true);
     try {
-      await logout();
-      location.reload();
+      await logoutAndReload();
     } catch (error) {
       setLogoutError(error instanceof Error ? error.message : "Couldn't log out. Try again.");
       setLoggingOut(false);
@@ -80,19 +72,6 @@ export default function SettingsAccountTab() {
   function handleRemove(id: string) {
     forgetAccount(id);
     setAccounts(listStoredAccounts());
-  }
-
-  async function handleAdd(raw: string) {
-    try {
-      const creds = parseSlackCurl(raw);
-      const result = await submitAuthRequest(creds);
-      if (!result.ok) throw new Error(result.error ?? "Couldn't connect.");
-      const identity = await fetchAccountIdentity().catch(() => ({ name: creds.domain }));
-      setActiveAccountId(rememberAccount({ ...creds, ...identity }).id);
-      location.reload();
-    } catch (e) {
-      setAddError(e instanceof Error ? e.message : String(e));
-    }
   }
 
   async function handleFlaronReport() {
@@ -144,7 +123,7 @@ export default function SettingsAccountTab() {
           fallback={<div class="settings-list-empty text-dim text-sm">None saved yet.</div>}
           when={otherAccounts().length > 0}
         >
-          <div class="account-switcher-list">
+          <div class="account-switcher-list flex-col">
             <For each={otherAccounts()}>
               {(account) => (
                 <div class="settings-list-row flex-between">
@@ -204,21 +183,7 @@ export default function SettingsAccountTab() {
           }
           when={showAdd()}
         >
-          <textarea
-            aria-describedby="settings-add-account-error"
-            autocomplete="off"
-            class="settings-status-input settings-account-add-input"
-            onInput={(event) => {
-              setAddError(null);
-              handleAdd(event.currentTarget.value);
-            }}
-            placeholder="Paste a 'Copy as cURL' request from another account's devtools"
-            rows={4}
-            spellcheck={false}
-          />
-          <p class="settings-account-error" id="settings-add-account-error">
-            {addError()}
-          </p>
+          <ConnectAccountForm onConnected={() => location.reload()} />
         </Show>
       </div>
 

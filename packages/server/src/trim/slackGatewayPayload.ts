@@ -1,25 +1,59 @@
+import type {
+  GatewayEvent,
+  ModalView,
+  RawChannel,
+  RawCounts,
+  RawMessage,
+  RawUser,
+} from "@slock/types";
 import {
   trimActivityCounts,
   trimChannel,
+  trimCountGroup,
   trimCountGroups,
-  trimMessage,
-  trimUser,
-} from "./slackEntities.ts";
+} from "./slackChannels.ts";
+import { trimUser } from "./slackEntities.ts";
+import { trimMessage } from "./slackMessages.ts";
 
-function trimGatewayCounts(payload: any): any {
-  if (!payload || typeof payload !== "object") return payload;
-  return trimCountGroups(payload, (group: any) => ({
-    has_unreads: group?.has_unreads,
-    id: group?.id,
-    is_unread: group?.is_unread,
-    mention_count: group?.mention_count,
-    mention_count_display: group?.mention_count_display,
-    unread_count: group?.unread_count,
-    unread_count_display: group?.unread_count_display,
-  }));
+type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &
+  RawCounts & {
+    avatarImage?: string;
+    badges?: RawCounts;
+    bot?: { id?: string };
+    channel?: string | RawChannel;
+    channel_id?: string;
+    content?: string;
+    deleted_ts?: string;
+    dnd_status?: { snooze_enabled?: boolean; snooze_endtime?: number };
+    event_ts?: string;
+    is_shared?: boolean;
+    item?: { channel?: string; message?: { ts?: string }; ts?: string; type?: string };
+    item_user?: string;
+    message?: RawMessage;
+    launchUri?: string;
+    mention_count?: number;
+    msg?: string;
+    presence?: string;
+    reaction?: string;
+    subscription?: { thread_ts?: string; unread_count?: number };
+    subteam?: { id?: string };
+    subteam_id?: string;
+    subtitle?: string;
+    title?: string;
+    ts?: string;
+    type?: string;
+    unread_count?: number;
+    user?: string | RawUser;
+    users?: string[];
+    view?: ModalView;
+    view_type?: string;
+  };
+
+function trimGatewayCounts(payload: RawCounts): RawCounts {
+  return trimCountGroups(payload, trimCountGroup);
 }
 
-function trimView(view: any): any {
+function trimView(view: ModalView | undefined): ModalView | undefined {
   if (!view) return;
   return {
     blocks: view.blocks,
@@ -32,23 +66,26 @@ function trimView(view: any): any {
   };
 }
 
-function eventChannelId(payload: any): any {
-  return typeof payload.channel === "string" ? payload.channel : payload.channel?.id;
+function channelId(channel: RawGatewayEvent["channel"]): string | undefined {
+  return typeof channel === "string" ? channel : channel?.id;
 }
 
-function trimMessageEvent(payload: any): any {
-  return {
-    ...trimMessage(payload),
-    channel: payload.channel,
-    deleted_ts: payload.deleted_ts,
-    message: payload.message ? trimMessage(payload.message) : undefined,
-  };
+function isFileEvent(type: string | undefined): type is `file_${string}` {
+  return !!type?.startsWith("file_");
 }
 
-export function trimSlackGatewayPayload(payload: any): any | null {
-  switch (payload?.type) {
+export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent | null {
+  const channel = typeof payload.channel === "object" ? payload.channel : undefined;
+  const user = typeof payload.user === "string" ? payload.user : undefined;
+  switch (payload.type) {
     case "message":
-      return trimMessageEvent(payload);
+      return {
+        ...trimMessage({ ...payload, ts: payload.ts ?? "", user }),
+        channel: channelId(payload.channel),
+        deleted_ts: payload.deleted_ts,
+        message: payload.message ? trimMessage(payload.message) : undefined,
+        type: "message",
+      };
     case "reaction_added":
     case "reaction_removed":
       return {
@@ -56,34 +93,27 @@ export function trimSlackGatewayPayload(payload: any): any | null {
         item_user: payload.item_user,
         reaction: payload.reaction,
         type: payload.type,
-        user: payload.user,
+        user,
       };
     case "presence_change":
-      return {
-        presence: payload.presence,
-        type: payload.type,
-        user: payload.user,
-        users: payload.users,
-      };
+      return { presence: payload.presence, type: payload.type, user, users: payload.users };
     case "user_typing":
       return {
-        channel: payload.channel,
+        channel: channelId(payload.channel),
         thread_ts: payload.thread_ts,
         type: payload.type,
-        user: payload.user,
+        user,
       };
-    case "badge_counts_updated": {
-      const counts = trimGatewayCounts(payload);
+    case "badge_counts_updated":
       return {
-        ...counts,
+        ...trimGatewayCounts(payload),
         activity_v2: trimActivityCounts(payload.activity_v2),
         badges: payload.badges ? trimGatewayCounts(payload.badges) : undefined,
         type: payload.type,
       };
-    }
     case "channel_marked":
       return {
-        channel: payload.channel,
+        channel: channelId(payload.channel),
         mention_count: payload.mention_count,
         ts: payload.ts,
         type: payload.type,
@@ -91,20 +121,18 @@ export function trimSlackGatewayPayload(payload: any): any | null {
       };
     case "channel_joined":
     case "group_joined":
-      return { channel: trimChannel(payload.channel), type: payload.type };
+      return channel ? { channel: trimChannel(channel), type: payload.type } : null;
     case "im_created":
-      return {
-        channel: { ...trimChannel(payload.channel), user: payload.channel?.user },
-        type: payload.type,
-        user: payload.user,
-      };
+      return channel
+        ? { channel: { ...trimChannel(channel), user: channel.user }, type: payload.type, user }
+        : null;
     case "channel_left":
     case "group_left":
-      return { channel: payload.channel, type: payload.type };
+      return { channel: channelId(payload.channel), type: payload.type };
     case "member_left_channel":
-      return { channel: payload.channel, type: payload.type, user: payload.user };
+      return { channel: channelId(payload.channel), type: payload.type, user };
     case "user_invalidated":
-      return { type: payload.type, user: payload.user, users: payload.users };
+      return { type: payload.type, user, users: payload.users };
     case "view_opened":
     case "view_updated":
       return { type: payload.type, view: trimView(payload.view), view_type: payload.view_type };
@@ -131,22 +159,18 @@ export function trimSlackGatewayPayload(payload: any): any | null {
       return { type: payload.type };
     case "channel_rename":
     case "group_rename":
-      return {
-        channel: { id: payload.channel?.id, name: payload.channel?.name },
-        type: payload.type,
-      };
+      return { channel: { id: channel?.id, name: channel?.name }, type: payload.type };
     case "channel_archive":
     case "channel_unarchive":
     case "group_archive":
     case "group_unarchive":
     case "channel_deleted":
-      return { channel: eventChannelId(payload), type: payload.type };
     case "im_close":
     case "im_open":
     case "mpim_close":
     case "mpim_open":
     case "mpim_joined":
-      return { channel: eventChannelId(payload), type: payload.type };
+      return { channel: channelId(payload.channel), type: payload.type };
     case "subteam_created":
     case "subteam_updated":
     case "subteam_deleted":
@@ -154,7 +178,9 @@ export function trimSlackGatewayPayload(payload: any): any | null {
     case "subteam_members_changed":
       return { subteam_id: payload.subteam_id, type: payload.type };
     case "user_change":
-      return { type: payload.type, user: trimUser(payload.user) };
+      return typeof payload.user === "object"
+        ? { type: payload.type, user: trimUser(payload.user) }
+        : null;
     case "dnd_updated":
       return {
         snoozed_until:
@@ -169,25 +195,28 @@ export function trimSlackGatewayPayload(payload: any): any | null {
     case "bot_changed":
       return { bot: { id: payload.bot?.id }, type: payload.type };
     case "commands_changed":
-      return { type: payload.type };
     case "emoji_changed":
       return { type: payload.type };
     case "thread_marked":
       return {
-        channel: payload.channel,
+        channel: channelId(payload.channel),
         thread_ts: payload.subscription?.thread_ts,
         type: payload.type,
         unread_count: payload.subscription?.unread_count,
       };
     case "thread_subscribed":
     case "thread_unsubscribed":
-      return { channel: payload.channel, thread_ts: payload.thread_ts, type: payload.type };
+      return {
+        channel: channelId(payload.channel),
+        thread_ts: payload.thread_ts,
+        type: payload.type,
+      };
     case "manual_presence_change":
       return { presence: payload.presence, type: payload.type };
     case "desktop_notification":
       return {
         avatarImage: payload.avatarImage,
-        channel: payload.channel,
+        channel: channelId(payload.channel),
         content: payload.content,
         event_ts: payload.event_ts,
         is_shared: payload.is_shared,
@@ -198,9 +227,6 @@ export function trimSlackGatewayPayload(payload: any): any | null {
         type: payload.type,
       };
     default:
-      if (typeof payload?.type === "string" && payload.type.startsWith("file_")) {
-        return { type: payload.type };
-      }
-      return null;
+      return isFileEvent(payload.type) ? { type: payload.type } : null;
   }
 }

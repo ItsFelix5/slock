@@ -1,4 +1,4 @@
-import { type Block, type Message, narrowByType, type RichTextBlock } from "./api";
+import { type Block, type Message, narrowByType, type RichTextBlock } from "@slock/types";
 
 const BRACKETED_LINK_RE = /^<(https?:\/\/[^\s|>]+)(?:\|([^>]*))?>/;
 const BARE_PERMALINK_RE = /^(https?:\/\/[^\s<>]+)/;
@@ -11,12 +11,14 @@ function permalinkToChannelTs(url: string): { channelId: string; ts: string } | 
   return { channelId, ts: `${digits.slice(0, -6)}.${digits.slice(-6)}` };
 }
 
+export const INVISIBLE_LABEL = "︇︇";
+
 function isBareLabel(label: string | undefined): boolean {
-  return label === undefined || label === "" || label === "." || label === "​";
+  return label === undefined || label === "" || label === "." || label === INVISIBLE_LABEL;
 }
 
 export function encodeReplyLink(permalink: string): string {
-  return `<${permalink}|​>`;
+  return `<${permalink}|${INVISIBLE_LABEL}>`;
 }
 
 export function threadContainsMessage(

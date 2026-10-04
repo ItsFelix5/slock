@@ -1,7 +1,6 @@
-import { SLACK_USER_ID } from "@slock/types";
-import { createSignal } from "solid-js";
+import { SLACK_SYSTEM_USER, SLACK_USER_ID, searchDirectory, type User } from "@slock/types";
+import { createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import type { User } from "../../../api";
 import {
   setPresence as apiSetPresence,
   setProfileFields as apiSetProfileFields,
@@ -11,7 +10,6 @@ import {
   fetchUser,
   fetchUserPresence,
   fetchUserProfile,
-  searchDirectory,
 } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 import { createLocalPref } from "../../../localPref";
@@ -53,7 +51,7 @@ export function createUsersSlice(
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
   const pendingUsers = new Set<string>();
 
-  const unresolvableUsers = new Set<string>();
+  const [unresolvableUsers, setUnresolvableUsers] = createStore<Record<string, boolean>>({});
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
     {},
   );
@@ -81,23 +79,30 @@ export function createUsersSlice(
     for (const user of users) setExtraUsers(user.id, user);
   }
 
+  function userIdByName(name: string): string | undefined {
+    const me = deps.currentUserBase();
+    if (me?.name === name) return me.id;
+    return Object.values(extraUsers).find((user) => user.name === name)?.id;
+  }
+
   function userById(id: string): User | undefined {
     if (!id) return;
 
+    if (id === SLACK_USER_ID) return SLACK_SYSTEM_USER;
     if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
     if (!known) {
-      if (!(pendingUsers.has(id) || unresolvableUsers.has(id))) {
+      if (!(pendingUsers.has(id) || unresolvableUsers[id])) {
         pendingUsers.add(id);
         api
           .fetchUser(id)
           .then((user) => {
             if (user) setExtraUsers(id, user);
             else {
-              unresolvableUsers.add(id);
+              setUnresolvableUsers(id, true);
             }
           })
-          .catch(() => unresolvableUsers.add(id))
+          .catch(() => setUnresolvableUsers(id, true))
           .finally(() => {
             pendingUsers.delete(id);
           });
@@ -129,7 +134,7 @@ export function createUsersSlice(
       }),
     );
     pendingUsers.delete(id);
-    unresolvableUsers.delete(id);
+    setUnresolvableUsers(id, false);
   }
 
   function recordPeerPresence(id: string, presence: "active" | "away") {
@@ -158,14 +163,28 @@ export function createUsersSlice(
     return [...merged.values()].map(withNickname).slice(0, 40);
   }
 
-  function currentUser(): User | undefined {
-    const base = deps.currentUserBase();
-    if (!base) return base;
-
-    const presence = presenceOverrides[base.id] ?? (deps.isSelfOnline() ? "active" : "away");
-    const status = selfStatusOverride();
-    return withNickname({ ...base, presence, ...(status ?? {}) });
+  function sameUser(a: User | undefined, b: User | undefined): boolean {
+    if (a === b) return true;
+    if (!(a && b)) return false;
+    const entries = Object.entries(a);
+    return (
+      entries.length === Object.keys(b).length &&
+      entries.every(([key, value]) => Reflect.get(b, key) === value)
+    );
   }
+
+  const currentUser = createMemo<User | undefined>(
+    () => {
+      const base = deps.currentUserBase();
+      if (!base) return base;
+
+      const presence = presenceOverrides[base.id] ?? (deps.isSelfOnline() ? "active" : "away");
+      const status = selfStatusOverride();
+      return withNickname({ ...base, presence, ...(status ?? {}) });
+    },
+    undefined,
+    { equals: sameUser },
+  );
 
   function nicknameFor(id: string): string | undefined {
     return nicknames()[id];
@@ -266,5 +285,7 @@ export function createUsersSlice(
     updateMyProfile,
     updateMyStatus,
     userById,
+    userIdByName,
+    isUnresolvableUser: (id: string) => !!unresolvableUsers[id],
   };
 }

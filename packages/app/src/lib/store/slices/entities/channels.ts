@@ -1,9 +1,7 @@
-import { createReactiveQueryCache } from "../../../reactiveQueryCache";
+import type { BrowsableChannel, Channel, UserPrefs } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import type { BrowsableChannel, Channel, UserPrefs } from "../../../api";
-
 import {
   fetchBrowsableChannels,
   fetchChannel,
@@ -15,6 +13,7 @@ import {
 } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 import { queryClient } from "../../../queryClient";
+import { createReactiveQueryCache } from "../../../reactiveQueryCache";
 import type { Nav, View } from "../types";
 import { createChannelSections } from "./channelSections";
 import { createChannelStarPlacement } from "./channelStarPlacement";
@@ -105,11 +104,10 @@ export function createChannelsSlice(deps: {
   );
 
   function patchChannel(id: string, patch: Partial<Channel>) {
-    const known: Partial<Channel> = {};
-    for (const [key, value] of Object.entries(patch)) {
-      if (value !== undefined) known[key] = value;
-    }
-    setChannelPatches(id, { ...channelPatches[id], ...known });
+    setChannelPatches(id, {
+      ...channelPatches[id],
+      ...Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)),
+    });
   }
 
   async function discoverChannel(id: string): Promise<boolean> {
@@ -145,7 +143,8 @@ export function createChannelsSlice(deps: {
     if (
       !known ||
       (known.topic && known.memberCount !== undefined) ||
-      channelDetailsRequested.has(id)
+      channelDetailsRequested.has(id) ||
+      (known.private && !isChannelMember(id))
     )
       return;
     channelDetailsRequested.add(id);
@@ -177,6 +176,8 @@ export function createChannelsSlice(deps: {
 
   function ensureChannelRoster(channelId: string): Promise<Set<string> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
+    const channel = channelById(channelId);
+    if (channel?.private && !isChannelMember(channelId)) return Promise.resolve(new Set());
     return queryClient.ensureQueryData(channelRosterQueryOptions(channelId));
   }
 
@@ -225,10 +226,6 @@ export function createChannelsSlice(deps: {
   function markChannelLeft(channelId: string) {
     if (leftChannelIds[channelId]) return;
     setLeftChannelIds(channelId, true);
-    if (deps.activeView()?.id === channelId) {
-      const next = channels().find((c) => c.id !== channelId && !isChannelLeft(c.id));
-      if (next) deps.setActiveView({ id: next.id, kind: "channel" });
-    }
   }
 
   async function joinChannelById(channelId: string): Promise<boolean> {

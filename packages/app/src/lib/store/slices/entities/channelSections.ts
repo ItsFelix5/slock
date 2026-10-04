@@ -1,6 +1,6 @@
+import type { ChannelSection, UserPrefs } from "@slock/types";
 import { createMemo, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { ChannelSection, UserPrefs } from "../../../api";
 import {
   createSection as apiCreateSection,
   deleteSection as apiDeleteSection,
@@ -45,7 +45,7 @@ export function createChannelSections(deps: {
   }
 
   const sections = createMemo(() => {
-    const list = rawSections();
+    const list = rawSections.error ? undefined : rawSections();
     if (!list) return list;
     const prefs = deps.userPrefs();
     const sectionSort = prefs?.sectionSort ?? {};
@@ -148,15 +148,14 @@ export function createChannelSections(deps: {
     const previousSidebar = prev.sectionSidebar[sectionId];
     setSectionSidebarPendingById(sectionId, true);
     actionFeedback.clear(sectionId);
-    deps.mutateUserPrefs((current) =>
-      current ? setSectionSidebarPreference(current, sectionId, sidebar) : current,
-    );
+    const next = setSectionSidebarPreference(prev, sectionId, sidebar);
+    deps.mutateUserPrefs(() => next);
     const rollback = () =>
       deps.mutateUserPrefs((current) =>
         current ? setSectionSidebarPreference(current, sectionId, previousSidebar) : current,
       );
     try {
-      const ok = await apiSetChannelSectionsPreference(deps.userPrefs()?.channelSections ?? {});
+      const ok = await apiSetChannelSectionsPreference(next.channelSections);
       if (ok) return true;
       actionFeedback.flash(sectionId, "Failed to update section filter.", "error");
       rollback();
@@ -186,15 +185,14 @@ export function createChannelSections(deps: {
     const prev = deps.userPrefs();
     if (!prev) return false;
     const wasCollapsed = !!prev.sectionCollapsed[sectionId];
-    deps.mutateUserPrefs((current) =>
-      current ? setSectionCollapsedPreference(current, sectionId, !wasCollapsed) : current,
-    );
+    const next = setSectionCollapsedPreference(prev, sectionId, !wasCollapsed);
+    deps.mutateUserPrefs(() => next);
     const rollback = () =>
       deps.mutateUserPrefs((current) =>
         current ? setSectionCollapsedPreference(current, sectionId, wasCollapsed) : current,
       );
     try {
-      const ok = await apiSetChannelSectionsPreference(deps.userPrefs()?.channelSections ?? {});
+      const ok = await apiSetChannelSectionsPreference(next.channelSections);
       if (ok) return true;
       rollback();
       return false;

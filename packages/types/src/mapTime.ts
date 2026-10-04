@@ -1,5 +1,7 @@
+export const CLOCK_24H = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } as const;
+
 export function formatTimeFromMs(ms: number) {
-  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return new Date(ms).toLocaleTimeString([], CLOCK_24H);
 }
 
 export function formatTime(ts: string) {

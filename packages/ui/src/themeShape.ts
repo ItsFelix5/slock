@@ -20,7 +20,6 @@ type DensityMetrics = Record<
   | "spaceLg"
   | "spaceMd"
   | "spaceSm"
-  | "spaceXl"
   | "spaceXs",
   number
 >;
@@ -47,7 +46,6 @@ const DENSITY_KEYFRAMES: [number, DensityMetrics][] = [
       spaceLg: 8,
       spaceMd: 6,
       spaceSm: 4,
-      spaceXl: 10,
       spaceXs: 2,
     },
   ],
@@ -67,7 +65,6 @@ const DENSITY_KEYFRAMES: [number, DensityMetrics][] = [
       spaceLg: 16,
       spaceMd: 12,
       spaceSm: 8,
-      spaceXl: 20,
       spaceXs: 4,
     },
   ],
@@ -87,7 +84,6 @@ const DENSITY_KEYFRAMES: [number, DensityMetrics][] = [
       spaceLg: 21,
       spaceMd: 17,
       spaceSm: 11,
-      spaceXl: 27,
       spaceXs: 5,
     },
   ],
@@ -129,7 +125,6 @@ function applyThemeShape(shape: ThemeShape) {
   root.style.setProperty("--space-sm", `${density.spaceSm}px`);
   root.style.setProperty("--space-md", `${density.spaceMd}px`);
   root.style.setProperty("--space-lg", `${density.spaceLg}px`);
-  root.style.setProperty("--space-xl", `${density.spaceXl}px`);
   root.style.setProperty("--space-2xl", `${density.space2xl}px`);
   root.style.setProperty("--space-3xl", `${density.space3xl}px`);
   root.style.setProperty("--message-row-padding-y", `${density.rowPaddingY}px`);

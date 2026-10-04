@@ -5,41 +5,54 @@
 
 .keybind-field-btn {
   min-width: 120px;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 5px var(--space-sm);
+  font-size: var(--font-size-meta);
   color: var(--text-secondary);
-  text-align: center;
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
+  text-align: right;
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
 }
 
 .keybind-field-btn:hover {
-  color: var(--text-primary);
-  background: var(--active-bg);
-}
-
-.keybind-field-btn kbd {
-  padding: 0;
-  font-family: monospace;
-  font-size: 11px;
-  color: inherit;
-  background: none;
-  border: none;
+  background: var(--hover-bg);
 }
 
 .keybind-field-btn.recording {
   color: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
 }
 
 .keybind-field-reset {
-  padding: 4px 6px;
-  font-size: 11px;
+  padding: var(--space-xs) 6px;
+  font-size: var(--font-size-caption);
   color: var(--text-dim);
 }
 
 .keybind-field-reset:hover {
   color: var(--text-primary);
   text-decoration: underline;
+}
+
+.keycaps {
+  display: inline-flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-content: flex-end;
+}
+
+.keycap {
+  min-width: 22px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 0 var(--border-strong);
 }

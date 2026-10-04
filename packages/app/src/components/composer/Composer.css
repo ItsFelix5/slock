@@ -1,12 +1,7 @@
+@import "./ComposerFrame.css";
 @import "./Composer.chips.css";
 .composer {
   position: relative;
-  flex-shrink: 0;
-  padding: 2px 4px;
-  margin: 0 var(--composer-frame-inline) var(--composer-frame-block-end);
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--composer-radius);
 }
 .composer:focus-within {
   border-color: var(--accent-border-strong);
@@ -34,9 +29,6 @@
   padding: var(--space-xs) var(--space-sm);
   background: var(--composer-bg);
   border-radius: var(--radius-md);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: none;
 }
 .composer-draft-warning {
@@ -87,10 +79,8 @@
   border: none;
   border-bottom: 1px solid var(--border-strong);
 }
-.composer-file-chip-rename-input:focus {
+.composer-file-chip-rename-input:focus-visible {
   border-bottom-color: var(--accent);
-}
-.composer-file-chip-rename-input:focus:not(:focus-visible) {
   outline: none;
 }
 .composer-file-chip button {
@@ -114,7 +104,8 @@
 .menu-panel.composer-tools-menu {
   min-width: 192px;
 }
-.composer-date-popover {
+.composer-date-popover,
+.composer-drafts-popover {
   position: absolute;
   bottom: calc(var(--composer-action-size) + var(--space-xs));
   left: 0;
@@ -122,27 +113,19 @@
 }
 .composer-input-wrap {
   position: relative;
-  display: flex;
   flex: 1;
-  align-items: center;
   min-width: 0;
   min-height: var(--composer-action-size);
-}
-.composer-input-wrap .bk-mention {
+  line-height: 1.35;
+  word-break: break-word;
   cursor: text;
 }
-.composer-input-wrap .bk-composer-emoji {
-  cursor: text;
-}
-.composer-input-wrap .bk-date {
-  cursor: text;
+.composer-input-wrap .ql-editor {
+  max-height: 200px;
 }
 .menu-panel.composer-suggest-popover {
   position: absolute;
-  top: auto;
-  right: 0;
-  bottom: 100%;
-  left: 0;
+  inset: auto 0 100%;
   z-index: 10;
   min-width: min(224px, 100%);
   max-height: 280px;
@@ -150,7 +133,7 @@
   overflow-y: auto;
 }
 .composer-suggest-emoji {
-  font-size: 15px;
+  font-size: var(--font-size-body);
 }
 .composer-suggest-emoji img {
   width: 16px;

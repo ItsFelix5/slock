@@ -1,10 +1,11 @@
 import { type ContextBlock, resolveMediaUrl } from "@slock/types";
 import { For } from "solid-js";
 import BkText from "../BkText";
+import "./Context.css";
 
 export default function Context(props: { block: ContextBlock }) {
   return (
-    <div class="bk-context">
+    <div class="bk-context flex-align-center">
       <For each={props.block.elements}>
         {(el) =>
           el.type === "image" ? (

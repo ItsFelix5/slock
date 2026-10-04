@@ -1,0 +1,10 @@
+.channel-details-picker {
+  position: relative;
+}
+
+.channel-details-picker .compose-picker {
+  top: 0;
+  right: auto;
+  left: 0;
+  width: 280px;
+}

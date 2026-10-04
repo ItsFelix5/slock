@@ -1,6 +1,6 @@
+import type { Channel, ChannelSection, DirectMessage, User } from "@slock/types";
 import type { createKeyedFeedback } from "@slock/ui";
 import type { Accessor, Setter } from "solid-js";
-import type { Channel, ChannelSection, DirectMessage, User } from "../../lib/api";
 import type { Nav } from "../../lib/store";
 import type { SettingsTab } from "../settings/Settings";
 

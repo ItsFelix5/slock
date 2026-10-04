@@ -1,6 +1,6 @@
 .btn {
   display: inline-flex;
-  gap: 8px;
+  gap: var(--space-sm);
   align-items: center;
   justify-content: center;
   font: inherit;
@@ -15,18 +15,18 @@
 }
 
 .btn-sm {
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: var(--space-xs) 10px;
+  font-size: var(--font-size-meta);
 }
 
 .btn-md {
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 6px var(--space-md);
+  font-size: var(--font-size-control);
 }
 
 .btn-lg {
-  padding: 10px 16px;
-  font-size: 15px;
+  padding: 10px var(--space-lg);
+  font-size: var(--font-size-body);
 }
 
 .btn-icon {

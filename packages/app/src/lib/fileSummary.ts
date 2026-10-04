@@ -1,5 +1,5 @@
+import type { SlackFile } from "@slock/types";
 import type { IconName } from "@slock/ui";
-import type { SlackFile } from "./api";
 
 export function fileIconName(file: SlackFile): IconName {
   if (file.isPdf) return "pdf-file";

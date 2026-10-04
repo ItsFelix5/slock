@@ -12,6 +12,7 @@ class EmojiBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: EmojiValue) {
+    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
     const node = super.create(value);
     if (!(node instanceof HTMLElement)) throw new Error("emoji blot produced a non-element node");
     node.className = "bk-composer-emoji";

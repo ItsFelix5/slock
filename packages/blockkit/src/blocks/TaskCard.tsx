@@ -2,11 +2,12 @@ import type { PlanBlock, TaskCardBlock } from "@slock/types";
 import { For, Show } from "solid-js";
 import BkText from "../BkText";
 import RichText from "./RichText";
+import "./TaskCard.css";
 
 export function TaskCard(props: { block: TaskCardBlock }) {
   return (
     <article class="bk-task-card">
-      <div class="bk-task-heading">
+      <div class="bk-task-heading flex-align-center">
         <span class={`bk-task-status bk-task-status--${props.block.status ?? "pending"}`} />
         <strong>{props.block.title}</strong>
       </div>
@@ -28,7 +29,7 @@ export function TaskCard(props: { block: TaskCardBlock }) {
         <div class="bk-task-sources">
           <For each={props.block.sources}>
             {(source) => (
-              <a href={source.url} rel="noopener noreferrer" target="_blank">
+              <a class="bk-link" href={source.url} rel="noopener noreferrer" target="_blank">
                 {source.text}
               </a>
             )}
@@ -41,7 +42,7 @@ export function TaskCard(props: { block: TaskCardBlock }) {
 
 export function Plan(props: { block: PlanBlock }) {
   return (
-    <section class="bk-plan">
+    <section class="bk-plan flex-col">
       <div class="bk-plan-title">
         {typeof props.block.title === "string" ? (
           props.block.title

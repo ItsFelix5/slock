@@ -1,6 +1,5 @@
 import { focusPaneById } from "@slock/ui";
 import { batch } from "solid-js";
-import { suppressNextComposerAutofocus } from "./composerAutofocus";
 import { buildSearchQuery, EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 import type { ChannelMessageTarget, Nav, View } from "./store/slices/types";
 import type { createStoreSlices } from "./store/storeSlices";
@@ -50,24 +49,19 @@ export function createAppActions(deps: AppActionsDeps) {
     }
   }
 
-  function switchToConversation(
-    channelId: string,
-    options?: { autofocus?: boolean; keepNav?: boolean; target?: ChannelMessageTarget },
-  ) {
-    if (options?.autofocus === false) suppressNextComposerAutofocus();
+  function switchToConversation(channelId: string, options?: { target?: ChannelMessageTarget }) {
     const kind = dms.conversationKind(channelId);
     batch(() => {
       closeThreadIfDifferentChannel(channelId);
       users.closeUserProfile();
       viewState.setSelected({ id: channelId, kind });
-      if (!options?.keepNav) viewState.setNav("home");
       unread.clearChannelUnread(channelId);
       if (kind === "dm" && dms.closedDmIds[channelId]) dms.setClosedDmIds(channelId, false);
       panes.navigateFocusedPane({ id: channelId, kind }, options?.target);
     });
   }
 
-  setActiveViewImplRef.current = (view: View, options?: { autofocus?: boolean }) =>
+  setActiveViewImplRef.current = (view: View, options?: { target?: ChannelMessageTarget }) =>
     switchToConversation(view.id, options);
 
   function setNavView(next: Nav) {
@@ -79,26 +73,21 @@ export function createAppActions(deps: AppActionsDeps) {
     channelId: string,
     ts: string,
     highlightTs?: string,
-    opts?: { autofocus?: boolean; pinned?: boolean },
+    opts?: { pinned?: boolean },
   ) {
-    if (opts?.autofocus === false) suppressNextComposerAutofocus();
     panes.openInNewPane({ channelId, highlightTs, kind: "thread", pinned: opts?.pinned, ts });
   }
 
-  function openChannelPeek(
-    channelId: string,
-    ts: string,
-    highlightTs?: string,
-    options?: { keepNav?: boolean },
-  ) {
+  function openChannelPeek(channelId: string, ts: string, highlightTs?: string) {
     batch(() => {
-      switchToConversation(channelId, options);
+      switchToConversation(channelId, { target: { channelId, ts } });
       openThread(channelId, ts, highlightTs);
     });
   }
 
-  function openChannelMessage(channelId: string, ts: string, options?: { keepNav?: boolean }) {
-    switchToConversation(channelId, { ...options, target: { channelId, ts } });
+  function openChannelMessage(channelId: string, ts: string, threadTs?: string) {
+    if (threadTs && threadTs !== ts) openChannelPeek(channelId, threadTs, ts);
+    else switchToConversation(channelId, { target: { channelId, ts } });
   }
 
   function openMessageSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {

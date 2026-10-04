@@ -1,17 +1,6 @@
+import type { DesktopNotificationEvent, UserPrefs } from "@slock/types";
 import { createSignal } from "solid-js";
-import type { UserPrefs } from "../../../api";
 import { createLocalPref } from "../../../localPref";
-
-type DesktopNotificationEvent = {
-  avatarImage?: string;
-  channel?: string;
-  content?: string;
-  event_ts?: string;
-  launchUri?: string;
-  msg?: string;
-  subtitle?: string;
-  title?: string;
-};
 
 function parseSlackDeepLink(uri: string | undefined): { channel?: string; ts?: string } {
   if (!uri?.includes("?")) return {};

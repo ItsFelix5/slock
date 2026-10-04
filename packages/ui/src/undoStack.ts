@@ -45,5 +45,6 @@ export function useGlobalUndoShortcut(
     id: "general.undo",
     label: "Undo last action",
     scope: "general",
+    group: "App",
   });
 }

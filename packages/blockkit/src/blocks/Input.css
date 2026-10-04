@@ -1,0 +1,13 @@
+.bk-input {
+  gap: 6px;
+}
+
+.bk-input-label {
+  font-size: var(--font-size-control);
+  font-weight: 700;
+}
+
+.bk-input-hint {
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+}

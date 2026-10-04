@@ -1,40 +1,31 @@
 import {
   clearKeybindOverride,
+  comboLabel,
   confirmDialog,
+  Icon,
+  inside,
   KeybindField,
+  listNavigationIndex,
   listShortcuts,
   resetAllKeybinds,
+  rovingTabIndex,
+  SHORTCUT_GROUPS,
+  type ShortcutCombo,
   type ShortcutInfo,
-  type ShortcutScope,
   setKeybindOverride,
   shortcutConflicts,
+  useCancelShortcut,
+  useConfirmShortcut,
+  useKeybindRecorder,
+  useListShortcuts,
+  useNavigationShortcuts,
 } from "@slock/ui";
-import { createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Index, onMount, Show } from "solid-js";
 import "./Settings.css";
 
-const SCOPE_ORDER: ShortcutScope[] = ["general", "composer", "messages"];
-const SCOPE_LABELS: Record<ShortcutScope, string> = {
-  composer: "Composer",
-  general: "General",
-  messages: "Messages",
-};
-
-type FixedAction = { keys: string; label: string };
-
-const REFERENCE_ONLY_FIXED_ACTIONS: Partial<Record<ShortcutScope, FixedAction[]>> = {
-  composer: [
-    { keys: "Enter", label: "Send message" },
-    { keys: "Shift Enter", label: "Insert a new line" },
-    { keys: "Ctrl B", label: "Bold" },
-    { keys: "Ctrl I", label: "Italic" },
-    { keys: "Ctrl Shift X", label: "Strikethrough" },
-    { keys: "Ctrl Shift C", label: "Inline code" },
-  ],
-  general: [
-    { keys: "Escape", label: "Close the focused pane or dialog" },
-    { keys: "Ctrl/⌘ Click", label: "Open a channel, link, or reply in a new split pane" },
-  ],
-};
+function includesText(text: string, query: string) {
+  return text.toLowerCase().includes(query);
+}
 
 function ConflictNote(props: { info: ShortcutInfo }) {
   const conflicts = createMemo(() =>
@@ -46,23 +37,122 @@ function ConflictNote(props: { info: ShortcutInfo }) {
         Also fires{" "}
         {conflicts()
           .map((c) => `"${c.label}"`)
-          .join(", ")}{" "}
-        — only the most recent one wins.
+          .join(", ")}
+        . Only the most recent one wins.
       </div>
     </Show>
   );
 }
 
+function ShortcutRow(props: { info: ShortcutInfo }) {
+  return (
+    <div class="settings-list-row flex-between">
+      <div class="settings-list-row-name">
+        <div>{props.info.label}</div>
+        <ConflictNote info={props.info} />
+      </div>
+      <KeybindField
+        combo={props.info.combo}
+        isCustom={props.info.isCustom}
+        label={props.info.label}
+        onChange={(combo) => setKeybindOverride(props.info.id, combo)}
+        onReset={() => clearKeybindOverride(props.info.id)}
+      />
+    </div>
+  );
+}
+
 export default function SettingsKeybindsTab() {
-  const grouped = createMemo(() => {
-    const map = new Map<ShortcutScope, ShortcutInfo[]>();
-    for (const info of listShortcuts()) {
-      const list = map.get(info.scope);
-      if (list) list.push(info);
-      else map.set(info.scope, [info]);
-    }
-    return map;
+  const [query, setQuery] = createSignal("");
+  const [keyCombo, setKeyCombo] = createSignal<ShortcutCombo | null>(null);
+  let searchRef: HTMLInputElement | undefined;
+  let listRef: HTMLDivElement | undefined;
+
+  const finder = useKeybindRecorder((combo) => {
+    setKeyCombo(combo);
+    setQuery(combo ? comboLabel(combo) : "");
+    searchRef?.focus();
   });
+
+  const text = () => query().trim().toLowerCase();
+
+  const groups = createMemo(() => {
+    const combo = keyCombo();
+    const ids = combo ? new Set(shortcutConflicts("", combo).map((s) => s.id)) : null;
+    const shortcuts = listShortcuts().filter((info) =>
+      ids
+        ? ids.has(info.id)
+        : !text() || includesText(info.label, text()) || includesText(info.keys, text()),
+    );
+    return SHORTCUT_GROUPS.map((label) => ({
+      label,
+      shortcuts: shortcuts.filter((info) => info.group === label),
+    })).filter((group) => group.shortcuts.length > 0);
+  });
+
+  const navRows = () => [...(listRef?.querySelectorAll<HTMLElement>("[data-nav-row]") ?? [])];
+
+  createEffect(() => {
+    groups();
+    queueMicrotask(() => {
+      const rows = navRows();
+      rovingTabIndex(
+        rows,
+        Math.max(
+          document.activeElement instanceof HTMLElement ? rows.indexOf(document.activeElement) : -1,
+          0,
+        ),
+      );
+    });
+  });
+
+  onMount(() => {
+    if (!document.activeElement?.closest('[role="tablist"]')) searchRef?.focus();
+  });
+
+  function onInput(value: string) {
+    setKeyCombo(null);
+    setQuery(value);
+  }
+
+  const focusFirstRow = () => navRows()[0]?.focus();
+  useNavigationShortcuts({ directions: ["down"], move: focusFirstRow, root: () => searchRef });
+  useConfirmShortcut(focusFirstRow, {
+    enabled: () => groups().length > 0,
+    target: inside(() => searchRef),
+  });
+  useCancelShortcut(() => onInput(""), {
+    enabled: () => !!query(),
+    target: inside(() => searchRef),
+  });
+  useListShortcuts({
+    move: (direction) => {
+      const rows = navRows();
+      const active = document.activeElement;
+      const current = active instanceof HTMLElement ? rows.indexOf(active) : -1;
+      if (current < 0) return;
+      if (direction === "up" && current === 0) {
+        searchRef?.focus();
+        return;
+      }
+      const next = listNavigationIndex(direction, current, rows.length);
+      if (next !== undefined) rows[next]?.focus();
+    },
+    root: () => listRef,
+  });
+
+  function redirectTypingToSearch(e: KeyboardEvent) {
+    const printable = e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (printable && e.target instanceof HTMLElement && navRows().includes(e.target)) {
+      searchRef?.focus();
+    }
+  }
+
+  function onListFocusIn(e: FocusEvent) {
+    const rows = navRows();
+    const current = e.target instanceof HTMLElement ? rows.indexOf(e.target) : -1;
+    if (current >= 0) rovingTabIndex(rows, current);
+  }
 
   async function resetAll() {
     if (
@@ -85,45 +175,47 @@ export default function SettingsKeybindsTab() {
         </button>
       </div>
 
-      <For each={SCOPE_ORDER}>
-        {(scope) => {
-          const fixed = REFERENCE_ONLY_FIXED_ACTIONS[scope] ?? [];
-          return (
-            <Show when={(grouped().get(scope)?.length ?? 0) > 0 || fixed.length > 0}>
-              <div class="settings-section">
-                <div class="settings-row-label">{SCOPE_LABELS[scope]}</div>
-                <div class="settings-list flex-col">
-                  <For each={grouped().get(scope) ?? []}>
-                    {(info) => (
-                      <div class="settings-list-row flex-between">
-                        <div class="settings-list-row-name">
-                          <div>{info.label}</div>
-                          <ConflictNote info={info} />
-                        </div>
-                        <KeybindField
-                          combo={info.combo}
-                          isCustom={info.isCustom}
-                          label={info.label}
-                          onChange={(combo) => setKeybindOverride(info.id, combo)}
-                          onReset={() => clearKeybindOverride(info.id)}
-                        />
-                      </div>
-                    )}
-                  </For>
-                  <For each={fixed}>
-                    {(action) => (
-                      <div class="settings-list-row flex-between">
-                        <div class="settings-list-row-name">{action.label}</div>
-                        <kbd class="settings-kbd">{action.keys}</kbd>
-                      </div>
-                    )}
-                  </For>
-                </div>
+      <div class="settings-add-row flex-align-center">
+        <input
+          aria-label="Search shortcuts"
+          class="text-field"
+          onInput={(e) => onInput(e.currentTarget.value)}
+          placeholder={finder.recording() ? "Press the keys to look up" : "Search by name or key"}
+          ref={searchRef}
+          type="text"
+          value={query()}
+        />
+        <button
+          aria-pressed={finder.recording()}
+          class="settings-status-clear settings-keybind-find btn-reset flex-align-center"
+          onClick={finder.start}
+          type="button"
+        >
+          <Icon name="keyboard" size={14} />
+          Find by keys
+        </button>
+      </div>
+
+      <div onFocusIn={onListFocusIn} onKeyDown={redirectTypingToSearch} ref={listRef}>
+        <Index each={groups()}>
+          {(group) => (
+            <div class="settings-section">
+              <div class="settings-row-label">{group().label}</div>
+              <div class="settings-list flex-col">
+                <Index each={group().shortcuts}>{(info) => <ShortcutRow info={info()} />}</Index>
               </div>
-            </Show>
-          );
-        }}
-      </For>
+            </div>
+          )}
+        </Index>
+      </div>
+
+      <Show when={groups().length === 0}>
+        <div aria-live="polite" class="settings-list-empty text-dim">
+          <Show when={keyCombo()} fallback={<>No shortcuts match "{query().trim()}".</>}>
+            {(combo) => <>Nothing uses {comboLabel(combo())}.</>}
+          </Show>
+        </div>
+      </Show>
     </>
   );
 }

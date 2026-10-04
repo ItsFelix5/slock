@@ -1,4 +1,4 @@
-import type { ActivityItem, User } from "./api";
+import type { ActivityItem, User } from "@slock/types";
 
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 

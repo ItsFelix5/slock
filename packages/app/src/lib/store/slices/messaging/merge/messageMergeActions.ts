@@ -1,4 +1,4 @@
-import type { Message, User } from "../../../../api";
+import type { Message, User } from "@slock/types";
 import { dedupeMessages } from "../../../../messageMerge";
 
 export function createMessageMergeActions(deps: {

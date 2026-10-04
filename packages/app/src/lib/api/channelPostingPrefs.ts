@@ -99,9 +99,11 @@ export function serializeChannelPostingPrefsPatch(
 }
 
 export async function fetchChannelPostingPrefs(channelId: string): Promise<ChannelPostingPrefs> {
-  const data = await apiGet(`/api/channels/${channelId}/posting-prefs`);
+  const data = await apiGet<{ prefs?: Record<string, unknown> }>(
+    `/api/channels/${channelId}/posting-prefs`,
+  );
   if (!data.ok) throw new Error(data.error ?? "admin.conversations.getConversationPrefs failed");
-  return parseChannelPostingPrefs(data.prefs ?? data);
+  return parseChannelPostingPrefs(data.prefs);
 }
 
 export async function setChannelPostingPrefs(

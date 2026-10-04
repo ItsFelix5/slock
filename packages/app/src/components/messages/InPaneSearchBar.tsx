@@ -1,4 +1,4 @@
-import { Icon, IconButton } from "@slock/ui";
+import { Icon, IconButton, inside, useConfirmShortcut, useShortcut } from "@slock/ui";
 import { onMount, Show } from "solid-js";
 import "./InPaneSearchBar.css";
 
@@ -14,20 +14,26 @@ export default function InPaneSearchBar(props: {
   let inputRef: HTMLInputElement | undefined;
   onMount(() => inputRef?.focus());
 
+  const target = inside(() => inputRef);
+  useConfirmShortcut(props.onNext, { target });
+  useShortcut({
+    combo: { key: "Enter", shift: true },
+    handler: props.onPrev,
+    id: "search.prevMatch",
+    label: "Go to the previous match",
+    scope: "lists",
+    group: "Lists",
+    target,
+  });
+
   return (
     <div class="in-pane-search-anchor">
-      <div class="in-pane-search flex-align-center">
+      <div class="in-pane-search surface-popover flex-align-center">
         <Icon class="text-dim flex-shrink-0" name="search" size={14} />
         <input
           aria-label="Search in this view"
           class="in-pane-search-input input-plain"
           onInput={(e) => props.onQueryInput(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            if (e.shiftKey) props.onPrev();
-            else props.onNext();
-          }}
           placeholder="Search in this view…"
           ref={inputRef}
           value={props.query}

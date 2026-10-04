@@ -14,7 +14,7 @@ body {
   padding: 0;
   margin: 0;
   font-family: var(--font);
-  font-size: 15px;
+  font-size: var(--font-size-body);
   -webkit-font-smoothing: antialiased;
   color: var(--text-primary);
   background: var(--main-bg);
@@ -49,6 +49,7 @@ button {
 }
 
 .app-navigation-feedback {
+  --surface-radius: var(--radius-control);
   position: fixed;
   top: 12px;
   right: 16px;
@@ -56,19 +57,15 @@ button {
   z-index: 100;
   width: fit-content;
   max-width: min(480px, calc(100vw - 32px));
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   margin: 0 auto;
   text-align: center;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-popover);
 }
 
 .app-bootstrap-error {
   width: 100%;
   height: 100%;
-  padding: 32px;
+  padding: var(--space-3xl);
   text-align: center;
   background: var(--main-bg);
 }
@@ -78,29 +75,30 @@ button {
   font-size: 22px;
 }
 
+.app-bootstrap-error-actions {
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
 .app-bootstrap-error p {
   max-width: 440px;
-  margin: 4px 0 12px;
+  margin: var(--space-xs) 0 var(--space-md);
   color: var(--text-dim);
 }
 
-.composer-file-chip-remove .icon,
-.thread-panel-subscribe-btn .icon,
-.thread-reply-preview-cancel .icon,
-.reply-reference-row > .icon,
-.message-meta .icon,
-.message-replies > .icon,
-.message-hover-btn .icon,
-.sidebar-global-search-btn .icon,
-.sidebar-caret .icon {
-  transform: translateY(var(--icon-optical-shift));
-}
-
-.main-panel {
-  display: flex;
+.conversation-pane {
+  position: relative;
   flex: 1;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
   background: var(--main-bg);
+}
+
+.composer-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  background: linear-gradient(to bottom, transparent, var(--main-bg) 50%);
 }

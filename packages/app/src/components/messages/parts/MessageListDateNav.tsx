@@ -35,7 +35,7 @@ export default function MessageListDateNav(props: {
       panelClass="message-list-date-nav-panel"
       trigger={
         <button
-          class="message-list-date-pill btn-reset"
+          class="message-list-date-pill surface-popover btn-reset"
           onClick={() => setOpen(!open())}
           type="button"
         >
@@ -44,7 +44,7 @@ export default function MessageListDateNav(props: {
         </button>
       }
     >
-      <div class="message-list-date-nav-actions">
+      <div class="message-list-date-nav-actions flex-col">
         <button
           class="message-list-date-nav-btn btn-reset"
           onClick={() => jumpToDate(startOfDay(new Date()).getTime())}
@@ -70,7 +70,7 @@ export default function MessageListDateNav(props: {
           Beginning of channel
         </button>
       </div>
-      <label class="message-list-date-nav-input-row">
+      <label class="message-list-date-nav-input-row flex-between gap-sm">
         <span>Jump to date</span>
         <input
           class="message-list-date-nav-input input-reset"

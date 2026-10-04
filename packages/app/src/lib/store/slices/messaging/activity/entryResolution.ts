@@ -1,6 +1,6 @@
+import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
 import { produce, type SetStoreFunction } from "solid-js/store";
 import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../../../../activityKinds";
-import type { ActivityItem, FeedEntry, Message, User } from "../../../../api";
 
 export function createEntryResolution(deps: {
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
@@ -14,6 +14,7 @@ export function createEntryResolution(deps: {
     onBatch?: (batch: Map<string, Message>) => void,
   ) => Promise<Map<string, Message>>;
   isBotUser?: (userId: string) => boolean;
+  onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
   setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
@@ -80,6 +81,8 @@ export function createEntryResolution(deps: {
       seen.add(item.id);
       if (reactionKey) seenReactions.add(reactionKey);
       if (item.kind === "channel_all") seenChannelPosts.add(postKey);
+      if (item.kind === "reaction" && item.reactionName && Date.now() - item.time < 10_000)
+        deps.onReactionPushed?.(item.reactionName);
       deps.setActivityItems(
         produce((list) => {
           list.push(item);

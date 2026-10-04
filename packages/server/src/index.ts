@@ -1,11 +1,19 @@
-import { resolve } from "node:path";
 import { rm } from "node:fs/promises";
+import { resolve } from "node:path";
+import { type Credentials, parseCredentials } from "./auth";
+import { compressResponse, errorMessage } from "./http/compressedResponse";
 import { renderIndexHtml } from "./indexHtml";
-import { resolveBuildAssets } from "./resolveBuildAssets";
-import { solidPlugin } from "./solidPlugin";
 import { bootstrapRoutes } from "./operations/bootstrap.ts";
+import {
+  handleClientDisconnect,
+  handleClientMessage,
+  handleClientOpen,
+  statusMessage,
+} from "./realtime";
+import { resolveBuildAssets } from "./resolveBuildAssets";
 import { accountRoutes } from "./routes/account/account.ts";
 import { activityRoutes } from "./routes/account/activity.ts";
+import { hackclubAuthRoutes } from "./routes/account/hackclubAuth.ts";
 import { preferenceRoutes } from "./routes/account/preferences.ts";
 import { sessionRoutes } from "./routes/account/session.ts";
 import { userStatusRoutes } from "./routes/account/userStatus.ts";
@@ -19,21 +27,13 @@ import { fileRoutes } from "./routes/messages/files.ts";
 import { messageActionRoutes } from "./routes/messages/messageActions.ts";
 import { messageRoutes } from "./routes/messages/messages.ts";
 import { threadRoutes } from "./routes/messages/threads.ts";
+import { matchRoute, type Route } from "./routes/router";
 import { appRoutes } from "./routes/workspace/apps.ts";
 import { assetRoutes } from "./routes/workspace/assets.ts";
 import { commandRoutes } from "./routes/workspace/commands.ts";
-import { emojiRoutes } from "./routes/workspace/emoji.ts";
 import { searchRoutes } from "./routes/workspace/search.ts";
 import { usergroupRoutes } from "./routes/workspace/usergroups.ts";
-import { authPayloadError, type Credentials } from "./auth";
-import { compressResponse, errorMessage } from "./http/compressedResponse";
-import {
-  handleClientDisconnect,
-  handleClientMessage,
-  handleClientOpen,
-  statusMessage,
-} from "./realtime";
-import { matchRoute, type Route } from "./routes/router";
+import { solidPlugin } from "./solidPlugin";
 
 const APP_DIR = resolve(import.meta.dir, "../../app");
 const DEV = Bun.argv.includes("--dev");
@@ -51,16 +51,17 @@ async function build(minify?: boolean): Promise<{ html: string; outputs: Bun.Bui
     },
     minify: !!minify,
     plugins: [solidPlugin],
-    sourcemap: minify ? "linked" : "inline",
+    sourcemap: "linked",
     splitting: true,
     target: "browser",
   });
 
-  for (const log of result.logs) console.error(log);
+  for (const log of result.logs)
+    if (!log.message.includes("pseudo-element 'highlight'")) console.error(log);
   if (!result.success) throw new Error("Build failed");
 
   files = new Map();
-  const toUrl = (path: string) => "/" + (path.startsWith("./") ? path.slice(2) : path);
+  const toUrl = (path: string) => `/${path.startsWith("./") ? path.slice(2) : path}`;
   for (const output of result.outputs)
     files.set(toUrl(output.path), { contents: output, contentType: output.type });
 
@@ -102,9 +103,9 @@ const ROUTES: Route[] = [
   ...commandRoutes,
   ...userStatusRoutes,
   ...bootstrapRoutes,
-  ...emojiRoutes,
   ...assetRoutes,
   ...sessionRoutes,
+  ...hackclubAuthRoutes,
 ];
 
 Bun.serve<{ creds: Credentials | null }>({
@@ -118,8 +119,10 @@ Bun.serve<{ creds: Credentials | null }>({
         if (eq === -1) continue;
         if (part.slice(0, eq).trim() !== "slock_creds") continue;
         try {
-          const parsed = JSON.parse(decodeURIComponent(part.slice(eq + 1).trim()));
-          creds = authPayloadError(parsed) === null ? parsed : null;
+          const parsed = parseCredentials(
+            JSON.parse(decodeURIComponent(part.slice(eq + 1).trim())),
+          );
+          creds = parsed.ok ? parsed.credentials : null;
         } catch {}
       }
 
@@ -136,7 +139,7 @@ Bun.serve<{ creds: Credentials | null }>({
             acceptEncoding: req.headers.get("accept-encoding"),
             body: {
               buffer: async () => new Uint8Array(await req.arrayBuffer()),
-              json: req.json.bind(req),
+              json: async () => JSON.parse(await req.text()),
             },
             creds,
             params: matched.params,
@@ -148,16 +151,14 @@ Bun.serve<{ creds: Credentials | null }>({
         let file:
           | { contents: Blob | string | Bun.BunFile; contentType: string }
           | Bun.BunFile
-          | undefined = undefined;
+          | undefined;
         if (url.pathname.startsWith("/public/")) {
           if (!url.pathname.includes("..")) file = Bun.file(`${APP_DIR}${url.pathname}`);
         } else if (url.pathname.startsWith("/assets/")) {
           if (!url.pathname.includes(".."))
             file = DEV ? files?.get(url.pathname) : Bun.file(`${APP_DIR}/dist${url.pathname}`);
-        } else {
-          if (DEV) file = { contents: (await build()).html, contentType: "text/html" };
-          else file = Bun.file(`${APP_DIR}/dist/index.html`);
-        }
+        } else if (DEV) file = { contents: (await build()).html, contentType: "text/html" };
+        else file = Bun.file(`${APP_DIR}/dist/index.html`);
 
         if (file && !("contents" in file) && (await file.exists()))
           file = { contents: file, contentType: file.type };

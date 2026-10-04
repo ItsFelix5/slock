@@ -69,7 +69,7 @@ export default function UsergroupChannelsTab(props: {
       </div>
       <div class="usergroup-details-list-bar">
         <input
-          class="usergroup-details-input"
+          class="text-field"
           disabled={props.disabled}
           onInput={(e) => setQuery(e.currentTarget.value)}
           placeholder="Find channels"
@@ -100,7 +100,7 @@ export default function UsergroupChannelsTab(props: {
           {(id) => {
             const channel = createMemo(() => store.channels.channelById(id));
             return (
-              <div class="usergroup-details-row">
+              <div class="usergroup-details-row flex-align-center">
                 <SplitNavigation onSplit={() => openConversationInSplit(id)}>
                   <button
                     class="usergroup-details-row-main btn-reset flex-align-center"

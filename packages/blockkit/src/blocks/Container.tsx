@@ -3,6 +3,7 @@ import { createSignal, For, type JSX, Show } from "solid-js";
 import BkText from "../BkText";
 import ImageElement from "../elements/ImageElement";
 import RichText from "./RichText";
+import "./Container.css";
 
 export default function Container(props: {
   block: ContainerBlock;
@@ -65,7 +66,7 @@ export default function Container(props: {
         </div>
       </Show>
       <Show when={!collapsed()}>
-        <div class="bk-container-body">
+        <div class="bk-container-body flex-col gap-sm">
           <For each={childBlocks()}>{props.render}</For>
         </div>
       </Show>

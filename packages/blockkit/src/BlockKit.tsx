@@ -20,8 +20,10 @@ import type {
   TaskCardBlock,
   VideoBlock,
 } from "@slock/types";
+import { narrowByType } from "@slock/types";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
-import "./blockkit.css";
+import Mrkdwn from "./mrkdwn";
+import "./BlockKit.css";
 import { Dynamic } from "solid-js/web";
 import Alert from "./blocks/Alert";
 import { Card, Carousel } from "./blocks/Card";
@@ -37,7 +39,6 @@ import { Plan, TaskCard } from "./blocks/TaskCard";
 import Video from "./blocks/Video";
 import ElementRenderer from "./elements/ElementRenderer";
 import EmojiText from "./emoji/EmojiText";
-import Mrkdwn from "./mrkdwn";
 
 export interface BlockActionContext {
   botId?: string;
@@ -47,18 +48,13 @@ export interface BlockActionContext {
   threadTs?: string;
 }
 
-function narrowBlock<T extends Block>(block: Block, matches: boolean): T | undefined {
-  const generic: any = block;
-  return matches ? generic : undefined;
-}
-
 function Divider() {
   return <hr class="bk-divider" />;
 }
 
 function Header(props: { block: HeaderBlock }) {
   return (
-    <Dynamic component={"h" + (props.block.level ?? 1)} class="bk-header">
+    <Dynamic component={`h${props.block.level ?? 1}`} class="bk-header">
       <EmojiText text={props.block.text.text} />
     </Dynamic>
   );
@@ -93,46 +89,46 @@ function Actions(props: { block: ActionsBlock; context?: BlockActionContext }) {
 function BlockView(props: { block: Block; context?: BlockActionContext; trailing?: JSX.Element }) {
   return (
     <Switch fallback={<div class="bk-unsupported">[unsupported block: {props.block.type}]</div>}>
-      <Match when={narrowBlock<SectionBlock>(props.block, props.block.type === "section")}>
+      <Match when={narrowByType<Block, SectionBlock>(props.block, "section")}>
         {(block) => <Section block={block()} context={props.context} />}
       </Match>
       <Match when={props.block.type === "divider"}>
         <Divider />
       </Match>
-      <Match when={narrowBlock<HeaderBlock>(props.block, props.block.type === "header")}>
+      <Match when={narrowByType<Block, HeaderBlock>(props.block, "header")}>
         {(block) => <Header block={block()} />}
       </Match>
-      <Match when={narrowBlock<ContextBlock>(props.block, props.block.type === "context")}>
+      <Match when={narrowByType<Block, ContextBlock>(props.block, "context")}>
         {(block) => <Context block={block()} />}
       </Match>
-      <Match when={narrowBlock<ImageBlock>(props.block, props.block.type === "image")}>
+      <Match when={narrowByType<Block, ImageBlock>(props.block, "image")}>
         {(block) => <Image block={block()} />}
       </Match>
-      <Match when={narrowBlock<ActionsBlock>(props.block, props.block.type === "actions")}>
+      <Match when={narrowByType<Block, ActionsBlock>(props.block, "actions")}>
         {(block) => <Actions block={block()} context={props.context} />}
       </Match>
-      <Match when={narrowBlock<InputBlock>(props.block, props.block.type === "input")}>
+      <Match when={narrowByType<Block, InputBlock>(props.block, "input")}>
         {(block) => <Input block={block()} context={props.context} />}
       </Match>
-      <Match when={narrowBlock<RichTextBlock>(props.block, props.block.type === "rich_text")}>
+      <Match when={narrowByType<Block, RichTextBlock>(props.block, "rich_text")}>
         {(block) => <RichText block={block()} trailing={props.trailing} />}
       </Match>
-      <Match when={narrowBlock<MarkdownBlock>(props.block, props.block.type === "markdown")}>
+      <Match when={narrowByType<Block, MarkdownBlock>(props.block, "markdown")}>
         {(block) => <Markdown block={block()} />}
       </Match>
-      <Match when={narrowBlock<FileBlock>(props.block, props.block.type === "file")}>
+      <Match when={narrowByType<Block, FileBlock>(props.block, "file")}>
         {(block) => <File block={block()} />}
       </Match>
-      <Match when={narrowBlock<VideoBlock>(props.block, props.block.type === "video")}>
+      <Match when={narrowByType<Block, VideoBlock>(props.block, "video")}>
         {(block) => <Video block={block()} />}
       </Match>
-      <Match when={narrowBlock<CardBlock>(props.block, props.block.type === "card")}>
+      <Match when={narrowByType<Block, CardBlock>(props.block, "card")}>
         {(block) => <Card block={block()} context={props.context} />}
       </Match>
-      <Match when={narrowBlock<CarouselBlock>(props.block, props.block.type === "carousel")}>
+      <Match when={narrowByType<Block, CarouselBlock>(props.block, "carousel")}>
         {(block) => <Carousel block={block()} context={props.context} />}
       </Match>
-      <Match when={narrowBlock<ContainerBlock>(props.block, props.block.type === "container")}>
+      <Match when={narrowByType<Block, ContainerBlock>(props.block, "container")}>
         {(block) => (
           <Container
             block={block()}
@@ -140,34 +136,27 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
           />
         )}
       </Match>
-      <Match
-        when={narrowBlock<ContextActionsBlock>(props.block, props.block.type === "context_actions")}
-      >
+      <Match when={narrowByType<Block, ContextActionsBlock>(props.block, "context_actions")}>
         {(block) => <Actions block={{ ...block(), type: "actions" }} context={props.context} />}
       </Match>
       <Match
-        when={narrowBlock<TableBlock>(
-          props.block,
-          props.block.type === "table" || props.block.type === "data_table",
-        )}
+        when={
+          narrowByType<Block, TableBlock>(props.block, "table") ??
+          narrowByType<Block, TableBlock>(props.block, "data_table")
+        }
       >
         {(block) => <Table block={block()} />}
       </Match>
-      <Match
-        when={narrowBlock<DataVisualizationBlock>(
-          props.block,
-          props.block.type === "data_visualization",
-        )}
-      >
+      <Match when={narrowByType<Block, DataVisualizationBlock>(props.block, "data_visualization")}>
         {(block) => <DataVisualization block={block()} />}
       </Match>
-      <Match when={narrowBlock<TaskCardBlock>(props.block, props.block.type === "task_card")}>
+      <Match when={narrowByType<Block, TaskCardBlock>(props.block, "task_card")}>
         {(block) => <TaskCard block={block()} />}
       </Match>
-      <Match when={narrowBlock<PlanBlock>(props.block, props.block.type === "plan")}>
+      <Match when={narrowByType<Block, PlanBlock>(props.block, "plan")}>
         {(block) => <Plan block={block()} />}
       </Match>
-      <Match when={narrowBlock<AlertBlock>(props.block, props.block.type === "alert")}>
+      <Match when={narrowByType<Block, AlertBlock>(props.block, "alert")}>
         {(block) => <Alert block={block()} />}
       </Match>
     </Switch>
@@ -182,13 +171,13 @@ export default function BlockKit(props: {
   const canPlaceTrailingInline = () => {
     const lastBlock = props.blocks.at(-1);
     if (!lastBlock) return false;
-    const richText = narrowBlock<RichTextBlock>(lastBlock, lastBlock.type === "rich_text");
+    const richText = narrowByType<Block, RichTextBlock>(lastBlock, "rich_text");
     return richText?.elements.at(-1)?.type === "rich_text_section";
   };
 
   return (
     <>
-      <div class="bk-root">
+      <div class="bk-root flex-col gap-sm">
         <For each={props.blocks}>
           {(b, index) => (
             <BlockView

@@ -1,4 +1,5 @@
-import { listNavigationIndex, rovingTabIndex } from "../form/listNavigation";
+import { type ListDirection, listNavigationIndex, rovingTabIndex } from "../form/listNavigation";
+import { useListShortcuts } from "../useNavShortcuts";
 import { useShortcut } from "../useShortcut";
 
 const PANE_SELECTOR = "[data-pane]";
@@ -21,20 +22,11 @@ function isHeaderOrComposerElement(el: HTMLElement): boolean {
   );
 }
 
-function focusPaneEntry(pane: HTMLElement) {
-  const rows = paneRows(pane);
-  if (rows.length > 0) {
-    const remembered = lastRowIndex.get(pane.dataset.pane ?? "") ?? 0;
-    rows[Math.min(remembered, rows.length - 1)]?.focus();
-    return;
-  }
+let focusGeneration = 0;
+const ROVING_ROW_SELECTOR = '[data-message-ts][tabindex="0"]';
+const ROVING_ROW_WAIT_MS = 2000;
 
-  const rovingMessageListRow = pane.querySelector<HTMLElement>('[data-message-ts][tabindex="0"]');
-  if (rovingMessageListRow) {
-    rovingMessageListRow.focus();
-    return;
-  }
-
+function focusFallbackTarget(pane: HTMLElement) {
   const rovingTarget = [...pane.querySelectorAll<HTMLElement>('[tabindex="0"]')].find(
     (el) => !isHeaderOrComposerElement(el),
   );
@@ -48,6 +40,57 @@ function focusPaneEntry(pane: HTMLElement) {
   const candidates = [...pane.querySelectorAll<HTMLElement>(focusableExcludingOptedOut)];
   const bodyTarget = candidates.find((el) => !isHeaderOrComposerElement(el));
   (bodyTarget ?? candidates[0])?.focus();
+}
+
+function waitForRovingRow(pane: HTMLElement) {
+  const generation = focusGeneration;
+  let observer: MutationObserver | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const stop = () => {
+    observer?.disconnect();
+    clearTimeout(timeout);
+  };
+  const tryFind = () => {
+    if (generation !== focusGeneration) {
+      stop();
+      return true;
+    }
+    const row = pane.querySelector<HTMLElement>(ROVING_ROW_SELECTOR);
+    if (!row) return false;
+    row.focus();
+    stop();
+    return true;
+  };
+  if (tryFind()) return;
+  observer = new MutationObserver(tryFind);
+  observer.observe(pane, { childList: true, subtree: true });
+  timeout = setTimeout(() => {
+    stop();
+    if (generation === focusGeneration) focusFallbackTarget(pane);
+  }, ROVING_ROW_WAIT_MS);
+}
+
+function focusPaneEntry(pane: HTMLElement) {
+  focusGeneration++;
+  const rows = paneRows(pane);
+  if (rows.length > 0) {
+    const remembered = lastRowIndex.get(pane.dataset.pane ?? "") ?? 0;
+    rows[Math.min(remembered, rows.length - 1)]?.focus();
+    return;
+  }
+
+  const rovingMessageListRow = pane.querySelector<HTMLElement>(ROVING_ROW_SELECTOR);
+  if (rovingMessageListRow) {
+    rovingMessageListRow.focus();
+    return;
+  }
+
+  if (pane.querySelector(".message-list")) {
+    waitForRovingRow(pane);
+    return;
+  }
+
+  focusFallbackTarget(pane);
 }
 
 export function paneElementById(id: string): HTMLElement | null {
@@ -71,12 +114,12 @@ function focusedRowIndex(rows: HTMLElement[]): number {
   return el instanceof HTMLElement ? rows.indexOf(el) : -1;
 }
 
-function moveListItem(key: "ArrowDown" | "ArrowUp" | "Home" | "End") {
+function moveListItem(direction: ListDirection) {
   const pane = activePane();
   if (!pane) return;
   const rows = paneRows(pane);
   const current = focusedRowIndex(rows);
-  const next = listNavigationIndex(key, current < 0 ? null : current, rows.length);
+  const next = listNavigationIndex(direction, current < 0 ? null : current, rows.length);
   if (next === undefined) return;
   rovingTabIndex(rows, next);
   const target = rows[next];
@@ -113,42 +156,7 @@ function movePane(direction: -1 | 1) {
 
 export function usePaneNavigation() {
   const listRowEnabled = () => !!document.activeElement?.closest("[data-nav-row]");
-  useShortcut({
-    allowRepeat: true,
-    combo: { key: "ArrowDown" },
-    enabled: listRowEnabled,
-    handler: () => moveListItem("ArrowDown"),
-    id: "nav.listNext",
-    label: "Move to the next list item (activity, saved, pinned, files…)",
-    scope: "general",
-  });
-  useShortcut({
-    allowRepeat: true,
-    combo: { key: "ArrowUp" },
-    enabled: listRowEnabled,
-    handler: () => moveListItem("ArrowUp"),
-    id: "nav.listPrev",
-    label: "Move to the previous list item (activity, saved, pinned, files…)",
-    scope: "general",
-  });
-  useShortcut({
-    allowRepeat: true,
-    combo: { key: "Home" },
-    enabled: listRowEnabled,
-    handler: () => moveListItem("Home"),
-    id: "nav.listHome",
-    label: "Jump to the first list item",
-    scope: "general",
-  });
-  useShortcut({
-    allowRepeat: true,
-    combo: { key: "End" },
-    enabled: listRowEnabled,
-    handler: () => moveListItem("End"),
-    id: "nav.listEnd",
-    label: "Jump to the last list item",
-    scope: "general",
-  });
+  useListShortcuts({ enabled: listRowEnabled, move: moveListItem });
 
   const paneEnabled = () => !!document.activeElement?.closest(PANE_SELECTOR);
   useShortcut({
@@ -157,8 +165,9 @@ export function usePaneNavigation() {
     enabled: paneEnabled,
     handler: () => movePane(-1),
     id: "nav.paneLeft",
-    label: "Switch to the pane on the left (sidebar, messages, details)",
+    label: "Switch to the pane on the left",
     scope: "general",
+    group: "Panes",
   });
   useShortcut({
     allowRepeat: false,
@@ -166,7 +175,8 @@ export function usePaneNavigation() {
     enabled: paneEnabled,
     handler: () => movePane(1),
     id: "nav.paneRight",
-    label: "Switch to the pane on the right (sidebar, messages, details)",
+    label: "Switch to the pane on the right",
     scope: "general",
+    group: "Panes",
   });
 }

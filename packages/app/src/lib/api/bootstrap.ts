@@ -1,60 +1,13 @@
-import type { Bootstrap, Channel, DirectMessage, User } from "@slock/types";
-import { ApiError, buildUnreadMap, mapUser, type RawCounts, type RawUser } from "@slock/types";
+import type { Bootstrap, Channel, DirectMessage, RawChannel, RawCounts, User } from "@slock/types";
+import { ApiError, buildUnreadMap, mapUser } from "@slock/types";
 import { fetchInitialData } from "./initialData";
-
-interface RawBootChannel {
-  created?: number;
-  id: string;
-  is_archived?: boolean;
-  is_channel?: boolean;
-  is_group?: boolean;
-  is_mpim?: boolean;
-  is_private?: boolean;
-  members?: string[];
-  name?: string;
-  properties?: { has_custom_mpdm_name?: boolean };
-  topic?: string | { value?: string };
-  updated?: number;
-}
-
-interface RawBootIm {
-  created?: number;
-  id: string;
-  is_open?: boolean;
-  updated?: number;
-  user?: string;
-}
-
-interface RawBootMpim {
-  created?: number;
-  id: string;
-  is_open?: boolean;
-  members?: string[];
-  name?: string;
-  properties?: { has_custom_mpdm_name?: boolean };
-  updated?: number;
-}
-
-interface RawBoot {
-  channels?: RawBootChannel[];
-  error?: string;
-  ims?: RawBootIm[];
-
-  is_open?: string[];
-  mpims?: RawBootMpim[];
-  ok?: boolean;
-  self?: RawUser;
-  starred?: (string | { channel?: string; id?: string })[];
-  subteams?: { all?: string[]; self?: string[] };
-}
 
 export async function fetchBootstrap(): Promise<Bootstrap> {
   const initial = await fetchInitialData();
   if (initial.error?.bootstrap) {
     throw new ApiError(initial.error.bootstrap, initial.retry_after?.bootstrap);
   }
-  const rawInitial: any = initial;
-  const boot: RawBoot = rawInitial;
+  const boot = initial;
   const counts: RawCounts = {
     ...initial.unreads,
     activity_v2: initial.notifications,
@@ -76,7 +29,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
 
-  const rawChannels: RawBootChannel[] = boot.channels ?? [];
+  const rawChannels = boot.channels ?? [];
 
   const channels: Channel[] = rawChannels
     .filter((c) => (c.is_channel || c.is_group) && !c.is_mpim && !c.name?.startsWith("mpdm-"))
@@ -98,9 +51,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
       .map((c) => [c.id, parseFloat(c.latest ?? "") * 1000 || undefined]),
   );
 
-  const rawIms: RawBootIm[] = boot.ims ?? [];
-
-  const oneToOneDms: DirectMessage[] = rawIms
+  const oneToOneDms: DirectMessage[] = (boot.ims ?? [])
     .filter((im) => im.user && (im.is_open || unreadMap[im.id]))
     .map((im) => ({
       id: im.id,
@@ -119,20 +70,12 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
   );
 
   const openIds = new Set(boot.is_open ?? []);
-  const rawMpimsById = new Map<string, RawBootMpim>(
+  const rawMpimsById = new Map<string, RawChannel>(
     (boot.mpims ?? []).map((mpim) => [mpim.id, mpim]),
   );
   for (const channel of rawChannels) {
     if (!channel.is_mpim) continue;
-    rawMpimsById.set(channel.id, {
-      created: channel.created,
-      id: channel.id,
-      is_open: openIds.has(channel.id),
-      members: channel.members,
-      name: channel.name,
-      properties: channel.properties,
-      updated: channel.updated,
-    });
+    rawMpimsById.set(channel.id, { ...channel, is_open: openIds.has(channel.id) });
   }
 
   const multiPersonDms: DirectMessage[] = [...rawMpimsById.values()]
@@ -156,9 +99,8 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     presence: boot.self.presence === "away" ? "away" : "active",
   };
 
-  const rawStarred: (string | { channel?: string; id?: string })[] = boot.starred ?? [];
-  const starredChannelIds: string[] = rawStarred
-    .map((s) => (typeof s === "string" ? s : (s?.channel ?? s?.id)))
+  const starredChannelIds: string[] = (boot.starred ?? [])
+    .map((s) => (typeof s === "string" ? s : (s.channel ?? s.id)))
     .filter((id): id is string => !!id);
 
   const selfUsergroupIds = boot.subteams?.self ?? [];

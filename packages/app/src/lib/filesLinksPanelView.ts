@@ -1,7 +1,5 @@
 import type { FilesLinksEntry } from "./filesLinksPanel";
 
-const WWW_PREFIX_RE = /^www\./;
-
 export type TypeFilter = "all" | "images" | "files" | "links";
 export type SortMode = "newest" | "oldest" | "name";
 export const SORT_MODES: SortMode[] = ["newest", "oldest", "name"];
@@ -22,7 +20,8 @@ export function monthLabel(seconds: number): string {
 
 export function linkDomain(url: string): string {
   try {
-    return new URL(url).hostname.replace(WWW_PREFIX_RE, "");
+    const { hostname } = new URL(url);
+    return hostname.startsWith("www.") ? hostname.slice(4) : hostname;
   } catch {
     return url;
   }

@@ -1,5 +1,5 @@
+import type { User, UserCustomField } from "@slock/types";
 import { createStore } from "solid-js/store";
-import type { User, UserCustomField } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 
 export function createSerialMutationQueue() {

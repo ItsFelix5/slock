@@ -1,0 +1,19 @@
+.bk-alert {
+  padding: 9px 10px;
+  font-size: var(--font-size-secondary);
+  background: var(--hover-bg);
+  border-left: 3px solid var(--bk-button-primary);
+  border-radius: 5px;
+}
+
+.bk-alert--warning {
+  border-left-color: #c98300;
+}
+
+.bk-alert--error {
+  border-left-color: var(--bk-button-danger);
+}
+
+.bk-alert--success {
+  border-left-color: var(--bk-button-primary);
+}

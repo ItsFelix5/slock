@@ -24,7 +24,7 @@ export function useSlackPermalinkHandler(): void {
           });
         return;
       }
-      navigateToSlackPermalink(target, store.viewState, options);
+      navigateToSlackPermalink(target, store.viewState);
     },
     onError: (error) => {
       console.error("Failed to open Slack permalink", error);
@@ -67,9 +67,7 @@ export function useSlackPermalinkHandler(): void {
     event.preventDefault();
     actionFeedback.clear("navigation");
 
-    const nav = store.viewState.nav();
-    const keepNav = nav === "later" || nav === "activity";
-    void permalinkOpener.open(target, { keepNav, split });
+    void permalinkOpener.open(target, { split });
   };
 
   onMount(() => {

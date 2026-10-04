@@ -1,70 +1,7 @@
 import type { Block } from "./blocks";
-import type { RawFile } from "./rawTypes";
-
-export interface UserCustomField {
-  alt?: string;
-  id: string;
-  value: string;
-}
-
-export interface UserProfile {
-  customFields?: UserCustomField[];
-  startDate?: string;
-}
-
-export interface User {
-  appId?: string;
-  avatarColor: string;
-  avatarUrl?: string;
-  botId?: string;
-  customFields?: UserCustomField[];
-  email?: string;
-  id: string;
-  isBot?: boolean;
-
-  isWorkspaceAdmin?: boolean;
-
-  lastSeen?: number;
-  name: string;
-  originalName?: string;
-  phone?: string;
-
-  presence?: "active" | "away";
-  pronouns?: string;
-  realName?: string;
-  startDate?: string;
-  statusEmoji?: string;
-  statusText?: string;
-  title?: string;
-  tz?: string;
-  tzLabel?: string;
-}
-
-export interface Usergroup {
-  id: string;
-
-  name: string;
-}
-
-export interface UsergroupDetails {
-  channelIds: string[];
-  createdBy?: string;
-  dateCreate?: number;
-  description: string;
-  handle: string;
-  id: string;
-  isSection: boolean;
-  memberCount: number;
-  memberIds: string[];
-  title: string;
-}
-
-export interface ProfileFieldDef {
-  fieldName?: string;
-  id: string;
-  label: string;
-  type?: string;
-}
+import type { Attachment, PendingFile, SlackFile } from "./fileTypes";
+import type { RawFile, RawMessage } from "./rawTypes";
+import type { User } from "./userTypes";
 
 export interface CanvasListItem {
   fileId: string;
@@ -106,110 +43,6 @@ export interface Reaction {
   users: string[];
 }
 
-export interface SlackFile {
-  created?: number;
-  duration?: number;
-  filetype?: string;
-  height?: number;
-  id: string;
-  isAudio?: boolean;
-  isImage: boolean;
-  isMail?: boolean;
-  isPdf?: boolean;
-  isVideo?: boolean;
-  mimetype?: string;
-  name: string;
-  permalink?: string;
-  size?: number;
-
-  thumbTiny?: string;
-  thumbUrl?: string;
-  title?: string;
-
-  transcriptionHasMore?: boolean;
-  transcriptionLines?: { endMs: number; startMs: number; text: string }[];
-  transcriptionPreview?: string;
-  urlPrivate: string;
-  urlPrivateDownload?: string;
-
-  vtt?: string;
-  waveform?: number[];
-  width?: number;
-}
-
-export interface SlackLink {
-  iconUrl?: string;
-  thumbHeight?: number;
-  thumbUrl?: string;
-  thumbWidth?: number;
-  title: string | null;
-
-  ts: string;
-  url: string;
-}
-
-export interface SlackFileShare {
-  channelId: string;
-  channelName: string;
-  replyCount?: number;
-  sharedByUserId?: string;
-  threadTs?: string;
-  ts: string;
-}
-
-export interface SlackFileDetail {
-  content: string | null;
-  contentTruncated: boolean;
-  file: SlackFile;
-  shares: SlackFileShare[];
-}
-
-export interface Attachment {
-  actions?: AttachmentAction[];
-  authorIcon?: string;
-  authorName?: string;
-
-  blocks?: Block[];
-  callbackId?: string;
-
-  channelId?: string;
-  color?: string;
-
-  fallback?: string;
-  fields?: { title: string; value: string; short?: boolean }[];
-
-  files?: SlackFile[];
-  footer?: string;
-  footerIcon?: string;
-
-  fromUrl?: string;
-  id?: number;
-  imageHeight?: number;
-  imageUrl?: string;
-  imageWidth?: number;
-
-  isMessageUnfurl?: boolean;
-
-  postedAt?: string;
-
-  pretext?: string;
-  text?: string;
-  title?: string;
-  titleLink?: string;
-  ts?: string;
-  videoHeight?: number;
-  videoUrl?: string;
-  videoWidth?: number;
-}
-
-export interface AttachmentAction {
-  name: string;
-  style?: string;
-  text: string;
-  url?: string;
-  value?: string;
-}
-
 export type MessageKind = "normal" | "system";
 
 export interface Message {
@@ -224,6 +57,8 @@ export interface Message {
   edited?: boolean;
   files?: SlackFile[];
   id: string;
+  pending?: boolean;
+  pendingFiles?: PendingFile[];
   isBroadcast?: boolean;
 
   isEphemeral?: boolean;
@@ -232,10 +67,10 @@ export interface Message {
   isSubscribed?: boolean;
   kind: MessageKind;
   lastReplyLabel?: string;
+  metadata?: RawMessage["metadata"];
   reactions?: Reaction[];
   replyCount?: number;
   replyUsers?: string[];
-  sourceUserId?: string;
   text: string;
 
   threadRoot?: Message;

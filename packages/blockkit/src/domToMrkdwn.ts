@@ -17,18 +17,21 @@ export const MRKDWN_DIALECT: InlineDialect = {
 export const MRKDWN_CLIPBOARD_TYPE = "application/x-slock-mrkdwn";
 
 export const HEADING_TAG_RE = /^H[1-6]$/;
-const PIPE_RE = /\|/g;
-const ZERO_WIDTH_SPACE_RE = /​/g;
-const NBSP_RE = / /g;
-const TRAILING_NEWLINE_RE = /\n$/;
+
+const MAX_LINE_FORMAT_LEVEL = 4;
+export const CONTEXT_PREFIX = "-# ";
 
 function wrapNonEmpty(inner: string, marker: string): string {
   return inner ? `${marker}${inner}${marker}` : "";
 }
 
+function stripTrailingNewline(text: string): string {
+  return text.endsWith("\n") ? text.slice(0, -1) : text;
+}
+
 function serializeLinkElement(el: HTMLElement): string {
   const url = el.dataset.linkUrl ?? "";
-  const label = (el.textContent ?? "").replace(PIPE_RE, "");
+  const label = (el.textContent ?? "").replaceAll("|", "");
   return label && label !== url ? `<${url}|${label}>` : `<${url}>`;
 }
 
@@ -51,14 +54,14 @@ function serializeChildren(node: Node, dialect: InlineDialect): string {
 
 export function serializeNode(node: Node, dialect: InlineDialect): string {
   if (node.nodeType === Node.TEXT_NODE) {
-    return (node.textContent ?? "").replace(ZERO_WIDTH_SPACE_RE, "").replace(NBSP_RE, " ");
+    return (node.textContent ?? "").replaceAll("​", "").replaceAll(" ", " ");
   }
   if (!(node instanceof HTMLElement)) return "";
   const el = node;
   if (el.dataset.mentionId) return `<@${el.dataset.mentionId}>`;
   if (el.dataset.userLinkId) {
     const domain = getCachedWorkspaceDomain();
-    const label = (el.textContent ?? `@${el.dataset.userLinkId}`).replace(PIPE_RE, "");
+    const label = (el.textContent ?? `@${el.dataset.userLinkId}`).replaceAll("|", "");
     if (!domain) return label;
     return `<${userProfileUrl(domain, el.dataset.userLinkId)}|${label}>`;
   }
@@ -73,9 +76,12 @@ export function serializeNode(node: Node, dialect: InlineDialect): string {
   if (el.dataset.linkUrl) return serializeLinkElement(el);
   if (el.dataset.emojiName) return `:${el.dataset.emojiName}:`;
   if (HEADING_TAG_RE.test(el.tagName)) {
-    const level = Number(el.tagName[1]);
-    const inner = serializeChildren(el, dialect).replace(TRAILING_NEWLINE_RE, "");
+    const inner = stripTrailingNewline(serializeChildren(el, dialect));
+    const level = Math.min(Number(el.tagName[1]), MAX_LINE_FORMAT_LEVEL);
     return inner.trim() ? `${"#".repeat(level)} ${inner}\n` : "";
+  }
+  if (el.classList.contains("bk-context")) {
+    return `${CONTEXT_PREFIX}${stripTrailingNewline(serializeChildren(el, dialect))}\n`;
   }
   switch (el.tagName) {
     case "BR":
@@ -101,22 +107,19 @@ export function serializeNode(node: Node, dialect: InlineDialect): string {
     case "HR":
       return "---\n";
     case "PRE":
-      return `\`\`\`\n${serializeChildren(el, dialect).replace(TRAILING_NEWLINE_RE, "")}\n\`\`\``;
+      return `\`\`\`\n${stripTrailingNewline(serializeChildren(el, dialect))}\n\`\`\``;
     case "BLOCKQUOTE":
-      return serializeChildren(el, dialect)
-        .replace(TRAILING_NEWLINE_RE, "")
+      return stripTrailingNewline(serializeChildren(el, dialect))
         .split("\n")
         .map((l) => `${dialect.quotePrefix} ${l}`)
         .join("\n");
     case "UL":
       return Array.from(el.children)
-        .map((li) => `• ${serializeChildren(li, dialect).replace(TRAILING_NEWLINE_RE, "")}`)
+        .map((li) => `• ${stripTrailingNewline(serializeChildren(li, dialect))}`)
         .join("\n");
     case "OL":
       return Array.from(el.children)
-        .map(
-          (li, i) => `${i + 1}. ${serializeChildren(li, dialect).replace(TRAILING_NEWLINE_RE, "")}`,
-        )
+        .map((li, i) => `${i + 1}. ${stripTrailingNewline(serializeChildren(li, dialect))}`)
         .join("\n");
     default:
       return serializeChildren(el, dialect);

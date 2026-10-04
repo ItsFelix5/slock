@@ -1,11 +1,4 @@
-import {
-  Button,
-  blurOnEnter,
-  InlineFeedback,
-  type Pane,
-  PanelHeader,
-  tabStripKeyDown,
-} from "@slock/ui";
+import { Button, InlineFeedback, type Pane, PanelHeader, useTabStripShortcuts } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { actionFeedback } from "../../lib/feedback";
 import { store } from "../../lib/store";
@@ -27,8 +20,6 @@ import {
   mergeUsergroupDetailsDraft,
 } from "./usergroupDetailsDraft";
 
-const LEADING_AT_RE = /^@/;
-
 type Tab = "about" | "members" | "channels";
 
 const TABS: { key: Tab; label: string }[] = [
@@ -41,6 +32,15 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
   const usergroupId = () => props.pane.content.usergroupId;
   const [tab, setTab] = createSignal<Tab>("about");
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
+  let tabListRef: HTMLDivElement | undefined;
+  useTabStripShortcuts({
+    activate: (next, nextIndex) => {
+      setTab(next.key);
+      tabButtonRefs[nextIndex]?.focus();
+    },
+    items: () => TABS,
+    root: () => tabListRef,
+  });
   const [nameInput, setNameInput] = createSignal("");
   const [handleInput, setHandleInput] = createSignal("");
   const [descriptionInput, setDescriptionInput] = createSignal("");
@@ -74,7 +74,8 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
   };
 
   const saveHandle = async () => {
-    const v = handleInput().trim().replace(LEADING_AT_RE, "");
+    const trimmed = handleInput().trim();
+    const v = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
     if (!v || v === details()?.handle) return;
     await saveUsergroupProfile(usergroupId(), { handle: v });
   };
@@ -86,14 +87,14 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
   };
 
   return (
-    <div class="usergroup-details-panel" data-pane={props.pane.id}>
+    <div class="usergroup-details-panel flex-col" data-pane={props.pane.id}>
       <PanelHeader
         canClose={store.viewState.canCloseTile()}
         onClose={() => store.viewState.closeTile(props.pane.id)}
         title="Pinggroup"
       />
       <InlineFeedback
-        class="usergroup-details-feedback"
+        class="usergroup-details-feedback truncate"
         feedback={actionFeedback.get(usergroupId())}
         priority={2}
       />
@@ -102,12 +103,12 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
         class="usergroup-details-body flex-col"
       >
         <Show when={details() && usergroupDetailsLoading()}>
-          <div class="usergroup-details-load-notice text-dim text-sm">
+          <div class="usergroup-details-load-notice flex-center gap-sm text-dim text-sm">
             Refreshing pinggroup details…
           </div>
         </Show>
         <Show when={details() && usergroupDetailsLoadError()}>
-          <div class="usergroup-details-load-notice usergroup-details-load-warning">
+          <div class="usergroup-details-load-notice flex-center gap-sm usergroup-details-load-warning">
             <span>Couldn't refresh pinggroup details.</span>
             <Button onClick={() => loadUsergroupDetails(usergroupId())} size="sm">
               Try again
@@ -115,7 +116,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
           </div>
         </Show>
         <Show when={usergroupMutationPending()}>
-          <div class="usergroup-details-load-notice text-dim text-sm">
+          <div class="usergroup-details-load-notice flex-center gap-sm text-dim text-sm">
             Saving pinggroup changes…
           </div>
         </Show>
@@ -141,7 +142,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
         >
           {(d) => (
             <>
-              <div class="usergroup-details-tabs" role="tablist">
+              <div class="usergroup-details-tabs" ref={tabListRef} role="tablist">
                 <For each={TABS}>
                   {(t, i) => (
                     <button
@@ -149,12 +150,6 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                       class="usergroup-details-tab btn-reset flex-align-center"
                       classList={{ active: tab() === t.key }}
                       onClick={() => setTab(t.key)}
-                      onKeyDown={(e) =>
-                        tabStripKeyDown(e, TABS, i(), (next, nextIndex) => {
-                          setTab(next.key);
-                          tabButtonRefs[nextIndex]?.focus();
-                        })
-                      }
                       ref={(el) => {
                         tabButtonRefs[i()] = el;
                       }}
@@ -177,40 +172,40 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
               <Show when={tab() === "about"}>
                 <div class="usergroup-details-tab-content flex-col">
                   <div class="usergroup-details-field flex-col">
-                    <label class="usergroup-details-label" for="usergroup-details-name">
+                    <label class="field-label" for="usergroup-details-name">
                       Name
                     </label>
                     <input
-                      class="usergroup-details-input"
+                      class="text-field"
                       disabled={usergroupMutationPending()}
                       id="usergroup-details-name"
                       onBlur={saveName}
                       onInput={(e) => setNameInput(e.currentTarget.value)}
-                      onKeyDown={blurOnEnter}
+                      data-commit-on-enter
                       type="text"
                       value={nameInput()}
                     />
                   </div>
                   <div class="usergroup-details-field flex-col">
-                    <label class="usergroup-details-label" for="usergroup-details-handle">
+                    <label class="field-label" for="usergroup-details-handle">
                       Handle
                     </label>
                     <div class="usergroup-details-handle-wrap flex-align-center">
                       <span class="usergroup-details-handle-prefix">@</span>
                       <input
-                        class="usergroup-details-input"
+                        class="text-field"
                         disabled={usergroupMutationPending()}
                         id="usergroup-details-handle"
                         onBlur={saveHandle}
                         onInput={(e) => setHandleInput(e.currentTarget.value)}
-                        onKeyDown={blurOnEnter}
+                        data-commit-on-enter
                         type="text"
                         value={handleInput()}
                       />
                     </div>
                   </div>
                   <div class="usergroup-details-field flex-col">
-                    <label class="usergroup-details-label" for="usergroup-details-description">
+                    <label class="field-label" for="usergroup-details-description">
                       Description
                     </label>
                     <MrkdwnComposer

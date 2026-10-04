@@ -1,4 +1,9 @@
-import { indexAlignedText, listNavigationIndex } from "@slock/ui";
+import {
+  indexAlignedText,
+  listNavigationIndex,
+  useEditShortcuts,
+  useListShortcuts,
+} from "@slock/ui";
 import Quill from "quill";
 import { store } from "../../../lib/store";
 import { type QuerySuggestion, queryToken } from "../querySuggestions";
@@ -8,10 +13,11 @@ import {
   serializeQuery,
   suggestionToPill,
 } from "./searchFilterPill";
+import { stripNegation } from "./tokenEntitySearch";
 
 const USER_TOKEN_RE = /^(from|with):<@([A-Z0-9]+)>$/;
+const ENTITY_TOKEN_RE = /-?(?:from|with|in):<[@#][A-Z0-9]+>/g;
 const CHANNEL_TOKEN_RE = /^in:<#([A-Z0-9]+)>$/;
-const NEGATION_RE = /^-/;
 
 function resolveTokenLabel(token: string): string {
   const userMatch = token.match(USER_TOKEN_RE);
@@ -40,6 +46,27 @@ export interface SearchQueryEditorDeps {
 
 export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
   let quill: Quill | undefined;
+
+  useListShortcuts({
+    edges: false,
+    enabled: deps.suggestionsOpen,
+    move: (direction) => {
+      const next = listNavigationIndex(
+        direction,
+        deps.getActiveSuggestion(),
+        deps.getSuggestions().length,
+      );
+      if (next !== undefined) deps.setActiveSuggestion(next);
+    },
+    root: () => quill?.root,
+  });
+  useEditShortcuts({
+    cancel: () => {
+      if (deps.suggestionsOpen()) deps.onSuggestionsShouldClose();
+      else deps.onEscapeWithNoSuggestions();
+    },
+    root: () => quill?.root,
+  });
 
   function applySuggestion(suggestion: QuerySuggestion) {
     if (!quill) return;
@@ -75,7 +102,7 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     const index = blot.offset(quill.scroll);
     const value = FilterPillBlot.value(node);
     if (!value) return;
-    const [modifier] = value.token.replace(NEGATION_RE, "").split(":");
+    const [modifier] = stripNegation(value.token).split(":");
     const text = `${value.negated ? "-" : ""}${modifier}:`;
     quill.deleteText(index, 1, "user");
     quill.insertText(index, text, "user");
@@ -177,24 +204,14 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
       },
       true,
     );
-    q.root.addEventListener("keydown", (event) => {
-      if ((event.key === "ArrowDown" || event.key === "ArrowUp") && deps.suggestionsOpen()) {
-        event.preventDefault();
-        const next = listNavigationIndex(
-          event.key,
-          deps.getActiveSuggestion(),
-          deps.getSuggestions().length,
-        );
-        if (next !== undefined) deps.setActiveSuggestion(next);
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        if (deps.suggestionsOpen()) deps.onSuggestionsShouldClose();
-        else deps.onEscapeWithNoSuggestions();
-      }
-    });
-
     return q;
   }
 
   return { alignedText, applySuggestion, mount, setQueryText };
+}
+
+export function readableQuery(query: string): string {
+  return query.replace(ENTITY_TOKEN_RE, (token) =>
+    token.startsWith("-") ? `-${resolveTokenLabel(token.slice(1))}` : resolveTokenLabel(token),
+  );
 }

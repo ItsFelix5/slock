@@ -12,16 +12,16 @@ import type {
   UsergroupDetailsPaneContent,
   View,
 } from "../../lib/store/slices/types";
-import ThreadPanel from "../messages/thread/ThreadPanel";
+import ThreadPane from "../messages/thread/ThreadPane";
 import UserProfile from "../user/UserProfile";
 import UsergroupDetails from "../usergroup/UsergroupDetails";
-import MainPane from "./MainPane";
+import ConversationPane from "./ConversationPane";
 
-const CanvasPanel = lazy(() => import("../channel/CanvasPanel"));
-const PinnedPanel = lazy(() => import("../channel/PinnedPanel"));
+const CanvasPane = lazy(() => import("../channel/CanvasPane"));
+const PinnedPane = lazy(() => import("../channel/PinnedPane"));
 
 export function paneTabLabel(pane: Pane<PaneContent | null>): JSX.Element {
-  const content = pane.content;
+  const { content } = pane;
   if (!content) return "…";
   switch (content.kind) {
     case "channel":
@@ -45,11 +45,6 @@ export function paneTabLabel(pane: Pane<PaneContent | null>): JSX.Element {
   }
 }
 
-function asViewPane(pane: Pane<PaneContent | null>): Pane<View | null> {
-  const generic: any = pane;
-  return generic;
-}
-
 export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   useEscapeClose(
     () => store.viewState.closeTile(props.pane.id),
@@ -57,9 +52,12 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   );
 
   return (
-    <Switch fallback={<MainPane pane={asViewPane(props.pane)} />}>
+    <Switch>
+      <Match keyed when={narrowPaneContent<PaneContent, View>(props.pane, ["channel", "dm"])}>
+        {(pane) => <ConversationPane pane={pane} />}
+      </Match>
       <Match keyed when={narrowPaneContent<PaneContent, ThreadPaneContent>(props.pane, "thread")}>
-        {(pane) => <ThreadPanel pane={pane} />}
+        {(pane) => <ThreadPane pane={pane} />}
       </Match>
       <Match keyed when={narrowPaneContent<PaneContent, ProfilePaneContent>(props.pane, "profile")}>
         {(pane) => <UserProfile pane={pane} />}
@@ -74,10 +72,10 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
         {(pane) => <UsergroupDetails pane={pane} />}
       </Match>
       <Match keyed when={narrowPaneContent<PaneContent, PinnedPaneContent>(props.pane, "pinned")}>
-        {(pane) => <PinnedPanel pane={pane} />}
+        {(pane) => <PinnedPane pane={pane} />}
       </Match>
       <Match keyed when={narrowPaneContent<PaneContent, CanvasPaneContent>(props.pane, "canvas")}>
-        {(pane) => <CanvasPanel pane={pane} />}
+        {(pane) => <CanvasPane pane={pane} />}
       </Match>
     </Switch>
   );

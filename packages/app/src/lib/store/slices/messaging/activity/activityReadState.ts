@@ -1,7 +1,7 @@
+import type { ActivityItem } from "@slock/types";
 import { createMemo, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { gatewayActivityCountsSnapshot, gatewayActivityPingCount } from "../../../../activityKinds";
-import type { ActivityItem } from "../../../../api";
 
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
@@ -33,17 +33,18 @@ export function createActivityReadState(deps: {
   const [gatewayActivityCount, setGatewayActivityCount] = createSignal<number>();
   let lastGatewayActivityCountsSnapshot: string | undefined;
 
-  function setGatewayActivityBadgeCounts(activity: any): boolean {
+  function setGatewayActivityBadgeCounts(activity: Record<string, number> | undefined): boolean {
     const nextSnapshot = gatewayActivityCountsSnapshot(activity);
     const changed = nextSnapshot !== lastGatewayActivityCountsSnapshot;
     lastGatewayActivityCountsSnapshot = nextSnapshot;
-    if (activity && typeof activity === "object")
-      setGatewayActivityCount(gatewayActivityPingCount(activity));
+    if (activity) setGatewayActivityCount(gatewayActivityPingCount(activity));
     return changed;
   }
 
   function activityItemReadState(item: ActivityItem): ActivityItemReadState {
     if (item.kind === "reaction") return "read";
+    if (item.kind === "thread_reply" && item.unreadCount !== undefined)
+      return item.unreadCount > 0 ? "unread" : "read";
     if (readActivityIds[item.id]) return "read";
     if (item.unread !== undefined) return item.unread ? "unread" : "read";
     return "pending";
@@ -71,7 +72,9 @@ export function createActivityReadState(deps: {
     await Promise.all(
       toFetch.map(async (channelId) => {
         try {
-          deps.setLastReadByChannel(channelId, await deps.fetchChannelLastRead(channelId));
+          const lastRead = await deps.fetchChannelLastRead(channelId);
+          if (deps.lastReadByChannel[channelId] === undefined)
+            deps.setLastReadByChannel(channelId, lastRead);
         } catch {
           attemptedReadCursorBackfill.delete(channelId);
         }
@@ -133,6 +136,7 @@ export function createActivityReadState(deps: {
         latestTsByChannel.set(item.channelId, item.ts);
     }
     for (const [channelId, ts] of latestTsByChannel) {
+      if (parseFloat(ts) * 1000 <= (deps.lastReadByChannel[channelId] ?? 0)) continue;
       deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
 
       deps.clearChannelUnread(channelId);

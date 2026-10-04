@@ -29,13 +29,9 @@
   align-items: center;
   gap: 6px;
   width: 40px;
-  padding: 8px 6px 7px;
+  padding: var(--space-sm) 6px 7px;
   pointer-events: none;
   visibility: hidden;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-popover);
   opacity: 0;
   transform: translate(-50%, 4px);
   transition:

@@ -1,0 +1,123 @@
+.bk-button,
+.bk-control,
+.bk-overflow-btn,
+.bk-feedback-button,
+.bk-icon-button {
+  color: var(--text-primary);
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.bk-button:disabled,
+.bk-control:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.bk-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-secondary);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.bk-button:hover {
+  border-color: var(--text-dim);
+}
+
+.bk-button--primary {
+  color: var(--text-on-success);
+  background: var(--bk-button-primary);
+  border-color: var(--bk-button-primary);
+}
+
+.bk-button--danger {
+  color: var(--text-on-danger);
+  background: var(--bk-button-danger);
+  border-color: var(--bk-button-danger);
+}
+
+.bk-overflow-btn,
+.bk-feedback-button,
+.bk-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: var(--font-size-body);
+  color: var(--text-secondary);
+}
+
+.bk-overflow-btn:hover,
+.bk-feedback-button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.bk-icon-button img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.bk-overflow-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.bk-overflow-unsupported {
+  padding: 6px 10px;
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+}
+
+.menu-panel.bk-overflow-menu {
+  top: 36px;
+  left: 0;
+  z-index: 8;
+  min-width: 180px;
+}
+
+.bk-control {
+  min-width: 140px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 5px var(--space-sm);
+  font: inherit;
+}
+
+.bk-control--textarea {
+  width: min(420px, 100%);
+  min-height: 72px;
+  resize: vertical;
+}
+
+.bk-options {
+  gap: 5px;
+}
+
+.bk-option {
+  gap: 7px;
+  font-size: var(--font-size-secondary);
+}
+
+.bk-option input {
+  margin: 0;
+}
+
+.bk-option:has(input:disabled) {
+  opacity: 0.7;
+}
+
+.bk-feedback-buttons,
+.bk-card-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}

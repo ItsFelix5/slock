@@ -1,10 +1,11 @@
 .reply-reference-row {
   position: relative;
+  container-type: inline-size;
   gap: 6px;
   min-width: 0;
   overflow: hidden;
   padding: 0;
-  margin: 4px 20px -2px 34px;
+  margin: var(--space-xs) 0 -2px 34px;
   font-size: 12.5px;
   color: var(--text-secondary);
   text-decoration: none;
@@ -19,7 +20,7 @@
   content: "";
   border-top: 2px solid var(--border-strong);
   border-left: 2px solid var(--border-strong);
-  border-top-left-radius: 6px;
+  border-top-left-radius: var(--radius-control);
 }
 
 .reply-reference-row:hover {
@@ -27,10 +28,7 @@
 }
 
 .reply-reference-avatar {
-  display: flex;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
   width: 16px;
   height: 16px;
   overflow: hidden;
@@ -48,16 +46,21 @@
   flex-shrink: 1;
   min-width: 0;
   max-width: 160px;
-  overflow: hidden;
   font-weight: 600;
   color: var(--text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.reply-reference-snippet {
+@container (max-width: 400px) {
+  .reply-reference-name {
+    display: none;
+  }
+}
+
+.reply-reference-anchor {
+  display: flex;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.reply-reference-anchor > .reply-reference-row {
+  flex: 1;
 }

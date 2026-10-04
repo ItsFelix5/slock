@@ -15,6 +15,7 @@ export interface BlockKitResolver {
   onChannelClick(id: string): void;
   onUserClick(id: string): void;
   onUsergroupClick(id: string): void;
+  resolveCanvasTitle(fileId: string): string | undefined;
   resolveChannel(id: string): BlockKitMentionInfo | undefined;
   resolveUser(id: string): BlockKitMentionInfo | undefined;
   resolveUsergroup(id: string): BlockKitMentionInfo | undefined;
@@ -33,6 +34,7 @@ const defaultNoopResolver: BlockKitResolver = {
   onChannelClick: () => {},
   onUserClick: () => {},
   onUsergroupClick: () => {},
+  resolveCanvasTitle: () => undefined,
   resolveChannel: () => undefined,
   resolveUser: () => undefined,
   resolveUsergroup: () => undefined,
@@ -69,10 +71,8 @@ export function useMessageAttachments(): () => Attachment[] | undefined {
   return useContext(MessageAttachmentsContext);
 }
 
-export type EmojiFreeze = "hover" | "play" | "still";
+export const EmojiFreezeContext = createContext<() => boolean>(() => false);
 
-export const EmojiFreezeContext = createContext<EmojiFreeze>("play");
-
-export function useEmojiFreeze(): EmojiFreeze {
+export function useEmojiFreeze(): () => boolean {
   return useContext(EmojiFreezeContext);
 }

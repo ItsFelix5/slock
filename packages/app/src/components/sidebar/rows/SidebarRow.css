@@ -1,0 +1,115 @@
+.sidebar-row-wrap {
+  position: relative;
+}
+
+.sidebar-row-wrap > .tooltip-anchor {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+.sidebar-row-close {
+  display: none;
+  width: 20px;
+  height: 20px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-row-wrap:hover .sidebar-row-close,
+.sidebar-row-wrap:focus-within .sidebar-row-close {
+  display: flex;
+}
+
+.sidebar-row-feedback {
+  position: absolute;
+  top: 100%;
+  right: 10px;
+  left: 10px;
+  z-index: 1;
+  padding: 2px 0;
+  background: var(--sidebar-bg);
+}
+
+.sidebar-row-close:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.sidebar-row-close:disabled {
+  cursor: wait;
+  opacity: 0.4;
+}
+
+.sidebar-row {
+  width: calc(100% - 12px);
+  gap: var(--space-sm);
+  margin: 1px 6px;
+  padding: calc(6px + var(--row-padding-offset)) 10px;
+  font-size: var(--font-size-secondary);
+  color: var(--text-secondary);
+  text-align: left;
+  border-radius: var(--radius-control);
+}
+
+.sidebar-row-channel {
+  padding-block: calc(4px + var(--row-padding-offset));
+}
+
+.sidebar-row:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.sidebar-row.active {
+  color: var(--text-primary);
+  background: color-mix(in oklch, var(--accent) 14%, transparent);
+}
+
+.sidebar-row.muted {
+  opacity: 0.6;
+}
+
+.sidebar-row-icon {
+  width: 16px;
+  font-size: var(--font-size-control);
+  text-align: center;
+  opacity: 0.8;
+}
+
+.sidebar-row-name {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sidebar-row.unread .sidebar-row-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sidebar-row-end {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.sidebar-badge {
+  padding: 1px 7px;
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  color: var(--text-on-danger);
+  background: var(--badge-bg);
+  border-radius: var(--radius-pill);
+}
+
+.sidebar-row-draft {
+  color: var(--text-dim);
+}
+
+.sidebar-row-wrap:hover .sidebar-row-end,
+.sidebar-row-wrap:focus-within .sidebar-row-end {
+  display: none;
+}

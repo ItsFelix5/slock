@@ -1,0 +1,102 @@
+.sidebar-section {
+  margin-top: 10px;
+  margin-bottom: 6px;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+}
+
+.sidebar-section-dragging {
+  opacity: 0.5;
+}
+
+.sidebar-section-drop-before {
+  border-top-color: var(--accent);
+}
+
+.sidebar-section-drop-after {
+  border-bottom-color: var(--accent);
+}
+
+.sidebar-section-header-draggable {
+  cursor: grab;
+}
+
+.sidebar-section-dragging .sidebar-section-header-draggable {
+  cursor: grabbing;
+}
+
+.sidebar-section-header {
+  width: 100%;
+  height: calc(22px + var(--row-padding-offset));
+  padding: calc(6px + var(--row-padding-offset)) 10px calc(6px + var(--row-padding-offset)) 16px;
+}
+
+.sidebar-section-header-btn {
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  font-size: var(--font-size-control);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.sidebar-section-header-btn:hover {
+  color: var(--text-primary);
+}
+
+.sidebar-section-feedback {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 45%;
+  margin-right: var(--space-xs);
+}
+
+.sidebar-caret {
+  display: grid;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  font-size: 10px;
+}
+
+.sidebar-section-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 6px;
+  font-size: var(--font-size-control);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--main-bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-section-menu-wrap {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.sidebar-section-menu-btn {
+  width: 22px;
+  height: 22px;
+  visibility: hidden;
+  color: var(--text-secondary);
+  border-radius: var(--radius-control);
+}
+
+.sidebar-section-header:hover .sidebar-section-menu-btn,
+.sidebar-section-menu-wrap:focus-within .sidebar-section-menu-btn {
+  visibility: visible;
+}
+
+.sidebar-section-menu-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.menu-panel.sidebar-section-menu {
+  min-width: 240px;
+}

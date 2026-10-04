@@ -1,6 +1,6 @@
 import { confirmDialog, debugMode, Icon, Menu, MenuItem, showDebugInfo } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
-import { actionFeedback } from "../../lib/feedback";
+import { copyChannelLink } from "../../lib/messageLinks";
 import { store } from "../../lib/store";
 import "./ChannelActionsMenuItems.css";
 import ChannelMoveMenu from "./ChannelMoveMenu";
@@ -28,14 +28,6 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
   const run = (fn: () => void) => {
     props.onClose();
     fn();
-  };
-
-  const copyConversationLink = async () => {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}/#${props.channelId}`);
-    } catch {
-      actionFeedback.flash(props.channelId, "Couldn't copy the link.", "error");
-    }
   };
 
   const showDebug = () => {
@@ -69,7 +61,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           variant="menu-item"
         />
       </Show>
-      <MenuItem icon="pin" onClick={() => run(() => store.pinned.openPinnedPanel(props.channelId))}>
+      <MenuItem icon="pin" onClick={() => run(() => store.pinned.openPinnedPane(props.channelId))}>
         View pinned items
       </MenuItem>
       <Menu
@@ -101,7 +93,7 @@ export default function ChannelActionsMenuItems(props: ChannelActionsMenuItemsPr
           {notifyAll() ? "Only notify me about mentions" : "Notify me about all new messages"}
         </MenuItem>
       </Menu>
-      <MenuItem icon="link" onClick={() => run(copyConversationLink)}>
+      <MenuItem icon="link" onClick={() => run(() => copyChannelLink(props.channelId))}>
         {props.isDm ? "Copy link to conversation" : "Copy link to channel"}
       </MenuItem>
       <Show when={!props.isDm}>

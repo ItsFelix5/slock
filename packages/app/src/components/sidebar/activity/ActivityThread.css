@@ -1,8 +1,6 @@
 .activity-thread-timeline {
-  display: flex;
-  flex-direction: column;
   gap: 1px;
-  padding: 0 8px 8px 50px;
+  padding: 0 var(--space-sm) var(--space-sm) 50px;
 }
 
 .activity-read-more {
@@ -10,9 +8,9 @@
   gap: 5px;
   align-items: center;
   align-self: flex-start;
-  padding: 4px 8px;
-  margin: 0 0 4px -4px;
-  font-size: 11px;
+  padding: var(--space-xs) var(--space-sm);
+  margin: 0 0 var(--space-xs) -4px;
+  font-size: var(--font-size-caption);
   font-weight: 650;
   color: var(--text-secondary);
   background: var(--hover-bg);
@@ -28,10 +26,10 @@
 .activity-thread-message {
   position: relative;
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm);
   width: 100%;
   min-width: 0;
-  padding: 4px 6px 4px 0;
+  padding: var(--space-xs) 6px var(--space-xs) 0;
   text-align: left;
   border-radius: var(--radius-control);
 }
@@ -88,28 +86,16 @@
 .activity-thread-message-head {
   gap: 5px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   line-height: 1.3;
 }
 
 .activity-thread-message-head strong {
-  overflow: hidden;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .activity-thread-message.unread .activity-thread-message-head strong {
   color: var(--text-primary);
-}
-
-.activity-thread-event {
-  display: inline-flex;
-  flex-shrink: 0;
-  gap: 3px;
-  align-items: center;
-  font-size: 10px;
-  color: var(--text-dim);
 }
 
 .activity-thread-message-time {
@@ -123,14 +109,10 @@
   display: -webkit-box;
   margin-top: 1px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--font-size-meta);
   line-height: 1.4;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-
-.activity-thread-root .activity-thread-message-text {
-  color: var(--text-dim);
 }

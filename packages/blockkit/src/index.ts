@@ -3,12 +3,7 @@ export type { BlockActionContext } from "./BlockKit";
 export { default as BlockKit } from "./BlockKit";
 export { default as Context } from "./blocks/Context";
 export { Table } from "./blocks/Table";
-export type {
-  BlockKitMentionInfo,
-  BlockKitResolver,
-  EmojiFreeze,
-  TimeAnchor,
-} from "./context";
+export type { BlockKitMentionInfo, BlockKitResolver, TimeAnchor } from "./context";
 export {
   BlockKitResolverContext,
   EmojiFreezeContext,
@@ -30,6 +25,7 @@ export {
   startOfDayMs,
 } from "./dateFormat";
 export {
+  CONTEXT_PREFIX,
   fragmentToMrkdwn,
   HEADING_TAG_RE,
   type InlineDialect,
@@ -52,8 +48,9 @@ export {
   loadCustomEmoji,
 } from "./emoji/emojiCache";
 export { decodeTextEntities, encodeTextEntities } from "./entities";
-export { escapeRegExp, type HighlightSegment, splitHighlightWords } from "./highlightWords";
+export { type HighlightSegment, splitHighlightWords } from "./highlightWords";
 export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
-export { default as Mrkdwn, Link, Mention, TimeAwareText } from "./mrkdwn";
-export { parseUserProfileLink } from "./mrkdwnInline";
+export { default as Mrkdwn } from "./mrkdwn";
+export { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwnInline";
+export { Link, Mention, TimeAwareText } from "./mrkdwnTokens";
 export { stripTrackingParams } from "./urlCleanup";

@@ -1,7 +1,10 @@
-import { type Credentials } from "./auth.ts";
+import type { Credentials } from "./auth.ts";
 import { errorMessage } from "./http/compressedResponse.ts";
 
-async function parseSlackResponse(res: Response): Promise<any> {
+export type SlackFailure = { error: string; ok: false; retry_after?: string };
+export type SlackReply<T extends object = object> = (T & { ok: true }) | SlackFailure;
+
+async function parseSlackResponse<T extends object>(res: Response): Promise<SlackReply<T>> {
   const text = await res.text();
   const retryAfter = res.headers.get("retry-after");
   try {
@@ -18,9 +21,14 @@ async function parseSlackResponse(res: Response): Promise<any> {
   }
 }
 
+function appendParam(target: FormData | URLSearchParams, key: string, value: string | string[]) {
+  if (Array.isArray(value)) for (const item of value) target.append(key, item);
+  else target.append(key, value);
+}
+
 function slackRequestBody(
   method: string,
-  params: Record<string, string>,
+  params: Record<string, string | string[]>,
   token: string,
 ): { body: FormData | string; headers: Record<string, string> } {
   if (
@@ -33,13 +41,13 @@ function slackRequestBody(
     const body = new FormData();
     body.append("token", token);
     for (const [key, value] of Object.entries(params)) {
-      if (key !== "token") body.append(key, value);
+      if (key !== "token") appendParam(body, key, value);
     }
     return { body, headers: {} };
   }
   const body = new URLSearchParams({ token });
   for (const [key, value] of Object.entries(params)) {
-    if (key !== "token") body.append(key, value);
+    if (key !== "token") appendParam(body, key, value);
   }
   return {
     body: body.toString(),
@@ -47,11 +55,11 @@ function slackRequestBody(
   };
 }
 
-export async function callSlack(
+export async function callSlack<T extends object = object>(
   method: string,
-  params: Record<string, string>,
+  params: Record<string, string | string[]>,
   creds: Credentials | null,
-): Promise<any> {
+): Promise<SlackReply<T>> {
   if (!creds) return { error: "not_configured", ok: false };
   const { body, headers } = slackRequestBody(method, params, creds.token);
   const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
@@ -71,12 +79,12 @@ export async function callSlack(
   }
 }
 
-export async function callSlackMultipart(
+export async function callSlackMultipart<T extends object = object>(
   method: string,
   params: Record<string, string>,
   file: { bytes: Uint8Array; field: string; filename: string; type: string },
   creds: Credentials | null,
-): Promise<any> {
+): Promise<SlackReply<T>> {
   if (!creds) return { error: "not_configured", ok: false };
   const body = new FormData();
   body.append("token", creds.token);
@@ -100,11 +108,11 @@ export async function callSlackMultipart(
   }
 }
 
-export async function callSlackEdge(
+export async function callSlackEdge<T extends object = object>(
   method: string,
   params: Record<string, unknown>,
   creds: Credentials | null,
-): Promise<any> {
+): Promise<SlackReply<T>> {
   if (!creds) return { error: "not_configured", ok: false };
   const [enterpriseId] = creds.route.split(":");
   try {
@@ -134,7 +142,10 @@ export function botToken(): string | undefined {
   return Bun.env.SLACK_BOT_TOKEN;
 }
 
-export async function callSlackBot(method: string, params: Record<string, string>): Promise<any> {
+export async function callSlackBot<T extends object = object>(
+  method: string,
+  params: Record<string, string>,
+): Promise<SlackReply<T>> {
   const token = botToken();
   if (!token) return { error: "bot_not_configured", ok: false };
   try {

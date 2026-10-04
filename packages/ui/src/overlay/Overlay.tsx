@@ -93,7 +93,7 @@ export default function Overlay(props: OverlayProps) {
         aria-label={props.ariaLabel}
         aria-labelledby={props.ariaLabelledBy}
         aria-modal="true"
-        class={`overlay ${props.align === "top" ? "overlay-top" : ""}`}
+        class={`overlay flex-center ${props.align === "top" ? "overlay-top" : ""}`}
         onClick={(e) => e.target === e.currentTarget && props.onClose()}
         ref={overlayRef}
         role="dialog"

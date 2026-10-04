@@ -1,11 +1,13 @@
 import { Mrkdwn } from "@slock/blockkit";
+import type { User } from "@slock/types";
 import { AvatarImage, Icon } from "@slock/ui";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
-import type { User } from "../../lib/api";
 import { store } from "../../lib/store";
 import { AppBadge } from "./AppBadge";
 import UserProfileStatus from "./UserProfileStatus";
+
+const TEXT_INPUT_TAG_RE = /^(INPUT|TEXTAREA)$/;
 
 interface UserProfileInfoProps {
   isSelf: () => boolean;
@@ -15,6 +17,7 @@ interface UserProfileInfoProps {
   botBio: () => string | undefined;
   lastSeenText: () => string | null;
   localTime: () => string | null;
+  tzSuffix: () => string;
   onTogglePresence: () => void;
   onProfilePhotoSelected: (file: File) => void;
   saveName: () => void;
@@ -30,7 +33,6 @@ interface UserProfileInfoProps {
   nicknameInput: () => string;
   setNicknameInput: (value: string) => void;
   savingProfileFields: () => Record<string, boolean>;
-  blurOnEnter: (e: KeyboardEvent & { currentTarget: HTMLElement }) => void;
   statusText: () => string;
   setStatusText: (value: string) => void;
   statusEmoji: () => string;
@@ -59,8 +61,8 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
   onCleanup(() => window.removeEventListener("resize", onWindowResize));
   const onWindowPaste = (event: ClipboardEvent) => {
     if (!props.isSelf() || props.isSavingProfilePhoto()) return;
-    const target = event.target;
-    if (target instanceof HTMLElement && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+    const { target } = event;
+    if (target instanceof HTMLElement && TEXT_INPUT_TAG_RE.test(target.tagName)) return;
     const item = Array.from(event.clipboardData?.items ?? []).find((i) =>
       i.type.startsWith("image/"),
     );
@@ -137,14 +139,14 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
       </div>
       <Show
         fallback={
-          <div class="user-profile-edit-name">
+          <div class="user-profile-edit-name flex-col">
             <input
               aria-label="Display name"
               class="user-profile-name-input"
               disabled={props.savingProfileFields().name}
               onBlur={props.saveName}
               onInput={(e) => props.setNameInput(e.currentTarget.value)}
-              onKeyDown={props.blurOnEnter}
+              data-commit-on-enter
               type="text"
               value={props.nameInput()}
             />
@@ -157,7 +159,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
                 props.setTitleInput(e.currentTarget.value);
                 autoGrowTitle(e.currentTarget);
               }}
-              onKeyDown={props.blurOnEnter}
+              data-commit-on-enter
               placeholder="Title"
               ref={(el) => {
                 titleRef = el;
@@ -172,7 +174,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
               disabled={props.savingProfileFields().pronouns}
               onBlur={props.savePronouns}
               onInput={(e) => props.setPronounsInput(e.currentTarget.value)}
-              onKeyDown={props.blurOnEnter}
+              data-commit-on-enter
               placeholder="Pronouns"
               type="text"
               value={props.pronounsInput()}
@@ -187,7 +189,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
             class="user-profile-name-input"
             onBlur={props.saveNickname}
             onInput={(e) => props.setNicknameInput(e.currentTarget.value)}
-            onKeyDown={props.blurOnEnter}
+            data-commit-on-enter
             type="text"
             value={props.nicknameInput() || (u().originalName ?? u().name)}
           />
@@ -214,7 +216,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
           </p>
         </Show>
         <Show when={u().pronouns}>
-          <p class="user-profile-title pronouns">{u().pronouns}</p>
+          <p class="user-profile-title pronouns truncate">{u().pronouns}</p>
         </Show>
       </Show>
       <UserProfileStatus
@@ -226,11 +228,10 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
         setStatusText={props.setStatusText}
         statusEmoji={() => (props.isSelf() ? props.statusEmoji() : (u().statusEmoji ?? ""))}
         statusText={() => (props.isSelf() ? props.statusText() : (u().statusText ?? ""))}
-        blurOnEnter={props.blurOnEnter}
       />
       <Show when={props.localTime()}>
         <p class="user-profile-meta text-muted text-sm">
-          {props.localTime()} local time{u().tzLabel ? ` (${u().tzLabel})` : ""}
+          {props.localTime()} local time{props.tzSuffix()}
         </p>
       </Show>
       <Show when={props.lastSeenText()}>

@@ -1,5 +1,5 @@
+import type { User } from "@slock/types";
 import { Avatar } from "@slock/ui";
-import type { User } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import ComposePicker from "./ComposePicker";
 import "./ComposeUserPicker.css";

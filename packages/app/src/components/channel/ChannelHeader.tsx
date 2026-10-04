@@ -28,6 +28,7 @@ export default function ChannelHeader() {
   const [canvasMenuOpen, setCanvasMenuOpen] = createSignal(false);
   const [topicEl, setTopicEl] = createSignal<HTMLSpanElement>();
   const [topicOverflowing, setTopicOverflowing] = createSignal(false);
+  const [topicHovered, setTopicHovered] = createSignal(false);
   createEffect(() => {
     channelTopic();
     const el = topicEl();
@@ -60,7 +61,7 @@ export default function ChannelHeader() {
             {(id) => <ChannelMoveMenu channelId={id()} channelTitle={channelTitle()} />}
           </Show>
           <button
-            class="channel-header-title channel-header-title-btn btn-reset"
+            class="channel-header-title flex-align-center gap-xs channel-header-title-btn btn-reset"
             onClick={() => {
               const v = view();
               if (!v) return;
@@ -72,38 +73,42 @@ export default function ChannelHeader() {
             <Show fallback={null} when={view()?.kind !== "dm"}>
               <Icon
                 class="channel-header-icon"
-                name={channelIconName(isPrivateChannel())}
+                name={channelIconName(isPrivateChannel(), isArchivedChannel())}
                 size={16}
               />
             </Show>
             <span class="truncate">{channelTitle()}</span>
           </button>
-          <Show when={isArchivedChannel()}>
-            <span class="channel-header-archived-badge">Archived</span>
-          </Show>
         </div>
         <span
           class="channel-header-topic-wrap"
           classList={{ "is-overflowing": topicOverflowing() }}
           hidden={!channelTopic()}
+          onFocusIn={() => setTopicHovered(true)}
+          onFocusOut={() => setTopicHovered(false)}
+          onMouseEnter={() => setTopicHovered(true)}
+          onMouseLeave={() => setTopicHovered(false)}
           tabIndex={topicOverflowing() ? 0 : undefined}
         >
-          <EmojiFreezeContext.Provider value="hover">
+          <EmojiFreezeContext.Provider value={() => topicOverflowing() || !topicHovered()}>
             <span class="channel-header-topic truncate text-dim text-sm" ref={setTopicEl}>
               <Mrkdwn text={channelTopic()} />
             </span>
-            <span class="channel-header-topic-tooltip text-dim text-sm">
-              <Mrkdwn text={channelTopic()} />
-            </span>
           </EmojiFreezeContext.Provider>
+          <span class="channel-header-topic-tooltip text-dim text-sm">
+            <Mrkdwn text={channelTopic()} />
+          </span>
         </span>
         <Show when={view()?.id}>
           {(id) => (
-            <InlineFeedback class="channel-header-feedback" feedback={actionFeedback.get(id())} />
+            <InlineFeedback
+              class="channel-header-feedback truncate"
+              feedback={actionFeedback.get(id())}
+            />
           )}
         </Show>
       </div>
-      <div class="channel-header-actions">
+      <div class="channel-header-actions flex-align-center gap-xs">
         <Show when={canvases().length > 0}>
           <Menu
             align="end"

@@ -1,4 +1,4 @@
-import type { Message } from "./api";
+import type { Message } from "@slock/types";
 
 const PENDING_ID_PREFIX = "pending-";
 
@@ -29,9 +29,12 @@ export function mergeMessages(existing: Message[], fresh: Message[]): Message[] 
   });
   const reconciledFresh = fresh.map((m) => {
     const prev = existingByTs.get(m.ts);
-    return m.isSubscribed === undefined && prev?.isSubscribed !== undefined
-      ? { ...m, isSubscribed: prev.isSubscribed }
-      : m;
+    if (!prev) return m;
+    const patched =
+      m.isSubscribed === undefined && prev.isSubscribed !== undefined
+        ? { ...m, isSubscribed: prev.isSubscribed }
+        : m;
+    return JSON.stringify(prev) === JSON.stringify(patched) ? prev : patched;
   });
   return dedupeMessages([...keep, ...reconciledFresh]);
 }

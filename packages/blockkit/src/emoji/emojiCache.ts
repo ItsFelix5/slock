@@ -1,4 +1,4 @@
-import { fetchAllEmoji } from "@slock/types";
+import { fetchAllEmoji, invalidateEmojiCache } from "@slock/types";
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 
@@ -29,6 +29,7 @@ export function loadCustomEmoji(): Promise<void> {
 
 export function invalidateCustomEmoji(): void {
   emojiLoadPromise = null;
+  invalidateEmojiCache();
   setLoadState("value", "idle");
 }
 

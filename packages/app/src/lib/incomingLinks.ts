@@ -1,8 +1,6 @@
 import { createSignal } from "solid-js";
 import { parseSlackPermalink, type SlackPermalinkTarget } from "./navigation/slackPermalink";
 
-const PROTOCOL_SCHEME_RE = /^web\+slock:/;
-
 const [pendingShareText, setPendingShareText] = createSignal<string>();
 
 export { pendingShareText };
@@ -30,7 +28,7 @@ export function consumeSharedProtocolLink(opener: {
 }): void {
   const [protocolUrl] = takeParams("url");
   if (!protocolUrl?.startsWith("web+slock:")) return;
-  const target = parseSlackPermalink(protocolUrl.replace(PROTOCOL_SCHEME_RE, "https:"));
+  const target = parseSlackPermalink(`https:${protocolUrl.slice("web+slock:".length)}`);
   if (target) void opener.open(target);
 }
 

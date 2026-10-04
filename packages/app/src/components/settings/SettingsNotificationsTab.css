@@ -1,8 +1,8 @@
 .settings-preferences-error {
-  gap: 12px;
+  gap: var(--space-md);
   padding: 9px 10px;
-  margin-bottom: 16px;
-  font-size: 12px;
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-size-meta);
   color: var(--error-text);
   background: var(--error-bg);
   border-radius: var(--radius-control);

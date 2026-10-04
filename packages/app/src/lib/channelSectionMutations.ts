@@ -1,4 +1,4 @@
-import type { ChannelSection, UserPrefs } from "./api";
+import type { ChannelSection, UserPrefs } from "@slock/types";
 
 export type ChannelPlacementOutcome = "failed" | "applied" | "applied-with-warning";
 

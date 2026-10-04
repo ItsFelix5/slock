@@ -1,0 +1,45 @@
+.canvas-panel-card {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-panel-header-info {
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.canvas-panel-title {
+  font-size: var(--font-size-secondary);
+  font-weight: 700;
+}
+
+.canvas-panel-copy-link {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.canvas-panel-copy-link:hover {
+  color: var(--text-primary);
+}
+
+.canvas-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.canvas-panel-scroll-row {
+  display: flex;
+}
+
+.canvas-panel-loading,
+.canvas-panel-load-error {
+  gap: 10px;
+  height: 100%;
+  padding: var(--space-2xl);
+}

@@ -1,8 +1,8 @@
 import { For, type JSX, onCleanup, Show } from "solid-js";
-import { tabStripKeyDown } from "../form/listNavigation";
 import Icon from "../media/Icon";
 import "./PaneRow.css";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
+import { useAdjustShortcuts, useTabStripShortcuts } from "../useNavShortcuts";
 import { MIN_FRACTION, type Pane } from "./paneList";
 import { distributeResize } from "./resize";
 
@@ -33,9 +33,18 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
   const narrow = () => isNarrowPaneRow(props.containerWidth(), props.panes.length);
   const tabbed = () => narrow() && !!props.tabLabel && props.panes.length > 1;
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
+  let tabListRef: HTMLDivElement | undefined;
+  useTabStripShortcuts({
+    activate: (next, nextIndex) => {
+      props.onActivate(next.id);
+      focusTabAfterPaneAutoFocusSettles(() => tabButtonRefs[nextIndex]?.focus());
+    },
+    items: () => props.panes,
+    root: () => tabListRef,
+  });
 
   const activePane = () => {
-    const panes = props.panes;
+    const { panes } = props;
     const wanted = panes.find((p) => p.id === props.activePaneId());
     return wanted ?? panes[panes.length - 1];
   };
@@ -43,7 +52,7 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
   return (
     <div class="pane-row" classList={{ "pane-row-tabbed": tabbed() }}>
       <Show when={tabbed()}>
-        <div class="pane-tab-strip" role="tablist">
+        <div class="pane-tab-strip" ref={tabListRef} role="tablist">
           <For each={props.panes}>
             {(pane, i) => {
               const isActive = () => pane.id === activePane().id;
@@ -56,10 +65,10 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
                 props.onCloseTab?.(pane);
               };
               return (
-                <div class="pane-tab-wrap" classList={{ active: isActive() }}>
+                <div class="pane-tab-wrap flex-align-center" classList={{ active: isActive() }}>
                   <button
                     aria-selected={isActive()}
-                    class="pane-tab btn-reset"
+                    class="pane-tab truncate btn-reset"
                     classList={{ active: isActive() }}
                     onAuxClick={(event) => {
                       if (event.button !== 1 || !props.onCloseTab) return;
@@ -67,12 +76,6 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
                       closeTab();
                     }}
                     onClick={() => props.onActivate(pane.id)}
-                    onKeyDown={(event) =>
-                      tabStripKeyDown(event, props.panes, i(), (next, nextIndex) => {
-                        props.onActivate(next.id);
-                        focusTabAfterPaneAutoFocusSettles(() => tabButtonRefs[nextIndex]?.focus());
-                      })
-                    }
                     onMouseDown={(event) => {
                       if (event.button === 1) event.preventDefault();
                     }}
@@ -110,7 +113,7 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
         {(pane, i) => (
           <>
             <div
-              class="pane-cell"
+              class="pane-cell flex-col"
               style={
                 tabbed()
                   ? { flex: "1 1 auto", display: pane.id === activePane().id ? "flex" : "none" }
@@ -159,16 +162,11 @@ function PaneDivider(props: { positionPercent: number; onDrag: (deltaFraction: n
     });
   };
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    let delta: number | undefined;
-    if (event.key === "Home") delta = -1;
-    else if (event.key === "End") delta = 1;
-    else if (event.key === "ArrowRight") delta = event.shiftKey ? 0.1 : 0.02;
-    else if (event.key === "ArrowLeft") delta = event.shiftKey ? -0.1 : -0.02;
-    if (delta === undefined) return;
-    event.preventDefault();
-    props.onDrag(delta);
-  };
+  useAdjustShortcuts({
+    edge: (end) => props.onDrag(end === "start" ? -1 : 1),
+    root: () => handleEl,
+    step: (direction, large) => props.onDrag(direction * (large ? 0.1 : 0.02)),
+  });
 
   onCleanup(() => stopDragging?.());
 
@@ -180,7 +178,6 @@ function PaneDivider(props: { positionPercent: number; onDrag: (deltaFraction: n
       aria-valuemin={0}
       aria-valuenow={props.positionPercent}
       class="pane-divider"
-      onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       ref={handleEl}
       tabIndex={0}

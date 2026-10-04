@@ -20,8 +20,8 @@ export function createBatchedIdFetcher<T>(
       const batchIds = ids.slice(start, start + maxBatchSize);
       try {
         const values = await loadBatch(batchIds);
-        for (const id of batchIds) {
-          for (const request of requests.get(id) ?? []) request.resolve(values.get(id)!);
+        for (const [id, value] of values) {
+          for (const request of requests.get(id) ?? []) request.resolve(value);
         }
       } catch (error) {
         for (const id of batchIds) {

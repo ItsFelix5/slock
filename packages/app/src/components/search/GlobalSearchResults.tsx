@@ -1,6 +1,6 @@
+import type { DirectMessage, SlackFile, User } from "@slock/types";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
-import type { DirectMessage, SlackFile, User } from "../../lib/api";
 import { channelIconName, dmDisplayName } from "../../lib/displayName";
 import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
@@ -36,31 +36,28 @@ export default function GlobalSearchResults(props: {
   const optionId = (index: number) => `${props.listboxId}-option-${index}`;
 
   return (
-    <div class="global-search-results">
-      <Show
-        fallback={
-          <div class="global-search-hint empty-state">Jump to a channel or person. (Ctrl+K)</div>
-        }
-        when={props.hasQuery}
-      >
-        <div class="global-search-options" id={props.listboxId}>
-          <button
-            class="global-search-result global-search-message-action btn-reset flex-align-center"
-            classList={{ active: props.activeIndex === 0 }}
-            id={optionId(0)}
-            onClick={props.onMessageSearch}
-            onMouseEnter={() => props.onActiveIndex(0)}
-            tabIndex={-1}
-            type="button"
-          >
-            <span class="global-search-jump-icon">
-              <Icon name="search" size={13} />
-            </span>
-            Search all messages for "{props.query}"
-          </button>
+    <div class="global-search-results flex-col gap-xs">
+      <Show when={props.hasQuery || props.rows.length > 0}>
+        <div class="global-search-options flex-col gap-xs" id={props.listboxId}>
+          <Show when={props.hasQuery}>
+            <button
+              class="global-search-result global-search-message-action btn-reset flex-align-center"
+              classList={{ active: props.activeIndex === 0 }}
+              id={optionId(0)}
+              onClick={props.onMessageSearch}
+              onMouseEnter={() => props.onActiveIndex(0)}
+              tabIndex={-1}
+              type="button"
+            >
+              <span class="global-search-jump-icon">
+                <Icon name="search" size={13} />
+              </span>
+              Search all messages for "{props.query}"
+            </button>
+          </Show>
           <For each={props.rows}>
             {(row, index) => {
-              const itemIndex = () => index() + 1;
+              const itemIndex = () => index() + (props.hasQuery ? 1 : 0);
               if (row.kind === "channel") {
                 const channel = row.data;
                 return (

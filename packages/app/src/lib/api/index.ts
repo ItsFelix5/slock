@@ -1,5 +1,3 @@
-export * from "@slock/types";
-
 export {
   fetchAccountIdentity,
   fetchProfileFieldDefs,
@@ -70,15 +68,17 @@ export {
   fetchCanvasFileUrl,
   fetchCanvasPermalink,
   fetchCanvasTitle,
+  fetchCanvasTitleOrVisibility,
   fetchFileDetail,
   fetchLinkPreview,
   fetchSaved,
-  fetchSlashCommands,
   runSlashCommand,
   uploadFile,
   uploadFiles,
+  uploadFilesForEdit,
 } from "./content";
-export { fetchDrafts, saveDraft } from "./drafts";
+export { deleteDraft, fetchDrafts, saveDraft } from "./drafts";
+export { exchangeHackclubEmailCode, requestHackclubEmailCode } from "./hackclubAuth";
 export {
   addMessageReminder,
   addReminder,
@@ -92,7 +92,10 @@ export {
   fetchPinnedMessages,
   fetchPins,
   fetchReplies,
+  fetchReplyWindow,
+  getChannelLink,
   getPermalink,
+  isMine,
   markChannelRead,
   postBroadcastMessage,
   postMessage,
@@ -101,7 +104,6 @@ export {
   toggleReaction,
   toggleSaved,
   toggleStar,
-  isMine,
 } from "./messages";
 export { markThreadRead, toggleThreadSubscription } from "./messages/threads";
 export {

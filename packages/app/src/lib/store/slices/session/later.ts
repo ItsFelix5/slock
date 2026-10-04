@@ -1,6 +1,6 @@
+import type { Message, SavedItem } from "@slock/types";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
-import type { Message, SavedItem } from "../../../api";
 import { fetchMessagesByIds, fetchSaved, toggleSaved } from "../../../api";
 import { actionFeedback } from "../../../feedback";
 

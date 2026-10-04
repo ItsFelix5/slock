@@ -1,7 +1,8 @@
+import type { Message } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import type { Message } from "../../lib/api";
 import type { ChannelMessageTarget, View } from "../../lib/store";
 import { store } from "../../lib/store";
+import { observeComposerOverlay } from "./composerOverlay";
 import { createMessageListLanding } from "./messageListLanding";
 import {
   captureScrollAnchor,
@@ -14,6 +15,7 @@ const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
 
 export function createMessageListScroll(deps: {
   clearMessageTarget: () => void;
+  contentRef: () => HTMLDivElement | undefined;
   messages: () => Message[];
   messageTarget: () => ChannelMessageTarget | null;
   paneView: () => View | null;
@@ -21,6 +23,7 @@ export function createMessageListScroll(deps: {
 }) {
   const {
     cancelLanding,
+    isPinning,
     jumpToBeginning,
     jumpToDate,
     jumpToMessage,
@@ -57,16 +60,48 @@ export function createMessageListScroll(deps: {
     if (shouldFollowBottom()) scrollToBottom(el);
     else if (lastAnchor?.el.isConnected) restoreScrollAnchor(el, lastAnchor);
   }
+  function fillViewportIfUnderfull() {
+    const el = deps.scrollRef();
+    const view = deps.paneView();
+    if (!(el && view)) return;
+    if (readyViewId() !== view.id) return;
+    if (store.messages.isLoadingHistory(view.id)) return;
+    if (el.clientHeight === 0 || el.scrollHeight > el.clientHeight) return;
+    if (store.messages.hasMoreHistory(view.id) && !store.messages.hasOlderHistoryError(view.id)) {
+      void loadOlderMessagesPreservingScroll(view.id);
+    } else if (
+      store.messages.hasNewerHistory(view.id) &&
+      !store.messages.hasNewerHistoryError(view.id)
+    ) {
+      void loadNewerMessages(view.id);
+    }
+  }
   createEffect(() => {
     deps.messages();
     readyViewId();
     queueMicrotask(() => {
       correctScrollForContentChange();
       updateTopVisible();
+      fillViewportIfUnderfull();
     });
   });
-  window.addEventListener("resize", correctScrollForContentChange);
-  onCleanup(() => window.removeEventListener("resize", correctScrollForContentChange));
+  createEffect(() => {
+    const el = deps.scrollRef();
+    const content = deps.contentRef();
+    if (!(el && content)) return;
+    const observer = new ResizeObserver(() => {
+      correctScrollForContentChange();
+      fillViewportIfUnderfull();
+    });
+    observer.observe(el);
+    observer.observe(content);
+    onCleanup(() => observer.disconnect());
+  });
+  createEffect(() => {
+    const el = deps.scrollRef();
+    if (!el) return;
+    onCleanup(observeComposerOverlay(el, shouldFollowBottom));
+  });
 
   async function loadNewerMessages(channelId: string) {
     setIsLoadingNewer(true);
@@ -113,7 +148,8 @@ export function createMessageListScroll(deps: {
       preferredDirection ??
       (el.scrollTop > lastScrollTop ? "newer" : el.scrollTop < lastScrollTop ? "older" : undefined);
     lastScrollTop = el.scrollTop;
-    setShouldFollowBottom(isScrolledToBottom(el));
+    if (isPinning()) return;
+    setShouldFollowBottom(isScrolledToBottom(el) && !store.messages.hasNewerHistory(view.id));
 
     if (readyViewId() !== view.id) return;
     if (store.messages.isLoadingHistory(view.id)) return;

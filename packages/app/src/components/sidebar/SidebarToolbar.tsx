@@ -1,6 +1,6 @@
+import type { SlackFile } from "@slock/types";
 import { Avatar, IconButton, Skeleton } from "@slock/ui";
 import { createSignal, lazy, Show } from "solid-js";
-import type { SlackFile } from "../../lib/api";
 import FileDetailModal from "../channel/FileDetailModal";
 import GlobalSearch from "../search/GlobalSearch";
 import DndButton from "./dnd/DndButton";
@@ -47,7 +47,7 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
         </Show>
         <DndButton />
         <IconButton
-          class="sidebar-global-search-btn"
+          class="sidebar-global-search-btn icon-shift"
           icon="settings"
           onClick={() => {
             props.setSettingsTab("account");
@@ -55,7 +55,7 @@ export default function SidebarToolbar(props: SidebarToolbarProps) {
           }}
         />
         <IconButton
-          class="sidebar-global-search-btn"
+          class="sidebar-global-search-btn icon-shift"
           icon="search"
           onClick={() => props.setSearchOpen(true)}
         />

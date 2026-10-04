@@ -1,42 +1,24 @@
-import { EmojiText, formatTime } from "@slock/blockkit";
-import {
-  Avatar,
-  AvatarStack,
-  ClickableInline,
-  ContextMenu,
-  DEFAULT_AVATAR_COLOR,
-  Icon,
-  openContextMenuFromKeyboard,
-  Tooltip,
-  useContextMenu,
-} from "@slock/ui";
+import type { ActivityItem } from "@slock/types";
+import { ContextMenu, Icon, useContextMenu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import {
-  type ActivityItem,
-  type Block,
-  formatDayFromMs,
-  type Message,
-  type SlackFile,
-} from "../../../lib/api";
-import { openConversation, openConversationInSplit } from "../../../lib/navigation/conversationNav";
+import { openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
-import MessageActionsMenuItems from "../../messages/parts/MessageActionsMenuItems";
-import {
-  type MessageAuthorFields,
-  resolveProfileUserId,
-} from "../../messages/parts/messageRenderState";
 import ReactionRow from "../../messages/parts/ReactionRow";
 import { SplitNavigation } from "../../navigation/SplitNavigation";
-import { ClickableAuthorName } from "../../user/AppBadge";
-import { activityVerb } from "./activityMetadata";
-import { ACTIVITY_KIND_ICONS } from "./activityViewFilters";
 import "./ActivityRow.css";
+import ActivityAvatar from "./ActivityAvatar";
+import ActivityHeadline from "./ActivityHeadline";
 import { ActivityRowActions } from "./ActivityRowActions";
 import ActivityRowMenuItems from "./ActivityRowMenuItems";
+import ActivityTimelineRow from "./ActivityTimelineRow";
 import "./ActivityThread.css";
 import { createActivityRowDisplay } from "./activityRowDisplay";
-import { ActivityMessageText, ThreadMessageRow } from "./activityThreadMessage";
+import { ActivityMessageText } from "./activityThreadMessage";
 import { createActivityTimeline, type TimelineEntry } from "./activityTimeline";
+
+const [currentRowKey, setCurrentRowKey] = createSignal<string>();
+
+export const clearCurrentRow = () => setCurrentRowKey(undefined);
 
 export interface ActivityRow {
   isThread: boolean;
@@ -47,60 +29,6 @@ export interface ActivityRow {
 export function rowTarget(row: ActivityRow) {
   const [latest] = row.items;
   return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
-}
-
-function TimelineRow(props: {
-  author: MessageAuthorFields;
-  blocks?: Block[];
-  channelId: string;
-  files?: SlackFile[];
-  isFirst: boolean;
-  isLast: boolean;
-  isRoot: boolean;
-  message?: Message;
-  onOpen: () => void;
-  text: string;
-  threadTs: string;
-  ts: string;
-  unread: boolean;
-}) {
-  const ctxMenu = useContextMenu();
-  return (
-    <>
-      <ThreadMessageRow
-        author={props.author}
-        blocks={props.blocks}
-        eventLabel={props.isRoot ? "started the thread" : undefined}
-        files={props.files}
-        isFirst={props.isFirst}
-        isLast={props.isLast}
-        isRoot={props.isRoot}
-        onContextMenu={props.message ? ctxMenu.open : undefined}
-        onOpen={props.onOpen}
-        text={props.text}
-        time={parseFloat(props.ts) * 1000}
-        unread={props.unread}
-      />
-      <Show when={props.message}>
-        {(message) => (
-          <ContextMenu
-            onClose={ctxMenu.close}
-            open={ctxMenu.isOpen()}
-            x={ctxMenu.x()}
-            y={ctxMenu.y()}
-          >
-            <MessageActionsMenuItems
-              channelId={props.channelId}
-              msg={message()}
-              onClose={ctxMenu.close}
-              onEditRequest={props.onOpen}
-              threadTs={props.threadTs}
-            />
-          </ContextMenu>
-        )}
-      </Show>
-    </>
-  );
 }
 
 export default function ActivityRow(props: {
@@ -122,28 +50,13 @@ export default function ActivityRow(props: {
       store.later.isSaveForLaterPending(saveTarget().channelId, saveTarget().ts),
   );
 
-  const {
-    avatarUrl,
-    channelLabel,
-    displayName,
-    hasAnyActor,
-    interactorNames,
-    isArchived,
-    isPinging,
-    isStandaloneActivity,
-    isUnread,
-    matchingReaction,
-    reactedMessage,
-    replierIds,
-    showsActivityVerb,
-    user,
-  } = createActivityRowDisplay({ items: () => props.row.items, latest });
-  const profileUserId = createMemo(() => resolveProfileUserId(latest()));
+  const display = createActivityRowDisplay({ items: () => props.row.items, latest });
+  const { isArchived, isPinging, isUnread, reactedMessage, reactions, replierIds } = display;
+  const isReactionGroup = createMemo(() => latest().kind === "reaction" && replierIds().length > 1);
 
   const {
     earlierMessageCount,
     entryAuthor,
-    entryBlocks,
     entryFiles,
     entryText,
     entryUnread,
@@ -163,24 +76,24 @@ export default function ActivityRow(props: {
   const openRow = () => {
     const item = latest();
     if (!item.channelId) return;
+    setCurrentRowKey(props.row.key);
     props.onSeen(props.row.items);
     if (item.activityType === "quietly_added_to_channel") {
       store.viewState.setActiveView({ id: item.channelId, kind: "channel" });
       return;
     }
-    if (item.threadTs)
-      store.viewState.openChannelPeek(item.channelId, item.threadTs, item.ts, { keepNav: true });
-    else store.viewState.openChannelMessage(item.channelId, item.ts, { keepNav: true });
+    store.viewState.openChannelMessage(item.channelId, item.ts, item.threadTs);
   };
 
   const openThreadTs = (ts: string) => {
     props.onSeen(props.row.items);
-    store.viewState.openChannelPeek(latest().channelId, threadTs(), ts, { keepNav: true });
+    store.viewState.openChannelPeek(latest().channelId, threadTs(), ts);
   };
 
   const openRowInSplit = () => {
     const item = latest();
     if (!item.channelId) return;
+    setCurrentRowKey(props.row.key);
     props.onSeen(props.row.items);
     if (item.threadTs)
       store.viewState.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });
@@ -194,9 +107,8 @@ export default function ActivityRow(props: {
 
   const renderEntry = (entry: TimelineEntry) => (
     <SplitNavigation onSplit={() => openThreadInSplit(entry.ts)}>
-      <TimelineRow
+      <ActivityTimelineRow
         author={entryAuthor(entry)}
-        blocks={entryBlocks(entry)}
         channelId={latest().channelId}
         files={entryFiles(entry)}
         isFirst={entry.ts === firstTimelineTs()}
@@ -218,6 +130,7 @@ export default function ActivityRow(props: {
         class="activity-item"
         classList={{
           "activity-item-thread": isThreadGroup(),
+          active: currentRowKey() === props.row.key,
           archived: isArchived(),
           pinging: isPinging(),
           unread: isUnread(),
@@ -226,146 +139,54 @@ export default function ActivityRow(props: {
         <SplitNavigation onSplit={openRowInSplit}>
           <button
             class="activity-item-summary btn-reset"
+            data-activity-row
             data-nav-row
             onClick={openRow}
             onContextMenu={ctxMenu.open}
-            onKeyDown={(e) => openContextMenuFromKeyboard(e, ctxMenu.openAt)}
             tabIndex={-1}
             type="button"
           >
-            <span class="activity-item-avatar">
-              <Show
-                fallback={
-                  <Show
-                    fallback={
-                      <span class="activity-item-avatar-icon">
-                        <Icon
-                          name={
-                            latest().activityType === "saved_reminder"
-                              ? "reminder"
-                              : ACTIVITY_KIND_ICONS[latest().kind]
-                          }
-                          size={12}
-                        />
-                      </span>
-                    }
-                    when={hasAnyActor()}
-                  >
-                    <Avatar
-                      size="small"
-                      user={{
-                        avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
-                        avatarUrl: avatarUrl(),
-                        id: latest().userId,
-                        name: displayName(),
-                        presence: user()?.presence,
-                      }}
-                    />
-                  </Show>
-                }
-                when={isThreadGroup()}
-              >
-                <Tooltip content={interactorNames(replierIds())}>
-                  <AvatarStack
-                    max={3}
-                    users={replierIds()
-                      .map((id) => store.users.userById(id))
-                      .filter((person) => person !== undefined)}
-                  />
-                </Tooltip>
-              </Show>
-            </span>
+            <ActivityAvatar
+              display={display}
+              grouped={isThreadGroup() || isReactionGroup()}
+              latest={latest()}
+            />
             <span class="activity-body">
-              <span class="activity-headline">
-                <Tooltip content={activityVerb(latest())}>
-                  <Show
-                    fallback={
-                      <Icon
-                        class="activity-kind-icon"
-                        name={ACTIVITY_KIND_ICONS[latest().kind]}
-                        size={12}
-                      />
-                    }
-                    when={latest().kind === "reaction" && latest().reactionName}
-                  >
-                    {(name) => (
-                      <span class="activity-kind-icon activity-reaction-emoji">
-                        <EmojiText text={`:${name()}:`} />
-                      </span>
-                    )}
-                  </Show>
-                </Tooltip>
-                <Show when={!(isThreadGroup() || isStandaloneActivity())}>
-                  <Show fallback={<strong>{displayName()}</strong>} when={profileUserId()}>
-                    {(id) => (
-                      <ClickableAuthorName userId={id()}>
-                        <strong>{displayName()}</strong>
-                      </ClickableAuthorName>
-                    )}
-                  </Show>
-                </Show>
-                <Show when={showsActivityVerb()}>
-                  <span class="activity-channel">{activityVerb(latest())}</span>
-                </Show>
-                <Show when={latest().kind !== "dm" && !isStandaloneActivity()}>
-                  <span class="activity-channel">
-                    <SplitNavigation onSplit={() => openConversationInSplit(latest().channelId)}>
-                      <ClickableInline
-                        onActivate={() => openConversation(latest().channelId, { keepNav: true })}
-                      >
-                        {channelLabel()}
-                      </ClickableInline>
-                    </SplitNavigation>
-                  </span>
-                </Show>
-                <Show when={props.row.items.length > 1}>
-                  <span class="activity-reply-count">{props.row.items.length}</span>
-                </Show>
-                <Show when={isArchived()}>
-                  <span class="activity-archived-label">
-                    <Icon name="check" size={11} /> Complete
-                  </span>
-                </Show>
-                <Tooltip
-                  content={`${formatDayFromMs(latest().time)} at ${formatTime(latest().time)}`}
-                >
-                  <span class="activity-time">{formatTime(latest().time)}</span>
-                </Tooltip>
-              </span>
+              <ActivityHeadline
+                count={props.row.items.length}
+                display={display}
+                isReactionGroup={isReactionGroup()}
+                isThreadGroup={isThreadGroup()}
+                latest={latest()}
+              />
               <Show when={!isThreadGroup()}>
                 <span class="activity-snippet">
-                  <ActivityMessageText
-                    blocks={latest().blocks}
-                    files={latest().files}
-                    text={latest().text}
-                  />
+                  <ActivityMessageText files={latest().files} text={latest().text} />
                 </span>
               </Show>
             </span>
           </button>
         </SplitNavigation>
 
-        <Show when={isThreadGroup() ? undefined : matchingReaction()}>
-          {(reaction) => (
-            <SplitNavigation onSplit={openRowInSplit}>
-              <div class="activity-reaction-slot" data-nav-row onClick={openRow}>
-                <ReactionRow
-                  isPending={(name) =>
-                    store.messages.isReactionPending(latest().channelId, latest().ts, name)
-                  }
-                  onToggle={(name) => {
-                    const msg = reactedMessage();
-                    if (msg) store.messages.reactToMessage(latest().channelId, msg, name);
-                  }}
-                  reactions={[reaction()]}
-                />
-              </div>
-            </SplitNavigation>
-          )}
+        <Show when={!isThreadGroup() && reactions().length > 0}>
+          <SplitNavigation onSplit={openRowInSplit}>
+            <div class="activity-reaction-slot" data-nav-row onClick={openRow}>
+              <ReactionRow
+                isPending={(name) =>
+                  store.messages.isReactionPending(latest().channelId, latest().ts, name)
+                }
+                onToggle={(name) => {
+                  const msg = reactedMessage();
+                  if (msg) store.messages.reactToMessage(latest().channelId, msg, name);
+                }}
+                reactions={reactions()}
+              />
+            </div>
+          </SplitNavigation>
         </Show>
 
         <Show when={isThreadGroup()}>
-          <div class="activity-thread-timeline">
+          <div class="activity-thread-timeline flex-col">
             <Show when={earlierMessageCount() > 0 && !expanded()}>
               <button
                 class="activity-read-more btn-reset"

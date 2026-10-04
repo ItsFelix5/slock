@@ -1,6 +1,8 @@
 import type { JSX } from "solid-js";
-import { listNavigationIndex } from "../form/listNavigation";
+import { useTabStripShortcuts } from "../useNavShortcuts";
 import "./SegmentedControl.css";
+
+const SEGMENT_SELECTOR = "button:not(:disabled)";
 
 export interface SegmentedControlProps {
   children: JSX.Element;
@@ -10,26 +12,15 @@ export interface SegmentedControlProps {
 export default function SegmentedControl(props: SegmentedControlProps) {
   let rootRef: HTMLDivElement | undefined;
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    const segments = [
-      ...(rootRef?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []),
-    ];
-    const active = document.activeElement;
-    const current = active instanceof HTMLButtonElement ? segments.indexOf(active) : -1;
-    if (current < 0) return;
-    const next = listNavigationIndex(
-      event.key === "ArrowRight" ? "ArrowDown" : "ArrowUp",
-      current,
-      segments.length,
-    );
-    if (next === undefined) return;
-    event.preventDefault();
-    segments[next]?.focus();
-  };
+  useTabStripShortcuts({
+    activate: (segment) => segment.focus(),
+    items: () => [...(rootRef?.querySelectorAll<HTMLElement>(SEGMENT_SELECTOR) ?? [])],
+    root: () => rootRef,
+    selector: SEGMENT_SELECTOR,
+  });
 
   return (
-    <div class={`segmented-control ${props.class || ""}`} onKeyDown={onKeyDown} ref={rootRef}>
+    <div class={`segmented-control ${props.class || ""}`} ref={rootRef}>
       {props.children}
     </div>
   );

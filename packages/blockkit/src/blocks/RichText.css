@@ -1,0 +1,47 @@
+.bk-color-swatch {
+  display: inline-flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.bk-color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+}
+
+.bk-rich-text {
+  font-size: var(--font-size-body);
+}
+
+.bk-rt-section {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.bk-rt-bold {
+  font-weight: 700;
+}
+
+.bk-rt-italic {
+  font-style: italic;
+}
+
+.bk-rt-strike {
+  text-decoration: line-through;
+}
+
+.bk-rt-highlight {
+  background: var(--highlight-bg);
+  border-radius: 3px;
+}
+
+.bk-rt-list {
+  margin: 2px 0;
+}
+
+.bk-rt-list li {
+  margin: 1px 0;
+}

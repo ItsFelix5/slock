@@ -3,6 +3,8 @@ import IconButton from "../button/IconButton";
 import Menu from "../overlay/menu/Menu";
 import MenuItem from "../overlay/menu/MenuItem";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
+import { useSeekShortcuts } from "../useNavShortcuts";
+import { inside, useShortcut } from "../useShortcut";
 import { createMediaVolume } from "./createMediaVolume";
 import Icon from "./Icon";
 import "./VideoPlayer.css";
@@ -101,30 +103,34 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     startFrameCoalescedPointerDrag((moveEvent) => seekFromPointer(moveEvent, track));
   };
 
-  const handlePlayerKeyDown = (event: KeyboardEvent) => {
-    switch (event.key) {
-      case " ":
-      case "k":
-        event.preventDefault();
-        void togglePlayback();
-        return;
-      case "m":
-        mediaVolume.setMuted(!mediaVolume.muted());
-        return;
-      case "f":
-        toggleFullscreen();
-        return;
-    }
-    if (duration() <= 0) return;
-    let nextTime: number | undefined;
-    if (event.key === "ArrowLeft") nextTime = currentTime() - 5;
-    if (event.key === "ArrowRight") nextTime = currentTime() + 5;
-    if (event.key === "Home") nextTime = 0;
-    if (event.key === "End") nextTime = duration();
-    if (nextTime === undefined) return;
-    event.preventDefault();
-    seekTo(nextTime / duration());
-  };
+  const playerShortcut = {
+    allowInInputs: false,
+    scope: "general",
+    group: "Media",
+    target: inside(() => wrapRef),
+  } as const;
+  useShortcut({
+    ...playerShortcut,
+    combo: { key: [" ", "k"] },
+    handler: () => void togglePlayback(),
+    id: "video.playPause",
+    label: "Play or pause the video",
+  });
+  useShortcut({
+    ...playerShortcut,
+    combo: { key: "m" },
+    handler: () => mediaVolume.setMuted(!mediaVolume.muted()),
+    id: "video.mute",
+    label: "Mute or unmute the video",
+  });
+  useShortcut({
+    ...playerShortcut,
+    combo: { key: "f" },
+    handler: () => toggleFullscreen(),
+    id: "video.fullscreen",
+    label: "Toggle video fullscreen",
+  });
+  useSeekShortcuts({ currentTime, duration, root: () => wrapRef, seekTo });
 
   const applySpeed = (value: number) => {
     if (videoRef) videoRef.playbackRate = value;
@@ -163,7 +169,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   return (
     <Show
       fallback={
-        <div class={`video-player-error ${props.class ?? ""}`}>
+        <div class={`video-player-error flex-col gap-sm ${props.class ?? ""}`}>
           <Icon name="video-off" size={22} />
           <span>Video unavailable</span>
           <span class="video-player-actions">
@@ -187,7 +193,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       }
       when={!failed()}
     >
-      <div class="video-player-wrap" onKeyDown={handlePlayerKeyDown} ref={wrapRef} tabIndex={-1}>
+      <div class="video-player-wrap" ref={wrapRef} tabIndex={-1}>
         <video
           aria-label={props.ariaLabel}
           class={props.class}
@@ -220,7 +226,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           }}
           src={props.src}
           style={
-            props.width && props.height
+            props.width && props.height && !fullscreen()
               ? {
                   "aspect-ratio": `${props.width} / ${props.height}`,
                   width: `min(${props.width}px, 100%)`,

@@ -1,6 +1,6 @@
+import { resolveMediaUrl, type SlackFile } from "@slock/types";
 import { ConstrainedImage, constrainMediaDimensions, MediaFrame, VideoPlayer } from "@slock/ui";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
-import { resolveMediaUrl, type SlackFile } from "../../../../lib/api";
 import { fileSummaryLabel } from "../../../../lib/fileSummary";
 import { store } from "../../../../lib/store";
 import AudioFile from "./AudioFile";
@@ -30,44 +30,58 @@ function isInlineMedia(file: SlackFile) {
   return (file.isImage && file.thumbUrl) || file.isVideo;
 }
 
+const GALLERY_MAX_WIDTH = 360;
+const GALLERY_TILE_GAP = 6;
+const GALLERY_TILE_SIZE = (GALLERY_MAX_WIDTH - GALLERY_TILE_GAP) / 2;
+
+function mediaTileSize(file: SlackFile, mediaCount: number) {
+  if (mediaCount > 1) return { height: GALLERY_TILE_SIZE, width: GALLERY_TILE_SIZE };
+  return constrainMediaDimensions(
+    file.width,
+    file.height,
+    GALLERY_MAX_WIDTH,
+    320,
+    GALLERY_MAX_WIDTH,
+    180,
+  );
+}
+
 function InlineMedia(props: {
   file: SlackFile;
   files: SlackFile[];
   gallery: { alt: string; src: string }[];
+  mediaCount: number;
 }) {
   const { file } = props;
+  const dimensions = () => mediaTileSize(file, props.mediaCount);
   return (
     <Switch>
       <Match when={file.isImage ? file.thumbUrl : undefined}>
-        {(thumb) => {
-          const dimensions = () =>
-            constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180);
-          return (
-            <ConstrainedImage
-              alt={file.title || file.name}
-              blurSrc={file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined}
-              class="message-file-image"
-              fullSrc={resolveMediaUrl(file.urlPrivate)}
-              gallery={props.gallery}
-              galleryIndex={imageGalleryIndex(props.files, file)}
-              height={dimensions().height}
-              src={thumb()}
-              width={dimensions().width}
-            />
-          );
-        }}
+        {(thumb) => (
+          <ConstrainedImage
+            alt={file.title || file.name}
+            blurSrc={file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined}
+            class="message-file-image"
+            crop={props.mediaCount > 1}
+            fullSrc={resolveMediaUrl(file.urlPrivate)}
+            gallery={props.gallery}
+            galleryIndex={imageGalleryIndex(props.files, file)}
+            height={dimensions().height}
+            src={thumb()}
+            width={dimensions().width}
+          />
+        )}
       </Match>
       <Match when={file.isVideo}>
-        <VideoFile file={file} />
+        <VideoFile dimensions={dimensions()} file={file} />
       </Match>
     </Switch>
   );
 }
 
-function VideoFile(props: { file: SlackFile }) {
+function VideoFile(props: { file: SlackFile; dimensions: { width: number; height: number } }) {
   const [video, setVideo] = createSignal<HTMLVideoElement>();
   const { file } = props;
-  const dimensions = () => constrainMediaDimensions(file.width, file.height, 360, 320, 360, 180);
   return (
     <VideoPlayer
       ariaLabel={file.title || file.name}
@@ -76,7 +90,7 @@ function VideoFile(props: { file: SlackFile }) {
       downloadHref={file.urlPrivateDownload}
       downloadName={file.name}
       duration={file.duration}
-      height={dimensions().height}
+      height={props.dimensions.height}
       openHref={file.urlPrivate}
       poster={file.thumbUrl}
       ref={setVideo}
@@ -86,7 +100,7 @@ function VideoFile(props: { file: SlackFile }) {
           <TranscriptPopover file={file} media={video} triggerClass="video-player-chrome" />
         </Show>
       }
-      width={dimensions().width}
+      width={props.dimensions.width}
     />
   );
 }
@@ -102,21 +116,26 @@ function OtherFile(props: { file: SlackFile }) {
           rel="noopener noreferrer"
           target="_blank"
         >
-          <FileCardInfo file={file} icon="file" />
+          <FileCardInfo file={file} icon="file" linkUrl={file.permalink} />
         </a>
       }
     >
+      <Match when={file.isDeleted}>
+        <div class="message-file-card message-file-card-deleted flex-align-center">
+          <FileCardInfo file={file} icon="file" />
+        </div>
+      </Match>
       <Match when={file.isAudio}>
         <AudioFile file={file} />
       </Match>
       <Match when={file.isPdf}>
         <FileViewerTrigger file={file} kind="pdf">
-          <FileCardInfo file={file} icon="pdf-file" />
+          <FileCardInfo file={file} icon="pdf-file" linkUrl={file.permalink} />
         </FileViewerTrigger>
       </Match>
       <Match when={file.isMail}>
         <FileViewerTrigger file={file} kind="mail">
-          <FileCardInfo file={file} icon="email" />
+          <FileCardInfo file={file} icon="email" linkUrl={file.permalink} />
         </FileViewerTrigger>
       </Match>
       <Match when={isCanvasFile(file)}>
@@ -137,14 +156,22 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
   const otherFiles = () => props.files.filter((file) => !isInlineMedia(file));
   const gallery = () => imageGallery(props.files);
   const mediaTitle = () => fileSummaryLabel(mediaFiles());
+  const mediaTitleUrl = () => (mediaFiles().length === 1 ? mediaFiles()[0].permalink : undefined);
 
   return (
-    <div class="message-files">
+    <div class="message-files flex-col">
       <Show when={mediaFiles().length}>
-        <MediaFrame title={mediaTitle()}>
+        <MediaFrame title={mediaTitle()} titleUrl={mediaTitleUrl()}>
           <div class="message-file-gallery" classList={{ single: mediaFiles().length === 1 }}>
             <For each={mediaFiles()}>
-              {(file) => <InlineMedia file={file} files={props.files} gallery={gallery()} />}
+              {(file) => (
+                <InlineMedia
+                  file={file}
+                  files={props.files}
+                  gallery={gallery()}
+                  mediaCount={mediaFiles().length}
+                />
+              )}
             </For>
           </div>
         </MediaFrame>

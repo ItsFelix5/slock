@@ -4,12 +4,19 @@ export interface Pane<T> {
   size: number;
 }
 
+function hasContentKind<AllContent extends { kind: string }, T extends AllContent>(
+  pane: Pane<AllContent | null>,
+  kinds: string[],
+): pane is Pane<T> {
+  return !!pane.content && kinds.includes(pane.content.kind);
+}
+
 export function narrowPaneContent<AllContent extends { kind: string }, T extends AllContent>(
   pane: Pane<AllContent | null>,
-  kind: T["kind"],
+  kind: T["kind"] | T["kind"][],
 ): Pane<T> | undefined {
-  const generic: any = pane;
-  return pane.content?.kind === kind ? generic : undefined;
+  const kinds: string[] = Array.isArray(kind) ? kind : [kind];
+  return hasContentKind<AllContent, T>(pane, kinds) ? pane : undefined;
 }
 
 let nextId = 0;

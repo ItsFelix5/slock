@@ -1,0 +1,27 @@
+.bk-quote {
+  padding-block: 2px;
+  margin: 2px 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.bk-codeblock {
+  padding: var(--space-sm) 10px;
+  margin: var(--space-xs) 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: var(--font-size-control);
+  word-break: break-word;
+  white-space: pre-wrap;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.bk-inline-code {
+  padding: 1px 5px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}

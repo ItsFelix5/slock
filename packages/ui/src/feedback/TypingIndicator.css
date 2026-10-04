@@ -9,9 +9,7 @@
   top: -12px;
   right: 10px;
   z-index: 3;
-  display: flex;
   gap: 6px;
-  align-items: center;
   max-width: calc(100% - 20px);
   font-size: 10px;
   line-height: 10px;

@@ -1,7 +1,21 @@
 import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
 import { keybindOverrides } from "./keybindOverrides";
 
-export type ShortcutScope = "general" | "composer" | "messages";
+export const SHORTCUT_GROUPS = [
+  "Channels and search",
+  "Panes",
+  "Canvas",
+  "Media",
+  "App",
+  "Lists",
+  "Formatting",
+  "Message box",
+  "Message actions",
+] as const;
+
+export type ShortcutGroup = (typeof SHORTCUT_GROUPS)[number];
+
+export type ShortcutScope = "general" | "composer" | "lists" | "messages";
 
 export interface ShortcutCombo {
   key: string | readonly string[];
@@ -19,14 +33,22 @@ export interface ShortcutDef {
   allowInInputs?: boolean;
 
   allowRepeat?: boolean;
+  passthrough?: boolean;
+  target?: (element: Element) => boolean;
   label: string;
+  manual?: boolean;
+  splitModifier?: boolean;
   scope: ShortcutScope;
+  group: ShortcutGroup;
 }
+
+export type ShortcutOptions = Pick<ShortcutDef, "allowInInputs" | "enabled" | "manual" | "target">;
 
 export interface ShortcutInfo {
   id: string;
   label: string;
   scope: ShortcutScope;
+  group: ShortcutGroup;
   defaultCombo: ShortcutCombo;
   combo: ShortcutCombo | null;
   keys: string;
@@ -49,6 +71,12 @@ function isTypingTarget(target: EventTarget | null) {
     target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
+}
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+
+function modPressed(e: KeyboardEvent) {
+  return isMac ? e.metaKey : e.ctrlKey;
 }
 
 const NAMED_KEYS: Record<string, string> = {
@@ -74,9 +102,9 @@ function normalizeKeys(key: string | readonly string[]): string[] {
   return comboKeys({ key }).map((k) => k.toLowerCase());
 }
 
-function matchesCombo(e: KeyboardEvent, combo: ShortcutCombo): boolean {
-  if (Boolean(combo.mod) !== (e.ctrlKey || e.metaKey)) return false;
-  if (Boolean(combo.shift) !== e.shiftKey) return false;
+function matchesCombo(e: KeyboardEvent, combo: ShortcutCombo, splitModifier?: boolean): boolean {
+  if (Boolean(combo.mod) !== modPressed(e)) return false;
+  if (!splitModifier && Boolean(combo.shift) !== e.shiftKey) return false;
   if (Boolean(combo.alt) !== e.altKey) return false;
   return comboKeys(combo).some((key) => {
     if (e.key.toLowerCase() === key.toLowerCase()) return true;
@@ -92,9 +120,13 @@ function keyLabel(key: string, uppercase: boolean): string {
 }
 
 export function comboLabel(combo: ShortcutCombo): string {
+  return comboParts(combo).join(" ");
+}
+
+export function comboParts(combo: ShortcutCombo): string[] {
   const hasModifier = Boolean(combo.mod || combo.shift || combo.alt);
   const parts: string[] = [];
-  if (combo.mod) parts.push("Ctrl/⌘");
+  if (combo.mod) parts.push(isMac ? "⌘" : "Ctrl");
   if (combo.shift) parts.push("Shift");
   if (combo.alt) parts.push("Alt");
   parts.push(
@@ -102,14 +134,14 @@ export function comboLabel(combo: ShortcutCombo): string {
       .map((key) => keyLabel(key, hasModifier))
       .join(" / "),
   );
-  return parts.join(" ");
+  return parts;
 }
 
 export function comboFromEvent(e: KeyboardEvent): ShortcutCombo | null {
   if (CAPTURE_IGNORED_KEYS.has(e.key)) return null;
   return {
     key: e.key.length === 1 ? e.key.toLowerCase() : e.key,
-    mod: e.ctrlKey || e.metaKey,
+    mod: modPressed(e),
     shift: e.shiftKey,
     alt: e.altKey,
   };
@@ -128,30 +160,43 @@ function effectiveCombo(shortcut: RegisteredShortcut): ShortcutCombo | null {
   return Object.hasOwn(overrides, shortcut.id) ? overrides[shortcut.id] : shortcut.combo;
 }
 
-function handleKeyDown(event: KeyboardEvent) {
-  if (event.defaultPrevented) return;
+function scopesOverlap(a: ShortcutScope, b: ShortcutScope): boolean {
+  return a === b || a === "general" || b === "general";
+}
+
+function runShortcut(event: KeyboardEvent, manual: boolean): boolean {
+  if (event.isComposing) return false;
   const typing = isTypingTarget(event.target);
   let winner: RegisteredShortcut | undefined;
-  let winnerCombo: ShortcutCombo | undefined;
-  let collisions: RegisteredShortcut[] | undefined;
   for (let index = shortcuts.length - 1; index >= 0; index -= 1) {
     const shortcut = shortcuts[index];
-    if (!shortcut.enabled()) continue;
-    if (typing && !shortcut.allowInInputs) continue;
+    if (Boolean(shortcut.manual) !== manual || !shortcut.enabled()) continue;
+    if (typing && !(shortcut.allowInInputs ?? shortcut.target !== undefined)) continue;
     if (event.repeat && shortcut.allowRepeat === false) continue;
+    if (shortcut.target && !(event.target instanceof Element && shortcut.target(event.target)))
+      continue;
     const combo = effectiveCombo(shortcut);
-    if (!(combo && matchesCombo(event, combo))) continue;
-    if (winner) {
-      collisions ??= [];
-      collisions.push(shortcut);
-    } else {
-      winner = shortcut;
-      winnerCombo = combo;
-    }
+    if (!(combo && matchesCombo(event, combo, shortcut.splitModifier))) continue;
+    if (winner?.target && !shortcut.target) continue;
+    winner = shortcut;
+    if (shortcut.target) break;
   }
-  if (!(winner && winnerCombo)) return;
-  event.preventDefault();
+  if (!winner) return false;
+  if (!winner.passthrough) event.preventDefault();
   winner.handler(event);
+  return !winner.passthrough;
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+  if (!event.defaultPrevented) runShortcut(event, false);
+}
+
+export function dispatchManualShortcut(event: KeyboardEvent): boolean {
+  return runShortcut(event, true);
+}
+
+export function inside(...roots: (() => Element | null | undefined)[]) {
+  return (element: Element) => roots.some((root) => root()?.contains(element));
 }
 
 export function useShortcut(def: ShortcutDef) {
@@ -172,13 +217,15 @@ export function useShortcut(def: ShortcutDef) {
 export function listShortcuts(): ShortcutInfo[] {
   registryVersion();
   const overrides = keybindOverrides();
-  return shortcuts.map((shortcut) => {
+  const latestById = new Map(shortcuts.map((shortcut) => [shortcut.id, shortcut]));
+  return [...latestById.values()].map((shortcut) => {
     const isCustom = Object.hasOwn(overrides, shortcut.id);
     const combo = isCustom ? overrides[shortcut.id] : shortcut.combo;
     return {
       id: shortcut.id,
       label: shortcut.label,
       scope: shortcut.scope,
+      group: shortcut.group,
       defaultCombo: shortcut.combo,
       combo,
       keys: combo ? comboLabel(combo) : "Not set",
@@ -188,8 +235,14 @@ export function listShortcuts(): ShortcutInfo[] {
 }
 
 export function shortcutConflicts(id: string, combo: ShortcutCombo): ShortcutInfo[] {
-  return listShortcuts().filter(
-    (s) => s.id !== id && s.combo !== null && combosOverlap(s.combo, combo),
+  const all = listShortcuts();
+  const own = all.find((s) => s.id === id);
+  return all.filter(
+    (s) =>
+      s.id !== id &&
+      s.combo !== null &&
+      combosOverlap(s.combo, combo) &&
+      (!own || scopesOverlap(own.scope, s.scope)),
   );
 }
 

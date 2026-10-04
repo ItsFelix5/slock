@@ -1,5 +1,6 @@
+import type { ActivityItem } from "@slock/types";
 import type { IconName } from "@slock/ui";
-import { ACTIVITY_KIND_FEED_TYPES, type ActivityItem } from "../../../lib/api";
+import { ACTIVITY_KIND_FEED_TYPES } from "../../../lib/api";
 import type { ActivityRow as ActivityRowData } from "./ActivityRow";
 
 export const ACTIVITY_KIND_ICONS: Record<ActivityItem["kind"], IconName> = {

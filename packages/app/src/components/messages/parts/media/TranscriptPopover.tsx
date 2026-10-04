@@ -1,4 +1,5 @@
 import { formatDuration } from "@slock/blockkit";
+import type { SlackFile } from "@slock/types";
 import { IconButton, Popover } from "@slock/ui";
 import {
   createEffect,
@@ -9,7 +10,7 @@ import {
   onCleanup,
   Switch,
 } from "solid-js";
-import { fetchFileDetail, type SlackFile } from "../../../../lib/api";
+import { fetchFileDetail } from "../../../../lib/api";
 import "./TranscriptPopover.css";
 
 export default function TranscriptPopover(props: {

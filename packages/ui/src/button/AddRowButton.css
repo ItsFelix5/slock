@@ -1,7 +1,7 @@
 .add-row-btn {
   gap: 6px;
-  padding: 0 12px;
-  font-size: 13px;
+  padding: 0 var(--space-md);
+  font-size: var(--font-size-control);
   color: var(--text-primary);
   white-space: nowrap;
   border: 1px solid var(--border-strong);

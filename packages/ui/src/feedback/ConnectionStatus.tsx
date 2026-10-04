@@ -28,7 +28,7 @@ export default function ConnectionStatus(props: {
 
   return (
     <Show when={visible() && props.state !== "connected"}>
-      <div class="connection-status">
+      <div class="connection-status flex-align-center gap-sm">
         <Icon name={props.state === "offline" ? "cloud-offline" : "refresh"} size={15} />
         <span>{props.state}</span>
         <Show when={props.state === "reconnecting"}>

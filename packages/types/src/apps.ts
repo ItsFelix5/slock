@@ -1,13 +1,14 @@
+import type { AttachmentAction } from "./fileTypes";
+import type { RawBot } from "./rawTypes";
 import { getOrCreateRetryablePromise } from "./retryablePromiseCache";
 import { apiGet, apiPost } from "./server";
-import type { AttachmentAction } from "./types";
 
 const botAppInfoCache = new Map<string, Promise<{ appId: string } | null>>();
 function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
   return getOrCreateRetryablePromise(botAppInfoCache, botId, async () => {
-    const data = await apiGet(`/api/bots/${botId}`);
+    const data = await apiGet<{ bot: RawBot }>(`/api/bots/${botId}`);
     if (!data.ok) throw new Error(data.error ?? "bots.info failed");
-    return data.bot?.app_id ? { appId: data.bot.app_id } : null;
+    return data.bot.app_id ? { appId: data.bot.app_id } : null;
   });
 }
 

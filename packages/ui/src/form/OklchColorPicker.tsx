@@ -75,7 +75,7 @@ export default function OklchColorPicker(props: OklchColorPickerProps) {
         track={alphaGradient()}
         value={color().alpha}
       />
-      <output class="oklch-picker-value">{formatOklch(color())}</output>
+      <output class="oklch-picker-value truncate">{formatOklch(color())}</output>
     </div>
   );
 }
@@ -105,7 +105,7 @@ function ColorChannelRow(props: ColorChannelRowProps) {
       />
       <input
         aria-label={`${props.label} value`}
-        class="oklch-picker-number"
+        class="oklch-picker-number text-field"
         max={props.max}
         min={0}
         onInput={(event) => props.onInput(Number(event.currentTarget.value))}

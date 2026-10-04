@@ -6,9 +6,9 @@
 
   .settings-nav {
     flex-direction: row;
-    gap: 4px;
+    gap: var(--space-xs);
     width: 100%;
-    padding: 8px 44px 8px 8px;
+    padding: var(--space-sm) 44px var(--space-sm) var(--space-sm);
     overflow-x: auto;
     border-right: none;
     border-bottom: 1px solid var(--border);
@@ -20,6 +20,6 @@
   }
 
   .settings-content {
-    padding: 16px;
+    padding: var(--space-lg);
   }
 }

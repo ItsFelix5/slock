@@ -1,6 +1,7 @@
+import type { Message } from "@slock/types";
 import { IconButton, Menu } from "@slock/ui";
-import { createMemo, createSignal, lazy, Show } from "solid-js";
-import { isMine, type Message } from "../../../lib/api";
+import { createMemo, lazy, Show } from "solid-js";
+import { isMine } from "../../../lib/api";
 import { store } from "../../../lib/store";
 import type { OpenThreadHandler } from "../messageFocus";
 import MessageActionsMenuItems from "./MessageActionsMenuItems";
@@ -16,20 +17,18 @@ export default function MessageActionsBar(props: {
   onEditRequest: () => void;
 
   rowFocused: () => boolean;
+  reactionPickerTs: () => string | null;
+  onToggleReactionPicker: (ts: string) => void;
+  moreMenuTs: () => string | null;
+  onToggleMoreMenu: (ts: string) => void;
 }) {
-  const [pickerOpen, setPickerOpen] = createSignal(false);
-  const [moreOpen, setMoreOpen] = createSignal(false);
+  const pickerOpen = () => props.reactionPickerTs() === props.msg.ts;
+  const moreOpen = () => props.moreMenuTs() === props.msg.ts;
 
   let pickerWrapRef: HTMLDivElement | undefined;
 
-  const togglePicker = () => {
-    setPickerOpen(!pickerOpen());
-  };
-
-  const toggleMore = () => {
-    store.resources.loadMessageShortcuts();
-    setMoreOpen(!moreOpen());
-  };
+  const togglePicker = () => props.onToggleReactionPicker(props.msg.ts);
+  const toggleMore = () => props.onToggleMoreMenu(props.msg.ts);
 
   const threadRootTs = createMemo(() =>
     props.msg.isBroadcast && props.msg.threadTs ? props.msg.threadTs : props.msg.ts,
@@ -47,14 +46,14 @@ export default function MessageActionsBar(props: {
 
   const react = (name: string) => {
     store.messages.reactToMessage(props.channelId, props.msg, name);
-    setPickerOpen(false);
+    togglePicker();
   };
 
   return (
     <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
       <Show when={isMine(props.msg)}>
         <IconButton
-          class="message-hover-btn"
+          class="message-hover-btn icon-shift"
           icon="edit"
           label="Edit message"
           onClick={props.onEditRequest}
@@ -64,7 +63,7 @@ export default function MessageActionsBar(props: {
 
       <div class="message-hover-picker-wrap" ref={pickerWrapRef}>
         <IconButton
-          class="message-hover-btn"
+          class="message-hover-btn icon-shift"
           icon="emoji"
           label="React"
           onClick={togglePicker}
@@ -74,7 +73,7 @@ export default function MessageActionsBar(props: {
           <FloatingEmojiPicker
             anchor={() => pickerWrapRef}
             existingReactions={existingReactions()}
-            onClose={() => setPickerOpen(false)}
+            onClose={togglePicker}
             onSelect={react}
             open
           />
@@ -83,7 +82,7 @@ export default function MessageActionsBar(props: {
 
       <Show when={props.onOpenThread}>
         <IconButton
-          class="message-hover-btn"
+          class="message-hover-btn icon-shift"
           icon="threads"
           label="Reply in thread"
           onClick={(e) => props.onOpenThread?.(threadRootTs(), { pinned: e.shiftKey })}
@@ -93,7 +92,7 @@ export default function MessageActionsBar(props: {
 
       <Show when={props.onReplyLink}>
         <IconButton
-          class="message-hover-btn"
+          class="message-hover-btn icon-shift"
           icon="email-reply"
           label="Reply"
           onClick={() => props.onReplyLink?.(props.msg)}
@@ -103,7 +102,7 @@ export default function MessageActionsBar(props: {
 
       <IconButton
         active={isSaved()}
-        class="message-hover-btn"
+        class="message-hover-btn icon-shift"
         disabled={
           store.later.laterLoading() ||
           store.later.isSaveForLaterPending(props.channelId, props.msg.ts)
@@ -118,12 +117,12 @@ export default function MessageActionsBar(props: {
       <Menu
         align="end"
         class="message-hover-picker-wrap"
-        onClose={() => setMoreOpen(false)}
+        onClose={toggleMore}
         open={moreOpen()}
         panelClass="menu-panel message-more-menu"
         trigger={
           <IconButton
-            class="message-hover-btn"
+            class="message-hover-btn icon-shift"
             icon="ellipsis-vertical-filled"
             label="More actions"
             onClick={toggleMore}
@@ -134,7 +133,7 @@ export default function MessageActionsBar(props: {
         <MessageActionsMenuItems
           channelId={props.channelId}
           msg={props.msg}
-          onClose={() => setMoreOpen(false)}
+          onClose={toggleMore}
           onEditRequest={props.onEditRequest}
           threadTs={props.threadTs}
         />

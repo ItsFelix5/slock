@@ -1,10 +1,14 @@
+import type {
+  ChannelDetails,
+  ChannelMembersPage,
+  ChannelPostingPrefs,
+  ChannelPostingPrefsPatch,
+  MemberPermissionsPatch,
+  User,
+} from "@slock/types";
 import { createRoot, createSignal } from "solid-js";
 import {
   archiveChannel,
-  type ChannelDetails,
-  type ChannelMembersPage,
-  type ChannelPostingPrefs,
-  type ChannelPostingPrefsPatch,
   convertChannelToPrivate,
   fetchChannelManagerIds,
   fetchChannelMembers,
@@ -12,7 +16,6 @@ import {
   fetchChannelRetention,
   fetchConversationView,
   inviteToChannel,
-  type MemberPermissionsPatch,
   removeFromChannel,
   renameChannel,
   setChannelPostingPrefs,
@@ -84,6 +87,14 @@ function setup() {
   ): Promise<ChannelMembersPage> {
     return withFeedbackOrThrow(id, "Failed to load members.", () =>
       fetchChannelMembers(id, filter, cursor),
+    );
+  }
+
+  function searchChannelMembers(id: string, search: string): Promise<User[]> {
+    return withFeedbackOrThrow(
+      id,
+      "Failed to search members.",
+      async () => (await fetchChannelMembers(id, "everyone", undefined, search)).members,
     );
   }
 
@@ -191,6 +202,7 @@ function setup() {
     loadChannelManagerIds,
     loadChannelMembersPage,
     loadChannelPostingPrefs,
+    searchChannelMembers,
     loadChannelRetention,
     openChannelDetails,
     removeUserFromChannel,
@@ -215,6 +227,7 @@ export const {
   loadChannelMembersPage,
   loadChannelManagerIds,
   loadChannelPostingPrefs,
+  searchChannelMembers,
   loadChannelRetention,
   renameChannelById,
   unarchiveChannelById,

@@ -1,5 +1,6 @@
-import { createRoot, createSignal } from "solid-js";
-import { type SlackFile, type SlackLink, searchChannelFilesAndLinks } from "./api";
+import type { SlackFile, SlackLink } from "@slock/types";
+import { batch, createRoot, createSignal } from "solid-js";
+import { fetchFileDetail, fetchMessagesByIds, searchChannelFilesAndLinks } from "./api";
 import { channelDisplayName, dmDisplayName } from "./displayName";
 import { store } from "./store";
 
@@ -90,6 +91,32 @@ function setup() {
     setFilesLinksChannelId(null);
   }
 
+  function jumpToFilesLinksMessage(channelId: string, ts: string, threadTs?: string) {
+    batch(() => {
+      closeFilesLinksPanel();
+      store.viewState.openChannelMessage(channelId, ts, threadTs);
+    });
+  }
+
+  async function openFileMessage(
+    channelId: string,
+    fileId: string,
+    open: (channelId: string, ts: string, threadTs?: string) => void,
+  ) {
+    const { shares } = await fetchFileDetail(fileId);
+    const share = shares.find((s) => s.channelId === channelId) ?? shares[0];
+    if (share) open(share.channelId, share.ts, share.threadTs);
+  }
+
+  async function openLinkMessage(
+    channelId: string,
+    ts: string,
+    open: (channelId: string, ts: string, threadTs?: string) => void,
+  ) {
+    const messages = await fetchMessagesByIds([{ channelId, ts }]);
+    open(channelId, ts, messages.get(`${channelId}:${ts}`)?.threadTs);
+  }
+
   function setFilesLinksQuery(query: string) {
     setFilesLinksQueryValue(query);
     const channelId = filesLinksChannelId();
@@ -119,6 +146,9 @@ function setup() {
     filesLinksLoadError,
     filesLinksLoading,
     filesLinksQuery,
+    openFileMessage,
+    openLinkMessage,
+    jumpToFilesLinksMessage,
     loadMoreFilesLinks,
     openFilesLinksPanel,
     retryFilesLinks,
@@ -134,6 +164,9 @@ export const {
   filesLinksLoadError,
   filesLinksLoading,
   filesLinksQuery,
+  openFileMessage,
+  openLinkMessage,
+  jumpToFilesLinksMessage,
   loadMoreFilesLinks,
   openFilesLinksPanel,
   retryFilesLinks,

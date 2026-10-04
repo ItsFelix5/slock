@@ -1,10 +1,11 @@
+import type { RawUsergroup } from "@slock/types";
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { cachedEntityForId } from "../../lookup/cachedEntity.ts";
 import { callSlack, callSlackEdge } from "../../slackClient.ts";
+import type { EdgeUsergroupsInfoReply, UsergroupMembersReply } from "../../slackReplies.ts";
 import { mutate, type Route, route } from "../router.ts";
 
-function trimUsergroup(group: any): any {
-  if (!group || typeof group !== "object") return group;
+function trimUsergroup(group: RawUsergroup): RawUsergroup {
   return {
     created_by: group.created_by,
     date_create: group.date_create,
@@ -18,15 +19,15 @@ function trimUsergroup(group: any): any {
   };
 }
 
-function cachedUsergroupForId(data: any, id: string): any | undefined {
-  return cachedEntityForId(data, id, "usergroups", "usergroup");
-}
-
 export const usergroupRoutes: Route[] = [
   route("POST", "usergroups/lookup", async (ctx) => {
-    const { ids } = await (ctx.body.json() as Promise<{ ids?: string[] }>);
+    const { ids } = await ctx.body.json<{ ids?: string[] }>();
     if (!ids?.length) return errorResponse("invalid_ids", 400);
-    const data = await callSlackEdge("usergroups/info", { ids }, ctx.creds);
+    const data = await callSlackEdge<EdgeUsergroupsInfoReply>(
+      "usergroups/info",
+      { ids },
+      ctx.creds,
+    );
     if (!data.ok) {
       return slackErrorResponse(data, "edge usergroups/info", ctx.creds, ctx.acceptEncoding);
     }
@@ -35,7 +36,10 @@ export const usergroupRoutes: Route[] = [
         ok: true,
         usergroups: Object.fromEntries(
           ids.map((id) => {
-            const group = cachedUsergroupForId(data, id);
+            const group = cachedEntityForId(
+              { index: data.usergroups, results: data.results, single: data.usergroup },
+              id,
+            );
             return [id, group ? trimUsergroup(group) : null];
           }),
         ),
@@ -46,25 +50,25 @@ export const usergroupRoutes: Route[] = [
   }),
 
   route("GET", "usergroups/:id/members", async (ctx) => {
-    const data = await callSlack("usergroups.users.list", { usergroup: ctx.params.id }, ctx.creds);
+    const data = await callSlack<UsergroupMembersReply>(
+      "usergroups.users.list",
+      { usergroup: ctx.params.id },
+      ctx.creds,
+    );
     if (!data.ok) {
       return slackErrorResponse(data, "usergroups.users.list", ctx.creds, ctx.acceptEncoding);
     }
-    return jsonResponse(
-      { ok: true, userIds: Array.isArray(data.users) ? data.users : [] },
-      ctx.creds,
-      ctx.acceptEncoding,
-    );
+    return jsonResponse({ ok: true, userIds: data.users ?? [] }, ctx.creds, ctx.acceptEncoding);
   }),
 
   route("PATCH", "usergroups/:id", async (ctx) => {
-    const body = await (ctx.body.json() as Promise<{
+    const body = await ctx.body.json<{
       name?: string;
       handle?: string;
       description?: string;
       channelIds?: string[];
       sectionEnabled?: boolean;
-    }>);
+    }>();
     const params: Record<string, string> = { usergroup: ctx.params.id };
     if (body.name !== undefined) params.name = body.name;
     if (body.handle !== undefined) params.handle = body.handle;
@@ -76,7 +80,7 @@ export const usergroupRoutes: Route[] = [
   }),
 
   route("PUT", "usergroups/:id/members", async (ctx) => {
-    const { userIds } = await (ctx.body.json() as Promise<{ userIds?: string[] }>);
+    const { userIds } = await ctx.body.json<{ userIds?: string[] }>();
     if (!userIds) return errorResponse("invalid_user_ids", 400);
     return mutate(
       "usergroups.users.update",

@@ -1,21 +1,30 @@
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
-import { trimChannelSections } from "../../trim/slackEntities.ts";
+import type {
+  ChannelReply,
+  ChannelSectionsReply,
+  CreatedSectionReply,
+} from "../../slackReplies.ts";
+import { trimChannelSection } from "../../trim/slackChannels.ts";
 import { mutate, type Route, route } from "../router.ts";
 
 export const sectionRoutes: Route[] = [
   route("GET", "sections", async (ctx) => {
-    const data = await callSlack("users.channelSections.list", {}, ctx.creds);
+    const data = await callSlack<ChannelSectionsReply>("users.channelSections.list", {}, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "users.channelSections.list", ctx.creds, ctx.acceptEncoding);
     }
-    return jsonResponse(trimChannelSections(data), ctx.creds, ctx.acceptEncoding);
+    return jsonResponse(
+      { channel_sections: data.channel_sections?.map(trimChannelSection) },
+      ctx.creds,
+      ctx.acceptEncoding,
+    );
   }),
 
   route("POST", "sections", async (ctx) => {
-    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
+    const { name } = await ctx.body.json<{ name?: string }>();
     if (!name) return errorResponse("invalid_name", 400);
-    const data = await callSlack(
+    const data = await callSlack<CreatedSectionReply>(
       "users.channelSections.create",
       { emoji: "", name, type: "standard" },
       ctx.creds,
@@ -44,7 +53,7 @@ export const sectionRoutes: Route[] = [
   }),
 
   route("PATCH", "sections/:id", async (ctx) => {
-    const { name } = await (ctx.body.json() as Promise<{ name?: string }>);
+    const { name } = await ctx.body.json<{ name?: string }>();
     if (!name) return errorResponse("invalid_patch", 400);
     return mutate("users.channelSections.set", { channel_section_id: ctx.params.id, name }, ctx);
   }),
@@ -54,9 +63,9 @@ export const sectionRoutes: Route[] = [
   ),
 
   route("PUT", "sections/:id/order", async (ctx) => {
-    const { nextSectionId } = await (ctx.body.json() as Promise<{
+    const { nextSectionId } = await ctx.body.json<{
       nextSectionId?: string | null;
-    }>);
+    }>();
     return mutate(
       "users.channelSections.set",
       {
@@ -68,10 +77,10 @@ export const sectionRoutes: Route[] = [
   }),
 
   route("PUT", "sections/:id/channels", async (ctx) => {
-    const { insertChannelIds, removeChannelIds } = await (ctx.body.json() as Promise<{
+    const { insertChannelIds, removeChannelIds } = await ctx.body.json<{
       insertChannelIds?: string[];
       removeChannelIds?: string[];
-    }>);
+    }>();
     const insert = insertChannelIds?.length
       ? [{ channel_ids: insertChannelIds, channel_section_id: ctx.params.id }]
       : [];
@@ -81,7 +90,6 @@ export const sectionRoutes: Route[] = [
     return mutate(
       "users.channelSections.channels.bulkUpdate",
       {
-        _x_reason: "channel-sidebar-channel-drop",
         insert: JSON.stringify(insert),
         remove: JSON.stringify(remove),
       },
@@ -90,10 +98,10 @@ export const sectionRoutes: Route[] = [
   }),
 
   route("PUT", "channels/:id/notifications", async (ctx) => {
-    const { target, value } = await (ctx.body.json() as Promise<{
+    const { target, value } = await ctx.body.json<{
       target?: "desktop" | "mobile";
       value?: string;
-    }>);
+    }>();
     if (!(target && value)) return errorResponse("invalid_notification_target", 400);
     return mutate(
       "users.prefs.setNotifications",
@@ -103,14 +111,14 @@ export const sectionRoutes: Route[] = [
   }),
 
   route("POST", "dms", async (ctx) => {
-    const { userId } = await (ctx.body.json() as Promise<{ userId?: string }>);
+    const { userId } = await ctx.body.json<{ userId?: string }>();
     if (!userId) return errorResponse("invalid_user_id", 400);
-    const data = await callSlack("conversations.open", { users: userId }, ctx.creds);
+    const data = await callSlack<ChannelReply>("conversations.open", { users: userId }, ctx.creds);
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.open", ctx.creds, ctx.acceptEncoding);
     }
     return jsonResponse(
-      { channel: { id: data.channel?.id }, ok: true },
+      { channel: { id: data.channel.id }, ok: true },
       ctx.creds,
       ctx.acceptEncoding,
     );

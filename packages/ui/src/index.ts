@@ -15,7 +15,8 @@ export {
   createDebouncedRequest,
   type DebouncedRequestOptions,
 } from "./debouncedRequest";
-export { default as QuillEditor, INLINE_MARKS, type QuillEditorProps } from "./editor/QuillEditor";
+export { INLINE_MARKS } from "./editor/markdownAutoformat";
+export { default as QuillEditor, type QuillEditorProps } from "./editor/QuillEditor";
 export { getEmbedBlot, indexAlignedText } from "./editor/quillText";
 export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
@@ -37,14 +38,18 @@ export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
 export type { KeybindFieldProps } from "./form/KeybindField";
 export { default as KeybindField } from "./form/KeybindField";
+export { useKeybindRecorder } from "./form/keybindRecorder";
 export {
   createListboxActiveIndex,
   gridNavigationIndex,
+  type ListDirection,
   listNavigationIndex,
+  type NavDirection,
   rovingTabIndex,
   scrollActiveListOption,
-  tabStripKeyDown,
 } from "./form/listNavigation";
+export type { OtpInputProps } from "./form/OtpInput";
+export { default as OtpInput } from "./form/OtpInput";
 export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
 export type { SuggestionListProps } from "./form/SuggestionList";
@@ -72,10 +77,7 @@ export type { VideoPlayerProps } from "./media/VideoPlayer";
 export { default as VideoPlayer, formatDuration } from "./media/VideoPlayer";
 export type { VolumeControlProps } from "./media/VolumeControl";
 export { default as VolumeControl } from "./media/VolumeControl";
-export type {
-  ZoomableImageItem,
-  ZoomableImageProps,
-} from "./media/ZoomableImage";
+export type { ZoomableImageItem, ZoomableImageProps } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
 export {
   logDeletedMessages,
@@ -86,12 +88,12 @@ export {
 export { focusPaneById, paneRowsById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
 export {
-  ConfirmDialogHost,
+  ConfirmDialog,
   type ConfirmDialogOptions,
   confirmDialog,
 } from "./overlay/ConfirmDialog";
 export {
-  DebugInfoDialogHost,
+  DebugInfoDialog,
   debugMode,
   setDebugMode,
   showDebugInfo,
@@ -118,10 +120,7 @@ export { default as ContextMenu } from "./overlay/menu/ContextMenu";
 export { default as Menu, type MenuProps } from "./overlay/menu/Menu";
 export type { MenuItemProps } from "./overlay/menu/MenuItem";
 export { default as MenuItem } from "./overlay/menu/MenuItem";
-export {
-  openContextMenuFromKeyboard,
-  useContextMenu,
-} from "./overlay/menu/useContextMenu";
+export { useContextMenu } from "./overlay/menu/useContextMenu";
 export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
 export type { PopoverProps } from "./overlay/Popover";
@@ -142,7 +141,14 @@ export {
   replacePaneContent,
   resizePanes,
 } from "./panes/paneList";
-export { findTextRanges, indexElementText, type TextIndex } from "./textHighlight";
+export {
+  escapeRegExp,
+  findTextRanges,
+  indexElementText,
+  type TextIndex,
+  TRAILING_PUNCTUATION_RE,
+  WHITESPACE_RE,
+} from "./textHighlight";
 export {
   activePreset,
   applyCopiedThemePalette,
@@ -162,9 +168,27 @@ export type { UndoEntry } from "./undoStack";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";
 export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
 export { useElementVisible } from "./useElementVisible";
-export { blurOnEnter, useEscapeClose } from "./useEscapeClose";
+export { useCancelShortcut, useCloseShortcut, useEscapeClose } from "./useEscapeClose";
+export { useHoverIntent } from "./useHoverIntent";
 export {
+  useAdjustShortcuts,
+  useConfirmShortcut,
+  useEditShortcuts,
+  useFieldCommitShortcut,
+  useGridShortcuts,
+  useListShortcuts,
+  useNavigationShortcuts,
+  useSeekShortcuts,
+  useTabStripShortcuts,
+} from "./useNavShortcuts";
+export {
+  comboLabel,
+  comboParts,
+  dispatchManualShortcut,
+  inside,
   listShortcuts,
+  SHORTCUT_GROUPS,
+  type ShortcutCombo,
   type ShortcutInfo,
   type ShortcutScope,
   shortcutConflicts,

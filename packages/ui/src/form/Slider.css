@@ -1,6 +1,4 @@
 .slider {
-  display: flex;
-  flex-direction: column;
   gap: 6px;
   width: 160px;
 }
@@ -52,7 +50,7 @@
   cursor: pointer;
   justify-content: space-between;
   padding: 0 1px;
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   color: var(--text-dim);
 }
 

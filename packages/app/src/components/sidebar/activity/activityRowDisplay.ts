@@ -1,6 +1,6 @@
+import type { ActivityItem } from "@slock/types";
 import { createMemo } from "solid-js";
 import { isPingingActivity } from "../../../lib/activityKinds";
-import type { ActivityItem } from "../../../lib/api";
 import { conversationDisplayName, formatInteractorNames } from "../../../lib/displayName";
 import { store } from "../../../lib/store";
 import {
@@ -8,7 +8,7 @@ import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   unresolvedAuthorFallback,
-} from "../../messages/parts/messageRenderState";
+} from "../../messages/parts/messageAuthor";
 
 export function createActivityRowDisplay(deps: {
   items: () => ActivityItem[];
@@ -40,28 +40,24 @@ export function createActivityRowDisplay(deps: {
     () => deps.latest().kind === "other" || isStandaloneActivity(),
   );
 
-  const replierIds = createMemo(() => {
-    const seen = new Set<string>();
-    const ids: string[] = [];
-    for (const item of deps.items()) {
-      if (seen.has(item.userId)) continue;
-      seen.add(item.userId);
-      ids.push(item.userId);
-    }
-    return ids;
-  });
-
-  const interactorNames = (ids: string[]) =>
-    formatInteractorNames(ids, store.users.currentUser()?.id, store.users.userById);
-
   const reactedMessage = createMemo(() =>
     deps.latest().kind === "reaction"
       ? store.messages.reactionMessageFor(deps.latest().channelId, deps.latest().ts)
       : undefined,
   );
-  const matchingReaction = createMemo(() =>
-    reactedMessage()?.reactions?.find((r) => r.name === deps.latest().reactionName),
-  );
+  const reactions = createMemo(() => reactedMessage()?.reactions ?? []);
+
+  const replierIds = createMemo(() => {
+    const me = store.users.currentUser()?.id;
+    const candidates = [
+      ...deps.items().map((item) => item.userId),
+      ...reactions().flatMap((reaction) => reaction.users.filter((id) => id !== me)),
+    ];
+    return [...new Set(candidates)];
+  });
+
+  const interactorNames = (ids: string[], max?: number) =>
+    formatInteractorNames(ids, store.users.currentUser()?.id, store.users.userById, max);
 
   return {
     avatarUrl,
@@ -74,10 +70,12 @@ export function createActivityRowDisplay(deps: {
     isPinging,
     isStandaloneActivity,
     isUnread,
-    matchingReaction,
     reactedMessage,
+    reactions,
     replierIds,
     showsActivityVerb,
     user,
   };
 }
+
+export type ActivityRowDisplay = ReturnType<typeof createActivityRowDisplay>;

@@ -1,4 +1,4 @@
-import type { MemberPermissionsPatch } from "../../../../lib/api";
+import type { MemberPermissionsPatch } from "@slock/types";
 
 export type AppliedPermissionChoice = "allow" | "restrict";
 export type AppliedRetentionChoice = "keep" | "delete";

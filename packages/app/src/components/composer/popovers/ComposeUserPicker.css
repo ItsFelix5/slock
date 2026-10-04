@@ -4,22 +4,11 @@
   right: 0;
   z-index: 10;
   width: 220px;
-  padding: 8px;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-popover);
+  padding: var(--space-sm);
 }
 
 .compose-picker-input {
-  width: 100%;
-  padding: 6px 8px;
-  margin-bottom: 4px;
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--main-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  margin-bottom: var(--space-xs);
 }
 
 .compose-picker-list {
@@ -28,7 +17,7 @@
 }
 
 .compose-picker-row {
-  gap: 8px;
+  gap: var(--space-sm);
   width: 100%;
   padding: calc(6px + var(--row-padding-offset)) 8px;
   text-align: left;
@@ -42,7 +31,7 @@
 
 .compose-picker-empty {
   padding: 10px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   color: var(--text-dim);
   text-align: center;
 }

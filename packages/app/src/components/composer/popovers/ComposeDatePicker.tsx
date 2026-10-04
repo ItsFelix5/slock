@@ -51,17 +51,16 @@ export default function ComposeDatePicker(props: {
   };
 
   return (
-    <div class="compose-date-picker">
+    <div class="compose-date-picker surface-popover">
       <input
-        aria-label="Date and time"
-        class="compose-date-input input-reset"
+        class="compose-date-input text-field input-reset"
         onInput={(e) => onDateInput(e.currentTarget.value)}
         step="1"
         type="datetime-local"
         value={toLocalInputValue(date())}
       />
       <div class="compose-date-section">
-        <div class="compose-date-section-heading">
+        <div class="compose-date-section-heading flex-between">
           <span>Date</span>
           <button
             aria-pressed={useAgo()}
@@ -118,7 +117,7 @@ export default function ComposeDatePicker(props: {
         </div>
       </div>
       <div class="compose-date-section">
-        <div class="compose-date-section-heading">Time</div>
+        <div class="compose-date-section-heading flex-between">Time</div>
         <div class="compose-date-option-list">
           <button
             class="compose-date-option"
@@ -148,7 +147,7 @@ export default function ComposeDatePicker(props: {
           </For>
         </div>
       </div>
-      <div class="compose-date-footer">
+      <div class="compose-date-footer flex-between">
         <Show
           fallback={<span class="compose-date-empty">Choose a date, time, or relative time</span>}
           when={format()}

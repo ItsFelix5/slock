@@ -1,4 +1,11 @@
-import type { Channel, DirectMessage, Message, ModalView, User } from "../../../api";
+import type {
+  Channel,
+  DesktopNotificationEvent,
+  DirectMessage,
+  Message,
+  ModalView,
+  User,
+} from "@slock/types";
 import type { MessageLocation, ThreadRef, View } from "../types";
 
 export type RealtimeDeps = {
@@ -12,6 +19,7 @@ export type RealtimeDeps = {
   markChannelLeft: (channelId: string) => void;
   setUnreadChannelIds: (id: string, unread: boolean) => void;
   setLastReadByChannel: (id: string, ts: number) => void;
+  isStaleReadEcho: (channelId: string, ts: string) => boolean;
   setPresenceOverrides: (id: string, presence: "active" | "away") => void;
   invalidateUser: (id: string) => void;
   recordTyping: (channelId: string, threadTs: string | undefined, userId: string) => void;
@@ -25,7 +33,7 @@ export type RealtimeDeps = {
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   openModalView: (view: ModalView) => void;
   updateModalView: (view: ModalView) => void;
-  setGatewayActivityBadgeCounts: (activity: any) => boolean;
+  setGatewayActivityBadgeCounts: (activity: Record<string, number> | undefined) => boolean;
   refreshActivityFeed: () => void;
   applyPinEvent: (channelId: string, ts: string, pinned: boolean) => void;
   setChannelStarred: (channelId: string, starred: boolean) => void;
@@ -34,7 +42,7 @@ export type RealtimeDeps = {
   handleCanvasCreated: (channelId: string) => void;
   applyDndSnoozeEvent: (snoozedUntil: number | null) => void;
   applyThreadMarked: (threadTs: string, unreadCount: number) => void;
-  showGatewayNotification: (payload: any) => void;
+  showGatewayNotification: (payload: DesktopNotificationEvent) => void;
   messagesByChannel: Record<string, Message[]>;
   setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
   threadMessages: Record<string, Message[]>;
@@ -48,6 +56,7 @@ export type RealtimeDeps = {
     ts: string,
   ) => { location: MessageLocation; list: Message[] }[];
   patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
+  removeMessage: (location: MessageLocation, ts: string) => void;
   insertMessageInOrder: (channelId: string, msg: Message) => void;
   mergeIncomingMessage: (existing: Message[], msg: Message) => Message[];
   applyReactionEvent: (
@@ -56,6 +65,5 @@ export type RealtimeDeps = {
     name: string,
     userId: string,
     added: boolean,
-    itemUserId?: string,
   ) => void;
 };

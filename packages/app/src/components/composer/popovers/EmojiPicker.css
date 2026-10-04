@@ -1,23 +1,17 @@
 .emoji-picker {
-  display: flex;
-  flex-direction: column;
   width: 320px;
   max-height: 360px;
   overflow: hidden;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-popover);
 }
 
 .emoji-picker-search {
   flex-shrink: 0;
-  padding: 8px;
+  padding: var(--space-sm);
 }
 
 .emoji-picker-body {
   flex: 1;
-  padding: 0px 8px 10px;
+  padding: 0px var(--space-sm) 10px;
   overflow-y: auto;
 }
 
@@ -38,7 +32,7 @@
   width: 20px;
   height: 20px;
   object-fit: contain;
-  margin: 0 4px;
+  margin: 0 var(--space-xs);
 }
 
 .emoji-picker-btn:hover {
@@ -61,19 +55,15 @@
 }
 
 .emoji-picker-empty {
-  padding: 24px 10px;
-  font-size: 13px;
+  padding: var(--space-2xl) 10px;
+  font-size: var(--font-size-control);
   color: var(--text-dim);
   text-align: center;
 }
 
 .emoji-picker-notice {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 4px 8px;
-  font-size: 12px;
+  padding: 6px var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-meta);
   color: var(--text-dim);
 }
 

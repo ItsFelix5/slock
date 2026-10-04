@@ -240,12 +240,18 @@ export type Block =
   | RichTextBlock
   | UnknownBlock;
 
+function hasType<All extends { type: string }, T extends All>(
+  value: All | undefined,
+  type: T["type"],
+): value is T {
+  return value?.type === type;
+}
+
 export function narrowByType<All extends { type: string }, T extends All>(
   value: All | undefined,
   type: T["type"],
 ): T | undefined {
-  const generic: any = value;
-  return value?.type === type ? generic : undefined;
+  return hasType<All, T>(value, type) ? value : undefined;
 }
 
 export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {

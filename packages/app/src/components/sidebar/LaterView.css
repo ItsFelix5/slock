@@ -1,6 +1,6 @@
 .later-empty {
   margin-top: 40px;
-  font-size: 14px;
+  font-size: var(--font-size-secondary);
 }
 
 .later-load-error {
@@ -9,11 +9,7 @@
 }
 
 .later-load-notice {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   margin-bottom: 6px;
 }
 
@@ -30,19 +26,16 @@
   right: 12px;
   bottom: 2px;
   left: 12px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .later-remove {
-  padding: 4px;
+  padding: var(--space-xs);
 }
 
 .later-message-retry {
   flex-shrink: 0;
-  padding: 4px;
-  font-size: 12px;
+  padding: var(--space-xs);
+  font-size: var(--font-size-meta);
 }
 
 .later-message-retry:hover:not(:disabled) {
