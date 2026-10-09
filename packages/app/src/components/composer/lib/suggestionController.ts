@@ -35,22 +35,27 @@ export function createSuggestionController(opts: SuggestionOptions) {
     if (next !== undefined) setActiveSuggestion(next);
   }
 
-  function updateSuggestions(value: string, cursor: number, isDocStart = true) {
-    const trigger = detectMentionTrigger(value, cursor);
+  function updateSuggestions(value: string, cursor: number, isDocStart = true, plainText = false) {
+    const trigger = detectMentionTrigger(value, cursor, !!opts.lineCommands);
     if (!trigger) {
       opts.setSuggest(null);
       return;
     }
-    if (trigger.kind === "command" && (opts.includeCommands === false || !isDocStart)) {
+    const blockedInPlainText = plainText && trigger.kind !== "emoji";
+    const blockedCommand =
+      trigger.kind === "command" && (opts.includeCommands === false || !isDocStart);
+    if (blockedInPlainText || blockedCommand) {
       opts.setSuggest(null);
       return;
     }
     const q = trigger.query.toLowerCase();
     const reqId = ++suggestRequestId;
     if (trigger.kind === "command" || trigger.kind === "emoji") {
-      if (trigger.kind === "command") void loadSlashCommandSuggestions();
+      if (trigger.kind === "command" && !opts.lineCommands) void loadSlashCommandSuggestions();
       if (trigger.kind === "emoji") void loadCustomEmoji();
-      opts.setSuggest(createStaticSuggestion(trigger.kind, trigger.start, q));
+      opts.setSuggest(
+        createStaticSuggestion(trigger.kind, trigger.start, q, opts.lineCommands?.()),
+      );
       return;
     }
     if (trigger.kind === "user" || trigger.kind === "userlink") {
@@ -92,10 +97,13 @@ export function syncSuggestionsAfterChange(
   text: string,
   controller: ReturnType<typeof createSuggestionController>,
   setCaretIndex: (index: number) => void,
+  plainTextHeaders = false,
 ) {
   queueMicrotask(() => {
     const caretIndex = quill.getSelection()?.index ?? text.length;
     setCaretIndex(caretIndex);
-    controller.updateSuggestions(text, caretIndex);
+    const format = quill.getFormat(caretIndex);
+    const plainText = plainTextHeaders && !!(format.header || format.context);
+    controller.updateSuggestions(text, caretIndex, true, plainText);
   });
 }

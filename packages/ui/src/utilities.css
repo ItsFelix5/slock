@@ -22,7 +22,7 @@ select:focus-visible,
 .input-reset:focus-visible,
 .btn-reset:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
+  outline-offset: var(--focus-offset, 2px);
 }
 .input-plain:focus-visible {
   outline: none;
@@ -53,10 +53,11 @@ label:has(> .sr-input:focus-visible) {
 .text-accent {
   color: var(--accent);
 }
-.clickable-name {
-  cursor: pointer;
+.clickable-inline {
+  align-self: flex-start;
+  text-align: left;
 }
-.clickable-name:hover {
+.clickable-inline:hover {
   text-decoration: underline;
 }
 .text-xs {
@@ -147,6 +148,21 @@ label:has(> .sr-input:focus-visible) {
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
+}
+.select-field {
+  appearance: none;
+  padding-right: 28px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) center,
+    calc(100% - 10px) center;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+}
+.select-field:disabled {
+  background-image: none;
 }
 .text-field:focus-visible {
   border-color: var(--accent);
@@ -250,4 +266,28 @@ label:has(> .sr-input:focus-visible) {
 }
 .icon-btn.circular {
   border-radius: var(--radius-circle);
+}
+.busy:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.hover-hl:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+.meta-dim {
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+}
+.title-sm {
+  font-size: var(--font-size-secondary);
+  font-weight: 700;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.size-full {
+  width: 100%;
+  height: 100%;
 }

@@ -6,7 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme.css": "./src/theme.css",
-    "./utilities.css": "./src/utilities.css"
+    "./utilities.css": "./src/utilities.css",
+    "./editor/QuillEditor": "./src/editor/QuillEditor.tsx",
+    "./editor/quillText": "./src/editor/quillText.ts",
+    "./editor/markdownAutoformat": "./src/editor/markdownAutoformat.ts"
   },
   "dependencies": {
     "quill": "^2",

@@ -44,6 +44,7 @@ export interface SlackLink {
 }
 
 export interface SlackFileShare {
+  access?: string;
   channelId: string;
   channelName: string;
   replyCount?: number;
@@ -53,6 +54,7 @@ export interface SlackFileShare {
 }
 
 export interface SlackFileAccess {
+  orgId: string | null;
   orgLevel: string;
   users: { access: string; userId: string }[];
 }

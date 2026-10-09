@@ -1,4 +1,15 @@
-export function renderIndexHtml(entryPath: string, cssPaths: string[]): string {
+export function renderIndexHtml(
+  entryPath: string,
+  cssPaths: string[],
+  preloadPaths: string[],
+  preloadBootstrap: boolean,
+): string {
+  const preloads = [
+    ...preloadPaths.map((href) => `    <link href="${href}" rel="modulepreload" />`),
+    ...(preloadBootstrap
+      ? ['    <link as="fetch" crossorigin href="/api/bootstrap" rel="preload" />']
+      : []),
+  ].join("\n");
   const stylesheets = cssPaths
     .map((href) => `    <link href="${href}" rel="stylesheet" />`)
     .join("\n");
@@ -15,6 +26,7 @@ export function renderIndexHtml(entryPath: string, cssPaths: string[]): string {
     <meta content="slock" name="apple-mobile-web-app-title" />
     <title>slock</title>
 ${stylesheets}
+${preloads}
     <script src="${entryPath}" type="module"></script>
   </head>
   <body></body>

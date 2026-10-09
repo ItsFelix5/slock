@@ -34,7 +34,7 @@ export default function VolumeControl(props: VolumeControlProps) {
     <div class="volume-control">
       <button
         aria-label={props.muted ? "Unmute" : "Mute"}
-        class="volume-control-toggle btn-reset flex-align-center"
+        class="volume-control-toggle btn-reset flex-align-center hover-hl"
         onClick={toggleMuted}
         type="button"
       >

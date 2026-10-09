@@ -1,0 +1,52 @@
+.canvas-margin-threads {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--canvas-gutter);
+}
+
+.canvas-margin-thread {
+  position: absolute;
+  right: 0;
+  flex-wrap: nowrap;
+  gap: var(--space-xs);
+  width: var(--canvas-gutter);
+  padding-left: var(--space-sm);
+  opacity: 0.55;
+}
+
+.canvas-margin-thread:hover,
+.canvas-margin-thread:focus-within,
+.canvas-margin-thread.active {
+  opacity: 1;
+}
+
+.canvas-margin-thread .reaction-row {
+  flex-wrap: nowrap;
+  gap: var(--space-xs);
+  margin-top: 0;
+}
+
+.canvas-margin-thread .reaction-pill {
+  padding: 0 var(--space-xs);
+  background: none;
+  border-color: transparent;
+}
+
+.canvas-margin-thread .reaction-pill.mine {
+  border-color: var(--accent);
+}
+
+.canvas-margin-thread .avatar-stack,
+.canvas-margin-thread [aria-label="Add a reaction"] {
+  display: none;
+}
+
+.canvas-margin-thread:hover [aria-label="Add a reaction"],
+.canvas-margin-thread:focus-within [aria-label="Add a reaction"] {
+  display: flex;
+}
+
+::highlight(canvas-thread) {
+  background-color: color-mix(in srgb, var(--warning, #ecb22e) 45%, transparent);
+}

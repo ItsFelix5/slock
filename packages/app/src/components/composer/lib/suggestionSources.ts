@@ -8,6 +8,7 @@ import { allEmojiEntries, frequentEmoji, searchEmoji } from "./emojiSearch";
 import { stripLeadingAt } from "./quillMentions";
 import type {
   ChannelSuggestItem,
+  CommandSuggestItem,
   EmojiSuggestItem,
   SpecialMentionSuggestItem,
   SuggestState,
@@ -21,6 +22,7 @@ export type SuggestionOptions = {
   setSuggest: Setter<SuggestState | null>;
   applyTextSuggestion: (item: SuggestState["items"][number], state: SuggestState) => void;
   includeCommands?: boolean;
+  lineCommands?: () => CommandSuggestItem[];
   includeBroadcastMentions?: boolean;
 
   channelId?: () => string | undefined;
@@ -66,12 +68,14 @@ export function createStaticSuggestion(
   kind: "command" | "emoji",
   start: number,
   query: string,
+  lineCommands?: CommandSuggestItem[],
 ): SuggestState | null {
   if (kind === "command") {
-    const items = fuzzySearch(slashCommandsGlobal(), {
+    const ranked = fuzzySearch(lineCommands ?? slashCommandsGlobal(), {
       query,
       text: (c) => c.name,
-    }).slice(0, 8);
+    });
+    const items = lineCommands ? ranked : ranked.slice(0, 8);
     return items.length > 0 ? { active: 0, items, kind, start } : null;
   }
   const entries = allEmojiEntries();

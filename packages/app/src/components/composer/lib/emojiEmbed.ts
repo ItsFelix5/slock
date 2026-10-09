@@ -1,5 +1,5 @@
 import { emojiUrl } from "@slock/blockkit";
-import { getEmbedBlot } from "@slock/ui";
+import { getEmbedBlot } from "@slock/ui/editor/quillText";
 import Quill from "quill";
 import { standardEmojiUnicode } from "./emojiSearch";
 

@@ -20,11 +20,6 @@
     0 0 0 2px var(--accent-muted);
 }
 
-.color-field-swatch:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 .color-field-picker-popover {
   padding: 0;
 }
@@ -54,9 +49,4 @@
   background: none;
   border: none;
   border-radius: var(--radius-sm);
-}
-
-.color-field-reset:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }

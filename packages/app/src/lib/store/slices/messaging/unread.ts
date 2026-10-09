@@ -3,6 +3,7 @@ import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { markChannelRead, markThreadRead } from "../../../api";
 import { actionFeedback } from "../../../feedback";
+import { isPendingMessage } from "../../../messageMerge";
 import { isDmId } from "../entities/dms";
 import type { ThreadRef, View } from "../types";
 import { createLatestValueSync } from "./readSync/latestValueSync";
@@ -41,8 +42,11 @@ export function createUnreadSlice(deps: {
     for (const [id, ts] of Object.entries(data.lastReadByChannel)) setLastReadByChannel(id, ts);
   });
 
-  const isChannelGoneError = (error: unknown) =>
-    error instanceof Error && error.message === "channel_not_found";
+  const hasErrorCode = (error: unknown, code: string) =>
+    error instanceof Error && error.message === code;
+  const isChannelGoneError = (error: unknown) => hasErrorCode(error, "channel_not_found");
+  const isThreadGoneError = (error: unknown) =>
+    isChannelGoneError(error) || hasErrorCode(error, "message_not_found");
 
   const sentReadTs: Record<string, { all: Set<string>; latest: string }> = {};
   function recordSentRead({ channelId, ts }: { channelId: string; ts: string }) {
@@ -78,7 +82,7 @@ export function createUnreadSlice(deps: {
   }>({
     key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
     onError: (cursor, error) => {
-      if (isChannelGoneError(error)) return true;
+      if (isThreadGoneError(error)) return true;
       console.error("Failed to sync thread read cursor", cursor, error);
       actionFeedback.flash(cursor.threadTs, "Couldn't sync thread read state.", "error");
     },
@@ -173,7 +177,7 @@ export function createUnreadSlice(deps: {
         if (readDeps.hasNewerHistory(view.id)) continue;
         const list = readDeps.messagesByChannel[view.id];
         const latest = list?.[list.length - 1];
-        if (!latest || latest.id.startsWith("pending-")) continue;
+        if (!latest || isPendingMessage(latest)) continue;
         if (lastMarkedReadTs[view.id] === latest.ts) {
           if (unreadChannelIds[view.id]) clearChannelUnread(view.id);
           continue;
@@ -199,7 +203,7 @@ export function createUnreadSlice(deps: {
 
         const latest = list?.findLast((m) => !m.deleted);
 
-        if (!latest || latest.ts === thread.ts || latest.id.startsWith("pending-")) continue;
+        if (!latest || latest.ts === thread.ts || isPendingMessage(latest)) continue;
         if (lastMarkedThreadReadTs[thread.ts] === latest.ts) continue;
         lastMarkedThreadReadTs[thread.ts] = latest.ts;
         void syncThreadRead(thread.channelId, thread.ts, latest.ts).then((synced) => {

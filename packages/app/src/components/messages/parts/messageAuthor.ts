@@ -29,10 +29,8 @@ export function resolveProfileUserId(
   return resolveRelaySenderId(msg) ?? resolveBotProfileUserId(msg);
 }
 
-export function resolveLookupUserId(
-  msg: Pick<Message, "botId" | "botName" | "userId">,
-): string | undefined {
-  return msg.botId && msg.botName ? undefined : resolveProfileUserId(msg);
+export function resolveLookupUserId(msg: MessageAuthorFields): string | undefined {
+  return hasRealMessageAuthor(msg) ? resolveProfileUserId(msg) : undefined;
 }
 
 export function isRealUserId(id: string | undefined): id is string {
@@ -113,7 +111,7 @@ export function resolveMessageAuthorAvatar(
 ): MessageAuthorAvatarView {
   const profileUserId = resolveProfileUserId(msg);
   const lookupUserId = resolveLookupUserId(msg);
-  const user = hasRealMessageAuthor(msg) && lookupUserId ? userById(lookupUserId) : undefined;
+  const user = lookupUserId ? userById(lookupUserId) : undefined;
   return {
     avatarColor: user?.avatarColor ?? DEFAULT_AVATAR_COLOR,
     avatarUrl: resolveAuthorAvatarUrl(msg, user?.avatarUrl),

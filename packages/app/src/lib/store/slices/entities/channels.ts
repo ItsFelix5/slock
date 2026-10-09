@@ -1,13 +1,10 @@
 import type { BrowsableChannel, Channel, UserPrefs } from "@slock/types";
-import { queryOptions } from "@tanstack/solid-query";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import {
   fetchBrowsableChannels,
   fetchChannel,
   fetchChannelDetails,
-  fetchChannelManagerIds,
-  fetchChannelMembers,
   joinChannel,
   leaveChannel,
 } from "../../../api";
@@ -15,34 +12,11 @@ import { actionFeedback } from "../../../feedback";
 import { queryClient } from "../../../queryClient";
 import { createReactiveQueryCache } from "../../../reactiveQueryCache";
 import type { Nav, View } from "../types";
+import { canvasTitle } from "./canvas";
+import { channelManagerQueryOptions, channelRosterQueryOptions } from "./channelQueries";
 import { createChannelSections } from "./channelSections";
 import { createChannelStarPlacement } from "./channelStarPlacement";
 import { isDmId } from "./dms";
-
-export function channelRosterQueryOptions(channelId: string) {
-  return queryOptions({
-    queryKey: ["channelRosters", channelId],
-    queryFn: async () => {
-      const ids = new Set<string>();
-      for (const filter of ["everyone", "apps"] as const) {
-        let cursor: string | undefined;
-        do {
-          const page = await fetchChannelMembers(channelId, filter, cursor);
-          for (const member of page.members) ids.add(member.id);
-          cursor = page.nextCursor;
-        } while (cursor);
-      }
-      return ids;
-    },
-  });
-}
-
-export function channelManagerQueryOptions(channelId: string) {
-  return queryOptions({
-    queryKey: ["channelManagers", channelId],
-    queryFn: async () => new Set(await fetchChannelManagerIds(channelId)),
-  });
-}
 
 export function createChannelsSlice(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;
@@ -55,7 +29,7 @@ export function createChannelsSlice(deps: {
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
 
   const [discoveredChannels, setDiscoveredChannels] = createStore<Channel[]>([]);
-  const pendingChannels = new Set<string>();
+  const pendingChannels = new Map<string, Promise<unknown>>();
   const channelDiscoveryMisses = new Map<string, number>();
   const channelDiscoveryRetryMs = 30_000;
   const channelDetailsRequested = new Set<string>();
@@ -119,25 +93,39 @@ export function createChannelsSlice(deps: {
     return true;
   }
 
+  function titled(channel: Channel): Channel {
+    if (!channel.canvasFileId) return channel;
+    return { ...channel, name: canvasTitle(channel.canvasFileId) ?? channel.name };
+  }
+
   function channelById(id: string): Channel | undefined {
     const base = baseChannelsById().get(id) ?? discoveredChannels.find((c) => c.id === id);
     const patch = channelPatches[id];
     const known = base && patch ? { ...base, ...patch } : base;
-    if (known) return known;
+    if (known) return titled(known);
 
     if (!deps.bootstrap()) return;
     const missedAt = channelDiscoveryMisses.get(id);
     if (missedAt && Date.now() - missedAt < channelDiscoveryRetryMs) return;
     if (!pendingChannels.has(id)) {
-      pendingChannels.add(id);
-      discoverChannel(id)
-        .then((found) => {
-          if (found) channelDiscoveryMisses.delete(id);
-          else channelDiscoveryMisses.set(id, Date.now());
-        })
-        .catch(() => channelDiscoveryMisses.set(id, Date.now()))
-        .finally(() => pendingChannels.delete(id));
+      pendingChannels.set(
+        id,
+        discoverChannel(id)
+          .then((found) => {
+            if (found) channelDiscoveryMisses.delete(id);
+            else channelDiscoveryMisses.set(id, Date.now());
+          })
+          .catch(() => channelDiscoveryMisses.set(id, Date.now()))
+          .finally(() => pendingChannels.delete(id)),
+      );
     }
+  }
+
+  async function resolveChannel(id: string): Promise<Channel | undefined> {
+    const known = channelById(id);
+    if (known) return known;
+    await pendingChannels.get(id);
+    return channelById(id);
   }
 
   function ensureChannelTopic(id: string): void {
@@ -292,6 +280,7 @@ export function createChannelsSlice(deps: {
     markChannelLeft,
     moveChannelToSection,
     patchChannel,
+    resolveChannel,
     searchBrowsableChannels,
     setStarredChannelIds,
     toggleChannelStar,

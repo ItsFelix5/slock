@@ -14,8 +14,9 @@ import {
   MediaFrame,
   VideoPlayer,
 } from "@slock/ui";
-import { createResource, For, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import { fetchMessagesByIds } from "../../../../lib/api";
+import { createKeyedQuery } from "../../../../lib/createKeyedQuery";
 import { channelIconName, conversationDisplayName } from "../../../../lib/displayName";
 import {
   openConversationInSplit,
@@ -178,13 +179,16 @@ function MessageUnfurl(props: { attachment: Attachment }) {
   };
   const lookupOriginal = (channelId: string, ts: string) =>
     fetchMessagesByIds([{ channelId, ts }]).then((messages) => messages.get(`${channelId}:${ts}`));
-  const [original] = createResource(
-    () =>
-      a.blocks?.length && a.channelId && a.ts ? { channelId: a.channelId, ts: a.ts } : undefined,
-    ({ channelId, ts }) => lookupOriginal(channelId, ts),
-  );
+  const original = createKeyedQuery(() => {
+    const { channelId, ts } = a;
+    if (!(a.blocks?.length && channelId && ts)) return;
+    return {
+      queryFn: async () => (await lookupOriginal(channelId, ts)) ?? null,
+      queryKey: ["originalMessage", channelId, ts],
+    };
+  });
   const blockContext = (): BlockActionContext | undefined => {
-    const message = original();
+    const message = original.data;
     if (!(message?.botId && a.channelId && a.ts)) return;
     return { botId: message.botId, channelId: a.channelId, messageTs: a.ts };
   };

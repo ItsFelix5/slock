@@ -1,4 +1,4 @@
-import { getEmbedBlot } from "@slock/ui";
+import { getEmbedBlot } from "@slock/ui/editor/quillText";
 import Quill from "quill";
 
 export interface FilterPillValue {

@@ -156,17 +156,8 @@
   color: var(--text-secondary);
   border-radius: var(--radius-control);
 }
-.message-hover-btn:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
 .message-hover-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: -2px;
-}
-.message-hover-btn:disabled {
-  cursor: wait;
-  opacity: 0.55;
+  --focus-offset: -2px;
 }
 .message-hover-btn.active {
   color: var(--accent);

@@ -160,7 +160,9 @@ export default function ComposeDatePicker(props: {
       </Show>
       <div class="compose-date-footer flex-between">
         <Show
-          fallback={<span class="compose-date-empty">Choose a date, time, or relative time</span>}
+          fallback={
+            <span class="compose-date-empty meta-dim">Choose a date, time, or relative time</span>
+          }
           when={format()}
         >
           <span class="compose-date-preview">

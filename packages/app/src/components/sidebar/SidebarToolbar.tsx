@@ -1,11 +1,11 @@
 import type { SlackFile } from "@slock/types";
 import { Avatar, IconButton, Skeleton } from "@slock/ui";
 import { createSignal, lazy, Show } from "solid-js";
-import FileDetailModal from "../channel/FileDetailModal";
-import GlobalSearch from "../search/GlobalSearch";
+import FileDetailModal from "../channel/file-detail/FileDetailModal";
 import DndButton from "./dnd/DndButton";
 import type { SidebarContext } from "./sidebarCategories";
 
+const GlobalSearch = lazy(() => import("../search/GlobalSearch"));
 const Settings = lazy(() => import("../settings/Settings"));
 
 type SidebarToolbarProps = Pick<

@@ -82,11 +82,6 @@ button.activity-type-button {
   border-radius: var(--radius-control);
 }
 
-button.activity-type-button:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
 button.activity-type-button.active {
   color: var(--text-on-accent);
   background: var(--accent);

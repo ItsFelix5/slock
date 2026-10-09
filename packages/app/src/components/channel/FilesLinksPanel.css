@@ -106,10 +106,7 @@
   z-index: 1;
   padding: 14px var(--space-xs) var(--space-sm);
   font-size: var(--font-size-meta);
-  font-weight: 700;
   color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   background: var(--main-bg);
 }
 
@@ -197,11 +194,6 @@
   background: var(--composer-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-}
-
-.files-links-card-jump:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 button.files-links-card-open {

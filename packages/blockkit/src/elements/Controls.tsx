@@ -116,7 +116,7 @@ export default function Controls(props: {
         <Tooltip content={el().positive_button?.text.text ?? "Good response"}>
           <button
             aria-label={el().positive_button?.text.text ?? "Good response"}
-            class="bk-feedback-button bk-feedback-button--positive"
+            class="bk-feedback-button bk-feedback-button--positive hover-hl"
             disabled={!ready()}
             onClick={() => dispatch({ value: el().positive_button?.value })}
             type="button"
@@ -127,7 +127,7 @@ export default function Controls(props: {
         <Tooltip content={el().negative_button?.text.text ?? "Bad response"}>
           <button
             aria-label={el().negative_button?.text.text ?? "Bad response"}
-            class="bk-feedback-button bk-feedback-button--negative"
+            class="bk-feedback-button bk-feedback-button--negative hover-hl"
             disabled={!ready()}
             onClick={() => dispatch({ value: el().negative_button?.value })}
             type="button"

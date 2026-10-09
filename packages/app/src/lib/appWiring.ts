@@ -64,6 +64,7 @@ export function wireAppState(deps: AppWiringDeps) {
       isChannelMuted: preferences.isChannelMuted,
       isDndActive: preferences.isDndActive,
       openChannelPeek: actions.openChannelPeek,
+      resolveChannel: channels.resolveChannel,
     });
   return { markAllAsRead };
 }

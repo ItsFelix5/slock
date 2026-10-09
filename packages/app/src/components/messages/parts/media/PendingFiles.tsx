@@ -15,7 +15,7 @@ export default function PendingFiles(props: { files: PendingFile[] }) {
             </Show>
             <span class="message-file-info flex-col">
               <span class="message-file-name truncate">{file.name}</span>
-              <span class="message-file-meta">{formatSize(file.size)}</span>
+              <span class="message-file-meta meta-dim">{formatSize(file.size)}</span>
             </span>
             <div
               aria-valuemax={100}

@@ -34,7 +34,7 @@ export default function Container(props: {
           onClick={() => props.block.is_collapsible && setCollapsed((v) => !v)}
         >
           <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
-          <div class="bk-container-heading-text">
+          <div class="bk-container-heading-text grow">
             <Show
               fallback={
                 <Show when={props.block.title}>

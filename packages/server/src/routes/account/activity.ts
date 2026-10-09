@@ -64,10 +64,12 @@ function findActivityText(value: unknown, depth = 0): string | undefined {
   }
 }
 
-async function fetchReminderTexts(
+type Reminder = { channel?: string; text?: string; ts?: string };
+
+async function fetchReminders(
   rawItems: RawActivityFeedEntry[],
   creds: Credentials | null,
-): Promise<Map<string, string>> {
+): Promise<Map<string, Reminder>> {
   const ids = [
     ...new Set(
       rawItems.flatMap((raw) =>
@@ -77,8 +79,8 @@ async function fetchReminderTexts(
       ),
     ),
   ];
-  const texts = new Map<string, string>();
-  if (ids.length === 0) return texts;
+  const reminders = new Map<string, Reminder>();
+  if (ids.length === 0) return reminders;
   const data = await callSlack<SavedListReply>(
     "saved.get",
     {
@@ -88,12 +90,20 @@ async function fetchReminderTexts(
     },
     creds,
   );
-  if (!data.ok) return texts;
+  console.log("saved.get reminders", JSON.stringify(data));
+  if (!data.ok) return reminders;
   for (const savedItem of data.saved_items ?? []) {
-    if (savedItem.item_id && savedItem.description)
-      texts.set(savedItem.item_id, richTextBlocksToPlainText(savedItem.description));
+    if (!savedItem.item_id) continue;
+    reminders.set(savedItem.item_id, {
+      channel:
+        savedItem.item_type === "message"
+          ? savedItem.item_id
+          : (savedItem.channel_id ?? savedItem.channel),
+      text: savedItem.description ? richTextBlocksToPlainText(savedItem.description) : undefined,
+      ts: savedItem.ts ?? savedItem.message_ts,
+    });
   }
-  return texts;
+  return reminders;
 }
 
 function trimActivityEntry(entry: RawActivityEntry): RawActivityEntry {
@@ -114,12 +124,12 @@ function trimActivityEntry(entry: RawActivityEntry): RawActivityEntry {
 
 function trimActivityItem(
   raw: RawActivityFeedEntry,
-  reminderTexts: Map<string, string>,
+  reminders: Map<string, Reminder>,
 ): RawActivityFeedEntry {
   const item = raw.item ?? {};
-  const reminderText =
+  const reminder =
     item.type === "saved_reminder" && item.linked_item_id
-      ? reminderTexts.get(item.linked_item_id)
+      ? reminders.get(item.linked_item_id)
       : undefined;
   const payload = item.bundle_info?.payload;
   const quietlyAdded = item.quietly_added_to_channel_payload;
@@ -134,7 +144,7 @@ function trimActivityItem(
     feed_ts: raw.feed_ts,
     is_unread: raw.is_unread,
     item: {
-      activity_text: reminderText ?? findActivityText(item),
+      activity_text: reminder?.text ?? findActivityText(item),
       actor_user_id: item.actor_user_id,
       author_user_id: item.author_user_id,
       bundle_info:
@@ -156,13 +166,13 @@ function trimActivityItem(
             }
           : undefined,
       channel: item.channel,
-      channel_id: item.channel_id,
+      channel_id: item.channel_id ?? reminder?.channel,
       invite: item.invite,
       latest_user_id: item.latest_user_id,
       latest_reply_actor_user_id: item.latest_reply_actor_user_id,
       linked_item_id: item.linked_item_id,
       message: trimActivityMessage(message),
-      message_ts: item.message_ts,
+      message_ts: item.message_ts ?? reminder?.ts,
       quietly_added_to_channel_payload: quietlyAdded
         ? {
             channel_id: quietlyAdded.channel_id,
@@ -235,10 +245,10 @@ export const activityRoutes: Route[] = [
     );
     if (!data.ok) return slackErrorResponse(data, "activity.feed", ctx.creds, ctx.acceptEncoding);
     const rawItems = data.items ?? [];
-    const reminderTexts = await fetchReminderTexts(rawItems, ctx.creds);
+    const reminders = await fetchReminders(rawItems, ctx.creds);
     return jsonResponse(
       {
-        items: rawItems.map((raw) => trimActivityItem(raw, reminderTexts)),
+        items: rawItems.map((raw) => trimActivityItem(raw, reminders)),
         ok: true,
         response_metadata: data.response_metadata
           ? { next_cursor: data.response_metadata.next_cursor }

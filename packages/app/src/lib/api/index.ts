@@ -21,6 +21,21 @@ export {
 } from "./activity";
 export { fetchAppDescription, fetchMessageShortcuts, runMessageShortcut } from "./apps";
 export { fetchBootstrap } from "./bootstrap";
+export type { LoadedCanvas } from "./canvases";
+export {
+  fetchCanvas,
+  fetchCanvasComments,
+  fetchCanvasFileUrl,
+  fetchCanvasPermalink,
+  fetchCanvasTitle,
+  fetchCanvasTitleOrVisibility,
+  fetchCanvasVersion,
+  fetchCanvasVersions,
+  openCanvasComment,
+  postCanvasEdit,
+  resolveCanvasFile,
+  restoreCanvasVersion,
+} from "./canvases";
 export {
   archiveChannel,
   closeDm,
@@ -63,25 +78,16 @@ export {
   unarchiveChannel,
   updateSectionChannels,
 } from "./channels";
-export type { LoadedCanvas } from "./content";
 export {
-  fetchCanvas,
-  fetchCanvasComments,
-  fetchCanvasFileUrl,
-  fetchCanvasPermalink,
-  fetchCanvasTitle,
-  fetchCanvasTitleOrVisibility,
-  fetchCanvasVersion,
-  fetchCanvasVersions,
+  type FileAccessTarget,
   fetchFileDetail,
   fetchLinkPreview,
   fetchSaved,
-  openCanvasComment,
-  postCanvasEdit,
+  removeFileAccess,
   renameFile,
-  resolveCanvasFile,
-  restoreCanvasVersion,
   runSlashCommand,
+  setFileAccess,
+  setFileOrgAccess,
   uploadFile,
   uploadFiles,
   uploadFilesForEdit,

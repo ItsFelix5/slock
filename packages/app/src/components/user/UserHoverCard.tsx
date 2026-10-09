@@ -90,7 +90,7 @@ export default function UserHoverCard(props: {
 
               <Show when={!isSelf()}>
                 <button
-                  class="user-hovercard-btn hover-card-action btn-reset flex-center"
+                  class="user-hovercard-btn hover-card-action btn-reset flex-center busy"
                   disabled={store.dms.isOpenDmPending(u().id)}
                   onClick={(e) => {
                     close();

@@ -86,7 +86,9 @@ export default function UsergroupMembersTab(props: {
               <div class="usergroup-details-row-main flex-align-center">
                 <Avatar size="small" user={me()} />
                 <span class="usergroup-details-row-name truncate">{me().name}</span>
-                <span class="usergroup-details-row-hint truncate">Not in this pinggroup</span>
+                <span class="usergroup-details-row-hint truncate meta-dim">
+                  Not in this pinggroup
+                </span>
               </div>
               <Button
                 disabled={props.disabled}

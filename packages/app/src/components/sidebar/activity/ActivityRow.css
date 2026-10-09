@@ -53,8 +53,7 @@
 .activity-unsubscribe-toggle:focus-visible,
 .activity-type-button:focus-visible,
 .activity-read-toggle button:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 1px;
+  --focus-offset: 1px;
 }
 
 .activity-item-avatar {

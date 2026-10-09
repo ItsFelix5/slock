@@ -3,6 +3,7 @@ import type { SuggestState } from "./lib/suggestTypes";
 import { suggestItemContent } from "./lib/suggestTypes";
 
 export default function ComposerSuggestPopover(props: {
+  floating?: boolean;
   onHover: (index: number) => void;
   onPick: (index: number) => void;
   ref: (el: HTMLDivElement) => void;
@@ -11,7 +12,7 @@ export default function ComposerSuggestPopover(props: {
   return (
     <SuggestionList
       activeIndex={props.state.active}
-      class="menu-panel composer-suggest-popover"
+      class={`menu-panel composer-suggest-popover${props.floating ? "" : " composer-suggest-docked"}`}
       items={props.state.items}
       onHover={props.onHover}
       onPick={props.onPick}

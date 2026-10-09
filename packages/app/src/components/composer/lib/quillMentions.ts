@@ -5,7 +5,8 @@ import {
   parseUserProfileLink,
 } from "@slock/blockkit";
 import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/types";
-import { getEmbedBlot, INLINE_MARKS } from "@slock/ui";
+import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
+import { getEmbedBlot } from "@slock/ui/editor/quillText";
 import Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";

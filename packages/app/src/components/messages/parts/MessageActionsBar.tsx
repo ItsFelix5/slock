@@ -53,7 +53,7 @@ export default function MessageActionsBar(props: {
     <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
       <Show when={isMine(props.msg)}>
         <IconButton
-          class="message-hover-btn icon-shift"
+          class="message-hover-btn icon-shift busy hover-hl"
           icon="edit"
           label="Edit message"
           onClick={props.onEditRequest}
@@ -63,7 +63,7 @@ export default function MessageActionsBar(props: {
 
       <div class="message-hover-picker-wrap" ref={pickerWrapRef}>
         <IconButton
-          class="message-hover-btn icon-shift"
+          class="message-hover-btn icon-shift busy hover-hl"
           icon="emoji"
           label="React"
           onClick={togglePicker}
@@ -82,7 +82,7 @@ export default function MessageActionsBar(props: {
 
       <Show when={props.onOpenThread}>
         <IconButton
-          class="message-hover-btn icon-shift"
+          class="message-hover-btn icon-shift busy hover-hl"
           icon="threads"
           label="Reply in thread"
           onClick={(e) => props.onOpenThread?.(threadRootTs(), { pinned: e.shiftKey })}
@@ -92,7 +92,7 @@ export default function MessageActionsBar(props: {
 
       <Show when={props.onReplyLink}>
         <IconButton
-          class="message-hover-btn icon-shift"
+          class="message-hover-btn icon-shift busy hover-hl"
           icon="email-reply"
           label="Reply"
           onClick={() => props.onReplyLink?.(props.msg)}
@@ -102,7 +102,7 @@ export default function MessageActionsBar(props: {
 
       <IconButton
         active={isSaved()}
-        class="message-hover-btn icon-shift"
+        class="message-hover-btn icon-shift busy hover-hl"
         disabled={
           store.later.laterLoading() ||
           store.later.isSaveForLaterPending(props.channelId, props.msg.ts)
@@ -122,7 +122,7 @@ export default function MessageActionsBar(props: {
         panelClass="menu-panel message-more-menu"
         trigger={
           <IconButton
-            class="message-hover-btn icon-shift"
+            class="message-hover-btn icon-shift busy hover-hl"
             icon="ellipsis-vertical-filled"
             label="More actions"
             onClick={toggleMore}

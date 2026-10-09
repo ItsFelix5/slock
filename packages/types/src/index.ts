@@ -87,6 +87,7 @@ export type {
   SlackFile,
   SlackFileAccess,
   SlackFileDetail,
+  SlackFileShare,
   SlackLink,
 } from "./fileTypes";
 export type {

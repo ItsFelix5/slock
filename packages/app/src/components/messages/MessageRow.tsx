@@ -22,7 +22,7 @@ import {
   resolveLookupUserId,
   resolveProfileUserId,
 } from "./parts/messageAuthor";
-import { resolveMessageRenderState } from "./parts/messageRenderState";
+import { resolveMessageContent, resolveMessageNeighbors } from "./parts/messageRenderState";
 import ReactionRow from "./parts/ReactionRow";
 import ReplyReferenceRow from "./parts/ReplyReferenceRow";
 
@@ -48,31 +48,38 @@ export type MessageRowProps = {
 
 export default function MessageRow(props: MessageRowProps) {
   const msg = () => props.message;
-  const prev = () => {
+  const prev = createMemo(() => {
     for (let i = props.index() - 1; i >= 0; i -= 1) {
       const candidate = props.messages[i];
       if (!candidate.deleted || logDeletedMessages()) return candidate;
     }
-  };
+  });
   const isPinned = () => store.pinned.isMessagePinned(props.channelId, msg().ts);
-  const renderState = createMemo(() =>
-    resolveMessageRenderState(msg(), prev(), {
+  const content = createMemo(() =>
+    resolveMessageContent(msg(), {
       channelId: props.channelId,
       hasOpenThread: !!props.onOpenThread,
+      messages: () => props.messages,
+      threadTs: props.threadTs,
+    }),
+  );
+  const neighbors = createMemo(() =>
+    resolveMessageNeighbors(msg(), prev(), content(), {
+      channelId: props.channelId,
       isPinned: isPinned(),
-      messages: props.messages,
+      messages: () => props.messages,
       showDeleted: logDeletedMessages(),
       threadTs: props.threadTs,
       unreadDividerTs: store.unread.unreadDividerTsForChannel(props.channelId),
     }),
   );
-  const dayChanged = () => renderState().dayChanged;
-  const showUnreadDivider = () => renderState().showUnreadDivider;
-  const showRepliesDivider = () => renderState().showRepliesDivider;
-  const replyRef = () => renderState().replyRef;
-  const messageText = () => renderState().messageText;
-  const renderBlocks = () => renderState().renderBlocks;
-  const hasEnlargedEmojiOnlyText = () => renderState().hasEnlargedEmojiOnlyText;
+  const dayChanged = () => neighbors().dayChanged;
+  const showUnreadDivider = () => neighbors().showUnreadDivider;
+  const showRepliesDivider = () => neighbors().showRepliesDivider;
+  const replyRef = () => content().replyRef;
+  const messageText = () => content().messageText;
+  const renderBlocks = () => content().renderBlocks;
+  const hasEnlargedEmojiOnlyText = () => content().hasEnlargedEmojiOnlyText;
   const referencedMessage = createMemo(() => {
     const ref = replyRef();
     if (!ref) return;
@@ -87,7 +94,7 @@ export default function MessageRow(props: MessageRowProps) {
     const ref = replyRef();
     return ref ? msg().attachments?.find((a) => a.isMessageUnfurl && a.ts === ref.ts) : undefined;
   });
-  const showThreadContext = () => renderState().showThreadContext;
+  const showThreadContext = () => content().showThreadContext;
   const threadParent = createMemo(() =>
     showThreadContext()
       ? (msg().threadRoot ??
@@ -97,9 +104,9 @@ export default function MessageRow(props: MessageRowProps) {
           ?.list.find((m) => m.ts === msg().threadTs))
       : undefined,
   );
-  const visibleAttachments = () => renderState().visibleAttachments;
-  const sameAuthorAsPrev = () => renderState().sameAuthorAsPrev;
-  const showBroadcastBadge = () => renderState().showBroadcastBadge;
+  const visibleAttachments = () => content().visibleAttachments;
+  const sameAuthorAsPrev = () => neighbors().sameAuthorAsPrev;
+  const showBroadcastBadge = () => content().showBroadcastBadge;
   const profileUserId = () => resolveProfileUserId(msg());
   const botProfileUserId = () => resolveBotProfileUserId(msg());
   const user = createMemo(() => {
@@ -111,6 +118,7 @@ export default function MessageRow(props: MessageRowProps) {
   const isEditing = () => props.editingTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
 
+  const saved = () => store.later.isSavedForLater(props.channelId, msg().ts);
   const focused = () => props.focusedTs?.() === msg().ts;
   const [engaged, setEngaged] = createSignal(false);
   const showActions = () =>
@@ -120,7 +128,7 @@ export default function MessageRow(props: MessageRowProps) {
     props.moreMenuTs?.() === msg().ts;
 
   return (
-    <Show when={renderState().showMessage}>
+    <Show when={neighbors().showMessage}>
       <Show when={dayChanged() || showUnreadDivider()}>
         <div
           class="message-divider flex-align-center text-center font-bold text-xs"
@@ -143,7 +151,7 @@ export default function MessageRow(props: MessageRowProps) {
           ephemeral: msg().isEphemeral,
           "is-first-message": props.index() === 0,
           pending: msg().pending,
-          saved: store.later.isSavedForLater(props.channelId, msg().ts),
+          saved: saved(),
         }}
       >
         <Show when={replyRef()}>
@@ -165,7 +173,14 @@ export default function MessageRow(props: MessageRowProps) {
           class="message-row"
           data-message-ts={msg().ts}
           onFocusIn={() => setEngaged(true)}
+          onFocusOut={(e) => {
+            const next = e.relatedTarget;
+            if (!(next instanceof Node && e.currentTarget.contains(next))) setEngaged(false);
+          }}
           onMouseEnter={() => setEngaged(true)}
+          onMouseLeave={(e) => {
+            if (!e.currentTarget.matches(":focus-within")) setEngaged(false);
+          }}
           onContextMenu={(e) => {
             if (msg().deleted || msg().isEphemeral || isEditing()) return;
             if (!isMessageBackgroundContextMenu(e)) return;
@@ -190,20 +205,17 @@ export default function MessageRow(props: MessageRowProps) {
                 threadTs={props.threadTs}
               />
             </Show>
-            <ContextMenu
-              onClose={ctxMenu.close}
-              open={ctxMenu.isOpen()}
-              x={ctxMenu.x()}
-              y={ctxMenu.y()}
-            >
-              <MessageActionsMenuItems
-                channelId={props.channelId}
-                msg={msg()}
-                onClose={ctxMenu.close}
-                onEditRequest={() => props.onStartEdit?.(msg().ts)}
-                threadTs={props.threadTs}
-              />
-            </ContextMenu>
+            <Show when={ctxMenu.isOpen()}>
+              <ContextMenu onClose={ctxMenu.close} open x={ctxMenu.x()} y={ctxMenu.y()}>
+                <MessageActionsMenuItems
+                  channelId={props.channelId}
+                  msg={msg()}
+                  onClose={ctxMenu.close}
+                  onEditRequest={() => props.onStartEdit?.(msg().ts)}
+                  threadTs={props.threadTs}
+                />
+              </ContextMenu>
+            </Show>
           </Show>
           <Show fallback={<div class="message-avatar-spacer" />} when={!sameAuthorAsPrev()}>
             <MessageRowAvatar
@@ -220,7 +232,7 @@ export default function MessageRow(props: MessageRowProps) {
               <MessageMeta
                 displayName={displayName}
                 isPinned={isPinned}
-                isSaved={() => store.later.isSavedForLater(props.channelId, msg().ts)}
+                isSaved={saved}
                 botUserId={botProfileUserId()}
                 onOpenBot={() => {
                   const id = botProfileUserId();
@@ -272,12 +284,16 @@ export default function MessageRow(props: MessageRowProps) {
                 />
               )}
             </Show>
-            <InlineFeedback
-              class="message-feedback"
-              feedback={actionFeedback.get(msg().ts)}
-              priority={props.threadTs ? 1 : 0}
-              variant="icon"
-            />
+            <Show when={actionFeedback.get(msg().ts)}>
+              {(feedback) => (
+                <InlineFeedback
+                  class="message-feedback"
+                  feedback={feedback()}
+                  priority={props.threadTs ? 1 : 0}
+                  variant="icon"
+                />
+              )}
+            </Show>
             <Show when={props.onOpenThread && (msg().replyCount ?? 0) > 0}>
               <MessageRepliesButton msg={msg()} onOpenThread={props.onOpenThread ?? (() => {})} />
             </Show>
@@ -288,7 +304,7 @@ export default function MessageRow(props: MessageRowProps) {
         <div class="day-divider message-divider flex-align-center text-center font-bold text-xs">
           <span>
             {msg().replyCount} {msg().replyCount === 1 ? "reply" : "replies"}
-            {renderState().repliesDividerDay ? ` · ${renderState().repliesDividerDay}` : ""}
+            {neighbors().repliesDividerDay ? ` · ${neighbors().repliesDividerDay}` : ""}
           </span>
         </div>
       </Show>

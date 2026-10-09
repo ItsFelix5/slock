@@ -1,4 +1,4 @@
-import type { DesktopNotificationEvent, UserPrefs } from "@slock/types";
+import type { Channel, DesktopNotificationEvent, UserPrefs } from "@slock/types";
 import { createSignal } from "solid-js";
 import { createLocalPref } from "../../../localPref";
 
@@ -31,13 +31,14 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     if (result === "granted") setNotificationsEnabled(true);
   }
 
-  function showGatewayNotification(
+  async function showGatewayNotification(
     payload: DesktopNotificationEvent,
     notifyDeps: {
       isChannelMuted: (id: string) => boolean;
       isDndActive: () => boolean;
       activeView: () => { kind: string; id: string } | null;
       openChannelPeek: (channelId: string, ts: string) => void;
+      resolveChannel: (id: string) => Promise<Pick<Channel, "canvasFileId" | "name"> | undefined>;
     },
   ) {
     if (!supported || permission() !== "granted" || !enabled() || notifyDeps.isDndActive()) return;
@@ -48,7 +49,10 @@ export function createDesktopNotificationsSlice(deps: { userPrefs: () => UserPre
     if (notifyDeps.activeView()?.id === channelId) return;
 
     const body = (payload.msg ?? payload.content ?? "").slice(0, 200);
-    const title = payload.title || payload.subtitle || "New message";
+    const channel = await notifyDeps.resolveChannel(channelId);
+    const title = channel?.canvasFileId
+      ? `New comment on ${channel.name}`
+      : payload.title || payload.subtitle || "New message";
     const notification = new Notification(title, {
       body,
       icon: payload.avatarImage,

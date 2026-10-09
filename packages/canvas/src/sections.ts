@@ -88,9 +88,7 @@ export function decodeLoadData(bytes: Uint8Array): DecodedCanvas {
 const SECTION_ID_RE = /^temp:C:[A-Za-z0-9_-]{3}[0-9a-f]{25}$/;
 
 export function newSectionId(shardChars: string): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(13));
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `temp:C:${shardChars}${hex.slice(0, 25)}`;
+  return `temp:C:${shardChars}${crypto.randomUUID().replaceAll("-", "").slice(0, 25)}`;
 }
 
 export function isSectionId(id: string): boolean {

@@ -10,10 +10,11 @@ import {
   type RichTextSubBlock,
   userProfileUrl,
 } from "@slock/types";
-import { INLINE_MARKS } from "@slock/ui";
+import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "quill";
 import { parseSlackPermalink } from "../../../lib/navigation/slackPermalink";
 import { INVISIBLE_LABEL } from "../../../lib/replyLink";
+import { HEADER_MAX_LENGTH } from "./headerLimit";
 import { type DeltaLine, type DeltaSegment, deltaLines, MENTION_PREFIX } from "./quillMentions";
 
 function styleFromAttrs(
@@ -222,7 +223,11 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
       flushRichText();
       blocks.push({
         level: attrs.header,
-        text: { emoji: true, text: headerPlainText(line), type: "plain_text" },
+        text: {
+          emoji: true,
+          text: headerPlainText(line).slice(0, HEADER_MAX_LENGTH),
+          type: "plain_text",
+        },
         type: "header",
       });
       continue;

@@ -9,8 +9,8 @@ export default function CanvasOutlineNav(props: {
   onNavigate: (index: number) => void;
 }) {
   return (
-    <Show when={props.headings.length > 1}>
-      <nav class="canvas-outline-nav">
+    <nav class="canvas-outline-nav">
+      <Show when={props.headings.length > 1}>
         <div class="canvas-outline-rail flex-col">
           <For each={props.headings}>
             {({ index, level }) => (
@@ -44,7 +44,7 @@ export default function CanvasOutlineNav(props: {
             )}
           </For>
         </div>
-      </nav>
-    </Show>
+      </Show>
+    </nav>
   );
 }

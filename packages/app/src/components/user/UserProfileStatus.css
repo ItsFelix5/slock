@@ -18,11 +18,6 @@
   border-radius: var(--radius-control);
 }
 
-.user-profile-status-emoji-btn:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
 .user-profile-status-input {
   flex: 1;
   min-width: 0;
@@ -51,11 +46,6 @@
   outline: none;
 }
 
-.user-profile-status-input:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
 button.user-profile-status-clear {
   flex-shrink: 0;
   width: 20px;
@@ -69,14 +59,4 @@ button.user-profile-status-clear {
 .user-profile-status-edit:hover button.user-profile-status-clear,
 .user-profile-status-edit:focus-within button.user-profile-status-clear {
   opacity: 1;
-}
-
-button.user-profile-status-clear:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
-button.user-profile-status-clear:disabled {
-  cursor: wait;
-  opacity: 0.65;
 }

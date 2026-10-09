@@ -1,9 +1,8 @@
 .composer-reply-row {
   gap: var(--space-xs);
-  padding: 2px 2px 2px var(--space-sm);
-  margin: var(--space-xs) 0 2px;
-  background: var(--hover-bg);
-  border-radius: var(--radius-md);
+  padding: 2px var(--space-xs) 2px var(--space-md);
+  margin: 0 calc(-1 * var(--space-xs)) 2px;
+  border-bottom: 1px solid var(--border);
 }
 
 .composer-reply-row .reply-reference-row {
@@ -14,19 +13,4 @@
 
 .composer-reply-row .reply-reference-row::before {
   display: none;
-}
-
-.composer-reply-row .reply-reference-row > .icon {
-  color: var(--accent);
-}
-
-.composer-reply-cancel {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-  border-radius: var(--radius-control);
-}
-
-.composer-reply-cancel:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }

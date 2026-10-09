@@ -8,7 +8,7 @@ import type {
   MessagesSearchReply,
   SearchMessageMatch,
 } from "../../slackReplies.ts";
-import { publicName, trimChannel } from "../../trim/slackChannels.ts";
+import { isHostedChannel, trimChannel } from "../../trim/slackChannels.ts";
 import { trimUser } from "../../trim/slackEntities.ts";
 import { trimFile } from "../../trim/slackMessages.ts";
 import { type Route, route } from "../router.ts";
@@ -140,7 +140,9 @@ export const searchRoutes: Route[] = [
       return slackErrorResponse(filesData, "search.modules.files", ctx.creds, ctx.acceptEncoding);
     return jsonResponse(
       {
-        channels: (channelsData.results ?? []).map(trimChannel),
+        channels: (channelsData.results ?? [])
+          .filter((channel) => !isHostedChannel(channel))
+          .map(trimChannel),
         files: (filesData.items ?? []).map(trimFile),
         ok: true,
         users: (peopleData.results ?? []).map(trimUser),
@@ -179,7 +181,9 @@ export const searchRoutes: Route[] = [
       return slackErrorResponse(data, "search.modules.messages", ctx.creds, ctx.acceptEncoding);
     }
     const matches = (data.items ?? []).flatMap((group) =>
-      (group.messages ?? []).map((message) => ({ ...message, channel: group.channel })),
+      group.channel && !isHostedChannel(group.channel)
+        ? (group.messages ?? []).map((message) => ({ ...message, channel: group.channel }))
+        : [],
     );
     return jsonResponse(
       {
@@ -197,7 +201,7 @@ export const searchRoutes: Route[] = [
               botId: match.bot_id,
               botName: match.username ?? match.bot_profile?.name,
               channelId: match.channel.id,
-              channelName: publicName(match.channel) ?? match.channel.id,
+              channelName: match.channel.name ?? match.channel.id,
               highlights,
               text,
               threadTs: threadTsFromMatch(match),

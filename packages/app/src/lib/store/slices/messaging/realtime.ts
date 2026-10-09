@@ -209,13 +209,6 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
   const connection = createRealtimeConnection({
     onMessage: handleRawMessage,
     onOpen: () => {
-      for (const channel of deps.loadedChannels) send({ channel, type: "watch_channel" });
-      for (const thread of deps.visibleThreads())
-        send({
-          channel: thread.channelId,
-          ts: thread.ts,
-          type: "watch_thread",
-        });
       send({ ids: presenceSubIds(), type: "watch_presence" });
     },
     onReconnect: () => {
@@ -227,13 +220,6 @@ export function createRealtimeSlice(deps: RealtimeDeps) {
       for (const thread of deps.visibleThreads()) deps.refreshThreadReplies(thread.ts);
     },
     url: wsUrl,
-  });
-  createEffect(() => {
-    for (const view of deps.visibleViews()) send({ channel: view.id, type: "watch_channel" });
-  });
-  createEffect(() => {
-    for (const thread of deps.visibleThreads())
-      send({ channel: thread.channelId, ts: thread.ts, type: "watch_thread" });
   });
   createEffect(() => {
     const ids = presenceSubIds();

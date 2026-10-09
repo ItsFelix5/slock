@@ -37,11 +37,6 @@
   border-radius: var(--radius-sm);
 }
 
-.bk-container-heading-text {
-  flex: 1;
-  min-width: 0;
-}
-
 .bk-container-title {
   font-weight: 700;
   font-size: var(--font-size-secondary);

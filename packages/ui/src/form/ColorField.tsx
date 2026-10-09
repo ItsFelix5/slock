@@ -66,7 +66,7 @@ export default function ColorField(props: ColorFieldProps) {
       <Tooltip content="Reset to default">
         <button
           aria-label="Reset to default"
-          class="color-field-reset"
+          class="color-field-reset hover-hl"
           onClick={reset}
           type="button"
         >

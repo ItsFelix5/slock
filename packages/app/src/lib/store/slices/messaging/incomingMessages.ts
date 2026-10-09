@@ -1,4 +1,5 @@
 import { type GatewayMessageEvent, type Message, mapMessage } from "@slock/types";
+import { isPendingMessage } from "../../../messageMerge";
 import { isDmId } from "../entities/dms";
 import type { RealtimeDeps } from "./realtimeDeps";
 
@@ -82,8 +83,7 @@ export function createIncomingMessageHandler(deps: RealtimeDeps) {
       const alreadyMerged =
         hasSeenReply(channel, msg.ts) ||
         existingReplies.some(
-          (reply) =>
-            (reply.ts === msg.ts || reply.id === msg.id) && !reply.id.startsWith("pending-"),
+          (reply) => (reply.ts === msg.ts || reply.id === msg.id) && !isPendingMessage(reply),
         );
       if (deps.isThreadKnown(threadTs)) {
         deps.setThreadMessages(threadTs, (existing: Message[] = []) =>

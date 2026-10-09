@@ -50,8 +50,8 @@ export function createMessageListScroll(deps: {
   }
 
   const visibleDay = () => {
-    const messageByTs = new Map(deps.messages().map((m) => [m.ts, m]));
-    return messageByTs.get(topVisibleTs() ?? "")?.day;
+    const ts = topVisibleTs();
+    return ts === undefined ? undefined : deps.messages().find((m) => m.ts === ts)?.day;
   };
 
   function correctScrollForContentChange() {
@@ -104,12 +104,24 @@ export function createMessageListScroll(deps: {
   });
 
   async function loadNewerMessages(channelId: string) {
+    const el = deps.scrollRef();
+    if (!el) return;
+    const anchor = captureScrollAnchor(el, "bottom");
+    console.log("[load] newer", {
+      top: el.scrollTop,
+      h: el.scrollHeight,
+      n: deps.messages().length,
+      err: new Error().stack?.split("\n")[2]?.trim(),
+    });
     setIsLoadingNewer(true);
     try {
       await store.messages.loadNewerMessages(channelId);
     } finally {
       setIsLoadingNewer(false);
     }
+    if (deps.scrollRef() !== el || deps.paneView()?.id !== channelId) return;
+    if (anchor?.el.isConnected && !shouldFollowBottom()) restoreScrollAnchor(el, anchor);
+    updateTopVisible();
   }
 
   const OLDER_LOAD_COOLDOWN_MS = 250;
@@ -118,6 +130,12 @@ export function createMessageListScroll(deps: {
     const el = deps.scrollRef();
     if (!el) return;
     const anchor = captureScrollAnchor(el);
+    console.log("[load] older", {
+      top: el.scrollTop,
+      h: el.scrollHeight,
+      n: deps.messages().length,
+      err: new Error().stack?.split("\n")[2]?.trim(),
+    });
     await store.messages.loadOlderMessages(channelId);
     olderLoadCooldownUntil = Date.now() + OLDER_LOAD_COOLDOWN_MS;
     if (deps.scrollRef() !== el || deps.paneView()?.id !== channelId) return;

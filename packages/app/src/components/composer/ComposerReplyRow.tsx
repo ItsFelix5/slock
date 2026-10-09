@@ -8,9 +8,12 @@ export default function ComposerReplyRow(props: { replyTo: ComposerReplyToProps 
     <div class="composer-reply-row flex-align-center">
       <ReplyReferenceRow message={props.replyTo.message} onJump={props.replyTo.onJump} />
       <IconButton
-        class="composer-reply-cancel icon-shift"
+        hideTooltip
         icon="close"
+        iconSize={14}
+        label="Cancel reply"
         onClick={props.replyTo.onCancel}
+        size="sm"
       />
     </div>
   );

@@ -9,7 +9,7 @@ import {
   type RichTextStyle,
   type RichTextSubBlock,
 } from "@slock/types";
-import { INLINE_MARKS } from "@slock/ui";
+import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "quill";
 import { Delta } from "quill";
 import { channelDisplayName } from "../../../lib/displayName";

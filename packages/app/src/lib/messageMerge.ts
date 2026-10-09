@@ -4,6 +4,19 @@ const PENDING_ID_PREFIX = "pending-";
 
 const PENDING_RECONCILE_WINDOW_MS = 60_000;
 
+export function isPendingMessage(message: Message): boolean {
+  return message.id.startsWith(PENDING_ID_PREFIX);
+}
+
+export function confirmsPending(pending: Message, confirmed: Message): boolean {
+  if (!isPendingMessage(pending) || isPendingMessage(confirmed)) return false;
+  if (pending.userId !== confirmed.userId) return false;
+  const sentAt = Number(pending.id.slice(PENDING_ID_PREFIX.length));
+  if (Math.abs(parseFloat(confirmed.ts) * 1000 - sentAt) >= PENDING_RECONCILE_WINDOW_MS)
+    return false;
+  return pending.text === confirmed.text || (!!pending.pendingFiles && !!confirmed.files?.length);
+}
+
 export function dedupeMessages(messages: Message[]): Message[] {
   const byTimestamp = new Map<string, Message>();
   for (const message of messages) byTimestamp.set(message.ts, message);
@@ -18,14 +31,7 @@ export function mergeMessages(existing: Message[], fresh: Message[]): Message[] 
   const freshTimestamps = new Set(fresh.map((m) => m.ts));
   const keep = existing.filter((m) => {
     if (freshById.has(m.id) || freshTimestamps.has(m.ts)) return false;
-    if (!m.id.startsWith(PENDING_ID_PREFIX)) return true;
-    const sentAt = Number(m.id.slice(PENDING_ID_PREFIX.length));
-    const reconciled = fresh.some(
-      (f) =>
-        f.text === m.text &&
-        Math.abs(parseFloat(f.ts) * 1000 - sentAt) < PENDING_RECONCILE_WINDOW_MS,
-    );
-    return !reconciled;
+    return !fresh.some((f) => confirmsPending(m, f));
   });
   const reconciledFresh = fresh.map((m) => {
     const prev = existingByTs.get(m.ts);

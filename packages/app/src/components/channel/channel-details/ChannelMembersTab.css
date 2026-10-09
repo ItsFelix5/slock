@@ -103,11 +103,6 @@
   background: var(--hover-bg);
 }
 
-.channel-details-member-remove:disabled {
-  cursor: wait;
-  opacity: 0.45;
-}
-
 .channel-details-member-add {
   width: 26px;
   height: 26px;
@@ -117,11 +112,6 @@
 
 .channel-details-member-add:hover:not(:disabled) {
   background: var(--hover-bg);
-}
-
-.channel-details-member-add:disabled {
-  cursor: wait;
-  opacity: 0.45;
 }
 
 .channel-details-member-divider {

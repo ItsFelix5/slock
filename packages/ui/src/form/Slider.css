@@ -40,11 +40,6 @@
   transform: scale(1.15);
 }
 
-.slider-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 .slider-ticks {
   display: flex;
   cursor: pointer;

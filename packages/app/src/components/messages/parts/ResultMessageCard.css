@@ -25,11 +25,6 @@
   text-align: left;
 }
 
-.result-message-card-body {
-  flex: 1;
-  min-width: 0;
-}
-
 .result-message-card-header {
   display: flex;
   align-items: baseline;

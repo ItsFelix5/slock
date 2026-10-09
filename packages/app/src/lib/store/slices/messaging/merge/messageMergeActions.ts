@@ -1,8 +1,7 @@
-import type { Message, User } from "@slock/types";
-import { dedupeMessages } from "../../../../messageMerge";
+import type { Message } from "@slock/types";
+import { confirmsPending, dedupeMessages, isPendingMessage } from "../../../../messageMerge";
 
 export function createMessageMergeActions(deps: {
-  currentUser: () => User | undefined;
   setMessagesByChannel: (channelId: string, update: (existing: Message[]) => Message[]) => void;
 }) {
   function insertMessageInOrder(channelId: string, msg: Message) {
@@ -17,24 +16,21 @@ export function createMessageMergeActions(deps: {
   function mergeIncomingMessage(existing: Message[], msg: Message): Message[] {
     const matchingIndex = existing.findIndex((m) => m.ts === msg.ts || m.id === msg.id);
     if (matchingIndex !== -1) {
-      if (existing[matchingIndex].id.startsWith("pending-") && !msg.id.startsWith("pending-")) {
+      if (isPendingMessage(existing[matchingIndex]) && !isPendingMessage(msg)) {
         const next = existing.slice();
         next[matchingIndex] = msg;
         return dedupeMessages(next);
       }
-      return dedupeMessages(existing);
+      return existing;
     }
-    const me = deps.currentUser();
-    if (me && msg.userId === me.id) {
-      const pendingIdx = existing.findIndex(
-        (m) => m.id.startsWith("pending-") && m.text === msg.text,
-      );
-      if (pendingIdx !== -1) {
-        const next = existing.slice();
-        next[pendingIdx] = msg;
-        return dedupeMessages(next);
-      }
+    const pendingIdx = existing.findIndex((m) => confirmsPending(m, msg));
+    if (pendingIdx !== -1) {
+      const next = existing.slice();
+      next[pendingIdx] = msg;
+      return dedupeMessages(next);
     }
+    const last = existing.at(-1);
+    if (!last || parseFloat(last.ts) < parseFloat(msg.ts)) return [...existing, msg];
     return dedupeMessages([...existing, msg]);
   }
   return { insertMessageInOrder, mergeIncomingMessage };

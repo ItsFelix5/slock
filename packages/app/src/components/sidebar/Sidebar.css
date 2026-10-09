@@ -74,11 +74,6 @@
   position: relative;
 }
 
-.sidebar-nav-btn:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
 .sidebar-nav-btn.active {
   color: var(--text-primary);
   background: color-mix(in oklch, var(--accent) 16%, transparent);

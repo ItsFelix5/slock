@@ -38,7 +38,7 @@ export default function ActivityToolbar(props: {
           <IconButton
             active={props.selectedTag === "all"}
             aria-pressed={props.selectedTag === "all"}
-            class="activity-type-button"
+            class="activity-type-button hover-hl"
             icon="list-view"
             iconSize={17}
             label="All activity"
@@ -49,7 +49,7 @@ export default function ActivityToolbar(props: {
               <IconButton
                 active={props.selectedTag === filter.key}
                 aria-pressed={props.selectedTag === filter.key}
-                class="activity-type-button"
+                class="activity-type-button hover-hl"
                 icon={filter.icon}
                 iconSize={17}
                 label={filter.label}

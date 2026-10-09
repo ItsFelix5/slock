@@ -1,6 +1,6 @@
 import { formatTime, Mrkdwn } from "@slock/blockkit";
 import { formatDayFromMs, type SlackFile } from "@slock/types";
-import { Avatar, DEFAULT_AVATAR_COLOR, Icon, Tooltip } from "@slock/ui";
+import { Avatar, DEFAULT_AVATAR_COLOR, Icon, NavRow, Tooltip } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { fileSummaryIcon, fileSummaryLabel } from "../../../lib/fileSummary";
 import { parseReplyLink } from "../../../lib/replyLink";
@@ -74,19 +74,17 @@ export function ThreadMessageRow(props: {
     />
   );
   return (
-    <button
-      class="activity-thread-message btn-reset"
+    <NavRow
+      class="activity-thread-message"
       classList={{
         "activity-thread-line-end": props.isLast,
         "activity-thread-line-start": props.isFirst,
         "activity-thread-root": props.isRoot,
         unread: props.unread,
       }}
-      data-nav-row
-      onClick={props.onOpen}
+      onActivate={props.onOpen}
       onContextMenu={props.onContextMenu}
       tabIndex={-1}
-      type="button"
     >
       <span class="activity-thread-avatar">
         <Show fallback={avatar()} when={profileUserId()}>
@@ -105,7 +103,7 @@ export function ThreadMessageRow(props: {
           <Show keyed when={props.time === undefined ? undefined : props.time}>
             {(time) => (
               <Tooltip content={`${formatDayFromMs(time)} at ${formatTime(time)}`}>
-                <span class="activity-thread-message-time">{formatTime(time)}</span>
+                <span class="activity-thread-message-time meta-dim">{formatTime(time)}</span>
               </Tooltip>
             )}
           </Show>
@@ -114,6 +112,6 @@ export function ThreadMessageRow(props: {
           <ActivityMessageText files={props.files} text={props.text} />
         </span>
       </span>
-    </button>
+    </NavRow>
   );
 }

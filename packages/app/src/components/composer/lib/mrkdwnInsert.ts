@@ -4,7 +4,8 @@ import {
   MRKDWN_CLIPBOARD_TYPE,
   stripTrackingParams,
 } from "@slock/blockkit";
-import { escapeRegExp, INLINE_MARKS } from "@slock/ui";
+import { escapeRegExp } from "@slock/ui";
+import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "quill";
 import { channelDisplayName } from "../../../lib/displayName";
 import { store } from "../../../lib/store";

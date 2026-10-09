@@ -32,11 +32,6 @@
   background: var(--sidebar-bg);
 }
 
-.sidebar-row-close:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
 .sidebar-row-close:disabled {
   cursor: wait;
   opacity: 0.4;

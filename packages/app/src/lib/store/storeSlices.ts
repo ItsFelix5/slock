@@ -6,6 +6,7 @@ import type {
   UserPrefs,
 } from "@slock/types";
 import { createEffect } from "solid-js";
+import { produce } from "solid-js/store";
 import { createCanvasSlice } from "./slices/entities/canvas";
 import { createChannelsSlice } from "./slices/entities/channels";
 import { createDmsSlice } from "./slices/entities/dms";
@@ -27,6 +28,8 @@ import { createPreferencesSlice } from "./slices/session/preferences";
 import { createSearchHistorySlice } from "./slices/session/searchHistory";
 import { createViewStateSlice } from "./slices/session/viewState";
 import type { ChannelMessageTarget, View } from "./slices/types";
+
+const MAX_CACHED_REACTION_MESSAGES = 200;
 
 export function createStoreSlices({
   bootstrap,
@@ -145,6 +148,14 @@ export function createStoreSlices({
   });
   cacheResolvedMessagesRef.current = (resolved) => {
     for (const [key, message] of resolved) messages.setReactionMessages(key, [message]);
+    const keys = Object.keys(messages.reactionMessages);
+    if (keys.length > MAX_CACHED_REACTION_MESSAGES)
+      messages.setReactionMessages(
+        produce((cached) => {
+          for (const key of keys.slice(0, keys.length - MAX_CACHED_REACTION_MESSAGES))
+            delete cached[key];
+        }),
+      );
   };
   reactionMessageForRef.current = messages.reactionMessageFor;
   const realtime = createRealtimeSlice({

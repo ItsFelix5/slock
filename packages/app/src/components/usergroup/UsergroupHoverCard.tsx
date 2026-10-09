@@ -38,7 +38,7 @@ export default function UsergroupHoverCard(props: {
               </div>
 
               <button
-                class="hover-card-action btn-reset flex-center"
+                class="hover-card-action btn-reset flex-center busy"
                 onClick={() => {
                   close();
                   openUsergroupDetails(props.usergroupId);

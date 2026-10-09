@@ -11,7 +11,7 @@ import type {
   FilesSearchReply,
   LinksSearchReply,
 } from "../../slackReplies.ts";
-import { trimChannel } from "../../trim/slackChannels.ts";
+import { isHostedChannel, trimChannel } from "../../trim/slackChannels.ts";
 import { trimUser } from "../../trim/slackEntities.ts";
 import { type Route, route } from "../router.ts";
 
@@ -36,7 +36,7 @@ export const channelDirectoryRoutes: Route[] = [
               id,
             )
           : undefined;
-        if (raw?.id && raw.name) return [id, trimChannel(raw)] as const;
+        if (raw?.id && (raw.name || isHostedChannel(raw))) return [id, trimChannel(raw)] as const;
 
         const flaron = await lookupFlaronChannel(id);
         return [
@@ -91,7 +91,10 @@ export const channelDirectoryRoutes: Route[] = [
       );
     }
     return jsonResponse(
-      { items: data.results.map(trimChannel), ok: true },
+      {
+        items: data.results.filter((channel) => !isHostedChannel(channel)).map(trimChannel),
+        ok: true,
+      },
       ctx.creds,
       ctx.acceptEncoding,
     );

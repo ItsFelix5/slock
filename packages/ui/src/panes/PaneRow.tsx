@@ -92,7 +92,7 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
                     {(_onCloseTab) => (
                       <button
                         aria-label="Close tab"
-                        class="pane-tab-close btn-reset flex-center"
+                        class="pane-tab-close btn-reset flex-center hover-hl"
                         onClick={(event) => {
                           event.stopPropagation();
                           closeTab();

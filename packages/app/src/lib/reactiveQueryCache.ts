@@ -1,5 +1,5 @@
 import type { QueryClient, QueryFunction, skipToken } from "@tanstack/solid-query";
-import { createSignal } from "solid-js";
+import { createSignal, type Signal } from "solid-js";
 
 export interface ReactiveQueryCache<T> {
   entry(key: string): T | undefined;
@@ -18,10 +18,20 @@ export function createReactiveQueryCache<T>(
     queryFn?: typeof skipToken | QueryFunction<T, string[]>;
   },
 ): ReactiveQueryCache<T> {
-  const [version, setVersion] = createSignal(0);
+  const versions = new Map<string, Signal<number>>();
   const loggedFailures = new Set<string>();
+  const versionFor = (key: string) => {
+    const hash = JSON.stringify(toOptions(key).queryKey);
+    let signal = versions.get(hash);
+    if (!signal) {
+      signal = createSignal(0);
+      versions.set(hash, signal);
+    }
+    return signal;
+  };
   queryClient.getQueryCache().subscribe((event) => {
-    if (event.query.queryKey[0] === keyPrefix) setVersion((v) => v + 1);
+    if (event.query.queryKey[0] !== keyPrefix) return;
+    versions.get(JSON.stringify(event.query.queryKey))?.[1]((v) => v + 1);
   });
 
   function ensure(key: string): void {
@@ -39,18 +49,18 @@ export function createReactiveQueryCache<T>(
   }
 
   function entry(key: string): T | undefined {
-    version();
+    versionFor(key)[0]();
     ensure(key);
     return queryClient.getQueryData<T>(toOptions(key).queryKey);
   }
 
   function isLoading(key: string): boolean {
-    version();
+    versionFor(key)[0]();
     return queryClient.getQueryState(toOptions(key).queryKey)?.fetchStatus === "fetching";
   }
 
   function hasError(key: string): boolean {
-    version();
+    versionFor(key)[0]();
     return queryClient.getQueryState(toOptions(key).queryKey)?.status === "error";
   }
 

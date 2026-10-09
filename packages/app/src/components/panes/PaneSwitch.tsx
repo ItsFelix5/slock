@@ -14,9 +14,9 @@ import type {
 } from "../../lib/store/slices/types";
 import ThreadPane from "../messages/thread/ThreadPane";
 import UserProfile from "../user/UserProfile";
-import UsergroupDetails from "../usergroup/UsergroupDetails";
 import ConversationPane from "./ConversationPane";
 
+const UsergroupDetails = lazy(() => import("../usergroup/UsergroupDetails"));
 const CanvasPane = lazy(() => import("../channel/CanvasPane"));
 const PinnedPane = lazy(() => import("../channel/PinnedPane"));
 

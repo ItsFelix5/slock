@@ -41,8 +41,7 @@
 }
 
 .pane-divider:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: -2px;
+  --focus-offset: -2px;
 }
 
 .pane-row-tabbed {
@@ -105,9 +104,4 @@ button.pane-tab-close {
 .pane-tab-wrap:focus-within .pane-tab-close,
 .pane-tab-wrap.active .pane-tab-close {
   display: flex;
-}
-
-button.pane-tab-close:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }

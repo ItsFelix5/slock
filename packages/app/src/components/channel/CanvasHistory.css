@@ -23,18 +23,6 @@
   margin-bottom: var(--space-sm);
 }
 
-.canvas-history-actions {
-  gap: var(--space-sm);
-  padding-bottom: var(--space-sm);
-  margin-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border);
-}
-
-.canvas-history-buttons {
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-
 .canvas-history-note {
   padding: var(--space-sm) 0;
 }
@@ -63,31 +51,23 @@
   font-weight: 600;
 }
 
-.canvas-history-toggle {
-  gap: var(--space-md);
-}
-
 .canvas-version-view {
   flex: 1;
   min-width: 0;
 }
 
 .canvas-version-banner {
-  padding: var(--space-sm) var(--space-md);
-  margin: var(--space-sm) var(--space-xl) 0;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-xl);
   font-size: var(--font-size-meta);
-  color: var(--text-secondary);
-  background: var(--hover-bg);
-  border-radius: var(--radius-sm);
+  background: var(--warning-subtle);
+  border-bottom: 1px solid var(--warning-muted);
 }
 
-.canvas-comment-thread {
+.canvas-version-actions {
+  flex: none;
   gap: var(--space-xs);
-  padding-bottom: var(--space-sm);
-}
-
-.canvas-comment-quote {
-  padding-left: var(--space-sm);
-  border-left: 2px solid var(--border);
-  white-space: pre-wrap;
 }

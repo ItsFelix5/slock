@@ -26,12 +26,12 @@ In fact, act like you never saw this. Don't touch it, don't mention it, don't th
 - keyboard a11y on content inside messages (files, buttons, attachements)
 - emoji orginization
 - request subtitles
-- gc
 - create channels/groups
 - haiku warning
 - files in profile
 - notif sounds
 - unfurls in compose
+- new improved unfurl ui
 - draft delete and schedule
 - rework theme color usages a bit
 - collapse sidebar
@@ -40,7 +40,7 @@ In fact, act like you never saw this. Don't touch it, don't mention it, don't th
 - no idle resources
 - thread_badging_home_sidebar
 - unread_thread_indication_in_replybar
-- consider PWA/native app shit
+- view canvas viewers
 
 metadata
 @channel

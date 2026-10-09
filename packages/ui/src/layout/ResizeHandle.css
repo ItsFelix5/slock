@@ -27,6 +27,5 @@
 }
 
 .resize-handle:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 1px;
+  --focus-offset: 1px;
 }

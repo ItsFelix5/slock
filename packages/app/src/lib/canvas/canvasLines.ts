@@ -121,8 +121,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
   }
 
   function registerAnnotations(html: string) {
-    for (const match of html.matchAll(ANNOTATION_RE)) {
-      const id = match[1];
+    for (const [, id] of html.matchAll(ANNOTATION_RE)) {
       if (!id || ctx.annotations.has(id)) continue;
       ctx.annotations.add(id);
       ctx.controls.push({ id, kind: "annotation" });

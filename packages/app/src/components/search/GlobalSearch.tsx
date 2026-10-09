@@ -14,7 +14,15 @@ import {
   listNavigationIndex,
   Modal,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, createUniqueId, Show, untrack } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  Show,
+  untrack,
+} from "solid-js";
 import { searchGlobal } from "../../lib/api";
 import { dmDisplayName } from "../../lib/displayName";
 import { clearPendingShare, pendingShareText } from "../../lib/incomingLinks";
@@ -41,6 +49,7 @@ export default function GlobalSearch(props: {
   const [committedRows, setCommittedRows] = createSignal<GlobalSearchRow[]>([]);
   const [searching, setSearching] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
+  const [submitWhenReady, setSubmitWhenReady] = createSignal(false);
   const listboxId = createUniqueId();
   const searchRequest = createDebouncedRequest(searchGlobal, {
     delay: 100,
@@ -83,11 +92,13 @@ export default function GlobalSearch(props: {
     });
   });
   const searchDirectories = (value: string) => {
-    setQuery(value);
-    setActiveIndex(0);
-
-    setCommittedRows([]);
-    searchRequest.run(value);
+    batch(() => {
+      setQuery(value);
+      setActiveIndex(0);
+      setCommittedRows([]);
+      setSubmitWhenReady(false);
+      searchRequest.run(value);
+    });
   };
   const computedRows = createMemo<GlobalSearchRow[]>(() => {
     if (!hasQuery()) return [];
@@ -147,7 +158,14 @@ export default function GlobalSearch(props: {
   });
   createEffect(() => {
     if (!query().trim() || searching()) return;
-    setCommittedRows(untrack(computedRows));
+    const ranked = untrack(computedRows);
+    setCommittedRows(ranked);
+    const best = ranked.length > 0 ? 1 : 0;
+    setActiveIndex(best);
+    if (untrack(submitWhenReady)) {
+      setSubmitWhenReady(false);
+      activateItem(best);
+    }
   });
   const recentRows = createMemo<GlobalSearchRow[]>(() => {
     const activeId = store.viewState.activeView()?.id;
@@ -248,6 +266,10 @@ export default function GlobalSearch(props: {
     if (next !== undefined) setActiveIndex(next);
   };
   const submitActiveRow = () => {
+    if (hasQuery() && searching() && rows().length === 0) {
+      setSubmitWhenReady(true);
+      return;
+    }
     const index = activeIndex();
     if (index !== null) activateItem(index);
   };

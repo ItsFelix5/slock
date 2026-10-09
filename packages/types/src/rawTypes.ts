@@ -169,6 +169,7 @@ export interface RawLink {
 }
 
 export interface RawFileShare {
+  access?: string;
   channel_id: string;
   channel_name?: string;
   reply_count?: number;

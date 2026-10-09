@@ -92,10 +92,6 @@ button.compose-date-relative-option.active {
   margin-top: 6px;
   border-top: 1px solid var(--border);
 }
-.compose-date-empty {
-  font-size: var(--font-size-meta);
-  color: var(--text-dim);
-}
 .compose-date-insert {
   padding: 5px 10px;
   font: inherit;

@@ -2,6 +2,7 @@
 @import "./Composer.chips.css";
 .composer {
   position: relative;
+  padding: 0;
 }
 .composer:focus-within {
   border-color: var(--accent-border-strong);
@@ -17,7 +18,6 @@
 .composer-row {
   display: flex;
   gap: 2px;
-  align-items: flex-end;
 }
 .composer-feedback {
   display: block;
@@ -115,22 +115,27 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  min-height: var(--composer-action-size);
+  align-items: stretch;
   line-height: 1.35;
   word-break: break-word;
   cursor: text;
 }
 .composer-input-wrap .ql-editor {
+  --composer-editor-block: calc((var(--composer-action-size) + 4px - 1lh) / 2);
+  min-height: calc(var(--composer-action-size) + 4px);
   max-height: 200px;
+  padding: var(--composer-editor-block) var(--space-xs) var(--composer-editor-block) 0;
 }
 .menu-panel.composer-suggest-popover {
+  min-width: min(224px, 100%);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.menu-panel.composer-suggest-docked {
   position: absolute;
   inset: auto 0 100%;
   z-index: 10;
-  min-width: min(224px, 100%);
-  max-height: 280px;
   margin-bottom: var(--space-sm);
-  overflow-y: auto;
 }
 .composer-suggest-emoji {
   font-size: var(--font-size-body);
@@ -142,4 +147,6 @@
 }
 .composer-plus-menu {
   display: inline-flex;
+  align-self: flex-end;
+  margin: 2px 0 2px var(--space-xs);
 }

@@ -1,23 +1,24 @@
 import type { Message } from "@slock/types";
-import { createKeyedAsyncCache } from "@slock/ui";
-import { createEffect } from "solid-js";
-import { fetchReplies, fetchReplyWindow } from "../../../api";
+import { createKeyedAsyncCache, createRecencyEviction } from "@slock/ui";
+import { createEffect, untrack } from "solid-js";
+import { fetchReplies } from "../../../api";
 import { mergeMessages } from "../../../messageMerge";
 import type { ThreadRef } from "../types";
 
+const KEEP_RECENT_THREADS = 3;
+
 export function createThreadReplies(
   deps: { visibleThreads: () => ThreadRef[] },
-  api: { fetchReplies: typeof fetchReplies; fetchReplyWindow: typeof fetchReplyWindow } = {
-    fetchReplies,
-    fetchReplyWindow,
-  },
+  api: { fetchReplies: typeof fetchReplies } = { fetchReplies },
 ) {
   const channelForThread = new Map<string, string>();
+  const fullyLoaded = new Set<string>();
 
   const cache = createKeyedAsyncCache<Message[]>(
     async (ts): Promise<Message[]> => {
       const channelId = channelForThread.get(ts);
       const messages = channelId ? await api.fetchReplies(channelId, ts) : [];
+      fullyLoaded.add(ts);
       return mergeMessages(cache.entry(ts) ?? [], messages);
     },
     { onError: (err, ts) => console.error("Failed to load thread", ts, err) },
@@ -25,38 +26,28 @@ export function createThreadReplies(
 
   function ensureThreadRepliesLoaded(channelId: string, ts: string): void {
     channelForThread.set(ts, channelId);
-    void cache.ensure(ts);
-  }
-  async function ensureThreadMessage(channelId: string, threadTs: string, ts: string) {
-    if (cache.entry(threadTs)?.some((m) => m.ts === ts)) return;
-    try {
-      const window = await api.fetchReplyWindow(channelId, threadTs, ts);
-      cache.update(threadTs, (current) => mergeMessages(current ?? [], window));
-    } catch (err) {
-      console.error("Failed to fetch thread reply", err);
-    }
+    if (!fullyLoaded.has(ts)) void cache.refresh(ts);
   }
   createEffect(() => {
     for (const thread of deps.visibleThreads())
-      ensureThreadRepliesLoaded(thread.channelId, thread.ts);
+      untrack(() => ensureThreadRepliesLoaded(thread.channelId, thread.ts));
   });
 
-  function hasThreadError(ts: string) {
-    return cache.hasError(ts);
-  }
-  function isLoadingThread(ts: string) {
-    return cache.isLoading(ts);
-  }
-  function isThreadKnown(ts: string) {
-    return cache.isKnown(ts);
-  }
+  createRecencyEviction({
+    evict: (ts) => {
+      cache.invalidate(ts);
+      channelForThread.delete(ts);
+      fullyLoaded.delete(ts);
+    },
+    keepRecent: KEEP_RECENT_THREADS,
+    visible: () => deps.visibleThreads().map((thread) => thread.ts),
+  });
 
   return {
-    ensureThreadMessage,
     ensureThreadRepliesLoaded,
-    hasThreadError,
-    isLoadingThread,
-    isThreadKnown,
+    hasThreadError: cache.hasError,
+    isLoadingThread: cache.isLoading,
+    isThreadKnown: cache.isKnown,
     refreshThreadReplies: cache.refresh,
     setThreadMessages: cache.setStore,
     threadMessages: cache.store,

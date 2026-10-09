@@ -91,6 +91,7 @@ export default function ZoomableImage(props: ZoomableImageProps) {
           <img
             alt={props.alt}
             class={`zoomable-image zoomable-image-framed fill ${props.class ?? ""}`}
+            decoding="async"
             loading="lazy"
             onError={() => setPreviewFailed(true)}
             onLoad={(e) => fitToLoadedImage(e.currentTarget)}

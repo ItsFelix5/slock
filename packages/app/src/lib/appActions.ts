@@ -10,7 +10,6 @@ type AppActionsDeps = Pick<
   | "dms"
   | "later"
   | "panes"
-  | "realtime"
   | "setActiveView"
   | "setActiveViewImplRef"
   | "unread"
@@ -19,14 +18,9 @@ type AppActionsDeps = Pick<
 >;
 
 export function createAppActions(deps: AppActionsDeps) {
-  const { dms, panes, realtime, setActiveView, setActiveViewImplRef, unread, users, viewState } =
-    deps;
+  const { dms, panes, setActiveView, setActiveViewImplRef, unread, users, viewState } = deps;
 
   function closeTile(paneId: string) {
-    const pane = panes.panes().find((p) => p.id === paneId);
-    if (pane?.content?.kind === "thread") {
-      realtime.send({ ts: pane.content.ts, type: "unwatch_thread" });
-    }
     panes.closePane(paneId);
   }
 
@@ -35,10 +29,6 @@ export function createAppActions(deps: AppActionsDeps) {
   }
 
   function closeThread() {
-    const thread = panes.panes().find((p) => p.content?.kind === "thread" && !p.content.pinned);
-    if (thread?.content?.kind === "thread") {
-      realtime.send({ ts: thread.content.ts, type: "unwatch_thread" });
-    }
     panes.closeUnpinnedThread();
   }
 

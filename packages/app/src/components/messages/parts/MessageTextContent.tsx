@@ -9,7 +9,9 @@ import type { Message } from "@slock/types";
 import { Show } from "solid-js";
 import { store } from "../../../lib/store";
 import Composer from "../../composer/Composer";
-import type { MessageRenderState } from "./messageRenderState";
+import CanvasCommentQuote from "./CanvasCommentQuote";
+import EditedLabel from "./EditedLabel";
+import type { MessageContent } from "./messageRenderState";
 
 export default function MessageTextContent(props: {
   channelId: string;
@@ -18,10 +20,15 @@ export default function MessageTextContent(props: {
   messageText: string;
   msg: Message;
   onStopEdit?: () => void;
-  renderBlocks: MessageRenderState["renderBlocks"];
-  replyRef: MessageRenderState["replyRef"];
+  renderBlocks: MessageContent["renderBlocks"];
+  replyRef: MessageContent["replyRef"];
   tz: string | undefined;
 }) {
+  const hostedFileId = () =>
+    props.msg.canvasThreadId
+      ? store.channels.channelById(props.channelId)?.canvasFileId
+      : undefined;
+
   return (
     <Show
       fallback={
@@ -48,47 +55,55 @@ export default function MessageTextContent(props: {
       }
       when={!props.isEditing}
     >
-      <Show when={props.messageText || props.renderBlocks}>
-        <div
-          class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
-          classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
-        >
-          <HighlightWordsContext.Provider value={store.preferences.highlightWords}>
-            <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
-              <TimeAnchorContext.Provider
-                value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
-              >
-                <Show
-                  fallback={
-                    <>
-                      <Mrkdwn text={props.messageText} />
-                      <Show when={props.msg.edited}>
-                        <span class="message-edited"> (edited)</span>
-                      </Show>
-                    </>
-                  }
-                  when={props.renderBlocks}
-                >
-                  {(blocks) => (
-                    <BlockKit
-                      blocks={blocks()}
-                      context={{
-                        botId: props.msg.botId,
-                        botUserId: props.msg.userId,
-                        channelId: props.channelId,
-                        messageTs: props.msg.ts,
-                        threadTs: props.msg.threadTs,
-                      }}
-                      trailing={
-                        props.msg.edited ? <span class="message-edited"> (edited)</span> : undefined
+      <Show
+        fallback={
+          <Show when={props.messageText || props.renderBlocks}>
+            <div
+              class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
+              classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
+            >
+              <HighlightWordsContext.Provider value={store.preferences.highlightWords}>
+                <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
+                  <TimeAnchorContext.Provider
+                    value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
+                  >
+                    <Show
+                      fallback={
+                        <>
+                          <Mrkdwn text={props.messageText} />
+                          <Show when={props.msg.edited}>
+                            <EditedLabel msg={props.msg} />
+                          </Show>
+                        </>
                       }
-                    />
-                  )}
-                </Show>
-              </TimeAnchorContext.Provider>
-            </MessageAttachmentsContext.Provider>
-          </HighlightWordsContext.Provider>
-        </div>
+                      when={props.renderBlocks}
+                    >
+                      {(blocks) => (
+                        <BlockKit
+                          blocks={blocks()}
+                          context={{
+                            botId: props.msg.botId,
+                            botUserId: props.msg.userId,
+                            channelId: props.channelId,
+                            messageTs: props.msg.ts,
+                            threadTs: props.msg.threadTs,
+                          }}
+                          trailing={props.msg.edited ? <EditedLabel msg={props.msg} /> : undefined}
+                        />
+                      )}
+                    </Show>
+                  </TimeAnchorContext.Provider>
+                </MessageAttachmentsContext.Provider>
+              </HighlightWordsContext.Provider>
+            </div>
+          </Show>
+        }
+        keyed
+        when={hostedFileId()}
+      >
+        {(fileId) => (
+          <CanvasCommentQuote fileId={fileId} threadId={props.msg.canvasThreadId ?? ""} />
+        )}
       </Show>
     </Show>
   );

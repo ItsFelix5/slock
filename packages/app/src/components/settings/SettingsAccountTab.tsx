@@ -173,7 +173,7 @@ export default function SettingsAccountTab() {
         <Show
           fallback={
             <button
-              class="settings-quiet-btn btn-reset flex-align-center"
+              class="settings-quiet-btn btn-reset flex-align-center hover-hl"
               onClick={() => setShowAdd(true)}
               type="button"
             >

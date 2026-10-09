@@ -1,8 +1,8 @@
 import { Button } from "@slock/ui";
-import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, Show } from "solid-js";
 import { actionFeedback } from "../../../lib/feedback";
 import {
-  loadChannelRetention,
+  createChannelRetentionQuery,
   updateChannelRetention,
   updateMemberPermissions,
 } from "../lib/channelDetails";
@@ -50,11 +50,9 @@ export default function ChannelSettingsTab(props: {
   });
   const permissionsDirty = () => memberPermissionsDirty(permissionDrafts());
 
-  const [retention, { refetch: refetchRetention }] = createResource(
-    () => props.channelId,
-    loadChannelRetention,
-  );
-  const retryRetention = () => void Promise.resolve(refetchRetention()).catch(() => {});
+  const retentionQuery = createChannelRetentionQuery(() => props.channelId);
+  const retention = () => retentionQuery.data;
+  const retryRetention = () => void retentionQuery.refetch();
 
   const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>("");
   const [retentionDays, setRetentionDays] = createSignal(90);
@@ -141,7 +139,7 @@ export default function ChannelSettingsTab(props: {
             Who can invite others
           </label>
           <select
-            class="text-field channel-details-setting-select"
+            class="text-field select-field channel-details-setting-select"
             disabled={saving()}
             id="channel-member-invite-permission"
             onChange={(event) => setInvitePermission(asPermissionChoice(event.currentTarget.value))}
@@ -159,7 +157,7 @@ export default function ChannelSettingsTab(props: {
             Who can change the topic
           </label>
           <select
-            class="text-field channel-details-setting-select"
+            class="text-field select-field channel-details-setting-select"
             disabled={saving()}
             id="channel-member-topic-permission"
             onChange={(event) => setTopicPermission(asPermissionChoice(event.currentTarget.value))}
@@ -177,7 +175,7 @@ export default function ChannelSettingsTab(props: {
             Who can change the description
           </label>
           <select
-            class="text-field channel-details-setting-select"
+            class="text-field select-field channel-details-setting-select"
             disabled={saving()}
             id="channel-member-purpose-permission"
             onChange={(event) =>
@@ -196,9 +194,9 @@ export default function ChannelSettingsTab(props: {
 
       <div class="settings-section">
         <div class="settings-row-label">Message retention</div>
-        <Show when={retention.error}>
+        <Show when={retentionQuery.error}>
           <SettingsLoadError
-            error={retention.error}
+            error={retentionQuery.error}
             message="Retention policy couldn't be loaded."
             onRetry={retryRetention}
           />
@@ -209,14 +207,14 @@ export default function ChannelSettingsTab(props: {
           </label>
           <div class="channel-details-retention-row flex-align-center">
             <select
-              class="text-field channel-details-setting-select"
+              class="text-field select-field channel-details-setting-select"
               disabled={retention() === undefined || saving()}
               id="channel-retention-policy"
               onChange={(event) => setRetentionChoice(asRetentionChoice(event.currentTarget.value))}
               value={retentionChoice()}
             >
               <option disabled value="">
-                {retention.loading ? "Loading…" : "Choose a policy…"}
+                {retentionQuery.isLoading ? "Loading…" : "Choose a policy…"}
               </option>
               <option value="keep">Keep all messages</option>
               <option value="delete">Delete after…</option>

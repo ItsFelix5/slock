@@ -1,4 +1,4 @@
-import { Mrkdwn } from "@slock/blockkit";
+import { BlockKitResolverContext, Mrkdwn, useBlockKitResolver } from "@slock/blockkit";
 import type { Attachment, Message } from "@slock/types";
 import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
@@ -29,8 +29,16 @@ export default function ReplyReferenceRow(props: {
     if (!attachment?.authorName) return;
     return attachmentToHoverPreview(attachment);
   };
+  const resolver = useBlockKitResolver();
+  const withoutHoverCards = {
+    ...resolver,
+    wrapChannelMention: undefined,
+    wrapLink: undefined,
+    wrapUserMention: undefined,
+    wrapUsergroupMention: undefined,
+  };
   const contents = (
-    <>
+    <BlockKitResolverContext.Provider value={withoutHoverCards}>
       <Icon name={props.icon ?? "email-reply"} size={13} />
       <Show
         fallback={
@@ -39,7 +47,7 @@ export default function ReplyReferenceRow(props: {
               <>
                 <span class="reply-reference-avatar flex-center reply-reference-bot">
                   <Show fallback="💬" when={attachment().authorIcon}>
-                    {(icon) => <img alt="" src={icon()} />}
+                    {(icon) => <img alt="" decoding="async" loading="lazy" src={icon()} />}
                   </Show>
                 </span>
                 <Show when={resolveAttachmentAuthorName(attachment(), store.users.userById)}>
@@ -73,7 +81,7 @@ export default function ReplyReferenceRow(props: {
           );
         }}
       </Show>
-    </>
+    </BlockKitResolverContext.Provider>
   );
 
   return (

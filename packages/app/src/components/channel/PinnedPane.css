@@ -3,11 +3,6 @@
   height: 100%;
 }
 
-.pinned-panel-title {
-  font-size: var(--font-size-secondary);
-  font-weight: 700;
-}
-
 .pinned-panel-list {
   flex: 1;
   min-height: 0;

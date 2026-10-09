@@ -77,6 +77,7 @@ export type FileInfoReply = {
     editable?: boolean;
     is_starred?: boolean;
     org_or_workspace_access?: string;
+    user_team?: string;
     quip_thread_id?: string;
     user?: string;
   };

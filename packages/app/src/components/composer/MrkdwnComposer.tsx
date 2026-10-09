@@ -1,4 +1,6 @@
-import { indexAlignedText, QuillEditor, scrollActiveListOption } from "@slock/ui";
+import { scrollActiveListOption } from "@slock/ui";
+import QuillEditor from "@slock/ui/editor/QuillEditor";
+import { indexAlignedText } from "@slock/ui/editor/quillText";
 import type Quill from "quill";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import ComposerSuggestPopover from "./ComposerSuggestPopover";

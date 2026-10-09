@@ -61,8 +61,6 @@
 
 .channel-header-topic {
   display: block;
-  width: 100%;
-  min-width: 0;
   padding-left: var(--space-sm);
   margin-left: var(--space-xs);
   border-left: 1px solid var(--border);

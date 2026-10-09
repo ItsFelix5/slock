@@ -128,7 +128,6 @@ export default function LaterView() {
                       }
                       ctxMenu={isLoaded() ? ctxMenu : undefined}
                       name={authorName()}
-                      navRow
                       onOpen={() => {
                         const threadTs = msg()?.threadTs;
                         goTo(
@@ -169,7 +168,6 @@ export default function LaterView() {
                           </Show>
                         </Show>
                       }
-                      tabIndex={-1}
                       time={formatTime(item.ts)}
                       timeTitle={timeTitle()}
                       userId={authorId()}

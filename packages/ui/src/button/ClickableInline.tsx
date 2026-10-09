@@ -7,7 +7,7 @@ export default function ClickableInline(props: {
 }) {
   return (
     <button
-      class={`btn-reset clickable-name ${props.class ?? ""}`}
+      class={`btn-reset clickable-inline${props.class ?? ""}`}
       onClick={(e) => {
         e.stopPropagation();
         props.onActivate();

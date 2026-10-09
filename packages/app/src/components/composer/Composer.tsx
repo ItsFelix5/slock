@@ -4,12 +4,12 @@ import {
   focusedPaneId,
   focusPaneById,
   InlineFeedback,
-  indexAlignedText,
-  QuillEditor,
   scrollActiveListOption,
   useEscapeClose,
   useShortcut,
 } from "@slock/ui";
+import QuillEditor from "@slock/ui/editor/QuillEditor";
+import { indexAlignedText } from "@slock/ui/editor/quillText";
 import type Quill from "quill";
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { uploadFilesForEdit } from "../../lib/api";
@@ -23,6 +23,7 @@ import { createComposerSubmitHandler } from "./composerSubmit";
 import type { ComposerProps } from "./composerTypes";
 import FileChip from "./FileChip";
 import { createComposerDraftState, createPendingFileState, draftCacheKey } from "./lib/drafts";
+import { wireHeaderLimit } from "./lib/headerLimit";
 import { createMentionHoverController } from "./lib/mentionHover";
 import { useMentionResolution } from "./lib/mentionResolution";
 import { insertSuggestionAt, loadMrkdwnIntoQuill, pasteMrkdwnClipboard } from "./lib/mrkdwnInsert";
@@ -254,14 +255,21 @@ export default function Composer(props: ComposerProps) {
               if (initialBlocks?.length) loadRichTextIntoQuill(q, initialBlocks, resolveMention);
               else if (initial) loadMrkdwnIntoQuill(q, initial, resolveMention);
               wireEmojiAutoconvert(q);
+              wireHeaderLimit(q);
               onCleanup(mentionHover.bind(q));
               q.on("text-change", () => {
                 setText(mrkdwnText(q));
                 const rawAligned = indexAlignedText(q);
                 const aligned = rawAligned.endsWith("\n") ? rawAligned.slice(0, -1) : rawAligned;
-                syncSuggestionsAfterChange(q, aligned, suggestions, (index) => {
-                  caretIndex = index;
-                });
+                syncSuggestionsAfterChange(
+                  q,
+                  aligned,
+                  suggestions,
+                  (index) => {
+                    caretIndex = index;
+                  },
+                  true,
+                );
               });
             }}
             onSubmit={handleSubmit}

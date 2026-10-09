@@ -1,6 +1,4 @@
 import { EmojiText } from "@slock/blockkit";
-import { diffNodes } from "@slock/canvas";
-import type { CanvasVersion } from "@slock/types";
 import {
   Button,
   focusedPaneId,
@@ -10,99 +8,36 @@ import {
   PanelHeader,
   useShortcut,
 } from "@slock/ui";
-import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
-import {
-  fetchCanvasComments,
-  fetchCanvasVersion,
-  fetchCanvasVersions,
-  openCanvasComment,
-  restoreCanvasVersion,
-} from "../../lib/api";
+import { createEffect, createSignal, on, Show } from "solid-js";
+import { createCanvasComments } from "../../lib/canvas/canvasComments";
+import { createCanvasHistory } from "../../lib/canvas/canvasHistory";
 import type { OutlineItem, OutlineSource } from "../../lib/canvas/canvasOutline";
-import { actionFeedback, flashCaughtError } from "../../lib/feedback";
+import { actionFeedback } from "../../lib/feedback";
 import { copyCanvasLink } from "../../lib/messageLinks";
 import { store } from "../../lib/store";
 import type { CanvasPaneContent } from "../../lib/store/slices/types";
 import "./CanvasPane.css";
-import CanvasComments from "./CanvasComments";
 import CanvasEditor from "./CanvasEditor";
-import CanvasHistory, { versionAuthor, versionLabel } from "./CanvasHistory";
+import CanvasHistory from "./CanvasHistory";
 import CanvasOutlineNav from "./CanvasOutlineNav";
-import FileDetailModal from "./FileDetailModal";
+import CanvasVersionBanner from "./CanvasVersionBanner";
+import FileDetailModal from "./file-detail/FileDetailModal";
 
 export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const fileId = () => props.pane.content.fileId;
 
-  const [content, { mutate, refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
-  const [permalink] = createResource(fileId, store.canvas.loadCanvasPermalink);
+  const content = store.canvas.createCanvasContentQuery(fileId);
+  const permalink = store.canvas.createCanvasPermalinkQuery(fileId);
+  const refetch = () => content.refetch();
 
   const [detailOpen, setDetailOpen] = createSignal(false);
-  const [historyOpen, setHistoryOpen] = createSignal(false);
-  const [commentsOpen, setCommentsOpen] = createSignal(false);
-  const [comments, { refetch: refetchComments }] = createResource(
-    () => (commentsOpen() ? fileId() : undefined),
-    fetchCanvasComments,
-  );
-  const [selected, setSelected] = createSignal<CanvasVersion | null>(null);
-  const [showChanges, setShowChanges] = createSignal(true);
-  const [versions] = createResource(
-    () => (historyOpen() ? fileId() : undefined),
-    fetchCanvasVersions,
-  );
-  const [viewing] = createResource(
-    () => {
-      const version = selected();
-      const meta = content()?.doc?.meta;
-      const list = versions() ?? [];
-      return version && meta ? { list, meta, version } : undefined;
-    },
-    async ({ list, meta, version }) => {
-      const older = list[list.indexOf(version) + 1];
-      const [doc, previous] = await Promise.all([
-        fetchCanvasVersion(fileId(), version, meta),
-        older ? fetchCanvasVersion(fileId(), older, meta) : null,
-      ]);
-      return doc ? { doc, previous } : null;
-    },
-  );
-  const viewKey = createMemo(() => {
-    const version = selected();
-    return viewing()?.doc && version
-      ? { key: `${version.versionId}:${showChanges()}`, version }
-      : undefined;
-  });
-  const diff = createMemo(() => {
-    const view = viewing();
-    return view && showChanges()
-      ? diffNodes(view.previous?.nodes ?? [], view.doc.nodes)
-      : undefined;
-  });
-  createEffect(
-    on(fileId, () => {
-      setHistoryOpen(false);
-      setCommentsOpen(false);
-      setSelected(null);
-    }),
-  );
+  const history = createCanvasHistory(fileId, () => content.data, refetch);
+  const canvasComments = createCanvasComments(fileId);
 
-  async function openComment(annotationId: string) {
-    try {
-      const { channelId, ts } = await openCanvasComment(fileId(), annotationId);
-      store.viewState.openThread(channelId, ts, undefined, { pinned: true });
-    } catch (error) {
-      flashCaughtError(fileId(), error, "Couldn't open the comment");
-    }
-  }
+  let historyButton: HTMLButtonElement | undefined;
 
-  async function restore(version: CanvasVersion) {
-    try {
-      await restoreCanvasVersion(fileId(), version);
-      setSelected(null);
-      setHistoryOpen(false);
-      await refetch();
-    } catch (error) {
-      flashCaughtError(fileId(), error, "Couldn't restore this version");
-    }
+  function toggleHistory() {
+    history.setOpen(!history.open());
   }
 
   let bodyRef: HTMLDivElement | undefined;
@@ -157,11 +92,9 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
     setActiveIndex(current);
   }
 
-  createEffect(() => {
-    content();
-    outline()?.items();
-    queueMicrotask(updateActiveHeading);
-  });
+  createEffect(
+    on([() => content.data, () => outline()?.items()], () => queueMicrotask(updateActiveHeading)),
+  );
 
   return (
     <div class="canvas-panel-card flex-col surface-card" data-pane={props.pane.id}>
@@ -170,10 +103,10 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
         onClose={() => store.viewState.closeTile(props.pane.id)}
       >
         <div class="canvas-panel-header-info flex-align-center">
-          <div class="canvas-panel-title truncate">
+          <div class="canvas-panel-title truncate title-sm">
             <EmojiText text={props.pane.content.title || "Untitled canvas"} />
           </div>
-          <Show when={permalink()}>
+          <Show when={permalink.data}>
             {(link) => (
               <IconButton
                 class="canvas-panel-copy-link"
@@ -193,27 +126,14 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             size="sm"
           />
           <IconButton
-            active={commentsOpen()}
-            icon="message"
-            iconSize={15}
-            label="Comments"
-            onClick={() => {
-              setCommentsOpen(!commentsOpen());
-              setHistoryOpen(false);
-              setSelected(null);
-            }}
-            size="sm"
-          />
-          <IconButton
-            active={historyOpen()}
+            active={history.open()}
             class="canvas-panel-history"
             icon="history"
             iconSize={15}
             label="Version history"
-            onClick={() => {
-              setHistoryOpen(!historyOpen());
-              setCommentsOpen(false);
-              setSelected(null);
+            onClick={toggleHistory}
+            ref={(element) => {
+              historyButton = element;
             }}
             size="sm"
           />
@@ -234,10 +154,10 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
         />
       </Show>
       <div class="canvas-panel-body" onScroll={updateActiveHeading} ref={bodyRef}>
-        <Show when={content.loading}>
+        <Show when={content.isLoading}>
           <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
         </Show>
-        <Show when={!(content.loading || content()?.doc)}>
+        <Show when={!(content.isLoading || content.data?.doc)}>
           <div class="canvas-panel-load-error flex-center flex-col" role="alert">
             <Show
               fallback={
@@ -254,21 +174,28 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             </Show>
           </div>
         </Show>
-        <Show when={!content.loading && content()?.doc}>
+        <Show when={!content.isLoading && content.data?.doc}>
           <div class="canvas-panel-scroll-row">
             <Show
               fallback={
-                <Show keyed when={content()?.doc}>
+                <Show keyed when={content.data?.doc}>
                   {(doc) => (
                     <CanvasEditor
                       doc={doc}
-                      editable={content()?.editable ?? false}
+                      editable={content.data?.editable ?? false}
                       fileId={fileId()}
-                      onComment={(annotationId) => void openComment(annotationId)}
+                      onComment={(annotationId) => void canvasComments.openAnnotation(annotationId)}
+                      onOpenThread={(thread) => canvasComments.openThread(thread)}
+                      onReact={(annotationId, name) =>
+                        void canvasComments.reactToAnnotation(annotationId, name)
+                      }
+                      onReactToThread={(thread, name) =>
+                        void canvasComments.reactToThread(thread, name)
+                      }
+                      threads={canvasComments.comments()?.threads}
                       onOutline={setEditorOutline}
-                      fetchLatest={() => store.canvas.loadCanvasContent(fileId())}
-                      onRemoteChange={(latest) => mutate(latest)}
-                      onReload={() => void refetch()}
+                      fetchLatest={() => store.canvas.loadLatestCanvas(fileId())}
+                      onRemoteChange={(latest) => store.canvas.setCanvasContent(fileId(), latest)}
                       onTitle={(title) =>
                         store.canvas.setCanvasTitle(props.pane.id, fileId(), title)
                       }
@@ -277,24 +204,25 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                 </Show>
               }
               keyed
-              when={viewKey()}
+              when={history.selected()}
             >
               {(version) => (
                 <div class="canvas-version-view">
-                  <div class="canvas-version-banner" role="status">
-                    Viewing the version from {versionLabel(version.version)} by{" "}
-                    {versionAuthor(version.version)}
-                  </div>
-                  <Show keyed when={viewing()?.doc}>
+                  <CanvasVersionBanner
+                    onExit={() => history.setSelected(null)}
+                    onRestore={() => void history.restore(version)}
+                    restoring={history.restoring()}
+                    version={version}
+                  />
+                  <Show keyed when={history.viewing()?.doc}>
                     {(doc) => (
                       <CanvasEditor
-                        diff={diff()}
+                        diff={history.diff()}
                         doc={doc}
                         editable={false}
                         fetchLatest={() => Promise.resolve(null)}
                         fileId={fileId()}
                         onOutline={setEditorOutline}
-                        onReload={() => undefined}
                         onRemoteChange={() => undefined}
                       />
                     )}
@@ -302,37 +230,16 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                 </div>
               )}
             </Show>
-            <Show when={historyOpen()}>
+            <Show when={history.open()}>
               <div class="canvas-history-slot">
                 <CanvasHistory
-                  error={!!versions.error}
-                  loading={versions.loading || viewing.loading}
-                  onClose={() => {
-                    setHistoryOpen(false);
-                    setSelected(null);
-                  }}
-                  onRestore={restore}
-                  onSelect={setSelected}
-                  onToggleChanges={setShowChanges}
-                  selected={selected()}
-                  showChanges={showChanges()}
-                  versions={versions() ?? []}
-                />
-              </div>
-            </Show>
-            <Show when={commentsOpen()}>
-              <div class="canvas-history-slot">
-                <CanvasComments
-                  channelId={comments()?.channelId ?? ""}
-                  error={!!comments.error}
-                  fileId={fileId()}
-                  html={(content()?.doc?.nodes ?? []).flatMap((node) =>
-                    "html" in node ? [node.html] : [],
-                  )}
-                  loading={comments.loading}
-                  onClose={() => setCommentsOpen(false)}
-                  onRefresh={() => void refetchComments()}
-                  threads={comments()?.threads ?? []}
+                  anchor={() => historyButton}
+                  error={!!history.versions.error}
+                  loading={history.versions.loading || history.viewing.loading}
+                  onClose={() => history.setOpen(false)}
+                  onSelect={history.setSelected}
+                  selected={history.selected()}
+                  versions={history.versions() ?? []}
                 />
               </div>
             </Show>

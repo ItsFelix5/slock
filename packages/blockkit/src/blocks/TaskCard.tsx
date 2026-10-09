@@ -43,7 +43,7 @@ export function TaskCard(props: { block: TaskCardBlock }) {
 export function Plan(props: { block: PlanBlock }) {
   return (
     <section class="bk-plan flex-col">
-      <div class="bk-plan-title">
+      <div class="bk-plan-title title-sm">
         {typeof props.block.title === "string" ? (
           props.block.title
         ) : (
