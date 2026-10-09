@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
+    "@slock/canvas": "workspace:*",
     "@slock/types": "workspace:*"
   },
   "devDependencies": {

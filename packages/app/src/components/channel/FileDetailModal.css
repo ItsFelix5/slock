@@ -114,3 +114,61 @@
 .file-detail-share-time {
   margin-left: auto;
 }
+
+.file-detail-title {
+  gap: var(--space-xs);
+  min-width: 0;
+  font-weight: 700;
+}
+
+.file-detail-title-input {
+  width: 100%;
+  font-weight: 700;
+}
+
+.file-detail-info {
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0;
+}
+
+.file-detail-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.file-detail-user {
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.file-detail-link {
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.file-detail-access {
+  padding-top: var(--space-md);
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.file-detail-section-label {
+  padding: 0 2px 6px;
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.file-detail-access-row {
+  padding: var(--space-xs) 2px;
+  font-size: 12.5px;
+}
+
+.file-detail-org-access {
+  padding: var(--space-xs) 2px 0;
+  font-size: var(--font-size-meta);
+}

@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@slock/blockkit": "workspace:*",
+    "@slock/canvas": "workspace:*",
     "@slock/types": "workspace:*",
     "@slock/ui": "workspace:*",
     "@tanstack/solid-query": "^5.102.8",

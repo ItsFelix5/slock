@@ -9,6 +9,7 @@ interface EmojiValue {
 
 class EmojiBlot extends getEmbedBlot() {
   static blotName = "emoji";
+  static className = "bk-composer-emoji";
   static tagName = "span";
 
   static create(value: EmojiValue) {

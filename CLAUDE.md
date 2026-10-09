@@ -4,6 +4,7 @@ The codebase is split between packages:
 - types: Lots of type declarations
 - ui: Reusable ui components
 - blockkit: A block kit renderer
+- canvas: The canvas (Quip) wire protocol: protobuf codec, document decoding and the edit planner. Shared by app and server
 When writing code consider in which package it should go. Avoid app if possible.
 Physically reduce surface between all parts of the codebase to keep code clean and reduce different code paths doing the same but with different bugs.
 Very few things should be locally stored. Almost everything can go through slack servers.

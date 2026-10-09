@@ -73,6 +73,7 @@ export interface RawChannel {
   id: string;
   is_archived?: boolean;
   is_channel?: boolean;
+  is_file?: boolean;
   is_group?: boolean;
   is_im?: boolean;
   is_member?: boolean;
@@ -85,6 +86,7 @@ export interface RawChannel {
   member_count?: number;
   members?: string[];
   name?: string;
+  name_normalized?: string;
   num_members?: number;
   properties?: RawChannelProperties;
   purpose?: string | RawChannelText;
@@ -222,6 +224,7 @@ export interface RawMessage {
     icons?: RawIcons;
     name?: string;
   };
+  document_comment?: { is_archived?: boolean; is_visible?: boolean; thread_id?: string };
   edited?: unknown;
   files?: RawFile[];
   icons?: RawIcons;

@@ -1,4 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
+import { diffNodes } from "@slock/canvas";
+import type { CanvasVersion } from "@slock/types";
 import {
   Button,
   focusedPaneId,
@@ -8,33 +10,111 @@ import {
   PanelHeader,
   useShortcut,
 } from "@slock/ui";
-import { createEffect, createResource, createSignal, Show } from "solid-js";
-import { actionFeedback } from "../../lib/feedback";
+import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js";
+import {
+  fetchCanvasComments,
+  fetchCanvasVersion,
+  fetchCanvasVersions,
+  openCanvasComment,
+  restoreCanvasVersion,
+} from "../../lib/api";
+import type { OutlineItem, OutlineSource } from "../../lib/canvas/canvasOutline";
+import { actionFeedback, flashCaughtError } from "../../lib/feedback";
 import { copyCanvasLink } from "../../lib/messageLinks";
 import { store } from "../../lib/store";
 import type { CanvasPaneContent } from "../../lib/store/slices/types";
 import "./CanvasPane.css";
-import CanvasContent from "./CanvasContent";
+import CanvasComments from "./CanvasComments";
+import CanvasEditor from "./CanvasEditor";
+import CanvasHistory, { versionAuthor, versionLabel } from "./CanvasHistory";
 import CanvasOutlineNav from "./CanvasOutlineNav";
+import FileDetailModal from "./FileDetailModal";
 
 export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const fileId = () => props.pane.content.fileId;
 
-  const [content, { refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
+  const [content, { mutate, refetch }] = createResource(fileId, store.canvas.loadCanvasContent);
   const [permalink] = createResource(fileId, store.canvas.loadCanvasPermalink);
+
+  const [detailOpen, setDetailOpen] = createSignal(false);
+  const [historyOpen, setHistoryOpen] = createSignal(false);
+  const [commentsOpen, setCommentsOpen] = createSignal(false);
+  const [comments, { refetch: refetchComments }] = createResource(
+    () => (commentsOpen() ? fileId() : undefined),
+    fetchCanvasComments,
+  );
+  const [selected, setSelected] = createSignal<CanvasVersion | null>(null);
+  const [showChanges, setShowChanges] = createSignal(true);
+  const [versions] = createResource(
+    () => (historyOpen() ? fileId() : undefined),
+    fetchCanvasVersions,
+  );
+  const [viewing] = createResource(
+    () => {
+      const version = selected();
+      const meta = content()?.doc?.meta;
+      const list = versions() ?? [];
+      return version && meta ? { list, meta, version } : undefined;
+    },
+    async ({ list, meta, version }) => {
+      const older = list[list.indexOf(version) + 1];
+      const [doc, previous] = await Promise.all([
+        fetchCanvasVersion(fileId(), version, meta),
+        older ? fetchCanvasVersion(fileId(), older, meta) : null,
+      ]);
+      return doc ? { doc, previous } : null;
+    },
+  );
+  const viewKey = createMemo(() => {
+    const version = selected();
+    return viewing()?.doc && version
+      ? { key: `${version.versionId}:${showChanges()}`, version }
+      : undefined;
+  });
+  const diff = createMemo(() => {
+    const view = viewing();
+    return view && showChanges()
+      ? diffNodes(view.previous?.nodes ?? [], view.doc.nodes)
+      : undefined;
+  });
+  createEffect(
+    on(fileId, () => {
+      setHistoryOpen(false);
+      setCommentsOpen(false);
+      setSelected(null);
+    }),
+  );
+
+  async function openComment(annotationId: string) {
+    try {
+      const { channelId, ts } = await openCanvasComment(fileId(), annotationId);
+      store.viewState.openThread(channelId, ts, undefined, { pinned: true });
+    } catch (error) {
+      flashCaughtError(fileId(), error, "Couldn't open the comment");
+    }
+  }
+
+  async function restore(version: CanvasVersion) {
+    try {
+      await restoreCanvasVersion(fileId(), version);
+      setSelected(null);
+      setHistoryOpen(false);
+      await refetch();
+    } catch (error) {
+      flashCaughtError(fileId(), error, "Couldn't restore this version");
+    }
+  }
 
   let bodyRef: HTMLDivElement | undefined;
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
 
-  const headings = () =>
-    (content() ?? [])
-      .map((block, index) => ({ block, index }))
-      .filter(({ block }) => block.type === "title" || block.type === "heading");
+  const [editorOutline, setEditorOutline] = createSignal<OutlineSource | null>(null);
+  createEffect(on(fileId, () => setEditorOutline(null)));
+  const outline = () => editorOutline();
+  const headings = (): OutlineItem[] => (outline()?.items() ?? []).filter((item) => item.text);
 
   function jumpTo(index: number) {
-    bodyRef
-      ?.querySelector(`[data-canvas-index="${index}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    outline()?.element(index)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function jumpRelative(delta: number) {
@@ -71,7 +151,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
     const containerTop = bodyRef.getBoundingClientRect().top;
     let current = items[0].index;
     for (const { index } of items) {
-      const el = bodyRef.querySelector(`[data-canvas-index="${index}"]`);
+      const el = outline()?.element(index);
       if (el && el.getBoundingClientRect().top - containerTop <= 32) current = index;
     }
     setActiveIndex(current);
@@ -79,6 +159,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   createEffect(() => {
     content();
+    outline()?.items();
     queueMicrotask(updateActiveHeading);
   });
 
@@ -104,14 +185,59 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
               />
             )}
           </Show>
+          <IconButton
+            icon="info"
+            iconSize={15}
+            label="File details"
+            onClick={() => setDetailOpen(true)}
+            size="sm"
+          />
+          <IconButton
+            active={commentsOpen()}
+            icon="message"
+            iconSize={15}
+            label="Comments"
+            onClick={() => {
+              setCommentsOpen(!commentsOpen());
+              setHistoryOpen(false);
+              setSelected(null);
+            }}
+            size="sm"
+          />
+          <IconButton
+            active={historyOpen()}
+            class="canvas-panel-history"
+            icon="history"
+            iconSize={15}
+            label="Version history"
+            onClick={() => {
+              setHistoryOpen(!historyOpen());
+              setCommentsOpen(false);
+              setSelected(null);
+            }}
+            size="sm"
+          />
           <InlineFeedback feedback={actionFeedback.get(fileId())} priority={2} variant="icon" />
         </div>
       </PanelHeader>
+      <Show when={detailOpen()}>
+        <FileDetailModal
+          file={{
+            filetype: "quip",
+            id: fileId(),
+            isImage: false,
+            name: props.pane.content.title,
+            title: props.pane.content.title,
+            urlPrivate: "",
+          }}
+          onClose={() => setDetailOpen(false)}
+        />
+      </Show>
       <div class="canvas-panel-body" onScroll={updateActiveHeading} ref={bodyRef}>
         <Show when={content.loading}>
           <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
         </Show>
-        <Show when={!content.loading && content() === null}>
+        <Show when={!(content.loading || content()?.doc)}>
           <div class="canvas-panel-load-error flex-center flex-col" role="alert">
             <Show
               fallback={
@@ -128,9 +254,88 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             </Show>
           </div>
         </Show>
-        <Show when={!content.loading && content() != null}>
+        <Show when={!content.loading && content()?.doc}>
           <div class="canvas-panel-scroll-row">
-            <CanvasContent blocks={content() ?? []} />
+            <Show
+              fallback={
+                <Show keyed when={content()?.doc}>
+                  {(doc) => (
+                    <CanvasEditor
+                      doc={doc}
+                      editable={content()?.editable ?? false}
+                      fileId={fileId()}
+                      onComment={(annotationId) => void openComment(annotationId)}
+                      onOutline={setEditorOutline}
+                      fetchLatest={() => store.canvas.loadCanvasContent(fileId())}
+                      onRemoteChange={(latest) => mutate(latest)}
+                      onReload={() => void refetch()}
+                      onTitle={(title) =>
+                        store.canvas.setCanvasTitle(props.pane.id, fileId(), title)
+                      }
+                    />
+                  )}
+                </Show>
+              }
+              keyed
+              when={viewKey()}
+            >
+              {(version) => (
+                <div class="canvas-version-view">
+                  <div class="canvas-version-banner" role="status">
+                    Viewing the version from {versionLabel(version.version)} by{" "}
+                    {versionAuthor(version.version)}
+                  </div>
+                  <Show keyed when={viewing()?.doc}>
+                    {(doc) => (
+                      <CanvasEditor
+                        diff={diff()}
+                        doc={doc}
+                        editable={false}
+                        fetchLatest={() => Promise.resolve(null)}
+                        fileId={fileId()}
+                        onOutline={setEditorOutline}
+                        onReload={() => undefined}
+                        onRemoteChange={() => undefined}
+                      />
+                    )}
+                  </Show>
+                </div>
+              )}
+            </Show>
+            <Show when={historyOpen()}>
+              <div class="canvas-history-slot">
+                <CanvasHistory
+                  error={!!versions.error}
+                  loading={versions.loading || viewing.loading}
+                  onClose={() => {
+                    setHistoryOpen(false);
+                    setSelected(null);
+                  }}
+                  onRestore={restore}
+                  onSelect={setSelected}
+                  onToggleChanges={setShowChanges}
+                  selected={selected()}
+                  showChanges={showChanges()}
+                  versions={versions() ?? []}
+                />
+              </div>
+            </Show>
+            <Show when={commentsOpen()}>
+              <div class="canvas-history-slot">
+                <CanvasComments
+                  channelId={comments()?.channelId ?? ""}
+                  error={!!comments.error}
+                  fileId={fileId()}
+                  html={(content()?.doc?.nodes ?? []).flatMap((node) =>
+                    "html" in node ? [node.html] : [],
+                  )}
+                  loading={comments.loading}
+                  onClose={() => setCommentsOpen(false)}
+                  onRefresh={() => void refetchComments()}
+                  threads={comments()?.threads ?? []}
+                />
+              </div>
+            </Show>
             <CanvasOutlineNav
               activeIndex={activeIndex()}
               headings={headings()}

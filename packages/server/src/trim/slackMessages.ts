@@ -4,6 +4,7 @@ import { trimIcons } from "./slackEntities.ts";
 export function trimFile(file: RawFile): RawFile {
   return {
     audio_wave_samples: file.audio_wave_samples,
+    created: file.created,
     duration: file.duration,
     duration_ms: file.duration_ms,
     filetype: file.filetype,
@@ -110,6 +111,7 @@ export function trimMessage(message: RawMessage): RawMessage {
           name: message.bot_profile.name,
         }
       : undefined,
+    document_comment: message.document_comment,
     edited: message.edited,
     files: message.files?.map(trimFile),
     icons: trimIcons(message.icons),

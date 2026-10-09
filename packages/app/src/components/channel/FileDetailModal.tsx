@@ -1,5 +1,4 @@
-import { formatDuration } from "@slock/blockkit";
-import { CLOCK_24H, resolveMediaUrl, type SlackFile } from "@slock/types";
+import { resolveMediaUrl, type SlackFile } from "@slock/types";
 import {
   ConstrainedImage,
   constrainMediaDimensions,
@@ -12,26 +11,16 @@ import { createResource, createSignal, For, Match, Show, Switch } from "solid-js
 import { fetchFileDetail } from "../../lib/api";
 import { jumpToFilesLinksMessage } from "../../lib/filesLinksPanel";
 import { openConversationInSplit } from "../../lib/navigation/conversationNav";
+import { store } from "../../lib/store";
 import AudioFile from "../messages/parts/media/AudioFile";
-import { formatSize } from "../messages/parts/media/FileCardInfo";
 import FileViewerTrigger from "../messages/parts/media/FileViewer";
 import TranscriptPopover from "../messages/parts/media/TranscriptPopover";
 import { SplitNavigation } from "../navigation/SplitNavigation";
+import FileDetailInfo, { FileTitle, formatDateTime } from "./FileDetailInfo";
 import "./FileDetailModal.css";
 
-function formatDateTime(value: number | string | undefined): string {
-  const seconds = typeof value === "string" ? Number.parseFloat(value) : value;
-  if (!seconds) return "";
-  return new Date(seconds * 1000).toLocaleString(undefined, {
-    ...CLOCK_24H,
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export default function FileDetailModal(props: { file: SlackFile; onClose: () => void }) {
-  const [detail] = createResource(() => props.file.id, fetchFileDetail);
+  const [detail, { refetch }] = createResource(() => props.file.id, fetchFileDetail);
   const file = () => detail()?.file ?? props.file;
   const [video, setVideo] = createSignal<HTMLVideoElement>();
 
@@ -46,7 +35,13 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
   return (
     <Overlay ariaLabel={file().title || file().name} onClose={props.onClose}>
       <div class="file-detail-card flex-col">
-        <PanelHeader onClose={props.onClose} title={file().title || file().name} />
+        <PanelHeader onClose={props.onClose}>
+          <FileTitle
+            editable={detail()?.editable ?? false}
+            file={file()}
+            onRenamed={() => void refetch()}
+          />
+        </PanelHeader>
         <div class="file-detail-body flex-col">
           <div class="file-detail-preview flex-center">
             <Switch
@@ -76,6 +71,19 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
                 </Show>
               }
             >
+              <Match when={file().filetype === "quip"}>
+                <button
+                  class="file-detail-fallback flex-col btn-reset"
+                  onClick={() => {
+                    props.onClose();
+                    store.canvas.openCanvasPane(file().id, file().title || file().name);
+                  }}
+                  type="button"
+                >
+                  <Icon name="canvas" size={40} />
+                  <span>Open canvas</span>
+                </button>
+              </Match>
               <Match when={detail()?.content != null}>
                 <pre class="file-detail-snippet">{detail()?.content}</pre>
               </Match>
@@ -125,16 +133,7 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
               </Match>
             </Switch>
           </div>
-          <div class="file-detail-meta text-dim">
-            {[
-              file().filetype?.toUpperCase(),
-              formatSize(file().size),
-              file().isVideo && file().duration ? formatDuration(file().duration) : undefined,
-              formatDateTime(file().created),
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </div>
+          <FileDetailInfo detail={detail()} file={file()} />
           <Show when={detail.loading}>
             <div class="file-detail-shares-loading text-dim">Loading sharing history…</div>
           </Show>

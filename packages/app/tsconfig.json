@@ -6,5 +6,10 @@
   "extends": "../../tsconfig.base.json",
   "exclude": ["src/**/*.test.ts"],
   "include": ["src/**/*", "src/**/*.json", "../../types/css.d.ts", "../../types/importMeta.d.ts"],
-  "references": [{ "path": "../ui" }, { "path": "../types" }, { "path": "../blockkit" }]
+  "references": [
+    { "path": "../ui" },
+    { "path": "../canvas" },
+    { "path": "../types" },
+    { "path": "../blockkit" }
+  ]
 }

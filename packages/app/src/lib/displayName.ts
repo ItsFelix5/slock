@@ -47,11 +47,15 @@ export function formatInteractorNames(
 
 export function conversationDisplayName(
   id: string,
-  channelById: (id: string) => Pick<Channel, "id" | "name" | "private"> | undefined,
+  channelById: (
+    id: string,
+  ) => Pick<Channel, "canvasFileId" | "id" | "name" | "private"> | undefined,
   dmById: (id: string) => DirectMessage | undefined,
   userById: (id: string) => User | undefined,
 ): string {
   const dm = dmById(id);
   if (isDmId(id, () => !!dm)) return dmDisplayName(dm, userById) || id;
-  return `#${channelDisplayName(channelById(id), id)}`;
+  const channel = channelById(id);
+  if (channel?.canvasFileId) return channelDisplayName(channel, id);
+  return `#${channelDisplayName(channel, id)}`;
 }

@@ -98,15 +98,17 @@ export function createChannelsSlice(deps: {
     return new Map([...base, ...extra].map((c) => [c.id, c]));
   });
   const channels = createMemo<Channel[]>(() =>
-    [...baseChannelsById().values()].map((c) =>
-      channelPatches[c.id] ? { ...c, ...channelPatches[c.id] } : c,
-    ),
+    [...baseChannelsById().values()]
+      .filter((c) => !c.canvasFileId)
+      .map((c) => (channelPatches[c.id] ? { ...c, ...channelPatches[c.id] } : c)),
   );
 
   function patchChannel(id: string, patch: Partial<Channel>) {
+    const known = baseChannelsById().get(id);
+    const allowed = known?.canvasFileId ? { ...patch, name: undefined } : patch;
     setChannelPatches(id, {
       ...channelPatches[id],
-      ...Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)),
+      ...Object.fromEntries(Object.entries(allowed).filter(([, value]) => value !== undefined)),
     });
   }
 
@@ -161,7 +163,9 @@ export function createChannelsSlice(deps: {
   }
 
   function isChannelMember(id: string): boolean {
-    return baseChannelsById().has(id);
+    return (
+      baseChannelsById().has(id) || !!discoveredChannels.find((c) => c.id === id)?.canvasFileId
+    );
   }
 
   const channelRosters = createReactiveQueryCache<Set<string>>(

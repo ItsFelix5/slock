@@ -1,0 +1,173 @@
+.canvas-date-popover {
+  position: absolute;
+  top: 100%;
+  right: var(--space-2xl);
+  z-index: 10;
+}
+
+.canvas-surface.nested .ql-editor {
+  min-height: 1.5em;
+  padding: 0;
+}
+
+.canvas-surface.nested .ql-editor p {
+  margin: 0.2em 0;
+}
+
+.canvas-editor .ql-editor .canvas-columns-embed,
+.canvas-editor .ql-editor .canvas-table-embed,
+.canvas-editor .ql-editor .canvas-image-embed,
+.canvas-editor .ql-editor .canvas-file-embed {
+  position: relative;
+  margin: 0.7em 0;
+  border-radius: var(--radius-sm);
+}
+
+.canvas-columns-block,
+.canvas-table-block {
+  position: relative;
+}
+
+.canvas-columns {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+.canvas-column {
+  position: relative;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.canvas-column-handle {
+  position: absolute;
+  top: 0;
+  right: -12px;
+  bottom: 0;
+  z-index: 2;
+  width: 8px;
+  cursor: col-resize;
+  border-radius: 4px;
+}
+
+.canvas-column-handle:hover,
+.canvas-table-handle:hover {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+.canvas-column-remove,
+.canvas-table-remove {
+  position: absolute;
+  z-index: 3;
+  display: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+  cursor: pointer;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.canvas-column-remove {
+  top: -10px;
+  right: -4px;
+}
+
+.canvas-column:hover > .canvas-column-remove,
+.canvas-table-block:hover .canvas-table-remove {
+  display: grid;
+}
+
+.canvas-table-remove-column {
+  top: -10px;
+  left: calc(50% - 9px);
+}
+
+.canvas-table-remove-row {
+  top: calc(50% - 9px);
+  right: -26px;
+}
+
+.canvas-table-scroll {
+  padding-right: 30px;
+  margin-right: -30px;
+}
+
+.canvas-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.canvas-table td {
+  position: relative;
+  padding: 4px 10px;
+  vertical-align: top;
+  border: 1px solid var(--border);
+}
+
+.canvas-table-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  z-index: 2;
+  width: 6px;
+  cursor: col-resize;
+}
+
+.canvas-block-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.canvas-columns-block:hover > .canvas-block-actions,
+.canvas-table-block:hover > .canvas-block-actions,
+.canvas-columns-block:focus-within > .canvas-block-actions,
+.canvas-table-block:focus-within > .canvas-block-actions {
+  opacity: 1;
+}
+
+.canvas-block-action {
+  padding: 2px var(--space-sm);
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.canvas-block-action:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.canvas-file-missing {
+  padding: var(--space-md);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.canvas-surface.nested .ql-editor > :first-child {
+  margin-top: 0;
+}
+
+.canvas-surface.nested .ql-editor > :last-child {
+  margin-bottom: 0;
+}
+
+.canvas-editor .ql-editor [data-annotation] {
+  cursor: pointer;
+  background: color-mix(in srgb, var(--warning, #ecb22e) 22%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--warning, #ecb22e) 70%, transparent);
+}
+
+.canvas-editor .ql-editor [data-annotation]:hover {
+  background: color-mix(in srgb, var(--warning, #ecb22e) 38%, transparent);
+}

@@ -1,0 +1,149 @@
+.canvas-editor {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 var(--space-2xl) 20vh;
+  font-size: var(--font-size-secondary);
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.canvas-editor-status {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  align-self: center;
+  margin-left: auto;
+  font-size: var(--font-size-meta);
+  color: var(--text-dim);
+}
+
+.canvas-editor-status-pill {
+  display: inline-flex;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: 2px var(--space-sm);
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  transition: opacity 0.2s ease;
+}
+
+.canvas-editor-status[data-status="saved"] .canvas-editor-status-pill {
+  opacity: 0.55;
+}
+
+.canvas-editor-status[data-status="error"] .canvas-editor-status-pill,
+.canvas-editor-status[data-status="conflict"] .canvas-editor-status-pill {
+  padding-right: 4px;
+  color: var(--error-text);
+  background: var(--error-bg);
+}
+
+.canvas-editor-title {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0;
+  margin: 20px 0 0.5em;
+  overflow: hidden;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: inherit;
+  resize: none;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.canvas-editor-title::placeholder {
+  color: var(--text-dim);
+}
+
+.canvas-editor .ql-container,
+.canvas-editor .ql-editor {
+  height: auto;
+  overflow: visible;
+}
+
+.canvas-editor .ql-editor {
+  min-height: 12em;
+  line-height: 1.5;
+}
+
+.canvas-editor .ql-editor p {
+  margin: 0.4em 0;
+}
+
+.canvas-editor .ql-editor h1,
+.canvas-editor .ql-editor h2,
+.canvas-editor .ql-editor h3,
+.canvas-editor .ql-editor h4,
+.canvas-editor .ql-editor h5,
+.canvas-editor .ql-editor h6 {
+  margin: 1em 0 0.4em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.canvas-editor .ql-editor h1 {
+  font-size: 21px;
+}
+
+.canvas-editor .ql-editor h2 {
+  font-size: 18px;
+}
+
+.canvas-editor .ql-editor h3,
+.canvas-editor .ql-editor h4 {
+  font-size: var(--font-size-heading-xs);
+}
+
+.canvas-editor .ql-editor h5,
+.canvas-editor .ql-editor h6 {
+  font-size: var(--font-size-secondary);
+}
+
+.canvas-editor .ql-editor u {
+  text-underline-offset: 2px;
+}
+
+.canvas-editor .ql-editor.ql-blank::before {
+  font-style: normal;
+}
+
+.canvas-editor .ql-editor hr {
+  margin: 0.9em 0;
+}
+
+.canvas-editor .ql-editor .canvas-softbreak > [contenteditable="false"]::after {
+  content: "\A";
+  white-space: pre;
+}
+
+.canvas-editor .ql-editor .canvas-readonly-block {
+  position: relative;
+  margin: 0.6em 0;
+  cursor: default;
+  user-select: none;
+  border-radius: var(--radius-sm);
+}
+
+.canvas-editor .ql-editor .canvas-readonly-block:hover {
+  outline: 1px solid var(--border);
+  outline-offset: 4px;
+}
+
+.canvas-editor .ql-editor .canvas-readonly-block > * {
+  margin-block: 0;
+  pointer-events: none;
+}
+
+.canvas-editor .ql-editor .ql-code-block-container {
+  margin: 0.6em 0;
+  background: var(--hover-bg);
+  border-color: var(--border);
+}
