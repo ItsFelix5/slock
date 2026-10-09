@@ -8,7 +8,7 @@ import {
   useEscapeClose,
   useTabStripShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { getChannelLink } from "../../../lib/api";
 import { channelIconName } from "../../../lib/displayName";
 import { actionFeedback } from "../../../lib/feedback";
@@ -19,8 +19,8 @@ import {
   channelDetailsId,
   channelDetailsTab,
   closeChannelDetails,
-  loadChannelDetails,
-  loadChannelManagerIds,
+  createChannelDetailsQuery,
+  createChannelManagerIdsQuery,
   renameChannelById,
   updateChannelPurpose,
   updateChannelTopic,
@@ -55,7 +55,9 @@ export default function ChannelDetails() {
 
   useEscapeClose(closeChannelDetails, () => !!channelDetailsId());
 
-  const [details, { refetch }] = createResource(channelDetailsId, loadChannelDetails);
+  const detailsQuery = createChannelDetailsQuery(channelDetailsId);
+  const details = () => detailsQuery.data;
+  const refetch = () => detailsQuery.refetch();
 
   const currentDetails = createMemo(() => {
     const d = details();
@@ -63,15 +65,15 @@ export default function ChannelDetails() {
     return d && id && d.id === id ? d : undefined;
   });
 
-  const [managerIds] = createResource(channelDetailsId, loadChannelManagerIds);
+  const managerIds = createChannelManagerIdsQuery(channelDetailsId);
   const isManager = createMemo(() => {
     const me = store.users.currentUser();
     if (!me) return false;
     if (me.isWorkspaceAdmin) return true;
     const creatorId = currentDetails()?.creatorId;
     if (creatorId && me.id === creatorId) return true;
-    if (managerIds.error) return false;
-    return (managerIds() ?? []).includes(me.id);
+    if (managerIds.isError) return false;
+    return (managerIds.data ?? []).includes(me.id);
   });
   const visibleTabs = () => TABS.filter((t) => t.key !== "settings" || isManager());
   useTabStripShortcuts({
@@ -85,7 +87,7 @@ export default function ChannelDetails() {
 
   createEffect(on(channelDetailsId, () => setTab(channelDetailsTab())));
   createEffect(() => {
-    if (tab() === "settings" && !managerIds.loading && !isManager()) setTab("about");
+    if (tab() === "settings" && !managerIds.isLoading && !isManager()) setTab("about");
   });
 
   let seededDetails: EditableChannelDetails | undefined;
@@ -195,7 +197,7 @@ export default function ChannelDetails() {
                       </Button>
                     </div>
                   }
-                  when={details.loading}
+                  when={detailsQuery.isLoading}
                 >
                   <div class="channel-details-loading flex-center text-dim text-sm">
                     Loading channel details…
@@ -311,7 +313,7 @@ export default function ChannelDetails() {
                             type="button"
                           >
                             <Icon name="email-filled" size={15} />
-                            <span class="channel-details-copy-value truncate">{email()}</span>
+                            <span class="channel-details-copy-value truncate grow">{email()}</span>
                             <Icon name={copiedKey() === "email" ? "check" : "copy"} size={14} />
                           </button>
                         )}
@@ -325,7 +327,7 @@ export default function ChannelDetails() {
                         type="button"
                       >
                         <Icon name="link" size={15} />
-                        <span class="channel-details-copy-value truncate">
+                        <span class="channel-details-copy-value truncate grow">
                           Copy link to channel
                         </span>
                         <Icon name={copiedKey() === "link" ? "check" : "copy"} size={14} />
@@ -336,7 +338,7 @@ export default function ChannelDetails() {
                         type="button"
                       >
                         <Icon name="info" size={15} />
-                        <span class="channel-details-copy-value truncate">
+                        <span class="channel-details-copy-value truncate grow">
                           Channel ID: {d().id}
                         </span>
                         <Icon name={copiedKey() === "id" ? "check" : "copy"} size={14} />

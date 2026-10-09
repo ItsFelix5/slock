@@ -26,12 +26,6 @@
   background: var(--accent-hover);
 }
 
-.audio-file-play:focus-visible,
-.audio-file-waveform:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 .audio-file-waveform {
   display: flex;
   flex: 1;

@@ -1,7 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
 import { Avatar } from "@slock/ui";
-import { createResource, For, Match, Show, Switch } from "solid-js";
-import { fetchFileDetail } from "../../lib/api";
+import { For, Match, Show, Switch } from "solid-js";
+import { createFileDetailQuery } from "../../lib/fileDetailQuery";
 import { store } from "../../lib/store";
 import MessageFiles from "../messages/parts/media/MessageFiles";
 import { formatStartDate } from "./userProfileTime";
@@ -9,9 +9,12 @@ import { formatStartDate } from "./userProfileTime";
 const URL_VALUE_RE = /^https?:\/\/\S+$/i;
 
 function FileFieldValue(props: { id: string }) {
-  const [detail] = createResource(() => props.id, fetchFileDetail);
+  const detail = createFileDetailQuery(() => props.id);
   return (
-    <Show fallback={<span class="user-profile-field-value">{props.id}</span>} when={detail()?.file}>
+    <Show
+      fallback={<span class="user-profile-field-value">{props.id}</span>}
+      when={detail.data?.file}
+    >
       {(file) => <MessageFiles files={[file()]} />}
     </Show>
   );

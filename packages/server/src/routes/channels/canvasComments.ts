@@ -1,16 +1,13 @@
 import { errorResponse, jsonResponse, slackErrorResponse } from "../../http/jsonResponse.ts";
 import { callSlack } from "../../slackClient.ts";
 import type { HistoryReply } from "../../slackReplies.ts";
+import { hostedChannelId } from "../../trim/slackChannels.ts";
 import { trimMessage } from "../../trim/slackMessages.ts";
 import { type Route, route } from "../router.ts";
 
 const TEMP_PREFIX = "temp:C:";
 const THREAD_TS_PREFIX = "Qpc:t:C:";
 const THREAD_LIMIT = "200";
-
-function hostedChannel(fileId: string): string {
-  return `C${fileId.slice(1)}`;
-}
 
 function annotationTs(annotationId: string): string | null {
   return annotationId.startsWith(TEMP_PREFIX)
@@ -22,7 +19,7 @@ export const canvasCommentRoutes: Route[] = [
   route("GET", "canvases/:id/comments", async (ctx) => {
     const data = await callSlack<HistoryReply>(
       "conversations.history",
-      { channel: hostedChannel(ctx.params.id), limit: THREAD_LIMIT },
+      { channel: hostedChannelId(ctx.params.id), limit: THREAD_LIMIT },
       ctx.creds,
     );
     if (!data.ok) {
@@ -34,7 +31,7 @@ export const canvasCommentRoutes: Route[] = [
       .filter((message) => message.document_comment?.thread_id)
       .map(trimMessage);
     return jsonResponse(
-      { channelId: hostedChannel(ctx.params.id), ok: true, threads },
+      { channelId: hostedChannelId(ctx.params.id), ok: true, threads },
       ctx.creds,
       ctx.acceptEncoding,
     );
@@ -43,7 +40,7 @@ export const canvasCommentRoutes: Route[] = [
     const { annotationId } = await ctx.body.json<{ annotationId?: string }>();
     const ts = annotationId ? annotationTs(annotationId) : null;
     if (!ts) return errorResponse("invalid_annotation", 400);
-    const channel = hostedChannel(ctx.params.id);
+    const channel = hostedChannelId(ctx.params.id);
     const data = await callSlack<HistoryReply>(
       "conversations.replies",
       { channel, inclusive: "true", limit: "1", ts },

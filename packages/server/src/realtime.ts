@@ -4,24 +4,13 @@ import { invalidateEmojiCache } from "./emoji.js";
 import { trimSlackGatewayPayload } from "./trim/slackGatewayPayload.js";
 
 const lastSeenByKey = new Map<string, number>();
-const LAST_SEEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const LAST_SEEN_PRUNE_THRESHOLD = 5000;
 
 function lastSeenKeyFor(teamId: string, userId: string): string {
   return `${teamId}:${userId}`;
 }
 
-function pruneLastSeen(now: number): void {
-  if (lastSeenByKey.size < LAST_SEEN_PRUNE_THRESHOLD) return;
-  for (const [key, seenAt] of lastSeenByKey) {
-    if (now - seenAt > LAST_SEEN_MAX_AGE_MS) lastSeenByKey.delete(key);
-  }
-}
-
 export function recordSeenActive(teamId: string, userId: string): void {
-  const now = Date.now();
-  pruneLastSeen(now);
-  lastSeenByKey.set(lastSeenKeyFor(teamId, userId), now);
+  lastSeenByKey.set(lastSeenKeyFor(teamId, userId), Date.now());
 }
 
 export function getLastSeen(teamId: string, userId: string): number | undefined {
@@ -39,8 +28,6 @@ type ConnectionState = {
   gatewayRetryTimer: ReturnType<typeof setTimeout> | null;
   fallbackTimer: ReturnType<typeof setInterval> | null;
   fallbackPollRunning: boolean;
-  watchedChannels: Set<string>;
-  watchedThreads: Map<string, string>;
   presenceSubIds: Set<string>;
   closed: boolean;
 };
@@ -178,8 +165,6 @@ export function handleClientOpen(socket: ClientSocket, creds: Credentials | null
     gatewayRetryTimer: null,
     gatewaySocket: null,
     socket,
-    watchedChannels: new Set(),
-    watchedThreads: new Map(),
     presenceSubIds: new Set(),
   };
   connections.set(socket, state);
@@ -202,13 +187,7 @@ export function handleClientMessage(raw: string, socket: ClientSocket): void {
   if (!state) return;
   try {
     const msg = JSON.parse(raw);
-    if (msg.type === "watch_channel" && msg.channel) state.watchedChannels.add(msg.channel);
-    else if (msg.type === "unwatch_channel" && msg.channel)
-      state.watchedChannels.delete(msg.channel);
-    else if (msg.type === "watch_thread" && msg.channel && msg.ts)
-      state.watchedThreads.set(msg.ts, msg.channel);
-    else if (msg.type === "unwatch_thread" && msg.ts) state.watchedThreads.delete(msg.ts);
-    else if (msg.type === "watch_presence" && Array.isArray(msg.ids)) {
+    if (msg.type === "watch_presence" && Array.isArray(msg.ids)) {
       state.presenceSubIds = new Set(msg.ids.filter((id: unknown) => typeof id === "string"));
       sendPresenceSub(state);
     }

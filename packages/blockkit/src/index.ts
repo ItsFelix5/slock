@@ -35,7 +35,7 @@ export {
 } from "./domToMrkdwn";
 export { default as EmojiText } from "./emoji/EmojiText";
 export type { StandardEmoji } from "./emoji/emoji";
-export { standardEmojiEntries } from "./emoji/emoji";
+export { EMOJI_TOKEN_RE, standardEmojiEntries } from "./emoji/emoji";
 
 export {
   customEmojiNames,

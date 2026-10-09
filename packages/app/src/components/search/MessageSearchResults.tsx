@@ -93,7 +93,7 @@ export default function MessageSearchResults(props: {
                 {(query) => (
                   <div class="message-search-history-item flex-align-center gap-xs">
                     <button
-                      class="global-search-result message-search-history-query btn-reset flex-align-center"
+                      class="global-search-result message-search-history-query btn-reset flex-align-center grow"
                       onClick={() => props.onHistorySearch(query)}
                       type="button"
                     >
@@ -205,7 +205,6 @@ export default function MessageSearchResults(props: {
                         }
                         ctxMenu={ctxMenu}
                         name={displayName()}
-                        navRow
                         onOpen={() => props.onResult(result)}
                         onSplit={() =>
                           openConversationInSplit(result.channelId, result.threadTs ?? result.ts)
@@ -222,7 +221,6 @@ export default function MessageSearchResults(props: {
                             />
                           </span>
                         }
-                        tabIndex={-1}
                         time={formatTime(result.ts)}
                         timeTitle={`${formatDay(result.ts)} at ${formatTime(result.ts)}`}
                         userId={profileUserId()}

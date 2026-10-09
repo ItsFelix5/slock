@@ -15,9 +15,6 @@ export {
   createDebouncedRequest,
   type DebouncedRequestOptions,
 } from "./debouncedRequest";
-export { INLINE_MARKS } from "./editor/markdownAutoformat";
-export { default as QuillEditor, type QuillEditorProps } from "./editor/QuillEditor";
-export { getEmbedBlot, indexAlignedText } from "./editor/quillText";
 export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
 export { createCopyFeedback } from "./feedback/copyFeedback";
@@ -85,6 +82,7 @@ export {
   setShowUserStatuses,
   showUserStatuses,
 } from "./messagePreferences";
+export { default as NavRow } from "./nav/NavRow";
 export { focusPaneById, paneRowsById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
 export {
@@ -127,6 +125,7 @@ export type { PopoverProps } from "./overlay/Popover";
 export { default as Popover } from "./overlay/Popover";
 export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
+export { pageIdle } from "./pageIdle";
 export { focusedPaneId } from "./panes/focusedPane";
 export { default as PaneRow, type PaneRowProps } from "./panes/PaneRow";
 export {
@@ -141,6 +140,7 @@ export {
   replacePaneContent,
   resizePanes,
 } from "./panes/paneList";
+export { createRecencyEviction } from "./recencyEviction";
 export {
   escapeRegExp,
   findTextRanges,

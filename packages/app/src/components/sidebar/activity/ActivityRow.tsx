@@ -1,5 +1,5 @@
 import type { ActivityItem } from "@slock/types";
-import { ContextMenu, Icon, useContextMenu } from "@slock/ui";
+import { ContextMenu, Icon, NavRow, useContextMenu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { openConversationInSplit } from "../../../lib/navigation/conversationNav";
 import { store } from "../../../lib/store";
@@ -137,14 +137,12 @@ export default function ActivityRow(props: {
         }}
       >
         <SplitNavigation onSplit={openRowInSplit}>
-          <button
-            class="activity-item-summary btn-reset"
+          <NavRow
+            class="activity-item-summary"
             data-activity-row
-            data-nav-row
-            onClick={openRow}
+            onActivate={openRow}
             onContextMenu={ctxMenu.open}
             tabIndex={-1}
-            type="button"
           >
             <ActivityAvatar
               display={display}
@@ -165,7 +163,7 @@ export default function ActivityRow(props: {
                 </span>
               </Show>
             </span>
-          </button>
+          </NavRow>
         </SplitNavigation>
 
         <Show when={!isThreadGroup() && reactions().length > 0}>

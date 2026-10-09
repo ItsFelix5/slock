@@ -129,7 +129,7 @@ export default function ChannelMembersTab(props: {
               action={
                 <Show when={u.id !== store.users.currentUser()?.id}>
                   <IconButton
-                    class="channel-details-member-remove"
+                    class="channel-details-member-remove busy"
                     disabled={members.isRemoving(u.id)}
                     icon="close-filled"
                     iconSize={14}
@@ -150,7 +150,7 @@ export default function ChannelMembersTab(props: {
               <MemberRow
                 action={
                   <IconButton
-                    class="channel-details-member-add"
+                    class="channel-details-member-add busy"
                     disabled={members.isAdding(u.id)}
                     icon="user-add"
                     iconSize={14}

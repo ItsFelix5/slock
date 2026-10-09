@@ -1,5 +1,5 @@
 import type { AvatarUser, useContextMenu } from "@slock/ui";
-import { Avatar, Tooltip } from "@slock/ui";
+import { Avatar, NavRow, Tooltip } from "@slock/ui";
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
 import { SplitNavigation } from "../../navigation/SplitNavigation";
@@ -12,11 +12,9 @@ export default function ResultMessageCard(props: {
   context?: JSX.Element;
   ctxMenu?: ReturnType<typeof useContextMenu>;
   name: JSX.Element;
-  navRow?: boolean;
   onOpen: () => void;
   onSplit: () => void;
   snippet: JSX.Element;
-  tabIndex?: number;
   time?: string;
   timeTitle?: string;
   trailing?: JSX.Element;
@@ -26,13 +24,11 @@ export default function ResultMessageCard(props: {
   return (
     <div class="result-message-card">
       <SplitNavigation onSplit={props.onSplit}>
-        <button
-          class="result-message-card-main btn-reset"
-          data-nav-row={props.navRow ? true : undefined}
-          onClick={props.onOpen}
+        <NavRow
+          class="result-message-card-main"
+          onActivate={props.onOpen}
           onContextMenu={props.ctxMenu?.open}
-          tabIndex={props.navRow ? props.tabIndex : undefined}
-          type="button"
+          tabIndex={-1}
         >
           <Show fallback={<Avatar size="medium" user={props.avatarUser} />} when={profileUserId()}>
             {(userId) => (
@@ -41,7 +37,7 @@ export default function ResultMessageCard(props: {
               </ClickableAuthorName>
             )}
           </Show>
-          <div class="result-message-card-body">
+          <div class="result-message-card-body grow">
             <div class="result-message-card-header">
               <span class="result-message-card-name">
                 <Show fallback={props.name} when={profileUserId()}>
@@ -66,7 +62,7 @@ export default function ResultMessageCard(props: {
             </div>
             <div class="result-message-card-snippet">{props.snippet}</div>
           </div>
-        </button>
+        </NavRow>
       </SplitNavigation>
       <Show when={props.trailing}>
         <div class="result-message-card-trailing flex-align-center">{props.trailing}</div>

@@ -1,9 +1,5 @@
-import {
-  indexAlignedText,
-  listNavigationIndex,
-  useEditShortcuts,
-  useListShortcuts,
-} from "@slock/ui";
+import { listNavigationIndex, useEditShortcuts, useListShortcuts } from "@slock/ui";
+import { indexAlignedText } from "@slock/ui/editor/quillText";
 import Quill from "quill";
 import { store } from "../../../lib/store";
 import { type QuerySuggestion, queryToken } from "../querySuggestions";

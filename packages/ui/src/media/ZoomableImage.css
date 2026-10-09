@@ -7,11 +7,6 @@
   border: none;
 }
 
-.zoomable-image-trigger:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 .zoomable-image {
   display: block;
 }

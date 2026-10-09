@@ -12,6 +12,8 @@ export default function Context(props: { block: ContextBlock }) {
             <img
               alt={el.alt_text ?? ""}
               class="bk-context-image"
+              decoding="async"
+              loading="lazy"
               src={resolveMediaUrl(el.image_url ?? el.slack_file?.url ?? "")}
             />
           ) : (

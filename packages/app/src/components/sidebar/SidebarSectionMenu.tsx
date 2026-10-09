@@ -33,7 +33,7 @@ export default function SidebarSectionMenu(props: { cat: Category; context: Side
       panelClass="menu-panel sidebar-section-menu"
       trigger={
         <IconButton
-          class="sidebar-section-menu-btn"
+          class="sidebar-section-menu-btn hover-hl"
           icon="ellipsis-vertical-filled"
           iconSize={14}
           onClick={() =>

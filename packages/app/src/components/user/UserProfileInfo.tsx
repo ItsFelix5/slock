@@ -119,7 +119,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
                   ? "Set yourself active"
                   : "Set yourself away"
             }
-            class="user-profile-presence"
+            class="user-profile-presence busy"
             classList={{ away: u().presence === "away" }}
             disabled={props.isSavingPresence()}
             onClick={(event) => {
@@ -132,7 +132,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
         <Show when={!props.isSelf() && u().presence}>
           <span
             aria-label={`${u().name} is ${u().presence}`}
-            class="user-profile-presence"
+            class="user-profile-presence busy"
             classList={{ away: u().presence === "away" }}
           />
         </Show>
@@ -240,7 +240,7 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
       <Show when={!props.isSelf()}>
         <div class="user-profile-actions">
           <button
-            class="user-profile-message-btn flex-center"
+            class="user-profile-message-btn flex-center busy"
             disabled={store.dms.isOpenDmPending(u().id)}
             onClick={(e) => store.dms.openDmWithUser(u().id, { split: e.shiftKey })}
             type="button"

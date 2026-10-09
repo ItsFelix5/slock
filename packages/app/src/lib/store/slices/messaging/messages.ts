@@ -1,4 +1,5 @@
 import type { ConversationViewData, Message, User } from "@slock/types";
+import { logDeletedMessages } from "@slock/ui";
 import { produce, reconcile, unwrap } from "solid-js/store";
 import {
   latestMessageTsMsByUser as findLatestMessageTsMsByUser,
@@ -58,7 +59,6 @@ export function createMessagesSlice(deps: {
     isLoadingHistory,
     isLoadingThread,
     ensureChannelMessage,
-    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     jumpToBeginning,
     jumpToDate,
@@ -82,7 +82,6 @@ export function createMessagesSlice(deps: {
     threadMessages,
   });
   const mergeActions = createMessageMergeActions({
-    currentUser: deps.currentUser,
     setMessagesByChannel: (channelId, update) => setMessagesByChannel(channelId, update),
   });
   const findAllMessageLocations = (channelId: string, ts: string) =>
@@ -103,10 +102,16 @@ export function createMessagesSlice(deps: {
     for (const { location, list } of findAllMessageLocations(channelId, ts)) {
       const current = list.find((m) => m.ts === ts);
       if (!current) continue;
+      const logEdit =
+        logDeletedMessages() && patch.text !== undefined && patch.text !== current.text;
       setStore[location.store](
         location.key,
         (m) => m.ts === ts,
-        reconcile({ ...unwrap(current), ...patch }),
+        reconcile({
+          ...unwrap(current),
+          ...patch,
+          ...(logEdit && { editHistory: [...(current.editHistory ?? []), current.text] }),
+        }),
       );
     }
   }
@@ -144,7 +149,6 @@ export function createMessagesSlice(deps: {
   });
   return {
     ensureChannelMessage,
-    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     findAllMessageLocations,
     reactionMessages,

@@ -1,8 +1,9 @@
 import { Mrkdwn } from "@slock/blockkit";
 import type { Attachment } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
-import { createResource, createSignal, type JSX, Show } from "solid-js";
+import { createSignal, type JSX, Show } from "solid-js";
 import { fetchPermalinkMessage } from "../../../lib/api";
+import { createKeyedQuery } from "../../../lib/createKeyedQuery";
 import { parseReplyLink } from "../../../lib/replyLink";
 import { store } from "../../../lib/store";
 import {
@@ -53,16 +54,18 @@ export default function MessageLinkHoverCard(props: {
 }) {
   const [open, setOpen] = createSignal(false);
 
-  const [fetched] = createResource(
-    () => (open() && !props.knownPreview ? props : undefined),
-    async (p) => {
-      const msg = await fetchPermalinkMessage(p.channelId, p.messageTs, p.threadTs).catch(
-        () => undefined,
-      );
-      return msg ? messageToHoverPreview(msg) : undefined;
-    },
-  );
-  const preview = () => props.knownPreview ?? fetched();
+  const fetched = createKeyedQuery(() => {
+    if (!open() || props.knownPreview) return;
+    const { channelId, messageTs, threadTs } = props;
+    return {
+      queryFn: async () => {
+        const msg = await fetchPermalinkMessage(channelId, messageTs, threadTs).catch(() => null);
+        return msg ? messageToHoverPreview(msg) : null;
+      },
+      queryKey: ["messageLinkPreview", channelId, messageTs, threadTs],
+    };
+  });
+  const preview = () => props.knownPreview ?? fetched.data ?? undefined;
 
   return (
     <HoverCard
@@ -73,7 +76,7 @@ export default function MessageLinkHoverCard(props: {
         <Show
           fallback={
             <div class="message-link-hovercard-status text-dim text-sm">
-              {fetched.loading ? "Loading message…" : "Message unavailable"}
+              {fetched.isLoading ? "Loading message…" : "Message unavailable"}
             </div>
           }
           when={preview()}

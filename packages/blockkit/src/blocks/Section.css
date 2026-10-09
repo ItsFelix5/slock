@@ -4,11 +4,6 @@
   align-items: flex-start;
 }
 
-.bk-section-main {
-  flex: 1;
-  min-width: 0;
-}
-
 .bk-section-text,
 .message-text {
   font-size: var(--font-size-body);

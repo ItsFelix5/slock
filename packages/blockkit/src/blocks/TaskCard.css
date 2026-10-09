@@ -2,11 +2,6 @@
   gap: 7px;
 }
 
-.bk-plan-title {
-  font-size: var(--font-size-secondary);
-  font-weight: 700;
-}
-
 .bk-task-card {
   padding: 9px 10px;
   border: 1px solid var(--border);

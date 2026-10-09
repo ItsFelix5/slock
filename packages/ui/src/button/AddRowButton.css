@@ -11,8 +11,3 @@
 .add-row-btn:hover:not(:disabled) {
   background: var(--hover-bg);
 }
-
-.add-row-btn:disabled {
-  cursor: wait;
-  opacity: 0.6;
-}

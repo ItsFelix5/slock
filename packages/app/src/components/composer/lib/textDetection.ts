@@ -18,14 +18,17 @@ export function matchTypedEmojiShortcode(
 export function detectMentionTrigger(
   value: string,
   cursor: number,
+  commandsPerLine = false,
 ): {
   kind: "user" | "userlink" | "channel" | "command" | "emoji" | "template";
   start: number;
   query: string;
 } | null {
   const before = value.slice(0, cursor);
-  if (before.startsWith("/") && !WHITESPACE_RE.test(before.slice(1))) {
-    return { kind: "command", query: before.slice(1), start: 0 };
+  const lineStart = commandsPerLine ? before.lastIndexOf("\n") + 1 : 0;
+  const line = before.slice(lineStart);
+  if (line.startsWith("/") && !WHITESPACE_RE.test(line.slice(1))) {
+    return { kind: "command", query: line.slice(1), start: lineStart };
   }
   const atIdx = before.lastIndexOf("@");
   const hashIdx = before.lastIndexOf("#");

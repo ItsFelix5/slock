@@ -1,9 +1,8 @@
 import type { CanvasListItem } from "@slock/types";
-import { queryOptions } from "@tanstack/solid-query";
+import { createQuery, queryOptions } from "@tanstack/solid-query";
 import { createSignal } from "solid-js";
 import {
   fetchCanvas,
-  fetchCanvasFileUrl,
   fetchCanvasPermalink,
   fetchCanvasTitle,
   fetchCanvasTitleOrVisibility,
@@ -32,7 +31,7 @@ function isCanvasNotVisible(fileId: string): boolean {
 const [canvasTitles, setCanvasTitles] = createSignal<Record<string, string>>({});
 const requestedTitles = new Set<string>();
 
-function canvasTitle(fileId: string): string | undefined {
+export function canvasTitle(fileId: string): string | undefined {
   if (!requestedTitles.has(fileId)) {
     requestedTitles.add(fileId);
     void fetchCanvasTitleOrVisibility(fileId).then(({ notVisible, title }) => {
@@ -105,14 +104,33 @@ export function createCanvasSlice(deps: {
     resolveCanvasPaneTitle(id, fileId, deps.panes.setPaneContent);
   }
 
-  async function loadCanvasContent(fileId: string): Promise<LoadedCanvas | null> {
+  async function fetchVisibleCanvas(fileId: string): Promise<LoadedCanvas> {
     try {
       return await fetchCanvas(fileId);
     } catch (err) {
       if (err instanceof Error && err.message === "not_visible") markCanvasNotVisible(fileId);
-      console.error("Failed to load canvas", err);
-      return null;
+      throw err;
     }
+  }
+
+  function loadLatestCanvas(fileId: string): Promise<LoadedCanvas | null> {
+    return fetchVisibleCanvas(fileId).catch(() => null);
+  }
+
+  function createCanvasContentQuery(fileId: () => string) {
+    return createQuery(
+      () => ({
+        gcTime: 0,
+        queryFn: () => fetchVisibleCanvas(fileId()),
+        queryKey: ["canvasContent", fileId()],
+        retry: (_, err) => !(err instanceof Error && err.message === "not_visible"),
+      }),
+      () => queryClient,
+    );
+  }
+
+  function setCanvasContent(fileId: string, content: LoadedCanvas): void {
+    queryClient.setQueryData(["canvasContent", fileId], content);
   }
 
   function setCanvasTitle(paneId: string, fileId: string, title: string): void {
@@ -120,12 +138,14 @@ export function createCanvasSlice(deps: {
     deps.panes.setPaneContent(paneId, { fileId, kind: "canvas", title });
   }
 
-  function loadCanvasFileUrl(fileId: string): Promise<string | null> {
-    return fetchCanvasFileUrl(fileId);
-  }
-
-  function loadCanvasPermalink(fileId: string): Promise<string | null> {
-    return fetchCanvasPermalink(fileId);
+  function createCanvasPermalinkQuery(fileId: () => string) {
+    return createQuery(
+      () => ({
+        queryFn: () => fetchCanvasPermalink(fileId()),
+        queryKey: ["canvasPermalink", fileId()],
+      }),
+      () => queryClient,
+    );
   }
 
   return {
@@ -133,10 +153,11 @@ export function createCanvasSlice(deps: {
     canvasTitle,
     handleCanvasCreated,
     isCanvasNotVisible,
-    loadCanvasContent,
-    loadCanvasFileUrl,
-    loadCanvasPermalink,
+    createCanvasContentQuery,
+    createCanvasPermalinkQuery,
+    loadLatestCanvas,
     openCanvasPane,
+    setCanvasContent,
     setCanvasTitle,
   };
 }

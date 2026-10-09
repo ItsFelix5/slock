@@ -129,7 +129,7 @@ export default function MessageSearchView() {
       <div class="message-search-anchor">
         <div class="message-search-header flex-align-center">
           <Icon class="global-search-icon flex-shrink-0 text-dim" name="search" size={16} />
-          <div class="ql-editor-root message-search-input" ref={containerEl} />
+          <div class="ql-editor-root message-search-input grow" ref={containerEl} />
         </div>
         <FloatingPanel anchor={() => containerEl} open={suggestionsOpen()}>
           <SuggestionList

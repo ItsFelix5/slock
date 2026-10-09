@@ -1,6 +1,7 @@
 import { dirname, join, resolve } from "node:path";
 import type { PresetItem } from "@babel/core";
 import { transformAsync } from "@babel/core";
+import typescriptPreset from "@babel/preset-typescript";
 import solidPreset from "babel-preset-solid";
 import type { BunPlugin } from "bun";
 
@@ -23,7 +24,7 @@ export const solidPlugin: BunPlugin = {
       path: SOLID_PRODUCTION_ENTRIES[args.path],
     }));
     build.onLoad({ filter: WORKSPACE_SOURCE }, async (args) => {
-      const presets: PresetItem<object>[] = [["@babel/preset-typescript", {}]];
+      const presets: PresetItem<object>[] = [[typescriptPreset, {}]];
       if (args.path.endsWith(".tsx"))
         presets.push([solidPreset, { generate: "dom", hydratable: false }]);
       const result = await transformAsync(await Bun.file(args.path).text(), {

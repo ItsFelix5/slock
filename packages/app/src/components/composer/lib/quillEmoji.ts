@@ -1,4 +1,4 @@
-import { indexAlignedText } from "@slock/ui";
+import { indexAlignedText } from "@slock/ui/editor/quillText";
 import type Quill from "quill";
 import { resolvedEmojiName } from "./emojiEmbed";
 import { matchTypedEmojiShortcode } from "./textDetection";

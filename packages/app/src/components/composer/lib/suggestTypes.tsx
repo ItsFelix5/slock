@@ -1,6 +1,6 @@
 import { emojiUrl } from "@slock/blockkit";
 import { type Block, blockPreviewText, type SlackFile, type User } from "@slock/types";
-import { Avatar, Icon } from "@slock/ui";
+import { Avatar, Icon, type IconName } from "@slock/ui";
 import { channelIconName } from "../../../lib/displayName";
 
 export type UserSuggestItem = {
@@ -29,6 +29,7 @@ export type CommandSuggestItem = {
   name: string;
   desc: string;
   icon?: string | null;
+  iconName?: IconName;
 };
 export type EmojiSuggestItem = { kind: "emoji"; name: string; unicode?: string };
 export type TemplateSuggestItem = {
@@ -107,7 +108,13 @@ export function suggestItemContent(item: SuggestItem) {
       return (
         <>
           <span class="suggestion-icon flex-center">
-            {item.icon ? <img alt="" src={item.icon} /> : "/"}
+            {item.iconName ? (
+              <Icon name={item.iconName} size={12} />
+            ) : item.icon ? (
+              <img alt="" src={item.icon} />
+            ) : (
+              "/"
+            )}
           </span>
           <span class="suggestion-label">{item.name}</span>
           <span class="suggestion-desc truncate">{item.desc}</span>

@@ -33,15 +33,30 @@ export function scrollToBottom(container: HTMLElement) {
 
 function findTopAnchor(container: HTMLElement): ScrollAnchor | null {
   const containerTop = container.getBoundingClientRect().top;
-  for (const row of container.querySelectorAll<HTMLElement>("[data-message-ts]")) {
-    const rect = row.getBoundingClientRect();
-    if (rect.bottom > containerTop) return { el: row, offset: rect.top - containerTop };
+  const rows = container.querySelectorAll<HTMLElement>("[data-message-ts]");
+  let low = 0;
+  let high = rows.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (rows[mid].getBoundingClientRect().bottom > containerTop) high = mid;
+    else low = mid + 1;
   }
-  return null;
+  const row = rows[low];
+  return row ? { el: row, offset: row.getBoundingClientRect().top - containerTop } : null;
 }
 
-export function captureScrollAnchor(container: HTMLElement): ScrollAnchor | null {
-  return findTopAnchor(container);
+function findBottomAnchor(container: HTMLElement): ScrollAnchor | null {
+  const { bottom: containerBottom, top: containerTop } = container.getBoundingClientRect();
+  const rows = [...container.querySelectorAll<HTMLElement>("[data-message-ts]")];
+  const row = rows.findLast((candidate) => candidate.getBoundingClientRect().top < containerBottom);
+  return row ? { el: row, offset: row.getBoundingClientRect().top - containerTop } : null;
+}
+
+export function captureScrollAnchor(
+  container: HTMLElement,
+  edge: "bottom" | "top" = "top",
+): ScrollAnchor | null {
+  return edge === "top" ? findTopAnchor(container) : findBottomAnchor(container);
 }
 
 export function restoreScrollAnchor(container: HTMLElement, anchor: ScrollAnchor | null) {

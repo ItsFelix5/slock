@@ -1,16 +1,14 @@
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
-import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { store } from "../../../lib/store";
 import ComposeUserPicker from "../../composer/popovers/ComposeUserPicker";
-import { loadChannelPostingPrefs, updateChannelPostingPrefs } from "../lib/channelDetails";
+import { createChannelPostingPrefsQuery, updateChannelPostingPrefs } from "../lib/channelDetails";
 import SettingsLoadError, { errorMessage } from "./SettingsLoadError";
 import "./ChannelPostingPermissions.css";
 
 export default function ChannelPostingPermissions(props: { channelId: string }) {
-  const [postingPrefs, { refetch: refetchPostingPrefs }] = createResource(
-    () => props.channelId,
-    loadChannelPostingPrefs,
-  );
+  const postingPrefsQuery = createChannelPostingPrefsQuery(() => props.channelId);
+  const postingPrefs = () => postingPrefsQuery.data;
   const [postingRestricted, setPostingRestricted] = createSignal(false);
   const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<string[]>([]);
   const [threadsRestricted, setThreadsRestricted] = createSignal(false);
@@ -19,7 +17,7 @@ export default function ChannelPostingPermissions(props: { channelId: string }) 
   const [addingPostingException, setAddingPostingException] = createSignal(false);
   const [postingPrefsSaveError, setPostingPrefsSaveError] = createSignal<string>();
 
-  const retryPostingPrefs = () => void Promise.resolve(refetchPostingPrefs()).catch(() => {});
+  const retryPostingPrefs = () => void postingPrefsQuery.refetch();
 
   createEffect(
     on(postingPrefs, (prefs) => {
@@ -108,12 +106,12 @@ export default function ChannelPostingPermissions(props: { channelId: string }) 
   return (
     <div class="settings-section">
       <div class="settings-row-label">Posting permissions</div>
-      <Show when={postingPrefs.loading}>
+      <Show when={postingPrefsQuery.isLoading}>
         <p class="channel-details-meta">Loading posting permissions…</p>
       </Show>
-      <Show when={postingPrefs.error}>
+      <Show when={postingPrefsQuery.error}>
         <SettingsLoadError
-          error={postingPrefs.error}
+          error={postingPrefsQuery.error}
           message="Posting permissions couldn't be loaded."
           onRetry={retryPostingPrefs}
         />

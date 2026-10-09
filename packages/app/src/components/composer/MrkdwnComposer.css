@@ -45,6 +45,6 @@
   outline: none;
 }
 
-.mrkdwn-composer > .menu-panel.composer-suggest-popover {
+.mrkdwn-composer > .menu-panel.composer-suggest-docked {
   inset: calc(100% + 4px) 0 auto;
 }

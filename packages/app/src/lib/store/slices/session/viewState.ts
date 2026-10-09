@@ -12,12 +12,9 @@ interface NavSnapshot {
   searchQuery?: string;
 }
 
-type RawPane = { kind: "raw"; id: string };
+type BootstrapData = { channels: Channel[]; directMessages: DirectMessage[] } | undefined;
 
-function conversationKindIn(
-  id: string,
-  data: { directMessages: DirectMessage[] } | undefined,
-): "channel" | "dm" {
+function conversationKindIn(id: string, data: BootstrapData): "channel" | "dm" {
   return isDmId(id, (candidate) => !!data?.directMessages.some((d) => d.id === candidate))
     ? "dm"
     : "channel";
@@ -26,7 +23,7 @@ function conversationKindIn(
 export function resolveActiveView(
   nav: Nav,
   selected: View | null,
-  data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
+  data: BootstrapData,
 ): View | null {
   if (selected) {
     const kind = conversationKindIn(selected.id, data);
@@ -39,16 +36,9 @@ export function resolveActiveView(
   return firstDirectMessage ? { id: firstDirectMessage.id, kind: "dm" } : null;
 }
 
-const CANVAS_DELIM_LITERAL_OR_PERCENT_ENCODED_RE = /\^|%5e/i;
-
-function parsePaneSegment(segment: string): PaneContent | RawPane | null {
+function parsePaneSegment(segment: string, data: BootstrapData): PaneContent | null {
   if (!segment) return null;
-  const canvasDelim = segment.match(CANVAS_DELIM_LITERAL_OR_PERCENT_ENCODED_RE);
-  if (canvasDelim?.index !== undefined) {
-    const fileId = segment.slice(0, canvasDelim.index);
-    const title = segment.slice(canvasDelim.index + canvasDelim[0].length);
-    return { fileId, kind: "canvas", title: decodeURIComponent(title) };
-  }
+  if (segment.startsWith("F")) return { fileId: segment, kind: "canvas", title: "" };
   if (segment.includes("~")) {
     const [channelId, rest] = segment.split("~");
     const pinned = rest.endsWith("!");
@@ -59,15 +49,11 @@ function parsePaneSegment(segment: string): PaneContent | RawPane | null {
   if (segment.startsWith("U") || segment.startsWith("B"))
     return { kind: "profile", userId: segment };
   if (segment.startsWith("S")) return { kind: "usergroup-details", usergroupId: segment };
-  return { id: segment, kind: "raw" };
+  return { id: segment, kind: conversationKindIn(segment, data) };
 }
 
-function resolvePaneContent(
-  raw: PaneContent | RawPane,
-  data: { channels: Channel[]; directMessages: DirectMessage[] } | undefined,
-): PaneContent {
-  if (raw.kind !== "raw") return raw;
-  return { id: raw.id, kind: conversationKindIn(raw.id, data) };
+function paneKey(content: PaneContent): string {
+  return JSON.stringify(content.kind === "canvas" ? { ...content, title: "" } : content);
 }
 
 function serializePaneSegment(content: PaneContent): string {
@@ -82,18 +68,18 @@ function serializePaneSegment(content: PaneContent): string {
     case "pinned":
       return `${content.channelId}*`;
     case "canvas":
-      return `${content.fileId}^${encodeURIComponent(content.title)}`;
+      return content.fileId;
     case "profile":
       return content.userId;
   }
 }
 
-function parseNavPath(url: URL): {
-  rawPanes: (PaneContent | RawPane)[];
-} {
-  const segs = url.pathname.split("/").filter(Boolean);
-  const rawPanes = segs.map(parsePaneSegment).filter((c): c is PaneContent | RawPane => c !== null);
-  return { rawPanes };
+function parseNavPath(url: URL, data: BootstrapData): PaneContent[] {
+  return url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => parsePaneSegment(segment, data))
+    .filter((c): c is PaneContent => c !== null);
 }
 
 function navSnapshotToPath(snap: NavSnapshot): string {
@@ -154,7 +140,7 @@ export function createViewStateSlice(deps: {
 
   function reconcilePanesToward(target: PaneContent[]) {
     const live = liveIdContentPairs();
-    const eq = (a: PaneContent, b: PaneContent) => JSON.stringify(a) === JSON.stringify(b);
+    const eq = (a: PaneContent, b: PaneContent) => paneKey(a) === paneKey(b);
 
     let prefix = 0;
     while (
@@ -186,7 +172,7 @@ export function createViewStateSlice(deps: {
   }
 
   function structuralKey(snap: Pick<NavSnapshot, "panes">): string {
-    return JSON.stringify({ panes: snap.panes });
+    return snap.panes.map(paneKey).join("/");
   }
 
   function currentNavSnapshot(): NavSnapshot {
@@ -207,9 +193,7 @@ export function createViewStateSlice(deps: {
   }
 
   if (typeof window !== "undefined") {
-    const initial = parseNavPath(new URL(window.location.href));
-    const initialData = untrack(deps.bootstrap);
-    const initialPanes = initial.rawPanes.map((raw) => resolvePaneContent(raw, initialData));
+    const initialPanes = parseNavPath(new URL(window.location.href), untrack(deps.bootstrap));
     batch(() => {
       setSelected(
         initialPanes[0] && (initialPanes[0].kind === "channel" || initialPanes[0].kind === "dm")

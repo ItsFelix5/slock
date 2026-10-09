@@ -25,6 +25,7 @@ import {
   setMemberPermissions,
   unarchiveChannel,
 } from "../../../lib/api";
+import { createKeyedQuery } from "../../../lib/createKeyedQuery";
 import { flashCaughtError } from "../../../lib/feedback";
 import { store } from "../../../lib/store";
 
@@ -104,13 +105,25 @@ function setup() {
     );
   }
 
-  function loadChannelPostingPrefs(id: string): Promise<ChannelPostingPrefs> {
-    return fetchChannelPostingPrefs(id);
+  function createChannelQuery<T>(
+    key: string,
+    id: () => string | null | undefined,
+    load: (id: string) => Promise<T>,
+  ) {
+    return createKeyedQuery(() => {
+      const channelId = id();
+      return channelId ? { queryFn: () => load(channelId), queryKey: [key, channelId] } : undefined;
+    });
   }
 
-  function loadChannelRetention(id: string): Promise<number | null> {
-    return fetchChannelRetention(id);
-  }
+  const createChannelDetailsQuery = (id: () => string | null | undefined) =>
+    createChannelQuery("channelDetails", id, loadChannelDetails);
+  const createChannelManagerIdsQuery = (id: () => string | null | undefined) =>
+    createChannelQuery("channelManagerIds", id, loadChannelManagerIds);
+  const createChannelPostingPrefsQuery = (id: () => string | null | undefined) =>
+    createChannelQuery<ChannelPostingPrefs>("channelPostingPrefs", id, fetchChannelPostingPrefs);
+  const createChannelRetentionQuery = (id: () => string | null | undefined) =>
+    createChannelQuery<number | null>("channelRetention", id, fetchChannelRetention);
 
   function renameChannelById(id: string, name: string): Promise<boolean> {
     return withFeedback(id, "Failed to rename channel.", false, async () => {
@@ -198,12 +211,13 @@ function setup() {
     closeChannelDetails,
     convertChannelToPrivateById,
     inviteUsersToChannel,
-    loadChannelDetails,
+    createChannelDetailsQuery,
+    createChannelManagerIdsQuery,
+    createChannelPostingPrefsQuery,
+    createChannelRetentionQuery,
     loadChannelManagerIds,
     loadChannelMembersPage,
-    loadChannelPostingPrefs,
     searchChannelMembers,
-    loadChannelRetention,
     openChannelDetails,
     removeUserFromChannel,
     renameChannelById,
@@ -223,12 +237,13 @@ export const {
   openChannelDetails,
   closeChannelDetails,
   convertChannelToPrivateById,
-  loadChannelDetails,
+  createChannelDetailsQuery,
+  createChannelManagerIdsQuery,
+  createChannelPostingPrefsQuery,
+  createChannelRetentionQuery,
   loadChannelMembersPage,
   loadChannelManagerIds,
-  loadChannelPostingPrefs,
   searchChannelMembers,
-  loadChannelRetention,
   renameChannelById,
   unarchiveChannelById,
   updateChannelTopic,

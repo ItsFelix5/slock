@@ -1,11 +1,14 @@
 import { EmojiFreezeContext, EmojiText } from "@slock/blockkit";
 import type { Message, User } from "@slock/types";
 import { Icon, showUserStatuses, Tooltip, useElementVisible } from "@slock/ui";
-import { type Accessor, createResource, Show } from "solid-js";
+import { type Accessor, Show } from "solid-js";
 import { fetchUserStatus } from "../../lib/api";
+import { createKeyedQuery } from "../../lib/createKeyedQuery";
 import UserHoverCard from "../user/UserHoverCard";
 import { MessageAuthorButton } from "./MessageAuthorButton";
 import { isRealUserId } from "./parts/messageAuthor";
+
+const USER_STATUS_STALE_MS = 5 * 60_000;
 
 export default function MessageMeta(props: {
   message: Message;
@@ -22,14 +25,17 @@ export default function MessageMeta(props: {
 }) {
   const msg = props.message;
   const { ref: visibleRef, visible } = useElementVisible();
-  const [status] = createResource(
-    () => {
-      const user = props.user();
-      if (!(showUserStatuses() && visible())) return;
-      return isRealUserId(props.userId) && user && !user.isBot ? props.userId : undefined;
-    },
-    (userId) => fetchUserStatus(userId).catch(() => undefined),
-  );
+  const status = createKeyedQuery(() => {
+    const user = props.user();
+    const { userId } = props;
+    if (!(showUserStatuses() && visible() && userId)) return;
+    if (!(isRealUserId(userId) && user && !user.isBot)) return;
+    return {
+      queryFn: () => fetchUserStatus(userId).catch(() => null),
+      queryKey: ["userStatus", userId],
+      staleTime: USER_STATUS_STALE_MS,
+    };
+  });
   return (
     <div class="message-meta icon-shift" ref={visibleRef}>
       <Show
@@ -42,7 +48,7 @@ export default function MessageMeta(props: {
               disabled={false}
               name={props.displayName()}
               onClick={props.onOpenUser}
-              status={showUserStatuses() ? status() : undefined}
+              status={showUserStatuses() ? (status.data ?? undefined) : undefined}
               tabbable={props.tabbable?.()}
             />
           </UserHoverCard>
@@ -74,7 +80,7 @@ export default function MessageMeta(props: {
         <span class="message-bot-badge">System</span>
       </Show>
       <Tooltip content={`${msg.day} at ${msg.time}`}>
-        <span class="message-time">{msg.time}</span>
+        <span class="message-time meta-dim">{msg.time}</span>
       </Tooltip>
       <Show when={props.user()?.pronouns}>
         <span class="pronouns truncate">• {props.user()?.pronouns}</span>

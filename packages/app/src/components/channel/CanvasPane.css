@@ -8,11 +8,6 @@
   min-width: 0;
 }
 
-.canvas-panel-title {
-  font-size: var(--font-size-secondary);
-  font-weight: 700;
-}
-
 .canvas-panel-copy-link {
   display: flex;
   flex-shrink: 0;

@@ -3,12 +3,13 @@
 }
 
 .channel-notice-bar .btn {
-  height: var(--composer-action-size);
+  margin-right: 2px;
 }
 
 .channel-notice-bar-text {
   min-width: 0;
   padding-left: 6px;
+  line-height: var(--composer-action-size);
   overflow: hidden;
   font-size: var(--font-size-control);
   color: var(--text-secondary);

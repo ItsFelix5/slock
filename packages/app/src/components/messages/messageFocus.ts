@@ -80,7 +80,8 @@ export function createMessageFocus(
     );
     const next = list[nextIndex];
     if (!next) return;
-    focusRow(next.ts);
+    if (nextIndex === list.length - 1) focusEdge("end");
+    else focusRow(next.ts);
   }
 
   function focusEdge(edge: "start" | "end") {

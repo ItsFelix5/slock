@@ -39,7 +39,7 @@ export default function UserProfileStatus(props: UserProfileStatusProps) {
           trigger={
             <button
               aria-label="Set status emoji"
-              class="user-profile-status-emoji-btn btn-reset flex-center"
+              class="user-profile-status-emoji-btn btn-reset flex-center hover-hl"
               disabled={props.savingStatus()}
               onClick={() => setEmojiOpen(!emojiOpen())}
               type="button"
@@ -62,7 +62,7 @@ export default function UserProfileStatus(props: UserProfileStatusProps) {
         </Popover>
         <input
           aria-label="Status"
-          class="user-profile-status-input"
+          class="user-profile-status-input busy"
           disabled={props.savingStatus()}
           onBlur={props.saveStatus}
           onInput={(e) => props.setStatusText(e.currentTarget.value)}
@@ -73,7 +73,7 @@ export default function UserProfileStatus(props: UserProfileStatusProps) {
         />
         <Show when={hasStatus()}>
           <IconButton
-            class="user-profile-status-clear"
+            class="user-profile-status-clear busy hover-hl"
             disabled={props.savingStatus()}
             icon="close"
             iconSize={12}

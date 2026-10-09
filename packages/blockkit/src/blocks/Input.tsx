@@ -17,7 +17,7 @@ export default function Input(props: { block: InputBlock; context?: BlockActionC
         el={props.block.element}
       />
       <Show when={props.block.hint}>
-        <div class="bk-input-hint">
+        <div class="bk-input-hint meta-dim">
           <BkText text={props.block.hint} />
         </div>
       </Show>

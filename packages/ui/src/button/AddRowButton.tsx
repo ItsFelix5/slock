@@ -11,7 +11,7 @@ export interface AddRowButtonProps {
 export default function AddRowButton(props: AddRowButtonProps) {
   return (
     <button
-      class="add-row-btn btn-reset flex-align-center"
+      class="add-row-btn btn-reset flex-align-center busy"
       disabled={props.disabled}
       onClick={props.onClick}
       type="button"

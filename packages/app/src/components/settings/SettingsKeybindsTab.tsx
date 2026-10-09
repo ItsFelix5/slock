@@ -170,7 +170,7 @@ export default function SettingsKeybindsTab() {
     <>
       <div class="settings-row flex-between">
         <h2>Keybinds</h2>
-        <button class="settings-status-clear btn-reset" onClick={resetAll} type="button">
+        <button class="settings-status-clear btn-reset busy" onClick={resetAll} type="button">
           Reset all
         </button>
       </div>
@@ -187,7 +187,7 @@ export default function SettingsKeybindsTab() {
         />
         <button
           aria-pressed={finder.recording()}
-          class="settings-status-clear settings-keybind-find btn-reset flex-align-center"
+          class="settings-status-clear settings-keybind-find btn-reset flex-align-center busy"
           onClick={finder.start}
           type="button"
         >

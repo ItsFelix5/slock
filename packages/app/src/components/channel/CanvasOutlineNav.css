@@ -1,7 +1,11 @@
 .canvas-outline-nav {
+  --outline-mark-width: 14px;
+
   position: sticky;
   top: 16px;
+  flex: none;
   align-self: flex-start;
+  width: calc(var(--outline-mark-width) + var(--space-xs) * 2);
 }
 
 .canvas-outline-rail {
@@ -12,7 +16,7 @@
 
 .canvas-outline-mark {
   height: 2px;
-  width: 14px;
+  width: var(--outline-mark-width);
   padding: 0;
   background: var(--text-dim);
   border: none;

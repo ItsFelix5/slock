@@ -63,7 +63,7 @@ export default function ReactionRow(props: {
               <Tooltip content={`${reactorNames(r.users)} reacted with :${r.name}:`}>
                 <button
                   aria-busy={props.isPending?.(r.name) ?? false}
-                  class="reaction-pill btn-reset flex-align-center"
+                  class="reaction-pill btn-reset flex-align-center busy"
                   classList={{ mine: mine() }}
                   disabled={props.isPending?.(r.name) ?? false}
                   onClick={(e) => {
@@ -105,7 +105,7 @@ export default function ReactionRow(props: {
         <Tooltip content="Add a reaction">
           <button
             aria-label="Add a reaction"
-            class="reaction-pill btn-reset flex-center"
+            class="reaction-pill btn-reset flex-center busy"
             onClick={() => setPickerOpen(!pickerOpen())}
             ref={addButtonRef}
             type="button"

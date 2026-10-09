@@ -15,16 +15,18 @@ export function errorMessage(error: unknown, fallback: string): string {
 const COMPRESSIBLE_CONTENT_TYPE_RE =
   /^(?:text\/|application\/(?:javascript|json|xml|wasm)|image\/svg\+xml)/i;
 
-function acceptsGzip(acceptEncoding: string | null): boolean {
+export function acceptsEncoding(acceptEncoding: string | null, wanted: "gzip" | "br"): boolean {
   return Boolean(
     acceptEncoding?.split(",").some((part) => {
       const [encoding, ...parameters] = part.trim().toLowerCase().split(";");
-      return encoding === "gzip" && !parameters.some((parameter) => parameter.trim() === "q=0");
+      return encoding === wanted && !parameters.some((parameter) => parameter.trim() === "q=0");
     }),
   );
 }
 
-function headersWithVary(headers: Headers | Record<string, string>): Headers {
+const acceptsGzip = (acceptEncoding: string | null) => acceptsEncoding(acceptEncoding, "gzip");
+
+export function headersWithVary(headers: Headers | Record<string, string>): Headers {
   const result = new Headers(headers);
   const vary = result.get("vary");
   if (!vary?.split(",").some((value) => value.trim().toLowerCase() === "accept-encoding")) {
@@ -33,7 +35,7 @@ function headersWithVary(headers: Headers | Record<string, string>): Headers {
   return result;
 }
 
-function isCompressible(contentType: string | null): boolean {
+export function isCompressible(contentType: string | null): boolean {
   return Boolean(!contentType || COMPRESSIBLE_CONTENT_TYPE_RE.test(contentType));
 }
 

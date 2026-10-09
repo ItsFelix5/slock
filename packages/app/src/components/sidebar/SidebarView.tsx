@@ -7,10 +7,9 @@ import {
   useEditShortcuts,
   useTabStripShortcuts,
 } from "@slock/ui";
-import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import { createMemo, createSignal, For, lazy, Match, Show, Switch } from "solid-js";
 import { store } from "../../lib/store";
 import type { Nav } from "../../lib/store/slices/types";
-import MessageSearchView from "../search/MessageSearchView";
 import ActivityView from "./activity/ActivityView";
 import LaterView from "./LaterView";
 import ChannelRow from "./rows/ChannelRow";
@@ -21,6 +20,8 @@ import SidebarSectionMenu from "./SidebarSectionMenu";
 import SidebarToolbar from "./SidebarToolbar";
 import SidebarUnreadEdgeIndicator from "./SidebarUnreadEdgeIndicator";
 import { idsEqual, type SidebarContext } from "./sidebarCategories";
+
+const MessageSearchView = lazy(() => import("../search/MessageSearchView"));
 
 const SIDEBAR_NAV_TABS: Nav[] = ["home", "activity", "later"];
 
@@ -250,7 +251,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
       <div class="sidebar-nav flex-align-center" ref={navTabListRef} role="tablist">
         <button
           aria-selected={nav() === "home"}
-          class="sidebar-nav-btn btn-reset flex-center"
+          class="sidebar-nav-btn btn-reset flex-center hover-hl"
           classList={{
             active: nav() === "home",
           }}
@@ -269,7 +270,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
         </button>
         <button
           aria-selected={nav() === "activity"}
-          class="sidebar-nav-btn btn-reset flex-center"
+          class="sidebar-nav-btn btn-reset flex-center hover-hl"
           classList={{
             active: nav() === "activity",
           }}
@@ -281,7 +282,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
           tabIndex={activeNavTabIndex() === 1 ? 0 : -1}
           type="button"
         >
-          <span class="sidebar-nav-btn-icon flex-center">
+          <span class="sidebar-nav-btn-icon flex-center hover-hl">
             <Show fallback={<Icon name="notifications" size={16} />} when={recentReactionEmoji()}>
               {(name) => (
                 <span class="sidebar-nav-reaction-emoji">
@@ -298,7 +299,7 @@ export default function SidebarView(props: { context: SidebarContext }) {
         </button>
         <button
           aria-selected={nav() === "later"}
-          class="sidebar-nav-btn btn-reset flex-center"
+          class="sidebar-nav-btn btn-reset flex-center hover-hl"
           classList={{
             active: nav() === "later",
           }}

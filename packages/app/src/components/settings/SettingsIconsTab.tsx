@@ -34,7 +34,7 @@ export default function SettingsIconsTab() {
         <div class="debug-icon-grid">
           <For each={filtered()}>
             {(name) => (
-              <Tooltip class="debug-icon-tooltip" content={name}>
+              <Tooltip class="debug-icon-tooltip size-full" content={name}>
                 <button
                   aria-label={name}
                   class="debug-icon-cell btn-reset flex-col"

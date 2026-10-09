@@ -116,11 +116,6 @@
   color: var(--text-dim);
 }
 
-.channel-details-copy-value {
-  flex: 1;
-  min-width: 0;
-}
-
 .channel-details-name-wrap {
   gap: 6px;
   align-items: center;

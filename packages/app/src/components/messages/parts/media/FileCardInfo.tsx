@@ -37,7 +37,7 @@ export default function FileCardInfo(props: {
             <Mrkdwn text={name()} />
           </Show>
         </span>
-        <span class="message-file-meta">
+        <span class="message-file-meta meta-dim">
           {props.file.filetype?.toUpperCase()} {formatSize(props.file.size)}
         </span>
       </span>

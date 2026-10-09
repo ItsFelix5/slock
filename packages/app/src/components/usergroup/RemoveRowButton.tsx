@@ -9,7 +9,7 @@ export interface RemoveRowButtonProps {
 export default function RemoveRowButton(props: RemoveRowButtonProps) {
   return (
     <IconButton
-      class="usergroup-details-row-remove"
+      class="usergroup-details-row-remove busy"
       disabled={props.disabled}
       icon="close-filled"
       iconSize={14}

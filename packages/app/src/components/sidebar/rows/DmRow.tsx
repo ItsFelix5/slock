@@ -89,7 +89,7 @@ export function DmRow(props: { dm: DirectMessage }) {
           </button>
         </SplitNavigation>
         <IconButton
-          class="sidebar-row-close"
+          class="sidebar-row-close hover-hl"
           disabled={store.dms.isCloseDmPending(props.dm.id)}
           icon="close"
           iconSize={12}

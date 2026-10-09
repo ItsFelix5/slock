@@ -18,7 +18,7 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
 
   return (
     <div class="bk-section">
-      <div class="bk-section-main">
+      <div class="bk-section-main grow">
         <Show when={props.block.text}>
           <div
             class="bk-section-text"

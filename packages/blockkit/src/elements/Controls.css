@@ -55,11 +55,6 @@
 }
 
 .bk-overflow-btn:hover,
-.bk-feedback-button:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
 .bk-icon-button img {
   width: 16px;
   height: 16px;

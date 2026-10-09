@@ -40,8 +40,7 @@
 }
 
 .emoji-picker-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: -2px;
+  --focus-offset: -2px;
 }
 
 .emoji-picker-btn.reacted {

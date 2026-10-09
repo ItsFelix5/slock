@@ -15,11 +15,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.message-search-input {
-  flex: 1;
-  min-width: 0;
-}
-
 .message-search-input .ql-editor {
   padding: 0;
   overflow-x: auto;
@@ -82,11 +77,6 @@
 
 .message-search-history-clear {
   color: var(--text-dim);
-}
-
-.message-search-history-query {
-  flex: 1;
-  min-width: 0;
 }
 
 .message-search-history-remove {

@@ -85,14 +85,11 @@ export function createChannelMembers(deps: {
     }
   };
 
+  void loadManagers();
   createEffect(
     on(filter, (f) => {
       const key = pagedKeyFor(f);
-      if (!key) {
-        void loadManagers();
-        return;
-      }
-      if (!pagedLoader.hasLoaded(key)) void loadMore(key);
+      if (key && !pagedLoader.hasLoaded(key)) void loadMore(key);
     }),
   );
 

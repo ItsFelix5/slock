@@ -61,11 +61,6 @@
   font-weight: 600;
 }
 
-.message-file-meta {
-  font-size: var(--font-size-meta);
-  color: var(--text-dim);
-}
-
 .pending-file-card {
   position: relative;
   overflow: hidden;

@@ -89,7 +89,6 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   });
 
   let handledFocusKey: string | undefined;
-  let refreshedFocusKey: string | undefined;
   let readyTs: string | undefined;
   let justHandledTs: string | undefined;
   createEffect(() => {
@@ -101,11 +100,6 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     if (!first) return;
     const highlightMissing = highlightTs !== undefined && !msgs.some((m) => m.ts === highlightTs);
     if (highlightMissing && store.messages.isLoadingThread(ts)) return;
-    if (highlightMissing && refreshedFocusKey !== key) {
-      refreshedFocusKey = key;
-      void store.messages.ensureThreadMessage(thread().channelId, ts, highlightTs);
-      return;
-    }
     handledFocusKey = key;
     readyTs = ts;
     justHandledTs = ts;
@@ -246,7 +240,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
             )}
           </Show>
           <IconButton
-            class="thread-panel-subscribe-btn icon-shift"
+            class="thread-panel-subscribe-btn icon-shift busy"
             classList={{ subscribed: store.messages.isThreadSubscribed(thread().ts) }}
             disabled={
               !isMember() ||

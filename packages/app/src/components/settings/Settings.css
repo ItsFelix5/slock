@@ -118,11 +118,6 @@
   background: var(--active-bg);
 }
 
-.settings-status-clear:disabled {
-  cursor: wait;
-  opacity: 0.6;
-}
-
 .settings-add-row {
   gap: var(--space-sm);
   margin: var(--space-sm) 0;
@@ -207,11 +202,6 @@
   font-size: var(--font-size-control);
   color: var(--text-secondary);
   border-radius: var(--radius-control);
-}
-
-.settings-quiet-btn:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .settings-quiet-btn:disabled {

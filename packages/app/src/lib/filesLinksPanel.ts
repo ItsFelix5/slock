@@ -1,7 +1,8 @@
 import type { SlackFile, SlackLink } from "@slock/types";
 import { batch, createRoot, createSignal } from "solid-js";
-import { fetchFileDetail, fetchMessagesByIds, searchChannelFilesAndLinks } from "./api";
+import { fetchMessagesByIds, searchChannelFilesAndLinks } from "./api";
 import { channelDisplayName, dmDisplayName } from "./displayName";
+import { loadFileDetail } from "./fileDetailQuery";
 import { store } from "./store";
 
 export type FilesLinksEntry =
@@ -103,7 +104,7 @@ function setup() {
     fileId: string,
     open: (channelId: string, ts: string, threadTs?: string) => void,
   ) {
-    const { shares } = await fetchFileDetail(fileId);
+    const { shares } = await loadFileDetail(fileId);
     const share = shares.find((s) => s.channelId === channelId) ?? shares[0];
     if (share) open(share.channelId, share.ts, share.threadTs);
   }

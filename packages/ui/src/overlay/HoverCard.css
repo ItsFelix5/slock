@@ -26,8 +26,3 @@
   background: var(--hover-bg);
   border-color: var(--text-dim);
 }
-
-.hover-card-action:disabled {
-  cursor: wait;
-  opacity: 0.6;
-}

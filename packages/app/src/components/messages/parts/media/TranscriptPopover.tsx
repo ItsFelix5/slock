@@ -1,16 +1,8 @@
 import { formatDuration } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import { IconButton, Popover } from "@slock/ui";
-import {
-  createEffect,
-  createResource,
-  createSignal,
-  For,
-  Match,
-  onCleanup,
-  Switch,
-} from "solid-js";
-import { fetchFileDetail } from "../../../../lib/api";
+import { createEffect, createSignal, For, Match, onCleanup, Switch } from "solid-js";
+import { createFileDetailQuery } from "../../../../lib/fileDetailQuery";
 import "./TranscriptPopover.css";
 
 export default function TranscriptPopover(props: {
@@ -30,12 +22,11 @@ export default function TranscriptPopover(props: {
     onCleanup(() => media.removeEventListener("timeupdate", onTimeUpdate));
   });
 
-  const [detail] = createResource(
-    () => (open() && !props.file.transcriptionLines ? props.file.id : undefined),
-    fetchFileDetail,
+  const detail = createFileDetailQuery(() =>
+    open() && !props.file.transcriptionLines ? props.file.id : undefined,
   );
 
-  const lines = () => detail()?.file.transcriptionLines ?? props.file.transcriptionLines ?? [];
+  const lines = () => detail.data?.file.transcriptionLines ?? props.file.transcriptionLines ?? [];
 
   const seek = (startMs: number) => {
     const media = props.media();
@@ -69,7 +60,7 @@ export default function TranscriptPopover(props: {
     >
       <div class="transcript-popover-body" ref={bodyRef}>
         <Switch>
-          <Match when={detail.loading && lines().length === 0}>
+          <Match when={detail.isLoading && lines().length === 0}>
             <div class="transcript-popover-status text-dim text-xs">Loading transcript…</div>
           </Match>
           <Match when={lines().length}>
@@ -94,7 +85,7 @@ export default function TranscriptPopover(props: {
               }}
             </For>
           </Match>
-          <Match when={!detail.loading}>
+          <Match when={!detail.isLoading}>
             <div class="transcript-popover-status text-dim text-xs">No transcript available.</div>
           </Match>
         </Switch>

@@ -1,0 +1,15 @@
+.canvas-comment-quote {
+  max-width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: inherit;
+  color: var(--text-primary);
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.canvas-comment-quote:hover {
+  background: var(--hover-bg);
+}

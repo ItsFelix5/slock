@@ -53,8 +53,7 @@ button.user-profile-avatar.is-editable {
 }
 
 button.user-profile-avatar.is-editable:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 3px;
+  --focus-offset: 3px;
 }
 
 button.user-profile-avatar:disabled {
@@ -103,11 +102,6 @@ button.user-profile-presence.away {
   background-color: var(--presence-away);
 }
 
-button.user-profile-presence:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
 .user-profile-name {
   display: flex;
   gap: 6px;
@@ -152,11 +146,6 @@ button.user-profile-presence:disabled {
 
 .user-profile-message-btn:hover:not(:disabled) {
   background: var(--accent-hover);
-}
-
-.user-profile-message-btn:disabled {
-  cursor: wait;
-  opacity: 0.65;
 }
 
 .user-profile-section {

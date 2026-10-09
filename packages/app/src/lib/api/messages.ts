@@ -21,11 +21,19 @@ type HistoryReply = {
 };
 
 export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
-  const data = await apiGet<HistoryReply>(
-    `/api/channels/${channelId}/threads/${threadTs}/messages?limit=200`,
-  );
-  if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
-  return mapVisibleMessages(data.messages ?? []);
+  const messages: Message[] = [];
+  let cursor: string | undefined;
+  do {
+    const query = new URLSearchParams({ limit: "200" });
+    if (cursor) query.set("cursor", cursor);
+    const data = await apiGet<HistoryReply>(
+      `/api/channels/${channelId}/threads/${threadTs}/messages?${query}`,
+    );
+    if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
+    messages.push(...mapVisibleMessages(data.messages ?? []));
+    cursor = data.has_more ? data.response_metadata?.next_cursor || undefined : undefined;
+  } while (cursor);
+  return messages;
 }
 
 export async function fetchReplyWindow(

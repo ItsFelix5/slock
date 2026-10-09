@@ -14,11 +14,6 @@
   border-radius: var(--radius-sm);
 }
 
-.volume-control-toggle:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-
 .volume-control-panel {
   position: absolute;
   z-index: 1;
@@ -86,10 +81,4 @@
   background: var(--accent);
   border: none;
   border-radius: var(--radius-circle);
-}
-
-.volume-control-toggle:focus-visible,
-.volume-control-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
 }

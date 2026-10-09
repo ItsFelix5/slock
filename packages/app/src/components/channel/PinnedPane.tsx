@@ -57,7 +57,7 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
         canClose={store.viewState.canCloseTile()}
         onClose={() => store.viewState.closeTile(props.pane.id)}
       >
-        <div class="pinned-panel-title">{title()}</div>
+        <div class="pinned-panel-title title-sm">{title()}</div>
       </PanelHeader>
       <div class="pinned-panel-list" ref={listRef}>
         <Show when={loading() && pins() !== undefined && !loadError()}>
@@ -105,7 +105,6 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
                           }}
                           ctxMenu={ctxMenu}
                           name={displayName()}
-                          navRow
                           onOpen={openMessage}
                           onSplit={() =>
                             openConversationInSplit(channelId(), msg().threadTs ?? pin.ts)
@@ -123,7 +122,6 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
                               tz={user()?.tz}
                             />
                           }
-                          tabIndex={-1}
                           time={msg().time}
                           timeTitle={`${msg().day} at ${msg().time}`}
                           trailing={

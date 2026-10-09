@@ -17,8 +17,12 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
     }
   }
 
-  const sweepTimer: ReturnType<typeof setInterval> = setInterval(() => {
+  let sweepTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function sweep() {
+    sweepTimer = undefined;
     const now = Date.now();
+    let nextExpiry = Number.POSITIVE_INFINITY;
     for (const key of Object.keys(typingByKey)) {
       const entries = typingByKey[key];
       for (const userId of Object.keys(entries)) {
@@ -29,12 +33,18 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
               delete e[userId];
             }),
           );
-        }
+        } else nextExpiry = Math.min(nextExpiry, entries[userId]);
       }
       pruneIfEmpty(key);
     }
-  }, 1000);
-  onCleanup(() => clearInterval(sweepTimer));
+    if (nextExpiry !== Number.POSITIVE_INFINITY) armSweep(nextExpiry);
+  }
+
+  function armSweep(expiresAt: number) {
+    if (sweepTimer) return;
+    sweepTimer = setTimeout(sweep, Math.max(expiresAt - Date.now(), 0) + 50);
+  }
+  onCleanup(() => clearTimeout(sweepTimer));
 
   const typingKey = (channelId: string, threadTs?: string) =>
     threadTs ? `${channelId}:${threadTs}` : channelId;
@@ -48,6 +58,7 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
         s[key][userId] = expiresAt;
       }),
     );
+    armSweep(expiresAt);
   }
 
   function clearTyping(channelId: string, threadTs: string | undefined, userId: string) {

@@ -135,6 +135,7 @@ export function mapMessage(m: RawMessage): Message {
     botId: m.bot_id,
 
     botName: m.username ?? m.bot_profile?.name,
+    canvasThreadId: m.document_comment?.thread_id,
     day: formatDay(m.ts),
     edited: !!m.edited,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,

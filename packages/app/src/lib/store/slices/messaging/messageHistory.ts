@@ -1,6 +1,7 @@
 import type { ConversationViewData, Message } from "@slock/types";
+import { createRecencyEviction } from "@slock/ui";
 import { createEffect, untrack } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, produce } from "solid-js/store";
 import {
   fetchChannelDetails,
   fetchHistory,
@@ -28,6 +29,7 @@ const DEFAULT_HISTORY_API: MessageHistoryApi = {
 };
 
 const MAX_LOADED_MESSAGES = 300;
+const KEEP_RECENT_CHANNELS = 3;
 
 export function createMessageHistory(
   deps: {
@@ -45,7 +47,6 @@ export function createMessageHistory(
   const [historyMeta, setHistoryMeta] = createStore<Record<string, HistoryMeta>>({});
   const windowEpochs = createRequestEpochs();
   const {
-    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     hasThreadError,
     isLoadingThread,
@@ -130,6 +131,19 @@ export function createMessageHistory(
       if (alreadyAtPresent) continue;
       loadRecentHistory(view.id);
     }
+  });
+  function evictChannel(channelId: string) {
+    windowEpochs.begin(channelId);
+    loadedChannels.delete(channelId);
+    historyCursor.delete(channelId);
+    newerHistoryBoundary.delete(channelId);
+    setMessagesByChannel(produce((s) => delete s[channelId]));
+    setHistoryMeta(produce((s) => delete s[channelId]));
+  }
+  createRecencyEviction({
+    evict: evictChannel,
+    keepRecent: KEEP_RECENT_CHANNELS,
+    visible: () => deps.visibleViews().map((view) => view.id),
   });
   function hasMoreHistory(channelId: string) {
     return historyMeta[channelId]?.hasMore ?? true;
@@ -221,7 +235,6 @@ export function createMessageHistory(
   });
   return {
     ensureChannelMessage,
-    ensureThreadMessage,
     ensureThreadRepliesLoaded,
     hasHistoryError,
     hasMoreHistory,

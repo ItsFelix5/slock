@@ -37,10 +37,6 @@
 .message-author-banned:hover {
   text-decoration: underline wavy var(--user-status-banned) 1px;
 }
-.message-time {
-  font-size: var(--font-size-meta);
-  color: var(--text-dim);
-}
 .message-bot-badge {
   padding: 1px var(--space-xs);
   font-size: 10px;
@@ -119,10 +115,6 @@ button.message-bot-badge {
 .reaction-pill:hover:not(:disabled) {
   cursor: pointer;
   border-color: var(--text-dim);
-}
-.reaction-pill:disabled {
-  cursor: wait;
-  opacity: 0.65;
 }
 .reaction-pill.mine {
   color: var(--text-primary);

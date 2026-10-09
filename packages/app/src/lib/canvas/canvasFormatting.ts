@@ -13,21 +13,11 @@ import {
 
 const Delta = Quill.import("delta");
 
-export type InlineFormat = "bold" | "code" | "italic" | "strike" | "underline";
-
 const BLOCK_FORMATS = ["header", "list", "code-block", "indent"];
 const TABLE_ROWS = 3;
 const TABLE_COLUMNS = 2;
 const TABLE_COLUMN_WIDTH = 300;
 const HEX_LENGTH = 25;
-
-export function currentFormats(quill: Quill): Record<string, unknown> {
-  return quill.getSelection() ? quill.getFormat() : {};
-}
-
-export function toggleInline(quill: Quill, format: InlineFormat) {
-  quill.format(format, !quill.getFormat()[format], "user");
-}
 
 export function toggleBlock(
   quill: Quill,
@@ -43,10 +33,6 @@ export function setParagraph(quill: Quill) {
   if (!range) return;
   for (const format of BLOCK_FORMATS)
     quill.formatLine(range.index, range.length, format, false, "user");
-}
-
-export function shiftIndent(quill: Quill, delta: 1 | -1) {
-  if (quill.getFormat().list) quill.format("indent", delta > 0 ? "+1" : "-1", "user");
 }
 
 function selectedLines(quill: Quill) {
@@ -82,19 +68,10 @@ export function setCallout(quill: Quill, color: number | null) {
   updateFrames(quill, (frames) => withCallout(frames, same ? null : color));
 }
 
-export function calloutColorAt(formats: Record<string, unknown>): number | null {
-  const frame = framesFromAttribute(formats[LAYOUT_ATTRIBUTE]).find((f) => f.kind === "callout");
-  return frame?.kind === "callout" ? frame.color : null;
-}
-
-export function quoteActive(formats: Record<string, unknown>): boolean {
-  return framesFromAttribute(formats[LAYOUT_ATTRIBUTE]).some((frame) => frame.kind === "quote");
-}
-
 export function commentAnchorAt(quill: Quill): string | null {
   const range = quill.getSelection();
   if (!range) return null;
-  const annotation = quill.getFormat(range.index, range.length).annotation;
+  const { annotation } = quill.getFormat(range.index, range.length);
   return typeof annotation === "string" ? annotation : null;
 }
 
@@ -172,12 +149,4 @@ export function newColumnsValue(count: number, newId: () => string): ColumnsEmbe
 export function insertColumns(quill: Quill, count: number, newId: () => string) {
   const value = newColumnsValue(count, newId);
   insertBlock(quill, { name: COLUMNS_EMBED, value }, value.id);
-}
-
-export function undo(quill: Quill) {
-  quill.history.undo();
-}
-
-export function redo(quill: Quill) {
-  quill.history.redo();
 }

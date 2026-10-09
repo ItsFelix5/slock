@@ -100,6 +100,7 @@ export function mapLink(raw: RawLink): SlackLink {
 
 export function mapFileShare(raw: RawFileShare): SlackFileShare {
   return {
+    access: raw.access,
     channelId: raw.channel_id,
     channelName: raw.channel_name ?? raw.channel_id,
     replyCount: raw.reply_count,

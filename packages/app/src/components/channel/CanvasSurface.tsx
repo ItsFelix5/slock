@@ -1,4 +1,4 @@
-import { QuillEditor } from "@slock/ui";
+import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "quill";
 import type { Op } from "quill";
 import { onCleanup } from "solid-js";

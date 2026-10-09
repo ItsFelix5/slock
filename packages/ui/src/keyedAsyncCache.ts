@@ -55,7 +55,7 @@ export function createKeyedAsyncCache<T>(
 
   function invalidate(key: string): void {
     setStore(produce((s) => delete s[key]));
-    setErrors(key, false);
+    setErrors(produce((s) => delete s[key]));
   }
 
   function load(key: string): Promise<T | undefined> {
@@ -74,7 +74,7 @@ export function createKeyedAsyncCache<T>(
         options.onError?.(err, key);
       })
       .finally(() => {
-        setLoading(key, false);
+        setLoading(produce((s) => delete s[key]));
         inFlight.delete(key);
       });
     inFlight.set(key, request);

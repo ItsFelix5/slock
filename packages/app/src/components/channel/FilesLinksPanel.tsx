@@ -41,7 +41,7 @@ import { openConversationInSplit } from "../../lib/navigation/conversationNav";
 import { store } from "../../lib/store";
 import { formatSize } from "../messages/parts/media/FileCardInfo";
 import { SplitNavigation } from "../navigation/SplitNavigation";
-import FileDetailModal from "./FileDetailModal";
+import FileDetailModal from "./file-detail/FileDetailModal";
 import "./FilesLinksPanel.css";
 
 const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
@@ -55,7 +55,11 @@ function JumpButton(props: { onJump: () => void; onSplit: () => void }) {
   return (
     <Tooltip content="Jump to message">
       <SplitNavigation onSplit={props.onSplit}>
-        <button class="files-links-card-jump btn-reset" onClick={props.onJump} type="button">
+        <button
+          class="files-links-card-jump btn-reset hover-hl"
+          onClick={props.onJump}
+          type="button"
+        >
           <Icon name="message" size={13} />
         </button>
       </SplitNavigation>
@@ -85,7 +89,15 @@ function FileCard(props: {
           }
           when={props.file.isImage && props.file.thumbUrl}
         >
-          {(thumb) => <img alt="" class="files-links-card-thumb" src={thumb()} />}
+          {(thumb) => (
+            <img
+              alt=""
+              class="files-links-card-thumb"
+              decoding="async"
+              loading="lazy"
+              src={thumb()}
+            />
+          )}
         </Show>
         <span class="files-links-card-body flex-col">
           <span class="files-links-card-title truncate">{props.file.title || props.file.name}</span>
@@ -127,7 +139,15 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
           }
           when={props.link.iconUrl ?? props.link.thumbUrl}
         >
-          {(icon) => <img alt="" class="files-links-card-favicon" src={icon()} />}
+          {(icon) => (
+            <img
+              alt=""
+              class="files-links-card-favicon"
+              decoding="async"
+              loading="lazy"
+              src={icon()}
+            />
+          )}
         </Show>
         <span class="files-links-card-body flex-col">
           <span class="files-links-card-title truncate">{props.link.title || props.link.url}</span>

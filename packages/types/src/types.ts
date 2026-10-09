@@ -23,9 +23,11 @@ export interface Message {
 
   botId?: string;
   botName?: string;
+  canvasThreadId?: string;
   day: string;
   deleted?: boolean;
   edited?: boolean;
+  editHistory?: string[];
   files?: SlackFile[];
   id: string;
   pending?: boolean;
