@@ -1,3 +1,4 @@
+import { formatTimeFromMs } from "@slock/core";
 import "./mrkdwnTokens.css";
 import { Icon, Tooltip } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
@@ -7,10 +8,11 @@ import {
   useMessageAttachments,
   useTimeAnchor,
 } from "./context";
-import { formatHoverDateTime, formatSlackDateTokens, formatTime } from "./dateFormat";
+import { formatHoverDateTime, formatSlackDateTokens } from "./dateFormat";
 import EmojiText from "./emoji/EmojiText";
 import { decodeTextEntities } from "./entities";
 import { splitHighlightWords } from "./highlightWords";
+import InlineAction from "./InlineAction";
 import { HTTP_URL_RE } from "./mrkdwn";
 import { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwnInline";
 import { findTimeMentions, splitTimeMentions } from "./textTimeMentions";
@@ -134,7 +136,7 @@ export function TimeAwareText(props: { text: string }) {
             seg.timestamp === undefined ? (
               <HighlightedText text={seg.text} />
             ) : (
-              <Tooltip class="bk-time-mention-anchor" content={formatTime(seg.timestamp)}>
+              <Tooltip class="bk-time-mention-anchor" content={formatTimeFromMs(seg.timestamp)}>
                 <span class="bk-time-mention">
                   <EmojiText text={seg.text} />
                 </span>
@@ -168,7 +170,7 @@ export function Mention(props: {
   const isInaccessible = () =>
     !isUser && (isPrivate() ? channel()?.isMember !== true : !(channel() || props.label));
 
-  const onClick = (e: MouseEvent) => {
+  const onClick = (e: Event) => {
     e.stopPropagation();
     if (isInaccessible()) return;
     if (isUser) resolver.onUserClick(props.id);
@@ -181,7 +183,7 @@ export function Mention(props: {
       : { "data-channel-id": props.id, "data-channel-name": name() };
 
   const trigger = (
-    <button
+    <InlineAction
       class="bk-mention"
       classList={{
         "bk-mention-bold": !!props.bold,
@@ -190,15 +192,15 @@ export function Mention(props: {
         "bk-mention-link": isUser && props.label !== undefined,
         "bk-mention-self": isUser && !!user()?.isSelf,
       }}
-      onClick={onClick}
-      type="button"
+      disabled={isInaccessible()}
+      onActivate={onClick}
       {...mentionData()}
     >
       <Show fallback={isUser ? "@" : "#"} when={isPrivate()}>
         <Icon name="lock" size={12} />
       </Show>
       {name()}
-    </button>
+    </InlineAction>
   );
 
   return isUser
@@ -211,17 +213,16 @@ export function UsergroupMention(props: { id: string; label?: string }) {
   const info = () => resolver.resolveUsergroup(props.id);
   const name = () => decodeTextEntities(props.label ?? info()?.name ?? `@${props.id}`);
   const trigger = (
-    <button
+    <InlineAction
       class="bk-mention"
       classList={{ "bk-mention-self": !!info()?.isSelf }}
-      onClick={(e) => {
+      onActivate={(e) => {
         e.stopPropagation();
         resolver.onUsergroupClick(props.id);
       }}
-      type="button"
     >
       {name()}
-    </button>
+    </InlineAction>
   );
   return resolver.wrapUsergroupMention?.(props.id, trigger) ?? trigger;
 }
@@ -229,14 +230,14 @@ export function UsergroupMention(props: { id: string; label?: string }) {
 export function CanvasMention(props: { fileId: string; label?: string }) {
   const resolver = useBlockKitResolver();
   const title = () => props.label || resolver.resolveCanvasTitle(props.fileId);
-  const onClick = (e: MouseEvent) => {
+  const onClick = (e: Event) => {
     e.stopPropagation();
     resolver.onCanvasClick(props.fileId, title());
   };
   return (
-    <button class="bk-canvas" onClick={onClick} type="button">
+    <InlineAction class="bk-canvas" onActivate={onClick}>
       <Icon name="canvas-content" size={14} />
       <EmojiText text={title() ?? "canvas"} />
-    </button>
+    </InlineAction>
   );
 }

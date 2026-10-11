@@ -3,9 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "exports": {
+    "./http": "./src/http.ts",
+    "./pluginDirs": "./src/pluginDirs.ts"
+  },
   "dependencies": {
-    "@slock/canvas": "workspace:*",
-    "@slock/types": "workspace:*"
+    "@slock/core": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^8.0.6",

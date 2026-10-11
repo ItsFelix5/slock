@@ -9,6 +9,7 @@ export {
   EmojiFreezeContext,
   HighlightWordsContext,
   MessageAttachmentsContext,
+  noopBlockKitResolver,
   TimeAnchorContext,
   useBlockKitResolver,
   useEmojiFreeze,
@@ -21,7 +22,6 @@ export {
   formatLastSeen,
   formatSlackDate,
   formatSlackDateTokens,
-  formatTime,
   startOfDayMs,
 } from "./dateFormat";
 export {

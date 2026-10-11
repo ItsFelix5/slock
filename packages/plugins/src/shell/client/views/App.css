@@ -1,0 +1,19 @@
+.app {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-navigation-feedback {
+  --surface-radius: var(--radius-control);
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  left: 16px;
+  z-index: 100;
+  width: fit-content;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: var(--space-sm) var(--space-md);
+  margin: 0 auto;
+  text-align: center;
+}

@@ -1,0 +1,1 @@
+{ "id": "ping-warning", "name": "Ping warning", "requires": ["messages", "usergroups"] }

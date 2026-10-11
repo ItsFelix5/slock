@@ -1,28 +1,24 @@
-import { isConfigured } from "@slock/types";
-import { render } from "solid-js/web";
-import ConnectAccountForm from "./components/setup/ConnectAccountForm";
-import "./components/setup/ConnectSlack.css";
 import "./index.css";
+import plugins from "virtual:plugins";
+import { createHost, localEnabledStore } from "@slock/core";
+import { Slot, setHost, solidReactive } from "@slock/core/solid";
+import { render } from "solid-js/web";
 
-async function main(mountPoint: HTMLElement) {
-  if (!isConfigured()) {
-    document.title = "Connect to Slack";
-    render(
-      () => (
-        <div class="connect-slack flex-center">
-          <div class="connect-slack-card flex-col">
-            <h1>Connect to Slack</h1>
-            <ConnectAccountForm onConnected={() => location.reload()} />
-          </div>
-        </div>
-      ),
-      mountPoint,
-    );
-    return;
-  }
+const PLUGINS_KEY = "slock_plugins";
 
-  const { default: App } = await import("./App");
-  render(() => <App />, mountPoint);
+performance.mark("slock:boot");
+
+if (new URLSearchParams(location.search).has("reset")) {
+  localStorage.removeItem(PLUGINS_KEY);
+  history.replaceState(null, "", location.pathname);
 }
 
-main(document.body);
+const host = createHost({
+  enabled: localEnabledStore(PLUGINS_KEY),
+  reactive: solidReactive,
+});
+
+setHost(host);
+Object.assign(globalThis, { slockHost: host });
+render(() => <Slot point="root" />, document.body);
+void host.register(...plugins).then(() => performance.mark("slock:plugins-started"));

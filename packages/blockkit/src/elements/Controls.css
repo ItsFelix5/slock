@@ -32,14 +32,14 @@
 
 .bk-button--primary {
   color: var(--text-on-success);
-  background: var(--bk-button-primary);
-  border-color: var(--bk-button-primary);
+  background: var(--block-kit-button-primary);
+  border-color: var(--block-kit-button-primary);
 }
 
 .bk-button--danger {
   color: var(--text-on-danger);
-  background: var(--bk-button-danger);
-  border-color: var(--bk-button-danger);
+  background: var(--block-kit-button-danger);
+  border-color: var(--block-kit-button-danger);
 }
 
 .bk-overflow-btn,

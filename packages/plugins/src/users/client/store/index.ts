@@ -1,0 +1,296 @@
+import { defined } from "@slock/core";
+import { service } from "@slock/core/solid";
+import type { Services } from "@slock/core/types";
+import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
+import type { User } from "@slock/types";
+import { createMemo, createSignal } from "solid-js";
+import { createStore, produce } from "solid-js/store";
+import {
+  setPresence as apiSetPresence,
+  setProfileFields as apiSetProfileFields,
+  setStatus as apiSetStatus,
+  uploadProfilePhoto as apiUploadProfilePhoto,
+  fetchAppDescription,
+  fetchUser,
+  fetchUserPresence,
+  fetchUserProfile,
+  searchDirectory,
+} from "../../../slack/client/api";
+import { createLocalPref } from "../../../slack/client/api/localPref";
+import { createUserProfileFields } from "./profileFields";
+
+const feedback = service("feedback");
+
+type UsersApi = {
+  fetchAppDescription: typeof fetchAppDescription;
+  fetchUser: typeof fetchUser;
+  fetchUserProfile: typeof fetchUserProfile;
+  fetchUserPresence: typeof fetchUserPresence;
+  searchDirectory: typeof searchDirectory;
+  setPresence: typeof apiSetPresence;
+  setProfileFields: typeof apiSetProfileFields;
+  setStatus: typeof apiSetStatus;
+  uploadProfilePhoto: typeof apiUploadProfilePhoto;
+};
+
+const DEFAULT_USERS_API: UsersApi = {
+  fetchAppDescription,
+  fetchUser,
+  fetchUserProfile,
+  fetchUserPresence,
+  searchDirectory,
+  setPresence: apiSetPresence,
+  setProfileFields: apiSetProfileFields,
+  setStatus: apiSetStatus,
+  uploadProfilePhoto: apiUploadProfilePhoto,
+};
+
+export function createUsersStore(
+  deps: {
+    currentUserBase: () => User | undefined;
+    isSelfOnline: () => boolean;
+    panes: Pick<Services["shell.panes"], "closePane" | "openInNewPane" | "panes">;
+  },
+  api: UsersApi = DEFAULT_USERS_API,
+) {
+  const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
+  const pendingUsers = new Set<string>();
+
+  const [unresolvableUsers, setUnresolvableUsers] = createStore<Record<string, boolean>>({});
+  const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
+    {},
+  );
+  const pendingPresence = new Set<string>();
+  const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
+
+  const [nicknames, persistNicknames] = createLocalPref<Record<string, string>>("nicknames", {});
+
+  function withNickname(user: User): User {
+    const nickname = nicknames()[user.id];
+    return nickname ? { ...user, name: nickname, originalName: user.name } : user;
+  }
+
+  const [botBios, setBotBios] = createStore<Record<string, string>>({});
+  const pendingBotBios = new Set<string>();
+
+  const { customFieldsFor, profileStartDateFor, updateMyProfile, updateMyProfilePhoto } =
+    createUserProfileFields(deps, api, setSelfStatusOverride);
+
+  function knownUsers(): User[] {
+    return Object.values(extraUsers).map(withNickname);
+  }
+
+  function cacheUsers(users: User[]): void {
+    for (const user of users) setExtraUsers(user.id, user);
+  }
+
+  function userIdByName(name: string): string | undefined {
+    const me = deps.currentUserBase();
+    if (me?.name === name) return me.id;
+    return Object.values(extraUsers).find((user) => user.name === name)?.id;
+  }
+
+  function userById(id: string): User | undefined {
+    if (!id) return;
+
+    if (id === SLACK_USER_ID) return SLACK_SYSTEM_USER;
+    if (id === deps.currentUserBase()?.id) return currentUser();
+    const known = extraUsers[id];
+    if (!known) {
+      if (!(pendingUsers.has(id) || unresolvableUsers[id])) {
+        pendingUsers.add(id);
+        api
+          .fetchUser(id)
+          .then((user) => {
+            if (user) setExtraUsers(id, user);
+            else {
+              setUnresolvableUsers(id, true);
+            }
+          })
+          .catch(() => setUnresolvableUsers(id, true))
+          .finally(() => {
+            pendingUsers.delete(id);
+          });
+      }
+      return;
+    }
+    const presence = presenceOverrides[id];
+    return withNickname(presence ? { ...known, presence } : known);
+  }
+
+  function presenceFor(id: string): "active" | "away" | undefined {
+    if (!id || id === SLACK_USER_ID || id.startsWith("B")) return;
+    if (id === deps.currentUserBase()?.id) return currentUser()?.presence;
+    const known = presenceOverrides[id];
+    if (known !== undefined || pendingPresence.has(id)) return known;
+    pendingPresence.add(id);
+    api
+      .fetchUserPresence(id)
+      .then((presence) => presence && recordPeerPresence(id, presence))
+      .catch(() => {})
+      .finally(() => pendingPresence.delete(id));
+    return known;
+  }
+
+  function invalidateUser(id: string) {
+    setExtraUsers(
+      produce((s) => {
+        delete s[id];
+      }),
+    );
+    pendingUsers.delete(id);
+    setUnresolvableUsers(id, false);
+  }
+
+  function recordPeerPresence(id: string, presence: "active" | "away") {
+    setPresenceOverrides(id, presence);
+  }
+
+  async function searchUsers(query: string, excludeId?: string): Promise<User[]> {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const local = new Map<string, User>();
+    for (const id of Object.keys(extraUsers)) local.set(id, defined(extraUsers[id]));
+    const localMatches = [...local.values()].filter(
+      (u) =>
+        u.id !== excludeId &&
+        (u.name.toLowerCase().includes(q) || nicknames()[u.id]?.toLowerCase().includes(q)),
+    );
+
+    const { users: remote } = await api.searchDirectory(q);
+    for (const u of remote) {
+      if (!local.has(u.id)) setExtraUsers(u.id, u);
+    }
+
+    const merged = new Map<string, User>();
+    for (const u of localMatches) merged.set(u.id, u);
+    for (const u of remote) if (u.id !== excludeId) merged.set(u.id, u);
+    return [...merged.values()].map(withNickname).slice(0, 40);
+  }
+
+  function sameUser(a: User | undefined, b: User | undefined): boolean {
+    if (a === b) return true;
+    if (!(a && b)) return false;
+    const entries = Object.entries(a);
+    return (
+      entries.length === Object.keys(b).length &&
+      entries.every(([key, value]) => Reflect.get(b, key) === value)
+    );
+  }
+
+  const currentUser = createMemo<User | undefined>(
+    () => {
+      const base = deps.currentUserBase();
+      if (!base) return base;
+
+      const presence = presenceOverrides[base.id] ?? (deps.isSelfOnline() ? "active" : "away");
+      const status = selfStatusOverride();
+      return withNickname({ ...base, presence, ...(status ?? {}) });
+    },
+    undefined,
+    { equals: sameUser },
+  );
+
+  function nicknameFor(id: string): string | undefined {
+    return nicknames()[id];
+  }
+
+  function setNickname(id: string, nickname: string): void {
+    const trimmed = nickname.trim();
+    const next = { ...nicknames() };
+    if (trimmed) next[id] = trimmed;
+    else delete next[id];
+    persistNicknames(next);
+  }
+
+  function botBio(appId: string | undefined, botId: string | undefined): string | undefined {
+    if (!(appId && botId)) return;
+    const known = botBios[appId];
+    if (known || pendingBotBios.has(appId)) return known;
+    pendingBotBios.add(appId);
+    api
+      .fetchAppDescription(appId, botId)
+      .then((description) => {
+        if (description) setBotBios(appId, description);
+      })
+      .catch(() => {
+        pendingBotBios.delete(appId);
+      });
+    return known;
+  }
+
+  function openUserProfile(id: string) {
+    deps.panes.openInNewPane({ kind: "profile", userId: id });
+  }
+
+  function closeUserProfile() {
+    const profile = deps.panes.panes().find((p) => p.content?.kind === "profile");
+    if (profile) deps.panes.closePane(profile.id);
+  }
+
+  async function updateMyStatus(text: string, emoji: string, expiration: number): Promise<boolean> {
+    try {
+      await api.setStatus(text, emoji, expiration);
+      setSelfStatusOverride((prev) => ({
+        ...prev,
+        statusEmoji: emoji || undefined,
+        statusText: text || undefined,
+      }));
+      return true;
+    } catch (err) {
+      console.error("Failed to set status", err);
+      feedback.flash("me", "Failed to update status.", "error");
+      return false;
+    }
+  }
+
+  function clearMyStatus(): Promise<boolean> {
+    return updateMyStatus("", "", 0);
+  }
+
+  async function updateMyPresence(presence: "auto" | "away"): Promise<boolean> {
+    try {
+      await api.setPresence(presence);
+      const selfId = deps.currentUserBase()?.id;
+      if (selfId) {
+        if (presence === "away") setPresenceOverrides(selfId, "away");
+        else
+          setPresenceOverrides(
+            produce((s) => {
+              delete s[selfId];
+            }),
+          );
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to set presence", err);
+      feedback.flash("me", "Failed to update presence.", "error");
+      return false;
+    }
+  }
+
+  return {
+    botBio,
+    cacheUsers,
+    clearMyStatus,
+    closeUserProfile,
+    currentUser,
+    customFieldsFor,
+    invalidateUser,
+    knownUsers,
+    nicknameFor,
+    openUserProfile,
+    presenceFor,
+    profileStartDateFor,
+    searchUsers,
+    setNickname,
+    setPresenceOverrides: recordPeerPresence,
+    updateMyPresence,
+    updateMyProfilePhoto,
+    updateMyProfile,
+    updateMyStatus,
+    userById,
+    userIdByName,
+    isUnresolvableUser: (id: string) => !!unresolvableUsers[id],
+  };
+}

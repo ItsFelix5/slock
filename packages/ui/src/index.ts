@@ -11,6 +11,7 @@ export type { IconButtonProps } from "./button/IconButton";
 export { default as IconButton } from "./button/IconButton";
 export type { SegmentedControlProps } from "./button/SegmentedControl";
 export { default as SegmentedControl } from "./button/SegmentedControl";
+export { createConcurrencyQueue } from "./concurrencyQueue";
 export {
   createDebouncedRequest,
   type DebouncedRequestOptions,
@@ -31,7 +32,7 @@ export {
   FONT_PRESETS,
   type FontPreset,
 } from "./fontPresets";
-export type { ColorFieldProps } from "./form/ColorField";
+export type { ColorFieldProps, RelativeColor } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
 export type { KeybindFieldProps } from "./form/KeybindField";
 export { default as KeybindField } from "./form/KeybindField";
@@ -76,12 +77,6 @@ export type { VolumeControlProps } from "./media/VolumeControl";
 export { default as VolumeControl } from "./media/VolumeControl";
 export type { ZoomableImageItem, ZoomableImageProps } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
-export {
-  logDeletedMessages,
-  setLogDeletedMessages,
-  setShowUserStatuses,
-  showUserStatuses,
-} from "./messagePreferences";
 export { default as NavRow } from "./nav/NavRow";
 export { focusPaneById, paneRowsById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
@@ -90,12 +85,7 @@ export {
   type ConfirmDialogOptions,
   confirmDialog,
 } from "./overlay/ConfirmDialog";
-export {
-  DebugInfoDialog,
-  debugMode,
-  setDebugMode,
-  showDebugInfo,
-} from "./overlay/DebugInfoDialog";
+export { DebugInfoDialog, showDebugInfo } from "./overlay/DebugInfoDialog";
 export type {
   FloatingAlign,
   FloatingPanelProps,
@@ -154,15 +144,19 @@ export {
   applyCopiedThemePalette,
   applyPreset,
   copyableThemePalette,
+  decoupleThemeColor,
   getColorFormula,
+  getColorRef,
   getEffectiveColor,
+  registerThemeColors,
   resetThemeColor,
+  setColorRef,
   setThemeColors,
-  THEME_ADVANCED_COLOR_KEYS,
-  THEME_BASE_COLOR_KEYS,
-  THEME_COLOR_LABELS,
-  THEME_PRESETS,
+  type ThemeColorDefinition,
+  themeColorDefinitions,
 } from "./themeColors";
+export type { ColorRef } from "./themeDerivations";
+export { THEME_PRESETS } from "./themePresets";
 export { setThemeShape, type ThemeShape, themeShape } from "./themeShape";
 export type { UndoEntry } from "./undoStack";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";

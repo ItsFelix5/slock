@@ -1,0 +1,6 @@
+{
+  "id": "message-media",
+  "core": true,
+  "name": "Message media",
+  "requires": ["channels", "conversations", "dms", "shell", "users"]
+}

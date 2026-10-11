@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import { TRAILING_PUNCTUATION_RE } from "@slock/ui";
 
 const USER_PROFILE_LINK_RE =
@@ -12,7 +13,7 @@ export function parseUserProfileLink(url: string): string | null {
 
 export function parseArchiveLink(url: string): { channelId: string; isMessage: boolean } | null {
   const match = ARCHIVE_LINK_RE.exec(url);
-  return match ? { channelId: match[1], isMessage: !!match[2] } : null;
+  return match ? { channelId: defined(match[1]), isMessage: !!match[2] } : null;
 }
 
 export function messageLinkLabel(channelName: string, authorName?: string): string {
@@ -64,7 +65,13 @@ function parseToken(token: string): InlineNode {
   if (token.startsWith("!date^")) {
     const [main, fallback] = splitOnce(token.slice("!date^".length), "|");
     const [ts, format, url] = main.split("^");
-    return { fallback, format, t: "date", timestamp: Number(ts), url };
+    return {
+      fallback: defined(fallback),
+      format: defined(format),
+      t: "date",
+      timestamp: Number(ts),
+      url,
+    };
   }
   if (token.startsWith("!canvas^")) {
     const [fileId, label] = splitOnce(token.slice("!canvas^".length), "|");
@@ -88,7 +95,7 @@ function parseCodeInner(text: string): InlineNode[] {
   for (const match of text.matchAll(CODE_TOKEN_RE)) {
     const index = match.index ?? 0;
     if (index > lastIndex) nodes.push({ t: "text", text: text.slice(lastIndex, index) });
-    nodes.push(parseToken(match[1]));
+    nodes.push(parseToken(defined(match[1])));
     lastIndex = index + match[0].length;
   }
   if (lastIndex < text.length) nodes.push({ t: "text", text: text.slice(lastIndex) });
@@ -106,7 +113,7 @@ export function parseInline(text: string): InlineNode[] {
     else if (token !== undefined) nodes.push(parseToken(token));
     else if (emoji !== undefined) nodes.push({ name: emoji, t: "emoji" });
     else if (doubleBold !== undefined || bold !== undefined)
-      nodes.push({ nodes: parseInline(doubleBold ?? bold), t: "bold" });
+      nodes.push({ nodes: parseInline(defined(doubleBold ?? bold)), t: "bold" });
     else if (italic !== undefined) nodes.push({ nodes: parseInline(italic), t: "italic" });
     else if (strike !== undefined) nodes.push({ nodes: parseInline(strike), t: "strike" });
     else if (bareUrl !== undefined) {

@@ -1,0 +1,50 @@
+@import "../views/Composer.css";
+
+.mrkdwn-composer {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  overflow: visible;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.mrkdwn-composer:focus-within {
+  border-color: var(--accent);
+}
+
+.mrkdwn-composer.disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.mrkdwn-composer .ql-editor-root {
+  min-width: 0;
+}
+
+.mrkdwn-composer .ql-editor {
+  min-height: 36px;
+  max-height: 120px;
+  padding: var(--space-sm) 10px;
+  overflow-y: auto;
+  font-family: var(--font);
+  font-size: var(--font-size-control);
+  line-height: 1.45;
+  color: var(--text-primary);
+  word-break: break-word;
+  cursor: text;
+}
+
+.mrkdwn-composer.multiline .ql-editor {
+  min-height: 64px;
+}
+
+.mrkdwn-composer .ql-editor:focus {
+  outline: none;
+}
+
+.mrkdwn-composer > .menu-panel.composer-suggest-docked {
+  inset: calc(100% + 4px) 0 auto;
+}

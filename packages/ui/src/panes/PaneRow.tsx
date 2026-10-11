@@ -1,6 +1,7 @@
 import { For, type JSX, onCleanup, Show } from "solid-js";
 import Icon from "../media/Icon";
 import "./PaneRow.css";
+import { defined } from "@slock/core";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
 import { useAdjustShortcuts, useTabStripShortcuts } from "../useNavShortcuts";
 import { MIN_FRACTION, type Pane } from "./paneList";
@@ -46,7 +47,7 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
   const activePane = () => {
     const { panes } = props;
     const wanted = panes.find((p) => p.id === props.activePaneId());
-    return wanted ?? panes[panes.length - 1];
+    return wanted ?? defined(panes[panes.length - 1]);
   };
 
   return (

@@ -1,0 +1,28 @@
+{
+  "name": "@slock/plugins",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./slack/*": "./src/slack/server/api/*.ts",
+    "./http/*": "./src/http/server/api/*.ts"
+  },
+  "dependencies": {
+    "@slock/blockkit": "workspace:*",
+    "@slock/core": "workspace:*",
+    "@slock/server": "workspace:*",
+    "@slock/slack": "workspace:*",
+    "@slock/types": "workspace:*",
+    "@slock/ui": "workspace:*",
+    "@tanstack/solid-query": "^5.102.8",
+    "quill": "^2",
+    "solid-js": "^1.9.13"
+  },
+  "devDependencies": {
+    "@babel/core": "^8.0.6",
+    "@babel/preset-typescript": "^8.0.1",
+    "@types/node": "^24.13.2",
+    "babel-preset-solid": "^1.9.15",
+    "bun-types": "^1.3.14"
+  }
+}

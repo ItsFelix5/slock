@@ -1,3 +1,5 @@
+import { defined } from "@slock/core";
+
 const WORD_BOUNDARY = /[-_\s./]/;
 
 export interface FuzzyMatch {
@@ -13,7 +15,7 @@ export function fuzzyMatch(text: string, query: string): FuzzyMatch | null {
   if (lower.startsWith(query)) return { score: 100 - lower.length, tier: 1 };
   const idx = lower.indexOf(query);
   if (idx !== -1) {
-    const boundary = idx > 0 && WORD_BOUNDARY.test(lower[idx - 1]);
+    const boundary = idx > 0 && WORD_BOUNDARY.test(defined(lower[idx - 1]));
     return { score: 100 - idx, tier: boundary ? 2 : 3 };
   }
 
@@ -27,7 +29,7 @@ export function fuzzyMatch(text: string, query: string): FuzzyMatch | null {
       if (firstIdx === -1) firstIdx = ti;
       consecutive++;
       score += 6 + consecutive * 3;
-      if (ti === 0 || WORD_BOUNDARY.test(lower[ti - 1])) score += 4;
+      if (ti === 0 || WORD_BOUNDARY.test(defined(lower[ti - 1]))) score += 4;
       qi++;
     } else {
       consecutive = 0;

@@ -1,5 +1,8 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": ["**"]
+  },
   "formatter": {
     "indentStyle": "space",
     "lineWidth": 100
@@ -65,6 +68,7 @@
         "useUnifiedTypeSignatures": "on"
       },
       "suspicious": {
+        "noDocumentCookie": "off",
         "noAlert": "on",
         "noConstantBinaryExpressions": "on",
         "noDeprecatedImports": "on",
@@ -83,7 +87,12 @@
   },
   "overrides": [
     {
-      "includes": ["packages/server/src/solidPlugin.ts"],
+      "includes": [
+        "packages/plugins/src/web/server/*.ts",
+        "packages/app/src/index.tsx",
+        "types/virtual.d.ts",
+        "**/*.test.ts"
+      ],
       "linter": {
         "rules": {
           "correctness": {

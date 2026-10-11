@@ -13,5 +13,5 @@
   },
   "extends": "../../tsconfig.base.json",
   "include": ["src"],
-  "references": [{ "path": "../canvas" }, { "path": "../types" }]
+  "references": [{ "path": "../core" }]
 }

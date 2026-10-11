@@ -1,5 +1,6 @@
 import { createEffect, createSignal, For } from "solid-js";
 import "./OtpInput.css";
+import { defined } from "@slock/core";
 import { useNavigationShortcuts } from "../useNavShortcuts";
 import { inside, useShortcut } from "../useShortcut";
 
@@ -71,7 +72,7 @@ export default function OtpInput(props: OtpInputProps) {
     const target = event.currentTarget;
     const chars = target.value.split("").filter((char) => DIGIT.test(char));
     if (!chars.length) {
-      target.value = slots()[index];
+      target.value = defined(slots()[index]);
       return;
     }
     const typed = chars.length > 1 && chars[0] === slots()[index] ? chars.slice(1) : chars;

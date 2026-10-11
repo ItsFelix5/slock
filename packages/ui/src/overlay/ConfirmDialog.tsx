@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import Button from "../button/Button";
 import "./ConfirmDialog.css";
+import { useShortcut } from "../useShortcut";
 import Modal from "./Modal";
 
 export interface ConfirmDialogOptions {
@@ -26,6 +27,16 @@ export function ConfirmDialog() {
     pending()?.resolve(ok);
     setPending(null);
   };
+  useShortcut({
+    combo: { key: "Enter" },
+    id: "confirm.accept",
+    label: "Confirm dialog",
+    scope: "general",
+    group: "App",
+    enabled: () => pending() !== null,
+    target: (element) => !(element instanceof HTMLButtonElement),
+    handler: () => close(true),
+  });
   return (
     <Show when={pending()}>
       {(p) => (
@@ -41,10 +52,10 @@ export function ConfirmDialog() {
             <p class="confirm-dialog-message">{p().message}</p>
           </div>
           <div class="confirm-dialog-actions">
-            <Button onClick={() => close(false)}>{p().cancelLabel ?? "Cancel"}</Button>
             <Button onClick={() => close(true)} variant={p().danger ? "danger" : "primary"}>
               {p().confirmLabel ?? "Confirm"}
             </Button>
+            <Button onClick={() => close(false)}>{p().cancelLabel ?? "Cancel"}</Button>
           </div>
         </Modal>
       )}

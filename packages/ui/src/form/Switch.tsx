@@ -12,7 +12,10 @@ export default function Switch(props: SwitchProps) {
       checked={props.checked}
       class="switch"
       disabled={props.disabled}
-      onChange={(e) => props.onChange(e.currentTarget.checked)}
+      onChange={(e) => {
+        props.onChange(e.currentTarget.checked);
+        e.currentTarget.checked = props.checked;
+      }}
       type="checkbox"
     />
   );

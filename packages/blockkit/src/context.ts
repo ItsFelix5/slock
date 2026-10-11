@@ -29,7 +29,7 @@ export interface BlockKitResolver {
   wrapUsergroupMention?(id: string, trigger: JSX.Element): JSX.Element;
 }
 
-const defaultNoopResolver: BlockKitResolver = {
+export const noopBlockKitResolver: BlockKitResolver = {
   onCanvasClick: () => {},
   onChannelClick: () => {},
   onUserClick: () => {},
@@ -40,7 +40,7 @@ const defaultNoopResolver: BlockKitResolver = {
   resolveUsergroup: () => undefined,
 };
 
-export const BlockKitResolverContext = createContext<BlockKitResolver>(defaultNoopResolver);
+export const BlockKitResolverContext = createContext<BlockKitResolver>(noopBlockKitResolver);
 
 export function useBlockKitResolver(): BlockKitResolver {
   return useContext(BlockKitResolverContext);

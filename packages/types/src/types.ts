@@ -37,6 +37,7 @@ export interface Message {
   isEphemeral?: boolean;
   isSaved?: boolean;
 
+  hasUnreadReplies?: boolean;
   isSubscribed?: boolean;
   kind: MessageKind;
   lastReplyLabel?: string;

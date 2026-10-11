@@ -1,0 +1,6 @@
+{
+  "id": "channels",
+  "core": true,
+  "name": "Channels",
+  "requires": ["bootstrap", "conversations", "query", "shell", "users"]
+}

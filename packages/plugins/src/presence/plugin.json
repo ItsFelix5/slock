@@ -1,0 +1,1 @@
+{ "id": "presence", "core": true, "name": "Presence", "requires": ["dms", "realtime", "users"] }

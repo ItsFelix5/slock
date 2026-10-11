@@ -52,14 +52,6 @@ export interface RichTextBroadcastElement {
 
 export type BroadcastRange = RichTextBroadcastElement["range"];
 
-export function isRichTextBroadcast(value: unknown): value is RichTextBroadcastElement {
-  if (!(value && typeof value === "object" && "type" in value && "range" in value)) return false;
-  return (
-    value.type === "broadcast" &&
-    (value.range === "here" || value.range === "channel" || value.range === "everyone")
-  );
-}
-
 export interface RichTextColorElement {
   type: "color";
   value: string;
@@ -140,88 +132,4 @@ export interface RichTextBlock {
   block_id?: string;
   elements: RichTextSubBlock[];
   type: "rich_text";
-}
-
-export function isRichTextSubBlock(
-  el: RichTextInlineElement | RichTextSubBlock,
-): el is RichTextSubBlock {
-  return "elements" in el;
-}
-
-function broadcastRangeFromElements(elements: readonly unknown[]): BroadcastRange | undefined {
-  for (const element of elements) {
-    if (isRichTextBroadcast(element)) return element.range;
-    if (
-      element &&
-      typeof element === "object" &&
-      "elements" in element &&
-      Array.isArray(element.elements)
-    ) {
-      const range = broadcastRangeFromElements(element.elements);
-      if (range) return range;
-    }
-  }
-}
-
-export function broadcastRangeFromRichTextBlocks(
-  blocks: readonly RichTextBlock[],
-): BroadcastRange | undefined {
-  for (const block of blocks) {
-    const range = broadcastRangeFromElements(block.elements);
-    if (range) return range;
-  }
-}
-
-function richTextInlineToPlainText(el: RichTextInlineElement): string {
-  switch (el.type) {
-    case "text":
-      return el.text;
-    case "link":
-      return el.text || el.url;
-    case "emoji":
-      return `:${el.name}:`;
-    case "user":
-      return `<@${el.user_id}>`;
-    case "channel":
-      return `<#${el.channel_id}>`;
-    case "usergroup":
-      return `<!subteam^${el.usergroup_id}>`;
-    case "broadcast":
-      return `@${el.range}`;
-    case "message_mention":
-      return el.text ?? "";
-    case "date":
-      return el.fallback ?? "";
-    case "canvas":
-      return el.text || "canvas";
-    default:
-      return "";
-  }
-}
-
-function richTextSubBlockToPlainText(sub: RichTextSubBlock): string {
-  switch (sub.type) {
-    case "rich_text_section":
-    case "rich_text_preformatted":
-      return sub.elements.map(richTextInlineToPlainText).join("");
-    case "rich_text_list":
-      return sub.elements
-        .map((item) => item.elements.map(richTextInlineToPlainText).join(""))
-        .join(" ");
-    case "rich_text_quote":
-      return sub.elements
-        .map((el) =>
-          "elements" in el ? richTextSubBlockToPlainText(el) : richTextInlineToPlainText(el),
-        )
-        .join("");
-    default:
-      return "";
-  }
-}
-
-export function richTextBlocksToPlainText(blocks: readonly RichTextBlock[]): string {
-  return blocks
-    .map((block) => block.elements.map(richTextSubBlockToPlainText).join("\n"))
-    .join("\n")
-    .trim();
 }

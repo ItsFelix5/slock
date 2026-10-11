@@ -4,12 +4,11 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },
   "extends": "../../tsconfig.base.json",
-  "exclude": ["src/**/*.test.ts"],
-  "include": ["src/**/*", "src/**/*.json", "../../types/css.d.ts", "../../types/importMeta.d.ts"],
-  "references": [
-    { "path": "../ui" },
-    { "path": "../canvas" },
-    { "path": "../types" },
-    { "path": "../blockkit" }
-  ]
+  "include": [
+    "src/**/*",
+    "../../types/css.d.ts",
+    "../../types/importMeta.d.ts",
+    "../../types/virtual.d.ts"
+  ],
+  "references": [{ "path": "../core" }]
 }

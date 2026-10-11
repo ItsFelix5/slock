@@ -1,0 +1,12 @@
+.user-status-unverified,
+.user-status-unverified:hover {
+  text-decoration: underline wavy var(--user-status-unverified) 1px;
+}
+.user-status-over_18,
+.user-status-over_18:hover {
+  text-decoration: underline wavy var(--user-status-over-18) 1px;
+}
+.user-status-banned,
+.user-status-banned:hover {
+  text-decoration: underline wavy var(--user-status-banned) 1px;
+}

@@ -1,0 +1,1 @@
+{ "id": "emoji", "core": true, "name": "Emoji", "requires": ["prefs"] }

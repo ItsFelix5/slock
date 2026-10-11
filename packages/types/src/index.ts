@@ -1,5 +1,8 @@
 export type {
+  AccountSummary,
   ActivityFeedPage,
+  ApiFailure,
+  ApiReply,
   Bootstrap,
   ChannelFilesAndLinks,
   ChannelPostingPrefs,
@@ -12,10 +15,9 @@ export type {
   HistoryPage,
   PinnedMessage,
   SearchResult,
+  SessionInfo,
   UserPrefs,
-  UserStatus,
 } from "./apiTypes";
-export { runAttachmentAction, runBlockAction } from "./apps";
 export type {
   ActionsBlock,
   AlertBlock,
@@ -52,7 +54,6 @@ export type {
   TextObject,
   VideoBlock,
 } from "./blocks";
-export { blockPreviewText, broadcastRangeFromBlocks, narrowByType } from "./blocks";
 export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./bootstrapPayload";
 export type {
   CanvasCommentThread,
@@ -72,14 +73,7 @@ export type {
   CanvasVersion,
   LayoutFrame,
 } from "./canvasEdit";
-export { parseCanvasEdit } from "./canvasEdit";
-export { fetchAllEmoji, fetchSlashCommands, invalidateEmojiCache } from "./content";
 export type { ActivityItem, LinkPreview, SavedItem } from "./contentTypes";
-export {
-  ACTIVITY_FEED_TYPES,
-  ACTIVITY_FEED_TYPES_PARAM,
-} from "./contentTypes";
-export { searchDirectory } from "./directory";
 export type {
   Attachment,
   AttachmentAction,
@@ -96,32 +90,6 @@ export type {
   GatewayMessageEvent,
   MembershipEvent,
 } from "./gatewayEvents";
-export { mapFile, mapFileShare, mapLink } from "./mapFiles";
-export {
-  buildUnreadMap,
-  CLOCK_24H,
-  canvasFileIdOf,
-  extractChannelSections,
-  formatDay,
-  formatDayFromMs,
-  formatTime,
-  formatTimeFromMs,
-  isMyRelayedMessage,
-  mapBot,
-  mapChannel,
-  mapChannelDetails,
-  mapCustomFields,
-  mapMessage,
-  mapProfileIdentity,
-  mapStartDate,
-  mapUser,
-  mapVisibleMessage,
-  mapVisibleMessages,
-  parseBadgeCounts,
-  RELAY_BOT_ID,
-  SLACK_SYSTEM_USER,
-  SLACK_USER_ID,
-} from "./mappers";
 export type {
   RawActivityEntry,
   RawActivityFeedEntry,
@@ -146,34 +114,7 @@ export type {
   RawUsergroup,
   RawUserProfile,
 } from "./rawTypes";
-export { isRawMessage, isRecord } from "./rawTypes";
-export { getOrCreateRetryablePromise } from "./retryablePromiseCache";
-export { isRichTextSubBlock, richTextBlocksToPlainText } from "./richText";
-export type { ApiFailure, ApiReply, StoredAccount } from "./server";
-export {
-  ApiError,
-  apiDelete,
-  apiGet,
-  apiPatch,
-  apiPost,
-  apiPut,
-  apiUpload,
-  extractSlackSession,
-  forceReauth,
-  forgetAccount,
-  getActiveAccountId,
-  getCachedWorkspaceDomain,
-  getCachedWorkspaceId,
-  getWorkspaceDomain,
-  isConfigured,
-  listStoredAccounts,
-  logout,
-  rememberAccount,
-  resolveMediaUrl,
-  setActiveAccountId,
-  submitAuthRequest,
-  userProfileUrl,
-} from "./server";
+export type { BroadcastRange, RichTextBroadcastElement } from "./richText";
 export type {
   BrowsableChannel,
   CanvasListItem,
@@ -184,6 +125,7 @@ export type {
   DirectMessage,
   MemberPermissionsPatch,
   Message,
+  MessageKind,
   MessageShortcut,
   Reaction,
 } from "./types";

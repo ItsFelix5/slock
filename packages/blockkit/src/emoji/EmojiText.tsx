@@ -4,6 +4,7 @@ import { decodeTextEntities } from "../entities";
 import { EMOJI_TOKEN_RE, resolveStandardEmoji } from "./emoji";
 import { emojiAliasTarget, emojiUrl, loadCustomEmoji } from "./emojiCache";
 import "./EmojiText.css";
+import { defined } from "@slock/core";
 
 type Part = { type: "text"; value: string } | { type: "emoji"; name: string };
 
@@ -13,7 +14,7 @@ function splitParts(text: string): Part[] {
   for (const match of text.matchAll(EMOJI_TOKEN_RE)) {
     const index = match.index ?? 0;
     if (index > lastIndex) result.push({ type: "text", value: text.slice(lastIndex, index) });
-    result.push({ name: match[1], type: "emoji" });
+    result.push({ name: defined(match[1]), type: "emoji" });
     lastIndex = index + match[0].length;
   }
   if (lastIndex < text.length) result.push({ type: "text", value: text.slice(lastIndex) });

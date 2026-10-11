@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
 import { keybindOverrides } from "./keybindOverrides";
 
@@ -157,7 +158,7 @@ export function combosOverlap(a: ShortcutCombo, b: ShortcutCombo): boolean {
 
 function effectiveCombo(shortcut: RegisteredShortcut): ShortcutCombo | null {
   const overrides = keybindOverrides();
-  return Object.hasOwn(overrides, shortcut.id) ? overrides[shortcut.id] : shortcut.combo;
+  return Object.hasOwn(overrides, shortcut.id) ? (overrides[shortcut.id] ?? null) : shortcut.combo;
 }
 
 function scopesOverlap(a: ShortcutScope, b: ShortcutScope): boolean {
@@ -169,7 +170,7 @@ function runShortcut(event: KeyboardEvent, manual: boolean): boolean {
   const typing = isTypingTarget(event.target);
   let winner: RegisteredShortcut | undefined;
   for (let index = shortcuts.length - 1; index >= 0; index -= 1) {
-    const shortcut = shortcuts[index];
+    const shortcut = defined(shortcuts[index]);
     if (Boolean(shortcut.manual) !== manual || !shortcut.enabled()) continue;
     if (typing && !(shortcut.allowInInputs ?? shortcut.target !== undefined)) continue;
     if (event.repeat && shortcut.allowRepeat === false) continue;
@@ -220,7 +221,7 @@ export function listShortcuts(): ShortcutInfo[] {
   const latestById = new Map(shortcuts.map((shortcut) => [shortcut.id, shortcut]));
   return [...latestById.values()].map((shortcut) => {
     const isCustom = Object.hasOwn(overrides, shortcut.id);
-    const combo = isCustom ? overrides[shortcut.id] : shortcut.combo;
+    const combo = isCustom ? (overrides[shortcut.id] ?? null) : shortcut.combo;
     return {
       id: shortcut.id,
       label: shortcut.label,

@@ -7,6 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@slock/core": "workspace:*",
+    "@slock/slack": "workspace:*",
     "@slock/types": "workspace:*",
     "@slock/ui": "workspace:*",
     "solid-js": "^1.9.13"

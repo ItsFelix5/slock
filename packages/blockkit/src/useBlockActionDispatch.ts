@@ -1,6 +1,6 @@
-import { runBlockAction } from "@slock/types";
 import { createSignal, onCleanup } from "solid-js";
 import type { BlockActionContext } from "./BlockKit";
+import { runBlockAction } from "./blockActions";
 
 export function useBlockActionDispatch(context: () => BlockActionContext | undefined) {
   const [pending, setPending] = createSignal(false);

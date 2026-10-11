@@ -1,0 +1,6 @@
+{
+  "id": "channel-notifications",
+  "core": true,
+  "name": "Channel notifications",
+  "requires": ["prefs"]
+}

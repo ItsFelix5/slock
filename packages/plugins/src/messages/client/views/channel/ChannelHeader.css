@@ -1,0 +1,112 @@
+.channel-header {
+  position: relative;
+  height: var(--header-height);
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--main-bg);
+  border-bottom: 1px solid var(--border);
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: 0 var(--header-padding-inline);
+}
+
+.channel-header:has(.channel-header-topic-wrap.is-overflowing:hover) {
+  overflow: visible;
+}
+
+.channel-header-context {
+  flex: 1;
+  gap: var(--space-sm);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.channel-header-context:has(.channel-header-topic-wrap.is-overflowing:hover) {
+  overflow: visible;
+}
+
+.channel-header-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.channel-header-title {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--header-action-size);
+  padding: 0 var(--space-sm);
+  font-size: var(--font-size-heading-xs);
+  font-weight: 700;
+  color: var(--text-primary);
+  border-radius: var(--radius-control);
+}
+
+.channel-header-title > span {
+  min-width: 0;
+}
+
+.channel-header-title-btn {
+  cursor: pointer;
+}
+
+.channel-header-title-btn:hover {
+  background: var(--hover-bg);
+}
+
+.channel-header-topic-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.channel-header-topic {
+  display: block;
+  padding-left: var(--space-sm);
+  margin-left: var(--space-xs);
+  border-left: 1px solid var(--border);
+}
+
+.channel-header-topic-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(-1px - var(--space-sm));
+  left: 0;
+  z-index: 20;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  white-space: normal;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-tooltip);
+  pointer-events: none;
+}
+
+.channel-header-topic-wrap.is-overflowing:hover .channel-header-topic-tooltip,
+.channel-header-topic-wrap.is-overflowing:focus-visible .channel-header-topic-tooltip {
+  display: block;
+}
+.channel-header-topic-wrap:focus-visible {
+  outline: none;
+}
+
+.channel-header-feedback {
+  flex-shrink: 1;
+  max-width: 220px;
+  margin-left: var(--space-sm);
+}
+
+.channel-header-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.icon-btn.channel-header-btn {
+  width: var(--header-action-size);
+  height: var(--header-action-size);
+}
+
+.channel-header-menu.menu-panel {
+  z-index: 8;
+  min-width: 190px;
+}

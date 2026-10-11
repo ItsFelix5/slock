@@ -1,0 +1,6 @@
+{
+  "id": "usergroup-details",
+  "core": true,
+  "name": "Usergroup details",
+  "requires": ["channels", "conversations", "shell", "usergroups", "users"]
+}

@@ -1,0 +1,254 @@
+import { service } from "@slock/core/solid";
+import { Icon, IconButton, InlineFeedback, Menu, MenuItem, useEditShortcuts } from "@slock/ui";
+import { createMemo, createSignal, For, Show } from "solid-js";
+import {
+  type ChannelPlacementOutcome,
+  isChannelPlacementApplied,
+} from "../../../channels/client/api/sectionMutations";
+import "./ChannelMoveMenu.css";
+
+const feedback = service("feedback");
+
+const channelsStore = service("channels");
+
+type Destination =
+  | { kind: "stars" }
+  | { kind: "channels" }
+  | { kind: "section"; id: string; name: string };
+
+export interface ChannelMoveMenuProps {
+  channelId: string;
+  onComplete?: () => void;
+  variant?: "header" | "menu-item";
+}
+
+export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
+  const [open, setOpen] = createSignal(false);
+  const [addingSection, setAddingSection] = createSignal(false);
+  const [newSectionName, setNewSectionName] = createSignal("");
+  const [creatingSection, setCreatingSection] = createSignal(false);
+
+  let newSectionInputRef: HTMLInputElement | undefined;
+  useEditShortcuts({
+    cancel: () => {
+      setAddingSection(false);
+      setNewSectionName("");
+    },
+    enabled: addingSection,
+    root: () => newSectionInputRef,
+  });
+
+  const sections = () =>
+    channelsStore.sections()?.filter((section) => section.type === "standard") ?? [];
+  const destinations = () => {
+    const ordered: Destination[] = [];
+    for (const section of channelsStore.sections() ?? []) {
+      if (section.type === "stars") ordered.push({ kind: "stars" });
+      else if (section.type === "channels") ordered.push({ kind: "channels" });
+      else if (section.type === "standard")
+        ordered.push({ kind: "section", id: section.id, name: section.name });
+    }
+    if (!ordered.some((destination) => destination.kind === "stars"))
+      ordered.push({ kind: "stars" });
+    if (!ordered.some((destination) => destination.kind === "channels"))
+      ordered.push({ kind: "channels" });
+    return ordered;
+  };
+  const currentSectionId = () =>
+    sections().find((section) => section.channelIds.includes(props.channelId))?.id ?? null;
+  const isStarred = () => channelsStore.isChannelStarred(props.channelId);
+  const isInChannels = () => !(isStarred() || currentSectionId());
+  const isPending = createMemo(
+    () =>
+      creatingSection() ||
+      channelsStore.isChannelPlacementPending(props.channelId) ||
+      channelsStore.isSectionStructurePending(),
+  );
+
+  const close = (complete = false) => {
+    setOpen(false);
+    setAddingSection(false);
+    setNewSectionName("");
+    if (complete) props.onComplete?.();
+  };
+
+  const finishPlacement = (outcome: ChannelPlacementOutcome) => {
+    if (isChannelPlacementApplied(outcome)) close(true);
+  };
+
+  const moveToStarred = async () => {
+    if (isStarred()) {
+      close(true);
+      return;
+    }
+    finishPlacement(await channelsStore.toggleChannelStar(props.channelId));
+  };
+
+  const moveToChannels = async () => {
+    if (isStarred()) {
+      finishPlacement(await channelsStore.toggleChannelStar(props.channelId));
+      return;
+    }
+    if (!currentSectionId()) {
+      close(true);
+      return;
+    }
+    finishPlacement(await channelsStore.moveChannelToSection(props.channelId, null));
+  };
+
+  const moveToSection = async (sectionId: string) => {
+    if (!isStarred() && currentSectionId() === sectionId) {
+      close(true);
+      return;
+    }
+    finishPlacement(await channelsStore.moveChannelToSection(props.channelId, sectionId));
+  };
+
+  const submitNewSection = async (event: SubmitEvent) => {
+    event.preventDefault();
+    const name = newSectionName().trim();
+    if (!name || isPending()) return;
+    setCreatingSection(true);
+    try {
+      const created = await channelsStore.createChannelSection(name, props.channelId);
+      if (!created) {
+        queueMicrotask(() => newSectionInputRef?.focus());
+        return;
+      }
+      const outcome = await channelsStore.moveChannelToSection(props.channelId, created.id);
+      if (!isChannelPlacementApplied(outcome)) {
+        feedback.flash(
+          props.channelId,
+          `Created “${created.name}”, but couldn't move this channel into it.`,
+          "error",
+        );
+        setAddingSection(false);
+        setNewSectionName("");
+        return;
+      }
+      close(true);
+    } finally {
+      setCreatingSection(false);
+    }
+  };
+
+  const trigger = () =>
+    props.variant === "menu-item" ? (
+      <MenuItem icon="folder" onClick={() => setOpen(!open())}>
+        Move to…
+        <Icon class="menu-item-caret" name="caret-right" size={13} />
+      </MenuItem>
+    ) : (
+      <IconButton
+        class="channel-header-move"
+        icon={isStarred() ? "star-filled" : "section"}
+        iconSize={16}
+        label="Move to…"
+        onClick={() => setOpen(!open())}
+        size="sm"
+        tone="dim"
+      />
+    );
+
+  return (
+    <Menu
+      align={props.variant === "menu-item" ? "start" : undefined}
+      class={
+        props.variant === "menu-item" ? "channel-move-menu-item-wrap" : "channel-header-move-wrap"
+      }
+      onClose={() => close()}
+      onOpen={() => setOpen(true)}
+      open={open()}
+      openOnHover={props.variant === "menu-item"}
+      panelClass="menu-panel channel-move-menu"
+      placement={props.variant === "menu-item" ? "right" : "bottom"}
+      trigger={trigger()}
+    >
+      <Show when={isPending()}>
+        <span class="channel-move-menu-status">{creatingSection() ? "Creating…" : "Moving…"}</span>
+      </Show>
+
+      <div class="channel-move-menu-destinations">
+        <For each={destinations()}>
+          {(destination) => {
+            const selected = () => {
+              if (destination.kind === "stars") return isStarred();
+              if (destination.kind === "channels") return isInChannels();
+              return !isStarred() && currentSectionId() === destination.id;
+            };
+            const move = () => {
+              if (destination.kind === "stars") return moveToStarred();
+              if (destination.kind === "channels") return moveToChannels();
+              return moveToSection(destination.id);
+            };
+            const icon = () => {
+              if (destination.kind === "stars") return isStarred() ? "star-filled" : "star";
+              return destination.kind === "channels" ? "channel" : "section";
+            };
+            return (
+              <MenuItem
+                class="channel-move-menu-destination"
+                classList={{ active: selected() }}
+                disabled={isPending()}
+                icon={icon()}
+                onClick={() => void move()}
+              >
+                <span class="truncate">
+                  {destination.kind === "section"
+                    ? destination.name
+                    : destination.kind === "stars"
+                      ? "Starred"
+                      : "Channels"}
+                </span>
+                <Show when={selected()}>
+                  <Icon class="menu-item-check" name="check" size={13} />
+                </Show>
+              </MenuItem>
+            );
+          }}
+        </For>
+      </div>
+
+      <InlineFeedback
+        class="channel-move-menu-feedback truncate"
+        feedback={feedback.get(props.channelId)}
+        priority={1}
+      />
+      <div class="divider" />
+      <Show
+        fallback={
+          <MenuItem
+            class="channel-move-menu-new"
+            disabled={isPending()}
+            icon="plus"
+            onClick={() => {
+              setAddingSection(true);
+              queueMicrotask(() => newSectionInputRef?.focus());
+            }}
+          >
+            New section
+          </MenuItem>
+        }
+        when={addingSection()}
+      >
+        <form class="channel-move-menu-form" onSubmit={submitNewSection}>
+          <input
+            class="channel-move-menu-input text-field"
+            disabled={creatingSection()}
+            onInput={(event) => setNewSectionName(event.currentTarget.value)}
+            placeholder="Section name"
+            ref={newSectionInputRef}
+            value={newSectionName()}
+          />
+          <button
+            class="channel-move-menu-create btn-reset"
+            disabled={!newSectionName().trim() || creatingSection()}
+            type="submit"
+          >
+            {creatingSection() ? "Creating…" : "Create"}
+          </button>
+        </form>
+      </Show>
+    </Menu>
+  );
+}

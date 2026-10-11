@@ -1,0 +1,6 @@
+{
+  "id": "threads",
+  "core": true,
+  "name": "Threads",
+  "requires": ["channels", "dms", "message-links", "messages", "shell", "users"]
+}

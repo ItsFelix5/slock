@@ -1,0 +1,6 @@
+{
+  "id": "channel-details",
+  "core": true,
+  "name": "Channel details",
+  "requires": ["channels", "shell", "users"]
+}

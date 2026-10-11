@@ -1,0 +1,16 @@
+{
+  "id": "composer",
+  "core": true,
+  "name": "Composer",
+  "requires": [
+    "channels",
+    "emoji",
+    "messages",
+    "prefs",
+    "shell",
+    "slash-commands",
+    "templates",
+    "usergroups",
+    "users"
+  ]
+}

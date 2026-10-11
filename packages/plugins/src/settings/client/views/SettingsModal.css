@@ -1,0 +1,40 @@
+.settings-card {
+  position: relative;
+  flex-direction: row;
+  width: min(880px, calc(100vw - 32px));
+  height: min(88dvh, 780px);
+  max-height: calc(100dvh - 32px);
+}
+
+.settings-nav {
+  flex-shrink: 0;
+  gap: 2px;
+  width: 200px;
+  padding: var(--space-2xl) 10px;
+  border-right: 1px solid var(--border);
+}
+
+.settings-nav-btn {
+  padding: 9px var(--space-md);
+  font-size: var(--font-size-secondary);
+  color: var(--text-secondary);
+  text-align: left;
+  border-radius: var(--radius-control);
+}
+
+.settings-nav-btn:hover {
+  background: var(--hover-bg);
+}
+
+.settings-nav-btn.active {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--active-bg);
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2xl) var(--space-3xl);
+  overflow-y: auto;
+}

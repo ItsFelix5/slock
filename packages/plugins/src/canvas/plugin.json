@@ -1,0 +1,6 @@
+{
+  "id": "canvas",
+  "core": true,
+  "name": "Canvas",
+  "requires": ["channels", "files", "message-links", "query", "shell", "users"]
+}

@@ -1,4 +1,5 @@
 import { createEffect, createSignal } from "solid-js";
+import ColorChannelRow from "./ColorChannelRow";
 import { cssColorToOklch, formatOklch, type OklchColor } from "./oklchColor";
 import "./OklchColorPicker.css";
 
@@ -44,32 +45,40 @@ export default function OklchColorPicker(props: OklchColorPickerProps) {
     <div aria-label={`${props.label} color picker`} class="oklch-picker">
       <div class="oklch-picker-preview" style={{ background: formatOklch(color()) }} />
       <ColorChannelRow
+        digits={3}
         label="Lightness"
         max={1}
+        min={0}
         onInput={(value) => update("lightness", value)}
         step={0.001}
         track={lightnessGradient()}
         value={color().lightness}
       />
       <ColorChannelRow
+        digits={3}
         label="Chroma"
         max={0.4}
+        min={0}
         onInput={(value) => update("chroma", value)}
         step={0.001}
         track={chromaGradient()}
         value={color().chroma}
       />
       <ColorChannelRow
+        digits={1}
         label="Hue"
         max={360}
+        min={0}
         onInput={(value) => update("hue", value)}
         step={0.1}
         track={hueGradient()}
         value={color().hue}
       />
       <ColorChannelRow
+        digits={3}
         label="Alpha"
         max={1}
+        min={0}
         onInput={(value) => update("alpha", value)}
         step={0.01}
         track={alphaGradient()}
@@ -77,42 +86,5 @@ export default function OklchColorPicker(props: OklchColorPickerProps) {
       />
       <output class="oklch-picker-value truncate">{formatOklch(color())}</output>
     </div>
-  );
-}
-
-interface ColorChannelRowProps {
-  label: string;
-  max: number;
-  onInput: (value: number) => void;
-  step: number;
-  track: string;
-  value: number;
-}
-
-function ColorChannelRow(props: ColorChannelRowProps) {
-  return (
-    <label class="oklch-picker-channel">
-      <span>{props.label}</span>
-      <input
-        aria-label={props.label}
-        max={props.max}
-        min={0}
-        onInput={(event) => props.onInput(Number(event.currentTarget.value))}
-        step={props.step}
-        style={{ "--channel-track": props.track }}
-        type="range"
-        value={props.value}
-      />
-      <input
-        aria-label={`${props.label} value`}
-        class="oklch-picker-number text-field"
-        max={props.max}
-        min={0}
-        onInput={(event) => props.onInput(Number(event.currentTarget.value))}
-        step={props.step}
-        type="number"
-        value={props.value.toFixed(props.max === 360 ? 1 : 3)}
-      />
-    </label>
   );
 }

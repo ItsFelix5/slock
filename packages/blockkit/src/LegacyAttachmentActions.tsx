@@ -1,6 +1,7 @@
-import { type AttachmentAction, runAttachmentAction } from "@slock/types";
+import type { AttachmentAction } from "@slock/types";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import type { BlockActionContext } from "./BlockKit";
+import { runAttachmentAction } from "./blockActions";
 import "./elements/Controls.css";
 
 export default function LegacyAttachmentActions(props: {

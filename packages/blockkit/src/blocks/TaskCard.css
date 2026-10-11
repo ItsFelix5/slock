@@ -21,11 +21,11 @@
 }
 
 .bk-task-status--complete {
-  background: var(--bk-button-primary);
+  background: var(--block-kit-button-primary);
 }
 
 .bk-task-status--error {
-  background: var(--bk-button-danger);
+  background: var(--block-kit-button-danger);
 }
 
 .bk-task-details,

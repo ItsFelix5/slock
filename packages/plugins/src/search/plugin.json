@@ -1,0 +1,17 @@
+{
+  "id": "search",
+  "core": true,
+  "name": "Search",
+  "requires": [
+    "bootstrap",
+    "channels",
+    "conversations",
+    "dms",
+    "files",
+    "message-links",
+    "prefs",
+    "shell",
+    "sidebar",
+    "users"
+  ]
+}

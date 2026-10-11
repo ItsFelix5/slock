@@ -1,4 +1,4 @@
-import { resolveMediaUrl, type VideoBlock } from "@slock/types";
+import type { VideoBlock } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import BkText from "../BkText";
@@ -16,7 +16,7 @@ export default function Video(props: { block: VideoBlock }) {
               aria-label={`Play ${props.block.alt_text || "video"}`}
               class="bk-video-poster flex-center btn-reset"
               onClick={() => setStarted(true)}
-              style={{ "background-image": `url(${resolveMediaUrl(props.block.thumbnail_url)})` }}
+              style={{ "background-image": `url(${props.block.thumbnail_url})` }}
               type="button"
             >
               <span class="bk-video-play">
@@ -37,7 +37,7 @@ export default function Video(props: { block: VideoBlock }) {
       </div>
       <div class="bk-video-info">
         <Show when={props.block.provider_icon_url}>
-          {(url) => <img alt="" class="bk-video-provider-icon" src={resolveMediaUrl(url())} />}
+          {(url) => <img alt="" class="bk-video-provider-icon" src={url()} />}
         </Show>
         <div class="bk-video-text flex-col">
           <a

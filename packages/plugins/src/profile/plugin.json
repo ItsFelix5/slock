@@ -1,0 +1,6 @@
+{
+  "id": "profile",
+  "core": true,
+  "name": "Profiles",
+  "requires": ["dms", "query", "shell", "users"]
+}

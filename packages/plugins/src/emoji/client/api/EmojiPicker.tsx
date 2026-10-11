@@ -1,0 +1,291 @@
+import { emojiUrl, hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
+import {
+  Button,
+  gridNavigationIndex,
+  type NavDirection,
+  Tooltip,
+  useEscapeClose,
+  useGridShortcuts,
+  useListShortcuts,
+} from "@slock/ui";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
+import type { EmojiEntry as PickerEntry } from "./emojiSearch";
+import "./EmojiPicker.css";
+import { defined } from "@slock/core";
+import { prioritizeEmojiEntries } from "../emojiPickerEntries";
+
+const emojiIndex = service("emoji");
+
+const COLS = 8;
+const BUTTON_SIZE = 32;
+const GRID_GAP = 2;
+const CHUNK_ROWS = 6;
+const CHUNK_SIZE = COLS * CHUNK_ROWS;
+const OVERSCAN_PX = 120;
+
+type Block = { kind: "chunk"; entries: PickerEntry[] };
+
+function rowsBlockHeight(count: number): number {
+  const rows = Math.ceil(count / COLS);
+  return rows * BUTTON_SIZE + Math.max(0, rows - 1) * GRID_GAP;
+}
+
+function blockHeight(block: Block): number {
+  return rowsBlockHeight(block.entries.length);
+}
+
+function buildBlocks(sections: { entries: PickerEntry[] }[]): Block[] {
+  const blocks: Block[] = [];
+  for (const section of sections) {
+    if (!section.entries.length) continue;
+    for (let i = 0; i < section.entries.length; i += CHUNK_SIZE) {
+      blocks.push({ entries: section.entries.slice(i, i + CHUNK_SIZE), kind: "chunk" });
+    }
+  }
+  return blocks;
+}
+
+export default function EmojiPicker(props: {
+  onSelect: (name: string) => void;
+  onClose: () => void;
+  existingReactions?: { name: string; mine: boolean }[];
+}) {
+  const [query, setQuery] = createSignal("");
+  const [activeIndex, setActiveIndex] = createSignal(0);
+
+  let bodyRef: HTMLDivElement | undefined;
+
+  let searchInputRef: HTMLInputElement | undefined;
+
+  useEscapeClose(props.onClose);
+
+  onMount(() => {
+    void loadCustomEmoji();
+    requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
+  });
+
+  const allEntries = emojiIndex.allEmojiEntries;
+
+  const reactionByName = createMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const r of props.existingReactions ?? []) map.set(r.name, r.mine);
+    return map;
+  });
+
+  const reactedEntries = createMemo(() => {
+    if (!props.existingReactions?.length) return [];
+    return props.existingReactions
+      .map((r) => emojiIndex.emojiEntryByName(r.name))
+      .filter((entry) => entry !== undefined);
+  });
+
+  const visibleEntries = createMemo(() => {
+    const entries = allEntries();
+    if (query().trim()) return emojiIndex.searchEmoji(entries, query());
+    const frequent = emojiIndex.frequentEmoji();
+    return prioritizeEmojiEntries(entries, reactedEntries(), frequent);
+  });
+
+  const isEmpty = () => visibleEntries().length === 0;
+
+  const blocks = createMemo(() => buildBlocks([{ entries: visibleEntries() }]));
+
+  const blockLayout = createMemo(() => {
+    let top = 0;
+    let startIndex = 0;
+    const laid: { block: Block; top: number; height: number; startIndex: number }[] = [];
+    for (const block of blocks()) {
+      const height = blockHeight(block);
+      laid.push({ block, height, startIndex, top });
+      top += height;
+      startIndex += block.entries.length;
+    }
+    return { laid, totalHeight: top };
+  });
+
+  const [scrollTop, setScrollTop] = createSignal(0);
+  const [viewportHeight, setViewportHeight] = createSignal(360);
+
+  onMount(() => {
+    if (!bodyRef) return;
+    const measure = () => bodyRef && setViewportHeight(bodyRef.clientHeight);
+    measure();
+    window.addEventListener("resize", measure);
+    onCleanup(() => window.removeEventListener("resize", measure));
+  });
+
+  createEffect(
+    on(
+      query,
+      () => {
+        setScrollTop(0);
+        if (bodyRef) bodyRef.scrollTop = 0;
+        setActiveIndex(0);
+      },
+      { defer: true },
+    ),
+  );
+
+  const visible = createMemo(() => {
+    const { laid, totalHeight } = blockLayout();
+    const lo = scrollTop() - OVERSCAN_PX;
+    const hi = scrollTop() + viewportHeight() + OVERSCAN_PX;
+    let start = 0;
+    while (start < laid.length && defined(laid[start]).top + defined(laid[start]).height < lo)
+      start++;
+    let end = start;
+    while (end < laid.length && defined(laid[end]).top < hi) end++;
+    const topSpacer = laid[start]?.top ?? 0;
+    const last = laid[end - 1];
+    const bottomSpacer = totalHeight - (last ? last.top + last.height : 0);
+    return { bottomSpacer, list: laid.slice(start, end), topSpacer };
+  });
+
+  const keepSearchFocused = (e: MouseEvent) => {
+    if (e.target !== searchInputRef) e.preventDefault();
+  };
+
+  const scrollEmojiIndexIntoView = (index: number) => {
+    if (!bodyRef) return;
+    const rowTop = Math.floor(index / COLS) * (BUTTON_SIZE + GRID_GAP);
+    const rowBottom = rowTop + BUTTON_SIZE;
+    const viewTop = scrollTop();
+    const viewBottom = viewTop + viewportHeight();
+    const nextTop =
+      rowTop < viewTop ? rowTop : rowBottom > viewBottom ? rowBottom - viewportHeight() : viewTop;
+    if (nextTop === viewTop) return;
+    setScrollTop(nextTop);
+    bodyRef.scrollTop = nextTop;
+  };
+
+  const selectActive = () => {
+    const entry = visibleEntries()[activeIndex()];
+    if (entry) props.onSelect(entry.name);
+  };
+
+  const moveGrid = (direction: NavDirection) => {
+    const { activeElement } = document;
+    const fromSearch = activeElement === searchInputRef;
+    const indexAttr =
+      activeElement instanceof HTMLElement ? activeElement.dataset.emojiIndex : undefined;
+    const current = indexAttr === undefined ? null : Number(indexAttr);
+
+    if (!fromSearch && direction === "up" && current !== null && current < COLS) {
+      searchInputRef?.focus();
+      return;
+    }
+
+    const next = gridNavigationIndex(direction, current, visibleEntries().length, COLS);
+    if (next === undefined) return;
+    setActiveIndex(next);
+    scrollEmojiIndexIntoView(next);
+    queueMicrotask(() =>
+      bodyRef?.querySelector<HTMLElement>(`[data-emoji-index="${next}"]`)?.focus(),
+    );
+  };
+
+  useListShortcuts({
+    edges: false,
+    move: moveGrid,
+    root: () => searchInputRef,
+    submit: selectActive,
+  });
+  useGridShortcuts({ move: moveGrid, root: () => bodyRef, submit: selectActive });
+
+  return (
+    <div class="emoji-picker surface-popover flex-col" onMouseDown={keepSearchFocused}>
+      <div class="emoji-picker-search">
+        <input
+          class="text-field"
+          onInput={(e) => setQuery(e.currentTarget.value)}
+          placeholder="Search emoji…"
+          ref={searchInputRef}
+          type="text"
+          value={query()}
+        />
+      </div>
+      <Show when={isEmojiLoading()}>
+        <div class="emoji-picker-notice flex-between gap-sm">Loading workspace emoji…</div>
+      </Show>
+      <Show when={hasEmojiLoadError()}>
+        <div class="emoji-picker-notice flex-between gap-sm emoji-picker-error">
+          <span>Couldn't load workspace emoji.</span>
+          <Button onClick={() => void loadCustomEmoji()} size="sm">
+            Try again
+          </Button>
+        </div>
+      </Show>
+      <div
+        class="emoji-picker-body"
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        ref={bodyRef}
+      >
+        <Show fallback={<div class="emoji-picker-empty">No emoji found</div>} when={!isEmpty()}>
+          <div style={{ height: `${visible().topSpacer}px` }} />
+          <For each={visible().list}>
+            {(item) => (
+              <div class="emoji-picker-grid">
+                <For each={item.block.entries}>
+                  {(entry, index) => (
+                    <EmojiButton
+                      active={activeIndex() === item.startIndex + index()}
+                      entry={entry}
+                      index={item.startIndex + index()}
+                      onSelect={props.onSelect}
+                      reactionByName={reactionByName}
+                    />
+                  )}
+                </For>
+              </div>
+            )}
+          </For>
+          <div style={{ height: `${visible().bottomSpacer}px` }} />
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+function EmojiButton(props: {
+  active: boolean;
+  entry: PickerEntry;
+  index: number;
+  onSelect: (name: string) => void;
+  reactionByName: () => Map<string, boolean>;
+}) {
+  const url = () => emojiUrl(props.entry.name);
+  const mine = () => props.reactionByName().get(props.entry.name) === true;
+  const reacted = () => props.reactionByName().has(props.entry.name);
+  const tooltip = () => {
+    if (mine()) return `:${props.entry.name}: · you reacted`;
+    if (reacted()) return `:${props.entry.name}: · already reacted`;
+    return `:${props.entry.name}:`;
+  };
+  return (
+    <Tooltip content={tooltip()}>
+      <button
+        aria-label={`:${props.entry.name}:`}
+        class="emoji-picker-btn btn-reset flex-center"
+        classList={{ mine: mine(), reacted: reacted() }}
+        data-emoji-index={props.index}
+        onClick={() => props.onSelect(props.entry.name)}
+        tabIndex={props.active ? 0 : -1}
+        type="button"
+      >
+        <Show fallback={props.entry.unicode ?? "❔"} when={url()}>
+          {(u) => <img alt={props.entry.name} decoding="async" loading="lazy" src={u()} />}
+        </Show>
+      </button>
+    </Tooltip>
+  );
+}

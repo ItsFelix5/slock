@@ -1,13 +1,13 @@
-import { createEffect, createSignal, For, type JSX, on, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, type JSX, on, onCleanup, Show } from "solid-js";
 import IconButton from "../button/IconButton";
-import Menu from "../overlay/menu/Menu";
-import MenuItem from "../overlay/menu/MenuItem";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
-import { useSeekShortcuts } from "../useNavShortcuts";
-import { inside, useShortcut } from "../useShortcut";
 import { createMediaVolume } from "./createMediaVolume";
 import Icon from "./Icon";
 import "./VideoPlayer.css";
+import { useVideoShortcuts } from "./useVideoShortcuts";
+import VideoSeekBar from "./VideoSeekBar";
+import VideoSpeedMenu from "./VideoSpeedMenu";
+import VideoUnavailable from "./VideoUnavailable";
 import VolumeControl from "./VolumeControl";
 
 export function formatDuration(seconds: number | undefined): string {
@@ -15,7 +15,6 @@ export function formatDuration(seconds: number | undefined): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const pipSupported = typeof document !== "undefined" && document.pictureInPictureEnabled;
 
 export interface VideoPlayerProps {
@@ -47,7 +46,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [buffered, setBuffered] = createSignal(0);
   const [fullscreen, setFullscreen] = createSignal(false);
   const [speed, setSpeed] = createSignal(1);
-  const [speedOpen, setSpeedOpen] = createSignal(false);
   const [captionsOn, setCaptionsOn] = createSignal(false);
 
   const duration = () => props.duration ?? mediaDuration() ?? 0;
@@ -103,39 +101,19 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     startFrameCoalescedPointerDrag((moveEvent) => seekFromPointer(moveEvent, track));
   };
 
-  const playerShortcut = {
-    allowInInputs: false,
-    scope: "general",
-    group: "Media",
-    target: inside(() => wrapRef),
-  } as const;
-  useShortcut({
-    ...playerShortcut,
-    combo: { key: [" ", "k"] },
-    handler: () => void togglePlayback(),
-    id: "video.playPause",
-    label: "Play or pause the video",
+  useVideoShortcuts({
+    currentTime,
+    duration,
+    root: () => wrapRef,
+    seekTo,
+    toggleFullscreen: () => toggleFullscreen(),
+    toggleMute: () => mediaVolume.setMuted(!mediaVolume.muted()),
+    togglePlayback: () => void togglePlayback(),
   });
-  useShortcut({
-    ...playerShortcut,
-    combo: { key: "m" },
-    handler: () => mediaVolume.setMuted(!mediaVolume.muted()),
-    id: "video.mute",
-    label: "Mute or unmute the video",
-  });
-  useShortcut({
-    ...playerShortcut,
-    combo: { key: "f" },
-    handler: () => toggleFullscreen(),
-    id: "video.fullscreen",
-    label: "Toggle video fullscreen",
-  });
-  useSeekShortcuts({ currentTime, duration, root: () => wrapRef, seekTo });
 
   const applySpeed = (value: number) => {
     if (videoRef) videoRef.playbackRate = value;
     setSpeed(value);
-    setSpeedOpen(false);
   };
 
   const toggleCaptions = () => {
@@ -169,27 +147,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   return (
     <Show
       fallback={
-        <div class={`video-player-error flex-col gap-sm ${props.class ?? ""}`}>
-          <Icon name="video-off" size={22} />
-          <span>Video unavailable</span>
-          <span class="video-player-actions">
-            <button
-              class="video-player-action btn-reset"
-              onClick={() => setFailed(false)}
-              type="button"
-            >
-              Try again
-            </button>
-            <a
-              class="video-player-action"
-              href={props.openHref ?? props.src}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Open video
-            </a>
-          </span>
-        </div>
+        <VideoUnavailable
+          class={props.class}
+          href={props.openHref ?? props.src}
+          onRetry={() => setFailed(false)}
+        />
       }
       when={!failed()}
     >
@@ -286,28 +248,14 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         </div>
 
         <div class="video-player-controls flex-col">
-          <div
-            aria-label="Seek"
-            aria-valuemax={duration()}
-            aria-valuemin={0}
-            aria-valuenow={currentTime()}
-            aria-valuetext={`${formatDuration(currentTime())} of ${formatDuration(duration())}`}
-            class="video-player-seek"
-            onPointerDown={startScrub}
-            role="slider"
-            tabIndex={0}
-          >
-            <div class="video-player-seek-track">
-              <div
-                class="video-player-seek-buffered"
-                style={{
-                  width: `${duration() > 0 ? Math.min(100, (buffered() / duration()) * 100) : 0}%`,
-                }}
-              />
-              <div class="video-player-seek-played" style={{ width: `${progress() * 100}%` }} />
-              <div class="video-player-seek-thumb" style={{ left: `${progress() * 100}%` }} />
-            </div>
-          </div>
+          <VideoSeekBar
+            buffered={buffered()}
+            currentTime={currentTime()}
+            duration={duration()}
+            onScrub={startScrub}
+            progress={progress()}
+            valueText={`${formatDuration(currentTime())} of ${formatDuration(duration())}`}
+          />
 
           <div class="video-player-controls-row flex-align-center">
             <IconButton
@@ -330,32 +278,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             <div class="video-player-row-spacer" />
 
             <div class="video-player-meta-group flex-align-center">
-              <Menu
-                onClose={() => setSpeedOpen(false)}
-                open={speedOpen()}
-                panelClass="menu-panel video-player-speed-panel"
-                trigger={
-                  <button
-                    class="video-player-speed video-player-chrome btn-reset flex-align-center"
-                    onClick={() => setSpeedOpen(!speedOpen())}
-                    type="button"
-                  >
-                    {speed()}x
-                    <Icon name="caret-down" size={9} />
-                  </button>
-                }
-              >
-                <For each={SPEEDS}>
-                  {(value) => (
-                    <MenuItem
-                      classList={{ active: speed() === value }}
-                      onClick={() => applySpeed(value)}
-                    >
-                      {value}x
-                    </MenuItem>
-                  )}
-                </For>
-              </Menu>
+              <VideoSpeedMenu onSpeed={applySpeed} speed={speed()} />
 
               <Show when={props.captionsSrc}>
                 <IconButton

@@ -1,16 +1,17 @@
-import {
-  isRichTextSubBlock,
-  type RichTextBlock as RichTextBlockType,
-  type RichTextInlineElement,
-  type RichTextList as RichTextListType,
-  type RichTextSection,
-  type RichTextSubBlock,
+import { isRichTextSubBlock } from "@slock/slack";
+import type {
+  RichTextBlock as RichTextBlockType,
+  RichTextInlineElement,
+  RichTextList as RichTextListType,
+  RichTextSection,
+  RichTextSubBlock,
 } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import { useBlockKitResolver } from "../context";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
+import InlineAction from "../InlineAction";
 import { parseArchiveLink } from "../mrkdwnInline";
 import {
   DateToken,
@@ -91,14 +92,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
         (el.text && el.text !== el.url ? el.text : resolver.resolveCanvasTitle(el.file_id)) ||
         undefined;
       return (
-        <button
+        <InlineAction
           class="bk-canvas"
-          onClick={() => resolver.onCanvasClick(el.file_id, title())}
-          type="button"
+          onActivate={() => resolver.onCanvasClick(el.file_id, title())}
         >
           <Icon name="canvas-content" size={14} />
           <EmojiText text={title() ?? "canvas"} />
-        </button>
+        </InlineAction>
       );
     }
     default:

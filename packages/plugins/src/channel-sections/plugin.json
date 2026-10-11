@@ -1,0 +1,6 @@
+{
+  "id": "channel-sections",
+  "core": true,
+  "name": "Channel sections",
+  "requires": ["channels", "shell"]
+}

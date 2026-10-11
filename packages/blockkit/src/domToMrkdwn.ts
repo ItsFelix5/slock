@@ -1,4 +1,4 @@
-import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/types";
+import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
 import { formatSlackDate } from "./dateFormat";
 
 export interface InlineDialect {

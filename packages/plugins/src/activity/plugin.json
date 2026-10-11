@@ -1,0 +1,17 @@
+{
+  "id": "activity",
+  "core": true,
+  "name": "Activity",
+  "requires": [
+    "bootstrap",
+    "channels",
+    "conversations",
+    "dms",
+    "message-links",
+    "messages",
+    "prefs",
+    "shell",
+    "unread",
+    "users"
+  ]
+}

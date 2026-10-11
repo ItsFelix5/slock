@@ -1,14 +1,23 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import Popover from "../overlay/Popover";
 import Tooltip from "../overlay/Tooltip";
+import type { ColorRef } from "../themeDerivations";
 import OklchColorPicker from "./OklchColorPicker";
+import RelativeColorPicker from "./RelativeColorPicker";
 import "./ColorField.css";
+
+export interface RelativeColor {
+  onChange: (ref: ColorRef) => void;
+  onDecouple: () => void;
+  reference: ColorRef;
+}
 
 export interface ColorFieldProps {
   displayValue?: string;
   label: string;
   onChange: (value: string) => void;
   onReset: () => void;
+  relative?: RelativeColor;
   value: string;
 }
 
@@ -50,7 +59,20 @@ export default function ColorField(props: ColorFieldProps) {
           />
         }
       >
-        <OklchColorPicker label={props.label} onChange={commit} value={value()} />
+        <Show
+          fallback={<OklchColorPicker label={props.label} onChange={commit} value={value()} />}
+          when={props.relative}
+        >
+          {(relative) => (
+            <RelativeColorPicker
+              label={props.label}
+              onChange={relative().onChange}
+              onDecouple={relative().onDecouple}
+              preview={value()}
+              reference={relative().reference}
+            />
+          )}
+        </Show>
       </Popover>
       <div class="color-field-name truncate" title={props.label}>
         {props.label}

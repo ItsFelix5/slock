@@ -1,14 +1,21 @@
-import { fetchAllEmoji, invalidateEmojiCache } from "@slock/types";
-import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 
 let emojiUrls: Record<string, string | null> = {};
 let emojiAliasesToBuiltinNames: Record<string, string> = {};
-const [loadState, setLoadState] = createRoot(() =>
-  createStore<{ value: "idle" | "loading" | "loaded" | "error" }>({ value: "idle" }),
-);
+const [loadState, setLoadState] = createStore<{ value: "idle" | "loading" | "loaded" | "error" }>({
+  value: "idle",
+});
 
 let emojiLoadPromise: Promise<void> | null = null;
+
+async function fetchAllEmoji() {
+  const res = await fetch("/api/emoji");
+  if (!res.ok) throw new Error(`Emoji list failed (${res.status})`);
+  const data: { names: string[]; aliasesToBuiltinNames: Record<string, string> } = await res.json();
+  const urls: Record<string, string> = {};
+  for (const name of data.names) urls[name] = `/api/emoji/${encodeURIComponent(name)}`;
+  return { aliasesToBuiltinNames: data.aliasesToBuiltinNames, urls };
+}
 
 export function loadCustomEmoji(): Promise<void> {
   if (!emojiLoadPromise) {
@@ -29,7 +36,6 @@ export function loadCustomEmoji(): Promise<void> {
 
 export function invalidateCustomEmoji(): void {
   emojiLoadPromise = null;
-  invalidateEmojiCache();
   setLoadState("value", "idle");
 }
 

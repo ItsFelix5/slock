@@ -1,0 +1,18 @@
+{
+  "id": "home",
+  "core": true,
+  "name": "Home",
+  "requires": [
+    "bootstrap",
+    "channels",
+    "conversations",
+    "dms",
+    "message-links",
+    "messages",
+    "prefs",
+    "shell",
+    "sidebar",
+    "unread",
+    "users"
+  ]
+}

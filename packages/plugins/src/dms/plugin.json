@@ -1,0 +1,6 @@
+{
+  "id": "dms",
+  "core": true,
+  "name": "Direct messages",
+  "requires": ["bootstrap", "conversations", "query", "shell", "users"]
+}

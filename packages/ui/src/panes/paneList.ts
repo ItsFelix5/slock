@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 export interface Pane<T> {
   id: string;
   content: T;
@@ -59,7 +60,7 @@ export function insertPane<T>(
   );
   const next = [...panes];
   next.splice(insertAt, 0, { id, content, size: 0 });
-  return next.map((p, i) => ({ ...p, size: sizes[i] }));
+  return next.map((p, i) => ({ ...p, size: defined(sizes[i]) }));
 }
 
 export function closePane<T>(panes: Pane<T>[], id: string): Pane<T>[] {
@@ -70,7 +71,7 @@ export function closePane<T>(panes: Pane<T>[], id: string): Pane<T>[] {
     index,
   );
   const next = panes.filter((_, i) => i !== index);
-  return next.map((p, i) => ({ ...p, size: sizes[i] }));
+  return next.map((p, i) => ({ ...p, size: defined(sizes[i]) }));
 }
 
 export function replacePaneContent<T>(panes: Pane<T>[], id: string, content: T): Pane<T>[] {

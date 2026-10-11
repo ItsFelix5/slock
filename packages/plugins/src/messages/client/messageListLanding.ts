@@ -1,0 +1,252 @@
+import { service } from "@slock/core/solid";
+import type { Message } from "@slock/types";
+import { createEffect, createSignal } from "solid-js";
+import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
+import {
+  flashMessageElement,
+  getRememberedScrollAnchor,
+  jumpToMessageInContainer,
+  rememberScrollAnchor,
+  restoreScrollAnchor,
+  scrollToBottom,
+  waitForMessageElement,
+} from "./api/pane/scrollAnchor";
+import { findUnreadDividerIndex } from "./lib/unreadDivider";
+
+const unreadStore = service("unread");
+const messagesStore = service("messages");
+
+const PIN_MS = 1500;
+
+function pinToRow(
+  container: HTMLElement,
+  isStale: () => boolean,
+  pin: () => void,
+  onStop: () => void,
+) {
+  const observer = new ResizeObserver(() => {
+    if (isStale()) stop();
+    else pin();
+  });
+  const timer = setTimeout(stop, PIN_MS);
+  function stop() {
+    clearTimeout(timer);
+    observer.disconnect();
+    onStop();
+  }
+  observer.observe(container);
+  for (const child of container.children) observer.observe(child);
+  return stop;
+}
+
+export function createMessageListLanding(deps: {
+  clearMessageTarget: () => void;
+  messages: () => Message[];
+  messageTarget: () => ChannelMessageTarget | null;
+  paneView: () => View | null;
+  scrollRef: () => HTMLDivElement | undefined;
+}) {
+  let lastViewId: string | undefined;
+  let positionedViewId: string | undefined;
+  let landingRun = 0;
+  let pinnedRun = 0;
+  let requestedMessageTarget: ReturnType<typeof deps.messageTarget> = null;
+  let cancelPendingFlash: (() => void) | undefined;
+
+  const [readyViewId, setReadyViewId] = createSignal<string>();
+  const [shouldFollowBottom, setShouldFollowBottom] = createSignal(true);
+
+  function landOnBottom(viewId: string) {
+    const run = ++landingRun;
+    setShouldFollowBottom(true);
+    queueMicrotask(() => {
+      const el = deps.scrollRef();
+      if (run !== landingRun || deps.paneView()?.id !== viewId || !el) return;
+      scrollToBottom(el);
+      setReadyViewId(viewId);
+    });
+  }
+
+  function landOnMessage(viewId: string, ts: string, align: ScrollLogicalPosition, flash = false) {
+    const el = deps.scrollRef();
+    if (!el) return;
+    const run = ++landingRun;
+    setShouldFollowBottom(false);
+    cancelPendingFlash?.();
+    cancelPendingFlash = waitForMessageElement(el, ts, (row) => {
+      if (run !== landingRun || deps.paneView()?.id !== viewId) return;
+      const pin = () => {
+        setShouldFollowBottom(false);
+        row.scrollIntoView({ block: align });
+      };
+      pin();
+      pinnedRun = run;
+      const stopPinning = pinToRow(
+        el,
+        () => run !== landingRun,
+        pin,
+        () => {
+          if (pinnedRun === run) pinnedRun = 0;
+        },
+      );
+      const stopFlash = flash ? flashMessageElement(row) : undefined;
+      cancelPendingFlash = () => {
+        stopPinning();
+        stopFlash?.();
+      };
+      setReadyViewId(viewId);
+    });
+  }
+
+  function landOnDivider(viewId: string, dividerTs: string) {
+    const el = deps.scrollRef();
+    if (!el) return;
+    const run = ++landingRun;
+    setShouldFollowBottom(false);
+    cancelPendingFlash?.();
+    cancelPendingFlash = waitForMessageElement(el, dividerTs, (dividerRow) => {
+      const current = deps.scrollRef();
+      if (run !== landingRun || deps.paneView()?.id !== viewId || !current) return;
+      const containerRect = current.getBoundingClientRect();
+      const dividerRect = dividerRow.getBoundingClientRect();
+      const unreadContentHeight =
+        current.scrollHeight - (dividerRect.top - containerRect.top + current.scrollTop);
+      if (unreadContentHeight <= current.clientHeight) {
+        setShouldFollowBottom(true);
+        scrollToBottom(current);
+      } else {
+        dividerRow.scrollIntoView({ block: "start" });
+      }
+      setReadyViewId(viewId);
+    });
+  }
+
+  function landOnRememberedAnchor(viewId: string, anchor: { offset: number; ts: string }) {
+    const el = deps.scrollRef();
+    if (!el) return;
+    const run = ++landingRun;
+    setShouldFollowBottom(false);
+    cancelPendingFlash?.();
+    cancelPendingFlash = waitForMessageElement(el, anchor.ts, (row) => {
+      const current = deps.scrollRef();
+      if (run !== landingRun || deps.paneView()?.id !== viewId || !current) return;
+      restoreScrollAnchor(current, { el: row, offset: anchor.offset });
+      setReadyViewId(viewId);
+    });
+  }
+
+  function cancelLanding() {
+    landingRun += 1;
+    const view = deps.paneView();
+    if (view && readyViewId() !== view.id) setReadyViewId(view.id);
+  }
+
+  function landOnDividerOrBottom(view: View, msgs: Message[]) {
+    const anchor = unreadStore.unreadDividerTsForChannel(view.id);
+    if (anchor === undefined) return;
+    positionedViewId = view.id;
+
+    const dividerIndex = findUnreadDividerIndex(msgs, anchor);
+    const dividerTs = dividerIndex >= 0 ? msgs[dividerIndex]?.ts : undefined;
+    if (dividerTs) landOnDivider(view.id, dividerTs);
+    else landOnBottom(view.id);
+  }
+
+  function jumpToMessage(ts: string) {
+    const container = deps.scrollRef();
+    if (!container) return;
+    setShouldFollowBottom(false);
+    cancelPendingFlash?.();
+    cancelPendingFlash = jumpToMessageInContainer(container, ts);
+  }
+
+  function jumpToDate(dateMs: number) {
+    const view = deps.paneView();
+    if (!view) return;
+    void messagesStore.jumpToDate(view.id, dateMs).then((ok) => {
+      if (!ok || deps.paneView()?.id !== view.id) return;
+      queueMicrotask(() => {
+        const [first] = deps.messages();
+        if (first) landOnMessage(view.id, first.ts, "start");
+      });
+    });
+  }
+
+  function jumpToBeginning() {
+    const view = deps.paneView();
+    if (!view) return;
+    void messagesStore.jumpToBeginning(view.id).then((ok) => {
+      if (!ok || deps.paneView()?.id !== view.id) return;
+      queueMicrotask(() => {
+        const [first] = deps.messages();
+        if (first) landOnMessage(view.id, first.ts, "start");
+      });
+    });
+  }
+
+  createEffect(() => {
+    const view = deps.paneView();
+    const msgs = deps.messages();
+    const switchedView = view?.id !== lastViewId;
+    lastViewId = view?.id;
+    if (switchedView) {
+      landingRun += 1;
+      positionedViewId = undefined;
+      setShouldFollowBottom(true);
+      cancelPendingFlash?.();
+      cancelPendingFlash = undefined;
+    }
+    const el = deps.scrollRef();
+    if (!(el && view)) return;
+
+    const target = deps.messageTarget();
+    if (target?.channelId === view.id) {
+      const index = msgs.findIndex((candidate) => candidate.ts === target.ts);
+      if (index >= 0) {
+        requestedMessageTarget = target;
+        const coldOpen = readyViewId() !== view.id;
+        deps.clearMessageTarget();
+        positionedViewId = view.id;
+        if (coldOpen) landOnMessage(view.id, target.ts, "center", true);
+        else jumpToMessage(target.ts);
+        return;
+      }
+
+      if (requestedMessageTarget !== target) {
+        requestedMessageTarget = target;
+        void messagesStore.ensureChannelMessage(target.channelId, target.ts).then((found) => {
+          if (!found && deps.messageTarget() === target) deps.clearMessageTarget();
+        });
+      }
+      return;
+    }
+
+    if (positionedViewId !== view.id && msgs.length > 0) {
+      const remembered = getRememberedScrollAnchor(view.id);
+      if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
+        positionedViewId = view.id;
+        landOnRememberedAnchor(view.id, remembered);
+      } else {
+        landOnDividerOrBottom(view, msgs);
+      }
+    }
+  });
+
+  const isPinning = () => pinnedRun !== 0 && pinnedRun === landingRun;
+
+  function trackScrollAnchor(viewId: string, anchor: { offset: number; ts: string }) {
+    if (readyViewId() === viewId) rememberScrollAnchor(viewId, anchor);
+  }
+
+  return {
+    cancelLanding,
+    isPinning,
+    jumpToBeginning,
+    jumpToDate,
+    jumpToMessage,
+    readyViewId,
+    setShouldFollowBottom,
+    shouldFollowBottom,
+    trackScrollAnchor,
+  };
+}

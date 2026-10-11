@@ -21,11 +21,7 @@ export type {
 
 import type { DataVisualizationBlock, TableBlock } from "./blockDataViz";
 import type { BlockElement, ImageElement, TextObject } from "./blockElements";
-import {
-  broadcastRangeFromRichTextBlocks,
-  type RichTextBlock,
-  richTextBlocksToPlainText,
-} from "./richText";
+import type { RichTextBlock } from "./richText";
 
 export interface SectionBlock {
   accessory?: BlockElement;
@@ -239,37 +235,6 @@ export type Block =
   | AlertBlock
   | RichTextBlock
   | UnknownBlock;
-
-function hasType<All extends { type: string }, T extends All>(
-  value: All | undefined,
-  type: T["type"],
-): value is T {
-  return value?.type === type;
-}
-
-export function narrowByType<All extends { type: string }, T extends All>(
-  value: All | undefined,
-  type: T["type"],
-): T | undefined {
-  return hasType<All, T>(value, type) ? value : undefined;
-}
-
-export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {
-  return broadcastRangeFromRichTextBlocks(
-    (blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
-  );
-}
-
-export function blockPreviewText(blocks: readonly Block[] | undefined): string {
-  const parts = (blocks ?? []).flatMap((block) => {
-    const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
-    if (richText) return [richTextBlocksToPlainText([richText])];
-    const header = narrowByType<Block, HeaderBlock>(block, "header");
-    if (header) return [header.text.text];
-    return [];
-  });
-  return parts.join("\n").trim();
-}
 
 export interface ModalView {
   app_id?: string;

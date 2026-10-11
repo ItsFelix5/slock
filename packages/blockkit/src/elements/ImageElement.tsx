@@ -1,4 +1,4 @@
-import { type ImageElement as ImageElementType, resolveMediaUrl } from "@slock/types";
+import type { ImageElement as ImageElementType } from "@slock/types";
 import { ZoomableImage } from "@slock/ui";
 import "./ImageElement.css";
 
@@ -11,7 +11,7 @@ export default function ImageElement(props: { el: ImageElementType }) {
       class="bk-image-el"
       reservedHeight={120}
       reservedWidth={240}
-      src={resolveMediaUrl(src)}
+      src={src}
     />
   );
 }

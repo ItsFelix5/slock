@@ -1,19 +1,23 @@
-import { type ImageBlock, resolveMediaUrl } from "@slock/types";
+import type { ImageBlock } from "@slock/types";
 import { constrainMediaDimensions, MediaFrame, ZoomableImage } from "@slock/ui";
 import { Show } from "solid-js";
 import EmojiText from "../emoji/EmojiText";
 import "./Image.css";
+import { defined } from "@slock/core";
 
 const URL_SUFFIX_PATTERN = /[?#]/;
 const MAX_IMAGE_SIZE = 360;
 
 function isGif(block: ImageBlock) {
   const url = block.image_url ?? block.slack_file?.url;
-  return !!block.is_animated || !!url?.split(URL_SUFFIX_PATTERN)[0].toLowerCase().endsWith(".gif");
+  return (
+    !!block.is_animated ||
+    !!defined(url?.split(URL_SUFFIX_PATTERN)[0]).toLowerCase().endsWith(".gif")
+  );
 }
 
 export default function Image(props: { block: ImageBlock }) {
-  const src = () => resolveMediaUrl(props.block.image_url ?? props.block.slack_file?.url ?? "");
+  const src = () => props.block.image_url ?? props.block.slack_file?.url ?? "";
   const dimensions = () =>
     constrainMediaDimensions(
       props.block.image_width,

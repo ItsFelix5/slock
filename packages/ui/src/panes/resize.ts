@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 export function distributeResize(
   sizes: number[],
   index: number,
@@ -5,8 +6,8 @@ export function distributeResize(
   minFraction: number,
 ): number[] {
   if (index < 0 || index + 1 >= sizes.length) return sizes;
-  const a = sizes[index];
-  const b = sizes[index + 1];
+  const a = defined(sizes[index]);
+  const b = defined(sizes[index + 1]);
   const delta = Math.max(minFraction - a, Math.min(b - minFraction, deltaFraction));
   const next = [...sizes];
   next[index] = a + delta;

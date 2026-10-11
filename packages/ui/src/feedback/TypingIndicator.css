@@ -1,5 +1,4 @@
 .typing-indicator-anchor {
-  position: relative;
   flex-shrink: 0;
   min-width: 0;
 }

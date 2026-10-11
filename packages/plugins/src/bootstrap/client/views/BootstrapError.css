@@ -1,0 +1,23 @@
+.bootstrap-error {
+  width: 100%;
+  height: 100%;
+  padding: var(--space-3xl);
+  text-align: center;
+  background: var(--main-bg);
+}
+
+.bootstrap-error h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.bootstrap-error-actions {
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.bootstrap-error p {
+  max-width: 440px;
+  margin: var(--space-xs) 0 var(--space-md);
+  color: var(--text-dim);
+}

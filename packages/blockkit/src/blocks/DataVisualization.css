@@ -1,5 +1,5 @@
 .bk-chart {
-  --bk-chart-series-1: var(--bk-button-primary);
+  --bk-chart-series-1: var(--block-kit-button-primary);
   --bk-chart-series-2: var(--palette-blue-500);
   --bk-chart-series-3: var(--palette-amber-500);
   --bk-chart-series-4: var(--palette-red-500);

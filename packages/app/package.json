@@ -4,12 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "@slock/blockkit": "workspace:*",
-    "@slock/canvas": "workspace:*",
-    "@slock/types": "workspace:*",
+    "@slock/core": "workspace:*",
     "@slock/ui": "workspace:*",
-    "@tanstack/solid-query": "^5.102.8",
-    "quill": "^2",
     "solid-js": "^1.9.13"
   }
 }

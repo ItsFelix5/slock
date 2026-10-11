@@ -1,0 +1,6 @@
+{
+  "id": "message-shortcuts",
+  "core": true,
+  "name": "Message shortcuts",
+  "requires": ["query", "shell"]
+}

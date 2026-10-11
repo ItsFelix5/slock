@@ -1,0 +1,16 @@
+.conversation-pane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--main-bg);
+}
+
+.composer-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  background: linear-gradient(to bottom, transparent, var(--main-bg) 50%);
+}

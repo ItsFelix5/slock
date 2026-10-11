@@ -1,0 +1,1 @@
+{ "id": "last-seen", "name": "Last seen", "requires": ["messages"] }

@@ -1,3 +1,4 @@
+import { narrowByType } from "@slock/core";
 import type {
   ActionsBlock,
   AlertBlock,
@@ -20,7 +21,6 @@ import type {
   TaskCardBlock,
   VideoBlock,
 } from "@slock/types";
-import { narrowByType } from "@slock/types";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
 import Mrkdwn from "./mrkdwn";
 import "./BlockKit.css";

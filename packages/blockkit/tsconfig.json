@@ -11,5 +11,10 @@
   "extends": "../../tsconfig.base.json",
   "exclude": ["src/**/*.test.ts"],
   "include": ["src/**/*", "src/**/*.json", "../../types/css.d.ts"],
-  "references": [{ "path": "../ui" }, { "path": "../types" }]
+  "references": [
+    { "path": "../core" },
+    { "path": "../slack" },
+    { "path": "../ui" },
+    { "path": "../types" }
+  ]
 }

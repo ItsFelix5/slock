@@ -1,0 +1,30 @@
+.connect-slack {
+  width: 100vw;
+  height: 100%;
+  padding: var(--space-2xl);
+  overflow-y: auto;
+  background: var(--main-bg);
+}
+
+.connect-slack-card {
+  gap: var(--space-md);
+  width: 480px;
+  max-width: 100%;
+  padding: var(--space-3xl);
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal-lg);
+}
+
+.connect-slack-card h1 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+@media (max-height: 650px) {
+  .connect-slack {
+    align-items: flex-start;
+  }
+}

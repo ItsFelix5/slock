@@ -1,21 +1,10 @@
-import {
-  assertHasAllKeys,
-  type BaseColorKey,
-  type DerivedColorKey,
-  THEME_ADVANCED_COLOR_KEYS,
-  type ThemeColors,
-  type ThemePreset,
-} from "./themeColorDefinitions";
-import { DERIVED_COLOR_REFS } from "./themeDerivations";
+import type { ThemeColors } from "./themeColorRegistry";
 
-type ThemeBaseColors = ThemeColors & Required<Pick<ThemeColors, BaseColorKey>>;
-type CompleteThemeColors = Required<ThemeColors>;
-
-function completeTheme(colors: ThemeBaseColors): CompleteThemeColors {
-  const complete: Partial<Record<DerivedColorKey, string>> & ThemeBaseColors = { ...colors };
-  for (const key of THEME_ADVANCED_COLOR_KEYS) complete[key] ??= DERIVED_COLOR_REFS[key];
-  assertHasAllKeys(complete, THEME_ADVANCED_COLOR_KEYS);
-  return complete;
+export interface ThemePreset {
+  colorScheme?: "dark" | "light";
+  colors: ThemeColors;
+  id: string;
+  label: string;
 }
 
 const DARK_THEME_BASE = {
@@ -41,16 +30,15 @@ const DARK_THEME_BASE = {
   warning: "oklch(0.78 0.12 82)",
 } satisfies ThemeColors;
 
-const tintedTheme = (hue: number, accent: string, accentHover: string): ThemeColors =>
-  completeTheme({
-    ...DARK_THEME_BASE,
-    accent,
-    accentHover,
-    composerBg: "@mainBg 3.5%L 0.2%C",
-    mainBg: `oklch(0.18 0.014 ${hue})`,
-    railBg: "@mainBg -3.5%L -0.2%C",
-    sidebarBg: "@mainBg -7%L -0.4%C",
-  });
+const tintedTheme = (hue: number, accent: string, accentHover: string): ThemeColors => ({
+  ...DARK_THEME_BASE,
+  accent,
+  accentHover,
+  composerBg: "@mainBg 3.5%L 0.2%C",
+  mainBg: `oklch(0.18 0.014 ${hue})`,
+  railBg: "@mainBg -3.5%L -0.2%C",
+  sidebarBg: "@mainBg -7%L -0.4%C",
+});
 
 const CHARCOAL_THEME_BASE = {
   accent: "oklch(0.62 0.19 260)",
@@ -76,11 +64,11 @@ const CHARCOAL_THEME_BASE = {
 } satisfies ThemeColors;
 
 export const THEME_PRESETS: ThemePreset[] = [
-  { colors: completeTheme(DARK_THEME_BASE), id: "dark", label: "Slate" },
-  { colors: completeTheme(CHARCOAL_THEME_BASE), id: "charcoal", label: "Charcoal" },
+  { colors: DARK_THEME_BASE, id: "dark", label: "Slate" },
+  { colors: CHARCOAL_THEME_BASE, id: "charcoal", label: "Charcoal" },
   {
     colorScheme: "light",
-    colors: completeTheme({
+    colors: {
       ...DARK_THEME_BASE,
       accent: "oklch(0.56 0.15 250)",
       accentHover: "@accent -7%L",
@@ -99,7 +87,6 @@ export const THEME_PRESETS: ThemePreset[] = [
       mediaLensBorder: "@composerBg 88%",
       mentionText: "@accent -2%L",
       mentionInaccessibleText: "@textDim 5%L",
-      userStatusOver18: "@warning",
       presenceActive: "oklch(0.52 0.14 155)",
       railBg: "@mainBg -3.5%L 0.2%C",
       sidebarBg: "@mainBg -2%L 0.1%C",
@@ -111,7 +98,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       textPrimary: "oklch(0.2 0.01 255)",
       textSecondary: "@textPrimary 20%L 0.1%C",
       warning: "oklch(0.52 0.13 82)",
-    }),
+    },
     id: "light",
     label: "Porcelain",
   },
@@ -136,36 +123,38 @@ export const THEME_PRESETS: ThemePreset[] = [
     label: "Sunset",
   },
   {
-    colors: completeTheme({
-      accent: "#cba6f7",
-      accentHover: "#b4befe",
+    colors: {
+      accent: "oklch(0.787 0.119 304.769)",
+      accentHover: "oklch(0.817 0.091 277.309)",
+      accentMuted: "@accent 20%",
       activeBg: "@textPrimary 12%",
       badgeBg: "@danger",
       blockKitButtonDanger: "@badgeBg",
       blockKitButtonPrimary: "@presenceActive",
-      border: "@textSecondary -41.3%L -0.8%C",
-      borderStrong: "@textSecondary -34%L -0.6%C",
-      codeBg: "@mainBg -7.5%L -1.3%C",
-      composerBg: "@mainBg 8.1%L 0.2%C",
-      danger: "#f38ba8",
+      border: "oklch(0.324 0.032 281.978)",
+      borderStrong: "oklch(0.404 0.032 280.152)",
+      codeBg: "oklch(0.183 0.02 284.204)",
+      composerBg: "oklch(0.216 0.025 284.065)",
+      danger: "oklch(0.756 0.13 2.764)",
+      focusRingColor: "oklch(0.817 0.091 277.309)",
       hoverBg: "@textPrimary 7%",
-      mainBg: "#1e1e2e",
-      mentionText: "#89b4fa",
-      userStatusOver18: "@warning",
-      presenceActive: "#a6e3a1",
-      railBg: "@mainBg -6%L -1%C",
-      sidebarBg: "@mainBg -2.7%L -0.5%C",
-      textDim: "@textPrimary -32.9%L -0.9%C",
-      textOnAccent: "#11111b",
-      textPrimary: "#cdd6f4",
-      textSecondary: "@textPrimary -6.2%L -0.3%C",
-      warning: "#f9e2af",
-    }),
+      mainBg: "oklch(0.243 0.03 283.911)",
+      mentionSelfText: "oklch(0.824 0.101 52.629)",
+      mentionText: "oklch(0.766 0.111 259.885)",
+      presenceActive: "oklch(0.858 0.109 142.715)",
+      railBg: "oklch(0.183 0.02 284.204)",
+      sidebarBg: "oklch(0.216 0.025 284.065)",
+      textDim: "oklch(0.618 0.037 276.005)",
+      textOnAccent: "oklch(0.183 0.02 284.204)",
+      textPrimary: "oklch(0.879 0.043 272.277)",
+      textSecondary: "oklch(0.751 0.04 273.932)",
+      warning: "oklch(0.919 0.07 86.528)",
+    },
     id: "catppuccin",
     label: "Catppuccin Mocha",
   },
   {
-    colors: completeTheme({
+    colors: {
       accent: "#d79921",
       accentHover: "#fabd2f",
       activeBg: "@textPrimary 12%",
@@ -180,7 +169,6 @@ export const THEME_PRESETS: ThemePreset[] = [
       hoverBg: "@textPrimary 7%",
       mainBg: "#282828",
       mentionText: "#83a598",
-      userStatusOver18: "@warning",
       presenceActive: "#b8bb26",
       railBg: "@mainBg -3.6%L 0.5%C",
       sidebarBg: "@mainBg 3.4%L 0.3%C",
@@ -189,12 +177,12 @@ export const THEME_PRESETS: ThemePreset[] = [
       textPrimary: "#ebdbb2",
       textSecondary: "@textPrimary -20.4%L -2.2%C",
       warning: "#fabd2f",
-    }),
+    },
     id: "gruvbox",
     label: "Gruvbox",
   },
   {
-    colors: completeTheme({
+    colors: {
       accent: "#88c0d0",
       accentHover: "#8fbcbb",
       activeBg: "@textPrimary 12%",
@@ -209,7 +197,6 @@ export const THEME_PRESETS: ThemePreset[] = [
       hoverBg: "@textPrimary 7%",
       mainBg: "#2e3440",
       mentionText: "@accent",
-      userStatusOver18: "@warning",
       presenceActive: "#a3be8c",
       railBg: "@mainBg -3.7%L -0.4%C",
       sidebarBg: "@mainBg 5.5%L 0.6%C",
@@ -218,7 +205,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       textPrimary: "#eceff4",
       textSecondary: "@textPrimary -5.2%L 0.9%C",
       warning: "#ebcb8b",
-    }),
+    },
     id: "nord",
     label: "Nord",
   },

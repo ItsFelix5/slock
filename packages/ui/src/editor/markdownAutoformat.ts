@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import type Quill from "quill";
 import type { Op, Range } from "quill";
 import { escapeRegExp, WHITESPACE_RE } from "../textHighlight";
@@ -51,8 +52,8 @@ export function wireMarkdownAutoformat(quill: Quill, blockFormats: boolean) {
     const preceding = before[start - lineStart - 1];
     if (preceding !== undefined && !WHITESPACE_RE.test(preceding)) return;
     quill.deleteText(start, match[0].length + 1, "api");
-    quill.insertText(start, match[1], mark.format, true, "api");
-    quill.setSelection(start + match[1].length, 0, "api");
+    quill.insertText(start, defined(match[1]), mark.format, true, "api");
+    quill.setSelection(start + defined(match[1]).length, 0, "api");
     quill.format(mark.format, false, "api");
   });
 }

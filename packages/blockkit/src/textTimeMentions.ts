@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import { zonedWallTimeToMs } from "./dateFormat";
 
 const TZ_OFFSET_MINUTES: Record<string, number> = {
@@ -112,7 +113,7 @@ export function findTimeMentions(
   const mentions: TimeMention[] = [];
   for (const match of text.matchAll(TIME_RE)) {
     const [, h24, m24, ampm24, h12, m12, ampm12, tz] = match;
-    const hour = hour24(h24 ?? h12, ampm24 ?? ampm12);
+    const hour = hour24(defined(h24 ?? h12), ampm24 ?? ampm12);
     if (hour === undefined) continue;
     const minute = Number(m24 ?? m12 ?? "0");
     const tzUpper = tz?.toUpperCase();

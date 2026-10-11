@@ -1,185 +1,162 @@
+import { defined } from "@slock/core";
 import { createSignal } from "solid-js";
-import { cssColorToOklch, formatOklch, resolvedCssColor } from "./form/oklchColor";
-import type { ThemeColors, ThemePreset } from "./themeColorDefinitions";
-import { isThemeColorKey, THEME_COLOR_KEYS, THEME_COLOR_VARS } from "./themeColorDefinitions";
+import { cssColorToOklch, formatOklch } from "./form/oklchColor";
+import { BUILTIN_THEME_COLORS } from "./themeColorBuiltins";
 import {
-  DERIVED_COLOR_REFS,
+  addThemeColorDefinitions,
+  type ThemeColorDefinition,
+  type ThemeColors,
+  themeColorDefinitions,
+  themeColorVar,
+} from "./themeColorRegistry";
+import {
+  type ColorRef,
+  formatColorRef,
   isColorRef,
-  isDerivedColorKey,
+  parseColorRef,
   resolveThemeColorValue,
 } from "./themeDerivations";
-import { THEME_PRESETS as PRESETS } from "./themePresets";
+import { THEME_PRESETS, type ThemePreset } from "./themePresets";
 
-export type { ThemeColors, ThemePreset } from "./themeColorDefinitions";
-export {
-  THEME_ADVANCED_COLOR_KEYS,
-  THEME_BASE_COLOR_KEYS,
-  THEME_COLOR_KEYS,
-  THEME_COLOR_LABELS,
-} from "./themeColorDefinitions";
-export { colorScheme, themeColors };
+export { type ThemeColorDefinition, themeColorDefinitions } from "./themeColorRegistry";
 
 const THEME_COLORS_KEY = "slock-theme-colors";
 const THEME_PRESET_KEY = "slock-theme-preset";
 const THEME_COLOR_SCHEME_KEY = "slock-theme-color-scheme";
 
+const rootStyle = document.documentElement.style;
+
+function storedPreset(): ThemePreset {
+  const id = localStorage.getItem(THEME_PRESET_KEY);
+  return THEME_PRESETS.find((preset) => preset.id === id) ?? defined(THEME_PRESETS[0]);
+}
+
 function loadThemeColors(): ThemeColors {
   try {
-    const presetId = localStorage.getItem(THEME_PRESET_KEY) ?? undefined;
-    const preset =
-      PRESETS.find((candidate) => candidate.id === presetId) ??
-      PRESETS.find((candidate) => candidate.id === "dark");
     const raw = localStorage.getItem(THEME_COLORS_KEY);
-    const overrides = raw ? JSON.parse(raw) : {};
-    return { ...preset?.colors, ...overrides };
+    return { ...storedPreset().colors, ...(raw ? JSON.parse(raw) : {}) };
   } catch {
     return {};
   }
 }
 
-function loadThemeColorScheme(): "dark" | "light" {
-  const stored = localStorage.getItem(THEME_COLOR_SCHEME_KEY);
-  if (stored === "dark" || stored === "light") return stored;
-
-  const presetId = localStorage.getItem(THEME_PRESET_KEY) ?? undefined;
-  const preset = PRESETS.find((candidate) => candidate.id === presetId);
-  return preset?.colorScheme ?? "dark";
-}
-
-const [colorScheme, setColorSchemeSignal] = createSignal<"dark" | "light">("dark");
-
 function applyThemeColorScheme(scheme: "dark" | "light", persist: boolean) {
   document.documentElement.dataset.colorScheme = scheme;
-  setColorSchemeSignal(scheme);
   if (persist) localStorage.setItem(THEME_COLOR_SCHEME_KEY, scheme);
 }
 
-function applyThemeColors(colors: ThemeColors) {
-  for (const key of Object.keys(colors)) {
-    if (!isThemeColorKey(key)) continue;
-    const value = colors[key];
-    if (value !== undefined)
-      document.documentElement.style.setProperty(
-        THEME_COLOR_VARS[key],
-        resolveThemeColorValue(value),
-      );
-  }
+function loadThemeColorScheme(): "dark" | "light" {
+  const stored = localStorage.getItem(THEME_COLOR_SCHEME_KEY);
+  return stored === "dark" || stored === "light" ? stored : (storedPreset().colorScheme ?? "dark");
 }
 
 const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeColors());
-applyThemeColors(themeColors());
+
+function applyThemeColor({ key, derive }: ThemeColorDefinition) {
+  const value = themeColors()[key] ?? derive;
+  if (value === undefined) rootStyle.removeProperty(themeColorVar(key));
+  else rootStyle.setProperty(themeColorVar(key), resolveThemeColorValue(value));
+}
+
+function applyAllThemeColors() {
+  for (const definition of themeColorDefinitions()) applyThemeColor(definition);
+}
+
+function storeThemeColors(colors: ThemeColors) {
+  setThemeColorsSignal(colors);
+  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(colors));
+  applyAllThemeColors();
+}
+
+export function registerThemeColors(definitions: ThemeColorDefinition[]): () => void {
+  const remove = addThemeColorDefinitions(definitions);
+  for (const definition of definitions) applyThemeColor(definition);
+  return () => {
+    remove();
+    for (const { key } of definitions) rootStyle.removeProperty(themeColorVar(key));
+  };
+}
+
+registerThemeColors(BUILTIN_THEME_COLORS);
 applyThemeColorScheme(loadThemeColorScheme(), false);
 
 export function setThemeColors(overrides: ThemeColors): void {
-  const merged = { ...themeColors(), ...overrides };
-  setThemeColorsSignal(merged);
-  applyThemeColors(overrides);
-  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(merged));
+  storeThemeColors({ ...themeColors(), ...overrides });
 }
 
-export function replaceThemeColors(colors: ThemeColors, scheme: "dark" | "light"): void {
-  for (const cssVar of Object.values(THEME_COLOR_VARS)) {
-    document.documentElement.style.removeProperty(cssVar);
-  }
-  localStorage.removeItem(THEME_PRESET_KEY);
-  setThemeColorsSignal(colors);
-  applyThemeColors(colors);
-  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(colors));
-  applyThemeColorScheme(scheme, true);
-}
-
-function clearThemeColorVars(): void {
-  for (const cssVar of Object.values(THEME_COLOR_VARS)) {
-    document.documentElement.style.removeProperty(cssVar);
-  }
-}
-
-export function resetThemeColors(): void {
-  clearThemeColorVars();
-  setThemeColorsSignal({});
-  localStorage.removeItem(THEME_COLORS_KEY);
-  localStorage.removeItem(THEME_PRESET_KEY);
-  localStorage.removeItem(THEME_COLOR_SCHEME_KEY);
-  applyThemeColorScheme("dark", false);
-}
-
-export function resetThemeColor(key: keyof ThemeColors): void {
+export function resetThemeColor(key: string): void {
   const next = { ...themeColors() };
-  delete next[key];
-  const presetId = localStorage.getItem(THEME_PRESET_KEY) ?? undefined;
-  const presetValue = PRESETS.find((preset) => preset.id === presetId)?.colors[key];
-  const fallback = presetValue ?? (isDerivedColorKey(key) ? DERIVED_COLOR_REFS[key] : undefined);
-  if (fallback === undefined) document.documentElement.style.removeProperty(THEME_COLOR_VARS[key]);
-  else
-    document.documentElement.style.setProperty(
-      THEME_COLOR_VARS[key],
-      resolveThemeColorValue(fallback),
-    );
-  setThemeColorsSignal(next);
-  localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(next));
+  const presetValue = storedPreset().colors[key];
+  if (presetValue === undefined) delete next[key];
+  else next[key] = presetValue;
+  storeThemeColors(next);
 }
 
-function effectiveRawValue(key: keyof ThemeColors): string {
-  const override = themeColors()[key];
-  if (override !== undefined) return override;
-  const computed = getComputedStyle(document.documentElement)
-    .getPropertyValue(THEME_COLOR_VARS[key])
-    .trim();
-  if (isDerivedColorKey(key)) {
-    const formula = DERIVED_COLOR_REFS[key];
-    if (resolvedCssColor(computed) === resolvedCssColor(resolveThemeColorValue(formula)))
-      return formula;
-  }
-  return computed;
+function effectiveRawValue(key: string): string {
+  return (
+    themeColors()[key] ??
+    themeColorDefinitions().find((definition) => definition.key === key)?.derive ??
+    getComputedStyle(document.documentElement).getPropertyValue(themeColorVar(key)).trim()
+  );
 }
 
-export function getEffectiveColor(key: keyof ThemeColors): string {
+export function getEffectiveColor(key: string): string {
   return resolveThemeColorValue(effectiveRawValue(key));
 }
 
-export function getColorFormula(key: keyof ThemeColors): string {
+export function getColorFormula(key: string): string {
   const raw = effectiveRawValue(key);
   return isColorRef(raw) ? raw : formatOklch(cssColorToOklch(resolveThemeColorValue(raw)));
 }
 
+export function getColorRef(key: string): ColorRef | undefined {
+  return parseColorRef(effectiveRawValue(key));
+}
+
+export function setColorRef(key: string, ref: ColorRef): void {
+  setThemeColors({ [key]: formatColorRef(ref) });
+}
+
+export function decoupleThemeColor(key: string): void {
+  setThemeColors({ [key]: formatOklch(cssColorToOklch(getEffectiveColor(key))) });
+}
+
 export function copyableThemePalette(): string {
-  return THEME_COLOR_KEYS.map((key) => formatOklch(cssColorToOklch(getEffectiveColor(key)))).join(
-    "|",
-  );
+  return themeColorDefinitions()
+    .map(({ key }) => `${key}=${formatOklch(cssColorToOklch(getEffectiveColor(key)))}`)
+    .join("|");
 }
 
 export function applyCopiedThemePalette(payload: string): boolean {
-  const values = payload.trim().split("|");
-  if (
-    values.length !== THEME_COLOR_KEYS.length ||
-    values.some((value) => !CSS.supports("color", value))
-  )
+  const known = new Set(themeColorDefinitions().map(({ key }) => key));
+  const colors = payload
+    .trim()
+    .split("|")
+    .map((pair) => pair.split("="))
+    .filter(([key]) => known.has(defined(key)));
+  if (colors.length === 0 || colors.some(([, value]) => !(value && CSS.supports("color", value))))
     return false;
-
-  setThemeColors(Object.fromEntries(THEME_COLOR_KEYS.map((key, index) => [key, values[index]])));
+  setThemeColors(Object.fromEntries(colors));
   return true;
 }
 
 export function applyPreset(preset: ThemePreset): void {
-  clearThemeColorVars();
   setThemeColorsSignal(preset.colors);
-  applyThemeColors(preset.colors);
+  applyAllThemeColors();
   localStorage.setItem(THEME_PRESET_KEY, preset.id);
   localStorage.removeItem(THEME_COLORS_KEY);
   applyThemeColorScheme(preset.colorScheme ?? "dark", true);
 }
 
-export function activePreset(): string {
-  const colors = themeColors();
-  if (!THEME_COLOR_KEYS.some((key) => colors[key] !== undefined)) return "dark";
-  for (const preset of PRESETS) {
-    const matches = Object.keys(preset.colors).every((key) => {
-      if (!isThemeColorKey(key)) return true;
-      return colors[key]?.trim().toLowerCase() === preset.colors[key]?.trim().toLowerCase();
-    });
-    if (matches) return preset.id;
-  }
-  return "custom";
+function sameColor(a: string | undefined, b: string | undefined): boolean {
+  return a?.trim().toLowerCase() === b?.trim().toLowerCase();
 }
 
-export const THEME_PRESETS = PRESETS;
+export function activePreset(): string {
+  const colors = themeColors();
+  const matches = (preset: ThemePreset) =>
+    themeColorDefinitions().every(({ key, derive }) =>
+      sameColor(colors[key] ?? derive, preset.colors[key] ?? derive),
+    );
+  return THEME_PRESETS.find(matches)?.id ?? "custom";
+}

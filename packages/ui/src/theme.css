@@ -121,9 +121,6 @@
   --mention-inaccessible-bg: rgb(from var(--mention-inaccessible-text) r g b / 14%);
   --mention-inaccessible-hover-bg: rgb(from var(--mention-inaccessible-text) r g b / 24%);
 
-  --user-status-unverified: var(--accent);
-  --user-status-over-18: oklch(from var(--warning) calc(l - 0.08) c h);
-  --user-status-banned: var(--badge-bg);
   --scrim-strong: rgb(from var(--palette-charcoal-1000) r g b / 72%);
   --overlay-backdrop: rgb(from var(--palette-charcoal-1000) r g b / 68%);
   --embedded-content-bg: var(--palette-charcoal-50);
@@ -143,8 +140,8 @@
   --shadow-media: 0 4px 18px var(--shadow-color);
   --shadow-inset: inset 0 0 0 1px var(--shadow-color-soft);
 
-  --bk-button-primary: oklch(from var(--presence-active) calc(l - 0.08) c h);
-  --bk-button-danger: oklch(from var(--badge-bg) calc(l - 0.08) c h);
+  --block-kit-button-primary: oklch(from var(--presence-active) calc(l - 0.08) c h);
+  --block-kit-button-danger: oklch(from var(--badge-bg) calc(l - 0.08) c h);
   --font: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-size-caption: 11px;
   --font-size-meta: 12px;

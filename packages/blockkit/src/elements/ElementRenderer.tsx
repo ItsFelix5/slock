@@ -1,9 +1,9 @@
-import {
-  type BlockElement,
-  type ButtonElement,
-  type ImageElement as ImageElementType,
-  narrowByType,
-  type OverflowElement,
+import { narrowByType } from "@slock/core";
+import type {
+  BlockElement,
+  ButtonElement,
+  ImageElement as ImageElementType,
+  OverflowElement,
 } from "@slock/types";
 import { Show } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";

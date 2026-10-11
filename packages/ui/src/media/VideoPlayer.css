@@ -102,7 +102,9 @@
 }
 
 .video-player-wrap:hover .video-player-corner,
-.video-player-wrap:hover .video-player-controls {
+.video-player-wrap:focus-within .video-player-corner,
+.video-player-wrap:hover .video-player-controls,
+.video-player-wrap:focus-within .video-player-controls {
   opacity: 1;
   pointer-events: auto;
 }

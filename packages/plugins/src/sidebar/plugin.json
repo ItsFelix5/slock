@@ -1,0 +1,1 @@
+{ "id": "sidebar", "core": true, "name": "Sidebar", "requires": ["shell", "users"] }

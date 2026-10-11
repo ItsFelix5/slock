@@ -1,4 +1,4 @@
-import { CLOCK_24H, formatTimeFromMs } from "@slock/types";
+import { CLOCK_24H, defined, formatTimeFromMs } from "@slock/core";
 
 const MONTH_NAMES = [
   "January",
@@ -68,7 +68,7 @@ function dateFull(date: Date): string {
   return includesYear(date) ? `${value}, ${date.getFullYear()}` : value;
 }
 function dateShort(date: Date): string {
-  const value = `${MONTH_NAMES[date.getMonth()].slice(0, 3)} ${date.getDate()}`;
+  const value = `${defined(MONTH_NAMES[date.getMonth()]).slice(0, 3)} ${date.getDate()}`;
   return includesYear(date) ? `${value}, ${date.getFullYear()}` : value;
 }
 function dateLong(date: Date): string {
@@ -256,5 +256,3 @@ export function formatLastSeen(seenAt: number, now: number): string {
     month: "short",
   });
 }
-
-export { formatTimeFromMs as formatTime } from "@slock/types";

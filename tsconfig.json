@@ -2,10 +2,12 @@
   "files": [],
   "references": [
     { "path": "./packages/types" },
-    { "path": "./packages/canvas" },
+    { "path": "./packages/core" },
+    { "path": "./packages/slack" },
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
     { "path": "./packages/server" },
+    { "path": "./packages/plugins" },
     { "path": "./packages/app" }
   ]
 }

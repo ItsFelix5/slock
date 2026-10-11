@@ -291,3 +291,9 @@ label:has(> .sr-input:focus-visible) {
   width: 100%;
   height: 100%;
 }
+.composer-frame {
+  --surface-radius: var(--composer-radius);
+  flex-shrink: 0;
+  padding: 2px var(--space-xs);
+  margin: 0 var(--composer-frame-inline) var(--composer-frame-block-end);
+}

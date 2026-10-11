@@ -1,0 +1,6 @@
+{
+  "id": "files-panel",
+  "core": true,
+  "name": "Files panel",
+  "requires": ["channels", "dms", "files", "message-links", "search", "shell", "users"]
+}

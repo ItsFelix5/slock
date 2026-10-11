@@ -9,7 +9,7 @@ export function useElementVisible(rootMargin = "200px") {
     if (!el || visible()) return;
     observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return;
+        if (!entry?.isIntersecting) return;
         setVisible(true);
         observer?.disconnect();
       },

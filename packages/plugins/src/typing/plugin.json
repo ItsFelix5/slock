@@ -1,0 +1,1 @@
+{ "id": "typing", "core": true, "name": "Typing indicator", "requires": ["users"] }

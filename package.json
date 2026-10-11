@@ -4,18 +4,21 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examplePlugin"
   ],
   "scripts": {
     "dev": "bun run --watch packages/server/src/index.ts --dev",
     "build": "bun run packages/server/src/index.ts --build",
+    "plugin:build": "bun run packages/server/src/index.ts --build-plugin",
     "start": "bun run packages/server/src/index.ts",
-    "check": "biome check . --write",
+    "check": "biome check . --write && tsc -b && bun scripts/checkPlugins.ts",
     "format": "biome format . --write"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
-    "jsdom": "^30.1.0",
+    "@slock/core": "workspace:*",
+    "@slock/server": "workspace:*",
     "typescript": "~6.0.2"
   }
 }

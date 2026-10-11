@@ -1,0 +1,1 @@
+{ "id": "slash-commands", "core": true, "name": "Slash commands", "requires": ["shell"] }

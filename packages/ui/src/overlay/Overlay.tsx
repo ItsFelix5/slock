@@ -68,7 +68,7 @@ export default function Overlay(props: OverlayProps) {
         last?.focus();
       } else if (!event.shiftKey && (active === last || !overlayRef.contains(active))) {
         event.preventDefault();
-        first.focus();
+        first?.focus();
       }
     };
 

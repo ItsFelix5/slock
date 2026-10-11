@@ -1,0 +1,6 @@
+{
+  "id": "notifications",
+  "core": true,
+  "name": "Notifications",
+  "requires": ["bootstrap", "channels", "conversations", "message-links", "prefs", "shell"]
+}

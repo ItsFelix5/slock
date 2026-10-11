@@ -1,0 +1,6 @@
+{
+  "id": "files",
+  "core": true,
+  "name": "Files",
+  "requires": ["message-links", "query", "shell", "users"]
+}

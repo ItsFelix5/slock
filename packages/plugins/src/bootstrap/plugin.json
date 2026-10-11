@@ -1,0 +1,1 @@
+{ "id": "bootstrap", "core": true, "name": "Bootstrap", "requires": ["query"] }

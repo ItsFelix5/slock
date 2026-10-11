@@ -2,7 +2,7 @@
   padding: 9px 10px;
   font-size: var(--font-size-secondary);
   background: var(--hover-bg);
-  border-left: 3px solid var(--bk-button-primary);
+  border-left: 3px solid var(--block-kit-button-primary);
   border-radius: 5px;
 }
 
@@ -11,9 +11,9 @@
 }
 
 .bk-alert--error {
-  border-left-color: var(--bk-button-danger);
+  border-left-color: var(--block-kit-button-danger);
 }
 
 .bk-alert--success {
-  border-left-color: var(--bk-button-primary);
+  border-left-color: var(--block-kit-button-primary);
 }

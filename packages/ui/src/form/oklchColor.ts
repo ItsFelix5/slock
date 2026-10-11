@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 export interface OklchColor {
   alpha: number;
   chroma: number;
@@ -57,9 +58,9 @@ function rgbToOklch(red: number, green: number, blue: number, alpha = 1): OklchC
 function parseOklch(value: string): OklchColor | undefined {
   const match = OKLCH_RE.exec(value);
   if (!match) return;
-  const lightness = parseNumber(match[1]);
-  const chroma = parseNumber(match[2], 0.4);
-  const hue = match[3] === "none" ? FALLBACK_COLOR.hue : Number.parseFloat(match[3]);
+  const lightness = parseNumber(defined(match[1]));
+  const chroma = parseNumber(defined(match[2]), 0.4);
+  const hue = match[3] === "none" ? FALLBACK_COLOR.hue : Number.parseFloat(defined(match[3]));
   if (![lightness, chroma, hue].every(Number.isFinite)) return;
   return {
     alpha: parseAlpha(match[4]),
@@ -72,14 +73,16 @@ function parseOklch(value: string): OklchColor | undefined {
 function parseRgb(value: string): OklchColor | undefined {
   const match = RGB_RE.exec(value);
   if (!match) return;
-  const [channels, alpha] = match[1].split("/").map((part) => part.trim());
-  const parts = channels.split(RGB_CHANNEL_RE).filter(Boolean);
+  const [channels, alpha] = defined(match[1])
+    .split("/")
+    .map((part) => part.trim());
+  const parts = defined(channels).split(RGB_CHANNEL_RE).filter(Boolean);
   if (parts.length < 3) return;
   const rgb = parts.slice(0, 3).map((part) => parseNumber(part, 255) / 255);
   if (!rgb.every(Number.isFinite)) return;
   const [red, green, blue] = rgb;
   const [, , , legacyAlpha] = parts;
-  return rgbToOklch(red, green, blue, parseAlpha(alpha ?? legacyAlpha));
+  return rgbToOklch(defined(red), defined(green), defined(blue), parseAlpha(alpha ?? legacyAlpha));
 }
 
 function parseSrgb(value: string): OklchColor | undefined {
@@ -87,13 +90,13 @@ function parseSrgb(value: string): OklchColor | undefined {
   if (!match) return;
   const rgb = match.slice(1, 4).map(Number);
   if (!rgb.every(Number.isFinite)) return;
-  return rgbToOklch(rgb[0], rgb[1], rgb[2], parseAlpha(match[4]));
+  return rgbToOklch(defined(rgb[0]), defined(rgb[1]), defined(rgb[2]), parseAlpha(match[4]));
 }
 
 function parseHex(value: string): OklchColor | undefined {
   const match = HEX_RE.exec(value);
   if (!match) return;
-  const color = Number.parseInt(match[1], 16);
+  const color = Number.parseInt(defined(match[1]), 16);
   const alpha = match[2] ? Number.parseInt(match[2], 16) / 255 : 1;
   return rgbToOklch(
     ((color >> 16) & 255) / 255,

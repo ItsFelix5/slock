@@ -11,6 +11,7 @@ import {
   UsergroupMention,
 } from "./mrkdwnTokens";
 import "./mrkdwn.css";
+import { defined } from "@slock/core";
 
 type BlockNode =
   | { t: "lines"; nodes: InlineNode[] }
@@ -63,7 +64,7 @@ function parseMrkdwn(text: string): BlockNode[] {
     if (index > lastIndex) blocks.push(...parseLinesAndQuotes(text.slice(lastIndex, index)));
     blocks.push({
       t: "codeblock",
-      text: decodeTextEntities(stripSurroundingNewline(match[1])),
+      text: decodeTextEntities(stripSurroundingNewline(defined(match[1]))),
     });
     lastIndex = index + match[0].length;
   }

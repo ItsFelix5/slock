@@ -67,7 +67,6 @@ export type HistoryPage = {
   messages: Message[];
   hasMore: boolean;
   nextCursor?: string;
-  view?: ConversationViewData;
 };
 
 export interface FileUploadInput {
@@ -134,4 +133,14 @@ export interface GlobalSearchResults {
   users: User[];
 }
 
-export type UserStatus = "eligible" | "over_18" | "banned" | "unverified";
+export type ApiFailure = { error?: string; ok: false; retry_after?: string };
+export type ApiReply<T extends object = object> = (T & { ok: true }) | ApiFailure;
+
+export type AccountSummary = {
+  id: string;
+  name: string;
+  domain: string;
+  teamId: string | null;
+};
+
+export type SessionInfo = { id: string | null; accounts: AccountSummary[] };

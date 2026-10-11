@@ -1,0 +1,5 @@
+.thread-ping-notice {
+  padding: var(--space-xs) var(--space-sm) 0;
+  font-size: var(--font-size-meta);
+  color: var(--warning);
+}

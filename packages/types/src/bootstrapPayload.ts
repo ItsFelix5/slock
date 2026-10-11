@@ -32,7 +32,6 @@ export interface BootstrapPayload {
   retry_after?: Record<string, string>;
   sections?: Record<string, BootstrapSection>;
   self?: RawUser;
-  snooze?: { endtime?: number } | null;
   starred?: (string | { channel?: string; id?: string })[];
   subteams?: { all?: string[]; self?: string[] };
   unreads?: {

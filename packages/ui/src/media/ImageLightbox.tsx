@@ -6,6 +6,7 @@ import { useNavigationShortcuts } from "../useNavShortcuts";
 import { inside, useShortcut } from "../useShortcut";
 import Icon from "./Icon";
 import "./ImageLightbox.css";
+import { defined } from "@slock/core";
 import type { ZoomableImageItem } from "./ZoomableImage";
 
 const LENS_SIZE = 500;
@@ -37,7 +38,7 @@ export function ImageLightbox(props: {
   const [failed, setFailed] = createSignal(false);
   const [naturalSize, setNaturalSize] = createSignal<{ w: number; h: number } | null>(null);
   const index = () => Math.max(0, Math.min(props.index, props.gallery.length - 1));
-  const image = () => props.gallery[index()];
+  const image = () => defined(props.gallery[index()]);
   const hasPrevious = () => index() > 0;
   const hasNext = () => index() < props.gallery.length - 1;
 

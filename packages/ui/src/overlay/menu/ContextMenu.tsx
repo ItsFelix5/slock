@@ -66,6 +66,10 @@ function ContextMenuPanel(props: {
   return (
     <div
       class={`menu-panel context-menu ${props.class ?? ""}`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       ref={ref}
       style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >

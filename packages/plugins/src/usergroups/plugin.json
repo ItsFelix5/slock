@@ -1,0 +1,1 @@
+{ "id": "usergroups", "core": true, "name": "Usergroups", "requires": ["bootstrap", "query"] }

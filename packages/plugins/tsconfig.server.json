@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "outDir": "./dist/server",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./dist/server/tsconfig.tsbuildinfo",
+    "types": ["node", "bun-types"],
+    "lib": ["ES2023"]
+  },
+  "extends": "../../tsconfig.base.json",
+  "include": [
+    "src/*/server/**/*",
+    "src/*/protocol/**/*",
+    "src/*/contract.ts",
+    "../../types/importMeta.d.ts"
+  ],
+  "references": [
+    { "path": "../core" },
+    { "path": "../server" },
+    { "path": "../slack" },
+    { "path": "../types" }
+  ]
+}

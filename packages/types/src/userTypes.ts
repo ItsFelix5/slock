@@ -20,8 +20,8 @@ export interface User {
   isBot?: boolean;
 
   isWorkspaceAdmin?: boolean;
+  isWorkspaceOwner?: boolean;
 
-  lastSeen?: number;
   name: string;
   originalName?: string;
   phone?: string;

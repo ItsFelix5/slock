@@ -1,0 +1,16 @@
+{
+  "id": "messages",
+  "core": true,
+  "name": "Messages",
+  "requires": [
+    "bootstrap",
+    "channels",
+    "conversations",
+    "dms",
+    "message-links",
+    "prefs",
+    "shell",
+    "unread",
+    "users"
+  ]
+}

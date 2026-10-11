@@ -1,3 +1,5 @@
+import { defined } from "@slock/core";
+
 const HTML_ENTITY_RE = /&(amp|lt|gt|quot|#39|#x27);/gi;
 
 const HTML_ENTITIES: Record<string, string> = {
@@ -10,7 +12,9 @@ const HTML_ENTITIES: Record<string, string> = {
 };
 
 export function decodeTextEntities(text: string): string {
-  return text.replace(HTML_ENTITY_RE, (_, entity: string) => HTML_ENTITIES[entity.toLowerCase()]);
+  return text.replace(HTML_ENTITY_RE, (_, entity: string) =>
+    defined(HTML_ENTITIES[entity.toLowerCase()]),
+  );
 }
 
 export function encodeTextEntities(text: string): string {

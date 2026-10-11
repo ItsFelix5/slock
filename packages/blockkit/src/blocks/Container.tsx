@@ -2,6 +2,7 @@ import type { Block, ContainerBlock } from "@slock/types";
 import { createSignal, For, type JSX, Show } from "solid-js";
 import BkText from "../BkText";
 import ImageElement from "../elements/ImageElement";
+import InlineAction from "../InlineAction";
 import RichText from "./RichText";
 import "./Container.css";
 
@@ -21,49 +22,62 @@ export default function Container(props: {
       props.block.icon
     );
 
+  const heading = () => (
+    <>
+      <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
+      <div class="bk-container-heading-text grow">
+        <Show
+          fallback={
+            <Show when={props.block.title}>
+              <div class="bk-container-title">
+                <BkText text={props.block.title} />
+              </div>
+            </Show>
+          }
+          when={props.block.rich_text_title}
+        >
+          {(title) => (
+            <div class="bk-container-title">
+              <RichText block={title()} />
+            </div>
+          )}
+        </Show>
+        <Show when={props.block.subtitle}>
+          <div class="bk-container-subtitle">
+            <BkText text={props.block.subtitle} />
+          </div>
+        </Show>
+      </div>
+      <Show when={props.block.is_collapsible}>
+        <span
+          class="bk-container-caret"
+          classList={{ "bk-container-caret--collapsed": collapsed() }}
+        />
+      </Show>
+    </>
+  );
+
   return (
     <section class={`bk-container bk-container--${props.block.width ?? "standard"}`}>
       <Show when={hasHeading()}>
-        <div
-          class="bk-container-heading"
-          classList={{
-            "bk-container-heading--collapsible": !!props.block.is_collapsible,
-            "bk-container-heading--divided":
-              !!props.block.has_header_divider && !props.block.is_collapsible,
-          }}
-          onClick={() => props.block.is_collapsible && setCollapsed((v) => !v)}
-        >
-          <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
-          <div class="bk-container-heading-text grow">
-            <Show
-              fallback={
-                <Show when={props.block.title}>
-                  <div class="bk-container-title">
-                    <BkText text={props.block.title} />
-                  </div>
-                </Show>
-              }
-              when={props.block.rich_text_title}
+        <Show
+          fallback={
+            <div
+              class="bk-container-heading"
+              classList={{ "bk-container-heading--divided": !!props.block.has_header_divider }}
             >
-              {(title) => (
-                <div class="bk-container-title">
-                  <RichText block={title()} />
-                </div>
-              )}
-            </Show>
-            <Show when={props.block.subtitle}>
-              <div class="bk-container-subtitle">
-                <BkText text={props.block.subtitle} />
-              </div>
-            </Show>
-          </div>
-          <Show when={props.block.is_collapsible}>
-            <span
-              class="bk-container-caret"
-              classList={{ "bk-container-caret--collapsed": collapsed() }}
-            />
-          </Show>
-        </div>
+              {heading()}
+            </div>
+          }
+          when={props.block.is_collapsible}
+        >
+          <InlineAction
+            class="bk-container-heading bk-container-heading--collapsible"
+            onActivate={() => setCollapsed((v) => !v)}
+          >
+            {heading()}
+          </InlineAction>
+        </Show>
       </Show>
       <Show when={!collapsed()}>
         <div class="bk-container-body flex-col gap-sm">

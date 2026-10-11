@@ -1,0 +1,7 @@
+.channel-header-members-btn {
+  gap: var(--space-xs);
+  min-height: var(--header-action-size);
+  padding: 0 var(--space-sm);
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+}

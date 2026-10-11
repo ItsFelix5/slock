@@ -25,35 +25,31 @@
   background: var(--active-bg);
 }
 
-.bk-canvas {
-  display: inline-flex;
-  gap: var(--space-xs);
-  align-items: center;
-  padding: 0 var(--space-xs);
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 700;
+.bk-canvas,
+.bk-mention {
+  padding: 0 3px;
   color: var(--mention-text);
   cursor: pointer;
   background: var(--mention-bg);
-  border: none;
   border-radius: var(--radius-sm);
+  box-decoration-break: clone;
+}
+
+.bk-canvas {
+  font-weight: 700;
 }
 
 .bk-canvas:hover {
   background: var(--mention-hover-bg);
 }
 
+.bk-canvas > svg,
+.bk-mention-message > svg {
+  margin-right: var(--space-xs);
+  vertical-align: text-bottom;
+}
+
 .bk-mention {
-  display: inline;
-  padding: 0 3px;
-  font-family: inherit;
-  font-size: inherit;
-  color: var(--mention-text);
-  cursor: pointer;
-  background: var(--mention-bg);
-  border: none;
-  border-radius: var(--radius-sm);
   user-select: text;
 }
 
@@ -94,17 +90,9 @@
 }
 
 .bk-mention-link {
-  display: inline-block;
   color: var(--mention-inaccessible-text);
   text-decoration: none;
   background: var(--mention-inaccessible-bg);
-}
-
-.bk-mention-message {
-  display: inline-flex;
-  gap: var(--space-xs);
-  align-items: center;
-  vertical-align: bottom;
 }
 
 .bk-mention-link:hover {

@@ -37,7 +37,6 @@ export interface RawUser {
   is_bot?: boolean;
   is_owner?: boolean;
   is_primary_owner?: boolean;
-  last_seen?: number;
   name?: string;
   presence?: string;
   profile?: RawUserProfile;
@@ -230,9 +229,11 @@ export interface RawMessage {
   files?: RawFile[];
   icons?: RawIcons;
   is_ephemeral?: boolean;
+  last_read?: string;
   latest_reply?: string;
   metadata?: {
     event_type?: string;
+    event_payload?: Record<string, unknown>;
   };
   reactions?: Reaction[];
   reply_count?: number;
@@ -269,12 +270,4 @@ export interface RawUsergroup {
   name?: string;
   prefs?: { channels?: string[]; groups?: string[] };
   user_count?: number;
-}
-
-export function isRawMessage(value: object): value is RawMessage {
-  return "ts" in value && typeof value.ts === "string";
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
 }

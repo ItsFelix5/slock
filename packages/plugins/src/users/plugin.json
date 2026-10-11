@@ -1,0 +1,1 @@
+{ "id": "users", "core": true, "name": "Users", "requires": ["bootstrap", "realtime", "shell"] }

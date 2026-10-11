@@ -1,0 +1,6 @@
+{
+  "id": "pins",
+  "core": true,
+  "name": "Pins",
+  "requires": ["channels", "conversations", "dms", "message-links", "query", "shell", "users"]
+}

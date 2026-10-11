@@ -1,0 +1,6 @@
+{
+  "id": "prefs",
+  "core": true,
+  "name": "Slack preferences",
+  "requires": ["bootstrap", "query", "shell"]
+}

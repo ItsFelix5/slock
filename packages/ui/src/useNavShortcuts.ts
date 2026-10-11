@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import type { Accessor } from "solid-js";
 import { type ListDirection, listNavigationIndex, type NavDirection } from "./form/listNavigation";
 import { useCancelShortcut } from "./useEscapeClose";
@@ -154,7 +155,7 @@ export function useTabStripShortcuts<T>(options: {
       const next = listNavigationIndex(forward ? "down" : "up", current, items.length, {
         wrap: true,
       });
-      if (next !== undefined) options.activate(items[next], next);
+      if (next !== undefined) options.activate(defined(items[next]), next);
     },
     root: options.root,
   });

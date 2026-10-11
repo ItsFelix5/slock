@@ -1,0 +1,6 @@
+{
+  "id": "unread",
+  "core": true,
+  "name": "Unread",
+  "requires": ["bootstrap", "channels", "dms", "shell"]
+}

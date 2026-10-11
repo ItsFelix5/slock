@@ -1,0 +1,5 @@
+.channel-header-canvas-menu.menu-panel {
+  z-index: 8;
+  min-width: 190px;
+  max-width: 260px;
+}
