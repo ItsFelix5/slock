@@ -28,21 +28,17 @@ async function discoverClientPlugins(): Promise<ClientPlugin[]> {
 async function pluginsModule(): Promise<string> {
   const found = await discoverClientPlugins();
   const ids = new Set(found.flatMap(({ manifest }) => [manifest.id, ...(manifest.provides ?? [])]));
-  const statics: string[] = [];
   const defs: string[] = [];
-  for (const [index, { entry, manifest: declared }] of found.entries()) {
+  for (const { entry, manifest: declared } of found) {
     const manifest = { ...declared, requires: declared.requires?.filter((id) => ids.has(id)) };
     const meta = JSON.stringify(manifest);
-    if (!entry) {
-      defs.push(`{ ...${meta}, setup: () => {} }`);
-    } else if (manifest.defaultEnabled === false) {
+    if (entry) {
       defs.push(`{ ...${meta}, load: () => import(${JSON.stringify(entry)}) }`);
     } else {
-      statics.push(`import setup${index} from ${JSON.stringify(entry)};`);
-      defs.push(`{ ...${meta}, setup: setup${index} }`);
+      defs.push(`{ ...${meta}, setup: () => {} }`);
     }
   }
-  return `${statics.join("\n")}\nexport default [\n${defs.join(",\n")}\n];\n`;
+  return `export default [\n${defs.join(",\n")}\n];\n`;
 }
 
 export const clientPluginsPlugin: BunPlugin = {

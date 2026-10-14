@@ -188,7 +188,12 @@ export function createHost(options: HostOptions = {}) {
       }
       for (const id of pending) {
         const def = defs.get(id);
-        if (def) void setupOf(def).catch(() => {});
+        const ready =
+          def?.requires?.every((name) => {
+            const required = resolveId(name);
+            return !required || running.has(required);
+          }) ?? true;
+        if (def && ready) void setupOf(def).catch(() => {});
       }
       const def = defs.get(next);
       if (def) await startOne(def);
