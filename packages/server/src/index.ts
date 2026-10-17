@@ -49,4 +49,6 @@ Bun.serve<WsData>({
   },
 });
 
-console.log(`(${DEV ? "dev" : "production"}): http://localhost:${PORT}`);
+const url = `http://localhost:${PORT}`;
+console.log(`(${DEV ? "dev" : "production"}): ${url}`);
+for (const started of host.items("server.started")) await started({ url });

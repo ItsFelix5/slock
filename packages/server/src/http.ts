@@ -8,6 +8,8 @@ export type WsHandlers = {
   close?(ws: Bun.ServerWebSocket<WsData>): void;
 };
 
+export type ServerStarted = (info: { url: string }) => void | Promise<void>;
+
 export type CliCommand = { flag: string; run(args: string[]): Promise<void> };
 
 declare module "@slock/core/http" {
@@ -20,6 +22,7 @@ declare module "@slock/core/types" {
   interface Points {
     ws: WsHandlers;
     cli: CliCommand;
+    "server.started": ServerStarted;
   }
 }
 
