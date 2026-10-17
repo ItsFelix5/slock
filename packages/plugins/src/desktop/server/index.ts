@@ -3,12 +3,20 @@ import { findBrowser, profileDir } from "./findBrowser";
 
 const APP_FLAG = "--app";
 
+function appFlag(): { browser?: string } | undefined {
+  const at = Bun.argv.indexOf(APP_FLAG);
+  if (at === -1) return;
+  const next = Bun.argv[at + 1];
+  return next && !next.startsWith("--") ? { browser: next } : {};
+}
+
 const setup: Setup = (ctx) => {
-  if (!Bun.argv.includes(APP_FLAG)) return;
+  const app = appFlag();
+  if (!app) return;
   ctx.add("server.started", async ({ url }) => {
-    const browser = await findBrowser();
+    const browser = app.browser ?? (await findBrowser());
     if (!browser) {
-      console.error(`no Chromium based browser found, open ${url} yourself or set SLOCK_BROWSER`);
+      console.error(`no Chromium based browser found, pass one with ${APP_FLAG} <path>`);
       return;
     }
     const child = Bun.spawn(
@@ -16,7 +24,6 @@ const setup: Setup = (ctx) => {
       { stderr: "ignore", stdout: "ignore" },
     );
     ctx.onCleanup(() => child.kill());
-    // Closing the window ends the app, as a hidden background server would just be confusing.
     child.exited.then(() => process.exit());
   });
 };

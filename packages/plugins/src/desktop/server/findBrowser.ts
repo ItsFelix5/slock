@@ -8,6 +8,8 @@ const PATH_NAMES = [
   "chromium-browser",
   "brave-browser",
   "brave",
+  "helium",
+  "ungoogled-chromium",
   "microsoft-edge-stable",
   "microsoft-edge",
   "vivaldi",
@@ -15,7 +17,14 @@ const PATH_NAMES = [
   "msedge",
 ];
 
-const MAC_APPS = ["Google Chrome", "Chromium", "Brave Browser", "Microsoft Edge", "Vivaldi"];
+const MAC_APPS = [
+  "Google Chrome",
+  "Chromium",
+  "Brave Browser",
+  "Microsoft Edge",
+  "Vivaldi",
+  "Helium",
+];
 
 function windowsPaths(): string[] {
   const roots = [Bun.env["PROGRAMFILES"], Bun.env["PROGRAMFILES(X86)"], Bun.env["LOCALAPPDATA"]];
@@ -23,6 +32,7 @@ function windowsPaths(): string[] {
     ["Google", "Chrome", "Application", "chrome.exe"],
     ["BraveSoftware", "Brave-Browser", "Application", "brave.exe"],
     ["Microsoft", "Edge", "Application", "msedge.exe"],
+    ["imput", "Helium", "Application", "chrome.exe"],
   ];
   return roots.flatMap((root) => (root ? apps.map((app) => join(root, ...app)) : []));
 }
@@ -35,9 +45,7 @@ function macPaths(): string[] {
   );
 }
 
-/** First installed Chromium based browser, or `SLOCK_BROWSER` when set. */
 export async function findBrowser(): Promise<string | undefined> {
-  if (Bun.env.SLOCK_BROWSER) return Bun.env.SLOCK_BROWSER;
   for (const name of PATH_NAMES) {
     const found = Bun.which(name);
     if (found) return found;
@@ -47,7 +55,6 @@ export async function findBrowser(): Promise<string | undefined> {
   for (const path of candidates) if (await Bun.file(path).exists()) return path;
 }
 
-/** Own profile, so the app window has no tabs, extensions or the user's browsing data. */
 export function profileDir(): string {
   const os = platform();
   const base =
