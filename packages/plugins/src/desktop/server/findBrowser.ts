@@ -54,14 +54,3 @@ export async function findBrowser(): Promise<string | undefined> {
   const candidates = os === "darwin" ? macPaths() : os === "win32" ? windowsPaths() : [];
   for (const path of candidates) if (await Bun.file(path).exists()) return path;
 }
-
-export function profileDir(): string {
-  const os = platform();
-  const base =
-    os === "win32"
-      ? (Bun.env["APPDATA"] ?? join(homedir(), "AppData", "Roaming"))
-      : os === "darwin"
-        ? join(homedir(), "Library", "Application Support")
-        : (Bun.env["XDG_DATA_HOME"] ?? join(homedir(), ".local", "share"));
-  return join(base, "slock", "app");
-}

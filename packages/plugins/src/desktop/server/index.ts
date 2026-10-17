@@ -1,7 +1,13 @@
 import type { Setup } from "@slock/core";
-import { findBrowser, profileDir } from "./findBrowser";
+import { findBrowser } from "./findBrowser";
 
 const APP_FLAG = "--app";
+const HANDOFF_MS = 3000;
+
+function fail(message: string): never {
+  console.error(message);
+  process.exit(1);
+}
 
 function appFlag(): { browser?: string } | undefined {
   const at = Bun.argv.indexOf(APP_FLAG);
@@ -15,16 +21,23 @@ const setup: Setup = (ctx) => {
   if (!app) return;
   ctx.add("server.started", async ({ url }) => {
     const browser = app.browser ?? (await findBrowser());
-    if (!browser) {
-      console.error(`no Chromium based browser found, pass one with ${APP_FLAG} <path>`);
-      return;
-    }
-    const child = Bun.spawn(
-      [browser, `--app=${url}`, `--user-data-dir=${profileDir()}`, "--no-first-run"],
-      { stderr: "ignore", stdout: "ignore" },
-    );
+    if (!browser) fail(`no Chromium based browser found, pass one with ${APP_FLAG} <path>`);
+    const launched = Date.now();
+    const child = (() => {
+      try {
+        return Bun.spawn([browser, `--app=${url}`, "--no-first-run"], {
+          stderr: "ignore",
+          stdout: "ignore",
+        });
+      } catch {
+        return fail(`could not launch ${browser}`);
+      }
+    })();
     ctx.onCleanup(() => child.kill());
-    child.exited.then(() => process.exit());
+    child.exited.then((code) => {
+      if (code !== 0) fail(`${browser} exited with code ${code}`);
+      if (Date.now() - launched > HANDOFF_MS) process.exit();
+    });
   });
 };
 
