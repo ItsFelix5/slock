@@ -4,6 +4,7 @@ import { findBrowser } from "./findBrowser";
 const APP_FLAG = "--app";
 const IDLE_MS = 30_000;
 const CHECK_MS = 5_000;
+const OWNED_MS = 3_000;
 
 function fail(message: string): never {
   console.error(message);
@@ -21,19 +22,23 @@ const setup: Setup = (ctx) => {
   const app = appFlag();
   if (!app) return;
 
-  let clients = 0;
+  const sockets = new Set<unknown>();
   let idleSince = Date.now();
+  let lastTick = Date.now();
   ctx.add("ws", {
-    close: () => {
-      clients--;
-      if (clients === 0) idleSince = Date.now();
+    close: (ws) => {
+      sockets.delete(ws);
+      if (sockets.size === 0) idleSince = Date.now();
     },
-    open: () => {
-      clients++;
+    open: (ws) => {
+      sockets.add(ws);
     },
   });
   const watchdog = setInterval(() => {
-    if (clients === 0 && Date.now() - idleSince > IDLE_MS) process.exit();
+    const now = Date.now();
+    if (now - lastTick > CHECK_MS * 3) idleSince = now;
+    lastTick = now;
+    if (sockets.size === 0 && now - idleSince > IDLE_MS) process.exit();
   }, CHECK_MS);
   ctx.onCleanup(() => clearInterval(watchdog));
 
@@ -41,12 +46,14 @@ const setup: Setup = (ctx) => {
     const browser = app.browser ?? (await findBrowser());
     if (!browser) fail(`no Chromium based browser found, pass one with ${APP_FLAG} <path>`);
     try {
+      const launched = Date.now();
       const child = Bun.spawn([browser, `--app=${url}`, "--no-first-run"], {
         stderr: "ignore",
         stdout: "ignore",
       });
       child.exited.then((code) => {
         if (code !== 0) fail(`${browser} exited with code ${code}`);
+        if (Date.now() - launched > OWNED_MS) process.exit();
       });
     } catch {
       fail(`could not launch ${browser}`);
