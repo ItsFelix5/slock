@@ -16,7 +16,8 @@
     "@slock/ui": "workspace:*",
     "@tanstack/solid-query": "^5.102.8",
     "quill": "^2",
-    "solid-js": "^1.9.13"
+    "solid-js": "^1.9.13",
+    "systray2": "^2.1.4"
   },
   "devDependencies": {
     "@babel/core": "^8.0.6",
