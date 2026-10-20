@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import { createSignal } from "solid-js";
 import type { CanvasCommandContext } from "./canvasCommands";
 import { CANVAS_DATE_FORMAT, dateLabel, dateMs } from "./canvasEmbeds";

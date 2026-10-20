@@ -177,3 +177,21 @@
   height: 14px;
   border-radius: var(--radius-sm);
 }
+
+.attachment-removable {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.attachment-remove {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  opacity: 0;
+}
+
+.attachment-removable:hover .attachment-remove,
+.attachment-removable:focus-within .attachment-remove {
+  opacity: 1;
+}

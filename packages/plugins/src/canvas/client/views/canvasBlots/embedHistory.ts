@@ -1,4 +1,4 @@
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 
 const BLOCK_EMBED_KEYS = ["canvasColumns", "canvasFile", "canvasImage", "canvasTable"];
 

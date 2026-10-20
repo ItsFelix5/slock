@@ -1,0 +1,13 @@
+.sidebar-row-thread {
+  padding-block: calc(2px + var(--row-padding-offset));
+}
+
+.sidebar-thread-corner {
+  display: block;
+  width: 8px;
+  height: 10px;
+  margin: -8px 0 0 4px;
+  border-bottom: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
+  border-bottom-left-radius: var(--radius-sm);
+}

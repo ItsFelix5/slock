@@ -13,3 +13,13 @@
   padding: 14px 20px;
   border-top: 1px solid var(--border);
 }
+.view-toast {
+  position: fixed;
+  bottom: var(--space-lg);
+  left: 50%;
+  z-index: 1000;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-control);
+  color: var(--text-primary);
+  transform: translateX(-50%);
+}

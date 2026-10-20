@@ -79,8 +79,7 @@ export type DraftEntry = {
   clientMsgId: string;
   channelId: string;
   threadTs?: string;
-  text: string;
-  blocks?: Block[];
+  blocks: Block[];
   lastUpdatedTs?: string;
 };
 
@@ -133,7 +132,7 @@ export interface GlobalSearchResults {
   users: User[];
 }
 
-export type ApiFailure = { error?: string; ok: false; retry_after?: string };
+export type ApiFailure = { details?: unknown; error?: string; ok: false; retry_after?: string };
 export type ApiReply<T extends object = object> = (T & { ok: true }) | ApiFailure;
 
 export type AccountSummary = {

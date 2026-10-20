@@ -49,19 +49,19 @@ export function createMessageSending(deps: {
   async function sendMessage(
     channelId: string,
     text: string,
+    unfurl: string[],
     threadTs?: string,
     blocks?: Block[],
-    suppressUnfurl?: boolean,
     fileIds?: string[],
   ) {
     const trimmed = text.trim();
     if (!(trimmed || blocks)) return;
-    const optimistic = optimisticMessage(deps.currentUser(), { blocks, text: trimmed });
+    const optimistic = optimisticMessage(deps.currentUser(), { blocks, text: trimmed, threadTs });
     const location = appendOptimistic(channelId, threadTs, optimistic);
     try {
       const res = broadcastRangeFromBlocks(blocks)
-        ? await postBroadcastMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl)
-        : await postMessage(channelId, trimmed, threadTs, blocks, suppressUnfurl, fileIds);
+        ? await postBroadcastMessage(channelId, trimmed, unfurl, threadTs, blocks)
+        : await postMessage(channelId, trimmed, unfurl, threadTs, blocks, fileIds);
       setterFor(location)(location.key, (list) =>
         dedupeMessages(
           list.map((m) => (m.id === optimistic.id ? { ...m, pending: false, ts: res.ts } : m)),
@@ -87,6 +87,7 @@ export function createMessageSending(deps: {
     const optimistic = optimisticMessage(deps.currentUser(), {
       pendingFiles,
       text: comment?.trim() ?? "",
+      threadTs,
     });
     const location = appendOptimistic(channelId, threadTs, optimistic);
     const revokePreviews = () => {

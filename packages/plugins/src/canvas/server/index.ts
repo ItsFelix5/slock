@@ -20,6 +20,7 @@ const list: Route[] = [
   route("GET", "canvases/:id/file-info", async (ctx) => {
     const data = await callSlack<FileInfoReply>("files.info", { file: ctx.params.id }, ctx.creds);
     if (!data.ok) {
+      if (data.error === "file_not_found") return jsonResponse({ file: null, ok: true }, ctx.creds);
       return slackErrorResponse(data, "files.info", ctx.creds);
     }
     return jsonResponse({ file: trimFile(data.file), ok: true }, ctx.creds);
@@ -60,6 +61,7 @@ const renameCanvas: HttpHandler = async (c, next) => {
   const info = await callSlack<FileInfoReply>("files.info", { file: fileId }, c.creds);
   const threadId = info.ok ? info.file.quip_thread_id : undefined;
   if (!threadId) return next();
+  if (info.ok && info.file.editable === false) return errorResponse("not_editable", 403);
   const body: unknown = await c.req.json();
   const name = isRecord(body) && typeof body.title === "string" ? body.title.trim() : "";
   if (!name) return errorResponse("invalid_title", 400);

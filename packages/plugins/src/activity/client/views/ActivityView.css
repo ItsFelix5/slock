@@ -106,6 +106,10 @@ button.activity-type-button.active {
   padding: var(--space-sm) var(--space-md);
 }
 
+.activity-load-idle {
+  visibility: hidden;
+}
+
 .activity-load-warning {
   color: var(--danger);
 }

@@ -1,0 +1,22 @@
+.composer-link-previews {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  padding: 0 var(--space-md) var(--space-sm);
+  overflow-y: auto;
+}
+.composer-link-preview {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+.composer-link-preview-remove {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  opacity: 0;
+}
+.composer-link-preview:hover .composer-link-preview-remove,
+.composer-link-preview:focus-within .composer-link-preview-remove {
+  opacity: 1;
+}

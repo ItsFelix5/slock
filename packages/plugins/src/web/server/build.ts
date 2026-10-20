@@ -1,5 +1,6 @@
 import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { BuildArtifact } from "bun";
 import { clientPluginsPlugin } from "./clientPlugins";
 import { renderIndexHtml } from "./indexHtml";
 import { buildImportMap, libEntrypoints, libsPlugin } from "./libs";
@@ -15,6 +16,28 @@ const INDEX_VARIANTS = [
 ] as const;
 
 type Built = { contents: Blob; contentType: string };
+
+const SOURCE_MAP_COMMENT = /\n\/\/# (debugId|sourceMappingURL)=.*/g;
+
+async function withoutEmptySourceMaps(outputs: BuildArtifact[]) {
+  const empty = new Set<string>();
+  for (const output of outputs) {
+    if (output.kind !== "sourcemap") continue;
+    if (!JSON.parse(await output.text()).sources.length) empty.add(output.path);
+  }
+  const files: { path: string; contents: Blob }[] = [];
+  for (const output of outputs) {
+    if (empty.has(output.path)) continue;
+    const text = empty.has(`${output.path}.map`) && (await output.text());
+    files.push({
+      path: output.path,
+      contents: text
+        ? new Blob([text.replace(SOURCE_MAP_COMMENT, "")], { type: output.type })
+        : output,
+    });
+  }
+  return files;
+}
 
 const toUrl = (path: string) => `/${path.startsWith("./") ? path.slice(2) : path}`;
 
@@ -45,9 +68,10 @@ export async function build(minify: boolean) {
     if (!log.message.includes("pseudo-element 'highlight'")) console.error(log);
   if (!result.success) throw new Error("Build failed");
 
+  const cleaned = await withoutEmptySourceMaps(result.outputs);
   const files = new Map<string, Built>();
-  for (const output of result.outputs)
-    files.set(toUrl(output.path), { contents: output, contentType: output.type });
+  for (const { path, contents } of cleaned)
+    files.set(toUrl(path), { contents, contentType: contents.type });
 
   const { entryPath, entryCssPaths, preloadPaths, staleCssPaths } = await resolveBuildAssets(
     result.outputs,
@@ -59,7 +83,7 @@ export async function build(minify: boolean) {
     html: (preloadBootstrap: boolean) =>
       renderIndexHtml(entryPath, entryCssPaths, preloadPaths, preloadBootstrap, importMap),
     importMap,
-    outputs: result.outputs.filter((output) => !staleCssPaths.includes(toUrl(output.path))),
+    outputs: cleaned.filter(({ path }) => !staleCssPaths.includes(toUrl(path))),
   };
 }
 
@@ -74,7 +98,7 @@ export async function writeDist() {
   }
   for (const output of outputs) {
     const path = `${APP_DIR}/dist/${toUrl(output.path).slice(1)}`;
-    await Bun.write(path, output);
-    await writePrecompressed(path, output);
+    await Bun.write(path, output.contents);
+    await writePrecompressed(path, output.contents);
   }
 }

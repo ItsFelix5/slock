@@ -1,5 +1,5 @@
 import type { BlockActionContext } from "@slock/blockkit";
-import { decodeTextEntities } from "@slock/blockkit";
+import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { Show } from "solid-js";
@@ -24,6 +24,11 @@ const usersStore = service("users");
 const titles = service("titles");
 
 import { resolveAttachmentAuthorName } from "../../../messages/client/api/messageAuthor";
+
+const hasInteractiveBlocks = (blocks: Attachment["blocks"]) =>
+  !!blocks?.some(
+    (block) => block.type === "actions" || (block.type === "section" && block.accessory),
+  );
 
 export default function MessageUnfurl(props: { attachment: Attachment }) {
   const a = props.attachment;
@@ -55,7 +60,7 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
     fetchMessagesByIds([{ channelId, ts }]).then((messages) => messages.get(`${channelId}:${ts}`));
   const original = createKeyedQuery(() => {
     const { channelId, ts } = a;
-    if (!(a.blocks?.length && channelId && ts)) return;
+    if (!(hasInteractiveBlocks(a.blocks) && channelId && ts)) return;
     return {
       queryFn: async () => (await lookupOriginal(channelId, ts)) ?? null,
       queryKey: originalMessageKey(channelId, ts),
@@ -69,7 +74,7 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
   const openAuthorProfile = async () => {
     const { channelId, ts } = a;
     if (!(channelId && ts)) return;
-    const userId = (await lookupOriginal(channelId, ts))?.userId;
+    const userId = a.authorId ?? (await lookupOriginal(channelId, ts))?.userId;
     if (userId) usersStore.openUserProfile(userId);
   };
 

@@ -1,5 +1,6 @@
 import type { ApiReply } from "@slock/types";
 import { forceReauth, isConfigured } from "../session/account";
+import { isAuthError } from "./authErrors";
 
 export class ApiError extends Error {
   retryAfterMs?: number;
@@ -37,7 +38,7 @@ function parseBody(responseBody: string, res: Response) {
 async function readResponse<T extends object>(res: Response): Promise<ApiReply<T>> {
   const responseBody = await res.text();
   const data = parseBody(responseBody, res);
-  if (hasError(data) && data.error === "not_configured" && isConfigured()) return forceReauth();
+  if (hasError(data) && isAuthError(data.error) && isConfigured()) return forceReauth();
   if (!(res.ok || hasError(data))) {
     throw new Error(`request failed with ${res.status} ${res.statusText}: ${responseBody}`);
   }

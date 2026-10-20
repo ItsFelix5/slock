@@ -1,13 +1,14 @@
 .bk-table-scroll {
+  width: fit-content;
+  max-width: 100%;
   overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
 }
 
 .bk-table {
-  width: 100%;
   border-spacing: 0;
   font-size: var(--font-size-control);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
 }
 
 .bk-table caption {
@@ -18,8 +19,7 @@
 
 .bk-table td,
 .bk-table th {
-  min-width: 80px;
-  padding: 7px 9px;
+  padding: 4px var(--space-sm);
   vertical-align: top;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -27,7 +27,6 @@
 
 .bk-table th {
   font-weight: 700;
-  background: var(--hover-bg);
 }
 
 .bk-table tr:last-child td {

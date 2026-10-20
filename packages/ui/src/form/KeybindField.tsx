@@ -2,6 +2,7 @@ import { For, Show } from "solid-js";
 import { comboParts, type ShortcutCombo } from "../useShortcut";
 import { useKeybindRecorder } from "./keybindRecorder";
 import "./KeybindField.css";
+import IconButton from "../button/IconButton";
 
 export interface KeybindFieldProps {
   combo: ShortcutCombo | null;
@@ -39,14 +40,7 @@ export default function KeybindField(props: KeybindFieldProps) {
         </Show>
       </button>
       <Show when={props.isCustom}>
-        <button
-          aria-label={`Reset ${props.label} to default`}
-          class="keybind-field-reset btn-reset"
-          onClick={props.onReset}
-          type="button"
-        >
-          Reset
-        </button>
+        <IconButton icon="rotate" size="md" onClick={props.onReset} />
       </Show>
     </div>
   );

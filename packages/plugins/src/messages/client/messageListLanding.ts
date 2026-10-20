@@ -141,10 +141,26 @@ export function createMessageListLanding(deps: {
     if (view && readyViewId() !== view.id) setReadyViewId(view.id);
   }
 
-  function landOnDividerOrBottom(view: View, msgs: Message[]) {
+  function loadWindowAroundAnchor(view: View, anchor: number) {
+    void messagesStore.jumpToTs(view.id, (anchor / 1000).toFixed(6)).then(async (ok) => {
+      if (ok) await messagesStore.loadNewerMessages(view.id);
+      if (deps.paneView()?.id !== view.id) return;
+      if (ok) landOnDividerOrBottom(view, deps.messages(), true);
+      else landOnBottom(view.id);
+    });
+  }
+
+  function landOnDividerOrBottom(view: View, msgs: Message[], windowLoaded = false) {
     const anchor = unreadStore.unreadDividerTsForChannel(view.id);
     if (anchor === undefined) return;
     positionedViewId = view.id;
+
+    const [first] = msgs;
+    const anchorAboveWindow = first && parseFloat(first.ts) * 1000 > anchor;
+    if (!windowLoaded && anchorAboveWindow && messagesStore.hasMoreHistory(view.id)) {
+      loadWindowAroundAnchor(view, anchor);
+      return;
+    }
 
     const dividerIndex = findUnreadDividerIndex(msgs, anchor);
     const dividerTs = dividerIndex >= 0 ? msgs[dividerIndex]?.ts : undefined;

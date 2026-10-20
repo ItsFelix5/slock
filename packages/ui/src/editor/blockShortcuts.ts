@@ -1,5 +1,5 @@
-import type Quill from "quill";
-import type { Range } from "quill";
+import type Quill from "./quill";
+import type { Range } from "./quill";
 
 export type LinePrefixFormat = {
   prefix: RegExp;

@@ -1,15 +1,17 @@
+import { EmojiText } from "@slock/blockkit";
 import { formatTimeFromMs } from "@slock/core";
 import { blockPreviewText } from "@slock/slack";
 import {
   Icon,
   type ListDirection,
   listNavigationIndex,
+  SuggestionList,
   useClickOutside,
   useEscapeClose,
   useListShortcuts,
   useShortcut,
 } from "@slock/ui";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import type { DraftValue } from "../../../../drafts/client/api";
 import "./DraftsMenu.css";
 
@@ -26,12 +28,6 @@ function relativeLabel(ts: string | undefined): string {
     ? formatTimeFromMs(ms)
     : d.toLocaleDateString([], { day: "numeric", month: "short" });
 }
-
-const ROW_LABELS = {
-  entry: undefined,
-  "save-new": "Save and start new draft",
-  "save-template": "Save as template",
-};
 
 type ActionRow = { kind: "save-new" | "save-template" };
 type Row = { kind: "entry"; entry: DraftValue } | ActionRow;
@@ -119,9 +115,44 @@ export default function DraftsMenu(props: {
     useListShortcuts({ allowInInputs: true, enabled: () => !naming(), manual, move, submit });
   }
 
+  const renderRow = (row: Row) => {
+    switch (row.kind) {
+      case "entry":
+        return (
+          <>
+            <span class="suggestion-icon flex-center">
+              <Icon name="stacked-cards" size={13} />
+            </span>
+            <span class="suggestion-label truncate">
+              <EmojiText text={blockPreviewText(row.entry.blocks)} />
+            </span>
+            <span class="suggestion-desc truncate">{relativeLabel(row.entry.lastUpdatedTs)}</span>
+          </>
+        );
+      case "save-new":
+        return (
+          <>
+            <span class="suggestion-icon flex-center">
+              <Icon name="save" size={13} />
+            </span>
+            <span class="suggestion-label truncate">Save and start new draft</span>
+          </>
+        );
+      case "save-template":
+        return (
+          <>
+            <span class="suggestion-icon flex-center">
+              <Icon name="bookmark" size={13} />
+            </span>
+            <span class="suggestion-label truncate">Save as template</span>
+          </>
+        );
+    }
+  };
+
   return (
     <Show when={rows().length > 0}>
-      <div class="composer-drafts-menu menu-panel">
+      <div class="composer-drafts-menu menu-panel composer-suggest-popover composer-suggest-docked">
         <Show
           fallback={
             <form class="composer-drafts-name-form flex-align-center" onSubmit={submitName}>
@@ -144,64 +175,30 @@ export default function DraftsMenu(props: {
           }
           when={!naming()}
         >
-          <div class="suggestion-list">
-            <For each={rows()}>
-              {(row, i) => (
-                <div
-                  class="suggestion-item"
-                  classList={{ active: i() === active() }}
-                  onMouseEnter={() => setActive(i())}
+          <SuggestionList
+            activeIndex={active()}
+            class="composer-suggest-scroll"
+            items={rows()}
+            onHover={setActive}
+            onPick={(i) => {
+              const row = rows()[i];
+              if (row) pick(row);
+            }}
+            renderAction={(row) =>
+              row.kind === "entry" ? (
+                <button
+                  class="btn-reset icon-btn sm icon-action text-dim suggestion-action"
+                  aria-label="Delete draft"
+                  onClick={() => void remove(row.entry)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  type="button"
                 >
-                  <button
-                    class="suggestion-row btn-reset flex-align-center"
-                    aria-label={ROW_LABELS[row.kind]}
-                    onClick={() => pick(row)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    type="button"
-                  >
-                    <Show when={row.kind === "entry" ? row.entry : undefined}>
-                      {(entry) => (
-                        <>
-                          <span class="suggestion-icon flex-center">
-                            <Icon name="stacked-cards" size={13} />
-                          </span>
-                          <span class="suggestion-label truncate">
-                            {blockPreviewText(entry().blocks ?? []) || entry().text}
-                          </span>
-                          <span class="suggestion-desc truncate">
-                            {relativeLabel(entry().lastUpdatedTs)}
-                          </span>
-                        </>
-                      )}
-                    </Show>
-                    <Show when={row.kind === "save-new"}>
-                      <span class="suggestion-icon flex-center">
-                        <Icon name="save" size={13} />
-                      </span>
-                    </Show>
-                    <Show when={row.kind === "save-template"}>
-                      <span class="suggestion-icon flex-center">
-                        <Icon name="bookmark" size={13} />
-                      </span>
-                    </Show>
-                  </button>
-                  <Show when={row.kind === "entry" ? row.entry : undefined}>
-                    {(entry) => (
-                      <button
-                        class="btn-reset icon-btn sm icon-action text-dim suggestion-action"
-                        aria-label="Delete draft"
-                        onClick={() => void remove(entry())}
-                        onMouseDown={(e) => e.preventDefault()}
-                        type="button"
-                      >
-                        <Icon name="trash" size={13} />
-                      </button>
-                    )}
-                  </Show>
-                </div>
-              )}
-            </For>
-          </div>
+                  <Icon name="trash" size={13} />
+                </button>
+              ) : null
+            }
+            renderItem={renderRow}
+          />
         </Show>
       </div>
     </Show>

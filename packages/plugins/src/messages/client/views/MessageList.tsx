@@ -7,6 +7,7 @@ import { createInPaneSearch } from "../api/pane/inPaneSearch";
 import "./MessageList.css";
 import { createMessageFocus } from "../api/messageFocus";
 import MessageRows from "../api/pane/MessageRows";
+import { groupSystemMessages } from "../lib/groupSystemMessages";
 import { createMessageListScroll } from "../messageListScroll";
 import MessageListDateNav from "./parts/MessageListDateNav";
 
@@ -24,7 +25,7 @@ export default function MessageList() {
   const messages = createMemo(() => {
     const v = paneView();
     if (!v) return [];
-    return messagesStore.messagesInChannel(v.id) ?? [];
+    return groupSystemMessages(messagesStore.messagesInChannel(v.id) ?? []);
   });
   const activeChannelId = () => paneView()?.id ?? "";
   const messageFocus = createMessageFocus(messages, () => scrollRef, activeChannelId, {

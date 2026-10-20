@@ -37,6 +37,11 @@
   cursor: text;
 }
 
+.mrkdwn-composer .ql-editor.ql-blank::before {
+  left: 10px;
+  right: 10px;
+}
+
 .mrkdwn-composer.multiline .ql-editor {
   min-height: 64px;
 }

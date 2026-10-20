@@ -1,13 +1,6 @@
 import { IconButton, useEditShortcuts } from "@slock/ui";
-import { createSignal, onCleanup, Show } from "solid-js";
-
-function FileChipThumbnail(props: { file: File; thumbSrc?: string }) {
-  if (props.thumbSrc) return <img alt="" class="composer-file-chip-thumb" src={props.thumbSrc} />;
-  if (!props.file.type.startsWith("image/")) return null;
-  const url = URL.createObjectURL(props.file);
-  onCleanup(() => URL.revokeObjectURL(url));
-  return <img alt="" class="composer-file-chip-thumb" src={url} />;
-}
+import { createSignal, Show } from "solid-js";
+import FileChipThumbnail from "./FileChipThumbnail";
 
 export default function FileChip(props: {
   file: File;
@@ -15,6 +8,7 @@ export default function FileChip(props: {
   onRemove: () => void;
   onRename?: (name: string) => void;
   thumbSrc?: string;
+  fullSrc?: string;
 }) {
   const [renaming, setRenaming] = createSignal(false);
   const [draft, setDraft] = createSignal("");
@@ -45,7 +39,7 @@ export default function FileChip(props: {
       classList={{ "composer-file-chip-image": isImage() }}
       ref={chipRef}
     >
-      <FileChipThumbnail file={props.file} thumbSrc={props.thumbSrc} />
+      <FileChipThumbnail file={props.file} fullSrc={props.fullSrc} thumbSrc={props.thumbSrc} />
       <span class="composer-file-chip-details">
         <Show
           fallback={

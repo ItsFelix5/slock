@@ -1,11 +1,11 @@
 import QuillEditor from "@slock/ui/editor/QuillEditor";
-import type Quill from "quill";
-import type { Op } from "quill";
+import type Quill from "@slock/ui/editor/quill";
+import type { Op } from "@slock/ui/editor/quill";
 import { onCleanup } from "solid-js";
 import MentionHoverCard from "../../../composer/client/api/editor/MentionHoverCard";
 import { createMentionHoverController } from "../../../composer/client/api/editor/mentionHover";
 import { useMentionResolution } from "../../../composer/client/api/editor/mentionResolution";
-import { wireEmojiAutoconvert } from "../../../composer/client/api/editor/quillEmoji";
+import { emojiAutoconvert } from "../../../emoji/client/api/emojiAutoconvert";
 import { bindCanvasKeys } from "../lib/canvasEditorSetup";
 import { type CanvasServices, canvasServicesFor } from "./canvasBlots/canvasServices";
 import { ignoreEmbedChurn } from "./canvasBlots/embedHistory";
@@ -69,7 +69,7 @@ export default function CanvasSurface(props: CanvasSurfaceProps) {
     bindCanvasKeys(editor);
     ignoreEmbedChurn(editor);
     onCleanup(scheduleDecorations(editor));
-    wireEmojiAutoconvert(editor);
+    onCleanup(emojiAutoconvert(editor));
     onCleanup(mentionHover.bind(editor));
     onCleanup(services?.register(props.scope, editor) ?? (() => undefined));
     editor.on("text-change", (_delta, _old, source) => {

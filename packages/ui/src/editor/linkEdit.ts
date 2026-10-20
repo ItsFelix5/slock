@@ -1,5 +1,5 @@
-import Quill from "quill";
 import { createSignal } from "solid-js";
+import Quill from "./quill";
 
 export interface LinkEditState {
   anchorEl: HTMLElement;

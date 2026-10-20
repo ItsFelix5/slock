@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import { apiGet, mapVisibleMessages } from "@slock/slack";
 import type { HistoryPage, RawMessage } from "@slock/types";
 
@@ -54,25 +55,19 @@ function midpointTs(low: string, high: string) {
 export async function fetchHistoryNewer(channelId: string, oldest: string): Promise<HistoryPage> {
   let low = oldest;
   let high: string | undefined;
+  let tooBig: HistoryPage | undefined;
   while (true) {
     const query = new URLSearchParams({ inclusive: "false", oldest: low });
     if (high) query.set("latest", high);
     const page = await fetchHistoryPage(channelId, query);
     const [first] = page.messages;
-    console.log("newer", {
-      low,
-      high,
-      first: first?.ts,
-      more: page.hasMore,
-      n: page.messages.length,
-    });
-    if (page.hasMore && first) {
-      high = midpointTs(low, first.ts);
-      continue;
-    }
-    if (first) return { hasMore: high !== undefined, messages: page.messages };
-    if (!high) return { hasMore: false, messages: [] };
-    low = high;
-    high = undefined;
+    if (page.hasMore && first) tooBig = page;
+    else if (first) return { hasMore: high !== undefined, messages: page.messages };
+    else if (high && tooBig) low = high;
+    else return { hasMore: false, messages: [] };
+    const upper = defined(tooBig?.messages[0]).ts;
+    high = midpointTs(low, upper);
+    if (high === low || high === upper)
+      return { hasMore: true, messages: defined(tooBig).messages };
   }
 }

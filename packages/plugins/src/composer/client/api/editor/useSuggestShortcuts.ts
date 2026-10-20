@@ -27,8 +27,17 @@ export function useSuggestShortcuts(options: {
   });
   useNavigationShortcuts({
     ...shared,
-    directions: ["left", "right", "start", "end"],
+    directions: ["left", "start", "end"],
     move: () => setSuggest(null),
+    passthrough: true,
+  });
+  useNavigationShortcuts({
+    ...shared,
+    directions: ["right"],
+    move: (_, event) => {
+      if (suggestions.toggleAlternate()) event.preventDefault();
+      else setSuggest(null);
+    },
     passthrough: true,
   });
   useConfirmShortcut(apply, shared);

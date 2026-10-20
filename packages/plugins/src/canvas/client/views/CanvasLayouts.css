@@ -1,15 +1,15 @@
 .canvas-editor {
-  --callout-0: rgb(244 255 219);
-  --callout-1: rgb(227 255 243);
-  --callout-2: rgb(227 248 255);
-  --callout-3: rgb(240 243 252);
-  --callout-4: rgb(246 228 255);
-  --callout-5: rgb(255 232 239);
-  --callout-6: rgb(252 242 217);
-  --callout-7: rgb(244 237 228);
-  --callout-8: rgb(234 234 234);
-  --callout-ink: #1d1c1d;
-  --callout-edge: rgb(94 93 96 / 33%);
+  --callout-0: light-dark(rgb(244 255 219), oklch(0.3 0.05 130));
+  --callout-1: light-dark(rgb(227 255 243), oklch(0.3 0.05 170));
+  --callout-2: light-dark(rgb(227 248 255), oklch(0.3 0.05 220));
+  --callout-3: light-dark(rgb(240 243 252), oklch(0.3 0.05 270));
+  --callout-4: light-dark(rgb(246 228 255), oklch(0.3 0.06 320));
+  --callout-5: light-dark(rgb(255 232 239), oklch(0.3 0.06 5));
+  --callout-6: light-dark(rgb(252 242 217), oklch(0.3 0.05 85));
+  --callout-7: light-dark(rgb(244 237 228), oklch(0.3 0.03 60));
+  --callout-8: light-dark(rgb(234 234 234), oklch(0.3 0.005 255));
+  --callout-ink: var(--text-primary);
+  --callout-edge: var(--border-strong);
   --quote-bar: var(--border-strong, rgb(128 128 128 / 40%));
 }
 

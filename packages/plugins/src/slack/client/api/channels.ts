@@ -156,6 +156,15 @@ export async function fetchChannelRetention(channelId: string): Promise<number |
   if (!data.ok) throw new Error(data.error ?? "conversations.getRetention failed");
   return data.days ?? null;
 }
+export async function fetchMemberPermissions(
+  channelId: string,
+): Promise<Required<MemberPermissionsPatch>> {
+  const data = await apiGet<Required<MemberPermissionsPatch>>(
+    `/api/channels/${channelId}/member-permissions`,
+  );
+  if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.list failed");
+  return { invite: data.invite, setPurpose: data.setPurpose, setTopic: data.setTopic };
+}
 export async function setChannelRetention(channelId: string, days: number | null): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/retention`, { days });
   if (!data.ok) throw new Error(data.error ?? "conversations.setRetention failed");

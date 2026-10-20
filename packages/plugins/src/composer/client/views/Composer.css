@@ -45,7 +45,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-xs) 0;
+  padding: var(--space-sm) var(--space-md) 0;
 }
 .composer-file-chip {
   gap: var(--space-xs);
@@ -103,8 +103,7 @@
 .menu-panel.composer-tools-menu {
   min-width: 192px;
 }
-.composer-date-popover,
-.composer-drafts-popover {
+.composer-popover {
   position: absolute;
   bottom: calc(var(--composer-action-size) + var(--space-xs));
   left: 0;
@@ -126,7 +125,9 @@
   padding: var(--composer-editor-block) var(--space-xs) var(--composer-editor-block) 0;
 }
 .menu-panel.composer-suggest-popover {
-  min-width: min(224px, 100%);
+  min-width: min(260px, 100%);
+}
+.composer-suggest-scroll {
   max-height: 280px;
   overflow-y: auto;
 }

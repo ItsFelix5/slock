@@ -23,6 +23,7 @@ export function createHistoryJump(deps: {
   historyCursor: Map<string, string | undefined>;
   historyMeta: Store<Record<string, HistoryMeta>>;
   loadedChannels: Set<string>;
+  loadNewerMessages: (channelId: string) => Promise<void>;
   loadRecentHistory: (channelId: string) => Promise<void>;
   messagesByChannel: Store<Record<string, Message[]>>;
   newerHistoryBoundary: Map<string, string>;
@@ -38,6 +39,7 @@ export function createHistoryJump(deps: {
     historyCursor,
     historyMeta,
     loadedChannels,
+    loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
     newerHistoryBoundary,
@@ -78,6 +80,7 @@ export function createHistoryJump(deps: {
         olderError: false,
       });
       loadedChannels.add(channelId);
+      void loadNewerMessages(channelId);
       return true;
     } catch (err) {
       console.error("Failed to fetch history around message", err);
@@ -86,7 +89,7 @@ export function createHistoryJump(deps: {
     }
   }
 
-  async function jumpToDate(channelId: string, dateMs: number) {
+  async function jumpToTs(channelId: string, ts: string) {
     const epoch = windowEpochs.begin(channelId);
     const previous = historyMeta[channelId];
     setHistoryMeta(channelId, {
@@ -97,10 +100,6 @@ export function createHistoryJump(deps: {
       newerError: false,
       olderError: false,
     });
-    const endOfDay = new Date(dateMs);
-    endOfDay.setHours(23, 59, 59, 999);
-    const latestMs = Math.min(endOfDay.getTime(), Date.now());
-    const ts = (latestMs / 1000).toFixed(6);
     try {
       const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
       if (!windowEpochs.isCurrent(channelId, epoch)) return false;
@@ -123,10 +122,17 @@ export function createHistoryJump(deps: {
       loadedChannels.add(channelId);
       return true;
     } catch (err) {
-      console.error("Failed to jump to date", channelId, err);
+      console.error("Failed to jump to message window", channelId, err);
       if (windowEpochs.isCurrent(channelId, epoch)) void loadRecentHistory(channelId);
       return false;
     }
+  }
+
+  function jumpToDate(channelId: string, dateMs: number) {
+    const endOfDay = new Date(dateMs);
+    endOfDay.setHours(23, 59, 59, 999);
+    const latestMs = Math.min(endOfDay.getTime(), Date.now());
+    return jumpToTs(channelId, (latestMs / 1000).toFixed(6));
   }
 
   async function jumpToBeginning(channelId: string) {
@@ -140,5 +146,5 @@ export function createHistoryJump(deps: {
     }
   }
 
-  return { ensureChannelMessage, jumpToBeginning, jumpToDate };
+  return { ensureChannelMessage, jumpToBeginning, jumpToDate, jumpToTs };
 }

@@ -1,7 +1,7 @@
 import type { CanvasCommentThread } from "@slock/types";
 import { FloatingPanel, scrollActiveListOption } from "@slock/ui";
+import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import type Quill from "quill";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import ComposerSuggestPopover from "../../../composer/client/api/editor/ComposerSuggestPopover";
 import { insertSuggestionAt } from "../../../composer/client/api/editor/mrkdwnInsert";
@@ -59,7 +59,7 @@ export default function CanvasEditor(props: {
 }) {
   const [container, setContainer] = createSignal<HTMLElement>();
   const names = createCanvasNames();
-  const [title, setTitle] = createSignal(canvasTitle(props.doc));
+  const [title, setTitle] = createSignal(canvasTitle(props.doc, names));
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   const ops = props.diff ? diffToOps(props.diff, props.doc, names) : canvasToOps(props.doc, names);
   const [headings, setHeadings] = createSignal<OutlineItem[]>([]);

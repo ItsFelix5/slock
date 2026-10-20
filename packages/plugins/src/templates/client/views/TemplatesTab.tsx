@@ -69,7 +69,7 @@ export default function TemplatesTab() {
     <>
       <h2>Templates</h2>
       <div class="settings-section">
-        <div class="settings-row-label">Reaction templates</div>
+        <div class="settings-section-title">Reaction templates</div>
         <div class="settings-list flex-col">
           <For each={templates.templates()}>
             {(t) => (

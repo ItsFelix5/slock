@@ -1,7 +1,8 @@
-import { createMemo, createSignal, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import IconButton from "../button/IconButton";
 import { createCopyFeedback } from "../feedback/copyFeedback";
 import "./DebugInfoDialog.css";
+import JsonTabs from "./JsonTabs";
 import Modal, { ModalHeader } from "./Modal";
 
 interface PendingDebugInfo {
@@ -15,9 +16,19 @@ export function showDebugInfo(title: string, data: unknown) {
   setPending({ title, data });
 }
 
-export function DebugInfoDialog() {
+export function CopyJsonButton(props: { value: unknown }) {
   const [copiedKey, copy] = createCopyFeedback();
-  const json = createMemo(() => JSON.stringify(pending()?.data, null, 2) ?? "");
+  return (
+    <IconButton
+      icon={copiedKey() === "json" ? "check" : "copy"}
+      label="Copy raw JSON"
+      onClick={() => void copy(JSON.stringify(props.value, null, 2) ?? "", "json")}
+      size="sm"
+    />
+  );
+}
+
+export function DebugInfoDialog() {
   const close = () => setPending(null);
 
   return (
@@ -27,17 +38,9 @@ export function DebugInfoDialog() {
           <ModalHeader
             onClose={close}
             title={p().title}
-            buttons={
-              <IconButton
-                icon={copiedKey() === "debug-info" ? "check" : "copy"}
-                onClick={() => void copy(json(), "debug-info")}
-                size="sm"
-              />
-            }
+            buttons={<CopyJsonButton value={p().data} />}
           />
-          <pre class="debug-info-dialog-content">
-            <code>{json()}</code>
-          </pre>
+          <JsonTabs value={p().data} />
         </Modal>
       )}
     </Show>

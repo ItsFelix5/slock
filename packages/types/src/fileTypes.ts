@@ -102,6 +102,8 @@ export interface Attachment {
   postedAt?: string;
 
   pretext?: string;
+  serviceIcon?: string;
+  serviceName?: string;
   text?: string;
   title?: string;
   titleLink?: string;

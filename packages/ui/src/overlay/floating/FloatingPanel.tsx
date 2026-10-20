@@ -69,6 +69,7 @@ export interface FloatingPanelProps {
   gap?: number;
   onFocusOut?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
   onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
+  onMouseDown?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseEnter?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseLeave?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   open: boolean;
@@ -155,6 +156,11 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     props.onScroll?.();
   };
 
+  createEffect(() => {
+    props.anchor();
+    schedulePosition();
+  });
+
   const onResize = () => runWithOwner(owner, schedulePosition);
   const onWindowScroll = (e: Event) => runWithOwner(owner, () => handleScroll(e));
 
@@ -180,6 +186,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
           class={props.class}
           onClick={props.onClick}
           onFocusOut={props.onFocusOut}
+          onMouseDown={props.onMouseDown}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
           ref={(element) => {

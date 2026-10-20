@@ -1,0 +1,17 @@
+.canvas-debug-dialog {
+  width: min(880px, calc(100vw - 32px));
+  height: min(80dvh, 720px);
+}
+
+.canvas-debug-tabs {
+  flex-shrink: 0;
+  margin: var(--space-sm) var(--space-lg);
+}
+
+.canvas-debug-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-sm) var(--space-lg) var(--space-lg);
+  overflow: auto;
+  background-color: var(--code-bg);
+}

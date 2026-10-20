@@ -1,5 +1,6 @@
 import type { BlockActionContext } from "@slock/blockkit";
-import { BlockKit, decodeTextEntities, EmojiText, Mrkdwn } from "@slock/blockkit";
+import { BlockKit, EmojiText, Mrkdwn } from "@slock/blockkit";
+import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
 import { VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";

@@ -32,8 +32,10 @@ export {
   FONT_PRESETS,
   type FontPreset,
 } from "./fontPresets";
-export type { ColorFieldProps, RelativeColor } from "./form/ColorField";
+export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
+export type { ComboboxOption, ComboboxProps } from "./form/Combobox";
+export { default as Combobox } from "./form/Combobox";
 export type { KeybindFieldProps } from "./form/KeybindField";
 export { default as KeybindField } from "./form/KeybindField";
 export { useKeybindRecorder } from "./form/keybindRecorder";
@@ -48,6 +50,7 @@ export {
 } from "./form/listNavigation";
 export type { OtpInputProps } from "./form/OtpInput";
 export { default as OtpInput } from "./form/OtpInput";
+export type { RelativeColor } from "./form/RelativeChannelRows";
 export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
 export type { SuggestionListProps } from "./form/SuggestionList";
@@ -68,6 +71,7 @@ export type { ConstrainedImageProps } from "./media/ConstrainedImage";
 export { default as ConstrainedImage } from "./media/ConstrainedImage";
 export { createMediaVolume } from "./media/createMediaVolume";
 export { default as Icon, ICON_NAMES, type IconName, isOneOf } from "./media/Icon";
+export { ImageLightbox } from "./media/ImageLightbox";
 export type { MediaFrameProps } from "./media/MediaFrame";
 export { default as MediaFrame } from "./media/MediaFrame";
 export { constrainMediaDimensions } from "./media/mediaDimensions";
@@ -85,7 +89,7 @@ export {
   type ConfirmDialogOptions,
   confirmDialog,
 } from "./overlay/ConfirmDialog";
-export { DebugInfoDialog, showDebugInfo } from "./overlay/DebugInfoDialog";
+export { CopyJsonButton, DebugInfoDialog, showDebugInfo } from "./overlay/DebugInfoDialog";
 export type {
   FloatingAlign,
   FloatingPanelProps,
@@ -95,6 +99,7 @@ export type {
 } from "./overlay/floating/FloatingPanel";
 export { default as FloatingPanel } from "./overlay/floating/FloatingPanel";
 export { default as HoverCard, type HoverCardProps } from "./overlay/HoverCard";
+export { default as JsonTree } from "./overlay/JsonTree";
 export {
   default as Modal,
   ModalCloseButton,
@@ -148,6 +153,7 @@ export {
   getColorFormula,
   getColorRef,
   getEffectiveColor,
+  isThemeColorCustom,
   registerThemeColors,
   resetThemeColor,
   setColorRef,

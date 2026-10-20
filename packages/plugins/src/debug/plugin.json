@@ -1,1 +1,1 @@
-{ "id": "debug", "name": "Debug tools", "requires": ["channels", "dms"] }
+{ "id": "debug", "name": "Debug tools", "requires": ["channels", "dms", "query", "users"] }

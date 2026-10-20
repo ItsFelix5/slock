@@ -1,5 +1,6 @@
 import type { BlockActionContext } from "@slock/blockkit";
-import { decodeTextEntities, LegacyAttachmentActions, Mrkdwn } from "@slock/blockkit";
+import { LegacyAttachmentActions, Mrkdwn } from "@slock/blockkit";
+import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
 import { MediaFrame } from "@slock/ui";
 import { Show } from "solid-js";

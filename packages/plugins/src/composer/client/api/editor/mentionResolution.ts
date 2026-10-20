@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import { createEffect, createSignal } from "solid-js";
 
 const usersStore = service("users");

@@ -50,7 +50,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       return <LinkToken label={el.text} url={el.url} />;
     case "emoji": {
       const unicode = el.unicode && hexCodepointsToEmoji(el.unicode);
-      return unicode ? <span class="emoji">{unicode}</span> : <EmojiText text={`:${el.name}:`} />;
+      return unicode ? (
+        <span class="emoji" data-emoji-name={el.name}>
+          {unicode}
+        </span>
+      ) : (
+        <EmojiText text={`:${el.name}:`} />
+      );
     }
     case "user":
       return el.user_id ? <Mention bold={el.style?.bold} id={el.user_id} kind="user" /> : null;
@@ -61,7 +67,11 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
     case "usergroup":
       return el.usergroup_id ? <UsergroupMention id={el.usergroup_id} /> : null;
     case "broadcast":
-      return <span class="bk-mention bk-mention-broadcast">@{el.range.split("|")[0]}</span>;
+      return (
+        <span class="bk-mention bk-mention-broadcast" data-broadcast={el.range.split("|")[0]}>
+          @{el.range.split("|")[0]}
+        </span>
+      );
     case "color":
       return (
         <span class="bk-color-swatch">
@@ -138,7 +148,11 @@ function RichTextListView(props: { list: RichTextListType }) {
       }
       when={props.list.style === "ordered"}
     >
-      <ol class="bk-rt-list" style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}>
+      <ol
+        class="bk-rt-list"
+        start={(props.list.offset ?? 0) + 1}
+        style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}
+      >
         <For each={props.list.elements}>
           {(item) => (
             <li>

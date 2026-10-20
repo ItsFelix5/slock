@@ -1,4 +1,4 @@
-import type { Op } from "quill";
+import type { Op } from "@slock/ui/editor/quill";
 import { escapeCanvasHtml } from "../../protocol/api";
 
 export type EmbedValue = Record<string, unknown>;
@@ -25,17 +25,15 @@ const SERIALIZED_MARKS = [
   ["bold", "b"],
 ] as const;
 
-const QUOTE_RE = /"/g;
-const SPACE_RE = / /g;
-const NBSP_RE = /\u00a0/g;
+const NBSP = "\u00a0";
 
 function escapeAttribute(text: string): string {
-  return escapeCanvasHtml(text).replace(QUOTE_RE, "&quot;");
+  return escapeCanvasHtml(text).replaceAll('"', "&quot;");
 }
 
 function pushText(ops: Op[], text: string, marks: Record<string, unknown>, code: boolean) {
   if (!text) return;
-  const insert = code ? text.replace(NBSP_RE, " ") : text;
+  const insert = code ? text.replaceAll(NBSP, " ") : text;
   ops.push(Object.keys(marks).length > 0 ? { attributes: { ...marks }, insert } : { insert });
 }
 
@@ -96,8 +94,8 @@ export function opsToHtml(ops: Op[], serializeEmbed: EmbedSerializer, code: bool
   let html = "";
   for (const op of ops) {
     if (typeof op.insert === "string") {
-      const text = code ? op.insert.replace(SPACE_RE, "\u00a0") : op.insert;
-      html += wrapText(text, op.attributes ?? {}).replace(NBSP_RE, "&nbsp;");
+      const text = code ? op.insert.replaceAll(" ", NBSP) : op.insert;
+      html += wrapText(text, op.attributes ?? {}).replaceAll(NBSP, "&nbsp;");
     } else if (op.insert) {
       html += serializeEmbed(op.insert) ?? "";
     }

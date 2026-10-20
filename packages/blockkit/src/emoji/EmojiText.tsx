@@ -1,6 +1,6 @@
+import { decodeTextEntities } from "@slock/slack";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { useEmojiFreeze } from "../context";
-import { decodeTextEntities } from "../entities";
 import { EMOJI_TOKEN_RE, resolveStandardEmoji } from "./emoji";
 import { emojiAliasTarget, emojiUrl, loadCustomEmoji } from "./emojiCache";
 import "./EmojiText.css";
@@ -26,7 +26,12 @@ function StillEmojiImg(props: { name: string; url: string; onError?: () => void 
   createEffect(() => {
     const { url } = props;
     const img = new Image();
-    img.onload = () => canvas?.getContext("2d")?.drawImage(img, 0, 0, 40, 40);
+    img.onload = () => {
+      const scale = Math.min(40 / img.naturalWidth, 40 / img.naturalHeight);
+      const width = img.naturalWidth * scale;
+      const height = img.naturalHeight * scale;
+      canvas?.getContext("2d")?.drawImage(img, (40 - width) / 2, (40 - height) / 2, width, height);
+    };
     img.onerror = () => props.onError?.();
     img.src = url;
   });
@@ -74,7 +79,9 @@ export default function EmojiText(props: { text: string }) {
           <Show
             fallback={
               unicode() ? (
-                <span class="emoji">{unicode()}</span>
+                <span class="emoji" data-emoji-name={part.name}>
+                  {unicode()}
+                </span>
               ) : loading() ? (
                 <span class="emoji-img emoji-placeholder" data-emoji-name={part.name} />
               ) : (

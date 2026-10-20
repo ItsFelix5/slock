@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from "@slock/slack";
-import type { AttachmentAction, RawBot } from "@slock/types";
+import type { AttachmentAction, Option, OptionGroup, RawBot } from "@slock/types";
+import type { BlockActionContext } from "./BlockKit";
 
 async function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
   const data = await apiGet<{ bot: RawBot }>(`/api/bots/${botId}`);
@@ -7,21 +8,42 @@ async function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null>
   return data.bot.app_id ? { appId: data.bot.app_id } : null;
 }
 
+export function containerOf(ctx: BlockActionContext) {
+  return ctx.view
+    ? { type: "view", view_id: ctx.view.id }
+    : {
+        channel_id: ctx.channelId,
+        is_ephemeral: false,
+        message_ts: ctx.messageTs,
+        type: "message",
+      };
+}
+
+export async function fetchExternalOptions(
+  ctx: BlockActionContext,
+  params: { actionId: string; blockId?: string; value: string },
+) {
+  if (!ctx.botId) throw new Error("This menu needs its app");
+  const appId = ctx.appId ?? (await fetchBotAppInfo(ctx.botId))?.appId;
+  if (!appId) throw new Error("Couldn't resolve the app behind this menu");
+  const data = await apiPost<{ option_groups?: OptionGroup[]; options?: Option[] }>(
+    "/api/blocks/suggestions",
+    { ...params, appId, botId: ctx.botId, container: containerOf(ctx) },
+  );
+  if (!data.ok) throw new Error(data.error ?? "blocks.suggestions failed");
+  return { groups: data.option_groups, options: data.options };
+}
+
 export async function runBlockAction(params: {
   action: Record<string, unknown>;
+  appId?: string;
   botId: string;
-  channelId: string;
-  messageTs: string;
+  container: Record<string, unknown>;
+  state?: unknown;
 }): Promise<void> {
-  const botInfo = await fetchBotAppInfo(params.botId);
-  if (!botInfo) throw new Error("Couldn't resolve the app behind this button");
-  const data = await apiPost("/api/blocks/actions", {
-    action: params.action,
-    appId: botInfo.appId,
-    botId: params.botId,
-    channelId: params.channelId,
-    messageTs: params.messageTs,
-  });
+  const appId = params.appId ?? (await fetchBotAppInfo(params.botId))?.appId;
+  if (!appId) throw new Error("Couldn't resolve the app behind this button");
+  const data = await apiPost("/api/blocks/actions", { ...params, appId });
   if (!data.ok) throw new Error(data.error ?? "blocks.actions failed");
 }
 

@@ -93,12 +93,16 @@ export function createLaterSlice() {
     }
     const resolved = new Set<string>();
     try {
-      const messages = await fetchMessagesByIds(pending, (batch) => {
-        for (const [key, message] of batch) {
-          resolved.add(key);
-          setLaterMessages(key, message);
-        }
-      });
+      const messages = await fetchMessagesByIds(
+        pending,
+        (batch) => {
+          for (const [key, message] of batch) {
+            resolved.add(key);
+            setLaterMessages(key, message);
+          }
+        },
+        force,
+      );
       for (const item of pending) {
         const key = laterKey(item.channelId, item.ts);
         setLaterMessages(key, messages.get(key) ?? null);

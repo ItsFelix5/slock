@@ -13,7 +13,7 @@
   border-radius: var(--radius-md);
 }
 
-.settings-section > .settings-row-label:first-child {
+.settings-section-title {
   padding-top: calc(12px + var(--row-padding-offset));
   margin-bottom: 10px;
   font-size: var(--font-size-meta);

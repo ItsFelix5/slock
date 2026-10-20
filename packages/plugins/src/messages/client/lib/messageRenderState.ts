@@ -36,6 +36,7 @@ export interface MessageNeighborContext {
 
 export interface MessageNeighborState {
   dayChanged: boolean;
+  repliesCount: number;
   repliesDividerDay: string | undefined;
   sameAuthorAsPrev: boolean;
   showMessage: boolean;
@@ -106,11 +107,12 @@ export function resolveMessageNeighbors(
   const isFirstReply = !!context.threadTs && !!prev && prev.ts === context.threadTs;
   const dayChangedRaw = isThreadRoot ? message.day !== "Today" : !prev || prev.day !== message.day;
   const dayChanged = isThreadRoot || isFirstReply ? false : dayChangedRaw;
-  const showRepliesDivider = isThreadRoot && !prev && (message.replyCount ?? 0) > 0;
-  const messages = showRepliesDivider ? context.messages() : [];
-  const firstReply = showRepliesDivider
-    ? messages[messages.findIndex((candidate) => candidate.ts === message.ts) + 1]
-    : undefined;
+  const isFirstRow = isThreadRoot && !prev;
+  const messages = isFirstRow ? context.messages() : [];
+  const rootIndex = messages.findIndex((candidate) => candidate.ts === message.ts);
+  const repliesCount = Math.max(message.replyCount ?? 0, messages.length - rootIndex - 1);
+  const showRepliesDivider = isFirstRow && repliesCount > 0;
+  const firstReply = showRepliesDivider ? messages[rootIndex + 1] : undefined;
   const repliesDividerDay =
     firstReply && firstReply.day !== message.day ? firstReply.day : undefined;
   const showUnreadDivider =
@@ -131,6 +133,7 @@ export function resolveMessageNeighbors(
 
   return {
     dayChanged,
+    repliesCount,
     repliesDividerDay,
     sameAuthorAsPrev,
     showMessage: !message.deleted || context.showDeleted,

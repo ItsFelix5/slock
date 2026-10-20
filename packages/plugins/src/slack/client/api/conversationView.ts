@@ -69,7 +69,7 @@ async function loadConversationView(channelId: string): Promise<ConversationView
 }
 
 export function fetchConversationView(channelId: string): Promise<ConversationViewData> {
-  return query.client.fetchQuery({
+  return query.client.query({
     queryFn: () => loadConversationView(channelId),
     queryKey: conversationViewKey(channelId),
     staleTime: DEDUPE_WINDOW_MS,

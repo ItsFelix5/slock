@@ -1,0 +1,6 @@
+{
+  "id": "unread-threads",
+  "core": true,
+  "name": "Unread threads",
+  "requires": ["activity", "message-links"]
+}

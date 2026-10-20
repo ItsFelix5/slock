@@ -4,11 +4,12 @@ import {
   apiPatch,
   apiPost,
   getWorkspaceDomain,
+  mapAttachment,
   mapMessage,
   mapVisibleMessage,
   mapVisibleMessages,
 } from "@slock/slack";
-import type { Message, PinnedMessage, RawMessage, SearchResult } from "@slock/types";
+import type { Message, PinnedMessage, RawAttachment, RawMessage, SearchResult } from "@slock/types";
 
 export { fetchHistory, fetchHistoryAround, fetchHistoryNewer } from "./messageHistory";
 
@@ -68,18 +69,25 @@ export async function fetchPermalinkMessage(
   return raw && mapVisibleMessage(raw);
 }
 
+export async function fetchLinkPreview(channelId: string, url: string) {
+  const data = await apiPost<{ attachment?: RawAttachment }>(`/api/channels/${channelId}/unfurl`, {
+    url,
+  });
+  if (!data.ok) throw new Error(data.error ?? "chat.unfurlLink failed");
+  return data.attachment && mapAttachment(data.attachment);
+}
+
 export async function postMessage(
   channelId: string,
   text: string,
+  unfurl: string[],
   threadTs?: string,
   blocks?: unknown,
-  suppressUnfurl?: boolean,
   fileIds?: string[],
 ) {
-  const body: Record<string, unknown> = { text };
+  const body: Record<string, unknown> = { text, unfurl };
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
-  if (suppressUnfurl) body.suppressUnfurl = true;
   if (fileIds?.length) body.fileIds = fileIds;
   const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
@@ -96,14 +104,13 @@ const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
 export async function postBroadcastMessage(
   channelId: string,
   text: string,
+  unfurl: string[],
   threadTs?: string,
   blocks?: unknown,
-  suppressUnfurl?: boolean,
 ) {
-  const body: Record<string, unknown> = { text };
+  const body: Record<string, unknown> = { text, unfurl };
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
-  if (suppressUnfurl) body.suppressUnfurl = true;
   const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages/broadcast`, body);
   if (!data.ok) {
     throw new Error(
@@ -147,6 +154,13 @@ export async function deleteMessage(channelId: string, ts: string, relayed?: boo
   );
   if (!data.ok) throw new Error(data.error ?? "chat.delete failed");
   return data;
+}
+
+export async function deleteAttachment(channelId: string, ts: string, attachmentId: number) {
+  const data = await apiDelete(
+    `/api/channels/${channelId}/messages/${ts}/attachments/${attachmentId}`,
+  );
+  if (!data.ok) throw new Error(data.error ?? "chat.deleteAttachment failed");
 }
 
 export async function toggleReaction(channelId: string, ts: string, name: string, remove: boolean) {

@@ -1,0 +1,68 @@
+.json-tree {
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-size-meta);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.json-tree-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+
+summary.json-tree-row {
+  cursor: pointer;
+}
+
+.json-tree-row:hover {
+  background: var(--hover-bg);
+}
+
+.json-tree-children {
+  margin-left: var(--space-sm);
+  padding-left: var(--space-md);
+  border-left: 1px solid var(--border);
+}
+
+.json-tree-key {
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.json-tree-summary {
+  color: var(--text-dim);
+}
+
+.json-tree-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mention-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.json-tree-value {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.json-tree-string {
+  color: var(--presence-active);
+}
+
+.json-tree-number,
+.json-tree-bigint {
+  color: var(--warning);
+}
+
+.json-tree-boolean {
+  color: var(--accent);
+}
+
+.json-tree-null,
+.json-tree-undefined {
+  color: var(--text-dim);
+}

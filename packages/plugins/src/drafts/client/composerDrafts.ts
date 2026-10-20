@@ -1,3 +1,4 @@
+import { blockPreviewText } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { deleteDraft, saveDraft } from "../../slack/client/api";
@@ -17,11 +18,10 @@ export function createComposerDraftState(opts: {
   channelId: () => string | undefined;
   editing: () => boolean;
   key: () => string | undefined;
-  loadIntoEditor: (text: string, blocks?: Block[]) => void;
+  blocks: () => Block[];
+  loadIntoEditor: (blocks: Block[]) => void;
+  ready: () => boolean;
   resetPreviews: () => void;
-  setText: (text: string) => void;
-  text: () => string;
-  blocks?: () => Block[] | undefined;
   threadTs: () => string | undefined;
 }) {
   const [activeDraftId, setActiveDraftId] = createSignal<string | undefined>(undefined);
@@ -37,8 +37,7 @@ export function createComposerDraftState(opts: {
   function runSave(
     channelId: string,
     threadTs: string | undefined,
-    text: string,
-    blocks: Block[] | undefined,
+    blocks: Block[],
     startId: string | undefined,
     startCmid: string | undefined,
     generation: number,
@@ -49,7 +48,7 @@ export function createComposerDraftState(opts: {
       .catch(() => {})
       .then(async () => {
         if (!(await hydrateDrafts())) throw new Error("Draft hydration failed");
-        if (!text.trim()) {
+        if (!blockPreviewText(blocks).trim()) {
           if (startId) {
             await deleteDraft(startId);
             removeEntry(key, startId);
@@ -62,13 +61,12 @@ export function createComposerDraftState(opts: {
         const knownTs = startId
           ? drafts[key]?.find((e) => e.id === startId)?.lastUpdatedTs
           : undefined;
-        const result = await saveDraft(channelId, threadTs, text, blocks, startId, cmid, knownTs);
+        const result = await saveDraft(channelId, threadTs, blocks, startId, cmid, knownTs);
         upsertEntry(key, {
           blocks,
           clientMsgId: cmid,
           id: result.id,
           lastUpdatedTs: result.lastUpdatedTs,
-          text,
         });
         const apply = generation === sessionGeneration && activeDraftId() === startId;
         if (apply) {
@@ -89,6 +87,11 @@ export function createComposerDraftState(opts: {
     return next;
   }
 
+  function currentClientMsgId(): string {
+    clientMsgId ??= crypto.randomUUID();
+    return clientMsgId;
+  }
+
   function flush(): Promise<void> {
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -99,10 +102,9 @@ export function createComposerDraftState(opts: {
     return runSave(
       channelId,
       opts.threadTs(),
-      opts.text(),
-      opts.blocks?.(),
+      opts.blocks(),
       activeDraftId(),
-      clientMsgId,
+      currentClientMsgId(),
       sessionGeneration,
     );
   }
@@ -136,52 +138,43 @@ export function createComposerDraftState(opts: {
   });
 
   createEffect(() => {
-    if (opts.editing() || !draftsReady()) return;
+    if (opts.editing() || !opts.ready() || !draftsReady()) return;
     const key = opts.key();
     const id = activeDraftId();
     const token = `${key}::${id ?? "new"}`;
     if (token === loadedFor) return;
     loadedFor = token;
     const entry = key && id ? drafts[key]?.find((e) => e.id === id) : undefined;
-    opts.setText(entry?.text ?? "");
-    opts.loadIntoEditor(entry?.text ?? "", entry?.blocks);
+    opts.loadIntoEditor(entry?.blocks ?? []);
     opts.resetPreviews();
   });
 
   createEffect(() => {
-    if (opts.editing() || !draftsReady()) return;
+    if (opts.editing() || !opts.ready() || !draftsReady()) return;
     const key = opts.key();
     const channelId = opts.channelId();
     if (!(key && channelId)) return;
     const id = activeDraftId();
     const token = `${key}::${id ?? "new"}`;
-    const value = opts.text();
-    const blocks = opts.blocks?.();
+    const blocks = opts.blocks();
+    const empty = !blockPreviewText(blocks).trim();
 
     const skip = token !== persistedFor;
     persistedFor = token;
     if (skip) return;
 
-    if (value.trim() && id) {
-      upsertEntry(key, { blocks, clientMsgId: clientMsgId ?? "", id, text: value });
-    } else if (!value.trim() && id) {
+    if (!empty && id) {
+      upsertEntry(key, { blocks, clientMsgId: clientMsgId ?? "", id });
+    } else if (empty && id) {
       removeEntry(key, id);
     }
 
-    const scheduledCmid = clientMsgId;
+    const scheduledCmid = currentClientMsgId();
     const scheduledGeneration = sessionGeneration;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = undefined;
-      void runSave(
-        channelId,
-        opts.threadTs(),
-        value,
-        blocks,
-        id,
-        scheduledCmid,
-        scheduledGeneration,
-      );
+      void runSave(channelId, opts.threadTs(), blocks, id, scheduledCmid, scheduledGeneration);
     }, 1000);
   });
 
@@ -193,21 +186,32 @@ export function createComposerDraftState(opts: {
     activeDraftId,
     async clearAfterSend(pendingFiles: { clear: (key: string) => void }) {
       sessionGeneration += 1;
+      const sentClientMsgId = clientMsgId;
       clientMsgId = undefined;
       const channelId = opts.channelId();
-      const key = channelId ? draftCacheKey(channelId, opts.threadTs()) : undefined;
-      if (key) pendingFiles.clear(key);
+      if (!channelId) return;
+      const key = draftCacheKey(channelId, opts.threadTs());
+      pendingFiles.clear(key);
       if (saveTimer) {
         clearTimeout(saveTimer);
         saveTimer = undefined;
       }
-      const id = activeDraftId();
-      if (!(key && id)) return;
-      removeEntry(key, id);
+      const activeId = activeDraftId();
+      if (activeId) removeEntry(key, activeId);
+      loadedFor = `${key}::new`;
       setActiveDraftId(undefined);
       saveQueue = saveQueue
         .catch(() => {})
-        .then(() => deleteDraft(id))
+        .then(async () => {
+          const ids = new Set(
+            (drafts[key] ?? []).filter((e) => e.clientMsgId === sentClientMsgId).map((e) => e.id),
+          );
+          if (activeId) ids.add(activeId);
+          for (const id of ids) {
+            await deleteDraft(id);
+            removeEntry(key, id);
+          }
+        })
         .catch(() => {});
       await saveQueue;
     },

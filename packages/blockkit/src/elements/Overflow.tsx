@@ -1,10 +1,11 @@
 import type { OverflowElement } from "@slock/types";
-import { confirmDialog, Icon, Menu } from "@slock/ui";
+import { Icon, Menu } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import { useBlockActionDispatch } from "../useBlockActionDispatch";
 import "./Controls.css";
+import { optionPayload } from "./options";
 
 export default function Overflow(props: {
   blockId?: string;
@@ -16,37 +17,26 @@ export default function Overflow(props: {
     () => props.context,
   );
 
-  const selectOption = async (opt: OverflowElement["options"][number]) => {
+  const selectOption = (opt: OverflowElement["options"][number]) => {
     if (opt.url) {
       setOpen(false);
       window.open(opt.url, "_blank", "noopener,noreferrer");
       return;
-    }
-    if (props.el.confirm) {
-      const c = props.el.confirm;
-      const ok = await confirmDialog({
-        cancelLabel: c.deny.text,
-        confirmLabel: c.confirm.text,
-        danger: c.style === "danger",
-        message: c.text.text,
-        title: c.title.text,
-      });
-      if (!ok) return;
     }
     if (!canDispatch(props.el.action_id)) {
       flashUnsupported();
       return;
     }
     setOpen(false);
-    dispatch({
-      action_id: props.el.action_id,
-      block_id: props.blockId,
-      selected_option: {
-        text: opt.text,
-        ...(opt.value === undefined ? {} : { value: opt.value }),
+    dispatch(
+      {
+        action_id: props.el.action_id,
+        block_id: props.blockId,
+        selected_option: optionPayload(opt),
+        type: "overflow",
       },
-      type: "overflow",
-    });
+      props.el.confirm,
+    );
   };
 
   return (
@@ -64,7 +54,7 @@ export default function Overflow(props: {
           }
           type="button"
         >
-          <Icon name="ellipsis-vertical-filled" size={16} />
+          <Icon name="ellipsis-horizontal-filled" size={16} />
         </button>
       }
     >

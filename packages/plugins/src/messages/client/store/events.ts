@@ -25,13 +25,11 @@ export function createMessageEvents(
     insertMessageInOrder: messages.realtimeHooks.insertMessageInOrder,
     isChannelMember: channels.isChannelMember,
     isThreadKnown: messages.isThreadKnown,
-    isThreadVisible: (ts) => messages.visibleThreads().some((thread) => thread.ts === ts),
     loadedChannels: messages.loadedChannels,
     mergeIncomingMessage: messages.realtimeHooks.mergeIncomingMessage,
     patchChannel: channels.patchChannel,
     patchMessage: messages.patchMessage,
     markDeleted: messages.markDeleted,
-    removeMessage: messages.removeMessage,
     setClosedDmIds: dms.setClosedDmIds,
     setMessagesByChannel: messages.setMessagesByChannel,
     setThreadMessages: messages.setThreadMessages,
@@ -52,12 +50,6 @@ export function createMessageEvents(
         event.user,
         event.type === "reaction_added",
       );
-    }),
-    gatewayHandler(["thread_marked"], (event) => {
-      if (event.channel && event.thread_ts && typeof event.unread_count === "number")
-        messages.patchMessage(event.channel, event.thread_ts, {
-          hasUnreadReplies: event.unread_count > 0,
-        });
     }),
     gatewayHandler(["thread_subscribed", "thread_unsubscribed"], (event) => {
       if (event.channel && event.thread_ts)

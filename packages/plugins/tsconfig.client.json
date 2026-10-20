@@ -9,7 +9,8 @@
     "src/*/protocol/**/*",
     "src/*/contract.ts",
     "../../types/css.d.ts",
-    "../../types/importMeta.d.ts"
+    "../../types/importMeta.d.ts",
+    "../../types/text.d.ts"
   ],
   "references": [
     { "path": "../core" },

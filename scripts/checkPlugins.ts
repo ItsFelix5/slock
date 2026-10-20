@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PLUGINS_DIR = join(import.meta.dir, "../packages/plugins/src");
-const DEBT_FILE = join(import.meta.dir, "pluginDebt.json");
 const SOURCE = /\.(ts|tsx)$/;
 const IMPORT = /(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']*)["']/g;
 const SERVICE_USE = /(?:\bservice|ctx\.get|ctx\.maybe)\(\s*["']([^"']+)["']/g;
@@ -17,7 +16,6 @@ const LIBRARY_PACKAGES = ["core", "ui", "blockkit", "slack", "types"];
 const GATEWAY_EVENTS_FILE = join(import.meta.dir, "../packages/types/src/gatewayEvents.ts");
 const INTERNAL_EVENTS = new Set(["_status"]);
 const fix = Bun.argv.includes("--fix");
-const list = Bun.argv.includes("--list");
 
 type Manifest = { id: string; requires?: string[]; provides?: string[] };
 
@@ -44,7 +42,6 @@ for (const [id, manifest] of manifests) {
 
 const errors: string[] = [];
 const handledEvents = new Set<string>();
-let debt = 0;
 let overlong = 0;
 let shortFiles = 0;
 
@@ -77,8 +74,7 @@ for (const [id, manifest] of manifests) {
       const [targetId] = target;
       if (!(targetId && manifests.has(targetId)) || targetId === id) continue;
       if (target.slice(1).some((segment) => PUBLIC_NAMES.has(segment))) continue;
-      debt++;
-      if (list) console.log(`${file.slice(PLUGINS_DIR.length + 1)} -> ${target.join("/")}`);
+      errors.push(`${file.slice(PLUGINS_DIR.length + 1)} imports ${target.join("/")}`);
     }
   }
   const missing = [...used].filter((owner) => {
@@ -157,18 +153,8 @@ for (const side of ["client", "server"] as const) {
   if (cycle) errors.push(`requires cycle: ${cycle}`);
 }
 
-const limit: { crossPluginImports: number } = existsSync(DEBT_FILE)
-  ? JSON.parse(readFileSync(DEBT_FILE, "utf8"))
-  : { crossPluginImports: Number.POSITIVE_INFINITY };
-if (debt > limit.crossPluginImports) {
-  errors.push(`imports of other plugins grew from ${limit.crossPluginImports} to ${debt}`);
-}
-if (debt < limit.crossPluginImports) {
-  writeFileSync(DEBT_FILE, `${JSON.stringify({ crossPluginImports: debt }, null, 2)}\n`);
-}
-
 console.log(
-  `plugins: ${manifests.size}, imports of other plugins: ${debt}, files over 300 lines: ${overlong}, under 15: ${shortFiles}`,
+  `plugins: ${manifests.size}, files over 300 lines: ${overlong}, under 15: ${shortFiles}`,
 );
 if (errors.length > 0) {
   console.error(errors.join("\n"));

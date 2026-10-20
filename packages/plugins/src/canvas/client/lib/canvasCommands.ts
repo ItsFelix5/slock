@@ -1,5 +1,5 @@
 import type { IconName } from "@slock/ui";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import type { CommandSuggestItem } from "../../../composer/client/api/editor/suggestTypes";
 import { CALLOUT_COLORS, DEFAULT_CALLOUT_COLOR } from "./canvasCallouts";
 import { COLUMNS_EMBED, DIVIDER_EMBED, IMAGE_EMBED, TABLE_EMBED } from "./canvasEmbedValues";

@@ -39,13 +39,21 @@ import { Plan, TaskCard } from "./blocks/TaskCard";
 import Video from "./blocks/Video";
 import ElementRenderer from "./elements/ElementRenderer";
 import EmojiText from "./emoji/EmojiText";
+import type { ViewState } from "./viewState";
 
 export interface BlockActionContext {
+  appId?: string;
   botId?: string;
   botUserId?: string;
-  channelId: string;
-  messageTs: string;
+  channelId?: string;
+  messageTs?: string;
   threadTs?: string;
+  view?: {
+    blocks: () => Block[];
+    errors: () => Record<string, string>;
+    id: string;
+    state: ViewState;
+  };
 }
 
 function Divider() {

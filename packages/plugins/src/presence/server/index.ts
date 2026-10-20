@@ -27,6 +27,21 @@ function presenceRoutes(seen: () => PresenceSeen[]): Route[] {
       return jsonResponse({ ok: true, presence: Object.fromEntries(entries) }, ctx.creds);
     }),
 
+    route("POST", "presence/activity", async (ctx) => {
+      const current = await callSlack<{ manual_away?: boolean; presence?: string }>(
+        "users.getPresence",
+        {},
+        ctx.creds,
+      );
+      if (!current.ok) return errorResponse(current.error, 502);
+      const activate = current.presence === "away" && !current.manual_away;
+      if (activate) {
+        const set = await callSlack("users.setPresence", { presence: "auto" }, ctx.creds);
+        if (!set.ok) return errorResponse(set.error, 502);
+      }
+      return jsonResponse({ activated: activate, ok: true }, ctx.creds);
+    }),
+
     route("PUT", "presence", async (ctx) => {
       const { presence } = await ctx.body.json<{
         presence?: "auto" | "away";

@@ -98,5 +98,3 @@ export function createRegistry(reactive: Reactive) {
 
   return { add, items, owned, provide, removeOwner, service };
 }
-
-export type Registry = ReturnType<typeof createRegistry>;

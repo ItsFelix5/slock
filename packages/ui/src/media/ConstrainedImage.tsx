@@ -1,3 +1,4 @@
+import type { JSX } from "solid-js";
 import ZoomableImage, { type ZoomableImageItem } from "./ZoomableImage";
 
 export interface ConstrainedImageProps {
@@ -9,6 +10,7 @@ export interface ConstrainedImageProps {
   gallery?: ZoomableImageItem[];
   galleryIndex?: number;
   height: number;
+  overlay?: JSX.Element;
   src: string;
   width: number;
 }
@@ -23,6 +25,7 @@ export default function ConstrainedImage(props: ConstrainedImageProps) {
       fullSrc={props.fullSrc}
       gallery={props.gallery}
       galleryIndex={props.galleryIndex}
+      overlay={props.overlay}
       reservedHeight={props.height}
       reservedWidth={props.width}
       src={props.src}

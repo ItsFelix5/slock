@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
 import type { CanvasLine, CanvasNode } from "@slock/types";
-import type { Op } from "quill";
+import type { Op } from "@slock/ui/editor/quill";
 import type { DiffEntry } from "../../protocol/api";
 import { type CanvasDocModel, nodesToOps, type OpsView } from "./canvasDelta";
 import type { CanvasNames } from "./canvasEmbeds";

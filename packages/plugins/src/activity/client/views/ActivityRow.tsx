@@ -86,7 +86,6 @@ export default function ActivityRow(props: {
     const item = latest();
     if (!item.channelId) return;
     setCurrentRowKey(props.row.key);
-    props.onSeen(props.row.items);
     if (item.activityType === "quietly_added_to_channel") {
       viewStore.setActiveView({ id: item.channelId, kind: "channel" });
       return;
@@ -95,7 +94,6 @@ export default function ActivityRow(props: {
   };
 
   const openThreadTs = (ts: string) => {
-    props.onSeen(props.row.items);
     messageLinks.openChannelPeek(latest().channelId, threadTs(), ts);
   };
 
@@ -103,14 +101,12 @@ export default function ActivityRow(props: {
     const item = latest();
     if (!item.channelId) return;
     setCurrentRowKey(props.row.key);
-    props.onSeen(props.row.items);
     if (item.threadTs)
       messageLinks.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });
     else openConversationInSplit(item.channelId, item.ts);
   };
 
   const openThreadInSplit = (ts: string) => {
-    props.onSeen(props.row.items);
     messageLinks.openThread(latest().channelId, threadTs(), ts, { pinned: true });
   };
 
@@ -140,7 +136,6 @@ export default function ActivityRow(props: {
         classList={{
           "activity-item-thread": isThreadGroup(),
           active: currentRowKey() === props.row.key,
-          archived: isArchived(),
           pinging: isPinging(),
           unread: isUnread(),
         }}

@@ -142,6 +142,20 @@ export function ImageLightbox(props: {
         iconSize={18}
         onClick={props.onClose}
       />
+      <Show when={image().onInfo}>
+        {(onInfo) => (
+          <IconButton
+            class="panel-close-btn floating zoomable-image-info"
+            icon="info"
+            iconSize={18}
+            label="File info"
+            onClick={() => {
+              props.onClose();
+              onInfo()();
+            }}
+          />
+        )}
+      </Show>
       <Show when={props.gallery.length > 1}>
         <button
           aria-label="Previous image"

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
 import Icon from "./Icon";
 import { ImageLightbox } from "./ImageLightbox";
 import { constrainMediaDimensions } from "./mediaDimensions";
@@ -6,6 +6,7 @@ import "./ZoomableImage.css";
 
 export interface ZoomableImageItem {
   alt?: string;
+  onInfo?: () => void;
   src: string;
 }
 
@@ -15,6 +16,7 @@ export interface ZoomableImageProps {
   fullSrc?: string;
   gallery?: ZoomableImageItem[];
   galleryIndex?: number;
+  overlay?: JSX.Element;
   reservedHeight: number;
   reservedWidth: number;
   src: string;
@@ -66,39 +68,43 @@ export default function ZoomableImage(props: ZoomableImageProps) {
 
   return (
     <>
-      <button
-        aria-label={props.alt ? `Open image preview: ${props.alt}` : "Open image preview"}
-        class="zoomable-image-trigger"
-        onClick={openPreview}
-        style={{
-          "aspect-ratio": `${box().width} / ${box().height}`,
-          width: `min(${box().width}px, 100%)`,
-          "background-position": "center",
-          "background-size": "cover",
-          "background-image": props.blurSrc ? `url(${props.blurSrc})` : undefined,
-        }}
-        type="button"
-      >
-        <Show
-          fallback={
-            <span class="zoomable-image-unavailable flex-col gap-sm zoomable-image-unavailable-framed fill">
-              <Icon name="image-broken" size={22} />
-              <span>Preview unavailable</span>
-            </span>
-          }
-          when={!previewFailed()}
+      <div class="zoomable-image-frame" style={{ width: `min(${box().width}px, 100%)` }}>
+        <button
+          aria-label={props.alt ? `Open image preview: ${props.alt}` : "Open image preview"}
+          class="zoomable-image-trigger"
+          onClick={openPreview}
+          style={{
+            "aspect-ratio": `${box().width} / ${box().height}`,
+            "background-position": "center",
+            "background-size": "cover",
+            "background-image": props.blurSrc ? `url(${props.blurSrc})` : undefined,
+          }}
+          type="button"
         >
-          <img
-            alt={props.alt}
-            class={`zoomable-image zoomable-image-framed fill ${props.class ?? ""}`}
-            decoding="async"
-            loading="lazy"
-            onError={() => setPreviewFailed(true)}
-            onLoad={(e) => fitToLoadedImage(e.currentTarget)}
-            src={props.src}
-          />
+          <Show
+            fallback={
+              <span class="zoomable-image-unavailable flex-col gap-sm zoomable-image-unavailable-framed fill">
+                <Icon name="image-broken" size={22} />
+                <span>Preview unavailable</span>
+              </span>
+            }
+            when={!previewFailed()}
+          >
+            <img
+              alt={props.alt}
+              class={`zoomable-image zoomable-image-framed fill ${props.class ?? ""}`}
+              decoding="async"
+              loading="lazy"
+              onError={() => setPreviewFailed(true)}
+              onLoad={(e) => fitToLoadedImage(e.currentTarget)}
+              src={props.src}
+            />
+          </Show>
+        </button>
+        <Show when={props.overlay}>
+          <div class="zoomable-image-overlay">{props.overlay}</div>
         </Show>
-      </button>
+      </div>
       <Show when={open()}>
         <ImageLightbox
           gallery={gallery()}

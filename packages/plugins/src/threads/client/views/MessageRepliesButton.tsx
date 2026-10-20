@@ -5,6 +5,7 @@ import { Show } from "solid-js";
 import type { OpenThreadHandler } from "../../../messages/client/api/messageFocus";
 import { formatInteractorNames } from "../../../users/client/api";
 
+const unreadStore = service("unread");
 const usersStore = service("users");
 
 export default function MessageRepliesButton(props: {
@@ -38,7 +39,7 @@ export default function MessageRepliesButton(props: {
           </Tooltip>
         )}
       </Show>
-      <Show when={props.msg.hasUnreadReplies}>
+      <Show when={unreadStore.isThreadUnread(props.msg)}>
         <span class="message-replies-unread" />
       </Show>
       <span class="message-replies-count">

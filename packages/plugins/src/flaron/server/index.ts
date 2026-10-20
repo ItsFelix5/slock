@@ -3,10 +3,17 @@ import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse
 import { route, routes } from "../../slack/server/api/router";
 import { lookupFlaronChannel, reportFlaronChannelNames } from "./lookup";
 
+const MAX_NAMES = 200;
+const isChannelName = (name: unknown): name is string =>
+  typeof name === "string" && name.length <= 80;
+
 const reportRoutes = [
   route("POST", "channels/flaron-report", async (ctx) => {
-    const { names } = await ctx.body.json<{ names?: string[] }>();
-    if (!names?.length) return errorResponse("invalid_names", 400);
+    if (!ctx.creds) return errorResponse("not configured", 401);
+    const { names } = await ctx.body.json<{ names?: unknown[] }>();
+    if (!(names?.length && names.length <= MAX_NAMES && names.every(isChannelName))) {
+      return errorResponse("invalid_names", 400);
+    }
     await reportFlaronChannelNames(names);
     return jsonResponse({ ok: true }, ctx.creds);
   }),

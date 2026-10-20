@@ -1,9 +1,11 @@
 import { focusedPaneId, focusPaneById, useEscapeClose, useShortcut } from "@slock/ui";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 
 export function useComposerShortcuts(deps: {
+  dismissPreviews: () => void;
   editing: () => boolean;
   focusEditor: () => void;
+  hasPreviews: () => boolean;
   paneId: () => string | undefined;
   quill: () => Quill | undefined;
   toggleDrafts: () => void;
@@ -25,6 +27,16 @@ export function useComposerShortcuts(deps: {
     handler: deps.toggleDrafts,
     id: "composer.drafts",
     label: "Browse saved drafts",
+    scope: "composer",
+    group: "Message box",
+  });
+  useShortcut({
+    allowInInputs: true,
+    combo: { alt: true, key: "p", mod: true },
+    enabled: () => paneFocused() && deps.hasPreviews(),
+    handler: deps.dismissPreviews,
+    id: "composer.dismissPreviews",
+    label: "Remove link previews",
     scope: "composer",
     group: "Message box",
   });

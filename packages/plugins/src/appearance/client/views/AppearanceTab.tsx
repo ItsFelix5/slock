@@ -15,6 +15,7 @@ import {
   getEffectiveColor,
   Icon,
   IconButton,
+  isThemeColorCustom,
   resetThemeColor,
   Slider,
   setColorRef,
@@ -44,6 +45,7 @@ function ThemeColorField(props: { color: ThemeColorDefinition }) {
   return (
     <ColorField
       displayValue={getColorFormula(key())}
+      isCustom={isThemeColorCustom(key())}
       label={props.color.label}
       onChange={(value) => setThemeColors({ [key()]: value })}
       onReset={() => resetThemeColor(key())}
@@ -106,7 +108,7 @@ export default function AppearanceTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Font</div>
+        <div class="settings-section-title">Font</div>
         <div class="settings-preset-group">
           <For each={FONT_PRESETS}>
             {(preset) => (
@@ -142,7 +144,7 @@ export default function AppearanceTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Theme</div>
+        <div class="settings-section-title">Theme</div>
         <div class="settings-preset-group">
           <For each={THEME_PRESETS}>
             {(preset) => (

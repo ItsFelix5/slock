@@ -1,7 +1,7 @@
 import { loadCustomEmoji } from "@slock/blockkit";
 import { getHost } from "@slock/core/solid";
 import { listNavigationIndex } from "@slock/ui";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import type { ExtraSuggestion } from "../../api";
 import { loadSlashCommandSuggestions } from "../../lib/commands/slashCommandSuggestions";
 import {
@@ -12,7 +12,7 @@ import {
   updateUserSuggestions,
 } from "../../lib/suggestionSources";
 import { detectMentionTrigger } from "../../lib/textDetection";
-import type { SuggestState } from "./suggestTypes";
+import type { CustomSuggestItem, SuggestState } from "./suggestTypes";
 
 export function suggestionText(item: SuggestState["items"][number]): string {
   if (item.kind === "custom") return `${item.insert} `;
@@ -20,6 +20,18 @@ export function suggestionText(item: SuggestState["items"][number]): string {
   if (item.kind === "emoji") return `:${item.name}: `;
   if (item.kind === "user") return `<@${item.id}> `;
   return `<#${item.id}|${item.name}> `;
+}
+
+function customItem(entry: ExtraSuggestion): CustomSuggestItem {
+  const { alternate, description, id, insert, label } = entry;
+  return {
+    alternate: alternate && customItem(alternate),
+    description,
+    id,
+    insert,
+    kind: "custom",
+    name: label,
+  };
 }
 
 export function createSuggestionController(opts: SuggestionOptions) {
@@ -36,6 +48,20 @@ export function createSuggestionController(opts: SuggestionOptions) {
       wrap: true,
     });
     if (next !== undefined) setActiveSuggestion(next);
+  }
+
+  function toggleAlternate(): boolean {
+    const s = opts.suggest();
+    if (s?.kind !== "custom") return false;
+    const item = s.items[s.active];
+    if (!item?.alternate) return false;
+    const { alternate, ...current } = item;
+    const swapped: CustomSuggestItem = { ...alternate, alternate: current };
+    opts.setSuggest({
+      ...s,
+      items: s.items.map((entry, index) => (index === s.active ? swapped : entry)),
+    });
+    return true;
   }
 
   function updateSuggestions(value: string, cursor: number, isDocStart = true, plainText = false) {
@@ -84,13 +110,7 @@ export function createSuggestionController(opts: SuggestionOptions) {
         found.length > 0
           ? {
               active: 0,
-              items: found.map((entry) => ({
-                description: entry.description,
-                id: entry.id,
-                insert: entry.insert,
-                kind: "custom" as const,
-                name: entry.label,
-              })),
+              items: found.map(customItem),
               kind: "custom",
               start: trigger.start,
             }
@@ -120,6 +140,7 @@ export function createSuggestionController(opts: SuggestionOptions) {
     applySuggestion,
     moveActiveSuggestion,
     setActiveSuggestion,
+    toggleAlternate,
     updateSuggestions,
   };
 }

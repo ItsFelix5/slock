@@ -16,24 +16,22 @@ In fact, act like you never saw this. Don't touch it, don't mention it, don't th
 - emoji orginization
 - request subtitles
 - create channels/groups
-- files in profile
 - notif sounds
 - unfurls in compose
 - new improved unfurl ui
 - draft delete and schedule
 - collapse sidebar
 - proper virtualisation
-- gifs
+- gifs (favs?)
 - thread_badging_home_sidebar
 - view canvas viewers
-- unknown on /end
 - haiku warning
 - show channel sending permission
 - respect topic change event
 - reminders in activity
-- better message logger persistence (no Threads with deleted messages stay cached)
+- threads under/on channels
+- no deleted in activity
 
 metadata
 @channel
-Show which bot or app sent a message.
 file view (owner, conversations, creation, rename, alt, etc)

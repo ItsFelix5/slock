@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { namedSlackAssetResponse } from "../../slack/server/api/assets";
+import { slackAssetResponse } from "../../slack/server/api/assets";
 import { route, routes } from "../../slack/server/api/router";
 import { createEmojiCache } from "./cache";
 
@@ -22,7 +22,7 @@ const setup: Setup = (ctx) => {
       ),
       route("GET", "emoji/:name", async (rc) => {
         const url = await cache.imageUrl(rc.params.name, rc.creds);
-        const res = await namedSlackAssetResponse(url, rc.creds, rc.acceptEncoding, rc.range);
+        const res = await slackAssetResponse(url, rc.creds, rc.acceptEncoding, rc.range);
         res.headers.append("vary", "Cookie");
         return res;
       }),

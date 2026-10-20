@@ -1,0 +1,67 @@
+.gif-picker {
+  width: 360px;
+  height: 420px;
+  overflow: hidden;
+}
+
+.gif-picker-search {
+  flex-shrink: 0;
+  padding: var(--space-sm);
+}
+
+.gif-picker-tabs {
+  margin-top: var(--space-sm);
+}
+
+.gif-picker-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--space-sm) var(--space-sm);
+  overflow-y: auto;
+}
+
+.gif-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xs);
+}
+
+.gif-picker-tile {
+  position: relative;
+  height: 100px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--hover-bg);
+  border-radius: var(--radius-control);
+}
+
+.gif-picker-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gif-picker-tile:focus-visible {
+  --focus-offset: -2px;
+}
+
+.gif-picker-star {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  opacity: 0;
+}
+
+.gif-picker-tile:hover .gif-picker-star,
+.gif-picker-tile:focus-visible .gif-picker-star,
+.gif-picker-star:focus-visible,
+.gif-picker-star.active {
+  opacity: 1;
+}
+
+.gif-picker-status {
+  padding: var(--space-lg);
+  font-size: var(--font-size-meta);
+  color: var(--text-secondary);
+  text-align: center;
+}

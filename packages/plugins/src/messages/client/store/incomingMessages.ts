@@ -17,13 +17,11 @@ type IncomingMessageDeps = {
   insertMessageInOrder: (channelId: string, msg: Message) => void;
   isChannelMember: (id: string) => boolean;
   isThreadKnown: (ts: string) => boolean;
-  isThreadVisible: (ts: string) => boolean;
   loadedChannels: Set<string>;
   markDeleted: (channelId: string, ts: string) => void;
   mergeIncomingMessage: (existing: Message[], msg: Message) => Message[];
   patchChannel: (id: string, patch: Partial<Channel>) => void;
   patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
-  removeMessage: (location: MessageLocation, ts: string) => void;
   setClosedDmIds: (id: string, closed: boolean) => void;
   setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
   setThreadMessages: (threadTs: string, updater: (existing?: Message[]) => Message[]) => void;
@@ -82,10 +80,11 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     if (subtype === "message_replied") {
       const updated = payload.message;
       if (!updated?.ts) return;
-      const { lastReplyLabel, replyCount, replyUsers } = mapMessage(updated);
+      const { lastReplyLabel, latestReply, replyCount, replyUsers } = mapMessage(updated);
       if (updated.latest_reply) latestReplyByThread.set(updated.ts, updated.latest_reply);
       deps.patchMessage(channel, updated.ts, {
         lastReplyLabel,
+        latestReply,
         replyCount,
         replyUsers,
       });
@@ -94,10 +93,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     if (subtype === "message_deleted") {
       const ts = payload.deleted_ts;
       if (!ts) return;
-      const existing = deps.findAllMessageLocations(channel, ts);
-      if (existing[0]?.list.find((m) => m.ts === ts)?.metadata?.event_type === "anchor")
-        for (const { location } of existing) deps.removeMessage(location, ts);
-      else deps.markDeleted(channel, ts);
+      deps.markDeleted(channel, ts);
       return;
     }
     if (!ts) return;
@@ -130,13 +126,6 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       if (parentMsg && !alreadyMerged && !countAlreadyConfirmed) {
         deps.patchMessage(channel, threadTs, { replyCount: (parentMsg.replyCount ?? 0) + 1 });
       }
-      if (
-        parentMsg?.isSubscribed &&
-        !deps.isThreadVisible(threadTs) &&
-        !alreadyMerged &&
-        msg.userId !== me?.id
-      )
-        deps.patchMessage(channel, threadTs, { hasUnreadReplies: true });
       if (subtype === "thread_broadcast" && deps.loadedChannels.has(channel)) {
         mergeIntoChannel(channel, msg);
       }

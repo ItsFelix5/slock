@@ -17,11 +17,12 @@ import type {
   HistoryReply,
   MessagesListReply,
   PostMessageReply,
+  UnfurlLinkReply,
   UserReply,
 } from "../../slack/server/api/slackReplies";
 import { trimChannel } from "../../slack/server/api/trim/slackChannels";
 import { displayName, trimUser } from "../../slack/server/api/trim/slackEntities";
-import { trimMessage } from "../../slack/server/api/trim/slackMessages";
+import { trimAttachment, trimMessage } from "../../slack/server/api/trim/slackMessages";
 import { historyParams, trimHistory } from "./api";
 
 async function findMyRelayedMessage(
@@ -67,7 +68,7 @@ const list: Route[] = [
       text?: string;
       threadTs?: string;
       blocks?: unknown;
-      suppressUnfurl?: boolean;
+      unfurl?: string[];
       fileIds?: string[];
     }>();
     if (!body.text) return errorResponse("invalid_text", 400);
@@ -77,11 +78,7 @@ const list: Route[] = [
     };
     if (body.threadTs) params.thread_ts = body.threadTs;
     if (body.blocks) params.blocks = JSON.stringify(body.blocks);
-
-    if (body.suppressUnfurl) {
-      params.unfurl_links = "false";
-      params.unfurl_media = "false";
-    }
+    if (body.unfurl) params.unfurl = JSON.stringify(body.unfurl.map((url) => ({ url })));
     const data = await callSlack<PostMessageReply>(
       "chat.postMessage",
       body.fileIds?.length ? { ...params, file_ids: body.fileIds } : params,
@@ -91,6 +88,22 @@ const list: Route[] = [
       return slackErrorResponse(data, "chat.postMessage", ctx.creds);
     }
     return jsonResponse({ ok: true, ts: data.ts }, ctx.creds);
+  }),
+
+  route("POST", "channels/:id/unfurl", async (ctx) => {
+    const { url } = await ctx.body.json<{ url?: string }>();
+    if (!url) return errorResponse("invalid_url", 400);
+    const data = await callSlack<UnfurlLinkReply>(
+      "chat.unfurlLink",
+      { channel: ctx.params.id, url },
+      ctx.creds,
+    );
+    if (!data.ok) return slackErrorResponse(data, "chat.unfurlLink", ctx.creds);
+    const attachment = data.attachments?.[url];
+    return jsonResponse(
+      { attachment: attachment && trimAttachment(attachment), ok: true },
+      ctx.creds,
+    );
   }),
 
   route("PATCH", "channels/:id/messages/:ts", async (ctx) => {
@@ -153,6 +166,11 @@ const list: Route[] = [
     }
 
     return mutate("chat.delete", { channel: channelId, ts }, ctx);
+  }),
+
+  route("DELETE", "channels/:id/messages/:ts/attachments/:attachment", (ctx) => {
+    const { id: channel, ts, attachment } = ctx.params;
+    return mutate("chat.deleteAttachment", { attachment, channel, ts }, ctx);
   }),
 
   route("POST", "messages/lookup", async (ctx) => {

@@ -3,6 +3,7 @@ export type {
   ButtonElement,
   CheckboxRadioElement,
   ConfirmationDialog,
+  ConversationFilter,
   DatePickerElement,
   FeedbackButtonsElement,
   FileInputElement,
@@ -70,6 +71,7 @@ export interface ActionsBlock {
 
 export interface InputBlock {
   block_id?: string;
+  dispatch_action?: boolean;
   element: BlockElement;
   hint?: TextObject;
   label: TextObject;
@@ -239,6 +241,7 @@ export type Block =
 export interface ModalView {
   app_id?: string;
   blocks: Block[];
+  bot_id?: string;
   callback_id?: string;
   clear_on_close?: boolean;
   close?: TextObject | null;
@@ -250,6 +253,7 @@ export interface ModalView {
   private_metadata?: string;
   root_view_id?: string;
   submit?: TextObject | null;
+  submit_disabled?: boolean;
   team_id?: string;
   title: TextObject;
   type: "modal" | "home" | string;

@@ -2,7 +2,6 @@ import { defined } from "@slock/core";
 import { apiGet, apiPost, mapFile, mapFileShare } from "@slock/slack";
 import type {
   FileUploadInput,
-  LinkPreview,
   RawFile,
   RawFileShare,
   SavedItem,
@@ -94,11 +93,11 @@ async function reserveAndUploadFiles(
       method: "POST",
     });
     const reservation = await reserve.json();
-    if (!(reserve.ok && reservation.file_id && reservation.upload_token)) {
+    if (!(reserve.ok && reservation.file_id && reservation.upload_url)) {
       throw new Error(reservation.error ?? "File reservation failed");
     }
 
-    const uploadUrl = `/api/files/upload/${reservation.upload_token}?filename=${encodeURIComponent(file.name)}`;
+    const uploadUrl = `/api/files/upload?url=${encodeURIComponent(reservation.upload_url)}&filename=${encodeURIComponent(file.name)}`;
     await uploadFileWithProgress(uploadUrl, file, (fraction) => onProgress?.(i, fraction));
     uploaded.push({ id: reservation.file_id, title: title?.trim() || file.name });
   }
@@ -151,10 +150,6 @@ export function uploadFile(
   comment?: string,
 ): Promise<void> {
   return uploadFiles(channelId, [{ file }], threadTs, comment);
-}
-
-export function fetchLinkPreview(_url: string): Promise<LinkPreview | null> {
-  return Promise.resolve(null);
 }
 
 export type FileAccessTarget = { channelId: string } | { userId: string };

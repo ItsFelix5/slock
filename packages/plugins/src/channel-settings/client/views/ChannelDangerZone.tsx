@@ -43,7 +43,7 @@ export default function ChannelDangerZone(props: {
 
   return (
     <div class="settings-section">
-      <div class="settings-row-label">Danger zone</div>
+      <div class="settings-section-title">Danger zone</div>
       <Show when={!props.private}>
         <div class="settings-row flex-between">
           <div class="settings-row-label">Convert to a private channel</div>

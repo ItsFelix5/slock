@@ -1,9 +1,10 @@
 import { Slot } from "@slock/core/solid";
 import { IconButton, Menu } from "@slock/ui";
+import type { ComposerEditor } from "../api";
 
 export default function ComposerAttachMenu(props: {
-  onFilesSelected: (files: FileList) => void;
-  onInsertDate: () => void;
+  onFilesSelected: (files: FileList | File[]) => void;
+  editor: ComposerEditor;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
@@ -47,8 +48,10 @@ export default function ComposerAttachMenu(props: {
         }
       >
         <Slot
+          addFiles={props.onFilesSelected}
           close={() => props.onOpenChange(false)}
-          insertDate={props.onInsertDate}
+          quill={props.editor.quill}
+          showPopover={props.editor.showPopover}
           pickFiles={() => fileInputRef?.click()}
           point="composer.attach"
         />

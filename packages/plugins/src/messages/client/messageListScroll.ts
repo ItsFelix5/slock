@@ -12,6 +12,7 @@ import {
 import { createMessageListLanding } from "./messageListLanding";
 
 const messagesStore = service("messages");
+const unreadStore = service("unread");
 
 const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
 
@@ -49,7 +50,18 @@ export function createMessageListScroll(deps: {
     const ts = lastAnchor?.el.dataset.messageTs;
     setTopVisibleTs(ts);
     if (view && ts && lastAnchor) trackScrollAnchor(view.id, { offset: lastAnchor.offset, ts });
+    if (view)
+      unreadStore.setBottomSeen(
+        view.id,
+        readyViewId() === view.id &&
+          isScrolledToBottom(el) &&
+          !messagesStore.hasNewerHistory(view.id),
+      );
   }
+  createEffect(() => {
+    const id = deps.paneView()?.id;
+    if (id) onCleanup(() => unreadStore.setBottomSeen(id, false));
+  });
 
   const visibleDay = () => {
     const ts = topVisibleTs();

@@ -80,7 +80,7 @@ export default function AccountTab() {
       </Show>
 
       <div class="settings-section">
-        <div class="settings-row-label">Other accounts</div>
+        <div class="settings-section-title">Other accounts</div>
         <Show
           fallback={<div class="settings-list-empty text-dim text-sm">None saved yet.</div>}
           when={otherAccounts().length > 0}

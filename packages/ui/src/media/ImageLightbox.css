@@ -23,6 +23,12 @@
   z-index: 1;
 }
 
+.zoomable-image-info {
+  top: 20px;
+  right: 64px;
+  z-index: 1;
+}
+
 .zoomable-image-navigation {
   position: absolute;
   top: 50%;

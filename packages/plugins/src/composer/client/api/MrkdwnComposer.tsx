@@ -1,8 +1,9 @@
 import { scrollActiveListOption } from "@slock/ui";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
+import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import type Quill from "quill";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEditorPlugins } from "../lib/editorPlugins";
 import { mrkdwnText } from "../lib/quillMentions";
 import ComposerSuggestPopover from "./editor/ComposerSuggestPopover";
 import MentionHoverCard from "./editor/MentionHoverCard";
@@ -11,9 +12,8 @@ import { useMentionResolution } from "./editor/mentionResolution";
 import {
   insertSuggestionAt,
   loadMrkdwnIntoQuill,
-  pasteMrkdwnClipboard,
+  pasteBlocksClipboard,
 } from "./editor/mrkdwnInsert";
-import { wireEmojiAutoconvert } from "./editor/quillEmoji";
 import {
   createSuggestionController,
   syncSuggestionsAfterChange,
@@ -42,6 +42,7 @@ export default function MrkdwnComposer(props: {
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   const resolveMention = useMentionResolution(() => quill);
   const mentionHover = createMentionHoverController();
+  const editorPlugins = createEditorPlugins(() => quill);
 
   let rootRef: HTMLDivElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
@@ -104,13 +105,13 @@ export default function MrkdwnComposer(props: {
         ariaMultiline={props.multiline ?? false}
         extendedFormats={false}
         id={props.id}
-        onPasteText={(q, event) => pasteMrkdwnClipboard(q, event, resolveMention)}
+        onPasteText={(q, event) => pasteBlocksClipboard(q, event, resolveMention)}
         onReady={(q) => {
           quill = q;
           loadMrkdwnIntoQuill(q, props.value, resolveMention);
           lastEmitted = props.value;
-          wireEmojiAutoconvert(q);
           onCleanup(mentionHover.bind(q));
+          editorPlugins.bind(q);
           q.enable(!props.disabled);
           q.on("text-change", () => {
             const next = mrkdwnText(q);
@@ -126,6 +127,7 @@ export default function MrkdwnComposer(props: {
         placeholder={props.placeholder}
       />
       <MentionHoverCard hoverIntent={mentionHover.hoverIntent} state={mentionHover.state} />
+      {editorPlugins.popover()}
       <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
         {(state) => (
           <ComposerSuggestPopover

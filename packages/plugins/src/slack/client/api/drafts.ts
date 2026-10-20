@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPut } from "@slock/slack";
-import type { DraftEntry } from "@slock/types";
+import type { Block, DraftEntry } from "@slock/types";
 
 export async function fetchDrafts(): Promise<DraftEntry[]> {
   const data = await apiGet<{ drafts?: DraftEntry[] }>("/api/drafts");
@@ -10,8 +10,7 @@ export async function fetchDrafts(): Promise<DraftEntry[]> {
 export async function saveDraft(
   channelId: string,
   threadTs: string | undefined,
-  text: string,
-  blocks?: unknown,
+  blocks: Block[],
   draftId?: string,
   clientMsgId?: string,
   lastUpdatedTs?: string,
@@ -22,7 +21,6 @@ export async function saveDraft(
     clientMsgId: clientMsgId ?? crypto.randomUUID(),
     draftId,
     lastUpdatedTs,
-    text,
     threadTs,
   });
   if (!data.ok) throw new Error(data.error ?? "drafts.create failed");

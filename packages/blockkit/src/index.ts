@@ -24,15 +24,7 @@ export {
   formatSlackDateTokens,
   startOfDayMs,
 } from "./dateFormat";
-export {
-  CONTEXT_PREFIX,
-  fragmentToMrkdwn,
-  HEADING_TAG_RE,
-  type InlineDialect,
-  MRKDWN_CLIPBOARD_TYPE,
-  MRKDWN_DIALECT,
-  serializeNode,
-} from "./domToMrkdwn";
+export { BLOCKS_CLIPBOARD_TYPE, fragmentToBlocks } from "./domToBlocks";
 export { default as EmojiText } from "./emoji/EmojiText";
 export type { StandardEmoji } from "./emoji/emoji";
 export { EMOJI_TOKEN_RE, standardEmojiEntries } from "./emoji/emoji";
@@ -47,10 +39,13 @@ export {
   isEmojiLoading,
   loadCustomEmoji,
 } from "./emoji/emojiCache";
-export { decodeTextEntities, encodeTextEntities } from "./entities";
+export type { EntityKind, EntitySource } from "./entitySource";
 export { type HighlightSegment, splitHighlightWords } from "./highlightWords";
+export type { FileInputProps, RichTextInputProps } from "./inputPoints";
 export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
 export { default as Mrkdwn } from "./mrkdwn";
 export { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwnInline";
 export { Link, Mention, TimeAwareText } from "./mrkdwnTokens";
 export { stripTrackingParams } from "./urlCleanup";
+export { createViewState, type ViewState, type ViewValues } from "./viewState";
+export { validateView } from "./viewValidation";

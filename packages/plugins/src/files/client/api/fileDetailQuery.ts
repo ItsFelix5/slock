@@ -18,5 +18,5 @@ export function createFileDetailQuery(fileId: () => string | undefined) {
 }
 
 export function loadFileDetail(fileId: string) {
-  return query.client.ensureQueryData(fileDetailQueryOptions(fileId));
+  return query.client.query({ ...fileDetailQueryOptions(fileId), staleTime: "static" });
 }

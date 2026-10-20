@@ -13,7 +13,6 @@ import {
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   resolveBotProfileUserId,
-  resolveLookupUserId,
   resolveProfileUserId,
 } from "../api/messageAuthor";
 import { resolveMessageContent, resolveMessageNeighbors } from "../lib/messageRenderState";
@@ -21,6 +20,7 @@ import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageRowAvatar from "./parts/MessageRowAvatar";
 import MessageTextContent from "./parts/MessageTextContent";
+import SystemMessageContent from "./parts/SystemMessageContent";
 
 const unreadStore = service("unread");
 const usersStore = service("users");
@@ -114,7 +114,7 @@ export default function MessageRow(props: MessageRowProps) {
   const profileUserId = () => resolveProfileUserId(msg());
   const botProfileUserId = () => resolveBotProfileUserId(msg());
   const user = createMemo(() => {
-    const id = resolveLookupUserId(msg());
+    const id = profileUserId();
     return id ? usersStore.userById(id) : undefined;
   });
   const displayName = () => resolveAuthorDisplayName(msg(), user()?.name, "Unknown");
@@ -125,11 +125,13 @@ export default function MessageRow(props: MessageRowProps) {
   const saved = () => !!later()?.isSavedForLater(props.channelId, msg().ts);
   const focused = () => props.focusedTs?.() === msg().ts;
   const [engaged, setEngaged] = createSignal(false);
+  const isSystem = () => msg().kind === "system";
   const showActions = () =>
-    engaged() ||
-    focused() ||
-    props.reactionPickerTs?.() === msg().ts ||
-    props.moreMenuTs?.() === msg().ts;
+    !isSystem() &&
+    (engaged() ||
+      focused() ||
+      props.reactionPickerTs?.() === msg().ts ||
+      props.moreMenuTs?.() === msg().ts);
 
   return (
     <Show when={neighbors().showMessage}>
@@ -156,6 +158,7 @@ export default function MessageRow(props: MessageRowProps) {
           "is-first-message": props.index() === 0,
           pending: msg().pending,
           saved: saved(),
+          system: isSystem(),
         }}
       >
         <Show when={replyRef()}>
@@ -218,65 +221,67 @@ export default function MessageRow(props: MessageRowProps) {
               </ContextMenu>
             </Show>
           </Show>
-          <Show fallback={<div class="message-avatar-spacer" />} when={!sameAuthorAsPrev()}>
-            <MessageRowAvatar
-              avatarUrl={avatarUrl()}
-              displayName={displayName()}
-              fallbackUserId={msg().userId}
-              focused={focused()}
-              profileUserId={profileUserId()}
-              user={user()}
-            />
-          </Show>
-          <div class="message-body">
-            <Show when={!sameAuthorAsPrev()}>
-              <MessageMeta
-                channelId={props.channelId}
-                displayName={displayName}
-                threadTs={props.threadTs}
-                botUserId={botProfileUserId()}
-                onOpenBot={() => {
-                  const id = botProfileUserId();
-                  if (id) usersStore.openUserProfile(id);
-                }}
-                showBroadcastBadge={showBroadcastBadge}
-                tabbable={focused}
-                message={msg()}
-                onOpenUser={() => {
-                  const id = profileUserId();
-                  if (id) usersStore.openUserProfile(id);
-                }}
-                user={user}
-                userId={profileUserId()}
+          <Show fallback={<SystemMessageContent msg={msg()} />} when={!isSystem()}>
+            <Show fallback={<div class="message-avatar-spacer" />} when={!sameAuthorAsPrev()}>
+              <MessageRowAvatar
+                avatarUrl={avatarUrl()}
+                displayName={displayName()}
+                fallbackUserId={msg().userId}
+                focused={focused()}
+                profileUserId={profileUserId()}
+                user={user()}
               />
             </Show>
-            <MessageTextContent
-              channelId={props.channelId}
-              hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
-              isEditing={isEditing()}
-              messageText={messageText()}
-              msg={msg()}
-              onStopEdit={props.onStopEdit}
-              renderBlocks={renderBlocks()}
-              replyRef={replyRef()}
-              tz={user()?.tz}
-            />
-            <Slot
-              attachments={visibleAttachments()}
-              channelId={props.channelId}
-              isEditing={isEditing()}
-              msg={msg()}
-              onOpenThread={props.onOpenThread}
-              point="messages.body"
-              threadTs={props.threadTs}
-            />
-          </div>
+            <div class="message-body">
+              <Show when={!sameAuthorAsPrev()}>
+                <MessageMeta
+                  channelId={props.channelId}
+                  displayName={displayName}
+                  threadTs={props.threadTs}
+                  botUserId={botProfileUserId()}
+                  onOpenBot={() => {
+                    const id = botProfileUserId();
+                    if (id) usersStore.openUserProfile(id);
+                  }}
+                  showBroadcastBadge={showBroadcastBadge}
+                  tabbable={focused}
+                  message={msg()}
+                  onOpenUser={() => {
+                    const id = profileUserId();
+                    if (id) usersStore.openUserProfile(id);
+                  }}
+                  user={user}
+                  userId={profileUserId()}
+                />
+              </Show>
+              <MessageTextContent
+                channelId={props.channelId}
+                hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
+                isEditing={isEditing()}
+                messageText={messageText()}
+                msg={msg()}
+                onStopEdit={props.onStopEdit}
+                renderBlocks={renderBlocks()}
+                replyRef={replyRef()}
+                tz={user()?.tz}
+              />
+              <Slot
+                attachments={visibleAttachments()}
+                channelId={props.channelId}
+                isEditing={isEditing()}
+                msg={msg()}
+                onOpenThread={props.onOpenThread}
+                point="messages.body"
+                threadTs={props.threadTs}
+              />
+            </div>
+          </Show>
         </div>
       </div>
       <Show when={showRepliesDivider()}>
         <div class="day-divider message-divider flex-align-center text-center font-bold text-xs">
           <span>
-            {msg().replyCount} {msg().replyCount === 1 ? "reply" : "replies"}
+            {neighbors().repliesCount} {neighbors().repliesCount === 1 ? "reply" : "replies"}
             {neighbors().repliesDividerDay ? ` · ${neighbors().repliesDividerDay}` : ""}
           </span>
         </div>

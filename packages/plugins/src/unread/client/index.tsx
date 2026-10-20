@@ -1,8 +1,9 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { parseBadgeCounts } from "@slock/slack";
+import { buildUnreadMap, parseBadgeCounts } from "@slock/slack";
 import { isDmId } from "../../dms/client/api";
 import { gatewayHandler } from "../../realtime/client/api";
+import { fetchCounts } from "../../slack/client/api";
 import { createUnreadStore } from "./store";
 
 const setup: Setup = (ctx) => {
@@ -15,7 +16,21 @@ const setup: Setup = (ctx) => {
     patchDm: dms.patchDm,
   });
   ctx.provide("unread", store);
-  ctx.add("conversations.opened", (view) => store.clearChannelUnread(view.id));
+  const onCounts = ctx.use("unread.counts");
+  ctx.add("realtime.reconnect", async () => {
+    const data = await fetchCounts().catch(() => undefined);
+    if (!data) return;
+    const counts = buildUnreadMap(data.unreads);
+    for (const { id } of channels.channels()) {
+      store.setUnreadChannelIds(id, !!counts[id]?.unread);
+      channels.patchChannel(id, { mentions: counts[id]?.mentions || undefined });
+    }
+    for (const { id } of dms.directMessages()) {
+      store.setUnreadChannelIds(id, !!counts[id]?.unread);
+      dms.patchDm(id, { mentions: counts[id]?.mentions || undefined });
+    }
+    for (const run of onCounts()) run(data.notifications ?? {});
+  });
   ctx.add(
     "realtime.handler",
     gatewayHandler(["badge_counts_updated"], (event) => {
@@ -31,9 +46,19 @@ const setup: Setup = (ctx) => {
     gatewayHandler(["channel_marked"], (event) => {
       if (!(event.channel && event.ts) || store.isStaleReadEcho(event.channel, event.ts)) return;
       store.setUnreadChannelIds(event.channel, (event.unread_count ?? 0) > 0);
-      channels.patchChannel(event.channel, { mentions: event.mention_count ?? 0 });
+      const mentions = event.mention_count ?? 0;
+      if (isDmId(event.channel, (dmId) => !!dms.dmById(dmId)))
+        dms.patchDm(event.channel, { mentions });
+      else channels.patchChannel(event.channel, { mentions });
       const readTs = Number(event.ts) * 1000;
       if (Number.isFinite(readTs)) store.setLastReadByChannel(event.channel, readTs);
+    }),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["thread_marked"], (event) => {
+      if (event.thread_ts && event.last_read)
+        store.setThreadReadTs(event.thread_ts, event.last_read);
     }),
   );
 };

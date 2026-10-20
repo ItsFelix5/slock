@@ -53,7 +53,7 @@ export const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
 ];
 
 export const READ_STATES: { key: ReadState; label: string }[] = [
-  { key: "all", label: "All" },
+  { key: "all", label: "Inbox" },
   { key: "unread", label: "Unread" },
   { key: "read", label: "Read" },
   { key: "archived", label: "Complete" },

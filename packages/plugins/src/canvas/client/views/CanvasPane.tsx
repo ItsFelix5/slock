@@ -1,5 +1,5 @@
 import { EmojiText } from "@slock/blockkit";
-import { service } from "@slock/core/solid";
+import { Slot, service } from "@slock/core/solid";
 import {
   Button,
   focusedPaneId,
@@ -149,6 +149,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             }}
             size="sm"
           />
+          <Slot doc={content.data?.doc ?? null} fileId={fileId()} point="canvas.headerAction" />
           <InlineFeedback feedback={feedback.get(fileId())} priority={2} variant="icon" />
         </div>
       </PanelHeader>
@@ -210,6 +211,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
               {(version) => (
                 <div class="canvas-version-view">
                   <CanvasVersionBanner
+                    canRestore={content.data?.editable ?? false}
                     onExit={() => history.setSelected(null)}
                     onRestore={() => void history.restore(version)}
                     restoring={history.restoring()}

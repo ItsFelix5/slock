@@ -1,6 +1,6 @@
-import Quill from "quill";
 import Block from "quill/blots/block";
 import { bindLinePrefix } from "./blockShortcuts";
+import Quill from "./quill";
 
 const CONTEXT_PREFIX = /^-#$/;
 

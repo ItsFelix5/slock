@@ -93,7 +93,13 @@ export type GatewayEvent =
   | { channel_id?: string; type: "canvas_created" }
   | { bot: { id?: string }; type: "bot_added" | "bot_changed" }
   | { type: "commands_changed" | "emoji_changed" }
-  | { channel?: string; thread_ts?: string; type: "thread_marked"; unread_count?: number }
+  | {
+      channel?: string;
+      last_read?: string;
+      thread_ts?: string;
+      type: "thread_marked";
+      unread_count?: number;
+    }
   | { channel?: string; thread_ts?: string; type: "thread_subscribed" | "thread_unsubscribed" }
   | { presence?: string; type: "manual_presence_change" }
   | DesktopNotificationEvent

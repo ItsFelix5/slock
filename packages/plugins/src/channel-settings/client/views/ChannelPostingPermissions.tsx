@@ -108,7 +108,7 @@ export default function ChannelPostingPermissions(props: { channelId: string }) 
 
   return (
     <div class="settings-section">
-      <div class="settings-row-label">Posting permissions</div>
+      <div class="settings-section-title">Posting permissions</div>
       <Show when={postingPrefsQuery.isLoading}>
         <p class="channel-details-meta">Loading posting permissions…</p>
       </Show>

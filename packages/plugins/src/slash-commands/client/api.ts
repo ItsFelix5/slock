@@ -6,6 +6,8 @@ declare module "@slock/core/types" {
   }
 }
 
+export const SLASH_COMMAND_RE = /^\/(?!\/)(\S+)\s*(.*)$/s;
+
 export function composerFeedbackKey(key: string): string {
   return `composer:${key}`;
 }

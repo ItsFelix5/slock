@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { Channel, DirectMessage, Message } from "@slock/types";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
@@ -34,6 +34,24 @@ export function createUnreadStore(deps: {
   });
 
   const [lastReadByChannel, setLastReadByChannel] = createStore<Record<string, number>>({});
+
+  const [threadReadTs, setThreadReadTs] = createStore<Record<string, string>>({});
+
+  const [bottomSeen, setBottomSeen] = createStore<Record<string, boolean>>({});
+
+  const isWindowActive = () => document.hasFocus() && document.visibilityState === "visible";
+  const [windowActive, setWindowActive] = createSignal(isWindowActive());
+  const syncWindowActive = () => setWindowActive(isWindowActive());
+  window.addEventListener("focus", syncWindowActive);
+  window.addEventListener("blur", syncWindowActive);
+  document.addEventListener("visibilitychange", syncWindowActive);
+  onCleanup(() => {
+    window.removeEventListener("focus", syncWindowActive);
+    window.removeEventListener("blur", syncWindowActive);
+    document.removeEventListener("visibilitychange", syncWindowActive);
+  });
+
+  const isViewed = (id: string) => windowActive() && !!bottomSeen[id];
 
   const [unreadDividerTs, setUnreadDividerTs] = createStore<Record<string, number | undefined>>({});
 
@@ -127,6 +145,11 @@ export function createUnreadStore(deps: {
     return unreadDividerTs[channelId];
   }
 
+  function isThreadUnread(root: Message) {
+    const readTs = threadReadTs[root.ts] ?? root.threadLastRead ?? root.ts;
+    return !!root.isSubscribed && !!root.latestReply && root.latestReply > readTs;
+  }
+
   function isChannelUnread(channelId: string) {
     return !!unreadChannelIds[channelId];
   }
@@ -141,7 +164,6 @@ export function createUnreadStore(deps: {
     visibleThreads: () => ThreadRef[];
     threadMessages: Record<string, Message[]>;
     hasNewerHistory: (channelId: string) => boolean;
-    onThreadRead: (channelId: string, threadTs: string) => void;
   }) {
     const dividerAnchoredChannels = new Set<string>();
     createEffect(() => {
@@ -178,6 +200,7 @@ export function createUnreadStore(deps: {
     createEffect(() => {
       for (const view of readDeps.visibleViews()) {
         if (unreadDividerTs[view.id] === undefined) continue;
+        if (!isViewed(view.id)) continue;
         if (readDeps.hasNewerHistory(view.id)) continue;
         const list = readDeps.messagesByChannel[view.id];
         const latest = list?.[list.length - 1];
@@ -204,6 +227,7 @@ export function createUnreadStore(deps: {
     const lastMarkedThreadReadTs: Record<string, string> = {};
     createEffect(() => {
       for (const thread of readDeps.visibleThreads()) {
+        if (!isViewed(thread.ts)) continue;
         const list = readDeps.threadMessages[thread.ts];
 
         const root = list?.find((m) => m.ts === thread.ts);
@@ -214,7 +238,7 @@ export function createUnreadStore(deps: {
         if (!latest || latest.ts === thread.ts || isPendingMessage(latest)) continue;
         if (lastMarkedThreadReadTs[thread.ts] === latest.ts) continue;
         lastMarkedThreadReadTs[thread.ts] = latest.ts;
-        readDeps.onThreadRead(thread.channelId, thread.ts);
+        setThreadReadTs(thread.ts, latest.ts);
         void syncThreadRead(thread.channelId, thread.ts, latest.ts).then((synced) => {
           if (!synced && lastMarkedThreadReadTs[thread.ts] === latest.ts)
             delete lastMarkedThreadReadTs[thread.ts];
@@ -226,12 +250,16 @@ export function createUnreadStore(deps: {
   return {
     clearChannelUnread,
     isChannelUnread,
+    isThreadUnread,
     isStaleReadEcho,
+    isViewed,
     lastReadByChannel,
     lastReadFor,
+    setBottomSeen,
     setLastReadByChannel,
     setChannelRead,
     setThreadRead,
+    setThreadReadTs,
     setUnreadChannelIds,
     setUnreadDividerTs,
     syncChannelRead,

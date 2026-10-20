@@ -46,6 +46,7 @@ export type CustomSuggestItem = {
   name: string;
   description?: string;
   insert: string;
+  alternate?: Omit<CustomSuggestItem, "alternate">;
 };
 export type SuggestItem =
   | CustomSuggestItem

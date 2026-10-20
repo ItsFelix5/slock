@@ -1,38 +1,50 @@
-.bk-plan {
-  gap: 7px;
+.bk-disclosure-summary {
+  gap: 6px;
+  width: fit-content;
+  font-size: var(--font-size-control);
+  color: var(--text-secondary);
+  cursor: pointer;
+  list-style: none;
 }
 
-.bk-task-card {
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
+.bk-disclosure-summary::-webkit-details-marker {
+  display: none;
 }
 
-.bk-task-heading {
-  gap: 7px;
-  font-size: var(--font-size-secondary);
+.bk-disclosure-caret {
+  transition: transform 0.15s ease;
+}
+
+.bk-disclosure:not([open]) > .bk-disclosure-summary .bk-disclosure-caret {
+  transform: rotate(-90deg);
+}
+
+.bk-disclosure-body {
+  gap: var(--space-xs);
+  margin: var(--space-xs) 0 0 6px;
+  padding-left: var(--space-md);
+  font-size: var(--font-size-control);
+  border-left: 1px solid var(--border);
 }
 
 .bk-task-status {
-  width: 9px;
-  height: 9px;
+  width: 5px;
+  height: 5px;
+  margin: 0 4.5px;
   background: var(--text-dim);
   border-radius: var(--radius-circle);
 }
 
-.bk-task-status--complete {
-  background: var(--block-kit-button-primary);
+.bk-task-status--in_progress {
+  background: var(--text-secondary);
 }
 
 .bk-task-status--error {
   background: var(--block-kit-button-danger);
 }
 
-.bk-task-details,
-.bk-task-output,
-.bk-task-sources {
-  margin-top: 7px;
-  font-size: var(--font-size-control);
+.bk-task-done {
+  color: var(--text-secondary);
 }
 
 .bk-task-sources {

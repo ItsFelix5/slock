@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
-import type Quill from "quill";
-import type { Op, Range } from "quill";
 import { escapeRegExp, WHITESPACE_RE } from "../textHighlight";
+import type Quill from "./quill";
+import type { Op, Range } from "./quill";
 import { indexAlignedText } from "./quillText";
 
 export const INLINE_MARKS: [char: string, format: "bold" | "italic" | "strike" | "code"][] = [

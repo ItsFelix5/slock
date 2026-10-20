@@ -14,7 +14,7 @@ export default function FiltersTab(props: { filters: LogFilters }) {
         <Switch checked={props.filters.ignoreBots()} onChange={props.filters.setIgnoreBots} />
       </div>
       <div class="settings-section">
-        <div class="settings-row-label">Ignored user IDs</div>
+        <div class="settings-section-title">Ignored user IDs</div>
         <input
           aria-label="Ignored user IDs"
           class="settings-status-input text-field"

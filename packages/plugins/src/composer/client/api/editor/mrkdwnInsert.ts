@@ -1,14 +1,11 @@
-import {
-  CONTEXT_PREFIX,
-  decodeTextEntities,
-  MRKDWN_CLIPBOARD_TYPE,
-  stripTrackingParams,
-} from "@slock/blockkit";
+import { BLOCKS_CLIPBOARD_TYPE, stripTrackingParams } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { decodeTextEntities } from "@slock/slack";
+import type { Block } from "@slock/types";
 import { escapeRegExp } from "@slock/ui";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
-import type Quill from "quill";
-import { resolvedEmojiName } from "../../lib/emojiEmbed";
+import type Quill from "@slock/ui/editor/quill";
+import { resolvedEmojiName } from "../../../../emoji/client/api/resolvedEmojiName";
 import { linkMentionValue, stripLeadingAt } from "../../lib/quillMentions";
 import { insertRichTextAt } from "../../lib/richTextLoad";
 import { suggestionText } from "./suggestionController";
@@ -21,8 +18,6 @@ const usergroups = service("usergroups");
 
 const MENTION_TOKEN_RE =
   /<@([A-Z0-9]+)>|<#([A-Z0-9]+)(?:\|([^>]*))?>|<!(channel|here)>|<!subteam\^([A-Z0-9]+)(?:\|([^>]*))?>|:([a-zA-Z0-9_+'-]+):|<!date\^(\d+)\^([^|^>]+)\|([^>]*)>|<([^<>@#!][^<>]*)>/g;
-
-const HEADER_LINE_RE = /^(#{1,4}) (.*)$/;
 
 const INLINE_TOKEN_RE = new RegExp(
   INLINE_MARKS.map(([char]) => {
@@ -182,12 +177,18 @@ export function loadMrkdwnIntoQuill(
 
 const BARE_URL_RE = /^https?:\/\/\S+$/;
 
-function pasteCleanedUrl(quill: Quill, event: ClipboardEvent): boolean {
+function pasteUrl(quill: Quill, event: ClipboardEvent): boolean {
   const pasted = event.clipboardData?.getData("text/plain").trim() ?? "";
   if (!BARE_URL_RE.test(pasted)) return false;
   const cleaned = stripTrackingParams(pasted);
-  if (cleaned === pasted) return false;
   const selection = quill.getSelection(true) ?? { index: quill.getLength(), length: 0 };
+  const mention = selection.length ? undefined : linkMentionValue(cleaned, cleaned);
+  if (mention) {
+    quill.insertEmbed(selection.index, "mention", mention, "user");
+    quill.setSelection(selection.index + 1, 0);
+    return true;
+  }
+  if (cleaned === pasted) return false;
   if (selection.length) {
     quill.formatText(selection.index, selection.length, "link", cleaned, "user");
     quill.setSelection(selection.index + selection.length, 0, "silent");
@@ -198,59 +199,16 @@ function pasteCleanedUrl(quill: Quill, event: ClipboardEvent): boolean {
   return true;
 }
 
-interface PastedLine {
-  content: string;
-  format?: { name: "header" | "context"; value: number | true };
-}
-
-function pastedLine(line: string): PastedLine {
-  const header = HEADER_LINE_RE.exec(line);
-  if (header) {
-    const [, hashes = "#", content = ""] = header;
-    return { content, format: { name: "header", value: hashes.length } };
-  }
-  if (line.startsWith(CONTEXT_PREFIX)) {
-    return { content: line.slice(CONTEXT_PREFIX.length), format: { name: "context", value: true } };
-  }
-  return { content: line };
-}
-
-function insertPastedLines(
-  quill: Quill,
-  start: number,
-  text: string,
-  onUnresolvedUser?: (id: string) => void,
-): number {
-  let cursor = start;
-  const lines = text.split("\n");
-  lines.forEach((raw, i) => {
-    const { content, format } = pastedLine(raw);
-    if (format && quill.getLine(cursor)[1] > 0) {
-      quill.insertText(cursor, "\n");
-      cursor += 1;
-    }
-    const lineStart = cursor;
-    cursor = insertMrkdwnAt(quill, cursor, content, onUnresolvedUser);
-    if (format || i < lines.length - 1) {
-      quill.insertText(cursor, "\n");
-      cursor += 1;
-    }
-    if (format) quill.formatLine(lineStart, 1, format.name, format.value);
-  });
-  return cursor;
-}
-
-export function pasteMrkdwnClipboard(
+export function pasteBlocksClipboard(
   quill: Quill,
   event: ClipboardEvent,
   onUnresolvedUser?: (id: string) => void,
 ): boolean {
-  const text = event.clipboardData?.getData(MRKDWN_CLIPBOARD_TYPE);
-  if (!text) return pasteCleanedUrl(quill, event);
+  const json = event.clipboardData?.getData(BLOCKS_CLIPBOARD_TYPE);
+  if (!json) return pasteUrl(quill, event);
+  const blocks: Block[] = JSON.parse(json);
   const selection = quill.getSelection(true) ?? { index: quill.getLength(), length: 0 };
-  if (selection.length) quill.deleteText(selection.index, selection.length);
-  const cursor = insertPastedLines(quill, selection.index, text, onUnresolvedUser);
-  quill.setSelection(cursor, 0);
+  insertRichTextAt(quill, selection.index, selection.length, blocks, onUnresolvedUser, true);
   return true;
 }
 

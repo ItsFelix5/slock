@@ -207,6 +207,8 @@ export interface RawAttachment {
   is_msg_unfurl?: boolean;
   is_reply_unfurl?: boolean;
   pretext?: string;
+  service_icon?: string;
+  service_name?: string;
   text?: string;
   title?: string;
   title_link?: string;
@@ -220,6 +222,7 @@ export interface RawMessage {
   attachments?: RawAttachment[];
   blocks?: Block[];
   bot_id?: string;
+  deleted?: boolean;
   bot_profile?: {
     icons?: RawIcons;
     name?: string;

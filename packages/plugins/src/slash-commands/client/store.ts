@@ -1,11 +1,9 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { runSlashCommand } from "../../slack/client/api";
-import { composerFeedbackKey } from "./api";
+import { composerFeedbackKey, SLASH_COMMAND_RE } from "./api";
 
 const feedback = service("feedback");
-
-const SLASH_COMMAND_RE = /^\/(\S+)\s*(.*)$/s;
 
 export function createSlashCommandsStore() {
   async function handleSlashCommand(

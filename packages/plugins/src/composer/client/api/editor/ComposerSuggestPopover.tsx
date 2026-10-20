@@ -10,14 +10,18 @@ export default function ComposerSuggestPopover(props: {
   state: SuggestState;
 }) {
   return (
-    <SuggestionList
-      activeIndex={props.state.active}
+    <div
       class={`menu-panel composer-suggest-popover${props.floating ? "" : " composer-suggest-docked"}`}
-      items={props.state.items}
-      onHover={props.onHover}
-      onPick={props.onPick}
       ref={props.ref}
-      renderItem={suggestItemContent}
-    />
+    >
+      <SuggestionList
+        activeIndex={props.state.active}
+        class="composer-suggest-scroll"
+        items={props.state.items}
+        onHover={props.onHover}
+        onPick={props.onPick}
+        renderItem={suggestItemContent}
+      />
+    </div>
   );
 }

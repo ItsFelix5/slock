@@ -1,15 +1,18 @@
 .suggestion-row {
   gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-sm);
+  padding: 6px var(--space-sm);
   color: var(--text-secondary);
   text-align: left;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
 }
-.suggestion-row:hover,
-.suggestion-row.active {
+.suggestion-row:hover {
   color: var(--text-primary);
   background: var(--hover-bg);
+}
+.suggestion-row.active {
+  color: var(--text-primary);
+  background: var(--accent-muted);
 }
 .suggestion-icon {
   flex-shrink: 0;
@@ -25,11 +28,12 @@
 }
 .suggestion-label {
   flex-shrink: 0;
-  font-size: var(--font-size-meta);
+  font-size: var(--font-size-control);
   font-weight: 500;
 }
 .suggestion-desc {
   min-width: 0;
+  margin-left: auto;
   font-size: var(--font-size-caption);
   font-weight: 400;
   color: var(--text-dim);
@@ -39,9 +43,11 @@
   align-items: center;
   border-radius: var(--radius-sm);
 }
-.suggestion-item:hover,
-.suggestion-item.active {
+.suggestion-item:hover {
   background: var(--hover-bg);
+}
+.suggestion-item.active {
+  background: var(--accent-muted);
 }
 .suggestion-item .suggestion-row {
   flex: 1;

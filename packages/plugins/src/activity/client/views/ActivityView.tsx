@@ -1,7 +1,7 @@
 import { formatDayFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Button, Icon, initRovingTabIndexDefault } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import ActivityRow, { type ActivityRow as ActivityRowData, clearCurrentRow } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
 import "./ActivityView.css";
@@ -16,8 +16,6 @@ import {
   type Tag,
 } from "./activityViewFilters";
 
-const bootstrapStore = service("bootstrap");
-const usersStore = service("users");
 const activityStore = service("activity");
 
 const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
@@ -28,13 +26,6 @@ export default function ActivityView() {
   onCleanup(clearCurrentRow);
   const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
   const [readState, setReadState] = createSignal<ReadState>("all");
-
-  createEffect(() => {
-    const currentUser = usersStore.currentUser();
-    const preferencesSettled =
-      service("prefs").preferencesReady() || !!bootstrapStore.userPrefs.error;
-    if (currentUser && preferencesSettled) void untrack(() => activityStore.ensureActivityLoaded());
-  });
 
   const rows = createActivityRows();
 
@@ -223,7 +214,9 @@ export default function ActivityView() {
           fallback={
             <div class="activity-empty flex-col empty-state">
               <Icon name="check-circle" size={28} />
-              <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
+              <Show when={!activityStore.activityLoadingMore()}>
+                <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
+              </Show>
             </div>
           }
           when={visibleRows().length > 0}
@@ -242,12 +235,6 @@ export default function ActivityView() {
             </For>
           </div>
 
-          <Show when={activityStore.activityLoadingMore()}>
-            <div class="activity-load-notice flex-center gap-sm text-dim text-sm">
-              Loading more…
-            </div>
-          </Show>
-
           <Show when={activityStore.activityLoadMoreError()}>
             <div class="activity-load-notice flex-center gap-sm activity-load-warning">
               <span>Couldn't load more activity.</span>
@@ -261,6 +248,15 @@ export default function ActivityView() {
               </Button>
             </div>
           </Show>
+        </Show>
+
+        <Show when={activityStore.activityHasMore(activeFeedTypes(), activeUnreadOnly())}>
+          <div
+            class="activity-load-notice flex-center gap-sm text-dim text-sm"
+            classList={{ "activity-load-idle": !activityStore.activityLoadingMore() }}
+          >
+            Loading more…
+          </div>
         </Show>
       </Show>
     </div>

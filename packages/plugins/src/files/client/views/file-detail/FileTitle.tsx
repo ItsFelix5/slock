@@ -1,3 +1,4 @@
+import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { SlackFile } from "@slock/types";
 import { IconButton } from "@slock/ui";
@@ -53,7 +54,9 @@ export default function FileTitle(props: {
       }
       when={draft() === null}
     >
-      <h2 class="file-detail-title truncate">{current()}</h2>
+      <h2 class="file-detail-title truncate">
+        <EmojiText text={current()} />
+      </h2>
       <Show when={props.editable}>
         <IconButton
           icon="edit"

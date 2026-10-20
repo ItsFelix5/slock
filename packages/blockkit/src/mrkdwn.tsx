@@ -1,6 +1,6 @@
+import { decodeTextEntities } from "@slock/slack";
 import { createMemo, For, type JSX } from "solid-js";
 import EmojiText from "./emoji/EmojiText";
-import { decodeTextEntities } from "./entities";
 import { type InlineNode, parseInline } from "./mrkdwnInline";
 import {
   CanvasMention,
@@ -114,7 +114,11 @@ function InlineNodeView(props: { node: InlineNode }) {
     case "canvas":
       return <CanvasMention fileId={n.fileId} label={n.label} />;
     case "broadcast":
-      return <span class="bk-mention bk-mention-broadcast">@{n.range}</span>;
+      return (
+        <span class="bk-mention bk-mention-broadcast" data-broadcast={n.range}>
+          @{n.range}
+        </span>
+      );
     case "date":
       return (
         <DateToken fallback={n.fallback} format={n.format} timestamp={n.timestamp} url={n.url} />

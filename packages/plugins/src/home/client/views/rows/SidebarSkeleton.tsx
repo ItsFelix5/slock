@@ -13,9 +13,11 @@ export function SidebarSkeleton() {
       </div>
       <For each={SKELETON_ROW_WIDTHS}>
         {(w) => (
-          <div class="sidebar-row flex-align-center">
-            <Skeleton height={12} radius={3} width={16} />
-            <Skeleton height={12} width={w} />
+          <div class="sidebar-row sidebar-row-channel flex-align-center">
+            <span class="sidebar-row-icon">
+              <Skeleton height={13} radius={3} width={16} />
+            </span>
+            <Skeleton height="1lh" width={w} />
           </div>
         )}
       </For>

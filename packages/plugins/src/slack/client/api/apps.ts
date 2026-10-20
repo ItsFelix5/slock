@@ -31,16 +31,20 @@ export async function runMessageShortcut(
 
 const query = service("query");
 
-export function fetchAppDescription(appId: string, botId: string): Promise<string | undefined> {
-  return query.client.fetchQuery({
+export async function fetchAppDescription(
+  appId: string,
+  botId: string,
+): Promise<string | undefined> {
+  const desc = await query.client.query({
     queryFn: async () => {
       const data = await apiGet<{ desc?: string }>(
         `/api/apps/${appId}/profile?bot=${encodeURIComponent(botId)}`,
       );
       if (!data.ok) throw new Error(data.error ?? "apps.profile.get failed");
-      return data.desc || undefined;
+      return data.desc ?? "";
     },
     queryKey: appDescriptionKey(appId),
     staleTime: Infinity,
   });
+  return desc || undefined;
 }

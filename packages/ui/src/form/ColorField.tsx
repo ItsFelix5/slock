@@ -1,19 +1,13 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
+import IconButton from "../button/IconButton";
 import Popover from "../overlay/Popover";
-import Tooltip from "../overlay/Tooltip";
-import type { ColorRef } from "../themeDerivations";
 import OklchColorPicker from "./OklchColorPicker";
-import RelativeColorPicker from "./RelativeColorPicker";
+import type { RelativeColor } from "./RelativeChannelRows";
 import "./ColorField.css";
-
-export interface RelativeColor {
-  onChange: (ref: ColorRef) => void;
-  onDecouple: () => void;
-  reference: ColorRef;
-}
 
 export interface ColorFieldProps {
   displayValue?: string;
+  isCustom: boolean;
   label: string;
   onChange: (value: string) => void;
   onReset: () => void;
@@ -59,20 +53,12 @@ export default function ColorField(props: ColorFieldProps) {
           />
         }
       >
-        <Show
-          fallback={<OklchColorPicker label={props.label} onChange={commit} value={value()} />}
-          when={props.relative}
-        >
-          {(relative) => (
-            <RelativeColorPicker
-              label={props.label}
-              onChange={relative().onChange}
-              onDecouple={relative().onDecouple}
-              preview={value()}
-              reference={relative().reference}
-            />
-          )}
-        </Show>
+        <OklchColorPicker
+          label={props.label}
+          onChange={commit}
+          relative={props.relative}
+          value={value()}
+        />
       </Popover>
       <div class="color-field-name truncate" title={props.label}>
         {props.label}
@@ -85,16 +71,7 @@ export default function ColorField(props: ColorFieldProps) {
         type="text"
         value={draft()}
       />
-      <Tooltip content="Reset to default">
-        <button
-          aria-label="Reset to default"
-          class="color-field-reset hover-hl"
-          onClick={reset}
-          type="button"
-        >
-          ↺
-        </button>
-      </Tooltip>
+      <IconButton disabled={!props.isCustom} icon="rotate" onClick={reset} size="md" />
     </div>
   );
 }

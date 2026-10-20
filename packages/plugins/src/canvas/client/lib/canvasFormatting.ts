@@ -1,5 +1,5 @@
 import type { LayoutFrame } from "@slock/types";
-import Quill from "quill";
+import Quill from "@slock/ui/editor/quill";
 import { BlockEmbed } from "quill/blots/block";
 import { framesFromAttribute, layoutAttribute, withCallout, withQuote } from "../../protocol/api";
 import { ANNOTATION_ATTRIBUTE, LAYOUT_ATTRIBUTE } from "../views/canvasBlots";

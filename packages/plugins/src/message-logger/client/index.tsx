@@ -7,7 +7,10 @@ import FiltersTab from "./views/FiltersTab";
 const setup: Setup = (ctx) => {
   const users = service("users");
   const filters = createLogFilters(() => users.currentUser()?.id);
-  ctx.add("messages.retain", (msg) => !filters.ignores(msg));
+  ctx.add(
+    "messages.retain",
+    (msg) => msg.metadata?.event_type !== "anchor" && !filters.ignores(msg),
+  );
   ctx.add("messages.edited", EditedDiff);
   ctx.add("messages.patch", (current, patch) =>
     patch.text !== undefined && patch.text !== current.text && !filters.ignores(current)

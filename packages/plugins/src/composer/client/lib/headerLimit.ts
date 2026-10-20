@@ -1,4 +1,4 @@
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 
 export const HEADER_MAX_LENGTH = 150;
 

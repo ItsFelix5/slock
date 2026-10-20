@@ -1,7 +1,8 @@
-import { Mrkdwn } from "@slock/blockkit";
+import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import { Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
+import { fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import "./MessageFiles.css";
 
 export function formatSize(bytes: number | undefined): string {
@@ -33,12 +34,12 @@ export default function FileCardInfo(props: {
       <Icon name={props.icon} size={20} />
       <span class="message-file-info flex-col">
         <span class="message-file-name truncate" data-link-url={props.linkUrl}>
-          <Show fallback={name()} when={props.mrkdwnTitle}>
+          <Show fallback={<EmojiText text={name()} />} when={props.mrkdwnTitle}>
             <Mrkdwn text={name()} />
           </Show>
         </span>
         <span class="message-file-meta meta-dim">
-          {props.file.filetype?.toUpperCase()} {formatSize(props.file.size)}
+          {fileKindLabel(props.file)} {isCanvasFile(props.file) ? "" : formatSize(props.file.size)}
         </span>
       </span>
     </Show>

@@ -1,19 +1,11 @@
-import { parseUserProfileLink } from "@slock/blockkit";
-import { narrowByType } from "@slock/core";
-import { getCachedWorkspaceDomain, isRichTextSubBlock, userProfileUrl } from "@slock/slack";
-import type {
-  Block,
-  RichTextBlock,
-  RichTextInlineElement,
-  RichTextStyle,
-  RichTextSubBlock,
-} from "@slock/types";
+import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
+import type { Block, RichTextInlineElement, RichTextStyle, RichTextSubBlock } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
-import type Quill from "quill";
-import { INVISIBLE_LABEL } from "../../../message-links/client/api/replyLink";
+import type Quill from "@slock/ui/editor/quill";
 import { parseSlackPermalink } from "../../../message-links/client/api/slackPermalink";
 import { HEADER_MAX_LENGTH } from "./headerLimit";
 import { type DeltaLine, type DeltaSegment, deltaLines, MENTION_PREFIX } from "./quillMentions";
+import { collapseLeadingMessageLink } from "./replyLinkBlocks";
 
 function styleFromAttrs(
   attrs: Record<string, unknown> | undefined,
@@ -40,7 +32,19 @@ function segmentElements(segment: DeltaSegment, forceBold: boolean): RichTextInl
       return [{ text: embed.mention.name, type: "link", url }];
     }
     if (embed.mention.kind === "messagelink") {
-      return [{ type: "link", url: embed.mention.id }];
+      const target = parseSlackPermalink(embed.mention.id);
+      return [
+        target
+          ? {
+              channel_id: target.channelId,
+              message_ts: target.messageTs,
+              text: embed.mention.id,
+              thread_ts: target.threadTs,
+              type: "message_mention",
+              url: embed.mention.id,
+            }
+          : { type: "link", url: embed.mention.id },
+      ];
     }
     return [
       embed.mention.kind === "user"
@@ -108,62 +112,17 @@ function splitLineOnDividers(line: DeltaLine): DeltaLine[] {
   return lines;
 }
 
-function elementsHaveProfileLink(
-  elements: readonly (RichTextInlineElement | RichTextSubBlock)[],
-): boolean {
-  return elements.some((el) =>
-    isRichTextSubBlock(el)
-      ? elementsHaveProfileLink(el.elements)
-      : el.type === "link" && !!parseUserProfileLink(el.url),
-  );
-}
-
-export function blocksHaveProfileLink(blocks: readonly Block[]): boolean {
-  return blocks.some((block) => {
-    const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
-    return !!richText && elementsHaveProfileLink(richText.elements);
-  });
-}
-
-function collapseLeadingMessageLink(blocks: Block[]): Block[] {
-  const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");
-  if (!richText) return blocks;
-  const [sub] = richText.elements;
-  if (sub?.type !== "rich_text_section" && sub?.type !== "rich_text_quote") return blocks;
-  const [first] = sub.elements;
-  if (!first || isRichTextSubBlock(first) || first.type !== "link") return blocks;
-  if (first.text !== first.url || !parseSlackPermalink(first.url)) return blocks;
-
-  const label = { ...first, text: INVISIBLE_LABEL };
-  const updatedSub: RichTextSubBlock =
-    sub.type === "rich_text_section"
-      ? { ...sub, elements: [label, ...sub.elements.slice(1)] }
-      : { ...sub, elements: [label, ...sub.elements.slice(1)] };
-  return [
-    { ...richText, elements: [updatedSub, ...richText.elements.slice(1)] },
-    ...blocks.slice(1),
-  ];
-}
-
-export function withReplyLink(blocks: Block[], permalink: string): Block[] {
-  const link: RichTextInlineElement = { text: INVISIBLE_LABEL, type: "link", url: permalink };
-  const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");
-  if (!richText) return blocks;
-  const [sub, ...restSubs] = richText.elements;
-  const elements: RichTextSubBlock[] =
-    sub?.type === "rich_text_section"
-      ? [{ ...sub, elements: [link, { text: " ", type: "text" }, ...sub.elements] }, ...restSubs]
-      : [{ elements: [link], type: "rich_text_section" }, ...richText.elements];
-  return [{ ...richText, elements }, ...blocks.slice(1)];
-}
-
 export function buildRichTextBlocks(quill: Quill): Block[] {
   const blocks: Block[] = [];
   const elements: RichTextSubBlock[] = [];
   let plainRun: RichTextInlineElement[] = [];
   let codeLines: string[] | null = null;
   let quoteRun: RichTextInlineElement[] | null = null;
-  let list: { style: "bullet" | "ordered"; items: RichTextInlineElement[][] } | null = null;
+  let list: {
+    offset: number;
+    style: "bullet" | "ordered";
+    items: RichTextInlineElement[][];
+  } | null = null;
 
   const flushPlain = () => {
     if (!plainRun.length) return;
@@ -190,6 +149,7 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
     if (!list) return;
     elements.push({
       elements: list.items.map((item) => ({ elements: item, type: "rich_text_section" })),
+      ...(list.offset ? { offset: list.offset } : {}),
       style: list.style,
       type: "rich_text_list",
     });
@@ -258,7 +218,7 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
       flushPlain();
       flushQuote();
       if (list && list.style !== attrs.list) flushList();
-      list ??= { items: [], style: attrs.list };
+      list ??= { items: [], offset: Number(attrs.listOffset ?? 0), style: attrs.list };
       list.items.push(lineElements(line));
       continue;
     }

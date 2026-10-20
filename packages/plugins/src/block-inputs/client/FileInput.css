@@ -1,0 +1,39 @@
+.file-input {
+  gap: var(--space-xs);
+}
+
+.file-input-file {
+  gap: var(--space-sm);
+  min-height: 32px;
+  padding: 0 var(--space-xs) 0 var(--space-sm);
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.file-input-icon {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.file-input-pick {
+  gap: var(--space-xs);
+  min-height: 32px;
+  padding: 0 var(--space-sm);
+  font-size: var(--font-size-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.file-input-pick:hover:not(:disabled),
+.file-input-pick:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.file-input-pick:disabled {
+  cursor: default;
+  opacity: 0.7;
+}

@@ -1,13 +1,16 @@
 import { getHost, service } from "@slock/core/solid";
 import { blockPreviewText, broadcastRangeFromBlocks } from "@slock/slack";
 import type { SlackFile } from "@slock/types";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import { encodeReplyLink } from "../../message-links/client/api/replyLink";
 import { uploadFilesForEdit } from "../../slack/client/api";
+import { SLASH_COMMAND_RE } from "../../slash-commands/client/api";
 import type { ComposerProps } from "./composerTypes";
+import type { createLinkPreviews } from "./lib/linkPreviews";
 import type { createPendingFileState } from "./lib/pendingFiles";
 import { mrkdwnText } from "./lib/quillMentions";
-import { blocksHaveProfileLink, buildRichTextBlocks, withReplyLink } from "./lib/richTextBuild";
+import { withReplyLink } from "./lib/replyLinkBlocks";
+import { buildRichTextBlocks } from "./lib/richTextBuild";
 import { submitComposerPayload } from "./lib/submission";
 
 const feedback = service("feedback");
@@ -23,6 +26,7 @@ export function createComposerSubmitHandler(deps: {
   existingFiles: () => SlackFile[];
   feedbackKey: () => string;
   getQuill: () => Quill | undefined;
+  linkPreviews: ReturnType<typeof createLinkPreviews>;
   onSent: () => void;
   pendingFiles: ReturnType<typeof createPendingFileState>;
   replyTo: () => ComposerProps["replyTo"];
@@ -35,7 +39,8 @@ export function createComposerSubmitHandler(deps: {
     if (!deps.channelId()) return;
     const quill = deps.getQuill();
     if (!quill) return;
-    const text = mrkdwnText(quill).trim();
+    const rawText = mrkdwnText(quill);
+    const text = rawText.trim();
     const hasFiles = deps.pendingFiles.files().length > 0 || deps.existingFiles().length > 0;
     if (!(text || hasFiles)) return;
     const editing = deps.editing();
@@ -65,12 +70,11 @@ export function createComposerSubmitHandler(deps: {
     const channelId = deps.channelId();
     if (!channelId) return;
     const threadTs = deps.threadTs();
-    const isSlashAttempt = text.startsWith("/");
+    const isSlashAttempt = SLASH_COMMAND_RE.test(rawText);
     const replyTo = deps.replyTo();
     const typedBlocks = isSlashAttempt ? undefined : buildRichTextBlocks(quill);
     const blocks =
       typedBlocks && replyTo ? withReplyLink(typedBlocks, replyTo.permalink) : typedBlocks;
-    const suppressUnfurl = !!blocks && blocksHaveProfileLink(blocks);
     const fallbackText = typedBlocks ? blockPreviewText(typedBlocks) || text : text;
     const outgoing =
       replyTo && !isSlashAttempt ? encodeReplyLink(replyTo.permalink) + fallbackText : fallbackText;
@@ -90,6 +94,8 @@ export function createComposerSubmitHandler(deps: {
         return;
       }
     }
+    const previewUrls = await deps.linkPreviews.urlsToSend();
+    const unfurl = replyTo ? [...previewUrls, replyTo.permalink] : previewUrls;
     const reusedFileIds = deps.existingFiles().map((f) => f.id);
     if (filesToSend.length > 0 && reusedFileIds.length > 0) {
       console.warn(
@@ -115,6 +121,7 @@ export function createComposerSubmitHandler(deps: {
         );
       },
       onSuccess: () => {
+        deps.linkPreviews.reset();
         quill.setText("\n");
         deps.setExistingFiles([]);
         void deps.clearDraftAfterSend();
@@ -125,9 +132,9 @@ export function createComposerSubmitHandler(deps: {
         messagesStore.sendMessage(
           channelId,
           outgoing,
+          unfurl,
           threadTs,
           blocks,
-          suppressUnfurl,
           filesToSend.length === 0 && reusedFileIds.length ? reusedFileIds : undefined,
         ),
       uploadFiles: () => messagesStore.sendFiles(channelId, filesToSend, threadTs, outgoing),

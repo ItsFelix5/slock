@@ -3,10 +3,12 @@ import { service } from "@slock/core/solid";
 import { type Accessor, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../../channels/client/api/sectionMutations";
 import { buildCategories, type Category } from "./categories";
+import { useChannelRows } from "./channelRows";
 
 export function useChannelSections(unreadsOnly: Accessor<boolean>) {
   const channels = service("channels");
   const unread = service("unread");
+  const channelRows = useChannelRows();
   const panes = service("conversations");
   const prefs = service("prefs");
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
@@ -21,7 +23,7 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
       channels.channels(),
       channels.sections,
       unreadsOnly,
-      unread.isChannelUnread,
+      (id) => unread.isChannelUnread(id) || channelRows.hasRows(id),
       channels.isChannelStarred,
       channels.isChannelLeft,
       (id) => panes.isOpenInAnyPane(id, "channel"),

@@ -1,10 +1,12 @@
 import type { Setup } from "@slock/core";
 import { createModalsSlice } from "./store";
 import ViewModal from "./views/ViewModal";
+import ViewToast from "./views/ViewToast";
 
 const setup: Setup = (ctx) => {
   const store = createModalsSlice();
   ctx.provide("view-modals", store);
+  ctx.onCleanup(store.dispose);
   ctx.add("realtime.handler", {
     run: (event) => {
       if (event.type !== "view_opened" && event.type !== "view_updated") return;
@@ -15,6 +17,7 @@ const setup: Setup = (ctx) => {
     types: ["view_opened", "view_updated"],
   });
   ctx.add("shell.overlay", ViewModal);
+  ctx.add("shell.overlay", ViewToast);
 };
 
 export default setup;

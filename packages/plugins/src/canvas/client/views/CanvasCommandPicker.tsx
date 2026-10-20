@@ -1,6 +1,6 @@
 import { FloatingPanel } from "@slock/ui";
 import { lazy, Show } from "solid-js";
-import ComposeDatePicker from "../../../composer/client/api/pickers/ComposeDatePicker";
+import DatePicker from "../../../dates/client/api/DatePicker";
 import { type CanvasPicker, insertDate } from "../lib/canvasCommandContext";
 
 const FloatingEmojiPicker = lazy(() => import("../../../emoji/client/api/FloatingEmojiPicker"));
@@ -21,7 +21,7 @@ export default function CanvasCommandPicker(props: {
         <Show
           fallback={
             <FloatingPanel anchor={() => picker.anchor} open>
-              <ComposeDatePicker
+              <DatePicker
                 dateOnly
                 onClose={() => close(picker.quill)}
                 onSelect={(timestamp) => {

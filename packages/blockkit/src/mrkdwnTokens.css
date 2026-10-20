@@ -43,10 +43,13 @@
   background: var(--mention-hover-bg);
 }
 
-.bk-canvas > svg,
-.bk-mention-message > svg {
+.bk-canvas > .icon {
   margin-right: var(--space-xs);
   vertical-align: text-bottom;
+}
+
+.bk-mention-message > .icon {
+  margin-right: 2px;
 }
 
 .bk-mention {
@@ -75,7 +78,8 @@
   background: var(--mention-self-bg);
 }
 
-.bk-mention-self:hover {
+.bk-mention-self:hover,
+.bk-mention-broadcast:hover {
   background: var(--mention-self-hover-bg);
 }
 

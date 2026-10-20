@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { listNavigationIndex, useEditShortcuts, useListShortcuts } from "@slock/ui";
+import Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import Quill from "quill";
 import { type QuerySuggestion, queryToken } from "../querySuggestions";
 import {
   FilterPillBlot,

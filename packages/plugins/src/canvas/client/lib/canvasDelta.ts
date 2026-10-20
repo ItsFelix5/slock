@@ -1,8 +1,8 @@
-import { decodeTextEntities } from "@slock/blockkit";
+import { decodeTextEntities } from "@slock/slack";
 import type { CanvasLine, CanvasNode, LayoutFrame, RawFile } from "@slock/types";
-import type { Op } from "quill";
+import type { Op } from "@slock/ui/editor/quill";
 import { type CanvasDocument, isLineNode, layoutAttribute } from "../../protocol/api";
-import { type CanvasNames, embedToValue } from "./canvasEmbeds";
+import { type CanvasNames, embedText, embedToValue } from "./canvasEmbeds";
 import {
   COLUMNS_EMBED,
   DIVIDER_EMBED,
@@ -61,7 +61,8 @@ export function nodesToOps(
   view: OpsView = {},
 ): Op[] {
   const ops: Op[] = [];
-  const resolve = (controlId: string) => embedToValue(doc.embeds.get(controlId), controlId, names);
+  const resolve = (controlId: string) =>
+    embedToValue(doc.embeds.get(controlId), controlId, doc.files, names);
   let index = 0;
   while (index < nodes.length) {
     const node = nodes[index];
@@ -176,6 +177,11 @@ export function canvasToOps(doc: CanvasDocModel, names: CanvasNames): Op[] {
   return nodesToOps(doc.nodes, 0, doc, names);
 }
 
-export function canvasTitle(doc: Pick<CanvasDocument, "title">): string {
-  return decodeTextEntities(doc.title).replaceAll("&nbsp;", " ");
+const TITLE_CONTROL_RE = /<control id="([^"]+)"><\/control>/g;
+
+export function canvasTitle(doc: CanvasDocModel, names: CanvasNames): string {
+  const resolved = doc.title.replace(TITLE_CONTROL_RE, (_, id: string) =>
+    embedText(doc.embeds.get(id), doc.files, names),
+  );
+  return decodeTextEntities(resolved).replaceAll("&nbsp;", " ");
 }

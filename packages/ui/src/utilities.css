@@ -229,44 +229,6 @@ label:has(> .sr-input:focus-visible) {
   top: 12px;
   right: 12px;
 }
-.icon-btn {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-control);
-}
-.icon-action {
-  color: var(--text-secondary);
-  background: none;
-  border: none;
-}
-.icon-action.text-dim {
-  color: var(--text-dim);
-}
-.icon-action.text-accent {
-  color: var(--accent);
-}
-.icon-action:hover,
-.icon-action.active {
-  color: var(--text-primary);
-  background: var(--hover-bg);
-}
-.icon-btn.sm {
-  width: 24px;
-  height: 24px;
-}
-.icon-btn.md {
-  width: 30px;
-  height: 30px;
-}
-.icon-btn.lg {
-  width: 36px;
-  height: 36px;
-}
-.icon-btn.circular {
-  border-radius: var(--radius-circle);
-}
 .busy:disabled {
   cursor: wait;
   opacity: 0.6;

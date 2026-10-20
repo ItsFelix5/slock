@@ -1,3 +1,4 @@
+import { Slot } from "@slock/core/solid";
 import type { Attachment } from "@slock/types";
 import { ConstrainedImage, constrainMediaDimensions } from "@slock/ui";
 import { Show } from "solid-js";
@@ -16,6 +17,7 @@ export default function AttachmentImage(props: { attachment: Attachment; large?:
           alt=""
           class={`attachment-image${props.large ? " attachment-gif-image" : ""}`}
           height={dimensions().height}
+          overlay={<Slot attachment={a} point="message-media.attachmentOverlay" />}
           src={url()}
           width={dimensions().width}
         />

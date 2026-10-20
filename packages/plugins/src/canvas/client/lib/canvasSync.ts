@@ -1,5 +1,5 @@
 import type { CanvasControl, CanvasEdit, CanvasNode } from "@slock/types";
-import type { Op } from "quill";
+import type { Op } from "@slock/ui/editor/quill";
 import { createSignal } from "solid-js";
 import type { CanvasEmbed } from "../../protocol/api";
 import { newSectionId } from "../../protocol/api";

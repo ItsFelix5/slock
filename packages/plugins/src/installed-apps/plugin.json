@@ -1,0 +1,1 @@
+{ "id": "installed-apps", "name": "Installed apps", "requires": ["profile", "query", "users"] }

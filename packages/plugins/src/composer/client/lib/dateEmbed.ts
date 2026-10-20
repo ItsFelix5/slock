@@ -1,6 +1,6 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
+import Quill from "@slock/ui/editor/quill";
 import { getEmbedBlot } from "@slock/ui/editor/quillText";
-import Quill from "quill";
 
 export interface DateValue {
   ts: number;
@@ -48,18 +48,6 @@ export function dateValue(value: unknown): DateValue | undefined {
   return typeof ts === "number" && typeof format === "string" && typeof fallback === "string"
     ? { fallback, format, ts }
     : undefined;
-}
-
-export interface DateTarget {
-  index: number;
-  value: DateValue;
-}
-
-export function dateAt(quill: Quill, index: number): DateTarget | undefined {
-  if (index < 0) return;
-  const insert = quill.getContents(index, 1).ops[0]?.insert;
-  const value = typeof insert === "object" ? dateValue(insert.date) : undefined;
-  return value && { index, value };
 }
 
 export function dateMrkdwn(value: DateValue): string {

@@ -21,6 +21,7 @@ export {
 export type { PlanResult } from "./plan.ts";
 export { planEdit } from "./plan.ts";
 export { positionBetween } from "./positions.ts";
+export { dumpRaw } from "./protobufRaw.ts";
 export type { CanvasMeta, DecodedCanvas, SectionRecord } from "./sections.ts";
 export { decodeLoadData, isSectionId, newSectionId } from "./sections.ts";
 export { escapeCanvasHtml } from "./sectionWrite.ts";

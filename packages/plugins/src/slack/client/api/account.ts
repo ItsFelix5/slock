@@ -113,6 +113,12 @@ export async function setPresence(presence: "auto" | "away"): Promise<void> {
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
 }
 
+export async function reportActivity(): Promise<boolean> {
+  const data = await apiPost<{ activated?: boolean }>("/api/presence/activity", {});
+  if (!data.ok) throw new Error(data.error ?? "presence activity failed");
+  return data.activated ?? false;
+}
+
 export const fetchUserPresence = createBatchedIdFetcher<"active" | "away" | null>(async (ids) => {
   const data = await apiPost<{ presence?: Record<string, "active" | "away" | null> }>(
     "/api/users/presence",

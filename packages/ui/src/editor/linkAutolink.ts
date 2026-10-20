@@ -1,5 +1,5 @@
-import type Quill from "quill";
 import { TRAILING_PUNCTUATION_RE } from "../textHighlight";
+import type Quill from "./quill";
 import { indexAlignedText } from "./quillText";
 
 const URL_TAIL_RE = /https?:\/\/[^\s<>]+$/;

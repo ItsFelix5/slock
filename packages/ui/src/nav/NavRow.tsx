@@ -5,11 +5,12 @@ export interface NavRowProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "o
 }
 
 export default function NavRow(props: NavRowProps) {
-  const [local, rest] = splitProps(props, ["class", "onActivate", "onKeyDown"]);
+  const [local, rest] = splitProps(props, ["class", "classList", "onActivate", "onKeyDown"]);
   return (
     <div
       {...rest}
       class={`btn-reset ${local.class ?? ""}`}
+      classList={local.classList}
       data-nav-row
       onClick={() => local.onActivate()}
       onKeyDown={(e) => {

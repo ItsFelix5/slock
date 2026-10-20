@@ -1,5 +1,5 @@
-import Quill, { type Range } from "quill";
 import { BlockEmbed } from "quill/blots/block";
+import Quill, { type Range } from "./quill";
 
 const DIVIDER_PREFIX = /^--$/;
 

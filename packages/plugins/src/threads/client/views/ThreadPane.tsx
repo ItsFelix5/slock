@@ -5,10 +5,10 @@ import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "sol
 import { prepareReplyLink } from "../../../message-links/client/api/messageLinks";
 import type { ThreadPaneContent } from "../../../messages/client/api";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
+import ComposerGate from "../../../messages/client/api/pane/ComposerGate";
 import { observeComposerOverlay } from "../../../messages/client/api/pane/composerOverlay";
 import InPaneSearchBar from "../../../messages/client/api/pane/InPaneSearchBar";
 import { createInPaneSearch } from "../../../messages/client/api/pane/inPaneSearch";
-import JoinChannelBar from "../../../messages/client/api/pane/JoinChannelBar";
 import MessageRows from "../../../messages/client/api/pane/MessageRows";
 import {
   captureScrollAnchor,
@@ -25,9 +25,8 @@ import "./ThreadPane.css";
 
 const feedback = service("feedback");
 
-const dmsStore = service("dms");
-const channelsStore = service("channels");
 const messagesStore = service("messages");
+const unreadStore = service("unread");
 
 export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const thread = () => props.pane.content;
@@ -57,8 +56,6 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     () => props.pane.id,
   );
 
-  const isMember = () =>
-    !!dmsStore.dmById(thread().channelId) || channelsStore.isChannelMember(thread().channelId);
   const jumpToReplyTarget = () => jumpToMessage(replyTarget()?.ts ?? "");
   const cancelReply = () => setReplyTarget(null);
 
@@ -166,9 +163,24 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     cancelJump = jumpToMessageInContainer(messagesRef, ts);
   }
 
+  function reportBottomSeen() {
+    if (messagesRef)
+      unreadStore.setBottomSeen(
+        thread().ts,
+        readyTs === thread().ts && isScrolledToBottom(messagesRef),
+      );
+  }
+  createEffect(() => {
+    const { ts } = thread();
+    messages();
+    queueMicrotask(reportBottomSeen);
+    onCleanup(() => unreadStore.setBottomSeen(ts, false));
+  });
+
   function handleMessagesScroll() {
     if (!messagesRef) return;
     shouldFollowBottom = isScrolledToBottom(messagesRef);
+    reportBottomSeen();
     setEdges({
       atBottom: shouldFollowBottom,
       atTop: messagesRef.scrollTop <= messagesRef.clientHeight / 2,
@@ -244,7 +256,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       />
       <div class="typing-indicator-anchor composer-overlay">
         <Slot channelId={thread().channelId} point="messages.footer" threadTs={thread().ts} />
-        <Show fallback={<JoinChannelBar channelId={thread().channelId} />} when={isMember()}>
+        <ComposerGate channelId={thread().channelId}>
           <Show keyed when={thread().ts}>
             <Slot
               channelId={thread().channelId}
@@ -266,7 +278,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
               threadTs={thread().ts}
             />
           </Show>
-        </Show>
+        </ComposerGate>
       </div>
     </div>
   );

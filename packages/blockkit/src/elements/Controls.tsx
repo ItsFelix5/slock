@@ -1,28 +1,30 @@
-import type { BlockElement, RichTextBlock, TextObject } from "@slock/types";
-import { Icon, Tooltip } from "@slock/ui";
-import { For, Show } from "solid-js";
+import { Slot } from "@slock/core/solid";
+import type { BlockElement, ConfirmationDialog, TextObject } from "@slock/types";
+import { ICON_NAMES, Icon, type IconName, isOneOf, Tooltip } from "@slock/ui";
+import { Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import { useBlockActionDispatch } from "../useBlockActionDispatch";
+import ChoiceGroup from "./ChoiceGroup";
 import "./Controls.css";
+import {
+  isChoiceGroup,
+  isFileInput,
+  isPicker,
+  isRichTextInput,
+  isSelect,
+  isTextInput,
+} from "./guards";
+import Picker from "./Picker";
+import Select from "./Select";
+import TextInput from "./TextInput";
 
-type Option = { text: TextObject; value?: string };
-type ElementData = {
+type ButtonData = {
   accessibility_label?: string;
   action_id?: string;
+  confirm?: ConfirmationDialog;
   icon?: string;
-  initial_date?: string;
-  initial_datetime?: number;
-  initial_value?: string | RichTextBlock;
   negative_button?: { text: TextObject; value?: string };
-  initial_option?: Option;
-  initial_options?: Option[];
-  initial_time?: string;
-  max_files?: number;
-  multiline?: boolean;
-  options?: Option[];
-  option_groups?: { label: TextObject; options: Option[] }[];
-  placeholder?: TextObject;
   positive_button?: { text: TextObject; value?: string };
   text?: TextObject;
   type: string;
@@ -31,72 +33,47 @@ type ElementData = {
   workflow?: { trigger?: { url?: string } };
 };
 
-function allOptions(el: ElementData) {
-  return [...(el.options ?? []), ...(el.option_groups ?? []).flatMap((group) => group.options)];
-}
-
-function optionPayload(option: Option) {
-  return { text: option.text, ...(option.value === undefined ? {} : { value: option.value }) };
-}
-
 export default function Controls(props: {
   blockId?: string;
   context?: BlockActionContext;
   el: BlockElement;
+  stateOnly?: boolean;
 }) {
-  const el = (): ElementData => props.el;
+  const element = props.el;
+  const data: ButtonData = element;
   const {
     canDispatch,
     dispatch: dispatchAction,
     pending,
+    record: recordAction,
   } = useBlockActionDispatch(() => props.context);
-  const ready = () => !pending() && canDispatch(el().action_id);
+  const ready = () =>
+    props.stateOnly ? !!data.action_id : !pending() && canDispatch(data.action_id);
 
-  const dispatch = (payload: Record<string, unknown>) =>
-    dispatchAction({
-      action_id: el().action_id,
-      block_id: props.blockId,
-      type: el().type,
-      ...payload,
-    });
-
-  const selectOptions = () => allOptions(el());
-  const isMulti = () => el().type.startsWith("multi_") || el().type === "checkboxes";
-  const initialValues = () =>
-    (el().initial_options ?? []).map((option) => option.value ?? option.text.text);
-  const initialValue = () => el().initial_option?.value ?? el().initial_option?.text.text ?? "";
-  const placeholder = () => el().placeholder?.text ?? "Select an option";
-
-  const select = (target: HTMLSelectElement) => {
-    const options = selectOptions();
-    const selected = [...target.selectedOptions]
-      .map((item) => options[Number(item.value)])
-      .filter((option): option is Option => !!option);
-    dispatch(
-      isMulti()
-        ? { selected_options: selected.map(optionPayload) }
-        : { selected_option: selected[0] ? optionPayload(selected[0]) : null },
-    );
+  const action = (payload: Record<string, unknown>) => ({
+    action_id: data.action_id,
+    block_id: props.blockId,
+    type: data.type,
+    ...payload,
+  });
+  const record = (payload: Record<string, unknown>) => recordAction(action(payload));
+  const dispatch = (payload: Record<string, unknown>) => {
+    record(payload);
+    if (!props.stateOnly) return dispatchAction(action(payload), data.confirm);
   };
-
-  const choose = (target: HTMLFormElement) => {
-    const options = selectOptions();
-    const selected = options.filter((_, index) => {
-      const input = target.elements.namedItem(`bk-${props.blockId}-${el().action_id}-${index}`);
-      return input instanceof HTMLInputElement && input.checked;
-    });
-    dispatch(
-      el().type === "checkboxes"
-        ? { selected_options: selected.map(optionPayload) }
-        : { selected_option: selected[0] ? optionPayload(selected[0]) : null },
-    );
+  const dispatchOn = () => {
+    if (props.stateOnly) return [];
+    const config = isTextInput(element) ? element.dispatch_action_config : undefined;
+    return config?.trigger_actions_on ?? ["on_enter_pressed"];
   };
+  const iconName = (): IconName | undefined =>
+    data.icon && isOneOf(data.icon, ICON_NAMES) ? data.icon : undefined;
 
-  if (el().type === "workflow_button") {
-    const url = el().workflow?.trigger?.url ?? el().url;
+  if (data.type === "workflow_button") {
+    const url = data.workflow?.trigger?.url ?? data.url;
     return url ? (
       <a class="bk-button bk-button--primary" href={url} rel="noopener noreferrer" target="_blank">
-        <BkText text={el().text} />
+        <BkText text={data.text} />
       </a>
     ) : (
       <button
@@ -105,31 +82,31 @@ export default function Controls(props: {
         onClick={() => dispatch({})}
         type="button"
       >
-        <BkText text={el().text} />
+        <BkText text={data.text} />
       </button>
     );
   }
 
-  if (el().type === "feedback_buttons") {
+  if (data.type === "feedback_buttons") {
     return (
       <div class="bk-feedback-buttons">
-        <Tooltip content={el().positive_button?.text.text ?? "Good response"}>
+        <Tooltip content={data.positive_button?.text.text ?? "Good response"}>
           <button
-            aria-label={el().positive_button?.text.text ?? "Good response"}
+            aria-label={data.positive_button?.text.text ?? "Good response"}
             class="bk-feedback-button bk-feedback-button--positive hover-hl"
             disabled={!ready()}
-            onClick={() => dispatch({ value: el().positive_button?.value })}
+            onClick={() => dispatch({ value: data.positive_button?.value })}
             type="button"
           >
             <Icon name="thumbs-up" size={15} />
           </button>
         </Tooltip>
-        <Tooltip content={el().negative_button?.text.text ?? "Bad response"}>
+        <Tooltip content={data.negative_button?.text.text ?? "Bad response"}>
           <button
-            aria-label={el().negative_button?.text.text ?? "Bad response"}
+            aria-label={data.negative_button?.text.text ?? "Bad response"}
             class="bk-feedback-button bk-feedback-button--negative hover-hl"
             disabled={!ready()}
-            onClick={() => dispatch({ value: el().negative_button?.value })}
+            onClick={() => dispatch({ value: data.negative_button?.value })}
             type="button"
           >
             <Icon name="thumbs-down" size={15} />
@@ -139,157 +116,83 @@ export default function Controls(props: {
     );
   }
 
-  if (el().type === "icon_button") {
+  if (data.type === "icon_button") {
     return (
       <button
-        aria-label={el().accessibility_label ?? el().text?.text ?? "Action"}
-        class="bk-icon-button"
+        aria-label={data.accessibility_label ?? data.text?.text ?? "Action"}
+        class="bk-icon-button hover-hl"
         disabled={!ready()}
-        onClick={() => dispatch({ value: el().value })}
-        title={el().text?.text}
+        onClick={() => dispatch({ value: data.value })}
+        title={data.text?.text}
         type="button"
       >
-        {el().icon ?? "•"}
+        <Show fallback={data.icon ?? "•"} when={iconName()}>
+          {(name) => <Icon name={name()} size={16} />}
+        </Show>
       </button>
     );
   }
 
-  if (el().type === "file_input") {
+  if (isFileInput(element)) {
     return (
-      <input
-        class="bk-control"
-        disabled
-        title="File inputs are available in Slack modals"
-        type="file"
-      />
-    );
-  }
-
-  if (el().type === "rich_text_input") {
-    return (
-      <textarea
-        class="bk-control bk-control--textarea"
-        disabled
-        placeholder={placeholder()}
-        title="Rich text inputs are available in Slack modals"
-      />
-    );
-  }
-
-  if (el().type === "checkboxes" || el().type === "radio_buttons") {
-    return (
-      <form class="bk-options flex-col" onChange={(event) => choose(event.currentTarget)}>
-        <For each={selectOptions()}>
-          {(option, index) => {
-            const key = option.value ?? option.text.text;
-            const checked = () =>
-              el().type === "checkboxes" ? initialValues().includes(key) : initialValue() === key;
-            return (
-              <label class="bk-option flex-align-center">
-                <input
-                  checked={checked()}
-                  disabled={!ready()}
-                  name={`bk-${props.blockId}-${el().action_id}-${index()}`}
-                  type={el().type === "checkboxes" ? "checkbox" : "radio"}
-                  value={String(index())}
-                />
-                <BkText text={option.text} />
-              </label>
-            );
-          }}
-        </For>
-      </form>
-    );
-  }
-
-  if (el().type.endsWith("select")) {
-    const options = selectOptions();
-    return (
-      <select
-        class="bk-control"
-        disabled={!(ready() && options.length)}
-        multiple={isMulti()}
-        onChange={(event) => select(event.currentTarget)}
-        title={options.length ? undefined : "This menu loads its options from its app in Slack"}
-        value={isMulti() ? initialValues() : initialValue()}
-      >
-        <Show when={!isMulti()}>
-          <option value="">{placeholder()}</option>
-        </Show>
-        <For each={options}>
-          {(option, index) => <option value={String(index())}>{option.text.text}</option>}
-        </For>
-      </select>
-    );
-  }
-
-  if (el().type === "datepicker" || el().type === "timepicker" || el().type === "datetimepicker") {
-    const picker = el();
-    const type =
-      picker.type === "datepicker"
-        ? "date"
-        : picker.type === "timepicker"
-          ? "time"
-          : "datetime-local";
-    const initial =
-      picker.type === "datepicker"
-        ? picker.initial_date
-        : picker.type === "timepicker"
-          ? picker.initial_time
-          : picker.initial_datetime
-            ? new Date(picker.initial_datetime * 1000).toISOString().slice(0, 16)
-            : undefined;
-    return (
-      <input
-        class="bk-control"
+      <Slot
         disabled={!ready()}
-        onChange={(event) =>
-          dispatch(
-            el().type === "datepicker"
-              ? { selected_date: event.currentTarget.value }
-              : el().type === "timepicker"
-                ? { selected_time: event.currentTarget.value }
-                : {
-                    selected_date_time: Math.floor(
-                      new Date(event.currentTarget.value).getTime() / 1000,
-                    ),
-                  },
-          )
-        }
-        type={type}
-        value={initial}
+        filetypes={element.filetypes}
+        maxFiles={element.max_files}
+        onChange={(files) => dispatch({ files })}
+        point="blockkit.fileInput"
       />
     );
   }
 
-  const initialText = () => {
-    const value = el().initial_value;
-    return typeof value === "string" ? value : undefined;
-  };
-  const inputType =
-    el().type === "email_text_input"
-      ? "email"
-      : el().type === "url_text_input"
-        ? "url"
-        : el().type === "number_input"
-          ? "number"
-          : "text";
-  return el().multiline ? (
-    <textarea
-      class="bk-control bk-control--textarea"
-      disabled={!ready()}
-      onChange={(event) => dispatch({ value: event.currentTarget.value })}
-      placeholder={placeholder()}
-      value={initialText()}
-    />
-  ) : (
-    <input
-      class="bk-control"
-      disabled={!ready()}
-      onChange={(event) => dispatch({ value: event.currentTarget.value })}
-      placeholder={placeholder()}
-      type={inputType}
-      value={initialText()}
-    />
-  );
+  if (isRichTextInput(element)) {
+    return (
+      <Slot
+        disabled={!ready()}
+        initial={element.initial_value}
+        onChange={(value) => dispatch({ rich_text_value: value })}
+        placeholder={element.placeholder?.text}
+        point="blockkit.richTextInput"
+      />
+    );
+  }
+
+  if (isChoiceGroup(element)) {
+    return (
+      <ChoiceGroup
+        dispatch={dispatch}
+        el={element}
+        name={`bk-${props.blockId}-${data.action_id}`}
+        ready={ready()}
+      />
+    );
+  }
+
+  if (isSelect(element)) {
+    return (
+      <Select
+        blockId={props.blockId}
+        context={props.context}
+        dispatch={dispatch}
+        el={element}
+        ready={ready()}
+      />
+    );
+  }
+
+  if (isPicker(element)) return <Picker dispatch={dispatch} el={element} ready={ready()} />;
+
+  if (isTextInput(element)) {
+    return (
+      <TextInput
+        dispatch={dispatch}
+        dispatchOn={dispatchOn()}
+        el={element}
+        ready={ready()}
+        record={record}
+      />
+    );
+  }
+
+  return null;
 }

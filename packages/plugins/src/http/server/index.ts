@@ -1,4 +1,4 @@
-import type { Setup } from "@slock/core";
+import type { HttpContext, Setup } from "@slock/core";
 import { UPGRADED } from "@slock/server/http";
 import { compressResponse } from "./api/compression";
 import type { CspDirectives } from "./api/csp";
@@ -10,7 +10,7 @@ const BASE_CSP: CspDirectives = {
   "default-src": ["'none'"],
   "font-src": ["'self'", "data:"],
   "form-action": ["'self'"],
-  "frame-ancestors": ["'none'"],
+  "frame-ancestors": ["'self'"],
   "frame-src": ["'self'"],
   "img-src": ["'self'", "data:", "blob:", "https://slack-imgs.com"],
   "manifest-src": ["'self'"],
@@ -32,8 +32,19 @@ function policy(contributions: (CspDirectives | (() => CspDirectives))[]): strin
   return [...merged].map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");
 }
 
+function isCrossOrigin(c: HttpContext): boolean {
+  const origin = c.req.headers.get("origin");
+  const changesState = !["GET", "HEAD"].includes(c.req.method) || c.url.pathname === "/ws";
+  return changesState && origin !== null && new URL(origin).host !== c.url.host;
+}
+
 const setup: Setup = (ctx) => {
   const contributions = ctx.use("http.csp");
+  ctx.add(
+    "http",
+    (c, next) => (isCrossOrigin(c) ? new Response("forbidden", { status: 403 }) : next()),
+    { order: 950 },
+  );
   ctx.add(
     "http",
     async (c, next) => {

@@ -1,4 +1,4 @@
-import { encodeTextEntities } from "@slock/blockkit";
+import { encodeTextEntities } from "@slock/slack";
 
 export interface OutlineItem {
   index: number;

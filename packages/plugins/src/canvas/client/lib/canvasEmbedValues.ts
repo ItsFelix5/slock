@@ -1,5 +1,5 @@
 import type { CanvasFile, CanvasImage, CanvasTableColumn, RawFile } from "@slock/types";
-import type { Op } from "quill";
+import type { Op } from "@slock/ui/editor/quill";
 
 export interface ColumnsEmbedValue {
   columns: Op[][];

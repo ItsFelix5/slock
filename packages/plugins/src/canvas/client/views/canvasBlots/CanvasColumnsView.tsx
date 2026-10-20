@@ -1,6 +1,6 @@
 import { Icon } from "@slock/ui";
-import type Quill from "quill";
-import type { Op } from "quill";
+import type Quill from "@slock/ui/editor/quill";
+import type { Op } from "@slock/ui/editor/quill";
 import { createSignal, For, Show } from "solid-js";
 import type { ColumnsEmbedValue } from "../../lib/canvasEmbedValues";
 import CanvasSurface from "../CanvasSurface";

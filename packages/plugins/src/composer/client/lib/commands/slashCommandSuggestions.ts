@@ -51,12 +51,3 @@ export function invalidateSlashCommandSuggestions(): void {
   loaded = false;
   loadPromise = null;
 }
-
-export function createSlashCommandSuggestionState(text: () => string) {
-  const isSlashCommandDraft = () => text().trimStart().startsWith("/");
-  return {
-    retrySlashCommandSuggestions: loadSlashCommandSuggestions,
-    slashCommandSuggestionsError: () => isSlashCommandDraft() && slashCommandsLoadError(),
-    slashCommandSuggestionsLoading: () => isSlashCommandDraft() && slashCommandsLoading(),
-  };
-}

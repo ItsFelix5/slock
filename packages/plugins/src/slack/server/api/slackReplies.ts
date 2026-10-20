@@ -1,6 +1,7 @@
 import type {
   Block,
   RawActivityFeedEntry,
+  RawAttachment,
   RawBot,
   RawChannel,
   RawChannelSection,
@@ -41,6 +42,8 @@ export type CanvasVersionsReply = {
 export type AuthTestReply = { user_id: string };
 
 export type PostMessageReply = { ts?: string };
+
+export type UnfurlLinkReply = { attachments?: Record<string, RawAttachment> };
 
 export type MessagesListReply = { messages?: unknown };
 
@@ -175,6 +178,12 @@ export type CountsReply = RawCounts;
 
 export type PrefsReply = { prefs?: Record<string, string | undefined> };
 
+export type MemberPermissionsReply = {
+  account_types?: {
+    account_type: string;
+    permissions: { is_allowed: boolean; permission: string }[];
+  }[];
+};
 export type RetentionReply = { retention_duration?: string; retention_type?: string };
 
 export type DndReply = { snooze_enabled?: boolean; snooze_endtime?: number };

@@ -1,8 +1,14 @@
 import { service } from "@slock/core/solid";
 import type { SlackFile } from "@slock/types";
-import { ConstrainedImage, constrainMediaDimensions, MediaFrame, VideoPlayer } from "@slock/ui";
+import {
+  ConstrainedImage,
+  constrainMediaDimensions,
+  MediaFrame,
+  VideoPlayer,
+  type ZoomableImageItem,
+} from "@slock/ui";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
-import { fileSummaryLabel } from "../../../files/client/api/fileSummary";
+import { fileSummaryLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import AudioFile from "./AudioFile";
 import FileCardInfo from "./FileCardInfo";
 import FileViewerTrigger from "./FileViewer";
@@ -11,16 +17,14 @@ import { defined } from "@slock/core";
 import TranscriptPopover from "./TranscriptPopover";
 
 const panes = service("shell.panes");
-
-function isCanvasFile(file: SlackFile) {
-  return file.filetype === "quip";
-}
+const fileDetail = service("files");
 
 function imageGallery(files: SlackFile[]) {
   return files
     .filter((file) => file.isImage && file.thumbUrl && file.urlPrivate)
     .map((file) => ({
       alt: file.title || file.name,
+      onInfo: () => fileDetail.open(file),
       src: file.urlPrivate,
     }));
 }
@@ -52,7 +56,7 @@ function mediaTileSize(file: SlackFile, mediaCount: number) {
 function InlineMedia(props: {
   file: SlackFile;
   files: SlackFile[];
-  gallery: { alt: string; src: string }[];
+  gallery: ZoomableImageItem[];
   mediaCount: number;
 }) {
   const { file } = props;

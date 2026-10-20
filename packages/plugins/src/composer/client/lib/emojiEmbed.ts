@@ -1,6 +1,6 @@
 import { emojiUrl } from "@slock/blockkit";
+import Quill from "@slock/ui/editor/quill";
 import { getEmbedBlot } from "@slock/ui/editor/quillText";
-import Quill from "quill";
 import { standardEmojiUnicode } from "../../../emoji/client/api/emojiSearch";
 
 interface EmojiValue {
@@ -40,10 +40,6 @@ class EmojiBlot extends getEmbedBlot() {
 }
 
 Quill.register(EmojiBlot);
-
-export function resolvedEmojiName(name: string): boolean {
-  return !!standardEmojiUnicode(name) || typeof emojiUrl(name) === "string";
-}
 
 export function emojiValue(value: unknown): string | undefined {
   if (!(value && typeof value === "object" && "name" in value)) return;

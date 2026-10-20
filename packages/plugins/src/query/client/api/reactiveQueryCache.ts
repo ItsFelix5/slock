@@ -45,7 +45,7 @@ export function createReactiveQueryCache<T, K extends QueryKey>(
       return;
     }
     loggedFailures.delete(key);
-    void queryClient.ensureQueryData(toOptions(key)).catch(() => {});
+    void queryClient.query({ ...toOptions(key), staleTime: "static" }).catch(() => {});
   }
 
   function entry(key: string): T | undefined {

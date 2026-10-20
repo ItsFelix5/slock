@@ -46,8 +46,12 @@ button.message-bot-badge {
   text-decoration: line-through;
   opacity: 0.7;
 }
-.message-row-group.deleted:hover {
+.message-row-group.deleted {
   background: var(--danger-subtle);
+  box-shadow: inset 2px 0 0 var(--danger);
+}
+.message-row-group.deleted .message-body {
+  opacity: 0.7;
 }
 .message-row-group.saved {
   box-shadow: inset 2px 0 0 var(--accent-border);
@@ -169,4 +173,27 @@ button.message-bot-badge {
   width: 16px;
   height: 16px;
   vertical-align: -3px;
+}
+.message-row-group.system .message-row {
+  align-items: center;
+  padding-block: var(--space-xs);
+}
+.message-system-icon {
+  flex-shrink: 0;
+  width: var(--message-avatar-size);
+  color: var(--text-dim);
+}
+.message-system-body {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+  color: var(--text-secondary);
+}
+.message-system-body .message-time {
+  font-size: var(--font-size-caption);
+  opacity: 0;
+}
+.message-row-group.system:hover .message-time,
+.message-row-group.system:has(.message-row:focus-visible) .message-time {
+  opacity: 1;
 }

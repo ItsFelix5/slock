@@ -2,7 +2,7 @@ import { EmojiText } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Icon } from "@slock/ui";
-import { createEffect, lazy, Show } from "solid-js";
+import { createEffect, lazy, Show, untrack } from "solid-js";
 import { createReactionCache } from "./reactionCache";
 import { createActivityStore } from "./store";
 
@@ -40,6 +40,7 @@ const setup: Setup = (ctx) => {
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     isBotUser: (userId) => !!users.userById(userId)?.isBot,
+    isViewed: unread.isViewed,
     lastReadByChannel: unread.lastReadByChannel,
     reactionMessageFor: messages.reactionMessageFor,
     setLastReadByChannel: unread.setLastReadByChannel,
@@ -48,9 +49,16 @@ const setup: Setup = (ctx) => {
     visibleThreads: messages.visibleThreads,
   });
   ctx.provide("activity", store);
-  createEffect(() =>
-    store.setGatewayActivityBadgeCounts(service("bootstrap").bootstrap.data?.activityCounts),
-  );
+  const bootstrap = service("bootstrap");
+  const prefs = service("prefs");
+  createEffect(() => {
+    const preferencesSettled = prefs.preferencesReady() || !!bootstrap.userPrefs.error;
+    if (users.currentUser() && preferencesSettled) void untrack(() => store.ensureActivityLoaded());
+  });
+  createEffect(() => store.setGatewayActivityBadgeCounts(bootstrap.bootstrap.data?.activityCounts));
+  ctx.add("unread.counts", (notifications) => {
+    if (store.setGatewayActivityBadgeCounts(notifications)) store.requestActivityRefresh();
+  });
   ctx.add("messages.deleted", store.removeActivityForMessage);
   ctx.add("realtime.handler", {
     run: (event) => {

@@ -1,12 +1,7 @@
 import type { Setup } from "@slock/core";
 import { isRecord } from "@slock/core";
 import { richTextBlocksToPlainText } from "@slock/slack";
-import type {
-  RawActivityEntry,
-  RawActivityFeedEntry,
-  RawActivityMessage,
-  RawCounts,
-} from "@slock/types";
+import type { RawActivityEntry, RawActivityFeedEntry, RawActivityMessage } from "@slock/types";
 import type { Credentials } from "../../slack/server/api/auth";
 import {
   errorResponse,
@@ -17,7 +12,6 @@ import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type { ActivityFeedReply, SavedListReply } from "../../slack/server/api/slackReplies";
-import { trimActivityCounts } from "../../slack/server/api/trim/slackChannels";
 import { ACTIVITY_FEED_TYPES_PARAM } from "../protocol/feedTypes";
 
 async function fetchReminders(
@@ -229,15 +223,6 @@ const list: Route[] = [
       if (!done.ok) return slackErrorResponse(done, "saved.update", ctx.creds);
     }
     return mutate("activity.markRead", { feed_ts: feedTs, key, type }, ctx);
-  }),
-
-  route("GET", "activity/counts", async (ctx) => {
-    const data = await callSlack<RawCounts>("client.counts", {}, ctx.creds);
-    if (!data.ok) return slackErrorResponse(data, "client.counts", ctx.creds);
-    return jsonResponse(
-      { activityCounts: trimActivityCounts(data.activity_v2), ok: true },
-      ctx.creds,
-    );
   }),
 
   route("GET", "activity", async (ctx) => {

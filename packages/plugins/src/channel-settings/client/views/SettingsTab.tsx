@@ -48,6 +48,23 @@ export default function SettingsTab(props: {
   });
   const permissionsDirty = () => memberPermissionsDirty(permissionDrafts());
 
+  const permissionsQuery = channelDetails.createMemberPermissionsQuery(() => props.channelId);
+  createEffect(
+    on(
+      () => permissionsQuery.data,
+      (loaded) => {
+        if (!loaded) return;
+        const choice = (allowed: boolean): PermissionChoice => (allowed ? "allow" : "restrict");
+        setInvitePermission(choice(loaded.invite));
+        setCommittedInvite(choice(loaded.invite));
+        setTopicPermission(choice(loaded.setTopic));
+        setCommittedTopic(choice(loaded.setTopic));
+        setPurposePermission(choice(loaded.setPurpose));
+        setCommittedPurpose(choice(loaded.setPurpose));
+      },
+    ),
+  );
+
   const retentionQuery = channelDetails.createChannelRetentionQuery(() => props.channelId);
   const retention = () => retentionQuery.data;
   const retryRetention = () => void retentionQuery.refetch();
@@ -139,7 +156,7 @@ export default function SettingsTab(props: {
       <ChannelPostingPermissions channelId={props.channelId} />
 
       <div class="settings-section">
-        <div class="settings-row-label">Member permissions</div>
+        <div class="settings-section-title">Member permissions</div>
         <div class="settings-row flex-between">
           <label class="settings-row-label" for="channel-member-invite-permission">
             Who can invite others
@@ -199,7 +216,7 @@ export default function SettingsTab(props: {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Message retention</div>
+        <div class="settings-section-title">Message retention</div>
         <Show when={retentionQuery.error}>
           <SettingsLoadError
             error={retentionQuery.error}

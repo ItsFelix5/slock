@@ -1,4 +1,4 @@
-import { fragmentToMrkdwn, MRKDWN_CLIPBOARD_TYPE } from "@slock/blockkit";
+import { BLOCKS_CLIPBOARD_TYPE, fragmentToBlocks } from "@slock/blockkit";
 
 const MESSAGE_CONTENT_SELECTOR = ".message-list, .thread-panel-messages";
 
@@ -14,10 +14,10 @@ export function handleMessageCopy(e: ClipboardEvent) {
   if (!anchor?.closest(MESSAGE_CONTENT_SELECTOR)) return;
   const container = document.createElement("div");
   container.appendChild(range.cloneContents());
-  const mrkdwn = fragmentToMrkdwn(container);
-  if (!(mrkdwn && e.clipboardData)) return;
+  const blocks = fragmentToBlocks(container);
+  if (!(blocks.length && e.clipboardData)) return;
   e.clipboardData.setData("text/plain", sel.toString());
   e.clipboardData.setData("text/html", container.innerHTML);
-  e.clipboardData.setData(MRKDWN_CLIPBOARD_TYPE, mrkdwn);
+  e.clipboardData.setData(BLOCKS_CLIPBOARD_TYPE, JSON.stringify(blocks));
   e.preventDefault();
 }

@@ -1,15 +1,17 @@
-import Quill from "quill";
-import { onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { dispatchManualShortcut } from "../useShortcut";
 import { bindLinePrefix, type LinePrefixFormat } from "./blockShortcuts";
 import ContextBlot from "./ContextBlot";
 import DividerBlot from "./DividerBlot";
 import { useEditorShortcuts } from "./editorShortcuts";
 import { wireEmbedCaretEscape } from "./embedCaret";
+import FormatBubble from "./FormatBubble";
 import LinkEditPopover from "./LinkEditPopover";
 import { linkifySelectionPaste, wireLinkAutoconvert } from "./linkAutolink";
 import { createLinkEditController } from "./linkEdit";
+import { listAutofillBinding, wireListOffsetCleanup } from "./listOffset";
 import { INLINE_MARKS, wireArrowDownExit, wireMarkdownAutoformat } from "./markdownAutoformat";
+import Quill from "./quill";
 import { getEmbedBlot } from "./quillText";
 import "./editor.css";
 
@@ -65,6 +67,10 @@ function stripPastedHeader(_node: Element, delta: Delta) {
 export default function QuillEditor(props: QuillEditorProps) {
   let container: HTMLDivElement | undefined;
   let quill: Quill | undefined;
+  const [mounted, setMounted] = createSignal<Quill>();
+  const formats =
+    props.formats ??
+    ((props.extendedFormats ?? true) ? [...BASE_FORMATS, ...EXTENDED_FORMATS] : BASE_FORMATS);
   const linkEdit = createLinkEditController(() => quill);
   useEditorShortcuts(() => quill, {
     extendedFormats: props.formats?.includes("code-block") ?? props.extendedFormats ?? true,
@@ -73,18 +79,16 @@ export default function QuillEditor(props: QuillEditorProps) {
 
   onMount(() => {
     if (!container) return;
-    const formats =
-      props.formats ??
-      ((props.extendedFormats ?? true) ? [...BASE_FORMATS, ...EXTENDED_FORMATS] : BASE_FORMATS);
     const has = (name: string) => formats.includes(name);
     const blockFormats = formats.some((name) => EXTENDED_FORMATS.includes(name));
     const editor = new Quill(container, {
-      formats,
+      formats: has("list") ? [...formats, "listOffset"] : formats,
       modules: {
         keyboard: {
           bindings: {
             bold: false,
             italic: false,
+            "list autofill": listAutofillBinding,
             "embed backspace": {
               key: "Backspace",
               collapsed: true,
@@ -147,6 +151,7 @@ export default function QuillEditor(props: QuillEditorProps) {
       placeholder: props.placeholder,
     });
     quill = editor;
+    setMounted(editor);
 
     if (props.id) editor.root.id = props.id;
     if (props.ariaLabel) editor.root.setAttribute("aria-label", props.ariaLabel);
@@ -162,6 +167,7 @@ export default function QuillEditor(props: QuillEditorProps) {
 
     wireMarkdownAutoformat(editor, has("code-block"));
     wireArrowDownExit(editor);
+    if (has("list")) wireListOffsetCleanup(editor);
     wireLinkAutoconvert(editor);
     onCleanup(wireEmbedCaretEscape(editor));
     editor.on("text-change", linkEdit.revalidate);
@@ -209,6 +215,7 @@ export default function QuillEditor(props: QuillEditorProps) {
   return (
     <>
       <div class="ql-editor-root" ref={container} />
+      <FormatBubble formats={formats} quill={mounted()} />
       <LinkEditPopover
         anchor={() => linkEdit.state()?.anchorEl}
         onClose={linkEdit.close}

@@ -11,7 +11,11 @@ import {
 import type { Route, RouteCtx } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
-import type { ChannelInfoReply, RetentionReply } from "../../slack/server/api/slackReplies";
+import type {
+  ChannelInfoReply,
+  MemberPermissionsReply,
+  RetentionReply,
+} from "../../slack/server/api/slackReplies";
 
 function okNoop(ctx: RouteCtx): Response {
   return jsonResponse({ ok: true }, ctx.creds);
@@ -53,6 +57,29 @@ const list: Route[] = [
         retention_type: days ? "1" : "0",
       },
       ctx,
+    );
+  }),
+
+  route("GET", "channels/:id/member-permissions", async (ctx) => {
+    const data = await callSlack<MemberPermissionsReply>(
+      "conversations.permissions.accountTypes.list",
+      { channel_id: ctx.params.id },
+      ctx.creds,
+    );
+    if (!data.ok) {
+      return slackErrorResponse(data, "conversations.permissions.accountTypes.list", ctx.creds);
+    }
+    const member = data.account_types?.find((type) => type.account_type === "FULL_MEMBER");
+    const allowed = (permission: string) =>
+      member?.permissions.find((entry) => entry.permission === permission)?.is_allowed ?? true;
+    return jsonResponse(
+      {
+        invite: allowed("INVITE_TO_CHANNEL"),
+        ok: true,
+        setPurpose: allowed("SET_CHANNEL_PURPOSE"),
+        setTopic: allowed("SET_CHANNEL_TOPIC"),
+      },
+      ctx.creds,
     );
   }),
 

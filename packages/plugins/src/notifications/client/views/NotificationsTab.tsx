@@ -95,7 +95,7 @@ export default function NotificationsTab() {
       </Show>
 
       <div class="settings-section">
-        <div class="settings-row-label">Pingwords</div>
+        <div class="settings-section-title">Pingwords</div>
         <form class="settings-add-row flex-align-center" onSubmit={submitNewWord}>
           <input
             class="text-field"
@@ -126,7 +126,7 @@ export default function NotificationsTab() {
                     disabled={prefsStore.isHighlightWordsPending()}
                     onClick={() => prefsStore.removeHighlightWord(word)}
                   >
-                    Remove
+                    <Icon name="close" size={12} />
                   </RowAction>
                 </div>
               )}
@@ -136,7 +136,7 @@ export default function NotificationsTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Notify for all messages</div>
+        <div class="settings-section-title">Notify for all messages</div>
         <Show
           fallback={
             <div class="settings-list-empty text-dim text-sm">
@@ -162,7 +162,7 @@ export default function NotificationsTab() {
                     disabled={prefsStore.isNotifyAllPending(c.id)}
                     onClick={() => prefsStore.toggleNotifyAllChannel(c.id)}
                   >
-                    Reset to mentions only
+                    <Icon name="close" size={12} />
                   </RowAction>
                 </div>
               )}
@@ -172,7 +172,7 @@ export default function NotificationsTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-row-label">Muted channels</div>
+        <div class="settings-section-title">Muted channels</div>
         <Show
           fallback={<div class="settings-list-empty text-dim text-sm">No muted channels.</div>}
           when={mutedChannels().length > 0}
@@ -194,7 +194,7 @@ export default function NotificationsTab() {
                     disabled={prefsStore.isMutePending(c.id)}
                     onClick={() => prefsStore.toggleMuteChannel(c.id)}
                   >
-                    Unmute
+                    <Icon name="close" size={12} />
                   </RowAction>
                 </div>
               )}

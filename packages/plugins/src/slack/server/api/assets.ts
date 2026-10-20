@@ -1,47 +1,31 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { isRecord } from "@slock/core";
 import { errorMessage } from "../../../http/server/api/errorMessage";
 import { type Credentials, jsonHeaders } from "./auth.ts";
 
+export const ASSET_PATH = "/api/assets";
+
 const ALLOWED_FILE_HOSTS = [/\.slack-files\.com$/, /\.slack\.com$/, /\.slack-edge\.com$/];
 
+const INLINE_TYPE_RE =
+  /^(?:image\/(?!svg)[\w.+-]+|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf|text\/vtt)(?:;|$)/i;
+
+const PLAIN_TEXT_TYPE_RE =
+  /^(?:text\/[\w.+-]+|application\/(?:json|xml|javascript|x-yaml|yaml|toml|x-sh|sql)|[\w.-]+\/[\w.-]+\+(?:json|xml))(?:;|$)/i;
+
+export function safeTypeHeaders(type: string | null): Record<string, string> {
+  if (type && INLINE_TYPE_RE.test(type))
+    return { "content-type": type, "x-content-type-options": "nosniff" };
+  if (type && PLAIN_TEXT_TYPE_RE.test(type))
+    return { "content-type": "text/plain; charset=utf-8", "x-content-type-options": "nosniff" };
+  return { "content-disposition": "attachment", "content-type": "application/octet-stream" };
+}
+
 const FILE_CONNECT_TIMEOUT_MS = 15_000;
+const MAX_REDIRECTS = 5;
 const SLACK_ASSET_KEY_RE =
   /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$|^vtt$/i;
 
 const SLACK_IMGS_KEY_RE = /(?:^|_)(?:avatar|icon|image|thumb)(?:_|$)/i;
-
-type CapabilityPurpose = "download" | "upload";
-
-function capabilitySignature(encodedUrl: string, purpose: CapabilityPurpose, creds: Credentials) {
-  return createHmac("sha256", `${creds.token}\0${creds.slackSession}`)
-    .update(`${purpose}\0${encodedUrl}`)
-    .digest("base64url");
-}
-
-function createCapability(url: string, purpose: CapabilityPurpose, creds: Credentials): string {
-  const encodedUrl = Buffer.from(url).toString("base64url");
-  return `${encodedUrl}.${capabilitySignature(encodedUrl, purpose, creds)}`;
-}
-
-function readCapability(
-  capability: string,
-  purpose: CapabilityPurpose,
-  creds: Credentials,
-): string | null {
-  if (capability.length > 16_384) return null;
-  const separator = capability.lastIndexOf(".");
-  if (separator <= 0) return null;
-  const encodedUrl = capability.slice(0, separator);
-  const provided = Buffer.from(capability.slice(separator + 1), "base64url");
-  const expected = Buffer.from(capabilitySignature(encodedUrl, purpose, creds), "base64url");
-  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
-  try {
-    return Buffer.from(encodedUrl, "base64url").toString();
-  } catch {
-    return null;
-  }
-}
 
 function isAllowedSlackUrl(value: string): boolean {
   try {
@@ -74,8 +58,8 @@ function hydrateAvatarHash(value: Record<string, unknown>): void {
   profile.image_192 = `https://ca.slack-edge.com/${team}-${id}-${hash}-192`;
 }
 
-export function downloadUrl(url: string, creds: Credentials): string {
-  return isAllowedSlackUrl(url) ? `/api/assets/${createCapability(url, "download", creds)}` : url;
+export function downloadUrl(url: string): string {
+  return isAllowedSlackUrl(url) ? `${ASSET_PATH}?url=${encodeURIComponent(url)}` : url;
 }
 
 export function rewriteSlackAssetUrls(value: unknown, creds: Credentials | null): unknown {
@@ -86,7 +70,7 @@ export function rewriteSlackAssetUrls(value: unknown, creds: Credentials | null)
   for (const [key, entry] of Object.entries(value)) {
     if (typeof entry === "string" && SLACK_ASSET_KEY_RE.test(key)) {
       if (isAllowedSlackUrl(entry)) {
-        rewritten[key] = downloadUrl(entry, creds);
+        rewritten[key] = downloadUrl(entry);
         continue;
       }
       if (SLACK_IMGS_KEY_RE.test(key)) {
@@ -102,43 +86,53 @@ export function rewriteSlackAssetUrls(value: unknown, creds: Credentials | null)
   return rewritten;
 }
 
-async function slackFileResponse(
-  fileUrl: string,
+async function fetchFollowingRedirects(
+  url: string,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+): Promise<Response> {
+  let target = url;
+  const { cookie: _cookie, ...anonymousHeaders } = headers;
+  for (let hops = 0; hops <= MAX_REDIRECTS; hops++) {
+    const res = await fetch(target, {
+      decompress: false,
+      headers: isAllowedSlackUrl(target) ? headers : anonymousHeaders,
+      redirect: "manual",
+      signal,
+    });
+    const location = res.headers.get("location");
+    if (res.status < 300 || res.status >= 400 || !location) return res;
+    target = new URL(location, target).href;
+    if (new URL(target).protocol !== "https:")
+      throw new Error("Slack file redirected to non-https");
+  }
+  throw new Error("Slack file redirected too many times");
+}
+
+export async function slackAssetResponse(
+  fileUrl: string | null,
   creds: Credentials | null,
   acceptEncoding: string | null,
   range: string | null,
 ): Promise<Response> {
-  let parsed: URL;
-  try {
-    parsed = new URL(fileUrl);
-  } catch {
-    return new Response("invalid url", { headers: jsonHeaders, status: 400 });
+  if (!(fileUrl && isAllowedSlackUrl(fileUrl))) {
+    return new Response("not found", { headers: jsonHeaders, status: 404 });
   }
-  if (!ALLOWED_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
-    return new Response("host not allowed", {
-      headers: jsonHeaders,
-      status: 403,
-    });
-  }
-  if (!creds)
-    return new Response("not configured", {
-      headers: jsonHeaders,
-      status: 401,
-    });
+  if (!creds) return new Response("not configured", { headers: jsonHeaders, status: 401 });
 
   const controller = new AbortController();
   const connectTimer = setTimeout(() => controller.abort(), FILE_CONNECT_TIMEOUT_MS);
   let fileRes: Response;
   try {
-    fileRes = await fetch(parsed, {
-      decompress: false,
-      headers: {
+    fileRes = await fetchFollowingRedirects(
+      fileUrl,
+      {
         cookie: `d=${creds.slackSession}`,
         ...(acceptEncoding ? { "accept-encoding": acceptEncoding } : {}),
         ...(range ? { range } : {}),
       },
-      signal: controller.signal,
-    });
+      controller.signal,
+    );
   } catch (error) {
     return new Response(errorMessage(error, "Slack file request failed"), {
       headers: jsonHeaders,
@@ -160,8 +154,8 @@ async function slackFileResponse(
     headers: {
       "accept-ranges": "bytes",
       "cache-control": "private, max-age=3600",
-      "content-type": fileRes.headers.get("content-type") ?? "application/octet-stream",
-      vary: "Accept-Encoding",
+      ...safeTypeHeaders(fileRes.headers.get("content-type")),
+      vary: "Accept-Encoding, Cookie",
       ...(contentEncoding ? { "content-encoding": contentEncoding } : {}),
       ...(contentRange ? { "content-range": contentRange } : {}),
       ...(contentLength ? { "content-length": contentLength } : {}),
@@ -170,62 +164,19 @@ async function slackFileResponse(
   });
 }
 
-export function slackAssetResponse(
-  capability: string | null,
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-  range: string | null,
-): Promise<Response> {
-  if (!(capability && creds))
-    return Promise.resolve(new Response("not found", { headers: jsonHeaders, status: 404 }));
-  const url = readCapability(capability, "download", creds);
-  if (!url)
-    return Promise.resolve(new Response("not found", { headers: jsonHeaders, status: 404 }));
-  return slackFileResponse(url, creds, acceptEncoding, range);
-}
-
-export function namedSlackAssetResponse(
-  fileUrl: string | null,
-  creds: Credentials | null,
-  acceptEncoding: string | null,
-  range: string | null,
-): Promise<Response> {
-  if (!fileUrl)
-    return Promise.resolve(new Response("not found", { headers: jsonHeaders, status: 404 }));
-  return slackFileResponse(fileUrl, creds, acceptEncoding, range);
-}
-
-export function uploadCapability(uploadUrl: string, creds: Credentials): string | null {
-  return isAllowedSlackUrl(uploadUrl) ? createCapability(uploadUrl, "upload", creds) : null;
-}
-
 export async function slackUploadResponse(
   body: Uint8Array,
-  capability: string | null,
+  uploadUrl: string | null,
   filename: string | null,
-  creds: Credentials | null,
 ): Promise<Response> {
-  if (!(capability && creds))
+  if (!(uploadUrl && isAllowedSlackUrl(uploadUrl))) {
     return new Response("not found", { headers: jsonHeaders, status: 404 });
-  const targetUrl = readCapability(capability, "upload", creds);
-  if (!targetUrl) return new Response("not found", { headers: jsonHeaders, status: 404 });
-  let parsed: URL;
-  try {
-    parsed = new URL(targetUrl);
-  } catch {
-    return new Response("invalid url", { headers: jsonHeaders, status: 400 });
-  }
-  if (!ALLOWED_FILE_HOSTS.some((re) => re.test(parsed.hostname))) {
-    return new Response("host not allowed", {
-      headers: jsonHeaders,
-      status: 403,
-    });
   }
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(body)]), filename ?? "file");
 
   try {
-    const uploadRes = await fetch(parsed, {
+    const uploadRes = await fetch(uploadUrl, {
       body: form,
       method: "POST",
       signal: AbortSignal.timeout(60_000),

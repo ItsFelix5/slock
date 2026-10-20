@@ -32,10 +32,6 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.activity-item.archived {
-  opacity: 0.72;
-}
-
 .activity-item-summary {
   display: flex;
   gap: 6px;
@@ -155,17 +151,6 @@
 
 .activity-reaction-slot .reaction-row {
   margin-top: 0;
-}
-
-.activity-archived-label {
-  display: inline-flex;
-  gap: 2px;
-  align-items: center;
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--presence-active);
-  vertical-align: 1px;
 }
 
 .activity-snippet {

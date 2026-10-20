@@ -18,7 +18,8 @@ export function watchRemoteChanges(options: {
     if (!idle()) return;
     const latest = await options.fetchLatest();
     if (!(latest?.doc && idle())) return;
-    if (sync.differsFromRemote(canvasToOps(latest.doc, options.names), canvasTitle(latest.doc)))
+    const { doc } = latest;
+    if (sync.differsFromRemote(canvasToOps(doc, options.names), canvasTitle(doc, options.names)))
       options.onRemoteChange(latest);
   }
 

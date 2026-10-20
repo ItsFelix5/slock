@@ -36,7 +36,7 @@ type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &
     msg?: string;
     presence?: string;
     reaction?: string;
-    subscription?: { thread_ts?: string; unread_count?: number };
+    subscription?: { last_read?: string; thread_ts?: string; unread_count?: number };
     subteam?: { id?: string };
     subteam_id?: string;
     subtitle?: string;
@@ -57,11 +57,15 @@ function trimGatewayCounts(payload: RawCounts): RawCounts {
 function trimView(view: ModalView | undefined): ModalView | undefined {
   if (!view) return;
   return {
+    app_id: view.app_id,
     blocks: view.blocks,
+    bot_id: view.bot_id,
+    clear_on_close: view.clear_on_close,
     close: view.close,
     id: view.id,
     previous_view_id: view.previous_view_id,
     submit: view.submit,
+    submit_disabled: view.submit_disabled,
     title: view.title,
     type: view.type,
   };
@@ -205,6 +209,7 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
     case "thread_marked":
       return {
         channel: channelId(payload.channel),
+        last_read: payload.subscription?.last_read,
         thread_ts: payload.subscription?.thread_ts,
         type: payload.type,
         unread_count: payload.subscription?.unread_count,

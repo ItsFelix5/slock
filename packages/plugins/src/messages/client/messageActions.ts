@@ -6,21 +6,16 @@ const feedback = service("feedback");
 
 const messagesStore = service("messages");
 
-export function copyMessageText(msg: Message) {
+export async function copyMessageText(msg: Message) {
   const body = document.querySelector<HTMLElement>(
     `[data-message-ts="${CSS.escape(msg.ts)}"] .message-text`,
   );
-  const selection = window.getSelection();
-  if (!(body && selection)) {
-    feedback.flash(msg.ts, "Couldn't copy the message text.", "error");
-    return;
-  }
-  const range = document.createRange();
-  range.selectNodeContents(body);
-  selection.removeAllRanges();
-  selection.addRange(range);
-  const copied = document.execCommand("copy");
-  selection.removeAllRanges();
+  const copied =
+    body &&
+    (await navigator.clipboard.writeText(body.innerText).then(
+      () => true,
+      () => false,
+    ));
   if (!copied) feedback.flash(msg.ts, "Couldn't copy the message text.", "error");
 }
 

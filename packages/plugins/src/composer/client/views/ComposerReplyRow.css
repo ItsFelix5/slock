@@ -1,8 +1,7 @@
 .composer-reply-row {
   gap: var(--space-xs);
-  padding: 2px var(--space-xs) 2px var(--space-md);
-  margin: 0 calc(-1 * var(--space-xs)) 2px;
-  border-bottom: 1px solid var(--border);
+  padding: 2px var(--space-xs) 0 var(--space-md);
+  margin: 0 calc(-1 * var(--space-xs)) 0;
 }
 
 .composer-reply-row .reply-reference-row {

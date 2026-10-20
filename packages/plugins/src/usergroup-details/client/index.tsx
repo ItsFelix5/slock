@@ -10,7 +10,6 @@ import UsergroupHoverCard from "./views/UsergroupHoverCard";
 import UsergroupMentionCard from "./views/UsergroupMentionCard";
 
 const UsergroupDetails = lazy(() => import("./views/UsergroupDetails"));
-const USERGROUP_SEGMENT = /^S/;
 
 function UsergroupView(props: { pane: Pane<PaneContent | null> }) {
   return (
@@ -40,9 +39,7 @@ const setup: Setup = (ctx) => {
           : "…",
       url: {
         parse: (segment) =>
-          USERGROUP_SEGMENT.test(segment)
-            ? { kind: "usergroup-details", usergroupId: segment }
-            : null,
+          segment.startsWith("S") ? { kind: "usergroup-details", usergroupId: segment } : null,
         serialize: (content) => (content.kind === "usergroup-details" ? content.usergroupId : ""),
       },
       view: UsergroupView,

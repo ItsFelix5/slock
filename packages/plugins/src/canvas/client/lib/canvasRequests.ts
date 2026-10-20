@@ -20,17 +20,20 @@ import { CanvasEditError } from "./canvasSync";
 const canvasFileKey = defineKey<[string]>("canvasFile");
 
 const query = service("query");
+const channelsStore = service("channels");
 
-export function resolveCanvasFile(fileId: string): Promise<RawFile> {
-  return query.client.fetchQuery({
+export async function resolveCanvasFile(fileId: string): Promise<RawFile> {
+  const file = await query.client.query({
     queryFn: async () => {
-      const info = await apiGet<{ file: RawFile }>(`/api/canvases/${fileId}/file-info`);
+      const info = await apiGet<{ file: RawFile | null }>(`/api/canvases/${fileId}/file-info`);
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
       return info.file;
     },
     queryKey: canvasFileKey(fileId),
     staleTime: Infinity,
   });
+  if (!file) throw new Error("not_visible");
+  return file;
 }
 
 export async function fetchCanvasTitleOrVisibility(
@@ -69,25 +72,38 @@ export interface LoadedCanvas {
 }
 
 async function withFiles(document: CanvasDocument): Promise<CanvasDocModel> {
-  const entries = await Promise.all(
-    document.fileIds.map(async (id) => {
-      try {
-        return [id, await resolveCanvasFile(id)] as const;
-      } catch {
-        return [id, null] as const;
-      }
-    }),
+  const channelIds = [...document.embeds.values()].flatMap((embed) =>
+    embed.type === "channel" ? [embed.channelId] : [],
   );
+  const [entries] = await Promise.all([
+    Promise.all(
+      document.fileIds.map(async (id) => {
+        try {
+          return [id, await resolveCanvasFile(id)] as const;
+        } catch {
+          return [id, null] as const;
+        }
+      }),
+    ),
+    Promise.all(channelIds.map((id) => channelsStore.resolveChannel(id))),
+  ]);
   const files = new Map(entries.filter((entry): entry is [string, RawFile] => entry[1] !== null));
   return { ...document, files };
 }
 
-export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
+export async function fetchCanvasRaw(
+  fileId: string,
+): Promise<{ bytes: Uint8Array; editable: boolean }> {
   const data = await apiGet<{ editable?: boolean; raw: string }>(`/api/canvases/${fileId}/raw`);
   if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
-  const document = readCanvas(base64ToBytes(data.raw));
+  return { bytes: base64ToBytes(data.raw), editable: data.editable !== false };
+}
+
+export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
+  const { bytes, editable } = await fetchCanvasRaw(fileId);
+  const document = readCanvas(bytes);
   if (!document) return { doc: null, editable: false };
-  return { doc: await withFiles(document), editable: data.editable !== false };
+  return { doc: await withFiles(document), editable };
 }
 
 export async function fetchCanvasVersions(fileId: string): Promise<CanvasVersion[]> {
@@ -132,7 +148,7 @@ export async function fetchCanvasComments(fileId: string): Promise<CanvasComment
   if (!data.ok) throw new Error(data.error ?? "Canvas comments failed");
   const threads = data.threads.flatMap((message) => {
     const threadId = message.document_comment?.thread_id;
-    if (!threadId) return [];
+    if (!(threadId && (message.reply_count || message.reactions?.length))) return [];
     return [
       {
         archived: !!message.document_comment?.is_archived,

@@ -51,9 +51,14 @@ export function mapVisibleMessages(raws: RawMessage[]): Message[] {
     .flatMap((raw) => mapVisibleMessage(raw) ?? []);
 }
 
+function systemText(m: RawMessage, text: string): string {
+  return m.user && !text.includes(`<@${m.user}>`) ? `<@${m.user}> ${text}` : text;
+}
+
 export function mapMessage(m: RawMessage): Message {
   const subtype: string | undefined = m.subtype;
   const kind: MessageKind = subtype && SYSTEM_SUBTYPES.has(subtype) ? "system" : "normal";
+  const text = m.text || blockPreviewText(m.blocks);
   return {
     attachments: Array.isArray(m.attachments) ? m.attachments.map(mapAttachment) : undefined,
     blocks: m.blocks,
@@ -71,20 +76,15 @@ export function mapMessage(m: RawMessage): Message {
     botName: m.username ?? m.bot_profile?.name,
     canvasThreadId: m.document_comment?.thread_id,
     day: formatDay(m.ts),
-    deleted: isHiddenSubtype(subtype) || undefined,
+    deleted: isHiddenSubtype(subtype) || m.deleted || undefined,
     edited: !!m.edited,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
-    hasUnreadReplies: !!(
-      m.subscribed &&
-      m.latest_reply &&
-      m.last_read &&
-      m.latest_reply > m.last_read
-    ),
     id: m.ts,
     isBroadcast: subtype === "thread_broadcast",
     isEphemeral: !!m.is_ephemeral,
     isSubscribed: typeof m.subscribed === "boolean" ? m.subscribed : undefined,
     kind,
+    latestReply: m.latest_reply,
     lastReplyLabel: m.latest_reply
       ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
       : undefined,
@@ -92,7 +92,9 @@ export function mapMessage(m: RawMessage): Message {
     reactions: m.reactions,
     replyCount: m.reply_count,
     replyUsers: m.reply_users,
-    text: m.text || blockPreviewText(m.blocks),
+    subtype,
+    text: kind === "system" ? systemText(m, text) : text,
+    threadLastRead: m.last_read,
     threadRoot: m.root ? mapMessage(m.root) : undefined,
     threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
     time: formatTime(m.ts),

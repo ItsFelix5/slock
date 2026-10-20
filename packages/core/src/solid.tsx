@@ -44,19 +44,6 @@ export function usePoint<P extends keyof Points>(point: P): Accessor<Points[P][]
   return () => host.items(point);
 }
 
-export function useService<K extends keyof Services>(key: K): Services[K] {
-  const service = untrack(() => getHost().service(key));
-  if (service === undefined) throw new Error(`service ${String(key)} is missing`);
-  return service;
-}
-
-export function useMaybeService<K extends keyof Services>(
-  key: K,
-): Accessor<Services[K] | undefined> {
-  const host = getHost();
-  return () => host.service(key);
-}
-
 export function Slot<P extends ComponentPoint>(props: { point: P } & PropsOf<Points[P]>) {
   const [, rest] = splitProps(props, ["point"]);
   const items = usePoint(props.point) as Accessor<Component<typeof rest>[]>;

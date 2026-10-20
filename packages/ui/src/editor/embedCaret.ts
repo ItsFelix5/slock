@@ -1,4 +1,4 @@
-import Quill from "quill";
+import Quill from "./quill";
 
 export function wireEmbedCaretEscape(quill: Quill) {
   const handleSelectionChange = () => {

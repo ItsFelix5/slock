@@ -1,5 +1,5 @@
-import type Quill from "quill";
 import EmbedBlot from "quill/blots/embed";
+import type Quill from "./quill";
 
 const OBJECT_REPLACEMENT_CHAR = "￼";
 

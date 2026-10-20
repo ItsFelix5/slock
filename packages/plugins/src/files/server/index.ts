@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { slackUploadResponse, uploadCapability } from "../../slack/server/api/assets";
+import { slackUploadResponse } from "../../slack/server/api/assets";
 import {
   errorResponse,
   jsonResponse,
@@ -142,17 +142,17 @@ const list: Route[] = [
     if (!reservation.ok) return errorResponse(reservation.error, 502);
     if (!(reservation.upload_url && ctx.creds))
       return errorResponse("file reservation failed", 502);
-    const capability = uploadCapability(reservation.upload_url, ctx.creds);
-    if (!capability) return errorResponse("invalid_upload_url", 502);
-    return jsonResponse({ file_id: reservation.file_id, upload_token: capability }, ctx.creds);
+    return jsonResponse(
+      { file_id: reservation.file_id, upload_url: reservation.upload_url },
+      ctx.creds,
+    );
   }),
 
-  route("POST", "files/upload/:capability", async (ctx) =>
+  route("POST", "files/upload", async (ctx) =>
     slackUploadResponse(
       await ctx.body.buffer(),
-      ctx.params.capability,
+      ctx.searchParams.get("url"),
       ctx.searchParams.get("filename"),
-      ctx.creds,
     ),
   ),
 

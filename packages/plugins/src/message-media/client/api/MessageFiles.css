@@ -30,6 +30,7 @@
 }
 
 .message-file-card {
+  text-align: left;
   gap: 10px;
   padding: var(--space-sm) var(--space-md);
   color: var(--text-primary);
@@ -59,6 +60,12 @@
 .message-file-name {
   font-size: var(--font-size-secondary);
   font-weight: 600;
+}
+
+.message-file-name .emoji-img {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
 }
 
 .pending-file-card {

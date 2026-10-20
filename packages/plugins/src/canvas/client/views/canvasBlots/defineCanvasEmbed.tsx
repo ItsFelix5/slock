@@ -1,4 +1,4 @@
-import Quill from "quill";
+import Quill from "@slock/ui/editor/quill";
 import { BlockEmbed } from "quill/blots/block";
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";

@@ -95,6 +95,7 @@ export default function Overlay(props: OverlayProps) {
         aria-modal="true"
         class={`overlay flex-center ${props.align === "top" ? "overlay-top" : ""}`}
         onClick={(e) => e.target === e.currentTarget && props.onClose()}
+        onContextMenu={(e) => e.stopPropagation()}
         ref={overlayRef}
         role="dialog"
         tabIndex={-1}

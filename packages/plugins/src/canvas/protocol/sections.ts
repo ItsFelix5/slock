@@ -1,7 +1,6 @@
 import { asMessage, asString, decodeRaw, field, type RawMessage } from "./protobufRaw.ts";
 
 export const ORPHANED_EMBED_RECORDS_ANCHOR = "zzzzzz-orphaned-m";
-export const SECTION_TYPE_DIVIDER = 16;
 
 export interface SectionRecord {
   anchor: string;

@@ -35,12 +35,14 @@ const setup: Setup = (ctx) => {
   });
   ctx.add("composer.suggest", {
     search: (query) =>
-      ["alpha", "beta", "gamma"].filter((word) => word.startsWith(query)).map((word) => ({
-        description: "Example plugin suggestion",
-        id: word,
-        insert: word.toUpperCase(),
-        label: word,
-      })),
+      ["alpha", "beta", "gamma"]
+        .filter((word) => word.startsWith(query))
+        .map((word) => ({
+          description: "Example plugin suggestion",
+          id: word,
+          insert: word.toUpperCase(),
+          label: word,
+        })),
     trigger: "$",
   });
   ctx.add("composer.beforeSend", (draft) =>

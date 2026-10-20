@@ -10,7 +10,6 @@ import { fetchCanvasTitle } from "./lib/canvasRequests";
 import { createCanvasStore } from "./store";
 
 const CanvasPane = lazy(() => import("./views/CanvasPane"));
-const FILE_SEGMENT = /^F/;
 
 function CanvasView(props: { pane: Pane<PaneContent | null> }) {
   return (
@@ -56,7 +55,7 @@ const setup: Setup = (ctx) => {
       tabLabel: (content) => (content.kind === "canvas" ? <EmojiText text={content.title} /> : "…"),
       url: {
         parse: (segment) =>
-          FILE_SEGMENT.test(segment) ? { fileId: segment, kind: "canvas", title: "" } : null,
+          segment.startsWith("F") ? { fileId: segment, kind: "canvas", title: "" } : null,
         serialize: (content) => (content.kind === "canvas" ? content.fileId : ""),
       },
       view: CanvasView,

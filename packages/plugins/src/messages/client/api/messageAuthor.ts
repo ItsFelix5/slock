@@ -7,14 +7,12 @@ const usersStore = service("users");
 
 const USER_PROFILE_ID_RE = /^[UW]/;
 
-const BOT_PROFILE_ID_RE = /^B/;
-
 export function resolveBotProfileUserId(
   msg: Pick<Message, "botId" | "botName" | "userId">,
 ): string | undefined {
-  if (BOT_PROFILE_ID_RE.test(msg.botId ?? "")) return msg.botId;
+  if (msg.botId?.startsWith("B")) return msg.botId;
   if (msg.botName === "Slackbot") return "USLACKBOT";
-  return msg.botName && (USER_PROFILE_ID_RE.test(msg.userId) || BOT_PROFILE_ID_RE.test(msg.userId))
+  return msg.botName && (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
     ? msg.userId
     : undefined;
 }
@@ -30,10 +28,6 @@ export function resolveProfileUserId(
 ): string | undefined {
   if (USER_PROFILE_ID_RE.test(msg.userId)) return msg.userId;
   return resolveRelaySenderId(msg) ?? resolveBotProfileUserId(msg);
-}
-
-export function resolveLookupUserId(msg: MessageAuthorFields): string | undefined {
-  return hasRealMessageAuthor(msg) ? resolveProfileUserId(msg) : undefined;
 }
 
 export function isRealUserId(id: string | undefined): id is string {
@@ -113,8 +107,7 @@ export function resolveMessageAuthorAvatar(
   userById: (id: string) => { avatarColor?: string; avatarUrl?: string; name: string } | undefined,
 ): MessageAuthorAvatarView {
   const profileUserId = resolveProfileUserId(msg);
-  const lookupUserId = resolveLookupUserId(msg);
-  const user = lookupUserId ? userById(lookupUserId) : undefined;
+  const user = profileUserId ? userById(profileUserId) : undefined;
   return {
     avatarColor: user?.avatarColor ?? DEFAULT_AVATAR_COLOR,
     avatarUrl: resolveAuthorAvatarUrl(msg, user?.avatarUrl),

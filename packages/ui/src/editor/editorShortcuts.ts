@@ -1,10 +1,17 @@
-import type Quill from "quill";
 import { useShortcut } from "../useShortcut";
 import { linkifyBeforeSubmit } from "./linkAutolink";
+import type Quill from "./quill";
 import { toggleUnicodeFont, type UnicodeFontKey } from "./unicodeFonts";
 
 const CONTINUED_BLOCK_FORMATS = ["blockquote", "context", "header", "list", "code-block"];
 const RESET_ON_NEWLINE_FORMATS = ["header", "context"];
+
+export type InlineFormat = "bold" | "code" | "italic" | "strike";
+
+export function toggleInlineFormat(quill: Quill, name: InlineFormat) {
+  quill.format(name, !quill.getFormat()[name], "user");
+  quill.root.classList.toggle("ql-blank", quill.editor.isBlank());
+}
 
 function insertNewline(quill: Quill, extendedFormats: boolean) {
   const range = quill.getSelection();
@@ -39,11 +46,9 @@ export function useEditorShortcuts(
   options: { extendedFormats: boolean; onSubmit: () => (() => void) | undefined },
 ) {
   const focused = () => getQuill()?.hasFocus() ?? false;
-  const format = (name: "bold" | "code" | "italic" | "strike") => () => {
+  const format = (name: InlineFormat) => () => {
     const quill = getQuill();
-    if (!quill) return;
-    quill.format(name, !quill.getFormat()[name], "user");
-    quill.root.classList.toggle("ql-blank", quill.editor.isBlank());
+    if (quill) toggleInlineFormat(quill, name);
   };
   const unicodeFont = (font: UnicodeFontKey) => () => {
     const quill = getQuill();

@@ -1,5 +1,5 @@
 import { useShortcut } from "@slock/ui";
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import { type CanvasCommandContext, runCanvasCommand } from "../lib/canvasCommands";
 
 export function useCanvasSelectionShortcuts(options: {

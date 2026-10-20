@@ -8,10 +8,6 @@
   font-size: var(--font-size-meta);
   color: var(--text-primary);
   text-align: center;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-modal);
   transform: translateX(-50%);
   text-transform: capitalize;
 }

@@ -66,6 +66,7 @@ export function createMessagesStore(deps: {
     ensureThreadRepliesLoaded,
     jumpToBeginning,
     jumpToDate,
+    jumpToTs,
     refreshThreadReplies,
   } = history;
   const setThreadMessages: typeof setMessagesByChannel = setThreadMessagesRaw;
@@ -130,7 +131,10 @@ export function createMessagesStore(deps: {
     const locations = findAllMessageLocations(channelId, ts);
     const msg = locations[0]?.list.find((m) => m.ts === ts);
     if (msg && deps.retainsDeleted(msg)) patchMessage(channelId, ts, { deleted: true });
-    else for (const { location } of locations) removeMessage(location, ts);
+    else {
+      for (const { location } of locations) removeMessage(location, ts);
+      setThreadMessages(produce((threads) => delete threads[ts]));
+    }
   }
   const dismissMessage = (channelId: string, ts: string) => {
     for (const { location } of findAllMessageLocations(channelId, ts)) removeMessage(location, ts);
@@ -181,6 +185,7 @@ export function createMessagesStore(deps: {
     isThreadKnown,
     jumpToBeginning,
     jumpToDate,
+    jumpToTs,
     latestMessageTsMsByUser,
     loadedChannels,
     markDeleted,

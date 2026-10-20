@@ -1,5 +1,6 @@
 import { formatTimeFromMs } from "@slock/core";
 import "./mrkdwnTokens.css";
+import { decodeTextEntities } from "@slock/slack";
 import { Icon, Tooltip } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import {
@@ -10,7 +11,6 @@ import {
 } from "./context";
 import { formatHoverDateTime, formatSlackDateTokens } from "./dateFormat";
 import EmojiText from "./emoji/EmojiText";
-import { decodeTextEntities } from "./entities";
 import { splitHighlightWords } from "./highlightWords";
 import InlineAction from "./InlineAction";
 import { HTTP_URL_RE } from "./mrkdwn";
@@ -216,6 +216,7 @@ export function UsergroupMention(props: { id: string; label?: string }) {
     <InlineAction
       class="bk-mention"
       classList={{ "bk-mention-self": !!info()?.isSelf }}
+      data-usergroup-id={props.id}
       onActivate={(e) => {
         e.stopPropagation();
         resolver.onUsergroupClick(props.id);

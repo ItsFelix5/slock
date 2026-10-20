@@ -2,9 +2,9 @@ import { Slot, service } from "@slock/core/solid";
 import type { Block, SlackFile } from "@slock/types";
 import { InlineFeedback, scrollActiveListOption, useEscapeClose } from "@slock/ui";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
+import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import type Quill from "quill";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { uploadFilesForEdit } from "../../../slack/client/api";
 import "./Composer.css";
 import { createComposerDraftState, draftCacheKey } from "../../../drafts/client/api";
@@ -16,9 +16,8 @@ import { useMentionResolution } from "../api/editor/mentionResolution";
 import {
   insertSuggestionAt,
   loadMrkdwnIntoQuill,
-  pasteMrkdwnClipboard,
+  pasteBlocksClipboard,
 } from "../api/editor/mrkdwnInsert";
-import { wireEmojiAutoconvert } from "../api/editor/quillEmoji";
 import {
   createSuggestionController,
   syncSuggestionsAfterChange,
@@ -26,18 +25,19 @@ import {
 import { type SuggestState, suggestOpen } from "../api/editor/suggestTypes";
 import { useSuggestShortcuts } from "../api/editor/useSuggestShortcuts";
 import { useSuggestUi } from "../api/editor/useSuggestUi";
-import ComposeDatePicker from "../api/pickers/ComposeDatePicker";
 import { createComposerSubmitHandler } from "../composerSubmit";
 import type { ComposerProps } from "../composerTypes";
+import { createEditorPlugins } from "../lib/editorPlugins";
 import { wireHeaderLimit } from "../lib/headerLimit";
+import { createLinkPreviews } from "../lib/linkPreviews";
 import { createPendingFileState } from "../lib/pendingFiles";
 import { mrkdwnText } from "../lib/quillMentions";
 import { buildRichTextBlocks } from "../lib/richTextBuild";
 import { loadRichTextIntoQuill } from "../lib/richTextLoad";
 import { useComposerShortcuts } from "../lib/useComposerShortcuts";
-import { useDateEdit } from "../lib/useDateEdit";
 import ComposerAttachMenu from "./ComposerAttachMenu";
 import ComposerFileChips from "./ComposerFileChips";
+import ComposerLinkPreviews from "./ComposerLinkPreviews";
 import ComposerReplyRow from "./ComposerReplyRow";
 import DraftsMenu from "./popovers/DraftsMenu";
 
@@ -47,8 +47,6 @@ const templates = service("templates");
 
 export default function Composer(props: ComposerProps) {
   let quill: Quill | undefined;
-  let pendingInitialText: string | undefined;
-  let pendingInitialBlocks: Block[] | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
   let caretIndex = 0;
   const [text, setText] = createSignal("");
@@ -59,7 +57,7 @@ export default function Composer(props: ComposerProps) {
   const [draftsMenuOpen, setDraftsMenuOpen] = createSignal(false);
   const resolveMention = useMentionResolution(() => quill);
   const mentionHover = createMentionHoverController();
-  const dateEdit = useDateEdit(() => quill);
+  const editorPlugins = createEditorPlugins(() => quill);
 
   useEscapeClose(
     () => props.editing?.onCancel(),
@@ -72,8 +70,10 @@ export default function Composer(props: ComposerProps) {
   });
 
   useComposerShortcuts({
+    dismissPreviews: () => linkPreviews.dismissAll(),
     editing: () => !!props.editing,
     focusEditor: () => quill?.focus(),
+    hasPreviews: () => linkPreviews.previews().length > 0,
     paneId: () => props.paneId,
     quill: () => quill,
     toggleDrafts: () => setDraftsMenuOpen((open) => !open),
@@ -93,29 +93,38 @@ export default function Composer(props: ComposerProps) {
         : draftCacheKey(props.channelId, props.threadTs),
   });
 
-  const loadIntoEditor = (value: string, blocks?: unknown) => {
-    const richBlocks: Block[] | undefined = Array.isArray(blocks) ? blocks : undefined;
-    if (quill) {
-      if (richBlocks?.length) loadRichTextIntoQuill(quill, richBlocks, resolveMention);
-      else loadMrkdwnIntoQuill(quill, value, resolveMention);
-    } else {
-      pendingInitialText = value;
-      pendingInitialBlocks = richBlocks;
-    }
-    setText(value);
+  const [edits, setEdits] = createSignal(0);
+  const [editorReady, setEditorReady] = createSignal(false);
+  const editorBlocks = createMemo(() => {
+    edits();
+    return quill ? buildRichTextBlocks(quill) : [];
+  });
+  const linkPreviews = createLinkPreviews({
+    blocks: editorBlocks,
+    channelId: () => props.channelId,
+    enabled: () => !props.editing && pendingFiles.files().length === 0,
+  });
+
+  const syncFromEditor = (q: Quill) => {
+    setEdits((count) => count + 1);
+    setText(mrkdwnText(q));
+  };
+
+  const loadIntoEditor = (blocks: Block[]) => {
+    if (!quill) return;
+    loadRichTextIntoQuill(quill, blocks, resolveMention);
   };
 
   const draftState = props.editing
     ? undefined
     : createComposerDraftState({
-        blocks: () => (quill ? buildRichTextBlocks(quill) : undefined),
+        blocks: editorBlocks,
         channelId: () => props.channelId,
         editing: () => false,
         key: () => (props.channelId ? draftCacheKey(props.channelId, props.threadTs) : undefined),
         loadIntoEditor,
+        ready: editorReady,
         resetPreviews: () => {},
-        setText,
-        text,
         threadTs: () => props.threadTs,
       });
 
@@ -126,6 +135,7 @@ export default function Composer(props: ComposerProps) {
     existingFiles,
     feedbackKey,
     getQuill: () => quill,
+    linkPreviews,
     onSent: () => props.replyTo?.onSent(),
     pendingFiles,
     replyTo: () => props.replyTo,
@@ -197,26 +207,26 @@ export default function Composer(props: ComposerProps) {
       <div class="composer-row">
         <ComposerAttachMenu
           onFilesSelected={(files) => pendingFiles.add(files)}
-          onInsertDate={dateEdit.open}
+          editor={editorPlugins.editor}
           onOpenChange={setMenuOpen}
           open={menuOpen()}
         />
         <div class="composer-input-wrap flex-align-center">
           <QuillEditor
             onPasteFiles={(files) => pendingFiles.add(files)}
-            onPasteText={(q, event) => pasteMrkdwnClipboard(q, event, resolveMention)}
+            onPasteText={(q, event) => pasteBlocksClipboard(q, event, resolveMention)}
             onReady={(q) => {
               quill = q;
-              const initialBlocks = props.editing?.initialBlocks ?? pendingInitialBlocks;
-              const initial = props.editing?.initialText ?? pendingInitialText;
+              const initialBlocks = props.editing?.initialBlocks;
+              const initial = props.editing?.initialText;
               if (initialBlocks?.length) loadRichTextIntoQuill(q, initialBlocks, resolveMention);
               else if (initial) loadMrkdwnIntoQuill(q, initial, resolveMention);
-              wireEmojiAutoconvert(q);
+              syncFromEditor(q);
               wireHeaderLimit(q);
               onCleanup(mentionHover.bind(q));
-              onCleanup(dateEdit.bind(q));
+              editorPlugins.bind(q);
               q.on("text-change", () => {
-                setText(mrkdwnText(q));
+                syncFromEditor(q);
                 const rawAligned = indexAlignedText(q);
                 const aligned = rawAligned.endsWith("\n") ? rawAligned.slice(0, -1) : rawAligned;
                 syncSuggestionsAfterChange(
@@ -229,43 +239,32 @@ export default function Composer(props: ComposerProps) {
                   true,
                 );
               });
+              setEditorReady(true);
             }}
             onSubmit={handleSubmit}
             placeholder={props.placeholder ?? "message…"}
           />
           <MentionHoverCard hoverIntent={mentionHover.hoverIntent} state={mentionHover.state} />
-          <Show when={dateEdit.picker()}>
-            {(state) => (
-              <div class="composer-date-popover">
-                <ComposeDatePicker
-                  initial={state().target?.value}
-                  onClose={dateEdit.close}
-                  onSelect={dateEdit.select}
-                />
-              </div>
-            )}
-          </Show>
+          {editorPlugins.popover()}
           <Show when={draftsMenuOpen()}>
-            <div class="composer-drafts-popover">
-              <DraftsMenu
-                hasContent={!!text().trim() || pendingFiles.files().length > 0}
-                onClose={() => setDraftsMenuOpen(false)}
-                onDelete={(entry) => draftState?.remove(entry) ?? Promise.resolve()}
-                onSaveAndStartNew={() => void draftState?.saveAndStartNew()}
-                onSaveAsTemplate={async (name) => {
-                  if (!quill) return;
-                  const blocks = buildRichTextBlocks(quill);
-                  const newFiles = pendingFiles.files();
-                  const uploaded = newFiles.length
-                    ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
-                    : [];
-                  const files = [...existingFiles(), ...uploaded];
-                  templates.saveTemplate(name, blocks, files);
-                }}
-                onSwitchTo={(entry) => draftState?.switchTo(entry)}
-                stack={draftState?.stack() ?? []}
-              />
-            </div>
+            <DraftsMenu
+              hasContent={!!text().trim() || pendingFiles.files().length > 0}
+              onClose={() => setDraftsMenuOpen(false)}
+              onDelete={(entry) => draftState?.remove(entry) ?? Promise.resolve()}
+              onSaveAndStartNew={() => void draftState?.saveAndStartNew()}
+              onSaveAsTemplate={async (name) => {
+                if (!quill) return;
+                const blocks = buildRichTextBlocks(quill);
+                const newFiles = pendingFiles.files();
+                const uploaded = newFiles.length
+                  ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
+                  : [];
+                const files = [...existingFiles(), ...uploaded];
+                templates.saveTemplate(name, blocks, files);
+              }}
+              onSwitchTo={(entry) => draftState?.switchTo(entry)}
+              stack={draftState?.stack() ?? []}
+            />
           </Show>
           <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
             {(state) => (
@@ -280,10 +279,14 @@ export default function Composer(props: ComposerProps) {
             )}
           </Show>
         </div>
+        <Show when={!props.editing}>
+          <Slot {...props} point="composer.trailing" text={text()} />
+        </Show>
         <Show when={props.editing && sending()}>
           <span class="composer-send-status">saving…</span>
         </Show>
       </div>
+      <ComposerLinkPreviews onRemove={linkPreviews.dismiss} previews={linkPreviews.previews()} />
     </div>
   );
 }

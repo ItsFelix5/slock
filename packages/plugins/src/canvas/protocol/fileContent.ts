@@ -6,7 +6,7 @@ import { rawMessage, rawString, rawVarint } from "./sectionWrite.ts";
 
 const FIELD_FILE = 50;
 const FIELD_IMAGES = 2;
-const FILE_REF_RE = /^sf:/;
+const FILE_REF_PREFIX = "sf:";
 const ZERO_DOUBLE: RawField = { fixed64: new Uint8Array(8) };
 
 function content(record: SectionRecord) {
@@ -17,8 +17,9 @@ export function readFile(record: SectionRecord, frames: LayoutFrame[]): CanvasFi
   const file = asMessage(field(content(record) ?? new Map(), FIELD_FILE));
   if (!(file && record.id)) return null;
   const ref = asMessage(field(asMessage(field(file, 3)) ?? new Map(), 2));
+  const fileRef = (ref && asString(field(ref, 1))) ?? "";
   return {
-    fileId: (ref && asString(field(ref, 1)))?.replace(FILE_REF_RE, "") ?? "",
+    fileId: fileRef.startsWith(FILE_REF_PREFIX) ? fileRef.slice(FILE_REF_PREFIX.length) : fileRef,
     frames,
     id: record.id,
     kind: "file",

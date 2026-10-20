@@ -3,6 +3,7 @@ export {
   fetchUser,
   fetchUserPresence,
   fetchUserProfile,
+  reportActivity,
   setPresence,
   setProfileFields,
   setStatus,
@@ -28,6 +29,7 @@ export {
   fetchChannelRetention,
   fetchConversationView,
   fetchFreshSections,
+  fetchMemberPermissions,
   fetchSections,
   inviteToChannel,
   joinChannel,
@@ -54,7 +56,6 @@ export {
 export {
   type FileAccessTarget,
   fetchFileDetail,
-  fetchLinkPreview,
   fetchSaved,
   removeFileAccess,
   renameFile,
@@ -65,17 +66,20 @@ export {
   uploadFiles,
   uploadFilesForEdit,
 } from "./content";
+export { fetchCounts } from "./counts";
 export { deleteDraft, fetchDrafts, saveDraft } from "./drafts";
 export { fetchMessagesByIds } from "./messageLookup";
 export {
   addMessageReminder,
   addReminder,
   broadcastReply,
+  deleteAttachment,
   deleteMessage,
   editMessage,
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
+  fetchLinkPreview,
   fetchPermalinkMessage,
   fetchPinnedMessages,
   fetchPins,

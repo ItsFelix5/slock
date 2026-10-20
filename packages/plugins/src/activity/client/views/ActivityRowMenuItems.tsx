@@ -36,7 +36,6 @@ export default function ActivityRowMenuItems(props: ActivityRowMenuItemsProps) {
   const copyLink = () => copyMessageLink(latest().channelId, latest().ts, latest().threadTs);
 
   const openInSplit = () => {
-    props.onSeen(props.row.items);
     const item = latest();
     if (item.threadTs)
       messageLinks.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });

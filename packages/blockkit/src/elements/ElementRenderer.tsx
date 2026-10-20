@@ -16,6 +16,7 @@ export default function ElementRenderer(props: {
   blockId?: string;
   context?: BlockActionContext;
   el: BlockElement;
+  stateOnly?: boolean;
 }) {
   return (
     <Show
@@ -23,7 +24,14 @@ export default function ElementRenderer(props: {
         <Show
           fallback={
             <Show
-              fallback={<Controls blockId={props.blockId} context={props.context} el={props.el} />}
+              fallback={
+                <Controls
+                  blockId={props.blockId}
+                  context={props.context}
+                  el={props.el}
+                  stateOnly={props.stateOnly}
+                />
+              }
               keyed
               when={narrowByType<BlockElement, OverflowElement>(props.el, "overflow")}
             >

@@ -132,14 +132,3 @@ export function layoutContent(
     return encodeRawMessage(calloutContent(existing, memberIds, layout.color, makeColumnId));
   return encodeRawMessage(columnsContent(existing, layout.columns));
 }
-
-export function imageFileIds(content: RawMessage): string[] {
-  const ids: string[] = [];
-  for (const entry of content.get(2) ?? []) {
-    const img = asMessage(entry);
-    const full = img && asMessage(field(img, 3));
-    const fileId = full && asString(field(full, 5));
-    if (fileId) ids.push(fileId);
-  }
-  return ids;
-}

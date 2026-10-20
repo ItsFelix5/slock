@@ -1,3 +1,4 @@
+import { EMOJI_TOKEN_RE } from "@slock/blockkit";
 import { narrowByType } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { isRichTextSubBlock } from "@slock/slack";
@@ -11,8 +12,8 @@ import type {
   RichTextSubBlock,
 } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
-import type Quill from "quill";
-import { Delta } from "quill";
+import type Quill from "@slock/ui/editor/quill";
+import { Delta } from "@slock/ui/editor/quill";
 import { linkMentionValue, stripLeadingAt } from "./quillMentions";
 
 const titles = service("titles");
@@ -99,6 +100,19 @@ function inlineOps(
   return ops;
 }
 
+function emojiTextOps(text: string): DeltaOp[] {
+  const ops: DeltaOp[] = [];
+  let last = 0;
+  for (const match of text.matchAll(EMOJI_TOKEN_RE)) {
+    const index = match.index ?? 0;
+    if (index > last) ops.push({ insert: text.slice(last, index) });
+    ops.push({ insert: { emoji: { name: match[1] } } });
+    last = index + match[0].length;
+  }
+  if (last < text.length) ops.push({ insert: text.slice(last) });
+  return ops;
+}
+
 function pushLine(
   ops: DeltaOp[],
   elements: (RichTextInlineElement | RichTextSubBlock)[],
@@ -117,14 +131,14 @@ export function richTextDeltaOps(
   for (const block of blocks) {
     const header = narrowByType<Block, HeaderBlock>(block, "header");
     if (header) {
-      ops.push({ insert: header.text.text });
+      ops.push(...emojiTextOps(header.text.text));
       ops.push({ attributes: { header: header.level ?? 1 }, insert: "\n" });
       continue;
     }
     const context = narrowByType<Block, ContextBlock>(block, "context");
     if (context) {
       const text = context.elements.map((el) => ("text" in el ? el.text : "")).join(" ");
-      ops.push({ insert: text });
+      ops.push(...emojiTextOps(text));
       ops.push({ attributes: { context: true }, insert: "\n" });
       continue;
     }
@@ -143,8 +157,10 @@ export function richTextDeltaOps(
       else if (sub.type === "rich_text_quote")
         pushLine(ops, sub.elements, { blockquote: true }, onUnresolvedUser);
       else if (sub.type === "rich_text_list") {
-        for (const item of sub.elements)
-          pushLine(ops, item.elements, { list: sub.style }, onUnresolvedUser);
+        sub.elements.forEach((item, index) => {
+          const attributes = index === 0 && sub.offset ? { listOffset: sub.offset } : {};
+          pushLine(ops, item.elements, { list: sub.style, ...attributes }, onUnresolvedUser);
+        });
       }
     }
   }
@@ -166,9 +182,12 @@ export function insertRichTextAt(
   deleteCount: number,
   blocks: readonly Block[],
   onUnresolvedUser?: (id: string) => void,
+  inline = false,
 ): number {
   const ops = richTextDeltaOps(blocks, onUnresolvedUser);
-  const insertDelta = new Delta(ops.length ? ops : [{ insert: "\n" }]);
+  const last = ops.at(-1);
+  if (inline && last?.insert === "\n" && !last.attributes) ops.pop();
+  const insertDelta = new Delta(ops.length || inline ? ops : [{ insert: "\n" }]);
   quill.updateContents(new Delta().retain(start).delete(deleteCount).concat(insertDelta), "user");
   const length = ops.reduce(
     (n, op) => n + (typeof op.insert === "string" ? op.insert.length : 1),

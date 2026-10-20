@@ -55,7 +55,7 @@ export function trimFile(file: RawFile): RawFile {
   };
 }
 
-function trimAttachment(attachment: RawAttachment): RawAttachment {
+export function trimAttachment(attachment: RawAttachment): RawAttachment {
   return {
     actions: attachment.actions?.map((action) => ({
       name: action.name,
@@ -90,6 +90,8 @@ function trimAttachment(attachment: RawAttachment): RawAttachment {
     is_msg_unfurl: attachment.is_msg_unfurl,
     is_reply_unfurl: attachment.is_reply_unfurl,
     pretext: attachment.pretext,
+    service_icon: attachment.service_icon,
+    service_name: attachment.service_name,
     text: attachment.text,
     title: attachment.title,
     title_link: attachment.title_link,

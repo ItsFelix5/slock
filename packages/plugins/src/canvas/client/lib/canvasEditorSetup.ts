@@ -1,4 +1,4 @@
-import Quill, { type Range } from "quill";
+import Quill, { type Range } from "@slock/ui/editor/quill";
 import { LAYOUT_ATTRIBUTE, SECTION_ID_ATTRIBUTE } from "../views/canvasBlots";
 import type { IdFix } from "./canvasLineIds";
 

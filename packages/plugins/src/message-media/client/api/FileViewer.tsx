@@ -97,7 +97,6 @@ function PdfBody(props: { file: SlackFile }) {
           onError={() => setFailed(true)}
           onLoad={() => setLoaded(true)}
           src={props.file.urlPrivate}
-          sandbox=""
           title={name()}
         />
         <Show when={!loaded()}>

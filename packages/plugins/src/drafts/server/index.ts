@@ -1,7 +1,5 @@
 import type { Setup } from "@slock/core";
-import { narrowByType } from "@slock/core";
-import { blockPreviewText } from "@slock/slack";
-import type { Block, SectionBlock } from "@slock/types";
+import type { Block } from "@slock/types";
 import {
   errorResponse,
   jsonResponse,
@@ -25,14 +23,11 @@ const list: Route[] = [
         drafts: (data.drafts ?? []).map((d) => {
           const dest = d.destinations?.[0] ?? {};
           return {
-            blocks: d.blocks,
+            blocks: d.blocks ?? [],
             channelId: dest.channel_id,
             clientMsgId: d.client_msg_id,
             id: d.id,
             lastUpdatedTs: d.last_updated_ts,
-            text:
-              blockPreviewText(d.blocks) ||
-              (narrowByType<Block, SectionBlock>(d.blocks?.[0], "section")?.text?.text ?? ""),
             threadTs: dest.thread_ts,
           };
         }),
@@ -46,21 +41,17 @@ const list: Route[] = [
     const body: {
       channelId?: string;
       threadTs?: string;
-      text?: string;
-      blocks?: unknown;
+      blocks?: Block[];
       draftId?: string;
       clientMsgId?: string;
       lastUpdatedTs?: string;
     } = await ctx.body.json();
-    if (!(body.channelId && body.text && body.clientMsgId)) {
+    if (!(body.channelId && body.blocks?.length && body.clientMsgId)) {
       return errorResponse("invalid_draft", 400);
     }
+    const { blocks } = body;
     const destination: Record<string, string> = { channel_id: body.channelId };
     if (body.threadTs) destination.thread_ts = body.threadTs;
-    const blocks =
-      Array.isArray(body.blocks) && body.blocks.length > 0
-        ? body.blocks
-        : [{ text: { text: body.text, type: "mrkdwn" }, type: "section" }];
     const params: Record<string, string> = {
       blocks: JSON.stringify(blocks),
       client_msg_id: body.clientMsgId,

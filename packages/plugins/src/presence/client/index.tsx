@@ -4,11 +4,13 @@ import { SLACK_USER_ID } from "@slock/slack";
 import { createEffect } from "solid-js";
 import { gatewayHandler } from "../../realtime/client/api";
 import { fetchUserPresence } from "../../slack/client/api";
+import { reportActivityWhileAway } from "./activity";
 
 const setup: Setup = (ctx) => {
   const users = service("users");
   const dms = service("dms");
   const realtime = service("realtime");
+  reportActivityWhileAway(ctx, users);
 
   function watchedIds(): string[] {
     const ids = new Set<string>();

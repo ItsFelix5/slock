@@ -62,6 +62,9 @@ export const historyRoutes: Route[] = [
     if (!ctx.creds) return notConfigured();
     const { sequence } = await ctx.body.json<{ sequence?: number }>();
     if (!Number.isInteger(sequence)) return errorResponse("invalid_version", 400);
+    const lookup = await lookupThread(ctx, ctx.creds);
+    if ("response" in lookup) return lookup.response;
+    if (!lookup.editable) return errorResponse("not_editable", 403);
     const data = await callSlack<{ created_version_id?: string }>(
       "quip.history.restoreVersion",
       {

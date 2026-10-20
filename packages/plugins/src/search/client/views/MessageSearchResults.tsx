@@ -29,7 +29,6 @@ import {
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import type { SortMode } from "../searchQuery";
 import { readableQuery } from "./lib/searchQueryEditor";
-import { SORT_OPTIONS } from "./messageSearchOptions";
 
 const dmsStore = service("dms");
 const titles = service("titles");
@@ -41,6 +40,12 @@ const searchHistory = service("search");
 const later = maybeService("later");
 
 const SEARCH_TERM_HIGHLIGHT = "message-search-match";
+
+const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+  { key: "relevant", label: "Most relevant" },
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
+];
 
 export default function MessageSearchResults(props: {
   canSearch: boolean;

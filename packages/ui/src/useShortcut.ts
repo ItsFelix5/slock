@@ -246,18 +246,3 @@ export function shortcutConflicts(id: string, combo: ShortcutCombo): ShortcutInf
       (!own || scopesOverlap(own.scope, s.scope)),
   );
 }
-
-export function shortcutsByScope(): Map<
-  ShortcutScope,
-  { id: string; keys: string; label: string }[]
-> {
-  const byScope = new Map<ShortcutScope, { id: string; keys: string; label: string }[]>();
-  for (const shortcut of listShortcuts()) {
-    if (!shortcut.combo) continue;
-    const entry = { id: shortcut.id, keys: shortcut.keys, label: shortcut.label };
-    const list = byScope.get(shortcut.scope);
-    if (list) list.push(entry);
-    else byScope.set(shortcut.scope, [entry]);
-  }
-  return byScope;
-}

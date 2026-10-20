@@ -27,8 +27,6 @@ const WEBAUTHN_PATH_RE = /^\/login\/[^/]+\/webauthn$/;
 
 const EMAIL_STEP_PATH_RE = /^\/login\/[^/]+(?:\/verify)?$/;
 
-const TRAILING_SLASH_RE = /\/$/;
-
 const BOOT_TOKEN_RE = /"E09V59WQY1E"\s*:\s*\{[^{}]*"token"\s*:\s*"(xoxc-[^"]+)"/;
 
 const API_TOKEN_RE = /"api_token"\s*:\s*"(xoxc-[^"]+)"/;
@@ -81,14 +79,23 @@ export async function requestEmailCode(email: string): Promise<EmailChallenge> {
     pageUrl: page.url,
     verificationUrl: page.url.endsWith("/verify")
       ? page.url
-      : `${page.url.replace(TRAILING_SLASH_RE, "")}/verify`,
+      : `${page.url.endsWith("/") ? page.url.slice(0, -1) : page.url}/verify`,
   };
+}
+
+function requireHackclubUrl(value: string): void {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.hostname !== "auth.hackclub.com") {
+    throw new Error("Invalid login challenge");
+  }
 }
 
 export async function exchangeEmailCode(
   challenge: EmailChallenge,
   code: string,
 ): Promise<Credentials> {
+  requireHackclubUrl(challenge.verificationUrl);
+  requireHackclubUrl(challenge.pageUrl);
   const cookies: CookieJar = new Map(challenge.cookies);
   let page = await postForm(
     cookies,

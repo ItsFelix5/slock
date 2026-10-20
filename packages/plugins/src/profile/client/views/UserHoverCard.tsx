@@ -86,7 +86,7 @@ export default function UserHoverCard(props: {
               <Show when={localTime()}>
                 <div class="user-hovercard-meta flex-align-center text-dim text-sm">
                   <Icon name="clock" size={13} />
-                  {localTime()} local time
+                  {localTime()}
                   {tzSuffix()}
                 </div>
               </Show>

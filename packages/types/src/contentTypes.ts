@@ -42,11 +42,3 @@ export interface SavedItem {
   channelId: string;
   ts: string;
 }
-
-export interface LinkPreview {
-  description?: string;
-  imageUrl?: string;
-  siteName?: string;
-  title?: string;
-  url: string;
-}

@@ -17,8 +17,7 @@ export function keyToTarget(key: string): { channelId: string; threadTs?: string
 export type DraftValue = {
   id: string;
   clientMsgId: string;
-  text: string;
-  blocks?: Block[];
+  blocks: Block[];
   lastUpdatedTs?: string;
 };
 
@@ -114,7 +113,6 @@ export function hydrateDrafts(): Promise<boolean> {
           clientMsgId: draft.clientMsgId,
           id: draft.id,
           lastUpdatedTs: draft.lastUpdatedTs,
-          text: draft.text,
         });
       }
       draftsHydrated = true;
@@ -133,19 +131,23 @@ export async function seedDraft(
   channelId: string,
   threadTs: string | undefined,
   text: string,
-  blocks?: Block[],
 ): Promise<void> {
   if (!text.trim()) return;
   const key = draftCacheKey(channelId, threadTs);
   locallyTouchedKeys.add(key);
   if (!(await hydrateDrafts())) return;
   const clientMsgId = crypto.randomUUID();
-  const result = await saveDraft(channelId, threadTs, text, blocks, undefined, clientMsgId);
+  const blocks: Block[] = [
+    {
+      elements: [{ elements: [{ text, type: "text" }], type: "rich_text_section" }],
+      type: "rich_text",
+    },
+  ];
+  const result = await saveDraft(channelId, threadTs, blocks, undefined, clientMsgId);
   upsertEntry(key, {
     blocks,
     clientMsgId,
     id: result.id,
     lastUpdatedTs: result.lastUpdatedTs,
-    text,
   });
 }

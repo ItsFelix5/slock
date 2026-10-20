@@ -37,16 +37,18 @@ export interface Message {
   isEphemeral?: boolean;
   isSaved?: boolean;
 
-  hasUnreadReplies?: boolean;
   isSubscribed?: boolean;
   kind: MessageKind;
   lastReplyLabel?: string;
+  latestReply?: string;
   metadata?: RawMessage["metadata"];
   reactions?: Reaction[];
   replyCount?: number;
   replyUsers?: string[];
+  subtype?: string;
   text: string;
 
+  threadLastRead?: string;
   threadRoot?: Message;
 
   threadTs?: string;

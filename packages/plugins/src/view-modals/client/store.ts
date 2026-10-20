@@ -1,9 +1,14 @@
 import type { ModalView } from "@slock/types";
-import { createMemo, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
+
+const TOAST_MS = 4000;
 
 export function createModalsSlice() {
   const [viewStack, setViewStack] = createSignal<ModalView[]>([]);
-  const topView = createMemo(() => viewStack().at(-1) ?? null);
+  const [toast, setToast] = createSignal<string | null>(null);
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const topView = () => viewStack().at(-1) ?? null;
 
   function openView(view: ModalView) {
     setViewStack((stack) => {
@@ -17,15 +22,32 @@ export function createModalsSlice() {
   }
 
   function updateView(view: ModalView) {
-    setViewStack((stack) => {
-      const idx = stack.findIndex((v) => v.id === view.id);
-      return idx === -1 ? stack : [...stack.slice(0, idx), view];
-    });
+    setViewStack((stack) => stack.map((existing) => (existing.id === view.id ? view : existing)));
   }
 
   function closeAllViews() {
     setViewStack([]);
   }
 
-  return { closeAllViews, openView, popView, updateView, viewStack, topView };
+  function showToast(text: string) {
+    clearTimeout(toastTimer);
+    setToast(text);
+    toastTimer = setTimeout(() => setToast(null), TOAST_MS);
+  }
+
+  function dispose() {
+    clearTimeout(toastTimer);
+  }
+
+  return {
+    closeAllViews,
+    dispose,
+    openView,
+    popView,
+    showToast,
+    toast,
+    topView,
+    updateView,
+    viewStack,
+  };
 }

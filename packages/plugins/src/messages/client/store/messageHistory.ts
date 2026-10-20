@@ -137,7 +137,7 @@ export function createMessageHistory(
       const alreadyAtPresent =
         loadedChannels.has(view.id) && !untrack(() => historyMeta[view.id]?.anchored);
       if (alreadyAtPresent) continue;
-      loadRecentHistory(view.id);
+      untrack(() => loadRecentHistory(view.id));
     }
   });
   function evictChannel(channelId: string) {
@@ -229,11 +229,12 @@ export function createMessageHistory(
     return historyMeta[channelId]?.newerError ?? false;
   }
 
-  const { ensureChannelMessage, jumpToBeginning, jumpToDate } = createHistoryJump({
+  const { ensureChannelMessage, jumpToBeginning, jumpToDate, jumpToTs } = createHistoryJump({
     api,
     historyCursor,
     historyMeta,
     loadedChannels,
+    loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
     newerHistoryBoundary,
@@ -257,6 +258,7 @@ export function createMessageHistory(
     isThreadKnown,
     jumpToBeginning,
     jumpToDate,
+    jumpToTs,
     loadedChannels,
     loadOlderMessages,
     loadNewerMessages,

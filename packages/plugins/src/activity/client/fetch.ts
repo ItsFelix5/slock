@@ -6,15 +6,14 @@ import type {
   Message,
   RawActivityFeedEntry,
 } from "@slock/types";
+import { fetchCounts } from "../../slack/client/api";
 import { ACTIVITY_FEED_TYPES_PARAM } from "../protocol/feedTypes";
 import { mapFeedEntry } from "./feedEntry";
 
 export { ACTIVITY_KIND_FEED_TYPES } from "./feedEntry";
 
 export async function fetchActivityBadgeCounts(): Promise<Record<string, number>> {
-  const data = await apiGet<{ activityCounts?: Record<string, number> }>("/api/activity/counts");
-  if (!data.ok) throw new Error(data.error ?? "client.counts failed");
-  return data.activityCounts ?? {};
+  return (await fetchCounts()).notifications ?? {};
 }
 
 export async function markActivityRead(

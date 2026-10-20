@@ -1,4 +1,4 @@
-import Quill from "quill";
+import Quill from "@slock/ui/editor/quill";
 import "./CanvasControlBlot";
 import "./SoftBreakBlot";
 import "./embeds";

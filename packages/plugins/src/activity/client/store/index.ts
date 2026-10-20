@@ -53,7 +53,8 @@ export function createActivityStore(
     clearChannelUnread: (channelId: string) => void;
     syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
     syncThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
-    visibleThreads?: () => ThreadRef[];
+    visibleThreads: () => ThreadRef[];
+    isViewed: (id: string) => boolean;
   },
   apiOverrides: Partial<ActivityApi> = {},
 ) {
@@ -86,9 +87,9 @@ export function createActivityStore(
   });
 
   createEffect(() => {
-    const open = deps.visibleThreads?.();
-    if (!open?.length) return;
-    const openKeys = new Set(open.map((t) => `${t.channelId}:${t.ts}`));
+    const viewed = deps.visibleThreads().filter((t) => deps.isViewed(t.ts));
+    if (!viewed.length) return;
+    const openKeys = new Set(viewed.map((t) => `${t.channelId}:${t.ts}`));
     const toMark = activityItems.filter(
       (item) => item.threadTs && openKeys.has(`${item.channelId}:${item.threadTs}`),
     );
@@ -142,6 +143,17 @@ export function createActivityStore(
     return !!message?.reactions?.some((reaction) => reaction.users.includes(me.id));
   }
 
+  function unreadThreads(channelId: string): ActivityItem[] {
+    const latestByThread = new Map<string, ActivityItem>();
+    for (const item of activityItems) {
+      if (item.kind !== "thread_reply" || item.channelId !== channelId || !item.threadTs) continue;
+      if (!isActivityItemUnread(item)) continue;
+      const latest = latestByThread.get(item.threadTs);
+      if (!latest || item.time > latest.time) latestByThread.set(item.threadTs, item);
+    }
+    return [...latestByThread.values()].sort((a, b) => b.time - a.time);
+  }
+
   const archivePending = new Set<string>();
 
   async function archiveActivity(item: ActivityItem): Promise<void> {
@@ -183,5 +195,6 @@ export function createActivityStore(
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,
+    unreadThreads,
   };
 }

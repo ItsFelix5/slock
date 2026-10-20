@@ -1,4 +1,4 @@
-import Quill from "quill";
+import Quill from "@slock/ui/editor/quill";
 
 export function owningEditor(node: Element): Quill | undefined {
   const container = node.parentElement?.closest(".ql-container");

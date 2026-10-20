@@ -17,6 +17,7 @@ import {
   fetchChannelPostingPrefs,
   fetchChannelRetention,
   fetchConversationView,
+  fetchMemberPermissions,
   inviteToChannel,
   removeFromChannel,
   renameChannel,
@@ -31,6 +32,7 @@ import {
 const channelDetailsKey = defineKey<[string]>("channelDetails");
 const channelManagerIdsKey = defineKey<[string]>("channelManagerIds");
 const channelPostingPrefsKey = defineKey<[string]>("channelPostingPrefs");
+const memberPermissionsKey = defineKey<[string]>("memberPermissions");
 const channelRetentionKey = defineKey<[string]>("channelRetention");
 const feedback = service("feedback");
 
@@ -134,6 +136,9 @@ export function createChannelDetailsStore() {
   const createChannelRetentionQuery = (id: () => string | null | undefined) =>
     createChannelQuery<number | null>(channelRetentionKey, id, fetchChannelRetention);
 
+  const createMemberPermissionsQuery = (id: () => string | null | undefined) =>
+    createChannelQuery(memberPermissionsKey, id, fetchMemberPermissions);
+
   function renameChannelById(id: string, name: string): Promise<boolean> {
     return withFeedback(id, "Failed to rename channel.", false, async () => {
       const finalName = await renameChannel(id, name);
@@ -224,6 +229,7 @@ export function createChannelDetailsStore() {
     createChannelManagerIdsQuery,
     createChannelPostingPrefsQuery,
     createChannelRetentionQuery,
+    createMemberPermissionsQuery,
     loadChannelManagerIds,
     loadChannelMembersPage,
     searchChannelMembers,

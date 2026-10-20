@@ -54,9 +54,26 @@ export interface OverflowElement {
   type: "overflow";
 }
 
+export interface ConversationFilter {
+  exclude_bot_users?: boolean;
+  exclude_external_shared_channels?: boolean;
+  include?: ("im" | "mpim" | "private" | "public")[];
+}
+
 export interface SelectElement extends ActionElement {
+  default_to_current_conversation?: boolean;
+  filter?: ConversationFilter;
+  focus_on_load?: boolean;
+  initial_channel?: string;
+  initial_channels?: string[];
+  initial_conversation?: string;
+  initial_conversations?: string[];
   initial_option?: Option;
   initial_options?: Option[];
+  initial_user?: string;
+  initial_users?: string[];
+  max_selected_items?: number;
+  min_query_length?: number;
   option_groups?: OptionGroup[];
   options?: Option[];
   placeholder?: TextObject;
@@ -82,6 +99,7 @@ export interface DatePickerElement extends ActionElement {
 }
 
 export interface CheckboxRadioElement extends ActionElement {
+  focus_on_load?: boolean;
   initial_option?: Option;
   initial_options?: Option[];
   options: Option[];
@@ -89,9 +107,14 @@ export interface CheckboxRadioElement extends ActionElement {
 }
 
 export interface TextInputElement extends ActionElement {
+  dispatch_action_config?: { trigger_actions_on?: ("on_character_entered" | "on_enter_pressed")[] };
+  focus_on_load?: boolean;
   initial_value?: string;
+  is_decimal_allowed?: boolean;
   max_length?: number;
+  max_value?: string;
   min_length?: number;
+  min_value?: string;
   multiline?: boolean;
   placeholder?: TextObject;
   type: "plain_text_input" | "email_text_input" | "url_text_input" | "number_input";

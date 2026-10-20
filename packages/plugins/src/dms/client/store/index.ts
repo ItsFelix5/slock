@@ -74,8 +74,9 @@ export function createDmsStore(deps: {
 
   async function ensureMpdm(channelId: string) {
     if (baseDmsById().has(channelId)) return;
-    await query.client.ensureQueryData({
+    await query.client.query({
       queryKey: mpdmMembersKey(channelId),
+      staleTime: "static",
       queryFn: async () => {
         const { members } = await fetchChannelMembers(channelId, "everyone");
         const selfId = deps.currentUser()?.id;

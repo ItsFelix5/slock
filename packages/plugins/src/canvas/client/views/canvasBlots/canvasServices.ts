@@ -1,4 +1,4 @@
-import type Quill from "quill";
+import type Quill from "@slock/ui/editor/quill";
 import { createSignal, onMount } from "solid-js";
 import type { CanvasNames } from "../../lib/canvasEmbeds";
 

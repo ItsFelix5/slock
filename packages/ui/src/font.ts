@@ -21,12 +21,6 @@ export function setFont(value: string): void {
   localStorage.setItem(FONT_KEY, value);
 }
 
-export function resetFont(): void {
-  setFontSignal(undefined);
-  applyFont(undefined);
-  localStorage.removeItem(FONT_KEY);
-}
-
 export function effectiveFont(): string {
   return font() ?? getComputedStyle(document.documentElement).getPropertyValue(FONT_VAR).trim();
 }

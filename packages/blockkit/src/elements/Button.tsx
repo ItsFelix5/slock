@@ -1,5 +1,4 @@
 import type { ButtonElement } from "@slock/types";
-import { confirmDialog } from "@slock/ui";
 import { Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
@@ -15,26 +14,18 @@ export default function Button(props: {
     () => props.context,
   );
 
-  const onClick = async () => {
+  const onClick = () => {
     if (props.el.url || pending()) return;
-    if (props.el.confirm) {
-      const c = props.el.confirm;
-      const ok = await confirmDialog({
-        cancelLabel: c.deny.text,
-        confirmLabel: c.confirm.text,
-        danger: c.style === "danger",
-        message: c.text.text,
-        title: c.title.text,
-      });
-      if (!ok) return;
-    }
-    dispatch({
-      action_id: props.el.action_id,
-      block_id: props.blockId,
-      text: { emoji: true, text: props.el.text.text, type: "plain_text" },
-      type: "button",
-      ...(props.el.value === undefined ? {} : { value: props.el.value }),
-    });
+    dispatch(
+      {
+        action_id: props.el.action_id,
+        block_id: props.blockId,
+        text: { emoji: true, text: props.el.text.text, type: "plain_text" },
+        type: "button",
+        ...(props.el.value === undefined ? {} : { value: props.el.value }),
+      },
+      props.el.confirm,
+    );
   };
 
   return props.el.url ? (

@@ -1,6 +1,23 @@
+.zoomable-image-frame {
+  position: relative;
+}
+
+.zoomable-image-overlay {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  opacity: 0;
+}
+
+.zoomable-image-frame:hover .zoomable-image-overlay,
+.zoomable-image-overlay:focus-within {
+  opacity: 1;
+}
+
 .zoomable-image-trigger {
   position: relative;
   display: block;
+  width: 100%;
   padding: 0;
   cursor: zoom-in;
   background: none;

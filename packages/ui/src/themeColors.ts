@@ -92,6 +92,10 @@ export function resetThemeColor(key: string): void {
   storeThemeColors(next);
 }
 
+export function isThemeColorCustom(key: string): boolean {
+  return themeColors()[key] !== storedPreset().colors[key];
+}
+
 function effectiveRawValue(key: string): string {
   return (
     themeColors()[key] ??

@@ -199,7 +199,7 @@ export default function KeybindsTab() {
         <Index each={groups()}>
           {(group) => (
             <div class="settings-section">
-              <div class="settings-row-label">{group().label}</div>
+              <div class="settings-section-title">{group().label}</div>
               <div class="settings-list flex-col">
                 <Index each={group().shortcuts}>{(info) => <ShortcutRow info={info()} />}</Index>
               </div>

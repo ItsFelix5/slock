@@ -36,7 +36,7 @@ const list: Route[] = [
       text?: string;
       threadTs?: string;
       blocks?: unknown;
-      suppressUnfurl?: boolean;
+      unfurl?: string[];
     }>();
     if (!body.text) return errorResponse("invalid_text", 400);
 
@@ -60,7 +60,7 @@ const list: Route[] = [
     if (iconUrl) params.icon_url = iconUrl;
     if (body.threadTs) params.thread_ts = body.threadTs;
     if (body.blocks) params.blocks = JSON.stringify(body.blocks);
-    if (body.suppressUnfurl) {
+    if (body.unfurl && !body.unfurl.length) {
       params.unfurl_links = "false";
       params.unfurl_media = "false";
     }

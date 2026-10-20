@@ -1,0 +1,33 @@
+.json-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-xs);
+  padding: 0 20px;
+  overflow-x: auto;
+}
+
+.json-tab {
+  flex-shrink: 0;
+  padding: var(--space-sm) 10px;
+  font-size: var(--font-size-control);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+}
+
+.json-tab:hover {
+  color: var(--text-primary);
+}
+
+.json-tab.active {
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.json-tabs-content {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-sm) 20px 20px;
+  overflow: auto;
+  background-color: var(--code-bg);
+}

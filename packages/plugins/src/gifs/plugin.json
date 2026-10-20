@@ -1,0 +1,1 @@
+{ "id": "gifs", "core": true, "name": "GIFs", "requires": ["query"] }

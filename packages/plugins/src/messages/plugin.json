@@ -4,6 +4,7 @@
   "name": "Messages",
   "requires": [
     "bootstrap",
+    "channel-details",
     "channels",
     "conversations",
     "dms",

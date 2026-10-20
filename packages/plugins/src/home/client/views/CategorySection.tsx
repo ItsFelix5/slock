@@ -1,7 +1,9 @@
 import { service } from "@slock/core/solid";
 import { InlineFeedback, useEditShortcuts } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { idsEqual } from "./categories";
+import { useChannelRows } from "./channelRows";
 import ChannelRow from "./rows/ChannelRow";
 import { SidebarSectionCaretRow } from "./rows/SidebarSectionCaretRow";
 import SectionMenu from "./SectionMenu";
@@ -19,6 +21,7 @@ function CategoryChannelRow(props: {
   const panes = service("conversations");
   const sidebar = service("sidebar");
   const channel = createMemo(() => props.sections.channelById().get(props.channelId));
+  const channelRows = useChannelRows();
   const isActiveChannel = () =>
     sidebar.nav() === "home" && panes.isOpenInAnyPane(props.channelId, "channel");
   return (
@@ -28,10 +31,14 @@ function CategoryChannelRow(props: {
           when={
             !props.sections.collapsed().has(props.catId) ||
             isActiveChannel() ||
-            ((ch().mentions ?? 0) > 0 && !prefs.isChannelMuted(props.channelId))
+            ((ch().mentions ?? 0) > 0 && !prefs.isChannelMuted(props.channelId)) ||
+            channelRows.hasRows(props.channelId)
           }
         >
           <ChannelRow channel={ch()} unread={unread.isChannelUnread(props.channelId)} />
+          <For each={channelRows.rows()}>
+            {(row) => <Dynamic channelId={props.channelId} component={row.view} />}
+          </For>
         </Show>
       )}
     </Show>

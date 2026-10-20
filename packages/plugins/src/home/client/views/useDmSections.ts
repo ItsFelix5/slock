@@ -35,5 +35,3 @@ export function useDmSections(unreadsOnly: Accessor<boolean>) {
     unreadDmsOpen,
   };
 }
-
-export type DmSections = ReturnType<typeof useDmSections>;

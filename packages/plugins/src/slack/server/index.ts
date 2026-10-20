@@ -10,8 +10,8 @@ const sessionRoutes = [
   route("GET", "accounts/:id/avatar", (ctx) =>
     accountAvatarResponse(ctx.cookie, ctx.params.id ?? ""),
   ),
-  route("GET", "assets/:capability", (ctx) =>
-    slackAssetResponse(ctx.params.capability, ctx.creds, ctx.acceptEncoding, ctx.range),
+  route("GET", "assets", (ctx) =>
+    slackAssetResponse(ctx.searchParams.get("url"), ctx.creds, ctx.acceptEncoding, ctx.range),
   ),
 ];
 

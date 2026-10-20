@@ -87,8 +87,6 @@ const setup: Setup = (ctx) => {
   useMessageShortcuts();
   unread.wireReadTracking({
     hasNewerHistory: messages.hasNewerHistory,
-    onThreadRead: (channelId, threadTs) =>
-      messages.patchMessage(channelId, threadTs, { hasUnreadReplies: false }),
     messagesByChannel: messages.messagesByChannel,
     threadMessages: messages.threadMessages,
     visibleThreads,

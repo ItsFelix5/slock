@@ -1,3 +1,4 @@
+import "./IconButton.css";
 import { type JSX, splitProps } from "solid-js";
 import Icon, { type IconName } from "../media/Icon";
 import Tooltip from "../overlay/Tooltip";

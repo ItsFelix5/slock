@@ -166,3 +166,13 @@
 .ql-editor .ql-code-block-container .ql-ui {
   display: none;
 }
+
+.format-bubble {
+  z-index: 20;
+  padding: var(--space-xs);
+}
+
+.format-bubble-anchor {
+  position: absolute;
+  pointer-events: none;
+}

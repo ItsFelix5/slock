@@ -38,10 +38,6 @@ export function sameFrames(a: LayoutFrame[], b: LayoutFrame[]): boolean {
   );
 }
 
-export function nodeFrames(node: CanvasNode | null, fallback: LayoutFrame[]): LayoutFrame[] {
-  return node ? node.frames : fallback;
-}
-
 export function isLineNode(node: CanvasNode): node is CanvasLine {
   return node.kind !== "file" && node.kind !== "image" && node.kind !== "table";
 }

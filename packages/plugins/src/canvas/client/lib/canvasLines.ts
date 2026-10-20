@@ -1,5 +1,5 @@
 import type { CanvasLine, CanvasNode, CanvasTable, LayoutFrame } from "@slock/types";
-import type { Op } from "quill";
+import type { Op } from "@slock/ui/editor/quill";
 import { escapeCanvasHtml, framesFromAttribute } from "../../protocol/api";
 import { valueKey, valueToControl } from "./canvasEmbeds";
 import {

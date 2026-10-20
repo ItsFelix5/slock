@@ -1,15 +1,10 @@
-import {
-  encodeTextEntities,
-  messageLinkLabel,
-  parseArchiveLink,
-  parseUserProfileLink,
-} from "@slock/blockkit";
+import { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "@slock/blockkit";
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
+import { encodeTextEntities, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
+import Quill from "@slock/ui/editor/quill";
 import { getEmbedBlot } from "@slock/ui/editor/quillText";
-import Quill from "quill";
 import { type DateValue, dateMrkdwn, dateValue } from "./dateEmbed";
 import { emojiValue } from "./emojiEmbed";
 
@@ -255,15 +250,14 @@ export function mrkdwnText(quill: Quill): string {
 
     const text = inlineFormattedLineText(line);
     if (attrs?.list === "bullet" || attrs?.list === "ordered") {
-      listCounter = attrs.list === listType ? listCounter + 1 : 1;
+      listCounter = attrs.list === listType ? listCounter + 1 : Number(attrs.listOffset ?? 0) + 1;
       listType = attrs.list;
       out.push(`${attrs.list === "ordered" ? `${listCounter}.` : "\u2022"} ${text}`);
       continue;
     }
     listType = undefined;
 
-    if (attrs?.header) out.push(text ? `*${text}*` : text);
-    else if (attrs?.blockquote) out.push(`> ${text}`);
+    if (attrs?.blockquote) out.push(`> ${text}`);
     else out.push(text);
   }
   flushCodeBlock();

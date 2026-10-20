@@ -170,7 +170,7 @@ export function createChannelsStore(deps: {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
     const channel = channelById(channelId);
     if (channel?.private && !isChannelMember(channelId)) return Promise.resolve(new Set());
-    return query.client.ensureQueryData(channelRosterQueryOptions(channelId));
+    return query.client.query({ ...channelRosterQueryOptions(channelId), staleTime: "static" });
   }
 
   function invalidateChannelRoster(channelId: string): void {
@@ -189,7 +189,7 @@ export function createChannelsStore(deps: {
 
   function ensureChannelManagers(channelId: string): Promise<Set<string> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
-    return query.client.ensureQueryData(channelManagerQueryOptions(channelId));
+    return query.client.query({ ...channelManagerQueryOptions(channelId), staleTime: "static" });
   }
 
   function isChannelLeft(channelId: string): boolean {

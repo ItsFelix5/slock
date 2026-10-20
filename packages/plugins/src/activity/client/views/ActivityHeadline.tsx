@@ -74,11 +74,6 @@ export default function ActivityHeadline(props: {
       <Show when={props.count > 1}>
         <span class="activity-reply-count">{props.count}</span>
       </Show>
-      <Show when={props.display.isArchived()}>
-        <span class="activity-archived-label">
-          <Icon name="check" size={11} /> Complete
-        </span>
-      </Show>
       <Tooltip
         content={`${formatDayFromMs(props.latest.time)} at ${formatTimeFromMs(props.latest.time)}`}
       >

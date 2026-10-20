@@ -88,7 +88,7 @@ export async function accountAvatarResponse(
   const url = profile?.image_192 || profile?.image_72 || profile?.image_48;
   if (!(creds && url)) return new Response(null, { status: 404 });
   return new Response(null, {
-    headers: { "cache-control": "private, max-age=300", location: downloadUrl(url, creds) },
+    headers: { "cache-control": "private, max-age=300", location: downloadUrl(url) },
     status: 302,
   });
 }

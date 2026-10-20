@@ -18,6 +18,7 @@ export default function ComposerFileChips(props: {
               disabled={props.disabled}
               file={new File([], file.title || file.name, { type: file.isImage ? "image/*" : "" })}
               onRemove={() => props.onRemoveExisting(file.id)}
+              fullSrc={file.urlPrivate}
               thumbSrc={file.thumbUrl}
             />
           )}

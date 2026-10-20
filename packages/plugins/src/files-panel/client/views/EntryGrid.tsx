@@ -1,9 +1,10 @@
+import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { SlackFile, SlackLink } from "@slock/types";
 import { Icon, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { openConversationInSplit } from "../../../conversations/client/api/nav";
-import { fileIconName } from "../../../files/client/api/fileSummary";
+import { fileIconName, fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import { formatSize } from "../../../message-media/client/api/FileCardInfo";
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import type { FilesLinksEntry } from "../api";
@@ -60,11 +61,13 @@ function FileCard(props: {
           )}
         </Show>
         <span class="files-links-card-body flex-col">
-          <span class="files-links-card-title truncate">{props.file.title || props.file.name}</span>
+          <span class="files-links-card-title truncate">
+            <EmojiText text={props.file.title || props.file.name} />
+          </span>
           <span class="files-links-card-meta text-dim truncate">
             {[
-              props.file.filetype?.toUpperCase(),
-              formatSize(props.file.size),
+              fileKindLabel(props.file),
+              isCanvasFile(props.file) ? "" : formatSize(props.file.size),
               formatDate(props.file.created),
             ]
               .filter(Boolean)
