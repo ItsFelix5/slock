@@ -23,17 +23,15 @@ export default function CanvasSelectionActions(props: {
   onCleanup(() => document.removeEventListener("selectionchange", update));
 
   return (
-    <Show when={top()}>
-      {(offset) => (
-        <div
-          class="canvas-selection-actions flex-align-center"
-          onMouseDown={(event) => event.preventDefault()}
-          style={{ top: `${offset()}px` }}
-        >
-          <IconButton icon="add-comment" label="Comment" onClick={props.onComment} size="sm" />
-          <IconButton icon="add-reaction" label="React" onClick={props.onReact} size="sm" />
-        </div>
-      )}
+    <Show when={top() !== undefined}>
+      <div
+        class="canvas-selection-actions flex-align-center"
+        onMouseDown={(event) => event.preventDefault()}
+        style={{ top: `${top()}px` }}
+      >
+        <IconButton icon="add-comment" label="Comment" onClick={props.onComment} size="sm" />
+        <IconButton icon="add-reaction" label="React" onClick={props.onReact} size="sm" />
+      </div>
     </Show>
   );
 }

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Manifest } from "@slock/core";
+import { isShippedBuiltin } from "@slock/server/pluginDirs";
 import type { BunPlugin } from "bun";
 
 const PLUGINS_DIR = resolve(import.meta.dir, "../..");
@@ -15,12 +16,13 @@ async function discoverClientPlugins(): Promise<ClientPlugin[]> {
   const found: ClientPlugin[] = [];
   const manifests = [...new Bun.Glob("*/plugin.json").scanSync({ cwd: PLUGINS_DIR })].sort();
   for (const manifestPath of manifests) {
+    const manifest: Manifest = await Bun.file(resolve(PLUGINS_DIR, manifestPath)).json();
+    if (!isShippedBuiltin(manifest)) continue;
     const root = resolve(PLUGINS_DIR, manifestPath, "..");
     const entry = CLIENT_ENTRIES.map((name) => resolve(root, name)).find((path) =>
       existsSync(path),
     );
-    if (entry || existsSync(resolve(root, "client")))
-      found.push({ entry, manifest: await Bun.file(resolve(PLUGINS_DIR, manifestPath)).json() });
+    if (entry || existsSync(resolve(root, "client"))) found.push({ entry, manifest });
   }
   return found;
 }

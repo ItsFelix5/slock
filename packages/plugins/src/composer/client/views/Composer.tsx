@@ -27,11 +27,11 @@ import { useSuggestShortcuts } from "../api/editor/useSuggestShortcuts";
 import { useSuggestUi } from "../api/editor/useSuggestUi";
 import { createComposerSubmitHandler } from "../composerSubmit";
 import type { ComposerProps } from "../composerTypes";
+import { mrkdwnText } from "../lib/deltaLines";
 import { createEditorPlugins } from "../lib/editorPlugins";
 import { wireHeaderLimit } from "../lib/headerLimit";
 import { createLinkPreviews } from "../lib/linkPreviews";
 import { createPendingFileState } from "../lib/pendingFiles";
-import { mrkdwnText } from "../lib/quillMentions";
 import { buildRichTextBlocks } from "../lib/richTextBuild";
 import { loadRichTextIntoQuill } from "../lib/richTextLoad";
 import { useComposerShortcuts } from "../lib/useComposerShortcuts";
@@ -43,13 +43,10 @@ import DraftsMenu from "./popovers/DraftsMenu";
 
 const feedback = service("feedback");
 
-const templates = service("templates");
-
 export default function Composer(props: ComposerProps) {
   let quill: Quill | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
   let caretIndex = 0;
-  const [text, setText] = createSignal("");
   const [sending, setSending] = createSignal(false);
   const [dragOver, setDragOver] = createSignal(false);
   const [menuOpen, setMenuOpen] = createSignal(false);
@@ -57,7 +54,7 @@ export default function Composer(props: ComposerProps) {
   const [draftsMenuOpen, setDraftsMenuOpen] = createSignal(false);
   const resolveMention = useMentionResolution(() => quill);
   const mentionHover = createMentionHoverController();
-  const editorPlugins = createEditorPlugins(() => quill);
+  const editorPlugins = createEditorPlugins(() => quill, props);
 
   useEscapeClose(
     () => props.editing?.onCancel(),
@@ -95,20 +92,17 @@ export default function Composer(props: ComposerProps) {
 
   const [edits, setEdits] = createSignal(0);
   const [editorReady, setEditorReady] = createSignal(false);
-  const editorBlocks = createMemo(() => {
+  const editorOps = createMemo(() => {
     edits();
-    return quill ? buildRichTextBlocks(quill) : [];
+    return quill?.getContents().ops ?? [];
   });
+  const text = createMemo(() => mrkdwnText(editorOps()));
+  const editorBlocks = createMemo(() => buildRichTextBlocks(editorOps()));
   const linkPreviews = createLinkPreviews({
     blocks: editorBlocks,
     channelId: () => props.channelId,
     enabled: () => !props.editing && pendingFiles.files().length === 0,
   });
-
-  const syncFromEditor = (q: Quill) => {
-    setEdits((count) => count + 1);
-    setText(mrkdwnText(q));
-  };
 
   const loadIntoEditor = (blocks: Block[]) => {
     if (!quill) return;
@@ -128,7 +122,7 @@ export default function Composer(props: ComposerProps) {
         threadTs: () => props.threadTs,
       });
 
-  const handleSubmit = createComposerSubmitHandler({
+  const handleSubmit = createComposerSubmitHandler<ReturnType<Quill["getContents"]>>({
     channelId: () => props.channelId,
     clearDraftAfterSend: () => draftState?.clearAfterSend(pendingFiles) ?? Promise.resolve(),
     editing: () => props.editing,
@@ -204,6 +198,7 @@ export default function Composer(props: ComposerProps) {
         onRemoveExisting={(id) => setExistingFiles((files) => files.filter((f) => f.id !== id))}
         pendingFiles={pendingFiles}
       />
+      <ComposerLinkPreviews onRemove={linkPreviews.dismiss} previews={linkPreviews.previews()} />
       <div class="composer-row">
         <ComposerAttachMenu
           onFilesSelected={(files) => pendingFiles.add(files)}
@@ -221,12 +216,16 @@ export default function Composer(props: ComposerProps) {
               const initial = props.editing?.initialText;
               if (initialBlocks?.length) loadRichTextIntoQuill(q, initialBlocks, resolveMention);
               else if (initial) loadMrkdwnIntoQuill(q, initial, resolveMention);
-              syncFromEditor(q);
+              if (props.editing) {
+                q.focus();
+                q.setSelection(q.getLength(), 0);
+              }
+              setEdits((count) => count + 1);
               wireHeaderLimit(q);
               onCleanup(mentionHover.bind(q));
               editorPlugins.bind(q);
               q.on("text-change", () => {
-                syncFromEditor(q);
+                setEdits((count) => count + 1);
                 const rawAligned = indexAlignedText(q);
                 const aligned = rawAligned.endsWith("\n") ? rawAligned.slice(0, -1) : rawAligned;
                 syncSuggestionsAfterChange(
@@ -252,15 +251,14 @@ export default function Composer(props: ComposerProps) {
               onClose={() => setDraftsMenuOpen(false)}
               onDelete={(entry) => draftState?.remove(entry) ?? Promise.resolve()}
               onSaveAndStartNew={() => void draftState?.saveAndStartNew()}
-              onSaveAsTemplate={async (name) => {
+              onSaveAs={async (action, name) => {
                 if (!quill) return;
-                const blocks = buildRichTextBlocks(quill);
+                const blocks = editorBlocks();
                 const newFiles = pendingFiles.files();
                 const uploaded = newFiles.length
                   ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
                   : [];
-                const files = [...existingFiles(), ...uploaded];
-                templates.saveTemplate(name, blocks, files);
+                action.save(name, { blocks, files: [...existingFiles(), ...uploaded] });
               }}
               onSwitchTo={(entry) => draftState?.switchTo(entry)}
               stack={draftState?.stack() ?? []}
@@ -286,7 +284,6 @@ export default function Composer(props: ComposerProps) {
           <span class="composer-send-status">saving…</span>
         </Show>
       </div>
-      <ComposerLinkPreviews onRemove={linkPreviews.dismiss} previews={linkPreviews.previews()} />
     </div>
   );
 }

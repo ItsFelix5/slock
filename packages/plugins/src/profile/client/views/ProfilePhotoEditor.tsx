@@ -1,11 +1,25 @@
+import { errorMessage } from "@slock/core";
 import { Button, Modal, ModalHeader } from "@slock/ui";
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import {
+  type Corner,
+  type Crop,
+  constrainCrop,
+  cornerAnchor,
+  cropDrawRect,
+  type Dimensions,
+  initialCrop,
+  nudgeCrop,
+  profilePhotoName,
+  resizeFromAnchor,
+} from "./photoCrop";
 import "./ProfilePhotoEditor.css";
 
-type Crop = { size: number; x: number; y: number };
 type Drag =
   | { kind: "move"; offsetX: number; offsetY: number }
-  | { anchorX: number; anchorY: number; directionX: -1 | 1; directionY: -1 | 1; kind: "resize" };
+  | { anchor: { x: number; y: number }; corner: Corner; kind: "resize" };
+
+const OUTPUT_SIZE = 512;
 
 export interface ProfilePhotoEditorProps {
   file: File;
@@ -13,19 +27,9 @@ export interface ProfilePhotoEditorProps {
   onSave: (file: File) => Promise<boolean>;
 }
 
-function initialCrop(width: number, height: number): Crop {
-  const size = Math.min(width, height);
-  return { size, x: (width - size) / 2, y: (height - size) / 2 };
-}
-
-function outputName(name: string) {
-  const dot = name.lastIndexOf(".");
-  return `${dot > 0 ? name.slice(0, dot) : name}-profile.png`;
-}
-
 export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
   const [imageUrl] = createSignal(URL.createObjectURL(props.file));
-  const [dimensions, setDimensions] = createSignal<{ height: number; width: number }>();
+  const [dimensions, setDimensions] = createSignal<Dimensions>();
   const [crop, setCrop] = createSignal<Crop>();
   const [drag, setDrag] = createSignal<Drag>();
   const [saving, setSaving] = createSignal(false);
@@ -66,28 +70,6 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
     };
   }
 
-  function constrainCrop(value: Crop): Crop | undefined {
-    const source = dimensions();
-    if (!source) return;
-    const minSize = Math.min(64, source.width, source.height);
-    const size = Math.max(
-      minSize,
-      Math.min(value.size, Math.max(source.width, source.height) * 1.6),
-    );
-    const snapDistance = Math.min(source.width, source.height) * 0.04;
-    let x = Math.max(-size * 0.18, Math.min(value.x, source.width - size * 0.82));
-    let y = Math.max(-size * 0.18, Math.min(value.y, source.height - size * 0.82));
-    if (Math.abs(x) < snapDistance) x = 0;
-    if (Math.abs(y) < snapDistance) y = 0;
-    if (Math.abs(x + size - source.width) < snapDistance) x = source.width - size;
-    if (Math.abs(y + size - source.height) < snapDistance) y = source.height - size;
-    return {
-      size,
-      x,
-      y,
-    };
-  }
-
   function startMove(event: PointerEvent) {
     const point = sourcePoint(event);
     const value = crop();
@@ -97,43 +79,42 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
     setDrag({ kind: "move", offsetX: point.x - value.x, offsetY: point.y - value.y });
   }
 
-  function startResize(event: PointerEvent, directionX: -1 | 1, directionY: -1 | 1) {
+  function startResize(event: PointerEvent, corner: Corner) {
     const value = crop();
     if (!value) return;
     event.preventDefault();
     event.stopPropagation();
     if (!(event.currentTarget instanceof HTMLElement)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDrag({
-      anchorX: directionX === -1 ? value.x + value.size : value.x,
-      anchorY: directionY === -1 ? value.y + value.size : value.y,
-      directionX,
-      directionY,
-      kind: "resize",
-    });
+    setDrag({ anchor: cornerAnchor(value, corner), corner, kind: "resize" });
   }
 
   function moveCrop(event: PointerEvent) {
     const point = sourcePoint(event);
     const active = drag();
     const value = crop();
-    if (!(point && active && value)) return;
+    const source = dimensions();
+    if (!(point && active && value && source)) return;
     if (active.kind === "move") {
-      const next = constrainCrop({
-        ...value,
-        x: point.x - active.offsetX,
-        y: point.y - active.offsetY,
-      });
-      if (next) setCrop(next);
+      setCrop(
+        constrainCrop(
+          { ...value, x: point.x - active.offsetX, y: point.y - active.offsetY },
+          source,
+        ),
+      );
       return;
     }
-    const size = Math.max(Math.abs(point.x - active.anchorX), Math.abs(point.y - active.anchorY));
-    const next = constrainCrop({
-      size,
-      x: active.directionX === -1 ? active.anchorX - size : active.anchorX,
-      y: active.directionY === -1 ? active.anchorY - size : active.anchorY,
-    });
-    if (next) setCrop(next);
+    setCrop(constrainCrop(resizeFromAnchor(active.anchor, active.corner, point), source));
+  }
+
+  function onCropKeyDown(event: KeyboardEvent) {
+    const value = crop();
+    const source = dimensions();
+    if (!(value && source)) return;
+    const next = nudgeCrop(value, event.key, event.shiftKey, source);
+    if (!next) return;
+    event.preventDefault();
+    setCrop(next);
   }
 
   async function save() {
@@ -145,29 +126,23 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
     setError(undefined);
     try {
       const canvas = document.createElement("canvas");
-      const outputSize = 512;
-      canvas.height = outputSize;
-      canvas.width = outputSize;
+      canvas.height = OUTPUT_SIZE;
+      canvas.width = OUTPUT_SIZE;
       const context = canvas.getContext("2d");
       if (!context) throw new Error("Couldn't prepare this image.");
-      const left = Math.max(0, value.x);
-      const top = Math.max(0, value.y);
-      const right = Math.min(source.width, value.x + value.size);
-      const bottom = Math.min(source.height, value.y + value.size);
-      if (right > left && bottom > top) {
-        const scale = outputSize / value.size;
+      const rect = cropDrawRect(value, source, OUTPUT_SIZE);
+      if (rect)
         context.drawImage(
           image,
-          left,
-          top,
-          right - left,
-          bottom - top,
-          (left - value.x) * scale,
-          (top - value.y) * scale,
-          (right - left) * scale,
-          (bottom - top) * scale,
+          rect.sourceX,
+          rect.sourceY,
+          rect.sourceWidth,
+          rect.sourceHeight,
+          rect.destX,
+          rect.destY,
+          rect.destWidth,
+          rect.destHeight,
         );
-      }
       const blob = await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob(
           (result) => (result ? resolve(result) : reject(new Error("Couldn't crop image."))),
@@ -175,12 +150,14 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
         ),
       );
       if (
-        await props.onSave(new File([blob], outputName(props.file.name), { type: "image/png" }))
+        await props.onSave(
+          new File([blob], profilePhotoName(props.file.name), { type: "image/png" }),
+        )
       ) {
         props.onClose();
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Couldn't crop image.");
+      setError(errorMessage(cause, "Couldn't crop image."));
     } finally {
       setSaving(false);
     }
@@ -197,6 +174,7 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
         <div
           class="profile-photo-editor-stage"
           onPointerMove={moveCrop}
+          onPointerCancel={() => setDrag(undefined)}
           onPointerUp={() => setDrag(undefined)}
           ref={setStageRef}
         >
@@ -206,37 +184,41 @@ export default function ProfilePhotoEditor(props: ProfilePhotoEditorProps) {
             onError={() => setError("This image couldn't be opened.")}
             onLoad={(event) => {
               const { naturalHeight: height, naturalWidth: width } = event.currentTarget;
-              setDimensions({ height, width });
-              setCrop(initialCrop(width, height));
+              const natural = { height, width };
+              setDimensions(natural);
+              setCrop(initialCrop(natural));
             }}
             ref={setImageRef}
             src={imageUrl()}
           />
           <Show when={crop()}>
-            <div class="profile-photo-editor-crop" onPointerDown={startMove} style={cropStyle()}>
-              <button
-                aria-label="Resize crop from top left"
+            <div
+              aria-label="Crop"
+              class="profile-photo-editor-crop"
+              onKeyDown={onCropKeyDown}
+              onPointerDown={startMove}
+              style={cropStyle()}
+              tabindex="0"
+            >
+              <span
+                aria-hidden="true"
                 class="profile-photo-editor-dot top-left"
-                onPointerDown={(event) => startResize(event, -1, -1)}
-                type="button"
+                onPointerDown={(event) => startResize(event, { x: -1, y: -1 })}
               />
-              <button
-                aria-label="Resize crop from top right"
+              <span
+                aria-hidden="true"
                 class="profile-photo-editor-dot top-right"
-                onPointerDown={(event) => startResize(event, 1, -1)}
-                type="button"
+                onPointerDown={(event) => startResize(event, { x: 1, y: -1 })}
               />
-              <button
-                aria-label="Resize crop from bottom right"
+              <span
+                aria-hidden="true"
                 class="profile-photo-editor-dot bottom-right"
-                onPointerDown={(event) => startResize(event, 1, 1)}
-                type="button"
+                onPointerDown={(event) => startResize(event, { x: 1, y: 1 })}
               />
-              <button
-                aria-label="Resize crop from bottom left"
+              <span
+                aria-hidden="true"
                 class="profile-photo-editor-dot bottom-left"
-                onPointerDown={(event) => startResize(event, -1, 1)}
-                type="button"
+                onPointerDown={(event) => startResize(event, { x: -1, y: 1 })}
               />
             </div>
           </Show>

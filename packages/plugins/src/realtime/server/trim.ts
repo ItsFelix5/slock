@@ -15,6 +15,7 @@ import {
 } from "../../slack/server/api/trim/slackChannels";
 import { trimUser } from "../../slack/server/api/trim/slackEntities";
 import { trimMessage } from "../../slack/server/api/trim/slackMessages";
+import { trimSyncEvent } from "./trimSync";
 
 type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &
   RawCounts & {
@@ -35,12 +36,14 @@ type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &
     mention_count?: number;
     msg?: string;
     presence?: string;
+    purpose?: string;
     reaction?: string;
     subscription?: { last_read?: string; thread_ts?: string; unread_count?: number };
     subteam?: { id?: string };
     subteam_id?: string;
     subtitle?: string;
     title?: string;
+    topic?: string;
     ts?: string;
     type?: string;
     unread_count?: number;
@@ -89,6 +92,8 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
         channel: channelId(payload.channel),
         deleted_ts: payload.deleted_ts,
         message: payload.message ? trimMessage(payload.message) : undefined,
+        purpose: payload.purpose,
+        topic: payload.topic,
         type: "message",
       };
     case "reaction_added":
@@ -117,6 +122,9 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
         type: payload.type,
       };
     case "channel_marked":
+    case "group_marked":
+    case "im_marked":
+    case "mpim_marked":
       return {
         channel: channelId(payload.channel),
         mention_count: payload.mention_count,
@@ -136,6 +144,7 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
     case "channel_left":
     case "group_left":
       return { channel: channelId(payload.channel), type: payload.type };
+    case "member_joined_channel":
     case "member_left_channel":
       return { channel: channelId(payload.channel), type: payload.type, user };
     case "user_invalidated":
@@ -187,7 +196,7 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
     case "subteam_members_changed":
       return { subteam_id: payload.subteam_id, type: payload.type };
     case "user_change":
-      return typeof payload.user === "object"
+      return payload.user && typeof payload.user === "object"
         ? { type: payload.type, user: trimUser(payload.user) }
         : null;
     case "dnd_updated":
@@ -237,6 +246,6 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
         type: payload.type,
       };
     default:
-      return isFileEvent(payload.type) ? { type: payload.type } : null;
+      return isFileEvent(payload.type) ? { type: payload.type } : trimSyncEvent(payload);
   }
 }

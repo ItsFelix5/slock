@@ -1,3 +1,5 @@
+import { HISTORY_PAGE_SIZE } from "@slock/slack";
+
 export function renderIndexHtml(
   entryPath: string,
   cssPaths: string[],
@@ -23,7 +25,7 @@ export function renderIndexHtml(
     <link href="/public/manifest.webmanifest" rel="manifest" />
     <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
     <meta content="#111318" name="theme-color" />
-    <meta content="yes" name="apple-mobile-web-app-capable" />
+    <meta content="yes" name="mobile-web-app-capable" />
     <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style" />
     <meta content="slock" name="apple-mobile-web-app-title" />
     <title>slock</title>
@@ -34,4 +36,14 @@ ${preloads}
   <body></body>
 </html>
 `;
+}
+
+const CHANNEL_PATH = /^\/([CDG][A-Z0-9]+)\/?$/;
+
+export function channelPreloadLinks(pathname: string): string | undefined {
+  const id = CHANNEL_PATH.exec(pathname)?.[1];
+  if (!id) return;
+  return [`/api/channels/${id}/view`, `/api/channels/${id}/messages?limit=${HISTORY_PAGE_SIZE}`]
+    .map((href) => `<${href}>; rel=preload; as=fetch; crossorigin`)
+    .join(", ");
 }

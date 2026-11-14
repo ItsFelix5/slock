@@ -1,51 +1,38 @@
+import { service } from "@slock/core/solid";
 import { Button, Menu, MenuItem } from "@slock/ui";
-import { createSignal, For } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import {
+  dateDueFromInput,
+  nextHourInputValue,
   REMINDER_OPTIONS,
-  remindAboutMessage,
-} from "../../../message-links/client/api/messageLinks";
-import type { MessageMenuProps } from "../../../messages/client/api";
+  toLocalInputValue,
+} from "../times";
 
-function toLocalInputValue(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}`;
-}
+const later = service("later");
 
-function nextHourInputValue(): string {
-  const date = new Date();
-  date.setMinutes(0, 0, 0);
-  date.setHours(date.getHours() + 1);
-  return toLocalInputValue(date);
-}
+const isFuture = (dateDue: number | null): dateDue is number =>
+  dateDue !== null && dateDue > Math.floor(Date.now() / 1000);
 
-function currentMinuteInputValue(): string {
-  const date = new Date();
-  date.setSeconds(0, 0);
-  return toLocalInputValue(date);
-}
-
-function dateDueFromInput(value: string): number | null {
-  const timestamp = new Date(value).getTime();
-  return Number.isNaN(timestamp) ? null : Math.floor(timestamp / 1000);
-}
-
-export default function RemindMenu(props: MessageMenuProps) {
+export default function RemindMenu(props: {
+  channelId: string;
+  close: () => void;
+  onRemind?: () => void;
+  ts: string;
+}) {
   const [open, setOpen] = createSignal(false);
-  const [customTime, setCustomTime] = createSignal(nextHourInputValue());
+  const [customTime, setCustomTime] = createSignal(nextHourInputValue(new Date()));
   const customDateDue = () => dateDueFromInput(customTime());
 
   const remind = (dateDue: number) => {
     setOpen(false);
     props.close();
-    remindAboutMessage(props.channelId, props.msg.ts, dateDue);
+    later.setReminder(props.channelId, props.ts, dateDue);
+    props.onRemind?.();
   };
   const remindAtCustomTime = (event: SubmitEvent) => {
     event.preventDefault();
     const dateDue = customDateDue();
-    if (!dateDue || dateDue <= Math.floor(Date.now() / 1000)) return;
-    remind(dateDue);
+    if (isFuture(dateDue)) remind(dateDue);
   };
 
   return (
@@ -62,26 +49,34 @@ export default function RemindMenu(props: MessageMenuProps) {
       }
     >
       <For each={REMINDER_OPTIONS}>
-        {(option) => <MenuItem onClick={() => remind(option.dateDue())}>{option.label}</MenuItem>}
+        {(option) => (
+          <MenuItem onClick={() => remind(option.dateDue(new Date()))}>{option.label}</MenuItem>
+        )}
       </For>
       <form class="custom-reminder-time" onSubmit={remindAtCustomTime}>
         <input
           id="custom-reminder-time"
-          min={currentMinuteInputValue()}
+          min={toLocalInputValue(new Date())}
           onInput={(event) => setCustomTime(event.currentTarget.value)}
           required
           type="datetime-local"
           value={customTime()}
         />
-        <Button
-          disabled={(customDateDue() ?? 0) <= Math.floor(Date.now() / 1000)}
-          size="sm"
-          type="submit"
-          variant="primary"
-        >
+        <Button disabled={!isFuture(customDateDue())} size="sm" type="submit" variant="primary">
           Set reminder
         </Button>
       </form>
+      <Show when={later.reminderDue(props.channelId, props.ts)}>
+        <MenuItem
+          onClick={() => {
+            setOpen(false);
+            props.close();
+            later.clearReminder(props.channelId, props.ts);
+          }}
+        >
+          Clear reminder
+        </MenuItem>
+      </Show>
     </Menu>
   );
 }

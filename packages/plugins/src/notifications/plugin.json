@@ -2,5 +2,13 @@
   "id": "notifications",
   "core": true,
   "name": "Notifications",
-  "requires": ["bootstrap", "channels", "conversations", "message-links", "prefs", "shell"]
+  "requires": [
+    "activity",
+    "bootstrap",
+    "channels",
+    "conversations",
+    "message-links",
+    "prefs",
+    "shell"
+  ]
 }

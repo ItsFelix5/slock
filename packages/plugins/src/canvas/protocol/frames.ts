@@ -51,12 +51,14 @@ export function layoutAttribute(frames: LayoutFrame[]): string | null {
   return parts.length > 0 ? parts.join("/") : null;
 }
 
+const CALLOUT_PART_RE = /^callout:(\d+)$/;
+
 export function framesFromAttribute(value: unknown): LayoutFrame[] {
   if (typeof value !== "string") return [];
   return value.split("/").flatMap((part): LayoutFrame[] => {
     if (part === "quote") return [{ kind: "quote" }];
-    const color = part.startsWith("callout:") ? Number(part.slice("callout:".length)) : Number.NaN;
-    return Number.isInteger(color) ? [{ color, kind: "callout" }] : [];
+    const color = part.match(CALLOUT_PART_RE)?.[1];
+    return color === undefined ? [] : [{ color: Number(color), kind: "callout" }];
   });
 }
 

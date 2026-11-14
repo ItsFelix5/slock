@@ -2,13 +2,13 @@ import { defined } from "@slock/core";
 
 const WORD_BOUNDARY = /[-_\s./]/;
 
-export interface FuzzyMatch {
+interface FuzzyMatch {
   score: number;
 
   tier: number;
 }
 
-export function fuzzyMatch(text: string, query: string): FuzzyMatch | null {
+function fuzzyMatch(text: string, query: string): FuzzyMatch | null {
   if (!query) return { score: 0, tier: 0 };
   const lower = text.toLowerCase();
   if (lower === query) return { score: 100, tier: 0 };

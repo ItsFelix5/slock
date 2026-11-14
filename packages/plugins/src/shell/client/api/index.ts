@@ -1,4 +1,4 @@
-import type { Pane } from "@slock/ui";
+import type { Pane, PaneLayoutProps } from "@slock/ui";
 import type { Accessor, Component, JSX } from "solid-js";
 import type { createFeedback } from "../feedback";
 import type { createShellStore } from "../store";
@@ -28,8 +28,11 @@ export type PaneResolver = (content: PaneContent) => PaneContent | undefined;
 
 export type ShellBlocker = { active: () => boolean; view: Component };
 
+export type ShellArrangement = { view: Component<PaneLayoutProps<PaneContent | null>> };
+
 declare module "@slock/core/types" {
   interface Points {
+    "shell.arrangement": ShellArrangement;
     "shell.blocker": ShellBlocker;
     "shell.default": DefaultView;
     "shell.overlay": Component;

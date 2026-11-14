@@ -30,15 +30,15 @@ export function MessageDebugItem(props: MessageMenuProps) {
     <DebugItem
       close={props.close}
       data={{
+        message: msg(),
         author: usersStore.userById(msg().userId),
         channel: channels.channelById(props.channelId) ?? dms.dmById(props.channelId),
-        message: msg(),
         reactions: msg().reactions?.map((reaction) => ({
           ...reaction,
           users: reaction.users.map(userName),
         })),
         replyUsers: msg().replyUsers?.map(userName),
-        threadTs: props.threadTs,
+        context: { channelId: props.channelId, threadTs: props.threadTs },
       }}
       title={`Message ${msg().ts}`}
     />

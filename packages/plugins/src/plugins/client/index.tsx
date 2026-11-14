@@ -1,4 +1,5 @@
 import type { PluginDef, Setup } from "@slock/core";
+import { errorMessage } from "@slock/core";
 import { getHost } from "@slock/core/solid";
 import { createSignal, lazy } from "solid-js";
 import { definitionFromSource, setupOf } from "./data/loadPlugin";
@@ -24,7 +25,7 @@ function operatorDefinitions(instance: Listing[]): PluginDef[] {
 }
 
 function failedDefinition(id: string, name: string, error: unknown): PluginDef {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   return {
     id,
     name,

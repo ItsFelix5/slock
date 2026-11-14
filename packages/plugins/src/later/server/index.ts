@@ -22,6 +22,34 @@ const list: Route[] = [
     ),
   ),
 
+  route("POST", "messages/:channel/:ts/reminder", async (ctx) => {
+    const { dateDue } = await ctx.body.json<{ dateDue: number }>();
+    return mutate(
+      "saved.add",
+      {
+        date_due: String(dateDue),
+        item_id: ctx.params.channel,
+        item_type: "message",
+        ts: ctx.params.ts,
+      },
+      ctx,
+    );
+  }),
+
+  route("PATCH", "messages/:channel/:ts/save", async (ctx) => {
+    const { dateDue } = await ctx.body.json<{ dateDue: number }>();
+    return mutate(
+      "saved.update",
+      {
+        item_id: ctx.params.channel,
+        item_type: "message",
+        ts: ctx.params.ts,
+        date_due: String(dateDue),
+      },
+      ctx,
+    );
+  }),
+
   route("GET", "saved", async (ctx) => {
     const data = await callSlack<SavedListReply>("saved.list", { limit: "40" }, ctx.creds);
     if (!data.ok) return slackErrorResponse(data, "saved.list", ctx.creds);
@@ -29,8 +57,11 @@ const list: Route[] = [
     const items = data.saved_items ?? data.items ?? [];
     const normalized = items
       .filter((item) => !item.item_type || item.item_type === "message")
+      .filter((item) => !item.state || item.state === "in_progress")
       .map((item) => ({
         channelId: item.item_id ?? item.channel_id ?? item.channel,
+        dateCreated: item.date_created,
+        dateDue: item.date_due || undefined,
         ts: item.ts ?? item.message_ts,
       }))
       .filter((item) => !!item.channelId && !!item.ts);

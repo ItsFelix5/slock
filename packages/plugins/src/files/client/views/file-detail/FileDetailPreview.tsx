@@ -1,3 +1,4 @@
+import { safeMediaUrl } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import {
   ConstrainedImage,
@@ -31,7 +32,7 @@ export default function FileDetailPreview(props: {
 }) {
   const [video, setVideo] = createSignal<HTMLVideoElement>();
   const name = () => props.file.title || props.file.name;
-  const image = () =>
+  const media = () =>
     constrainMediaDimensions(props.file.width, props.file.height, 560, 420, 480, 320);
 
   return (
@@ -43,11 +44,11 @@ export default function FileDetailPreview(props: {
               {props.file.isDeleted || props.failed ? "File is no longer available" : "Loading…"}
             </p>
           }
-          when={!props.file.isDeleted && props.file.urlPrivate}
+          when={!props.file.isDeleted && safeMediaUrl(props.file.urlPrivate)}
         >
           <a
             class="btn btn-secondary btn-md file-detail-action"
-            href={props.file.urlPrivate}
+            href={safeMediaUrl(props.file.urlPrivate)}
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -62,15 +63,15 @@ export default function FileDetailPreview(props: {
           <pre class="file-detail-snippet">{props.content}</pre>
         </Frame>
       </Match>
-      <Match when={props.file.isImage && props.file.thumbUrl}>
+      <Match when={props.file.isImage && safeMediaUrl(props.file.thumbUrl)}>
         <Frame>
           <ConstrainedImage
             alt={name()}
             class="file-detail-image"
-            fullSrc={props.file.urlPrivate}
-            height={image().height}
-            src={props.file.thumbUrl ?? ""}
-            width={image().width}
+            fullSrc={safeMediaUrl(props.file.urlPrivate)}
+            height={media().height}
+            src={safeMediaUrl(props.file.thumbUrl) ?? ""}
+            width={media().width}
           />
         </Frame>
       </Match>
@@ -79,15 +80,14 @@ export default function FileDetailPreview(props: {
           <VideoPlayer
             ariaLabel={name()}
             captionsSrc={props.file.vtt}
-            class="file-detail-video"
-            downloadHref={props.file.urlPrivateDownload}
+            downloadHref={safeMediaUrl(props.file.urlPrivateDownload)}
             downloadName={props.file.name}
             duration={props.file.duration}
-            height={props.file.height}
-            openHref={props.file.urlPrivate}
-            poster={props.file.thumbUrl}
+            height={media().height}
+            openHref={safeMediaUrl(props.file.urlPrivate)}
+            poster={safeMediaUrl(props.file.thumbUrl)}
             ref={setVideo}
-            src={props.file.urlPrivate}
+            src={safeMediaUrl(props.file.urlPrivate) ?? ""}
             toolbarExtra={
               <Show when={props.file.transcriptionPreview}>
                 <TranscriptPopover
@@ -97,7 +97,7 @@ export default function FileDetailPreview(props: {
                 />
               </Show>
             }
-            width={props.file.width}
+            width={media().width}
           />
         </Frame>
       </Match>

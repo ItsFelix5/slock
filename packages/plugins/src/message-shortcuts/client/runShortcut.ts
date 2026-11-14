@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { MessageShortcut } from "@slock/types";
 import { runMessageShortcut } from "../../slack/client/api";
@@ -12,10 +13,6 @@ export async function runShortcut(
   try {
     await runMessageShortcut(shortcut.actionId, shortcut.appId, channelId, ts);
   } catch (err) {
-    feedback.flash(
-      ts,
-      err instanceof Error ? err.message : `Failed to run ${shortcut.appName}.`,
-      "error",
-    );
+    feedback.flash(ts, errorMessage(err, `Failed to run ${shortcut.appName}.`), "error");
   }
 }

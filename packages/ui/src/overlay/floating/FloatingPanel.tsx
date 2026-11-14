@@ -68,6 +68,7 @@ export interface FloatingPanelProps {
   class?: string;
   gap?: number;
   onFocusOut?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
+  onKeyDown?: JSX.EventHandlerUnion<HTMLDivElement, KeyboardEvent>;
   onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseDown?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseEnter?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
@@ -186,6 +187,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
           class={props.class}
           onClick={props.onClick}
           onFocusOut={props.onFocusOut}
+          onKeyDown={props.onKeyDown}
           onMouseDown={props.onMouseDown}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}

@@ -4,16 +4,16 @@ import type {
   RichTextInlineElement,
   RichTextList as RichTextListType,
   RichTextSection,
+  RichTextStyle,
   RichTextSubBlock,
 } from "@slock/types";
-import { Icon } from "@slock/ui";
-import { For, type JSX, Show } from "solid-js";
-import { useBlockKitResolver } from "../context";
+import { For, type JSX } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import InlineAction from "../InlineAction";
 import { parseArchiveLink } from "../mrkdwnInline";
 import {
+  CanvasMention,
   DateToken,
   Link,
   LinkToken,
@@ -22,32 +22,34 @@ import {
   TimeAwareText,
   UsergroupMention,
 } from "../mrkdwnTokens";
+import { safeColor } from "../safeColor";
 import "./RichText.css";
 import "../mrkdwn.css";
 import "../mrkdwnTokens.css";
 
+function styleClasses(style: RichTextStyle | undefined) {
+  return {
+    "bk-rt-bold": !!style?.bold,
+    "bk-inline-code": !!style?.code,
+    "bk-rt-highlight": !!style?.highlight,
+    "bk-rt-italic": !!style?.italic,
+    "bk-rt-strike": !!style?.strike,
+  };
+}
+
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
   const { el } = props;
   switch (el.type) {
-    case "text": {
-      const s = el.style;
+    case "text":
       return (
-        <span
-          class="bk-rt-text"
-          classList={{
-            "bk-rt-bold": !!s?.bold,
-            "bk-inline-code": !!s?.code,
-            "bk-rt-highlight": !!s?.highlight,
-            "bk-rt-italic": !!s?.italic,
-            "bk-rt-strike": !!s?.strike,
-          }}
-        >
+        <span class="bk-rt-text" classList={styleClasses(el.style)}>
           <TimeAwareText text={el.text} />
         </span>
       );
+    case "link": {
+      const link = <LinkToken label={el.text} url={el.url} />;
+      return el.style ? <span classList={styleClasses(el.style)}>{link}</span> : link;
     }
-    case "link":
-      return <LinkToken label={el.text} url={el.url} />;
     case "emoji": {
       const unicode = el.unicode && hexCodepointsToEmoji(el.unicode);
       return unicode ? (
@@ -75,7 +77,7 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
     case "color":
       return (
         <span class="bk-color-swatch">
-          <span class="bk-color-dot" style={{ background: el.value }} />
+          <span class="bk-color-dot" style={{ background: safeColor(el.value) }} />
           {el.value}
         </span>
       );
@@ -96,21 +98,8 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
         <Link label={el.text} url={el.url} />
       );
     }
-    case "canvas": {
-      const resolver = useBlockKitResolver();
-      const title = () =>
-        (el.text && el.text !== el.url ? el.text : resolver.resolveCanvasTitle(el.file_id)) ||
-        undefined;
-      return (
-        <InlineAction
-          class="bk-canvas"
-          onActivate={() => resolver.onCanvasClick(el.file_id, title())}
-        >
-          <Icon name="canvas-content" size={14} />
-          <EmojiText text={title() ?? "canvas"} />
-        </InlineAction>
-      );
-    }
+    case "canvas":
+      return <CanvasMention fileId={el.file_id} label={el.text === el.url ? undefined : el.text} />;
     default:
       return null;
   }
@@ -129,39 +118,32 @@ function RichTextSectionView(props: { section: RichTextSection; trailing?: JSX.E
   );
 }
 
+const ORDERED_MARKERS = ["decimal", "lower-alpha", "lower-roman"];
+const BULLET_MARKERS = ["disc", "circle", "square"];
+const LIST_INDENT_PX = 28;
+
 function RichTextListView(props: { list: RichTextListType }) {
+  const ordered = () => props.list.style === "ordered";
+  const indent = () => props.list.indent ?? 0;
+  const markers = () => (ordered() ? ORDERED_MARKERS : BULLET_MARKERS);
   return (
-    <Show
-      fallback={
-        <ul
-          class="bk-rt-list"
-          style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}
-        >
-          <For each={props.list.elements}>
-            {(item) => (
-              <li>
-                <RichTextInline elements={item.elements} />
-              </li>
-            )}
-          </For>
-        </ul>
-      }
-      when={props.list.style === "ordered"}
+    <Dynamic
+      class="bk-rt-list"
+      component={ordered() ? "ol" : "ul"}
+      start={ordered() ? (props.list.offset ?? 0) + 1 : undefined}
+      style={{
+        "list-style-type": markers()[indent() % markers().length],
+        "padding-left": `${(indent() + 1) * LIST_INDENT_PX}px`,
+      }}
     >
-      <ol
-        class="bk-rt-list"
-        start={(props.list.offset ?? 0) + 1}
-        style={{ "padding-left": `${16 + (props.list.indent ?? 0) * 20}px` }}
-      >
-        <For each={props.list.elements}>
-          {(item) => (
-            <li>
-              <RichTextInline elements={item.elements} />
-            </li>
-          )}
-        </For>
-      </ol>
-    </Show>
+      <For each={props.list.elements}>
+        {(item) => (
+          <li>
+            <RichTextInline elements={item.elements} />
+          </li>
+        )}
+      </For>
+    </Dynamic>
   );
 }
 

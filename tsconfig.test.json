@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "incremental": true,
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["bun-types"],
+    "typeRoots": ["./packages/plugins/node_modules"],
+    "lib": ["ES2024", "DOM"]
+  },
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "packages/*/test/**/*.ts",
+    "packages/*/test/**/*.tsx",
+    "packages/plugins/src/**/*.ts",
+    "packages/plugins/src/**/*.tsx",
+    "test/*.ts",
+    "e2e/**/*.ts",
+    "types/*.d.ts"
+  ]
+}

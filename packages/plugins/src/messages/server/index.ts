@@ -1,47 +1,26 @@
 import type { Setup } from "@slock/core";
 import { isRecord } from "@slock/core";
 import { isRawMessage } from "@slock/slack";
-import type { RawMessage } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
 } from "../../slack/server/api/jsonResponse";
+import { relayDelete, relayEdit } from "../../slack/server/api/relayMessages";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
-import { botToken, callSlack, callSlackBot } from "../../slack/server/api/slackClient";
+import { callSlack } from "../../slack/server/api/slackClient";
 import type {
-  AuthTestReply,
   ConversationViewReply,
   HistoryReply,
   MessagesListReply,
   PostMessageReply,
   UnfurlLinkReply,
-  UserReply,
 } from "../../slack/server/api/slackReplies";
 import { trimChannel } from "../../slack/server/api/trim/slackChannels";
-import { displayName, trimUser } from "../../slack/server/api/trim/slackEntities";
+import { trimUser } from "../../slack/server/api/trim/slackEntities";
 import { trimAttachment, trimMessage } from "../../slack/server/api/trim/slackMessages";
 import { historyParams, trimHistory } from "./api";
-
-async function findMyRelayedMessage(
-  channelId: string,
-  ts: string,
-  creds: Credentials | null,
-): Promise<RawMessage | undefined> {
-  const me = await callSlack<AuthTestReply>("auth.test", {}, creds);
-  if (!me.ok) return;
-  const [profile, replies] = await Promise.all([
-    callSlack<UserReply>("users.info", { user: me.user_id }, creds),
-    callSlack<HistoryReply>("conversations.replies", { channel: channelId, limit: "1", ts }, creds),
-  ]);
-  if (!(profile.ok && replies.ok)) return;
-  const relayed = replies.messages?.find((m) => m.ts === ts);
-  const ownedByMe =
-    relayed?.bot_id === "B0BU242DJHM" && relayed.username === displayName(profile.user);
-  return ownedByMe ? relayed : undefined;
-}
 
 function trimMessagesListEntry(entry: unknown): unknown {
   if (Array.isArray(entry)) return entry.map(trimMessagesListEntry);
@@ -125,15 +104,7 @@ const list: Route[] = [
     }
 
     if (body.relayed) {
-      if (!botToken()) return errorResponse("bot_not_configured", 503);
-      if (!(await findMyRelayedMessage(channelId, ts, ctx.creds))) {
-        return errorResponse("cant_update_message", 403);
-      }
-      const botUpdated = await callSlackBot("chat.update", params);
-      if (!botUpdated.ok) {
-        return slackErrorResponse(botUpdated, "bot chat.update", ctx.creds);
-      }
-      return jsonResponse({ ok: true }, ctx.creds);
+      return relayEdit(ctx, channelId, ts, { blocks: body.blocks, text: body.text });
     }
 
     const data = await callSlack(
@@ -153,17 +124,7 @@ const list: Route[] = [
       .json<{ relayed?: boolean }>()
       .catch((): { relayed?: boolean } => ({}));
 
-    if (relayed) {
-      if (!botToken()) return errorResponse("bot_not_configured", 503);
-      if (!(await findMyRelayedMessage(channelId, ts, ctx.creds))) {
-        return errorResponse("cant_delete_message", 403);
-      }
-      const botDeleted = await callSlackBot("chat.delete", { channel: channelId, ts });
-      if (!botDeleted.ok) {
-        return slackErrorResponse(botDeleted, "bot chat.delete", ctx.creds);
-      }
-      return jsonResponse({ ok: true }, ctx.creds);
-    }
+    if (relayed) return relayDelete(ctx, channelId, ts);
 
     return mutate("chat.delete", { channel: channelId, ts }, ctx);
   }),
@@ -211,10 +172,6 @@ const list: Route[] = [
     return jsonResponse(
       {
         channel: data.channel && trimChannel(data.channel),
-        history: {
-          has_more: data.history?.has_more,
-          messages: data.history?.messages?.map(trimMessage),
-        },
         ok: true,
         users: data.users?.map(trimUser),
       },

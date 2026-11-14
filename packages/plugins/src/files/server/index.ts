@@ -66,7 +66,7 @@ const list: Route[] = [
         },
         content: infoData.content ?? null,
         contentTruncated: !!infoData.is_truncated,
-        editable: file.editable !== false,
+        editable: file.editable === true,
         file: trimFile(file),
         ok: true,
         owner: file.canvas_creator_id ?? file.user ?? null,

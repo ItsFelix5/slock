@@ -5,6 +5,11 @@ import ReactionRow from "../../../reactions/client/api/ReactionRow";
 import { isThreadAnnotation } from "../api/canvasQuote";
 import "./CanvasMarginThreads.css";
 
+function sameTops(a: Record<string, number>, b: Record<string, number>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
+
 export default function CanvasMarginThreads(props: {
   container: HTMLElement;
   fileId: string;
@@ -13,7 +18,8 @@ export default function CanvasMarginThreads(props: {
   threads: CanvasCommentThread[];
 }) {
   const [tops, setTops] = createSignal<Record<string, number>>({});
-  const visible = () => props.threads.filter((thread) => !thread.archived);
+  const visible = () =>
+    props.threads.filter((thread) => !thread.archived && tops()[thread.threadId] !== undefined);
   const [active, setActive] = createSignal<string>();
   let frame = 0;
 
@@ -29,7 +35,7 @@ export default function CanvasMarginThreads(props: {
       if (thread && !(thread.threadId in next))
         next[thread.threadId] = mark.getBoundingClientRect().top - base;
     }
-    setTops(next);
+    setTops((previous) => (sameTops(previous, next) ? previous : next));
   }
 
   function schedule() {
@@ -86,10 +92,11 @@ export default function CanvasMarginThreads(props: {
           <div
             class="canvas-margin-thread flex-align-center"
             classList={{ active: active() === thread.threadId }}
-            hidden={tops()[thread.threadId] === undefined}
+            onFocusIn={() => setActive(thread.threadId)}
+            onFocusOut={clearActive}
             onMouseEnter={() => setActive(thread.threadId)}
             onMouseLeave={clearActive}
-            style={{ top: `${tops()[thread.threadId] ?? 0}px` }}
+            style={{ top: `${tops()[thread.threadId]}px` }}
           >
             <IconButton
               icon="message"

@@ -1,12 +1,15 @@
 import type { Message } from "@slock/types";
-import { createMemo, For } from "solid-js";
+import { createMemo, For, type JSX, Show } from "solid-js";
 import MessageRow from "../../views/MessageRow";
+import { retainsDeleted } from "../deletedMessages";
 import type { OpenThreadHandler } from "../messageFocus";
 
 export type MessageRowsProps = {
   messages: Message[];
   channelId: string;
   threadTs?: string;
+  gap?: JSX.Element;
+  gapAfterTs?: string;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
   onJumpToMessage?: (ts: string) => void;
@@ -30,29 +33,46 @@ export default function MessageRows(props: MessageRowsProps) {
     return map;
   });
 
+  const previousVisible = createMemo(() => {
+    const result: (Message | undefined)[] = [];
+    let last: Message | undefined;
+    for (const message of props.messages) {
+      result.push(last);
+      if (!message.deleted || retainsDeleted(message)) last = message;
+    }
+    return result;
+  });
+
   return (
     <For each={props.messages}>
-      {(message, index) => (
-        <MessageRow
-          channelId={props.channelId}
-          editingTs={props.editingTs}
-          focusedTs={props.focusedTs}
-          index={index}
-          message={message}
-          messageByTs={messageByTs}
-          messages={props.messages}
-          moreMenuTs={props.moreMenuTs}
-          onJumpToMessage={props.onJumpToMessage}
-          onOpenThread={props.onOpenThread}
-          onReplyLink={props.onReplyLink}
-          onStartEdit={props.onStartEdit}
-          onStopEdit={props.onStopEdit}
-          onToggleMoreMenu={props.onToggleMoreMenu}
-          onToggleReactionPicker={props.onToggleReactionPicker}
-          reactionPickerTs={props.reactionPickerTs}
-          threadTs={props.threadTs}
-        />
-      )}
+      {(message, index) => {
+        const prev = createMemo(() => previousVisible()[index()]);
+        return (
+          <>
+            <MessageRow
+              channelId={props.channelId}
+              editingTs={props.editingTs}
+              focusedTs={props.focusedTs}
+              index={index}
+              message={message}
+              messageByTs={messageByTs}
+              messages={props.messages}
+              moreMenuTs={props.moreMenuTs}
+              onJumpToMessage={props.onJumpToMessage}
+              onOpenThread={props.onOpenThread}
+              onReplyLink={props.onReplyLink}
+              onStartEdit={props.onStartEdit}
+              onStopEdit={props.onStopEdit}
+              onToggleMoreMenu={props.onToggleMoreMenu}
+              onToggleReactionPicker={props.onToggleReactionPicker}
+              prev={prev}
+              reactionPickerTs={props.reactionPickerTs}
+              threadTs={props.threadTs}
+            />
+            <Show when={message.ts === props.gapAfterTs}>{props.gap}</Show>
+          </>
+        );
+      }}
     </For>
   );
 }

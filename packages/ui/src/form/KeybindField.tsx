@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { comboParts, type ShortcutCombo } from "../useShortcut";
+import { comboParts, type ShortcutCombo } from "../shortcutCombo";
 import { useKeybindRecorder } from "./keybindRecorder";
 import "./KeybindField.css";
 import IconButton from "../button/IconButton";

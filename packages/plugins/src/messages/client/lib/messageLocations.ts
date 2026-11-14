@@ -4,26 +4,43 @@ export function reactionMessageKey(channelId: string, ts: string): string {
   return `${channelId}:${ts}`;
 }
 
-export function findMessageLocations(
+export function createMessageLocator(
   messagesByChannel: Record<string, Message[]>,
   threadMessages: Record<string, Message[]>,
   reactionMessages: Record<string, Message[]>,
-  channelId: string,
-  ts: string,
-): { location: MessageLocation; list: Message[] }[] {
-  const results: { location: MessageLocation; list: Message[] }[] = [];
-  const inChannel = messagesByChannel[channelId];
-  if (inChannel?.some((m) => m.ts === ts))
-    results.push({ list: inChannel, location: { key: channelId, store: "channel" } });
-  for (const key of Object.keys(threadMessages)) {
-    const list = threadMessages[key];
-    if (list?.some((m) => m.ts === ts)) results.push({ list, location: { key, store: "thread" } });
+) {
+  const threadKeyByTs = new Map<string, string>();
+  const containing = (list: Message[] | undefined, ts: string) =>
+    list?.some((m) => m.ts === ts) ? list : undefined;
+  function findThread(ts: string) {
+    const hinted = threadKeyByTs.get(ts);
+    const hintedList = hinted === undefined ? undefined : containing(threadMessages[hinted], ts);
+    if (hinted !== undefined && hintedList) return { key: hinted, list: hintedList };
+    for (const key of Object.keys(threadMessages)) {
+      const list = containing(threadMessages[key], ts);
+      if (list) {
+        if (threadKeyByTs.size > 5000) threadKeyByTs.clear();
+        threadKeyByTs.set(ts, key);
+        return { key, list };
+      }
+    }
+    threadKeyByTs.delete(ts);
   }
-  const reactionKey = reactionMessageKey(channelId, ts);
-  const reacted = reactionMessages[reactionKey];
-  if (reacted?.some((m) => m.ts === ts))
-    results.push({ list: reacted, location: { key: reactionKey, store: "reaction" } });
-  return results;
+  return function findMessageLocations(
+    channelId: string,
+    ts: string,
+  ): { location: MessageLocation; list: Message[] }[] {
+    const results: { location: MessageLocation; list: Message[] }[] = [];
+    const inChannel = containing(messagesByChannel[channelId], ts);
+    if (inChannel)
+      results.push({ list: inChannel, location: { key: channelId, store: "channel" } });
+    const thread = findThread(ts);
+    if (thread) results.push({ list: thread.list, location: { key: thread.key, store: "thread" } });
+    const reactionKey = reactionMessageKey(channelId, ts);
+    const reacted = containing(reactionMessages[reactionKey], ts);
+    if (reacted) results.push({ list: reacted, location: { key: reactionKey, store: "reaction" } });
+    return results;
+  };
 }
 
 export function latestMessageTsMsByUser(

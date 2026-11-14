@@ -1,7 +1,7 @@
 import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
 import Icon from "./Icon";
 import { ImageLightbox } from "./ImageLightbox";
-import { constrainMediaDimensions } from "./mediaDimensions";
+import { mediaBoxStyle } from "./mediaDimensions";
 import "./ZoomableImage.css";
 
 export interface ZoomableImageItem {
@@ -22,29 +22,12 @@ export interface ZoomableImageProps {
   src: string;
 
   blurSrc?: string;
-  fitToImage?: boolean;
 }
 
 export default function ZoomableImage(props: ZoomableImageProps) {
   const [open, setOpen] = createSignal(false);
   const [galleryIndex, setGalleryIndex] = createSignal(0);
   const [previewFailed, setPreviewFailed] = createSignal(false);
-  const [fitted, setFitted] = createSignal<{ width: number; height: number }>();
-  const box = () => fitted() ?? { height: props.reservedHeight, width: props.reservedWidth };
-
-  const fitToLoadedImage = (img: HTMLImageElement) => {
-    if (!(props.fitToImage && img.naturalWidth && img.naturalHeight)) return;
-    setFitted(
-      constrainMediaDimensions(
-        img.naturalWidth,
-        img.naturalHeight,
-        props.reservedWidth,
-        props.reservedHeight,
-        props.reservedWidth,
-        props.reservedHeight,
-      ),
-    );
-  };
 
   const gallery = (): ZoomableImageItem[] =>
     props.gallery?.length ? props.gallery : [{ alt: props.alt, src: props.fullSrc ?? props.src }];
@@ -60,7 +43,6 @@ export default function ZoomableImage(props: ZoomableImageProps) {
       () => props.src,
       () => {
         setPreviewFailed(false);
-        setFitted(undefined);
       },
       { defer: true },
     ),
@@ -68,13 +50,15 @@ export default function ZoomableImage(props: ZoomableImageProps) {
 
   return (
     <>
-      <div class="zoomable-image-frame" style={{ width: `min(${box().width}px, 100%)` }}>
+      <div
+        class="zoomable-image-frame"
+        style={mediaBoxStyle(props.reservedWidth, props.reservedHeight)}
+      >
         <button
           aria-label={props.alt ? `Open image preview: ${props.alt}` : "Open image preview"}
           class="zoomable-image-trigger"
           onClick={openPreview}
           style={{
-            "aspect-ratio": `${box().width} / ${box().height}`,
             "background-position": "center",
             "background-size": "cover",
             "background-image": props.blurSrc ? `url(${props.blurSrc})` : undefined,
@@ -96,7 +80,6 @@ export default function ZoomableImage(props: ZoomableImageProps) {
               decoding="async"
               loading="lazy"
               onError={() => setPreviewFailed(true)}
-              onLoad={(e) => fitToLoadedImage(e.currentTarget)}
               src={props.src}
             />
           </Show>

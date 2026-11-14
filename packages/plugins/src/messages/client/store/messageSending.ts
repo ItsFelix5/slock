@@ -1,5 +1,5 @@
 import { defined, formatTimeFromMs } from "@slock/core";
-import { broadcastRangeFromBlocks } from "@slock/slack";
+import { broadcastRangeOf } from "@slock/slack";
 import type { Block, Message, PendingFile, User } from "@slock/types";
 import { produce, type SetStoreFunction } from "solid-js/store";
 import { postBroadcastMessage, postMessage, uploadFiles } from "../../../slack/client/api";
@@ -8,8 +8,7 @@ import type { MessageLocation } from "../lib/messageLocations";
 
 type MessageStoreSetter = SetStoreFunction<Record<string, Message[]>>;
 
-function optimisticMessage(me: User | undefined, fields: Partial<Message>): Message {
-  const now = Date.now();
+function optimisticMessage(me: User | undefined, now: number, fields: Partial<Message>): Message {
   return {
     day: "Today",
     id: `pending-${now}`,
@@ -30,6 +29,11 @@ export function createMessageSending(deps: {
   patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
   removeMessage: (location: MessageLocation, ts: string) => void;
 }) {
+  let lastOptimisticMs = 0;
+  const nextOptimisticMs = () => {
+    lastOptimisticMs = Math.max(Date.now(), lastOptimisticMs + 1);
+    return lastOptimisticMs;
+  };
   const setterFor = (location: MessageLocation) =>
     location.store === "thread" ? deps.setThreadMessages : deps.setChannelMessages;
 
@@ -56,10 +60,14 @@ export function createMessageSending(deps: {
   ) {
     const trimmed = text.trim();
     if (!(trimmed || blocks)) return;
-    const optimistic = optimisticMessage(deps.currentUser(), { blocks, text: trimmed, threadTs });
+    const optimistic = optimisticMessage(deps.currentUser(), nextOptimisticMs(), {
+      blocks,
+      text: trimmed,
+      threadTs,
+    });
     const location = appendOptimistic(channelId, threadTs, optimistic);
     try {
-      const res = broadcastRangeFromBlocks(blocks)
+      const res = broadcastRangeOf({ blocks, text: trimmed })
         ? await postBroadcastMessage(channelId, trimmed, unfurl, threadTs, blocks)
         : await postMessage(channelId, trimmed, unfurl, threadTs, blocks, fileIds);
       setterFor(location)(location.key, (list) =>
@@ -84,7 +92,7 @@ export function createMessageSending(deps: {
       progress: 0,
       size: file.size,
     }));
-    const optimistic = optimisticMessage(deps.currentUser(), {
+    const optimistic = optimisticMessage(deps.currentUser(), nextOptimisticMs(), {
       pendingFiles,
       text: comment?.trim() ?? "",
       threadTs,

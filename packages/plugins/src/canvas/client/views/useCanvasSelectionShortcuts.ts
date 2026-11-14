@@ -4,7 +4,7 @@ import { type CanvasCommandContext, runCanvasCommand } from "../lib/canvasComman
 
 export function useCanvasSelectionShortcuts(options: {
   contextFor: (quill: Quill) => CanvasCommandContext;
-  editable: boolean;
+  editable: () => boolean;
   quill: () => Quill | undefined;
 }) {
   const focusedQuill = () => {
@@ -13,7 +13,7 @@ export function useCanvasSelectionShortcuts(options: {
   };
   const shared = {
     allowInInputs: true,
-    enabled: () => options.editable && !!focusedQuill(),
+    enabled: () => options.editable() && !!focusedQuill(),
     group: "Canvas",
     scope: "general",
   } as const;

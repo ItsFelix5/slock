@@ -12,6 +12,12 @@ const GLOW_KINDS = new Set<ActivityItem["kind"]>([
 
 type ActivityItemReadState = "pending" | "read" | "unread";
 
+function isMarkedViaActivityApi(
+  item: ActivityItem,
+): item is ActivityItem & { activityType: string } {
+  return item.activityType === "quietly_added_to_channel" || item.activityType === "saved_reminder";
+}
+
 export function createActivityReadState(deps: {
   activityItems: ActivityItem[];
   activityReadSync: { request: (channelId: string, ts: string) => Promise<boolean> };
@@ -20,21 +26,19 @@ export function createActivityReadState(deps: {
   fetchActivityBadgeCounts: () => Promise<Record<string, number>>;
   fetchChannelLastRead: (channelId: string) => Promise<number>;
   lastReadByChannel: Record<string, number>;
-  markActivityRead: (
-    type: string,
-    feedTs: string,
-    key: string,
-    linkedItemId?: string,
-  ) => Promise<void>;
+  markActivityRead: (type: string, feedTs: string, key: string) => Promise<void>;
   setActivityItems: (
     predicate: (item: ActivityItem) => boolean,
     key: "unreadCount",
     value: number,
   ) => void;
   setLastReadByChannel: (channelId: string, ts: number) => void;
-  syncThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
+  setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
+  threadReadTsFor: (threadTs: string) => string | undefined;
 }) {
-  const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean>>({});
+  const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean | undefined>>(
+    {},
+  );
   const [gatewayActivityCount, setGatewayActivityCount] = createSignal<number>();
   let lastGatewayActivityCountsSnapshot: string | undefined;
 
@@ -46,11 +50,23 @@ export function createActivityReadState(deps: {
     return changed;
   }
 
+  function isBelowReadCursor(item: ActivityItem): boolean {
+    if (!item.channelId || isMarkedViaActivityApi(item)) return false;
+    if (item.threadTs) {
+      const threadCursor = deps.threadReadTsFor(item.threadTs);
+      return threadCursor !== undefined && parseFloat(item.ts) <= parseFloat(threadCursor);
+    }
+    const cursor = deps.lastReadByChannel[item.channelId];
+    return cursor !== undefined && parseFloat(item.ts) * 1000 <= cursor;
+  }
+
   function activityItemReadState(item: ActivityItem): ActivityItemReadState {
     if (item.kind === "reaction") return "read";
+    const override = readActivityIds[item.id];
+    if (override !== undefined) return override ? "read" : "unread";
+    if (isBelowReadCursor(item)) return "read";
     if (item.kind === "thread_reply" && item.unreadCount !== undefined)
       return item.unreadCount > 0 ? "unread" : "read";
-    if (readActivityIds[item.id]) return "read";
     if (item.unread !== undefined) return item.unread ? "unread" : "read";
     return "pending";
   }
@@ -60,6 +76,10 @@ export function createActivityReadState(deps: {
   }
 
   function markActivityItemUnread(item: ActivityItem) {
+    if (item.kind === "thread_reply" && item.unreadCount !== undefined) {
+      deps.setActivityItems((i) => i.id === item.id, "unreadCount", Math.max(1, item.unreadCount));
+      return;
+    }
     setReadActivityIds(item.id, false);
   }
 
@@ -110,12 +130,9 @@ export function createActivityReadState(deps: {
     const latestByThread = new Map<string, { channelId: string; threadTs: string; ts: string }>();
     for (const item of items) {
       if (activityItemReadState(item) === "read") continue;
-      if (
-        item.activityType === "quietly_added_to_channel" ||
-        item.activityType === "saved_reminder"
-      ) {
+      if (isMarkedViaActivityApi(item)) {
         void deps
-          .markActivityRead(item.activityType, item.feedTs ?? item.ts, item.id, item.linkedItemId)
+          .markActivityRead(item.activityType, item.feedTs ?? item.ts, item.id)
           .then(async () => {
             setReadActivityIds(item.id, true);
             setGatewayActivityBadgeCounts(await deps.fetchActivityBadgeCounts());
@@ -123,7 +140,7 @@ export function createActivityReadState(deps: {
           .catch(() => {});
         continue;
       }
-      setReadActivityIds(item.id, true);
+      setReadActivityIds(item.id, item.channelId ? undefined : true);
 
       if (item.kind === "thread_reply" && item.unreadCount !== undefined)
         deps.setActivityItems((i) => i.id === item.id, "unreadCount", 0);
@@ -157,7 +174,7 @@ export function createActivityReadState(deps: {
     }
 
     for (const { channelId, threadTs, ts } of latestByThread.values())
-      void deps.syncThreadRead(channelId, threadTs, ts);
+      void deps.setThreadRead(channelId, threadTs, ts);
   }
 
   return {

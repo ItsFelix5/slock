@@ -6,7 +6,7 @@
 .pinned-panel-list {
   flex: 1;
   min-height: 0;
-  padding: 6px;
+  padding: 10px 0;
   overflow-y: auto;
 }
 
@@ -22,15 +22,4 @@
 .pinned-panel-load-error {
   gap: 10px;
   padding: var(--space-2xl);
-}
-
-.pinned-panel-item {
-  position: relative;
-}
-
-.pinned-panel-feedback {
-  position: absolute;
-  right: 12px;
-  bottom: 2px;
-  left: 12px;
 }

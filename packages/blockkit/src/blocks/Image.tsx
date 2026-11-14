@@ -1,9 +1,10 @@
 import type { ImageBlock } from "@slock/types";
-import { constrainMediaDimensions, MediaFrame, ZoomableImage } from "@slock/ui";
+import { constrainMediaDimensions, formatSize, MediaFrame, ZoomableImage } from "@slock/ui";
 import { Show } from "solid-js";
 import EmojiText from "../emoji/EmojiText";
 import "./Image.css";
 import { defined } from "@slock/core";
+import { safeMediaUrl } from "../safeUrl";
 
 const URL_SUFFIX_PATTERN = /[?#]/;
 const MAX_IMAGE_SIZE = 360;
@@ -17,7 +18,7 @@ function isGif(block: ImageBlock) {
 }
 
 export default function Image(props: { block: ImageBlock }) {
-  const src = () => props.block.image_url ?? props.block.slack_file?.url ?? "";
+  const src = () => safeMediaUrl(props.block.image_url ?? props.block.slack_file?.url);
   const dimensions = () =>
     constrainMediaDimensions(
       props.block.image_width,
@@ -27,32 +28,38 @@ export default function Image(props: { block: ImageBlock }) {
       MAX_IMAGE_SIZE,
       MAX_IMAGE_SIZE,
     );
+  const frameTitle = () => {
+    const size = formatSize(props.block.image_bytes);
+    return [props.block.title?.text ?? "GIF", size && `(${size})`].filter(Boolean).join(" ");
+  };
   const image = () => (
     <ZoomableImage
       alt={props.block.alt_text}
       class="bk-image-block-img"
       reservedHeight={dimensions().height}
       reservedWidth={dimensions().width}
-      src={src()}
+      src={src() ?? ""}
     />
   );
   return (
-    <Show
-      fallback={
-        <figure class="bk-image-block flex-col">
-          {image()}
-          <Show when={props.block.title}>
-            {(title) => (
-              <figcaption class="bk-image-block-title">
-                <EmojiText text={title().text} />
-              </figcaption>
-            )}
-          </Show>
-        </figure>
-      }
-      when={isGif(props.block)}
-    >
-      <MediaFrame title="GIF">{image()}</MediaFrame>
+    <Show when={src()}>
+      <Show
+        fallback={
+          <figure class="bk-image-block flex-col">
+            {image()}
+            <Show when={props.block.title}>
+              {(title) => (
+                <figcaption class="bk-image-block-title">
+                  <EmojiText text={title().text} />
+                </figcaption>
+              )}
+            </Show>
+          </figure>
+        }
+        when={isGif(props.block)}
+      >
+        <MediaFrame title={frameTitle()}>{image()}</MediaFrame>
+      </Show>
     </Show>
   );
 }

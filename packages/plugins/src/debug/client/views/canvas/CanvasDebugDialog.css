@@ -3,11 +3,6 @@
   height: min(80dvh, 720px);
 }
 
-.canvas-debug-tabs {
-  flex-shrink: 0;
-  margin: var(--space-sm) var(--space-lg);
-}
-
 .canvas-debug-body {
   flex: 1;
   min-height: 0;

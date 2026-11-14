@@ -1,4 +1,4 @@
-import type { CanvasControl, RawFile } from "@slock/types";
+import type { CanvasControl } from "@slock/types";
 import type { CanvasEmbed } from "../../protocol/api";
 import type { EmbedValue } from "./canvasHtml";
 
@@ -68,35 +68,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function controlLabel(
-  embed: CanvasEmbed | undefined,
-  files: Map<string, RawFile>,
-  names: CanvasNames,
-): string {
-  if (!embed) return "embedded content";
-  if (embed.type === "file") {
-    const file = files.get(embed.fileId);
-    return file?.title?.trim() || file?.name?.trim() || names.controlLabel(embed);
-  }
-  return names.controlLabel(embed);
+function controlLabel(embed: CanvasEmbed | undefined, names: CanvasNames): string {
+  return embed ? names.controlLabel(embed) : "embedded content";
 }
 
-export function embedText(
-  embed: CanvasEmbed | undefined,
-  files: Map<string, RawFile>,
-  names: CanvasNames,
-): string {
+export function embedText(embed: CanvasEmbed | undefined, names: CanvasNames): string {
   if (embed?.type === "user") return `@${names.user(embed.userId)}`;
   if (embed?.type === "channel") return `#${names.channel(embed.channelId)}`;
   if (embed?.type === "emoji") return names.emojiText(embed.shortcode) ?? `:${embed.shortcode}:`;
   if (embed?.type === "date") return dateLabel(embed.ms);
-  return controlLabel(embed, files, names);
+  return controlLabel(embed, names);
 }
 
 export function embedToValue(
   embed: CanvasEmbed | undefined,
   controlId: string,
-  files: Map<string, RawFile>,
   names: CanvasNames,
 ): EmbedValue {
   if (embed?.type === "user")
@@ -112,7 +98,11 @@ export function embedToValue(
     };
   }
   return {
-    canvasControl: { id: controlId, label: controlLabel(embed, files, names) },
+    canvasControl: {
+      fileId: embed?.type === "file" ? embed.fileId : undefined,
+      id: controlId,
+      label: controlLabel(embed, names),
+    },
   };
 }
 

@@ -3,6 +3,12 @@ import type Quill from "./quill";
 import { indexAlignedText } from "./quillText";
 
 const URL_TAIL_RE = /https?:\/\/[^\s<>]+$/;
+const TOKEN_TAIL_RE = /[^\s<>]+$/;
+const DOMAIN_TLDS =
+  "com|org|net|io|dev|app|co|me|ai|gg|tv|xyz|info|edu|gov|uk|de|nl|fr|eu|ca|au|jp|se|fi|dk|ch|pl|cz|br|nz|ly|fm|cc";
+const BARE_DOMAIN_RE = new RegExp(
+  `^(?:[a-zA-Z0-9-]+\\.)+(?:${DOMAIN_TLDS})(?::\\d+)?(?:[/?#]\\S*)?$`,
+);
 const BARE_URL_RE = /^https?:\/\/\S+$/;
 const BOUNDARY_RE = /[ \n]/;
 
@@ -30,12 +36,14 @@ function urlBefore(
   rawEnd: number,
 ): { start: number; end: number; url: string } | undefined {
   const end = BOUNDARY_RE.test(text[rawEnd - 1] ?? "") ? rawEnd - 1 : rawEnd;
-  const match = text.slice(0, end).match(URL_TAIL_RE);
+  const head = text.slice(0, end);
+  const urlMatch = head.match(URL_TAIL_RE);
+  const match = urlMatch ?? head.match(TOKEN_TAIL_RE);
   if (!match) return;
   const trimmed = match[0].replace(TRAILING_PUNCTUATION_RE, "");
-  if (!trimmed) return;
+  if (!(urlMatch || BARE_DOMAIN_RE.test(trimmed))) return;
   const start = end - match[0].length;
-  return { end: start + trimmed.length, start, url: trimmed };
+  return { end: start + trimmed.length, start, url: urlMatch ? trimmed : `https://${trimmed}` };
 }
 
 function linkifyUrlEndingAt(quill: Quill, end: number): void {

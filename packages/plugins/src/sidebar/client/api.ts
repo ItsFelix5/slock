@@ -1,6 +1,11 @@
 import type { Component } from "solid-js";
 import type { createSidebarStore } from "./store";
 
+export type CycleTarget = {
+  active: boolean;
+  open: (split: boolean) => void;
+};
+
 export type SidebarNavItem = {
   id: string;
   label: string;

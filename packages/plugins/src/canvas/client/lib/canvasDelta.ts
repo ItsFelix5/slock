@@ -1,5 +1,5 @@
 import { decodeTextEntities } from "@slock/slack";
-import type { CanvasLine, CanvasNode, LayoutFrame, RawFile } from "@slock/types";
+import type { CanvasLine, CanvasNode, LayoutFrame } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
 import { type CanvasDocument, isLineNode, layoutAttribute } from "../../protocol/api";
 import { type CanvasNames, embedText, embedToValue } from "./canvasEmbeds";
@@ -12,16 +12,14 @@ import {
 } from "./canvasEmbedValues";
 import { htmlToOps } from "./canvasHtml";
 
-export interface CanvasDocModel extends CanvasDocument {
-  files: Map<string, RawFile>;
-}
+export type CanvasDocModel = CanvasDocument;
 
 export interface OpsView {
   attributes?(node: CanvasNode): Record<string, unknown>;
   inline?(node: CanvasLine, ops: Op[]): Op[];
 }
 
-type OpsSource = Pick<CanvasDocModel, "embeds" | "files">;
+type OpsSource = Pick<CanvasDocModel, "embeds">;
 
 function splitOnSoftBreaks(inline: Op[]): Op[][] {
   const lines: Op[][] = [[]];
@@ -61,8 +59,7 @@ export function nodesToOps(
   view: OpsView = {},
 ): Op[] {
   const ops: Op[] = [];
-  const resolve = (controlId: string) =>
-    embedToValue(doc.embeds.get(controlId), controlId, doc.files, names);
+  const resolve = (controlId: string) => embedToValue(doc.embeds.get(controlId), controlId, names);
   let index = 0;
   while (index < nodes.length) {
     const node = nodes[index];
@@ -88,7 +85,7 @@ export function nodesToOps(
       ...(layout ? { layout } : {}),
     });
     if (!isLineNode(node)) {
-      ops.push(atomOp(node, withLayout, doc, resolve));
+      ops.push(atomOp(node, withLayout, resolve));
       continue;
     }
     if (node.kind === "divider") {
@@ -141,19 +138,18 @@ function columnsOp(
 function atomOp(
   node: Exclude<CanvasNode, CanvasLine>,
   withLayout: (attributes: Record<string, unknown>) => Record<string, unknown>,
-  doc: OpsSource,
   resolve: (controlId: string) => Record<string, unknown>,
 ): Op {
   const attributes = withLayout({ sid: node.id });
   if (node.kind === "image")
     return {
       attributes,
-      insert: { [IMAGE_EMBED]: { file: doc.files.get(node.fileId) ?? null, node } },
+      insert: { [IMAGE_EMBED]: { node } },
     };
   if (node.kind === "file")
     return {
       attributes,
-      insert: { [FILE_EMBED]: { file: doc.files.get(node.fileId) ?? null, node } },
+      insert: { [FILE_EMBED]: { node } },
     };
   return {
     attributes,
@@ -181,7 +177,7 @@ const TITLE_CONTROL_RE = /<control id="([^"]+)"><\/control>/g;
 
 export function canvasTitle(doc: CanvasDocModel, names: CanvasNames): string {
   const resolved = doc.title.replace(TITLE_CONTROL_RE, (_, id: string) =>
-    embedText(doc.embeds.get(id), doc.files, names),
+    embedText(doc.embeds.get(id), names),
   );
   return decodeTextEntities(resolved).replaceAll("&nbsp;", " ");
 }

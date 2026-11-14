@@ -24,6 +24,7 @@ const setup: Setup = (ctx) => {
         const url = await cache.imageUrl(rc.params.name, rc.creds);
         const res = await slackAssetResponse(url, rc.creds, rc.acceptEncoding, rc.range);
         res.headers.append("vary", "Cookie");
+        res.headers.set("cache-control", "private, max-age=86400");
         return res;
       }),
     ]),

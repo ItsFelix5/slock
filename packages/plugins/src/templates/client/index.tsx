@@ -12,6 +12,12 @@ const setup: Setup = (ctx) => {
     { id: "templates", label: "Templates", view, visible: () => templates.templates().length > 0 },
     { order: 40 },
   );
+  ctx.add("composer.draftAction", {
+    icon: "bookmark",
+    label: "Save as template",
+    namePlaceholder: "Template name",
+    save: (name, { blocks, files }) => templates.saveTemplate(name, blocks, files),
+  });
 };
 
 export default setup;

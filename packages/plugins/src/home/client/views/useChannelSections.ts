@@ -2,15 +2,21 @@ import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { type Accessor, createMemo, createSignal } from "solid-js";
 import { sectionMoveTarget } from "../../../channels/client/api/sectionMutations";
+import { conversationTarget } from "../../../conversations/client/api/nav";
 import { buildCategories, type Category } from "./categories";
 import { useChannelRows } from "./channelRows";
+
+import { useDmSections } from "./useDmSections";
+import { useOpenViews } from "./useOpenViews";
 
 export function useChannelSections(unreadsOnly: Accessor<boolean>) {
   const channels = service("channels");
   const unread = service("unread");
   const channelRows = useChannelRows();
-  const panes = service("conversations");
+  const isOpen = useOpenViews();
   const prefs = service("prefs");
+  const dms = service("dms");
+  const dmSections = useDmSections(unreadsOnly);
   const [sectionMenuOpen, setSectionMenuOpen] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
@@ -19,22 +25,46 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
   let sectionListEl: HTMLDivElement | undefined;
 
   const categories = createMemo<Category[]>(() =>
-    buildCategories(
-      channels.channels(),
-      channels.sections,
+    buildCategories({
+      allChannels: channels.channels(),
+      allDmIds: dms.directMessages().map((dm) => dm.id),
+      hasDms: dmSections.hasDms,
+      isChannelLeft: channels.isChannelLeft,
+      isChannelMuted: prefs.isChannelMuted,
+      isChannelOpen: (id) => isOpen(id, "channel") || isOpen(id, "dm"),
+      isChannelStarred: channels.isChannelStarred,
+      isChannelUnread: (id) => unread.isChannelUnread(id) || channelRows.hasRows(id),
+      sections: channels.sections,
       unreadsOnly,
-      (id) => unread.isChannelUnread(id) || channelRows.hasRows(id),
-      channels.isChannelStarred,
-      channels.isChannelLeft,
-      (id) => panes.isOpenInAnyPane(id, "channel"),
-      prefs.isChannelMuted,
-    ),
+    }),
   );
   const channelById = createMemo(() => {
     const map = new Map<string, Category["channels"][number]>();
     for (const cat of categories()) for (const ch of cat.channels) map.set(ch.id, ch);
     return map;
   });
+
+  const isChannelShown = (catId: string, channel: Category["channels"][number]) =>
+    !channels.collapsedIds().has(catId) ||
+    isOpen(channel.id, "channel") ||
+    ((channel.mentions ?? 0) > 0 && !prefs.isChannelMuted(channel.id)) ||
+    channelRows.hasRows(channel.id);
+  const isDmShown = (catId: string, dm: { mentions?: number }) =>
+    !channels.collapsedIds().has(catId) || (dm.mentions ?? 0) > 0;
+  const categoryDms = (cat: Category) => {
+    if (cat.dm) return dmSections.dmsFor(cat.dm);
+    return (cat.dmIds ?? []).map((id) => dms.dmById(id)).filter((dm) => dm !== undefined);
+  };
+  const cycleTargets = createMemo(() =>
+    categories().flatMap((cat) => [
+      ...cat.channels
+        .filter((channel) => isChannelShown(cat.id, channel))
+        .map((channel) => conversationTarget(channel.id, "channel")),
+      ...categoryDms(cat)
+        .filter((dm) => isDmShown(cat.id, dm))
+        .map((dm) => conversationTarget(dm.id, "dm")),
+    ]),
+  );
 
   const startRename = (cat: Category) => {
     setSectionMenuOpen(null);
@@ -137,9 +167,11 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
   return {
     canMoveSection,
     categories,
+    categoryDms,
     channelById,
     collapsed: channels.collapsedIds,
     commitRename,
+    cycleTargets,
     deleteChannelSection: channels.deleteChannelSection,
     draggingSectionId,
     dropTarget,
@@ -148,6 +180,8 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
     handleSectionDrop,
     handleSectionsDragLeave,
     handleSectionsDragOver,
+    isChannelShown,
+    isDmShown,
     moveSection,
     renameValue,
     renamingId,

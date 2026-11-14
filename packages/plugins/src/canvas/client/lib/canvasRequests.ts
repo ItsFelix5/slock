@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { apiGet, apiPost } from "@slock/slack";
 import type {
@@ -7,23 +8,18 @@ import type {
   RawFile,
   RawMessage,
 } from "@slock/types";
+import { createQuery, queryOptions } from "@tanstack/solid-query";
 import { defineKey } from "../../../query/client/api";
-import {
-  type CanvasDocument,
-  type CanvasMeta,
-  readCanvas,
-  readCanvasVersion,
-} from "../../protocol/api";
+import { type CanvasMeta, readCanvas, readCanvasVersion } from "../../protocol/api";
 import type { CanvasDocModel } from "./canvasDelta";
 import { CanvasEditError } from "./canvasSync";
 
 const canvasFileKey = defineKey<[string]>("canvasFile");
 
 const query = service("query");
-const channelsStore = service("channels");
 
-export async function resolveCanvasFile(fileId: string): Promise<RawFile> {
-  const file = await query.client.query({
+function canvasFileOptions(fileId: string) {
+  return queryOptions({
     queryFn: async () => {
       const info = await apiGet<{ file: RawFile | null }>(`/api/canvases/${fileId}/file-info`);
       if (!info.ok) throw new Error(info.error ?? "files.info failed");
@@ -32,8 +28,23 @@ export async function resolveCanvasFile(fileId: string): Promise<RawFile> {
     queryKey: canvasFileKey(fileId),
     staleTime: Infinity,
   });
+}
+
+export async function resolveCanvasFile(fileId: string): Promise<RawFile> {
+  const file = await query.client.query(canvasFileOptions(fileId));
   if (!file) throw new Error("not_visible");
   return file;
+}
+
+export function createCanvasFileQuery(fileId: () => string) {
+  return createQuery(
+    () => ({ ...canvasFileOptions(fileId()), retry: false }),
+    () => query.client,
+  );
+}
+
+export function canvasFileTitle(file: RawFile | null | undefined): string | undefined {
+  return file?.title?.trim() || file?.name?.trim() || undefined;
 }
 
 export async function fetchCanvasTitleOrVisibility(
@@ -41,7 +52,7 @@ export async function fetchCanvasTitleOrVisibility(
 ): Promise<{ notVisible: boolean; title: string | null }> {
   try {
     const file = await resolveCanvasFile(fileId);
-    return { notVisible: false, title: file.title?.trim() || file.name?.trim() || null };
+    return { notVisible: false, title: canvasFileTitle(file) ?? null };
   } catch (err) {
     return { notVisible: err instanceof Error && err.message === "not_visible", title: null };
   }
@@ -71,39 +82,27 @@ export interface LoadedCanvas {
   editable: boolean;
 }
 
-async function withFiles(document: CanvasDocument): Promise<CanvasDocModel> {
-  const channelIds = [...document.embeds.values()].flatMap((embed) =>
-    embed.type === "channel" ? [embed.channelId] : [],
-  );
-  const [entries] = await Promise.all([
-    Promise.all(
-      document.fileIds.map(async (id) => {
-        try {
-          return [id, await resolveCanvasFile(id)] as const;
-        } catch {
-          return [id, null] as const;
-        }
-      }),
-    ),
-    Promise.all(channelIds.map((id) => channelsStore.resolveChannel(id))),
-  ]);
-  const files = new Map(entries.filter((entry): entry is [string, RawFile] => entry[1] !== null));
-  return { ...document, files };
-}
-
 export async function fetchCanvasRaw(
   fileId: string,
 ): Promise<{ bytes: Uint8Array; editable: boolean }> {
   const data = await apiGet<{ editable?: boolean; raw: string }>(`/api/canvases/${fileId}/raw`);
   if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
-  return { bytes: base64ToBytes(data.raw), editable: data.editable !== false };
+  return { bytes: base64ToBytes(data.raw), editable: data.editable === true };
 }
+
+export class CanvasReadError extends Error {}
 
 export async function fetchCanvas(fileId: string): Promise<LoadedCanvas> {
   const { bytes, editable } = await fetchCanvasRaw(fileId);
-  const document = readCanvas(bytes);
-  if (!document) return { doc: null, editable: false };
-  return { doc: await withFiles(document), editable };
+  try {
+    const document = readCanvas(bytes);
+    if (!document) throw new Error("Canvas has no metadata");
+    return { doc: document, editable };
+  } catch (error) {
+    throw new CanvasReadError(errorMessage(error), {
+      cause: error,
+    });
+  }
 }
 
 export async function fetchCanvasVersions(fileId: string): Promise<CanvasVersion[]> {
@@ -125,8 +124,7 @@ export async function fetchCanvasVersion(
     `/api/canvases/${fileId}/versions/${version.versionId}?${query}`,
   );
   if (!data.ok) throw new Error(data.error ?? "Canvas version failed");
-  const document = readCanvasVersion(base64ToBytes(data.raw), meta);
-  return document ? withFiles(document) : null;
+  return readCanvasVersion(base64ToBytes(data.raw), meta);
 }
 
 export async function restoreCanvasVersion(fileId: string, version: CanvasVersion): Promise<void> {

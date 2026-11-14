@@ -1,4 +1,3 @@
-import EmbedBlot from "quill/blots/embed";
 import type Quill from "./quill";
 
 const OBJECT_REPLACEMENT_CHAR = "￼";
@@ -10,6 +9,8 @@ export function indexAlignedText(quill: Quill): string {
     .join("");
 }
 
-export function getEmbedBlot(): typeof EmbedBlot {
-  return EmbedBlot;
+export function asElement(node: Node, blotName: string): HTMLElement {
+  if (!(node instanceof HTMLElement))
+    throw new Error(`${blotName} blot produced a non-element node`);
+  return node;
 }

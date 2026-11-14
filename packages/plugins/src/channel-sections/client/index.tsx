@@ -12,11 +12,7 @@ function MoveToItem(props: ChannelMenuProps) {
 }
 
 function MoveToHeader(props: MessageHeaderProps) {
-  return (
-    <Show when={props.kind === "channel"}>
-      <ChannelMoveMenu channelId={props.id} />
-    </Show>
-  );
+  return <ChannelMoveMenu channelId={props.id} />;
 }
 
 const setup: Setup = (ctx) => {

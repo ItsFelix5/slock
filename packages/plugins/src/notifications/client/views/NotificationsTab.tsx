@@ -1,8 +1,14 @@
 import { service } from "@slock/core/solid";
 import { Button, Icon, InlineFeedback, Switch } from "@slock/ui";
 import { createSignal, For, type JSX, Show } from "solid-js";
+import { TAG_FILTERS } from "../../../activity/client/api";
 import { channelDisplayName, channelIconName } from "../../../channels/client/api";
+import { isNotificationKind } from "../classify";
 import "./NotificationsTab.css";
+
+const kindRows = TAG_FILTERS.flatMap(({ icon, key, label }) =>
+  isNotificationKind(key) ? [{ icon, key, label }] : [],
+);
 
 const feedback = service("feedback");
 
@@ -93,6 +99,25 @@ export default function NotificationsTab() {
           <InlineFeedback feedback={feedback.get("desktop-notifications")} />
         </div>
       </Show>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Notify me about</div>
+        <div class="settings-list flex-col">
+          <For each={kindRows}>
+            {(row) => (
+              <div class="settings-list-row flex-between">
+                <span class="settings-list-row-name flex-align-center">
+                  <Icon name={row.icon} size={12} /> <span class="truncate">{row.label}</span>
+                </span>
+                <Switch
+                  checked={notifications.isKindEnabled(row.key)}
+                  onChange={(on) => notifications.setKindEnabled(row.key, on)}
+                />
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
 
       <div class="settings-section">
         <div class="settings-section-title">Pingwords</div>
@@ -191,7 +216,7 @@ export default function NotificationsTab() {
                     priority={2}
                   />
                   <RowAction
-                    disabled={prefsStore.isMutePending(c.id)}
+                    disabled={prefsStore.isMutePending()}
                     onClick={() => prefsStore.toggleMuteChannel(c.id)}
                   >
                     <Icon name="close" size={12} />

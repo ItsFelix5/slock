@@ -2,7 +2,6 @@ import { For, Show } from "solid-js";
 import "./JsonTree.css";
 
 const LABEL_KEYS = ["kind", "type", "name", "id", "threadId", "anchor", "versionId", "html"];
-const MAX_STRING = 240;
 const MAX_LABEL = 80;
 
 function isBranch(value: unknown): value is object {
@@ -23,23 +22,34 @@ function summary(value: object): string {
 }
 
 function shown(value: unknown): string {
-  if (typeof value === "string") {
-    const text = JSON.stringify(value);
-    return text.length > MAX_STRING
-      ? `${text.slice(0, MAX_STRING)}... (${value.length} chars)`
-      : text;
+  return typeof value === "string" ? JSON.stringify(value) : String(value);
+}
+
+function toggle(branch: HTMLDetailsElement, event: MouseEvent) {
+  event.preventDefault();
+  const open = !branch.open;
+  branch.open = open;
+  if (event.ctrlKey || event.metaKey) {
+    for (const nested of branch.querySelectorAll("details")) nested.open = open;
+  } else if (!open) {
+    for (const nested of branch.querySelectorAll("details")) nested.open = false;
   }
-  return String(value);
 }
 
 function Branch(props: { name: string; value: object; depth: number; openDepth: number }) {
+  let branch!: HTMLDetailsElement;
   return (
-    <details class="json-tree-branch" open={props.depth < props.openDepth}>
-      <summary class="json-tree-row">
-        <span class="json-tree-key">{props.name}</span>
+    <details class="json-tree-branch" open={props.depth < props.openDepth} ref={branch}>
+      <summary class="json-tree-row" onClick={(event) => toggle(branch, event)}>
+        <span class="json-tree-key">{props.name}</span>{" "}
         <span class="json-tree-summary">{summary(props.value)}</span>
         <Show when={labelOf(props.value)}>
-          {(label) => <span class="json-tree-label">{label()}</span>}
+          {(label) => (
+            <>
+              {" "}
+              <span class="json-tree-label">{label()}</span>
+            </>
+          )}
         </Show>
       </summary>
       <div class="json-tree-children">
@@ -59,6 +69,7 @@ function Entry(props: { name: string; value: unknown; depth: number; openDepth: 
       fallback={
         <div class="json-tree-row">
           <span class="json-tree-key">{props.name}</span>
+          {": "}
           <span
             class={`json-tree-value json-tree-${props.value === null ? "null" : typeof props.value}`}
           >

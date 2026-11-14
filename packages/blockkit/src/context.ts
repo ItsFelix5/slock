@@ -6,6 +6,8 @@ export interface BlockKitMentionInfo {
 
   isPrivate?: boolean;
 
+  label?: string;
+
   isSelf?: boolean;
   name: string;
 }
@@ -69,6 +71,12 @@ export const MessageAttachmentsContext = createContext<() => Attachment[] | unde
 
 export function useMessageAttachments(): () => Attachment[] | undefined {
   return useContext(MessageAttachmentsContext);
+}
+
+export const InertTokensContext = createContext(false);
+
+export function useInertTokens(): boolean {
+  return useContext(InertTokensContext);
 }
 
 export const EmojiFreezeContext = createContext<() => boolean>(() => false);

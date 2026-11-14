@@ -119,7 +119,18 @@ function pushLine(
   blockAttrs?: Record<string, unknown>,
   onUnresolvedUser?: (id: string) => void,
 ) {
-  ops.push(...inlineOps(elements, onUnresolvedUser));
+  for (const op of inlineOps(elements, onUnresolvedUser)) {
+    if (!blockAttrs || typeof op.insert !== "string" || !op.insert.includes("\n")) {
+      ops.push(op);
+      continue;
+    }
+    const parts = op.insert.split("\n");
+    parts.forEach((part, index) => {
+      if (part)
+        ops.push(op.attributes ? { attributes: op.attributes, insert: part } : { insert: part });
+      if (index < parts.length - 1) ops.push({ attributes: blockAttrs, insert: "\n" });
+    });
+  }
   ops.push(blockAttrs ? { attributes: blockAttrs, insert: "\n" } : { insert: "\n" });
 }
 
@@ -158,7 +169,10 @@ export function richTextDeltaOps(
         pushLine(ops, sub.elements, { blockquote: true }, onUnresolvedUser);
       else if (sub.type === "rich_text_list") {
         sub.elements.forEach((item, index) => {
-          const attributes = index === 0 && sub.offset ? { listOffset: sub.offset } : {};
+          const attributes = {
+            ...(sub.indent ? { indent: sub.indent } : {}),
+            ...(index === 0 && sub.offset ? { listOffset: sub.offset } : {}),
+          };
           pushLine(ops, item.elements, { list: sub.style, ...attributes }, onUnresolvedUser);
         });
       }

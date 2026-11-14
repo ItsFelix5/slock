@@ -1,15 +1,28 @@
 .canvas-comment-quote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
   max-width: 100%;
   padding: var(--space-xs) var(--space-sm);
   font-size: inherit;
   color: var(--text-primary);
   text-align: left;
-  white-space: pre-wrap;
   cursor: pointer;
-  border-left: 3px solid var(--border);
+  background: var(--accent-subtle);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-sm);
 }
 
 .canvas-comment-quote:hover {
-  background: var(--hover-bg);
+  background: var(--accent-muted);
+}
+
+.canvas-comment-quote-source {
+  gap: var(--space-xs);
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+
+.canvas-comment-quote-text {
+  white-space: pre-wrap;
 }

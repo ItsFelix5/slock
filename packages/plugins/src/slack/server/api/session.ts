@@ -1,7 +1,7 @@
 import { isRecord } from "@slock/core";
 import { INFO_COOKIE, parseSessionInfo, profileName, sessionInfoCookie } from "@slock/slack";
 import type { AccountSummary, RawUserProfile, SessionInfo } from "@slock/types";
-import { downloadUrl } from "./assets.ts";
+import { imageUrl } from "./assets.ts";
 import { type Credentials, jsonHeaders, parseCredentials, teamIdFromRoute } from "./auth.ts";
 import { callSlack } from "./slackClient.ts";
 
@@ -49,7 +49,8 @@ function hasCredentials(accounts: Account[]) {
 
 export function credentialsFromCookie(header: string | null): Credentials | null {
   const { accounts, info } = readSession(header);
-  return accounts.find((account) => account.id === info.id) ?? null;
+  const account = accounts.find((candidate) => candidate.id === info.id) ?? null;
+  return account;
 }
 
 function accountCookie(account: Account): string {
@@ -88,7 +89,7 @@ export async function accountAvatarResponse(
   const url = profile?.image_192 || profile?.image_72 || profile?.image_48;
   if (!(creds && url)) return new Response(null, { status: 404 });
   return new Response(null, {
-    headers: { "cache-control": "private, max-age=300", location: downloadUrl(url) },
+    headers: { "cache-control": "private, max-age=300", location: imageUrl(url) },
     status: 302,
   });
 }

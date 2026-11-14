@@ -1,5 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { formatTimeFromMs } from "@slock/core";
+import { usePoint } from "@slock/core/solid";
 import { blockPreviewText } from "@slock/slack";
 import {
   Icon,
@@ -13,6 +14,7 @@ import {
 } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
 import type { DraftValue } from "../../../../drafts/client/api";
+import type { ComposerDraftAction } from "../../api";
 import "./DraftsMenu.css";
 
 function relativeLabel(ts: string | undefined): string {
@@ -29,40 +31,44 @@ function relativeLabel(ts: string | undefined): string {
     : d.toLocaleDateString([], { day: "numeric", month: "short" });
 }
 
-type ActionRow = { kind: "save-new" | "save-template" };
-type Row = { kind: "entry"; entry: DraftValue } | ActionRow;
+type Row =
+  | { kind: "entry"; entry: DraftValue }
+  | { kind: "save-new" }
+  | { kind: "action"; action: ComposerDraftAction };
 
 export default function DraftsMenu(props: {
   hasContent: boolean;
   onClose: () => void;
   onDelete: (entry: DraftValue) => Promise<void>;
   onSaveAndStartNew: () => void;
-  onSaveAsTemplate: (name: string) => void;
+  onSaveAs: (action: ComposerDraftAction, name: string) => void;
   onSwitchTo: (entry: DraftValue) => void;
   stack: DraftValue[];
 }) {
-  const [naming, setNaming] = createSignal(false);
+  const actions = usePoint("composer.draftAction");
+  const [naming, setNaming] = createSignal<ComposerDraftAction>();
   const [name, setName] = createSignal("");
   const [active, setActive] = createSignal<number | null>(null);
   let inputRef: HTMLInputElement | undefined;
 
-  useEscapeClose(() => (naming() ? setNaming(false) : props.onClose()));
+  useEscapeClose(() => (naming() ? setNaming(undefined) : props.onClose()));
   useClickOutside(".composer-drafts-menu", props.onClose);
 
   const rows = createMemo<Row[]>(() => {
     const entries: Row[] = props.stack.map((entry) => ({ entry, kind: "entry" }));
     if (props.hasContent) {
       entries.push({ kind: "save-new" });
-      entries.push({ kind: "save-template" });
+      for (const action of actions()) entries.push({ action, kind: "action" });
     }
     return entries;
   });
 
   const submitName = (e: Event) => {
     e.preventDefault();
+    const action = naming();
     const trimmed = name().trim();
-    if (!trimmed) return;
-    props.onSaveAsTemplate(trimmed);
+    if (!(action && trimmed)) return;
+    props.onSaveAs(action, trimmed);
     props.onClose();
   };
 
@@ -74,7 +80,7 @@ export default function DraftsMenu(props: {
       props.onSaveAndStartNew();
       props.onClose();
     } else {
-      setNaming(true);
+      setNaming(row.action);
       queueMicrotask(() => inputRef?.focus());
     }
   };
@@ -138,13 +144,13 @@ export default function DraftsMenu(props: {
             <span class="suggestion-label truncate">Save and start new draft</span>
           </>
         );
-      case "save-template":
+      case "action":
         return (
           <>
             <span class="suggestion-icon flex-center">
-              <Icon name="bookmark" size={13} />
+              <Icon name={row.action.icon} size={13} />
             </span>
-            <span class="suggestion-label truncate">Save as template</span>
+            <span class="suggestion-label truncate">{row.action.label}</span>
           </>
         );
     }
@@ -159,7 +165,7 @@ export default function DraftsMenu(props: {
               <input
                 class="text-field"
                 onInput={(e) => setName(e.currentTarget.value)}
-                placeholder="Template name"
+                placeholder={naming()?.namePlaceholder}
                 ref={inputRef}
                 type="text"
                 value={name()}

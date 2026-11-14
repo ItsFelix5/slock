@@ -1,3 +1,7 @@
+export function mediaBoxStyle(width: number, height: number) {
+  return { "aspect-ratio": `${width} / ${height}`, width: `min(${width}px, 100%)` };
+}
+
 export function constrainMediaDimensions(
   width: number | undefined,
   height: number | undefined,

@@ -1,3 +1,8 @@
+.sidebar-row-wrap,
+.sidebar-row {
+  --sidebar-row-cell: 20px;
+}
+
 .sidebar-row-wrap {
   position: relative;
 }
@@ -5,20 +10,20 @@
 .sidebar-row-wrap > .tooltip-anchor {
   position: absolute;
   top: 50%;
-  right: 10px;
+  right: 16px;
   transform: translateY(-50%);
 }
 
 .sidebar-row-close {
   display: none;
-  width: 20px;
-  height: 20px;
+  width: var(--sidebar-row-cell);
+  height: var(--sidebar-row-cell);
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
 }
 
 .sidebar-row-wrap:hover .sidebar-row-close,
-.sidebar-row-wrap:focus-within .sidebar-row-close {
+.sidebar-row-wrap:has(:focus-visible) .sidebar-row-close {
   display: flex;
 }
 
@@ -87,7 +92,6 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 5px;
   margin-left: auto;
 }
 
@@ -100,11 +104,21 @@
   border-radius: var(--radius-pill);
 }
 
-.sidebar-row-draft {
+.sidebar-row-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--sidebar-row-cell);
+  height: var(--sidebar-row-cell);
   color: var(--text-dim);
 }
 
 .sidebar-row-wrap:hover .sidebar-row-end,
-.sidebar-row-wrap:focus-within .sidebar-row-end {
+.sidebar-row-wrap:has(:focus-visible) .sidebar-row-end {
+  margin-right: var(--sidebar-row-cell);
+}
+
+.sidebar-row-wrap:hover .sidebar-row-cell:has(.sidebar-badge),
+.sidebar-row-wrap:has(:focus-visible) .sidebar-row-cell:has(.sidebar-badge) {
   display: none;
 }

@@ -2,5 +2,5 @@
   "id": "threads",
   "core": true,
   "name": "Threads",
-  "requires": ["channels", "dms", "message-links", "messages", "shell", "unread", "users"]
+  "requires": ["channels", "dms", "message-links", "messages", "shell", "typing", "unread", "users"]
 }

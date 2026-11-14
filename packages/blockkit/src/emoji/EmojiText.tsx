@@ -2,9 +2,10 @@ import { decodeTextEntities } from "@slock/slack";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { useEmojiFreeze } from "../context";
 import { EMOJI_TOKEN_RE, resolveStandardEmoji } from "./emoji";
-import { emojiAliasTarget, emojiUrl, loadCustomEmoji } from "./emojiCache";
+import { emojiAliasTarget, emojiUrl, hasEmojiLoadError, loadCustomEmoji } from "./emojiCache";
 import "./EmojiText.css";
 import { defined } from "@slock/core";
+import { loadStillEmoji, STILL_EMOJI_SIZE } from "./stillEmoji";
 
 type Part = { type: "text"; value: string } | { type: "emoji"; name: string };
 
@@ -24,27 +25,21 @@ function splitParts(text: string): Part[] {
 function StillEmojiImg(props: { name: string; url: string; onError?: () => void }) {
   let canvas: HTMLCanvasElement | undefined;
   createEffect(() => {
-    const { url } = props;
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(40 / img.naturalWidth, 40 / img.naturalHeight);
-      const width = img.naturalWidth * scale;
-      const height = img.naturalHeight * scale;
-      canvas?.getContext("2d")?.drawImage(img, (40 - width) / 2, (40 - height) / 2, width, height);
-    };
-    img.onerror = () => props.onError?.();
-    img.src = url;
+    loadStillEmoji(props.url).then(
+      ({ bitmap, x, y }) => canvas?.getContext("2d")?.drawImage(bitmap, x, y),
+      () => props.onError?.(),
+    );
   });
   return (
     <canvas
       aria-label={`:${props.name}:`}
       class="emoji-img"
       data-emoji-name={props.name}
-      height={40}
+      height={STILL_EMOJI_SIZE}
       ref={canvas}
       role="img"
       title={`:${props.name}:`}
-      width={40}
+      width={STILL_EMOJI_SIZE}
     />
   );
 }
@@ -73,7 +68,7 @@ export default function EmojiText(props: { text: string }) {
           setBroken(false);
         });
         createEffect(() => {
-          if (!unicode() && url() === undefined) void loadCustomEmoji();
+          if (!unicode() && url() === undefined && !hasEmojiLoadError()) void loadCustomEmoji();
         });
         return (
           <Show
@@ -99,6 +94,7 @@ export default function EmojiText(props: { text: string }) {
                       alt={`:${part.name}:`}
                       class="emoji-img"
                       data-emoji-name={part.name}
+                      decoding="async"
                       onError={onError}
                       src={u()}
                       title={`:${part.name}:`}

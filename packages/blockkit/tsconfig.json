@@ -9,7 +9,6 @@
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../tsconfig.base.json",
-  "exclude": ["src/**/*.test.ts"],
   "include": ["src/**/*", "src/**/*.json", "../../types/css.d.ts"],
   "references": [
     { "path": "../core" },

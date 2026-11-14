@@ -1,0 +1,18 @@
+.hackclub-status-unverified {
+  --hackclub-status-color: var(--accent);
+}
+.hackclub-status-over_18 {
+  --hackclub-status-color: oklch(from var(--warning) calc(l - 0.08) c h);
+}
+.hackclub-status-banned {
+  --hackclub-status-color: var(--badge-bg);
+}
+.hackclub-status-unverified,
+.hackclub-status-unverified:hover,
+.hackclub-status-over_18,
+.hackclub-status-over_18:hover,
+.hackclub-status-banned,
+.hackclub-status-banned:hover {
+  text-decoration: underline wavy var(--hackclub-status-color) 1px;
+  text-underline-offset: 1px;
+}

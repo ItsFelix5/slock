@@ -4,19 +4,15 @@ import {
   Avatar,
   AvatarStack,
   ContextMenu,
-  HoverCard,
-  Icon,
   IconButton,
   InlineFeedback,
-  Tooltip,
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { openConversationInSplit } from "../../../../conversations/client/api/nav";
-import { channelHasDraft } from "../../../../drafts/client/api";
 import { SplitNavigation } from "../../../../shell/client/api/SplitNavigation";
-import { unreadSummary } from "../lib/unreadSummary";
-import DraftList from "./DraftList";
+import { useRowPrefetch } from "./rowPrefetch";
+import SidebarRowEnd from "./SidebarRowEnd";
 import "./SidebarRow.css";
 
 const feedback = service("feedback");
@@ -29,7 +25,6 @@ const unreadStore = service("unread");
 const dmsStore = service("dms");
 const titles = service("titles");
 const usersStore = service("users");
-const messagesStore = service("messages");
 const prefsStore = service("prefs");
 
 export function DmRow(props: { dm: DirectMessage }) {
@@ -46,16 +41,8 @@ export function DmRow(props: { dm: DirectMessage }) {
     () => sidebarStore.nav() === "home" && conversationsStore.isOpenInAnyPane(props.dm.id, "dm"),
   );
   const muted = createMemo(() => prefsStore.isChannelMuted(props.dm.id));
-  const hasDraft = createMemo(() => channelHasDraft(props.dm.id));
   const ctxMenu = useContextMenu();
-  const unreadTooltip = createMemo(() =>
-    unreadSummary({
-      currentUserId: usersStore.currentUser()?.id,
-      lastRead: unreadStore.lastReadFor(props.dm.id),
-      loadedMessages: messagesStore.messagesInChannel(props.dm.id),
-      mentions: props.dm.mentions,
-    }),
-  );
+  const prefetch = useRowPrefetch(() => props.dm.id);
 
   return (
     <Show when={ready()}>
@@ -71,6 +58,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             data-channel-id={props.dm.id}
             data-nav-row
             onClick={() => viewStore.setActiveView({ id: props.dm.id, kind: "dm" })}
+            {...prefetch}
             onContextMenu={ctxMenu.open}
             tabIndex={-1}
             type="button"
@@ -79,23 +67,7 @@ export function DmRow(props: { dm: DirectMessage }) {
               {(u) => <Avatar showPresence size="small" user={u()} />}
             </Show>
             <span class="sidebar-row-name truncate">{name()}</span>
-            <span class="sidebar-row-end">
-              {hasDraft() ? (
-                <HoverCard
-                  align="start"
-                  content={(close) => <DraftList channelId={props.dm.id} close={close} kind="dm" />}
-                >
-                  <span class="sidebar-row-draft flex-align-center">
-                    <Icon name="edit" size={12} />
-                  </span>
-                </HoverCard>
-              ) : null}
-              {!muted() && props.dm.mentions ? (
-                <Tooltip content={unreadTooltip()}>
-                  <span class="sidebar-badge">{props.dm.mentions}</span>
-                </Tooltip>
-              ) : null}
-            </span>
+            <SidebarRowEnd id={props.dm.id} kind="dm" mentions={props.dm.mentions} />
           </button>
         </SplitNavigation>
         <IconButton

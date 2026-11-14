@@ -1,8 +1,8 @@
 import type { HttpContext, Setup } from "@slock/core";
+import { errorMessage } from "@slock/core";
 import { UPGRADED } from "@slock/server/http";
 import { compressResponse } from "./api/compression";
 import type { CspDirectives } from "./api/csp";
-import { errorMessage } from "./api/errorMessage";
 
 const BASE_CSP: CspDirectives = {
   "base-uri": ["'none'"],

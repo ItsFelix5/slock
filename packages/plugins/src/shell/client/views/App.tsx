@@ -2,7 +2,6 @@ import { Slot, service, usePoint } from "@slock/core/solid";
 import {
   ConfirmDialog,
   InlineFeedback,
-  PaneRow,
   useCloseShortcut,
   useFieldCommitShortcut,
   useGlobalUndoShortcut,
@@ -36,6 +35,8 @@ export default function App() {
 
   const blockers = usePoint("shell.blocker");
   const blocker = createMemo(() => blockers().find((item) => item.active()));
+  const arrangements = usePoint("shell.arrangement");
+  const arrangement = () => arrangements()[0];
 
   return (
     <Providers>
@@ -53,8 +54,9 @@ export default function App() {
             priority={1}
           />
           <Slot point="shell.start" />
-          <PaneRow
+          <Dynamic
             activePaneId={panesStore.activePaneId}
+            component={arrangement()?.view}
             containerWidth={() => windowWidth() - layout.startWidth()}
             onActivate={panesStore.activatePane}
             onCloseTab={(pane) => viewStore.closeTile(pane.id)}

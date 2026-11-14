@@ -19,6 +19,6 @@ const host = createHost({
 });
 
 setHost(host);
-Object.assign(globalThis, { slockHost: host });
+Object.assign(globalThis, { slock: host });
 render(() => <Slot point="root" />, document.body);
 void host.register(...plugins).then(() => performance.mark("slock:plugins-started"));

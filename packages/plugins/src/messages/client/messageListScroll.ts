@@ -5,16 +5,24 @@ import type { ChannelMessageTarget, View } from "../../conversations/client/api/
 import { observeComposerOverlay } from "./api/pane/composerOverlay";
 import {
   captureScrollAnchor,
+  correctScrollAfterContentChange,
   isScrolledToBottom,
   restoreScrollAnchor,
-  scrollToBottom,
 } from "./api/pane/scrollAnchor";
+import { historyLoadOnScroll, historyLoadToFillViewport, scrollDirection } from "./lib/scrollMath";
 import { createMessageListLanding } from "./messageListLanding";
 
 const messagesStore = service("messages");
 const unreadStore = service("unread");
 
-const NEAR_HISTORY_EDGE_VIEWPORT_FRACTION = 2;
+const historyAvailability = (viewId: string) => ({
+  canLoadNewer:
+    messagesStore.hasNewerHistory(viewId) && !messagesStore.hasNewerHistoryError(viewId),
+  canLoadOlder: messagesStore.hasMoreHistory(viewId) && !messagesStore.hasOlderHistoryError(viewId),
+});
+
+const isAtLiveBottom = (el: HTMLElement, viewId: string) =>
+  isScrolledToBottom(el) && !messagesStore.hasNewerHistory(viewId);
 
 export function createMessageListScroll(deps: {
   clearMessageTarget: () => void;
@@ -51,12 +59,7 @@ export function createMessageListScroll(deps: {
     setTopVisibleTs(ts);
     if (view && ts && lastAnchor) trackScrollAnchor(view.id, { offset: lastAnchor.offset, ts });
     if (view)
-      unreadStore.setBottomSeen(
-        view.id,
-        readyViewId() === view.id &&
-          isScrolledToBottom(el) &&
-          !messagesStore.hasNewerHistory(view.id),
-      );
+      unreadStore.setBottomSeen(view.id, readyViewId() === view.id && isAtLiveBottom(el, view.id));
   }
   createEffect(() => {
     const id = deps.paneView()?.id;
@@ -70,25 +73,20 @@ export function createMessageListScroll(deps: {
 
   function correctScrollForContentChange() {
     const el = deps.scrollRef();
-    if (!el) return;
-    if (shouldFollowBottom()) scrollToBottom(el);
-    else if (lastAnchor?.el.isConnected) restoreScrollAnchor(el, lastAnchor);
+    if (el) correctScrollAfterContentChange(el, shouldFollowBottom(), lastAnchor);
   }
+  let filledViewId: string | undefined;
   function fillViewportIfUnderfull() {
     const el = deps.scrollRef();
     const view = deps.paneView();
     if (!(el && view)) return;
-    if (readyViewId() !== view.id) return;
+    if (readyViewId() !== view.id || filledViewId === view.id) return;
     if (messagesStore.isLoadingHistory(view.id)) return;
-    if (el.clientHeight === 0 || el.scrollHeight > el.clientHeight) return;
-    if (messagesStore.hasMoreHistory(view.id) && !messagesStore.hasOlderHistoryError(view.id)) {
-      void loadOlderMessagesPreservingScroll(view.id);
-    } else if (
-      messagesStore.hasNewerHistory(view.id) &&
-      !messagesStore.hasNewerHistoryError(view.id)
-    ) {
-      void loadNewerMessages(view.id);
-    }
+    const load = historyLoadToFillViewport(el, historyAvailability(view.id));
+    if (!load) return;
+    filledViewId = view.id;
+    if (load === "older") void loadOlderMessagesPreservingScroll(view.id);
+    else void loadNewerMessages(view.id);
   }
   createEffect(() => {
     deps.messages();
@@ -164,42 +162,27 @@ export function createMessageListScroll(deps: {
     const view = deps.paneView();
     updateTopVisible();
     if (!(el && view)) return;
-    const direction =
-      preferredDirection ??
-      (el.scrollTop > lastScrollTop ? "newer" : el.scrollTop < lastScrollTop ? "older" : undefined);
+    const direction = preferredDirection ?? scrollDirection(el.scrollTop - lastScrollTop);
     lastScrollTop = el.scrollTop;
     if (isPinning()) return;
-    setShouldFollowBottom(isScrolledToBottom(el) && !messagesStore.hasNewerHistory(view.id));
+    setShouldFollowBottom(isAtLiveBottom(el, view.id));
 
     if (readyViewId() !== view.id) return;
     if (messagesStore.isLoadingHistory(view.id)) return;
 
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distanceFromBottom <= el.clientHeight * NEAR_HISTORY_EDGE_VIEWPORT_FRACTION;
-    if (
-      direction === "newer" &&
-      nearBottom &&
-      messagesStore.hasNewerHistory(view.id) &&
-      !messagesStore.hasNewerHistoryError(view.id)
-    ) {
-      void loadNewerMessages(view.id);
-      return;
-    }
-
-    const nearTop = el.scrollTop <= el.clientHeight * NEAR_HISTORY_EDGE_VIEWPORT_FRACTION;
-    if (
-      direction !== "newer" &&
-      nearTop &&
-      Date.now() >= olderLoadCooldownUntil &&
-      messagesStore.hasMoreHistory(view.id) &&
-      !messagesStore.hasOlderHistoryError(view.id)
-    )
-      void loadOlderMessagesPreservingScroll(view.id);
+    const load = historyLoadOnScroll({
+      ...historyAvailability(view.id),
+      direction,
+      metrics: el,
+      olderCoolingDown: Date.now() < olderLoadCooldownUntil,
+    });
+    if (load === "newer") void loadNewerMessages(view.id);
+    else if (load === "older") void loadOlderMessagesPreservingScroll(view.id);
   }
 
   function handleWheel(event: WheelEvent) {
     cancelLanding();
-    const direction = event.deltaY > 0 ? "newer" : event.deltaY < 0 ? "older" : undefined;
+    const direction = scrollDirection(event.deltaY);
     if (direction) scheduleScrollCheck(direction);
   }
 
@@ -213,11 +196,7 @@ export function createMessageListScroll(deps: {
     const direction =
       touchStartY === undefined || endY === undefined
         ? undefined
-        : endY < touchStartY
-          ? "newer"
-          : endY > touchStartY
-            ? "older"
-            : undefined;
+        : scrollDirection(touchStartY - endY);
     touchStartY = undefined;
     if (direction) scheduleScrollCheck(direction);
   }

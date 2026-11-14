@@ -96,11 +96,11 @@ function channelIdFromFeedKey(key: unknown): string | undefined {
 export function mapFeedEntry(raw: RawActivityFeedEntry, time: number): FeedEntry | undefined {
   const { item } = raw;
   const type = item?.type;
-  if (!(item && type)) return;
+  if (!(item && type && Number.isFinite(time))) return;
   const kind = activityKindFor(type);
   const unread = raw.is_unread;
   const feedTs = String(raw.feed_ts);
-  const id = String(raw.key ?? `${type}:${raw.feed_ts}`);
+  const id = raw.key || `${type}:${raw.feed_ts}`;
   const { message: reactedMessage, reaction } = item;
   if (type === "message_reaction" && reactedMessage?.channel && reactedMessage.ts && reaction) {
     return {
@@ -218,6 +218,7 @@ export function mapFeedEntry(raw: RawActivityFeedEntry, time: number): FeedEntry
     id,
     kind,
     linkedItemId: item.linked_item_id,
+    reminderNote: item.reminder_note,
     threadTs: message?.thread_ts && message.thread_ts !== ts ? message.thread_ts : undefined,
     time,
     ts,

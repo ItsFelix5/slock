@@ -1,0 +1,1 @@
+{ "id": "sidebar-typing", "core": true, "name": "Sidebar typing", "requires": ["home", "typing"] }

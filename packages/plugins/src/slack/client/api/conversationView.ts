@@ -1,12 +1,6 @@
 import { service } from "@slock/core/solid";
-import { apiGet, mapChannel, mapChannelDetails, mapUser, mapVisibleMessages } from "@slock/slack";
-import type {
-  CanvasListItem,
-  ConversationViewData,
-  RawChannel,
-  RawMessage,
-  RawUser,
-} from "@slock/types";
+import { apiGet, mapChannel, mapChannelDetails, mapUser } from "@slock/slack";
+import type { CanvasListItem, ConversationViewData, RawChannel, RawUser } from "@slock/types";
 import { defineKey } from "../../../query/client/api";
 
 const conversationViewKey = defineKey<[string]>("conversationView");
@@ -34,7 +28,6 @@ const DEDUPE_WINDOW_MS = 5_000;
 async function loadConversationView(channelId: string): Promise<ConversationViewData> {
   const data = await apiGet<{
     channel?: RawChannel;
-    history?: { has_more?: boolean; messages?: RawMessage[] };
     users?: RawUser[];
   }>(`/api/channels/${channelId}/view`);
   if (!data.ok) throw new Error(data.error ?? "conversations.view failed");
@@ -62,8 +55,6 @@ async function loadConversationView(channelId: string): Promise<ConversationView
           purpose: "",
           topic: "",
         },
-    hasMore: !!data.history?.has_more,
-    messages: mapVisibleMessages(data.history?.messages ?? []).reverse(),
     users: (data.users ?? []).filter((user) => user.id).map(mapUser),
   };
 }

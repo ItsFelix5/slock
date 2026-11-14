@@ -179,6 +179,7 @@ export interface RawFileShare {
 
 export interface RawAttachment {
   actions?: {
+    id?: string;
     name?: string;
     style?: string;
     text?: string;
@@ -242,6 +243,7 @@ export interface RawMessage {
   reply_count?: number;
   reply_users?: string[];
   root?: RawMessage;
+  is_locked?: boolean;
   subscribed?: boolean;
   subtype?: string;
   text?: string;

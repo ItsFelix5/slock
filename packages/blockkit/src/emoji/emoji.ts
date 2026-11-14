@@ -9,11 +9,11 @@ export function hexCodepointsToEmoji(hex: string): string | undefined {
   return String.fromCodePoint(...codepoints);
 }
 
-interface EmojiEntry {
-  aliasOf?: string;
-  name: string;
-  skinVariations?: Record<string, { name: string; unicode: string }>;
-  unicode: string;
+interface EmojiRow {
+  a?: string;
+  n: string;
+  s?: Partial<Record<string, string>>;
+  u: string;
 }
 
 export interface StandardEmoji {
@@ -26,35 +26,31 @@ const STANDARD_EMOJI: Record<string, string> = {};
 
 const STANDARD_EMOJI_LIST: StandardEmoji[] = [];
 const canonicalByName = new Map<string, StandardEmoji>();
-const entries: EmojiEntry[] = Object.values(emojiData);
-for (const entry of entries) {
-  const glyph = hexCodepointsToEmoji(entry.unicode);
+const rows: EmojiRow[] = emojiData;
+for (const { a: aliasOf, n: name, s: skins, u: unicode } of rows) {
+  const glyph = hexCodepointsToEmoji(unicode);
   if (glyph) {
-    STANDARD_EMOJI[entry.name] = glyph;
-    if (!entry.aliasOf) {
-      const canonical: StandardEmoji = {
-        aliases: [],
-        name: entry.name,
-        unicode: glyph,
-      };
-      canonicalByName.set(entry.name, canonical);
+    STANDARD_EMOJI[name] = glyph;
+    if (!aliasOf) {
+      const canonical: StandardEmoji = { aliases: [], name, unicode: glyph };
+      canonicalByName.set(name, canonical);
       STANDARD_EMOJI_LIST.push(canonical);
     }
   }
-  for (const variant of Object.values(entry.skinVariations ?? {})) {
-    const variantGlyph = hexCodepointsToEmoji(variant.unicode);
-    if (variantGlyph) STANDARD_EMOJI[variant.name] = variantGlyph;
+  for (const [tone, hex] of Object.entries(skins ?? {})) {
+    const variantGlyph = hex && hexCodepointsToEmoji(hex);
+    if (variantGlyph) STANDARD_EMOJI[`${name}::skin-tone-${tone}`] = variantGlyph;
   }
 }
-for (const entry of entries) {
-  if (entry.aliasOf) canonicalByName.get(entry.aliasOf)?.aliases.push(entry.name);
+for (const { a: aliasOf, n: name } of rows) {
+  if (aliasOf) canonicalByName.get(aliasOf)?.aliases.push(name);
 }
 
 export function resolveStandardEmoji(name: string): string | undefined {
   return STANDARD_EMOJI[name.toLowerCase()] ?? hexCodepointsToEmoji(name);
 }
 
-export const EMOJI_TOKEN_RE = /:([a-z0-9_+'-]+):/gi;
+export const EMOJI_TOKEN_RE = /:([a-z0-9_+'-]+(?:::skin-tone-[2-6])?):/gi;
 
 export function standardEmojiEntries(): StandardEmoji[] {
   return STANDARD_EMOJI_LIST;

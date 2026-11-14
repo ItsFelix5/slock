@@ -2,8 +2,10 @@ import { readFile } from "node:fs/promises";
 import type { HttpHandler, Setup } from "@slock/core";
 import { jsonResponse } from "../../slack/server/api/jsonResponse";
 import { route, routes } from "../../slack/server/api/router";
-import { APP_DIR, build, writeDist } from "./build";
+import { APP_DIR, type build, writeDist } from "./build";
 import { buildPlugin } from "./buildPlugin";
+import { createDevBuild } from "./devBuild";
+import { channelPreloadLinks } from "./indexHtml";
 import { listPlugins, operatorPluginFile } from "./operatorPlugins";
 import { serveFile } from "./staticFiles";
 
@@ -27,32 +29,40 @@ async function builtImportMapHash(): Promise<string | undefined> {
 const setup: Setup = async (ctx) => {
   let built: Built | undefined;
   let importMapHash = DEV ? undefined : await builtImportMapHash();
+  const devBuild = DEV ? await createDevBuild() : undefined;
+  if (devBuild) ctx.onCleanup(devBuild.close);
 
   const serve: HttpHandler = async (c, next) => {
     if (c.req.method !== "GET" || c.url.pathname.startsWith("/api/")) return next();
     const { pathname } = c.url;
-    const encoding = c.req.headers.get("accept-encoding");
+    const requestHeaders = c.req.headers;
     const unsafe = pathname.includes("..");
     if (pathname.startsWith("/plugins/")) {
       const file = operatorPluginFile(pathname);
-      return file ? new Response(Bun.file(file)) : undefined;
+      return file ? serveFile(file, pathname, requestHeaders) : undefined;
     }
     if (pathname.startsWith("/public/")) {
-      return unsafe ? undefined : serveFile(`${APP_DIR}${pathname}`, pathname, encoding);
+      return unsafe ? undefined : serveFile(`${APP_DIR}${pathname}`, pathname, requestHeaders);
     }
     if (pathname.startsWith("/assets/")) {
       if (unsafe) return;
-      if (!DEV) return serveFile(`${APP_DIR}/dist${pathname}`, pathname, encoding);
+      if (!DEV) return serveFile(`${APP_DIR}/dist${pathname}`, pathname, requestHeaders);
       const file = built?.files.get(pathname);
       return file && new Response(file.contents, { headers: { "content-type": file.contentType } });
     }
+    const link = c.creds ? channelPreloadLinks(pathname) : undefined;
     if (DEV) {
-      built = await build(false);
+      built = await devBuild?.get();
+      if (!built) return;
       importMapHash = scriptHash(built.importMap);
-      return new Response(built.html(!!c.creds), { headers: { "content-type": "text/html" } });
+      const headers: Record<string, string> = { "content-type": "text/html" };
+      if (link) headers.link = link;
+      return new Response(built.html(!!c.creds), { headers });
     }
     const name = c.creds ? "index.bootstrap.html" : "index.html";
-    return serveFile(`${APP_DIR}/dist/${name}`, "/", encoding);
+    const res = await serveFile(`${APP_DIR}/dist/${name}`, "/", requestHeaders);
+    if (res && link) res.headers.set("link", link);
+    return res;
   };
 
   ctx.add("http", serve, { order: -100 });

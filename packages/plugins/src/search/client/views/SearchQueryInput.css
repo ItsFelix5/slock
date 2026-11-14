@@ -1,0 +1,29 @@
+.search-query {
+  flex: 1;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.search-query-editor .ql-editor {
+  padding: 0;
+  overflow-x: auto;
+  font-size: var(--font-size-body);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.search-filter-pill {
+  cursor: pointer;
+}
+
+.search-filter-pill.negated,
+.search-filter-pill.negated:hover {
+  color: var(--error-text);
+  background: var(--error-bg);
+}
+
+.search-query-suggestions {
+  width: 280px;
+  max-height: 280px;
+  overflow-y: auto;
+}

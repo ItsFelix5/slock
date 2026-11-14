@@ -4,46 +4,13 @@ import type { Services } from "@slock/core/types";
 import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
 import type { User } from "@slock/types";
 import { createMemo, createSignal } from "solid-js";
-import { createStore, produce } from "solid-js/store";
-import {
-  setPresence as apiSetPresence,
-  setProfileFields as apiSetProfileFields,
-  setStatus as apiSetStatus,
-  uploadProfilePhoto as apiUploadProfilePhoto,
-  fetchAppDescription,
-  fetchUser,
-  fetchUserPresence,
-  fetchUserProfile,
-  searchDirectory,
-} from "../../../slack/client/api";
+import { createStore, produce, unwrap } from "solid-js/store";
 import { createLocalPref } from "../../../slack/client/api/localPref";
+import { createDerivedUsers } from "./derivedUsers";
 import { createUserProfileFields } from "./profileFields";
+import { DEFAULT_USERS_API, type UsersApi } from "./usersApi";
 
 const feedback = service("feedback");
-
-type UsersApi = {
-  fetchAppDescription: typeof fetchAppDescription;
-  fetchUser: typeof fetchUser;
-  fetchUserProfile: typeof fetchUserProfile;
-  fetchUserPresence: typeof fetchUserPresence;
-  searchDirectory: typeof searchDirectory;
-  setPresence: typeof apiSetPresence;
-  setProfileFields: typeof apiSetProfileFields;
-  setStatus: typeof apiSetStatus;
-  uploadProfilePhoto: typeof apiUploadProfilePhoto;
-};
-
-const DEFAULT_USERS_API: UsersApi = {
-  fetchAppDescription,
-  fetchUser,
-  fetchUserProfile,
-  fetchUserPresence,
-  searchDirectory,
-  setPresence: apiSetPresence,
-  setProfileFields: apiSetProfileFields,
-  setStatus: apiSetStatus,
-  uploadProfilePhoto: apiUploadProfilePhoto,
-};
 
 export function createUsersStore(
   deps: {
@@ -60,7 +27,7 @@ export function createUsersStore(
   const [presenceOverrides, setPresenceOverrides] = createStore<Record<string, "active" | "away">>(
     {},
   );
-  const pendingPresence = new Set<string>();
+  const requestedPresence = new Set<string>();
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
 
   const [nicknames, persistNicknames] = createLocalPref<Record<string, string>>("nicknames", {});
@@ -71,7 +38,7 @@ export function createUsersStore(
   }
 
   const [botBios, setBotBios] = createStore<Record<string, string>>({});
-  const pendingBotBios = new Set<string>();
+  const requestedBotBios = new Set<string>();
 
   const { customFieldsFor, profileStartDateFor, updateMyProfile, updateMyProfilePhoto } =
     createUserProfileFields(deps, api, setSelfStatusOverride);
@@ -80,19 +47,47 @@ export function createUsersStore(
     return Object.values(extraUsers).map(withNickname);
   }
 
-  function cacheUsers(users: User[]): void {
-    for (const user of users) setExtraUsers(user.id, user);
+  function putUser(user: User): void {
+    const current = unwrap(extraUsers[user.id]);
+    const keys = Object.keys(user);
+    if (
+      current &&
+      keys.length === Object.keys(current).length &&
+      keys.every((key) => Reflect.get(current, key) === Reflect.get(user, key))
+    )
+      return;
+    setExtraUsers(
+      produce((s) => {
+        s[user.id] = user;
+      }),
+    );
   }
+
+  function cacheUsers(users: User[]): void {
+    for (const user of users) putUser(user);
+  }
+
+  const idByName = createMemo(() => {
+    const map = new Map<string, string>();
+    for (const user of Object.values(extraUsers))
+      if (!map.has(user.name)) map.set(user.name, user.id);
+    return map;
+  });
 
   function userIdByName(name: string): string | undefined {
     const me = deps.currentUserBase();
     if (me?.name === name) return me.id;
-    return Object.values(extraUsers).find((user) => user.name === name)?.id;
+    return idByName().get(name);
   }
+
+  const derivedUser = createDerivedUsers({
+    nicknameOf: (id) => nicknames()[id],
+    presenceOf: (id) => presenceOverrides[id],
+    withNickname,
+  });
 
   function userById(id: string): User | undefined {
     if (!id) return;
-
     if (id === SLACK_USER_ID) return SLACK_SYSTEM_USER;
     if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
@@ -102,7 +97,7 @@ export function createUsersStore(
         api
           .fetchUser(id)
           .then((user) => {
-            if (user) setExtraUsers(id, user);
+            if (user) putUser(user);
             else {
               setUnresolvableUsers(id, true);
             }
@@ -114,21 +109,19 @@ export function createUsersStore(
       }
       return;
     }
-    const presence = presenceOverrides[id];
-    return withNickname(presence ? { ...known, presence } : known);
+    return derivedUser(id, known);
   }
 
   function presenceFor(id: string): "active" | "away" | undefined {
     if (!id || id === SLACK_USER_ID || id.startsWith("B")) return;
     if (id === deps.currentUserBase()?.id) return currentUser()?.presence;
     const known = presenceOverrides[id];
-    if (known !== undefined || pendingPresence.has(id)) return known;
-    pendingPresence.add(id);
+    if (known !== undefined || requestedPresence.has(id)) return known;
+    requestedPresence.add(id);
     api
       .fetchUserPresence(id)
       .then((presence) => presence && recordPeerPresence(id, presence))
-      .catch(() => {})
-      .finally(() => pendingPresence.delete(id));
+      .catch(() => {});
     return known;
   }
 
@@ -159,7 +152,7 @@ export function createUsersStore(
 
     const { users: remote } = await api.searchDirectory(q);
     for (const u of remote) {
-      if (!local.has(u.id)) setExtraUsers(u.id, u);
+      if (!local.has(u.id)) putUser(u);
     }
 
     const merged = new Map<string, User>();
@@ -206,16 +199,14 @@ export function createUsersStore(
   function botBio(appId: string | undefined, botId: string | undefined): string | undefined {
     if (!(appId && botId)) return;
     const known = botBios[appId];
-    if (known || pendingBotBios.has(appId)) return known;
-    pendingBotBios.add(appId);
+    if (known || requestedBotBios.has(appId)) return known;
+    requestedBotBios.add(appId);
     api
       .fetchAppDescription(appId, botId)
       .then((description) => {
         if (description) setBotBios(appId, description);
       })
-      .catch(() => {
-        pendingBotBios.delete(appId);
-      });
+      .catch(() => {});
     return known;
   }
 

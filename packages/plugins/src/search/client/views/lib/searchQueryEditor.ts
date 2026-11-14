@@ -41,6 +41,7 @@ export interface SearchQueryEditorDeps {
   onSubmit: () => void;
   onSuggestionsShouldClose: () => void;
   onEscapeWithNoSuggestions: () => void;
+  placeholder: string;
   suggestionsOpen: () => boolean;
 }
 
@@ -172,7 +173,7 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
           },
         },
       },
-      placeholder: "Search every message…",
+      placeholder: deps.placeholder,
     });
     const q = quill;
 

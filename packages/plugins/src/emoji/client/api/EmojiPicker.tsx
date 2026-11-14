@@ -1,13 +1,14 @@
-import { emojiUrl, hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
+import { hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import {
   Button,
   gridNavigationIndex,
+  inside,
   type NavDirection,
-  Tooltip,
   useEscapeClose,
   useGridShortcuts,
   useListShortcuts,
+  useShortcut,
 } from "@slock/ui";
 import {
   createEffect,
@@ -19,41 +20,19 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import type { EmojiEntry as PickerEntry } from "./emojiSearch";
 import "./EmojiPicker.css";
-import { defined } from "@slock/core";
+import EmojiPickerButton from "../EmojiPickerButton";
 import { prioritizeEmojiEntries } from "../emojiPickerEntries";
+import { EMOJI_COLUMNS, layoutChunks, scrollTopToReveal, visibleChunks } from "./emojiGridLayout";
 
 const emojiIndex = service("emoji");
 
-const COLS = 8;
-const BUTTON_SIZE = 32;
-const GRID_GAP = 2;
-const CHUNK_ROWS = 6;
-const CHUNK_SIZE = COLS * CHUNK_ROWS;
-const OVERSCAN_PX = 120;
-
-type Block = { kind: "chunk"; entries: PickerEntry[] };
-
-function rowsBlockHeight(count: number): number {
-  const rows = Math.ceil(count / COLS);
-  return rows * BUTTON_SIZE + Math.max(0, rows - 1) * GRID_GAP;
-}
-
-function blockHeight(block: Block): number {
-  return rowsBlockHeight(block.entries.length);
-}
-
-function buildBlocks(sections: { entries: PickerEntry[] }[]): Block[] {
-  const blocks: Block[] = [];
-  for (const section of sections) {
-    if (!section.entries.length) continue;
-    for (let i = 0; i < section.entries.length; i += CHUNK_SIZE) {
-      blocks.push({ entries: section.entries.slice(i, i + CHUNK_SIZE), kind: "chunk" });
-    }
-  }
-  return blocks;
-}
+const MOD_ARROWS = [
+  { direction: "up", key: "ArrowUp" },
+  { direction: "down", key: "ArrowDown" },
+  { direction: "left", key: "ArrowLeft" },
+  { direction: "right", key: "ArrowRight" },
+] as const;
 
 export default function EmojiPicker(props: {
   onSelect: (name: string) => void;
@@ -98,20 +77,7 @@ export default function EmojiPicker(props: {
 
   const isEmpty = () => visibleEntries().length === 0;
 
-  const blocks = createMemo(() => buildBlocks([{ entries: visibleEntries() }]));
-
-  const blockLayout = createMemo(() => {
-    let top = 0;
-    let startIndex = 0;
-    const laid: { block: Block; top: number; height: number; startIndex: number }[] = [];
-    for (const block of blocks()) {
-      const height = blockHeight(block);
-      laid.push({ block, height, startIndex, top });
-      top += height;
-      startIndex += block.entries.length;
-    }
-    return { laid, totalHeight: top };
-  });
+  const layout = createMemo(() => layoutChunks(visibleEntries()));
 
   const [scrollTop, setScrollTop] = createSignal(0);
   const [viewportHeight, setViewportHeight] = createSignal(360);
@@ -136,20 +102,7 @@ export default function EmojiPicker(props: {
     ),
   );
 
-  const visible = createMemo(() => {
-    const { laid, totalHeight } = blockLayout();
-    const lo = scrollTop() - OVERSCAN_PX;
-    const hi = scrollTop() + viewportHeight() + OVERSCAN_PX;
-    let start = 0;
-    while (start < laid.length && defined(laid[start]).top + defined(laid[start]).height < lo)
-      start++;
-    let end = start;
-    while (end < laid.length && defined(laid[end]).top < hi) end++;
-    const topSpacer = laid[start]?.top ?? 0;
-    const last = laid[end - 1];
-    const bottomSpacer = totalHeight - (last ? last.top + last.height : 0);
-    return { bottomSpacer, list: laid.slice(start, end), topSpacer };
-  });
+  const visible = createMemo(() => visibleChunks(layout(), scrollTop(), viewportHeight()));
 
   const keepSearchFocused = (e: MouseEvent) => {
     if (e.target !== searchInputRef) e.preventDefault();
@@ -157,13 +110,8 @@ export default function EmojiPicker(props: {
 
   const scrollEmojiIndexIntoView = (index: number) => {
     if (!bodyRef) return;
-    const rowTop = Math.floor(index / COLS) * (BUTTON_SIZE + GRID_GAP);
-    const rowBottom = rowTop + BUTTON_SIZE;
-    const viewTop = scrollTop();
-    const viewBottom = viewTop + viewportHeight();
-    const nextTop =
-      rowTop < viewTop ? rowTop : rowBottom > viewBottom ? rowBottom - viewportHeight() : viewTop;
-    if (nextTop === viewTop) return;
+    const nextTop = scrollTopToReveal(index, scrollTop(), viewportHeight());
+    if (nextTop === scrollTop()) return;
     setScrollTop(nextTop);
     bodyRef.scrollTop = nextTop;
   };
@@ -180,12 +128,12 @@ export default function EmojiPicker(props: {
       activeElement instanceof HTMLElement ? activeElement.dataset.emojiIndex : undefined;
     const current = indexAttr === undefined ? null : Number(indexAttr);
 
-    if (!fromSearch && direction === "up" && current !== null && current < COLS) {
+    if (!fromSearch && direction === "up" && current !== null && current < EMOJI_COLUMNS) {
       searchInputRef?.focus();
       return;
     }
 
-    const next = gridNavigationIndex(direction, current, visibleEntries().length, COLS);
+    const next = gridNavigationIndex(direction, current, visibleEntries().length, EMOJI_COLUMNS);
     if (next === undefined) return;
     setActiveIndex(next);
     scrollEmojiIndexIntoView(next);
@@ -201,6 +149,21 @@ export default function EmojiPicker(props: {
     submit: selectActive,
   });
   useGridShortcuts({ move: moveGrid, root: () => bodyRef, submit: selectActive });
+  for (const { direction, key } of MOD_ARROWS) {
+    useShortcut({
+      allowRepeat: true,
+      combo: { key, mod: true },
+      group: "Lists",
+      handler: () => moveGrid(direction),
+      id: `emojiPicker.${direction}`,
+      label: `Emoji picker: move ${direction}`,
+      scope: "lists",
+      target: inside(
+        () => searchInputRef,
+        () => bodyRef,
+      ),
+    });
+  }
 
   return (
     <div class="emoji-picker surface-popover flex-col" onMouseDown={keepSearchFocused}>
@@ -233,14 +196,14 @@ export default function EmojiPicker(props: {
         <Show fallback={<div class="emoji-picker-empty">No emoji found</div>} when={!isEmpty()}>
           <div style={{ height: `${visible().topSpacer}px` }} />
           <For each={visible().list}>
-            {(item) => (
+            {(chunk) => (
               <div class="emoji-picker-grid">
-                <For each={item.block.entries}>
+                <For each={chunk.entries}>
                   {(entry, index) => (
-                    <EmojiButton
-                      active={activeIndex() === item.startIndex + index()}
+                    <EmojiPickerButton
+                      active={activeIndex() === chunk.startIndex + index()}
                       entry={entry}
-                      index={item.startIndex + index()}
+                      index={chunk.startIndex + index()}
                       onSelect={props.onSelect}
                       reactionByName={reactionByName}
                     />
@@ -253,39 +216,5 @@ export default function EmojiPicker(props: {
         </Show>
       </div>
     </div>
-  );
-}
-
-function EmojiButton(props: {
-  active: boolean;
-  entry: PickerEntry;
-  index: number;
-  onSelect: (name: string) => void;
-  reactionByName: () => Map<string, boolean>;
-}) {
-  const url = () => emojiUrl(props.entry.name);
-  const mine = () => props.reactionByName().get(props.entry.name) === true;
-  const reacted = () => props.reactionByName().has(props.entry.name);
-  const tooltip = () => {
-    if (mine()) return `:${props.entry.name}: · you reacted`;
-    if (reacted()) return `:${props.entry.name}: · already reacted`;
-    return `:${props.entry.name}:`;
-  };
-  return (
-    <Tooltip content={tooltip()}>
-      <button
-        aria-label={`:${props.entry.name}:`}
-        class="emoji-picker-btn btn-reset flex-center"
-        classList={{ mine: mine(), reacted: reacted() }}
-        data-emoji-index={props.index}
-        onClick={() => props.onSelect(props.entry.name)}
-        tabIndex={props.active ? 0 : -1}
-        type="button"
-      >
-        <Show fallback={props.entry.unicode ?? "❔"} when={url()}>
-          {(u) => <img alt={props.entry.name} decoding="async" loading="lazy" src={u()} />}
-        </Show>
-      </button>
-    </Tooltip>
   );
 }

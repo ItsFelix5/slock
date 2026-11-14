@@ -23,6 +23,10 @@
   color: var(--text-primary);
 }
 
+.connect-account-footer {
+  margin: 0;
+}
+
 @media (max-height: 650px) {
   .connect-slack {
     align-items: flex-start;

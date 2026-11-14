@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { apiPost, connectWith } from "@slock/slack";
 import { Button, OtpInput } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
@@ -29,7 +30,7 @@ export default function HackclubForm(props: ConnectMethodProps) {
       await connectWithHackclubEmailCode(challenge(), codeValue);
       props.connected();
     } catch (e) {
-      props.setError(e instanceof Error ? e.message : String(e));
+      props.setError(errorMessage(e));
       setFailed(true);
       setCode("");
     } finally {
@@ -45,7 +46,7 @@ export default function HackclubForm(props: ConnectMethodProps) {
     try {
       setChallenge(await requestHackclubEmailCode(email()));
     } catch (e) {
-      props.setError(e instanceof Error ? e.message : String(e));
+      props.setError(errorMessage(e));
     } finally {
       setBusy(false);
     }

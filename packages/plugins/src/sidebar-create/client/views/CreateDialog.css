@@ -1,0 +1,44 @@
+.create-dialog {
+  width: min(340px, calc(100vw - 32px));
+}
+
+.create-body {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-lg) 20px;
+}
+
+.create-fields {
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.create-field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.create-label {
+  font-size: var(--font-size-meta);
+  color: var(--text-secondary);
+}
+
+.create-visibility {
+  justify-self: start;
+}
+
+.create-error {
+  margin: 0;
+  font-size: var(--font-size-meta);
+  color: var(--danger);
+}
+
+.create-actions {
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}

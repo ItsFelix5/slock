@@ -38,7 +38,7 @@ button.message-bot-badge {
   cursor: pointer;
 }
 .message-edited {
-  font-size: var(--font-size-caption);
+  font-size: var(--font-size-meta);
   color: var(--text-dim);
 }
 .message-deleted-text {

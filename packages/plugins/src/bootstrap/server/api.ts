@@ -15,6 +15,7 @@ export type PartResult =
 export type BootstrapPart = {
   name: string;
   optional?: boolean;
+  required?: boolean;
   load(creds: Credentials | null): Promise<PartResult>;
 };
 
@@ -22,7 +23,7 @@ export function slackPart<R extends object>(
   name: string,
   method: string,
   trim: (reply: R) => BootstrapPayload,
-  options: { optional?: boolean } = {},
+  options: { optional?: boolean; required?: boolean } = {},
 ): BootstrapPart {
   return {
     load: async (creds) => {
@@ -35,5 +36,6 @@ export function slackPart<R extends object>(
     },
     name,
     optional: options.optional,
+    required: options.required,
   };
 }

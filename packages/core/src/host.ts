@@ -1,6 +1,7 @@
 import { planStart } from "./plan";
 import { createRegistry } from "./registry";
 import type { Context, EnabledStore, PluginDef, PluginStatus, Reactive, Setup } from "./types";
+import { errorMessage } from "./util/errorMessage";
 
 const CORE_NAMES = new Set(["root", "http", "ws", "cli"]);
 
@@ -39,10 +40,6 @@ export type PluginInfo = {
   enabled: boolean;
   status: PluginStatus;
 };
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function createHost(options: HostOptions = {}) {
   const reactive = options.reactive ?? plainReactive;
@@ -138,7 +135,7 @@ export function createHost(options: HostOptions = {}) {
       teardown(cleanups, dispose);
       registry.removeOwner(def.id);
       setups.delete(def.id);
-      failed.set(def.id, errorText(error));
+      failed.set(def.id, errorMessage(error));
     }
   }
 
@@ -256,11 +253,14 @@ export function createHost(options: HostOptions = {}) {
       return enqueue(reconcileNow);
     },
     stop(): Promise<void> {
-      return enqueue(stopAll);
+      return enqueue(() => {
+        stopAll();
+        publish(new Map());
+      });
     },
     unregister(id: string): Promise<void> {
       return enqueue(() => {
-        stopOne(id);
+        stopWithDependents(id);
         defs.delete(id);
         failed.delete(id);
         setups.delete(id);

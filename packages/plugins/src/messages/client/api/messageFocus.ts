@@ -10,6 +10,10 @@ export interface OpenThreadOptions {
   pinned?: boolean;
 }
 
+export function threadRootTs(msg: Message) {
+  return msg.isBroadcast && msg.threadTs ? msg.threadTs : msg.ts;
+}
+
 export type OpenThreadHandler = (ts: string, opts?: OpenThreadOptions) => void;
 
 export interface MessageFocusCallbacks {

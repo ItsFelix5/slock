@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Button } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
@@ -13,7 +14,7 @@ export function UploadPlugin() {
     try {
       await plugins.install(file);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(errorMessage(cause));
     }
   }
 

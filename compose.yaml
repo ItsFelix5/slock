@@ -1,0 +1,30 @@
+services:
+  slock:
+    build:
+      context: .
+      args:
+        SLOCK_INSTALL: ${SLOCK_INSTALL:-}
+    ports:
+      - "127.0.0.1:${PORT:-5175}:5175"
+    environment:
+      SLOCK_DISABLE: ${SLOCK_DISABLE:-}
+    volumes:
+      - data:/data
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:5175').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+    restart: unless-stopped
+
+  relay:
+    build: .
+    profiles: [relay]
+    command: ["bun", "run", "relay"]
+    ports:
+      - "127.0.0.1:5176:5176"
+    environment:
+      SLACK_BOT_TOKENS: ${SLACK_BOT_TOKENS:?}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:?}
+    restart: unless-stopped
+
+volumes:
+  data:

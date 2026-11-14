@@ -1,0 +1,6 @@
+{
+  "id": "layout-scrolling",
+  "name": "Scrolling layout",
+  "defaultEnabled": false,
+  "requires": ["shell"]
+}

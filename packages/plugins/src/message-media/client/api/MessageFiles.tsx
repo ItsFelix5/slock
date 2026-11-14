@@ -1,3 +1,4 @@
+import { safeBase64, safeMediaUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { SlackFile } from "@slock/types";
 import {
@@ -19,30 +20,37 @@ import TranscriptPopover from "./TranscriptPopover";
 const panes = service("shell.panes");
 const fileDetail = service("files");
 
+function isGalleryImage(file: SlackFile) {
+  return file.isImage && safeMediaUrl(file.thumbUrl) && safeMediaUrl(file.urlPrivate);
+}
+
+function blurSrc(file: SlackFile) {
+  const tiny = safeBase64(file.thumbTiny);
+  return tiny ? `data:image/jpeg;base64,${tiny}` : undefined;
+}
+
 function imageGallery(files: SlackFile[]) {
-  return files
-    .filter((file) => file.isImage && file.thumbUrl && file.urlPrivate)
-    .map((file) => ({
-      alt: file.title || file.name,
-      onInfo: () => fileDetail.open(file),
-      src: file.urlPrivate,
-    }));
+  return files.filter(isGalleryImage).map((file) => ({
+    alt: file.title || file.name,
+    onInfo: () => fileDetail.open(file),
+    src: defined(safeMediaUrl(file.urlPrivate)),
+  }));
 }
 
 function imageGalleryIndex(files: SlackFile[], file: SlackFile) {
-  return files.filter((item) => item.isImage && item.thumbUrl && item.urlPrivate).indexOf(file);
+  return files.filter(isGalleryImage).indexOf(file);
 }
 
 function isInlineMedia(file: SlackFile) {
-  return (file.isImage && file.thumbUrl) || file.isVideo;
+  return (
+    (file.isImage && safeMediaUrl(file.thumbUrl)) || (file.isVideo && safeMediaUrl(file.urlPrivate))
+  );
 }
 
 const GALLERY_MAX_WIDTH = 360;
-const GALLERY_TILE_GAP = 6;
-const GALLERY_TILE_SIZE = (GALLERY_MAX_WIDTH - GALLERY_TILE_GAP) / 2;
 
 function mediaTileSize(file: SlackFile, mediaCount: number) {
-  if (mediaCount > 1) return { height: GALLERY_TILE_SIZE, width: GALLERY_TILE_SIZE };
+  if (mediaCount > 1) return { height: GALLERY_MAX_WIDTH, width: GALLERY_MAX_WIDTH };
   return constrainMediaDimensions(
     file.width,
     file.height,
@@ -63,14 +71,13 @@ function InlineMedia(props: {
   const dimensions = () => mediaTileSize(file, props.mediaCount);
   return (
     <Switch>
-      <Match when={file.isImage ? file.thumbUrl : undefined}>
+      <Match when={file.isImage ? safeMediaUrl(file.thumbUrl) : undefined}>
         {(thumb) => (
           <ConstrainedImage
             alt={file.title || file.name}
-            blurSrc={file.thumbTiny ? `data:image/jpeg;base64,${file.thumbTiny}` : undefined}
+            blurSrc={blurSrc(file)}
             class="message-file-image"
-            crop={props.mediaCount > 1}
-            fullSrc={file.urlPrivate}
+            fullSrc={safeMediaUrl(file.urlPrivate)}
             gallery={props.gallery}
             galleryIndex={imageGalleryIndex(props.files, file)}
             height={dimensions().height}
@@ -94,14 +101,14 @@ function VideoFile(props: { file: SlackFile; dimensions: { width: number; height
       ariaLabel={file.title || file.name}
       captionsSrc={file.vtt}
       class="message-file-video"
-      downloadHref={file.urlPrivateDownload}
+      downloadHref={safeMediaUrl(file.urlPrivateDownload)}
       downloadName={file.name}
       duration={file.duration}
       height={props.dimensions.height}
-      openHref={file.urlPrivate}
-      poster={file.thumbUrl}
+      openHref={safeMediaUrl(file.urlPrivate)}
+      poster={safeMediaUrl(file.thumbUrl)}
       ref={setVideo}
-      src={file.urlPrivate}
+      src={defined(safeMediaUrl(file.urlPrivate))}
       toolbarExtra={
         <Show when={file.transcriptionPreview}>
           <TranscriptPopover file={file} media={video} triggerClass="video-player-chrome" />
@@ -119,7 +126,7 @@ function OtherFile(props: { file: SlackFile }) {
       fallback={
         <a
           class="message-file-card flex-align-center"
-          href={file.urlPrivate}
+          href={safeMediaUrl(file.urlPrivate)}
           rel="noopener noreferrer"
           target="_blank"
         >

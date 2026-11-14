@@ -136,26 +136,23 @@ export function ImageLightbox(props: {
       ariaLabel={image().alt ? `Image preview: ${image().alt}` : "Image preview"}
       onClose={props.onClose}
     >
-      <IconButton
-        class="panel-close-btn floating zoomable-image-close"
-        icon="close"
-        iconSize={18}
-        onClick={props.onClose}
-      />
-      <Show when={image().onInfo}>
-        {(onInfo) => (
-          <IconButton
-            class="panel-close-btn floating zoomable-image-info"
-            icon="info"
-            iconSize={18}
-            label="File info"
-            onClick={() => {
-              props.onClose();
-              onInfo()();
-            }}
-          />
-        )}
-      </Show>
+      <div class="zoomable-image-toolbar">
+        <Show when={image().onInfo}>
+          {(onInfo) => (
+            <IconButton
+              class="panel-close-btn"
+              icon="info"
+              iconSize={18}
+              label="File info"
+              onClick={() => {
+                props.onClose();
+                onInfo()();
+              }}
+            />
+          )}
+        </Show>
+        <IconButton class="panel-close-btn" icon="close" iconSize={18} onClick={props.onClose} />
+      </div>
       <Show when={props.gallery.length > 1}>
         <button
           aria-label="Previous image"

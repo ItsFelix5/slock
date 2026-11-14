@@ -19,6 +19,7 @@ export default function ActivityHeadline(props: {
   latest: ActivityItem;
 }) {
   const profileUserId = () => resolveProfileUserId(props.latest);
+  const isReminder = () => props.latest.activityType === "saved_reminder";
   return (
     <span class="activity-headline truncate">
       <Tooltip content={activityVerb(props.latest)}>
@@ -46,9 +47,16 @@ export default function ActivityHeadline(props: {
       <Show when={props.isReactionGroup}>
         <strong>{props.display.interactorNames(props.display.replierIds(), 2)}</strong>
       </Show>
+      <Show when={isReminder()}>
+        <strong>Reminder</strong>
+        <Show when={props.display.hasKnownActor()}>
+          <span class="activity-connector">from</span>
+        </Show>
+      </Show>
       <Show
         when={
-          !(props.isThreadGroup || props.isReactionGroup || props.display.isStandaloneActivity())
+          !(props.isThreadGroup || props.isReactionGroup || props.display.isStandaloneActivity()) &&
+          (!isReminder() || props.display.hasKnownActor())
         }
       >
         <Show fallback={<strong>{props.display.displayName()}</strong>} when={profileUserId()}>
@@ -59,10 +67,13 @@ export default function ActivityHeadline(props: {
           )}
         </Show>
       </Show>
-      <Show when={props.display.showsActivityVerb()}>
+      <Show when={props.display.showsActivityVerb() && !isReminder()}>
         <span class="activity-channel">{activityVerb(props.latest)}</span>
       </Show>
       <Show when={props.latest.kind !== "dm" && !props.display.isStandaloneActivity()}>
+        <Show when={isReminder()}>
+          <span class="activity-connector">in</span>
+        </Show>
         <span class="activity-channel">
           <SplitNavigation onSplit={() => openConversationInSplit(props.latest.channelId)}>
             <ClickableInline onActivate={() => openConversation(props.latest.channelId)}>

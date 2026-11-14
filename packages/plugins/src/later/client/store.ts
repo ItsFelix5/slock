@@ -1,12 +1,29 @@
-import { service } from "@slock/core/solid";
+import type { Services } from "@slock/core/types";
 import type { Message, SavedItem } from "@slock/types";
 import { createMemo, createSignal } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
-import { fetchMessagesByIds, fetchSaved, toggleSaved } from "../../slack/client/api";
+import type {
+  fetchMessagesByIds,
+  fetchSaved,
+  saveWithReminder,
+  toggleSaved,
+  updateSaved,
+} from "../../slack/client/api";
 
-const feedback = service("feedback");
+export type LaterApi = {
+  fetchMessagesByIds: typeof fetchMessagesByIds;
+  fetchSaved: typeof fetchSaved;
+  saveWithReminder: typeof saveWithReminder;
+  toggleSaved: typeof toggleSaved;
+  updateSaved: typeof updateSaved;
+};
 
-export function createLaterSlice() {
+function removeSaved(list: SavedItem[], channelId: string, ts: string) {
+  const index = list.findIndex((item) => item.channelId === channelId && item.ts === ts);
+  if (index !== -1) list.splice(index, 1);
+}
+
+export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["flash"]) {
   const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);
   const [laterLoaded, setLaterLoaded] = createSignal(false);
   const [laterLoading, setLaterLoading] = createSignal(false);
@@ -30,29 +47,27 @@ export function createLaterSlice() {
     return savedKeys().has(laterKey(channelId, ts));
   }
 
-  async function toggleSaveForLater(channelId: string, ts: string): Promise<boolean> {
+  const matches = (channelId: string, ts: string) => (item: SavedItem) =>
+    item.channelId === channelId && item.ts === ts;
+
+  async function changeSaved(
+    channelId: string,
+    ts: string,
+    optimistic: (list: SavedItem[]) => void,
+    request: () => Promise<unknown>,
+  ): Promise<boolean> {
     const pendingKey = laterKey(channelId, ts);
     if (laterLoading() || savePending[pendingKey]) return false;
     setSavePending(pendingKey, true);
-    const currentlySaved = isSavedForLater(channelId, ts);
-    if (currentlySaved) {
-      setLaterItems((list) =>
-        list.filter((item) => item.channelId !== channelId || item.ts !== ts),
-      );
-    } else {
-      setLaterItems(produce((list) => list.push({ channelId, ts })));
-    }
+    const before = laterItems.map((item) => ({ ...item }));
+    setLaterItems(produce(optimistic));
     try {
-      await toggleSaved(channelId, ts, currentlySaved);
+      await request();
       return true;
     } catch (err) {
-      console.error("Failed to toggle saved-for-later", err);
-      feedback.flash(ts, "Failed to update Later.", "error");
-      if (currentlySaved) setLaterItems(produce((list) => list.push({ channelId, ts })));
-      else
-        setLaterItems((list) =>
-          list.filter((item) => item.channelId !== channelId || item.ts !== ts),
-        );
+      console.error("Failed to update Later", err);
+      flash(ts, "Failed to update Later.", "error");
+      setLaterItems(reconcile(before));
       return false;
     } finally {
       setSavePending(
@@ -63,12 +78,58 @@ export function createLaterSlice() {
     }
   }
 
+  function toggleSaveForLater(channelId: string, ts: string): Promise<boolean> {
+    const currentlySaved = isSavedForLater(channelId, ts);
+    return changeSaved(
+      channelId,
+      ts,
+      (list) => {
+        if (currentlySaved) removeSaved(list, channelId, ts);
+        else list.push({ channelId, ts });
+      },
+      () => api.toggleSaved(channelId, ts, currentlySaved),
+    );
+  }
+
+  function setReminder(channelId: string, ts: string, dateDue: number): Promise<boolean> {
+    const currentlySaved = isSavedForLater(channelId, ts);
+    return changeSaved(
+      channelId,
+      ts,
+      (list) => {
+        const item = list.find(matches(channelId, ts));
+        if (item) item.dateDue = dateDue;
+        else list.push({ channelId, dateDue, ts });
+      },
+      () =>
+        currentlySaved
+          ? api.updateSaved(channelId, ts, { dateDue })
+          : api.saveWithReminder(channelId, ts, dateDue),
+    );
+  }
+
+  function clearReminder(channelId: string, ts: string): Promise<boolean> {
+    return changeSaved(
+      channelId,
+      ts,
+      (list) => {
+        const item = list.find(matches(channelId, ts));
+        if (item) item.dateDue = undefined;
+      },
+      () => api.updateSaved(channelId, ts, { dateDue: 0 }),
+    );
+  }
+
+  function reminderDue(channelId: string, ts: string): number | undefined {
+    return laterItems.find(matches(channelId, ts))?.dateDue;
+  }
+
   async function ensureLaterLoaded() {
     if (laterLoading()) return;
     setLaterLoading(true);
     setLaterLoadError(false);
     try {
-      const items = await fetchSaved();
+      const items = await api.fetchSaved();
       setLaterItems(reconcile(items));
       setLaterLoaded(true);
       void loadLaterMessages(items, true);
@@ -93,7 +154,7 @@ export function createLaterSlice() {
     }
     const resolved = new Set<string>();
     try {
-      const messages = await fetchMessagesByIds(
+      const messages = await api.fetchMessagesByIds(
         pending,
         (batch) => {
           for (const [key, message] of batch) {
@@ -156,6 +217,7 @@ export function createLaterSlice() {
 
   return {
     applySavedEvent,
+    clearReminder,
     ensureLaterLoaded,
     ensureLaterMessageLoaded,
     hasLaterMessageError,
@@ -166,6 +228,8 @@ export function createLaterSlice() {
     laterLoaded,
     laterLoading,
     laterLoadError,
+    reminderDue,
+    setReminder,
     laterMessageFor,
     toggleSaveForLater,
   };

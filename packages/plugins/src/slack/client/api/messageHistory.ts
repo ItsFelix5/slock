@@ -1,5 +1,5 @@
 import { defined } from "@slock/core";
-import { apiGet, mapVisibleMessages } from "@slock/slack";
+import { apiGet, HISTORY_PAGE_SIZE, mapVisibleMessages } from "@slock/slack";
 import type { HistoryPage, RawMessage } from "@slock/types";
 
 type HistoryReply = {
@@ -20,12 +20,15 @@ async function fetchHistoryPage(channelId: string, query: URLSearchParams): Prom
 
 export async function fetchHistory(channelId: string, cursor?: string): Promise<HistoryPage> {
   if (!cursor) {
-    const page = await fetchHistoryPage(channelId, new URLSearchParams());
+    const page = await fetchHistoryPage(
+      channelId,
+      new URLSearchParams({ limit: HISTORY_PAGE_SIZE }),
+    );
     const oldest = page.messages[0]?.ts;
     return { ...page, nextCursor: page.hasMore && oldest ? `before:${oldest}` : undefined };
   }
 
-  const query = new URLSearchParams();
+  const query = new URLSearchParams({ limit: HISTORY_PAGE_SIZE });
   if (cursor.startsWith("before:")) {
     query.set("inclusive", "false");
     query.set("latest", cursor.slice("before:".length));
@@ -48,26 +51,61 @@ export function fetchHistoryAround(
   return fetchHistoryPage(channelId, query);
 }
 
-function midpointTs(low: string, high: string) {
-  return ((Number(low) + Number(high)) / 2).toFixed(6);
+const NEWER_PAGE_SIZE = 50;
+const NEWER_SPANS_SECONDS = [300, 3600, 43200, 518400];
+const NEWER_MIN_SPAN_SECONDS = 1;
+
+type NewerWindow = { end: number; page: HistoryPage; reachesPresent: boolean };
+
+async function fetchNewerWindow(
+  channelId: string,
+  start: number,
+  span: number,
+): Promise<NewerWindow> {
+  const end = start + span;
+  const reachesPresent = end >= Date.now() / 1000;
+  const query = new URLSearchParams({
+    inclusive: "false",
+    limit: String(NEWER_PAGE_SIZE),
+    oldest: start.toFixed(6),
+  });
+  if (!reachesPresent) query.set("latest", end.toFixed(6));
+  return { end, page: await fetchHistoryPage(channelId, query), reachesPresent };
+}
+
+function newerPage({ end, page, reachesPresent }: NewerWindow): HistoryPage {
+  if (reachesPresent) return { hasMore: false, messages: page.messages };
+  return { hasMore: true, messages: page.messages, nextCursor: end.toFixed(6) };
+}
+
+async function bisectNewer(channelId: string, from: number, firstSpan: number) {
+  let start = from;
+  let span = firstSpan;
+  for (;;) {
+    const window = await fetchNewerWindow(channelId, start, span);
+    if (window.page.hasMore && span > NEWER_MIN_SPAN_SECONDS) {
+      span /= 2;
+      continue;
+    }
+    if (window.reachesPresent || window.page.messages.length > 0) return newerPage(window);
+    start = window.end;
+    span *= 2;
+  }
 }
 
 export async function fetchHistoryNewer(channelId: string, oldest: string): Promise<HistoryPage> {
-  let low = oldest;
-  let high: string | undefined;
-  let tooBig: HistoryPage | undefined;
-  while (true) {
-    const query = new URLSearchParams({ inclusive: "false", oldest: low });
-    if (high) query.set("latest", high);
-    const page = await fetchHistoryPage(channelId, query);
-    const [first] = page.messages;
-    if (page.hasMore && first) tooBig = page;
-    else if (first) return { hasMore: high !== undefined, messages: page.messages };
-    else if (high && tooBig) low = high;
-    else return { hasMore: false, messages: [] };
-    const upper = defined(tooBig?.messages[0]).ts;
-    high = midpointTs(low, upper);
-    if (high === low || high === upper)
-      return { hasMore: true, messages: defined(tooBig).messages };
+  let start = parseFloat(oldest);
+  for (;;) {
+    const windows = await Promise.all(
+      NEWER_SPANS_SECONDS.map((span) => fetchNewerWindow(channelId, start, span)),
+    );
+    const fitting = windows.findLast(
+      (w) => !w.page.hasMore && (w.reachesPresent || w.page.messages.length > 0),
+    );
+    if (fitting) return newerPage(fitting);
+    const overflow = windows.findIndex((w) => w.page.hasMore);
+    if (overflow >= 0)
+      return bisectNewer(channelId, start, defined(NEWER_SPANS_SECONDS[overflow]) / 2);
+    start = defined(windows.at(-1)).end;
   }
 }

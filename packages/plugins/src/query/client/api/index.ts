@@ -1,6 +1,8 @@
 import { service } from "@slock/core/solid";
 import { createQuery, type QueryClient, skipToken } from "@tanstack/solid-query";
 
+export { shouldRetry } from "../retryPolicy";
+export { createLatestValueSync } from "./latestValueSync";
 export { createReactiveQueryCache, type ReactiveQueryCache } from "./reactiveQueryCache";
 
 declare module "@slock/core/types" {

@@ -26,6 +26,7 @@ export interface ActivityItem {
   linkedItemId?: string;
 
   reactionName?: string;
+  reminderNote?: string;
   text: string;
 
   threadTs?: string;
@@ -40,5 +41,7 @@ export interface ActivityItem {
 
 export interface SavedItem {
   channelId: string;
+  dateCreated?: number;
+  dateDue?: number;
   ts: string;
 }

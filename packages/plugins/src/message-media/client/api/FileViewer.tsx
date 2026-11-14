@@ -1,14 +1,13 @@
+import { safeMediaUrl } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createSignal, createUniqueId, type JSX, Match, Show, Switch } from "solid-js";
 import "./FileViewer.css";
 import { createKeyedQuery, defineKey } from "../../../query/client/api";
 import { parseEml } from "../views/mailParse";
+import { emailSrcdoc } from "./emailSrcdoc";
 
 const mailKey = defineKey<[string]>("mailPreview");
-const EMAIL_HEAD_RE = /<head(?:\s[^>]*)?>/i;
-const EMAIL_PREVIEW_POLICY =
-  "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: cid:; font-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\">";
 
 export default function FileViewer(props: {
   file: SlackFile;
@@ -46,7 +45,7 @@ function FileLightbox(props: { file: SlackFile; kind: "pdf" | "mail"; onClose: (
             </div>
             <a
               class="file-viewer-open-link flex-align-center"
-              href={props.file.urlPrivate}
+              href={safeMediaUrl(props.file.urlPrivate)}
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -96,7 +95,7 @@ function PdfBody(props: { file: SlackFile }) {
           class="file-viewer-frame file-viewer-pdf-frame"
           onError={() => setFailed(true)}
           onLoad={() => setLoaded(true)}
-          src={props.file.urlPrivate}
+          src={safeMediaUrl(props.file.urlPrivate)}
           title={name()}
         />
         <Show when={!loaded()}>
@@ -120,7 +119,8 @@ function MailBody(props: { file: SlackFile }) {
   }));
   const mail = () => {
     const text = raw.data;
-    return text === undefined ? undefined : parseEml(text);
+    if (text === undefined) return;
+    return props.file.filetype === "email" ? { bodyHtml: text } : parseEml(text);
   };
   return (
     <Switch
@@ -188,10 +188,4 @@ function MailBody(props: { file: SlackFile }) {
       </Match>
     </Switch>
   );
-}
-
-function emailSrcdoc(html: string): string {
-  return EMAIL_HEAD_RE.test(html)
-    ? html.replace(EMAIL_HEAD_RE, (head) => `${head}${EMAIL_PREVIEW_POLICY}`)
-    : `${EMAIL_PREVIEW_POLICY}${html}`;
 }

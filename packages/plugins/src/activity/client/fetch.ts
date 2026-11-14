@@ -1,4 +1,4 @@
-import { apiGet, apiPost, broadcastRangeFromBlocks } from "@slock/slack";
+import { apiGet, apiPost, broadcastRangeOf } from "@slock/slack";
 import type {
   ActivityFeedPage,
   ActivityItem,
@@ -16,18 +16,18 @@ export async function fetchActivityBadgeCounts(): Promise<Record<string, number>
   return (await fetchCounts()).notifications ?? {};
 }
 
-export async function markActivityRead(
-  type: string,
-  feedTs: string,
-  key: string,
-  linkedItemId?: string,
-): Promise<void> {
-  const data = await apiPost("/api/activity/read", { feedTs, key, linkedItemId, type });
+export async function markActivityRead(type: string, feedTs: string, key: string): Promise<void> {
+  const data = await apiPost("/api/activity/read", { feedTs, key, type });
   if (!data.ok) throw new Error(data.error ?? "activity.markRead failed");
 }
 
-export async function archiveActivityItem(type: string, key: string, ts: string): Promise<void> {
-  const data = await apiPost("/api/activity/archive", { key, ts, type });
+export async function archiveActivityItem(
+  type: string,
+  key: string,
+  ts: string,
+  linkedItemId?: string,
+): Promise<void> {
+  const data = await apiPost("/api/activity/archive", { key, linkedItemId, ts, type });
   if (!data.ok) throw new Error(data.error ?? "activity.archive failed");
 }
 
@@ -60,7 +60,7 @@ export function resolveActivityEntry(
 ): ActivityItem {
   const msg = batchedMessages?.get(`${entry.channelId}:${entry.ts}`);
   const isReaction = entry.kind === "reaction";
-  const broadcastRange = entry.broadcastRange ?? broadcastRangeFromBlocks(msg?.blocks);
+  const broadcastRange = entry.broadcastRange ?? (msg && broadcastRangeOf(msg));
 
   const userId = isReaction ? entry.userId || msg?.userId || "" : (msg?.userId ?? entry.userId);
   return {

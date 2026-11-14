@@ -1,0 +1,27 @@
+.user-memberships-filter {
+  margin-bottom: var(--space-sm);
+}
+
+.user-memberships {
+  gap: var(--space-xs);
+  padding: 0;
+  margin: 0 0 var(--space-sm);
+  list-style: none;
+}
+
+.user-membership {
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+  font-size: var(--font-size-control);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.user-membership:hover {
+  background: var(--hover-bg);
+}
+
+.user-membership-badge {
+  flex: 0 0 auto;
+}

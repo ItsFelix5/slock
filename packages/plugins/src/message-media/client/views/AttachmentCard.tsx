@@ -1,8 +1,15 @@
 import type { BlockActionContext } from "@slock/blockkit";
-import { LegacyAttachmentActions, Mrkdwn } from "@slock/blockkit";
+import {
+  formatSlackDateTokens,
+  LegacyAttachmentActions,
+  Mrkdwn,
+  safeColor,
+  safeMediaUrl,
+  safeUrl,
+} from "@slock/blockkit";
 import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
-import { MediaFrame } from "@slock/ui";
+import { HideBrokenImage, MediaFrame } from "@slock/ui";
 import { Show } from "solid-js";
 import "./AttachmentCard.css";
 import { defined } from "@slock/core";
@@ -15,6 +22,11 @@ const URL_SUFFIX_PATTERN = /[?#]/;
 function isGifAttachment(attachment: Attachment) {
   if (!attachment.imageUrl || attachment.videoUrl) return false;
   return defined(attachment.imageUrl.split(URL_SUFFIX_PATTERN)[0]).toLowerCase().endsWith(".gif");
+}
+
+function footerText(a: Attachment) {
+  const date = a.ts ? formatSlackDateTokens("{date_short}", Number(a.ts)) : undefined;
+  return [a.footer, date].filter(Boolean).join(" | ");
 }
 
 export default function AttachmentCard(props: {
@@ -33,15 +45,16 @@ export default function AttachmentCard(props: {
           </div>
         )}
       </Show>
-      <Show when={a.isMessageUnfurl && props.showPermalink && !a.channelId ? a.fromUrl : undefined}>
+      <Show
+        when={
+          a.isMessageUnfurl && props.showPermalink && !a.channelId
+            ? safeUrl(decodeTextEntities(a.fromUrl ?? ""))
+            : undefined
+        }
+      >
         {(url) => (
-          <a
-            class="attachment-message-link"
-            href={decodeTextEntities(url())}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {decodeTextEntities(url())}
+          <a class="attachment-message-link" href={url()} rel="noopener noreferrer" target="_blank">
+            {url()}
           </a>
         )}
       </Show>
@@ -52,16 +65,19 @@ export default function AttachmentCard(props: {
               <div
                 class="attachment-card"
                 style={{
-                  "border-left-color": a.color
-                    ? `#${a.color.replace("#", "")}`
-                    : "var(--border-strong)",
+                  "border-left-color": safeColor(a.color) ?? "var(--border-strong)",
                 }}
               >
                 <Show when={a.authorName}>
                   <div class="attachment-author flex-align-center">
-                    <Show when={a.authorIcon}>
+                    <Show when={safeMediaUrl(a.authorIcon)}>
                       {(icon) => (
-                        <img alt="" class="attachment-author-icon" loading="lazy" src={icon()} />
+                        <HideBrokenImage
+                          alt=""
+                          class="attachment-author-icon"
+                          loading="lazy"
+                          src={icon()}
+                        />
                       )}
                     </Show>
                     <span class="truncate">
@@ -84,14 +100,19 @@ export default function AttachmentCard(props: {
                     />
                   )}
                 </Show>
-                <Show when={a.footer}>
+                <Show when={footerText(a)}>
                   <div class="attachment-footer flex-align-center text-dim text-xs">
-                    <Show when={a.footerIcon}>
+                    <Show when={safeMediaUrl(a.footerIcon)}>
                       {(icon) => (
-                        <img alt="" class="attachment-footer-icon" loading="lazy" src={icon()} />
+                        <HideBrokenImage
+                          alt=""
+                          class="attachment-footer-icon"
+                          loading="lazy"
+                          src={icon()}
+                        />
                       )}
                     </Show>
-                    <Mrkdwn text={a.footer ?? ""} />
+                    <Mrkdwn text={footerText(a)} />
                   </div>
                 </Show>
               </div>

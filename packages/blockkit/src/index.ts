@@ -1,3 +1,4 @@
+export { formatDuration } from "@slock/ui";
 export { default as BkText } from "./BkText";
 export type { BlockActionContext } from "./BlockKit";
 export { default as BlockKit } from "./BlockKit";
@@ -18,7 +19,6 @@ export {
   useTimeAnchor,
 } from "./context";
 export {
-  formatDuration,
   formatLastSeen,
   formatSlackDate,
   formatSlackDateTokens,
@@ -27,8 +27,7 @@ export {
 export { BLOCKS_CLIPBOARD_TYPE, fragmentToBlocks } from "./domToBlocks";
 export { default as EmojiText } from "./emoji/EmojiText";
 export type { StandardEmoji } from "./emoji/emoji";
-export { EMOJI_TOKEN_RE, standardEmojiEntries } from "./emoji/emoji";
-
+export { EMOJI_TOKEN_RE, resolveStandardEmoji, standardEmojiEntries } from "./emoji/emoji";
 export {
   customEmojiNames,
   emojiAliasTarget,
@@ -46,6 +45,8 @@ export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
 export { default as Mrkdwn } from "./mrkdwn";
 export { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwnInline";
 export { Link, Mention, TimeAwareText } from "./mrkdwnTokens";
+export { safeBase64, safeColor } from "./safeColor";
+export { safeEmbedUrl, safeMediaUrl, safeUrl } from "./safeUrl";
 export { stripTrackingParams } from "./urlCleanup";
 export { createViewState, type ViewState, type ViewValues } from "./viewState";
 export { validateView } from "./viewValidation";

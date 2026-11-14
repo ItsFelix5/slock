@@ -1,0 +1,21 @@
+.dm-intro {
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-3xl) var(--message-row-inline-end) var(--space-2xl);
+}
+
+.dm-intro-name {
+  margin: var(--space-xs) 0 0;
+  font-size: 26px;
+}
+
+.dm-intro-pronouns {
+  margin-left: var(--space-sm);
+  font-size: var(--font-size-secondary);
+  font-weight: 400;
+}
+
+.dm-intro p {
+  margin: 0;
+  font-size: var(--font-size-secondary);
+}

@@ -1,10 +1,13 @@
 import { type ListDirection, listNavigationIndex } from "../../form/listNavigation";
 import { useListShortcuts } from "../../useNavShortcuts";
+import { isTypeaheadKey, pushTypeahead, type TypeaheadState, typeaheadIndex } from "./typeahead";
 
 export function createMenuRovingFocus(
   panelRef: () => HTMLElement | undefined,
   options?: { requireVisible?: boolean },
 ) {
+  let typeahead: TypeaheadState = { buffer: "", time: Number.NEGATIVE_INFINITY };
+
   const menuItems = () =>
     [...(panelRef()?.querySelectorAll<HTMLElement>(".menu-item:not([disabled])") ?? [])].filter(
       (element) =>
@@ -25,7 +28,28 @@ export function createMenuRovingFocus(
     return true;
   };
 
-  return { focusMenuItem, menuItems, moveByDirection };
+  const handleKeyDown = (event: KeyboardEvent, closeFromTab: () => void) => {
+    const items = menuItems();
+    const { target } = event;
+    if (!(target instanceof HTMLElement && items.includes(target))) return;
+    if (event.key === "Tab") {
+      event.preventDefault();
+      closeFromTab();
+      return;
+    }
+    if (!isTypeaheadKey(event)) return;
+    typeahead = pushTypeahead(typeahead, event.key, event.timeStamp);
+    const next = typeaheadIndex(
+      items.map((item) => item.textContent ?? ""),
+      typeahead.buffer,
+      items.indexOf(target),
+    );
+    if (next === undefined) return;
+    event.preventDefault();
+    items[next]?.focus();
+  };
+
+  return { focusMenuItem, handleKeyDown, menuItems, moveByDirection };
 }
 
 export function useMenuShortcuts(

@@ -9,6 +9,7 @@ import type { Route } from "../../slack/server/api/router";
 import { route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type { DraftCreateReply, DraftsListReply } from "../../slack/server/api/slackReplies";
+import { trimDrafts } from "../../slack/server/api/trim/slackDrafts";
 
 const list: Route[] = [
   route("GET", "drafts", async (ctx) => {
@@ -20,17 +21,7 @@ const list: Route[] = [
     if (!data.ok) return slackErrorResponse(data, "drafts.list", ctx.creds);
     return jsonResponse(
       {
-        drafts: (data.drafts ?? []).map((d) => {
-          const dest = d.destinations?.[0] ?? {};
-          return {
-            blocks: d.blocks ?? [],
-            channelId: dest.channel_id,
-            clientMsgId: d.client_msg_id,
-            id: d.id,
-            lastUpdatedTs: d.last_updated_ts,
-            threadTs: dest.thread_ts,
-          };
-        }),
+        drafts: trimDrafts(data.drafts ?? []),
         ok: true,
       },
       ctx.creds,

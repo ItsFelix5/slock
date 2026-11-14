@@ -4,6 +4,7 @@ import type Quill from "./quill";
 import { toggleUnicodeFont, type UnicodeFontKey } from "./unicodeFonts";
 
 const CONTINUED_BLOCK_FORMATS = ["blockquote", "context", "header", "list", "code-block"];
+const EXITABLE_BLOCK_FORMATS = ["blockquote", "list"];
 const RESET_ON_NEWLINE_FORMATS = ["header", "context"];
 
 export type InlineFormat = "bold" | "code" | "italic" | "strike";
@@ -26,6 +27,13 @@ function insertNewline(quill: Quill, extendedFormats: boolean) {
     quill.deleteText(at, 3);
     quill.formatLine(at, 1, "code-block", true, "user");
     quill.setSelection(at, 0, "silent");
+    return;
+  }
+  const [line] = quill.getLine(range.index);
+  const exitable = EXITABLE_BLOCK_FORMATS.filter((name) => quill.getFormat(range)[name]);
+  if (line && line.length() === 1 && exitable.length) {
+    for (const name of [...exitable, "indent"])
+      quill.formatLine(range.index, 1, name, false, "user");
     return;
   }
   const format = Object.fromEntries(

@@ -11,6 +11,7 @@
 .in-pane-search {
   --surface-radius: var(--radius-control);
   gap: var(--space-xs);
+  min-width: 0;
   padding: var(--space-xs) 6px;
   pointer-events: auto;
 }
@@ -21,7 +22,8 @@
     0 0 0 var(--focus-ring-width) var(--accent-subtle);
 }
 .in-pane-search-input {
-  width: 180px;
+  flex: 0 1 180px;
+  min-width: 0;
   padding: var(--space-xs) 2px;
   font-size: var(--font-size-control);
   color: var(--text-primary);

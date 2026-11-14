@@ -1,5 +1,5 @@
 import { createSignal, onCleanup } from "solid-js";
-import { comboFromEvent, type ShortcutCombo } from "../useShortcut";
+import { comboFromEvent, type ShortcutCombo } from "../shortcutCombo";
 
 export function useKeybindRecorder(onChange: (combo: ShortcutCombo | null) => void) {
   const [recording, setRecording] = createSignal(false);

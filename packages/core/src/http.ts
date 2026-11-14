@@ -19,9 +19,8 @@ export function runHttp(
   c: HttpContext,
 ): Promise<Response | undefined> {
   const outerFirst = handlers.toReversed();
-  function call(index: number): Promise<Response | undefined> {
-    const handler = outerFirst[index];
-    return Promise.resolve(handler?.(c, () => call(index + 1)));
+  async function call(index: number): Promise<Response | undefined> {
+    return await outerFirst[index]?.(c, () => call(index + 1));
   }
   return call(0);
 }

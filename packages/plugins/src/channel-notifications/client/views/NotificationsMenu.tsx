@@ -36,7 +36,7 @@ export default function NotificationsMenu(props: ChannelMenuProps) {
       }
     >
       <MenuItem
-        disabled={prefs.isMutePending(props.channelId)}
+        disabled={prefs.isMutePending()}
         icon={muted() ? "notifications" : "notifications-off"}
         onClick={() => run(() => prefs.toggleMuteChannel(props.channelId))}
       >

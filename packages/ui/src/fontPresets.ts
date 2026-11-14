@@ -14,6 +14,11 @@ export const FONT_PRESETS: FontPreset[] = [
     value: '"Atkinson Hyperlegible Next", "Helvetica Neue", Helvetica, Arial, sans-serif',
   },
   {
+    id: "lexend",
+    label: "Lexend",
+    value: '"Lexend", "Helvetica Neue", Helvetica, Arial, sans-serif',
+  },
+  {
     id: "system",
     label: "System UI",
     value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',

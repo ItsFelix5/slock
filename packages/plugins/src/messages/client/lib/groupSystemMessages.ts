@@ -11,7 +11,7 @@ const NAMED_USERS = 3;
 
 function groupKey(message: Message): string | undefined {
   const verb = message.subtype && VERBS[message.subtype];
-  return verb ? `${verb}:${message.day}` : undefined;
+  return verb;
 }
 
 function summarize(run: Message[]): Message {
@@ -29,24 +29,35 @@ function summarize(run: Message[]): Message {
   return { ...first, text: `${names} ${verb} the channel` };
 }
 
-export function groupSystemMessages(messages: Message[]): Message[] {
-  const result: Message[] = [];
-  let run: Message[] = [];
-  const flush = () => {
-    const [only] = run;
-    if (run.length === 1 && only) result.push(only);
-    else if (run.length > 1) result.push(summarize(run));
-    run = [];
-  };
-  for (const message of messages) {
-    const key = groupKey(message);
-    if (key && run[0] && groupKey(run[0]) === key) run.push(message);
-    else {
-      flush();
-      if (key) run = [message];
-      else result.push(message);
+export function createSystemMessageGrouper() {
+  let cache = new Map<string, { tsList: string; summary: Message }>();
+  return (messages: Message[]): Message[] => {
+    const next = new Map<string, { tsList: string; summary: Message }>();
+    const result: Message[] = [];
+    let run: Message[] = [];
+    const flush = () => {
+      const [only] = run;
+      if (run.length === 1 && only) result.push(only);
+      else if (only) {
+        const tsList = run.map((m) => m.ts).join(",");
+        const cached = cache.get(only.ts);
+        const entry = cached?.tsList === tsList ? cached : { summary: summarize(run), tsList };
+        next.set(only.ts, entry);
+        result.push(entry.summary);
+      }
+      run = [];
+    };
+    for (const message of messages) {
+      const key = groupKey(message);
+      if (key && run[0] && groupKey(run[0]) === key) run.push(message);
+      else {
+        flush();
+        if (key) run = [message];
+        else result.push(message);
+      }
     }
-  }
-  flush();
-  return result;
+    flush();
+    cache = next;
+    return result;
+  };
 }

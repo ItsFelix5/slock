@@ -1,5 +1,4 @@
 import { defined } from "@slock/core";
-import { objectKeys } from "./media/Icon";
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -26,7 +25,7 @@ export function metricsAt<T extends Record<string, number>>(
   return {
     ...from,
     ...Object.fromEntries(
-      objectKeys(from).map((key) => [key, lerp(defined(from[key]), defined(to[key]), t)]),
+      Object.entries(from).map(([key, value]) => [key, lerp(value, defined(to[key]), t)]),
     ),
   };
 }

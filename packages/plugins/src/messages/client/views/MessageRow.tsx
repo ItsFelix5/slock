@@ -6,7 +6,6 @@ import { retainsDeleted } from "../api/deletedMessages";
 import type { OpenThreadHandler } from "../api/messageFocus";
 import { isMessageBackgroundContextMenu } from "../messageContextMenuTarget";
 import "./MessageList.css";
-import { defined } from "@slock/core";
 import MessageActionsMenuItems from "../api/cards/MessageActionsMenuItems";
 import ReplyReferenceRow from "../api/cards/ReplyReferenceRow";
 import {
@@ -33,6 +32,7 @@ const later = maybeService("later");
 export type MessageRowProps = {
   message: Message;
   messages: Message[];
+  prev: () => Message | undefined;
   messageByTs: () => Map<string, Message>;
   channelId: string;
   threadTs?: string;
@@ -52,12 +52,6 @@ export type MessageRowProps = {
 
 export default function MessageRow(props: MessageRowProps) {
   const msg = () => props.message;
-  const prev = createMemo(() => {
-    for (let i = props.index() - 1; i >= 0; i -= 1) {
-      const candidate = defined(props.messages[i]);
-      if (!candidate.deleted || retainsDeleted(candidate)) return candidate;
-    }
-  });
   const isPinned = () => !!pinned()?.isMessagePinned(props.channelId, msg().ts);
   const content = createMemo(() =>
     resolveMessageContent(msg(), {
@@ -68,7 +62,7 @@ export default function MessageRow(props: MessageRowProps) {
     }),
   );
   const neighbors = createMemo(() =>
-    resolveMessageNeighbors(msg(), prev(), content(), {
+    resolveMessageNeighbors(msg(), props.prev(), content(), {
       channelId: props.channelId,
       isPinned: isPinned(),
       messages: () => props.messages,

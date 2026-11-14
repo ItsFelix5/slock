@@ -4,7 +4,6 @@ import type { LogFilters } from "../filters";
 export default function FiltersTab(props: { filters: LogFilters }) {
   return (
     <>
-      <h2>Message logger</h2>
       <div class="settings-row flex-between">
         <div class="settings-row-label">Ignore my messages</div>
         <Switch checked={props.filters.ignoreSelf()} onChange={props.filters.setIgnoreSelf} />

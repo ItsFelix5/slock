@@ -78,6 +78,15 @@
   font-size: var(--font-size-secondary);
 }
 
+.canvas-editor .ql-editor ol,
+.canvas-editor .ql-editor blockquote {
+  margin: 0;
+}
+
+.canvas-editor .ql-editor a {
+  text-decoration: underline;
+}
+
 .canvas-editor .ql-editor u {
   text-underline-offset: 2px;
 }
@@ -117,4 +126,8 @@
   margin: 0.6em 0;
   background: var(--hover-bg);
   border-color: var(--border);
+}
+
+.ql-editor .canvas-control {
+  cursor: text;
 }

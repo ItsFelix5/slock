@@ -1,0 +1,5 @@
+{
+  "id": "user-memberships",
+  "name": "User memberships",
+  "requires": ["conversations", "profile", "query", "users"]
+}

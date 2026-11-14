@@ -1,7 +1,11 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Manifest } from "@slock/core";
-import { BUILTIN_PLUGINS_DIR, OPERATOR_PLUGINS_DIR } from "@slock/server/pluginDirs";
+import {
+  BUILTIN_PLUGINS_DIR,
+  isShippedBuiltin,
+  OPERATOR_PLUGINS_DIR,
+} from "@slock/server/pluginDirs";
 
 const CLIENT_FILE = "client/index.js";
 const SERVER_ENTRIES = ["server/index.ts", "server/index.js"];
@@ -32,7 +36,9 @@ export async function listPlugins(): Promise<PluginListing> {
     .filter(({ root }) => existsSync(resolve(root, CLIENT_FILE)))
     .map(({ manifest }) => ({ ...manifest, url: `/plugins/${manifest.id}/client.js` }));
   const serverOnly = [
-    ...builtin.filter(({ root }) => !existsSync(resolve(root, "client"))),
+    ...builtin.filter(
+      ({ manifest, root }) => isShippedBuiltin(manifest) && !existsSync(resolve(root, "client")),
+    ),
     ...operator.filter(({ root }) => !existsSync(resolve(root, CLIENT_FILE))),
   ]
     .filter(({ root }) => hasServer(root))

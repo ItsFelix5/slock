@@ -1,19 +1,14 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import { FloatingMountContext } from "./floating/FloatingPanel";
+import {
+  focusableWithin,
+  isTopFocusLayer,
+  popFocusLayer,
+  pushFocusLayer,
+  tabWrapTarget,
+} from "./focusTrap";
 import "./Overlay.css";
-
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "iframe",
-  "[tabindex]:not([tabindex='-1'])",
-].join(",");
-
-const focusTrapLayers: object[] = [];
 
 type OverlayLabel =
   | { ariaLabel: string; ariaLabelledBy?: never }
@@ -27,62 +22,45 @@ export type OverlayProps = OverlayLabel & {
 
 export default function Overlay(props: OverlayProps) {
   let overlayRef: HTMLDivElement | undefined;
+  let pressStartedOnBackdrop = false;
   const previouslyFocused =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const layer = {};
-
-  const focusableElements = () =>
-    [...(overlayRef?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [])].filter(
-      (element) =>
-        !element.hidden &&
-        element.getClientRects().length > 0 &&
-        getComputedStyle(element).visibility !== "hidden",
-    );
 
   onMount(() => {
-    focusTrapLayers.push(layer);
+    const layer = pushFocusLayer();
     queueMicrotask(() => {
-      if (
-        focusTrapLayers.at(-1) !== layer ||
-        !overlayRef ||
-        overlayRef.contains(document.activeElement)
-      )
+      if (!(isTopFocusLayer(layer) && overlayRef) || overlayRef.contains(document.activeElement))
         return;
-      (focusableElements()[0] ?? overlayRef).focus();
+      (focusableWithin(overlayRef)[0] ?? overlayRef).focus();
     });
 
     const keepFocusInside = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || focusTrapLayers.at(-1) !== layer || !overlayRef) return;
-      const focusable = focusableElements();
+      if (event.key !== "Tab" || !isTopFocusLayer(layer) || !overlayRef) return;
+      const focusable = focusableWithin(overlayRef);
       if (focusable.length === 0) {
         event.preventDefault();
         overlayRef.focus();
         return;
       }
-
-      const [first] = focusable;
-      const last = focusable.at(-1);
       const active = document.activeElement;
-      if (event.shiftKey && (active === first || !overlayRef.contains(active))) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && (active === last || !overlayRef.contains(active))) {
-        event.preventDefault();
-        first?.focus();
-      }
+      const position =
+        active instanceof HTMLElement && active !== overlayRef && overlayRef.contains(active)
+          ? focusable.indexOf(active)
+          : "outside";
+      if (position === -1) return;
+      const wrapTo = tabWrapTarget(position, focusable.length, event.shiftKey);
+      if (!wrapTo) return;
+      event.preventDefault();
+      (wrapTo === "first" ? focusable[0] : focusable.at(-1))?.focus();
     };
 
     document.addEventListener("keydown", keepFocusInside);
     onCleanup(() => {
       document.removeEventListener("keydown", keepFocusInside);
-      const wasTopLayer = focusTrapLayers.at(-1) === layer;
-      const index = focusTrapLayers.indexOf(layer);
-      if (index >= 0) focusTrapLayers.splice(index, 1);
-      if (!(wasTopLayer && previouslyFocused?.isConnected)) return;
-      const revealedLayer = focusTrapLayers.at(-1);
+      const { wasTop, revealed } = popFocusLayer(layer);
+      if (!(wasTop && previouslyFocused?.isConnected)) return;
       queueMicrotask(() => {
-        if (focusTrapLayers.at(-1) === revealedLayer && previouslyFocused.isConnected)
-          previouslyFocused.focus();
+        if (isTopFocusLayer(revealed) && previouslyFocused.isConnected) previouslyFocused.focus();
       });
     });
   });
@@ -94,8 +72,13 @@ export default function Overlay(props: OverlayProps) {
         aria-labelledby={props.ariaLabelledBy}
         aria-modal="true"
         class={`overlay flex-center ${props.align === "top" ? "overlay-top" : ""}`}
-        onClick={(e) => e.target === e.currentTarget && props.onClose()}
-        onContextMenu={(e) => e.stopPropagation()}
+        onClick={(event) => {
+          if (pressStartedOnBackdrop && event.target === event.currentTarget) props.onClose();
+        }}
+        onContextMenu={(event) => event.stopPropagation()}
+        onMouseDown={(event) => {
+          pressStartedOnBackdrop = event.target === event.currentTarget;
+        }}
         ref={overlayRef}
         role="dialog"
         tabIndex={-1}

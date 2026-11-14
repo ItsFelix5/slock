@@ -1,4 +1,3 @@
-import { defined } from "@slock/core";
 export type CookieJar = Map<string, string>;
 
 type Page = { body: string; url: string };
@@ -7,21 +6,25 @@ function cookieHeader(cookies: CookieJar): string {
   return [...cookies].map(([name, value]) => `${name}=${value}`).join("; ");
 }
 
+function isExpired(attributes: string[]): boolean {
+  for (const attribute of attributes) {
+    const [name = "", value = ""] = attribute.split("=").map((part) => part.trim().toLowerCase());
+    if (name === "max-age" && Number(value) <= 0) return true;
+    if (name === "expires" && Date.parse(attribute.slice(attribute.indexOf("=") + 1)) < Date.now())
+      return true;
+  }
+  return false;
+}
+
 function storeCookies(cookies: CookieJar, response: Response): void {
-  const setCookies =
-    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
-  for (const value of setCookies) {
-    const [pair] = value.split(";", 1);
-    const separator = defined(pair).indexOf("=");
-    if (separator === -1) continue;
-    const name = defined(pair).slice(0, separator).trim();
-    if (name)
-      cookies.set(
-        name,
-        defined(pair)
-          .slice(separator + 1)
-          .trim(),
-      );
+  for (const header of response.headers.getSetCookie()) {
+    const [pair = "", ...attributes] = header.split(";");
+    const separator = pair.indexOf("=");
+    const name = pair.slice(0, separator).trim();
+    if (separator === -1 || !name) continue;
+    const value = pair.slice(separator + 1).trim();
+    if (value && !isExpired(attributes)) cookies.set(name, value);
+    else cookies.delete(name);
   }
 }
 
@@ -52,7 +55,7 @@ async function followRedirects(
     });
     currentUrl = nextUrl;
   }
-  throw new Error("Too many redirects");
+  throw new Error("Hack Club login looped. Try again");
 }
 
 export async function visit(

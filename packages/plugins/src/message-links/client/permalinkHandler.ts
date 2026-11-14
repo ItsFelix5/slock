@@ -14,7 +14,9 @@ const feedback = service("feedback");
 
 const messageLinks = service("message-links");
 
-export function installPermalinkHandler(): void {
+export function installPermalinkHandler(
+  loadedChecks: () => ((channelId: string, ts: string) => boolean)[],
+): void {
   const permalinkOpener = createSlackPermalinkOpener({
     navigate: (target, options) => {
       if (options?.split) {
@@ -34,6 +36,7 @@ export function installPermalinkHandler(): void {
     },
     onUnavailable: () => feedback.flash("navigation", "That message is unavailable.", "error"),
     probe: async (target) =>
+      loadedChecks().some((isLoaded) => isLoaded(target.channelId, target.messageTs)) ||
       !!(await fetchPermalinkMessage(target.channelId, target.messageTs, target.threadTs)),
   });
 

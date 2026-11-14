@@ -7,8 +7,11 @@ export type HomeChannelRows = {
   view: Component<{ channelId: string }>;
 };
 
+export type HomeRowEndProps = { id: string; kind: "channel" | "dm" };
+
 declare module "@slock/core/types" {
   interface Points {
+    "home.rowEnd": Component<HomeRowEndProps>;
     "home.section": Component<HomeSectionProps>;
     "home.channelRows": HomeChannelRows;
   }

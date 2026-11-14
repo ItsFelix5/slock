@@ -8,6 +8,7 @@ export default function MessageReferenceSnippet(props: {
   botUserId?: string;
   channelId: string;
   edited?: boolean;
+  inline?: boolean;
   text: string;
   threadTs?: string;
   ts: string;
@@ -20,7 +21,7 @@ export default function MessageReferenceSnippet(props: {
       <Show
         fallback={
           <>
-            <Mrkdwn text={props.text} />
+            <Mrkdwn inline={props.inline} text={props.text} />
             <Show when={props.edited}>
               <span class="message-edited"> (edited)</span>
             </Show>

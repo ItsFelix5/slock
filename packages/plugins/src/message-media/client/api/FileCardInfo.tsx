@@ -1,16 +1,9 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
-import { Icon, type IconName } from "@slock/ui";
+import { formatSize, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
 import { fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import "./MessageFiles.css";
-
-export function formatSize(bytes: number | undefined): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function FileCardInfo(props: {
   file: SlackFile;

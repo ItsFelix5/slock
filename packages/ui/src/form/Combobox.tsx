@@ -144,7 +144,7 @@ export default function Combobox(props: ComboboxProps) {
         aria-controls={listboxId}
         aria-expanded={open()}
         aria-label={props.ariaLabel}
-        class="combobox-input"
+        class="combobox-input input-plain"
         disabled={props.disabled}
         onBlur={() => {
           setOpen(false);

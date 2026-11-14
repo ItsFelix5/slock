@@ -1,5 +1,5 @@
-import Quill from "@slock/ui/editor/quill";
-import { getEmbedBlot } from "@slock/ui/editor/quillText";
+import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
+import { asElement } from "@slock/ui/editor/quillText";
 
 export class SoftBreakBlot extends getEmbedBlot() {
   static blotName = "softbreak";
@@ -7,11 +7,7 @@ export class SoftBreakBlot extends getEmbedBlot() {
   static className = "canvas-softbreak";
 
   static create(value: boolean) {
-    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
-    const node = super.create(value);
-    if (!(node instanceof HTMLElement))
-      throw new Error("softbreak blot produced a non-element node");
-    return node;
+    return asElement(super.create(value), "softbreak");
   }
 
   static value() {

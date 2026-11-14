@@ -2,7 +2,9 @@ import type { ButtonElement } from "@slock/types";
 import { Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
+import { safeUrl } from "../safeUrl";
 import { useBlockActionDispatch } from "../useBlockActionDispatch";
+import LinkButton from "./LinkButton";
 import "./Controls.css";
 
 export default function Button(props: {
@@ -14,8 +16,10 @@ export default function Button(props: {
     () => props.context,
   );
 
+  const href = () => safeUrl(props.el.url);
+
   const onClick = () => {
-    if (props.el.url || pending()) return;
+    if (href() || pending()) return;
     dispatch(
       {
         action_id: props.el.action_id,
@@ -28,30 +32,32 @@ export default function Button(props: {
     );
   };
 
-  return props.el.url ? (
-    <a
-      class={`bk-button bk-button--${props.el.style ?? "default"}`}
-      href={props.el.url}
-      rel="noopener noreferrer"
-      target="_blank"
-    >
-      <BkText text={props.el.text} />
-    </a>
-  ) : (
-    <button
-      class={`bk-button bk-button--${props.el.style ?? "default"}`}
-      disabled={pending()}
-      onClick={onClick}
-      title={
-        unsupported() || canDispatch(props.el.action_id)
-          ? undefined
-          : "This button needs its app to respond"
+  return (
+    <Show
+      fallback={
+        <button
+          class={`bk-button bk-button--${props.el.style ?? "default"}`}
+          disabled={pending()}
+          onClick={onClick}
+          title={
+            unsupported() || canDispatch(props.el.action_id)
+              ? undefined
+              : "This button needs its app to respond"
+          }
+          type="button"
+        >
+          <Show fallback={<BkText text={props.el.text} />} when={unsupported()}>
+            Not supported here
+          </Show>
+        </button>
       }
-      type="button"
+      when={href()}
     >
-      <Show fallback={<BkText text={props.el.text} />} when={unsupported()}>
-        Not supported here
-      </Show>
-    </button>
+      {(url) => (
+        <LinkButton href={url()} style={props.el.style}>
+          <BkText text={props.el.text} />
+        </LinkButton>
+      )}
+    </Show>
   );
 }

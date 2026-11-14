@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
 
 const SLACK_HOST_RE: RegExp = /(^|\.)slack\.com$/i;
-const ARCHIVE_PATH_RE = /^\/archives\/([A-Z0-9]+)\/p(\d+)\/?$/i;
+const ARCHIVE_PATH_RE = /^\/archives\/([A-Z0-9]+)\/p(\d+)\/?$/;
 const SLACK_TS_RE = /^\d+\.\d+$/;
 
 export interface SlackPermalinkTarget {

@@ -2,5 +2,6 @@
   max-width: min(240px, 100%);
   max-height: 120px;
   object-fit: cover;
+  flex-shrink: 0;
   border-radius: var(--radius-sm);
 }

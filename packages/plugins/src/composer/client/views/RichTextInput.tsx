@@ -25,7 +25,7 @@ export default function RichTextInput(props: RichTextInputProps) {
           if (props.initial) loadRichTextIntoQuill(q, [props.initial]);
           q.enable(!props.disabled);
           q.on("text-change", () => {
-            const value = buildRichTextBlocks(q)
+            const value = buildRichTextBlocks(q.getContents().ops)
               .map((block) => narrowByType<Block, RichTextBlock>(block, "rich_text"))
               .find(Boolean);
             if (value) props.onChange(value);

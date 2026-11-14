@@ -9,6 +9,7 @@ import {
   type LoadedCanvas,
   restoreCanvasVersion,
 } from "./canvasRequests";
+import { olderVersion } from "./canvasVersions";
 
 const feedback = service("feedback");
 const versionsKey = defineKey<[string]>("canvasVersions");
@@ -32,7 +33,7 @@ export function createCanvasHistory(
     const meta = content()?.doc?.meta;
     const list = versions.data ?? [];
     if (!(version && meta)) return;
-    const older = list[list.indexOf(version) + 1];
+    const older = olderVersion(list, version);
     return {
       queryFn: async () => {
         const [doc, previous] = await Promise.all([

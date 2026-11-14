@@ -85,6 +85,12 @@ export default function Menu(props: MenuProps) {
         onClick={(event) => {
           restoreAfterKeyboardAction = event.detail === 0;
         }}
+        onKeyDown={(event) =>
+          roving.handleKeyDown(event, () => {
+            props.onClose();
+            queueMicrotask(focusTrigger);
+          })
+        }
         onMouseEnter={openFromHover}
         onMouseLeave={closeFromHover}
         onScroll={props.onClose}

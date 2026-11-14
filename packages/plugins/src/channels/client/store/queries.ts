@@ -10,7 +10,7 @@ export function channelRosterQueryOptions(channelId: string) {
     queryKey: channelRostersKey(channelId),
     queryFn: async () => {
       const ids = new Set<string>();
-      for (const filter of ["everyone", "apps"] as const) {
+      async function collect(filter: "everyone" | "apps") {
         let cursor: string | undefined;
         do {
           const page = await fetchChannelMembers(channelId, filter, cursor);
@@ -18,6 +18,7 @@ export function channelRosterQueryOptions(channelId: string) {
           cursor = page.nextCursor;
         } while (cursor);
       }
+      await Promise.all([collect("everyone"), collect("apps")]);
       return ids;
     },
   });

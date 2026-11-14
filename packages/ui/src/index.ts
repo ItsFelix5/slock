@@ -1,42 +1,27 @@
-export type { AvatarProps, AvatarUser } from "./avatar/Avatar";
+export type { AvatarUser } from "./avatar/Avatar";
 export { AvatarImage, DEFAULT_AVATAR_COLOR, default as Avatar } from "./avatar/Avatar";
-export type { AvatarStackProps } from "./avatar/AvatarStack";
 export { default as AvatarStack } from "./avatar/AvatarStack";
-export type { AddRowButtonProps } from "./button/AddRowButton";
 export { default as AddRowButton } from "./button/AddRowButton";
-export type { ButtonProps } from "./button/Button";
 export { default as Button } from "./button/Button";
 export { default as ClickableInline } from "./button/ClickableInline";
-export type { IconButtonProps } from "./button/IconButton";
 export { default as IconButton } from "./button/IconButton";
-export type { SegmentedControlProps } from "./button/SegmentedControl";
 export { default as SegmentedControl } from "./button/SegmentedControl";
 export { createConcurrencyQueue } from "./concurrencyQueue";
-export {
-  createDebouncedRequest,
-  type DebouncedRequestOptions,
-} from "./debouncedRequest";
-export type { ConnectionStatusState } from "./feedback/ConnectionStatus";
+export { createDebouncedRequest } from "./debouncedRequest";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
 export { createCopyFeedback } from "./feedback/copyFeedback";
-export type { InlineFeedbackProps } from "./feedback/InlineFeedback";
 export { default as InlineFeedback } from "./feedback/InlineFeedback";
 export { createKeyedFeedback } from "./feedback/keyedFeedback";
-export type { SkeletonProps } from "./feedback/Skeleton";
 export { default as Skeleton } from "./feedback/Skeleton";
-export type { TypingIndicatorProps } from "./feedback/TypingIndicator";
 export { default as TypingIndicator } from "./feedback/TypingIndicator";
 export { effectiveFont, setFont } from "./font";
 export {
   activeFontPreset,
   FONT_PRESETS,
-  type FontPreset,
 } from "./fontPresets";
-export type { ColorFieldProps } from "./form/ColorField";
 export { default as ColorField } from "./form/ColorField";
-export type { ComboboxOption, ComboboxProps } from "./form/Combobox";
+export type { ComboboxOption } from "./form/Combobox";
 export { default as Combobox } from "./form/Combobox";
-export type { KeybindFieldProps } from "./form/KeybindField";
 export { default as KeybindField } from "./form/KeybindField";
 export { useKeybindRecorder } from "./form/keybindRecorder";
 export {
@@ -48,14 +33,9 @@ export {
   rovingTabIndex,
   scrollActiveListOption,
 } from "./form/listNavigation";
-export type { OtpInputProps } from "./form/OtpInput";
 export { default as OtpInput } from "./form/OtpInput";
-export type { RelativeColor } from "./form/RelativeChannelRows";
-export type { SliderProps } from "./form/Slider";
 export { default as Slider } from "./form/Slider";
-export type { SuggestionListProps } from "./form/SuggestionList";
 export { default as SuggestionList } from "./form/SuggestionList";
-export type { SwitchProps } from "./form/Switch";
 export { default as Switch } from "./form/Switch";
 export { fuzzySearch } from "./fuzzy";
 export {
@@ -64,65 +44,49 @@ export {
   setKeybindOverride,
 } from "./keybindOverrides";
 export { createKeyedAsyncCache } from "./keyedAsyncCache";
-export type { PanelHeaderProps } from "./layout/PanelHeader";
 export { default as PanelHeader } from "./layout/PanelHeader";
 export { default as ResizeHandle, windowWidth } from "./layout/ResizeHandle";
-export type { ConstrainedImageProps } from "./media/ConstrainedImage";
 export { default as ConstrainedImage } from "./media/ConstrainedImage";
 export { createMediaVolume } from "./media/createMediaVolume";
-export { default as Icon, ICON_NAMES, type IconName, isOneOf } from "./media/Icon";
+export { formatSize } from "./media/formatSize";
+export { default as HideBrokenImage } from "./media/HideBrokenImage";
+export { default as Icon, ICON_NAMES, type IconName, iconElement, isOneOf } from "./media/Icon";
 export { ImageLightbox } from "./media/ImageLightbox";
-export type { MediaFrameProps } from "./media/MediaFrame";
 export { default as MediaFrame } from "./media/MediaFrame";
 export { constrainMediaDimensions } from "./media/mediaDimensions";
-export type { VideoPlayerProps } from "./media/VideoPlayer";
-export { default as VideoPlayer, formatDuration } from "./media/VideoPlayer";
-export type { VolumeControlProps } from "./media/VolumeControl";
+export { default as VideoPlayer } from "./media/VideoPlayer";
 export { default as VolumeControl } from "./media/VolumeControl";
-export type { ZoomableImageItem, ZoomableImageProps } from "./media/ZoomableImage";
+export { formatDuration } from "./media/videoTime";
+export type { ZoomableImageItem } from "./media/ZoomableImage";
 export { default as ZoomableImage } from "./media/ZoomableImage";
 export { default as NavRow } from "./nav/NavRow";
-export { focusPaneById, paneRowsById, usePaneNavigation } from "./nav/paneNav";
+export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
 export {
   ConfirmDialog,
-  type ConfirmDialogOptions,
   confirmDialog,
 } from "./overlay/ConfirmDialog";
 export { CopyJsonButton, DebugInfoDialog, showDebugInfo } from "./overlay/DebugInfoDialog";
-export type {
-  FloatingAlign,
-  FloatingPanelProps,
-  HorizontalPlacement,
-  Placement,
-  VerticalPlacement,
-} from "./overlay/floating/FloatingPanel";
+export type { Placement } from "./overlay/floating/FloatingPanel";
 export { default as FloatingPanel } from "./overlay/floating/FloatingPanel";
-export { default as HoverCard, type HoverCardProps } from "./overlay/HoverCard";
+export { default as HoverCard } from "./overlay/HoverCard";
 export { default as JsonTree } from "./overlay/JsonTree";
 export {
   default as Modal,
   ModalCloseButton,
-  type ModalCloseButtonProps,
   ModalHeader,
-  type ModalHeaderProps,
-  type ModalProps,
 } from "./overlay/Modal";
-export type { ContextMenuProps } from "./overlay/menu/ContextMenu";
 export { default as ContextMenu } from "./overlay/menu/ContextMenu";
-export { default as Menu, type MenuProps } from "./overlay/menu/Menu";
-export type { MenuItemProps } from "./overlay/menu/MenuItem";
+export { default as Menu } from "./overlay/menu/Menu";
 export { default as MenuItem } from "./overlay/menu/MenuItem";
 export { useContextMenu } from "./overlay/menu/useContextMenu";
-export type { OverlayProps } from "./overlay/Overlay";
 export { default as Overlay } from "./overlay/Overlay";
-export type { PopoverProps } from "./overlay/Popover";
 export { default as Popover } from "./overlay/Popover";
-export type { TooltipProps } from "./overlay/Tooltip";
 export { default as Tooltip } from "./overlay/Tooltip";
 export { pageIdle } from "./pageIdle";
 export { focusedPaneId } from "./panes/focusedPane";
-export { default as PaneRow, type PaneRowProps } from "./panes/PaneRow";
+export { default as PaneDivider } from "./panes/PaneDivider";
+export { default as PaneRow, MIN_PANE_WIDTH, type PaneLayoutProps } from "./panes/PaneRow";
 export {
   closePane,
   createPaneId,
@@ -135,7 +99,9 @@ export {
   replacePaneContent,
   resizePanes,
 } from "./panes/paneList";
+export { distributeResize } from "./panes/resize";
 export { createRecencyEviction } from "./recencyEviction";
+export { comboLabel, type ShortcutCombo } from "./shortcutCombo";
 export {
   escapeRegExp,
   findTextRanges,
@@ -163,15 +129,13 @@ export {
 } from "./themeColors";
 export type { ColorRef } from "./themeDerivations";
 export { THEME_PRESETS } from "./themePresets";
-export { setThemeShape, type ThemeShape, themeShape } from "./themeShape";
-export type { UndoEntry } from "./undoStack";
+export { setThemeShape, themeShape } from "./themeShape";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";
-export { type ClickOutsideTarget, useClickOutside } from "./useClickOutside";
+export { useClickOutside } from "./useClickOutside";
 export { useElementVisible } from "./useElementVisible";
 export { useCancelShortcut, useCloseShortcut, useEscapeClose } from "./useEscapeClose";
 export { useHoverIntent } from "./useHoverIntent";
 export {
-  useAdjustShortcuts,
   useConfirmShortcut,
   useEditShortcuts,
   useFieldCommitShortcut,
@@ -182,15 +146,10 @@ export {
   useTabStripShortcuts,
 } from "./useNavShortcuts";
 export {
-  comboLabel,
-  comboParts,
-  dispatchManualShortcut,
   inside,
   listShortcuts,
   SHORTCUT_GROUPS,
-  type ShortcutCombo,
   type ShortcutInfo,
-  type ShortcutScope,
   shortcutConflicts,
   useShortcut,
 } from "./useShortcut";

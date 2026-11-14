@@ -4,20 +4,31 @@
 }
 
 .typing-indicator {
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.typing-indicator-floating {
   position: absolute;
   top: -12px;
   right: 10px;
   z-index: 3;
-  gap: 6px;
   max-width: calc(100% - 20px);
   font-size: 10px;
   line-height: 10px;
-  color: var(--text-secondary);
-  pointer-events: none;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
+}
+
+.typing-indicator-inline {
+  margin-left: auto;
+  font-size: var(--font-size-control);
+  font-weight: 400;
+}
+
+.typing-indicator-dots-only {
+  padding-inline: var(--space-xs);
+  line-height: 0;
 }
 
 .typing-indicator-dots {

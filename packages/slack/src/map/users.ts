@@ -2,6 +2,7 @@ import type { RawBot, RawUser, RawUserProfile, User, UserCustomField } from "@sl
 
 export const SLACK_USER_ID = "USLACK";
 const SLACK_AVATAR_URL = "/public/slack-logo.svg";
+const SLACKBOT_AVATAR_URL = `/api/assets?url=${encodeURIComponent("https://a.slack-edge.com/80588/img/plugins/slackbot/service_512.png")}`;
 
 function colorFromHex(hex: string | undefined) {
   return hex ? `#${hex}` : "#616061";
@@ -9,12 +10,11 @@ function colorFromHex(hex: string | undefined) {
 
 function tzLabelFromOffset(seconds: number | undefined): string | undefined {
   if (seconds === undefined) return;
-  const hours = seconds / 3600;
-  const sign = hours >= 0 ? "+" : "-";
-  const abs = Math.abs(hours);
-  const whole = Math.floor(abs);
-  const minutes = Math.round((abs - whole) * 60);
-  return `UTC${sign}${whole}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
+  const sign = seconds >= 0 ? "+" : "-";
+  const totalMinutes = Math.round(Math.abs(seconds) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `UTC${sign}${hours}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
 }
 
 export function mapCustomFields(
@@ -48,7 +48,10 @@ export function mapUser(raw: RawUser): User {
   const customFields = mapCustomFields(raw.profile);
   const avatarUrl: string | undefined = isSlack
     ? SLACK_AVATAR_URL
-    : raw.profile?.image_192 || raw.profile?.image_72 || raw.profile?.image_48 || undefined;
+    : raw.profile?.image_192 ||
+      raw.profile?.image_72 ||
+      raw.profile?.image_48 ||
+      (raw.id === "USLACKBOT" ? SLACKBOT_AVATAR_URL : undefined);
   return {
     appId: raw.profile?.api_app_id || undefined,
     avatarColor: isSlack ? "transparent" : colorFromHex(raw.color),

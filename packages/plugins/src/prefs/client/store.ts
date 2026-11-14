@@ -2,8 +2,8 @@ import { splitHighlightWords } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { UserPrefs } from "@slock/types";
 import { createQuery } from "@tanstack/solid-query";
-import { createEffect, createSignal, onCleanup } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { defineKey } from "../../query/client/api";
 import {
   endDndSnooze,
@@ -12,7 +12,6 @@ import {
   setChannelNotifyAll,
   setDndSnooze,
   setHighlightWords as setHighlightWordsApi,
-  setMutedChannels,
 } from "../../slack/client/api";
 import {
   emojiUseScore as calculateEmojiUseScore,
@@ -20,6 +19,7 @@ import {
   recentIds as calculateRecentIds,
   usedEmojiNames as calculateUsedEmojiNames,
 } from "./lib/frecency";
+import { createMuteSync } from "./muteSync";
 
 const feedback = service("feedback");
 const query = service("query");
@@ -41,14 +41,44 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     () => query.client,
   );
 
+  let muteClicks = 0;
+  let lastMuteChannelId = "";
+  const muteSync = createMuteSync((confirmedIds) => {
+    feedback.error(lastMuteChannelId, "Failed to update mute setting.");
+    setMutePendingByChannel(reconcile({}));
+    syncFlags(mutedChannelIds, setMutedChannelIds, mutePendingByChannel, confirmedIds);
+  });
+
+  function syncFlags(
+    flags: Record<string, boolean>,
+    setFlag: (id: string, value: boolean) => void,
+    pending: Record<string, boolean>,
+    ids: string[],
+  ) {
+    const wanted = new Set(ids);
+    for (const id of new Set([...Object.keys(flags), ...wanted])) {
+      if (!pending[id]) setFlag(id, wanted.has(id));
+    }
+  }
+
+  function syncRemotePrefs(prefs: UserPrefs) {
+    muteSync.confirm(prefs.mutedChannels);
+    syncFlags(mutedChannelIds, setMutedChannelIds, mutePendingByChannel, prefs.mutedChannels);
+    syncFlags(
+      notifyAllChannelIds,
+      setNotifyAllChannelIds,
+      notifyAllPendingByChannel,
+      prefs.notifyAllChannels,
+    );
+    setHighlightWordsSignal(prefs.highlightWords);
+  }
+
   let mutePrefsSeeded = false;
   createEffect(() => {
     const prefs = deps.userPrefs();
     if (!prefs || mutePrefsSeeded) return;
     mutePrefsSeeded = true;
-    for (const id of prefs.mutedChannels) setMutedChannelIds(id, true);
-    for (const id of prefs.notifyAllChannels) setNotifyAllChannelIds(id, true);
-    setHighlightWordsSignal(prefs.highlightWords);
+    untrack(() => syncRemotePrefs(prefs));
   });
 
   function preferencesReady(): boolean {
@@ -83,35 +113,26 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     return !!mutedChannelIds[channelId];
   }
 
-  function isAnyMutePending(): boolean {
-    return Object.values(mutePendingByChannel).some(Boolean);
-  }
-
-  function isMutePending(channelId: string): boolean {
-    return !preferencesReady() || isAnyMutePending() || !!mutePendingByChannel[channelId];
+  function isMutePending(): boolean {
+    return !preferencesReady();
   }
 
   async function toggleMuteChannel(channelId: string): Promise<boolean> {
-    if (!requirePreferences(channelId) || isMutePending(channelId)) return false;
+    if (!requirePreferences(channelId)) return false;
     const next = !isChannelMuted(channelId);
+    const click = ++muteClicks;
+    lastMuteChannelId = channelId;
     setMutePendingByChannel(channelId, true);
     setMutedChannelIds(channelId, next);
-    const allMuted = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
-    try {
-      await setMutedChannels(allMuted);
-      feedback.undo.push({
-        label: next ? "mute channel" : "unmute channel",
-        undo: () => void toggleMuteChannel(channelId),
-      });
-      return true;
-    } catch (err) {
-      console.error("Failed to set channel mute preference", err);
-      feedback.error(channelId, "Failed to update mute setting.");
-      setMutedChannelIds(channelId, !next);
-      return false;
-    } finally {
-      setMutePendingByChannel(channelId, false);
-    }
+    const mutedIds = Object.keys(mutedChannelIds).filter((id) => mutedChannelIds[id]);
+    const synced = await muteSync.push(mutedIds);
+    if (!synced || click !== muteClicks) return synced;
+    setMutePendingByChannel(reconcile({}));
+    feedback.undo.push({
+      label: next ? "mute channel" : "unmute channel",
+      undo: () => void toggleMuteChannel(channelId),
+    });
+    return true;
   }
 
   function isChannelNotifyAll(channelId: string): boolean {
@@ -254,6 +275,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     emojiUseScore,
     frecencyScore,
     recentIds,
+    syncRemotePrefs,
     usedEmojiNames,
     highlightWords,
     hasDndStatusError,

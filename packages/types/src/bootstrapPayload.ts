@@ -29,6 +29,7 @@ export interface BootstrapPayload {
   muted_channels?: string;
   notification_prefs?: string;
   notifications?: Record<string, number>;
+  pending?: string[];
   retry_after?: Record<string, string>;
   sections?: Record<string, BootstrapSection>;
   self?: RawUser;

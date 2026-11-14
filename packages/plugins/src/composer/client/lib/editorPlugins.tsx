@@ -1,11 +1,12 @@
 import { getHost } from "@slock/core/solid";
 import type Quill from "@slock/ui/editor/quill";
 import { createSignal, type JSX, onCleanup, Show } from "solid-js";
-import type { ComposerEditor } from "../api";
+import type { ComposerEditor, ComposerProps } from "../api";
 
-export function createEditorPlugins(getQuill: () => Quill | undefined) {
+export function createEditorPlugins(getQuill: () => Quill | undefined, props?: ComposerProps) {
   const [popover, setPopover] = createSignal<(close: () => void) => JSX.Element>();
   const editor: ComposerEditor = {
+    props,
     quill: getQuill,
     showPopover: (render) => setPopover(() => render),
   };

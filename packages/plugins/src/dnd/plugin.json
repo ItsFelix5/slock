@@ -1,1 +1,1 @@
-{ "id": "dnd", "core": true, "name": "Do not disturb", "requires": ["prefs", "shell"] }
+{ "id": "dnd", "core": true, "name": "Do not disturb", "requires": ["prefs", "query", "shell"] }

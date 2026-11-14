@@ -3,14 +3,13 @@
   font-size: var(--font-size-meta);
   line-height: 1.6;
   color: var(--text-secondary);
+  user-select: text;
 }
 
 .json-tree-row {
-  display: flex;
-  gap: var(--space-sm);
-  align-items: baseline;
   padding: 0 var(--space-xs);
   border-radius: var(--radius-sm);
+  word-break: break-all;
 }
 
 summary.json-tree-row {
@@ -28,7 +27,6 @@ summary.json-tree-row {
 }
 
 .json-tree-key {
-  flex-shrink: 0;
   color: var(--text-primary);
 }
 
@@ -37,16 +35,7 @@ summary.json-tree-row {
 }
 
 .json-tree-label {
-  min-width: 0;
-  overflow: hidden;
   color: var(--mention-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.json-tree-value {
-  min-width: 0;
-  word-break: break-all;
 }
 
 .json-tree-string {

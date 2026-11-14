@@ -189,6 +189,7 @@ const list: Route[] = [
           .map((match) => {
             const { highlights, text } = extractHighlights(match.text ?? "");
             return {
+              blocks: match.blocks,
               botIcon: botIconFromMatch(match),
               botId: match.bot_id,
               botName: match.username ?? match.bot_profile?.name,

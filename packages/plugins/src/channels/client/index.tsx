@@ -43,6 +43,42 @@ const setup: Setup = (ctx) => {
   );
   ctx.add(
     "realtime.handler",
+    gatewayHandler(["channel_changed"], (event) => {
+      if (event.channel) store.invalidateChannelRoster(event.channel);
+    }),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["channel_updated"], (event) => {
+      for (const id of event.channels)
+        store.patchChannel(id, { archived: event.updates.archived, topic: event.updates.topic });
+    }),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["message"], (event) => {
+      const isTopic = event.subtype === "channel_topic" || event.subtype === "group_topic";
+      if (isTopic && event.channel && event.topic !== undefined)
+        store.patchChannel(event.channel, { topic: event.topic });
+    }),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(
+      [
+        "channel_section_upserted",
+        "channel_section_deleted",
+        "channel_section_reset",
+        "channel_sections_channels_upserted",
+        "channel_sections_channels_removed",
+      ],
+      () => {
+        if (!store.sectionStructurePending()) void store.retrySections();
+      },
+    ),
+  );
+  ctx.add(
+    "realtime.handler",
     gatewayHandler(["star_added", "star_removed"], (event) => {
       if (event.item.type === "channel" && event.item.channel)
         store.setStarredChannelIds(event.item.channel, event.type === "star_added");

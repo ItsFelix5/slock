@@ -32,8 +32,20 @@ function broadcastRangeFromRichTextBlocks(
   }
 }
 
-export function broadcastRangeFromBlocks(blocks: readonly Block[] | undefined) {
-  return broadcastRangeFromRichTextBlocks(
-    (blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
+const TEXT_BROADCAST_RE = /<!(here|channel|everyone)(?:\|[^>]*)?>/;
+
+function broadcastRangeFromText(text: string | undefined): BroadcastRange | undefined {
+  const range = TEXT_BROADCAST_RE.exec(text ?? "")?.[1];
+  return range === "here" || range === "channel" || range === "everyone" ? range : undefined;
+}
+
+export function broadcastRangeOf(content: {
+  blocks?: readonly Block[];
+  text?: string;
+}): BroadcastRange | undefined {
+  return (
+    broadcastRangeFromRichTextBlocks(
+      (content.blocks ?? []).filter((block): block is RichTextBlock => block.type === "rich_text"),
+    ) ?? broadcastRangeFromText(content.text)
   );
 }

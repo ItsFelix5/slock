@@ -1,18 +1,10 @@
-import type { CanvasControl, CanvasEdit, CanvasNode, CanvasUpsert } from "@slock/types";
-import { longestIncreasing, sameFrames } from "../../protocol/api";
+import type { CanvasControl, CanvasEdit, CanvasUpsert } from "@slock/types";
+import { longestIncreasing, sameNode } from "../../protocol/api";
 import type { LineEntry } from "./canvasLineIds";
 
 export interface CanvasSnapshot {
   entries: LineEntry[];
   title: string;
-}
-
-function withoutFrames(node: CanvasNode): string {
-  return JSON.stringify(node, (key, value) => (key === "frames" ? undefined : value));
-}
-
-export function sameNode(a: CanvasNode, b: CanvasNode): boolean {
-  return sameFrames(a.frames, b.frames) && withoutFrames(a) === withoutFrames(b);
 }
 
 export function diffSnapshots(

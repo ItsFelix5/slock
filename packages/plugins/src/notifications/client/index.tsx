@@ -12,7 +12,9 @@ const setup: Setup = (ctx) => {
   const store = createDesktopNotificationsStore({
     activeView: shellView.activeView,
     isChannelMuted: prefs.isChannelMuted,
+    isChannelNotifyAll: prefs.isChannelNotifyAll,
     isDndActive: prefs.isDndActive,
+    matchingHighlightWord: prefs.matchingHighlightWord,
     openChannelPeek: service("message-links").openChannelPeek,
     resolveChannel: channels.resolveChannel,
     userPrefs: () => service("bootstrap").userPrefs.data,

@@ -7,7 +7,7 @@
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
     { "path": "./packages/server" },
-    { "path": "./packages/plugins" },
-    { "path": "./packages/app" }
+    { "path": "./packages/plugins/tsconfig.server.json" },
+    { "path": "./packages/relay" }
   ]
 }

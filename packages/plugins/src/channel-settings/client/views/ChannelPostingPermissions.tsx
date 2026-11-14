@@ -1,8 +1,9 @@
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
-import SettingsLoadError, { errorMessage } from "./SettingsLoadError";
+import SettingsLoadError from "./SettingsLoadError";
 import "./ChannelPostingPermissions.css";
 
 const channelDetails = service("channel-details");

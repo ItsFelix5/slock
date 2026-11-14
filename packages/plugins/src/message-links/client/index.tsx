@@ -15,7 +15,7 @@ const setup: Setup = (ctx) => {
       setActiveView: service("conversations").setActiveView,
     }),
   );
-  installPermalinkHandler();
+  installPermalinkHandler(ctx.use("message-links.loaded"));
   ctx.add("messages.menu", CopyLinkItem, { order: 10 });
   ctx.add(
     "messages.bar",

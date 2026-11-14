@@ -1,21 +1,28 @@
 import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createHeartbeat } from "./heartbeat";
 import { createReconnectScheduler } from "./reconnectScheduler";
 
 export type RealtimeConnectionState = "connected" | "connecting" | "offline" | "reconnecting";
 
 const ONLINE_GRACE_MS = 45_000;
+const STALE_HIDDEN_MS = 30_000;
 
 export function createRealtimeConnection(opts: {
   onMessage: (raw: string) => void;
   onOpen: () => void;
-  onReconnect: () => void;
+  onReconnect: (downMs: number) => void;
   url: () => string;
 }) {
   const online = () => navigator.onLine;
   const [connectionState, setConnectionState] = createSignal<RealtimeConnectionState>(
     online() ? "connecting" : "offline",
   );
-  const [gatewayConnected, writeGatewayConnected] = createSignal(false);
+  const [gatewayConnected, setGatewayConnectedSignal] = createSignal(false);
+  let disconnectedAt = Date.now();
+  const writeGatewayConnected = (connected: boolean) => {
+    if (!connected && gatewayConnected()) disconnectedAt = Date.now();
+    setGatewayConnectedSignal(connected);
+  };
   const isTrulyOnline = () => online() && gatewayConnected();
   const [recentlyOnline, setRecentlyOnline] = createSignal(online());
   let onlineGraceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -38,6 +45,7 @@ export function createRealtimeConnection(opts: {
   let socket: WebSocket | null = null;
 
   const scheduler = createReconnectScheduler({ connect, isOnline: online });
+  const heartbeat = createHeartbeat({ onDead: restart, ping: () => send({ type: "ping" }) });
 
   function connect() {
     if (disposed || !online() || socket) return;
@@ -46,23 +54,26 @@ export function createRealtimeConnection(opts: {
     try {
       current = new WebSocket(opts.url());
     } catch {
-      console.error("Failed to connect 3:");
       setConnectionState("reconnecting");
       scheduler.schedule();
       return;
     }
     socket = current;
+    heartbeat.start();
     current.addEventListener("open", () => {
       if (socket !== current) return;
       setConnectionState(hasConnected ? "reconnecting" : "connecting");
       opts.onOpen();
     });
     current.addEventListener("message", (event) => {
-      if (socket === current) opts.onMessage(String(event.data));
+      if (socket !== current) return;
+      heartbeat.heard();
+      opts.onMessage(String(event.data));
     });
     current.addEventListener("close", () => {
       if (socket !== current) return;
       socket = null;
+      heartbeat.stop();
       writeGatewayConnected(false);
       setConnectionState(online() ? "reconnecting" : "offline");
       scheduler.schedule();
@@ -73,8 +84,25 @@ export function createRealtimeConnection(opts: {
   const disconnectCurrent = () => {
     const current = socket;
     socket = null;
+    heartbeat.stop();
     current?.close();
   };
+  function restart() {
+    disconnectCurrent();
+    writeGatewayConnected(false);
+    setConnectionState(hasConnected ? "reconnecting" : "connecting");
+    scheduler.reconnectNow();
+  }
+  function send(payload: unknown) {
+    if (socket?.readyState !== WebSocket.OPEN) return false;
+    try {
+      socket.send(JSON.stringify(payload));
+      return true;
+    } catch {
+      socket.close();
+      return false;
+    }
+  }
   const handleOffline = () => {
     scheduler.pause();
     disconnectCurrent();
@@ -82,14 +110,19 @@ export function createRealtimeConnection(opts: {
     setConnectionState("offline");
   };
   const handleOnline = () => {
-    if (!online()) return;
-    disconnectCurrent();
-    writeGatewayConnected(false);
-    setConnectionState(hasConnected ? "reconnecting" : "connecting");
-    scheduler.reconnectNow();
+    if (online()) restart();
   };
+  let hiddenAt: number | null = null;
   const handleVisibility = () => {
-    if (document.visibilityState === "visible" && !socket && online()) scheduler.reconnectNow();
+    if (document.visibilityState === "hidden") {
+      hiddenAt = Date.now();
+      return;
+    }
+    const wasStale = hiddenAt !== null && Date.now() - hiddenAt > STALE_HIDDEN_MS;
+    hiddenAt = null;
+    if (!online()) return;
+    if (wasStale) restart();
+    else if (!socket) scheduler.reconnectNow();
   };
 
   window.addEventListener("offline", handleOffline);
@@ -115,29 +148,17 @@ export function createRealtimeConnection(opts: {
         setConnectionState("offline");
         return;
       }
-      disconnectCurrent();
-      writeGatewayConnected(false);
-      setConnectionState(hasConnected ? "reconnecting" : "connecting");
-      scheduler.reconnectNow();
+      restart();
     },
     gatewayConnected,
-    send(payload: unknown) {
-      if (socket?.readyState !== WebSocket.OPEN) return false;
-      try {
-        socket.send(JSON.stringify(payload));
-        return true;
-      } catch {
-        socket.close();
-        return false;
-      }
-    },
+    send,
     setGatewayConnected(connected: boolean) {
       const wasConnected = hasConnected;
       writeGatewayConnected(connected);
       if (connected) {
         scheduler.connected();
         hasConnected = true;
-        if (wasConnected) opts.onReconnect();
+        if (wasConnected) opts.onReconnect(Date.now() - disconnectedAt);
       }
       setConnectionState(connected ? "connected" : online() ? "reconnecting" : "offline");
     },

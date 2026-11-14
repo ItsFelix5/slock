@@ -3,6 +3,7 @@ import { Icon, Menu } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
+import { safeUrl } from "../safeUrl";
 import { useBlockActionDispatch } from "../useBlockActionDispatch";
 import "./Controls.css";
 import { optionPayload } from "./options";
@@ -18,9 +19,10 @@ export default function Overflow(props: {
   );
 
   const selectOption = (opt: OverflowElement["options"][number]) => {
-    if (opt.url) {
+    const href = safeUrl(opt.url);
+    if (href) {
       setOpen(false);
-      window.open(opt.url, "_blank", "noopener,noreferrer");
+      window.open(href, "_blank", "noopener,noreferrer");
       return;
     }
     if (!canDispatch(props.el.action_id)) {

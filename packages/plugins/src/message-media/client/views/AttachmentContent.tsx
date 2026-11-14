@@ -1,5 +1,5 @@
 import type { BlockActionContext } from "@slock/blockkit";
-import { BlockKit, EmojiText, Mrkdwn } from "@slock/blockkit";
+import { BlockKit, EmojiText, Mrkdwn, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
 import { VideoPlayer } from "@slock/ui";
@@ -24,12 +24,12 @@ export default function AttachmentContent(props: {
               <Mrkdwn text={a.title ?? ""} />
             </div>
           }
-          when={a.titleLink}
+          when={safeUrl(decodeTextEntities(a.titleLink ?? ""))}
         >
           {(link) => (
             <a
               class="attachment-title attachment-title-link"
-              href={decodeTextEntities(link())}
+              href={link()}
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -72,7 +72,7 @@ export default function AttachmentContent(props: {
           </For>
         </div>
       </Show>
-      <Show when={a.videoUrl}>
+      <Show when={safeMediaUrl(a.videoUrl)}>
         {(url) => (
           <VideoPlayer
             ariaLabel={a.title || "Embedded video"}

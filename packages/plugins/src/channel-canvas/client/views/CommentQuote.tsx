@@ -1,23 +1,29 @@
 import { service } from "@slock/core/solid";
+import { Icon } from "@slock/ui";
 import { createMemo } from "solid-js";
 import { annotationQuote, canvasHtmlLines } from "../../../canvas/client/api/canvasQuote";
 import "./CommentQuote.css";
 
 const canvasStore = service("canvas");
 
-export default function CommentQuote(props: { fileId: string; threadId: string }) {
+export default function CommentQuote(props: { fileId: string; text: string; threadId: string }) {
   const content = canvasStore.createCanvasContentQuery(() => props.fileId);
-  const quote = createMemo(() =>
-    annotationQuote(canvasHtmlLines(content.data?.doc), props.threadId),
+  const title = () => canvasStore.canvasTitle(props.fileId) ?? "Canvas";
+  const quote = createMemo(
+    () => annotationQuote(canvasHtmlLines(content.data?.doc), props.threadId) ?? props.text,
   );
 
   return (
     <button
       class="canvas-comment-quote btn-reset"
-      onClick={() => canvasStore.openCanvasPane(props.fileId)}
+      onClick={() => canvasStore.openCanvasPane(props.fileId, title())}
       type="button"
     >
-      {quote() ?? "Commented text"}
+      <span class="canvas-comment-quote-source flex-align-center">
+        <Icon name="canvas" size={14} />
+        <span class="truncate">{title()}</span>
+      </span>
+      <span class="canvas-comment-quote-text">{quote()}</span>
     </button>
   );
 }

@@ -2,7 +2,7 @@
   "id": "/",
   "name": "slock",
   "short_name": "slock",
-  "description": "A Slack client.",
+  "description": "A Slack client",
   "lang": "en",
   "start_url": "/",
   "scope": "/",
@@ -10,7 +10,7 @@
   "theme_color": "#111318",
   "background_color": "#111318",
   "icons": [
-    { "src": "/slack-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    { "src": "/public/slack-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
   "share_target": {
     "action": "/",

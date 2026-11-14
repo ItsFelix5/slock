@@ -9,6 +9,10 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
   const [expanded, setExpanded] = createSignal(false);
   const [overflowing, setOverflowing] = createSignal(false);
   const clampable = () => props.block.expand !== true;
+  const stacked = () => {
+    const type = props.block.accessory?.type;
+    return type === "checkboxes" || type === "radio_buttons";
+  };
   let textEl: HTMLDivElement | undefined;
 
   onMount(() => {
@@ -17,7 +21,7 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
   });
 
   return (
-    <div class="bk-section">
+    <div class="bk-section" classList={{ "bk-section--stacked": stacked() }}>
       <div class="bk-section-main grow">
         <Show when={props.block.text}>
           <div

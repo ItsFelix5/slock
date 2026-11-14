@@ -55,6 +55,13 @@ export async function fetchUsergroupDetails(id: string): Promise<UsergroupDetail
   return mapped ? { ...mapped, memberIds } : null;
 }
 
+export async function createUsergroup(name: string): Promise<string> {
+  const data = await apiPost<{ id?: string }>("/api/usergroups", { name });
+  if (!data.ok) throw new Error(data.error ?? "usergroups.create failed");
+  if (!data.id) throw new Error("usergroups.create returned no id");
+  return data.id;
+}
+
 export async function updateUsergroupProfile(
   id: string,
   patch: { name?: string; handle?: string; description?: string },

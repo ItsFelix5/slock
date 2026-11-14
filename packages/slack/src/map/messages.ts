@@ -82,6 +82,7 @@ export function mapMessage(m: RawMessage): Message {
     id: m.ts,
     isBroadcast: subtype === "thread_broadcast",
     isEphemeral: !!m.is_ephemeral,
+    isLocked: m.is_locked || undefined,
     isSubscribed: typeof m.subscribed === "boolean" ? m.subscribed : undefined,
     kind,
     latestReply: m.latest_reply,
@@ -104,6 +105,7 @@ export function mapMessage(m: RawMessage): Message {
 }
 
 export const RELAY_BOT_ID = "B0BU242DJHM";
+export const HISTORY_PAGE_SIZE = "30";
 
 export function isMyRelayedMessage(
   msg: Pick<Message, "botId" | "botName">,

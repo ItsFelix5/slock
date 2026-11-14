@@ -7,9 +7,10 @@ import {
   mapAttachment,
   mapMessage,
   mapVisibleMessage,
-  mapVisibleMessages,
 } from "@slock/slack";
 import type { Message, PinnedMessage, RawAttachment, RawMessage, SearchResult } from "@slock/types";
+
+import { fetchRepliesFrom } from "./threadReplies";
 
 export { fetchHistory, fetchHistoryAround, fetchHistoryNewer } from "./messageHistory";
 
@@ -19,43 +20,14 @@ type HistoryReply = {
   response_metadata?: { next_cursor?: string };
 };
 
-export async function fetchReplies(channelId: string, threadTs: string): Promise<Message[]> {
-  const messages: Message[] = [];
-  let cursor: string | undefined;
-  do {
-    const query = new URLSearchParams({ limit: "200" });
-    if (cursor) query.set("cursor", cursor);
-    const data = await apiGet<HistoryReply>(
-      `/api/channels/${channelId}/threads/${threadTs}/messages?${query}`,
-    );
-    if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
-    messages.push(...mapVisibleMessages(data.messages ?? []));
-    cursor = data.has_more ? data.response_metadata?.next_cursor || undefined : undefined;
-  } while (cursor);
-  return messages;
-}
-
-export async function fetchReplyWindow(
-  channelId: string,
-  threadTs: string,
-  ts: string,
-): Promise<Message[]> {
-  const query = new URLSearchParams({ inclusive: "true", limit: "50", oldest: ts });
-  const data = await apiGet<HistoryReply>(
-    `/api/channels/${channelId}/threads/${threadTs}/messages?${query}`,
-  );
-  if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
-  return mapVisibleMessages(data.messages ?? []);
-}
-
 export async function fetchPermalinkMessage(
   channelId: string,
   messageTs: string,
   threadTs: string,
 ): Promise<Message | undefined> {
   if (threadTs !== messageTs) {
-    const replies = await fetchReplyWindow(channelId, threadTs, messageTs);
-    return replies.find((m) => m.ts === messageTs);
+    const replies = await fetchRepliesFrom(channelId, threadTs, messageTs);
+    return replies.messages.find((m) => m.ts === messageTs);
   }
   const query = new URLSearchParams({
     inclusive: "true",
@@ -95,10 +67,8 @@ export async function postMessage(
 }
 
 const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
-  bot_not_configured: "The broadcast bot isn't set up on this server.",
   org_user_not_in_team:
     "The broadcast bot's workspace doesn't include you, so @channel can't be relayed.",
-  not_a_channel_manager: "Only channel managers can send @channel or @here here.",
 };
 
 export async function postBroadcastMessage(
@@ -233,15 +203,15 @@ export async function getPermalink(
   return threadTs && threadTs !== ts ? `${base}?thread_ts=${threadTs}&cid=${channelId}` : base;
 }
 
-export async function addReminder(text: string, time: string) {
-  const data = await apiPost("/api/reminders", { text, time });
-  if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
+export async function saveWithReminder(channelId: string, ts: string, dateDue: number) {
+  const data = await apiPost(`/api/messages/${channelId}/${ts}/reminder`, { dateDue });
+  if (!data.ok) throw new Error(data.error ?? "saved.add failed");
   return data;
 }
 
-export async function addMessageReminder(channelId: string, ts: string, dateDue: number) {
-  const data = await apiPost("/api/reminders", { channelId, dateDue, ts });
-  if (!data.ok) throw new Error(data.error ?? "reminders.add failed");
+export async function updateSaved(channelId: string, ts: string, change: { dateDue: number }) {
+  const data = await apiPatch(`/api/messages/${channelId}/${ts}/save`, change);
+  if (!data.ok) throw new Error(data.error ?? "saved.update failed");
   return data;
 }
 

@@ -17,16 +17,13 @@
   visibility: hidden;
 }
 
-.zoomable-image-close {
+.zoomable-image-toolbar {
+  position: absolute;
   top: 20px;
   right: 20px;
   z-index: 1;
-}
-
-.zoomable-image-info {
-  top: 20px;
-  right: 64px;
-  z-index: 1;
+  display: flex;
+  gap: var(--space-md);
 }
 
 .zoomable-image-navigation {

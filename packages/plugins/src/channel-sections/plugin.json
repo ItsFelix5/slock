@@ -2,5 +2,5 @@
   "id": "channel-sections",
   "core": true,
   "name": "Channel sections",
-  "requires": ["channels", "shell"]
+  "requires": ["channels", "dms", "shell"]
 }

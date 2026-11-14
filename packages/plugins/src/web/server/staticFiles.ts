@@ -15,6 +15,7 @@ const ONE_WEEK = "public, max-age=604800";
 
 export function cacheControlFor(pathname: string): string {
   if (pathname.startsWith("/assets/")) return IMMUTABLE;
+  if (pathname.startsWith("/public/fonts/")) return IMMUTABLE;
   if (pathname.startsWith("/public/")) return ONE_WEEK;
   return "no-cache";
 }
@@ -37,7 +38,7 @@ export async function writePrecompressed(path: string, contents: Blob): Promise<
 export async function serveFile(
   path: string,
   pathname: string,
-  acceptEncoding: string | null,
+  requestHeaders: Headers,
 ): Promise<Response | undefined> {
   const file = Bun.file(path);
   if (!(await file.exists())) return;
@@ -45,14 +46,23 @@ export async function serveFile(
     "cache-control": cacheControlFor(pathname),
     "content-type": file.type,
   });
+  let body = file;
   if (isCompressible(file.type)) {
+    const acceptEncoding = requestHeaders.get("accept-encoding");
     for (const { encoding, extension } of ENCODINGS) {
       if (!acceptsEncoding(acceptEncoding, encoding)) continue;
       const compressed = Bun.file(path + extension);
       if (!(await compressed.exists())) continue;
       headers.set("content-encoding", encoding);
-      return new Response(compressed, { headers });
+      body = compressed;
+      break;
     }
   }
-  return new Response(file, { headers });
+  const etag = `"${body.size}-${body.lastModified}"`;
+  headers.set("etag", etag);
+  if (requestHeaders.get("if-none-match") === etag) {
+    headers.delete("content-encoding");
+    return new Response(null, { headers, status: 304 });
+  }
+  return new Response(body, { headers });
 }

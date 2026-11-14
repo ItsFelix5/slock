@@ -10,11 +10,12 @@ export default function ChannelNoticeBar(props: {
   action?: { disabled: boolean; icon: "archive" | "plus"; label: string; onClick: () => void };
   channelId: string;
   children: JSX.Element;
+  subject?: string;
 }) {
   return (
     <div class="channel-notice-bar composer-frame surface-popover flex-between">
       <div class="channel-notice-bar-text truncate">
-        <strong>#{titles.title(props.channelId)}</strong> {props.children}
+        <strong>{props.subject ?? titles.label(props.channelId)}</strong> {props.children}
       </div>
       <InlineFeedback
         class="channel-notice-bar-feedback truncate"

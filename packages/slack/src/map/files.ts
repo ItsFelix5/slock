@@ -10,31 +10,41 @@ import type {
   SlackLink,
 } from "@slock/types";
 
-const EXTENSION_MIMETYPES: Record<string, string> = {
-  aac: "audio/aac",
-  avi: "video/x-msvideo",
-  bmp: "image/bmp",
-  flac: "audio/flac",
-  gif: "image/gif",
-  heic: "image/heic",
-  jpeg: "image/jpeg",
-  jpg: "image/jpeg",
-  m4a: "audio/mp4",
-  mkv: "video/x-matroska",
-  mov: "video/quicktime",
-  mp3: "audio/mpeg",
-  mp4: "video/mp4",
-  ogg: "audio/ogg",
-  png: "image/png",
-  svg: "image/svg+xml",
-  wav: "audio/wav",
-  webm: "video/webm",
-  webp: "image/webp",
-};
+const EXTENSION_MIMETYPES = new Map(
+  Object.entries({
+    aac: "audio/aac",
+    avi: "video/x-msvideo",
+    bmp: "image/bmp",
+    flac: "audio/flac",
+    gif: "image/gif",
+    heic: "image/heic",
+    jpeg: "image/jpeg",
+    jpg: "image/jpeg",
+    m4a: "audio/mp4",
+    mkv: "video/x-matroska",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    mp4: "video/mp4",
+    ogg: "audio/ogg",
+    png: "image/png",
+    svg: "image/svg+xml",
+    wav: "audio/wav",
+    webm: "video/webm",
+    webp: "image/webp",
+  }),
+);
+
+function extensionOf(name: string | undefined): string | undefined {
+  const dot = name?.lastIndexOf(".") ?? -1;
+  return name && dot >= 0 ? name.slice(dot + 1).toLowerCase() : undefined;
+}
 
 export function mapFile(f: RawFile): SlackFile {
-  const filetype = f.filetype || f.name?.split(".").pop()?.toLowerCase();
-  const mimetype = f.mimetype || (filetype ? EXTENSION_MIMETYPES[filetype] : undefined);
+  const filetype = f.filetype || extensionOf(f.name);
+  const mimetype = f.mimetype || (filetype ? EXTENSION_MIMETYPES.get(filetype) : undefined);
+
+  const hasWaveform = Array.isArray(f.audio_wave_samples);
+  const isAudio = hasWaveform || !!mimetype?.startsWith("audio/");
 
   const thumb =
     (f.thumb_800 && f.thumb_800_w && f.thumb_800_h
@@ -58,12 +68,12 @@ export function mapFile(f: RawFile): SlackFile {
     filetype,
     height: thumb?.h ?? f.original_h,
     id: f.id,
-    isAudio: !!mimetype?.startsWith("audio/"),
+    isAudio,
     isDeleted: f.mode === "tombstone" || !f.created,
     isImage: !!mimetype?.startsWith("image/"),
-    isMail: mimetype === "message/rfc822" || filetype === "eml",
+    isMail: mimetype === "message/rfc822" || filetype === "eml" || filetype === "email",
     isPdf: mimetype === "application/pdf" || filetype === "pdf",
-    isVideo: !!mimetype?.startsWith("video/"),
+    isVideo: !isAudio && !!mimetype?.startsWith("video/"),
     mimetype,
     name: f.name ?? "file",
     permalink: f.permalink,
@@ -86,7 +96,7 @@ export function mapFile(f: RawFile): SlackFile {
     urlPrivate: f.url_private ?? "",
     urlPrivateDownload: f.url_private_download ? f.url_private_download : undefined,
     vtt: f.vtt || undefined,
-    waveform: Array.isArray(f.audio_wave_samples) ? f.audio_wave_samples : undefined,
+    waveform: hasWaveform ? f.audio_wave_samples : undefined,
     width: thumb?.w ?? f.original_w,
   };
 }
@@ -117,18 +127,8 @@ export function mapFileShare(raw: RawFileShare): SlackFileShare {
 
 export function mapAttachment(a: RawAttachment): Attachment {
   return {
-    actions: a.actions?.flatMap((action) =>
-      action.type === "button" && action.name && action.text
-        ? [
-            {
-              name: action.name,
-              style: action.style,
-              text: action.text,
-              url: action.url,
-              value: action.value,
-            },
-          ]
-        : [],
+    actions: a.actions?.flatMap(({ id, name = id, style, text, type, url, value }) =>
+      type === "button" && name && text ? [{ name, style, text, url, value }] : [],
     ),
     authorIcon: a.author_icon || undefined,
     authorId: a.author_id,

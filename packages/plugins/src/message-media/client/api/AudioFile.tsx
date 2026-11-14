@@ -1,4 +1,4 @@
-import { formatDuration } from "@slock/blockkit";
+import { formatDuration, safeMediaUrl } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import {
   ContextMenu,
@@ -10,23 +10,10 @@ import {
   useSeekShortcuts,
   VolumeControl,
 } from "@slock/ui";
-import { createSignal, For, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { BAR_COUNT, downloadName, resample } from "./audioFileData";
 import "./AudioFile.css";
 import TranscriptPopover from "./TranscriptPopover";
-
-const BAR_COUNT = 40;
-
-function resample(raw: number[]): number[] {
-  if (raw.length <= BAR_COUNT) return raw;
-  const bars: number[] = [];
-  for (let i = 0; i < BAR_COUNT; i++) {
-    const start = Math.floor((i * raw.length) / BAR_COUNT);
-    const end = Math.max(start + 1, Math.floor(((i + 1) * raw.length) / BAR_COUNT));
-    const chunk = raw.slice(start, end);
-    bars.push(chunk.reduce((sum, v) => sum + v, 0) / chunk.length);
-  }
-  return bars;
-}
 
 export default function AudioFile(props: { file: SlackFile }) {
   let audioRef: HTMLAudioElement | undefined;
@@ -41,8 +28,10 @@ export default function AudioFile(props: { file: SlackFile }) {
 
   const download = () => {
     const link = document.createElement("a");
-    link.href = props.file.urlPrivateDownload ?? props.file.urlPrivate;
-    link.download = props.file.name;
+    const href = safeMediaUrl(props.file.urlPrivateDownload ?? props.file.urlPrivate);
+    if (!href) return;
+    link.href = href;
+    link.download = downloadName(props.file);
     link.rel = "noopener noreferrer";
     link.click();
   };
@@ -50,10 +39,10 @@ export default function AudioFile(props: { file: SlackFile }) {
   const copyLink = () => {
     if (props.file.permalink) void navigator.clipboard.writeText(props.file.permalink);
   };
-  const samples = () => {
+  const samples = createMemo(() => {
     const waveform = resample(props.file.waveform ?? []);
     return waveform.length > 0 ? waveform : Array.from({ length: BAR_COUNT }, () => 16);
-  };
+  });
   const duration = () => mediaDuration() ?? props.file.duration ?? 0;
   const progress = () =>
     duration() > 0 ? Math.min(1, Math.max(0, currentTime() / duration())) : 0;
@@ -168,7 +157,7 @@ export default function AudioFile(props: { file: SlackFile }) {
           audioRef = audio;
           setAudioElement(audio);
         }}
-        src={props.file.urlPrivate}
+        src={safeMediaUrl(props.file.urlPrivate)}
       />
       <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
         <MenuItem

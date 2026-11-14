@@ -48,5 +48,5 @@
 }
 
 ::highlight(canvas-thread) {
-  background-color: color-mix(in srgb, var(--warning, #ecb22e) 45%, transparent);
+  background-color: color-mix(in srgb, var(--warning) 45%, transparent);
 }

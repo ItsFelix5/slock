@@ -2,10 +2,6 @@ import type { ActivityItem, User } from "@slock/types";
 
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 
-export function isPingingActivity(item: ActivityItem): boolean {
-  return PING_KINDS.has(item.kind);
-}
-
 const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([
   "channel_all",
   "thread_reply",
@@ -41,7 +37,7 @@ export function gatewayActivityPingCount(activity: Record<string, number> | unde
   if (!activity) return 0;
   return Object.entries(activity)
     .filter(([key]) => GATEWAY_PING_COUNT_KEYS.has(key))
-    .reduce((total, [, value]) => total + (Number(value) || 0), 0);
+    .reduce((total, [, value]) => total + Math.max(0, Number(value) || 0), 0);
 }
 
 export function gatewayActivityCountsSnapshot(

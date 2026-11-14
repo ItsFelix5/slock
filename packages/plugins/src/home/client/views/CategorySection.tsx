@@ -5,6 +5,7 @@ import { Dynamic } from "solid-js/web";
 import { idsEqual } from "./categories";
 import { useChannelRows } from "./channelRows";
 import ChannelRow from "./rows/ChannelRow";
+import { DmRow } from "./rows/DmRow";
 import { SidebarSectionCaretRow } from "./rows/SidebarSectionCaretRow";
 import SectionMenu from "./SectionMenu";
 import type { ChannelSections } from "./useChannelSections";
@@ -17,24 +18,12 @@ function CategoryChannelRow(props: {
   sections: ChannelSections;
 }) {
   const unread = service("unread");
-  const prefs = service("prefs");
-  const panes = service("conversations");
-  const sidebar = service("sidebar");
   const channel = createMemo(() => props.sections.channelById().get(props.channelId));
   const channelRows = useChannelRows();
-  const isActiveChannel = () =>
-    sidebar.nav() === "home" && panes.isOpenInAnyPane(props.channelId, "channel");
   return (
     <Show when={channel()}>
       {(ch) => (
-        <Show
-          when={
-            !props.sections.collapsed().has(props.catId) ||
-            isActiveChannel() ||
-            ((ch().mentions ?? 0) > 0 && !prefs.isChannelMuted(props.channelId)) ||
-            channelRows.hasRows(props.channelId)
-          }
-        >
+        <Show when={props.sections.isChannelShown(props.catId, ch())}>
           <ChannelRow channel={ch()} unread={unread.isChannelUnread(props.channelId)} />
           <For each={channelRows.rows()}>
             {(row) => <Dynamic channelId={props.channelId} component={row.view} />}
@@ -62,6 +51,10 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
   const channelIds = createMemo(() => cat()?.channels.map((ch) => ch.id) ?? [], undefined, {
     equals: idsEqual,
   });
+  const dms = () => {
+    const category = cat();
+    return category ? sections().categoryDms(category) : [];
+  };
   const dragging = () => cat()?.reorderable && sections().draggingSectionId() === props.id;
   const dropping = (before: boolean) =>
     cat()?.reorderable &&
@@ -91,6 +84,11 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
           sections().renamingId() !== props.id &&
           !sections().sectionStructurePending()
         }
+        onContextMenu={(e) => {
+          if (!cat()?.reorderable) return;
+          e.preventDefault();
+          sections().setSectionMenuOpen(props.id);
+        }}
         onDragEnd={sections().handleSectionDragEnd}
         onDragStart={(e) => cat()?.reorderable && sections().handleSectionDragStart(e, props.id)}
       >
@@ -118,7 +116,7 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
             }
             label={cat()?.name ?? ""}
             labelAriaLabel={`Toggle read channels in ${cat()?.name ?? ""}`}
-            onLabelClick={() => sections().toggleSectionFilter(props.id)}
+            onLabelClick={cat()?.dm ? undefined : () => sections().toggleSectionFilter(props.id)}
             onToggleOpen={() => sections().toggleCategory(props.id)}
             open={!sections().collapsed().has(props.id)}
           />
@@ -127,7 +125,7 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
           class="sidebar-section-feedback truncate"
           feedback={feedback.get(props.id)}
         />
-        <Show when={sections().renamingId() !== props.id && cat()?.filterable ? cat() : undefined}>
+        <Show when={sections().renamingId() !== props.id && cat()?.reorderable ? cat() : undefined}>
           {(c) => <SectionMenu cat={c()} sections={sections()} />}
         </Show>
       </div>
@@ -135,6 +133,13 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
         <For each={channelIds()}>
           {(channelId) => (
             <CategoryChannelRow catId={props.id} channelId={channelId} sections={sections()} />
+          )}
+        </For>
+        <For each={dms()}>
+          {(dm) => (
+            <Show when={sections().isDmShown(props.id, dm)}>
+              <DmRow dm={dm} />
+            </Show>
           )}
         </For>
       </div>

@@ -1,0 +1,34 @@
+import { service } from "@slock/core/solid";
+import { createSignal } from "solid-js";
+import { createUsergroup } from "../../../slack/client/api";
+import CreateDialog from "./CreateDialog";
+
+const details = service("usergroup-details");
+
+export default function CreateUsergroupDialog(props: { onClose: () => void }) {
+  const [name, setName] = createSignal("");
+  const trimmed = () => name().trim();
+
+  return (
+    <CreateDialog
+      canSubmit={!!trimmed()}
+      fallbackError="Couldn't create pinggroup."
+      onClose={props.onClose}
+      onSubmit={async () => {
+        details.openUsergroupDetails(await createUsergroup(trimmed()));
+      }}
+      title="Create pinggroup"
+    >
+      <label class="create-field">
+        <span class="create-label">Name</span>
+        <input
+          autofocus
+          class="text-field"
+          onInput={(event) => setName(event.currentTarget.value)}
+          placeholder="Designers"
+          value={name()}
+        />
+      </label>
+    </CreateDialog>
+  );
+}

@@ -1,4 +1,5 @@
 import Quill from "@slock/ui/editor/quill";
+import { asElement } from "@slock/ui/editor/quillText";
 import { BlockEmbed } from "quill/blots/block";
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
@@ -27,10 +28,7 @@ export function defineCanvasEmbed<Value>(config: {
     static className = config.className;
 
     static create(value: Value) {
-      // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
-      const node = super.create(value);
-      if (!(node instanceof HTMLElement))
-        throw new Error(`${config.name} blot produced a non-element node`);
+      const node = asElement(super.create(value), config.name);
       node.contentEditable = "false";
       const state: EmbedState<Value> = { dispose: () => undefined, read: () => value };
       states.set(node, state);

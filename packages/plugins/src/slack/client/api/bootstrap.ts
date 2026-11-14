@@ -1,9 +1,16 @@
 import { ApiError, buildUnreadMap, mapUser } from "@slock/slack";
 import type { Bootstrap, Channel, DirectMessage, RawChannel, RawCounts, User } from "@slock/types";
-import { fetchInitialData } from "./initialData";
+import { fetchCounts } from "./counts";
+import { completePending, fetchInitialData, isPending } from "./initialData";
 
-export async function fetchBootstrap(): Promise<Bootstrap> {
+async function loadCounts() {
+  const counts = await fetchCounts().catch(() => undefined);
+  return { notifications: counts?.notifications, unreads: counts?.unreads };
+}
+
+export async function fetchBootstrap(onCountsLoaded: () => void): Promise<Bootstrap> {
   const initial = await fetchInitialData();
+  if (isPending(initial, "counts")) void completePending("counts", loadCounts).then(onCountsLoaded);
   if (initial.error?.bootstrap) {
     throw new ApiError(initial.error.bootstrap, initial.retry_after?.bootstrap);
   }
@@ -110,6 +117,7 @@ export async function fetchBootstrap(): Promise<Bootstrap> {
     activityCounts: counts.activity_v2,
     allUsergroupIds,
     channels,
+    countsLoaded: !isPending(initial, "counts"),
     currentUser,
     directMessages,
     lastReadByChannel,

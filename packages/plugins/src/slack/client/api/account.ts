@@ -82,12 +82,14 @@ export async function setStatus(text: string, emoji: string, expiration: number)
 
 export async function setProfileFields(fields: {
   displayName?: string;
+  fullName?: string;
   title?: string;
   pronouns?: string;
   customFields?: Record<string, string>;
 }): Promise<void> {
   const profile: Record<string, unknown> = {};
   if (fields.displayName !== undefined) profile.display_name = fields.displayName;
+  if (fields.fullName !== undefined) profile.real_name = fields.fullName;
   if (fields.title !== undefined) profile.title = fields.title;
   if (fields.pronouns !== undefined) profile.pronouns = fields.pronouns;
   if (fields.customFields) {
@@ -111,12 +113,6 @@ export async function uploadProfilePhoto(file: File): Promise<string | undefined
 export async function setPresence(presence: "auto" | "away"): Promise<void> {
   const data = await apiPut("/api/presence", { presence });
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
-}
-
-export async function reportActivity(): Promise<boolean> {
-  const data = await apiPost<{ activated?: boolean }>("/api/presence/activity", {});
-  if (!data.ok) throw new Error(data.error ?? "presence activity failed");
-  return data.activated ?? false;
 }
 
 export const fetchUserPresence = createBatchedIdFetcher<"active" | "away" | null>(async (ids) => {

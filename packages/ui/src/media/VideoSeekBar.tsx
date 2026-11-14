@@ -1,9 +1,12 @@
+import { ratioOf } from "./videoTime";
+
 export default function VideoSeekBar(props: {
   buffered: number;
   currentTime: number;
   duration: number;
   onScrub: (event: PointerEvent & { currentTarget: HTMLElement }) => void;
   progress: number;
+  ref: (element: HTMLDivElement) => void;
   valueText: string;
 }) {
   return (
@@ -15,15 +18,14 @@ export default function VideoSeekBar(props: {
       aria-valuetext={props.valueText}
       class="video-player-seek"
       onPointerDown={props.onScrub}
+      ref={props.ref}
       role="slider"
       tabIndex={0}
     >
       <div class="video-player-seek-track">
         <div
           class="video-player-seek-buffered"
-          style={{
-            width: `${props.duration > 0 ? Math.min(100, (props.buffered / props.duration) * 100) : 0}%`,
-          }}
+          style={{ width: `${ratioOf(props.buffered, props.duration) * 100}%` }}
         />
         <div class="video-player-seek-played" style={{ width: `${props.progress * 100}%` }} />
         <div class="video-player-seek-thumb" style={{ left: `${props.progress * 100}%` }} />

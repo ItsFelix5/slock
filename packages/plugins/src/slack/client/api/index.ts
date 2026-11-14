@@ -3,7 +3,6 @@ export {
   fetchUser,
   fetchUserPresence,
   fetchUserProfile,
-  reportActivity,
   setPresence,
   setProfileFields,
   setStatus,
@@ -70,8 +69,6 @@ export { fetchCounts } from "./counts";
 export { deleteDraft, fetchDrafts, saveDraft } from "./drafts";
 export { fetchMessagesByIds } from "./messageLookup";
 export {
-  addMessageReminder,
-  addReminder,
   broadcastReply,
   deleteAttachment,
   deleteMessage,
@@ -83,21 +80,22 @@ export {
   fetchPermalinkMessage,
   fetchPinnedMessages,
   fetchPins,
-  fetchReplies,
-  fetchReplyWindow,
   getChannelLink,
   getPermalink,
   markChannelRead,
   postBroadcastMessage,
   postMessage,
+  saveWithReminder,
   searchMessages,
   togglePin,
   toggleReaction,
   toggleSaved,
   toggleStar,
+  updateSaved,
 } from "./messages";
 export { markThreadRead, toggleThreadSubscription } from "./messages/threads";
 export {
+  applyPrefChange,
   endDndSnooze,
   fetchDndStatus,
   fetchUserPrefs,
@@ -108,6 +106,13 @@ export {
 } from "./preferences";
 export { mapBrowsableChannels, saveSearchHistory, searchDirectory, searchGlobal } from "./search";
 export {
+  fetchReplies,
+  fetchRepliesBefore,
+  fetchRepliesFrom,
+  fetchThreadRoot,
+} from "./threadReplies";
+export {
+  createUsergroup,
   fetchUsergroup,
   fetchUsergroupDetails,
   setUsergroupChannels,

@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
 import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
-import { createSignal } from "solid-js";
+import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
@@ -27,6 +27,7 @@ export function createActivityFeedLoad(deps: {
   fetchMessagesByIds: (
     entries: { channelId: string; ts: string }[],
   ) => Promise<Map<string, Message>>;
+  isActivityViewOpen: () => boolean;
   isBotUser?: (userId: string) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
@@ -48,6 +49,7 @@ export function createActivityFeedLoad(deps: {
   const [activityHasMore, setActivityHasMore] = createSignal(true);
   const [activityLoadingMore, setActivityLoadingMore] = createSignal(false);
   const [activityLoadMoreError, setActivityLoadMoreError] = createSignal(false);
+  const isFetching = () => activityLoading() || activityLoadingMore();
   let activityFeedCursor: string | undefined;
 
   const scopedActivityFeedCursors = new Map<string, string | undefined>();
@@ -79,7 +81,7 @@ export function createActivityFeedLoad(deps: {
   }
 
   async function refreshActivityFeed() {
-    if (activityLoading()) return;
+    if (isFetching()) return;
     const me = deps.currentUser();
     if (!me) return;
     setActivityLoading(true);
@@ -91,7 +93,8 @@ export function createActivityFeedLoad(deps: {
       const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.activityItems);
       const pending = entries.filter((entry) => !seen.has(entry.id));
 
-      const stale = entries.filter((entry) => seen.has(entry.id));
+      const knownTimes = new Map(deps.activityItems.map((item) => [item.id, item.time]));
+      const stale = entries.filter((entry) => entry.time > (knownTimes.get(entry.id) ?? Infinity));
       const { push } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
@@ -116,6 +119,7 @@ export function createActivityFeedLoad(deps: {
                 userId: resolved.userId || defined(list[index]).userId,
               });
             }
+            list.sort((a, b) => b.time - a.time);
           }),
         );
       }
@@ -130,19 +134,13 @@ export function createActivityFeedLoad(deps: {
   }
 
   async function ensureActivityLoaded() {
-    if (activityLoaded() && !activityLoadError()) return;
+    if (activityLoaded() || activityLoadError()) return;
     await refreshActivityFeed();
   }
 
   async function loadMoreActivity(types?: string, unreadOnly?: boolean) {
     const scopeKey = activityFeedScopeKey(types, unreadOnly);
-    if (
-      !activityLoaded() ||
-      activityLoading() ||
-      activityLoadingMore() ||
-      !activityHasMoreFor(types, unreadOnly)
-    )
-      return;
+    if (!activityLoaded() || isFetching() || !activityHasMoreFor(types, unreadOnly)) return;
     const me = deps.currentUser();
     if (!me) return;
     setActivityLoadingMore(true);
@@ -173,10 +171,22 @@ export function createActivityFeedLoad(deps: {
     }
   }
 
-  const requestActivityRefresh = createActivityFeedRefreshScheduler({
+  const liveRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
-    isLoading: activityLoading,
+    isLoading: isFetching,
     refresh: refreshActivityFeed,
+  });
+
+  onCleanup(liveRefresh.cancel);
+  let refreshWhenOpened = false;
+  const requestActivityRefresh = () => {
+    if (deps.isActivityViewOpen()) liveRefresh.request();
+    else refreshWhenOpened = true;
+  };
+  createEffect(() => {
+    if (!(deps.isActivityViewOpen() && refreshWhenOpened)) return;
+    refreshWhenOpened = false;
+    untrack(liveRefresh.request);
   });
 
   return {
@@ -189,5 +199,6 @@ export function createActivityFeedLoad(deps: {
     ensureActivityLoaded,
     loadMoreActivity,
     requestActivityRefresh,
+    retryActivityLoad: refreshActivityFeed,
   };
 }

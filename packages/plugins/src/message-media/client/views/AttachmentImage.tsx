@@ -1,3 +1,4 @@
+import { safeMediaUrl } from "@slock/blockkit";
 import { Slot } from "@slock/core/solid";
 import type { Attachment } from "@slock/types";
 import { ConstrainedImage, constrainMediaDimensions } from "@slock/ui";
@@ -11,7 +12,7 @@ export default function AttachmentImage(props: { attachment: Attachment; large?:
       ? constrainMediaDimensions(a.imageWidth, a.imageHeight, 360, 320, 360, 180)
       : constrainMediaDimensions(a.imageWidth, a.imageHeight, 240, 200, 240, 160);
   return (
-    <Show when={a.imageUrl}>
+    <Show when={safeMediaUrl(a.imageUrl)}>
       {(url) => (
         <ConstrainedImage
           alt=""

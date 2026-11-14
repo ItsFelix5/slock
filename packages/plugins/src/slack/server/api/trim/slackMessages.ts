@@ -58,6 +58,7 @@ export function trimFile(file: RawFile): RawFile {
 export function trimAttachment(attachment: RawAttachment): RawAttachment {
   return {
     actions: attachment.actions?.map((action) => ({
+      id: action.id,
       name: action.name,
       style: action.style,
       text: action.text,
@@ -129,6 +130,7 @@ export function trimMessage(message: RawMessage): RawMessage {
     reply_count: message.reply_count,
     reply_users: message.reply_users,
     root: message.root ? trimMessage(message.root) : undefined,
+    is_locked: message.is_locked,
     subscribed: message.subscribed,
     subtype: message.subtype,
     text: message.text,

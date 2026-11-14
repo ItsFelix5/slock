@@ -1,5 +1,0 @@
-{
-  "id": "block-inputs",
-  "name": "Block Kit inputs",
-  "requires": ["channels", "conversations", "dms", "users"]
-}

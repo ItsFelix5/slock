@@ -15,12 +15,14 @@ export default function CanvasOutlineNav(props: {
           <For each={props.headings}>
             {({ index, level }) => (
               <button
+                aria-hidden="true"
                 classList={{
                   "canvas-outline-mark": true,
                   active: index === props.activeIndex,
                 }}
                 data-level={level}
                 onClick={() => props.onNavigate(index)}
+                tabindex="-1"
                 type="button"
               />
             )}

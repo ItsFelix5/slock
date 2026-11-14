@@ -17,11 +17,7 @@ const setup: Setup = (ctx) => {
       ? { editHistory: [...(current.editHistory ?? []), current.text] }
       : undefined,
   );
-  ctx.add("settings.tab", {
-    id: "message-logger",
-    label: "Message logger",
-    view: () => <FiltersTab filters={filters} />,
-  });
+  ctx.add("plugins.settings", { plugin: ctx.id, view: () => <FiltersTab filters={filters} /> });
 };
 
 export default setup;

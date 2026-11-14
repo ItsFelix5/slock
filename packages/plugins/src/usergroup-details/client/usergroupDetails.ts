@@ -23,13 +23,18 @@ export function createUsergroupDetails() {
   let pendingMutationCount = 0;
   const runMutation = createConcurrencyQueue(1).run;
 
+  async function freshDetails(id: string) {
+    const details = await usergroups.refreshUsergroupDetails(id);
+    if (!details) throw new Error("Pinggroup details are unavailable.");
+    return details;
+  }
+
   async function loadUsergroupDetails(id: string): Promise<boolean> {
     const epoch = ++loadEpoch;
     setUsergroupDetailsLoading(true);
     setUsergroupDetailsLoadError(false);
     try {
-      const details = await usergroups.refreshUsergroupDetails(id);
-      if (!details) throw new Error("Pinggroup details are unavailable.");
+      await freshDetails(id);
       return true;
     } catch (err) {
       if (epoch !== loadEpoch) return false;
@@ -63,8 +68,7 @@ export function createUsergroupDetails() {
     return runMutation(async () => {
       try {
         await action();
-        const details = await usergroups.refreshUsergroupDetails(id);
-        if (!details) throw new Error("Pinggroup details are unavailable.");
+        await freshDetails(id);
         return true;
       } catch (err) {
         feedback.caught(id, err, fallbackMessage);
@@ -84,35 +88,35 @@ export function createUsergroupDetails() {
   }
 
   function addUsergroupMembers(id: string, userIds: string[]): Promise<boolean> {
-    return withFeedback(id, "Failed to add members.", () => {
-      const current = usergroups.usergroupDetailsById(id)?.memberIds ?? [];
-      return setUsergroupMembers(id, [...new Set([...current, ...userIds])]);
+    return withFeedback(id, "Failed to add members.", async () => {
+      const { memberIds } = await freshDetails(id);
+      return setUsergroupMembers(id, [...new Set([...memberIds, ...userIds])]);
     });
   }
 
   function removeUsergroupMember(id: string, userId: string): Promise<boolean> {
-    return withFeedback(id, "Failed to remove member.", () => {
-      const current = usergroups.usergroupDetailsById(id)?.memberIds ?? [];
+    return withFeedback(id, "Failed to remove member.", async () => {
+      const { memberIds } = await freshDetails(id);
       return setUsergroupMembers(
         id,
-        current.filter((memberId) => memberId !== userId),
+        memberIds.filter((memberId) => memberId !== userId),
       );
     });
   }
 
   function addUsergroupChannels(id: string, channelIds: string[]): Promise<boolean> {
-    return withFeedback(id, "Failed to add channels.", () => {
-      const current = usergroups.usergroupDetailsById(id)?.channelIds ?? [];
-      return setUsergroupChannels(id, [...new Set([...current, ...channelIds])]);
+    return withFeedback(id, "Failed to add channels.", async () => {
+      const details = await freshDetails(id);
+      return setUsergroupChannels(id, [...new Set([...details.channelIds, ...channelIds])]);
     });
   }
 
   function removeUsergroupChannel(id: string, channelId: string): Promise<boolean> {
-    return withFeedback(id, "Failed to remove channel.", () => {
-      const current = usergroups.usergroupDetailsById(id)?.channelIds ?? [];
+    return withFeedback(id, "Failed to remove channel.", async () => {
+      const { channelIds } = await freshDetails(id);
       return setUsergroupChannels(
         id,
-        current.filter((cid) => cid !== channelId),
+        channelIds.filter((cid) => cid !== channelId),
       );
     });
   }

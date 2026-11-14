@@ -3,7 +3,7 @@ import { service } from "@slock/core/solid";
 import type { Attachment, Message } from "@slock/types";
 import { Avatar, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
-import { parseReplyLink } from "../../../../message-links/client/api/replyLink";
+import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
 import { parseSlackPermalink } from "../../../../message-links/client/api/slackPermalink";
 import MessageLinkHoverCard, {
   attachmentToHoverPreview,
@@ -22,8 +22,7 @@ export default function ReplyReferenceRow(props: {
   permalink?: string;
   icon?: IconName;
 }) {
-  const snippet = (msg: Message) =>
-    (parseReplyLink(msg.text)?.rest ?? msg.text).replace(/\n+/g, " ");
+  const snippet = (msg: Message) => splitReplyLink(msg).text.replace(/\n+/g, " ");
   const permalinkTarget = () => (props.permalink ? parseSlackPermalink(props.permalink) : null);
   const knownPreview = (): HoverPreview | undefined => {
     if (props.message) return messageToHoverPreview(props.message);

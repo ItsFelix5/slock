@@ -1,9 +1,6 @@
+import { errorMessage } from "@slock/core";
 import { Button } from "@slock/ui";
 import { Show } from "solid-js";
-
-export function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 export default function SettingsLoadError(props: {
   error: unknown;

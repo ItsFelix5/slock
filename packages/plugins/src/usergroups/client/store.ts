@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { Usergroup, UsergroupDetails } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
+import { createStore } from "solid-js/store";
 import { createReactiveQueryCache, defineKey } from "../../query/client/api";
 import { fetchUsergroup, fetchUsergroupDetails } from "../../slack/client/api";
 
@@ -52,8 +53,10 @@ export function createUsergroupsSlice(deps: {
     usergroupDetails.ensure(id);
   }
 
+  const [selfMembership, setSelfMembership] = createStore<Record<string, boolean>>({});
+
   function isSelfMember(id: string): boolean {
-    return deps.selfUsergroupIds().includes(id);
+    return selfMembership[id] ?? deps.selfUsergroupIds().includes(id);
   }
 
   function mentionableUsergroups(): Usergroup[] {
@@ -64,7 +67,7 @@ export function createUsergroupsSlice(deps: {
   }
 
   function refreshUsergroupDetails(id: string) {
-    return query.client.query(usergroupDetailsQueryOptions(id));
+    return query.client.query({ ...usergroupDetailsQueryOptions(id), staleTime: 0 });
   }
 
   function invalidateUsergroup(id: string): void {
@@ -78,6 +81,7 @@ export function createUsergroupsSlice(deps: {
     isSelfMember,
     mentionableUsergroups,
     refreshUsergroupDetails,
+    setSelfMembership,
     usergroupById,
     usergroupDetailsById,
   };

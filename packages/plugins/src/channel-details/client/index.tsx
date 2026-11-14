@@ -1,15 +1,17 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { MenuItem } from "@slock/ui";
-import { Show } from "solid-js";
+import { lazy, Show } from "solid-js";
 import { openConversationInSplit } from "../../conversations/client/api/nav";
 import type { ChannelMenuProps } from "../../messages/client/api";
+import { gatewayHandler } from "../../realtime/client/api";
 import { SplitNavigation } from "../../shell/client/api/SplitNavigation";
 import { createChannelDetailsStore } from "./channelDetails";
-import ChannelDetails from "./views/ChannelDetails";
 import ChannelHoverCard from "./views/ChannelHoverCard";
 import ChannelMentionCard from "./views/ChannelMentionCard";
 
+const ChannelDetails = lazy(() => import("./views/ChannelDetails"));
+const TOPIC_OR_PURPOSE = /^(channel|group)_(topic|purpose)$/;
 const channelDetails = service("channel-details");
 
 function OpenDetailsItem(props: ChannelMenuProps) {
@@ -31,6 +33,26 @@ function OpenDetailsItem(props: ChannelMenuProps) {
 const setup: Setup = (ctx) => {
   ctx.provide("channel-details", createChannelDetailsStore());
   ctx.add("messages.channelMenu", OpenDetailsItem, { order: 10 });
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["channel_updated"], (event) => {
+      for (const id of event.channels)
+        channelDetails.invalidateChannelDetails(id, event.updates.postingChanged);
+    }),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["member_joined_channel", "member_left_channel"], (event) => {
+      if (event.channel) channelDetails.invalidateChannelDetails(event.channel);
+    }),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["message"], (event) => {
+      const topicOrPurpose = TOPIC_OR_PURPOSE.test(event.subtype ?? "");
+      if (topicOrPurpose && event.channel) channelDetails.invalidateChannelDetails(event.channel);
+    }),
+  );
   ctx.add("shell.overlay", ChannelDetails);
   ctx.add("composer.mentionCard", ChannelMentionCard);
   ctx.add("messages.titleOpen", (view) => {

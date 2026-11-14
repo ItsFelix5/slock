@@ -1,15 +1,15 @@
 import { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "@slock/blockkit";
-import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { encodeTextEntities, getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
-import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
-import Quill from "@slock/ui/editor/quill";
-import { getEmbedBlot } from "@slock/ui/editor/quillText";
-import { type DateValue, dateMrkdwn, dateValue } from "./dateEmbed";
-import { emojiValue } from "./emojiEmbed";
+import { iconElement } from "@slock/ui";
+import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
+import { asElement } from "@slock/ui/editor/quillText";
+import "./dateEmbed";
+import "./emojiEmbed";
+import { isMentionKind, MENTION_PREFIX, type MentionValue } from "./embedValues";
 
 const titles = service("titles");
 const usersStore = service("users");
+const channelsStore = service("channels");
 
 const usergroups = service("usergroups");
 
@@ -17,42 +17,39 @@ export function stripLeadingAt(name: string): string {
   return name.startsWith("@") ? name.slice(1) : name;
 }
 
-export interface MentionValue {
-  kind: "user" | "channel" | "special" | "usergroup" | "userlink" | "messagelink";
-  id: string;
-  name: string;
+function isVisibleChannel(id: string): boolean {
+  const channel = channelsStore.channelById(id);
+  return !!channel && (!channel.private || channelsStore.isChannelMember(id));
 }
 
-const MENTION_KINDS: MentionValue["kind"][] = [
-  "user",
-  "channel",
-  "special",
-  "usergroup",
-  "userlink",
-  "messagelink",
-];
-
-export function isMentionKind(kind: unknown): kind is MentionValue["kind"] {
-  return MENTION_KINDS.some((candidate) => candidate === kind);
+function mentionClassName(value: MentionValue, isSelf: boolean): string {
+  switch (value.kind) {
+    case "special":
+      return "bk-mention bk-mention-broadcast";
+    case "channel":
+      return "bk-mention bk-mention-channel";
+    case "userlink":
+      return "bk-mention bk-mention-link";
+    case "messagelink": {
+      const channelId = parseArchiveLink(value.id)?.channelId;
+      const visible = channelId !== undefined && isVisibleChannel(channelId);
+      return `bk-mention bk-mention-link bk-mention-message${visible ? " bk-mention-visible" : ""}`;
+    }
+    default:
+      return isSelf ? "bk-mention bk-mention-self" : "bk-mention";
+  }
 }
 
-function mentionValue(value: unknown): MentionValue | undefined {
-  if (!(value && typeof value === "object" && "kind" in value && "id" in value && "name" in value))
-    return;
-  const { kind, id, name } = value;
-  return isMentionKind(kind) && typeof id === "string" && typeof name === "string"
-    ? { id, kind, name }
-    : undefined;
+function mentionIcon(value: MentionValue): HTMLElement | undefined {
+  if (value.kind === "messagelink") return iconElement("message", 12);
+  if (value.kind === "channel" && channelsStore.channelById(value.id)?.private)
+    return iconElement("lock", 12);
 }
 
-export const MENTION_PREFIX: Record<MentionValue["kind"], string> = {
-  channel: "#",
-  special: "@",
-  user: "@",
-  usergroup: "@",
-  userlink: "@",
-  messagelink: "",
-};
+export function mentionLabel(value: MentionValue): (HTMLElement | string)[] {
+  const icon = mentionIcon(value);
+  return [...(icon ? [icon] : []), `${icon ? "" : MENTION_PREFIX[value.kind]}${value.name}`];
+}
 
 class MentionBlot extends getEmbedBlot() {
   static blotName = "mention";
@@ -60,24 +57,15 @@ class MentionBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: MentionValue) {
-    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
-    const node = super.create(value);
-    if (!(node instanceof HTMLElement)) throw new Error("mention blot produced a non-element node");
+    const node = asElement(super.create(value), "mention");
     const isSelf =
       (value.kind === "user" && value.id === usersStore.currentUser()?.id) ||
       (value.kind === "usergroup" && usergroups.isSelfMember(value.id));
-    node.className =
-      value.kind === "special"
-        ? "bk-mention bk-mention-broadcast"
-        : value.kind === "userlink" || value.kind === "messagelink"
-          ? "bk-mention bk-mention-link"
-          : isSelf
-            ? "bk-mention bk-mention-self"
-            : "bk-mention";
+    node.className = mentionClassName(value, isSelf);
     node.dataset.kind = value.kind;
     node.dataset.id = value.id;
     node.dataset.name = value.name;
-    node.textContent = `${MENTION_PREFIX[value.kind]}${value.name}`;
+    node.replaceChildren(...mentionLabel(value));
     return node;
   }
 
@@ -95,172 +83,17 @@ export function linkMentionValue(
   authorId?: string,
 ): MentionValue | undefined {
   const userId = parseUserProfileLink(url);
-  if (userId) return { id: userId, kind: "userlink", name: label };
+  if (userId) return { id: userId, kind: "userlink", name: stripLeadingAt(label) };
   const archive = parseArchiveLink(url);
   if (!archive) return;
-  const channelName = titles.title(archive.channelId);
-  if (!archive.isMessage) return { id: archive.channelId, kind: "channel", name: channelName };
+  if (!archive.isMessage) {
+    return { id: archive.channelId, kind: "channel", name: titles.title(archive.channelId) };
+  }
   if (label !== url) return;
   const authorName = authorId ? usersStore.userById(authorId)?.name : undefined;
-  return { id: url, kind: "messagelink", name: messageLinkLabel(channelName, authorName) };
-}
-
-export interface EmbedInsert {
-  mention?: MentionValue;
-  emoji?: string;
-  date?: DateValue;
-  divider?: boolean;
-}
-
-function describeEmbed(insert: Record<string, unknown>): EmbedInsert | undefined {
-  const mention = mentionValue(insert.mention);
-  if (mention) return { mention };
-  const emoji = emojiValue(insert.emoji);
-  if (emoji) return { emoji };
-  const date = dateValue(insert.date);
-  if (date) return { date };
-  if (insert.divider) return { divider: true };
-}
-
-function embedText(embed: EmbedInsert): string {
-  if (embed.mention) {
-    if (embed.mention.kind === "user") return `<@${embed.mention.id}>`;
-    if (embed.mention.kind === "special") return `<!${embed.mention.id}>`;
-    if (embed.mention.kind === "usergroup") return `<!subteam^${embed.mention.id}>`;
-    if (embed.mention.kind === "userlink") {
-      const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", embed.mention.id);
-      return `<${url}|${embed.mention.name}>`;
-    }
-    if (embed.mention.kind === "messagelink") return `<${embed.mention.id}>`;
-    return `<#${embed.mention.id}|${embed.mention.name}>`;
-  }
-  if (embed.emoji) return `:${embed.emoji}:`;
-  if (embed.date) return dateMrkdwn(embed.date);
-  if (embed.divider) return "---";
-  return "";
-}
-
-export interface DeltaSegment {
-  text: string;
-  attributes: Record<string, unknown> | undefined;
-  embed?: EmbedInsert;
-}
-
-export interface DeltaLine {
-  segments: DeltaSegment[];
-  blockAttributes: Record<string, unknown> | undefined;
-}
-
-function sameInlineAttrs(
-  a: Record<string, unknown> | undefined,
-  b: Record<string, unknown> | undefined,
-) {
-  for (const [, key] of INLINE_MARKS) if (!!a?.[key] !== !!b?.[key]) return false;
-  return a?.link === b?.link;
-}
-
-function pushSegment(
-  segments: DeltaSegment[],
-  text: string,
-  attributes: Record<string, unknown> | undefined,
-  embed?: EmbedInsert,
-) {
-  if (!text) return;
-  const prev = segments[segments.length - 1];
-  if (!embed && prev && !prev.embed && sameInlineAttrs(prev.attributes, attributes)) {
-    prev.text += text;
-  } else {
-    segments.push({ attributes, embed, text });
-  }
-}
-
-export function deltaLines(quill: Quill): DeltaLine[] {
-  const lines: DeltaLine[] = [];
-  let segments: DeltaSegment[] = [];
-  for (const op of quill.getContents().ops) {
-    if (typeof op.insert === "string") {
-      const parts = op.insert.split("\n");
-      parts.forEach((part, i) => {
-        pushSegment(segments, part, op.attributes);
-        if (i < parts.length - 1) {
-          lines.push({ blockAttributes: op.attributes, segments });
-          segments = [];
-        }
-      });
-    } else if (op.insert) {
-      const embed = describeEmbed(op.insert);
-      if (embed) pushSegment(segments, embedText(embed), undefined, embed);
-    }
-  }
-  if (segments.length) lines.push({ blockAttributes: undefined, segments });
-  while (lines.length && isTrailingBlankLine(defined(lines[lines.length - 1]))) lines.pop();
-  return lines;
-}
-
-function isTrailingBlankLine(line: DeltaLine): boolean {
-  return line.segments.length === 0 && !line.blockAttributes;
-}
-
-export function rawLineText(line: DeltaLine): string {
-  return line.segments.map((s) => (s.embed ? s.text : encodeTextEntities(s.text))).join("");
-}
-
-function wrapDelimited(text: string, delimiter: string): string {
-  const core = text.trim();
-  if (!core) return text;
-  const lead = text.slice(0, text.length - text.trimStart().length);
-  const trail = text.slice(lead.length + core.length);
-  return `${lead}${delimiter}${core}${delimiter}${trail}`;
-}
-
-function inlineFormattedLineText(line: DeltaLine): string {
-  return line.segments
-    .map((segment) => {
-      let text = segment.embed ? segment.text : encodeTextEntities(segment.text);
-      for (const [delimiter, key] of INLINE_MARKS) {
-        if (segment.attributes?.[key]) text = wrapDelimited(text, delimiter);
-      }
-      const link = segment.attributes?.link;
-      if (typeof link === "string" && text) text = `<${encodeTextEntities(link)}|${text}>`;
-      return text;
-    })
-    .join("");
-}
-
-export function mrkdwnText(quill: Quill): string {
-  const out: string[] = [];
-  let listType: unknown;
-  let listCounter = 0;
-  let codeBlock: string[] | null = null;
-  const flushCodeBlock = () => {
-    const code = codeBlock?.join("\n");
-    if (code?.trim()) out.push(`\`\`\`${code}\`\`\``);
-    codeBlock = null;
+  return {
+    id: url,
+    kind: "messagelink",
+    name: messageLinkLabel(titles.label(archive.channelId), authorName),
   };
-
-  for (const line of deltaLines(quill)) {
-    const attrs = line.blockAttributes;
-    if (attrs?.["code-block"]) {
-      codeBlock ??= [];
-      codeBlock.push(rawLineText(line));
-      listType = undefined;
-      continue;
-    }
-    flushCodeBlock();
-
-    const text = inlineFormattedLineText(line);
-    if (attrs?.list === "bullet" || attrs?.list === "ordered") {
-      listCounter = attrs.list === listType ? listCounter + 1 : Number(attrs.listOffset ?? 0) + 1;
-      listType = attrs.list;
-      out.push(`${attrs.list === "ordered" ? `${listCounter}.` : "\u2022"} ${text}`);
-      continue;
-    }
-    listType = undefined;
-
-    if (attrs?.blockquote) out.push(`> ${text}`);
-    else out.push(text);
-  }
-  flushCodeBlock();
-  const joined = out.join("\n");
-  return joined.endsWith("\n") ? joined.slice(0, -1) : joined;
 }

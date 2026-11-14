@@ -4,6 +4,7 @@ import Quill, { Parchment, type Range } from "./quill";
 
 const COUNTER = "list-0";
 const LIST_PREFIX = /^\s*?(\d+\.|-|\*)$/;
+const CHECKLIST_PREFIX = /^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/;
 
 class ListOffsetAttributor extends Parchment.StyleAttributor {
   add(node: HTMLElement, value: string | number) {
@@ -19,24 +20,54 @@ Quill.register(
   new ListOffsetAttributor("listOffset", "counter-set", { scope: Parchment.Scope.BLOCK }),
 );
 
-export const listAutofillBinding = {
+function listValue(marker: string) {
+  if (marker === "[x]") return "checked";
+  if (marker.startsWith("[")) return "unchecked";
+  return marker.endsWith(".") ? "ordered" : "bullet";
+}
+
+export const listAutofillBinding = (checklists: boolean) => ({
   key: " ",
   collapsed: true,
   format: { "code-block": false, blockquote: false, table: false },
-  prefix: LIST_PREFIX,
+  prefix: checklists ? CHECKLIST_PREFIX : LIST_PREFIX,
   handler(this: Keyboard, range: Range, context: Context) {
     const [, offset] = this.quill.getLine(range.index);
     if (offset > context.prefix.length) return true;
     const lineStart = range.index - offset;
     const marker = context.prefix.trim();
-    const ordered = marker.endsWith(".");
     this.quill.deleteText(lineStart, context.prefix.length, "user");
-    this.quill.formatLine(lineStart, 1, "list", ordered ? "ordered" : "bullet", "user");
+    this.quill.formatLine(lineStart, 1, "list", listValue(marker), "user");
     const start = Number.parseInt(marker, 10);
-    if (ordered && start > 1) this.quill.formatLine(lineStart, 1, "listOffset", start - 1, "user");
+    if (marker.endsWith(".") && start > 1)
+      this.quill.formatLine(lineStart, 1, "listOffset", start - 1, "user");
     return false;
   },
-};
+});
+
+const MAX_INDENT = 8;
+
+export const listIndentBindings = () => ({
+  indent: {
+    key: "Tab",
+    format: ["list"],
+    handler(this: Keyboard, _range: Range, context: Context) {
+      if (Number(context.format.indent ?? 0) < MAX_INDENT)
+        this.quill.format("indent", "+1", "user");
+      return false;
+    },
+  },
+  outdent: {
+    key: "Tab",
+    shiftKey: true,
+    format: ["list"],
+    handler(this: Keyboard, _range: Range, context: Context) {
+      if (!context.format.indent) return true;
+      this.quill.format("indent", "-1", "user");
+      return false;
+    },
+  },
+});
 
 export function wireListOffsetCleanup(quill: Quill) {
   quill.on("text-change", (_delta, _old, source) => {

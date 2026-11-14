@@ -1,11 +1,11 @@
 import type { CanvasVersion } from "@slock/types";
-import { useClickOutside, useEscapeClose } from "@slock/ui";
-import { For, Show } from "solid-js";
-import { versionAuthor, versionTime } from "../lib/canvasVersionLabel";
+import { inside, useCancelShortcut, useClickOutside, useEscapeClose } from "@slock/ui";
+import { For, onMount, Show } from "solid-js";
+import { versionAuthor, versionTime } from "../lib/canvasVersions";
 import "./CanvasHistory.css";
 
 export default function CanvasHistory(props: {
-  anchor: () => Element | undefined;
+  anchor: () => HTMLElement | undefined;
   error: boolean;
   loading: boolean;
   onClose: () => void;
@@ -16,6 +16,14 @@ export default function CanvasHistory(props: {
   let panel: HTMLElement | undefined;
   useClickOutside([() => panel, props.anchor], props.onClose);
   useEscapeClose(props.onClose);
+  useCancelShortcut(
+    () => {
+      props.onClose();
+      queueMicrotask(() => props.anchor()?.focus());
+    },
+    { target: inside(() => panel) },
+  );
+  onMount(() => panel?.querySelector<HTMLElement>("[aria-pressed='true']")?.focus());
 
   return (
     <aside
@@ -56,7 +64,9 @@ export default function CanvasHistory(props: {
         </For>
       </ol>
       <Show when={props.loading}>
-        <div class="canvas-history-note text-dim">Loading…</div>
+        <div class="canvas-history-note text-dim" role="status">
+          Loading…
+        </div>
       </Show>
       <Show when={props.error}>
         <div class="canvas-history-note text-dim" role="alert">

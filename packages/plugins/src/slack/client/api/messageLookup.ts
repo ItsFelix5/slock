@@ -64,6 +64,14 @@ export async function fetchMessagesByIds(
   fresh = false,
 ): Promise<Map<string, Message>> {
   const byKey = new Map<string, Message>();
+  const arrived = new Map<string, Message>();
+  let flushQueued = false;
+  const flushArrived = () => {
+    flushQueued = false;
+    const batch = new Map(arrived);
+    arrived.clear();
+    onBatch?.(batch);
+  };
   const refs = new Map(entries.map((entry) => [`${entry.channelId}:${entry.ts}`, entry]));
   await Promise.all(
     [...refs].map(async ([key, { channelId, ts }]) => {
@@ -74,7 +82,11 @@ export async function fetchMessagesByIds(
       });
       if (!message) return;
       byKey.set(key, message);
-      onBatch?.(new Map([[key, message]]));
+      if (!onBatch) return;
+      arrived.set(key, message);
+      if (flushQueued) return;
+      flushQueued = true;
+      queueMicrotask(flushArrived);
     }),
   );
   return byKey;

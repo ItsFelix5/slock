@@ -1,7 +1,7 @@
 import type { Attachment, Block, Message } from "@slock/types";
 import {
-  parseReplyLink,
-  parseReplyLinkFromBlocks,
+  type ReplyTarget,
+  splitReplyLink,
   threadContainsMessage,
 } from "../../../message-links/client/api/replyLink";
 import { isBareLinkUnfurl } from "../api/messageAuthor";
@@ -19,7 +19,7 @@ export interface MessageContent {
   hasEnlargedEmojiOnlyText: boolean;
   messageText: string;
   renderBlocks: Block[] | undefined;
-  replyRef: ReturnType<typeof parseReplyLink>;
+  replyRef: ReplyTarget | null;
   showBroadcastBadge: boolean;
   showThreadContext: boolean;
   visibleAttachments: Attachment[] | undefined;
@@ -50,30 +50,14 @@ export function resolveMessageContent(
 ): MessageContent {
   const isThreadMessage = (channelId: string, ts: string) =>
     threadContainsMessage(context.channelId, message.threadTs, context.messages(), channelId, ts);
-  const textReplyRef = parseReplyLink(message.text, isThreadMessage);
-  const blockReplyRef =
-    !textReplyRef && message.blocks?.length
-      ? parseReplyLinkFromBlocks(message.blocks, isThreadMessage)
-      : null;
-  const replyRef =
-    textReplyRef ??
-    (blockReplyRef
-      ? {
-          channelId: blockReplyRef.channelId,
-          prefix: "",
+  const {
+    blocks: renderBlocks,
+    replyRef,
+    text: messageText,
+  } = splitReplyLink(message, isThreadMessage);
 
-          rest: "",
-          ts: blockReplyRef.ts,
-          url: blockReplyRef.url,
-        }
-      : null);
-  const messageText = replyRef?.rest ?? message.text;
-
-  const rawRenderBlocks = textReplyRef ? undefined : (blockReplyRef?.blocks ?? message.blocks);
-  const renderBlocks = rawRenderBlocks?.length ? rawRenderBlocks : undefined;
-
-  const enlargedEmojiCount = message.blocks?.length
-    ? emojiOnlyBlockMessage(message.blocks)
+  const enlargedEmojiCount = renderBlocks
+    ? emojiOnlyBlockMessage(renderBlocks)
     : (() => {
         const count = emojiShortcodeCount(messageText);
         return count !== undefined && count > 0 && count < MAX_ENLARGED_EMOJI ? count : 0;
@@ -113,8 +97,7 @@ export function resolveMessageNeighbors(
   const repliesCount = Math.max(message.replyCount ?? 0, messages.length - rootIndex - 1);
   const showRepliesDivider = isFirstRow && repliesCount > 0;
   const firstReply = showRepliesDivider ? messages[rootIndex + 1] : undefined;
-  const repliesDividerDay =
-    firstReply && firstReply.day !== message.day ? firstReply.day : undefined;
+  const repliesDividerDay = firstReply?.day;
   const showUnreadDivider =
     !context.threadTs &&
     context.unreadDividerTs != null &&

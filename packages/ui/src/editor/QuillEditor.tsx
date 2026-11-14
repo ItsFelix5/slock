@@ -9,10 +9,9 @@ import FormatBubble from "./FormatBubble";
 import LinkEditPopover from "./LinkEditPopover";
 import { linkifySelectionPaste, wireLinkAutoconvert } from "./linkAutolink";
 import { createLinkEditController } from "./linkEdit";
-import { listAutofillBinding, wireListOffsetCleanup } from "./listOffset";
+import { listAutofillBinding, listIndentBindings, wireListOffsetCleanup } from "./listOffset";
 import { INLINE_MARKS, wireArrowDownExit, wireMarkdownAutoformat } from "./markdownAutoformat";
-import Quill from "./quill";
-import { getEmbedBlot } from "./quillText";
+import Quill, { getEmbedBlot } from "./quill";
 import "./editor.css";
 
 const BASE_FORMATS = ["bold", "code", "italic", "link", "strike", "mention", "emoji"];
@@ -20,6 +19,7 @@ const EXTENDED_FORMATS = [
   "blockquote",
   "context",
   "header",
+  "indent",
   "list",
   "code-block",
   "divider",
@@ -27,6 +27,7 @@ const EXTENDED_FORMATS = [
 ];
 
 export interface QuillEditorProps {
+  checklists?: boolean;
   extendedFormats?: boolean;
   formats?: string[];
   id?: string;
@@ -88,7 +89,8 @@ export default function QuillEditor(props: QuillEditorProps) {
           bindings: {
             bold: false,
             italic: false,
-            "list autofill": listAutofillBinding,
+            "list autofill": listAutofillBinding(props.checklists ?? false),
+            ...(has("list") && has("indent") ? listIndentBindings() : {}),
             "embed backspace": {
               key: "Backspace",
               collapsed: true,

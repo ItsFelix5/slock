@@ -4,6 +4,8 @@ import type { MembershipEvent } from "@slock/types";
 import { gatewayHandler } from "../../realtime/client/api";
 import { createDmTitleResolver } from "./dmTitle";
 import { createDmsStore } from "./store";
+import DmIntro from "./views/DmIntro";
+import DmTitleAvatar from "./views/DmTitleAvatar";
 
 const DM_EVENTS = [
   "im_created",
@@ -36,6 +38,8 @@ const setup: Setup = (ctx) => {
     },
     { order: 1 },
   );
+  ctx.add("messages.titleIcon", DmTitleAvatar);
+  ctx.add("messages.intro", DmIntro);
   ctx.add("conversations.kind", (id) => (store.conversationKind(id) === "dm" ? "dm" : undefined));
   ctx.add("conversations.opened", (opened) => {
     if (opened.kind === "dm" && store.closedDmIds[opened.id])

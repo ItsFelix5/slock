@@ -15,6 +15,12 @@ function ConnectScreen() {
       <div class="connect-slack-card flex-col">
         <h1>Connect to Slack</h1>
         <ConnectAccountForm onConnected={() => void restartApp()} />
+        <p class="connect-account-footer text-dim text-xs">
+          Have trust issues?{" "}
+          <a href="https://github.com/itsFelix5/slock" class="text-dim">
+            Host it yourself!
+          </a>
+        </p>
       </div>
     </div>
   );

@@ -162,7 +162,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             <Show
               fallback={
                 <>
-                  <span>Something went wrong.</span>
+                  <span>{content.error?.message ?? "Something went wrong."}</span>
                   <Button onClick={() => refetch()} size="sm">
                     Try again
                   </Button>
@@ -195,6 +195,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                       threads={canvasComments.comments()?.threads}
                       onOutline={setEditorOutline}
                       fetchLatest={() => service("canvas").loadLatestCanvas(fileId())}
+                      remoteChangeTick={() => service("canvas").remoteChangeTick(fileId())}
                       onRemoteChange={(latest) =>
                         service("canvas").setCanvasContent(fileId(), latest)
                       }

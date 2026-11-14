@@ -2,5 +2,5 @@
   "id": "canvas",
   "core": true,
   "name": "Canvas",
-  "requires": ["channels", "files", "message-links", "query", "shell", "users"]
+  "requires": ["files", "message-links", "query", "shell", "users"]
 }

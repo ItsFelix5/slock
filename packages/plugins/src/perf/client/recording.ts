@@ -2,13 +2,16 @@ export type ScriptRecord = {
   name: string;
   source: string;
   duration: number;
+  forcedLayout: number;
 };
 
 export type FrameRecord = {
+  at: number;
   path: string;
   duration: number;
   blocking: number;
   styleLayout: number;
+  churn: string[];
   scripts: ScriptRecord[];
 };
 

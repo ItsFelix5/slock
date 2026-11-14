@@ -57,6 +57,18 @@ const list: Route[] = [
     );
   }),
 
+  route("POST", "usergroups", async (ctx) => {
+    const { name } = await ctx.body.json<{ name?: string }>();
+    if (!name) return errorResponse("invalid_name", 400);
+    const data = await callSlack<{ usergroup?: RawUsergroup }>(
+      "usergroups.create",
+      { name },
+      ctx.creds,
+    );
+    if (!data.ok) return slackErrorResponse(data, "usergroups.create", ctx.creds);
+    return jsonResponse({ id: data.usergroup?.id, ok: true }, ctx.creds);
+  }),
+
   route("GET", "usergroups/:id/members", async (ctx) => {
     const data = await callSlack<UsergroupMembersReply>(
       "usergroups.users.list",

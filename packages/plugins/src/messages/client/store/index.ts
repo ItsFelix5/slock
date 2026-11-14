@@ -4,8 +4,8 @@ import { produce, reconcile, unwrap } from "solid-js/store";
 import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../api";
 import {
+  createMessageLocator,
   latestMessageTsMsByUser as findLatestMessageTsMsByUser,
-  findMessageLocations,
   type MessageLocation,
   reactionMessageKey,
 } from "../lib/messageLocations";
@@ -22,6 +22,7 @@ export function createMessagesStore(deps: {
   clearChannelUnread: (channelId: string) => void;
   lastReadFor: (channelId: string) => number | undefined;
   unreadDividerTsFor: (channelId: string) => number | undefined;
+  threadReadTsFor: (threadTs: string) => string | undefined;
   setLastReadByChannel: (channelId: string, ts: number) => void;
   setUnreadDividerTs: (channelId: string, ts: number) => void;
   setUnreadChannelIds: (channelId: string, unread: boolean) => void;
@@ -50,7 +51,7 @@ export function createMessagesStore(deps: {
     loadedChannels,
     threadMessages,
     setThreadMessages: setThreadMessagesRaw,
-    isThreadKnown,
+    acceptsLiveReplies,
     loadOlderMessages,
     loadNewerMessages,
     loadRecentHistory,
@@ -59,7 +60,15 @@ export function createMessagesStore(deps: {
     hasNewerHistoryError,
     hasOlderHistoryError,
     hasHistoryError,
+    hasEarlierReplies,
+    hasEarlierRepliesError,
+    isLoadingEarlierReplies,
+    loadEarlierReplies,
+    hasMoreReplies,
+    hasMoreRepliesError,
     hasThreadError,
+    isLoadingMoreReplies,
+    loadMoreReplies,
     isLoadingHistory,
     isLoadingThread,
     ensureChannelMessage,
@@ -81,6 +90,7 @@ export function createMessagesStore(deps: {
     setLastReadByChannel: deps.setLastReadByChannel,
     setChannelRead: deps.setChannelRead,
     setThreadRead: deps.setThreadRead,
+    threadReadTsFor: deps.threadReadTsFor,
     setUnreadChannelIds: deps.setUnreadChannelIds,
     setUnreadDividerTs: deps.setUnreadDividerTs,
     syncChannelRead: deps.syncChannelRead,
@@ -89,8 +99,11 @@ export function createMessagesStore(deps: {
   const mergeActions = createMessageMergeActions({
     setMessagesByChannel: (channelId, update) => setMessagesByChannel(channelId, update),
   });
-  const findAllMessageLocations = (channelId: string, ts: string) =>
-    findMessageLocations(messagesByChannel, threadMessages, reactionMessages, channelId, ts);
+  const findAllMessageLocations = createMessageLocator(
+    messagesByChannel,
+    threadMessages,
+    reactionMessages,
+  );
   const latestMessageTsMsByUser = (userId: string) =>
     findLatestMessageTsMsByUser(messagesByChannel, threadMessages, userId);
   const messagesInChannel = (channelId: string) => messagesByChannel[channelId];
@@ -132,6 +145,7 @@ export function createMessagesStore(deps: {
     const msg = locations[0]?.list.find((m) => m.ts === ts);
     if (msg && deps.retainsDeleted(msg)) patchMessage(channelId, ts, { deleted: true });
     else {
+      history.forgetRemoved(channelId, ts);
       for (const { location } of locations) removeMessage(location, ts);
       setThreadMessages(produce((threads) => delete threads[ts]));
     }
@@ -143,7 +157,7 @@ export function createMessagesStore(deps: {
     findAllMessageLocations,
     patchMessage,
   });
-  const { isReactionPending, reactToMessage } = createMessageReactionToggle({
+  const { reactToMessage } = createMessageReactionToggle({
     currentUser: deps.currentUser,
     findAllMessageLocations,
     patchMessage,
@@ -177,12 +191,19 @@ export function createMessagesStore(deps: {
     hasNewerHistory,
     hasNewerHistoryError,
     hasOlderHistoryError,
+    hasEarlierReplies,
+    hasEarlierRepliesError,
+    isLoadingEarlierReplies,
+    loadEarlierReplies,
+    hasMoreReplies,
+    hasMoreRepliesError,
     hasThreadError,
+    isLoadingMoreReplies,
+    loadMoreReplies,
     isLoadingHistory,
     isLoadingThread,
     isMine,
-    isReactionPending,
-    isThreadKnown,
+    acceptsLiveReplies,
     jumpToBeginning,
     jumpToDate,
     jumpToTs,
@@ -195,6 +216,7 @@ export function createMessagesStore(deps: {
     messagesByChannel,
     messagesInChannel,
     messagesInThread,
+    prefetchHistory: history.prefetchHistory,
     patchMessage,
     reactionMessageFor,
     refreshThreadReplies,

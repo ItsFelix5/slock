@@ -1,4 +1,4 @@
-import type { CanvasFile, CanvasImage, CanvasTableColumn, RawFile } from "@slock/types";
+import type { CanvasFile, CanvasImage, CanvasTableColumn } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
 
 export interface ColumnsEmbedValue {
@@ -8,12 +8,10 @@ export interface ColumnsEmbedValue {
 }
 
 export interface ImageEmbedValue {
-  file: RawFile | null;
   node: CanvasImage;
 }
 
 export interface FileEmbedValue {
-  file: RawFile | null;
   node: CanvasFile;
 }
 

@@ -68,8 +68,8 @@ export async function uploadCanvasBlocks(
     const id = newId();
     blocks.push(
       mapFile(file).isImage
-        ? { id, name: "canvasImage", value: { file, node: imageNode(file, id) } }
-        : { id, name: "canvasFile", value: { file, node: fileNode(file, id) } },
+        ? { id, name: "canvasImage", value: { node: imageNode(file, id) } }
+        : { id, name: "canvasFile", value: { node: fileNode(file, id) } },
     );
   }
   return blocks;

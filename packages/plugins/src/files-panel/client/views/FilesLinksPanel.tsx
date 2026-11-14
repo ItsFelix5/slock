@@ -1,14 +1,7 @@
 import { service } from "@slock/core/solid";
-import {
-  Button,
-  Icon,
-  initRovingTabIndexDefault,
-  inside,
-  isOneOf,
-  useConfirmShortcut,
-  useEscapeClose,
-} from "@slock/ui";
+import { Button, initRovingTabIndexDefault, isOneOf, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { SearchQueryInput } from "../../../search/client/api";
 import {
   groupByMonth,
   type MonthGroup,
@@ -25,6 +18,8 @@ const filesPanel = service("files-panel");
 
 const searchStore = service("search");
 
+const FILTER_MODIFIERS = ["from", "type", "after", "before", "during"];
+
 const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
   { label: "All", value: "all" },
   { label: "Images", value: "images" },
@@ -34,7 +29,6 @@ const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
 
 export default function FilesLinksPanel() {
   let bodyRef: HTMLDivElement | undefined;
-  let searchInputRef: HTMLInputElement | undefined;
   useEscapeClose(filesPanel.closeFilesLinksPanel, () => !!filesPanel.filesLinksChannelId());
   const [typeFilter, setTypeFilter] = createSignal<TypeFilter>("all");
   const [sortMode, setSortMode] = createSignal<SortMode>("newest");
@@ -62,8 +56,6 @@ export default function FilesLinksPanel() {
     searchStore.openSearch(query, { inChannelId: channelId });
   };
 
-  useConfirmShortcut(searchMessagesInstead, { target: inside(() => searchInputRef) });
-
   const loadMoreAtBottom = (body: HTMLDivElement) => {
     if (body.scrollTop + body.clientHeight >= body.scrollHeight - 160)
       filesPanel.loadMoreFilesLinks();
@@ -81,14 +73,11 @@ export default function FilesLinksPanel() {
         <div class="files-links-view flex-col">
           <div class="files-links-toolbar flex-align-center">
             <div class="files-links-searchbar">
-              <Icon class="files-links-search-icon" name="search" size={14} />
-              <input
-                class="files-links-search-input input-reset input-plain"
-                onInput={(e) => filesPanel.setFilesLinksQuery(e.currentTarget.value)}
+              <SearchQueryInput
+                modifiers={FILTER_MODIFIERS}
+                onQuery={filesPanel.setFilesLinksQuery}
+                onSubmit={searchMessagesInstead}
                 placeholder="Filter files & links, Enter to search messages"
-                ref={searchInputRef}
-                type="text"
-                value={filesPanel.filesLinksQuery()}
               />
             </div>
             <Show when={filesPanel.filesLinksEntries().length > 0}>

@@ -96,7 +96,11 @@ function blockInsertIndex(quill: Quill): number {
   return line.length() === 1 ? start : start + line.length();
 }
 
-export function insertBlock(quill: Quill, embed: { name: string; value: unknown }, id: string) {
+export function insertBlock(
+  quill: Quill,
+  embed: { name: string; value: unknown },
+  id: string,
+): number {
   const at = blockInsertIndex(quill);
   quill.updateContents(
     new Delta().retain(at).insert({ [embed.name]: embed.value }, { sid: id }),
@@ -105,6 +109,20 @@ export function insertBlock(quill: Quill, embed: { name: string; value: unknown 
   const [after] = quill.getLine(at + 1);
   if (!after || after instanceof BlockEmbed) quill.insertText(at + 1, "\n", "user");
   quill.setSelection(at + 1, 0, "user");
+  return at;
+}
+
+const FOCUS_ATTEMPTS = 20;
+
+function focusFirstNested(quill: Quill, at: number, attempts = FOCUS_ATTEMPTS) {
+  requestAnimationFrame(() => {
+    const [leaf] = quill.getLeaf(at);
+    const root =
+      leaf?.domNode instanceof HTMLElement ? leaf.domNode.querySelector(".ql-editor") : null;
+    const nested = root?.parentElement ? Quill.find(root.parentElement) : null;
+    if (nested instanceof Quill) nested.focus();
+    else if (attempts > 0) focusFirstNested(quill, at, attempts - 1);
+  });
 }
 
 export function insertDivider(quill: Quill, id: string) {
@@ -135,7 +153,7 @@ export function newTableValue(newId: () => string): TableEmbedValue {
 
 export function insertTable(quill: Quill, newId: () => string) {
   const value = newTableValue(newId);
-  insertBlock(quill, { name: TABLE_EMBED, value }, value.id);
+  focusFirstNested(quill, insertBlock(quill, { name: TABLE_EMBED, value }, value.id));
 }
 
 export function newColumnsValue(count: number, newId: () => string): ColumnsEmbedValue {
@@ -148,5 +166,5 @@ export function newColumnsValue(count: number, newId: () => string): ColumnsEmbe
 
 export function insertColumns(quill: Quill, count: number, newId: () => string) {
   const value = newColumnsValue(count, newId);
-  insertBlock(quill, { name: COLUMNS_EMBED, value }, value.id);
+  focusFirstNested(quill, insertBlock(quill, { name: COLUMNS_EMBED, value }, value.id));
 }

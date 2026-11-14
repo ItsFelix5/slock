@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { ActivityItem, Message, SlackFile } from "@slock/types";
+import type { ActivityItem, Block, Message, SlackFile } from "@slock/types";
 import { createEffect, createMemo, untrack } from "solid-js";
 import type { MessageAuthorFields } from "../../../messages/client/api/messageAuthor";
 
@@ -94,6 +94,10 @@ export function createActivityTimeline(deps: {
     return entry.message?.text || entry.item?.text || "";
   }
 
+  function entryBlocks(entry: TimelineEntry): Block[] | undefined {
+    return entry.message?.blocks ?? entry.item?.blocks;
+  }
+
   function entryFiles(entry: TimelineEntry): SlackFile[] | undefined {
     return entry.message?.files ?? entry.item?.files;
   }
@@ -134,6 +138,7 @@ export function createActivityTimeline(deps: {
   return {
     earlierMessageCount,
     entryAuthor,
+    entryBlocks,
     entryFiles,
     entryText,
     entryUnread,

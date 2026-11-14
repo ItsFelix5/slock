@@ -1,13 +1,17 @@
 import Quill, { type Range } from "@slock/ui/editor/quill";
 import { LAYOUT_ATTRIBUTE, SECTION_ID_ATTRIBUTE } from "../views/canvasBlots";
+import { withoutHistory } from "../views/canvasBlots/embedHistory";
 import type { IdFix } from "./canvasLineIds";
 
 const Delta = Quill.import("delta");
 const EMPTY_SUFFIX_RE = /^$/;
 
 export function applyIdFixes(find: (scope: string) => Quill | undefined, fixes: IdFix[]) {
-  for (const { id, index, scope } of fixes)
-    find(scope)?.formatLine(index, 1, SECTION_ID_ATTRIBUTE, id, "silent");
+  for (const { id, index, scope } of fixes) {
+    const quill = find(scope);
+    if (quill)
+      withoutHistory(quill, () => quill.formatLine(index, 1, SECTION_ID_ATTRIBUTE, id, "silent"));
+  }
 }
 
 type Handler = (range: Range, context: { format: Record<string, unknown> }) => boolean | undefined;
@@ -21,6 +25,7 @@ export function bindFirst(
     offset?: number;
     key: string;
     shiftKey?: boolean;
+    shortKey?: boolean;
     suffix?: RegExp;
   },
   handler: Handler,
@@ -32,12 +37,10 @@ export function bindFirst(
 }
 
 export function bindCanvasKeys(quill: Quill) {
-  bindFirst(quill, { format: ["list"], key: "Tab" }, () => {
-    quill.format("indent", "+1", "user");
-    return false;
-  });
-  bindFirst(quill, { format: ["list"], key: "Tab", shiftKey: true }, () => {
-    quill.format("indent", "-1", "user");
+  bindFirst(quill, { format: ["list"], key: "Enter", shortKey: true }, (range, context) => {
+    const { list } = context.format;
+    if (list !== "checked" && list !== "unchecked") return true;
+    quill.formatLine(range.index, 1, "list", list === "checked" ? "unchecked" : "checked", "user");
     return false;
   });
   bindFirst(

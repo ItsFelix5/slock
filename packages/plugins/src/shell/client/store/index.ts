@@ -1,6 +1,5 @@
 import type { PaneKind } from "../api";
 import type { PaneContent } from "../api/types";
-import { createAppActions } from "./actions";
 import { createPanesSlice } from "./panes";
 import { createViewStateSlice } from "./viewState";
 
@@ -16,5 +15,13 @@ export function createShellStore(deps: {
     panes,
     ready: deps.ready,
   });
-  return { panes, viewState: { ...viewState, ...createAppActions(panes) } };
+  return {
+    panes,
+    viewState: {
+      ...viewState,
+      canCloseTile: () => panes.panes().length > 1,
+      closeTile: panes.closePane,
+      open: (content: PaneContent) => panes.navigateFocusedPane(content),
+    },
+  };
 }

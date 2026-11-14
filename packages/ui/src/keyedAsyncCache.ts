@@ -54,8 +54,10 @@ export function createKeyedAsyncCache<T>(
   }
 
   function invalidate(key: string): void {
+    inFlight.delete(key);
     setStore(produce((s) => delete s[key]));
     setErrors(produce((s) => delete s[key]));
+    setLoading(produce((s) => delete s[key]));
   }
 
   function load(key: string): Promise<T | undefined> {
@@ -63,17 +65,20 @@ export function createKeyedAsyncCache<T>(
     if (existing) return existing;
     setLoading(key, true);
     setErrors(key, false);
-    const request = backgroundFetchQueue
+    const isCurrent = () => inFlight.get(key) === request;
+    const request: Promise<T | undefined> = backgroundFetchQueue
       .run(() => fetcher(key))
       .then((value) => {
-        setStore(key, value);
+        if (isCurrent()) setStore(key, value);
         return value;
       })
       .catch<T | undefined>((err) => {
+        if (!isCurrent()) return;
         setErrors(key, true);
         options.onError?.(err, key);
       })
       .finally(() => {
+        if (!isCurrent()) return;
         setLoading(produce((s) => delete s[key]));
         inFlight.delete(key);
       });

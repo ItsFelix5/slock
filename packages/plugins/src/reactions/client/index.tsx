@@ -16,7 +16,6 @@ const setup: Setup = (ctx) => {
           <ReactionRow
             allowAdd
             feedbackKey={props.msg.ts}
-            isPending={(name) => messages.isReactionPending(props.channelId, props.msg.ts, name)}
             onToggle={(name) => messages.reactToMessage(props.channelId, props.msg, name)}
             reactions={reactions()}
           />

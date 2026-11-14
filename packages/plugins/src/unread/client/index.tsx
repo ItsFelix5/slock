@@ -1,17 +1,22 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { buildUnreadMap, parseBadgeCounts } from "@slock/slack";
+import { batch } from "solid-js";
 import { isDmId } from "../../dms/client/api";
 import { gatewayHandler } from "../../realtime/client/api";
-import { fetchCounts } from "../../slack/client/api";
+import { fetchCounts, markChannelRead, markThreadRead } from "../../slack/client/api";
 import { createUnreadStore } from "./store";
+
+const feedback = service("feedback");
 
 const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const channels = service("channels");
   const dms = service("dms");
   const store = createUnreadStore({
+    api: { markChannelRead, markThreadRead },
     bootstrap: () => bootstrap.bootstrap.data,
+    flash: (...args) => feedback.flash(...args),
     patchChannel: channels.patchChannel,
     patchDm: dms.patchDm,
   });
@@ -34,16 +39,18 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["badge_counts_updated"], (event) => {
-      for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(event))) {
-        store.setUnreadChannelIds(id, unread);
-        if (isDmId(id, (dmId) => !!dms.dmById(dmId))) dms.patchDm(id, { mentions });
-        else channels.patchChannel(id, { mentions });
-      }
+      batch(() => {
+        for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(event))) {
+          store.setUnreadChannelIds(id, unread);
+          if (isDmId(id, (dmId) => !!dms.dmById(dmId))) dms.patchDm(id, { mentions });
+          else channels.patchChannel(id, { mentions });
+        }
+      });
     }),
   );
   ctx.add(
     "realtime.handler",
-    gatewayHandler(["channel_marked"], (event) => {
+    gatewayHandler(["channel_marked", "group_marked", "im_marked", "mpim_marked"], (event) => {
       if (!(event.channel && event.ts) || store.isStaleReadEcho(event.channel, event.ts)) return;
       store.setUnreadChannelIds(event.channel, (event.unread_count ?? 0) > 0);
       const mentions = event.mention_count ?? 0;

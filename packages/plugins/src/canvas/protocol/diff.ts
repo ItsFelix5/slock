@@ -13,7 +13,7 @@ function signature(node: CanvasNode): string {
   return JSON.stringify(node, (key, value) => (key === "frames" ? undefined : value));
 }
 
-function unchanged(previous: CanvasNode, next: CanvasNode): boolean {
+export function sameNode(previous: CanvasNode, next: CanvasNode): boolean {
   return sameFrames(previous.frames, next.frames) && signature(previous) === signature(next);
 }
 
@@ -37,7 +37,7 @@ export function diffNodes(previous: CanvasNode[], next: CanvasNode[]): DiffEntry
     entries.push({
       node,
       previous: old,
-      status: old ? (unchanged(old, node) ? "same" : "changed") : "added",
+      status: old ? (sameNode(old, node) ? "same" : "changed") : "added",
     });
     entries.push(...removed(node.id));
   }

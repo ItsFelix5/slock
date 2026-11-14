@@ -2,8 +2,9 @@ import { formatDayFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Button, Icon, initRovingTabIndexDefault } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import ActivityRow, { type ActivityRow as ActivityRowData, clearCurrentRow } from "./ActivityRow";
+import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
+import { clearCurrentRow, currentRowKey, openActivityRow } from "./activityRowOpen";
 import "./ActivityView.css";
 import { createActivityRows } from "./activityRows";
 import {
@@ -17,6 +18,7 @@ import {
 } from "./activityViewFilters";
 
 const activityStore = service("activity");
+const sidebarStore = service("sidebar");
 
 const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
 const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
@@ -83,6 +85,13 @@ export default function ActivityView() {
     return entries.map(({ row }) => row);
   });
 
+  sidebarStore.provideCycle(0, () =>
+    visibleRows().map((row) => ({
+      active: currentRowKey() === row.key,
+      open: (split) => openActivityRow(row, split),
+    })),
+  );
+
   let entriesCache = new Map<string, ActivityListEntry>();
   const groupedVisibleRows = createMemo<ActivityListEntry[]>(() => {
     const nextCache = new Map<string, ActivityListEntry>();
@@ -126,6 +135,7 @@ export default function ActivityView() {
     const el = scrollRef;
     if (
       !el ||
+      activityStore.activityLoadMoreError() ||
       el.scrollHeight - el.scrollTop - el.clientHeight >
         el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION
     )
@@ -149,6 +159,7 @@ export default function ActivityView() {
     if (!(activityStore.activityLoaded() && activityStore.activityHasMore(types, unreadOnly)))
       return;
     if (activityStore.activityLoading() || activityStore.activityLoadingMore()) return;
+    if (activityStore.activityLoadMoreError()) return;
     if (topUpAttempts >= MAX_AUTO_TOP_UP_ATTEMPTS) return;
     topUpAttempts++;
     void activityStore.loadMoreActivity(types, unreadOnly);
@@ -181,7 +192,7 @@ export default function ActivityView() {
       <Show when={activityStore.activityLoadError() && rows().length === 0}>
         <div class="activity-load-state activity-load-error empty-state">
           <span>Couldn't load activity.</span>
-          <Button onClick={activityStore.ensureActivityLoaded} size="sm">
+          <Button onClick={activityStore.retryActivityLoad} size="sm">
             Try again
           </Button>
         </div>
@@ -190,7 +201,7 @@ export default function ActivityView() {
       <Show when={activityStore.activityLoadError() && rows().length > 0}>
         <div class="activity-load-notice flex-center gap-sm activity-load-warning">
           <span>Couldn't refresh activity.</span>
-          <Button onClick={activityStore.ensureActivityLoaded} size="sm">
+          <Button onClick={activityStore.retryActivityLoad} size="sm">
             Try again
           </Button>
         </div>

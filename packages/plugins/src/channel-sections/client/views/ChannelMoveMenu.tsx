@@ -10,10 +10,11 @@ import "./ChannelMoveMenu.css";
 const feedback = service("feedback");
 
 const channelsStore = service("channels");
+const dmsStore = service("dms");
 
 type Destination =
   | { kind: "stars" }
-  | { kind: "channels" }
+  | { kind: "home" }
   | { kind: "section"; id: string; name: string };
 
 export interface ChannelMoveMenuProps {
@@ -38,26 +39,27 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
     root: () => newSectionInputRef,
   });
 
+  const isDm = () => !!dmsStore.dmById(props.channelId);
+  const homeSectionType = () => (isDm() ? "direct_messages" : "channels");
   const sections = () =>
     channelsStore.sections()?.filter((section) => section.type === "standard") ?? [];
   const destinations = () => {
     const ordered: Destination[] = [];
     for (const section of channelsStore.sections() ?? []) {
       if (section.type === "stars") ordered.push({ kind: "stars" });
-      else if (section.type === "channels") ordered.push({ kind: "channels" });
+      else if (section.type === homeSectionType()) ordered.push({ kind: "home" });
       else if (section.type === "standard")
         ordered.push({ kind: "section", id: section.id, name: section.name });
     }
     if (!ordered.some((destination) => destination.kind === "stars"))
       ordered.push({ kind: "stars" });
-    if (!ordered.some((destination) => destination.kind === "channels"))
-      ordered.push({ kind: "channels" });
+    if (!ordered.some((destination) => destination.kind === "home")) ordered.push({ kind: "home" });
     return ordered;
   };
   const currentSectionId = () =>
     sections().find((section) => section.channelIds.includes(props.channelId))?.id ?? null;
   const isStarred = () => channelsStore.isChannelStarred(props.channelId);
-  const isInChannels = () => !(isStarred() || currentSectionId());
+  const isInHome = () => !(isStarred() || currentSectionId());
   const isPending = createMemo(
     () =>
       creatingSection() ||
@@ -84,7 +86,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
     finishPlacement(await channelsStore.toggleChannelStar(props.channelId));
   };
 
-  const moveToChannels = async () => {
+  const moveToHome = async () => {
     if (isStarred()) {
       finishPlacement(await channelsStore.toggleChannelStar(props.channelId));
       return;
@@ -173,17 +175,18 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
           {(destination) => {
             const selected = () => {
               if (destination.kind === "stars") return isStarred();
-              if (destination.kind === "channels") return isInChannels();
+              if (destination.kind === "home") return isInHome();
               return !isStarred() && currentSectionId() === destination.id;
             };
             const move = () => {
               if (destination.kind === "stars") return moveToStarred();
-              if (destination.kind === "channels") return moveToChannels();
+              if (destination.kind === "home") return moveToHome();
               return moveToSection(destination.id);
             };
             const icon = () => {
               if (destination.kind === "stars") return isStarred() ? "star-filled" : "star";
-              return destination.kind === "channels" ? "channel" : "section";
+              if (destination.kind === "home") return isDm() ? "message" : "channel";
+              return "section";
             };
             return (
               <MenuItem
@@ -198,7 +201,9 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
                     ? destination.name
                     : destination.kind === "stars"
                       ? "Starred"
-                      : "Channels"}
+                      : isDm()
+                        ? "Direct messages"
+                        : "Channels"}
                 </span>
                 <Show when={selected()}>
                   <Icon class="menu-item-check" name="check" size={13} />

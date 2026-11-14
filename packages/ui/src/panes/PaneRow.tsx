@@ -1,19 +1,20 @@
-import { For, type JSX, onCleanup, Show } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 import Icon from "../media/Icon";
 import "./PaneRow.css";
 import { defined } from "@slock/core";
-import { startFrameCoalescedPointerDrag } from "../pointerDrag";
-import { useAdjustShortcuts, useTabStripShortcuts } from "../useNavShortcuts";
+
+import { useTabStripShortcuts } from "../useNavShortcuts";
+import PaneDivider from "./PaneDivider";
 import { MIN_FRACTION, type Pane } from "./paneList";
 import { distributeResize } from "./resize";
 
-const MIN_PANE_WIDTH = 430;
+export const MIN_PANE_WIDTH = 430;
 
 function isNarrowPaneRow(containerWidth: number, paneCount: number): boolean {
   return containerWidth > 0 && containerWidth < paneCount * MIN_PANE_WIDTH;
 }
 
-export interface PaneRowProps<T> {
+export interface PaneLayoutProps<T> {
   panes: Pane<T>[];
   renderPane: (pane: Pane<T>) => JSX.Element;
   onResize: (sizes: number[]) => void;
@@ -29,7 +30,7 @@ function focusTabAfterPaneAutoFocusSettles(focus: () => void) {
   queueMicrotask(focus);
 }
 
-export default function PaneRow<T>(props: PaneRowProps<T>) {
+export default function PaneRow<T>(props: PaneLayoutProps<T>) {
   const minFraction = () => props.minFraction ?? MIN_FRACTION;
   const narrow = () => isNarrowPaneRow(props.containerWidth(), props.panes.length);
   const tabbed = () => narrow() && !!props.tabLabel && props.panes.length > 1;
@@ -66,20 +67,23 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
                 props.onCloseTab?.(pane);
               };
               return (
-                <div class="pane-tab-wrap flex-align-center" classList={{ active: isActive() }}>
+                <div
+                  class="pane-tab-wrap flex-align-center"
+                  classList={{ active: isActive() }}
+                  onAuxClick={(event) => {
+                    if (event.button !== 1 || !props.onCloseTab) return;
+                    event.preventDefault();
+                    closeTab();
+                  }}
+                  onMouseDown={(event) => {
+                    if (event.button === 1) event.preventDefault();
+                  }}
+                >
                   <button
                     aria-selected={isActive()}
                     class="pane-tab truncate btn-reset"
                     classList={{ active: isActive() }}
-                    onAuxClick={(event) => {
-                      if (event.button !== 1 || !props.onCloseTab) return;
-                      event.preventDefault();
-                      closeTab();
-                    }}
                     onClick={() => props.onActivate(pane.id)}
-                    onMouseDown={(event) => {
-                      if (event.button === 1) event.preventDefault();
-                    }}
                     ref={(el) => {
                       tabButtonRefs[i()] = el;
                     }}
@@ -144,44 +148,5 @@ export default function PaneRow<T>(props: PaneRowProps<T>) {
         )}
       </For>
     </div>
-  );
-}
-
-function PaneDivider(props: { positionPercent: number; onDrag: (deltaFraction: number) => void }) {
-  let handleEl: HTMLHRElement | undefined;
-  let stopDragging: (() => void) | undefined;
-
-  const onPointerDown = (event: PointerEvent) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    event.preventDefault();
-    stopDragging?.();
-    const containerSize = handleEl?.parentElement?.clientWidth || 1;
-    let startPos = event.clientX;
-    stopDragging = startFrameCoalescedPointerDrag((moveEvent) => {
-      props.onDrag((moveEvent.clientX - startPos) / containerSize);
-      startPos = moveEvent.clientX;
-    });
-  };
-
-  useAdjustShortcuts({
-    edge: (end) => props.onDrag(end === "start" ? -1 : 1),
-    root: () => handleEl,
-    step: (direction, large) => props.onDrag(direction * (large ? 0.1 : 0.02)),
-  });
-
-  onCleanup(() => stopDragging?.());
-
-  return (
-    <hr
-      aria-label="Resize pane"
-      aria-orientation="vertical"
-      aria-valuemax={100}
-      aria-valuemin={0}
-      aria-valuenow={props.positionPercent}
-      class="pane-divider"
-      onPointerDown={onPointerDown}
-      ref={handleEl}
-      tabIndex={0}
-    />
   );
 }

@@ -14,54 +14,70 @@ import { callSlack } from "../../slack/server/api/slackClient";
 import type { ActivityFeedReply, SavedListReply } from "../../slack/server/api/slackReplies";
 import { ACTIVITY_FEED_TYPES_PARAM } from "../protocol/feedTypes";
 
+const NO_TS = "0000000000.000000";
+
+function reminderKey(payload: { item_id?: string; item_id_2?: string }) {
+  return `${payload.item_id}:${payload.item_id_2}`;
+}
+
 async function fetchReminders(
   rawItems: RawActivityFeedEntry[],
   creds: Credentials | null,
-): Promise<Map<string, Reminder>> {
-  const ids = [
-    ...new Set(
+): Promise<Map<string, string>> {
+  const payloads = [
+    ...new Map(
       rawItems.flatMap((raw) =>
-        raw.item?.type === "saved_reminder" && raw.item.linked_item_id
-          ? [raw.item.linked_item_id]
+        raw.item?.saved_reminder_payload?.item_id
+          ? [
+              [
+                reminderKey(raw.item.saved_reminder_payload),
+                raw.item.saved_reminder_payload,
+              ] as const,
+            ]
           : [],
       ),
-    ),
+    ).values(),
   ];
-  const reminders = new Map<string, Reminder>();
-  if (ids.length === 0) return reminders;
+  const reminders = new Map<string, string>();
+  if (payloads.length === 0) return reminders;
   const data = await callSlack<SavedListReply>(
     "saved.get",
     {
       items: JSON.stringify(
-        ids.map((id) => ({ item_id: id, item_detail: "", item_type: "reminder", ts: "" })),
+        payloads.map((payload) => ({
+          item_id: payload.item_id,
+          item_detail: "",
+          item_type: payload.item_type,
+          ts: payload.item_id_2,
+        })),
       ),
     },
     creds,
   );
   if (!data.ok) return reminders;
   for (const savedItem of data.saved_items ?? []) {
-    if (!savedItem.item_id) continue;
-    reminders.set(savedItem.item_id, {
-      channel:
-        savedItem.item_type === "message"
-          ? savedItem.item_id
-          : (savedItem.channel_id ?? savedItem.channel),
-      text: savedItem.description ? richTextBlocksToPlainText(savedItem.description) : undefined,
-      ts: savedItem.ts ?? savedItem.message_ts,
-    });
+    if (!(savedItem.item_id && savedItem.description)) continue;
+    const text = richTextBlocksToPlainText(savedItem.description);
+    if (text)
+      reminders.set(
+        reminderKey({
+          item_id: savedItem.item_id,
+          item_id_2: savedItem.ts ?? savedItem.message_ts ?? NO_TS,
+        }),
+        text,
+      );
   }
   return reminders;
 }
 
 function trimActivityItem(
   raw: RawActivityFeedEntry,
-  reminders: Map<string, Reminder>,
+  reminders: Map<string, string>,
 ): RawActivityFeedEntry {
   const item = raw.item ?? {};
-  const reminder =
-    item.type === "saved_reminder" && item.linked_item_id
-      ? reminders.get(item.linked_item_id)
-      : undefined;
+  const saved = item.saved_reminder_payload;
+  const reminderText = saved ? reminders.get(reminderKey(saved)) : undefined;
+  const reminderMessage = saved?.item_type === "message" ? saved : undefined;
   const payload = item.bundle_info?.payload;
   const quietlyAdded = item.quietly_added_to_channel_payload;
   const hasBundlePayload =
@@ -75,7 +91,7 @@ function trimActivityItem(
     feed_ts: raw.feed_ts,
     is_unread: raw.is_unread,
     item: {
-      activity_text: reminder?.text ?? findActivityText(item),
+      activity_text: reminderText ?? findActivityText(item),
       actor_user_id: item.actor_user_id,
       author_user_id: item.author_user_id,
       bundle_info:
@@ -97,13 +113,14 @@ function trimActivityItem(
             }
           : undefined,
       channel: item.channel,
-      channel_id: item.channel_id ?? reminder?.channel,
+      channel_id: item.channel_id ?? reminderMessage?.item_id,
       invite: item.invite,
       latest_user_id: item.latest_user_id,
       latest_reply_actor_user_id: item.latest_reply_actor_user_id,
-      linked_item_id: item.linked_item_id,
+      linked_item_id:
+        item.linked_item_id ?? (saved?.item_type === "reminder" ? saved.item_id : undefined),
       message: trimActivityMessage(message),
-      message_ts: item.message_ts ?? reminder?.ts,
+      message_ts: item.message_ts ?? reminderMessage?.item_id_2,
       quietly_added_to_channel_payload: quietlyAdded
         ? {
             channel_id: quietlyAdded.channel_id,
@@ -112,6 +129,7 @@ function trimActivityItem(
           }
         : undefined,
       reaction: item.reaction ? { name: item.reaction.name, user: item.reaction.user } : undefined,
+      reminder_note: reminderMessage ? reminderText : undefined,
       ts: item.ts,
       type: item.type,
       user: item.user,
@@ -165,8 +183,6 @@ function findActivityText(value: unknown, depth = 0): string | undefined {
   }
 }
 
-type Reminder = { channel?: string; text?: string; ts?: string };
-
 function trimActivityEntry(entry: RawActivityEntry): RawActivityEntry {
   return {
     ...trimActivityMessage(entry),
@@ -191,23 +207,13 @@ function isMessageReference(value: Record<string, unknown>): value is RawActivit
 
 const list: Route[] = [
   route("POST", "activity/archive", async (ctx) => {
-    const { key, ts, type } = await ctx.body.json<{
+    const { key, linkedItemId, ts, type } = await ctx.body.json<{
       key?: string;
+      linkedItemId?: string;
       ts?: string;
       type?: string;
     }>();
     if (!(key && ts && type)) return errorResponse("invalid_activity_entry", 400);
-    return mutate("activity.archive", { key, ts, type }, ctx);
-  }),
-
-  route("POST", "activity/read", async (ctx) => {
-    const { feedTs, key, linkedItemId, type } = await ctx.body.json<{
-      feedTs?: string;
-      key?: string;
-      linkedItemId?: string;
-      type?: string;
-    }>();
-    if (!(feedTs && key && type)) return errorResponse("invalid_activity_entry", 400);
     if (type === "saved_reminder" && linkedItemId) {
       const done = await callSlack(
         "saved.update",
@@ -222,6 +228,16 @@ const list: Route[] = [
       );
       if (!done.ok) return slackErrorResponse(done, "saved.update", ctx.creds);
     }
+    return mutate("activity.archive", { key, ts, type }, ctx);
+  }),
+
+  route("POST", "activity/read", async (ctx) => {
+    const { feedTs, key, type } = await ctx.body.json<{
+      feedTs?: string;
+      key?: string;
+      type?: string;
+    }>();
+    if (!(feedTs && key && type)) return errorResponse("invalid_activity_entry", 400);
     return mutate("activity.markRead", { feed_ts: feedTs, key, type }, ctx);
   }),
 

@@ -6,9 +6,9 @@ const prefsStore = service("prefs");
 function otherActivityLabel(type?: string) {
   switch (type) {
     case "saved_reminder":
-      return "Reminded you";
+      return "Reminder";
     case "quietly_added_to_channel":
-      return "Added you to this channel";
+      return "Added you to";
     case "internal_channel_invite":
     case "external_channel_invite":
     case "external_dm_invite":

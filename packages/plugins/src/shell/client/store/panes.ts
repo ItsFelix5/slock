@@ -73,95 +73,68 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
     return findPane(state.panes, id)?.content ?? null;
   }
 
+  function commit(next: Pane<PaneContent | null>[]) {
+    setState("panes", reconcile(next, { key: "id" }));
+  }
+
   function navigateFocusedPane(content: PaneContent): string {
     const id = nearestPrimaryPaneId(currentFocusedId());
-    setState(
-      "panes",
-      reconcile(replacePaneContent(unwrap(state.panes), id, content), { key: "id" }),
-    );
+    commit(replacePaneContent(unwrap(state.panes), id, content));
     activateId(id);
     return id;
   }
 
   function setPaneContent(id: string, content: PaneContent | null) {
     if (!findPane(state.panes, id)) return;
-    setState(
-      "panes",
-      reconcile(replacePaneContent(unwrap(state.panes), id, content), { key: "id" }),
-    );
+    commit(replacePaneContent(unwrap(state.panes), id, content));
   }
 
   function setAllPanes(contents: PaneContent[]) {
     const next = contents.length > 0 ? contents : [null];
-    setState(
-      "panes",
-      reconcile(
-        next.map((content, i) => ({
-          content,
-          id: state.panes[i]?.id ?? createPaneId(),
-          size: 1 / next.length,
-        })),
-        { key: "id" },
-      ),
+    commit(
+      next.map((content, i) => ({
+        content,
+        id: state.panes[i]?.id ?? createPaneId(),
+        size: 1 / next.length,
+      })),
     );
   }
 
   function insertContentPane(content: PaneContent, afterId: string | null): string {
     const id = createPaneId();
     const fraction = kindOf(content)?.size ?? 0.32;
-    setState(
-      "panes",
-      reconcile(insertPane(unwrap(state.panes), afterId, content, id, fraction), { key: "id" }),
-    );
+    commit(insertPane(unwrap(state.panes), afterId, content, id, fraction));
     activateId(id);
     return id;
   }
 
   function openInNewPane(content: PaneContent): string {
     const focusedId = currentFocusedId();
-    if (isSingletonKind(content)) {
-      const existing = findPaneByContent(
-        state.panes,
-        (c) => !!c && c.kind === content.kind && isSingletonKind(c),
-      );
-      if (
-        existing &&
-        (!kindOf(content)?.followsFocus || isPaneRightAfter(state.panes, focusedId, existing.id))
-      ) {
-        setState(
-          "panes",
-          reconcile(replacePaneContent(unwrap(state.panes), existing.id, content), { key: "id" }),
-        );
-        activateId(existing.id);
-        return existing.id;
-      }
-      if (existing) {
-        const id = createPaneId();
-        setState(
-          "panes",
-          reconcile(
-            insertPane(
-              closePaneInList(unwrap(state.panes), existing.id),
-              focusedId,
-              content,
-              id,
-              0.32,
-            ),
-            { key: "id" },
-          ),
-        );
-        activateId(id);
-        return id;
-      }
+    const existing = isSingletonKind(content)
+      ? findPaneByContent(state.panes, (c) => !!c && c.kind === content.kind && isSingletonKind(c))
+      : undefined;
+    if (!existing) return insertContentPane(content, focusedId);
+    const staysInPlace =
+      !kindOf(content)?.followsFocus ||
+      existing.id === focusedId ||
+      isPaneRightAfter(state.panes, focusedId, existing.id);
+    if (staysInPlace) {
+      commit(replacePaneContent(unwrap(state.panes), existing.id, content));
+      activateId(existing.id);
+      return existing.id;
     }
-    return insertContentPane(content, focusedId);
+    const id = createPaneId();
+    const withoutExisting = closePaneInList(unwrap(state.panes), existing.id);
+    commit(insertPane(withoutExisting, focusedId, content, id, kindOf(content)?.size ?? 0.32));
+    activateId(id);
+    return id;
   }
 
   function closePane(id: string) {
     if (state.panes.length <= 1) return;
     const hadFocus = activePaneId() === id || focusedPaneId() === id;
     const index = state.panes.findIndex((p) => p.id === id);
-    setState("panes", reconcile(closePaneInList(unwrap(state.panes), id), { key: "id" }));
+    commit(closePaneInList(unwrap(state.panes), id));
     if (hadFocus) {
       const next = state.panes[Math.min(index, state.panes.length - 1)];
       if (next) activateId(next.id);
@@ -169,7 +142,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   }
 
   function resize(sizes: number[]) {
-    setState("panes", reconcile(resizePanes(unwrap(state.panes), sizes), { key: "id" }));
+    commit(resizePanes(unwrap(state.panes), sizes));
   }
 
   return {

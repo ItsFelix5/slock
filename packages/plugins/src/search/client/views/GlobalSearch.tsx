@@ -8,15 +8,7 @@ import {
   listNavigationIndex,
   Modal,
 } from "@slock/ui";
-import {
-  batch,
-  createEffect,
-  createMemo,
-  createSignal,
-  createUniqueId,
-  Show,
-  untrack,
-} from "solid-js";
+import { batch, createMemo, createSignal, createUniqueId, Show } from "solid-js";
 import { seedDraft } from "../../../drafts/client/api";
 import {
   clearPendingShare,
@@ -27,6 +19,7 @@ import "./GlobalSearch.css";
 import GlobalSearchInput from "./GlobalSearchInput";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 import { createGlobalSearchRows } from "./globalSearchRows";
+import { createCommittedRows, MESSAGE_SEARCH_INDEX } from "./lib/committedRows";
 
 const searchStore = service("search");
 
@@ -45,10 +38,8 @@ export default function GlobalSearch(props: {
     users: [],
   });
 
-  const [committedRows, setCommittedRows] = createSignal<GlobalSearchRow[]>([]);
   const [searching, setSearching] = createSignal(false);
   const [searchError, setSearchError] = createSignal(false);
-  const [submitWhenReady, setSubmitWhenReady] = createSignal(false);
   const listboxId = createUniqueId();
   const searchRequest = createDebouncedRequest(searchGlobal, {
     delay: 100,
@@ -62,27 +53,22 @@ export default function GlobalSearch(props: {
   });
   const hasQuery = () => !!query().trim();
   const { computedRows, recentRows } = createGlobalSearchRows({ hasQuery, query, remoteResults });
+  const committed = createCommittedRows({
+    hasQuery,
+    onCommit: (selectedIndex) => setActiveIndex(selectedIndex),
+    onSubmit: (index) => activateItem(index),
+    ranked: computedRows,
+    searching,
+  });
   const searchDirectories = (value: string) => {
     batch(() => {
       setQuery(value);
-      setActiveIndex(0);
-      setCommittedRows([]);
-      setSubmitWhenReady(false);
+      setActiveIndex(MESSAGE_SEARCH_INDEX);
+      committed.restart();
       searchRequest.run(value);
     });
   };
-  createEffect(() => {
-    if (!query().trim() || searching()) return;
-    const ranked = untrack(computedRows);
-    setCommittedRows(ranked);
-    const best = ranked.length > 0 ? 1 : 0;
-    setActiveIndex(best);
-    if (untrack(submitWhenReady)) {
-      setSubmitWhenReady(false);
-      activateItem(best);
-    }
-  });
-  const rows = () => (hasQuery() ? committedRows() : recentRows());
+  const rows = () => (hasQuery() ? committed.rows() : recentRows());
   const items = createMemo<SearchItem[]>(() =>
     hasQuery() ? [{ kind: "message-search" }, ...rows()] : rows(),
   );
@@ -159,14 +145,7 @@ export default function GlobalSearch(props: {
     const next = listNavigationIndex(direction, activeIndex(), items().length);
     if (next !== undefined) setActiveIndex(next);
   };
-  const submitActiveRow = () => {
-    if (hasQuery() && searching() && rows().length === 0) {
-      setSubmitWhenReady(true);
-      return;
-    }
-    const index = activeIndex();
-    if (index !== null) activateItem(index);
-  };
+  const submitActiveRow = () => committed.submit(activeIndex());
   return (
     <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
       <Show when={pendingShareText()}>

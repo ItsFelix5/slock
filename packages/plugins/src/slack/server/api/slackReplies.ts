@@ -111,10 +111,13 @@ export type ActivityFeedReply = Paged & { items?: RawActivityFeedEntry[] };
 export type SavedItem = {
   channel?: string;
   channel_id?: string;
+  date_created?: number;
+  date_due?: number;
   description?: RichTextBlock[];
   item_id?: string;
   item_type?: string;
   message_ts?: string;
+  state?: string;
   ts?: string;
 };
 
@@ -124,15 +127,16 @@ export type PinsListReply = {
   items?: { channel?: string; created?: number; message?: RawMessage; type?: string }[];
 };
 
-export type DraftsListReply = {
-  drafts?: {
-    blocks?: Block[];
-    client_msg_id?: string;
-    destinations?: { channel_id?: string; thread_ts?: string }[];
-    id?: string;
-    last_updated_ts?: string;
-  }[];
+export type RawDraft = {
+  blocks?: Block[];
+  client_msg_id: string;
+  date_scheduled?: number | string;
+  destinations: { channel_id: string; thread_ts?: string }[];
+  id: string;
+  last_updated_ts?: string;
 };
+
+export type DraftsListReply = { drafts?: RawDraft[] };
 
 export type DraftCreateReply = {
   draft?: { id?: string; last_updated_ts?: string };
@@ -186,7 +190,13 @@ export type MemberPermissionsReply = {
 };
 export type RetentionReply = { retention_duration?: string; retention_type?: string };
 
-export type DndReply = { snooze_enabled?: boolean; snooze_endtime?: number };
+export type DndReply = {
+  dnd_enabled?: boolean;
+  next_dnd_end_ts?: number;
+  next_dnd_start_ts?: number;
+  snooze_enabled?: boolean;
+  snooze_endtime?: number;
+};
 
 export type EntityIndex<Entity> = Record<string, Entity> | Entity[];
 

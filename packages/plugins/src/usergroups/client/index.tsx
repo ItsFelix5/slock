@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { gatewayHandler } from "../../realtime/client/api";
 import { createUsergroupsSlice } from "./store";
 
 const setup: Setup = (ctx) => {
@@ -23,6 +24,14 @@ const setup: Setup = (ctx) => {
     },
     types: ["subteam_created", "subteam_updated", "subteam_deleted", "subteam_members_changed"],
   });
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["subteam_self_added", "subteam_self_removed"], (event) => {
+      if (!event.subteam_id) return;
+      store.setSelfMembership(event.subteam_id, event.type === "subteam_self_added");
+      store.invalidateUsergroup(event.subteam_id);
+    }),
+  );
   ctx.add("messages.blockKit", {
     resolveUsergroup: (id) => {
       const usergroup = store.usergroupById(id);

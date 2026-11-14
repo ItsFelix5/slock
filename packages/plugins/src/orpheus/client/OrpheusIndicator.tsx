@@ -10,14 +10,21 @@ import "./OrpheusIndicator.css";
 
 const HAIKU_OFF_CHANNEL = "C09MATKQM8C";
 const MAX_LENGTH = 300;
+const MIN_WORDS = 5;
+const WHITESPACE_RE = /\s+/;
 
 const syllableExceptionsKey = defineKey<[]>("syllableExceptions");
 
 const query = service("query");
 
 export default function OrpheusIndicator(props: ComposerTrailingProps) {
+  const longEnough = createMemo<boolean>(
+    (was) => was || props.text.trim().split(WHITESPACE_RE).length >= MIN_WORDS,
+    false,
+  );
   const counts = createQuery(
     () => ({
+      enabled: longEnough(),
       queryFn: () => import("./haiku/syllableExceptions").then((m) => m.default),
       queryKey: syllableExceptionsKey(),
       staleTime: Number.POSITIVE_INFINITY,

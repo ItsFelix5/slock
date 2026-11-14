@@ -2,6 +2,7 @@ import type { PlanBlock, TaskCardBlock } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import BkText from "../BkText";
+import { Link } from "../mrkdwnTokens";
 import RichText from "./RichText";
 import "./TaskCard.css";
 
@@ -35,11 +36,7 @@ export function TaskCard(props: { block: TaskCardBlock }) {
       <Show when={props.block.sources?.length}>
         <div class="bk-task-sources">
           <For each={props.block.sources}>
-            {(source) => (
-              <a class="bk-link" href={source.url} rel="noopener noreferrer" target="_blank">
-                {source.text}
-              </a>
-            )}
+            {(source) => <Link label={source.text} url={source.url} />}
           </For>
         </div>
       </Show>

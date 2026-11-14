@@ -1,10 +1,10 @@
-import { errorMessage } from "../../../http/server/api/errorMessage";
+import { errorMessage } from "@slock/core";
 import type { Credentials } from "./auth.ts";
 
 export type SlackFailure = { error: string; ok: false; retry_after?: string };
 export type SlackReply<T extends object = object> = (T & { ok: true }) | SlackFailure;
 
-async function parseSlackResponse<T extends object>(res: Response): Promise<SlackReply<T>> {
+export async function parseSlackResponse<T extends object>(res: Response): Promise<SlackReply<T>> {
   const text = await res.text();
   const retryAfter = res.headers.get("retry-after");
   try {
@@ -55,14 +55,44 @@ function slackRequestBody(
   };
 }
 
+const DEDUPED_READ_METHODS = new Set([
+  "client.counts",
+  "client.userBoot",
+  "conversations.info",
+  "dnd.info",
+  "users.channelSections.list",
+  "users.info",
+  "users.prefs.get",
+]);
+
+const inFlight = new Map<string, { reply: Promise<SlackReply>; joined: boolean }>();
+
 export async function callSlack<T extends object = object>(
   method: string,
   params: Record<string, string | string[]>,
   creds: Credentials | null,
 ): Promise<SlackReply<T>> {
   if (!creds) return { error: "not_configured", ok: false };
+  if (!DEDUPED_READ_METHODS.has(method)) return postSlack<T>(method, params, creds);
+  const key = JSON.stringify([method, params, creds.domain, creds.token]);
+  const existing = inFlight.get(key);
+  if (existing) existing.joined = true;
+  const entry = existing ?? {
+    joined: false,
+    reply: postSlack(method, params, creds).finally(() => inFlight.delete(key)),
+  };
+  if (!existing) inFlight.set(key, entry);
+  const reply = await entry.reply;
+  return (entry.joined ? structuredClone(reply) : reply) as SlackReply<T>;
+}
+
+async function postSlack<T extends object>(
+  method: string,
+  params: Record<string, string | string[]>,
+  creds: Credentials,
+): Promise<SlackReply<T>> {
   const { body, headers } = slackRequestBody(method, params, creds.token);
-  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
+  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}`;
   try {
     const res = await fetch(url, {
       body,
@@ -94,7 +124,7 @@ export async function callSlackMultipart<T extends object = object>(
     new Blob([new Uint8Array(file.bytes)], { type: file.type }),
     file.filename,
   );
-  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}&_x_app_name=client`;
+  const url = `https://${creds.domain}/api/${method}?slack_route=${encodeURIComponent(creds.route)}`;
   try {
     const res = await fetch(url, {
       body,
@@ -135,31 +165,5 @@ export async function callSlackEdge<T extends object = object>(
       error: errorMessage(error, "Slack Edge request failed"),
       ok: false,
     };
-  }
-}
-
-export function botToken(): string | undefined {
-  return Bun.env.SLACK_BOT_TOKEN;
-}
-
-export async function callSlackBot<T extends object = object>(
-  method: string,
-  params: Record<string, string>,
-): Promise<SlackReply<T>> {
-  const token = botToken();
-  if (!token) return { error: "bot_not_configured", ok: false };
-  try {
-    const res = await fetch(`https://slack.com/api/${method}`, {
-      body: new URLSearchParams(params).toString(),
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/x-www-form-urlencoded",
-      },
-      method: "POST",
-      signal: AbortSignal.timeout(15_000),
-    });
-    return await parseSlackResponse(res);
-  } catch (error) {
-    return { error: errorMessage(error, "Slack bot request failed"), ok: false };
   }
 }

@@ -1,11 +1,11 @@
-import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import type { Attachment } from "@slock/types";
+import type { Attachment, Block } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
 import { createSignal, type JSX, Show } from "solid-js";
-import { parseReplyLink } from "../../../../message-links/client/api/replyLink";
+import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
 import { createKeyedQuery } from "../../../../query/client/api";
 import { fetchPermalinkMessage } from "../../../../slack/client/api";
+import MessageReferenceSnippet from "../../api/cards/MessageReferenceSnippet";
 import {
   type MessageAuthorAvatarView,
   resolveAttachmentAuthorName,
@@ -20,6 +20,8 @@ const usersStore = service("users");
 
 export interface HoverPreview {
   author: MessageAuthorAvatarView;
+  blocks?: Block[];
+  botId?: string;
   text: string;
 }
 
@@ -31,20 +33,28 @@ export function attachmentToHoverPreview(attachment: Attachment): HoverPreview {
       id: "",
       name: resolveAttachmentAuthorName(attachment, usersStore.userById) ?? "Forwarded message",
     },
-    text: (attachment.text ?? attachment.title ?? "Original message").replace(/\n+/g, " "),
+    blocks: attachment.blocks,
+    text: attachment.text ?? attachment.title ?? "Original message",
   };
 }
 
 export function messageToHoverPreview(
   msg: Parameters<typeof resolveMessageAuthorAvatar>[0] & {
+    blocks?: Block[];
     text: string;
     attachments?: Attachment[];
   },
 ): HoverPreview {
-  const text = parseReplyLink(msg.text)?.rest ?? msg.text;
-  const forward = text.trim() ? undefined : msg.attachments?.find((a) => a.isMessageUnfurl);
+  const { blocks, text } = splitReplyLink(msg);
+  const forward =
+    blocks || text.trim() ? undefined : msg.attachments?.find((a) => a.isMessageUnfurl);
   if (forward) return attachmentToHoverPreview(forward);
-  return { author: resolveMessageAuthorAvatar(msg, usersStore.userById), text };
+  return {
+    author: resolveMessageAuthorAvatar(msg, usersStore.userById),
+    blocks,
+    botId: msg.botId,
+    text,
+  };
 }
 
 export default function MessageLinkHoverCard(props: {
@@ -93,7 +103,15 @@ export default function MessageLinkHoverCard(props: {
                 <span class="message-link-hovercard-name">{p().author.name}</span>
               </div>
               <div class="message-link-hovercard-text text-sm truncate-lines">
-                <Mrkdwn text={p().text} />
+                <MessageReferenceSnippet
+                  blocks={p().blocks}
+                  botId={p().botId}
+                  botUserId={p().author.id}
+                  channelId={props.channelId}
+                  text={p().text}
+                  threadTs={props.threadTs}
+                  ts={props.messageTs}
+                />
               </div>
             </>
           )}

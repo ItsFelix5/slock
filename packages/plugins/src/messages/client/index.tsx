@@ -2,7 +2,7 @@ import { BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { narrowPaneContent, type Pane } from "@slock/ui";
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { openConversationInSplit } from "../../conversations/client/api/nav";
 import type { View } from "../../conversations/client/api/types";
 import { parseSlackPermalink } from "../../message-links/client/api/slackPermalink";
@@ -13,6 +13,7 @@ import { clearActiveMessageFocus } from "./api/messageFocus";
 import { forgetScrollAnchors } from "./api/pane/scrollAnchor";
 import { createBlockKitResolver } from "./blockKitResolver";
 import { installDocumentTitle } from "./documentTitle";
+import { createEntitySource } from "./entitySource";
 import { createMessagesStore } from "./store";
 import { createMessageEvents } from "./store/events";
 import { useMessageShortcuts } from "./useMessageShortcuts";
@@ -72,6 +73,7 @@ const setup: Setup = (ctx) => {
     setChannelRead: unread.setChannelRead,
     setLastReadByChannel: unread.setLastReadByChannel,
     setThreadRead: unread.setThreadRead,
+    threadReadTsFor: unread.threadReadTsFor,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     setUnreadDividerTs: unread.setUnreadDividerTs,
     syncChannelRead: unread.syncChannelRead,
@@ -81,6 +83,7 @@ const setup: Setup = (ctx) => {
     visibleViews: conversations.visibleViews,
   });
   ctx.provide("messages", messages);
+  ctx.add("messages.prefetch", messages.prefetchHistory);
   ctx.onCleanup(forgetScrollAnchors);
   ctx.onCleanup(clearActiveMessageFocus);
   installDocumentTitle();
@@ -127,6 +130,9 @@ const setup: Setup = (ctx) => {
     },
     { order: 101 },
   );
+  const loadedMessage = (channelId: string, ts: string) =>
+    messages.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
+  ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));
   ctx.add("shell.provider", (props) => (
     <BlockKitResolverContext.Provider value={blockKitResolver}>
@@ -138,9 +144,7 @@ const setup: Setup = (ctx) => {
       const target = parseSlackPermalink(url);
       if (!target) return trigger;
       const unfurl = attachments?.find((a) => a.isMessageUnfurl && a.ts === target.messageTs);
-      const loaded = messages
-        .findAllMessageLocations(target.channelId, target.messageTs)[0]
-        ?.list.find((m) => m.ts === target.messageTs);
+      const loaded = loadedMessage(target.channelId, target.messageTs);
       const knownPreview = unfurl
         ? attachmentToHoverPreview(unfurl)
         : loaded && messageToHoverPreview(loaded);
@@ -158,6 +162,9 @@ const setup: Setup = (ctx) => {
       );
     },
   });
+  const [lastOpened, setLastOpened] = createSignal<string>();
+  ctx.add("conversations.opened", (view) => setLastOpened(view.id));
+  ctx.add("blockkit.entitySource", createEntitySource(lastOpened));
   ctx.add("messages.channelMenu", MarkReadItem, { order: 0 });
   ctx.add("messages.bar", liveOnly(EditButton), { order: 0 });
   ctx.add("messages.body", FeedbackBody, { order: 30 });

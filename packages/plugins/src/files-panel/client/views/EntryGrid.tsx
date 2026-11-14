@@ -1,11 +1,10 @@
-import { EmojiText } from "@slock/blockkit";
+import { EmojiText, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { SlackFile, SlackLink } from "@slock/types";
-import { Icon, Tooltip } from "@slock/ui";
+import { formatSize, Icon, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { openConversationInSplit } from "../../../conversations/client/api/nav";
 import { fileIconName, fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
-import { formatSize } from "../../../message-media/client/api/FileCardInfo";
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import type { FilesLinksEntry } from "../api";
 import { formatDate, linkDomain } from "../lib/panelView";
@@ -48,7 +47,7 @@ function FileCard(props: {
               <Icon name={fileIconName(props.file)} size={26} />
             </span>
           }
-          when={props.file.isImage && props.file.thumbUrl}
+          when={props.file.isImage ? safeMediaUrl(props.file.thumbUrl) : undefined}
         >
           {(thumb) => (
             <img
@@ -97,7 +96,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
       <a
         class="files-links-card-open"
         data-nav-row
-        href={props.link.url}
+        href={safeUrl(props.link.url)}
         rel="noopener noreferrer"
         tabIndex={-1}
         target="_blank"
@@ -108,7 +107,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
               <Icon name="link" size={22} />
             </span>
           }
-          when={props.link.iconUrl ?? props.link.thumbUrl}
+          when={safeMediaUrl(props.link.iconUrl ?? props.link.thumbUrl)}
         >
           {(icon) => (
             <img

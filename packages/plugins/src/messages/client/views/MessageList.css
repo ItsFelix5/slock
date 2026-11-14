@@ -99,6 +99,11 @@
 }
 .message-row-group {
   position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+}
+.message-row-group:has(.message-hover-actions) {
+  content-visibility: visible;
 }
 .message-row-group.pending .message-row {
   opacity: 0.6;

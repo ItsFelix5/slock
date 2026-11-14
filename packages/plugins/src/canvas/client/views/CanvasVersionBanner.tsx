@@ -1,7 +1,7 @@
 import type { CanvasVersion } from "@slock/types";
 import { Button, IconButton } from "@slock/ui";
 import { Show } from "solid-js";
-import { versionAuthor, versionTime } from "../lib/canvasVersionLabel";
+import { versionAuthor, versionTime } from "../lib/canvasVersions";
 import "./CanvasHistory.css";
 
 export default function CanvasVersionBanner(props: {

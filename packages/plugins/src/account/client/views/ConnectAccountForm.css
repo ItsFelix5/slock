@@ -49,6 +49,12 @@
   display: none;
 }
 
-.connect-account-footer {
-  margin: 0;
+.settings-account-identity {
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.account-switcher-actions {
+  flex-shrink: 0;
+  gap: 2px;
 }

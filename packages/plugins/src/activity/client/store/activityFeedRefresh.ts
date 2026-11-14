@@ -25,10 +25,15 @@ export function createActivityFeedRefreshScheduler({
     }, delayMs);
   };
 
-  const request = () => {
-    pending = true;
-    schedule();
+  return {
+    cancel: () => {
+      pending = false;
+      clearTimeout(timer);
+      timer = undefined;
+    },
+    request: () => {
+      pending = true;
+      schedule();
+    },
   };
-
-  return request;
 }

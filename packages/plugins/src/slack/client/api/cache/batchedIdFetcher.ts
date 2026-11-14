@@ -15,20 +15,24 @@ export function createBatchedIdFetcher<T>(
     const requests = new Map(pending);
     pending.clear();
     const ids = [...requests.keys()];
+    const batches: string[][] = [];
+    for (let start = 0; start < ids.length; start += maxBatchSize)
+      batches.push(ids.slice(start, start + maxBatchSize));
 
-    for (let start = 0; start < ids.length; start += maxBatchSize) {
-      const batchIds = ids.slice(start, start + maxBatchSize);
-      try {
-        const values = await loadBatch(batchIds);
-        for (const [id, value] of values) {
-          for (const request of requests.get(id) ?? []) request.resolve(value);
+    await Promise.all(
+      batches.map(async (batchIds) => {
+        try {
+          const values = await loadBatch(batchIds);
+          for (const [id, value] of values) {
+            for (const request of requests.get(id) ?? []) request.resolve(value);
+          }
+        } catch (error) {
+          for (const id of batchIds) {
+            for (const request of requests.get(id) ?? []) request.reject(error);
+          }
         }
-      } catch (error) {
-        for (const id of batchIds) {
-          for (const request of requests.get(id) ?? []) request.reject(error);
-        }
-      }
-    }
+      }),
+    );
   }
 
   return (id) =>

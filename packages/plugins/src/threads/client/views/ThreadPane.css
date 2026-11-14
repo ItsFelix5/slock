@@ -50,12 +50,23 @@
   overflow: hidden auto;
 }
 
-.thread-panel-error {
+.thread-panel-error,
+.thread-panel-more-error {
   flex-shrink: 0;
   gap: 10px;
   padding: 10px var(--space-lg);
   font-size: var(--font-size-control);
   color: var(--text-secondary);
+}
+
+.thread-panel-earlier {
+  flex-shrink: 0;
+  gap: 10px;
+  height: var(--header-height);
+  font-size: var(--font-size-control);
+}
+
+.thread-panel-error {
   border-bottom: 1px solid var(--border);
 }
 

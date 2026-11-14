@@ -15,3 +15,6 @@ export async function fetchAppInstallers(appId: string): Promise<AppInstallers> 
   if (!data.ok) throw new Error(data.error ?? "app installers lookup failed");
   return data;
 }
+
+export const INSTALLED_APPS_QUERY = "installedApps";
+export const APP_INSTALLERS_QUERY = "appInstallers";

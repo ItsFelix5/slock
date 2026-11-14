@@ -33,7 +33,7 @@ export type Manifest = {
 
 export type PluginDef = Manifest & ({ setup: Setup } | { load: () => Promise<{ default: Setup }> });
 
-export type PluginState = "off" | "starting" | "running" | "failed" | "blocked";
+export type PluginState = "off" | "running" | "failed" | "blocked";
 
 export type PluginStatus = { state: PluginState; error?: string };
 

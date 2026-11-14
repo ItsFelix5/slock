@@ -1,6 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { ActivityItem } from "@slock/types";
+import { splitReplyLink } from "../../message-links/client/api/replyLink";
 import { SplitNavigation } from "../../shell/client/api/SplitNavigation";
 import "./ThreadRow.css";
 
@@ -23,11 +24,8 @@ export default function ThreadRow(props: { item: ActivityItem }) {
         tabIndex={-1}
         type="button"
       >
-        <span class="sidebar-row-icon">
-          <span class="sidebar-thread-corner" />
-        </span>
         <span class="sidebar-row-name truncate">
-          <Mrkdwn inline text={props.item.text} />
+          <Mrkdwn inline text={splitReplyLink(props.item).text} />
         </span>
       </button>
     </SplitNavigation>

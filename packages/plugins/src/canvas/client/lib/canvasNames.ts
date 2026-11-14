@@ -1,6 +1,6 @@
+import { resolveStandardEmoji } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { getCachedWorkspaceId } from "@slock/slack";
-import { standardEmojiUnicode } from "../../../emoji/client/api/emojiSearch";
 import type { CanvasNames } from "./canvasEmbeds";
 
 const titles = service("titles");
@@ -14,7 +14,7 @@ export function createCanvasNames(): CanvasNames {
       if (embed.type === "video") return "Video";
       return "Embedded content";
     },
-    emojiText: (name) => standardEmojiUnicode(name) ?? null,
+    emojiText: (name) => resolveStandardEmoji(name) ?? null,
     teamId: getCachedWorkspaceId() ?? "",
     user: (id) => usersStore.userById(id)?.name ?? id,
   };

@@ -4,10 +4,10 @@ import { Avatar } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
 import { createKeyedQuery, defineKey } from "../../query/client/api";
-import { fetchAppInstallers } from "./fetch";
+import { APP_INSTALLERS_QUERY, fetchAppInstallers } from "./fetch";
 import "./InstalledApps.css";
 
-const appInstallersKey = defineKey<[string]>("appInstallers");
+const appInstallersKey = defineKey<[string]>(APP_INSTALLERS_QUERY);
 
 const users = service("users");
 

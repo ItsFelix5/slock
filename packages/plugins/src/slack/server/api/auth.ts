@@ -67,6 +67,6 @@ export function parseCredentials(
   };
 }
 
-export function teamIdFromRoute(route: string): string | null {
-  return route.split(":").at(-1) ?? null;
+export function teamIdFromRoute(route: string): string {
+  return route.split(":").at(-1) ?? route;
 }

@@ -16,7 +16,7 @@ export function detectMentionTrigger(
   const before = value.slice(0, cursor);
   const lineStart = commandsPerLine ? before.lastIndexOf("\n") + 1 : 0;
   const line = before.slice(lineStart);
-  if (line.startsWith("/") && !WHITESPACE_RE.test(line.slice(1))) {
+  if (line.startsWith("/") && (commandsPerLine || !WHITESPACE_RE.test(line.slice(1)))) {
     return { kind: "command", query: line.slice(1), start: lineStart };
   }
   const atIdx = before.lastIndexOf("@");

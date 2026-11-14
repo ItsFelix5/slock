@@ -8,7 +8,9 @@ import {
 import { Slot, service, usePoint } from "@slock/core/solid";
 import type { Message } from "@slock/types";
 import { createMemo, Show } from "solid-js";
+import { encodeReplyLink, withReplyLink } from "../../../../message-links/client/api/replyLink";
 import type { MessageContent } from "../../lib/messageRenderState";
+import { deleteOrDismissMessage } from "../../messageActions";
 import EditedLabel from "./EditedLabel";
 
 const messagesStore = service("messages");
@@ -40,16 +42,22 @@ export default function MessageTextContent(props: {
           channelId={props.channelId}
           point="composer.input"
           editing={{
-            initialBlocks: props.replyRef ? undefined : props.msg.blocks,
+            initialBlocks: props.renderBlocks,
             initialFiles: props.replyRef ? undefined : props.msg.files,
-            initialText: props.replyRef?.rest ?? props.msg.text,
+            initialText: props.messageText,
             onCancel: () => props.onStopEdit?.(),
             onSave: async (text, blocks, fileIds) => {
+              if (!(text.trim() || fileIds?.length)) {
+                const deleted = await deleteOrDismissMessage(props.channelId, props.msg);
+                if (deleted) props.onStopEdit?.();
+                return deleted;
+              }
+              const url = props.replyRef?.url;
               const saved = await messagesStore.editMessageText(
                 props.channelId,
                 props.msg.ts,
-                (props.replyRef?.prefix ?? "") + text,
-                blocks,
+                url ? encodeReplyLink(url) + text : text,
+                url && blocks ? withReplyLink(blocks, url) : blocks,
                 fileIds,
               );
               if (saved) props.onStopEdit?.();

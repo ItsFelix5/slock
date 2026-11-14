@@ -1,5 +1,13 @@
-export { isAuthError } from "./api/authErrors";
-export { ApiError, apiDelete, apiGet, apiPatch, apiPost, apiPut, apiUpload } from "./api/client";
+export {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+  apiUpload,
+  isAuthError,
+} from "./api/client";
 export {
   canvasFileIdOf,
   extractChannelSections,
@@ -9,6 +17,7 @@ export {
 export { buildUnreadMap, parseBadgeCounts } from "./map/counts";
 export { mapAttachment, mapFile, mapFileShare, mapLink } from "./map/files";
 export {
+  HISTORY_PAGE_SIZE,
   isHiddenSubtype,
   isMyRelayedMessage,
   isRawMessage,
@@ -26,13 +35,14 @@ export {
   SLACK_SYSTEM_USER,
   SLACK_USER_ID,
 } from "./map/users";
-export { broadcastRangeFromBlocks } from "./richText/broadcast";
+export { broadcastRangeOf } from "./richText/broadcast";
 export { decodeTextEntities, encodeTextEntities } from "./richText/entities";
 export {
   blockPreviewText,
   isRichTextSubBlock,
   richTextBlocksToPlainText,
 } from "./richText/plainText";
+export { usergroupIdsOf } from "./richText/usergroups";
 export {
   forceReauth,
   getActiveAccountId,

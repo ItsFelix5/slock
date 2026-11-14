@@ -8,17 +8,26 @@ const WHITESPACE_RE = /\s+/;
 
 export const FORM_ACTION_RE = /<form[^>]*action=["']([^"']+)["']/i;
 
-const NAME_ATTR_RE = /\bname=["']([^"']+)["']/i;
+const NAME_ATTR_RE = /(?<![\w-])name=["']([^"']+)["']/i;
 
-const VALUE_ATTR_RE = /\bvalue=["']([^"']*)["']/i;
+const VALUE_ATTR_RE = /(?<![\w-])value=["']([^"']*)["']/i;
+
+const SLACK_SECRET_RE = /xox[a-z]-[^\s"'<>;&]+/gi;
+
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&gt;": ">",
+  "&lt;": "<",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&#x27;": "'",
+};
 
 function decodeHtml(value: string): string {
-  return value
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">");
+  return value.replace(
+    /&(?:amp|gt|lt|quot|#39|#x27);/gi,
+    (entity) => HTML_ENTITIES[entity.toLowerCase()] ?? entity,
+  );
 }
 
 function extractInput(html: string, name: string): string | null {
@@ -39,7 +48,7 @@ export function extractCsrfToken(html: string): string {
   if (meta?.[1]) return decodeHtml(meta[1]);
   const input = extractInput(html, "authenticity_token");
   if (input) return input;
-  throw new Error("Could not find the Hack Club Auth CSRF token");
+  throw new Error("Couldn't read the Hack Club login page");
 }
 
 function elementText(html: string): string | null {
@@ -92,12 +101,13 @@ export function extractVisibleText(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim()
+    .replace(SLACK_SECRET_RE, "[redacted]")
     .slice(0, 300);
 }
 
 export function formAction(html: string, baseUrl: string): string {
   const match = html.match(FORM_ACTION_RE);
-  return new URL(match?.[1] ?? baseUrl, baseUrl).toString();
+  return new URL(decodeHtml(match?.[1] ?? baseUrl), baseUrl).toString();
 }
 
 export function extractFormFields(html: string): Record<string, string> {

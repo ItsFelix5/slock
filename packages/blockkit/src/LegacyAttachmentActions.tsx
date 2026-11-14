@@ -2,6 +2,8 @@ import type { AttachmentAction } from "@slock/types";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import type { BlockActionContext } from "./BlockKit";
 import { runAttachmentAction } from "./blockActions";
+import LinkButton from "./elements/LinkButton";
+import { safeUrl } from "./safeUrl";
 import "./elements/Controls.css";
 
 export default function LegacyAttachmentActions(props: {
@@ -43,7 +45,7 @@ export default function LegacyAttachmentActions(props: {
     timer = setTimeout(() => setUnsupported(), 2000);
   };
   const click = (action: AttachmentAction) => {
-    if (action.url || pendingName()) return;
+    if (safeUrl(action.url) || pendingName()) return;
     const ctx = actionContext();
     if (!ctx) {
       flashUnsupported(action.name);
@@ -76,34 +78,34 @@ export default function LegacyAttachmentActions(props: {
   return (
     <div class="bk-actions attachment-actions">
       <For each={props.actions}>
-        {(action) =>
-          action.url ? (
-            <a
-              class={`bk-button bk-button--${action.style ?? "default"}`}
-              href={action.url}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              {action.text}
-            </a>
-          ) : (
-            <button
-              class={`bk-button bk-button--${action.style ?? "default"}`}
-              disabled={pendingName() === action.name}
-              onClick={() => click(action)}
-              title={
-                unsupported() === action.name || canDispatch()
-                  ? undefined
-                  : "This button needs its app to respond"
-              }
-              type="button"
-            >
-              <Show fallback={action.text} when={unsupported() === action.name}>
-                Not supported here
-              </Show>
-            </button>
-          )
-        }
+        {(action) => (
+          <Show
+            fallback={
+              <button
+                class={`bk-button bk-button--${action.style ?? "default"}`}
+                disabled={pendingName() === action.name}
+                onClick={() => click(action)}
+                title={
+                  unsupported() === action.name || canDispatch()
+                    ? undefined
+                    : "This button needs its app to respond"
+                }
+                type="button"
+              >
+                <Show fallback={action.text} when={unsupported() === action.name}>
+                  Not supported here
+                </Show>
+              </button>
+            }
+            when={safeUrl(action.url)}
+          >
+            {(url) => (
+              <LinkButton href={url()} style={action.style}>
+                {action.text}
+              </LinkButton>
+            )}
+          </Show>
+        )}
       </For>
     </div>
   );

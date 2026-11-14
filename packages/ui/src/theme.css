@@ -3,6 +3,7 @@
   font-style: normal;
   font-weight: 400;
   size-adjust: 74%;
+  font-display: swap;
   src: url("/public/fonts/opendyslexic-latin-400-normal.woff2") format("woff2");
 }
 @font-face {
@@ -10,43 +11,64 @@
   font-style: normal;
   font-weight: 700;
   size-adjust: 74%;
+  font-display: swap;
   src: url("/public/fonts/opendyslexic-latin-700-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Comic Neue";
   font-style: normal;
   font-weight: 400;
+  font-display: swap;
   src: url("/public/fonts/comic-neue-latin-400-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Comic Neue";
   font-style: normal;
   font-weight: 700;
+  font-display: swap;
   src: url("/public/fonts/comic-neue-latin-700-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Lato";
   font-style: normal;
   font-weight: 400;
+  font-display: swap;
   src: url("/public/fonts/lato-latin-400-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Lato";
   font-style: normal;
   font-weight: 900;
+  font-display: swap;
   src: url("/public/fonts/lato-latin-900-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
   font-style: normal;
   font-weight: 400;
+  font-display: swap;
   src: url("/public/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
   font-style: normal;
   font-weight: 700;
+  font-display: swap;
   src: url("/public/fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lexend";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/public/fonts/lexend-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lexend";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/public/fonts/lexend-latin-700-normal.woff2") format("woff2");
 }
 
 :root {

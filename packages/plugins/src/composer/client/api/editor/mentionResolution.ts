@@ -1,27 +1,49 @@
 import { service } from "@slock/core/solid";
 import type Quill from "@slock/ui/editor/quill";
 import { createEffect, createSignal } from "solid-js";
+import type { MentionValue } from "../../lib/embedValues";
+import { mentionLabel } from "../../lib/quillMentions";
 
 const usersStore = service("users");
+const channelsStore = service("channels");
 
-export function useMentionResolution(getQuill: () => Quill | undefined): (id: string) => void {
-  const [pendingIds, setPendingIds] = createSignal<string[]>([]);
+type ResolvableKind = Extract<MentionValue["kind"], "channel" | "user">;
+
+interface Pending {
+  id: string;
+  kind: ResolvableKind;
+}
+
+function knownName({ id, kind }: Pending): string | undefined {
+  return kind === "user" ? usersStore.userById(id)?.name : channelsStore.channelById(id)?.name;
+}
+
+export function useMentionResolution(
+  getQuill: () => Quill | undefined,
+): (id: string, kind?: ResolvableKind) => void {
+  const [pending, setPending] = createSignal<Pending[]>([]);
 
   createEffect(() => {
-    for (const id of pendingIds()) {
-      const user = usersStore.userById(id);
-      if (!user) continue;
+    for (const item of pending()) {
+      const name = knownName(item);
+      if (!name) continue;
       getQuill()
-        ?.root.querySelectorAll<HTMLElement>(`.bk-mention[data-kind="user"][data-id="${id}"]`)
+        ?.root.querySelectorAll<HTMLElement>(
+          `.bk-mention[data-kind="${item.kind}"][data-id="${item.id}"]`,
+        )
         .forEach((node) => {
-          if (node.dataset.name !== id) return;
-          node.dataset.name = user.name;
-          const label = node.querySelector('[contenteditable="false"]');
-          if (label) label.textContent = `@${user.name}`;
+          if (node.dataset.name !== item.id) return;
+          node.dataset.name = name;
+          node
+            .querySelector('[contenteditable="false"]')
+            ?.replaceChildren(...mentionLabel({ ...item, name }));
         });
-      setPendingIds((ids) => ids.filter((pendingId) => pendingId !== id));
+      setPending((items) => items.filter((other) => other !== item));
     }
   });
 
-  return (id: string) => setPendingIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+  return (id, kind = "user") =>
+    setPending((items) =>
+      items.some((item) => item.id === id && item.kind === kind) ? items : [...items, { id, kind }],
+    );
 }

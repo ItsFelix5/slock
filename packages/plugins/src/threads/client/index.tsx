@@ -14,7 +14,11 @@ import ThreadPane from "./views/ThreadPane";
 function RepliesBody(props: MessageBodyProps) {
   return (
     <Show when={props.onOpenThread && (props.msg.replyCount ?? 0) > 0}>
-      <MessageRepliesButton msg={props.msg} onOpenThread={props.onOpenThread ?? (() => {})} />
+      <MessageRepliesButton
+        channelId={props.channelId}
+        msg={props.msg}
+        onOpenThread={props.onOpenThread ?? (() => {})}
+      />
     </Show>
   );
 }

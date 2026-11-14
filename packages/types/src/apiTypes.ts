@@ -22,6 +22,7 @@ export interface Bootstrap {
   activityCounts: Record<string, number> | undefined;
   allUsergroupIds: string[];
   channels: Channel[];
+  countsLoaded: boolean;
   currentUser: User;
   directMessages: DirectMessage[];
   lastReadByChannel: Record<string, number>;
@@ -58,8 +59,6 @@ export interface ConversationViewData {
   canvases: CanvasListItem[];
   channel: Channel;
   details: ChannelDetails;
-  hasMore: boolean;
-  messages: Message[];
   users: User[];
 }
 
@@ -89,6 +88,7 @@ export interface PinnedMessage {
 }
 
 export interface SearchResult {
+  blocks?: Block[];
   botIcon?: string;
   botId?: string;
   botName?: string;

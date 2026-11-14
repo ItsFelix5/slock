@@ -4,6 +4,7 @@ import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import { isPendingMessage } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
+import { createChannelActivityBatcher } from "./channelActivity";
 
 type IncomingMessageDeps = {
   closedDmIds: Record<string, boolean>;
@@ -16,8 +17,8 @@ type IncomingMessageDeps = {
   ) => { location: MessageLocation; list: Message[] }[];
   insertMessageInOrder: (channelId: string, msg: Message) => void;
   isChannelMember: (id: string) => boolean;
-  isThreadKnown: (ts: string) => boolean;
-  loadedChannels: Set<string>;
+  acceptsLiveReplies: (ts: string) => boolean;
+  tracksLatest: (channelId: string) => boolean;
   markDeleted: (channelId: string, ts: string) => void;
   mergeIncomingMessage: (existing: Message[], msg: Message) => Message[];
   patchChannel: (id: string, patch: Partial<Channel>) => void;
@@ -35,6 +36,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
       deps.mergeIncomingMessage(existing, msg),
     );
+  const markActivity = createChannelActivityBatcher(deps.patchChannel);
   const latestReplyByThread = new Map<string, string>();
   const seenReplyKeys = new Set<string>();
 
@@ -65,11 +67,11 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
         blocks: updated.blocks,
         edited: !!updated.edited,
         isBroadcast,
-        text: updated.text,
+        text: mapped.text,
         attachments: mapped.attachments,
         files: mapped.files,
       });
-      if (isBroadcast && deps.loadedChannels.has(channel)) {
+      if (isBroadcast && deps.tracksLatest(channel)) {
         const msg = deps
           .findAllMessageLocations(channel, updated.ts)[0]
           ?.list.find((m) => m.ts === updated.ts);
@@ -90,6 +92,10 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       });
       return;
     }
+    if (subtype === "message_locked") {
+      if (threadTs) deps.patchMessage(channel, threadTs, { isLocked: payload.is_locked });
+      return;
+    }
     if (subtype === "message_deleted") {
       const ts = payload.deleted_ts;
       if (!ts) return;
@@ -99,7 +105,13 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     if (!ts) return;
     const msg = mapMessage({ ...payload, ts });
     if (msg.isEphemeral) {
-      if (deps.loadedChannels.has(channel)) {
+      if (threadTs && threadTs !== ts) {
+        if (deps.acceptsLiveReplies(threadTs)) {
+          deps.setThreadMessages(threadTs, (existing: Message[] = []) =>
+            deps.mergeIncomingMessage(existing, msg),
+          );
+        }
+      } else if (deps.tracksLatest(channel)) {
         mergeIntoChannel(channel, msg);
       }
       return;
@@ -113,7 +125,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
         existingReplies.some(
           (reply) => (reply.ts === msg.ts || reply.id === msg.id) && !isPendingMessage(reply),
         );
-      if (deps.isThreadKnown(threadTs)) {
+      if (deps.acceptsLiveReplies(threadTs)) {
         deps.setThreadMessages(threadTs, (existing: Message[] = []) =>
           deps.mergeIncomingMessage(existing, msg),
         );
@@ -126,10 +138,10 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       if (parentMsg && !alreadyMerged && !countAlreadyConfirmed) {
         deps.patchMessage(channel, threadTs, { replyCount: (parentMsg.replyCount ?? 0) + 1 });
       }
-      if (subtype === "thread_broadcast" && deps.loadedChannels.has(channel)) {
+      if (subtype === "thread_broadcast" && deps.tracksLatest(channel)) {
         mergeIntoChannel(channel, msg);
       }
-    } else if (deps.loadedChannels.has(channel)) {
+    } else if (deps.tracksLatest(channel)) {
       mergeIntoChannel(channel, msg);
     }
 
@@ -146,7 +158,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     } else if (isDmId(channel, () => false) && me && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
     } else if (deps.isChannelMember(channel)) {
-      deps.patchChannel(channel, { lastActivity: Date.now() });
+      markActivity(channel);
     }
   }
   return handleIncomingMessage;

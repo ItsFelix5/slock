@@ -21,6 +21,7 @@ export type QuerySuggestionContext = {
   currentChannel?: { id: string; name: string };
   currentDmUser?: { id: string; name: string };
   currentUserId?: string;
+  modifiers?: readonly string[];
 };
 
 const HAS_VALUES = ["link", "image", "file", "star", "pin", "reaction"];
@@ -182,7 +183,8 @@ export function querySuggestions(
 
   if (!token.includes(":")) return [];
 
-  const [modifier, term = ""] = token.split(":", 2);
+  const [modifier = "", term = ""] = token.split(":", 2);
+  if (context.modifiers && !context.modifiers.includes(modifier)) return [];
   switch (modifier) {
     case "from":
       return entitySuggestions(

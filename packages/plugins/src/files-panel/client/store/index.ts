@@ -34,7 +34,20 @@ function appendEntries(
   return mergeEntries([...filesById.values()], [...linksById.values()]);
 }
 
-export function createFilesLinksPanel() {
+type PanelDeps = {
+  openMessage: (channelId: string, ts: string, threadTs?: string) => void;
+  search: typeof searchChannelFilesAndLinks;
+  title: (channelId: string) => string;
+};
+
+const liveDeps: PanelDeps = {
+  openMessage: (channelId, ts, threadTs) =>
+    messageLinks.openChannelMessage(channelId, ts, threadTs),
+  search: searchChannelFilesAndLinks,
+  title: (channelId) => titles.title(channelId),
+};
+
+export function createFilesLinksPanel(deps: PanelDeps = liveDeps) {
   const [filesLinksChannelId, setFilesLinksChannelId] = createSignal<string | null>(null);
   const [filesLinksQuery, setFilesLinksQueryValue] = createSignal("");
   const [filesLinksEntries, setFilesLinksEntries] = createSignal<FilesLinksEntry[]>([]);
@@ -50,10 +63,9 @@ export function createFilesLinksPanel() {
     setFilesLinksLoading(true);
     setFilesLinksLoadError(false);
     try {
-      const channelName = titles.title(channelId);
-      const { files, hasMore, links } = await searchChannelFilesAndLinks(
+      const { files, hasMore, links } = await deps.search(
         channelId,
-        channelName,
+        deps.title(channelId),
         query,
         page,
       );
@@ -94,7 +106,7 @@ export function createFilesLinksPanel() {
   function jumpToFilesLinksMessage(channelId: string, ts: string, threadTs?: string) {
     batch(() => {
       closeFilesLinksPanel();
-      messageLinks.openChannelMessage(channelId, ts, threadTs);
+      deps.openMessage(channelId, ts, threadTs);
     });
   }
 
@@ -134,7 +146,7 @@ export function createFilesLinksPanel() {
 
   function loadMoreFilesLinks() {
     const channelId = filesLinksChannelId();
-    if (!channelId || filesLinksLoading() || !filesLinksHasMore()) return;
+    if (!channelId || filesLinksLoading() || filesLinksLoadError() || !filesLinksHasMore()) return;
     void load(channelId, filesLinksQuery(), filesLinksPage() + 1);
   }
 

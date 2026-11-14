@@ -1,3 +1,4 @@
+import EmbedBlot from "quill/blots/embed";
 import Quill from "quill/core";
 import Blockquote from "quill/formats/blockquote";
 import Bold from "quill/formats/bold";
@@ -9,7 +10,9 @@ import Link from "quill/formats/link";
 import List from "quill/formats/list";
 import Strike from "quill/formats/strike";
 import Underline from "quill/formats/underline";
+import DeltaClipboard from "./deltaClipboard";
 
+Quill.register("modules/clipboard", DeltaClipboard, true);
 Quill.register({
   "formats/blockquote": Blockquote,
   "formats/bold": Bold,
@@ -24,5 +27,16 @@ Quill.register({
   "formats/underline": Underline,
 });
 
-export { type AttributeMap, type Bounds, Delta, type Op, Parchment, type Range } from "quill/core";
-export default Quill;
+export {
+  type AttributeMap,
+  type Bounds,
+  Delta,
+  default,
+  type Op,
+  Parchment,
+  type Range,
+} from "quill/core";
+
+export function getEmbedBlot(): typeof EmbedBlot {
+  return EmbedBlot;
+}

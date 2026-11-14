@@ -1,7 +1,7 @@
-import type { BlockActionContext } from "@slock/blockkit";
+import { type BlockActionContext, safeColor, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
-import { Icon } from "@slock/ui";
+import { HideBrokenImage, Icon } from "@slock/ui";
 import { Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
 import {
@@ -82,14 +82,19 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
     <div
       class="attachment-message-unfurl"
       style={{
-        "--attachment-unfurl-color": a.color ? `#${a.color.replace("#", "")}` : "var(--text-dim)",
+        "--attachment-unfurl-color": safeColor(a.color) ?? "var(--text-dim)",
       }}
     >
       <Show when={authorName()}>
         <div class="attachment-message-author flex-align-center">
-          <Show when={a.authorIcon}>
+          <Show when={safeMediaUrl(a.authorIcon)}>
             {(icon) => (
-              <img alt="" class="attachment-message-author-icon" loading="lazy" src={icon()} />
+              <HideBrokenImage
+                alt=""
+                class="attachment-message-author-icon"
+                loading="lazy"
+                src={icon()}
+              />
             )}
           </Show>
           <MessageAuthorButton
@@ -107,7 +112,7 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
             <span>Posted in</span>
             <a
               class="attachment-channel-link flex-align-center"
-              href={`/${channelId()}`}
+              href={`/${encodeURIComponent(channelId())}`}
               onClick={openConversation}
             >
               <Show when={channel()}>
@@ -123,13 +128,15 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
                 </>
               )}
             </Show>
-            <Show when={a.fromUrl && canViewMessage() ? a.fromUrl : undefined}>
+            <Show
+              when={canViewMessage() ? safeUrl(decodeTextEntities(a.fromUrl ?? "")) : undefined}
+            >
               {(url) => (
                 <>
                   <span aria-hidden="true">|</span>
                   <a
                     class="attachment-view-message-link"
-                    href={decodeTextEntities(url())}
+                    href={url()}
                     rel="noopener noreferrer"
                     target="_blank"
                   >

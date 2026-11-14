@@ -1,0 +1,8 @@
+.plugin-settings-header {
+  gap: var(--space-sm);
+  margin-bottom: 20px;
+}
+
+.settings-content .plugin-settings-header h2 {
+  margin: 0;
+}

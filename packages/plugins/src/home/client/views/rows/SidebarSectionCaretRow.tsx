@@ -19,7 +19,9 @@ export function SidebarSectionCaretRow(props: {
         aria-expanded={props.open}
         aria-label={`${props.open ? "Collapse" : "Expand"} ${props.label}`}
         class="sidebar-caret btn-reset icon-shift"
+        data-nav-row
         onClick={props.onToggleOpen}
+        tabIndex={-1}
         type="button"
       >
         <Icon
@@ -32,7 +34,9 @@ export function SidebarSectionCaretRow(props: {
           <button
             aria-label={props.labelAriaLabel}
             class="btn-reset text-muted text-sm"
+            data-nav-row
             onClick={onLabelClick()}
+            tabIndex={-1}
             type="button"
           >
             {props.label}

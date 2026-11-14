@@ -18,10 +18,13 @@ const dataResolver = {
         isMember: channelsStore.isChannelMember(id),
         isPrivate: channel.private,
         name: titles.title(id),
+        label: titles.label(id),
       };
     }
     const dm = dmsStore.dmById(id);
-    return dm ? { isMember: true, isPrivate: true, name: titles.title(id) } : undefined;
+    return dm
+      ? { isMember: true, isPrivate: true, name: titles.title(id), label: titles.label(id) }
+      : undefined;
   },
   resolveUser: (id: string) => {
     const user = usersStore.userById(id);

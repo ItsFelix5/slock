@@ -15,6 +15,13 @@ function isEmbedChurn(change: ReturnType<Quill["getContents"]>): boolean {
   return embedInserts === 1 && deleted === 1;
 }
 
+export function withoutHistory(quill: Quill, change: () => void) {
+  const { history } = quill;
+  history.ignoreChange = true;
+  change();
+  history.ignoreChange = false;
+}
+
 export function ignoreEmbedChurn(quill: Quill) {
   const { history } = quill;
   const record = history.record.bind(history);

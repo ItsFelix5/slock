@@ -1,4 +1,5 @@
 import type { ThemeColors } from "./themeColorRegistry";
+import { PALETTE_PRESETS } from "./themePalettes";
 
 export interface ThemePreset {
   colorScheme?: "dark" | "light";
@@ -41,7 +42,7 @@ const tintedTheme = (hue: number, accent: string, accentHover: string): ThemeCol
 });
 
 const CHARCOAL_THEME_BASE = {
-  accent: "oklch(0.62 0.19 260)",
+  accent: "oklch(0.55 0.19 260)",
   accentHover: "@accent 6%L -2%C",
   badgeBg: "@danger -8%L 4%C",
   border: "@textSecondary 10%",
@@ -70,7 +71,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     colorScheme: "light",
     colors: {
       ...DARK_THEME_BASE,
-      accent: "oklch(0.56 0.15 250)",
+      accent: "oklch(0.55 0.15 250)",
       accentHover: "@accent -7%L",
       activeBg: "@accent 12%",
       badgeBg: "@danger",
@@ -190,7 +191,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       blockKitButtonDanger: "@badgeBg",
       blockKitButtonPrimary: "@presenceActive",
       border: "@textSecondary -48.4%L 1.6%C",
-      borderStrong: "@textDim",
+      borderStrong: "@textPrimary -49.9%L 2.8%C",
       codeBg: "@mainBg -7.4%L -0.7%C",
       composerBg: "@mainBg 3.1%L 0.3%C",
       danger: "#bf616a",
@@ -200,7 +201,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       presenceActive: "#a3be8c",
       railBg: "@mainBg -3.7%L -0.4%C",
       sidebarBg: "@mainBg 5.5%L 0.6%C",
-      textDim: "@textPrimary -49.9%L 2.8%C",
+      textDim: "@textPrimary -36%L 2.8%C",
       textOnAccent: "#2e3440",
       textPrimary: "#eceff4",
       textSecondary: "@textPrimary -5.2%L 0.9%C",
@@ -209,4 +210,5 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: "nord",
     label: "Nord",
   },
+  ...PALETTE_PRESETS,
 ];

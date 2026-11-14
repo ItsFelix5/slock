@@ -2,3 +2,11 @@
   width: min(720px, calc(100vw - 32px));
   height: min(75dvh, 640px);
 }
+
+.debug-info-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-sm) 20px 20px;
+  overflow: auto;
+  background-color: var(--code-bg);
+}

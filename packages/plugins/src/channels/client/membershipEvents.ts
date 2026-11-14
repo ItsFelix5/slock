@@ -2,11 +2,17 @@ import { mapChannel } from "@slock/slack";
 import type { MembershipEvent, User } from "@slock/types";
 import type { createChannelsStore } from "./store";
 
+type MembershipTarget = Pick<
+  ReturnType<typeof createChannelsStore>,
+  "addJoinedChannel" | "invalidateChannelRoster" | "markChannelLeft" | "patchChannel"
+>;
+
 export const MEMBERSHIP_EVENTS = [
   "channel_joined",
   "group_joined",
   "channel_left",
   "group_left",
+  "member_joined_channel",
   "member_left_channel",
   "channel_rename",
   "group_rename",
@@ -18,7 +24,7 @@ export const MEMBERSHIP_EVENTS = [
 ] as const;
 
 export function createMembershipHandler(
-  channels: ReturnType<typeof createChannelsStore>,
+  channels: MembershipTarget,
   currentUser: () => User | undefined,
 ) {
   return function handleMembershipEvent(payload: MembershipEvent): void {
@@ -32,9 +38,13 @@ export function createMembershipHandler(
       case "channel_deleted":
         if (payload.channel) channels.markChannelLeft(payload.channel);
         break;
+      case "member_joined_channel":
+        if (payload.channel) channels.invalidateChannelRoster(payload.channel);
+        break;
       case "member_left_channel":
-        if (payload.channel && payload.user === currentUser()?.id)
-          channels.markChannelLeft(payload.channel);
+        if (!payload.channel) break;
+        if (payload.user === currentUser()?.id) channels.markChannelLeft(payload.channel);
+        else channels.invalidateChannelRoster(payload.channel);
         break;
       case "channel_rename":
       case "group_rename":

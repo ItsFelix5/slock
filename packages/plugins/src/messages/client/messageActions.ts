@@ -22,7 +22,7 @@ export async function copyMessageText(msg: Message) {
 export async function deleteOrDismissMessage(channelId: string, msg: Message) {
   if (msg.deleted) {
     messagesStore.dismissMessage(channelId, msg.ts);
-    return;
+    return true;
   }
   const confirmed = await confirmDialog({
     confirmLabel: "Delete",
@@ -30,4 +30,5 @@ export async function deleteOrDismissMessage(channelId: string, msg: Message) {
     message: "Delete this message?",
   });
   if (confirmed) messagesStore.deleteMessageAt(channelId, msg.ts);
+  return confirmed;
 }

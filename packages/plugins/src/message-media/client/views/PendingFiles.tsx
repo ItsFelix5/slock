@@ -1,7 +1,6 @@
 import type { PendingFile } from "@slock/types";
-import { Icon } from "@slock/ui";
+import { formatSize, HideBrokenImage, Icon } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { formatSize } from "../api/FileCardInfo";
 import "../api/MessageFiles.css";
 
 export default function PendingFiles(props: { files: PendingFile[] }) {
@@ -11,7 +10,7 @@ export default function PendingFiles(props: { files: PendingFile[] }) {
         {(file) => (
           <div class="message-file-card pending-file-card flex-align-center">
             <Show fallback={<Icon name="file" size={20} />} when={file.isImage && file.previewUrl}>
-              {(src) => <img alt="" class="pending-file-thumb" src={src()} />}
+              {(src) => <HideBrokenImage alt="" class="pending-file-thumb" src={src()} />}
             </Show>
             <span class="message-file-info flex-col">
               <span class="message-file-name truncate">{file.name}</span>

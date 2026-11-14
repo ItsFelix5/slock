@@ -1,20 +1,24 @@
 import { useSeekShortcuts } from "../useNavShortcuts";
 import { inside, useShortcut } from "../useShortcut";
 
+const ACTIVATES_ON_SPACE = "button, a, input";
+
 export function useVideoShortcuts(deps: {
   currentTime: () => number;
   duration: () => number;
   root: () => HTMLElement | undefined;
+  seekRoot: () => HTMLElement | undefined;
   seekTo: (ratio: number) => void;
   toggleFullscreen: () => void;
   toggleMute: () => void;
   togglePlayback: () => void;
 }) {
+  const inPlayer = inside(deps.root);
   const playerShortcut = {
     allowInInputs: false,
     scope: "general",
     group: "Media",
-    target: inside(deps.root),
+    target: inPlayer,
   } as const;
   useShortcut({
     ...playerShortcut,
@@ -22,6 +26,7 @@ export function useVideoShortcuts(deps: {
     handler: deps.togglePlayback,
     id: "video.playPause",
     label: "Play or pause the video",
+    target: (element) => inPlayer(element) && !element.closest(ACTIVATES_ON_SPACE),
   });
   useShortcut({
     ...playerShortcut,
@@ -40,7 +45,7 @@ export function useVideoShortcuts(deps: {
   useSeekShortcuts({
     currentTime: deps.currentTime,
     duration: deps.duration,
-    root: deps.root,
+    root: deps.seekRoot,
     seekTo: deps.seekTo,
   });
 }

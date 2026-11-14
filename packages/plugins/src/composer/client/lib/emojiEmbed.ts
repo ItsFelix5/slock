@@ -1,6 +1,6 @@
 import { emojiUrl } from "@slock/blockkit";
-import Quill from "@slock/ui/editor/quill";
-import { getEmbedBlot } from "@slock/ui/editor/quillText";
+import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
+import { asElement } from "@slock/ui/editor/quillText";
 import { standardEmojiUnicode } from "../../../emoji/client/api/emojiSearch";
 
 interface EmojiValue {
@@ -13,9 +13,7 @@ class EmojiBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: EmojiValue) {
-    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
-    const node = super.create(value);
-    if (!(node instanceof HTMLElement)) throw new Error("emoji blot produced a non-element node");
+    const node = asElement(super.create(value), "emoji");
     node.className = "bk-composer-emoji";
     node.dataset.name = value.name;
     node.title = `:${value.name}:`;
@@ -40,8 +38,3 @@ class EmojiBlot extends getEmbedBlot() {
 }
 
 Quill.register(EmojiBlot);
-
-export function emojiValue(value: unknown): string | undefined {
-  if (!(value && typeof value === "object" && "name" in value)) return;
-  return typeof value.name === "string" ? value.name : undefined;
-}

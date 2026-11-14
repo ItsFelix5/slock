@@ -37,6 +37,7 @@ const channelRetentionKey = defineKey<[string]>("channelRetention");
 const feedback = service("feedback");
 
 const channelsStore = service("channels");
+const query = service("query");
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 export type ChannelDetailsTab = string;
@@ -79,6 +80,12 @@ export function createChannelDetailsStore() {
       feedback.caught(id, err, fallbackMessage);
       throw err;
     }
+  }
+
+  function invalidateChannelDetails(id: string, postingChanged = false) {
+    void query.client.invalidateQueries({ queryKey: channelDetailsKey(id) });
+    if (postingChanged)
+      void query.client.invalidateQueries({ queryKey: channelPostingPrefsKey(id) });
   }
 
   function loadChannelDetails(id: string): Promise<ChannelDetails | null> {
@@ -224,6 +231,7 @@ export function createChannelDetailsStore() {
     channelDetailsTab,
     closeChannelDetails,
     convertChannelToPrivateById,
+    invalidateChannelDetails,
     inviteUsersToChannel,
     createChannelDetailsQuery,
     createChannelManagerIdsQuery,

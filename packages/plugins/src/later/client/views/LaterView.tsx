@@ -1,3 +1,4 @@
+import { formatSlackDateTokens } from "@slock/blockkit";
 import { formatTime } from "@slock/core";
 import { service } from "@slock/core/solid";
 import {
@@ -191,6 +192,14 @@ export default function LaterView() {
                               later.isSaveForLaterPending(item.channelId, item.ts)
                             }
                             icon="bookmark-filled"
+                            label={
+                              item.dateCreated
+                                ? formatSlackDateTokens(
+                                    "Saved {date_short_pretty} at {time}",
+                                    item.dateCreated,
+                                  )
+                                : undefined
+                            }
                             onClick={() => later.toggleSaveForLater(item.channelId, item.ts)}
                             tone="accent"
                           />

@@ -12,11 +12,13 @@ export function useHoverIntent(openDelay = 350, closeDelay = 160) {
   };
 
   const scheduleOpen = () => {
+    clearTimeout(openTimer);
     clearTimeout(closeTimer);
     openTimer = setTimeout(() => setOpen(true), openDelay);
   };
   const scheduleClose = () => {
     clearTimeout(openTimer);
+    clearTimeout(closeTimer);
     closeTimer = setTimeout(close, closeDelay);
   };
   const cancelClose = () => clearTimeout(closeTimer);

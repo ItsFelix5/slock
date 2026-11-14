@@ -8,7 +8,6 @@ import {
   unresolvedAuthorFallback,
 } from "../../../messages/client/api/messageAuthor";
 import { formatInteractorNames } from "../../../users/client/api";
-import { isPingingActivity } from "../kinds";
 
 const titles = service("titles");
 const usersStore = service("users");
@@ -30,7 +29,6 @@ export function createActivityRowDisplay(deps: {
   });
   const isUnread = createMemo(() => activityStore.isActivityItemUnread(deps.latest()));
   const isArchived = createMemo(() => activityStore.isActivityItemArchived(deps.latest()));
-  const isPinging = createMemo(() => isPingingActivity(deps.latest()));
   const isStandaloneActivity = createMemo(() => !deps.latest().channelId);
   const hasKnownActor = createMemo(() => hasRealMessageAuthor(deps.latest()));
   const hasAnyActor = createMemo(
@@ -67,7 +65,6 @@ export function createActivityRowDisplay(deps: {
     hasKnownActor,
     interactorNames,
     isArchived,
-    isPinging,
     isStandaloneActivity,
     isUnread,
     reactedMessage,

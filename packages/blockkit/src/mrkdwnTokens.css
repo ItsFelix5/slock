@@ -35,19 +35,7 @@
   box-decoration-break: clone;
 }
 
-.bk-canvas {
-  font-weight: 700;
-}
-
-.bk-canvas:hover {
-  background: var(--mention-hover-bg);
-}
-
-.bk-canvas > .icon {
-  margin-right: var(--space-xs);
-  vertical-align: text-bottom;
-}
-
+.bk-canvas > .icon,
 .bk-mention-message > .icon {
   margin-right: 2px;
 }
@@ -60,6 +48,7 @@
   white-space: nowrap;
 }
 
+.bk-canvas:hover,
 .bk-mention:hover {
   background: var(--mention-hover-bg);
 }
@@ -70,6 +59,7 @@
 
 .bk-mention-broadcast {
   cursor: default;
+  font-weight: 700;
 }
 
 .bk-mention-self,

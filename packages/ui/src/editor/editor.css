@@ -24,7 +24,7 @@
   box-sizing: border-box;
   font: inherit;
   counter-reset: list-0;
-  line-height: 1.42;
+  line-height: 1.46;
   height: 100%;
   outline: none;
   overflow-y: auto;
@@ -39,13 +39,24 @@
 }
 
 .ql-editor p,
-.ql-editor ol,
 .ql-editor pre,
 .ql-editor h1,
 .ql-editor h2,
 .ql-editor h3,
 .ql-editor h4 {
   margin: 0;
+  padding: 0;
+}
+
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3,
+.ql-editor h4 {
+  font-weight: 800;
+}
+
+.ql-editor ol {
+  margin: 2px 0;
   padding: 0;
 }
 
@@ -72,21 +83,23 @@
 
 .ql-editor li {
   list-style-type: none;
-  padding-left: 1.5em;
+  margin: 1px 0;
+  padding-left: 16px;
   position: relative;
 }
 
 .ql-editor li > .ql-ui::before {
   display: inline-block;
-  margin-left: -1.5em;
+  margin-left: -16px;
   margin-right: 0.3em;
   text-align: right;
   white-space: nowrap;
-  width: 1.2em;
+  width: calc(16px - 0.3em);
 }
 
 .ql-editor li[data-list="bullet"] > .ql-ui::before {
   content: "\2022";
+  text-align: left;
 }
 
 .ql-editor li[data-list="ordered"] {
@@ -95,6 +108,103 @@
 
 .ql-editor li[data-list="ordered"] > .ql-ui::before {
   content: counter(list-0, decimal) ". ";
+}
+
+.ql-editor li[data-list] {
+  counter-set: list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8;
+}
+
+.ql-editor li.ql-indent-1 {
+  padding-left: 36px;
+  counter-set: list-2 list-3 list-4 list-5 list-6 list-7 list-8;
+}
+.ql-editor li.ql-indent-2 {
+  padding-left: 56px;
+  counter-set: list-3 list-4 list-5 list-6 list-7 list-8;
+}
+.ql-editor li.ql-indent-3 {
+  padding-left: 76px;
+  counter-set: list-4 list-5 list-6 list-7 list-8;
+}
+.ql-editor li.ql-indent-4 {
+  padding-left: 96px;
+  counter-set: list-5 list-6 list-7 list-8;
+}
+.ql-editor li.ql-indent-5 {
+  padding-left: 116px;
+  counter-set: list-6 list-7 list-8;
+}
+.ql-editor li.ql-indent-6 {
+  padding-left: 136px;
+  counter-set: list-7 list-8;
+}
+.ql-editor li.ql-indent-7 {
+  padding-left: 156px;
+  counter-set: list-8;
+}
+.ql-editor li.ql-indent-8 {
+  padding-left: 176px;
+}
+
+.ql-editor li[data-list="ordered"].ql-indent-1 {
+  counter-increment: list-1;
+}
+.ql-editor li[data-list="ordered"].ql-indent-2 {
+  counter-increment: list-2;
+}
+.ql-editor li[data-list="ordered"].ql-indent-3 {
+  counter-increment: list-3;
+}
+.ql-editor li[data-list="ordered"].ql-indent-4 {
+  counter-increment: list-4;
+}
+.ql-editor li[data-list="ordered"].ql-indent-5 {
+  counter-increment: list-5;
+}
+.ql-editor li[data-list="ordered"].ql-indent-6 {
+  counter-increment: list-6;
+}
+.ql-editor li[data-list="ordered"].ql-indent-7 {
+  counter-increment: list-7;
+}
+.ql-editor li[data-list="ordered"].ql-indent-8 {
+  counter-increment: list-8;
+}
+
+.ql-editor li[data-list="ordered"].ql-indent-1 > .ql-ui::before {
+  content: counter(list-1, lower-alpha) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-2 > .ql-ui::before {
+  content: counter(list-2, lower-roman) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-3 > .ql-ui::before {
+  content: counter(list-3, decimal) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-4 > .ql-ui::before {
+  content: counter(list-4, lower-alpha) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-5 > .ql-ui::before {
+  content: counter(list-5, lower-roman) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-6 > .ql-ui::before {
+  content: counter(list-6, decimal) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-7 > .ql-ui::before {
+  content: counter(list-7, lower-alpha) ". ";
+}
+.ql-editor li[data-list="ordered"].ql-indent-8 > .ql-ui::before {
+  content: counter(list-8, lower-roman) ". ";
+}
+
+.ql-editor li[data-list="bullet"].ql-indent-1 > .ql-ui::before,
+.ql-editor li[data-list="bullet"].ql-indent-4 > .ql-ui::before,
+.ql-editor li[data-list="bullet"].ql-indent-7 > .ql-ui::before {
+  content: "\25E6";
+}
+.ql-editor li[data-list="bullet"].ql-indent-2 > .ql-ui::before,
+.ql-editor li[data-list="bullet"].ql-indent-5 > .ql-ui::before,
+.ql-editor li[data-list="bullet"].ql-indent-8 > .ql-ui::before {
+  content: "\25AA";
 }
 
 .ql-editor .bk-mention,
@@ -106,15 +216,21 @@
 .ql-editor a {
   color: var(--link-color);
   cursor: pointer;
+  text-decoration: none;
+}
+
+.ql-editor a:hover {
+  text-decoration: underline;
 }
 
 .ql-editor blockquote {
   padding-block: 2px;
-  margin: 0;
+  margin: 2px 0;
 }
 
 .ql-editor blockquote:has(+ blockquote) {
   padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 .ql-editor blockquote:has(+ blockquote)::before {
@@ -124,6 +240,7 @@
 
 .ql-editor blockquote + blockquote {
   padding-top: 0;
+  margin-top: 0;
 }
 
 .ql-editor blockquote + blockquote::before {
@@ -139,7 +256,7 @@
 
 .ql-editor hr {
   height: 0;
-  margin: 0.5em 0;
+  margin: var(--space-xs) 0;
   border: none;
   border-top: 1px solid var(--border-strong);
 }
@@ -159,7 +276,7 @@
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: var(--font-size-control);
   background: var(--code-bg);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
 }
 
@@ -175,4 +292,8 @@
 .format-bubble-anchor {
   position: absolute;
   pointer-events: none;
+}
+
+.format-bubble-link {
+  width: 200px;
 }

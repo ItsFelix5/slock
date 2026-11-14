@@ -1,0 +1,6 @@
+{
+  "id": "sidebar-create",
+  "core": true,
+  "name": "Sidebar create",
+  "requires": ["channels", "conversations", "home", "usergroup-details"]
+}

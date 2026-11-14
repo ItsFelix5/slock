@@ -4,18 +4,26 @@ const TOP_SCRIPTS = 15;
 const TOP_FRAMES = 8;
 const TOP_INTERACTIONS = 10;
 const TOP_SHIFTS = 5;
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
 const MS_PER_MINUTE = 60_000;
 
 const ms = (value: number) => `${Math.round(value)} ms`;
 
+function clock(at: number): string {
+  const seconds = Math.floor(at / MS_PER_SECOND);
+  return `${Math.floor(seconds / SECONDS_PER_MINUTE)}:${String(seconds % SECONDS_PER_MINUTE).padStart(2, "0")}`;
+}
+
 function topScripts(recording: Recording): string[] {
-  const groups = new Map<string, { count: number; total: number; max: number }>();
+  const groups = new Map<string, { count: number; total: number; max: number; forced: number }>();
   for (const frame of recording.frames) {
     for (const script of frame.scripts) {
       const key = `\`${script.name}\` ${script.source}`;
-      const group = groups.get(key) ?? { count: 0, total: 0, max: 0 };
+      const group = groups.get(key) ?? { count: 0, total: 0, max: 0, forced: 0 };
       group.count += 1;
       group.total += script.duration;
+      group.forced += script.forcedLayout;
       group.max = Math.max(group.max, script.duration);
       groups.set(key, group);
     }
@@ -23,7 +31,10 @@ function topScripts(recording: Recording): string[] {
   return [...groups]
     .sort(([, a], [, b]) => b.total - a.total)
     .slice(0, TOP_SCRIPTS)
-    .map(([key, g]) => `- ${key}: ${g.count}x, total ${ms(g.total)}, max ${ms(g.max)}`);
+    .map(
+      ([key, g]) =>
+        `- ${key}: ${g.count}x, total ${ms(g.total)}, max ${ms(g.max)}${g.forced >= 1 ? `, forced layout ${ms(g.forced)}` : ""}`,
+    );
 }
 
 function worstFrames(recording: Recording): string[] {
@@ -36,7 +47,8 @@ function worstFrames(recording: Recording): string[] {
         .slice(0, 3)
         .map((script) => `${script.name} ${script.source} ${ms(script.duration)}`)
         .join("; ");
-      return `- ${ms(frame.duration)} on ${frame.path} (blocking ${ms(frame.blocking)}, style and layout ${ms(frame.styleLayout)}): ${scripts || "no script"}`;
+      const churn = frame.churn.length ? `; dom ${frame.churn.join(", ")}` : "";
+      return `- ${ms(frame.duration)} at ${clock(frame.at)} on ${frame.path} (blocking ${ms(frame.blocking)}, style and layout ${ms(frame.styleLayout)}): ${scripts || "no script"}${churn}`;
     });
 }
 
@@ -74,7 +86,8 @@ export function buildReport(recording: Recording): string {
   return [
     "# Slock performance recording",
     `Session ${(performance.now() / MS_PER_MINUTE).toFixed(1)} min, ${recording.frames.length} slow frames, ${recording.interactions.length} slow interactions, ${recording.shifts.length} layout shifts.`,
-    "Fix the jank behind these entries with the fix-jank skill.",
+    `DOM: ${document.getElementsByTagName("*").length} elements. Script entries for promise callbacks (such as Response.text.then) include everything their microtask chain runs, so check the dom lines for what rendered.`,
+    "Fix the jank behind these entries.",
     ...section("Slowest scripts by total time", topScripts(recording)),
     ...section("Worst frames", worstFrames(recording)),
     ...section("Slow interactions", slowInteractions(recording)),

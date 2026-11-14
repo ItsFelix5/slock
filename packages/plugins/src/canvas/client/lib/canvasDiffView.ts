@@ -94,7 +94,7 @@ export function inlineDiff(previous: Op[], next: Op[]): Op[] {
 
 export function diffToOps(
   entries: DiffEntry[],
-  doc: Pick<CanvasDocModel, "embeds" | "files">,
+  doc: Pick<CanvasDocModel, "embeds">,
   names: CanvasNames,
 ): Op[] {
   const byId = new Map(entries.map((entry) => [entry.node.id, entry]));

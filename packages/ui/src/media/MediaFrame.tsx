@@ -10,16 +10,9 @@ export interface MediaFrameProps {
 
 export default function MediaFrame(props: MediaFrameProps) {
   const [collapsed, setCollapsed] = createSignal(false);
+  const toggle = () => setCollapsed((value) => !value);
   const caret = () => (
-    <button
-      aria-expanded={!collapsed()}
-      aria-label={collapsed() ? "Expand" : "Collapse"}
-      class="media-frame-caret btn-reset"
-      onClick={() => setCollapsed((collapsed) => !collapsed)}
-      type="button"
-    >
-      <Icon name={collapsed() ? "caret-right-filled" : "caret-down-filled"} size={11} />
-    </button>
+    <Icon name={collapsed() ? "caret-right-filled" : "caret-down-filled"} size={11} />
   );
   return (
     <div class="media-frame">
@@ -28,10 +21,10 @@ export default function MediaFrame(props: MediaFrameProps) {
           <button
             aria-expanded={!collapsed()}
             class="media-frame-toggle btn-reset flex-align-center"
-            onClick={() => setCollapsed((collapsed) => !collapsed)}
+            onClick={toggle}
             type="button"
           >
-            {caret()}
+            <span class="media-frame-caret">{caret()}</span>
             <span class="media-frame-title truncate">{props.title}</span>
           </button>
         }
@@ -39,7 +32,15 @@ export default function MediaFrame(props: MediaFrameProps) {
       >
         {(titleUrl) => (
           <div class="media-frame-toggle flex-align-center">
-            {caret()}
+            <button
+              aria-expanded={!collapsed()}
+              aria-label={collapsed() ? "Expand" : "Collapse"}
+              class="media-frame-caret btn-reset"
+              onClick={toggle}
+              type="button"
+            >
+              {caret()}
+            </button>
             <a
               class="media-frame-title truncate"
               data-link-url={titleUrl()}

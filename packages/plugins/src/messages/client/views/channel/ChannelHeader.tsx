@@ -45,12 +45,19 @@ export default function ChannelHeader() {
             }}
             type="button"
           >
-            <Show fallback={null} when={view()?.kind !== "dm"}>
-              <Icon
-                class="channel-header-icon"
-                name={channelIconName(isPrivateChannel(), isArchivedChannel())}
-                size={16}
-              />
+            <Show when={view()}>
+              {(v) => (
+                <Show
+                  fallback={<Slot id={v().id} kind={v().kind} point="messages.titleIcon" />}
+                  when={v().kind === "channel"}
+                >
+                  <Icon
+                    class="channel-header-icon"
+                    name={channelIconName(isPrivateChannel(), isArchivedChannel())}
+                    size={16}
+                  />
+                </Show>
+              )}
             </Show>
             <span class="truncate">{channelTitle()}</span>
           </button>

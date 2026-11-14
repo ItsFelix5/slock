@@ -1,4 +1,5 @@
 import type { Message } from "@slock/types";
+import { deepEqual } from "../lib/deepEqual";
 
 const PENDING_ID_PREFIX = "pending-";
 
@@ -20,9 +21,10 @@ export function confirmsPending(pending: Message, confirmed: Message): boolean {
 export function dedupeMessages(messages: Message[]): Message[] {
   const byTimestamp = new Map<string, Message>();
   for (const message of messages) byTimestamp.set(message.ts, message);
-  return [...byTimestamp.values()].sort(
-    (a, b) => parseFloat(a.ts || "0") - parseFloat(b.ts || "0") || (a.id < b.id ? -1 : 1),
-  );
+  return [...byTimestamp.values()]
+    .map((message) => ({ message, ts: parseFloat(message.ts || "0") }))
+    .sort((a, b) => a.ts - b.ts || (a.message.id < b.message.id ? -1 : 1))
+    .map(({ message }) => message);
 }
 
 export function mergeMessages(existing: Message[], fresh: Message[]): Message[] {
@@ -31,7 +33,7 @@ export function mergeMessages(existing: Message[], fresh: Message[]): Message[] 
   const freshTimestamps = new Set(fresh.map((m) => m.ts));
   const keep = existing.filter((m) => {
     if (freshById.has(m.id) || freshTimestamps.has(m.ts)) return false;
-    return !fresh.some((f) => confirmsPending(m, f));
+    return !(isPendingMessage(m) && fresh.some((f) => confirmsPending(m, f)));
   });
   const reconciledFresh = fresh.map((m) => {
     const prev = existingByTs.get(m.ts);
@@ -41,7 +43,7 @@ export function mergeMessages(existing: Message[], fresh: Message[]): Message[] 
       m.isSubscribed === undefined && prev.isSubscribed !== undefined
         ? { ...m, isSubscribed: prev.isSubscribed }
         : m;
-    return JSON.stringify(prev) === JSON.stringify(patched) ? prev : patched;
+    return deepEqual(prev, patched) ? prev : patched;
   });
   return dedupeMessages([...keep, ...reconciledFresh]);
 }

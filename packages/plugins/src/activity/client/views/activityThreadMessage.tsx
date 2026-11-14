@@ -1,11 +1,11 @@
-import { Mrkdwn } from "@slock/blockkit";
 import { formatDayFromMs, formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { SlackFile } from "@slock/types";
+import type { Block, SlackFile } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, Icon, NavRow, Tooltip } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { fileSummaryIcon, fileSummaryLabel } from "../../../files/client/api/fileSummary";
-import { parseReplyLink } from "../../../message-links/client/api/replyLink";
+import { splitReplyLink } from "../../../message-links/client/api/replyLink";
+import MessageReferenceSnippet from "../../../messages/client/api/cards/MessageReferenceSnippet";
 import {
   isRealUserId,
   type MessageAuthorFields,
@@ -18,33 +18,50 @@ import { ClickableAuthorName } from "../../../profile/client/api/AppBadge";
 
 const usersStore = service("users");
 
-export function ActivityMessageText(props: { files?: SlackFile[]; text: string }) {
-  const ref = createMemo(() => parseReplyLink(props.text));
+export function ActivityMessageText(props: {
+  author: MessageAuthorFields;
+  blocks?: Block[];
+  channelId: string;
+  files?: SlackFile[];
+  text: string;
+  threadTs?: string;
+  ts: string;
+}) {
+  const content = createMemo(() => splitReplyLink(props));
   const filesOnly = createMemo(() => {
-    if (props.text.trim()) return;
+    if (content().blocks || content().text.trim()) return;
     return props.files?.length ? props.files : undefined;
   });
   return (
     <Show
       fallback={
-        <Show fallback={<Mrkdwn inline text={props.text} />} when={filesOnly()}>
-          {(files) => (
-            <span class="activity-file-fallback">
-              <Icon name={fileSummaryIcon(files())} size={12} />
-              {fileSummaryLabel(files())}
-            </span>
-          )}
-        </Show>
+        <MessageReferenceSnippet
+          blocks={content().blocks}
+          botId={props.author.botId}
+          botUserId={props.author.userId}
+          channelId={props.channelId}
+          inline
+          text={content().text}
+          threadTs={props.threadTs}
+          ts={props.ts}
+        />
       }
-      when={ref()}
+      when={filesOnly()}
     >
-      {(r) => <Mrkdwn inline text={r().rest} />}
+      {(files) => (
+        <span class="activity-file-fallback">
+          <Icon name={fileSummaryIcon(files())} size={12} />
+          {fileSummaryLabel(files())}
+        </span>
+      )}
     </Show>
   );
 }
 
 export function ThreadMessageRow(props: {
   author: MessageAuthorFields;
+  blocks?: Block[];
+  channelId: string;
   files?: SlackFile[];
   isFirst?: boolean;
   isLast?: boolean;
@@ -52,9 +69,11 @@ export function ThreadMessageRow(props: {
   onContextMenu?: (e: MouseEvent) => void;
   onOpen: () => void;
   text: string;
-  time?: number;
+  threadTs: string;
+  ts: string;
   unread?: boolean;
 }) {
+  const timeMs = () => parseFloat(props.ts) * 1000;
   const user = createMemo(() => usersStore.userById(props.author.userId));
   const displayName = createMemo(() =>
     resolveAuthorDisplayName(props.author, user()?.name, unresolvedAuthorFallback(props.author)),
@@ -103,16 +122,20 @@ export function ThreadMessageRow(props: {
               </ClickableAuthorName>
             )}
           </Show>
-          <Show keyed when={props.time === undefined ? undefined : props.time}>
-            {(time) => (
-              <Tooltip content={`${formatDayFromMs(time)} at ${formatTimeFromMs(time)}`}>
-                <span class="activity-thread-message-time meta-dim">{formatTimeFromMs(time)}</span>
-              </Tooltip>
-            )}
-          </Show>
+          <Tooltip content={`${formatDayFromMs(timeMs())} at ${formatTimeFromMs(timeMs())}`}>
+            <span class="activity-thread-message-time meta-dim">{formatTimeFromMs(timeMs())}</span>
+          </Tooltip>
         </span>
         <span class="activity-thread-message-text">
-          <ActivityMessageText files={props.files} text={props.text} />
+          <ActivityMessageText
+            author={props.author}
+            blocks={props.blocks}
+            channelId={props.channelId}
+            files={props.files}
+            text={props.text}
+            threadTs={props.threadTs}
+            ts={props.ts}
+          />
         </span>
       </span>
     </NavRow>

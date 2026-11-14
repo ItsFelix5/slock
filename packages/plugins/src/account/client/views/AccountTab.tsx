@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { Slot, usePoint } from "@slock/core/solid";
 import { getActiveAccountId, listAccounts, removeAccount, switchAccount } from "@slock/slack";
 import { Avatar, Button, DEFAULT_AVATAR_COLOR, Icon, IconButton } from "@slock/ui";
@@ -26,7 +27,7 @@ export default function AccountTab() {
     try {
       await logoutAndRestart();
     } catch (error) {
-      setLogoutError(error instanceof Error ? error.message : "Couldn't log out. Try again.");
+      setLogoutError(errorMessage(error, "Couldn't log out. Try again."));
       setLoggingOut(false);
     }
   }
@@ -38,7 +39,7 @@ export default function AccountTab() {
       switchAccount(id);
       await restartApp();
     } catch (error) {
-      setSwitchError(error instanceof Error ? error.message : "Couldn't switch accounts.");
+      setSwitchError(errorMessage(error, "Couldn't switch accounts."));
       setSwitching(undefined);
     }
   }
@@ -49,7 +50,7 @@ export default function AccountTab() {
       await removeAccount(id);
       setAccounts(listAccounts());
     } catch (error) {
-      setSwitchError(error instanceof Error ? error.message : "Couldn't remove the account.");
+      setSwitchError(errorMessage(error, "Couldn't remove the account."));
     }
   }
 

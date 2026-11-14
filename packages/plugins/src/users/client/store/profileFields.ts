@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { User, UserCustomField } from "@slock/types";
 import { createConcurrencyQueue } from "@slock/ui";
@@ -13,6 +14,7 @@ export function createUserProfileFields(
     ) => Promise<{ customFields?: UserCustomField[]; startDate?: string }>;
     setProfileFields: (fields: {
       displayName?: string;
+      fullName?: string;
       title?: string;
       pronouns?: string;
       customFields?: Record<string, string>;
@@ -66,11 +68,7 @@ export function createUserProfileFields(
       return true;
     } catch (err) {
       console.error("Failed to update profile photo", err);
-      feedback.flash(
-        "me",
-        err instanceof Error ? err.message : "Failed to update profile photo.",
-        "error",
-      );
+      feedback.flash("me", errorMessage(err, "Failed to update profile photo."), "error");
       return false;
     }
   }
@@ -78,6 +76,7 @@ export function createUserProfileFields(
   const runProfileMutation = createConcurrencyQueue(1).run;
   function updateMyProfile(fields: {
     displayName?: string;
+    fullName?: string;
     title?: string;
     pronouns?: string;
     customFields?: Record<string, string>;
@@ -88,6 +87,7 @@ export function createUserProfileFields(
         setSelfStatusOverride((prev) => {
           const next: Partial<User> = { ...prev };
           if (fields.displayName !== undefined) next.name = fields.displayName;
+          if (fields.fullName !== undefined) next.realName = fields.fullName;
           if (fields.title !== undefined) next.title = fields.title || undefined;
           if (fields.pronouns !== undefined) next.pronouns = fields.pronouns || undefined;
           return next;
@@ -106,11 +106,7 @@ export function createUserProfileFields(
         return true;
       } catch (err) {
         console.error("Failed to update profile", err);
-        feedback.flash(
-          "me",
-          err instanceof Error ? err.message : "Failed to update profile.",
-          "error",
-        );
+        feedback.flash("me", errorMessage(err, "Failed to update profile."), "error");
         return false;
       }
     });

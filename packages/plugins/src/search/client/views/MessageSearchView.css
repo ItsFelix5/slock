@@ -4,39 +4,11 @@
   background: var(--main-bg);
 }
 
-.message-search-anchor {
-  flex-shrink: 0;
-}
-
 .message-search-header {
-  gap: var(--space-sm);
+  flex-shrink: 0;
   padding: 10px var(--space-md);
   background: var(--main-bg);
   border-bottom: 1px solid var(--border);
-}
-
-.message-search-input .ql-editor {
-  padding: 0;
-  overflow-x: auto;
-  font-size: var(--font-size-body);
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-.search-filter-pill {
-  cursor: pointer;
-}
-
-.search-filter-pill.negated,
-.search-filter-pill.negated:hover {
-  color: var(--error-text);
-  background: var(--error-bg);
-}
-
-.message-search-suggestions {
-  width: 280px;
-  max-height: 280px;
-  overflow-y: auto;
 }
 
 .message-search-results {

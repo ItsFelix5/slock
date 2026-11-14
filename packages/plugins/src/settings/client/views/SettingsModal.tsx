@@ -3,6 +3,7 @@ import { Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
 import { createMemo, createSignal, For } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import type { SettingsTabItem } from "../api";
+import "./SettingsForm.css";
 import "./SettingsModal.css";
 import "./SettingsModal.responsive.css";
 

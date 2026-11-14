@@ -17,23 +17,12 @@
 .files-links-searchbar {
   display: flex;
   flex: 1 1 220px;
-  gap: var(--space-sm);
   align-items: center;
   min-width: 180px;
   padding: 6px 10px;
   background: var(--composer-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-}
-
-.files-links-search-icon {
-  flex-shrink: 0;
-  color: var(--text-dim);
-}
-
-.files-links-search-input {
-  flex: 1;
-  font-size: var(--font-size-control);
 }
 
 .files-links-searchbar:focus-within {

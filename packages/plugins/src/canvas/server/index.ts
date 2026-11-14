@@ -10,7 +10,7 @@ import { route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type { FileInfoReply } from "../../slack/server/api/slackReplies";
 import { trimFile } from "../../slack/server/api/trim/slackMessages";
-import { fetchCanvasRaw, lookupThread, notConfigured } from "./api";
+import { canEditCanvas, fetchCanvasRaw, lookupThread, notConfigured } from "./api";
 import { commentRoutes } from "./comments";
 import { applyCanvasEdit } from "./edit";
 import { historyRoutes } from "./history";
@@ -61,7 +61,7 @@ const renameCanvas: HttpHandler = async (c, next) => {
   const info = await callSlack<FileInfoReply>("files.info", { file: fileId }, c.creds);
   const threadId = info.ok ? info.file.quip_thread_id : undefined;
   if (!threadId) return next();
-  if (info.ok && info.file.editable === false) return errorResponse("not_editable", 403);
+  if (info.ok && !canEditCanvas(info.file)) return errorResponse("not_editable", 403);
   const body: unknown = await c.req.json();
   const name = isRecord(body) && typeof body.title === "string" ? body.title.trim() : "";
   if (!name) return errorResponse("invalid_title", 400);

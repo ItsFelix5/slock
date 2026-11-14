@@ -94,6 +94,7 @@ export type {
   SlackLink,
 } from "./fileTypes";
 export type {
+  ChannelUpdates,
   DesktopNotificationEvent,
   GatewayEvent,
   GatewayMessageEvent,

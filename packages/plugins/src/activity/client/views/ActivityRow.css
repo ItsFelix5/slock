@@ -11,7 +11,7 @@
 }
 
 .activity-item:hover,
-.activity-item:focus-within {
+.activity-item:has(:focus-visible) {
   background: var(--hover-bg);
 }
 
@@ -24,12 +24,8 @@
 }
 
 .activity-item.unread:hover,
-.activity-item.unread:focus-within {
+.activity-item.unread:has(:focus-visible) {
   background: var(--accent-muted);
-}
-
-.activity-item.unread.pinging {
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .activity-item-summary {
@@ -123,8 +119,28 @@
 .activity-channel {
   margin-left: var(--space-xs);
   font-weight: 400;
-  color: var(--mention-text);
   white-space: nowrap;
+}
+
+.activity-connector {
+  margin-left: var(--space-xs);
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.activity-reminder-note {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.activity-snippet-reminder {
+  color: var(--text-primary);
+  -webkit-line-clamp: 3;
 }
 
 .activity-reply-count {

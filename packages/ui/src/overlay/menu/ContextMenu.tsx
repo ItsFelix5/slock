@@ -70,6 +70,7 @@ function ContextMenuPanel(props: {
         e.preventDefault();
         e.stopPropagation();
       }}
+      onKeyDown={(event) => roving.handleKeyDown(event, props.onClose)}
       ref={ref}
       style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >

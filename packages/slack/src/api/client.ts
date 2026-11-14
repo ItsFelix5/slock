@@ -1,6 +1,17 @@
 import type { ApiReply } from "@slock/types";
 import { forceReauth, isConfigured } from "../session/account";
-import { isAuthError } from "./authErrors";
+
+const AUTH_ERRORS = new Set([
+  "not_configured",
+  "invalid_auth",
+  "not_authed",
+  "token_revoked",
+  "account_inactive",
+]);
+
+export function isAuthError(code: unknown): boolean {
+  return typeof code === "string" && AUTH_ERRORS.has(code);
+}
 
 export class ApiError extends Error {
   retryAfterMs?: number;

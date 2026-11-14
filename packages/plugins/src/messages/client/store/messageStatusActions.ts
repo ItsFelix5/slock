@@ -16,6 +16,7 @@ export function createMessageStatusActions(deps: {
   setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
   setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
+  threadReadTsFor: (threadTs: string) => string | undefined;
   hasMoreHistory: (channelId: string) => boolean;
   hasNewerHistory: (channelId: string) => boolean;
   messagesByChannel: Record<string, Message[]>;
@@ -95,7 +96,11 @@ export function createMessageStatusActions(deps: {
     return true;
   }
   function isMessageUnread(channelId: string, ts: string, threadTs?: string) {
-    if (threadTs) return false;
+    if (threadTs) {
+      const root = threadMessages[threadTs]?.[0];
+      const readTs = deps.threadReadTsFor(threadTs) ?? root?.threadLastRead ?? threadTs;
+      return ts !== threadTs && parseFloat(ts) > parseFloat(readTs);
+    }
     const anchor = deps.unreadDividerTsFor(channelId) ?? deps.lastReadFor(channelId) ?? 0;
     return parseFloat(ts) * 1000 > anchor;
   }
@@ -116,7 +121,10 @@ export function createMessageStatusActions(deps: {
     return true;
   }
   function toggleMessageUnread(channelId: string, ts: string, threadTs?: string) {
-    if (isMessageUnread(channelId, ts, threadTs)) return markMessageRead(channelId, ts);
+    if (isMessageUnread(channelId, ts, threadTs)) {
+      if (threadTs) return deps.setThreadRead(channelId, threadTs, ts);
+      return markMessageRead(channelId, ts);
+    }
     return markMessageUnread(channelId, ts, threadTs);
   }
   async function markMessageUnread(

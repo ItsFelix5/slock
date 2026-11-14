@@ -1,7 +1,7 @@
 import { blockPreviewText } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import { deleteDraft, saveDraft } from "../../slack/client/api";
+import { deleteDraft, saveDraft } from "../../slack/client/api/drafts";
 import {
   type DraftValue,
   deleteEntry,
@@ -13,6 +13,8 @@ import {
   removeEntry,
   upsertEntry,
 } from "./draftStore";
+
+const SAVE_DELAY_MS = 1000;
 
 export function createComposerDraftState(opts: {
   channelId: () => string | undefined;
@@ -28,26 +30,30 @@ export function createComposerDraftState(opts: {
   const [syncError, setSyncError] = createSignal(false);
   let clientMsgId: string | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let pendingSave: (() => void) | undefined;
   let saveQueue: Promise<void> = Promise.resolve();
   let defaultForKey: string | undefined;
   let loadedFor: string | undefined;
   let persistedFor: string | undefined;
   let sessionGeneration = 0;
+  const unsaved = new Map<string, Block[]>();
 
   function runSave(
     channelId: string,
     threadTs: string | undefined,
     blocks: Block[],
-    startId: string | undefined,
+    knownId: string | undefined,
     startCmid: string | undefined,
     generation: number,
   ): Promise<void> {
     const key = draftCacheKey(channelId, threadTs);
     locallyTouchedKeys.add(key);
+    unsaved.set(key, blocks);
     const next = saveQueue
       .catch(() => {})
       .then(async () => {
-        if (!(await hydrateDrafts())) throw new Error("Draft hydration failed");
+        const startId = knownId ?? drafts[key]?.find((e) => e.clientMsgId === startCmid)?.id;
+        if (startId && !(await hydrateDrafts())) throw new Error("Draft hydration failed");
         if (!blockPreviewText(blocks).trim()) {
           if (startId) {
             await deleteDraft(startId);
@@ -68,7 +74,9 @@ export function createComposerDraftState(opts: {
           id: result.id,
           lastUpdatedTs: result.lastUpdatedTs,
         });
-        const apply = generation === sessionGeneration && activeDraftId() === startId;
+        unsaved.delete(key);
+        const apply =
+          generation === sessionGeneration && activeDraftId() === knownId && key === opts.key();
         if (apply) {
           clientMsgId = cmid;
           loadedFor = `${key}::${result.id}`;
@@ -92,11 +100,20 @@ export function createComposerDraftState(opts: {
     return clientMsgId;
   }
 
+  function cancelPendingSave() {
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    pendingSave = undefined;
+  }
+
+  function flushPendingSave() {
+    const save = pendingSave;
+    cancelPendingSave();
+    save?.();
+  }
+
   function flush(): Promise<void> {
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-      saveTimer = undefined;
-    }
+    cancelPendingSave();
     const channelId = opts.channelId();
     if (!channelId) return Promise.resolve();
     return runSave(
@@ -134,6 +151,10 @@ export function createComposerDraftState(opts: {
     if (drafts[key]?.some((e) => e.id === id)) return;
     sessionGeneration += 1;
     clientMsgId = undefined;
+    if (blockPreviewText(opts.blocks()).trim()) {
+      loadedFor = `${key}::new`;
+      persistedFor = loadedFor;
+    }
     setActiveDraftId(undefined);
   });
 
@@ -145,7 +166,7 @@ export function createComposerDraftState(opts: {
     if (token === loadedFor) return;
     loadedFor = token;
     const entry = key && id ? drafts[key]?.find((e) => e.id === id) : undefined;
-    opts.loadIntoEditor(entry?.blocks ?? []);
+    opts.loadIntoEditor(entry?.blocks ?? (key ? unsaved.get(key) : undefined) ?? []);
     opts.resetPreviews();
   });
 
@@ -161,7 +182,10 @@ export function createComposerDraftState(opts: {
 
     const skip = token !== persistedFor;
     persistedFor = token;
-    if (skip) return;
+    if (skip) {
+      flushPendingSave();
+      return;
+    }
 
     if (!empty && id) {
       upsertEntry(key, { blocks, clientMsgId: clientMsgId ?? "", id });
@@ -171,11 +195,12 @@ export function createComposerDraftState(opts: {
 
     const scheduledCmid = currentClientMsgId();
     const scheduledGeneration = sessionGeneration;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      saveTimer = undefined;
-      void runSave(channelId, opts.threadTs(), blocks, id, scheduledCmid, scheduledGeneration);
-    }, 1000);
+    const threadTs = opts.threadTs();
+    cancelPendingSave();
+    pendingSave = () => {
+      void runSave(channelId, threadTs, blocks, id, scheduledCmid, scheduledGeneration);
+    };
+    saveTimer = setTimeout(flushPendingSave, SAVE_DELAY_MS);
   });
 
   onCleanup(() => {
@@ -192,10 +217,7 @@ export function createComposerDraftState(opts: {
       if (!channelId) return;
       const key = draftCacheKey(channelId, opts.threadTs());
       pendingFiles.clear(key);
-      if (saveTimer) {
-        clearTimeout(saveTimer);
-        saveTimer = undefined;
-      }
+      cancelPendingSave();
       const activeId = activeDraftId();
       if (activeId) removeEntry(key, activeId);
       loadedFor = `${key}::new`;

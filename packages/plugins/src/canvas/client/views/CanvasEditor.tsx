@@ -54,6 +54,7 @@ export default function CanvasEditor(props: {
   onReact?: (annotationId: string, name: string) => void;
   onReactToThread?: (thread: CanvasCommentThread, name: string) => void;
   onRemoteChange: (latest: LoadedCanvas) => void;
+  remoteChangeTick?: () => number;
   onTitle?: (title: string) => void;
   threads?: CanvasCommentThread[];
 }) {
@@ -120,7 +121,7 @@ export default function CanvasEditor(props: {
   });
   const runOnSelection = useCanvasSelectionShortcuts({
     contextFor: commands.contextFor,
-    editable: props.editable,
+    editable: () => props.editable,
     quill: active,
   });
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
@@ -183,6 +184,7 @@ export default function CanvasEditor(props: {
     isEditing: () => !!root?.hasFocus(),
     names,
     onRemoteChange: props.onRemoteChange,
+    remoteChangeTick: () => props.remoteChangeTick?.() ?? 0,
     sync,
   });
 

@@ -3,8 +3,8 @@ import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { mrkdwnText } from "../lib/deltaLines";
 import { createEditorPlugins } from "../lib/editorPlugins";
-import { mrkdwnText } from "../lib/quillMentions";
 import ComposerSuggestPopover from "./editor/ComposerSuggestPopover";
 import MentionHoverCard from "./editor/MentionHoverCard";
 import { createMentionHoverController } from "./editor/mentionHover";
@@ -114,7 +114,7 @@ export default function MrkdwnComposer(props: {
           editorPlugins.bind(q);
           q.enable(!props.disabled);
           q.on("text-change", () => {
-            const next = mrkdwnText(q);
+            const next = mrkdwnText(q.getContents().ops);
             lastEmitted = next;
             props.onInput(next);
             const aligned = indexAlignedText(q);

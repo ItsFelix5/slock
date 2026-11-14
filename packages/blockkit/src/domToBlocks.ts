@@ -41,6 +41,12 @@ function isBroadcastRange(value: string): value is BroadcastRange {
 
 function tokenElement(el: HTMLElement, style: RichTextStyle): RichTextInlineElement | undefined {
   const { dataset } = el;
+  if (dataset.linkUrl) {
+    const text = el.matches(".bk-mention-message")
+      ? dataset.linkUrl
+      : cleanText(el.textContent ?? "");
+    return { style: styleOrUndefined(style), text, type: "link", url: dataset.linkUrl };
+  }
   if (dataset.mentionId) {
     return { style: styleOrUndefined(style), type: "user", user_id: dataset.mentionId };
   }
@@ -60,14 +66,6 @@ function tokenElement(el: HTMLElement, style: RichTextStyle): RichTextInlineElem
     };
   }
   if (dataset.emojiName) return { name: dataset.emojiName, type: "emoji" };
-  if (dataset.linkUrl) {
-    return {
-      style: styleOrUndefined(style),
-      text: cleanText(el.textContent ?? ""),
-      type: "link",
-      url: dataset.linkUrl,
-    };
-  }
 }
 
 function collectInline(

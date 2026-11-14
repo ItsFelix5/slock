@@ -1,4 +1,4 @@
-import { service } from "@slock/core/solid";
+import { Slot, service } from "@slock/core/solid";
 import { Button, Icon } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
 import { usePaneView } from "../../../conversations/client/api/paneView";
@@ -7,7 +7,7 @@ import { createInPaneSearch } from "../api/pane/inPaneSearch";
 import "./MessageList.css";
 import { createMessageFocus } from "../api/messageFocus";
 import MessageRows from "../api/pane/MessageRows";
-import { groupSystemMessages } from "../lib/groupSystemMessages";
+import { createSystemMessageGrouper } from "../lib/groupSystemMessages";
 import { createMessageListScroll } from "../messageListScroll";
 import MessageListDateNav from "./parts/MessageListDateNav";
 
@@ -22,6 +22,7 @@ export default function MessageList() {
   let scrollRef: HTMLDivElement | undefined;
   const [contentRef, setContentRef] = createSignal<HTMLDivElement>();
 
+  const groupSystemMessages = createSystemMessageGrouper();
   const messages = createMemo(() => {
     const v = paneView();
     if (!v) return [];
@@ -145,10 +146,15 @@ export default function MessageList() {
                     <div class="message-list-loading-older">Loading messages…</div>
                   </Show>
                   <Show when={!messagesStore.hasMoreHistory(v().id)}>
-                    <div class="message-list-intro">
-                      <div class="message-list-intro-icon flex-center">#</div>
-                      <h2 class="truncate">{channelName()}</h2>
-                    </div>
+                    <Show
+                      fallback={<Slot id={v().id} kind={v().kind} point="messages.intro" />}
+                      when={v().kind === "channel"}
+                    >
+                      <div class="message-list-intro">
+                        <div class="message-list-intro-icon flex-center">#</div>
+                        <h2 class="truncate">{channelName()}</h2>
+                      </div>
+                    </Show>
                   </Show>
                 </Show>
               </div>

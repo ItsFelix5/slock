@@ -43,6 +43,13 @@ const setup: Setup = (ctx) => {
     },
     types: ["canvas_created"],
   });
+  ctx.add("realtime.handler", {
+    run: (event) => {
+      if ((event.type === "document_change" || event.type === "document_update") && event.file_id)
+        store.noteRemoteChange(event.file_id);
+    },
+    types: ["document_change", "document_update"],
+  });
   ctx.add("messages.blockKit", {
     onCanvasClick: store.openCanvasPane,
     resolveCanvasTitle: store.canvasTitle,

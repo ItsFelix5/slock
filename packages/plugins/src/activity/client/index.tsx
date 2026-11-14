@@ -11,7 +11,7 @@ const ActivityView = lazy(() => import("./views/ActivityView"));
 function ActivityButton() {
   const activity = service("activity");
   return (
-    <span class="sidebar-nav-btn-icon flex-center hover-hl">
+    <span class="sidebar-nav-btn-icon flex-center">
       <Show
         fallback={<Icon name="notifications" size={16} />}
         when={activity.recentReactionEmoji()}
@@ -33,6 +33,7 @@ function ActivityButton() {
 
 const setup: Setup = (ctx) => {
   const messages = service("messages");
+  const sidebar = service("sidebar");
   const unread = service("unread");
   const users = service("users");
   const store = createActivityStore({
@@ -40,13 +41,13 @@ const setup: Setup = (ctx) => {
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     isBotUser: (userId) => !!users.userById(userId)?.isBot,
-    isViewed: unread.isViewed,
+    isActivityViewOpen: () => sidebar.nav() === "activity",
     lastReadByChannel: unread.lastReadByChannel,
     reactionMessageFor: messages.reactionMessageFor,
     setLastReadByChannel: unread.setLastReadByChannel,
     syncChannelRead: unread.syncChannelRead,
-    syncThreadRead: unread.syncThreadRead,
-    visibleThreads: messages.visibleThreads,
+    setThreadRead: unread.setThreadRead,
+    threadReadTsFor: unread.threadReadTsFor,
   });
   ctx.provide("activity", store);
   const bootstrap = service("bootstrap");
@@ -54,6 +55,18 @@ const setup: Setup = (ctx) => {
   createEffect(() => {
     const preferencesSettled = prefs.preferencesReady() || !!bootstrap.userPrefs.error;
     if (users.currentUser() && preferencesSettled) void untrack(() => store.ensureActivityLoaded());
+  });
+  const conversations = service("conversations");
+  createEffect(() => {
+    const view = conversations.activeView();
+    if (!view) return;
+    const added = store.activityItems.filter(
+      (item) =>
+        item.activityType === "quietly_added_to_channel" &&
+        item.channelId === view.id &&
+        store.isActivityItemUnread(item),
+    );
+    if (added.length) store.markActivityItemsRead(added);
   });
   createEffect(() => store.setGatewayActivityBadgeCounts(bootstrap.bootstrap.data?.activityCounts));
   ctx.add("unread.counts", (notifications) => {
@@ -75,6 +88,10 @@ const setup: Setup = (ctx) => {
         store.applyThreadMarked(event.thread_ts, event.unread_count);
     },
     types: ["badge_counts_updated", "thread_marked"],
+  });
+  ctx.add("realtime.handler", {
+    run: store.requestActivityRefresh,
+    types: ["activity", "activity_mark_all_read_completed", "activity_views_updated"],
   });
   ctx.add(
     "sidebar.nav",

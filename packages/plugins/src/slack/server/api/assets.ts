@@ -1,5 +1,4 @@
-import { isRecord } from "@slock/core";
-import { errorMessage } from "../../../http/server/api/errorMessage";
+import { errorMessage, isRecord } from "@slock/core";
 import { type Credentials, jsonHeaders } from "./auth.ts";
 
 export const ASSET_PATH = "/api/assets";
@@ -22,6 +21,7 @@ export function safeTypeHeaders(type: string | null): Record<string, string> {
 
 const FILE_CONNECT_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 5;
+const CONTENT_ADDRESSED_HOST_RE = /\.slack-edge\.com$/;
 const SLACK_ASSET_KEY_RE =
   /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$|^vtt$/i;
 
@@ -38,6 +38,17 @@ function isAllowedSlackUrl(value: string): boolean {
   }
 }
 
+function isStaticAssetUrl(value: string): boolean {
+  return isAllowedSlackUrl(value) && CONTENT_ADDRESSED_HOST_RE.test(new URL(value).hostname);
+}
+
+function assetCacheControl(url: string): string {
+  return CONTENT_ADDRESSED_HOST_RE.test(new URL(url).hostname)
+    ? "private, max-age=604800, immutable"
+    : "private, max-age=86400, stale-while-revalidate=86400";
+}
+
+// Third-party hosts must not go through our asset proxy: it sends the user's Slack cookie upstream
 function slackImgsProxyUrl(value: string): string | null {
   try {
     const parsed = new URL(value);
@@ -62,12 +73,20 @@ export function downloadUrl(url: string): string {
   return isAllowedSlackUrl(url) ? `${ASSET_PATH}?url=${encodeURIComponent(url)}` : url;
 }
 
+export function imageUrl(url: string): string {
+  return isAllowedSlackUrl(url) ? downloadUrl(url) : (slackImgsProxyUrl(url) ?? url);
+}
+
 export function rewriteSlackAssetUrls(value: unknown, creds: Credentials | null): unknown {
   if (!(creds && value) || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map((entry) => rewriteSlackAssetUrls(entry, creds));
   if (isRecord(value)) hydrateAvatarHash(value);
   const rewritten: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === "string" && isStaticAssetUrl(entry)) {
+      rewritten[key] = downloadUrl(entry);
+      continue;
+    }
     if (typeof entry === "string" && SLACK_ASSET_KEY_RE.test(key)) {
       if (isAllowedSlackUrl(entry)) {
         rewritten[key] = downloadUrl(entry);
@@ -153,7 +172,7 @@ export async function slackAssetResponse(
   return new Response(fileRes.body, {
     headers: {
       "accept-ranges": "bytes",
-      "cache-control": "private, max-age=3600",
+      "cache-control": assetCacheControl(fileUrl),
       ...safeTypeHeaders(fileRes.headers.get("content-type")),
       vary: "Accept-Encoding, Cookie",
       ...(contentEncoding ? { "content-encoding": contentEncoding } : {}),

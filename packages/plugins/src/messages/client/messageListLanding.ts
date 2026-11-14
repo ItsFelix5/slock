@@ -6,6 +6,7 @@ import {
   flashMessageElement,
   getRememberedScrollAnchor,
   jumpToMessageInContainer,
+  pinToRow,
   rememberScrollAnchor,
   restoreScrollAnchor,
   scrollToBottom,
@@ -15,29 +16,6 @@ import { findUnreadDividerIndex } from "./lib/unreadDivider";
 
 const unreadStore = service("unread");
 const messagesStore = service("messages");
-
-const PIN_MS = 1500;
-
-function pinToRow(
-  container: HTMLElement,
-  isStale: () => boolean,
-  pin: () => void,
-  onStop: () => void,
-) {
-  const observer = new ResizeObserver(() => {
-    if (isStale()) stop();
-    else pin();
-  });
-  const timer = setTimeout(stop, PIN_MS);
-  function stop() {
-    clearTimeout(timer);
-    observer.disconnect();
-    onStop();
-  }
-  observer.observe(container);
-  for (const child of container.children) observer.observe(child);
-  return stop;
-}
 
 export function createMessageListLanding(deps: {
   clearMessageTarget: () => void;

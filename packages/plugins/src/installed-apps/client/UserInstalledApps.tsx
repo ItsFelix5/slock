@@ -1,10 +1,10 @@
 import { For, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
 import { createKeyedQuery, defineKey } from "../../query/client/api";
-import { fetchInstalledApps } from "./fetch";
+import { fetchInstalledApps, INSTALLED_APPS_QUERY } from "./fetch";
 import "./InstalledApps.css";
 
-const installedAppsKey = defineKey<[string]>("installedApps");
+const installedAppsKey = defineKey<[string]>(INSTALLED_APPS_QUERY);
 
 export default function UserInstalledApps(props: ProfileMetaProps) {
   const installed = createKeyedQuery(() => {

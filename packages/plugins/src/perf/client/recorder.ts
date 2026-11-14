@@ -1,3 +1,5 @@
+import { describe } from "./describe";
+import { startDomChurn } from "./domChurn";
 import type { FrameRecord, InteractionRecord, Recording, ShiftRecord } from "./recording";
 
 type LoafScript = {
@@ -6,6 +8,7 @@ type LoafScript = {
   sourceCharPosition: number;
   invoker: string;
   duration: number;
+  forcedStyleAndLayoutDuration: number;
 };
 
 type LoafEntry = PerformanceEntry & {
@@ -34,31 +37,24 @@ const HEAP_INTERVAL_MS = 30_000;
 const SLOW_EVENT_MS = 64;
 const BYTES_PER_MB = 1024 * 1024;
 
-function describe(node: Node | null): string {
-  if (!(node instanceof Element)) return "unknown";
-  const id = node.id ? `#${node.id}` : "";
-  const classes = [...node.classList]
-    .slice(0, 2)
-    .map((name) => `.${name}`)
-    .join("");
-  return `${node.tagName.toLowerCase()}${id}${classes}`;
-}
-
 function sourceOf(script: LoafScript): string {
   if (!script.sourceURL) return "unknown";
   return `${new URL(script.sourceURL).pathname}:${script.sourceCharPosition}`;
 }
 
-function toFrame(entry: LoafEntry): FrameRecord {
+function toFrame(entry: LoafEntry, churn: string[]): FrameRecord {
   return {
+    at: entry.startTime,
     path: location.pathname,
     duration: entry.duration,
     blocking: entry.blockingDuration,
     styleLayout: entry.startTime + entry.duration - entry.styleAndLayoutStart,
+    churn,
     scripts: entry.scripts.map((script) => ({
       name: script.sourceFunctionName || script.invoker,
       source: sourceOf(script),
       duration: script.duration,
+      forcedLayout: script.forcedStyleAndLayoutDuration,
     })),
   };
 }
@@ -83,6 +79,10 @@ function toShift(entry: ShiftEntry): ShiftRecord {
   };
 }
 
+const isLoafEntry = (entry: PerformanceEntry): entry is LoafEntry => "scripts" in entry;
+const isEventEntry = (entry: PerformanceEntry): entry is EventEntry => "interactionId" in entry;
+const isShiftEntry = (entry: PerformanceEntry): entry is ShiftEntry => "hadRecentInput" in entry;
+
 function observe(
   type: string,
   handle: (entry: PerformanceEntry) => void,
@@ -100,20 +100,35 @@ function keep<T>(list: T[], item: T) {
 
 export function startRecorder() {
   const recording: Recording = { frames: [], interactions: [], shifts: [], heap: [] };
+  const interactionsById = new Map<number, InteractionRecord>();
+  const domChurn = startDomChurn();
+
+  function recordInteraction(entry: EventEntry) {
+    const record = toInteraction(entry);
+    const existing = interactionsById.get(entry.interactionId);
+    if (!existing) {
+      interactionsById.set(entry.interactionId, record);
+      keep(recording.interactions, record);
+    } else if (record.duration > existing.duration) Object.assign(existing, record);
+  }
 
   const observers = [
-    observe("long-animation-frame", (entry) => keep(recording.frames, toFrame(entry as LoafEntry))),
+    observe("long-animation-frame", (entry) => {
+      if (isLoafEntry(entry))
+        keep(
+          recording.frames,
+          toFrame(entry, domChurn.summarize(entry.startTime, entry.startTime + entry.duration)),
+        );
+    }),
     observe(
       "event",
       (entry) => {
-        if ((entry as EventEntry).interactionId > 0)
-          keep(recording.interactions, toInteraction(entry as EventEntry));
+        if (isEventEntry(entry) && entry.interactionId > 0) recordInteraction(entry);
       },
       { durationThreshold: SLOW_EVENT_MS },
     ),
     observe("layout-shift", (entry) => {
-      if (!(entry as ShiftEntry).hadRecentInput)
-        keep(recording.shifts, toShift(entry as ShiftEntry));
+      if (isShiftEntry(entry) && !entry.hadRecentInput) keep(recording.shifts, toShift(entry));
     }),
   ];
 
@@ -130,10 +145,12 @@ export function startRecorder() {
     clear() {
       recording.frames.length = 0;
       recording.interactions.length = 0;
+      interactionsById.clear();
       recording.shifts.length = 0;
     },
     stop() {
       clearInterval(timer);
+      domChurn.stop();
       for (const observer of observers) observer.disconnect();
     },
   };

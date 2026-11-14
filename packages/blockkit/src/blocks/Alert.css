@@ -7,7 +7,7 @@
 }
 
 .bk-alert--warning {
-  border-left-color: #c98300;
+  border-left-color: var(--warning);
 }
 
 .bk-alert--error {

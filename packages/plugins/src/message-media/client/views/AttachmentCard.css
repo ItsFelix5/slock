@@ -8,7 +8,7 @@
   max-width: min(460px, 100%);
   padding: 0 0 0 9px;
   margin-top: 6px;
-  font-size: var(--font-size-secondary);
+  font-size: var(--font-size-body);
   border-left: 3px solid var(--border-strong);
 }
 
@@ -58,8 +58,7 @@
 .attachment-author {
   gap: 6px;
   margin-bottom: 2px;
-  font-size: var(--font-size-control);
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .attachment-author-icon {
@@ -88,7 +87,6 @@
 }
 
 .attachment-text {
-  color: var(--text-secondary);
   word-break: break-word;
   white-space: pre-wrap;
 }
@@ -117,13 +115,7 @@
 }
 
 .attachment-field-title {
-  font-size: var(--font-size-meta);
   font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.attachment-field-value {
-  font-size: var(--font-size-control);
 }
 
 .attachment-image,
@@ -179,19 +171,23 @@
 }
 
 .attachment-removable {
-  position: relative;
-  width: fit-content;
+  display: flex;
+  gap: var(--space-xs);
+  align-items: flex-start;
   max-width: 100%;
 }
 
+.attachment-removable-card {
+  min-width: 0;
+}
+
 .attachment-remove {
-  position: absolute;
-  top: var(--space-xs);
-  right: var(--space-xs);
+  margin-top: 6px;
   opacity: 0;
 }
 
 .attachment-removable:hover .attachment-remove,
-.attachment-removable:focus-within .attachment-remove {
+.attachment-removable:focus-within .attachment-remove,
+.remove-visible .attachment-remove {
   opacity: 1;
 }

@@ -51,6 +51,12 @@ export type RawActivityItem = {
     inviter_user_id?: string;
   };
   reaction?: { name?: string; user?: string };
+  reminder_note?: string;
+  saved_reminder_payload?: {
+    item_id?: string;
+    item_id_2?: string;
+    item_type?: string;
+  };
   ts?: string;
   type?: string;
   user?: string;

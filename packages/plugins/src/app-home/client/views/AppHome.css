@@ -1,0 +1,12 @@
+.app-home {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-lg);
+  overflow-y: auto;
+  background: var(--main-bg);
+}
+
+.app-home-empty {
+  margin: 0;
+  text-align: center;
+}

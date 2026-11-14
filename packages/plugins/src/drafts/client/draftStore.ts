@@ -1,7 +1,7 @@
-import type { Block } from "@slock/types";
+import type { Block, DraftEntry } from "@slock/types";
 import { createSignal } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
-import { deleteDraft, fetchDrafts, saveDraft } from "../../slack/client/api";
+import { createStore, produce, reconcile } from "solid-js/store";
+import { deleteDraft, fetchDrafts, saveDraft } from "../../slack/client/api/drafts";
 
 export function draftCacheKey(channelId: string, threadTs?: string): string {
   return threadTs ? `${channelId}:thread:${threadTs}` : channelId;
@@ -21,90 +21,88 @@ export type DraftValue = {
   lastUpdatedTs?: string;
 };
 
-export const drafts: Record<string, DraftValue[]> = {};
+const [drafts, setDrafts] = createStore<Record<string, DraftValue[]>>({});
 const [draftsReady, setDraftsReady] = createSignal(false);
 export const locallyTouchedKeys = new Set<string>();
 let draftsHydrated = false;
 let draftHydrationPromise: Promise<boolean> | null = null;
+let generation = 0;
 
-export { draftsReady };
-
-const draftKeysByChannel = new Map<string, Set<string>>();
-const [channelDraftFlags, setChannelDraftFlags] = createStore<Record<string, boolean>>({});
+export { drafts, draftsReady };
 
 export function resetDrafts() {
-  for (const key of Object.keys(drafts)) Reflect.deleteProperty(drafts, key);
+  generation += 1;
+  setDrafts(reconcile({}));
   setDraftsReady(false);
   locallyTouchedKeys.clear();
-  draftKeysByChannel.clear();
-  setChannelDraftFlags(reconcile({}));
   draftsHydrated = false;
   draftHydrationPromise = null;
 }
 
-function updateChannelDraftFlag(key: string, hasEntries: boolean) {
-  const { channelId } = keyToTarget(key);
-  let keys = draftKeysByChannel.get(channelId);
-  if (hasEntries) {
-    if (!keys) {
-      keys = new Set();
-      draftKeysByChannel.set(channelId, keys);
-    }
-    keys.add(key);
-  } else if (keys) {
-    keys.delete(key);
-    if (keys.size === 0) draftKeysByChannel.delete(channelId);
-  }
-  const has = (draftKeysByChannel.get(channelId)?.size ?? 0) > 0;
-  if (channelDraftFlags[channelId] !== has) setChannelDraftFlags(channelId, has);
-}
-
 export function upsertEntry(key: string, entry: DraftValue) {
-  const list = drafts[key] ?? [];
-  const idx = list.findIndex((e) => e.id === entry.id);
-  drafts[key] = idx === -1 ? [...list, entry] : list.map((e, i) => (i === idx ? entry : e));
-  updateChannelDraftFlag(key, drafts[key].length > 0);
+  setDrafts(key, (list = []) => {
+    const idx = list.findIndex((e) => e.id === entry.id);
+    return idx === -1 ? [...list, entry] : list.map((e, i) => (i === idx ? entry : e));
+  });
 }
 
 export function removeEntry(key: string, id: string) {
-  const list = drafts[key];
-  if (!list) return;
-  const next = list.filter((e) => e.id !== id);
-  if (next.length) drafts[key] = next;
-  else delete drafts[key];
-  updateChannelDraftFlag(key, next.length > 0);
+  const next = drafts[key]?.filter((e) => e.id !== id);
+  setDrafts(
+    produce((all) => {
+      if (next?.length) all[key] = next;
+      else delete all[key];
+    }),
+  );
+}
+
+export function applyRemoteDraft(draft: DraftEntry) {
+  if (!draftsHydrated) return;
+  const key = draftCacheKey(draft.channelId, draft.threadTs);
+  const known = drafts[key]?.find((e) => e.id === draft.id);
+  if (known && Number(known.lastUpdatedTs ?? 0) >= Number(draft.lastUpdatedTs ?? 0)) return;
+  upsertEntry(key, {
+    blocks: draft.blocks,
+    clientMsgId: draft.clientMsgId,
+    id: draft.id,
+    lastUpdatedTs: draft.lastUpdatedTs,
+  });
+}
+
+export function removeRemoteDraft(id: string) {
+  for (const [key, list] of Object.entries(drafts)) {
+    if (list.some((e) => e.id === id)) removeEntry(key, id);
+  }
 }
 
 export async function deleteEntry(key: string, id: string) {
   locallyTouchedKeys.add(key);
-  await deleteDraft(id);
+  await deleteDraft(id, drafts[key]?.find((e) => e.id === id)?.lastUpdatedTs);
   removeEntry(key, id);
 }
 
 export function channelHasDraft(channelId: string): boolean {
-  return !!channelDraftFlags[channelId];
+  return Object.keys(drafts).some((key) => keyToTarget(key).channelId === channelId);
 }
 
 export function draftsForChannel(
   channelId: string,
 ): (DraftValue & { key: string; threadTs?: string })[] {
-  void channelDraftFlags[channelId];
-  const keys = draftKeysByChannel.get(channelId);
-  if (!keys) return [];
-  const out: (DraftValue & { key: string; threadTs?: string })[] = [];
-  for (const key of keys) {
-    const { threadTs } = keyToTarget(key);
-    for (const entry of drafts[key] ?? []) out.push({ ...entry, key, threadTs });
-  }
-  return out;
+  return Object.keys(drafts).flatMap((key) => {
+    const { channelId: keyChannelId, threadTs } = keyToTarget(key);
+    if (keyChannelId !== channelId) return [];
+    return (drafts[key] ?? []).map((entry) => ({ ...entry, key, threadTs }));
+  });
 }
 
 export function hydrateDrafts(): Promise<boolean> {
   if (draftsHydrated) return Promise.resolve(true);
   if (draftHydrationPromise) return draftHydrationPromise;
 
+  const startedAt = generation;
   const request = fetchDrafts()
     .then((entries) => {
+      if (startedAt !== generation) return false;
       for (const draft of entries) {
         const key = draftCacheKey(draft.channelId, draft.threadTs);
         if (locallyTouchedKeys.has(key)) continue;
@@ -120,6 +118,7 @@ export function hydrateDrafts(): Promise<boolean> {
     })
     .catch(() => false)
     .finally(() => {
+      if (startedAt !== generation) return;
       setDraftsReady(true);
       if (draftHydrationPromise === request) draftHydrationPromise = null;
     });

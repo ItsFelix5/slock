@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { HoverCard, Icon, Skeleton, type useHoverIntent } from "@slock/ui";
-import { type JSX, Show } from "solid-js";
+import { createSignal, type JSX, Show } from "solid-js";
 import { channelDisplayName } from "../../../channels/client/api";
 import "./ChannelHoverCard.css";
 
@@ -14,6 +14,7 @@ export default function ChannelHoverCard(props: {
   hoverIntent?: ReturnType<typeof useHoverIntent>;
 }) {
   const channel = () => channelsStore.channelById(props.channelId);
+  const [detailsLoaded, setDetailsLoaded] = createSignal(false);
   const name = () => channelDisplayName(channel(), props.channelId);
 
   return (
@@ -58,9 +59,10 @@ export default function ChannelHoverCard(props: {
         </Show>
       )}
       onOpenChange={(open) => {
-        if (open) channelsStore.ensureChannelTopic(props.channelId);
+        if (open)
+          channelsStore.ensureChannelTopic(props.channelId).then(() => setDetailsLoaded(true));
       }}
-      openWhen={() => !!channel()}
+      openWhen={() => !!channel() && detailsLoaded()}
       panelClass="channel-hovercard"
       width={280}
     >

@@ -1,4 +1,8 @@
-import { escapeRegExp } from "@slock/ui";
+const REGEXP_SPECIAL_RE = /[.*+?^${}()|[\]\\]/g;
+
+function escapeRegExp(word: string): string {
+  return word.replace(REGEXP_SPECIAL_RE, "\\$&");
+}
 
 function buildHighlightWordsPattern(words: string[]): RegExp | undefined {
   const trimmed = words.map((w) => w.trim()).filter(Boolean);

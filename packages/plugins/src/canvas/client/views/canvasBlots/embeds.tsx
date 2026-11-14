@@ -1,5 +1,4 @@
 import { mapFile } from "@slock/slack";
-import type { RawFile } from "@slock/types";
 import { Show } from "solid-js";
 import MessageFiles from "../../../../message-media/client/api/MessageFiles";
 import type {
@@ -9,17 +8,23 @@ import type {
   TableEmbedValue,
 } from "../../lib/canvasEmbedValues";
 import { COLUMNS_EMBED, FILE_EMBED, IMAGE_EMBED, TABLE_EMBED } from "../../lib/canvasEmbedValues";
+import { createCanvasFileQuery } from "../../lib/canvasRequests";
 import CanvasColumnsView from "./CanvasColumnsView";
 import CanvasTableView from "./CanvasTableView";
 import { defineCanvasEmbed } from "./defineCanvasEmbed";
 
-function CanvasFileView(props: { file: RawFile | null }) {
+function CanvasFileView(props: { fileId: string }) {
+  const file = createCanvasFileQuery(() => props.fileId);
   return (
     <Show
-      fallback={<div class="canvas-file-missing text-dim">This file is no longer available.</div>}
-      when={props.file}
+      fallback={
+        <Show when={!file.isPending}>
+          <div class="canvas-file-missing text-dim">This file is no longer available.</div>
+        </Show>
+      }
+      when={file.data}
     >
-      {(file) => <MessageFiles files={[mapFile(file())]} />}
+      {(loaded) => <MessageFiles files={[mapFile(loaded())]} />}
     </Show>
   );
 }
@@ -41,7 +46,7 @@ defineCanvasEmbed<ImageEmbedValue>({
   name: IMAGE_EMBED,
   view: (props) => {
     props.bind(() => props.value);
-    return <CanvasFileView file={props.value.file} />;
+    return <CanvasFileView fileId={props.value.node.fileId} />;
   },
 });
 
@@ -50,6 +55,6 @@ defineCanvasEmbed<FileEmbedValue>({
   name: FILE_EMBED,
   view: (props) => {
     props.bind(() => props.value);
-    return <CanvasFileView file={props.value.file} />;
+    return <CanvasFileView fileId={props.value.node.fileId} />;
   },
 });

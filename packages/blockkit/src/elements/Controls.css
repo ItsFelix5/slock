@@ -25,7 +25,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-xs) var(--space-sm);
-  font-size: var(--font-size-secondary);
+  font-size: var(--font-size-control);
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
@@ -99,6 +99,12 @@
   font: inherit;
 }
 
+.bk-actions .combobox,
+.bk-section-accessory .combobox {
+  width: 190px;
+  max-width: 100%;
+}
+
 .bk-control--textarea {
   width: 100%;
   min-height: 36px;
@@ -111,7 +117,7 @@
 
 .bk-option {
   gap: 7px;
-  font-size: var(--font-size-secondary);
+  font-size: var(--font-size-body);
 }
 
 .bk-option input {

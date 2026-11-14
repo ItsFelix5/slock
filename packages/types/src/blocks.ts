@@ -54,6 +54,7 @@ export interface ContextBlock {
 export interface ImageBlock {
   alt_text: string;
   block_id?: string;
+  image_bytes?: number;
   image_height?: number;
   is_animated?: boolean;
   image_width?: number;

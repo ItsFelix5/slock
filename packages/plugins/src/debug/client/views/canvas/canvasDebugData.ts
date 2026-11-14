@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import {
   type CanvasDocModel,
@@ -16,7 +17,7 @@ async function settle<T>(promise: Promise<T>): Promise<T | { error: string }> {
   try {
     return await promise;
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: errorMessage(error) };
   }
 }
 
@@ -31,21 +32,7 @@ function countBy<T>(items: T[], key: (item: T) => string): Record<string, number
   return counts;
 }
 
-export interface CanvasDebugTabs {
-  Overview: unknown;
-  Nodes: unknown;
-  Records: unknown;
-  Embeds: unknown;
-  Threads: unknown;
-  Versions: unknown;
-  File: unknown;
-  Raw: unknown;
-}
-
-export async function loadCanvasDebug(
-  fileId: string,
-  doc: CanvasDocModel | null,
-): Promise<CanvasDebugTabs> {
+export async function loadCanvasDebug(fileId: string, doc: CanvasDocModel | null) {
   const [raw, file, comments, versions] = await Promise.all([
     settle(fetchCanvasRaw(fileId)),
     settle(resolveCanvasFile(fileId)),
@@ -58,7 +45,7 @@ export async function loadCanvasDebug(
   return {
     Embeds: {
       embeds: Object.fromEntries(doc?.embeds ?? []),
-      files: Object.fromEntries(doc?.files ?? []),
+      fileIds: doc?.fileIds ?? [],
     },
     File: file,
     Nodes: nodes,

@@ -35,7 +35,7 @@ export function createChannelsStore(deps: {
   const pendingChannels = new Map<string, Promise<unknown>>();
   const channelDiscoveryMisses = new Map<string, number>();
   const channelDiscoveryRetryMs = 30_000;
-  const channelDetailsRequested = new Set<string>();
+  const channelDetailsRequested = new Map<string, Promise<void>>();
 
   const [channelPatches, setChannelPatches] = createStore<Record<string, Partial<Channel>>>({});
   const [leftChannelIds, setLeftChannelIds] = createStore<Record<string, boolean>>({});
@@ -70,7 +70,8 @@ export function createChannelsStore(deps: {
 
   const baseChannelsById = createMemo(() => {
     const base = deps.bootstrap()?.channels ?? [];
-    const extra = extraChannels.filter((c) => !base.some((b) => b.id === c.id));
+    const baseIds = new Set(base.map((c) => c.id));
+    const extra = extraChannels.filter((c) => !baseIds.has(c.id));
     return new Map([...base, ...extra].map((c) => [c.id, c]));
   });
   const channels = createMemo<Channel[]>(() =>
@@ -128,17 +129,17 @@ export function createChannelsStore(deps: {
     return channelById(id);
   }
 
-  function ensureChannelTopic(id: string): void {
+  function ensureChannelTopic(id: string): Promise<void> {
     const known = channelById(id);
     if (
       !known ||
       (known.topic && known.memberCount !== undefined) ||
-      channelDetailsRequested.has(id) ||
       (known.private && !isChannelMember(id))
     )
-      return;
-    channelDetailsRequested.add(id);
-    fetchChannelDetails(id)
+      return Promise.resolve();
+    const inflight = channelDetailsRequested.get(id);
+    if (inflight) return inflight;
+    const request = fetchChannelDetails(id)
       .then((details) => {
         patchChannel(id, {
           memberCount: details.memberCount,
@@ -147,7 +148,11 @@ export function createChannelsStore(deps: {
           topic: details.topic,
         });
       })
-      .catch(() => channelDetailsRequested.delete(id));
+      .catch(() => {
+        channelDetailsRequested.delete(id);
+      });
+    channelDetailsRequested.set(id, request);
+    return request;
   }
 
   function isChannelMember(id: string): boolean {

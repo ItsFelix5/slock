@@ -8,9 +8,11 @@ const setup: Setup = (ctx) => {
   ctx.add("home.channelRows", {
     active: (channelId) => activity.unreadThreads(channelId).length > 0,
     view: (props) => (
-      <For each={activity.unreadThreads(props.channelId)}>
-        {(item) => <ThreadRow item={item} />}
-      </For>
+      <div class="sidebar-thread-list">
+        <For each={activity.unreadThreads(props.channelId)}>
+          {(item) => <ThreadRow item={item} />}
+        </For>
+      </div>
     ),
   });
 };

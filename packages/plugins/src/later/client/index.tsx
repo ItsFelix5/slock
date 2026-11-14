@@ -1,12 +1,21 @@
 import type { Setup } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { Icon, useShortcut } from "@slock/ui";
 import { lazy } from "solid-js";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
 import { active } from "../../messages/client/api/messageFocus";
+import {
+  fetchMessagesByIds,
+  fetchSaved,
+  saveWithReminder,
+  toggleSaved,
+  updateSaved,
+} from "../../slack/client/api";
 import { createLaterSlice } from "./store";
 import SaveButton from "./views/SaveButton";
 import SavedBadge from "./views/SavedBadge";
 
+const feedback = service("feedback");
 const LaterView = lazy(() => import("./views/LaterView"));
 
 const setup: Setup = (ctx) => {
@@ -21,7 +30,10 @@ const setup: Setup = (ctx) => {
     },
     { order: 20 },
   );
-  const store = createLaterSlice();
+  const store = createLaterSlice(
+    { fetchMessagesByIds, fetchSaved, saveWithReminder, toggleSaved, updateSaved },
+    (...args) => feedback.flash(...args),
+  );
   ctx.provide("later", store);
   ctx.add("realtime.handler", {
     run: (event) => {
@@ -34,6 +46,12 @@ const setup: Setup = (ctx) => {
         );
     },
     types: ["saved_added", "saved_deleted", "saved_clear"],
+  });
+  ctx.add("realtime.handler", {
+    run: () => {
+      if (store.laterLoaded()) void store.ensureLaterLoaded();
+    },
+    types: ["saved_updated", "saved_due"],
   });
   useShortcut({
     combo: { key: "s" },

@@ -1,7 +1,5 @@
 import type { ActivityItem, Message, User } from "@slock/types";
-import { createEffect } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { ThreadRef } from "../../../messages/client/api";
 import {
   fetchChannelLastRead,
   fetchHistoryAround,
@@ -19,6 +17,7 @@ import { createActivityFeedLoad } from "./activityFeedLoad";
 import { createActivityReadState } from "./activityReadState";
 import { createActivityReadSync } from "./activityReadSync";
 import { createRecentReactionFlash } from "./recentReaction";
+import { createUnreadThreads } from "./unreadThreads";
 
 type ActivityApi = {
   archiveActivityItem: typeof archiveActivityItem;
@@ -46,15 +45,15 @@ export function createActivityStore(
   deps: {
     cacheResolvedMessages?: (messages: Map<string, Message>) => void;
     currentUser: () => User | undefined;
+    isActivityViewOpen: () => boolean;
     isBotUser?: (userId: string) => boolean;
     lastReadByChannel: Record<string, number>;
     reactionMessageFor?: (channelId: string, ts: string) => Message | undefined;
     setLastReadByChannel: (channelId: string, ts: number) => void;
     clearChannelUnread: (channelId: string) => void;
     syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-    syncThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
-    visibleThreads: () => ThreadRef[];
-    isViewed: (id: string) => boolean;
+    setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
+    threadReadTsFor: (threadTs: string) => string | undefined;
   },
   apiOverrides: Partial<ActivityApi> = {},
 ) {
@@ -83,17 +82,8 @@ export function createActivityStore(
     pingKinds: PING_KINDS,
     setActivityItems,
     setLastReadByChannel: deps.setLastReadByChannel,
-    syncThreadRead: deps.syncThreadRead,
-  });
-
-  createEffect(() => {
-    const viewed = deps.visibleThreads().filter((t) => deps.isViewed(t.ts));
-    if (!viewed.length) return;
-    const openKeys = new Set(viewed.map((t) => `${t.channelId}:${t.ts}`));
-    const toMark = activityItems.filter(
-      (item) => item.threadTs && openKeys.has(`${item.channelId}:${item.threadTs}`),
-    );
-    if (toMark.length) markActivityItemsRead(toMark);
+    setThreadRead: deps.setThreadRead,
+    threadReadTsFor: deps.threadReadTsFor,
   });
 
   function removeActivityForMessage(channelId: string, ts: string): void {
@@ -121,6 +111,7 @@ export function createActivityStore(
     ensureActivityLoaded,
     loadMoreActivity,
     requestActivityRefresh,
+    retryActivityLoad,
   } = createActivityFeedLoad({
     activityItems,
     backfillMissingReadCursors,
@@ -129,6 +120,7 @@ export function createActivityStore(
     fetchActivityFeedEntries: api.fetchActivityFeedEntries,
     fetchHistoryAround: api.fetchHistoryAround,
     fetchMessagesByIds: api.fetchMessagesByIds,
+    isActivityViewOpen: deps.isActivityViewOpen,
     isBotUser: deps.isBotUser,
     onReactionPushed: recentReactionFlash.flash,
     resolveActivityEntry: api.resolveActivityEntry,
@@ -143,16 +135,7 @@ export function createActivityStore(
     return !!message?.reactions?.some((reaction) => reaction.users.includes(me.id));
   }
 
-  function unreadThreads(channelId: string): ActivityItem[] {
-    const latestByThread = new Map<string, ActivityItem>();
-    for (const item of activityItems) {
-      if (item.kind !== "thread_reply" || item.channelId !== channelId || !item.threadTs) continue;
-      if (!isActivityItemUnread(item)) continue;
-      const latest = latestByThread.get(item.threadTs);
-      if (!latest || item.time > latest.time) latestByThread.set(item.threadTs, item);
-    }
-    return [...latestByThread.values()].sort((a, b) => b.time - a.time);
-  }
+  const unreadThreads = createUnreadThreads({ activityItems, isActivityItemUnread });
 
   const archivePending = new Set<string>();
 
@@ -160,7 +143,12 @@ export function createActivityStore(
     if (isActivityItemArchived(item) || archivePending.has(item.id)) return;
     archivePending.add(item.id);
     try {
-      await api.archiveActivityItem(item.activityType ?? item.kind, item.id, item.ts);
+      await api.archiveActivityItem(
+        item.activityType ?? item.kind,
+        item.id,
+        item.ts,
+        item.linkedItemId,
+      );
       setArchivedIds(item.id, true);
       markActivityItemsRead([item]);
     } finally {
@@ -191,6 +179,7 @@ export function createActivityStore(
     recentReactionEmoji: recentReactionFlash.recentReactionEmoji,
     removeActivityForMessage,
     requestActivityRefresh,
+    retryActivityLoad,
     retryActivityReadSync: activityReadSync.retry,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,

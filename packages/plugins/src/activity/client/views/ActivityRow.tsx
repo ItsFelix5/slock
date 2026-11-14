@@ -2,7 +2,6 @@ import { maybeService, service } from "@slock/core/solid";
 import type { ActivityItem } from "@slock/types";
 import { ContextMenu, Icon, NavRow, useContextMenu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
 import ReactionRow from "../../../reactions/client/api/ReactionRow";
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import "./ActivityRow.css";
@@ -14,20 +13,16 @@ import ActivityTimelineRow from "./ActivityTimelineRow";
 import "./ActivityThread.css";
 import { defined } from "@slock/core";
 import { createActivityRowDisplay } from "./activityRowDisplay";
+import { currentRowKey, openActivityRow } from "./activityRowOpen";
 import { ActivityMessageText } from "./activityThreadMessage";
 import { createActivityTimeline, type TimelineEntry } from "./activityTimeline";
 
-const viewStore = service("conversations");
 const messageLinks = service("message-links");
 const usersStore = service("users");
 const messagesStore = service("messages");
 const activityStore = service("activity");
 
 const later = maybeService("later");
-
-const [currentRowKey, setCurrentRowKey] = createSignal<string>();
-
-export const clearCurrentRow = () => setCurrentRowKey(undefined);
 
 export interface ActivityRow {
   isThread: boolean;
@@ -60,12 +55,13 @@ export default function ActivityRow(props: {
   );
 
   const display = createActivityRowDisplay({ items: () => props.row.items, latest });
-  const { isArchived, isPinging, isUnread, reactedMessage, reactions, replierIds } = display;
+  const { isArchived, isUnread, reactedMessage, reactions, replierIds } = display;
   const isReactionGroup = createMemo(() => latest().kind === "reaction" && replierIds().length > 1);
 
   const {
     earlierMessageCount,
     entryAuthor,
+    entryBlocks,
     entryFiles,
     entryText,
     entryUnread,
@@ -82,28 +78,11 @@ export default function ActivityRow(props: {
     threadTs,
   });
 
-  const openRow = () => {
-    const item = latest();
-    if (!item.channelId) return;
-    setCurrentRowKey(props.row.key);
-    if (item.activityType === "quietly_added_to_channel") {
-      viewStore.setActiveView({ id: item.channelId, kind: "channel" });
-      return;
-    }
-    messageLinks.openChannelMessage(item.channelId, item.ts, item.threadTs);
-  };
+  const openRow = () => openActivityRow(props.row, false);
+  const openRowInSplit = () => openActivityRow(props.row, true);
 
   const openThreadTs = (ts: string) => {
     messageLinks.openChannelPeek(latest().channelId, threadTs(), ts);
-  };
-
-  const openRowInSplit = () => {
-    const item = latest();
-    if (!item.channelId) return;
-    setCurrentRowKey(props.row.key);
-    if (item.threadTs)
-      messageLinks.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });
-    else openConversationInSplit(item.channelId, item.ts);
   };
 
   const openThreadInSplit = (ts: string) => {
@@ -114,6 +93,7 @@ export default function ActivityRow(props: {
     <SplitNavigation onSplit={() => openThreadInSplit(entry.ts)}>
       <ActivityTimelineRow
         author={entryAuthor(entry)}
+        blocks={entryBlocks(entry)}
         channelId={latest().channelId}
         files={entryFiles(entry)}
         isFirst={entry.ts === firstTimelineTs()}
@@ -136,7 +116,6 @@ export default function ActivityRow(props: {
         classList={{
           "activity-item-thread": isThreadGroup(),
           active: currentRowKey() === props.row.key,
-          pinging: isPinging(),
           unread: isUnread(),
         }}
       >
@@ -161,9 +140,26 @@ export default function ActivityRow(props: {
                 isThreadGroup={isThreadGroup()}
                 latest={latest()}
               />
+              <Show when={latest().reminderNote}>
+                {(note) => <span class="activity-reminder-note">{note()}</span>}
+              </Show>
               <Show when={!isThreadGroup()}>
-                <span class="activity-snippet">
-                  <ActivityMessageText files={latest().files} text={latest().text} />
+                <span
+                  class="activity-snippet"
+                  classList={{
+                    "activity-snippet-reminder":
+                      latest().activityType === "saved_reminder" && !latest().reminderNote,
+                  }}
+                >
+                  <ActivityMessageText
+                    author={latest()}
+                    blocks={latest().blocks}
+                    channelId={latest().channelId}
+                    files={latest().files}
+                    text={latest().text}
+                    threadTs={latest().threadTs}
+                    ts={latest().ts}
+                  />
                 </span>
               </Show>
             </span>
@@ -174,9 +170,6 @@ export default function ActivityRow(props: {
           <SplitNavigation onSplit={openRowInSplit}>
             <div class="activity-reaction-slot" data-nav-row onClick={openRow}>
               <ReactionRow
-                isPending={(name) =>
-                  messagesStore.isReactionPending(latest().channelId, latest().ts, name)
-                }
                 onToggle={(name) => {
                   const msg = reactedMessage();
                   if (msg) messagesStore.reactToMessage(latest().channelId, msg, name);

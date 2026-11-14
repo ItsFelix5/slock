@@ -224,6 +224,7 @@ export default function MessageSearchResults(props: {
                         snippet={
                           <span data-search-terms={JSON.stringify(result.highlights ?? [])}>
                             <MessageReferenceSnippet
+                              blocks={result.blocks}
                               botId={result.botId}
                               botUserId={result.userId}
                               channelId={result.channelId}

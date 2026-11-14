@@ -27,6 +27,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     () => query.client,
   );
   const [nameInput, setNameInput] = createSignal("");
+  const [fullNameInput, setFullNameInput] = createSignal("");
   const [titleInput, setTitleInput] = createSignal("");
   const [pronounsInput, setPronounsInput] = createSignal("");
   const [nicknameInput, setNicknameInput] = createSignal("");
@@ -54,6 +55,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
         setStatusText(me.statusText ?? "");
         setStatusEmoji(me.statusEmoji ?? "");
         setNameInput(me.name);
+        setFullNameInput(me.realName ?? me.name);
         setTitleInput(me.title ?? "");
         setPronounsInput(me.pronouns ?? "");
       }
@@ -83,6 +85,12 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     const v = nameInput().trim();
     if (!v || v === user()?.name) return;
     return saveProfileField("name", () => usersStore.updateMyProfile({ displayName: v }));
+  };
+  const saveFullName = () => {
+    const v = fullNameInput().trim();
+    const me = user();
+    if (!v || v === (me?.realName ?? me?.name)) return;
+    return saveProfileField("fullName", () => usersStore.updateMyProfile({ fullName: v }));
   };
   const saveTitle = () => {
     const v = titleInput().trim();
@@ -216,11 +224,13 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 isSelf={isSelf}
                 localTime={localTime}
                 tzSuffix={tzSuffix}
+                fullNameInput={fullNameInput}
                 nameInput={nameInput}
                 nicknameInput={nicknameInput}
                 onProfilePhotoSelected={setPhotoToEdit}
                 onTogglePresence={togglePresence}
                 pronounsInput={pronounsInput}
+                saveFullName={saveFullName}
                 saveName={saveName}
                 saveNickname={saveNickname}
                 savePronouns={savePronouns}
@@ -228,6 +238,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 saveTitle={saveTitle}
                 savingProfileFields={savingProfileFields}
                 savingStatus={savingStatus}
+                setFullNameInput={setFullNameInput}
                 setNameInput={setNameInput}
                 setNicknameInput={setNicknameInput}
                 setPronounsInput={setPronounsInput}

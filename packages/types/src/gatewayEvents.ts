@@ -1,3 +1,4 @@
+import type { DraftEntry } from "./apiTypes";
 import type { ModalView } from "./blocks";
 import type { RawChannel, RawCounts, RawMessage, RawUser } from "./rawTypes";
 
@@ -18,8 +19,16 @@ export type GatewayMessageEvent = Partial<Omit<RawMessage, "type">> & {
   channel?: string;
   deleted_ts?: string;
   message?: RawMessage;
+  purpose?: string;
+  topic?: string;
   type: "message";
 };
+
+export interface ChannelUpdates {
+  archived?: boolean;
+  postingChanged?: boolean;
+  topic?: string;
+}
 
 export type MembershipEventType =
   | "channel_archive"
@@ -36,6 +45,7 @@ export type MembershipEventType =
   | "im_close"
   | "im_created"
   | "im_open"
+  | "member_joined_channel"
   | "member_left_channel"
   | "mpim_close"
   | "mpim_joined"
@@ -58,13 +68,13 @@ export type GatewayEvent =
       channel?: string;
       mention_count?: number;
       ts?: string;
-      type: "channel_marked";
+      type: "channel_marked" | "group_marked" | "im_marked" | "mpim_marked";
       unread_count?: number;
     }
   | { channel: RawChannel; type: "channel_joined" | "group_joined" }
   | { channel: RawChannel; type: "im_created"; user?: string }
   | { channel?: string; type: "channel_left" | "group_left" }
-  | { channel?: string; type: "member_left_channel"; user?: string }
+  | { channel?: string; type: "member_joined_channel" | "member_left_channel"; user?: string }
   | { type: "user_invalidated"; user?: string; users?: string[] }
   | { type: "view_opened" | "view_updated"; view?: ModalView; view_type?: string }
   | { channel_id?: string; ts?: string; type: "pin_added" | "pin_removed" }
@@ -103,6 +113,38 @@ export type GatewayEvent =
   | { channel?: string; thread_ts?: string; type: "thread_subscribed" | "thread_unsubscribed" }
   | { presence?: string; type: "manual_presence_change" }
   | DesktopNotificationEvent
+  | { channel?: string; type: "channel_changed" }
+  | {
+      channel?: string;
+      type:
+        | "channel_history_changed"
+        | "group_history_changed"
+        | "im_history_changed"
+        | "mpim_history_changed";
+    }
+  | { channels: string[]; type: "channel_updated"; updates: ChannelUpdates }
+  | { name?: string; type: "pref_change"; value?: string }
+  | { file_id?: string; type: "document_change" | "document_update" }
+  | { draft: DraftEntry; type: "draft_create" | "draft_update" }
+  | { draft_id?: string; type: "draft_delete" | "draft_send" }
+  | { type: "dnd_updated_user" | "dnd_invalidated"; user?: string }
+  | { subtype?: string; type: "activity" }
+  | { subteam_id?: string; type: "subteam_self_added" | "subteam_self_removed" }
+  | {
+      type:
+        | "activity_mark_all_read_completed"
+        | "activity_views_updated"
+        | "apps_changed"
+        | "apps_installed"
+        | "apps_uninstalled"
+        | "channel_section_deleted"
+        | "channel_section_reset"
+        | "channel_section_upserted"
+        | "channel_sections_channels_removed"
+        | "channel_sections_channels_upserted"
+        | "saved_due"
+        | "saved_updated";
+    }
   | { type: `file_${string}` };
 
 export type MembershipEvent = Extract<GatewayEvent, { type: MembershipEventType }>;

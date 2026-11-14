@@ -1,0 +1,10 @@
+{
+  "id": "app-home",
+  "name": "App home",
+  "requires": ["dms", "users"],
+  "core": true,
+  "version": "1.0.0",
+  "description": "The app home plugin provides a home page for the application.",
+  "author": "Your Name",
+  "license": "MIT"
+}

@@ -30,7 +30,7 @@ export function createReactiveQueryCache<T, K extends QueryKey>(
     return signal;
   };
   queryClient.getQueryCache().subscribe((event) => {
-    if (event.query.queryKey[0] !== keyPrefix) return;
+    if (event.type === "removed" || event.query.queryKey[0] !== keyPrefix) return;
     versions.get(JSON.stringify(event.query.queryKey))?.[1]((v) => v + 1);
   });
 

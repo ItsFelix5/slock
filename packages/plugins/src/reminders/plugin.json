@@ -1,1 +1,1 @@
-{ "id": "reminders", "core": true, "name": "Reminders", "requires": [] }
+{ "id": "reminders", "core": true, "name": "Reminders", "requires": ["activity", "later"] }

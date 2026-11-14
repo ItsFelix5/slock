@@ -3,9 +3,11 @@ import type { Services } from "@slock/core/types";
 import type { CanvasListItem } from "@slock/types";
 import { createQuery, queryOptions } from "@tanstack/solid-query";
 import { createSignal } from "solid-js";
-import { createReactiveQueryCache, defineKey } from "../../query/client/api";
+import { createStore } from "solid-js/store";
+import { createReactiveQueryCache, defineKey, shouldRetry } from "../../query/client/api";
 import { fetchChannelCanvases } from "../../slack/client/api";
 import {
+  CanvasReadError,
   fetchCanvas,
   fetchCanvasPermalink,
   fetchCanvasTitleOrVisibility,
@@ -24,6 +26,7 @@ export function createCanvasStore(deps: {
   const [notVisible, setNotVisible] = createSignal<ReadonlySet<string>>(new Set());
   const [titles, setTitles] = createSignal<Record<string, string>>({});
   const requestedTitles = new Set<string>();
+  const [remoteChanges, setRemoteChanges] = createStore<Record<string, number>>({});
 
   function markNotVisible(fileId: string) {
     setNotVisible((current) => new Set(current).add(fileId));
@@ -98,7 +101,10 @@ export function createCanvasStore(deps: {
         gcTime: 0,
         queryFn: () => fetchVisibleCanvas(fileId()),
         queryKey: canvasContentKey(fileId()),
-        retry: (_, err) => !(err instanceof Error && err.message === "not_visible"),
+        retry: (failureCount, err) =>
+          err.message !== "not_visible" &&
+          !(err instanceof CanvasReadError) &&
+          shouldRetry(failureCount, err),
       }),
       () => query.client,
     );
@@ -122,7 +128,9 @@ export function createCanvasStore(deps: {
     invalidateChannel: canvases.invalidate,
     isCanvasNotVisible: (fileId: string) => notVisible().has(fileId),
     loadLatestCanvas: (fileId: string) => fetchVisibleCanvas(fileId).catch(() => null),
+    noteRemoteChange: (fileId: string) => setRemoteChanges(fileId, (n) => (n ?? 0) + 1),
     openCanvasPane,
+    remoteChangeTick: (fileId: string) => remoteChanges[fileId] ?? 0,
     setCanvasContent: (fileId: string, content: LoadedCanvas) =>
       query.client.setQueryData(canvasContentKey(fileId), content),
     setCanvasTitle(paneId: string, fileId: string, title: string) {

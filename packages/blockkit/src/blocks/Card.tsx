@@ -34,7 +34,7 @@ export function Card(props: { block: CardBlock; context?: BlockActionContext }) 
           <div class="bk-card-heading flex-align-center gap-sm">
             <Show
               fallback={
-                <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
+                <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} icon />}</Show>
               }
               when={props.block.slack_icon}
             >

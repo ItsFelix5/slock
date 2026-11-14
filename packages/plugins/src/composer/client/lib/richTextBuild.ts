@@ -1,10 +1,10 @@
 import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
 import type { Block, RichTextInlineElement, RichTextStyle, RichTextSubBlock } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
-import type Quill from "@slock/ui/editor/quill";
 import { parseSlackPermalink } from "../../../message-links/client/api/slackPermalink";
-import { HEADER_MAX_LENGTH } from "./headerLimit";
-import { type DeltaLine, type DeltaSegment, deltaLines, MENTION_PREFIX } from "./quillMentions";
+import { type DeltaLine, type DeltaOp, type DeltaSegment, deltaLines } from "./deltaLines";
+import { MENTION_PREFIX } from "./embedValues";
+import { cutHeaderText } from "./headerLimit";
 import { collapseLeadingMessageLink } from "./replyLinkBlocks";
 
 function styleFromAttrs(
@@ -29,7 +29,7 @@ function segmentElements(segment: DeltaSegment, forceBold: boolean): RichTextInl
     }
     if (embed.mention.kind === "userlink") {
       const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", embed.mention.id);
-      return [{ text: embed.mention.name, type: "link", url }];
+      return [{ text: `@${embed.mention.name}`, type: "link", url }];
     }
     if (embed.mention.kind === "messagelink") {
       const target = parseSlackPermalink(embed.mention.id);
@@ -112,17 +112,19 @@ function splitLineOnDividers(line: DeltaLine): DeltaLine[] {
   return lines;
 }
 
-export function buildRichTextBlocks(quill: Quill): Block[] {
+export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
   const blocks: Block[] = [];
   const elements: RichTextSubBlock[] = [];
   let plainRun: RichTextInlineElement[] = [];
   let codeLines: string[] | null = null;
   let quoteRun: RichTextInlineElement[] | null = null;
   let list: {
+    indent: number;
     offset: number;
     style: "bullet" | "ordered";
     items: RichTextInlineElement[][];
   } | null = null;
+  let itemCounts: number[] = [];
 
   const flushPlain = () => {
     if (!plainRun.length) return;
@@ -149,6 +151,7 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
     if (!list) return;
     elements.push({
       elements: list.items.map((item) => ({ elements: item, type: "rich_text_section" })),
+      ...(list.indent ? { indent: list.indent } : {}),
       ...(list.offset ? { offset: list.offset } : {}),
       style: list.style,
       type: "rich_text_list",
@@ -160,7 +163,7 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
     blocks.push({ elements: elements.splice(0), type: "rich_text" });
   };
 
-  for (const line of deltaLines(quill).flatMap(splitLineOnDividers)) {
+  for (const line of deltaLines(ops).flatMap(splitLineOnDividers)) {
     const attrs = line.blockAttributes;
 
     if (line.segments.length === 1 && line.segments[0]?.embed?.divider) {
@@ -183,7 +186,7 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
         level: attrs.header,
         text: {
           emoji: true,
-          text: headerPlainText(line).slice(0, HEADER_MAX_LENGTH),
+          text: cutHeaderText(headerPlainText(line)),
           type: "plain_text",
         },
         type: "header",
@@ -217,12 +220,21 @@ export function buildRichTextBlocks(quill: Quill): Block[] {
     if (attrs?.list === "bullet" || attrs?.list === "ordered") {
       flushPlain();
       flushQuote();
-      if (list && list.style !== attrs.list) flushList();
-      list ??= { items: [], offset: Number(attrs.listOffset ?? 0), style: attrs.list };
+      const indent = Number(attrs.indent ?? 0);
+      if (list && (list.style !== attrs.list || list.indent !== indent)) flushList();
+      if (!list) {
+        itemCounts.length = indent + 1;
+        const offset: number =
+          attrs.list === "ordered" ? Number(attrs.listOffset ?? itemCounts[indent] ?? 0) : 0;
+        itemCounts[indent] = offset;
+        list = { indent, items: [], offset, style: attrs.list };
+      }
       list.items.push(lineElements(line));
+      itemCounts[indent] = (itemCounts[indent] ?? 0) + 1;
       continue;
     }
     flushList();
+    itemCounts = [];
 
     if (attrs?.blockquote) {
       flushPlain();

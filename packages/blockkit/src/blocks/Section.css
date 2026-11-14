@@ -4,6 +4,11 @@
   align-items: flex-start;
 }
 
+.bk-section--stacked {
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
 .bk-section-text,
 .message-text {
   font-size: var(--font-size-body);
@@ -38,7 +43,7 @@
 }
 
 .bk-section-field {
-  font-size: var(--font-size-secondary);
+  font-size: var(--font-size-body);
   line-height: 1.4;
 }
 

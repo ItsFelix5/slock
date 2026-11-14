@@ -1,5 +1,6 @@
 import type { Message } from "@slock/types";
 import type { MessageLocation } from "../lib/messageLocations";
+import { addReactionUser, removeReactionUser } from "../lib/reactionList";
 
 export function createReactionEvents(deps: {
   findAllMessageLocations: (
@@ -15,35 +16,13 @@ export function createReactionEvents(deps: {
     userId: string,
     added: boolean,
   ) {
-    const locations = deps.findAllMessageLocations(channel, ts);
-    const msg = locations[0]?.list.find((m) => m.ts === ts);
-    if (msg) {
-      const reactions = msg.reactions ?? [];
-      const existing = reactions.find((r) => r.name === name);
-      let next: typeof reactions;
-      if (added) {
-        next = existing
-          ? reactions.map((r) =>
-              r.name === name ? { ...r, count: r.count + 1, users: [...r.users, userId] } : r,
-            )
-          : [...reactions, { count: 1, name, users: [userId] }];
-      } else if (existing) {
-        next = reactions
-          .map((r) =>
-            r.name === name
-              ? {
-                  ...r,
-                  count: r.count - 1,
-                  users: r.users.filter((u) => u !== userId),
-                }
-              : r,
-          )
-          .filter((r) => r.count > 0);
-      } else {
-        next = reactions;
-      }
-      deps.patchMessage(channel, ts, { reactions: next });
-    }
+    const msg = deps.findAllMessageLocations(channel, ts)[0]?.list.find((m) => m.ts === ts);
+    if (!msg) return;
+    const reactions = msg.reactions ?? [];
+    const next = added
+      ? addReactionUser(reactions, name, userId)
+      : removeReactionUser(reactions, name, userId);
+    if (next !== reactions) deps.patchMessage(channel, ts, { reactions: next });
   }
 
   return { applyReactionEvent };

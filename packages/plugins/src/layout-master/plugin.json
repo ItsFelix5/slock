@@ -1,0 +1,1 @@
+{ "id": "layout-master", "name": "Master layout", "defaultEnabled": false, "requires": ["shell"] }

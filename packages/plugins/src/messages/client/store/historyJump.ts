@@ -1,16 +1,7 @@
 import type { Message } from "@slock/types";
 import type { SetStoreFunction, Store } from "solid-js/store";
 import { mergeMessages } from "../api/messageMerge";
-
-export type HistoryMeta = {
-  anchored?: boolean;
-  hasMore: boolean;
-  hasNewer?: boolean;
-  initialError?: boolean;
-  loading: boolean;
-  newerError?: boolean;
-  olderError?: boolean;
-};
+import type { HistoryMeta } from "./history/historyFlags";
 
 export function createHistoryJump(deps: {
   api: {
@@ -27,8 +18,8 @@ export function createHistoryJump(deps: {
   loadRecentHistory: (channelId: string) => Promise<void>;
   messagesByChannel: Store<Record<string, Message[]>>;
   newerHistoryBoundary: Map<string, string>;
+  replaceMessages: (channelId: string, compute: (existing: Message[]) => Message[]) => void;
   setHistoryMeta: SetStoreFunction<Record<string, HistoryMeta>>;
-  setMessagesByChannel: SetStoreFunction<Record<string, Message[]>>;
   windowEpochs: {
     begin: (key: string) => number;
     isCurrent: (key: string, epoch: number) => boolean;
@@ -43,8 +34,8 @@ export function createHistoryJump(deps: {
     loadRecentHistory,
     messagesByChannel,
     newerHistoryBoundary,
+    replaceMessages,
     setHistoryMeta,
-    setMessagesByChannel,
     windowEpochs,
   } = deps;
 
@@ -67,7 +58,7 @@ export function createHistoryJump(deps: {
         void loadRecentHistory(channelId);
         return false;
       }
-      setMessagesByChannel(channelId, () => mergeMessages([], messages));
+      replaceMessages(channelId, () => mergeMessages([], messages));
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
       setHistoryMeta(channelId, {
@@ -107,7 +98,7 @@ export function createHistoryJump(deps: {
         void loadRecentHistory(channelId);
         return false;
       }
-      setMessagesByChannel(channelId, () => mergeMessages([], messages));
+      replaceMessages(channelId, () => mergeMessages([], messages));
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
       setHistoryMeta(channelId, {

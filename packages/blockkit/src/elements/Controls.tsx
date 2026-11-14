@@ -4,6 +4,7 @@ import { ICON_NAMES, Icon, type IconName, isOneOf, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
+import { safeUrl } from "../safeUrl";
 import { useBlockActionDispatch } from "../useBlockActionDispatch";
 import ChoiceGroup from "./ChoiceGroup";
 import "./Controls.css";
@@ -15,6 +16,7 @@ import {
   isSelect,
   isTextInput,
 } from "./guards";
+import LinkButton from "./LinkButton";
 import Picker from "./Picker";
 import Select from "./Select";
 import TextInput from "./TextInput";
@@ -70,11 +72,11 @@ export default function Controls(props: {
     data.icon && isOneOf(data.icon, ICON_NAMES) ? data.icon : undefined;
 
   if (data.type === "workflow_button") {
-    const url = data.workflow?.trigger?.url ?? data.url;
+    const url = safeUrl(data.workflow?.trigger?.url ?? data.url);
     return url ? (
-      <a class="bk-button bk-button--primary" href={url} rel="noopener noreferrer" target="_blank">
+      <LinkButton href={url} style="primary">
         <BkText text={data.text} />
-      </a>
+      </LinkButton>
     ) : (
       <button
         class="bk-button bk-button--primary"

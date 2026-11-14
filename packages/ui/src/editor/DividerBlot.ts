@@ -1,5 +1,6 @@
 import { BlockEmbed } from "quill/blots/block";
 import Quill, { type Range } from "./quill";
+import { asElement } from "./quillText";
 
 const DIVIDER_PREFIX = /^--$/;
 
@@ -8,9 +9,7 @@ export default class DividerBlot extends BlockEmbed {
   static tagName = "hr";
 
   static create(value: unknown) {
-    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
-    const node = super.create(value);
-    if (!(node instanceof HTMLElement)) throw new Error("divider blot produced a non-element node");
+    const node = asElement(super.create(value), "divider");
     node.contentEditable = "false";
     return node;
   }

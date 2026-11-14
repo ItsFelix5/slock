@@ -1,14 +1,16 @@
 import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
-import { AvatarStack, Icon, Tooltip } from "@slock/ui";
+import { AvatarStack, Icon, Tooltip, TypingIndicator } from "@slock/ui";
 import { Show } from "solid-js";
 import type { OpenThreadHandler } from "../../../messages/client/api/messageFocus";
 import { formatInteractorNames } from "../../../users/client/api";
 
 const unreadStore = service("unread");
 const usersStore = service("users");
+const typingStore = service("typing");
 
 export default function MessageRepliesButton(props: {
+  channelId: string;
   msg: Message;
   onOpenThread: OpenThreadHandler;
 }) {
@@ -48,6 +50,12 @@ export default function MessageRepliesButton(props: {
       <Show when={props.msg.lastReplyLabel}>
         <span class="message-replies-last truncate">Last reply {props.msg.lastReplyLabel}</span>
       </Show>
+      <TypingIndicator
+        inline
+        names={typingStore
+          .typingUsersInThread(props.channelId, props.msg.ts)
+          .map((user) => user.name)}
+      />
     </button>
   );
 }

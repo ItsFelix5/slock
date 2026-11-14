@@ -40,7 +40,7 @@ export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> 
     },
     content: data.content ?? null,
     contentTruncated: !!data.contentTruncated,
-    editable: data.editable !== false,
+    editable: data.editable === true,
     file: mapFile(data.file),
     ownerId: data.owner ?? null,
     shares: (data.shares ?? []).map(mapFileShare),

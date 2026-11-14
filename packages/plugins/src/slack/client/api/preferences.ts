@@ -1,6 +1,6 @@
 import { ApiError, apiDelete, apiGet, apiPut } from "@slock/slack";
-import type { UserPrefs } from "@slock/types";
-import { fetchInitialData } from "./initialData";
+import type { BootstrapPayload, UserPrefs } from "@slock/types";
+import { fetchInitialDataWith, patchInitialData } from "./initialData";
 
 type FrecencyEntry = { count?: number; id?: string; visits?: number[] };
 type NotificationOverride = { desktop?: string; mobile?: string; muted?: boolean };
@@ -28,8 +28,27 @@ function parsePref<T>(raw: string | undefined): T | null {
   }
 }
 
+const SYNCED_PREFS = ["channel_sections", "emoji_use", "muted_channels", "notification_prefs"];
+
+function fetchPrefsPayload(): Promise<BootstrapPayload> {
+  return fetchInitialDataWith("notification_prefs", async () => {
+    const data = await apiGet<BootstrapPayload>("/api/bootstrap/notification_prefs");
+    if (!data.ok) throw new ApiError(data.error ?? "users.prefs.get failed", data.retry_after);
+    return data;
+  });
+}
+
+export async function applyPrefChange(name: string, value: string): Promise<UserPrefs | undefined> {
+  if (!SYNCED_PREFS.includes(name)) return;
+  patchInitialData({ [name]: value });
+  return mapUserPrefs(await fetchPrefsPayload());
+}
+
 export async function fetchUserPrefs(): Promise<UserPrefs> {
-  const data = await fetchInitialData();
+  return mapUserPrefs(await fetchPrefsPayload());
+}
+
+function mapUserPrefs(data: BootstrapPayload): UserPrefs {
   if (data.error?.notification_prefs) {
     throw new ApiError(data.error.notification_prefs, data.retry_after?.notification_prefs);
   }

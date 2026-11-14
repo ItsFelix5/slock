@@ -1,6 +1,7 @@
 import { defined } from "@slock/core";
 import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
 import { keybindOverrides } from "./keybindOverrides";
+import { comboLabel, combosOverlap, matchesCombo, type ShortcutCombo } from "./shortcutCombo";
 
 export const SHORTCUT_GROUPS = [
   "Channels and search",
@@ -17,13 +18,6 @@ export const SHORTCUT_GROUPS = [
 export type ShortcutGroup = (typeof SHORTCUT_GROUPS)[number];
 
 export type ShortcutScope = "general" | "composer" | "lists" | "messages";
-
-export interface ShortcutCombo {
-  key: string | readonly string[];
-  mod?: boolean;
-  shift?: boolean;
-  alt?: boolean;
-}
 
 export interface ShortcutDef {
   id: string;
@@ -72,88 +66,6 @@ function isTypingTarget(target: EventTarget | null) {
     target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
-}
-
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-
-function modPressed(e: KeyboardEvent) {
-  return isMac ? e.metaKey : e.ctrlKey;
-}
-
-const NAMED_KEYS: Record<string, string> = {
-  ArrowUp: "↑",
-  ArrowDown: "↓",
-  ArrowLeft: "←",
-  ArrowRight: "→",
-  Escape: "Esc",
-  " ": "Space",
-};
-
-const CODE_FALLBACK: Record<string, string> = {
-  "/": "Slash",
-};
-
-const CAPTURE_IGNORED_KEYS = new Set(["Alt", "AltGraph", "Control", "Meta", "OS", "Shift"]);
-
-function comboKeys(combo: ShortcutCombo): readonly string[] {
-  return typeof combo.key === "string" ? [combo.key] : combo.key;
-}
-
-function normalizeKeys(key: string | readonly string[]): string[] {
-  return comboKeys({ key }).map((k) => k.toLowerCase());
-}
-
-function matchesCombo(e: KeyboardEvent, combo: ShortcutCombo, splitModifier?: boolean): boolean {
-  if (Boolean(combo.mod) !== modPressed(e)) return false;
-  if (!splitModifier && Boolean(combo.shift) !== e.shiftKey) return false;
-  if (Boolean(combo.alt) !== e.altKey) return false;
-  return comboKeys(combo).some((key) => {
-    if (e.key.toLowerCase() === key.toLowerCase()) return true;
-    const fallbackCode = CODE_FALLBACK[key];
-    return fallbackCode !== undefined && e.code === fallbackCode;
-  });
-}
-
-function keyLabel(key: string, uppercase: boolean): string {
-  const named = NAMED_KEYS[key];
-  if (named) return named;
-  return key.length === 1 ? (uppercase ? key.toUpperCase() : key.toLowerCase()) : key;
-}
-
-export function comboLabel(combo: ShortcutCombo): string {
-  return comboParts(combo).join(" ");
-}
-
-export function comboParts(combo: ShortcutCombo): string[] {
-  const hasModifier = Boolean(combo.mod || combo.shift || combo.alt);
-  const parts: string[] = [];
-  if (combo.mod) parts.push(isMac ? "⌘" : "Ctrl");
-  if (combo.shift) parts.push("Shift");
-  if (combo.alt) parts.push("Alt");
-  parts.push(
-    comboKeys(combo)
-      .map((key) => keyLabel(key, hasModifier))
-      .join(" / "),
-  );
-  return parts;
-}
-
-export function comboFromEvent(e: KeyboardEvent): ShortcutCombo | null {
-  if (CAPTURE_IGNORED_KEYS.has(e.key)) return null;
-  return {
-    key: e.key.length === 1 ? e.key.toLowerCase() : e.key,
-    mod: modPressed(e),
-    shift: e.shiftKey,
-    alt: e.altKey,
-  };
-}
-
-export function combosOverlap(a: ShortcutCombo, b: ShortcutCombo): boolean {
-  if (Boolean(a.mod) !== Boolean(b.mod)) return false;
-  if (Boolean(a.shift) !== Boolean(b.shift)) return false;
-  if (Boolean(a.alt) !== Boolean(b.alt)) return false;
-  const bKeys = normalizeKeys(b.key);
-  return normalizeKeys(a.key).some((key) => bKeys.includes(key));
 }
 
 function effectiveCombo(shortcut: RegisteredShortcut): ShortcutCombo | null {

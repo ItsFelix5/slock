@@ -1,7 +1,7 @@
 import { useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import { createEffect, createSignal } from "solid-js";
-import { isMentionKind, type MentionValue } from "../../lib/quillMentions";
+import { isMentionKind, type MentionValue } from "../../lib/embedValues";
 
 export interface MentionHoverState {
   anchorEl: HTMLElement;

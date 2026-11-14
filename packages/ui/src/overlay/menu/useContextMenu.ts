@@ -1,11 +1,15 @@
 import { createSignal } from "solid-js";
 
 type ContextMenuPoint = { x: number; y: number };
+type ContextMenuEvent = Pick<
+  MouseEvent,
+  "clientX" | "clientY" | "preventDefault" | "stopPropagation"
+>;
 
 export function useContextMenu() {
   const [point, setPoint] = createSignal<ContextMenuPoint | null>(null);
 
-  const open = (e: MouseEvent) => {
+  const open = (e: ContextMenuEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setPoint({ x: e.clientX, y: e.clientY });

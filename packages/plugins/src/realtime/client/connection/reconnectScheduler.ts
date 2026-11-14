@@ -1,5 +1,7 @@
 type Timer = ReturnType<typeof setTimeout>;
 
+const JITTER = 0.3;
+
 export function createReconnectScheduler(opts: {
   connect: () => void;
   isOnline: () => boolean;
@@ -7,11 +9,13 @@ export function createReconnectScheduler(opts: {
   initialDelay?: number;
   maxDelay?: number;
   setTimer?: (callback: () => void, delay: number) => Timer;
+  random?: () => number;
 }) {
   const initialDelay = opts.initialDelay ?? 1000;
   const maxDelay = opts.maxDelay ?? 20000;
   const clearTimer = opts.clearTimer ?? clearTimeout;
   const setTimer = opts.setTimer ?? setTimeout;
+  const random = opts.random ?? Math.random;
   let delay = initialDelay;
   let disposed = false;
   let timer: Timer | undefined;
@@ -37,7 +41,7 @@ export function createReconnectScheduler(opts: {
     },
     schedule() {
       if (disposed || timer !== undefined || !opts.isOnline()) return;
-      const wait = delay;
+      const wait = Math.round(delay * (1 + (random() - 0.5) * 2 * JITTER));
       delay = Math.min(Math.ceil(delay * 1.7), maxDelay);
       timer = setTimer(() => {
         timer = undefined;

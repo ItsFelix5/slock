@@ -3,9 +3,8 @@ import type { Message } from "@slock/types";
 import { useListShortcuts, useShortcut } from "@slock/ui";
 import { copyMessageLink } from "../../message-links/client/api/messageLinks";
 import { resolveProfileUserId } from "./api/messageAuthor";
-import { type ActiveMessageFocus, active } from "./api/messageFocus";
+import { type ActiveMessageFocus, active, threadRootTs } from "./api/messageFocus";
 import { copyMessageText, deleteOrDismissMessage } from "./messageActions";
-import { stepMessageItem } from "./messageItemFocus";
 
 const usersStore = service("users");
 const messagesStore = service("messages");
@@ -37,38 +36,13 @@ export function useMessageShortcuts() {
     },
   });
 
-  const stepItem = (delta: 1 | -1) => () => {
-    const ts = active()?.focusedTs();
-    if (ts != null)
-      stepMessageItem(document.querySelector(`[data-message-ts="${CSS.escape(ts)}"]`), delta);
-  };
-
-  useShortcut({
-    combo: { key: "ArrowRight" },
-    enabled,
-    handler: stepItem(1),
-    id: "messages.nextItem",
-    label: "Next file, button or link in message",
-    scope: "messages",
-    group: "Message actions",
-  });
-
-  useShortcut({
-    combo: { key: "ArrowLeft" },
-    enabled,
-    handler: stepItem(-1),
-    id: "messages.prevItem",
-    label: "Previous file, button or link in message",
-    scope: "messages",
-    group: "Message actions",
-  });
-
   useShortcut({
     combo: { key: "r" },
     enabled: () =>
       liveEnabled() && !!(active()?.callbacks.onOpenThread || active()?.callbacks.onReplyLink),
     handler: withMessage(({ callbacks }, msg, event) => {
-      if (callbacks.onOpenThread) callbacks.onOpenThread(msg.ts, { pinned: event.shiftKey });
+      if (callbacks.onOpenThread)
+        callbacks.onOpenThread(threadRootTs(msg), { pinned: event.shiftKey });
       else callbacks.onReplyLink?.(msg);
     }),
     id: "messages.reply",
@@ -126,7 +100,9 @@ export function useMessageShortcuts() {
   useShortcut({
     combo: { key: "u" },
     enabled: liveEnabled,
-    handler: withFocused((focus, ts) => messagesStore.toggleMessageUnread(focus.channelId(), ts)),
+    handler: withFocused((focus, ts) =>
+      messagesStore.toggleMessageUnread(focus.channelId(), ts, focus.callbacks.threadTs?.()),
+    ),
     id: "messages.markUnread",
     label: "Toggle unread",
     scope: "messages",

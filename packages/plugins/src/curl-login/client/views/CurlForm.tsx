@@ -1,3 +1,4 @@
+import { errorMessage } from "@slock/core";
 import { connectWith } from "@slock/slack";
 import type { ConnectMethodProps } from "../../../account/client/api";
 
@@ -18,7 +19,7 @@ export default function CurlForm(props: ConnectMethodProps) {
             await connectWith("/api/curl-login/connect", { curl: text });
             props.connected();
           } catch (e) {
-            props.setError(e instanceof Error ? e.message : String(e));
+            props.setError(errorMessage(e));
           }
         }}
         placeholder="curl 'https://your-workspace.slack.com/api/...' -H ..."

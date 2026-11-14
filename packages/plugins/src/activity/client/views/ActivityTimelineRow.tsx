@@ -1,4 +1,4 @@
-import type { Message, SlackFile } from "@slock/types";
+import type { Block, Message, SlackFile } from "@slock/types";
 import { ContextMenu, useContextMenu } from "@slock/ui";
 import { Show } from "solid-js";
 import MessageActionsMenuItems from "../../../messages/client/api/cards/MessageActionsMenuItems";
@@ -7,6 +7,7 @@ import { ThreadMessageRow } from "./activityThreadMessage";
 
 export default function ActivityTimelineRow(props: {
   author: MessageAuthorFields;
+  blocks?: Block[];
   channelId: string;
   files?: SlackFile[];
   isFirst: boolean;
@@ -24,6 +25,8 @@ export default function ActivityTimelineRow(props: {
     <>
       <ThreadMessageRow
         author={props.author}
+        blocks={props.blocks}
+        channelId={props.channelId}
         files={props.files}
         isFirst={props.isFirst}
         isLast={props.isLast}
@@ -31,7 +34,8 @@ export default function ActivityTimelineRow(props: {
         onContextMenu={props.message ? ctxMenu.open : undefined}
         onOpen={props.onOpen}
         text={props.text}
-        time={parseFloat(props.ts) * 1000}
+        threadTs={props.threadTs}
+        ts={props.ts}
         unread={props.unread}
       />
       <Show when={props.message}>

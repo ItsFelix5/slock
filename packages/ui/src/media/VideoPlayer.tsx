@@ -1,21 +1,17 @@
 import { createEffect, createSignal, type JSX, on, onCleanup, Show } from "solid-js";
 import IconButton from "../button/IconButton";
+import { FloatingMountContext } from "../overlay/floating/FloatingPanel";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
 import { createMediaVolume } from "./createMediaVolume";
-import Icon from "./Icon";
+import { mediaBoxStyle } from "./mediaDimensions";
 import "./VideoPlayer.css";
 import { useVideoShortcuts } from "./useVideoShortcuts";
+import VideoPlayerCorner from "./VideoPlayerCorner";
 import VideoSeekBar from "./VideoSeekBar";
 import VideoSpeedMenu from "./VideoSpeedMenu";
 import VideoUnavailable from "./VideoUnavailable";
 import VolumeControl from "./VolumeControl";
-
-export function formatDuration(seconds: number | undefined): string {
-  const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds ?? 0)) : 0;
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
-
-const pipSupported = typeof document !== "undefined" && document.pictureInPictureEnabled;
+import { formatDuration, ratioFromPointer, ratioOf, timeFromRatio } from "./videoTime";
 
 export interface VideoPlayerProps {
   ariaLabel: string;
@@ -36,6 +32,8 @@ export interface VideoPlayerProps {
 export default function VideoPlayer(props: VideoPlayerProps) {
   let videoRef: HTMLVideoElement | undefined;
   let wrapRef: HTMLDivElement | undefined;
+  let seekRef: HTMLDivElement | undefined;
+  let stopScrub: (() => void) | undefined;
   const [videoElement, setVideoElement] = createSignal<HTMLVideoElement>();
   const mediaVolume = createMediaVolume(videoElement);
 
@@ -49,8 +47,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [captionsOn, setCaptionsOn] = createSignal(false);
 
   const duration = () => props.duration ?? mediaDuration() ?? 0;
-  const progress = () =>
-    duration() > 0 ? Math.min(1, Math.max(0, currentTime() / duration())) : 0;
+  const progress = () => ratioOf(currentTime(), duration());
 
   createEffect(
     on(
@@ -84,27 +81,26 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   };
 
   const seekTo = (ratio: number) => {
-    if (!videoRef || duration() <= 0) return;
-    const nextTime = Math.min(1, Math.max(0, ratio)) * duration();
+    const nextTime = timeFromRatio(ratio, duration());
+    if (!videoRef || nextTime === undefined) return;
     videoRef.currentTime = nextTime;
     setCurrentTime(nextTime);
   };
 
-  const seekFromPointer = (event: PointerEvent, track: HTMLElement) => {
-    const rect = track.getBoundingClientRect();
-    seekTo((event.clientX - rect.left) / rect.width);
-  };
-
   const startScrub = (event: PointerEvent & { currentTarget: HTMLElement }) => {
-    const track = event.currentTarget;
-    seekFromPointer(event, track);
-    startFrameCoalescedPointerDrag((moveEvent) => seekFromPointer(moveEvent, track));
+    const rect = event.currentTarget.getBoundingClientRect();
+    seekTo(ratioFromPointer(event.clientX, rect));
+    stopScrub?.();
+    stopScrub = startFrameCoalescedPointerDrag((moveEvent) =>
+      seekTo(ratioFromPointer(moveEvent.clientX, rect)),
+    );
   };
 
   useVideoShortcuts({
     currentTime,
     duration,
     root: () => wrapRef,
+    seekRoot: () => seekRef,
     seekTo,
     toggleFullscreen: () => toggleFullscreen(),
     toggleMute: () => mediaVolume.setMuted(!mediaVolume.muted()),
@@ -124,14 +120,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setCaptionsOn(next);
   };
 
-  const togglePip = async () => {
-    if (!videoRef) return;
-    try {
-      if (document.pictureInPictureElement) await document.exitPictureInPicture();
-      else await videoRef.requestPictureInPicture();
-    } catch {}
-  };
-
   const toggleFullscreen = () => {
     if (!wrapRef) return;
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -139,6 +127,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   };
 
   onCleanup(() => {
+    stopScrub?.();
     videoRef?.pause();
     videoRef?.removeAttribute("src");
     videoRef?.load();
@@ -155,144 +144,132 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       }
       when={!failed()}
     >
-      <div class="video-player-wrap" ref={wrapRef} tabIndex={-1}>
-        <video
-          aria-label={props.ariaLabel}
-          class={props.class}
-          height={props.height}
-          width={props.width}
-          onClick={() => {
-            togglePlayback();
-            wrapRef?.focus();
-          }}
-          onEnded={() => setPlaying(false)}
-          onError={() => setFailed(true)}
-          onLoadedMetadata={(event) => {
-            const value = event.currentTarget.duration;
-            if (Number.isFinite(value) && value > 0) setMediaDuration(value);
-          }}
-          onPause={() => setPlaying(false)}
-          onPlay={() => setPlaying(true)}
-          onProgress={(event) => {
-            const target = event.currentTarget;
-            if (target.buffered.length)
-              setBuffered(target.buffered.end(target.buffered.length - 1));
-          }}
-          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-          poster={props.poster}
-          preload="metadata"
-          ref={(element) => {
-            videoRef = element;
-            setVideoElement(element);
-            props.ref?.(element);
-          }}
-          src={props.src}
-          style={
-            props.width && props.height && !fullscreen()
-              ? {
-                  "aspect-ratio": `${props.width} / ${props.height}`,
-                  width: `min(${props.width}px, 100%)`,
-                }
-              : undefined
-          }
-        >
-          <Show when={props.captionsSrc}>
-            {(src) => <track kind="captions" label="Transcript" src={src()} srclang="en" />}
-          </Show>
-        </video>
-
-        <div class="video-player-idle flex-align-center">
-          <IconButton
-            circular
-            class="video-player-chrome"
-            icon={playing() ? "pause-filled" : "play-filled"}
-            iconSize={12}
-            onClick={togglePlayback}
-            size="sm"
-          />
-          <Show when={duration()}>
-            <span class="video-player-time">
-              {formatDuration(currentTime() > 0 ? currentTime() : duration())}
-            </span>
-          </Show>
-        </div>
-
-        <div class="video-player-corner flex-align-center">
-          {props.toolbarExtra}
-          <a
-            aria-label="Download"
-            class="btn-reset icon-btn icon-action video-player-chrome sm"
-            download={props.downloadName ?? ""}
-            href={props.downloadHref ?? props.openHref}
-            rel="noopener noreferrer"
-            target="_blank"
+      <div
+        class="video-player-wrap"
+        ref={wrapRef}
+        style={
+          props.width && props.height && !fullscreen()
+            ? mediaBoxStyle(props.width, props.height)
+            : undefined
+        }
+      >
+        <FloatingMountContext.Provider value={() => (fullscreen() ? wrapRef : undefined)}>
+          <video
+            aria-label={props.ariaLabel}
+            class={props.class}
+            onClick={() => {
+              togglePlayback();
+              seekRef?.focus();
+            }}
+            onEnded={() => setPlaying(false)}
+            onError={() => setFailed(true)}
+            onLoadedMetadata={(event) => {
+              const value = event.currentTarget.duration;
+              if (Number.isFinite(value) && value > 0) setMediaDuration(value);
+            }}
+            onPause={() => setPlaying(false)}
+            onPlay={() => setPlaying(true)}
+            onProgress={(event) => {
+              const target = event.currentTarget;
+              if (target.buffered.length)
+                setBuffered(target.buffered.end(target.buffered.length - 1));
+            }}
+            onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+            poster={props.poster}
+            preload="metadata"
+            ref={(element) => {
+              videoRef = element;
+              setVideoElement(element);
+              props.ref?.(element);
+            }}
+            src={props.src}
           >
-            <Icon name="download" size={14} />
-          </a>
-          <Show when={pipSupported}>
-            <IconButton
-              class="video-player-chrome"
-              icon="open-in-window"
-              iconSize={14}
-              onClick={togglePip}
-              size="sm"
-            />
-          </Show>
-          <IconButton
-            class="video-player-chrome"
-            icon={fullscreen() ? "reduce-diagonal" : "expand-diagonal"}
-            iconSize={14}
-            onClick={toggleFullscreen}
-            size="sm"
-          />
-        </div>
+            <Show when={props.captionsSrc}>
+              {(src) => <track kind="captions" label="Transcript" src={src()} srclang="en" />}
+            </Show>
+          </video>
 
-        <div class="video-player-controls flex-col">
-          <VideoSeekBar
-            buffered={buffered()}
-            currentTime={currentTime()}
-            duration={duration()}
-            onScrub={startScrub}
-            progress={progress()}
-            valueText={`${formatDuration(currentTime())} of ${formatDuration(duration())}`}
-          />
-
-          <div class="video-player-controls-row flex-align-center">
+          <div class="video-player-idle flex-align-center">
             <IconButton
+              aria-hidden="true"
+              circular
               class="video-player-chrome"
               icon={playing() ? "pause-filled" : "play-filled"}
-              iconSize={15}
+              iconSize={12}
               onClick={togglePlayback}
               size="sm"
+              tabIndex={-1}
+            />
+            <Show when={duration()}>
+              <span class="video-player-time">
+                {formatDuration(currentTime() > 0 ? currentTime() : duration())}
+              </span>
+            </Show>
+          </div>
+
+          <VideoPlayerCorner
+            downloadHref={props.downloadHref ?? props.openHref}
+            downloadName={props.downloadName}
+            fullscreen={fullscreen()}
+            onToggleFullscreen={toggleFullscreen}
+            toolbarExtra={props.toolbarExtra}
+            video={videoElement}
+          />
+
+          <div class="video-player-controls flex-col">
+            <VideoSeekBar
+              buffered={buffered()}
+              currentTime={currentTime()}
+              duration={duration()}
+              onScrub={startScrub}
+              progress={progress()}
+              ref={(element) => {
+                seekRef = element;
+              }}
+              valueText={`${formatDuration(currentTime())} of ${formatDuration(duration())}`}
             />
 
-            <span class="video-player-time">{formatDuration(currentTime())}</span>
+            <div class="video-player-controls-row flex-align-center">
+              <IconButton
+                class="video-player-chrome"
+                hideTooltip
+                icon={playing() ? "pause-filled" : "play-filled"}
+                iconSize={15}
+                label={playing() ? "Pause" : "Play"}
+                onClick={togglePlayback}
+                size="sm"
+              />
 
-            <VolumeControl
-              muted={mediaVolume.muted()}
-              onMutedChange={mediaVolume.setMuted}
-              onVolumeChange={mediaVolume.setVolume}
-              volume={mediaVolume.volume()}
-            />
+              <span class="video-player-time">{formatDuration(currentTime())}</span>
 
-            <div class="video-player-row-spacer" />
+              <VolumeControl
+                muted={mediaVolume.muted()}
+                onMutedChange={mediaVolume.setMuted}
+                onVolumeChange={mediaVolume.setVolume}
+                volume={mediaVolume.volume()}
+              />
 
-            <div class="video-player-meta-group flex-align-center">
-              <VideoSpeedMenu onSpeed={applySpeed} speed={speed()} />
+              <div class="video-player-row-spacer" />
 
-              <Show when={props.captionsSrc}>
-                <IconButton
-                  active={captionsOn()}
-                  class="video-player-chrome"
-                  icon={captionsOn() ? "closed-caption-filled" : "closed-caption"}
-                  iconSize={14}
-                  onClick={toggleCaptions}
-                  size="sm"
-                />
-              </Show>
+              <div class="video-player-meta-group flex-align-center">
+                <VideoSpeedMenu onSpeed={applySpeed} speed={speed()} />
+
+                <Show when={props.captionsSrc}>
+                  <IconButton
+                    active={captionsOn()}
+                    class="video-player-chrome"
+                    hideTooltip
+                    icon={captionsOn() ? "closed-caption-filled" : "closed-caption"}
+                    iconSize={14}
+                    label="Captions"
+                    onClick={toggleCaptions}
+                    size="sm"
+                  />
+                </Show>
+              </div>
             </div>
           </div>
-        </div>
+        </FloatingMountContext.Provider>
       </div>
     </Show>
   );

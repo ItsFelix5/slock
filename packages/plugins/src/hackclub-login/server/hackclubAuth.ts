@@ -34,7 +34,7 @@ const API_TOKEN_RE = /"api_token"\s*:\s*"(xoxc-[^"]+)"/;
 const XOXC_RE = /xoxc-[A-Za-z0-9-]+/;
 
 export async function requestEmailCode(email: string): Promise<EmailChallenge> {
-  if (!email.includes("@")) throw new Error("Invalid email address");
+  if (!email.includes("@")) throw new Error("Enter a valid email address");
 
   const cookies: CookieJar = new Map();
   const loginUrl = "https://auth.hackclub.com/login";
@@ -55,7 +55,7 @@ export async function requestEmailCode(email: string): Promise<EmailChallenge> {
   );
 
   if (new URL(page.url).pathname.startsWith("/signup"))
-    throw new Error(`No Hack Club Auth account exists for ${email}`);
+    throw new Error("No Hack Club account for that email");
 
   const flash = extractFlashError(page.body);
   if (flash) throw new Error(flash);
@@ -69,9 +69,7 @@ export async function requestEmailCode(email: string): Promise<EmailChallenge> {
     );
 
   if (!EMAIL_STEP_PATH_RE.test(new URL(page.url).pathname))
-    throw new Error(
-      `Couldn't reach the email code step for this account (ended up at ${page.url}): ${extractVisibleText(page.body)}`,
-    );
+    throw new Error(`Can't sign in with an email code: ${extractVisibleText(page.body)}`);
 
   return {
     cookies: [...cookies],
@@ -86,7 +84,7 @@ export async function requestEmailCode(email: string): Promise<EmailChallenge> {
 function requireHackclubUrl(value: string): void {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.hostname !== "auth.hackclub.com") {
-    throw new Error("Invalid login challenge");
+    throw new Error("Login expired. Start again");
   }
 }
 
@@ -110,9 +108,7 @@ export async function exchangeEmailCode(
 
   const { pathname } = new URL(page.url);
   if (pathname !== "/" && pathname !== "")
-    throw new Error(
-      `Email code was not accepted; authentication ended at ${page.url}: ${extractVisibleText(page.body)}`,
-    );
+    throw new Error(`Code rejected: ${extractVisibleText(page.body)}`);
 
   const home = await visit(cookies, "https://auth.hackclub.com/");
   const csrf = extractCsrfToken(home.body);
@@ -149,11 +145,7 @@ export async function exchangeEmailCode(
     client.body.match(XOXC_RE)?.[0];
   const xoxd = cookies.get("d");
 
-  if (!(xoxd && xoxc))
-    throw new Error(
-      `Slack authentication completed without finding tokens (ended up at ${client.url}, ` +
-        `xoxc ${xoxc ? "found" : "missing"}, xoxd ${xoxd ? "found" : "missing"}): ${extractVisibleText(client.body)}`,
-    );
+  if (!(xoxd && xoxc)) throw new Error("Slack did not return a session. Try again");
 
   const authTest = await callSlack(
     "auth.test",
@@ -165,7 +157,7 @@ export async function exchangeEmailCode(
       token: xoxc,
     },
   );
-  if (!authTest.ok) throw new Error(authTest.error ?? "Slack auth.test failed after SAML login");
+  if (!authTest.ok) throw new Error(authTest.error ?? "Slack rejected the session");
 
   return {
     domain: "hackclub.enterprise.slack.com",

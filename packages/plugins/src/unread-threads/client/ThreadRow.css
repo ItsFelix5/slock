@@ -1,13 +1,44 @@
 .sidebar-row-thread {
+  --thread-line-x: 17px;
+  --thread-line: 1px solid var(--border-strong);
+  position: relative;
   padding-block: calc(2px + var(--row-padding-offset));
+  padding-inline-start: calc(26px + var(--space-sm));
 }
 
-.sidebar-thread-corner {
-  display: block;
-  width: 8px;
-  height: 10px;
-  margin: -8px 0 0 4px;
-  border-bottom: 1px solid var(--border-strong);
-  border-left: 1px solid var(--border-strong);
+.sidebar-row-thread::before,
+.sidebar-row-thread::after {
+  position: absolute;
+  pointer-events: none;
+  content: "";
+}
+
+.sidebar-row-thread::before {
+  top: 0;
+  left: var(--thread-line-x);
+  width: 9px;
+  height: 50%;
+  border-bottom: var(--thread-line);
+  border-left: var(--thread-line);
   border-bottom-left-radius: var(--radius-sm);
+}
+
+.sidebar-thread-list > :first-child .sidebar-row-thread::before {
+  top: -4px;
+  height: calc(50% + 4px);
+}
+
+.sidebar-thread-list > :not(:last-child) .sidebar-row-thread::before {
+  bottom: -1px;
+  width: 0;
+  height: auto;
+  border-bottom: 0;
+  border-radius: 0;
+}
+
+.sidebar-thread-list > :not(:last-child) .sidebar-row-thread::after {
+  top: calc(50% - 1px);
+  left: calc(var(--thread-line-x) + 1px);
+  width: 8px;
+  border-top: var(--thread-line);
 }

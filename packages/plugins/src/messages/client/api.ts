@@ -93,10 +93,13 @@ declare module "@slock/core/types" {
     "messages.deleted": MessageDeletedHook;
     "messages.edited": Component<MessageEditedProps>;
     "messages.patch": MessagePatchHook;
+    "messages.prefetch": (channelId: string) => void;
     "messages.retain": (msg: Message) => boolean;
     "messages.header": Component<MessageHeaderProps>;
     "messages.takeover": MessageTakeover;
     "messages.headerLead": Component<MessageHeaderProps>;
+    "messages.titleIcon": Component<MessageHeaderProps>;
+    "messages.intro": Component<MessageHeaderProps>;
     "messages.titleOpen": (view: MessageHeaderProps) => void;
     "messages.author": MessageAuthorClass;
     "messages.badge": Component<MessageBadgeProps>;

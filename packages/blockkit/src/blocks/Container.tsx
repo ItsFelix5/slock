@@ -24,7 +24,7 @@ export default function Container(props: {
 
   const heading = () => (
     <>
-      <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} />}</Show>
+      <Show when={props.block.icon}>{(icon) => <ImageElement el={icon()} icon />}</Show>
       <div class="bk-container-heading-text grow">
         <Show
           fallback={

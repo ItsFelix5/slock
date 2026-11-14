@@ -1,4 +1,14 @@
-import { gzipSync } from "node:zlib";
+import { promisify } from "node:util";
+import {
+  brotliCompress as brotliCompressCallback,
+  constants,
+  gzip as gzipCallback,
+} from "node:zlib";
+
+const gzip = promisify(gzipCallback);
+const brotliCompress = promisify(brotliCompressCallback);
+const MIN_COMPRESSIBLE_BYTES = 1024;
+const BROTLI_QUALITY = 4;
 
 const COMPRESSIBLE_CONTENT_TYPE_RE =
   /^(?:text\/|application\/(?:javascript|json|xml|wasm)|image\/svg\+xml)/i;
@@ -25,6 +35,12 @@ export function isCompressible(contentType: string | null): boolean {
   return Boolean(!contentType || COMPRESSIBLE_CONTENT_TYPE_RE.test(contentType));
 }
 
+function encode(bytes: ArrayBuffer, encoding: "br" | "gzip"): Promise<Buffer> {
+  return encoding === "br"
+    ? brotliCompress(bytes, { params: { [constants.BROTLI_PARAM_QUALITY]: BROTLI_QUALITY } })
+    : gzip(bytes);
+}
+
 export async function compressResponse(
   response: Response,
   acceptEncoding: string | null,
@@ -37,17 +53,14 @@ export async function compressResponse(
     return response;
   }
   const headers = headersWithVary(response.headers);
-  if (!acceptsEncoding(acceptEncoding, "gzip")) {
-    return new Response(response.body, {
-      headers,
-      status: response.status,
-      statusText: response.statusText,
-    });
-  }
-  headers.set("content-encoding", "gzip");
-  return new Response(gzipSync(await response.arrayBuffer()), {
-    headers,
-    status: response.status,
-    statusText: response.statusText,
-  });
+  const encoding = (["br", "gzip"] as const).find((wanted) =>
+    acceptsEncoding(acceptEncoding, wanted),
+  );
+  const init = { headers, status: response.status, statusText: response.statusText };
+  if (!encoding) return new Response(response.body, init);
+  const bytes = await response.arrayBuffer();
+  headers.delete("content-length");
+  if (bytes.byteLength < MIN_COMPRESSIBLE_BYTES) return new Response(bytes, init);
+  headers.set("content-encoding", encoding);
+  return new Response(new Uint8Array(await encode(bytes, encoding)), init);
 }

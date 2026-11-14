@@ -1,6 +1,7 @@
 import type { ContextBlock } from "@slock/types";
 import { For } from "solid-js";
 import BkText from "../BkText";
+import { safeMediaUrl } from "../safeUrl";
 import "./Context.css";
 
 export default function Context(props: { block: ContextBlock }) {
@@ -14,7 +15,7 @@ export default function Context(props: { block: ContextBlock }) {
               class="bk-context-image"
               decoding="async"
               loading="lazy"
-              src={el.image_url ?? el.slack_file?.url ?? ""}
+              src={safeMediaUrl(el.image_url ?? el.slack_file?.url)}
             />
           ) : (
             <BkText class="bk-context-text" text={el} />

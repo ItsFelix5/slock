@@ -1,8 +1,8 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { mapMessage } from "@slock/slack";
 import { TypingIndicator } from "@slock/ui";
 import type { MessageFooterProps } from "../../messages/client/api";
+import { sendTyping } from "./sendTyping";
 import { createTypingSlice } from "./store";
 
 const setup: Setup = (ctx) => {
@@ -32,13 +32,14 @@ const setup: Setup = (ctx) => {
         store.clearTyping(
           event.channel,
           isThreadReply ? threadTs : undefined,
-          mapMessage({ ...event, ts: event.ts }).userId,
+          event.user ?? event.bot_id ?? "",
         );
       }
     },
     types: ["user_typing", "message"],
   });
   ctx.add("messages.footer", TypingFooter);
+  ctx.add("composer.editor", sendTyping(service("realtime").send));
 };
 
 export default setup;

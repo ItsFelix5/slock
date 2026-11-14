@@ -8,13 +8,14 @@ import type {
   TextObject,
 } from "@slock/types";
 
-const EMOJI_SHORTCODE_RE = /:([a-z0-9_+'-]+):/gi;
+const UNICODE_EMOJI = String.raw`\p{Extended_Pictographic}[️\p{Emoji_Modifier}]?(?:‍\p{Extended_Pictographic}[️\p{Emoji_Modifier}]?)*|\p{Regional_Indicator}{2}`;
+const EMOJI_RE = new RegExp(`:[a-z0-9_+'-]+:|${UNICODE_EMOJI}`, "giu");
 
 export const MAX_ENLARGED_EMOJI = 25;
 
 export function emojiShortcodeCount(text: string): number | undefined {
-  const emoji = text.match(EMOJI_SHORTCODE_RE);
-  return text.replace(EMOJI_SHORTCODE_RE, "").trim() ? undefined : (emoji?.length ?? 0);
+  const emoji = text.match(EMOJI_RE);
+  return text.replace(EMOJI_RE, "").trim() ? undefined : (emoji?.length ?? 0);
 }
 
 function emojiOnlyRichTextCount(block: RichTextBlock): number | undefined {

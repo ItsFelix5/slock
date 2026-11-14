@@ -127,6 +127,10 @@ export async function fetchCanvasVersion(
   return { bytes: response.value, ok: true };
 }
 
+export function canEditCanvas(file: { editable?: unknown }): boolean {
+  return file.editable === true;
+}
+
 export type ThreadLookup = { response: Response } | { editable: boolean; threadId: string };
 
 export async function lookupThread(
@@ -137,13 +141,9 @@ export async function lookupThread(
   if (!data.ok) return { response: slackErrorResponse(data, "files.info", creds) };
   const threadId = data.file.quip_thread_id;
   if (!threadId) {
-    console.error(
-      `[canvas] no quip_thread_id on file ${ctx.params.id}, file keys:`,
-      Object.keys(data.file),
-    );
     return { response: jsonResponse({ error: "canvas has no quip_thread_id" }, creds, 502) };
   }
-  return { editable: data.file.editable !== false, threadId };
+  return { editable: canEditCanvas(data.file), threadId };
 }
 
 export function notConfigured(): Response {

@@ -10,7 +10,7 @@ const LAST_TS = "9999999999.999999";
 export type TsRange = { min?: string; max?: string };
 
 type MessageRow = { message: string };
-type BlobRow = { type: string; bytes: Uint8Array };
+type BlobRow = { type: string; bytes: Uint8Array<ArrayBuffer> };
 
 export type LogStore = ReturnType<typeof createLogStore>;
 

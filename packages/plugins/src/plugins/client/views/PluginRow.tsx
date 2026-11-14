@@ -1,5 +1,5 @@
 import type { PluginInfo } from "@slock/core";
-import { getHost, service } from "@slock/core/solid";
+import { getHost, service, usePoint } from "@slock/core/solid";
 import { confirmDialog, IconButton, Switch } from "@slock/ui";
 import { Show } from "solid-js";
 
@@ -8,7 +8,6 @@ const STATUS_LABEL = {
   failed: "Failed to start",
   off: "Off",
   running: "Running",
-  starting: "Starting",
 } as const;
 
 async function toggle(plugin: PluginInfo, on: boolean) {
@@ -28,8 +27,10 @@ async function toggle(plugin: PluginInfo, on: boolean) {
   await host.setEnabled(plugin.id, on);
 }
 
-export function PluginRow(props: { plugin: PluginInfo }) {
+export function PluginRow(props: { plugin: PluginInfo; onOpenSettings: (id: string) => void }) {
   const plugins = service("plugins");
+  const settings = usePoint("plugins.settings");
+  const hasSettings = () => settings().some((item) => item.plugin === props.plugin.id);
   const removable = () => plugins.installed().includes(props.plugin.id);
   return (
     <div class="settings-row flex-between">
@@ -41,6 +42,15 @@ export function PluginRow(props: { plugin: PluginInfo }) {
         </div>
       </div>
       <div class="flex-align-center">
+        <Show when={hasSettings()}>
+          <IconButton
+            icon="settings"
+            label="Settings"
+            onClick={() => props.onOpenSettings(props.plugin.id)}
+            size="sm"
+            tone="dim"
+          />
+        </Show>
         <Show when={removable()}>
           <IconButton
             icon="trash"

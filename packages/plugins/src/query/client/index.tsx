@@ -2,11 +2,12 @@ import type { Setup } from "@slock/core";
 import { pageIdle } from "@slock/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { createEffect } from "solid-js";
+import { persistQueries, restoreQueries } from "./persist";
 import { createRetryPolicy } from "./retryPolicy";
 
 const GC_MS = 120_000;
 
-const setup: Setup = (ctx) => {
+const setup: Setup = async (ctx) => {
   const client = new QueryClient({
     defaultOptions: {
       queries: {
@@ -16,6 +17,7 @@ const setup: Setup = (ctx) => {
       },
     },
   });
+  ctx.onCleanup(persistQueries(client));
   ctx.provide("query", { client });
   ctx.add("shell.provider", (props) => (
     <QueryClientProvider client={client}>{props.children}</QueryClientProvider>
@@ -24,6 +26,7 @@ const setup: Setup = (ctx) => {
     if (pageIdle()) client.removeQueries({ type: "inactive" });
   });
   ctx.onCleanup(() => client.clear());
+  await restoreQueries(client);
 };
 
 export default setup;

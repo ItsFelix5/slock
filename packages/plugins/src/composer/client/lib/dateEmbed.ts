@@ -1,12 +1,7 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
-import Quill from "@slock/ui/editor/quill";
-import { getEmbedBlot } from "@slock/ui/editor/quillText";
-
-export interface DateValue {
-  ts: number;
-  format: string;
-  fallback: string;
-}
+import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
+import { asElement } from "@slock/ui/editor/quillText";
+import type { DateValue } from "./embedValues";
 
 class DateBlot extends getEmbedBlot() {
   static blotName = "date";
@@ -14,9 +9,7 @@ class DateBlot extends getEmbedBlot() {
   static tagName = "span";
 
   static create(value: DateValue) {
-    // biome-ignore lint/complexity/noThisInStatic: parent embed class is resolved at runtime
-    const node = super.create(value);
-    if (!(node instanceof HTMLElement)) throw new Error("date blot produced a non-element node");
+    const node = asElement(super.create(value), "date");
     node.className = "bk-date";
     node.dataset.ts = String(value.ts);
     node.dataset.format = value.format;
@@ -32,24 +25,3 @@ class DateBlot extends getEmbedBlot() {
 }
 
 Quill.register(DateBlot);
-
-export function dateValue(value: unknown): DateValue | undefined {
-  if (
-    !(
-      value &&
-      typeof value === "object" &&
-      "ts" in value &&
-      "format" in value &&
-      "fallback" in value
-    )
-  )
-    return;
-  const { ts, format, fallback } = value;
-  return typeof ts === "number" && typeof format === "string" && typeof fallback === "string"
-    ? { fallback, format, ts }
-    : undefined;
-}
-
-export function dateMrkdwn(value: DateValue): string {
-  return `<!date^${value.ts}^${value.format}|${value.fallback}>`;
-}

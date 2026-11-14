@@ -60,7 +60,6 @@
 .volume-control-input {
   width: 4px;
   height: 120px;
-  appearance: slider-vertical;
   cursor: pointer;
   writing-mode: vertical-lr;
   direction: rtl;

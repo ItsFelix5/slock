@@ -1,4 +1,4 @@
-import { service } from "@slock/core/solid";
+import type { Services } from "@slock/core/types";
 import type { Channel, DirectMessage, Message } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -6,17 +6,17 @@ import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import type { ThreadRef } from "../../../messages/client/api";
 import { isPendingMessage } from "../../../messages/client/api/messageMerge";
-import { markChannelRead, markThreadRead } from "../../../slack/client/api";
-import { createLatestValueSync } from "./latestValueSync";
-
-const feedback = service("feedback");
+import { createReadSync, type ReadApi } from "./readSync";
 
 export function createUnreadStore(deps: {
+  api: ReadApi;
+  flash: Services["feedback"]["flash"];
   patchChannel: (id: string, patch: Partial<Channel>) => void;
   patchDm: (id: string, patch: Partial<DirectMessage>) => void;
   bootstrap: () =>
     | {
         channels: Channel[];
+        countsLoaded: boolean;
         directMessages: DirectMessage[];
         lastReadByChannel: Record<string, number>;
       }
@@ -27,7 +27,7 @@ export function createUnreadStore(deps: {
   let unreadIdsSeeded = false;
   createEffect(() => {
     const data = deps.bootstrap();
-    if (!data || unreadIdsSeeded) return;
+    if (!data?.countsLoaded || unreadIdsSeeded) return;
     unreadIdsSeeded = true;
     for (const c of data.channels) if (c.unread) setUnreadChannelIds(c.id, true);
     for (const dm of data.directMessages) if (dm.unread) setUnreadChannelIds(dm.id, true);
@@ -35,7 +35,7 @@ export function createUnreadStore(deps: {
 
   const [lastReadByChannel, setLastReadByChannel] = createStore<Record<string, number>>({});
 
-  const [threadReadTs, setThreadReadTs] = createStore<Record<string, string>>({});
+  const [threadReadTs, setThreadReadTs] = createStore<Record<string, string | undefined>>({});
 
   const [bottomSeen, setBottomSeen] = createStore<Record<string, boolean>>({});
 
@@ -58,77 +58,24 @@ export function createUnreadStore(deps: {
   const [lastReadSeeded, setLastReadSeeded] = createSignal(false);
   createEffect(() => {
     const data = deps.bootstrap();
-    if (!data || lastReadSeeded()) return;
+    if (!data?.countsLoaded || lastReadSeeded()) return;
     setLastReadSeeded(true);
     for (const [id, ts] of Object.entries(data.lastReadByChannel)) setLastReadByChannel(id, ts);
   });
 
-  const hasErrorCode = (error: unknown, code: string) =>
-    error instanceof Error && error.message === code;
-  const isChannelGoneError = (error: unknown) => hasErrorCode(error, "channel_not_found");
-  const isThreadGoneError = (error: unknown) =>
-    isChannelGoneError(error) || hasErrorCode(error, "message_not_found");
+  const readSync = createReadSync(deps.api, deps.flash);
+  const { isStaleReadEcho, setChannelRead, syncChannelRead, syncThreadRead } = readSync;
 
-  const sentReadTs: Record<string, { all: Set<string>; latest: string }> = {};
-  function recordSentRead({ channelId, ts }: { channelId: string; ts: string }) {
-    const sent = sentReadTs[channelId] ?? { all: new Set(), latest: ts };
-    sentReadTs[channelId] = sent;
-    sent.all.add(ts);
-    sent.latest = ts;
-  }
-  function isStaleReadEcho(channelId: string, ts: string) {
-    const sent = sentReadTs[channelId];
-    return !!sent && sent.all.has(ts) && sent.latest !== ts;
+  async function setThreadRead(channelId: string, threadTs: string, ts: string): Promise<boolean> {
+    const prior = threadReadTs[threadTs];
+    setThreadReadTs(threadTs, ts);
+    const synced = await readSync.setThreadRead(channelId, threadTs, ts);
+    if (!synced) setThreadReadTs(threadTs, prior);
+    return synced;
   }
 
-  const channelReadSync = createLatestValueSync<{
-    channelId: string;
-    ts: string;
-  }>({
-    key: (cursor) => cursor.channelId,
-    onError: (cursor, error) => {
-      if (isChannelGoneError(error)) return true;
-      console.error("Failed to sync channel read cursor", error);
-      feedback.flash(cursor.channelId, "Couldn't sync read state.", "error");
-    },
-    version: (cursor) => parseFloat(cursor.ts),
-    write: async (cursor) => {
-      await markChannelRead(cursor.channelId, cursor.ts);
-    },
-  });
-  const threadReadSync = createLatestValueSync<{
-    channelId: string;
-    threadTs: string;
-    ts: string;
-  }>({
-    key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
-    onError: (cursor, error) => {
-      if (isThreadGoneError(error)) return true;
-      console.error("Failed to sync thread read cursor", cursor, error);
-      feedback.flash(cursor.threadTs, "Couldn't sync thread read state.", "error");
-    },
-    version: (cursor) => parseFloat(cursor.ts),
-    write: async (cursor) => {
-      await markThreadRead(cursor.channelId, cursor.threadTs, cursor.ts);
-    },
-  });
-
-  function syncChannelRead(channelId: string, ts: string): Promise<boolean> {
-    recordSentRead({ channelId, ts });
-    return channelReadSync.requestLatest({ channelId, ts });
-  }
-
-  function setChannelRead(channelId: string, ts: string): Promise<boolean> {
-    recordSentRead({ channelId, ts });
-    return channelReadSync.force({ channelId, ts });
-  }
-
-  function syncThreadRead(channelId: string, threadTs: string, ts: string): Promise<boolean> {
-    return threadReadSync.requestLatest({ channelId, threadTs, ts });
-  }
-
-  function setThreadRead(channelId: string, threadTs: string, ts: string): Promise<boolean> {
-    return threadReadSync.force({ channelId, threadTs, ts });
+  function threadReadTsFor(threadTs: string) {
+    return threadReadTs[threadTs];
   }
 
   function clearChannelUnread(channelId: string) {
@@ -260,6 +207,7 @@ export function createUnreadStore(deps: {
     setChannelRead,
     setThreadRead,
     setThreadReadTs,
+    threadReadTsFor,
     setUnreadChannelIds,
     setUnreadDividerTs,
     syncChannelRead,

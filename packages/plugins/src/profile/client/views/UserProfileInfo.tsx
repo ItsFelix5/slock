@@ -22,10 +22,13 @@ interface UserProfileInfoProps {
   onTogglePresence: () => void;
   onProfilePhotoSelected: (file: File) => void;
   saveName: () => void;
+  saveFullName: () => void;
   saveTitle: () => void;
   savePronouns: () => void;
   saveNickname: () => void;
   nameInput: () => string;
+  fullNameInput: () => string;
+  setFullNameInput: (value: string) => void;
   setNameInput: (value: string) => void;
   titleInput: () => string;
   setTitleInput: (value: string) => void;
@@ -141,6 +144,17 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
               type="text"
               value={props.nameInput()}
             />
+            <input
+              aria-label="Full name"
+              class="user-profile-pronouns-input"
+              disabled={props.savingProfileFields().fullName}
+              onBlur={props.saveFullName}
+              onInput={(e) => props.setFullNameInput(e.currentTarget.value)}
+              data-commit-on-enter
+              placeholder="Full name"
+              type="text"
+              value={props.fullNameInput()}
+            />
             <textarea
               aria-label="Title"
               class="user-profile-title-input"
@@ -181,10 +195,10 @@ export default function UserProfileInfo(props: UserProfileInfoProps) {
           <Show when={u().isBot}>
             <AppBadge />
           </Show>
-          <Show when={!props.nicknameInput().trim() && u().realName && u().realName !== u().name}>
-            <span class="text-dim text-sm">({u().realName})</span>
-          </Show>
         </div>
+        <Show when={!props.nicknameInput().trim() && u().realName && u().realName !== u().name}>
+          <p class="user-profile-original-name text-dim text-sm">Full name: {u().realName}</p>
+        </Show>
         <Show
           when={
             props.nicknameInput().trim() &&

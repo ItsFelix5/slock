@@ -4,13 +4,11 @@ import { SLACK_USER_ID } from "@slock/slack";
 import { createEffect } from "solid-js";
 import { gatewayHandler } from "../../realtime/client/api";
 import { fetchUserPresence } from "../../slack/client/api";
-import { reportActivityWhileAway } from "./activity";
 
 const setup: Setup = (ctx) => {
   const users = service("users");
   const dms = service("dms");
   const realtime = service("realtime");
-  reportActivityWhileAway(ctx, users);
 
   function watchedIds(): string[] {
     const ids = new Set<string>();
@@ -25,14 +23,30 @@ const setup: Setup = (ctx) => {
   }
 
   const hydrated = new Set<string>();
+  const queued = new Set<string>();
+  let scheduled = false;
+
+  function flushHydration() {
+    scheduled = false;
+    const ids = [...queued];
+    queued.clear();
+    for (const id of ids)
+      fetchUserPresence(id)
+        .then((presence) => presence && users.setPresenceOverrides(id, presence))
+        .catch(() => hydrated.delete(id));
+  }
+
   function hydrate(ids: string[]) {
     for (const id of ids) {
       if (hydrated.has(id)) continue;
       hydrated.add(id);
-      fetchUserPresence(id)
-        .then((presence) => presence && users.setPresenceOverrides(id, presence))
-        .catch(() => hydrated.delete(id));
+      queued.add(id);
     }
+    if (queued.size === 0 || scheduled) return;
+    scheduled = true;
+    if ("requestIdleCallback" in window)
+      window.requestIdleCallback(flushHydration, { timeout: 3000 });
+    else setTimeout(flushHydration, 1000);
   }
 
   createEffect(() => {
@@ -40,6 +54,9 @@ const setup: Setup = (ctx) => {
     if (realtime.gatewayConnected()) realtime.send({ ids, type: "watch_presence" });
     hydrate(ids);
   });
+  const tickle = () => realtime.send({ type: "tickle" });
+  window.addEventListener("focus", tickle);
+  ctx.onCleanup(() => window.removeEventListener("focus", tickle));
   ctx.add("realtime.open", () => realtime.send({ ids: watchedIds(), type: "watch_presence" }));
   ctx.add(
     "realtime.handler",

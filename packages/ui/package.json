@@ -7,7 +7,6 @@
     ".": "./src/index.ts",
     "./theme.css": "./src/theme.css",
     "./utilities.css": "./src/utilities.css",
-    "./settings-form.css": "./src/form/SettingsForm.css",
     "./editor/QuillEditor": "./src/editor/QuillEditor.tsx",
     "./editor/quill": "./src/editor/quill.ts",
     "./editor/quillText": "./src/editor/quillText.ts",

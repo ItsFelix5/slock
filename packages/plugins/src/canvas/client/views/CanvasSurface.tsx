@@ -8,7 +8,7 @@ import { useMentionResolution } from "../../../composer/client/api/editor/mentio
 import { emojiAutoconvert } from "../../../emoji/client/api/emojiAutoconvert";
 import { bindCanvasKeys } from "../lib/canvasEditorSetup";
 import { type CanvasServices, canvasServicesFor } from "./canvasBlots/canvasServices";
-import { ignoreEmbedChurn } from "./canvasBlots/embedHistory";
+import { ignoreEmbedChurn, withoutHistory } from "./canvasBlots/embedHistory";
 import { scheduleDecorations } from "./canvasBlots/layoutDecorations";
 
 const QUOTE_PREFIX = { format: "layout", length: 1, prefix: /^>$/, value: "quote" };
@@ -53,17 +53,17 @@ export default function CanvasSurface(props: CanvasSurfaceProps) {
         mention &&
         "id" in mention &&
         "kind" in mention &&
-        mention.kind === "user" &&
+        (mention.kind === "user" || mention.kind === "channel") &&
         typeof mention.id === "string"
       )
-        resolveMention(mention.id);
+        resolveMention(mention.id, mention.kind);
     }
   }
 
   function mount(editor: Quill) {
     quill = editor;
     const services = props.services ?? (wrapper ? canvasServicesFor(wrapper) : undefined);
-    editor.setContents(props.initialOps, "silent");
+    withoutHistory(editor, () => editor.setContents(props.initialOps, "silent"));
     resolveUnknownMentions(props.initialOps);
     if (services?.readOnly) editor.disable();
     bindCanvasKeys(editor);
@@ -103,6 +103,7 @@ export default function CanvasSurface(props: CanvasSurfaceProps) {
       <QuillEditor
         ariaLabel={props.ariaLabel}
         ariaMultiline
+        checklists
         formats={props.formats}
         id={props.id}
         keepPastedHeaders

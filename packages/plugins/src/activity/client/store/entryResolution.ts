@@ -1,4 +1,5 @@
 import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
+import { batch as solidBatch } from "solid-js";
 import { produce, type SetStoreFunction } from "solid-js/store";
 import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../kinds";
 
@@ -30,12 +31,14 @@ export function createEntryResolution(deps: {
     const unresolved = pending.filter(needsMessage);
     const toFetch = unresolved.filter((entry) => !!entry.channelId);
 
-    await deps.fetchMessagesByIds(toFetch, (batch) => {
-      deps.cacheResolvedMessages?.(batch);
-      for (const entry of toFetch)
-        if (!seen.has(entry.id) && batch.has(channelPostKey(entry.channelId, entry.ts)))
-          push(entry, batch);
-    });
+    await deps.fetchMessagesByIds(toFetch, (batch) =>
+      solidBatch(() => {
+        deps.cacheResolvedMessages?.(batch);
+        for (const entry of toFetch)
+          if (!seen.has(entry.id) && batch.has(channelPostKey(entry.channelId, entry.ts)))
+            push(entry, batch);
+      }),
+    );
 
     const unresolvedChannelEntries = toFetch.filter(
       (entry) =>
@@ -85,8 +88,8 @@ export function createEntryResolution(deps: {
         deps.onReactionPushed?.(item.reactionName);
       deps.setActivityItems(
         produce((list) => {
-          list.push(item);
-          list.sort((a, b) => b.time - a.time);
+          const olderIndex = list.findIndex((existing) => existing.time < item.time);
+          list.splice(olderIndex === -1 ? list.length : olderIndex, 0, item);
         }),
       );
     };

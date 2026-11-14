@@ -14,36 +14,6 @@
   overflow: hidden;
 }
 
-.pane-divider {
-  position: relative;
-  flex: 0 0 3px;
-  height: auto;
-  border: none;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.pane-divider::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 1px;
-  width: 1px;
-  background: var(--border);
-}
-
-.pane-divider:hover::after,
-.pane-divider:active::after,
-.pane-divider:focus-visible::after {
-  background: var(--accent);
-  opacity: 0.6;
-}
-
-.pane-divider:focus-visible {
-  --focus-offset: -2px;
-}
-
 .pane-row-tabbed {
   flex-direction: column;
 }

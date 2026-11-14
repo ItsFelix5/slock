@@ -12,7 +12,11 @@ export function createBootstrapStore(deps: {
   retryHooks: () => (() => void)[];
 }) {
   const bootstrap = createQuery(
-    () => ({ queryFn: fetchBootstrap, queryKey: bootstrapKey() }),
+    () => ({
+      queryFn: () =>
+        fetchBootstrap(() => void deps.client.invalidateQueries({ queryKey: bootstrapKey() })),
+      queryKey: bootstrapKey(),
+    }),
     () => deps.client,
   );
   const userPrefs = createQuery(
