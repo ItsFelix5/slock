@@ -64,6 +64,7 @@ export {
   uploadFile,
   uploadFiles,
   uploadFilesForEdit,
+  uploadRelayFiles,
 } from "./content";
 export { fetchCounts } from "./counts";
 export { deleteDraft, fetchDrafts, saveDraft } from "./drafts";
@@ -85,7 +86,6 @@ export {
   markChannelRead,
   postBroadcastMessage,
   postMessage,
-  RelayError,
   saveWithReminder,
   searchMessages,
   togglePin,

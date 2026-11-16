@@ -60,6 +60,7 @@ export async function uploadBotFiles(
   team: string,
   files: File[],
 ): Promise<SlackReply<{ ids: string[] }>> {
+  if (!files.length) return { ids: [], ok: true };
   const uploaded: { id: string; title: string }[] = [];
   for (const file of files) {
     const sent = await reserveAndSend(team, file);

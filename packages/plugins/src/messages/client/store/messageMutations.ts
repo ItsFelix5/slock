@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import { isMyRelayedMessage } from "@slock/slack";
 import type { Block, Message, User } from "@slock/types";
-import { broadcastReply, deleteMessage, editMessage, RelayError } from "../../../slack/client/api";
+import { broadcastReply, deleteMessage, editMessage } from "../../../slack/client/api";
 import type { MessageLocation } from "../lib/messageLocations";
 
 const feedback = service("feedback");
@@ -28,17 +28,12 @@ export function createMessageMutations(deps: {
     text: string,
     blocks?: Block[],
     fileIds?: string[],
-    files?: File[],
   ) {
     const trimmed = text.trim();
     if (!trimmed) return false;
     const previous = findMessage(channelId, ts);
     try {
-      await editMessage(channelId, ts, trimmed, blocks, {
-        fileIds,
-        files,
-        relayed: isRelayed(previous),
-      });
+      await editMessage(channelId, ts, trimmed, blocks, isRelayed(previous), fileIds);
       deps.patchMessage(channelId, ts, { blocks, edited: true, text: trimmed });
       if (previous && previous.text !== trimmed) {
         feedback.undo.push({
@@ -49,7 +44,7 @@ export function createMessageMutations(deps: {
       return true;
     } catch (err) {
       console.error("Failed to edit message", err);
-      feedback.error(ts, err instanceof RelayError ? err.message : "Failed to edit message.");
+      feedback.error(ts, "Failed to edit message.");
       return false;
     }
   }

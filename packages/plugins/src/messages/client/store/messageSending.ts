@@ -2,7 +2,12 @@ import { defined, formatTimeFromMs } from "@slock/core";
 import { broadcastRangeOf } from "@slock/slack";
 import type { Block, Message, PendingFile, User } from "@slock/types";
 import { produce, type SetStoreFunction } from "solid-js/store";
-import { postBroadcastMessage, postMessage, uploadFiles } from "../../../slack/client/api";
+import {
+  postBroadcastMessage,
+  postMessage,
+  uploadFiles,
+  uploadRelayFiles,
+} from "../../../slack/client/api";
 import { dedupeMessages } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
 
@@ -20,24 +25,6 @@ function optimisticMessage(me: User | undefined, now: number, fields: Partial<Me
     userId: me?.id ?? "",
     ...fields,
   };
-}
-
-function uploadAsMessage(
-  channelId: string,
-  files: File[],
-  { blocks, comment, threadTs }: { blocks?: Block[]; comment?: string; threadTs?: string },
-  onProgress: (fileIndex: number, fraction: number) => void,
-) {
-  const text = comment?.trim() ?? "";
-  return broadcastRangeOf({ blocks, text })
-    ? postBroadcastMessage(channelId, text, undefined, threadTs, blocks, files, onProgress)
-    : uploadFiles(
-        channelId,
-        files.map((file) => ({ file })),
-        threadTs,
-        comment,
-        onProgress,
-      );
 }
 
 export function createMessageSending(deps: {
@@ -133,7 +120,19 @@ export function createMessageSending(deps: {
         );
         deps.patchMessage(channelId, optimistic.ts, { pendingFiles: currentFiles });
       };
-      await uploadAsMessage(channelId, files, { blocks, comment, threadTs }, onProgress);
+      const text = comment?.trim() ?? "";
+      if (broadcastRangeOf({ blocks, text })) {
+        const uploadId = await uploadRelayFiles(files, onProgress);
+        await postBroadcastMessage(channelId, text, undefined, threadTs, blocks, uploadId);
+      } else {
+        await uploadFiles(
+          channelId,
+          files.map((file) => ({ file })),
+          threadTs,
+          comment,
+          onProgress,
+        );
+      }
       deps.patchMessage(channelId, optimistic.ts, { pending: false });
       revokePreviews();
     } catch (err) {

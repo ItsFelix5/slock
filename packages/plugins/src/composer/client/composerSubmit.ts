@@ -3,6 +3,7 @@ import { getHost, service } from "@slock/core/solid";
 import { blockPreviewText } from "@slock/slack";
 import type { SlackFile } from "@slock/types";
 import { encodeReplyLink, withReplyLink } from "../../message-links/client/api/replyLink";
+import { uploadFilesForEdit } from "../../slack/client/api";
 import { SLASH_COMMAND_RE } from "../../slash-commands/client/api";
 import type { ComposerProps } from "./composerTypes";
 import { type DeltaOp, mrkdwnText } from "./lib/deltaLines";
@@ -54,13 +55,13 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
       deps.setSending(true);
       try {
         const blocks = buildRichTextBlocks(quill.getContents().ops);
-        const keptIds = deps.existingFiles().map((f) => f.id);
-        await editing.onSave(
-          blockPreviewText(blocks) || text,
-          blocks,
-          keptIds,
-          deps.pendingFiles.files(),
-        );
+        const newFiles = deps.pendingFiles.files();
+        const existing = deps.existingFiles();
+        const uploaded = newFiles.length
+          ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
+          : [];
+        const fileIds = [...existing, ...uploaded].map((f) => f.id);
+        await editing.onSave(blockPreviewText(blocks) || text, blocks, fileIds);
       } catch (err) {
         feedback.flash(deps.feedbackKey(), errorMessage(err, "Failed to save message."), "error");
       } finally {

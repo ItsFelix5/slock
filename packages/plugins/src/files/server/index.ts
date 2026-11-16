@@ -5,6 +5,7 @@ import {
   jsonResponse,
   slackErrorResponse,
 } from "../../slack/server/api/jsonResponse";
+import { relayUpload } from "../../slack/server/api/relayMessages";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
@@ -153,6 +154,15 @@ const list: Route[] = [
       await ctx.body.buffer(),
       ctx.searchParams.get("url"),
       ctx.searchParams.get("filename"),
+    ),
+  ),
+
+  route("POST", "files/relay", async (ctx) =>
+    relayUpload(
+      ctx,
+      ctx.searchParams.get("uploadId"),
+      ctx.searchParams.get("filename"),
+      await ctx.body.buffer(),
     ),
   ),
 

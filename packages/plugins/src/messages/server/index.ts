@@ -6,7 +6,7 @@ import {
   jsonResponse,
   slackErrorResponse,
 } from "../../slack/server/api/jsonResponse";
-import { readRelayBody, relayDelete, relayEdit } from "../../slack/server/api/relayMessages";
+import { relayDelete, relayEdit } from "../../slack/server/api/relayMessages";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
@@ -87,13 +87,13 @@ const list: Route[] = [
 
   route("PATCH", "channels/:id/messages/:ts", async (ctx) => {
     const { id: channelId, ts } = ctx.params;
-    const { fields: body, files } = await readRelayBody<{
+    const body = await ctx.body.json<{
       text?: string;
       blocks?: unknown;
       fileIds?: string[];
       replyBroadcast?: boolean;
       relayed?: boolean;
-    }>(ctx);
+    }>();
     const params: Record<string, string> = { channel: channelId, ts };
     if (body.replyBroadcast) {
       params.reply_broadcast = "true";
@@ -105,7 +105,7 @@ const list: Route[] = [
 
     if (body.relayed) {
       const { blocks, fileIds, replyBroadcast, text } = body;
-      return relayEdit(ctx, channelId, ts, { blocks, fileIds, replyBroadcast, text }, files);
+      return relayEdit(ctx, channelId, ts, { blocks, fileIds, replyBroadcast, text });
     }
 
     const data = await callSlack(

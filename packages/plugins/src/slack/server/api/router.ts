@@ -6,7 +6,6 @@ import { callSlack } from "./slackClient.ts";
 export type BodyReader = {
   json<T>(): Promise<T>;
   buffer(): Promise<Uint8Array>;
-  formData(): ReturnType<Request["formData"]>;
 };
 
 type ParamNames<Path extends string> = Path extends `${string}:${infer Name}/${infer Rest}`
@@ -22,7 +21,6 @@ export type RouteCtx<Path extends string = string> = {
   cookie: string | null;
   acceptEncoding: string | null;
   body: BodyReader;
-  contentType: string | null;
   range: string | null;
 };
 
@@ -79,10 +77,8 @@ export function routes(list: Route[]): HttpHandler {
       acceptEncoding: c.req.headers.get("accept-encoding"),
       body: {
         buffer: async () => new Uint8Array(await c.req.arrayBuffer()),
-        formData: () => c.req.formData(),
         json: async () => JSON.parse(await c.req.text()),
       },
-      contentType: c.req.headers.get("content-type"),
       cookie: c.req.headers.get("cookie"),
       creds: c.creds ?? null,
       params: matched.params,

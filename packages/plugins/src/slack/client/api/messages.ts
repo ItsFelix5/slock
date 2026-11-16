@@ -1,6 +1,5 @@
 import {
   apiDelete,
-  apiForm,
   apiGet,
   apiPatch,
   apiPost,
@@ -11,7 +10,6 @@ import {
 } from "@slock/slack";
 import type { Message, PinnedMessage, RawAttachment, RawMessage, SearchResult } from "@slock/types";
 
-import { uploadFilesForEdit } from "./content";
 import { fetchRepliesFrom } from "./threadReplies";
 
 export { fetchHistory, fetchHistoryAround, fetchHistoryNewer } from "./messageHistory";
@@ -68,49 +66,10 @@ export async function postMessage(
   return data;
 }
 
-const RELAY_ERROR_MESSAGES: Record<string, string> = {
+const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
   org_user_not_in_team:
     "The broadcast bot's workspace doesn't include you, so @channel can't be relayed.",
-  relay_not_configured: "This Slock server isn't set up to send files with @channel.",
-  token_not_found: "The relay didn't confirm who you are. Try again.",
 };
-
-export class RelayError extends Error {}
-
-function relayFailure(error: string | undefined, fallback: string) {
-  const friendly = error && RELAY_ERROR_MESSAGES[error];
-  return friendly ? new RelayError(friendly) : new Error(error ?? fallback);
-}
-
-type UploadProgress = (fileIndex: number, fraction: number) => void;
-
-function perFileProgress(files: File[], onProgress?: UploadProgress) {
-  if (!onProgress) return;
-  const total = files.reduce((sum, file) => sum + file.size, 0) || 1;
-  return (fraction: number) => {
-    let before = 0;
-    files.forEach((file, index) => {
-      const share = file.size ? (fraction * total - before) / file.size : fraction;
-      onProgress(index, Math.min(1, Math.max(0, share)));
-      before += file.size;
-    });
-  };
-}
-
-function sendRelay<T extends object>(
-  method: "PATCH" | "POST",
-  path: string,
-  fields: object,
-  files: File[] = [],
-  onProgress?: UploadProgress,
-) {
-  if (!files.length)
-    return method === "POST" ? apiPost<T>(path, fields) : apiPatch<T>(path, fields);
-  const form = new FormData();
-  form.append("payload", JSON.stringify(fields));
-  for (const file of files) form.append("files", file, file.name);
-  return apiForm<T>(method, path, form, perFileProgress(files, onProgress));
-}
 
 export async function postBroadcastMessage(
   channelId: string,
@@ -118,15 +77,19 @@ export async function postBroadcastMessage(
   unfurl: string[] | undefined,
   threadTs?: string,
   blocks?: unknown,
-  files?: File[],
-  onProgress?: UploadProgress,
+  uploadId?: string,
 ) {
-  const body: Record<string, unknown> = { text, unfurl };
+  const body: Record<string, unknown> = { text, unfurl, uploadId };
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
-  const path = `/api/channels/${channelId}/messages/broadcast`;
-  const data = await sendRelay<{ ts: string }>("POST", path, body, files, onProgress);
-  if (!data.ok) throw relayFailure(data.error, "chat.postMessage failed");
+  const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages/broadcast`, body);
+  if (!data.ok) {
+    throw new Error(
+      (data.error && BROADCAST_ERROR_MESSAGES[data.error]) ??
+        data.error ??
+        "chat.postMessage failed",
+    );
+  }
   return data;
 }
 
@@ -135,20 +98,14 @@ export async function editMessage(
   ts: string,
   text: string,
   blocks?: unknown,
-  options: { relayed?: boolean; fileIds?: string[]; files?: File[] } = {},
+  relayed?: boolean,
+  fileIds?: string[],
 ) {
-  const { relayed, fileIds, files = [] } = options;
   const body: Record<string, unknown> = { text };
   if (blocks) body.blocks = blocks;
-  const path = `/api/channels/${channelId}/messages/${ts}`;
-  if (relayed) {
-    const data = await sendRelay("PATCH", path, { ...body, fileIds, relayed }, files);
-    if (!data.ok) throw relayFailure(data.error, "chat.update failed");
-    return data;
-  }
-  const uploaded = files.length ? await uploadFilesForEdit(files.map((file) => ({ file }))) : [];
-  if (fileIds || uploaded.length) body.fileIds = [...(fileIds ?? []), ...uploaded.map((f) => f.id)];
-  const data = await apiPatch(path, body);
+  if (fileIds) body.fileIds = fileIds;
+  if (relayed) body.relayed = true;
+  const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.update failed");
   return data;
 }

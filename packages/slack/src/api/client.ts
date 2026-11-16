@@ -112,22 +112,3 @@ export async function apiUpload<T extends object = object>(
   });
   return readResponse<T>(res);
 }
-
-export function apiForm<T extends object = object>(
-  method: "PATCH" | "POST",
-  path: string,
-  form: FormData,
-  onProgress?: (fraction: number) => void,
-): Promise<ApiReply<T>> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, path);
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) onProgress?.(event.loaded / event.total);
-    };
-    xhr.onload = () =>
-      readResponse<T>(new Response(xhr.responseText, { status: xhr.status })).then(resolve, reject);
-    xhr.onerror = () => reject(new Error("Failed to upload files."));
-    xhr.send(form);
-  });
-}

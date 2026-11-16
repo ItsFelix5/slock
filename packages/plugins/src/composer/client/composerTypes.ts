@@ -5,7 +5,7 @@ export interface ComposerEditingProps {
   initialFiles?: SlackFile[];
   initialText?: string;
   onCancel: () => void;
-  onSave: (text: string, blocks?: Block[], fileIds?: string[], files?: File[]) => Promise<boolean>;
+  onSave: (text: string, blocks?: Block[], fileIds?: string[]) => Promise<boolean>;
 }
 
 export interface ComposerReplyToProps {

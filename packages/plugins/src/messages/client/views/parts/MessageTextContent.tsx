@@ -46,8 +46,8 @@ export default function MessageTextContent(props: {
             initialFiles: props.replyRef ? undefined : props.msg.files,
             initialText: props.messageText,
             onCancel: () => props.onStopEdit?.(),
-            onSave: async (text, blocks, fileIds, files) => {
-              if (!(text.trim() || fileIds?.length || files?.length)) {
+            onSave: async (text, blocks, fileIds) => {
+              if (!(text.trim() || fileIds?.length)) {
                 const deleted = await deleteOrDismissMessage(props.channelId, props.msg);
                 if (deleted) props.onStopEdit?.();
                 return deleted;
@@ -59,7 +59,6 @@ export default function MessageTextContent(props: {
                 url ? encodeReplyLink(url) + text : text,
                 url && blocks ? withReplyLink(blocks, url) : blocks,
                 fileIds,
-                files,
               );
               if (saved) props.onStopEdit?.();
               return saved;
