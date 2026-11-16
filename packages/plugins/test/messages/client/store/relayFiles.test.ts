@@ -71,9 +71,9 @@ describe("sending files with @channel", () => {
     });
   });
 
-  test("removes the pending message and explains a missing relay token", async () => {
+  test("removes the pending message and explains a server without a relay", async () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
-    reply = { body: { error: "relay_token_required" }, status: 400 };
+    reply = { body: { error: "relay_not_configured" }, status: 400 };
     const failure = await h.store
       .sendFiles("C1", [file()], undefined, "<!channel> look")
       .catch((caught) => caught);

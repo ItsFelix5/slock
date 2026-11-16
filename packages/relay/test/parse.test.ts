@@ -29,9 +29,25 @@ describe("parseAction", () => {
 
 describe("parseCommand", () => {
   test("understands the token word and json actions", () => {
-    expect(parseCommand(" token ")).toBe("token");
-    expect(parseCommand('{"action":"delete","ts":"1.1"}')).toEqual({ action: "delete", ts: "1.1" });
+    expect(parseCommand(" token ")).toEqual({ action: "token" });
+    expect(parseCommand('{"action":"delete","ts":"1.1"}')).toMatchObject({
+      action: "delete",
+      ts: "1.1",
+    });
     expect(parseCommand("hello")).toBeUndefined();
     expect(parseCommand('{"action":"nuke"}')).toBeUndefined();
+  });
+
+  test("a token request can carry a nonce to hand the token to", () => {
+    const nonce = "0123456789abcdef-0123";
+    expect(parseCommand(JSON.stringify({ action: "token", nonce }))).toEqual({
+      action: "token",
+      nonce,
+    });
+  });
+
+  test("rejects nonces that are too short or not strings", () => {
+    expect(parseCommand('{"action":"token","nonce":"short"}')).toBeUndefined();
+    expect(parseCommand('{"action":"token","nonce":5}')).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 import { type Action, type Outcome, perform } from "./actions";
-import type { Identity } from "./token";
+import { claim, type Identity, isNonce } from "./token";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -39,10 +39,16 @@ export function parseAction(raw: unknown, files: File[] = []): Action | undefine
   }
 }
 
-export function parseCommand(text: string): Action | "token" | undefined {
-  if (text.trim() === "token") return "token";
+export type Command = Action | { action: "token"; nonce?: string };
+
+export function parseCommand(text: string): Command | undefined {
+  if (text.trim() === "token") return { action: "token" };
   try {
-    return parseAction(JSON.parse(text));
+    const raw = JSON.parse(text);
+    if (!(isRecord(raw) && raw.action === "token")) return parseAction(raw);
+    const { action, nonce } = raw;
+    if (nonce === undefined) return { action };
+    return isNonce(nonce) ? { action, nonce } : undefined;
   } catch {}
 }
 
@@ -81,8 +87,6 @@ const KINDS: Record<string, Action["action"]> = { DELETE: "delete", PATCH: "edit
 
 export async function handleApi(req: Request, who: Identity): Promise<Response> {
   const { pathname } = new URL(req.url);
-  if (pathname === "/me" && req.method === "GET") return json({ ok: true, ...who });
-
   const [, channel = "", ts] = MESSAGES.exec(pathname) ?? [];
   const kind = KINDS[req.method];
   if (!(channel && kind) || (kind === "post") === !!ts) return new Response(null, { status: 404 });
@@ -91,4 +95,11 @@ export async function handleApi(req: Request, who: Identity): Promise<Response> 
   const action = body && parseAction({ ...body.raw, action: kind, ts }, body.files);
   if (!action) return json({ error: "invalid_action", ok: false }, 400);
   return respond(await perform(who, decodeURIComponent(channel), action));
+}
+
+export async function handleToken(req: Request): Promise<Response> {
+  const body = await req.json().catch(() => undefined);
+  const nonce = isRecord(body) ? body.nonce : undefined;
+  const token = isNonce(nonce) ? await claim(nonce) : undefined;
+  return token ? json({ ok: true, token }) : json({ error: "token_not_found", ok: false }, 404);
 }

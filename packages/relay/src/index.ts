@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { perform } from "./actions";
-import { handleApi, json, parseCommand } from "./api";
+import { handleApi, handleToken, json, parseCommand } from "./api";
 import { hasWorkspace } from "./slack";
-import { type Identity, mintToken, readToken, TOKEN_LIFETIME_MS } from "./token";
+import { handOff, type Identity, mintToken, readToken, TOKEN_LIFETIME_MS } from "./token";
 
 const PORT = Number(Bun.env.PORT) || 5176;
 const MAX_AGE_SECONDS = 300;
@@ -35,7 +35,7 @@ function reply(form: URLSearchParams, text: string) {
 
 function tokenMessage(token: string) {
   const days = TOKEN_LIFETIME_MS / (24 * 60 * 60 * 1000);
-  return `Your Slock relay token, valid for ${days} days. Paste it into Slock under Settings > Account > Relay and keep it private:\n\`${token}\``;
+  return `Your Slock relay token, valid for ${days} days. Send it as a Bearer token to the relay API and keep it private:\n\`${token}\``;
 }
 
 async function runCommand(form: URLSearchParams) {
@@ -43,8 +43,10 @@ async function runCommand(form: URLSearchParams) {
   const command = parseCommand(form.get("text") ?? "");
   if (!(command && hasWorkspace(who.team))) {
     await reply(form, "Relay failed: invalid_command");
-  } else if (command === "token") {
-    await reply(form, tokenMessage(mintToken(signingSecret, who)));
+  } else if (command.action === "token") {
+    const token = mintToken(signingSecret, who);
+    if (command.nonce) handOff(command.nonce, token);
+    else await reply(form, tokenMessage(token));
   } else {
     const outcome = await perform(who, form.get("channel_id") ?? "", command);
     if (!outcome.ok) await reply(form, `Relay failed: ${outcome.error}`);
@@ -62,6 +64,7 @@ function handle(req: Request): Promise<Response> | Response {
   if (new URL(req.url).pathname === "/slack/command") {
     return req.method === "POST" ? handleCommand(req) : new Response(null, { status: 404 });
   }
+  if (new URL(req.url).pathname === "/token" && req.method === "POST") return handleToken(req);
   const bearer = BEARER.exec(req.headers.get("authorization") ?? "")?.[1];
   const who = bearer && readToken(signingSecret, bearer);
   if (!(who && hasWorkspace(who.team))) return json({ error: "invalid_token", ok: false }, 401);

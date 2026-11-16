@@ -1,15 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { calls, handleApi, installSlack, json, restoreSlack, who } from "./harness";
+import { handOff } from "../src/token";
+import { calls, handleApi, handleToken, installSlack, json, restoreSlack, who } from "./harness";
 
 beforeEach(installSlack);
 afterEach(restoreSlack);
 
 describe("relay api routes", () => {
-  test("identifies the token owner", async () => {
-    const res = await handleApi(json("GET", "/me"), who);
-    expect(await res.json()).toEqual({ ok: true, ...who });
-  });
-
   test("rejects unknown routes", async () => {
     expect((await handleApi(json("GET", "/nope"), who)).status).toBe(404);
     expect((await handleApi(json("POST", "/channels/C1/messages/1.1", {}), who)).status).toBe(404);
@@ -20,5 +16,17 @@ describe("relay api routes", () => {
     const res = await handleApi(json("POST", "/channels/C1/messages", { text: 5 }), who);
     expect(res.status).toBe(400);
     expect(calls).toEqual([]);
+  });
+
+  test("redeems a handed-off token by its nonce", async () => {
+    handOff("n-redeem-0123456789", "the-token");
+    const res = await handleToken(json("POST", "/token", { nonce: "n-redeem-0123456789" }));
+    expect(await res.json()).toEqual({ ok: true, token: "the-token" });
+  });
+
+  test("refuses to redeem without a valid nonce", async () => {
+    for (const body of [{}, { nonce: "short" }, { nonce: 5 }]) {
+      expect((await handleToken(json("POST", "/token", body))).status).toBe(404);
+    }
   });
 });

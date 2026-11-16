@@ -102,13 +102,13 @@ describe("postBroadcastMessage", () => {
     ]);
   });
 
-  test("explains that files need a relay token", async () => {
-    xhrReply = { body: { error: "relay_token_required" }, status: 400 };
+  test("explains that the server has no relay for files", async () => {
+    xhrReply = { body: { error: "relay_not_configured" }, status: 400 };
     const error = await postBroadcastMessage("C1", "x", [], undefined, undefined, [
       new File(["a"], "a.png"),
     ]).catch((caught) => caught);
     expect(error).toBeInstanceOf(RelayError);
-    expect(error.message).toContain("/slock-relay token");
+    expect(error.message).toContain("isn't set up to send files");
   });
 
   test("keeps other errors as they are", async () => {

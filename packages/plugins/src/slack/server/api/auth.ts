@@ -7,7 +7,6 @@ export type Credentials = {
   token: string;
   route: string;
   slackSession: string;
-  relayToken?: string;
 };
 
 declare module "@slock/core/http" {
@@ -26,15 +25,6 @@ const SLACK_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:enterprise\.)?slac
 
 const SAFE_CREDENTIAL_VALUE_RE = /^[^\s\p{Cc}]+$/u;
 const SESSION_INVALID_CHARS_RE = /[;\s]/;
-const MAX_RELAY_TOKEN_LENGTH = 2048;
-
-function isRelayToken(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length <= MAX_RELAY_TOKEN_LENGTH &&
-    SAFE_CREDENTIAL_VALUE_RE.test(value)
-  );
-}
 
 export function parseCredentials(
   payload: unknown,
@@ -66,16 +56,12 @@ export function parseCredentials(
   ) {
     return { error: "The copied request contains an invalid Slack session cookie.", ok: false };
   }
-  if (payload.relayToken !== undefined && !isRelayToken(payload.relayToken)) {
-    return { error: "The relay token is invalid.", ok: false };
-  }
   return {
     credentials: {
       domain: payload.domain,
       route: payload.route,
       slackSession: payload.slackSession,
       token: payload.token,
-      ...(payload.relayToken ? { relayToken: payload.relayToken } : {}),
     },
     ok: true,
   };

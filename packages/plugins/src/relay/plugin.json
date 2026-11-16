@@ -1,1 +1,0 @@
-{ "id": "relay", "core": true, "name": "Relay", "requires": ["query"] }

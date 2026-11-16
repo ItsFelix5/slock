@@ -20,21 +20,20 @@ type RelayAction =
   | ({ action: "edit"; ts: string; replyBroadcast?: boolean; fileIds?: string[] } & Content)
   | { action: "delete"; ts: string };
 
-export function relayUrl(): string | undefined {
+function relayUrl() {
   return Bun.env.SLOCK_RELAY_URL?.replace(TRAILING_SLASHES, "") || undefined;
 }
 
-export async function callRelay<T extends object = object>(
-  token: string,
+async function callRelay<T extends object>(
   method: string,
   path: string,
-  body?: FormData | string,
-  headers?: Record<string, string>,
+  body: FormData | string,
+  headers: Record<string, string>,
 ): Promise<SlackReply<T>> {
   try {
     const res = await fetch(`${relayUrl()}${path}`, {
       body,
-      headers: { ...headers, authorization: `Bearer ${token}` },
+      headers,
       method,
       signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
     });
@@ -44,51 +43,53 @@ export async function callRelay<T extends object = object>(
   }
 }
 
-function endpoint(channel: string, action: RelayAction) {
-  const messages = `/channels/${encodeURIComponent(channel)}/messages`;
-  if (action.action === "post") return { method: "POST", path: messages };
-  const path = `${messages}/${encodeURIComponent(action.ts)}`;
-  return { method: action.action === "edit" ? "PATCH" : "DELETE", path };
+function runRelayCommand(creds: Credentials, channel: string, request: object) {
+  return callSlack(
+    "chat.command",
+    { channel, command: RELAY_COMMAND, text: JSON.stringify(request) },
+    creds,
+  );
 }
 
-function requestBody(
+async function relayToken(creds: Credentials, channel: string) {
+  const nonce = crypto.randomUUID();
+  const asked = await runRelayCommand(creds, channel, { action: "token", nonce });
+  if (!asked.ok) return asked;
+  const json = { "content-type": "application/json" };
+  return callRelay<{ token: string }>("POST", "/token", JSON.stringify({ nonce }), json);
+}
+
+async function sendWithFiles(
+  creds: Credentials,
+  channel: string,
   action: RelayAction,
   files: File[],
-): { body: FormData | string; headers: Record<string, string> } {
-  if (!files.length)
-    return { body: JSON.stringify(action), headers: { "content-type": "application/json" } };
+) {
+  const issued = await relayToken(creds, channel);
+  if (!issued.ok) return issued;
   const form = new FormData();
   form.append("payload", JSON.stringify(action));
   for (const file of files) form.append("files", file, file.name);
-  return { body: form, headers: {} };
-}
-
-function sendOverHttp(token: string, channel: string, action: RelayAction, files: File[]) {
-  const { method, path } = endpoint(channel, action);
-  const { body, headers } = requestBody(action, files);
-  return callRelay<{ ts?: string }>(token, method, path, body, headers);
-}
-
-function sendOverSlash(creds: Credentials, channel: string, action: RelayAction) {
-  return callSlack(
-    "chat.command",
-    { channel, command: RELAY_COMMAND, text: JSON.stringify(action) },
-    creds,
-  );
+  const messages = `/channels/${encodeURIComponent(channel)}/messages`;
+  const [method, path] =
+    action.action === "post"
+      ? ["POST", messages]
+      : ["PATCH", `${messages}/${encodeURIComponent(action.ts)}`];
+  return callRelay<{ ts?: string }>(method, path, form, {
+    authorization: `Bearer ${issued.token}`,
+  });
 }
 
 async function sendRelayAction(ctx: RouteCtx, channel: string, action: RelayAction, files: File[]) {
   const { creds } = ctx;
   if (!creds) return errorResponse("not_configured", 401);
-  if (creds.relayToken && relayUrl()) {
-    const sent = await sendOverHttp(creds.relayToken, channel, action, files);
-    if (sent.ok) return jsonResponse({ ts: sent.ts }, creds);
-    if (sent.error !== "invalid_token" || files.length)
-      return slackErrorResponse(sent, "relay", creds);
+  if (!files.length) {
+    const sent = await runRelayCommand(creds, channel, action);
+    return sent.ok ? jsonResponse({}, creds) : slackErrorResponse(sent, "relay", creds);
   }
-  if (files.length) return errorResponse("relay_token_required", 400);
-  const sent = await sendOverSlash(creds, channel, action);
-  return sent.ok ? jsonResponse({}, creds) : slackErrorResponse(sent, "relay", creds);
+  if (!relayUrl()) return errorResponse("relay_not_configured", 400);
+  const sent = await sendWithFiles(creds, channel, action, files);
+  return sent.ok ? jsonResponse({ ts: sent.ts }, creds) : slackErrorResponse(sent, "relay", creds);
 }
 
 export async function readRelayBody<T extends object>(

@@ -68,13 +68,11 @@ export async function postMessage(
   return data;
 }
 
-const RELAY_TOKEN_HELP = "Run /slock-relay token in Slack and paste it in Settings > Account.";
-
 const RELAY_ERROR_MESSAGES: Record<string, string> = {
-  invalid_token: `Your relay token is no longer valid. ${RELAY_TOKEN_HELP}`,
   org_user_not_in_team:
     "The broadcast bot's workspace doesn't include you, so @channel can't be relayed.",
-  relay_token_required: `Sending files with @channel needs a relay token. ${RELAY_TOKEN_HELP}`,
+  relay_not_configured: "This Slock server isn't set up to send files with @channel.",
+  token_not_found: "The relay didn't confirm who you are. Try again.",
 };
 
 export class RelayError extends Error {}

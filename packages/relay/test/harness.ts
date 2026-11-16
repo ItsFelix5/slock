@@ -1,5 +1,5 @@
 Bun.env.SLACK_BOT_TOKENS = JSON.stringify({ T1: "xoxb-test" });
-export const { handleApi } = await import("../src/api");
+export const { handleApi, handleToken } = await import("../src/api");
 
 export const who = { team: "T1", user: "U1" };
 const realFetch = globalThis.fetch;

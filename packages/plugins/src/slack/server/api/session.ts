@@ -3,7 +3,6 @@ import { INFO_COOKIE, parseSessionInfo, profileName, sessionInfoCookie } from "@
 import type { AccountSummary, RawUserProfile, SessionInfo } from "@slock/types";
 import { imageUrl } from "./assets.ts";
 import { type Credentials, jsonHeaders, parseCredentials, teamIdFromRoute } from "./auth.ts";
-import { errorResponse } from "./jsonResponse.ts";
 import { callSlack } from "./slackClient.ts";
 
 type Account = Credentials & { id: string };
@@ -109,26 +108,11 @@ export async function connectAccount(
     teamId: teamIdFromRoute(creds.route),
   };
   return sessionResponse(session, {
-    accounts: [
-      ...session.accounts.filter((account) => account.id !== id),
-      { relayToken: existing?.relayToken, ...creds, id },
-    ],
+    accounts: [...session.accounts.filter((account) => account.id !== id), { ...creds, id }],
     info: {
       accounts: [...session.info.accounts.filter((other) => other.id !== id), summary],
       id,
     },
-  });
-}
-
-export function setRelayToken(cookieHeader: string | null, relayToken: string | null): Response {
-  const session = readSession(cookieHeader);
-  const current = session.accounts.find((account) => account.id === session.info.id);
-  if (!current) return errorResponse("not_configured", 401);
-  const { relayToken: _previous, ...rest } = current;
-  const updated: Account = relayToken ? { ...rest, relayToken } : rest;
-  return sessionResponse(session, {
-    accounts: session.accounts.map((account) => (account.id === current.id ? updated : account)),
-    info: session.info,
   });
 }
 
