@@ -149,6 +149,36 @@ describe("buildRichTextBlocks", () => {
     });
   });
 
+  test("bullet items do not advance the numbering of a list that follows them", () => {
+    const ops: DeltaOp[] = [
+      { insert: "a" },
+      block({ list: "bullet" }),
+      { insert: "b" },
+      block({ list: "bullet" }),
+      { insert: "c" },
+      block({ list: "ordered" }),
+    ];
+    const [bullets, ordered] = richText(buildRichTextBlocks(ops)).elements;
+    expect(bullets).toMatchObject({ style: "bullet", type: "rich_text_list" });
+    expect(ordered).toMatchObject({ style: "ordered", type: "rich_text_list" });
+    expect(ordered).not.toHaveProperty("offset");
+  });
+
+  test("ordered items still continue numbering after a nested list", () => {
+    const ops: DeltaOp[] = [
+      { insert: "a" },
+      block({ list: "ordered" }),
+      { insert: "b" },
+      block({ list: "ordered" }),
+      { insert: "nested" },
+      block({ indent: 1, list: "bullet" }),
+      { insert: "c" },
+      block({ list: "ordered" }),
+    ];
+    const lists = richText(buildRichTextBlocks(ops)).elements;
+    expect(lists[lists.length - 1]).toMatchObject({ offset: 2, style: "ordered" });
+  });
+
   test("quote lines merge and an empty quote keeps an empty text element", () => {
     const quote = { blockquote: true };
     expect(

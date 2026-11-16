@@ -5,7 +5,7 @@ import {
   jsonResponse,
   slackErrorResponse,
 } from "../../slack/server/api/jsonResponse";
-import { relayBroadcast } from "../../slack/server/api/relayMessages";
+import { readRelayBody, relayBroadcast } from "../../slack/server/api/relayMessages";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
@@ -24,9 +24,10 @@ const list: Route[] = [
     return jsonResponse(trimHistory(data), ctx.creds);
   }),
 
-  route("POST", "channels/:id/messages/broadcast", async (ctx) =>
-    relayBroadcast(ctx, ctx.params.id, await ctx.body.json()),
-  ),
+  route("POST", "channels/:id/messages/broadcast", async (ctx) => {
+    const { fields, files } = await readRelayBody<object>(ctx);
+    return relayBroadcast(ctx, ctx.params.id, fields, files);
+  }),
 
   route("POST", "channels/:id/threads/:ts/subscription", (ctx) =>
     mutate("subscriptions.thread.add", { channel: ctx.params.id, thread_ts: ctx.params.ts }, ctx),

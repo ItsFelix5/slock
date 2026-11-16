@@ -1,11 +1,20 @@
 import { timingSafeEqual } from "node:crypto";
-import { type Action, perform } from "./actions";
+import { perform } from "./actions";
+import { handleApi, json, parseCommand } from "./api";
 import { hasWorkspace } from "./slack";
+import { type Identity, mintToken, readToken, TOKEN_LIFETIME_MS } from "./token";
 
 const PORT = Number(Bun.env.PORT) || 5176;
 const MAX_AGE_SECONDS = 300;
-const signingSecret = Bun.env.SLACK_SIGNING_SECRET;
-if (!signingSecret) throw new Error("SLACK_SIGNING_SECRET is required");
+const BEARER = /^Bearer (.+)$/;
+
+function required(name: string) {
+  const value = Bun.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+const signingSecret = required("SLACK_SIGNING_SECRET");
 
 function isFromSlack(req: Request, raw: string) {
   const timestamp = req.headers.get("x-slack-request-timestamp") ?? "";
@@ -17,34 +26,46 @@ function isFromSlack(req: Request, raw: string) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-function parseAction(text: string): Action | undefined {
-  try {
-    return JSON.parse(text);
-  } catch {}
-}
-
-async function runAndReport(form: URLSearchParams) {
-  const team = form.get("team_id") ?? "";
-  const action = parseAction(form.get("text") ?? "");
-  const error =
-    action && hasWorkspace(team)
-      ? await perform(team, form.get("channel_id") ?? "", form.get("user_id") ?? "", action)
-      : "invalid_command";
-  if (!error) return;
-  await fetch(form.get("response_url") ?? "", {
-    body: JSON.stringify({ response_type: "ephemeral", text: `Relay failed: ${error}` }),
+function reply(form: URLSearchParams, text: string) {
+  return fetch(form.get("response_url") ?? "", {
+    body: JSON.stringify({ response_type: "ephemeral", text }),
     method: "POST",
   });
 }
 
-async function handle(req: Request): Promise<Response> {
-  if (new URL(req.url).pathname !== "/slack/command" || req.method !== "POST") {
-    return new Response(null, { status: 404 });
+function tokenMessage(token: string) {
+  const days = TOKEN_LIFETIME_MS / (24 * 60 * 60 * 1000);
+  return `Your Slock relay token, valid for ${days} days. Paste it into Slock under Settings > Account > Relay and keep it private:\n\`${token}\``;
+}
+
+async function runCommand(form: URLSearchParams) {
+  const who: Identity = { team: form.get("team_id") ?? "", user: form.get("user_id") ?? "" };
+  const command = parseCommand(form.get("text") ?? "");
+  if (!(command && hasWorkspace(who.team))) {
+    await reply(form, "Relay failed: invalid_command");
+  } else if (command === "token") {
+    await reply(form, tokenMessage(mintToken(signingSecret, who)));
+  } else {
+    const outcome = await perform(who, form.get("channel_id") ?? "", command);
+    if (!outcome.ok) await reply(form, `Relay failed: ${outcome.error}`);
   }
+}
+
+async function handleCommand(req: Request) {
   const raw = await req.text();
   if (!isFromSlack(req, raw)) return new Response(null, { status: 401 });
-  void runAndReport(new URLSearchParams(raw));
+  void runCommand(new URLSearchParams(raw));
   return new Response();
+}
+
+function handle(req: Request): Promise<Response> | Response {
+  if (new URL(req.url).pathname === "/slack/command") {
+    return req.method === "POST" ? handleCommand(req) : new Response(null, { status: 404 });
+  }
+  const bearer = BEARER.exec(req.headers.get("authorization") ?? "")?.[1];
+  const who = bearer && readToken(signingSecret, bearer);
+  if (!(who && hasWorkspace(who.team))) return json({ error: "invalid_token", ok: false }, 401);
+  return handleApi(req, who);
 }
 
 Bun.serve({ fetch: handle, hostname: "0.0.0.0", port: PORT });

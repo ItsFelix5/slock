@@ -85,6 +85,7 @@ export {
   markChannelRead,
   postBroadcastMessage,
   postMessage,
+  RelayError,
   saveWithReminder,
   searchMessages,
   togglePin,

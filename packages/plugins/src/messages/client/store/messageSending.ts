@@ -22,6 +22,24 @@ function optimisticMessage(me: User | undefined, now: number, fields: Partial<Me
   };
 }
 
+function uploadAsMessage(
+  channelId: string,
+  files: File[],
+  { blocks, comment, threadTs }: { blocks?: Block[]; comment?: string; threadTs?: string },
+  onProgress: (fileIndex: number, fraction: number) => void,
+) {
+  const text = comment?.trim() ?? "";
+  return broadcastRangeOf({ blocks, text })
+    ? postBroadcastMessage(channelId, text, undefined, threadTs, blocks, files, onProgress)
+    : uploadFiles(
+        channelId,
+        files.map((file) => ({ file })),
+        threadTs,
+        comment,
+        onProgress,
+      );
+}
+
 export function createMessageSending(deps: {
   currentUser: () => User | undefined;
   setChannelMessages: MessageStoreSetter;
@@ -82,7 +100,13 @@ export function createMessageSending(deps: {
     }
   }
 
-  async function sendFiles(channelId: string, files: File[], threadTs?: string, comment?: string) {
+  async function sendFiles(
+    channelId: string,
+    files: File[],
+    threadTs?: string,
+    comment?: string,
+    blocks?: Block[],
+  ) {
     if (files.length === 0) return;
     const pendingFiles: PendingFile[] = files.map((file, i) => ({
       id: `pending-file-${Date.now()}-${i}`,
@@ -103,18 +127,13 @@ export function createMessageSending(deps: {
     };
     try {
       let currentFiles = pendingFiles;
-      await uploadFiles(
-        channelId,
-        files.map((file) => ({ file })),
-        threadTs,
-        comment,
-        (fileIndex, fraction) => {
-          currentFiles = currentFiles.map((pf, i) =>
-            i === fileIndex ? { ...pf, progress: fraction } : pf,
-          );
-          deps.patchMessage(channelId, optimistic.ts, { pendingFiles: currentFiles });
-        },
-      );
+      const onProgress = (fileIndex: number, fraction: number) => {
+        currentFiles = currentFiles.map((pf, i) =>
+          i === fileIndex ? { ...pf, progress: fraction } : pf,
+        );
+        deps.patchMessage(channelId, optimistic.ts, { pendingFiles: currentFiles });
+      };
+      await uploadAsMessage(channelId, files, { blocks, comment, threadTs }, onProgress);
       deps.patchMessage(channelId, optimistic.ts, { pending: false });
       revokePreviews();
     } catch (err) {

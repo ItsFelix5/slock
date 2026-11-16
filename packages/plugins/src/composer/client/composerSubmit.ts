@@ -1,9 +1,8 @@
 import { errorMessage } from "@slock/core";
 import { getHost, service } from "@slock/core/solid";
-import { blockPreviewText, broadcastRangeOf } from "@slock/slack";
+import { blockPreviewText } from "@slock/slack";
 import type { SlackFile } from "@slock/types";
 import { encodeReplyLink, withReplyLink } from "../../message-links/client/api/replyLink";
-import { uploadFilesForEdit } from "../../slack/client/api";
 import { SLASH_COMMAND_RE } from "../../slash-commands/client/api";
 import type { ComposerProps } from "./composerTypes";
 import { type DeltaOp, mrkdwnText } from "./lib/deltaLines";
@@ -55,13 +54,13 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
       deps.setSending(true);
       try {
         const blocks = buildRichTextBlocks(quill.getContents().ops);
-        const newFiles = deps.pendingFiles.files();
-        const existing = deps.existingFiles();
-        const uploaded = newFiles.length
-          ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
-          : [];
-        const fileIds = [...existing, ...uploaded].map((f) => f.id);
-        await editing.onSave(blockPreviewText(blocks) || text, blocks, fileIds);
+        const keptIds = deps.existingFiles().map((f) => f.id);
+        await editing.onSave(
+          blockPreviewText(blocks) || text,
+          blocks,
+          keptIds,
+          deps.pendingFiles.files(),
+        );
       } catch (err) {
         feedback.flash(deps.feedbackKey(), errorMessage(err, "Failed to save message."), "error");
       } finally {
@@ -91,14 +90,6 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
     const outgoing =
       replyTo && !isSlashAttempt ? encodeReplyLink(replyTo.permalink) + fallbackText : fallbackText;
     const filesToSend = deps.pendingFiles.files();
-    if (filesToSend.length > 0 && broadcastRangeOf({ blocks, text })) {
-      feedback.flash(
-        deps.feedbackKey(),
-        "@channel can't be sent with a file. Send the file separately.",
-        "error",
-      );
-      return;
-    }
     for (const beforeSend of getHost().items("composer.beforeSend")) {
       const veto = await beforeSend({ blocks, channelId, files: filesToSend, text, threadTs });
       if (veto) {
@@ -145,7 +136,8 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
           blocks,
           filesToSend.length === 0 && reusedFileIds.length ? reusedFileIds : undefined,
         ),
-      uploadFiles: () => messagesStore.sendFiles(channelId, filesToSend, threadTs, outgoing),
+      uploadFiles: () =>
+        messagesStore.sendFiles(channelId, filesToSend, threadTs, outgoing, blocks),
     });
   }
 

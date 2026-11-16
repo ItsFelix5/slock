@@ -230,7 +230,7 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
         list = { indent, items: [], offset, style: attrs.list };
       }
       list.items.push(lineElements(line));
-      itemCounts[indent] = (itemCounts[indent] ?? 0) + 1;
+      if (attrs.list === "ordered") itemCounts[indent] = (itemCounts[indent] ?? 0) + 1;
       continue;
     }
     flushList();
