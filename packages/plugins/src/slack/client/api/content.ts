@@ -64,14 +64,6 @@ export async function runSlashCommand(
   return null;
 }
 
-function uploadFailure(xhr: XMLHttpRequest, file: File) {
-  try {
-    const { error } = JSON.parse(xhr.responseText);
-    if (typeof error === "string") return new Error(error);
-  } catch {}
-  return new Error(`Failed to upload ${file.name}.`);
-}
-
 function uploadFileWithProgress(url: string, file: File, onProgress?: (fraction: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -81,7 +73,7 @@ function uploadFileWithProgress(url: string, file: File, onProgress?: (fraction:
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(uploadFailure(xhr, file));
+      else reject(new Error(`Failed to upload ${file.name}.`));
     };
     xhr.onerror = () => reject(new Error(`Failed to upload ${file.name}.`));
     xhr.send(file);
@@ -91,11 +83,12 @@ function uploadFileWithProgress(url: string, file: File, onProgress?: (fraction:
 async function reserveAndUploadFiles(
   files: FileUploadInput[],
   onProgress?: (fileIndex: number, fraction: number) => void,
+  reservePath = "/api/files/reserve",
 ): Promise<{ id: string; title: string }[]> {
   const uploaded: { id: string; title: string }[] = [];
   for (let i = 0; i < files.length; i++) {
     const { file, title } = defined(files[i]);
-    const reserve = await fetch("/api/files/reserve", {
+    const reserve = await fetch(reservePath, {
       body: JSON.stringify({ filename: file.name, length: String(file.size) }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -142,16 +135,15 @@ export async function uploadFiles(
   await completeUpload(uploaded, extra);
 }
 
-export async function uploadRelayFiles(
+export function uploadRelayFiles(
   files: File[],
   onProgress?: (fileIndex: number, fraction: number) => void,
-): Promise<string> {
-  const uploadId = crypto.randomUUID();
-  for (const [index, file] of files.entries()) {
-    const url = `/api/files/relay?uploadId=${uploadId}&filename=${encodeURIComponent(file.name)}`;
-    await uploadFileWithProgress(url, file, (fraction) => onProgress?.(index, fraction));
-  }
-  return uploadId;
+) {
+  return reserveAndUploadFiles(
+    files.map((file) => ({ file })),
+    onProgress,
+    "/api/files/relay-reserve",
+  );
 }
 
 export async function uploadFilesForEdit(

@@ -1,11 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { type Action, perform } from "./actions";
-import { stashFile, takeFiles } from "./files";
+import { claimUploads, reserveUpload } from "./reservations";
 import { hasWorkspace } from "./slack";
 
 const PORT = Number(Bun.env.PORT) || 5176;
 const MAX_AGE_SECONDS = 300;
-const UPLOAD_ID = /^[\w-]{16,64}$/;
 const signingSecret = Bun.env.SLACK_SIGNING_SECRET;
 if (!signingSecret) throw new Error("SLACK_SIGNING_SECRET is required");
 
@@ -29,15 +28,10 @@ async function execute(form: URLSearchParams) {
   const team = form.get("team_id") ?? "";
   const action = parseAction(form.get("text") ?? "");
   if (!(action && hasWorkspace(team))) return "invalid_command";
-  const files = "uploadId" in action && action.uploadId ? takeFiles(action.uploadId) : [];
-  if (!files) return "upload_expired";
-  return await perform(
-    team,
-    form.get("channel_id") ?? "",
-    form.get("user_id") ?? "",
-    action,
-    files,
-  );
+  if ("files" in action && action.files && !claimUploads(action.files.map((file) => file.id))) {
+    return "upload_expired";
+  }
+  return await perform(team, form.get("channel_id") ?? "", form.get("user_id") ?? "", action);
 }
 
 async function runAndReport(form: URLSearchParams) {
@@ -49,18 +43,26 @@ async function runAndReport(form: URLSearchParams) {
   });
 }
 
-async function handleUpload(req: Request) {
-  const params = new URL(req.url).searchParams;
-  const uploadId = params.get("uploadId") ?? "";
-  const file = new File([await req.arrayBuffer()], params.get("filename") || "file");
-  return new Response(null, {
-    status: UPLOAD_ID.test(uploadId) && stashFile(uploadId, file) ? 200 : 400,
-  });
+async function readJson(req: Request) {
+  try {
+    return JSON.parse(await req.text());
+  } catch {
+    return {};
+  }
+}
+
+async function handleReserve(req: Request) {
+  const { team, filename, length } = await readJson(req);
+  if (!(hasWorkspace(team) && typeof filename === "string" && typeof length === "string")) {
+    return Response.json({ error: "invalid_request", ok: false }, { status: 400 });
+  }
+  const reply = await reserveUpload(team, filename, length);
+  return Response.json(reply, { status: reply.ok ? 200 : 502 });
 }
 
 async function handle(req: Request): Promise<Response> {
   const { pathname } = new URL(req.url);
-  if (req.method === "POST" && pathname === "/files") return handleUpload(req);
+  if (req.method === "POST" && pathname === "/reserve") return handleReserve(req);
   if (pathname !== "/slack/command" || req.method !== "POST") {
     return new Response(null, { status: 404 });
   }

@@ -122,8 +122,8 @@ export function createMessageSending(deps: {
       };
       const text = comment?.trim() ?? "";
       if (broadcastRangeOf({ blocks, text })) {
-        const uploadId = await uploadRelayFiles(files, onProgress);
-        await postBroadcastMessage(channelId, text, undefined, threadTs, blocks, uploadId);
+        const uploaded = await uploadRelayFiles(files, onProgress);
+        await postBroadcastMessage(channelId, text, undefined, threadTs, blocks, uploaded);
       } else {
         await uploadFiles(
           channelId,

@@ -5,7 +5,7 @@ import {
   jsonResponse,
   slackErrorResponse,
 } from "../../slack/server/api/jsonResponse";
-import { relayUpload } from "../../slack/server/api/relayMessages";
+import { relayReserve } from "../../slack/server/api/relayMessages";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
@@ -157,14 +157,11 @@ const list: Route[] = [
     ),
   ),
 
-  route("POST", "files/relay", async (ctx) =>
-    relayUpload(
-      ctx,
-      ctx.searchParams.get("uploadId"),
-      ctx.searchParams.get("filename"),
-      await ctx.body.buffer(),
-    ),
-  ),
+  route("POST", "files/relay-reserve", async (ctx) => {
+    const { filename, length } = await ctx.body.json<Record<string, string>>();
+    if (!(filename && length)) return errorResponse("invalid_file", 400);
+    return relayReserve(ctx, filename, length);
+  }),
 
   route("POST", "files/complete", async (ctx) => {
     const data = await callSlack<FilesCompleteReply>(

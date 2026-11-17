@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 Bun.env.SLACK_BOT_TOKENS = JSON.stringify({ T1: "xoxb-test" });
 const { perform } = await import("../src/actions");
-const { stashFile, takeFiles } = await import("../src/files");
+const { claimUploads, reserveUpload } = await import("../src/reservations");
 
 type Call = { method: string; params: Record<string, string> };
 
@@ -32,7 +32,7 @@ beforeEach(() => {
     "conversations.replies": () => ({ messages: [onMessage()], ok: true }),
     "files.getUploadURLExternal": () => {
       reserved++;
-      return { file_id: `N${reserved}`, ok: true, upload_url: "https://files.slack.test/up" };
+      return { file_id: `R${reserved}`, ok: true, upload_url: "https://files.slack.test/up" };
     },
     "users.info": () => ({
       ok: true,
@@ -42,7 +42,6 @@ beforeEach(() => {
   globalThis.fetch = Object.assign(
     (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("https://files.slack.test/")) return Promise.resolve(new Response("ok"));
       const method = url.replace("https://slack.com/api/", "");
       const params = init?.body instanceof URLSearchParams ? Object.fromEntries(init.body) : {};
       calls.push({ method, params });
@@ -58,7 +57,10 @@ afterEach(() => {
 
 const called = (method: string) => calls.filter((call) => call.method === method);
 const sent = (method: string) => called(method)[0]?.params ?? {};
-const png = () => [new File(["abc"], "a.png"), new File(["d"], "b.txt")];
+const uploaded = [
+  { id: "N1", title: "a.png" },
+  { id: "N2", title: "b.txt" },
+];
 
 describe("posting", () => {
   test("posts as the user", async () => {
@@ -83,23 +85,19 @@ describe("posting", () => {
 
   test("is refused for people who do not manage the channel", async () => {
     replies["admin.roles.entity.listAssignments"] = () => ({ ok: true, role_assignments: [] });
-    expect(await perform("T1", "C1", "U1", { action: "post", text: "x" }, png())).toBe(
-      "not_a_channel_manager",
-    );
-    expect(called("files.getUploadURLExternal")).toEqual([]);
+    const error = await perform("T1", "C1", "U1", { action: "post", files: uploaded, text: "x" });
+    expect(error).toBe("not_a_channel_manager");
+    expect(called("files.completeUploadExternal")).toEqual([]);
   });
 
-  test("uploads files as the bot and attaches them to the message", async () => {
-    const error = await perform("T1", "C1", "U1", { action: "post", text: "pics" }, png());
+  test("finishes the uploaded files as the bot and attaches them to the message", async () => {
+    const error = await perform("T1", "C1", "U1", {
+      action: "post",
+      files: uploaded,
+      text: "pics",
+    });
     expect(error).toBeUndefined();
-    expect(called("files.getUploadURLExternal").map((call) => call.params.filename)).toEqual([
-      "a.png",
-      "b.txt",
-    ]);
-    expect(JSON.parse(sent("files.completeUploadExternal").files ?? "")).toEqual([
-      { id: "N1", title: "a.png" },
-      { id: "N2", title: "b.txt" },
-    ]);
+    expect(JSON.parse(sent("files.completeUploadExternal").files ?? "")).toEqual(uploaded);
     expect(sent("chat.update")).toEqual({
       channel: "C1",
       file_ids: "N1,N2",
@@ -107,22 +105,31 @@ describe("posting", () => {
       ts: "9.9",
     });
     const methods = calls.map((call) => call.method);
+    expect(methods.indexOf("files.completeUploadExternal")).toBeLessThan(
+      methods.indexOf("chat.postMessage"),
+    );
     expect(methods.indexOf("chat.postMessage")).toBeLessThan(methods.indexOf("chat.update"));
+  });
+
+  test("only passes an id and a title on to Slack", async () => {
+    const extra = [{ id: "N1", other: "x", title: "a.png" }];
+    await perform("T1", "C1", "U1", { action: "post", files: extra, text: "x" });
+    expect(JSON.parse(sent("files.completeUploadExternal").files ?? "")).toEqual([
+      { id: "N1", title: "a.png" },
+    ]);
   });
 
   test("removes the message again if the files cannot be attached", async () => {
     replies["chat.update"] = () => ({ error: "file_not_found", ok: false });
-    expect(await perform("T1", "C1", "U1", { action: "post", text: "x" }, png())).toBe(
-      "file_not_found",
-    );
+    const error = await perform("T1", "C1", "U1", { action: "post", files: uploaded, text: "x" });
+    expect(error).toBe("file_not_found");
     expect(sent("chat.delete")).toEqual({ channel: "C1", ts: "9.9" });
   });
 
-  test("stops before posting if an upload fails", async () => {
-    replies["files.getUploadURLExternal"] = () => ({ error: "missing_scope", ok: false });
-    expect(await perform("T1", "C1", "U1", { action: "post", text: "x" }, png())).toBe(
-      "missing_scope",
-    );
+  test("stops before posting if the files cannot be finished", async () => {
+    replies["files.completeUploadExternal"] = () => ({ error: "access_denied", ok: false });
+    const error = await perform("T1", "C1", "U1", { action: "post", files: uploaded, text: "x" });
+    expect(error).toBe("access_denied");
     expect(called("chat.postMessage")).toEqual([]);
   });
 });
@@ -224,20 +231,30 @@ describe("deleting", () => {
   });
 });
 
-describe("uploads waiting for their command", () => {
-  test("are handed over once, in order", () => {
-    expect(stashFile("up-0123456789abcdef", new File(["a"], "a.png"))).toBe(true);
-    expect(stashFile("up-0123456789abcdef", new File(["b"], "b.png"))).toBe(true);
-    expect(takeFiles("up-0123456789abcdef")?.map((file) => file.name)).toEqual(["a.png", "b.png"]);
-    expect(takeFiles("up-0123456789abcdef")).toBeUndefined();
+describe("reserved uploads", () => {
+  test("are reserved with the bot and claimed once by the command", async () => {
+    const reply = await reserveUpload("T1", "a.png", "3");
+    if (!reply.ok) throw new Error("reservation failed");
+    expect(sent("files.getUploadURLExternal")).toEqual({ filename: "a.png", length: "3" });
+    expect(reply.upload_url).toBe("https://files.slack.test/up");
+    expect(claimUploads([reply.file_id])).toBe(true);
+    expect(claimUploads([reply.file_id])).toBe(false);
   });
 
-  test("are refused once too many bytes are held", () => {
-    const big = new File([new Uint8Array(200 * 1024 * 1024)], "big.bin");
-    expect(stashFile("up-big-0123456789abcd", big)).toBe(true);
-    expect(stashFile("up-big2-0123456789abc", big)).toBe(false);
-    takeFiles("up-big-0123456789abcd");
-    expect(stashFile("up-big2-0123456789abc", big)).toBe(true);
-    takeFiles("up-big2-0123456789abc");
+  test("cannot be claimed for files nobody reserved", () => {
+    expect(claimUploads(["F-someone-elses"])).toBe(false);
+  });
+
+  test("are all or nothing", async () => {
+    const reply = await reserveUpload("T1", "a.png", "3");
+    if (!reply.ok) throw new Error("reservation failed");
+    expect(claimUploads([reply.file_id, "F-other"])).toBe(false);
+    expect(claimUploads([reply.file_id])).toBe(true);
+  });
+
+  test("are not remembered when Slack refuses", async () => {
+    replies["files.getUploadURLExternal"] = () => ({ error: "missing_scope", ok: false });
+    expect(await reserveUpload("T1", "a.png", "3")).toEqual({ error: "missing_scope", ok: false });
+    expect(claimUploads(["R0"])).toBe(false);
   });
 });

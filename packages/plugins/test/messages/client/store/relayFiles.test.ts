@@ -3,14 +3,15 @@ import { createStoreHarness, type StoreHarness, settle } from "./storeHarness";
 
 const realXhr = globalThis.XMLHttpRequest;
 let h: StoreHarness;
-let uploaded: { url: string; name: string }[];
-let failure: string | undefined;
+let uploaded: string[];
+let reservations: unknown[];
 let broadcasts: unknown[];
+let noRelay: boolean;
 
 class FakeXhr {
   url = "";
   status = 200;
-  responseText = "";
+  responseText = "{}";
   upload: { onprogress?: (event: object) => void } = {};
   onload?: () => void;
   onerror?: () => void;
@@ -19,19 +20,18 @@ class FakeXhr {
     this.url = url;
   }
 
-  send(file: File) {
-    uploaded.push({ name: file.name, url: this.url });
+  send() {
+    uploaded.push(this.url);
     this.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 1 });
-    this.status = failure ? 400 : 200;
-    this.responseText = JSON.stringify(failure ? { error: failure } : {});
     this.onload?.();
   }
 }
 
 beforeEach(async () => {
   uploaded = [];
+  reservations = [];
   broadcasts = [];
-  failure = undefined;
+  noRelay = false;
   Object.defineProperty(globalThis, "XMLHttpRequest", { configurable: true, value: FakeXhr });
   h = await createStoreHarness();
   h.open("C1");
@@ -39,7 +39,22 @@ beforeEach(async () => {
   const slackFetch = globalThis.fetch;
   globalThis.fetch = Object.assign(
     (input: string | URL | Request, init?: RequestInit) => {
-      if (!String(input).endsWith("/messages/broadcast")) return slackFetch(input, init);
+      const url = String(input);
+      if (url === "/api/files/relay-reserve") {
+        reservations.push(JSON.parse(String(init?.body)));
+        return Promise.resolve(
+          noRelay
+            ? Response.json(
+                { error: "This server isn't set up to send files with @channel." },
+                { status: 400 },
+              )
+            : Response.json({
+                file_id: `R${reservations.length}`,
+                upload_url: `https://files.slack.com/u${reservations.length}`,
+              }),
+        );
+      }
+      if (!url.endsWith("/messages/broadcast")) return slackFetch(input, init);
       broadcasts.push(JSON.parse(String(init?.body)));
       return Promise.resolve(Response.json({ ts: "9.9" }));
     },
@@ -55,28 +70,39 @@ afterEach(() => {
 const files = () => [new File(["abc"], "a.png"), new File(["d"], "b.txt")];
 
 describe("sending files with @channel", () => {
-  test("uploads each file to the relay, then posts the message with their upload id", async () => {
+  test("uploads through the client with relay reservations, then sends the ids", async () => {
     await h.store.sendFiles("C1", files(), "1.1", "<!channel> look");
-    const urls = uploaded.map((upload) => new URL(upload.url, "http://x"));
-    expect(urls.map((url) => [url.pathname, url.searchParams.get("filename")])).toEqual([
-      ["/api/files/relay", "a.png"],
-      ["/api/files/relay", "b.txt"],
+    expect(reservations).toEqual([
+      { filename: "a.png", length: "3" },
+      { filename: "b.txt", length: "1" },
     ]);
-    const uploadId = urls[0]?.searchParams.get("uploadId");
-    expect(uploadId).toHaveLength(36);
-    expect(urls[1]?.searchParams.get("uploadId")).toBe(uploadId ?? "");
-    expect(broadcasts).toEqual([{ text: "<!channel> look", threadTs: "1.1", uploadId }]);
+    expect(uploaded.map((url) => new URL(url, "http://x").searchParams.get("url"))).toEqual([
+      "https://files.slack.com/u1",
+      "https://files.slack.com/u2",
+    ]);
+    expect(broadcasts).toEqual([
+      {
+        files: [
+          { id: "R1", title: "a.png" },
+          { id: "R2", title: "b.txt" },
+        ],
+        text: "<!channel> look",
+        threadTs: "1.1",
+      },
+    ]);
+    expect(h.slack.requests()).not.toContain("POST /api/files/reserve");
     expect(h.messages("C1").filter((message) => message.pending)).toHaveLength(0);
   });
 
-  test("shows why the upload failed and removes the pending message", async () => {
+  test("shows why it failed and removes the pending message", async () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
-    failure = "This server isn't set up to send files with @channel.";
+    noRelay = true;
     const failed = await h.store
       .sendFiles("C1", files(), undefined, "<!channel> look")
       .catch((caught: Error) => caught.message);
     await settle();
-    expect(failed).toBe(failure);
+    expect(failed).toBe("This server isn't set up to send files with @channel.");
+    expect(uploaded).toEqual([]);
     expect(broadcasts).toEqual([]);
     expect(h.messages("C1")).toHaveLength(0);
     error.mockRestore();
@@ -87,7 +113,7 @@ describe("sending files without a broadcast", () => {
   test("still uploads as the user", async () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
     await h.store.sendFiles("C1", files(), undefined, "look").catch(() => {});
-    expect(uploaded).toEqual([]);
+    expect(reservations).toEqual([]);
     expect(h.slack.requests()).toContain("POST /api/files/reserve");
     error.mockRestore();
   });

@@ -77,9 +77,9 @@ export async function postBroadcastMessage(
   unfurl: string[] | undefined,
   threadTs?: string,
   blocks?: unknown,
-  uploadId?: string,
+  files?: { id: string; title: string }[],
 ) {
-  const body: Record<string, unknown> = { text, unfurl, uploadId };
+  const body: Record<string, unknown> = { files, text, unfurl };
   if (threadTs) body.threadTs = threadTs;
   if (blocks) body.blocks = blocks;
   const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages/broadcast`, body);

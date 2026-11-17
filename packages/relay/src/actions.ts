@@ -1,4 +1,4 @@
-import { callBot, uploadBotFiles } from "./slack";
+import { callBot } from "./slack";
 
 type Content = { text: string; blocks?: unknown };
 
@@ -8,7 +8,7 @@ export type Action =
       threadTs?: string;
       replyBroadcast?: boolean;
       unfurl?: string[];
-      uploadId?: string;
+      files?: { id: string; title: string }[];
     } & Content)
   | ({
       action: "edit";
@@ -65,10 +65,14 @@ async function post(
   channel: string,
   member: Member,
   action: Extract<Action, { action: "post" }>,
-  files: File[],
 ) {
-  const uploaded = await uploadBotFiles(team, files);
-  if (!uploaded.ok) return uploaded.error;
+  const files = (action.files ?? []).map(({ id, title }) => ({ id, title }));
+  if (files.length) {
+    const completed = await callBot(team, "files.completeUploadExternal", {
+      files: JSON.stringify(files),
+    });
+    if (!completed.ok) return completed.error;
+  }
   const params = withContent({ channel, text: action.text, username: member.name }, action);
   if (member.iconUrl) params.icon_url = member.iconUrl;
   if (action.threadTs) params.thread_ts = action.threadTs;
@@ -79,13 +83,18 @@ async function post(
   }
   const posted = await callBot<{ ts: string }>(team, "chat.postMessage", params);
   if (!posted.ok) return posted.error;
-  if (!uploaded.ids.length) return;
+  if (!files.length) return;
 
   const attached = await callBot(
     team,
     "chat.update",
     withContent(
-      { channel, file_ids: uploaded.ids.join(","), text: action.text, ts: posted.ts },
+      {
+        channel,
+        file_ids: files.map((file) => file.id).join(","),
+        text: action.text,
+        ts: posted.ts,
+      },
       action,
     ),
   );
@@ -121,13 +130,7 @@ async function remove(team: string, channel: string, message: SentMessage) {
   );
 }
 
-export async function perform(
-  team: string,
-  channel: string,
-  userId: string,
-  action: Action,
-  files: File[] = [],
-) {
+export async function perform(team: string, channel: string, userId: string, action: Action) {
   const found = await callBot<{ user: SlackUser }>(team, "users.info", { user: userId });
   if (!found.ok) return found.error;
   const { user } = found;
@@ -139,7 +142,7 @@ export async function perform(
 
   if (action.action === "post") {
     if (!(await isChannelManager(team, channel, userId))) return "not_a_channel_manager";
-    return post(team, channel, member, action, files);
+    return post(team, channel, member, action);
   }
 
   const message = await ownedMessage(team, channel, action.ts, member);
