@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { DirectMessage, User } from "@slock/types";
+import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { View } from "../../../conversations/client/api/types";
@@ -7,7 +7,7 @@ import { defineKey } from "../../../query/client/api";
 import { closeDm, fetchChannelMembers, openDm } from "../../../slack/client/api";
 import { isDmId } from "../api";
 
-const mpdmMembersKey = defineKey<[string]>("mpdmMembers");
+const mpdmMembersKey = defineKey<[ChannelId]>("mpdmMembers");
 
 const feedback = service("feedback");
 
@@ -22,11 +22,11 @@ export function createDmsStore(deps: {
   openInPane: (view: View) => string;
 }) {
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
-  const [closedDmIds, setClosedDmIds] = createStore<Record<string, boolean>>({});
+  const [closedDmIds, setClosedDmIds] = createStore<Record<ChannelId, boolean>>({});
 
-  const [dmPatches, setDmPatches] = createStore<Record<string, Partial<DirectMessage>>>({});
-  const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<string, boolean>>({});
-  const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<string, boolean>>({});
+  const [dmPatches, setDmPatches] = createStore<Record<ChannelId, Partial<DirectMessage>>>({});
+  const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<UserId, boolean>>({});
+  const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<ChannelId, boolean>>({});
 
   const baseDmsById = createMemo(() => {
     const base = deps.bootstrap()?.directMessages ?? [];
@@ -39,7 +39,7 @@ export function createDmsStore(deps: {
     ),
   );
 
-  function patchDm(id: string, patch: Partial<DirectMessage>) {
+  function patchDm(id: ChannelId, patch: Partial<DirectMessage>) {
     setDmPatches(id, { ...dmPatches[id], ...patch });
   }
 
@@ -48,31 +48,31 @@ export function createDmsStore(deps: {
   );
 
   const dmsByUserId = createMemo(() => {
-    const map = new Map<string, DirectMessage>();
+    const map = new Map<UserId, DirectMessage>();
     for (const dm of allDirectMessages()) if (dm.userId) map.set(dm.userId, dm);
     return map;
   });
 
-  function dmById(id: string): DirectMessage | undefined {
+  function dmById(id: ChannelId): DirectMessage | undefined {
     const base = baseDmsById().get(id);
     const patch = dmPatches[id];
     return base && patch ? { ...base, ...patch } : base;
   }
 
-  function conversationKind(id: string): "channel" | "dm" {
+  function conversationKind(id: ChannelId): "channel" | "dm" {
     return isDmId(id, (candidate) => !!dmById(candidate)) ? "dm" : "channel";
   }
 
-  function dmIdForUser(userId: string): string | undefined {
+  function dmIdForUser(userId: UserId): ChannelId | undefined {
     return dmsByUserId().get(userId)?.id;
   }
 
-  function ensureDm(channelId: string, userId: string) {
+  function ensureDm(channelId: ChannelId, userId: UserId) {
     if (baseDmsById().has(channelId)) return;
     setExtraDms(produce((list) => list.push({ id: channelId, unread: true, userId })));
   }
 
-  async function ensureMpdm(channelId: string) {
+  async function ensureMpdm(channelId: ChannelId) {
     if (baseDmsById().has(channelId)) return;
     await query.client.query({
       queryKey: mpdmMembersKey(channelId),
@@ -87,15 +87,15 @@ export function createDmsStore(deps: {
     });
   }
 
-  function isOpenDmPending(userId: string): boolean {
+  function isOpenDmPending(userId: UserId): boolean {
     return !!openDmPendingByUser[userId];
   }
 
-  function isCloseDmPending(dmId: string): boolean {
+  function isCloseDmPending(dmId: ChannelId): boolean {
     return !!closeDmPendingById[dmId];
   }
 
-  async function openDmWithUser(userId: string, options?: { split?: boolean }): Promise<boolean> {
+  async function openDmWithUser(userId: UserId, options?: { split?: boolean }): Promise<boolean> {
     if (isOpenDmPending(userId)) return false;
     setOpenDmPendingByUser(userId, true);
     const openView = (view: View) =>
@@ -132,7 +132,7 @@ export function createDmsStore(deps: {
     }
   }
 
-  async function closeDmConversation(dmId: string): Promise<boolean> {
+  async function closeDmConversation(dmId: ChannelId): Promise<boolean> {
     if (isCloseDmPending(dmId)) return false;
     setCloseDmPendingById(dmId, true);
     try {

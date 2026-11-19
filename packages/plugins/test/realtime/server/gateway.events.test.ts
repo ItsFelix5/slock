@@ -10,13 +10,11 @@ import type { Credentials } from "../../../src/slack/server/api/auth";
 let h: ReturnType<typeof createGatewayHarness>;
 
 beforeEach(() => {
-  jest.useFakeTimers();
   h = createGatewayHarness();
 });
 
 afterEach(() => {
   h.fake.restore();
-  jest.useRealTimers();
 });
 
 describe("event flow", () => {

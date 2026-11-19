@@ -1,7 +1,25 @@
 import type { Component } from "solid-js";
 
-// biome-ignore lint/suspicious/noEmptyInterface: plugins add keys through declaration merging
-export interface Services {}
+export type TimerHandle = { readonly cancel: () => void };
+
+export type Env = {
+  now(): number;
+  setTimeout(callback: () => void, ms: number): TimerHandle;
+  clearTimeout(handle: TimerHandle | undefined): void;
+  setInterval(callback: () => void, ms: number): TimerHandle;
+  clearInterval(handle: TimerHandle | undefined): void;
+  random(): number;
+  storage: {
+    get(key: string): string | null;
+    set(key: string, value: string): void;
+    remove(key: string): void;
+  };
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+};
+
+export interface Services {
+  env: Env;
+}
 
 export interface Points {
   root: Component;

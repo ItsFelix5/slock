@@ -1,20 +1,22 @@
-import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
+import type { Env } from "@slock/core";
+import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
 import { batch as solidBatch } from "solid-js";
 import { produce, type SetStoreFunction } from "solid-js/store";
-import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../kinds";
+import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, reactionActivityKey } from "../kinds";
 
 export function createEntryResolution(deps: {
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
+  env: Env;
   fetchHistoryAround: (
-    channelId: string,
-    ts: string,
+    channelId: ChannelId,
+    ts: Ts,
     limit: number,
   ) => Promise<{ messages: Message[] }>;
   fetchMessagesByIds: (
-    entries: { channelId: string; ts: string }[],
+    entries: { channelId: ChannelId; ts: Ts }[],
     onBatch?: (batch: Map<string, Message>) => void,
   ) => Promise<Map<string, Message>>;
-  isBotUser?: (userId: string) => boolean;
+  isBotUser?: (userId: UserId) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
   setActivityItems: SetStoreFunction<ActivityItem[]>;
@@ -26,10 +28,10 @@ export function createEntryResolution(deps: {
     push: (entry: FeedEntry, batch?: Map<string, Message>) => void,
   ) {
     const needsMessage = (entry: FeedEntry) =>
-      !!entry.channelId && entry.activityType !== "quietly_added_to_channel";
+      entry.channelId !== NO_CHANNEL && entry.activityType !== "quietly_added_to_channel";
     for (const entry of pending) if (!needsMessage(entry)) push(entry);
     const unresolved = pending.filter(needsMessage);
-    const toFetch = unresolved.filter((entry) => !!entry.channelId);
+    const toFetch = unresolved;
 
     await deps.fetchMessagesByIds(toFetch, (batch) =>
       solidBatch(() => {
@@ -84,7 +86,7 @@ export function createEntryResolution(deps: {
       seen.add(item.id);
       if (reactionKey) seenReactions.add(reactionKey);
       if (item.kind === "channel_all") seenChannelPosts.add(postKey);
-      if (item.kind === "reaction" && item.reactionName && Date.now() - item.time < 10_000)
+      if (item.kind === "reaction" && item.reactionName && deps.env.now() - item.time < 10_000)
         deps.onReactionPushed?.(item.reactionName);
       deps.setActivityItems(
         produce((list) => {

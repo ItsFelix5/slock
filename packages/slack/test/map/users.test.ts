@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll } from "@slock/core/testing";
 import type { RawUser } from "@slock/types";
-import { garbageRecord, USER_SPEC, viaJson } from "../../src/map/garbage";
 import {
   mapBot,
   mapCustomFields,
@@ -10,6 +9,8 @@ import {
   SLACK_SYSTEM_USER,
   SLACK_USER_ID,
 } from "../../src/map/users";
+import { uid } from "../../src/testing";
+import { garbageRecord, USER_SPEC, viaJson } from "../garbage";
 
 describe("mapUser", () => {
   test("prefers display name, then real name, then handle", () => {
@@ -78,7 +79,7 @@ describe("mapUser", () => {
     forAll(
       (random) => ({ ...garbageRecord(random, USER_SPEC), id: "U9" }),
       (garbage) => {
-        expect(mapUser(viaJson<RawUser>(garbage)).id).toBe("U9");
+        expect(mapUser(viaJson<RawUser>(garbage)).id).toBe(uid("U9"));
       },
       500,
     );

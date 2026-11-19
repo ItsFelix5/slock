@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import { createMemo, Show } from "solid-js";
 import type { MentionCardProps } from "../../../../composer/client/api";
 import { parseSlackPermalink } from "../../../../message-links/client/api/slackPermalink";
@@ -10,7 +11,7 @@ export default function MessageLinkMentionCard(props: MentionCardProps) {
   const target = createMemo(() =>
     props.kind === "messagelink" ? parseSlackPermalink(props.id) : undefined,
   );
-  const knownPreview = (channelId: string, messageTs: string) => {
+  const knownPreview = (channelId: ChannelId, messageTs: Ts) => {
     const msg = messagesStore
       .findAllMessageLocations(channelId, messageTs)[0]
       ?.list.find((m) => m.ts === messageTs);

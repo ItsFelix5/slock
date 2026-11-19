@@ -1,6 +1,6 @@
 import { EmojiFreezeContext, EmojiText } from "@slock/blockkit";
 import { Slot, usePoint } from "@slock/core/solid";
-import type { Message, User } from "@slock/types";
+import type { ChannelId, Message, Ts, User, UserId } from "@slock/types";
 import { Icon, Tooltip, useElementVisible } from "@slock/ui";
 import { type Accessor, mapArray, Show } from "solid-js";
 import { MessageAuthorButton } from "../api/cards/MessageAuthorButton";
@@ -10,15 +10,15 @@ import AuthorHoverCard from "./parts/AuthorHoverCard";
 export default function MessageMeta(props: {
   message: Message;
   user: Accessor<User | undefined>;
-  channelId: string;
+  channelId: ChannelId;
   displayName: () => string;
-  threadTs?: string;
+  threadTs?: Ts;
   botUserId?: string;
   onOpenBot: () => void;
   onOpenUser: () => void;
   showBroadcastBadge?: () => boolean;
   tabbable?: () => boolean;
-  userId?: string;
+  userId?: UserId;
 }) {
   const msg = props.message;
   const { ref: visibleRef, visible } = useElementVisible();

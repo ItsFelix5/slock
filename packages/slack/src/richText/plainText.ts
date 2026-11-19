@@ -1,4 +1,4 @@
-import { narrowByType } from "@slock/core";
+import { assertNever, narrowByType } from "@slock/core";
 import type {
   Block,
   HeaderBlock,
@@ -35,8 +35,10 @@ function richTextInlineToPlainText(el: RichTextInlineElement): string {
       return el.fallback ?? "";
     case "canvas":
       return el.text || "canvas";
-    default:
+    case "color":
       return "";
+    default:
+      return assertNever(el);
   }
 }
 
@@ -56,7 +58,7 @@ function richTextSubBlockToPlainText(sub: RichTextSubBlock): string {
         )
         .join("");
     default:
-      return "";
+      return assertNever(sub);
   }
 }
 

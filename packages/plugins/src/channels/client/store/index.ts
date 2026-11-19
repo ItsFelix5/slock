@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { BrowsableChannel, Channel, UserPrefs } from "@slock/types";
+import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { View } from "../../../conversations/client/api/types";
@@ -17,12 +17,14 @@ import { channelManagerQueryOptions, channelRosterQueryOptions } from "./queries
 import { createChannelSections } from "./sections";
 import { createChannelStarPlacement } from "./starPlacement";
 
+const env = service("env");
+
 const feedback = service("feedback");
 
 const query = service("query");
 
 export function createChannelsStore(deps: {
-  bootstrap: () => { channels: Channel[]; starredChannelIds: string[] } | undefined;
+  bootstrap: () => { channels: Channel[]; starredChannelIds: ChannelId[] } | undefined;
   activeView: () => View | null;
   decorators: () => ChannelDecorator[];
   setActiveView: (view: View) => void;
@@ -31,16 +33,16 @@ export function createChannelsStore(deps: {
 }) {
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
 
-  const [discoveredChannels, setDiscoveredChannels] = createStore<Record<string, Channel>>({});
-  const pendingChannels = new Map<string, Promise<unknown>>();
-  const channelDiscoveryMisses = new Map<string, number>();
+  const [discoveredChannels, setDiscoveredChannels] = createStore<Record<ChannelId, Channel>>({});
+  const pendingChannels = new Map<ChannelId, Promise<unknown>>();
+  const channelDiscoveryMisses = new Map<ChannelId, number>();
   const channelDiscoveryRetryMs = 30_000;
-  const channelDetailsRequested = new Map<string, Promise<void>>();
+  const channelDetailsRequested = new Map<ChannelId, Promise<boolean>>();
 
-  const [channelPatches, setChannelPatches] = createStore<Record<string, Partial<Channel>>>({});
-  const [leftChannelIds, setLeftChannelIds] = createStore<Record<string, boolean>>({});
-  const [joinPendingIds, setJoinPendingIds] = createStore<Record<string, boolean>>({});
-  const [leavePendingIds, setLeavePendingIds] = createStore<Record<string, boolean>>({});
+  const [channelPatches, setChannelPatches] = createStore<Record<ChannelId, Partial<Channel>>>({});
+  const [leftChannelIds, setLeftChannelIds] = createStore<Record<ChannelId, boolean>>({});
+  const [joinPendingIds, setJoinPendingIds] = createStore<Record<ChannelId, boolean>>({});
+  const [leavePendingIds, setLeavePendingIds] = createStore<Record<ChannelId, boolean>>({});
   let starredSeeded = false;
   const [browsableChannels, setBrowsableChannels] = createSignal<BrowsableChannel[]>([]);
 
@@ -80,7 +82,7 @@ export function createChannelsStore(deps: {
       .map((c) => (channelPatches[c.id] ? { ...c, ...channelPatches[c.id] } : c)),
   );
 
-  function patchChannel(id: string, patch: Partial<Channel>) {
+  function patchChannel(id: ChannelId, patch: Partial<Channel>) {
     const known = baseChannelsById().get(id);
     const allowed = known?.canvasFileId ? { ...patch, name: undefined } : patch;
     setChannelPatches(id, {
@@ -89,17 +91,22 @@ export function createChannelsStore(deps: {
     });
   }
 
-  async function discoverChannel(id: string): Promise<boolean> {
-    const channel = await fetchChannel(id);
-    if (!channel) return false;
-    setDiscoveredChannels(channel.id, channel);
-    return true;
+  async function discoverChannel(id: ChannelId): Promise<boolean> {
+    try {
+      const channel = await fetchChannel(id);
+      if (!channel) return false;
+      setDiscoveredChannels(channel.id, channel);
+      return true;
+    } catch (err) {
+      console.error("Failed to discover channel", err);
+      return false;
+    }
   }
 
   const decorated = (channel: Channel): Channel =>
     deps.decorators().reduce((current, decorate) => decorate(current), channel);
 
-  function channelById(id: string): Channel | undefined {
+  function channelById(id: ChannelId): Channel | undefined {
     const base = baseChannelsById().get(id) ?? discoveredChannels[id];
     const patch = channelPatches[id];
     const known = base && patch ? { ...base, ...patch } : base;
@@ -107,36 +114,35 @@ export function createChannelsStore(deps: {
 
     if (!deps.bootstrap()) return;
     const missedAt = channelDiscoveryMisses.get(id);
-    if (missedAt && Date.now() - missedAt < channelDiscoveryRetryMs) return;
+    if (missedAt && env.now() - missedAt < channelDiscoveryRetryMs) return;
     if (!pendingChannels.has(id)) {
       pendingChannels.set(
         id,
         discoverChannel(id)
           .then((found) => {
             if (found) channelDiscoveryMisses.delete(id);
-            else channelDiscoveryMisses.set(id, Date.now());
+            else channelDiscoveryMisses.set(id, env.now());
           })
-          .catch(() => channelDiscoveryMisses.set(id, Date.now()))
           .finally(() => pendingChannels.delete(id)),
       );
     }
   }
 
-  async function resolveChannel(id: string): Promise<Channel | undefined> {
+  async function resolveChannel(id: ChannelId): Promise<Channel | undefined> {
     const known = channelById(id);
     if (known) return known;
     await pendingChannels.get(id);
     return channelById(id);
   }
 
-  function ensureChannelTopic(id: string): Promise<void> {
+  function ensureChannelTopic(id: ChannelId): Promise<boolean> {
     const known = channelById(id);
     if (
       !known ||
       (known.topic && known.memberCount !== undefined) ||
       (known.private && !isChannelMember(id))
     )
-      return Promise.resolve();
+      return Promise.resolve(true);
     const inflight = channelDetailsRequested.get(id);
     if (inflight) return inflight;
     const request = fetchChannelDetails(id)
@@ -147,15 +153,18 @@ export function createChannelsStore(deps: {
           private: details.private,
           topic: details.topic,
         });
+        return true;
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Failed to load channel details", err);
         channelDetailsRequested.delete(id);
+        return false;
       });
     channelDetailsRequested.set(id, request);
     return request;
   }
 
-  function isChannelMember(id: string): boolean {
+  function isChannelMember(id: ChannelId): boolean {
     return baseChannelsById().has(id) || !!discoveredChannels[id]?.canvasFileId;
   }
 
@@ -165,18 +174,18 @@ export function createChannelsStore(deps: {
     channelRosterQueryOptions,
   );
 
-  function channelRosterIds(channelId: string): Set<string> | undefined {
+  function channelRosterIds(channelId: ChannelId): Set<UserId> | undefined {
     return channelRosters.entry(channelId);
   }
 
-  function ensureChannelRoster(channelId: string): Promise<Set<string> | undefined> {
+  function ensureChannelRoster(channelId: ChannelId): Promise<Set<UserId> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
     const channel = channelById(channelId);
     if (channel?.private && !isChannelMember(channelId)) return Promise.resolve(new Set());
     return query.client.query({ ...channelRosterQueryOptions(channelId), staleTime: "static" });
   }
 
-  function invalidateChannelRoster(channelId: string): void {
+  function invalidateChannelRoster(channelId: ChannelId): void {
     channelRosters.invalidate(channelId);
   }
 
@@ -186,24 +195,24 @@ export function createChannelsStore(deps: {
     channelManagerQueryOptions,
   );
 
-  function channelManagerIds(channelId: string): Set<string> | undefined {
+  function channelManagerIds(channelId: ChannelId): Set<UserId> | undefined {
     return channelManagers.entry(channelId);
   }
 
-  function ensureChannelManagers(channelId: string): Promise<Set<string> | undefined> {
+  function ensureChannelManagers(channelId: ChannelId): Promise<Set<UserId> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
     return query.client.query({ ...channelManagerQueryOptions(channelId), staleTime: "static" });
   }
 
-  function isChannelLeft(channelId: string): boolean {
+  function isChannelLeft(channelId: ChannelId): boolean {
     return !!leftChannelIds[channelId];
   }
 
-  function isJoinPending(channelId: string): boolean {
+  function isJoinPending(channelId: ChannelId): boolean {
     return !!joinPendingIds[channelId];
   }
 
-  function isLeavePending(channelId: string): boolean {
+  function isLeavePending(channelId: ChannelId): boolean {
     return !!leavePendingIds[channelId];
   }
 
@@ -218,12 +227,12 @@ export function createChannelsStore(deps: {
     setLeftChannelIds(channel.id, false);
   }
 
-  function markChannelLeft(channelId: string) {
+  function markChannelLeft(channelId: ChannelId) {
     if (leftChannelIds[channelId]) return;
     setLeftChannelIds(channelId, true);
   }
 
-  async function joinChannelById(channelId: string): Promise<boolean> {
+  async function joinChannelById(channelId: ChannelId): Promise<boolean> {
     if (isJoinPending(channelId)) return false;
     setJoinPendingIds(channelId, true);
     try {
@@ -240,7 +249,7 @@ export function createChannelsStore(deps: {
     }
   }
 
-  async function leaveCurrentChannel(channelId: string): Promise<boolean> {
+  async function leaveCurrentChannel(channelId: ChannelId): Promise<boolean> {
     if (isLeavePending(channelId)) return false;
     setLeavePendingIds(channelId, true);
     try {

@@ -1,13 +1,8 @@
-import type { Message } from "@slock/types";
+import type { Message, Ts } from "@slock/types";
+import { tsToMs } from "./tsTime";
 
-export function isUnreadDividerBoundary(
-  ts: string,
-  prevTs: string | undefined,
-  anchor: number,
-): boolean {
-  return (
-    parseFloat(ts) * 1000 > anchor && (prevTs === undefined || parseFloat(prevTs) * 1000 <= anchor)
-  );
+export function isUnreadDividerBoundary(ts: Ts, prevTs: Ts | undefined, anchor: number): boolean {
+  return tsToMs(ts) > anchor && (prevTs === undefined || tsToMs(prevTs) <= anchor);
 }
 
 export function findUnreadDividerIndex(messages: Message[], anchor: number | undefined): number {

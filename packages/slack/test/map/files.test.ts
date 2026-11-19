@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { forAll } from "@slock/core/testing";
 import type { RawAttachment, RawFile } from "@slock/types";
 import { mapAttachment, mapFile, mapFileShare, mapLink } from "../../src/map/files";
-import { ATTACHMENT_SPEC, FILE_SPEC, garbageRecord, viaJson } from "../../src/map/garbage";
+import { fid, stamp } from "../../src/testing";
+import { ATTACHMENT_SPEC, FILE_SPEC, garbageRecord, viaJson } from "../garbage";
 
 describe("mapFile", () => {
   test("keeps the id and picks the largest thumbnail with dimensions", () => {
@@ -85,7 +86,7 @@ describe("mapFile", () => {
     forAll(
       (random) => ({ ...garbageRecord(random, FILE_SPEC), id: "F9" }),
       (garbage) => {
-        expect(mapFile(viaJson<RawFile>(garbage)).id).toBe("F9");
+        expect(mapFile(viaJson<RawFile>(garbage)).id).toBe(fid("F9"));
       },
       500,
     );
@@ -139,7 +140,7 @@ describe("link and share", () => {
       thumbUrl: undefined,
       thumbWidth: undefined,
       title: null,
-      ts: "1",
+      ts: stamp("1"),
       url: "u",
     });
   });

@@ -1,4 +1,4 @@
-import type { Channel } from "@slock/types";
+import type { Channel, ChannelId } from "@slock/types";
 import type { IconName } from "@slock/ui";
 import type { createChannelsStore } from "../store";
 
@@ -15,7 +15,7 @@ declare module "@slock/core/types" {
 
 export function channelDisplayName(
   channel: Pick<Channel, "id" | "name"> | undefined,
-  fallbackId?: string,
+  fallbackId?: ChannelId,
 ): string {
   return channel?.name?.trim() || channel?.id || fallbackId || "";
 }

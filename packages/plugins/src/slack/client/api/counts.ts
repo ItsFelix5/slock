@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { ApiError, apiGet } from "@slock/slack";
+import { apiGet, replyError } from "@slock/slack";
 import type { RawCounts } from "@slock/types";
 import { defineKey } from "../../../query/client/api";
 
@@ -12,7 +12,7 @@ export function fetchCounts(): Promise<CountsReply> {
   return query.client.query({
     queryFn: async () => {
       const data = await apiGet<CountsReply>("/api/counts");
-      if (!data.ok) throw new ApiError(data.error ?? "client.counts failed", data.retry_after);
+      if (!data.ok) throw replyError(data, "client.counts failed");
       return data;
     },
     queryKey: countsKey(),

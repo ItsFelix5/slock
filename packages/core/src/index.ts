@@ -1,3 +1,4 @@
+export { systemEnv } from "./env";
 export { localEnabledStore } from "./host/enabledStore";
 export type { Host, HostOptions, PluginInfo } from "./host/host";
 export { createHost, Unavailable } from "./host/host";
@@ -8,6 +9,7 @@ export type {
   AddOptions,
   Context,
   EnabledStore,
+  Env,
   Manifest,
   PluginDef,
   PluginState,
@@ -16,9 +18,15 @@ export type {
   Reactive,
   Services,
   Setup,
+  TimerHandle,
 } from "./types";
+export { assertNever } from "./util/assertNever";
+export { backoff } from "./util/backoff";
+export { clamp } from "./util/clamp";
 export { errorMessage } from "./util/errorMessage";
+export { escapeRegExp } from "./util/escapeRegExp";
 export { defined, isRecord, narrowByType } from "./util/guards";
+export { startOfDay } from "./util/startOfDay";
 export {
   CLOCK_24H,
   formatDay,
@@ -27,3 +35,5 @@ export {
   formatTime,
   formatTimeFromMs,
 } from "./util/time";
+export type { InputPrecision } from "./util/toLocalInputValue";
+export { toLocalInputValue } from "./util/toLocalInputValue";

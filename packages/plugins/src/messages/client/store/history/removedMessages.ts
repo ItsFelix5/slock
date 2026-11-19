@@ -1,13 +1,13 @@
-import type { Message } from "@slock/types";
+import type { ChannelId, Message, Ts } from "@slock/types";
 
 export function createRemovedMessages() {
-  const byChannel = new Map<string, Set<string>>();
+  const byChannel = new Map<ChannelId, Set<Ts>>();
   return {
-    clear: (channelId: string) => byChannel.delete(channelId),
-    forget(channelId: string, ts: string) {
+    clear: (channelId: ChannelId) => byChannel.delete(channelId),
+    forget(channelId: ChannelId, ts: Ts) {
       byChannel.set(channelId, (byChannel.get(channelId) ?? new Set()).add(ts));
     },
-    without(channelId: string, messages: Message[]) {
+    without(channelId: ChannelId, messages: Message[]) {
       const removed = byChannel.get(channelId);
       return removed ? messages.filter((m) => !removed.has(m.ts)) : messages;
     },

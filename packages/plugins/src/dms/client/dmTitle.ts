@@ -1,10 +1,10 @@
 import type { Points } from "@slock/core/types";
-import type { DirectMessage, User } from "@slock/types";
+import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { isDmId } from "./api";
 
 export function createDmTitleResolver(
-  dmById: (id: string) => DirectMessage | undefined,
-  userById: (id: string) => User | undefined,
+  dmById: (id: ChannelId) => DirectMessage | undefined,
+  userById: (id: UserId) => User | undefined,
 ): Points["shell.title"] {
   function name(dm: DirectMessage | undefined): string {
     if (!dm) return "";

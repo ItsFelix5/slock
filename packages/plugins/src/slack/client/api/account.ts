@@ -1,5 +1,4 @@
 import {
-  ApiError,
   apiGet,
   apiPost,
   apiPut,
@@ -8,6 +7,7 @@ import {
   mapCustomFields,
   mapStartDate,
   mapUser,
+  replyError,
 } from "@slock/slack";
 import type {
   ProfileFieldDef,
@@ -65,7 +65,7 @@ export async function fetchUserProfile(id: string): Promise<UserProfile> {
 
 export async function fetchProfileFieldDefs(): Promise<ProfileFieldDef[]> {
   const data = await apiGet<{ fields?: ProfileFieldDef[] }>("/api/profile-fields");
-  if (!data.ok) throw new ApiError(data.error ?? "team.profile.get failed", data.retry_after);
+  if (!data.ok) throw replyError(data, "team.profile.get failed");
   return data.fields ?? [];
 }
 

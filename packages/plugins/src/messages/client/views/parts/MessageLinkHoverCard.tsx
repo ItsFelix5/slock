@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { Attachment, Block } from "@slock/types";
+import type { Attachment, Block, ChannelId, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
 import { createSignal, type JSX, Show } from "solid-js";
 import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
@@ -14,7 +14,7 @@ import {
 import "./MessageLinkHoverCard.css";
 import { defineKey } from "../../../../query/client/api";
 
-const messageLinkPreviewKey = defineKey<[string, string, string | undefined]>("messageLinkPreview");
+const messageLinkPreviewKey = defineKey<[ChannelId, Ts, Ts | undefined]>("messageLinkPreview");
 
 const usersStore = service("users");
 
@@ -58,9 +58,9 @@ export function messageToHoverPreview(
 }
 
 export default function MessageLinkHoverCard(props: {
-  channelId: string;
-  messageTs: string;
-  threadTs: string;
+  channelId: ChannelId;
+  messageTs: Ts;
+  threadTs: Ts;
   anchorClass?: string;
   knownPreview?: HoverPreview;
   children?: JSX.Element;
@@ -74,7 +74,7 @@ export default function MessageLinkHoverCard(props: {
     const { channelId, messageTs, threadTs } = props;
     return {
       queryFn: async () => {
-        const msg = await fetchPermalinkMessage(channelId, messageTs, threadTs).catch(() => null);
+        const msg = await fetchPermalinkMessage(channelId, messageTs, threadTs);
         return msg ? messageToHoverPreview(msg) : null;
       },
       queryKey: messageLinkPreviewKey(channelId, messageTs, threadTs),

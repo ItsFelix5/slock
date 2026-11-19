@@ -1,5 +1,11 @@
 import { isRecord } from "@slock/core";
-import { INFO_COOKIE, parseSessionInfo, profileName, sessionInfoCookie } from "@slock/slack";
+import {
+  INFO_COOKIE,
+  isTeamId,
+  parseSessionInfo,
+  profileName,
+  sessionInfoCookie,
+} from "@slock/slack";
 import type { AccountSummary, RawUserProfile, SessionInfo } from "@slock/types";
 import { imageUrl } from "./assets.ts";
 import { type Credentials, jsonHeaders, parseCredentials, teamIdFromRoute } from "./auth.ts";

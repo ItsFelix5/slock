@@ -1,24 +1,25 @@
 import type { CanvasEdit } from "@slock/types";
 import type { Credentials } from "../../slack/server/api/auth";
 import { decodeLoadData, planEdit } from "../protocol/api";
-import { fetchCanvasRaw, postCanvas } from "./api";
+import type { CanvasWire } from "./wire";
 
 export type CanvasEditResult = { ok: true } | { error: string; ok: false; status: number };
 
 const CONFLICT_ERRORS = new Set(["unknown_anchor", "no_document", "opaque_block"]);
 
 export async function applyCanvasEdit(
+  wire: CanvasWire,
   threadId: string,
   edit: CanvasEdit,
   creds: Credentials,
 ): Promise<CanvasEditResult> {
-  const raw = await fetchCanvasRaw(threadId, creds);
+  const raw = await wire.fetchRaw(threadId, creds);
   if (!raw.ok) return { error: raw.error, ok: false, status: 502 };
   const plan = planEdit(decodeLoadData(raw.bytes), edit);
   if (!plan.ok)
     return { error: plan.error, ok: false, status: CONFLICT_ERRORS.has(plan.error) ? 409 : 400 };
   if (plan.writes === 0) return { ok: true };
-  const response = await postCanvas(
+  const response = await wire.post(
     "edit-document",
     {
       data_binary: Buffer.from(plan.data).toString("base64"),

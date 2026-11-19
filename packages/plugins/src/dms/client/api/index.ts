@@ -1,6 +1,7 @@
+import type { ChannelId } from "@slock/types";
 import type { createDmsStore } from "../store";
 
-export function isDmId(id: string, isKnownDm: (id: string) => boolean): boolean {
+export function isDmId(id: ChannelId, isKnownDm: (id: ChannelId) => boolean): boolean {
   return id.startsWith("D") || isKnownDm(id);
 }
 

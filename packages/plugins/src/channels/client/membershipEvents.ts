@@ -1,4 +1,5 @@
-import { mapChannel } from "@slock/slack";
+import { assertNever } from "@slock/core";
+import { ifPresent, mapChannel, parseChannelId } from "@slock/slack";
 import type { MembershipEvent, User } from "@slock/types";
 import type { createChannelsStore } from "./store";
 
@@ -35,30 +36,47 @@ export function createMembershipHandler(
         break;
       case "channel_left":
       case "group_left":
-      case "channel_deleted":
-        if (payload.channel) channels.markChannelLeft(payload.channel);
+      case "channel_deleted": {
+        const id = ifPresent(parseChannelId, payload.channel);
+        if (id) channels.markChannelLeft(id);
         break;
-      case "member_joined_channel":
-        if (payload.channel) channels.invalidateChannelRoster(payload.channel);
+      }
+      case "member_joined_channel": {
+        const id = ifPresent(parseChannelId, payload.channel);
+        if (id) channels.invalidateChannelRoster(id);
         break;
-      case "member_left_channel":
-        if (!payload.channel) break;
-        if (payload.user === currentUser()?.id) channels.markChannelLeft(payload.channel);
-        else channels.invalidateChannelRoster(payload.channel);
+      }
+      case "member_left_channel": {
+        const id = ifPresent(parseChannelId, payload.channel);
+        if (!id) break;
+        if (payload.user === currentUser()?.id) channels.markChannelLeft(id);
+        else channels.invalidateChannelRoster(id);
         break;
+      }
       case "channel_rename":
-      case "group_rename":
-        if (payload.channel.id)
-          channels.patchChannel(payload.channel.id, { name: payload.channel.name });
+      case "group_rename": {
+        const id = ifPresent(parseChannelId, payload.channel.id);
+        if (id) channels.patchChannel(id, { name: payload.channel.name });
         break;
+      }
       case "channel_archive":
       case "group_archive":
-        if (payload.channel) channels.patchChannel(payload.channel, { archived: true });
-        break;
       case "channel_unarchive":
-      case "group_unarchive":
-        if (payload.channel) channels.patchChannel(payload.channel, { archived: false });
+      case "group_unarchive": {
+        const id = ifPresent(parseChannelId, payload.channel);
+        const archived = payload.type === "channel_archive" || payload.type === "group_archive";
+        if (id) channels.patchChannel(id, { archived });
         break;
+      }
+      case "im_close":
+      case "im_created":
+      case "im_open":
+      case "mpim_close":
+      case "mpim_joined":
+      case "mpim_open":
+        break;
+      default:
+        assertNever(payload);
     }
   };
 }

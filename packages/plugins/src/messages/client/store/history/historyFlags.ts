@@ -1,3 +1,4 @@
+import type { ChannelId } from "@slock/types";
 import type { Store } from "solid-js/store";
 
 export type HistoryMeta = {
@@ -10,14 +11,14 @@ export type HistoryMeta = {
   olderError?: boolean;
 };
 
-export function createHistoryFlags(historyMeta: Store<Record<string, HistoryMeta>>) {
+export function createHistoryFlags(historyMeta: Store<Record<ChannelId, HistoryMeta>>) {
   return {
-    hasHistoryError: (channelId: string) => historyMeta[channelId]?.initialError ?? false,
-    hasMoreHistory: (channelId: string) => historyMeta[channelId]?.hasMore ?? true,
-    hasNewerHistory: (channelId: string) =>
+    hasHistoryError: (channelId: ChannelId) => historyMeta[channelId]?.initialError ?? false,
+    hasMoreHistory: (channelId: ChannelId) => historyMeta[channelId]?.hasMore ?? true,
+    hasNewerHistory: (channelId: ChannelId) =>
       historyMeta[channelId]?.hasNewer ?? historyMeta[channelId]?.anchored === true,
-    hasNewerHistoryError: (channelId: string) => historyMeta[channelId]?.newerError ?? false,
-    hasOlderHistoryError: (channelId: string) => historyMeta[channelId]?.olderError ?? false,
-    isLoadingHistory: (channelId: string) => historyMeta[channelId]?.loading ?? false,
+    hasNewerHistoryError: (channelId: ChannelId) => historyMeta[channelId]?.newerError ?? false,
+    hasOlderHistoryError: (channelId: ChannelId) => historyMeta[channelId]?.olderError ?? false,
+    isLoadingHistory: (channelId: ChannelId) => historyMeta[channelId]?.loading ?? false,
   };
 }

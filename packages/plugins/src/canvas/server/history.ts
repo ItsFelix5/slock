@@ -7,7 +7,8 @@ import type { Route, RouteCtx } from "../../slack/server/api/router";
 import { route } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type { CanvasVersionsReply } from "../../slack/server/api/slackReplies";
-import { fetchCanvasVersion, lookupThread, notConfigured } from "./api";
+import { lookupThread, notConfigured } from "./api";
+import type { CanvasWire } from "./wire";
 
 const HISTORY_REASON = "quip-history";
 
@@ -19,7 +20,7 @@ function versionQuery(ctx: RouteCtx): { documentId: string; sequence: number } |
   return documentId && Number.isInteger(sequence) ? { documentId, sequence } : null;
 }
 
-export const historyRoutes: Route[] = [
+export const historyRoutes = (wire: CanvasWire): Route[] => [
   route("GET", "canvases/:id/versions", async (ctx) => {
     if (!ctx.creds) return notConfigured();
     const data = await callSlack<CanvasVersionsReply>(
@@ -49,7 +50,7 @@ export const historyRoutes: Route[] = [
     if (!query) return errorResponse("invalid_version", 400);
     const lookup = await lookupThread(ctx, ctx.creds);
     if ("response" in lookup) return lookup.response;
-    const raw = await fetchCanvasVersion(
+    const raw = await wire.fetchVersion(
       lookup.threadId,
       { ...query, versionId: ctx.params.versionId },
       ctx.creds,

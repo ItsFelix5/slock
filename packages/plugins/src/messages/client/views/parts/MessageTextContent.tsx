@@ -1,6 +1,6 @@
 import { BlockKit, MessageAttachmentsContext, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
 import { Slot, service, usePoint } from "@slock/core/solid";
-import type { Attachment, Message } from "@slock/types";
+import type { Attachment, ChannelId, Message } from "@slock/types";
 import { createMemo, Show } from "solid-js";
 import { encodeReplyLink, withReplyLink } from "../../../../message-links/client/api/replyLink";
 import type { MessageContent } from "../../lib/messageRenderState";
@@ -11,7 +11,7 @@ const messagesStore = service("messages");
 
 export default function MessageTextContent(props: {
   attachments: Attachment[] | undefined;
-  channelId: string;
+  channelId: ChannelId;
   hasEnlargedEmojiOnlyText: boolean;
   isEditing: boolean;
   messageText: string;

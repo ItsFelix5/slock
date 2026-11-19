@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { Button, confirmDialog } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 
@@ -6,7 +7,7 @@ const channelDetails = service("channel-details");
 
 export default function ChannelDangerZone(props: {
   archived: boolean;
-  channelId: string;
+  channelId: ChannelId;
   onChanged?: () => void;
   private: boolean;
 }) {

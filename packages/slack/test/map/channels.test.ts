@@ -7,11 +7,12 @@ import {
   mapChannel,
   mapChannelDetails,
 } from "../../src/map/channels";
-import { garbageRecord, viaJson } from "../../src/map/garbage";
+import { ch, fid } from "../../src/testing";
+import { garbageRecord, viaJson } from "../garbage";
 
 const CHANNEL_SPEC = {
   created: "number",
-  creator: "string",
+  creator: "userId",
   is_archived: "boolean",
   is_file: "boolean",
   is_private: "boolean",
@@ -41,7 +42,7 @@ describe("mapChannel", () => {
     ).toEqual({
       archived: false,
       canvasFileId: undefined,
-      id: "C1",
+      id: ch("C1"),
       lastActivity: 1700000000000,
       memberCount: 3,
       name: "general",
@@ -65,8 +66,8 @@ describe("mapChannel", () => {
 
   test("canvas comment channels point at the file", () => {
     const channel = mapChannel({ id: "C123", is_file: true, name: "whatever" });
-    expect(channel).toMatchObject({ canvasFileId: "F123", name: "Canvas comments" });
-    expect(canvasFileIdOf({ id: "C9", name_normalized: "FC:abc" })).toBe("F9");
+    expect(channel).toMatchObject({ canvasFileId: fid("F123"), name: "Canvas comments" });
+    expect(canvasFileIdOf({ id: "C9", name_normalized: "FC:abc" })).toBe(fid("F9"));
     expect(canvasFileIdOf({ id: "C9" })).toBeUndefined();
   });
 
@@ -75,8 +76,8 @@ describe("mapChannel", () => {
       (random) => ({ ...garbageRecord(random, CHANNEL_SPEC), id: "C9" }),
       (garbage) => {
         const raw = viaJson<RawChannel>(garbage);
-        expect(mapChannel(raw).id).toBe("C9");
-        expect(mapChannelDetails(raw).id).toBe("C9");
+        expect(mapChannel(raw).id).toBe(ch("C9"));
+        expect(mapChannelDetails(raw).id).toBe(ch("C9"));
       },
       500,
     );
@@ -122,7 +123,12 @@ describe("extractChannelSections", () => {
         { channel_section_id: "S4" },
       ],
     });
-    expect(sections?.map((section) => section.channelIds)).toEqual([["C1"], ["C2"], ["C3"], []]);
+    expect(sections?.map((section) => section.channelIds)).toEqual([
+      [ch("C1")],
+      [ch("C2")],
+      [ch("C3")],
+      [],
+    ]);
   });
 
   test("unknown sidebar values hide the section and ids fall back to name", () => {

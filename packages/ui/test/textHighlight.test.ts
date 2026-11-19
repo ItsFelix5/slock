@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { escapeRegExp, findTextRanges, indexElementText } from "../src/textHighlight";
+import { findTextRanges, indexElementText } from "../src/textHighlight";
 
 afterEach(() => document.body.replaceChildren());
 
@@ -37,11 +37,3 @@ describe("findTextRanges", () => {
   });
 });
 
-describe("escapeRegExp", () => {
-  test("makes every special character match literally", () => {
-    for (const char of [...".*+?^$", ..."{}()|[]\\"]) {
-      expect(new RegExp(escapeRegExp(char)).test(char)).toBe(true);
-    }
-    expect(new RegExp(escapeRegExp("a.c")).test("abc")).toBe(false);
-  });
-});

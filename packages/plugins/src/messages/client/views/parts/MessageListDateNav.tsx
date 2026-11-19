@@ -1,18 +1,10 @@
 import { Icon, Popover } from "@slock/ui";
 import { createSignal } from "solid-js";
 import "./MessageListDateNav.css";
-import { defined } from "@slock/core";
+import { defined, startOfDay, toLocalInputValue } from "@slock/core";
+import { service } from "@slock/core/solid";
 
-const DAY_MS = 86_400_000;
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function toDateInputValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const env = service("env");
 
 export default function MessageListDateNav(props: {
   day: string;
@@ -48,14 +40,14 @@ export default function MessageListDateNav(props: {
       <div class="message-list-date-nav-actions flex-col">
         <button
           class="message-list-date-nav-btn btn-reset"
-          onClick={() => jumpToDate(startOfDay(new Date()).getTime())}
+          onClick={() => jumpToDate(startOfDay(env.now()))}
           type="button"
         >
           Today
         </button>
         <button
           class="message-list-date-nav-btn btn-reset"
-          onClick={() => jumpToDate(startOfDay(new Date(Date.now() - DAY_MS)).getTime())}
+          onClick={() => jumpToDate(startOfDay(env.now(), -1))}
           type="button"
         >
           Yesterday
@@ -75,7 +67,7 @@ export default function MessageListDateNav(props: {
         <span>Jump to date</span>
         <input
           class="message-list-date-nav-input input-reset"
-          max={toDateInputValue(new Date())}
+          max={toLocalInputValue(env.now(), "date")}
           onChange={({ currentTarget: { value } }) => {
             if (!value) return;
             const [year, month, day] = value.split("-").map(Number);

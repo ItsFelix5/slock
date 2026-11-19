@@ -1,27 +1,19 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { createGateway } from "../../../src/realtime/server/gateway";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createGatewayHarness, creds, watch } from "../../../src/realtime/testing/gatewayHarness";
 
 let h: ReturnType<typeof createGatewayHarness>;
 
 beforeEach(() => {
-  jest.useFakeTimers();
-  jest.spyOn(Math, "random").mockReturnValue(0.5);
   h = createGatewayHarness();
 });
 
 afterEach(() => {
   h.fake.restore();
-  jest.useRealTimers();
-  jest.restoreAllMocks();
 });
 
 describe("connecting", () => {
   test("without credentials only the offline status is sent", () => {
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     const received: string[] = [];
     gateway.open({ send: (data) => void received.push(data) }, null);
     expect(received).toEqual(['{"connected":false,"type":"_status"}']);
@@ -29,10 +21,7 @@ describe("connecting", () => {
   });
 
   test("the gateway url carries the token, enterprise and cookie", () => {
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     const received: Record<string, unknown>[] = [];
     gateway.open({ send: (data) => void received.push(JSON.parse(data)) }, creds);
     const url = new URL(h.fake.last().url);
@@ -56,15 +45,12 @@ describe("connecting", () => {
         }
       },
     });
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     gateway.open({ send() {} }, creds);
     expect(attempts).toBe(1);
-    jest.advanceTimersByTime(2000);
+    h.env.advance(2000);
     expect(attempts).toBe(2);
-    jest.advanceTimersByTime(4000);
+    h.env.advance(4000);
     expect(attempts).toBe(3);
     Object.assign(globalThis, { WebSocket: original });
   });
@@ -72,10 +58,7 @@ describe("connecting", () => {
 
 describe("client messages", () => {
   test("a client ping is answered even without a connection", () => {
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     const sent: string[] = [];
     gateway.message({ send: (data) => void sent.push(data) }, '{"type":"ping"}');
     expect(sent).toEqual(['{"type":"pong"}']);
@@ -104,10 +87,7 @@ describe("client messages", () => {
   });
 
   test("watching before the gateway opens is sent once it opens", () => {
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     const client = { send() {} };
     gateway.open(client, creds);
     const slack = h.fake.last();
@@ -130,10 +110,7 @@ describe("client messages", () => {
   });
 
   test("typing before the gateway is open does not throw", () => {
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     const client = { send() {} };
     gateway.open(client, creds);
     expect(() => gateway.message(client, '{"type":"typing","channel":"C1"}')).not.toThrow();

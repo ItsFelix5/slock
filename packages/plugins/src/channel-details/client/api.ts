@@ -1,10 +1,11 @@
+import type { ChannelId } from "@slock/types";
 import type { Component } from "solid-js";
 import type { createChannelDetailsStore } from "./channelDetails";
 
 export type { MemberFilter } from "./channelDetails";
 
 export type ChannelDetailsTabProps = {
-  channelId: string;
+  channelId: ChannelId;
   channelName: string;
   memberCount?: number;
   archived: boolean;
@@ -12,7 +13,7 @@ export type ChannelDetailsTabProps = {
   refetch(): void;
 };
 
-export type ChannelDetailsHoverProps = { channelId: string; close(): void };
+export type ChannelDetailsHoverProps = { channelId: ChannelId; close(): void };
 
 export type ChannelDetailsTabItem = {
   id: string;

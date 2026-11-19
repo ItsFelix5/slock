@@ -1,4 +1,5 @@
-import type { AccountSummary, SessionInfo } from "@slock/types";
+import type { AccountSummary, SessionInfo, TeamId, UserId } from "@slock/types";
+import { sendRequest } from "../send";
 import { INFO_COOKIE, parseSessionInfo, sessionInfoCookie } from "./info";
 
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
@@ -33,11 +34,11 @@ export function getCachedWorkspaceDomain() {
   return activeAccount()?.domain ?? null;
 }
 
-export function getCachedWorkspaceId(): string | null {
+export function getCachedWorkspaceId(): TeamId | null {
   return activeAccount()?.teamId ?? null;
 }
 
-export function userProfileUrl(domain: string, userId: string): string {
+export function userProfileUrl(domain: string, userId: UserId): string {
   const sub = domain.replace(SLACK_DOMAIN_SUFFIX_RE, "");
   return `https://${sub}.enterprise.slack.com/team/${userId}`;
 }
@@ -64,8 +65,11 @@ export const REAUTH_EVENT = "slock:reauth";
 
 export async function forceReauth(): Promise<never> {
   const activeId = getActiveAccountId();
-  if (activeId) await fetch(`/api/session/${activeId}`, { method: "DELETE" }).catch(() => {});
-  refreshAccountInfo();
-  window.dispatchEvent(new Event(REAUTH_EVENT));
+  try {
+    if (activeId) await sendRequest(`/api/session/${activeId}`, { method: "DELETE" });
+  } finally {
+    refreshAccountInfo();
+    window.dispatchEvent(new Event(REAUTH_EVENT));
+  }
   return new Promise<never>(() => {});
 }

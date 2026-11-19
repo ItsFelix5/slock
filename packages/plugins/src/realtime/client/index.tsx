@@ -4,6 +4,7 @@ import { createRealtime } from "./realtime";
 
 const setup: Setup = (ctx) => {
   const realtime = createRealtime({
+    env: ctx.get("env"),
     handlers: ctx.use("realtime.handler"),
     onOpen: ctx.use("realtime.open"),
     onReconnect: ctx.use("realtime.reconnect"),

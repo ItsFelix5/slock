@@ -1,28 +1,45 @@
 import { isRecord } from "@slock/core";
 import type { AccountSummary, SessionInfo } from "@slock/types";
+import { isTeamId } from "../ids";
 
 export const INFO_COOKIE = "slock_info";
 const MAX_AGE = 34560000;
 
-export function parseSessionInfo(cookieValue: string): SessionInfo | null {
+function isAccountSummary(value: unknown): value is AccountSummary {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.domain === "string" &&
+    (value.teamId === null || (typeof value.teamId === "string" && isTeamId(value.teamId)))
+  );
+}
+
+function decodeCookie(cookieValue: string): unknown {
   try {
-    const parsed: unknown = JSON.parse(decodeURIComponent(cookieValue));
-    if (
-      !(
-        isRecord(parsed) &&
-        (parsed.id === null || typeof parsed.id === "string") &&
-        Array.isArray(parsed.accounts)
-      )
-    ) {
-      return null;
-    }
-    const accounts: AccountSummary[] = parsed.accounts;
-    return parsed.id === null || accounts.some((account) => account.id === parsed.id)
-      ? { accounts, id: parsed.id }
-      : null;
-  } catch {
+    return JSON.parse(decodeURIComponent(cookieValue));
+  } catch (error) {
+    if (error instanceof SyntaxError || error instanceof URIError) return null;
+    throw error;
+  }
+}
+
+export function parseSessionInfo(cookieValue: string): SessionInfo | null {
+  const parsed = decodeCookie(cookieValue);
+  if (
+    !(
+      isRecord(parsed) &&
+      (parsed.id === null || typeof parsed.id === "string") &&
+      Array.isArray(parsed.accounts) &&
+      parsed.accounts.every(isAccountSummary)
+    )
+  ) {
     return null;
   }
+  const { accounts } = parsed;
+  return parsed.id === null || accounts.some((account) => account.id === parsed.id)
+    ? { accounts, id: parsed.id }
+    : null;
 }
 
 export function sessionInfoCookie(info: SessionInfo): string {

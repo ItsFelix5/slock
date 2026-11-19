@@ -1,4 +1,4 @@
-import type { CanvasNode } from "@slock/types";
+import type { CanvasNode, FileId } from "@slock/types";
 import { type CanvasEmbed, parseEmbedRecord } from "./embeds.ts";
 import { titleText } from "./flow.ts";
 import { buildFlow } from "./read.ts";
@@ -12,7 +12,7 @@ import {
 
 export interface CanvasDocument {
   embeds: Map<string, CanvasEmbed>;
-  fileIds: string[];
+  fileIds: FileId[];
   meta: CanvasMeta;
   nodes: CanvasNode[];
   title: string;
@@ -27,7 +27,7 @@ function documentFrom(decoded: DecodedCanvas): CanvasDocument | null {
   }
   const flow = buildFlow(decoded);
   const nodes = flow.entries.flatMap((entry) => entry.node ?? []);
-  const fileIds = new Set<string>();
+  const fileIds = new Set<FileId>();
   for (const embed of embeds.values()) if (embed.type === "file") fileIds.add(embed.fileId);
   for (const node of nodes)
     if (node.kind === "image" || node.kind === "file") fileIds.add(node.fileId);

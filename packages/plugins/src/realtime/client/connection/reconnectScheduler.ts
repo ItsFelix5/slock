@@ -1,34 +1,29 @@
-type Timer = ReturnType<typeof setTimeout>;
+import { backoff, type Env, type TimerHandle } from "@slock/core";
 
 const JITTER = 0.3;
 
 export function createReconnectScheduler(opts: {
   connect: () => void;
+  env: Env;
   isOnline: () => boolean;
-  clearTimer?: (timer: Timer) => void;
   initialDelay?: number;
   maxDelay?: number;
-  setTimer?: (callback: () => void, delay: number) => Timer;
-  random?: () => number;
 }) {
-  const initialDelay = opts.initialDelay ?? 1000;
-  const maxDelay = opts.maxDelay ?? 20000;
-  const clearTimer = opts.clearTimer ?? clearTimeout;
-  const setTimer = opts.setTimer ?? setTimeout;
-  const random = opts.random ?? Math.random;
-  let delay = initialDelay;
+  const base = opts.initialDelay ?? 1000;
+  const max = opts.maxDelay ?? 20000;
+  let attempt = 0;
   let disposed = false;
-  let timer: Timer | undefined;
+  let timer: TimerHandle | undefined;
 
   const cancel = () => {
-    if (timer !== undefined) clearTimer(timer);
+    opts.env.clearTimeout(timer);
     timer = undefined;
   };
 
   return {
     connected() {
       cancel();
-      delay = initialDelay;
+      attempt = 0;
     },
     dispose() {
       disposed = true;
@@ -41,9 +36,14 @@ export function createReconnectScheduler(opts: {
     },
     schedule() {
       if (disposed || timer !== undefined || !opts.isOnline()) return;
-      const wait = Math.round(delay * (1 + (random() - 0.5) * 2 * JITTER));
-      delay = Math.min(Math.ceil(delay * 1.7), maxDelay);
-      timer = setTimer(() => {
+      const wait = backoff(attempt++, {
+        base,
+        factor: 1.7,
+        jitter: JITTER,
+        max,
+        random: opts.env.random,
+      });
+      timer = opts.env.setTimeout(() => {
         timer = undefined;
         if (!(disposed || !opts.isOnline())) opts.connect();
       }, wait);

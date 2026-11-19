@@ -1,13 +1,30 @@
+export { apiDelete, apiGet, apiPatch, apiPost, apiPut, apiUpload } from "./client";
+export type { SlackErrorInit, SlackErrorKind } from "./error";
 export {
-  ApiError,
-  apiDelete,
-  apiGet,
-  apiPatch,
-  apiPost,
-  apiPut,
-  apiUpload,
   isAuthError,
-} from "./client";
+  isSlackError,
+  networkError,
+  replyError,
+  retryDecision,
+  SlackError,
+  slackErrorOf,
+} from "./error";
+export {
+  compareTs,
+  ifPresent,
+  isChannelId,
+  isFileId,
+  isTeamId,
+  isTs,
+  isUserId,
+  maxTs,
+  parseChannelId,
+  parseFileId,
+  parseTeamId,
+  parseTs,
+  parseUserId,
+} from "./ids";
+export { mapCanvasVersion, mapDraft, mapSavedItem, mapSearchResult } from "./map/api";
 export {
   canvasFileIdOf,
   extractChannelSections,
@@ -22,6 +39,7 @@ export {
   isMyRelayedMessage,
   isRawMessage,
   mapMessage,
+  mapReaction,
   mapVisibleMessage,
   mapVisibleMessages,
   RELAY_BOT_ID,

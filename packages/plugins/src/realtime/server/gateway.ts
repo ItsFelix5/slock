@@ -1,6 +1,7 @@
-import { defined } from "@slock/core";
+import { backoff, defined, type Env, type TimerHandle } from "@slock/core";
 import { type Credentials, teamIdFromRoute } from "../../slack/server/api/auth";
 import type { GatewayEvent, RealtimeEventHook, RealtimeTrim } from "./api";
+import { parseFrame } from "./frame";
 import { trimSlackGatewayPayload } from "./trim";
 
 export type ClientSocket = { send(data: string): void };
@@ -11,9 +12,8 @@ type ConnectionState = {
   hooks: () => RealtimeEventHook[];
   trims: () => RealtimeTrim[];
   gatewaySocket: WebSocket | null;
-  gatewayConnected: boolean;
-  gatewayRetryDelay: number;
-  gatewayRetryTimer: ReturnType<typeof setTimeout> | null;
+  gatewayAttempt: number;
+  gatewayRetryTimer: TimerHandle | undefined;
   presenceSubIds: Set<string>;
   userChangeSubIds: Set<string>;
   lastHeardAt: number;
@@ -22,12 +22,11 @@ type ConnectionState = {
 
 const GATEWAY_MAX_RETRY_DELAY = 60000;
 const GATEWAY_RETRY_DELAY = 2000;
+const GATEWAY_RETRY_JITTER = 0.3;
 const PING_INTERVAL_MS = 30000;
 const GATEWAY_SILENCE_MS = 90000;
 const SUBSCRIPTION_CHUNK = 100;
 const SUBSCRIPTION_TOPICS = ["user_change", "dnd_invalidated"];
-
-type HeaderWebSocket = new (url: string, options: Bun.WebSocketOptions) => WebSocket;
 
 const PONG = JSON.stringify({ type: "pong" });
 
@@ -36,22 +35,21 @@ export function statusMessage(connected: boolean): string {
 }
 
 function send(state: ConnectionState, payload: unknown) {
-  try {
-    state.socket.send(JSON.stringify(payload));
-  } catch {}
+  state.socket.send(JSON.stringify(payload));
+}
+
+function sendGateway(state: ConnectionState, payload: unknown) {
+  if (state.gatewaySocket?.readyState !== WebSocket.OPEN) return;
+  state.gatewaySocket.send(JSON.stringify(payload));
 }
 
 function sendPresenceSub(state: ConnectionState) {
   if (state.presenceSubIds.size === 0) return;
-  if (state.gatewaySocket?.readyState !== WebSocket.OPEN) return;
-  state.gatewaySocket.send(
-    JSON.stringify({ ids: [...state.presenceSubIds], type: "presence_sub" }),
-  );
+  sendGateway(state, { ids: [...state.presenceSubIds], type: "presence_sub" });
 }
 
 function sendUserChangeSubscriptions(state: ConnectionState) {
-  const socket = state.gatewaySocket;
-  if (socket?.readyState !== WebSocket.OPEN) return;
+  if (state.gatewaySocket?.readyState !== WebSocket.OPEN) return;
   const added = [...state.presenceSubIds].filter((id) => !state.userChangeSubIds.has(id));
   const removed = [...state.userChangeSubIds].filter((id) => !state.presenceSubIds.has(id));
   for (const topic of SUBSCRIPTION_TOPICS) {
@@ -62,41 +60,11 @@ function sendUserChangeSubscriptions(state: ConnectionState) {
     for (const { ids, subtype } of requests) {
       for (let start = 0; start < ids.length; start += SUBSCRIPTION_CHUNK) {
         const chunk = ids.slice(start, start + SUBSCRIPTION_CHUNK);
-        socket.send(JSON.stringify({ ids: chunk, subtype, type: "subscription_update" }));
+        sendGateway(state, { ids: chunk, subtype, type: "subscription_update" });
       }
     }
   }
   state.userChangeSubIds = new Set(state.presenceSubIds);
-}
-
-// rtm.connect fails with enterprise_is_restricted on Enterprise Grid, so we mirror the web client's gateway URL
-function buildGatewayUrl(current: Credentials) {
-  const [enterpriseId] = current.route.split(":");
-  const gatewayTeamId = teamIdFromRoute(current.route) ?? enterpriseId;
-  const shard = 1 + Math.floor(Math.random() * 3);
-  const params = new URLSearchParams({
-    batch_presence_aware: "1",
-    enterprise_id: defined(enterpriseId),
-    flannel: "3",
-    gateway_server: `${gatewayTeamId}-${shard}`,
-    lazy_channels: "1",
-    no_query_on_subscribe: "1",
-    slack_client: "desktop",
-    start_args: `?agent=client&org_wide_aware=true&agent_version=${Date.now()}&eac_cache_ts=true&cache_ts=0&name_tagging=true&only_self_subteams=true&connect_only=true&ms_latest=true`,
-    sync_desync: "1",
-    token: current.token,
-  });
-  return `wss://wss-primary.slack.com/?${params}`;
-}
-
-function scheduleGatewayReconnect(state: ConnectionState) {
-  if (state.closed || state.gatewayRetryTimer) return;
-  const delay = state.gatewayRetryDelay * (0.7 + Math.random() * 0.6);
-  state.gatewayRetryDelay = Math.min(state.gatewayRetryDelay * 2, GATEWAY_MAX_RETRY_DELAY);
-  state.gatewayRetryTimer = setTimeout(() => {
-    state.gatewayRetryTimer = null;
-    connectGateway(state);
-  }, delay);
 }
 
 function forward(state: ConnectionState, event: GatewayEvent) {
@@ -113,18 +81,76 @@ function forward(state: ConnectionState, event: GatewayEvent) {
   if (trimmed) send(state, trimmed);
 }
 
-function connectGateway(state: ConnectionState) {
-  if (state.closed || state.gatewaySocket) return;
-  try {
-    const socket = new (WebSocket as unknown as HeaderWebSocket)(buildGatewayUrl(state.creds), {
-      headers: { cookie: `d=${state.creds.slackSession}` },
+export function createGateway(
+  env: Env,
+  hooks: () => RealtimeEventHook[],
+  trims: () => RealtimeTrim[],
+) {
+  const connections = new WeakMap<ClientSocket, ConnectionState>();
+
+  // rtm.connect fails with enterprise_is_restricted on Enterprise Grid, so we mirror the web client's gateway URL
+  function buildGatewayUrl(current: Credentials) {
+    const [enterpriseId] = current.route.split(":");
+    const gatewayTeamId = teamIdFromRoute(current.route) ?? enterpriseId;
+    const shard = 1 + Math.floor(env.random() * 3);
+    const params = new URLSearchParams({
+      batch_presence_aware: "1",
+      enterprise_id: defined(enterpriseId),
+      flannel: "3",
+      gateway_server: `${gatewayTeamId}-${shard}`,
+      lazy_channels: "1",
+      no_query_on_subscribe: "1",
+      slack_client: "desktop",
+      start_args: `?agent=client&org_wide_aware=true&agent_version=${env.now()}&eac_cache_ts=true&cache_ts=0&name_tagging=true&only_self_subteams=true&connect_only=true&ms_latest=true`,
+      sync_desync: "1",
+      token: current.token,
     });
+    return `wss://wss-primary.slack.com/?${params}`;
+  }
+
+  function scheduleGatewayReconnect(state: ConnectionState) {
+    if (state.closed || state.gatewayRetryTimer) return;
+    const delay = backoff(state.gatewayAttempt++, {
+      base: GATEWAY_RETRY_DELAY,
+      jitter: GATEWAY_RETRY_JITTER,
+      max: GATEWAY_MAX_RETRY_DELAY,
+      random: env.random,
+    });
+    state.gatewayRetryTimer = env.setTimeout(() => {
+      state.gatewayRetryTimer = undefined;
+      connectGateway(state);
+    }, delay);
+  }
+
+  function watchSilence(state: ConnectionState, socket: WebSocket, onDown: () => void) {
+    const pingTimer = env.setInterval(() => {
+      if (env.now() - state.lastHeardAt > GATEWAY_SILENCE_MS) {
+        env.clearInterval(pingTimer);
+        onDown();
+        return;
+      }
+      if (socket.readyState === WebSocket.OPEN)
+        socket.send(JSON.stringify({ id: env.now(), type: "ping" }));
+    }, PING_INTERVAL_MS);
+    socket.addEventListener("close", () => env.clearInterval(pingTimer));
+  }
+
+  function connectGateway(state: ConnectionState) {
+    if (state.closed || state.gatewaySocket) return;
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(buildGatewayUrl(state.creds), {
+        headers: { cookie: `d=${state.creds.slackSession}` },
+      });
+    } catch {
+      scheduleGatewayReconnect(state);
+      return;
+    }
     state.gatewaySocket = socket;
 
     socket.addEventListener("open", () => {
-      state.gatewayConnected = true;
-      state.gatewayRetryDelay = GATEWAY_RETRY_DELAY;
-      state.lastHeardAt = Date.now();
+      state.gatewayAttempt = 0;
+      state.lastHeardAt = env.now();
       send(state, { connected: true, type: "_status" });
       state.userChangeSubIds = new Set();
       sendPresenceSub(state);
@@ -133,16 +159,14 @@ function connectGateway(state: ConnectionState) {
 
     socket.addEventListener("message", (event) => {
       if (state.gatewaySocket !== socket) return;
-      state.lastHeardAt = Date.now();
-      try {
-        forward(state, JSON.parse(String(event.data)));
-      } catch {}
+      state.lastHeardAt = env.now();
+      const frame = parseFrame(String(event.data));
+      if (frame) forward(state, frame);
     });
 
     const onDown = () => {
       if (state.gatewaySocket !== socket) return;
       state.gatewaySocket = null;
-      state.gatewayConnected = false;
       send(state, { connected: false, type: "_status" });
       if (state.closed) return;
       if (socket.readyState !== WebSocket.CLOSED) socket.close();
@@ -151,28 +175,27 @@ function connectGateway(state: ConnectionState) {
     socket.addEventListener("close", onDown);
     socket.addEventListener("error", onDown);
 
-    state.lastHeardAt = Date.now();
-    const pingTimer = setInterval(() => {
-      if (Date.now() - state.lastHeardAt > GATEWAY_SILENCE_MS) {
-        clearInterval(pingTimer);
-        onDown();
-        return;
-      }
-      if (socket.readyState !== WebSocket.OPEN) return;
-      try {
-        socket.send(JSON.stringify({ id: Date.now(), type: "ping" }));
-      } catch {
-        clearInterval(pingTimer);
-      }
-    }, PING_INTERVAL_MS);
-    socket.addEventListener("close", () => clearInterval(pingTimer));
-  } catch {
-    scheduleGatewayReconnect(state);
+    state.lastHeardAt = env.now();
+    watchSilence(state, socket, onDown);
   }
-}
 
-export function createGateway(hooks: () => RealtimeEventHook[], trims: () => RealtimeTrim[]) {
-  const connections = new WeakMap<ClientSocket, ConnectionState>();
+  function handleClientMessage(state: ConnectionState, msg: GatewayEvent) {
+    if (msg.type === "watch_presence" && Array.isArray(msg.ids)) {
+      state.presenceSubIds = new Set(msg.ids.filter((id) => typeof id === "string"));
+      sendPresenceSub(state);
+      sendUserChangeSubscriptions(state);
+    }
+    if (msg.type === "typing" && typeof msg.channel === "string") {
+      sendGateway(state, {
+        channel: msg.channel,
+        id: env.now(),
+        thread_ts: typeof msg.thread_ts === "string" ? msg.thread_ts : undefined,
+        type: "typing",
+      });
+    }
+    if (msg.type === "tickle") sendGateway(state, { reason: "focus", type: "tickle" });
+  }
+
   return {
     close(socket: ClientSocket) {
       const state = connections.get(socket);
@@ -181,38 +204,19 @@ export function createGateway(hooks: () => RealtimeEventHook[], trims: () => Rea
       const { gatewaySocket } = state;
       state.gatewaySocket = null;
       gatewaySocket?.close();
-      if (state.gatewayRetryTimer) clearTimeout(state.gatewayRetryTimer);
-      state.gatewayRetryTimer = null;
+      env.clearTimeout(state.gatewayRetryTimer);
+      state.gatewayRetryTimer = undefined;
       connections.delete(socket);
     },
     message(socket: ClientSocket, raw: string) {
-      try {
-        const msg = JSON.parse(raw);
-        if (msg.type === "ping") {
-          socket.send(PONG);
-          return;
-        }
-        const state = connections.get(socket);
-        if (!state) return;
-        if (msg.type === "watch_presence" && Array.isArray(msg.ids)) {
-          state.presenceSubIds = new Set(msg.ids.filter((id: unknown) => typeof id === "string"));
-          sendPresenceSub(state);
-          sendUserChangeSubscriptions(state);
-        }
-        if (msg.type === "typing" && typeof msg.channel === "string") {
-          state.gatewaySocket?.send(
-            JSON.stringify({
-              channel: msg.channel,
-              id: Date.now(),
-              thread_ts: typeof msg.thread_ts === "string" ? msg.thread_ts : undefined,
-              type: "typing",
-            }),
-          );
-        }
-        if (msg.type === "tickle" && state.gatewaySocket?.readyState === WebSocket.OPEN) {
-          state.gatewaySocket.send(JSON.stringify({ reason: "focus", type: "tickle" }));
-        }
-      } catch {}
+      const msg = parseFrame(raw);
+      if (!msg) return;
+      if (msg.type === "ping") {
+        socket.send(PONG);
+        return;
+      }
+      const state = connections.get(socket);
+      if (state) handleClientMessage(state, msg);
     },
     open(socket: ClientSocket, creds: Credentials | null) {
       socket.send(statusMessage(false));
@@ -220,16 +224,15 @@ export function createGateway(hooks: () => RealtimeEventHook[], trims: () => Rea
       const state: ConnectionState = {
         closed: false,
         creds,
-        gatewayConnected: false,
-        gatewayRetryDelay: GATEWAY_RETRY_DELAY,
-        gatewayRetryTimer: null,
+        gatewayAttempt: 0,
+        gatewayRetryTimer: undefined,
         gatewaySocket: null,
         hooks,
-        lastHeardAt: Date.now(),
+        lastHeardAt: env.now(),
         presenceSubIds: new Set(),
-        userChangeSubIds: new Set(),
         socket,
         trims,
+        userChangeSubIds: new Set(),
       };
       connections.set(socket, state);
       connectGateway(state);

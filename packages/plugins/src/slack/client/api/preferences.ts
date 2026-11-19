@@ -1,5 +1,13 @@
-import { ApiError, apiDelete, apiGet, apiPut } from "@slock/slack";
-import type { BootstrapPayload, UserPrefs } from "@slock/types";
+import {
+  apiDelete,
+  apiGet,
+  apiPut,
+  isChannelId,
+  parseChannelId,
+  replyError,
+  slackErrorOf,
+} from "@slock/slack";
+import type { BootstrapPayload, ChannelId, UserPrefs } from "@slock/types";
 import { fetchInitialDataWith, patchInitialData } from "./initialData";
 
 type FrecencyEntry = { count?: number; id?: string; visits?: number[] };
@@ -33,7 +41,7 @@ const SYNCED_PREFS = ["channel_sections", "emoji_use", "muted_channels", "notifi
 function fetchPrefsPayload(): Promise<BootstrapPayload> {
   return fetchInitialDataWith("notification_prefs", async () => {
     const data = await apiGet<BootstrapPayload>("/api/bootstrap/notification_prefs");
-    if (!data.ok) throw new ApiError(data.error ?? "users.prefs.get failed", data.retry_after);
+    if (!data.ok) throw replyError(data, "users.prefs.get failed");
     return data;
   });
 }
@@ -50,7 +58,11 @@ export async function fetchUserPrefs(): Promise<UserPrefs> {
 
 function mapUserPrefs(data: BootstrapPayload): UserPrefs {
   if (data.error?.notification_prefs) {
-    throw new ApiError(data.error.notification_prefs, data.retry_after?.notification_prefs);
+    throw slackErrorOf({
+      code: data.error.notification_prefs,
+      fallback: "users.prefs.get failed",
+      retryAfter: data.retry_after?.notification_prefs,
+    });
   }
   const emojiUse = parsePref<Record<string, number>>(data.emoji_use) ?? {};
 
@@ -59,12 +71,12 @@ function mapUserPrefs(data: BootstrapPayload): UserPrefs {
     parsePref<Record<string, FrecencyEntry>>(data.frecency_jumper) ??
     parsePref<Record<string, FrecencyEntry>>(data.frecency) ??
     {};
-  const channelFrecency: Record<string, { count: number; lastVisit: number }> = {};
+  const channelFrecency: UserPrefs["channelFrecency"] = {};
   for (const entry of Object.values(jumper)) {
     const { id } = entry;
     const count = entry.count ?? 0;
     const lastVisit = entry.visits ? Math.max(...entry.visits) : 0;
-    if (!id) continue;
+    if (!(id && isChannelId(id))) continue;
     const existing = channelFrecency[id];
     if (!existing || count > existing.count) channelFrecency[id] = { count, lastVisit };
   }
@@ -83,7 +95,7 @@ function mapUserPrefs(data: BootstrapPayload): UserPrefs {
       ...mutedChannelsList,
       ...Object.keys(notificationOverrides).filter((id) => notificationOverrides[id]?.muted),
     ]),
-  );
+  ).map(parseChannelId);
   const globalKeywords = (notificationGlobal.global_keywords ?? "")
     .split(",")
     .map((word) => word.trim())
@@ -101,14 +113,16 @@ function mapUserPrefs(data: BootstrapPayload): UserPrefs {
     pushShowPreview: notificationGlobal.push_show_preview !== false,
     threadsEverything: !!notificationGlobal.threads_everything,
   };
-  const notifyAllChannels = Object.keys(notificationOverrides).filter(
-    (id) =>
-      notificationOverrides[id]?.desktop === "everything" ||
-      notificationOverrides[id]?.mobile === "everything",
-  );
+  const notifyAllChannels = Object.keys(notificationOverrides)
+    .filter(
+      (id) =>
+        notificationOverrides[id]?.desktop === "everything" ||
+        notificationOverrides[id]?.mobile === "everything",
+    )
+    .map(parseChannelId);
   const channelNotifications: UserPrefs["channelNotifications"] = {};
   for (const [id, { desktop, mobile }] of Object.entries(notificationOverrides)) {
-    if (desktop || mobile) channelNotifications[id] = { desktop, mobile };
+    if (desktop || mobile) channelNotifications[parseChannelId(id)] = { desktop, mobile };
   }
 
   const parsedSectionPrefs = parsePref<Record<string, SectionPref | null>>(data.channel_sections);
@@ -146,7 +160,7 @@ export async function setChannelSectionsPreference(
   return !!data.ok;
 }
 
-export async function setMutedChannels(channelIds: string[]): Promise<void> {
+export async function setMutedChannels(channelIds: ChannelId[]): Promise<void> {
   const data = await apiPut("/api/preferences/muted-channels", { channelIds });
   if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
 }

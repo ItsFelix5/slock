@@ -1,4 +1,8 @@
-import type { ActivityItem, User } from "@slock/types";
+import { parseChannelId, parseUserId } from "@slock/slack";
+import type { ActivityItem, ChannelId, Ts, User } from "@slock/types";
+
+export const NO_CHANNEL = parseChannelId("C000000000");
+export const NO_USER = parseUserId("U000000000");
 
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 
@@ -8,11 +12,18 @@ const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([
   "dm",
 ]);
 export function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
-  return OwnMessageFilteredKinds.has(item.kind) && (!item.userId || item.userId === me.id);
+  return OwnMessageFilteredKinds.has(item.kind) && (item.userId === NO_USER || item.userId === me.id);
 }
 
 export function reactionActivityKey(item: ActivityItem): string | undefined {
-  if (!(item.kind === "reaction" && item.channelId && item.ts && item.reactionName && item.userId))
+  if (
+    !(
+      item.kind === "reaction" &&
+      item.channelId !== NO_CHANNEL &&
+      item.reactionName &&
+      item.userId !== NO_USER
+    )
+  )
     return;
   return `${item.channelId}:${item.ts}:${item.reactionName}:${item.userId}`;
 }
@@ -29,7 +40,7 @@ export function createPingCoverage(items: readonly ActivityItem[]) {
       covered.has(`thread:${item.channelId}:${item.threadTs ?? item.ts}`));
 }
 
-export function channelPostKey(channelId: string, ts: string): string {
+export function channelPostKey(channelId: ChannelId, ts: Ts): string {
   return `${channelId}:${ts}`;
 }
 

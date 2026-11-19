@@ -1,4 +1,5 @@
 import { isRecord } from "@slock/core";
+import { isChannelId, isFileId, isTeamId, isUserId } from "@slock/slack";
 import type {
   CanvasControl,
   CanvasEdit,
@@ -19,6 +20,10 @@ const LINE_KINDS: readonly string[] = [
 
 function isString(value: unknown): value is string {
   return typeof value === "string";
+}
+
+function isId(value: unknown, guard: (raw: string) => boolean): boolean {
+  return isString(value) && guard(value);
 }
 
 function isNumber(value: unknown): value is number {
@@ -55,7 +60,7 @@ function isCanvasLine(value: Record<string, unknown>): boolean {
 }
 
 function isCanvasFile(value: Record<string, unknown>): boolean {
-  return hasFrames(value) && isString(value.fileId) && isString(value.permalink);
+  return hasFrames(value) && isId(value.fileId, isFileId) && isString(value.permalink);
 }
 
 function isThumb(value: unknown): boolean {
@@ -65,7 +70,7 @@ function isThumb(value: unknown): boolean {
 function isCanvasImage(value: Record<string, unknown>): boolean {
   return (
     hasFrames(value) &&
-    isString(value.fileId) &&
+    isId(value.fileId, isFileId) &&
     isString(value.mimetype) &&
     isString(value.name) &&
     isNumber(value.width) &&
@@ -110,9 +115,11 @@ function isCanvasNode(value: unknown): value is CanvasNode {
 
 function isCanvasControl(value: unknown): value is CanvasControl {
   if (!(isRecord(value) && isString(value.id))) return false;
-  if (value.kind === "user") return isString(value.userId);
-  if (value.kind === "channel") return isString(value.channelId);
-  if (value.kind === "emoji") return isString(value.name) && isString(value.teamId);
+  if (value.kind === "annotation") return true;
+  if (value.kind === "user") return isId(value.userId, isUserId);
+  if (value.kind === "channel") return isId(value.channelId, isChannelId);
+  if (value.kind === "emoji")
+    return isString(value.name) && isId(value.teamId, isTeamId);
   return value.kind === "date" && isNumber(value.ms) && isString(value.label);
 }
 

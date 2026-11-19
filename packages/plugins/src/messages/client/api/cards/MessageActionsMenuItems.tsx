@@ -1,12 +1,12 @@
 import { Slot } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { ChannelId, Message, Ts } from "@slock/types";
 
 export interface MessageActionsMenuItemsProps {
-  channelId: string;
+  channelId: ChannelId;
   msg: Message;
   onClose: () => void;
   onEditRequest: () => void;
-  threadTs?: string;
+  threadTs?: Ts;
 }
 
 export default function MessageActionsMenuItems(props: MessageActionsMenuItemsProps) {

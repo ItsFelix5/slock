@@ -1,52 +1,52 @@
 import type { BlockKitResolver } from "@slock/blockkit";
-import type { Attachment, Message, User } from "@slock/types";
+import type { Attachment, ChannelId, Message, Ts, User, UserId } from "@slock/types";
 import type { Accessor, Component, JSX } from "solid-js";
 import type { PaneContentOf } from "../../shell/client/api/types";
 import type { createMessagesStore } from "./store";
 
-export type ThreadRef = { channelId: string; ts: string; highlightTs?: string };
+export type ThreadRef = { channelId: ChannelId; ts: Ts; highlightTs?: Ts };
 
 export type ThreadPaneContent = PaneContentOf<"thread">;
 
 export type MessageBadgeProps = {
   message: Message;
-  channelId: string;
-  threadTs?: string;
+  channelId: ChannelId;
+  threadTs?: Ts;
   showBroadcast: boolean;
 };
 
 export type MessageBodyProps = {
   msg: Message;
-  channelId: string;
-  threadTs?: string;
+  channelId: ChannelId;
+  threadTs?: Ts;
   isEditing: boolean;
   attachments?: Attachment[];
-  onOpenThread?: (ts: string, options?: { pinned?: boolean }) => void;
+  onOpenThread?: (ts: Ts, options?: { pinned?: boolean }) => void;
 };
 
-export type MessageFooterProps = { channelId: string; threadTs?: string };
+export type MessageFooterProps = { channelId: ChannelId; threadTs?: Ts };
 
 export type MessageMenuProps = {
-  channelId: string;
+  channelId: ChannelId;
   msg: Message;
-  threadTs?: string;
+  threadTs?: Ts;
   close(): void;
   edit(): void;
 };
 
 export type MessageBarProps = {
-  channelId: string;
+  channelId: ChannelId;
   msg: Message;
-  threadTs?: string;
-  onOpenThread?: (ts: string, options?: { pinned?: boolean }) => void;
+  threadTs?: Ts;
+  onOpenThread?: (ts: Ts, options?: { pinned?: boolean }) => void;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
   rowFocused: () => boolean;
-  reactionPickerTs: () => string | null;
-  onToggleReactionPicker: (ts: string) => void;
+  reactionPickerTs: () => Ts | null;
+  onToggleReactionPicker: (ts: Ts) => void;
 };
 
-export type MessageDeletedHook = (channelId: string, ts: string) => void;
+export type MessageDeletedHook = (channelId: ChannelId, ts: Ts) => void;
 
 export type MessagePatchHook = (
   current: Message,
@@ -55,10 +55,10 @@ export type MessagePatchHook = (
 
 export type MessageEditedProps = { msg: Message };
 
-export type MessageQuote = (msg: Message, channelId: string) => JSX.Element | undefined;
+export type MessageQuote = (msg: Message, channelId: ChannelId) => JSX.Element | undefined;
 
 export type MessageAuthorProps = {
-  userId: Accessor<string | undefined>;
+  userId: Accessor<UserId | undefined>;
   user: Accessor<User | undefined>;
   visible: Accessor<boolean>;
 };
@@ -73,7 +73,7 @@ export type MessageTakeover = {
 };
 
 export type ChannelMenuProps = {
-  channelId: string;
+  channelId: ChannelId;
   channelTitle: string;
   isDm: boolean;
   showMoveTo: boolean;
@@ -93,7 +93,7 @@ declare module "@slock/core/types" {
     "messages.deleted": MessageDeletedHook;
     "messages.edited": Component<MessageEditedProps>;
     "messages.patch": MessagePatchHook;
-    "messages.prefetch": (channelId: string) => void;
+    "messages.prefetch": (channelId: ChannelId) => void;
     "messages.retain": (msg: Message) => boolean;
     "messages.header": Component<MessageHeaderProps>;
     "messages.takeover": MessageTakeover;

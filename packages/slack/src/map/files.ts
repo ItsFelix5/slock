@@ -9,6 +9,7 @@ import type {
   SlackFileShare,
   SlackLink,
 } from "@slock/types";
+import { ifPresent, parseChannelId, parseFileId, parseTs, parseUserId } from "../ids";
 
 const EXTENSION_MIMETYPES = new Map(
   Object.entries({
@@ -67,7 +68,7 @@ export function mapFile(f: RawFile): SlackFile {
     duration: f.duration ?? (typeof f.duration_ms === "number" ? f.duration_ms / 1000 : undefined),
     filetype,
     height: thumb?.h ?? f.original_h,
-    id: f.id,
+    id: parseFileId(f.id),
     isAudio,
     isDeleted: f.mode === "tombstone" || !f.created,
     isImage: !!mimetype?.startsWith("image/"),
@@ -108,7 +109,7 @@ export function mapLink(raw: RawLink): SlackLink {
     thumbUrl: raw.thumb_url || undefined,
     thumbWidth: raw.thumb_width ?? undefined,
     title: raw.title,
-    ts: raw.timestamp,
+    ts: parseTs(raw.timestamp),
     url: raw.url,
   };
 }
@@ -116,12 +117,12 @@ export function mapLink(raw: RawLink): SlackLink {
 export function mapFileShare(raw: RawFileShare): SlackFileShare {
   return {
     access: raw.access,
-    channelId: raw.channel_id,
+    channelId: parseChannelId(raw.channel_id),
     channelName: raw.channel_name ?? raw.channel_id,
     replyCount: raw.reply_count,
-    sharedByUserId: raw.share_user_id,
-    threadTs: raw.thread_ts,
-    ts: raw.ts,
+    sharedByUserId: ifPresent(parseUserId, raw.share_user_id),
+    threadTs: ifPresent(parseTs, raw.thread_ts),
+    ts: parseTs(raw.ts),
   };
 }
 
@@ -136,7 +137,7 @@ export function mapAttachment(a: RawAttachment): Attachment {
     authorSubname: a.author_subname,
     blocks: a.blocks,
     callbackId: a.callback_id,
-    channelId: a.channel_id,
+    channelId: ifPresent(parseChannelId, a.channel_id),
     color: a.color,
     fallback: a.fallback,
     fields: a.fields,
@@ -156,7 +157,7 @@ export function mapAttachment(a: RawAttachment): Attachment {
     text: a.text,
     title: a.title,
     titleLink: a.title_link,
-    ts: a.ts,
+    ts: ifPresent(parseTs, a.ts),
     videoHeight: a.video_height,
     videoUrl: a.video_url || undefined,
     videoWidth: a.video_width,

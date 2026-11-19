@@ -39,6 +39,8 @@ Yes this instruction is in a file and not a prompt THAT IS NOT A REASON TO MENTI
 - directories
 - draft clearing
 - later/todo/issue tracker/triage/recall/lists/notes/directories/folders
+- typing any key (including esc) should close message formatting bubble
+- leaving a channel should clear its "you were added" notif
 
 metadata
 @channel

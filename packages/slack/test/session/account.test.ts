@@ -13,33 +13,38 @@ import {
   userProfileUrl,
 } from "../../src/session/account";
 import { sessionInfoCookie } from "../../src/session/info";
+import { tid, uid } from "../../src/testing";
 
 const accounts: AccountSummary[] = [
-  { domain: "one.slack.com", id: "a", name: "One", teamId: "T1" },
+  { domain: "one.slack.com", id: "a", name: "One", teamId: tid("T1") },
   { domain: "two.enterprise.slack.com", id: "b", name: "Two", teamId: null },
 ];
 
-const globals = globalThis as { document?: unknown; window?: unknown };
+const GLOBAL_NAMES = ["document", "window"];
+
+function setGlobal(name: string, value: unknown) {
+  Object.defineProperty(globalThis, name, { configurable: true, value, writable: true });
+}
+
 let jar = "";
 let events: string[] = [];
 let deleted: string[] = [];
 const realFetch = globalThis.fetch;
-const realDocument = globals.document;
-const realWindow = globals.window;
+const realGlobals = GLOBAL_NAMES.map((name) => Object.getOwnPropertyDescriptor(globalThis, name));
 
 beforeEach(() => {
   jar = "";
   events = [];
   deleted = [];
-  globals.document = {
+  setGlobal("document", {
     get cookie() {
       return jar;
     },
     set cookie(value: string) {
       jar = value;
     },
-  };
-  globals.window = { dispatchEvent: (event: Event) => events.push(event.type) };
+  });
+  setGlobal("window", { dispatchEvent: (event: Event) => events.push(event.type) });
   globalThis.fetch = Object.assign(
     (url: string | URL | Request, init?: RequestInit) => {
       deleted.push(`${init?.method} ${String(url)}`);
@@ -52,8 +57,11 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = realFetch;
-  globals.document = realDocument;
-  globals.window = realWindow;
+  GLOBAL_NAMES.forEach((name, index) => {
+    const descriptor = realGlobals[index];
+    if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+    else Reflect.deleteProperty(globalThis, name);
+  });
 });
 
 function signIn(id: string | null) {
@@ -74,7 +82,7 @@ describe("account info", () => {
     signIn("a");
     expect(isConfigured()).toBe(true);
     expect(getActiveAccountId()).toBe("a");
-    expect(getCachedWorkspaceId()).toBe("T1");
+    expect(getCachedWorkspaceId()).toBe(tid("T1"));
     expect(getCachedWorkspaceDomain()).toBe("one.slack.com");
     expect(listAccounts()).toEqual(accounts);
   });
@@ -117,7 +125,7 @@ describe("userProfileUrl", () => {
     ["acme.slack.com", "https://acme.enterprise.slack.com/team/U1"],
     ["acme.enterprise.slack.com", "https://acme.enterprise.slack.com/team/U1"],
   ])("%s", (domain, expected) => {
-    expect(userProfileUrl(domain, "U1")).toBe(expected);
+    expect(userProfileUrl(domain, uid("U1"))).toBe(expected);
   });
 });
 

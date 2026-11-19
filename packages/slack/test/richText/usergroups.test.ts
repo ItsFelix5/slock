@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { Block } from "@slock/types";
+import type { Block, RichTextInlineElement } from "@slock/types";
 import { usergroupIdsOf } from "../../src/richText/usergroups";
 
-const block = (elements: unknown[]) =>
-  ({ elements: [{ elements, type: "rich_text_section" }], type: "rich_text" }) as Block;
+const block = (elements: RichTextInlineElement[]): Block => ({
+  elements: [{ elements, type: "rich_text_section" }],
+  type: "rich_text",
+});
 
 describe("usergroupIdsOf", () => {
   test("collects unique ids from rich text in order", () => {

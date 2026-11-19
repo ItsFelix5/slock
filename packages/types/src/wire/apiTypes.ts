@@ -1,6 +1,7 @@
 import type { Block } from "../blocks/blocks";
 import type { ActivityItem } from "../contentTypes";
 import type { SlackFile, SlackLink } from "../fileTypes";
+import type { ChannelId, TeamId, Ts, UserId } from "../ids";
 import type {
   BrowsableChannel,
   CanvasListItem,
@@ -25,9 +26,9 @@ export interface Bootstrap {
   countsLoaded: boolean;
   currentUser: User;
   directMessages: DirectMessage[];
-  lastReadByChannel: Record<string, number>;
+  lastReadByChannel: Record<ChannelId, number>;
   selfUsergroupIds: string[];
-  starredChannelIds: string[];
+  starredChannelIds: ChannelId[];
 }
 
 export interface ChannelFilesAndLinks {
@@ -40,7 +41,7 @@ export interface ChannelFilesAndLinks {
 
 export interface ChannelPostingPrefs {
   allowChannelMentions: boolean;
-  postingExceptionUserIds: string[];
+  postingExceptionUserIds: UserId[];
   postingRestrictedToManagers: boolean;
   threadsRestrictedToManagers: boolean;
 }
@@ -48,7 +49,7 @@ export interface ChannelPostingPrefs {
 export type ChannelPostingPrefsPatch =
   | {
       posting: {
-        exceptionUserIds: string[];
+        exceptionUserIds: UserId[];
         restrictedToManagers: boolean;
       };
     }
@@ -76,15 +77,15 @@ export interface FileUploadInput {
 export type DraftEntry = {
   id: string;
   clientMsgId: string;
-  channelId: string;
-  threadTs?: string;
+  channelId: ChannelId;
+  threadTs?: Ts;
   blocks: Block[];
-  lastUpdatedTs?: string;
+  lastUpdatedTs?: Ts;
 };
 
 export interface PinnedMessage {
   message: Message | null;
-  ts: string;
+  ts: Ts;
 }
 
 export interface SearchResult {
@@ -92,21 +93,21 @@ export interface SearchResult {
   botIcon?: string;
   botId?: string;
   botName?: string;
-  channelId: string;
+  channelId: ChannelId;
   channelName: string;
   highlights?: string[];
   text: string;
-  threadTs?: string;
-  ts: string;
-  userId: string;
+  threadTs?: Ts;
+  ts: Ts;
+  userId: UserId;
 }
 
 export type UserPrefs = {
   emojiUse: Record<string, number>;
-  channelFrecency: Record<string, { count: number; lastVisit: number }>;
-  mutedChannels: string[];
-  notifyAllChannels: string[];
-  channelNotifications: Record<string, { desktop?: string; mobile?: string }>;
+  channelFrecency: Record<ChannelId, { count: number; lastVisit: number }>;
+  mutedChannels: ChannelId[];
+  notifyAllChannels: ChannelId[];
+  channelNotifications: Record<ChannelId, { desktop?: string; mobile?: string }>;
   highlightWords: string[];
   sectionSort: Record<string, "recent">;
   sectionSidebar: Record<string, "hid" | "active" | "all">;
@@ -139,7 +140,7 @@ export type AccountSummary = {
   id: string;
   name: string;
   domain: string;
-  teamId: string | null;
+  teamId: TeamId | null;
 };
 
 export type SessionInfo = { id: string | null; accounts: AccountSummary[] };

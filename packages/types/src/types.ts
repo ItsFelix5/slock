@@ -1,17 +1,18 @@
 import type { Block } from "./blocks/blocks";
 import type { Attachment, PendingFile, SlackFile } from "./fileTypes";
+import type { ChannelId, FileId, Ts, UserId } from "./ids";
 import type { User } from "./userTypes";
 import type { RawMessage } from "./wire/rawTypes";
 
 export interface CanvasListItem {
-  fileId: string;
+  fileId: FileId;
   title: string;
 }
 
 export interface Reaction {
   count: number;
   name: string;
-  users: string[];
+  users: UserId[];
 }
 
 export type MessageKind = "normal" | "system";
@@ -29,7 +30,7 @@ export interface Message {
   edited?: boolean;
   editHistory?: string[];
   files?: SlackFile[];
-  id: string;
+  id: Ts;
   pending?: boolean;
   pendingFiles?: PendingFile[];
   isBroadcast?: boolean;
@@ -41,27 +42,27 @@ export interface Message {
   isSubscribed?: boolean;
   kind: MessageKind;
   lastReplyLabel?: string;
-  latestReply?: string;
+  latestReply?: Ts;
   metadata?: RawMessage["metadata"];
   reactions?: Reaction[];
   replyCount?: number;
-  replyUsers?: string[];
+  replyUsers?: UserId[];
   subtype?: string;
   text: string;
 
-  threadLastRead?: string;
+  threadLastRead?: Ts;
   threadRoot?: Message;
 
-  threadTs?: string;
+  threadTs?: Ts;
   time: string;
-  ts: string;
-  userId: string;
+  ts: Ts;
+  userId: UserId | undefined;
 }
 
 export interface Channel {
   archived: boolean;
-  canvasFileId?: string;
-  id: string;
+  canvasFileId?: FileId;
+  id: ChannelId;
   lastActivity?: number;
   memberCount?: number;
   mentions?: number;
@@ -72,22 +73,22 @@ export interface Channel {
 }
 
 export interface DirectMessage {
-  id: string;
+  id: ChannelId;
   lastActivity?: number;
   mentions?: number;
   name?: string;
   unread: boolean;
 
-  userId?: string;
-  memberIds?: string[];
+  userId?: UserId;
+  memberIds?: UserId[];
 }
 
 export interface ChannelDetails {
   archived: boolean;
   created: number;
-  creatorId?: string;
+  creatorId?: UserId;
   email?: string;
-  id: string;
+  id: ChannelId;
   memberCount?: number;
   name: string;
   private: boolean;
@@ -107,7 +108,7 @@ export interface MemberPermissionsPatch {
 }
 
 export interface BrowsableChannel {
-  id: string;
+  id: ChannelId;
   memberCount?: number;
   name: string;
   private: boolean;
@@ -115,7 +116,7 @@ export interface BrowsableChannel {
 }
 
 export interface ChannelSection {
-  channelIds: string[];
+  channelIds: ChannelId[];
   id: string;
   name: string;
 

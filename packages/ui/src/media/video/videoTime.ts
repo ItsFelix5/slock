@@ -1,3 +1,4 @@
+import { clamp } from "@slock/core";
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
 
@@ -10,7 +11,7 @@ export function formatDuration(seconds: number | undefined): string {
 }
 
 export function clampRatio(ratio: number): number {
-  return Number.isNaN(ratio) ? 0 : Math.min(1, Math.max(0, ratio));
+  return Number.isNaN(ratio) ? 0 : clamp(ratio, 0, 1);
 }
 
 export function ratioOf(value: number, total: number): number {

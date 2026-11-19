@@ -3,7 +3,11 @@ import { UPGRADED } from "@slock/server/http";
 import { createGateway } from "./gateway";
 
 const setup: Setup = (ctx) => {
-  const gateway = createGateway(ctx.use("realtime.event"), ctx.use("realtime.trim"));
+  const gateway = createGateway(
+    ctx.get("env"),
+    ctx.use("realtime.event"),
+    ctx.use("realtime.trim"),
+  );
   ctx.add(
     "http",
     (c, next) => {

@@ -1,5 +1,5 @@
 import { maybeService, Slot, service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { ChannelId, Message, Ts } from "@slock/types";
 import { ContextMenu, useContextMenu, useDeferredMount } from "@slock/ui";
 import { createEffect, createMemo, Show } from "solid-js";
 import { retainsDeleted } from "../api/deletedMessages";
@@ -34,21 +34,21 @@ export type MessageRowProps = {
   message: Message;
   messages: Message[];
   prev: () => Message | undefined;
-  messageByTs: () => Map<string, Message>;
-  channelId: string;
-  threadTs?: string;
+  messageByTs: () => Map<Ts, Message>;
+  channelId: ChannelId;
+  threadTs?: Ts;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
-  onJumpToMessage?: (ts: string) => void;
+  onJumpToMessage?: (ts: Ts) => void;
   index: () => number;
-  focusedTs?: () => string | null;
-  editingTs?: () => string | null;
-  onStartEdit?: (ts: string) => void;
+  focusedTs?: () => Ts | null;
+  editingTs?: () => Ts | null;
+  onStartEdit?: (ts: Ts) => void;
   onStopEdit?: () => void;
-  reactionPickerTs?: () => string | null;
-  onToggleReactionPicker?: (ts: string) => void;
-  moreMenuTs?: () => string | null;
-  onToggleMoreMenu?: (ts: string) => void;
+  reactionPickerTs?: () => Ts | null;
+  onToggleReactionPicker?: (ts: Ts) => void;
+  moreMenuTs?: () => Ts | null;
+  onToggleMoreMenu?: (ts: Ts) => void;
 };
 
 export default function MessageRow(props: MessageRowProps) {
@@ -94,15 +94,17 @@ export default function MessageRow(props: MessageRowProps) {
     return ref ? msg().attachments?.find((a) => a.isMessageUnfurl && a.ts === ref.ts) : undefined;
   });
   const showThreadContext = () => content().showThreadContext;
-  const threadParent = createMemo(() =>
-    showThreadContext()
-      ? (msg().threadRoot ??
-        props.messageByTs().get(msg().threadTs ?? "") ??
-        messagesStore
-          .findAllMessageLocations(props.channelId, msg().threadTs ?? "")[0]
-          ?.list.find((m) => m.ts === msg().threadTs))
-      : undefined,
-  );
+  const threadParent = createMemo(() => {
+    const rootTs = msg().threadTs;
+    if (!(showThreadContext() && rootTs)) return;
+    return (
+      msg().threadRoot ??
+      props.messageByTs().get(rootTs) ??
+      messagesStore
+        .findAllMessageLocations(props.channelId, rootTs)[0]
+        ?.list.find((m) => m.ts === rootTs)
+    );
+  });
   const visibleAttachments = () => content().visibleAttachments;
   const sameAuthorAsPrev = () => neighbors().sameAuthorAsPrev;
   const showBroadcastBadge = () => content().showBroadcastBadge;

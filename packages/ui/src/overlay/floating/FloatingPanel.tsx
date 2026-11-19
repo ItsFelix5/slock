@@ -1,3 +1,4 @@
+import { clamp } from "@slock/core";
 import {
   createContext,
   createEffect,
@@ -12,9 +13,6 @@ import { Portal } from "solid-js/web";
 
 export const FloatingMountContext = createContext<() => Element | undefined>();
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(value, max));
-}
 
 export type VerticalPlacement = "top" | "bottom";
 export type HorizontalPlacement = "left" | "right";

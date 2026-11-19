@@ -1,6 +1,6 @@
-import type { Reaction } from "@slock/types";
+import type { Reaction, UserId } from "@slock/types";
 
-export function addReactionUser(reactions: Reaction[], name: string, userId: string): Reaction[] {
+export function addReactionUser(reactions: Reaction[], name: string, userId: UserId): Reaction[] {
   const existing = reactions.find((reaction) => reaction.name === name);
   if (!existing) return [...reactions, { count: 1, name, users: [userId] }];
   if (existing.users.includes(userId)) return reactions;
@@ -14,7 +14,7 @@ export function addReactionUser(reactions: Reaction[], name: string, userId: str
 export function removeReactionUser(
   reactions: Reaction[],
   name: string,
-  userId: string,
+  userId: UserId,
 ): Reaction[] {
   const existing = reactions.find((reaction) => reaction.name === name);
   if (!existing?.users.includes(userId)) return reactions;

@@ -1,20 +1,17 @@
-type Timer = ReturnType<typeof setInterval>;
+import type { Env, TimerHandle } from "@slock/core";
 
 export function createHeartbeat(opts: {
+  env: Env;
   onDead: () => void;
   ping: () => void;
-  clearTimer?: (timer: Timer) => void;
   intervalMs?: number;
-  setTimer?: (callback: () => void, delay: number) => Timer;
 }) {
   const intervalMs = opts.intervalMs ?? 20_000;
-  const clearTimer = opts.clearTimer ?? clearInterval;
-  const setTimer = opts.setTimer ?? setInterval;
   let awaitingReply = false;
-  let timer: Timer | undefined;
+  let timer: TimerHandle | undefined;
 
   const stop = () => {
-    if (timer !== undefined) clearTimer(timer);
+    opts.env.clearInterval(timer);
     timer = undefined;
     awaitingReply = false;
   };
@@ -25,7 +22,7 @@ export function createHeartbeat(opts: {
     },
     start() {
       stop();
-      timer = setTimer(() => {
+      timer = opts.env.setInterval(() => {
         if (awaitingReply) {
           stop();
           opts.onDead();

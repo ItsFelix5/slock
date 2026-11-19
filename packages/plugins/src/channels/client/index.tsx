@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { ifPresent, parseChannelId } from "@slock/slack";
 import { gatewayHandler } from "../../realtime/client/api";
 import { channelDisplayName } from "./api";
 import { createMembershipHandler, MEMBERSHIP_EVENTS } from "./membershipEvents";
@@ -44,22 +45,24 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["channel_changed"], (event) => {
-      if (event.channel) store.invalidateChannelRoster(event.channel);
+      const id = ifPresent(parseChannelId, event.channel);
+      if (id) store.invalidateChannelRoster(id);
     }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["channel_updated"], (event) => {
       for (const id of event.channels)
-        store.patchChannel(id, { archived: event.updates.archived, topic: event.updates.topic });
+        store.patchChannel(parseChannelId(id), { archived: event.updates.archived, topic: event.updates.topic });
     }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["message"], (event) => {
       const isTopic = event.subtype === "channel_topic" || event.subtype === "group_topic";
-      if (isTopic && event.channel && event.topic !== undefined)
-        store.patchChannel(event.channel, { topic: event.topic });
+      if (!isTopic || event.topic === undefined) return;
+      const id = ifPresent(parseChannelId, event.channel);
+      if (id) store.patchChannel(id, { topic: event.topic });
     }),
   );
   ctx.add(
@@ -80,8 +83,9 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["star_added", "star_removed"], (event) => {
-      if (event.item.type === "channel" && event.item.channel)
-        store.setStarredChannelIds(event.item.channel, event.type === "star_added");
+      const id = ifPresent(parseChannelId, event.item.channel);
+      if (event.item.type === "channel" && id)
+        store.setStarredChannelIds(id, event.type === "star_added");
     }),
   );
   ctx.add("messages.channelMenu", LeaveItem, { order: 60 });

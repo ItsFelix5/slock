@@ -1,14 +1,8 @@
-export type Random = () => number;
+import { type Random, seededRandom } from "./fake/seededRandom";
 
-export function seededRandom(seed: number): Random {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let mixed = Math.imul(state ^ (state >>> 15), state | 1);
-    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { createFakeEnv, type FakeEnv } from "./fake/fakeEnv";
+export type { FakeFetch, FetchCall } from "./fake/fakeFetch";
+export { type Random, seededRandom } from "./fake/seededRandom";
 
 export function int(random: Random, min: number, max: number): number {
   return min + Math.floor(random() * (max - min + 1));

@@ -1,5 +1,6 @@
 import type { Block } from "./blocks/blocks";
 import type { SlackFile } from "./fileTypes";
+import type { ChannelId, Ts, UserId } from "./ids";
 
 export interface ActivityItem {
   botIcon?: string;
@@ -8,7 +9,7 @@ export interface ActivityItem {
   botName?: string;
   blocks?: Block[];
   broadcastRange?: "channel" | "here" | "everyone";
-  channelId: string;
+  channelId: ChannelId;
   files?: SlackFile[];
   id: string;
   kind:
@@ -22,26 +23,26 @@ export interface ActivityItem {
     | "keyword"
     | "other";
   activityType?: string;
-  feedTs?: string;
+  feedTs?: Ts;
   linkedItemId?: string;
 
   reactionName?: string;
   reminderNote?: string;
   text: string;
 
-  threadTs?: string;
+  threadTs?: Ts;
   time: number;
-  ts: string;
+  ts: Ts;
   unread?: boolean;
 
   unreadCount?: number;
   usergroupId?: string;
-  userId: string;
+  userId: UserId;
 }
 
 export interface SavedItem {
-  channelId: string;
+  channelId: ChannelId;
   dateCreated?: number;
   dateDue?: number;
-  ts: string;
+  ts: Ts;
 }

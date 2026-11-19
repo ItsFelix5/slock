@@ -1,22 +1,22 @@
 import { Slot } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { ChannelId, Message, Ts } from "@slock/types";
 import { IconButton, Menu } from "@slock/ui";
 import MessageActionsMenuItems from "../../api/cards/MessageActionsMenuItems";
 import type { OpenThreadHandler } from "../../api/messageFocus";
 
 export default function MessageActionsBar(props: {
-  channelId: string;
+  channelId: ChannelId;
   msg: Message;
-  threadTs?: string;
+  threadTs?: Ts;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
   onEditRequest: () => void;
 
   rowFocused: () => boolean;
-  reactionPickerTs: () => string | null;
-  onToggleReactionPicker: (ts: string) => void;
-  moreMenuTs: () => string | null;
-  onToggleMoreMenu: (ts: string) => void;
+  reactionPickerTs: () => Ts | null;
+  onToggleReactionPicker: (ts: Ts) => void;
+  moreMenuTs: () => Ts | null;
+  onToggleMoreMenu: (ts: Ts) => void;
 }) {
   const pickerOpen = () => props.reactionPickerTs() === props.msg.ts;
   const moreOpen = () => props.moreMenuTs() === props.msg.ts;

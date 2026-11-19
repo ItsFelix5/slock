@@ -1,4 +1,13 @@
-import type { Context, EnabledStore, PluginDef, PluginStatus, Reactive, Setup } from "../types";
+import { systemEnv } from "../env";
+import type {
+  Context,
+  EnabledStore,
+  Env,
+  PluginDef,
+  PluginStatus,
+  Reactive,
+  Setup,
+} from "../types";
 import { errorMessage } from "../util/errorMessage";
 import { planStart } from "./plan";
 import { createRegistry } from "./registry";
@@ -26,6 +35,7 @@ type Running = { cleanups: (() => void)[]; dispose: () => void };
 export type HostOptions = {
   plugins?: PluginDef[];
   reactive?: Reactive;
+  env?: Env;
   enabled?: EnabledStore;
   beforeRestart?: () => void;
 };
@@ -44,6 +54,7 @@ export type PluginInfo = {
 export function createHost(options: HostOptions = {}) {
   const reactive = options.reactive ?? plainReactive;
   const registry = createRegistry(reactive);
+  registry.provide("host", "env", options.env ?? systemEnv);
   const defs = new Map<string, PluginDef>();
   const running = new Map<string, Running>();
   const failed = new Map<string, string>();

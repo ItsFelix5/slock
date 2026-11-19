@@ -1,6 +1,8 @@
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
-import type { GatewayEvent, Message, User } from "@slock/types";
+import { createFakeEnv } from "@slock/core/testing";
+import { ch, uid } from "@slock/slack/testing";
+import type { ChannelId, GatewayEvent, Message, Ts, User } from "@slock/types";
 import { QueryClient } from "@tanstack/solid-query";
 import { createRoot, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -11,18 +13,19 @@ import { createMessagesStore } from "../../../../src/messages/client/store/index
 import { createFeedback } from "../../../../src/shell/client/feedback";
 import { createFakeSlack } from "./fakeSlack";
 
-export const ME = "UME";
-export const OTHER = "UOTHER";
+export const ME = uid("UME");
+export const OTHER = uid("UOTHER");
 
 const me: User = { avatarColor: "#000", id: ME, name: "me" };
 
 export const settle = async () => {
-  for (let i = 0; i < 20; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let i = 0; i < 200; i++) await Promise.resolve();
 };
 
 export async function createStoreHarness() {
-  const slack = createFakeSlack(ME);
-  const host = createHost({ reactive: solidReactive });
+  const env = createFakeEnv();
+  const slack = createFakeSlack(ME, env);
+  const host = createHost({ env, reactive: solidReactive });
   setHost(host);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await host.register(
@@ -30,13 +33,13 @@ export async function createStoreHarness() {
     { id: "query", setup: (ctx) => ctx.provide("query", { client: queryClient }) },
   );
 
-  const [unread, setUnread] = createStore<Record<string, boolean>>({});
-  const patchedChannels: string[] = [];
+  const [unread, setUnread] = createStore<Record<ChannelId, boolean>>({});
+  const patchedChannels: ChannelId[] = [];
   const deleted: string[] = [];
-  const closedDms: Record<string, boolean> = {};
+  const closedDms: Record<ChannelId, boolean> = {};
   const [views, setViews] = createSignal<View[]>([]);
   const [threads, setThreads] = createSignal<ThreadRef[]>([]);
-  const members = new Set<string>(["C1", "C2", "C3", "C4", "C5", "C6"]);
+  const members = new Set<ChannelId>(["C1", "C2", "C3", "C4", "C5", "C6"].map(ch));
 
   let dispose = () => {};
   const { events, store } = createRoot((stop) => {
@@ -93,20 +96,20 @@ export async function createStoreHarness() {
     deliver,
     dispose() {
       dispose();
-      slack.restore();
       return host.stop();
     },
-    messages: (channel: string): Message[] => [...(store.messagesByChannel[channel] ?? [])],
+    messages: (channel: ChannelId): Message[] => [...(store.messagesByChannel[channel] ?? [])],
     onReconnect: events.onReconnect,
-    open(...ids: string[]) {
+    open(...ids: ChannelId[]) {
       setViews(ids.map((id) => ({ id, kind: "channel" })));
     },
     openThread(thread: ThreadRef) {
       setThreads([thread]);
     },
+    env,
     slack,
     store,
-    thread: (ts: string): Message[] => [...(store.threadMessages[ts] ?? [])],
+    thread: (ts: Ts): Message[] => [...(store.threadMessages[ts] ?? [])],
     unreadChannels: () => Object.keys(unread).filter((id) => unread[id]),
   };
 }

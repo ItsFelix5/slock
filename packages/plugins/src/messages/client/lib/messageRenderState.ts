@@ -1,4 +1,4 @@
-import type { Attachment, Block, Message } from "@slock/types";
+import type { Attachment, Block, ChannelId, Message, Ts } from "@slock/types";
 import {
   type ReplyTarget,
   splitReplyLink,
@@ -9,10 +9,10 @@ import { emojiOnlyBlockMessage, emojiShortcodeCount, MAX_ENLARGED_EMOJI } from "
 import { isUnreadDividerBoundary } from "./unreadDivider";
 
 export interface MessageContentContext {
-  channelId: string;
+  channelId: ChannelId;
   hasOpenThread: boolean;
   messages: () => Message[];
-  threadTs?: string;
+  threadTs?: Ts;
 }
 
 export interface MessageContent {
@@ -26,11 +26,11 @@ export interface MessageContent {
 }
 
 export interface MessageNeighborContext {
-  channelId: string;
+  channelId: ChannelId;
   isPinned: boolean;
   messages: () => Message[];
   showDeleted: boolean;
-  threadTs?: string;
+  threadTs?: Ts;
   unreadDividerTs?: number;
 }
 
@@ -48,7 +48,7 @@ export function resolveMessageContent(
   message: Message,
   context: MessageContentContext,
 ): MessageContent {
-  const isThreadMessage = (channelId: string, ts: string) =>
+  const isThreadMessage = (channelId: ChannelId, ts: Ts) =>
     threadContainsMessage(context.channelId, message.threadTs, context.messages(), channelId, ts);
   const {
     blocks: renderBlocks,

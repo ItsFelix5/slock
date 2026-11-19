@@ -4,7 +4,7 @@ export function MessageAvatarButton(props: {
   color?: string;
   name: string;
   src?: string;
-  userId: string;
+  userId: string | undefined;
   onClick: () => void;
   tabbable?: boolean;
 }) {
@@ -21,7 +21,7 @@ export function MessageAvatarButton(props: {
         user={{
           avatarColor: props.color ?? DEFAULT_AVATAR_COLOR,
           avatarUrl: props.src,
-          id: props.userId,
+          id: props.userId ?? props.name,
           name: props.name,
         }}
       />

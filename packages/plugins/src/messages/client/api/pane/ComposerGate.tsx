@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { createSignal, type JSX, Match, Switch } from "solid-js";
 import ChannelNoticeBar from "./ChannelNoticeBar";
 
@@ -7,7 +8,7 @@ const channelDetails = service("channel-details");
 const dmsStore = service("dms");
 
 export default function ComposerGate(props: {
-  channelId: string;
+  channelId: ChannelId;
   children: JSX.Element;
   locked?: boolean;
 }) {

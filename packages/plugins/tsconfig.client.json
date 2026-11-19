@@ -18,6 +18,7 @@
     { "path": "../ui" },
     { "path": "../slack" },
     { "path": "../types" },
-    { "path": "../blockkit" }
+    { "path": "../blockkit" },
+    { "path": "../resource" }
   ]
 }

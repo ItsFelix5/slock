@@ -1,3 +1,5 @@
+import type { ChannelId, UserId } from "./ids";
+
 export interface UserCustomField {
   alt?: string;
   id: string;
@@ -16,7 +18,7 @@ export interface User {
   botId?: string;
   customFields?: UserCustomField[];
   email?: string;
-  id: string;
+  id: UserId;
   isBot?: boolean;
 
   isWorkspaceAdmin?: boolean;
@@ -44,15 +46,15 @@ export interface Usergroup {
 }
 
 export interface UsergroupDetails {
-  channelIds: string[];
-  createdBy?: string;
+  channelIds: ChannelId[];
+  createdBy?: UserId;
   dateCreate?: number;
   description: string;
   handle: string;
   id: string;
   isSection: boolean;
   memberCount: number;
-  memberIds: string[];
+  memberIds: UserId[];
   title: string;
 }
 

@@ -1,5 +1,6 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { ChannelId, UserId } from "@slock/types";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
@@ -10,11 +11,11 @@ const channelDetails = service("channel-details");
 
 const usersStore = service("users");
 
-export default function ChannelPostingPermissions(props: { channelId: string }) {
+export default function ChannelPostingPermissions(props: { channelId: ChannelId }) {
   const postingPrefsQuery = channelDetails.createChannelPostingPrefsQuery(() => props.channelId);
   const postingPrefs = () => postingPrefsQuery.data;
   const [postingRestricted, setPostingRestricted] = createSignal(false);
-  const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<string[]>([]);
+  const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<UserId[]>([]);
   const [threadsRestricted, setThreadsRestricted] = createSignal(false);
   const [allowChannelMentions, setAllowChannelMentions] = createSignal(true);
   const [savingPostingPrefs, setSavingPostingPrefs] = createSignal(false);
@@ -68,7 +69,7 @@ export default function ChannelPostingPermissions(props: { channelId: string }) 
     );
   };
 
-  const savePostingExceptions = async (next: string[]) => {
+  const savePostingExceptions = async (next: UserId[]) => {
     if (!canEdit()) return;
     const previous = postingExceptionUserIds();
     setPostingExceptionUserIds(next);
@@ -79,13 +80,13 @@ export default function ChannelPostingPermissions(props: { channelId: string }) 
     );
   };
 
-  const addPostingException = (userId: string) => {
+  const addPostingException = (userId: UserId) => {
     const current = postingExceptionUserIds();
     if (current.length >= 100 || current.includes(userId)) return;
     savePostingExceptions([...current, userId]);
   };
 
-  const removePostingException = (userId: string) => {
+  const removePostingException = (userId: UserId) => {
     savePostingExceptions(postingExceptionUserIds().filter((id) => id !== userId));
   };
 

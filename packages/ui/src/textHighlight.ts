@@ -1,9 +1,6 @@
 export const WHITESPACE_RE = /\s/;
 export const TRAILING_PUNCTUATION_RE = /[),.!?;:'"]+$/;
 
-export function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 export type TextIndex = { starts: { node: Node; start: number }[]; text: string };
 

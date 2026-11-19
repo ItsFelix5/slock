@@ -5,7 +5,7 @@ import { trimDraft } from "../../slack/server/api/trim/slackDrafts";
 type SyncPayload = {
   channel?: string | { id?: string };
   channels?: unknown[];
-  draft?: RawDraft;
+  draft?: Partial<RawDraft>;
   draft_id?: string;
   file_id?: string;
   name?: string;
@@ -44,11 +44,15 @@ function userId(user: SyncPayload["user"]): string | undefined {
   return typeof user === "string" ? user : user?.id;
 }
 
+function isCompleteDraft(draft: Partial<RawDraft>): draft is RawDraft {
+  return !!draft.id && Array.isArray(draft.destinations);
+}
+
 function draftEvent(
-  draft: RawDraft | undefined,
+  draft: Partial<RawDraft> | undefined,
   type: "draft_create" | "draft_update",
 ): GatewayEvent | null {
-  const entry = draft?.id ? trimDraft(draft) : undefined;
+  const entry = draft && isCompleteDraft(draft) ? trimDraft(draft) : undefined;
   return entry ? { draft: entry, type } : null;
 }
 

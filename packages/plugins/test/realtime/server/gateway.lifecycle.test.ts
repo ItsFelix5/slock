@@ -1,20 +1,15 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { GatewayEvent } from "../../../src/realtime/server/api";
-import { createGateway } from "../../../src/realtime/server/gateway";
 import { createGatewayHarness, creds, watch } from "../../../src/realtime/testing/gatewayHarness";
 
 let h: ReturnType<typeof createGatewayHarness>;
 
 beforeEach(() => {
-  jest.useFakeTimers();
-  jest.spyOn(Math, "random").mockReturnValue(0.5);
   h = createGatewayHarness();
 });
 
 afterEach(() => {
   h.fake.restore();
-  jest.useRealTimers();
-  jest.restoreAllMocks();
 });
 
 describe("reconnecting", () => {
@@ -24,9 +19,9 @@ describe("reconnecting", () => {
     expect(received).toEqual([{ connected: false, type: "_status" }]);
     for (const delay of [2000, 4000, 8000]) {
       const before = h.fake.sockets.length;
-      jest.advanceTimersByTime(delay - 1);
+      h.env.advance(delay - 1);
       expect(h.fake.sockets).toHaveLength(before);
-      jest.advanceTimersByTime(1);
+      h.env.advance(1);
       expect(h.fake.sockets).toHaveLength(before + 1);
       h.fake.last().drop();
     }
@@ -36,11 +31,11 @@ describe("reconnecting", () => {
     const { slack } = h.connect();
     slack.drop();
     for (let attempt = 0; attempt < 10; attempt++) {
-      jest.advanceTimersByTime(60_000);
+      h.env.advance(60_000);
       h.fake.last().drop();
     }
     const before = h.fake.sockets.length;
-    jest.advanceTimersByTime(60_000);
+    h.env.advance(60_000);
     expect(h.fake.sockets).toHaveLength(before + 1);
   });
 
@@ -48,9 +43,9 @@ describe("reconnecting", () => {
     const { slack } = h.connect();
     slack.fail();
     slack.drop();
-    jest.advanceTimersByTime(2000);
+    h.env.advance(2000);
     expect(h.fake.sockets).toHaveLength(2);
-    jest.advanceTimersByTime(60_000);
+    h.env.advance(60_000);
     expect(h.fake.sockets).toHaveLength(2);
   });
 
@@ -58,7 +53,7 @@ describe("reconnecting", () => {
     const { client, gateway, slack } = h.connect();
     watch(gateway, client, ["U1", "U2"]);
     slack.drop();
-    jest.advanceTimersByTime(2000);
+    h.env.advance(2000);
     h.fake.last().accept();
     const types = h.fake
       .last()
@@ -74,7 +69,7 @@ describe("reconnecting", () => {
   test("late events from the dead socket are ignored", () => {
     const { received, slack } = h.connect();
     slack.drop();
-    jest.advanceTimersByTime(2000);
+    h.env.advance(2000);
     received.length = 0;
     slack.receive({ channel: "C1", ts: "1.1", type: "message", user: "U1" });
     expect(received).toEqual([]);
@@ -84,24 +79,24 @@ describe("reconnecting", () => {
 describe("liveness", () => {
   test("the gateway is pinged every 30 seconds", () => {
     const { slack } = h.connect();
-    jest.advanceTimersByTime(30_000);
-    jest.advanceTimersByTime(30_000);
+    h.env.advance(30_000);
+    h.env.advance(30_000);
     expect(slack.sentJson().map((msg) => msg.type)).toEqual(["ping", "ping"]);
   });
 
   test("a gateway that stays silent is dropped and reconnected", () => {
     const { received, slack } = h.connect();
-    jest.advanceTimersByTime(120_000);
+    h.env.advance(120_000);
     expect(received).toContainEqual({ connected: false, type: "_status" });
     expect(slack.readyState).not.toBe(1);
-    jest.advanceTimersByTime(2000);
+    h.env.advance(2000);
     expect(h.fake.sockets).toHaveLength(2);
   });
 
   test("any inbound frame keeps the gateway alive", () => {
     const { received, slack } = h.connect();
     for (let tick = 0; tick < 40; tick++) {
-      jest.advanceTimersByTime(30_000);
+      h.env.advance(30_000);
       slack.receive({ type: "pong" });
     }
     expect(received).toEqual([]);
@@ -118,7 +113,7 @@ describe("closing", () => {
     gateway.close(client);
     slack.drop();
     slack.receive({ channel: "C1", ts: "1.1", type: "message", user: "U1" });
-    jest.advanceTimersByTime(600_000);
+    h.env.advance(600_000);
     expect(slack.sent).toEqual([]);
     expect(hooks).toEqual([]);
     expect(received).toEqual([]);
@@ -129,7 +124,7 @@ describe("closing", () => {
     const { client, gateway, slack } = h.connect();
     slack.drop();
     gateway.close(client);
-    jest.advanceTimersByTime(600_000);
+    h.env.advance(600_000);
     expect(h.fake.sockets).toHaveLength(1);
   });
 
@@ -141,10 +136,7 @@ describe("closing", () => {
   });
 
   test("many connections opened and closed leave no sockets or timers behind", () => {
-    const gateway = createGateway(
-      () => [],
-      () => [],
-    );
+    const gateway = h.create();
     for (let index = 0; index < 200; index++) {
       const client = { send() {} };
       gateway.open(client, creds);
@@ -152,7 +144,7 @@ describe("closing", () => {
       gateway.close(client);
     }
     const created = h.fake.sockets.length;
-    jest.advanceTimersByTime(600_000);
+    h.env.advance(600_000);
     expect(h.fake.sockets).toHaveLength(created);
     expect(h.fake.sockets.every((socket) => socket.sent.length === 0)).toBe(true);
   });

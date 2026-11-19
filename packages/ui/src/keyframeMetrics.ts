@@ -1,4 +1,4 @@
-import { defined } from "@slock/core";
+import { clamp, defined } from "@slock/core";
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -10,7 +10,7 @@ export function metricsAt<T extends Record<string, number>>(
 ): T {
   const [min] = defined(keyframes[0]);
   const [max] = defined(keyframes[keyframes.length - 1]);
-  const clamped = Math.min(max, Math.max(min, at));
+  const clamped = clamp(at, min, max);
   let segmentEnd = keyframes.length - 1;
   for (let i = 1; i < keyframes.length; i += 1) {
     const [frameAt] = defined(keyframes[i]);

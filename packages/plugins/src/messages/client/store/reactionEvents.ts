@@ -1,19 +1,16 @@
-import type { Message } from "@slock/types";
-import type { MessageLocation } from "../lib/messageLocations";
+import type { ChannelId, Message, Ts, UserId } from "@slock/types";
+import type { LocatedMessages } from "../lib/messageLocations";
 import { addReactionUser, removeReactionUser } from "../lib/reactionList";
 
 export function createReactionEvents(deps: {
-  findAllMessageLocations: (
-    channelId: string,
-    ts: string,
-  ) => { location: MessageLocation; list: Message[] }[];
-  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
+  findAllMessageLocations: (channelId: ChannelId, ts: Ts) => LocatedMessages[];
+  patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
 }) {
   function applyReactionEvent(
-    channel: string,
-    ts: string,
+    channel: ChannelId,
+    ts: Ts,
     name: string,
-    userId: string,
+    userId: UserId,
     added: boolean,
   ) {
     const msg = deps.findAllMessageLocations(channel, ts)[0]?.list.find((m) => m.ts === ts);

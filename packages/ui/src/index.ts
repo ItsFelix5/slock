@@ -121,7 +121,6 @@ export { distributeResize } from "./panes/resize";
 export { createRecencyEviction } from "./recencyEviction";
 export { comboLabel, type ShortcutCombo } from "./shortcutCombo";
 export {
-  escapeRegExp,
   findTextRanges,
   indexElementText,
   type TextIndex,

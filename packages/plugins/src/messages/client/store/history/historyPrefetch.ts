@@ -1,6 +1,10 @@
+import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import type { fetchConversationView, fetchHistory } from "../../../../slack/client/api";
 
 const TTL_MS = 10_000;
+
+const env = service("env");
 
 type Entry = {
   at: number;
@@ -10,18 +14,18 @@ type Entry = {
 
 export function createHistoryPrefetch(
   api: { fetchConversationView: typeof fetchConversationView; fetchHistory: typeof fetchHistory },
-  isLoaded: (channelId: string) => boolean,
+  isLoaded: (channelId: ChannelId) => boolean,
 ) {
-  const entries = new Map<string, Entry>();
-  const isFresh = (entry: Entry) => Date.now() - entry.at < TTL_MS;
-  const start = (channelId: string): Entry => ({
-    at: Date.now(),
+  const entries = new Map<ChannelId, Entry>();
+  const isFresh = (entry: Entry) => env.now() - entry.at < TTL_MS;
+  const start = (channelId: ChannelId): Entry => ({
+    at: env.now(),
     history: api.fetchHistory(channelId),
     view: api.fetchConversationView(channelId),
   });
 
   return {
-    prefetch(channelId: string) {
+    prefetch(channelId: ChannelId) {
       const known = entries.get(channelId);
       if ((known && isFresh(known)) || isLoaded(channelId)) return;
       const entry = start(channelId);
@@ -32,7 +36,7 @@ export function createHistoryPrefetch(
       entry.view.catch(drop);
       entries.set(channelId, entry);
     },
-    take(channelId: string): Entry {
+    take(channelId: ChannelId): Entry {
       const entry = entries.get(channelId);
       entries.delete(channelId);
       return entry && isFresh(entry) ? entry : start(channelId);

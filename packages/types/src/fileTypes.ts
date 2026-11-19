@@ -1,11 +1,12 @@
 import type { Block } from "./blocks/blocks";
+import type { ChannelId, FileId, Ts, UserId } from "./ids";
 
 export interface SlackFile {
   created?: number;
   duration?: number;
   filetype?: string;
   height?: number;
-  id: string;
+  id: FileId;
   isAudio?: boolean;
   isDeleted?: boolean;
   isImage: boolean;
@@ -38,25 +39,24 @@ export interface SlackLink {
   thumbUrl?: string;
   thumbWidth?: number;
   title: string | null;
-
-  ts: string;
+  ts: Ts;
   url: string;
 }
 
 export interface SlackFileShare {
   access?: string;
-  channelId: string;
+  channelId: ChannelId;
   channelName: string;
   replyCount?: number;
-  sharedByUserId?: string;
-  threadTs?: string;
-  ts: string;
+  sharedByUserId?: UserId;
+  threadTs?: Ts;
+  ts: Ts;
 }
 
 export interface SlackFileAccess {
   orgId: string | null;
   orgLevel: string;
-  users: { access: string; userId: string }[];
+  users: { access: string; userId: UserId }[];
 }
 
 export interface SlackFileDetail {
@@ -65,7 +65,7 @@ export interface SlackFileDetail {
   contentTruncated: boolean;
   editable: boolean;
   file: SlackFile;
-  ownerId: string | null;
+  ownerId: UserId | null;
   shares: SlackFileShare[];
   starred: boolean;
   viewerCount: number | null;
@@ -81,7 +81,7 @@ export interface Attachment {
   blocks?: Block[];
   callbackId?: string;
 
-  channelId?: string;
+  channelId?: ChannelId;
   color?: string;
 
   fallback?: string;
@@ -107,7 +107,7 @@ export interface Attachment {
   text?: string;
   title?: string;
   titleLink?: string;
-  ts?: string;
+  ts?: Ts;
   videoHeight?: number;
   videoUrl?: string;
   videoWidth?: number;

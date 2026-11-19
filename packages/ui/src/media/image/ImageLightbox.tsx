@@ -1,3 +1,4 @@
+import { clamp } from "@slock/core";
 import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
 import IconButton from "../../button/IconButton";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
@@ -38,7 +39,7 @@ export function ImageLightbox(props: {
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [naturalSize, setNaturalSize] = createSignal<{ w: number; h: number } | null>(null);
-  const index = () => Math.max(0, Math.min(props.index, props.gallery.length - 1));
+  const index = () => clamp(props.index, 0, props.gallery.length - 1);
   const image = () => defined(props.gallery[index()]);
   const hasPrevious = () => index() > 0;
   const hasNext = () => index() < props.gallery.length - 1;
@@ -94,8 +95,8 @@ export function ImageLightbox(props: {
     setLens((current) => {
       const base = current ?? { x: rect.width / 2, y: rect.height / 2 };
       return {
-        x: Math.max(0, Math.min(rect.width, base.x + dx)),
-        y: Math.max(0, Math.min(rect.height, base.y + dy)),
+        x: clamp(base.x + dx, 0, rect.width),
+        y: clamp(base.y + dy, 0, rect.height),
       };
     });
   };

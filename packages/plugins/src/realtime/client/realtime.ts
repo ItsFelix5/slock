@@ -1,3 +1,4 @@
+import type { Env } from "@slock/core";
 import type { GatewayEvent } from "@slock/types";
 import { batch } from "solid-js";
 import type { RealtimeHandler } from "./api";
@@ -21,6 +22,7 @@ function indexByType(handlers: RealtimeHandler[]) {
 }
 
 export function createRealtime(points: {
+  env: Env;
   handlers: () => RealtimeHandler[];
   onOpen: () => (() => void)[];
   onReconnect: () => ((info: { downMs: number }) => void)[];
@@ -37,12 +39,7 @@ export function createRealtime(points: {
   };
 
   function dispatch(raw: string) {
-    let event: GatewayEvent;
-    try {
-      event = JSON.parse(raw);
-    } catch {
-      return;
-    }
+    const event: GatewayEvent = JSON.parse(raw);
     if (event.type === "_status") connection.setGatewayConnected(!!event.connected);
     for (const handler of handlersFor(event.type)) {
       try {
@@ -67,6 +64,7 @@ export function createRealtime(points: {
   }
 
   const connection = createRealtimeConnection({
+    env: points.env,
     onMessage: handleRaw,
     onOpen: () => {
       for (const run of points.onOpen()) run();

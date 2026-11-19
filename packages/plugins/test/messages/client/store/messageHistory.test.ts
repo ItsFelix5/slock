@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { defined } from "@slock/core";
 import { int, pick, seededRandom } from "@slock/core/testing";
-import type { HistoryPage, Message } from "@slock/types";
+import { compareTs } from "@slock/slack";
+import { ch, stamp } from "@slock/slack/testing";
+import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
 import { createRoot } from "solid-js";
 import { unwrap } from "solid-js/store";
 import { message, slackTs } from "../../../../src/messages/client/messageFixture";
 import { createMessageHistory } from "../../../../src/messages/client/store/messageHistory";
 
-const CHANNEL = "C1";
+const CHANNEL = ch("C1");
 const BASE_SECONDS = 1_700_000_000;
 const PAGE = 30;
 const NEWER_PAGE = 50;
@@ -15,16 +18,16 @@ const WINDOW_CAP = 120;
 
 function createServer(count: number) {
   const all: Message[] = [];
-  const positions = new Map<string, number>();
+  const positions = new Map<Ts, number>();
   const append = () => {
-    const next = message(slackTs(BASE_SECONDS + all.length));
+    const next = message(stamp(slackTs(BASE_SECONDS + all.length)));
     positions.set(next.ts, all.length);
     all.push(next);
     return next;
   };
   for (let i = 0; i < count; i++) append();
-  const indexOf = (ts: string) => positions.get(ts) ?? -1;
-  const countUpTo = (ts: string) => all.filter((m) => parseFloat(m.ts) <= parseFloat(ts)).length;
+  const indexOf = (ts: Ts) => positions.get(ts) ?? -1;
+  const countUpTo = (ts: Ts) => all.filter((m) => compareTs(m.ts, ts) <= 0).length;
   const olderPage = (end: number): HistoryPage => {
     const start = Math.max(0, end - PAGE);
     return {
@@ -45,9 +48,11 @@ function createServer(count: number) {
         topic: "",
       }),
     fetchConversationView: () => Promise.reject(new Error("no view")),
-    fetchHistory: (_channelId: string, cursor?: string) =>
-      Promise.resolve(olderPage(cursor ? indexOf(cursor.slice("before:".length)) : all.length)),
-    fetchHistoryAround: (_channelId: string, ts: string) => {
+    fetchHistory: (_channelId: ChannelId, cursor?: string) =>
+      Promise.resolve(
+        olderPage(cursor ? indexOf(stamp(cursor.slice("before:".length))) : all.length),
+      ),
+    fetchHistoryAround: (_channelId: ChannelId, ts: Ts) => {
       const end = countUpTo(ts);
       const start = Math.max(0, end - AROUND);
       return Promise.resolve({
@@ -56,7 +61,7 @@ function createServer(count: number) {
         nextCursor: start > 0 ? `before:${all[start]?.ts}` : undefined,
       });
     },
-    fetchHistoryNewer: (_channelId: string, oldest: string) => {
+    fetchHistoryNewer: (_channelId: ChannelId, oldest: Ts) => {
       const start = countUpTo(oldest);
       const messages = all.slice(start, start + NEWER_PAGE);
       const hasMore = start + NEWER_PAGE < all.length;
@@ -129,7 +134,7 @@ describe("history paging", () => {
 
   test("a message link loads 28 messages ending at the target and then newer ones", async () => {
     const { dispose, flush, history, server, window } = createHarness(500);
-    const target = server.all[100]?.ts ?? "";
+    const target = defined(server.all[100]).ts;
     await history.ensureChannelMessage(CHANNEL, target);
     await flush();
     expect(window().some((m) => m.ts === target)).toBe(true);
@@ -140,7 +145,7 @@ describe("history paging", () => {
 
   test("newer paging from a window ends at the present", async () => {
     const { dispose, flush, history, server, window } = createHarness(160);
-    await history.ensureChannelMessage(CHANNEL, server.all[50]?.ts ?? "");
+    await history.ensureChannelMessage(CHANNEL, defined(server.all[50]).ts);
     await flush();
     for (let i = 0; i < 5; i++) await history.loadNewerMessages(CHANNEL);
     expect(window().at(-1)?.ts).toBe(server.all.at(-1)?.ts);
@@ -171,7 +176,7 @@ describe("history window properties", () => {
       await history.loadRecentHistory(CHANNEL);
       for (let step = 0; step < 14; step++) {
         const operation = pick(random, operations);
-        const target = server.all[int(random, 0, server.all.length - 1)]?.ts ?? "";
+        const target = defined(server.all[int(random, 0, server.all.length - 1)]).ts;
         trace.push(operation);
         if (operation === "older") await history.loadOlderMessages(CHANNEL);
         else if (operation === "newer") await history.loadNewerMessages(CHANNEL);

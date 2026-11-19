@@ -1,18 +1,21 @@
-import type { Channel } from "@slock/types";
+import { service } from "@slock/core/solid";
+import type { Channel, ChannelId } from "@slock/types";
 import { batch } from "solid-js";
 
+const env = service("env");
+
 export function createChannelActivityBatcher(
-  patchChannel: (id: string, patch: Partial<Channel>) => void,
+  patchChannel: (id: ChannelId, patch: Partial<Channel>) => void,
 ) {
-  const pending = new Set<string>();
+  const pending = new Set<ChannelId>();
   const flush = () => {
-    const at = Date.now();
+    const at = env.now();
     batch(() => {
       for (const id of pending) patchChannel(id, { lastActivity: at });
     });
     pending.clear();
   };
-  return (channelId: string) => {
+  return (channelId: ChannelId) => {
     if (pending.size === 0) requestAnimationFrame(flush);
     pending.add(channelId);
   };

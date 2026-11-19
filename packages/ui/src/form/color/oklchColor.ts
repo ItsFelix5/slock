@@ -1,4 +1,4 @@
-import { defined } from "@slock/core";
+import { clamp as clampRange, defined } from "@slock/core";
 export interface OklchColor {
   alpha: number;
   chroma: number;
@@ -19,7 +19,7 @@ const RGB_RE = /rgba?\((.+)\)/i;
 const SRGB_RE = /color\(srgb\s+([^\s/]+)\s+([^\s/]+)\s+([^\s/)]+)(?:\s*\/\s*([^\s)]+))?\)/i;
 
 function clamp(value: number, min = 0, max = 1): number {
-  return Math.min(max, Math.max(min, value));
+  return clampRange(value, min, max);
 }
 
 function parseNumber(value: string, percentScale = 1): number {

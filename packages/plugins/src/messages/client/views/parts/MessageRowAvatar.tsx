@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { User } from "@slock/types";
+import type { User, UserId } from "@slock/types";
 import { Show } from "solid-js";
 import { MessageAvatarButton } from "../MessageAvatarButton";
 import AuthorHoverCard from "./AuthorHoverCard";
@@ -9,7 +9,7 @@ const usersStore = service("users");
 export default function MessageRowAvatar(props: {
   avatarUrl: string | undefined;
   displayName: string;
-  fallbackUserId: string;
+  fallbackUserId: UserId | undefined;
   focused: boolean;
   profileUserId: string | undefined;
   user: User | undefined;

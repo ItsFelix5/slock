@@ -1,3 +1,4 @@
+import { clamp } from "@slock/core";
 import { createEffect, createSignal, For } from "solid-js";
 import "./OtpInput.css";
 import { defined } from "@slock/core";
@@ -45,7 +46,7 @@ export default function OtpInput(props: OtpInputProps) {
   });
 
   function focusAt(index: number) {
-    const input = inputs[Math.min(Math.max(index, 0), length() - 1)];
+    const input = inputs[clamp(index, 0, length() - 1)];
     input?.focus();
     input?.select();
   }

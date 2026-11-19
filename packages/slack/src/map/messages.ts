@@ -1,5 +1,6 @@
 import { formatDay, formatTime } from "@slock/core";
-import type { Message, MessageKind, RawMessage, User } from "@slock/types";
+import type { Message, MessageKind, RawMessage, RawReaction, Reaction, User } from "@slock/types";
+import { ifPresent, parseTs, parseUserId } from "../ids";
 import { blockPreviewText } from "../richText/plainText";
 import { mapAttachment, mapFile } from "./files";
 
@@ -55,7 +56,12 @@ function systemText(m: RawMessage, text: string): string {
   return m.user && !text.includes(`<@${m.user}>`) ? `<@${m.user}> ${text}` : text;
 }
 
+export function mapReaction(raw: RawReaction): Reaction {
+  return { count: raw.count, name: raw.name, users: raw.users.map(parseUserId) };
+}
+
 export function mapMessage(m: RawMessage): Message {
+  const ts = parseTs(m.ts);
   const subtype: string | undefined = m.subtype;
   const kind: MessageKind = subtype && SYSTEM_SUBTYPES.has(subtype) ? "system" : "normal";
   const text = m.text || blockPreviewText(m.blocks);
@@ -75,32 +81,32 @@ export function mapMessage(m: RawMessage): Message {
 
     botName: m.username ?? m.bot_profile?.name,
     canvasThreadId: m.document_comment?.thread_id,
-    day: formatDay(m.ts),
+    day: formatDay(ts),
     deleted: isHiddenSubtype(subtype) || m.deleted || undefined,
     edited: !!m.edited,
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
-    id: m.ts,
+    id: ts,
     isBroadcast: subtype === "thread_broadcast",
     isEphemeral: !!m.is_ephemeral,
     isLocked: m.is_locked || undefined,
     isSubscribed: typeof m.subscribed === "boolean" ? m.subscribed : undefined,
     kind,
-    latestReply: m.latest_reply,
+    latestReply: ifPresent(parseTs, m.latest_reply),
     lastReplyLabel: m.latest_reply
       ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
       : undefined,
     metadata: m.metadata,
-    reactions: m.reactions,
+    reactions: m.reactions?.map(mapReaction),
     replyCount: m.reply_count,
-    replyUsers: m.reply_users,
+    replyUsers: m.reply_users?.map(parseUserId),
     subtype,
     text: kind === "system" ? systemText(m, text) : text,
-    threadLastRead: m.last_read,
+    threadLastRead: ifPresent(parseTs, m.last_read),
     threadRoot: m.root ? mapMessage(m.root) : undefined,
-    threadTs: m.thread_ts && m.thread_ts !== m.ts ? m.thread_ts : undefined,
-    time: formatTime(m.ts),
-    ts: m.ts,
-    userId: m.user ?? m.bot_id ?? "",
+    threadTs: m.thread_ts && m.thread_ts !== m.ts ? parseTs(m.thread_ts) : undefined,
+    time: formatTime(ts),
+    ts,
+    userId: ifPresent(parseUserId, m.user ?? m.bot_id),
   };
 }
 

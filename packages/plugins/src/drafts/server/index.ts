@@ -1,4 +1,4 @@
-import type { Setup } from "@slock/core";
+import type { Env, Setup } from "@slock/core";
 import type { Block } from "@slock/types";
 import {
   errorResponse,
@@ -11,7 +11,7 @@ import { callSlack } from "../../slack/server/api/slackClient";
 import type { DraftCreateReply, DraftsListReply } from "../../slack/server/api/slackReplies";
 import { trimDrafts } from "../../slack/server/api/trim/slackDrafts";
 
-const list: Route[] = [
+const draftRoutes = (env: Env): Route[] => [
   route("GET", "drafts", async (ctx) => {
     const data = await callSlack<DraftsListReply>(
       "drafts.list",
@@ -61,11 +61,9 @@ const list: Route[] = [
   }),
 
   route("DELETE", "drafts/:id", async (ctx) => {
-    const body = await ctx.body
-      .json<{ lastUpdatedTs?: string }>()
-      .catch((): { lastUpdatedTs?: string } => ({}));
+    const body = await ctx.body.json<{ lastUpdatedTs?: string }>();
     const knownTs = Number.parseFloat(body.lastUpdatedTs ?? "0");
-    const clientLastUpdatedTs = Math.max(Date.now() / 1000, knownTs + 1);
+    const clientLastUpdatedTs = Math.max(env.now() / 1000, knownTs + 1);
     const sentParams = {
       client_last_updated_ts: String(clientLastUpdatedTs),
       draft_id: ctx.params.id,
@@ -79,7 +77,7 @@ const list: Route[] = [
 ];
 
 const setup: Setup = (ctx) => {
-  ctx.add("http", routes(list));
+  ctx.add("http", routes(draftRoutes(ctx.get("env"))));
 };
 
 export default setup;

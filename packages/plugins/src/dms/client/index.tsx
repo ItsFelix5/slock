@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { ifPresent, parseChannelId, parseUserId } from "@slock/slack";
 import type { MembershipEvent } from "@slock/types";
 import { gatewayHandler } from "../../realtime/client/api";
 import { createDmTitleResolver } from "./dmTitle";
@@ -51,22 +52,32 @@ const setup: Setup = (ctx) => {
       switch (payload.type) {
         case "im_created": {
           const { channel } = payload;
-          const userId = channel.user ?? payload.user;
+          const userId = ifPresent(parseUserId, channel.user ?? payload.user);
           if (!userId) return;
-          if (!store.dmById(channel.id)) store.ensureDm(channel.id, userId);
-          else if (store.closedDmIds[channel.id]) store.setClosedDmIds(channel.id, false);
+          const id = parseChannelId(channel.id);
+          if (!store.dmById(id)) store.ensureDm(id, userId);
+          else if (store.closedDmIds[id]) store.setClosedDmIds(id, false);
           return;
         }
         case "im_close":
-        case "mpim_close":
-          if (payload.channel) store.setClosedDmIds(payload.channel, true);
+        case "mpim_close": {
+          const id = ifPresent(parseChannelId, payload.channel);
+          if (id) store.setClosedDmIds(id, true);
           return;
+        }
         case "im_open":
-        case "mpim_open":
-          if (payload.channel) store.setClosedDmIds(payload.channel, false);
+        case "mpim_open": {
+          const id = ifPresent(parseChannelId, payload.channel);
+          if (id) store.setClosedDmIds(id, false);
           return;
-        case "mpim_joined":
-          if (payload.channel) void store.ensureMpdm(payload.channel);
+        }
+        case "mpim_joined": {
+          const id = ifPresent(parseChannelId, payload.channel);
+          if (id) void store.ensureMpdm(id);
+          return;
+        }
+        default:
+          return;
       }
     }),
   );

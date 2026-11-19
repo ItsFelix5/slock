@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { Button } from "@slock/ui";
 import { createEffect, createMemo, createSignal, on, Show } from "solid-js";
 import ChannelDangerZone from "./ChannelDangerZone";
@@ -30,7 +31,7 @@ function asRetentionChoice(value: string): RetentionChoice {
 
 export default function SettingsTab(props: {
   archived: boolean;
-  channelId: string;
+  channelId: ChannelId;
   onChanged?: () => void;
   private: boolean;
 }) {

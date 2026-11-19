@@ -4,6 +4,7 @@
     { "path": "./packages/types" },
     { "path": "./packages/core" },
     { "path": "./packages/slack" },
+    { "path": "./packages/resource" },
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
     { "path": "./packages/server" },

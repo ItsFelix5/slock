@@ -1,3 +1,4 @@
+import type { Env, TimerHandle } from "@slock/core";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { createHeartbeat } from "./heartbeat";
 import { createReconnectScheduler } from "./reconnectScheduler";
@@ -8,6 +9,7 @@ const ONLINE_GRACE_MS = 45_000;
 const STALE_HIDDEN_MS = 30_000;
 
 export function createRealtimeConnection(opts: {
+  env: Env;
   onMessage: (raw: string) => void;
   onOpen: () => void;
   onReconnect: (downMs: number) => void;
@@ -18,24 +20,22 @@ export function createRealtimeConnection(opts: {
     online() ? "connecting" : "offline",
   );
   const [gatewayConnected, setGatewayConnectedSignal] = createSignal(false);
-  let disconnectedAt = Date.now();
+  let disconnectedAt = opts.env.now();
   const writeGatewayConnected = (connected: boolean) => {
-    if (!connected && gatewayConnected()) disconnectedAt = Date.now();
+    if (!connected && gatewayConnected()) disconnectedAt = opts.env.now();
     setGatewayConnectedSignal(connected);
   };
   const isTrulyOnline = () => online() && gatewayConnected();
   const [recentlyOnline, setRecentlyOnline] = createSignal(online());
-  let onlineGraceTimer: ReturnType<typeof setTimeout> | null = null;
+  let onlineGraceTimer: TimerHandle | undefined;
   createEffect(() => {
     if (isTrulyOnline()) {
-      if (onlineGraceTimer) {
-        clearTimeout(onlineGraceTimer);
-        onlineGraceTimer = null;
-      }
+      opts.env.clearTimeout(onlineGraceTimer);
+      onlineGraceTimer = undefined;
       setRecentlyOnline(true);
     } else if (!onlineGraceTimer) {
-      onlineGraceTimer = setTimeout(() => {
-        onlineGraceTimer = null;
+      onlineGraceTimer = opts.env.setTimeout(() => {
+        onlineGraceTimer = undefined;
         setRecentlyOnline(false);
       }, ONLINE_GRACE_MS);
     }
@@ -44,8 +44,12 @@ export function createRealtimeConnection(opts: {
   let hasConnected = false;
   let socket: WebSocket | null = null;
 
-  const scheduler = createReconnectScheduler({ connect, isOnline: online });
-  const heartbeat = createHeartbeat({ onDead: restart, ping: () => send({ type: "ping" }) });
+  const scheduler = createReconnectScheduler({ connect, env: opts.env, isOnline: online });
+  const heartbeat = createHeartbeat({
+    env: opts.env,
+    onDead: restart,
+    ping: () => send({ type: "ping" }),
+  });
 
   function connect() {
     if (disposed || !online() || socket) return;
@@ -115,10 +119,10 @@ export function createRealtimeConnection(opts: {
   let hiddenAt: number | null = null;
   const handleVisibility = () => {
     if (document.visibilityState === "hidden") {
-      hiddenAt = Date.now();
+      hiddenAt = opts.env.now();
       return;
     }
-    const wasStale = hiddenAt !== null && Date.now() - hiddenAt > STALE_HIDDEN_MS;
+    const wasStale = hiddenAt !== null && opts.env.now() - hiddenAt > STALE_HIDDEN_MS;
     hiddenAt = null;
     if (!online()) return;
     if (wasStale) restart();
@@ -137,7 +141,7 @@ export function createRealtimeConnection(opts: {
     window.removeEventListener("online", handleOnline);
     document.removeEventListener("visibilitychange", handleVisibility);
     disconnectCurrent();
-    if (onlineGraceTimer) clearTimeout(onlineGraceTimer);
+    opts.env.clearTimeout(onlineGraceTimer);
   });
 
   return {
@@ -158,7 +162,7 @@ export function createRealtimeConnection(opts: {
       if (connected) {
         scheduler.connected();
         hasConnected = true;
-        if (wasConnected) opts.onReconnect(Date.now() - disconnectedAt);
+        if (wasConnected) opts.onReconnect(opts.env.now() - disconnectedAt);
       }
       setConnectionState(connected ? "connected" : online() ? "reconnecting" : "offline");
     },

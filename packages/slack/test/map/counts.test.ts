@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
 import type { RawCountGroup } from "@slock/types";
 import { buildUnreadMap, parseBadgeCounts } from "../../src/map/counts";
+import { ch } from "../../src/testing";
 
 describe("buildUnreadMap", () => {
   test("handles undefined and empty payloads", () => {
@@ -18,20 +19,22 @@ describe("buildUnreadMap", () => {
       ],
     });
     expect(map).toEqual({
-      C1: { mentions: 2, unread: true },
-      C2: { mentions: 0, unread: false },
-      C3: { mentions: 0, unread: true },
+      [ch("C1")]: { mentions: 2, unread: true },
+      [ch("C2")]: { mentions: 0, unread: false },
+      [ch("C3")]: { mentions: 0, unread: true },
     });
   });
 
   test("every unread dm message is a mention", () => {
     expect(buildUnreadMap({ ims: [{ id: "D1", unread_count_display: 4 }] })).toEqual({
-      D1: { mentions: 4, unread: true },
+      [ch("D1")]: { mentions: 4, unread: true },
     });
   });
 
   test("an explicit zero mention count stays zero in dms", () => {
-    expect(buildUnreadMap({ ims: [{ id: "D1", mention_count: 0, unread_count: 4 }] }).D1).toEqual({
+    expect(
+      buildUnreadMap({ ims: [{ id: "D1", mention_count: 0, unread_count: 4 }] })[ch("D1")],
+    ).toEqual({
       mentions: 0,
       unread: true,
     });
@@ -62,11 +65,11 @@ describe("buildUnreadMap", () => {
     const map = buildUnreadMap({
       channels: [{ unread_count: 3 }, { id: "C1", unread_count: 1 }, { id: "C1", unread_count: 0 }],
     });
-    expect(map).toEqual({ C1: { mentions: 0, unread: false } });
+    expect(map).toEqual({ [ch("C1")]: { mentions: 0, unread: false } });
   });
 
   test("mpims count like channels", () => {
-    expect(buildUnreadMap({ mpims: [{ id: "G1", unread_count: 2 }] }).G1).toEqual({
+    expect(buildUnreadMap({ mpims: [{ id: "G1", unread_count: 2 }] })[ch("G1")]).toEqual({
       mentions: 0,
       unread: true,
     });
@@ -97,7 +100,7 @@ describe("invariants", () => {
         Array.from(
           { length: int(random, 0, 8) },
           (_, index): RawCountGroup => ({
-            id: `C${int(random, 0, 4)}-${index % 3}`,
+            id: `C${int(random, 0, 4)}${index % 3}`,
             mention_count: pick(random, [0, 1, 5]),
             unread_count: pick(random, [0, 2, 9]),
           }),

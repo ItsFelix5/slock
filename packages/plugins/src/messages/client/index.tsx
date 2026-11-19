@@ -1,6 +1,7 @@
 import { BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import type { View } from "../../conversations/client/api/types";
@@ -128,7 +129,7 @@ const setup: Setup = (ctx) => {
     },
     { order: 101 },
   );
-  const loadedMessage = (channelId: string, ts: string) =>
+  const loadedMessage = (channelId: ChannelId, ts: Ts) =>
     messages.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
   ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));

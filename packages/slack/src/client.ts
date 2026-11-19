@@ -1,27 +1,7 @@
 import type { ApiReply } from "@slock/types";
+import { isAuthError, slackErrorOf } from "./error";
+import { sendRequest } from "./send";
 import { forceReauth, isConfigured } from "./session/account";
-
-const AUTH_ERRORS = new Set([
-  "not_configured",
-  "invalid_auth",
-  "not_authed",
-  "token_revoked",
-  "account_inactive",
-]);
-
-export function isAuthError(code: unknown): boolean {
-  return typeof code === "string" && AUTH_ERRORS.has(code);
-}
-
-export class ApiError extends Error {
-  retryAfterMs?: number;
-  constructor(message: string, retryAfter?: string) {
-    super(message);
-    this.name = "ApiError";
-    const seconds = retryAfter ? Number(retryAfter) : Number.NaN;
-    if (Number.isFinite(seconds)) this.retryAfterMs = seconds * 1000;
-  }
-}
 
 function hasError(data: unknown): data is { error: string } {
   return !!(
@@ -36,12 +16,15 @@ function hasError(data: unknown): data is { error: string } {
 function parseBody(responseBody: string, res: Response) {
   try {
     return JSON.parse(responseBody);
-  } catch (error) {
-    throw new Error(
-      res.ok
-        ? "expected a JSON response"
-        : responseBody || `request failed with ${res.status} ${res.statusText}`,
-      { cause: error },
+  } catch (cause) {
+    throw slackErrorOf(
+      {
+        fallback: res.ok
+          ? "expected a JSON response"
+          : responseBody || `request failed with ${res.status} ${res.statusText}`,
+        status: res.status,
+      },
+      { cause },
     );
   }
 }
@@ -51,7 +34,10 @@ async function readResponse<T extends object>(res: Response): Promise<ApiReply<T
   const data = parseBody(responseBody, res);
   if (hasError(data) && isAuthError(data.error) && isConfigured()) return forceReauth();
   if (!(res.ok || hasError(data))) {
-    throw new Error(`request failed with ${res.status} ${res.statusText}: ${responseBody}`);
+    throw slackErrorOf({
+      fallback: `request failed with ${res.status} ${res.statusText}: ${responseBody}`,
+      status: res.status,
+    });
   }
   return { ...data, ok: res.ok };
 }
@@ -61,7 +47,7 @@ async function request<T extends object>(
   path: string,
   requestBody?: unknown,
 ): Promise<ApiReply<T>> {
-  const res = await fetch(path, {
+  const res = await sendRequest(path, {
     method,
     ...(requestBody === undefined
       ? {}
@@ -105,7 +91,7 @@ export async function apiUpload<T extends object = object>(
   path: string,
   file: File,
 ): Promise<ApiReply<T>> {
-  const res = await fetch(path, {
+  const res = await sendRequest(path, {
     body: file,
     headers: file.type ? { "content-type": file.type } : undefined,
     method: "POST",

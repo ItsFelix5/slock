@@ -1,5 +1,4 @@
 import type { Block } from "../blocks/blocks";
-import type { Reaction } from "../types";
 
 export interface RawUserProfile {
   api_app_id?: string;
@@ -219,6 +218,12 @@ export interface RawAttachment {
   video_width?: number;
 }
 
+export interface RawReaction {
+  count: number;
+  name: string;
+  users: string[];
+}
+
 export interface RawMessage {
   attachments?: RawAttachment[];
   blocks?: Block[];
@@ -239,7 +244,7 @@ export interface RawMessage {
     event_type?: string;
     event_payload?: Record<string, unknown>;
   };
-  reactions?: Reaction[];
+  reactions?: RawReaction[];
   reply_count?: number;
   reply_users?: string[];
   root?: RawMessage;

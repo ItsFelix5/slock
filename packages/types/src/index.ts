@@ -72,6 +72,7 @@ export type {
   SlackFileShare,
   SlackLink,
 } from "./fileTypes";
+export type { ChannelId, FileId, TeamId, Ts, UserId } from "./ids";
 export type { BroadcastRange, RichTextBroadcastElement } from "./richText";
 export type {
   BrowsableChannel,
@@ -130,6 +131,12 @@ export type {
   RawActivityMessage,
 } from "./wire/rawActivity";
 export type {
+  RawCanvasVersion,
+  RawDraftEntry,
+  RawSavedItem,
+  RawSearchResult,
+} from "./wire/rawApi";
+export type {
   RawAttachment,
   RawBot,
   RawChannel,
@@ -143,6 +150,7 @@ export type {
   RawIcons,
   RawLink,
   RawMessage,
+  RawReaction,
   RawUser,
   RawUsergroup,
   RawUserProfile,

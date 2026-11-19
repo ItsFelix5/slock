@@ -1,11 +1,13 @@
 import { service } from "@slock/core/solid";
 import type {
   ChannelDetails,
+  ChannelId,
   ChannelMembersPage,
   ChannelPostingPrefs,
   ChannelPostingPrefsPatch,
   MemberPermissionsPatch,
   User,
+  UserId,
 } from "@slock/types";
 import { createSignal } from "solid-js";
 import { createKeyedQuery, defineKey } from "../../query/client/api";
@@ -29,11 +31,11 @@ import {
   unarchiveChannel,
 } from "../../slack/client/api";
 
-const channelDetailsKey = defineKey<[string]>("channelDetails");
-const channelManagerIdsKey = defineKey<[string]>("channelManagerIds");
-const channelPostingPrefsKey = defineKey<[string]>("channelPostingPrefs");
-const memberPermissionsKey = defineKey<[string]>("memberPermissions");
-const channelRetentionKey = defineKey<[string]>("channelRetention");
+const channelDetailsKey = defineKey<[ChannelId]>("channelDetails");
+const channelManagerIdsKey = defineKey<[ChannelId]>("channelManagerIds");
+const channelPostingPrefsKey = defineKey<[ChannelId]>("channelPostingPrefs");
+const memberPermissionsKey = defineKey<[ChannelId]>("memberPermissions");
+const channelRetentionKey = defineKey<[ChannelId]>("channelRetention");
 const feedback = service("feedback");
 
 const channelsStore = service("channels");
@@ -43,10 +45,10 @@ export type MemberFilter = "everyone" | "managers" | "apps";
 export type ChannelDetailsTab = string;
 
 export function createChannelDetailsStore() {
-  const [channelDetailsId, setChannelDetailsId] = createSignal<string | null>(null);
+  const [channelDetailsId, setChannelDetailsId] = createSignal<ChannelId | null>(null);
   const [channelDetailsTab, setChannelDetailsTab] = createSignal<ChannelDetailsTab>("about");
 
-  function openChannelDetails(id: string, tab: ChannelDetailsTab = "about") {
+  function openChannelDetails(id: ChannelId, tab: ChannelDetailsTab = "about") {
     setChannelDetailsTab(tab);
     setChannelDetailsId(id);
   }
@@ -56,7 +58,7 @@ export function createChannelDetailsStore() {
   }
 
   async function withFeedback<T>(
-    id: string,
+    id: ChannelId,
     fallbackMessage: string,
     fallback: T,
     action: () => Promise<T>,
@@ -70,7 +72,7 @@ export function createChannelDetailsStore() {
   }
 
   async function withFeedbackOrThrow<T>(
-    id: string,
+    id: ChannelId,
     fallbackMessage: string,
     action: () => Promise<T>,
   ): Promise<T> {
@@ -82,13 +84,13 @@ export function createChannelDetailsStore() {
     }
   }
 
-  function invalidateChannelDetails(id: string, postingChanged = false) {
+  function invalidateChannelDetails(id: ChannelId, postingChanged = false) {
     void query.client.invalidateQueries({ queryKey: channelDetailsKey(id) });
     if (postingChanged)
       void query.client.invalidateQueries({ queryKey: channelPostingPrefsKey(id) });
   }
 
-  function loadChannelDetails(id: string): Promise<ChannelDetails | null> {
+  function loadChannelDetails(id: ChannelId): Promise<ChannelDetails | null> {
     return withFeedback(
       id,
       "Failed to load channel details.",
@@ -98,7 +100,7 @@ export function createChannelDetailsStore() {
   }
 
   function loadChannelMembersPage(
-    id: string,
+    id: ChannelId,
     filter: "everyone" | "apps",
     cursor?: string,
   ): Promise<ChannelMembersPage> {
@@ -107,7 +109,7 @@ export function createChannelDetailsStore() {
     );
   }
 
-  function searchChannelMembers(id: string, search: string): Promise<User[]> {
+  function searchChannelMembers(id: ChannelId, search: string): Promise<User[]> {
     return withFeedbackOrThrow(
       id,
       "Failed to search members.",
@@ -115,16 +117,16 @@ export function createChannelDetailsStore() {
     );
   }
 
-  function loadChannelManagerIds(id: string): Promise<string[]> {
+  function loadChannelManagerIds(id: ChannelId): Promise<UserId[]> {
     return withFeedbackOrThrow(id, "Failed to load channel managers.", () =>
       fetchChannelManagerIds(id),
     );
   }
 
   function createChannelQuery<T>(
-    keyFor: (id: string) => readonly unknown[],
-    id: () => string | null | undefined,
-    load: (id: string) => Promise<T>,
+    keyFor: (id: ChannelId) => readonly unknown[],
+    id: () => ChannelId | null | undefined,
+    load: (id: ChannelId) => Promise<T>,
   ) {
     return createKeyedQuery(() => {
       const channelId = id();
@@ -134,19 +136,19 @@ export function createChannelDetailsStore() {
     });
   }
 
-  const createChannelDetailsQuery = (id: () => string | null | undefined) =>
+  const createChannelDetailsQuery = (id: () => ChannelId | null | undefined) =>
     createChannelQuery(channelDetailsKey, id, loadChannelDetails);
-  const createChannelManagerIdsQuery = (id: () => string | null | undefined) =>
+  const createChannelManagerIdsQuery = (id: () => ChannelId | null | undefined) =>
     createChannelQuery(channelManagerIdsKey, id, loadChannelManagerIds);
-  const createChannelPostingPrefsQuery = (id: () => string | null | undefined) =>
+  const createChannelPostingPrefsQuery = (id: () => ChannelId | null | undefined) =>
     createChannelQuery<ChannelPostingPrefs>(channelPostingPrefsKey, id, fetchChannelPostingPrefs);
-  const createChannelRetentionQuery = (id: () => string | null | undefined) =>
+  const createChannelRetentionQuery = (id: () => ChannelId | null | undefined) =>
     createChannelQuery<number | null>(channelRetentionKey, id, fetchChannelRetention);
 
-  const createMemberPermissionsQuery = (id: () => string | null | undefined) =>
+  const createMemberPermissionsQuery = (id: () => ChannelId | null | undefined) =>
     createChannelQuery(memberPermissionsKey, id, fetchMemberPermissions);
 
-  function renameChannelById(id: string, name: string): Promise<boolean> {
+  function renameChannelById(id: ChannelId, name: string): Promise<boolean> {
     return withFeedback(id, "Failed to rename channel.", false, async () => {
       const finalName = await renameChannel(id, name);
       channelsStore.patchChannel(id, { name: finalName });
@@ -154,7 +156,7 @@ export function createChannelDetailsStore() {
     });
   }
 
-  function updateChannelTopic(id: string, topic: string): Promise<boolean> {
+  function updateChannelTopic(id: ChannelId, topic: string): Promise<boolean> {
     return withFeedback(id, "Failed to set topic.", false, async () => {
       await setChannelTopic(id, topic);
       channelsStore.patchChannel(id, { topic });
@@ -162,46 +164,46 @@ export function createChannelDetailsStore() {
     });
   }
 
-  function updateChannelPurpose(id: string, purpose: string): Promise<boolean> {
+  function updateChannelPurpose(id: ChannelId, purpose: string): Promise<boolean> {
     return withFeedback(id, "Failed to set description.", false, async () => {
       await setChannelPurpose(id, purpose);
       return true;
     });
   }
 
-  function inviteUsersToChannel(id: string, userIds: string[]): Promise<boolean> {
+  function inviteUsersToChannel(id: ChannelId, userIds: UserId[]): Promise<boolean> {
     return withFeedback(id, "Failed to add to channel.", false, async () => {
       await inviteToChannel(id, userIds);
       return true;
     });
   }
 
-  function removeUserFromChannel(id: string, userId: string): Promise<boolean> {
+  function removeUserFromChannel(id: ChannelId, userId: UserId): Promise<boolean> {
     return withFeedback(id, "Failed to remove from channel.", false, async () => {
       await removeFromChannel(id, userId);
       return true;
     });
   }
 
-  function updateChannelPostingPrefs(id: string, patch: ChannelPostingPrefsPatch): Promise<void> {
+  function updateChannelPostingPrefs(id: ChannelId, patch: ChannelPostingPrefsPatch): Promise<void> {
     return setChannelPostingPrefs(id, patch);
   }
 
-  function updateChannelRetention(id: string, days: number | null): Promise<boolean> {
+  function updateChannelRetention(id: ChannelId, days: number | null): Promise<boolean> {
     return withFeedback(id, "Failed to update message retention.", false, async () => {
       await setChannelRetention(id, days);
       return true;
     });
   }
 
-  function updateMemberPermissions(id: string, patch: MemberPermissionsPatch): Promise<boolean> {
+  function updateMemberPermissions(id: ChannelId, patch: MemberPermissionsPatch): Promise<boolean> {
     return withFeedback(id, "Failed to update member permissions.", false, async () => {
       await setMemberPermissions(id, patch);
       return true;
     });
   }
 
-  function archiveChannelById(id: string): Promise<boolean> {
+  function archiveChannelById(id: ChannelId): Promise<boolean> {
     return withFeedback(id, "Failed to archive channel.", false, async () => {
       await archiveChannel(id);
       channelsStore.patchChannel(id, { archived: true });
@@ -209,7 +211,7 @@ export function createChannelDetailsStore() {
     });
   }
 
-  function unarchiveChannelById(id: string): Promise<boolean> {
+  function unarchiveChannelById(id: ChannelId): Promise<boolean> {
     return withFeedback(id, "Failed to unarchive channel.", false, async () => {
       await unarchiveChannel(id);
       channelsStore.patchChannel(id, { archived: false });
@@ -217,7 +219,7 @@ export function createChannelDetailsStore() {
     });
   }
 
-  function convertChannelToPrivateById(id: string): Promise<boolean> {
+  function convertChannelToPrivateById(id: ChannelId): Promise<boolean> {
     return withFeedback(id, "Failed to convert channel to private.", false, async () => {
       await convertChannelToPrivate(id);
       channelsStore.patchChannel(id, { private: true });

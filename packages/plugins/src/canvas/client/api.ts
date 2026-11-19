@@ -1,3 +1,4 @@
+import type { FileId } from "@slock/types";
 import type { Component } from "solid-js";
 import type { PaneContentOf } from "../../shell/client/api/types";
 import type { CanvasDocModel } from "./lib/canvasDelta";
@@ -14,13 +15,13 @@ export type CanvasPaneContent = PaneContentOf<"canvas">;
 
 declare module "../../shell/client/api/types" {
   interface PaneContents {
-    canvas: { fileId: string; title: string };
+    canvas: { fileId: FileId; title: string };
   }
 }
 
 declare module "@slock/core/types" {
   interface Points {
-    "canvas.headerAction": Component<{ doc: CanvasDocModel | null; fileId: string }>;
+    "canvas.headerAction": Component<{ doc: CanvasDocModel | null; fileId: FileId }>;
   }
 
   interface Services {

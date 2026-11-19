@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { ifPresent, parseChannelId } from "@slock/slack";
 import { MenuItem } from "@slock/ui";
 import { lazy, Show } from "solid-js";
 import { openConversationInSplit } from "../../conversations/client/api/nav";
@@ -37,20 +38,22 @@ const setup: Setup = (ctx) => {
     "realtime.handler",
     gatewayHandler(["channel_updated"], (event) => {
       for (const id of event.channels)
-        channelDetails.invalidateChannelDetails(id, event.updates.postingChanged);
+        channelDetails.invalidateChannelDetails(parseChannelId(id), event.updates.postingChanged);
     }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["member_joined_channel", "member_left_channel"], (event) => {
-      if (event.channel) channelDetails.invalidateChannelDetails(event.channel);
+      const id = ifPresent(parseChannelId, event.channel);
+      if (id) channelDetails.invalidateChannelDetails(id);
     }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["message"], (event) => {
-      const topicOrPurpose = TOPIC_OR_PURPOSE.test(event.subtype ?? "");
-      if (topicOrPurpose && event.channel) channelDetails.invalidateChannelDetails(event.channel);
+      if (!TOPIC_OR_PURPOSE.test(event.subtype ?? "")) return;
+      const id = ifPresent(parseChannelId, event.channel);
+      if (id) channelDetails.invalidateChannelDetails(id);
     }),
   );
   ctx.add("shell.overlay", ChannelDetails);

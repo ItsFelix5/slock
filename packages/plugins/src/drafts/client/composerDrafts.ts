@@ -1,36 +1,26 @@
-import { blockPreviewText } from "@slock/slack";
-import type { Block } from "@slock/types";
+import type { Env, TimerHandle } from "@slock/core";
+import { blockPreviewText, isSlackError } from "@slock/slack";
+import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import { saveDraft } from "../../slack/client/api/drafts";
-import {
-  type DraftValue,
-  deleteDraftOnServer,
-  deleteEntry,
-  draftCacheKey,
-  drafts,
-  draftsReady,
-  hydrateDrafts,
-  locallyTouchedKeys,
-  removeEntry,
-  upsertEntry,
-} from "./draftStore";
+import { saveDraft } from "./draftApi";
+import { type DraftStore, draftCacheKey, isNewerDraft } from "./draftStore";
 
 const SAVE_DELAY_MS = 1000;
 
-export function createComposerDraftState(opts: {
-  channelId: () => string | undefined;
-  editing: () => boolean;
-  key: () => string | undefined;
+export type ComposerDraftOptions = {
+  channelId: () => ChannelId | undefined;
+  threadTs: () => Ts | undefined;
   blocks: () => Block[];
   loadIntoEditor: (blocks: Block[]) => void;
   ready: () => boolean;
-  resetPreviews: () => void;
-  threadTs: () => string | undefined;
-}) {
+};
+
+export function createComposerDraftState(store: DraftStore, env: Env, opts: ComposerDraftOptions) {
+  const { drafts } = store;
   const [activeDraftId, setActiveDraftId] = createSignal<string | undefined>(undefined);
   const [syncError, setSyncError] = createSignal(false);
   let clientMsgId: string | undefined;
-  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let saveTimer: TimerHandle | undefined;
   let pendingSave: (() => void) | undefined;
   let saveQueue: Promise<void> = Promise.resolve();
   let defaultForKey: string | undefined;
@@ -39,61 +29,76 @@ export function createComposerDraftState(opts: {
   let sessionGeneration = 0;
   const unsaved = new Map<string, Block[]>();
 
+  const key = () => {
+    const channelId = opts.channelId();
+    return channelId ? draftCacheKey(channelId, opts.threadTs()) : undefined;
+  };
+
+  function enqueue(task: () => Promise<void>): Promise<void> {
+    const next = saveQueue.then(task, task);
+    saveQueue = next;
+    return next;
+  }
+
+  async function tracked(task: () => Promise<void>) {
+    try {
+      await task();
+      setSyncError(false);
+    } catch (error) {
+      if (!isSlackError(error)) throw error;
+      setSyncError(true);
+    }
+  }
+
   function runSave(
-    channelId: string,
-    threadTs: string | undefined,
+    channelId: ChannelId,
+    threadTs: Ts | undefined,
     blocks: Block[],
     knownId: string | undefined,
     startCmid: string | undefined,
     generation: number,
   ): Promise<void> {
-    const key = draftCacheKey(channelId, threadTs);
-    locallyTouchedKeys.add(key);
-    unsaved.set(key, blocks);
-    const next = saveQueue
-      .catch(() => {})
-      .then(async () => {
-        const startId = knownId ?? drafts[key]?.find((e) => e.clientMsgId === startCmid)?.id;
-        if (startId && !(await hydrateDrafts())) throw new Error("Draft hydration failed");
+    const draftKey = draftCacheKey(channelId, threadTs);
+    store.touch(draftKey);
+    unsaved.set(draftKey, blocks);
+    return enqueue(() =>
+      tracked(async () => {
+        const startId = knownId ?? drafts[draftKey]?.find((e) => e.clientMsgId === startCmid)?.id;
+        if (startId && !(await store.hydrate())) {
+          setSyncError(true);
+          return;
+        }
         if (!blockPreviewText(blocks).trim()) {
           if (startId) {
-            await deleteDraftOnServer(startId);
-            removeEntry(key, startId);
-            if (generation === sessionGeneration && activeDraftId() === startId)
+            await store.deleteOnServer(startId);
+            store.remove(draftKey, startId);
+            if (generation === sessionGeneration && activeDraftId() === startId) {
               setActiveDraftId(undefined);
+            }
           }
           return;
         }
         const cmid = startCmid ?? crypto.randomUUID();
         const knownTs = startId
-          ? drafts[key]?.find((e) => e.id === startId)?.lastUpdatedTs
+          ? drafts[draftKey]?.find((e) => e.id === startId)?.lastUpdatedTs
           : undefined;
         const result = await saveDraft(channelId, threadTs, blocks, startId, cmid, knownTs);
-        upsertEntry(key, {
+        store.upsert({
           blocks,
+          channelId,
           clientMsgId: cmid,
           id: result.id,
           lastUpdatedTs: result.lastUpdatedTs,
+          threadTs,
         });
-        unsaved.delete(key);
-        const apply =
-          generation === sessionGeneration && activeDraftId() === knownId && key === opts.key();
-        if (apply) {
+        unsaved.delete(draftKey);
+        if (generation === sessionGeneration && activeDraftId() === knownId && draftKey === key()) {
           clientMsgId = cmid;
-          loadedFor = `${key}::${result.id}`;
+          loadedFor = `${draftKey}::${result.id}`;
           setActiveDraftId(result.id);
         }
-      })
-      .then(
-        () => {
-          setSyncError(false);
-        },
-        () => {
-          setSyncError(true);
-        },
-      );
-    saveQueue = next;
-    return next;
+      }),
+    );
   }
 
   function currentClientMsgId(): string {
@@ -102,7 +107,7 @@ export function createComposerDraftState(opts: {
   }
 
   function cancelPendingSave() {
-    clearTimeout(saveTimer);
+    env.clearTimeout(saveTimer);
     saveTimer = undefined;
     pendingSave = undefined;
   }
@@ -128,56 +133,54 @@ export function createComposerDraftState(opts: {
   }
 
   createEffect(() => {
-    if (opts.editing() || !opts.channelId()) return;
-    void hydrateDrafts();
+    if (opts.channelId()) void store.hydrate();
   });
 
   createEffect(() => {
-    if (opts.editing() || !draftsReady()) return;
-    const key = opts.key();
-    if (key === defaultForKey) return;
-    defaultForKey = key;
-    const list = (key && drafts[key]) || [];
-    const top = list.length
-      ? list.reduce((a, b) => (Number(b.lastUpdatedTs ?? 0) > Number(a.lastUpdatedTs ?? 0) ? b : a))
-      : undefined;
+    if (!store.ready()) return;
+    const draftKey = key();
+    if (draftKey === defaultForKey) return;
+    defaultForKey = draftKey;
+    const top = ((draftKey && drafts[draftKey]) || []).reduce<DraftEntry | undefined>(
+      (best, entry) => (best && !isNewerDraft(entry, best) ? best : entry),
+      undefined,
+    );
     clientMsgId = top?.clientMsgId;
     setActiveDraftId(top?.id);
   });
 
   createEffect(() => {
-    const key = opts.key();
+    const draftKey = key();
     const id = activeDraftId();
-    if (opts.editing() || !draftsReady() || !key || !id) return;
-    if (drafts[key]?.some((e) => e.id === id)) return;
+    if (!(store.ready() && draftKey && id)) return;
+    if (drafts[draftKey]?.some((e) => e.id === id)) return;
     sessionGeneration += 1;
     clientMsgId = undefined;
     if (blockPreviewText(opts.blocks()).trim()) {
-      loadedFor = `${key}::new`;
+      loadedFor = `${draftKey}::new`;
       persistedFor = loadedFor;
     }
     setActiveDraftId(undefined);
   });
 
   createEffect(() => {
-    if (opts.editing() || !opts.ready() || !draftsReady()) return;
-    const key = opts.key();
+    if (!(opts.ready() && store.ready())) return;
+    const draftKey = key();
     const id = activeDraftId();
-    const token = `${key}::${id ?? "new"}`;
+    const token = `${draftKey}::${id ?? "new"}`;
     if (token === loadedFor) return;
     loadedFor = token;
-    const entry = key && id ? drafts[key]?.find((e) => e.id === id) : undefined;
-    opts.loadIntoEditor(entry?.blocks ?? (key ? unsaved.get(key) : undefined) ?? []);
-    opts.resetPreviews();
+    const entry = draftKey && id ? drafts[draftKey]?.find((e) => e.id === id) : undefined;
+    opts.loadIntoEditor(entry?.blocks ?? (draftKey ? unsaved.get(draftKey) : undefined) ?? []);
   });
 
   createEffect(() => {
-    if (opts.editing() || !opts.ready() || !draftsReady()) return;
-    const key = opts.key();
+    if (!(opts.ready() && store.ready())) return;
+    const draftKey = key();
     const channelId = opts.channelId();
-    if (!(key && channelId)) return;
+    if (!(draftKey && channelId)) return;
     const id = activeDraftId();
-    const token = `${key}::${id ?? "new"}`;
+    const token = `${draftKey}::${id ?? "new"}`;
     const blocks = opts.blocks();
     const empty = !blockPreviewText(blocks).trim();
 
@@ -188,20 +191,20 @@ export function createComposerDraftState(opts: {
       return;
     }
 
+    const threadTs = opts.threadTs();
     if (!empty && id) {
-      upsertEntry(key, { blocks, clientMsgId: clientMsgId ?? "", id });
+      store.upsert({ blocks, channelId, clientMsgId: clientMsgId ?? "", id, threadTs });
     } else if (empty && id) {
-      removeEntry(key, id);
+      store.remove(draftKey, id);
     }
 
     const scheduledCmid = currentClientMsgId();
     const scheduledGeneration = sessionGeneration;
-    const threadTs = opts.threadTs();
     cancelPendingSave();
     pendingSave = () => {
       void runSave(channelId, threadTs, blocks, id, scheduledCmid, scheduledGeneration);
     };
-    saveTimer = setTimeout(flushPendingSave, SAVE_DELAY_MS);
+    saveTimer = env.setTimeout(flushPendingSave, SAVE_DELAY_MS);
   });
 
   onCleanup(() => {
@@ -216,38 +219,34 @@ export function createComposerDraftState(opts: {
       clientMsgId = undefined;
       const channelId = opts.channelId();
       if (!channelId) return;
-      const key = draftCacheKey(channelId, opts.threadTs());
-      pendingFiles.clear(key);
+      const draftKey = draftCacheKey(channelId, opts.threadTs());
+      pendingFiles.clear(draftKey);
       cancelPendingSave();
       const activeId = activeDraftId();
-      if (activeId) removeEntry(key, activeId);
-      loadedFor = `${key}::new`;
+      if (activeId) store.remove(draftKey, activeId);
+      loadedFor = `${draftKey}::new`;
       setActiveDraftId(undefined);
-      saveQueue = saveQueue
-        .catch(() => {})
-        .then(async () => {
+      await enqueue(() =>
+        tracked(async () => {
           const ids = new Set(
-            (drafts[key] ?? []).filter((e) => e.clientMsgId === sentClientMsgId).map((e) => e.id),
+            (drafts[draftKey] ?? [])
+              .filter((e) => e.clientMsgId === sentClientMsgId)
+              .map((e) => e.id),
           );
           if (activeId) ids.add(activeId);
           for (const id of ids) {
-            await deleteDraftOnServer(id);
-            removeEntry(key, id);
+            await store.deleteOnServer(id);
+            store.remove(draftKey, id);
           }
-        })
-        .catch(() => {});
-      await saveQueue;
+        }),
+      );
     },
     flushNow: flush,
     retrySync: flush,
-    async remove(entry: DraftValue) {
-      const key = opts.key();
-      if (!key) return;
-      try {
-        await deleteEntry(key, entry.id);
-      } catch {
-        setSyncError(true);
-      }
+    remove(entry: DraftEntry) {
+      const draftKey = key();
+      if (!draftKey) return Promise.resolve();
+      return tracked(() => store.deleteEntry(draftKey, entry.id));
     },
     async saveAndStartNew() {
       await flush();
@@ -255,13 +254,13 @@ export function createComposerDraftState(opts: {
       clientMsgId = undefined;
       setActiveDraftId(undefined);
     },
-    stack(): DraftValue[] {
-      const key = opts.key();
+    stack(): DraftEntry[] {
+      const draftKey = key();
       const id = activeDraftId();
-      if (!key) return [];
-      return (drafts[key] ?? []).filter((e) => e.id !== id);
+      if (!draftKey) return [];
+      return (drafts[draftKey] ?? []).filter((e) => e.id !== id);
     },
-    switchTo(entry: DraftValue) {
+    switchTo(entry: DraftEntry) {
       ({ clientMsgId } = entry);
       setActiveDraftId(entry.id);
     },

@@ -1,6 +1,7 @@
 import type { EntityKind, EntitySource } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import type { Channel, ConversationFilter, User } from "@slock/types";
+import { isChannelId, isUserId } from "@slock/slack";
+import type { Channel, ConversationFilter, DirectMessage, User } from "@slock/types";
 import { type ComboboxOption, fuzzySearch } from "@slock/ui";
 import { channelIconName } from "../../channels/client/api";
 import { fetchBrowsableChannels, openDm } from "../../slack/client/api";
@@ -34,7 +35,7 @@ function ranked(items: ComboboxOption[], query: string) {
 async function findUsers(query: string) {
   const merged = new Map(usersStore.knownUsers().map((user) => [user.id, user]));
   if (query) {
-    for (const user of await usersStore.searchUsers(query).catch(() => [])) {
+    for (const user of await usersStore.searchUsers(query)) {
       merged.set(user.id, user);
     }
   }
@@ -46,7 +47,7 @@ async function findChannels(query: string, include: Set<string>) {
     channelsStore.channels().map((channel) => [channel.id, channel]),
   );
   if (query) {
-    for (const channel of await fetchBrowsableChannels(query).catch(() => [])) {
+    for (const channel of await fetchBrowsableChannels(query)) {
       merged.set(channel.id, channel);
     }
   }
@@ -55,7 +56,7 @@ async function findChannels(query: string, include: Set<string>) {
     .map(channelOption);
 }
 
-function dmOption(dm: { id: string; userId?: string }): ComboboxOption {
+function dmOption(dm: Pick<DirectMessage, "id" | "userId">): ComboboxOption {
   const user = dm.userId ? usersStore.userById(dm.userId) : undefined;
   return user
     ? { avatar: user, id: dm.id, label: user.name }
@@ -82,19 +83,18 @@ async function findConversations(query: string, filter?: ConversationFilter) {
 function describe(kind: EntityKind, id: string): ComboboxOption {
   const user = usersStore.userById(id);
   if (user) return userOption(user);
-  if (kind === "conversations") {
-    const dm = dmsStore.dmById(id);
-    if (dm) return dmOption(dm);
-  }
+  const channelId = isChannelId(id) ? id : undefined;
+  const dm = kind === "conversations" && channelId ? dmsStore.dmById(channelId) : undefined;
+  if (dm) return dmOption(dm);
   return {
-    icon: channelIconName(channelsStore.channelById(id)?.private),
+    icon: channelIconName(channelId ? channelsStore.channelById(channelId)?.private : undefined),
     id,
     label: titles.title(id),
   };
 }
 
 async function conversationId(id: string) {
-  if (!usersStore.userById(id)) return id;
+  if (!(isUserId(id) && usersStore.userById(id))) return id;
   const existing = dmsStore.dmIdForUser(id);
   if (existing) return existing;
   const channelId = await openDm(id);

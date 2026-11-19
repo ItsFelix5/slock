@@ -10,6 +10,7 @@
   "dependencies": {
     "@slock/blockkit": "workspace:*",
     "@slock/core": "workspace:*",
+    "@slock/resource": "workspace:*",
     "@slock/server": "workspace:*",
     "@slock/slack": "workspace:*",
     "@slock/types": "workspace:*",

@@ -1,12 +1,33 @@
+import { assertNever } from "@slock/core";
 import { int, pick, type Random, text } from "@slock/core/testing";
 
-type Kind = "string" | "number" | "boolean" | "numbers" | "strings" | "record";
+type Kind =
+  | "string"
+  | "number"
+  | "boolean"
+  | "numbers"
+  | "strings"
+  | "record"
+  | "channelId"
+  | "fileId"
+  | "ts"
+  | "requiredTs"
+  | "userId"
+  | "userIds";
 export type Spec = { [key: string]: Kind | { list: Spec } | { record: Spec } };
 
 const WEIRD_STRINGS = ["", " ", "0", "-1", "1.5", "NaN", "<>&", "😀", "a.b.c", "__proto__"];
 
 function garbageString(random: Random): string {
   return random() < 0.5 ? pick(random, WEIRD_STRINGS) : text(random, "ab:.-01 <>&😀", 8);
+}
+
+function garbageId(random: Random, prefix: string): string {
+  return `${prefix}${text(random, "ABCDEF0123456789", 8)}1`;
+}
+
+function garbageTs(random: Random): string {
+  return `${int(random, 1, 2_000_000_000)}.${text(random, "0123456789", 6)}0`;
 }
 
 function garbageLeaf(random: Random, kind: Kind): unknown {
@@ -23,6 +44,19 @@ function garbageLeaf(random: Random, kind: Kind): unknown {
       return Array.from({ length: int(random, 0, 3) }, () => garbageString(random));
     case "record":
       return {};
+    case "channelId":
+      return garbageId(random, pick(random, ["C", "G", "D"]));
+    case "fileId":
+      return garbageId(random, "F");
+    case "userId":
+      return garbageId(random, pick(random, ["U", "W", "B"]));
+    case "userIds":
+      return Array.from({ length: int(random, 0, 3) }, () => garbageId(random, "U"));
+    case "requiredTs":
+    case "ts":
+      return garbageTs(random);
+    default:
+      return assertNever(kind);
   }
 }
 
@@ -36,6 +70,10 @@ function garbageField(random: Random, kind: Spec[string]): unknown {
 export function garbageRecord(random: Random, spec: Spec): Record<string, unknown> {
   const record: Record<string, unknown> = {};
   for (const [key, kind] of Object.entries(spec)) {
+    if (kind === "fileId" || kind === "requiredTs") {
+      record[key] = garbageField(random, kind);
+      continue;
+    }
     const roll = random();
     if (roll < 0.3) continue;
     record[key] = roll < 0.4 ? null : garbageField(random, kind);
@@ -52,7 +90,7 @@ export const FILE_SPEC: Spec = {
   created: "number",
   duration_ms: "number",
   filetype: "string",
-  id: "string",
+  id: "fileId",
   mimetype: "string",
   mode: "string",
   name: "string",
@@ -73,30 +111,30 @@ export const ATTACHMENT_SPEC: Spec = {
   files: { list: FILE_SPEC },
   image_url: "string",
   text: "string",
-  ts: "string",
+  ts: "ts",
 };
 
 export const MESSAGE_SPEC: Spec = {
   attachments: { list: ATTACHMENT_SPEC },
-  bot_id: "string",
+  bot_id: "userId",
   bot_profile: { record: { name: "string", icons: { record: { image_72: "string" } } } },
   files: { list: FILE_SPEC },
   icons: { record: { image_36: "string", image_72: "string" } },
-  last_read: "string",
+  last_read: "ts",
   reply_count: "number",
-  reply_users: "strings",
-  root: { record: { text: "string", user: "string" } },
+  reply_users: "userIds",
+  root: { record: { text: "string", ts: "requiredTs", user: "userId" } },
   subtype: "string",
   text: "string",
-  thread_ts: "string",
+  thread_ts: "ts",
   type: "string",
-  user: "string",
+  user: "userId",
   username: "string",
 };
 
 export const USER_SPEC: Spec = {
   color: "string",
-  id: "string",
+  id: "userId",
   is_admin: "boolean",
   is_bot: "boolean",
   name: "string",

@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { ChannelSection } from "@slock/types";
+import type { ChannelId, ChannelSection } from "@slock/types";
 import { createStore } from "solid-js/store";
 import {
   updateSectionChannels as apiUpdateSectionChannels,
@@ -15,20 +15,20 @@ export function createChannelStarPlacement(deps: {
   sectionStructurePending: () => boolean;
   setSectionStructurePending: (pending: boolean) => void;
 }) {
-  const [starredChannelIds, setStarredChannelIds] = createStore<Record<string, boolean>>({});
+  const [starredChannelIds, setStarredChannelIds] = createStore<Record<ChannelId, boolean>>({});
   const [placementPendingByChannel, setPlacementPendingByChannel] = createStore<
-    Record<string, boolean>
+    Record<ChannelId, boolean>
   >({});
 
-  function isChannelStarred(channelId: string): boolean {
+  function isChannelStarred(channelId: ChannelId): boolean {
     return !!starredChannelIds[channelId];
   }
 
-  function isChannelPlacementPending(channelId: string): boolean {
+  function isChannelPlacementPending(channelId: ChannelId): boolean {
     return !!placementPendingByChannel[channelId];
   }
 
-  async function toggleChannelStar(channelId: string): Promise<ChannelPlacementOutcome> {
+  async function toggleChannelStar(channelId: ChannelId): Promise<ChannelPlacementOutcome> {
     if (isChannelPlacementPending(channelId)) return "failed";
     const currentlyStarred = isChannelStarred(channelId);
     const changesSectionMembership = !currentlyStarred;
@@ -82,7 +82,7 @@ export function createChannelStarPlacement(deps: {
   }
 
   async function moveChannelToSection(
-    channelId: string,
+    channelId: ChannelId,
     targetSectionId: string | null,
   ): Promise<ChannelPlacementOutcome> {
     if (isChannelPlacementPending(channelId) || deps.sectionStructurePending()) return "failed";

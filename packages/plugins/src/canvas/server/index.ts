@@ -10,13 +10,14 @@ import { route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type { FileInfoReply } from "../../slack/server/api/slackReplies";
 import { trimFile } from "../../slack/server/api/trim/slackMessages";
-import { canEditCanvas, fetchCanvasRaw, lookupThread, notConfigured } from "./api";
+import { canEditCanvas, lookupThread, notConfigured } from "./api";
 import { commentRoutes } from "./comments";
 import { applyCanvasEdit } from "./edit";
 import { historyRoutes } from "./history";
 import { parseCanvasEdit } from "./parseEdit";
+import { type CanvasWire, createCanvasWire } from "./wire";
 
-const list: Route[] = [
+const listRoutes = (wire: CanvasWire): Route[] => [
   route("GET", "canvases/:id/file-info", async (ctx) => {
     const data = await callSlack<FileInfoReply>("files.info", { file: ctx.params.id }, ctx.creds);
     if (!data.ok) {
@@ -30,7 +31,7 @@ const list: Route[] = [
     if (!ctx.creds) return notConfigured();
     const lookup = await lookupThread(ctx, ctx.creds);
     if ("response" in lookup) return lookup.response;
-    const raw = await fetchCanvasRaw(lookup.threadId, ctx.creds);
+    const raw = await wire.fetchRaw(lookup.threadId, ctx.creds);
     if (!raw.ok) {
       return jsonResponse({ error: raw.error }, 502);
     }
@@ -48,7 +49,7 @@ const list: Route[] = [
     const lookup = await lookupThread(ctx, ctx.creds);
     if ("response" in lookup) return lookup.response;
     if (!lookup.editable) return errorResponse("not_editable", 403);
-    const result = await applyCanvasEdit(lookup.threadId, edit, ctx.creds);
+    const result = await applyCanvasEdit(wire, lookup.threadId, edit, ctx.creds);
     if (!result.ok) return errorResponse(result.error, result.status);
     return jsonResponse({ ok: true });
   }),
@@ -56,7 +57,7 @@ const list: Route[] = [
 
 const RENAME_PATH = /^\/api\/files\/([^/]+)\/rename$/;
 
-const renameCanvas: HttpHandler = async (c, next) => {
+const renameCanvas = (wire: CanvasWire): HttpHandler => async (c, next) => {
   const fileId = c.req.method === "POST" ? RENAME_PATH.exec(c.url.pathname)?.[1] : undefined;
   if (!(fileId && c.creds)) return next();
   const info = await callSlack<FileInfoReply>("files.info", { file: fileId }, c.creds);
@@ -67,6 +68,7 @@ const renameCanvas: HttpHandler = async (c, next) => {
   const name = isRecord(body) && typeof body.title === "string" ? body.title.trim() : "";
   if (!name) return errorResponse("invalid_title", 400);
   const result = await applyCanvasEdit(
+    wire,
     threadId,
     { controls: [], deleted: [], title: name, upserts: [] },
     c.creds,
@@ -75,8 +77,9 @@ const renameCanvas: HttpHandler = async (c, next) => {
 };
 
 const setup: Setup = (ctx) => {
-  ctx.add("http", routes([...list, ...historyRoutes, ...commentRoutes]));
-  ctx.add("http", renameCanvas);
+  const wire = createCanvasWire(ctx.get("env"));
+  ctx.add("http", routes([...listRoutes(wire), ...historyRoutes(wire), ...commentRoutes]));
+  ctx.add("http", renameCanvas(wire));
 };
 
 export default setup;

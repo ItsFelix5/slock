@@ -33,7 +33,7 @@ export default function ZoomableImage(props: ZoomableImageProps) {
   const gallery = (): ZoomableImageItem[] =>
     props.gallery?.length ? props.gallery : [{ alt: props.alt, src: props.fullSrc ?? props.src }];
   const initialGalleryIndex = () =>
-    Math.max(0, Math.min(props.galleryIndex ?? 0, gallery().length - 1));
+    clamp(props.galleryIndex ?? 0, 0, gallery().length - 1);
   const openPreview = () => {
     setGalleryIndex(initialGalleryIndex());
     setOpen(true);

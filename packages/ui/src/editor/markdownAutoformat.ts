@@ -1,5 +1,5 @@
-import { defined } from "@slock/core";
-import { escapeRegExp, WHITESPACE_RE } from "../textHighlight";
+import { defined, escapeRegExp } from "@slock/core";
+import { WHITESPACE_RE } from "../textHighlight";
 import type Quill from "./quill";
 import type { Op, Range } from "./quill";
 import { indexAlignedText } from "./quillText";

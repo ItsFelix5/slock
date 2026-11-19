@@ -1,5 +1,5 @@
 import type { ModalView } from "../blocks/blocks";
-import type { DraftEntry } from "./apiTypes";
+import type { RawDraftEntry } from "./rawApi";
 import type { RawChannel, RawCounts, RawMessage, RawUser } from "./rawTypes";
 
 export interface DesktopNotificationEvent {
@@ -127,7 +127,7 @@ export type GatewayEvent =
   | { channels: string[]; type: "channel_updated"; updates: ChannelUpdates }
   | { name?: string; type: "pref_change"; value?: string }
   | { file_id?: string; type: "document_change" | "document_update" }
-  | { draft: DraftEntry; type: "draft_create" | "draft_update" }
+  | { draft: RawDraftEntry; type: "draft_create" | "draft_update" }
   | { draft_id?: string; type: "draft_delete" | "draft_send" }
   | { type: "dnd_updated_user" | "dnd_invalidated"; user?: string }
   | { subtype?: string; type: "activity" }

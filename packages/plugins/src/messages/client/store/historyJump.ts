@@ -1,26 +1,32 @@
-import type { HistoryPage, Message } from "@slock/types";
+import { startOfDay } from "@slock/core";
+import { service } from "@slock/core/solid";
+import { parseTs } from "@slock/slack";
+import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
 import type { SetStoreFunction, Store } from "solid-js/store";
 import { mergeMessages } from "../api/messageMerge";
+import { tsFromMs } from "../lib/tsTime";
 import type { HistoryMeta } from "./history/historyFlags";
+
+const env = service("env");
 
 export function createHistoryJump(deps: {
   api: {
-    fetchChannelDetails: (channelId: string) => Promise<{ created?: number }>;
-    fetchHistoryAround: (channelId: string, ts: string) => Promise<HistoryPage>;
-    fetchHistoryNewer: (channelId: string, oldest: string) => Promise<HistoryPage>;
+    fetchChannelDetails: (channelId: ChannelId) => Promise<{ created?: number }>;
+    fetchHistoryAround: (channelId: ChannelId, ts: Ts) => Promise<HistoryPage>;
+    fetchHistoryNewer: (channelId: ChannelId, oldest: Ts) => Promise<HistoryPage>;
   };
-  historyCursor: Map<string, string | undefined>;
-  historyMeta: Store<Record<string, HistoryMeta>>;
-  loadedChannels: Set<string>;
-  loadNewerMessages: (channelId: string) => Promise<void>;
-  loadRecentHistory: (channelId: string) => Promise<void>;
+  historyCursor: Map<ChannelId, string | undefined>;
+  historyMeta: Store<Record<ChannelId, HistoryMeta>>;
+  loadedChannels: Set<ChannelId>;
+  loadNewerMessages: (channelId: ChannelId) => Promise<void>;
+  loadRecentHistory: (channelId: ChannelId) => Promise<void>;
   messagesByChannel: Store<Record<string, Message[]>>;
-  newerHistoryBoundary: Map<string, string>;
-  replaceMessages: (channelId: string, compute: (existing: Message[]) => Message[]) => void;
-  setHistoryMeta: SetStoreFunction<Record<string, HistoryMeta>>;
+  newerHistoryBoundary: Map<ChannelId, Ts>;
+  replaceMessages: (channelId: ChannelId, compute: (existing: Message[]) => Message[]) => void;
+  setHistoryMeta: SetStoreFunction<Record<ChannelId, HistoryMeta>>;
   windowEpochs: {
-    begin: (key: string) => number;
-    isCurrent: (key: string, epoch: number) => boolean;
+    begin: (key: ChannelId) => number;
+    isCurrent: (key: ChannelId, epoch: number) => boolean;
   };
 }) {
   const {
@@ -37,7 +43,7 @@ export function createHistoryJump(deps: {
     windowEpochs,
   } = deps;
 
-  async function ensureChannelMessage(channelId: string, ts: string) {
+  async function ensureChannelMessage(channelId: ChannelId, ts: Ts) {
     if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
     const epoch = windowEpochs.begin(channelId);
     const previous = historyMeta[channelId];
@@ -78,7 +84,7 @@ export function createHistoryJump(deps: {
     }
   }
 
-  async function jumpToTs(channelId: string, ts: string) {
+  async function jumpToTs(channelId: ChannelId, ts: Ts) {
     const epoch = windowEpochs.begin(channelId);
     const previous = historyMeta[channelId];
     setHistoryMeta(channelId, {
@@ -102,7 +108,11 @@ export function createHistoryJump(deps: {
       replaceMessages(channelId, () => mergeMessages([], messages));
       historyCursor.set(channelId, fromStart ? undefined : around.nextCursor);
       if (newer && !newer.hasMore) newerHistoryBoundary.delete(channelId);
-      else newerHistoryBoundary.set(channelId, newer?.nextCursor ?? messages.at(-1)?.ts ?? ts);
+      else
+        newerHistoryBoundary.set(
+          channelId,
+          newer?.nextCursor ? parseTs(newer.nextCursor) : (messages.at(-1)?.ts ?? ts),
+        );
       setHistoryMeta(channelId, {
         anchored: !newer || newer.hasMore,
         hasMore: !fromStart && around.hasMore,
@@ -121,14 +131,12 @@ export function createHistoryJump(deps: {
     }
   }
 
-  function jumpToDate(channelId: string, dateMs: number) {
-    const endOfDay = new Date(dateMs);
-    endOfDay.setHours(23, 59, 59, 999);
-    const latestMs = Math.min(endOfDay.getTime(), Date.now());
-    return jumpToTs(channelId, (latestMs / 1000).toFixed(6));
+  function jumpToDate(channelId: ChannelId, dateMs: number) {
+    const endOfDayMs = startOfDay(dateMs, 1) - 1;
+    return jumpToTs(channelId, tsFromMs(Math.min(endOfDayMs, env.now())));
   }
 
-  async function jumpToBeginning(channelId: string) {
+  async function jumpToBeginning(channelId: ChannelId) {
     try {
       const details = await api.fetchChannelDetails(channelId);
       if (!details.created) return false;

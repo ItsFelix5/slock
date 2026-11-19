@@ -1,23 +1,24 @@
 import { service } from "@slock/core/solid";
-import { RELAY_BOT_ID } from "@slock/slack";
-import type { Attachment, Message } from "@slock/types";
+import { isUserId, parseUserId, RELAY_BOT_ID } from "@slock/slack";
+import type { Attachment, Message, UserId } from "@slock/types";
 import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
 
 const usersStore = service("users");
 
 const USER_PROFILE_ID_RE = /^[UW]/;
+const SLACKBOT_ID = parseUserId("USLACKBOT");
 
 export function resolveBotProfileUserId(
   msg: Pick<Message, "botId" | "botName" | "userId">,
-): string | undefined {
-  if (msg.botId?.startsWith("B")) return msg.botId;
-  if (msg.botName === "Slackbot") return "USLACKBOT";
-  return msg.botName && (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
+): UserId | undefined {
+  if (msg.botId?.startsWith("B") && isUserId(msg.botId)) return msg.botId;
+  if (msg.botName === "Slackbot") return SLACKBOT_ID;
+  return msg.botName && msg.userId && (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
     ? msg.userId
     : undefined;
 }
 
-export function resolveRelaySenderId(msg: Pick<Message, "botId" | "botName">): string | undefined {
+export function resolveRelaySenderId(msg: Pick<Message, "botId" | "botName">): UserId | undefined {
   return msg.botId === RELAY_BOT_ID && msg.botName
     ? usersStore.userIdByName(msg.botName)
     : undefined;
@@ -25,20 +26,20 @@ export function resolveRelaySenderId(msg: Pick<Message, "botId" | "botName">): s
 
 export function resolveProfileUserId(
   msg: Pick<Message, "botId" | "botName" | "userId">,
-): string | undefined {
-  if (USER_PROFILE_ID_RE.test(msg.userId)) return msg.userId;
+): UserId | undefined {
+  if (msg.userId && USER_PROFILE_ID_RE.test(msg.userId)) return msg.userId;
   return resolveRelaySenderId(msg) ?? resolveBotProfileUserId(msg);
 }
 
-export function isRealUserId(id: string | undefined): id is string {
-  return !!id && USER_PROFILE_ID_RE.test(id);
+export function isRealUserId(id: string | undefined): id is UserId {
+  return !!id && isUserId(id) && USER_PROFILE_ID_RE.test(id);
 }
 
 export interface MessageAuthorFields {
   botIcon?: string;
   botId?: string;
   botName?: string;
-  userId: string;
+  userId: UserId | undefined;
 }
 
 export function hasRealMessageAuthor(msg: MessageAuthorFields): boolean {
@@ -66,7 +67,7 @@ export function isBareLinkUnfurl(a: Attachment) {
 export function resolveAttachmentAuthorName(
   attachment: Pick<Attachment, "authorId" | "authorName">,
   userById: (id: string) => { name: string } | undefined,
-): string | undefined {
+): UserId | undefined {
   return (
     (attachment.authorId ? userById(attachment.authorId)?.name : undefined) ?? attachment.authorName
   );
@@ -89,7 +90,7 @@ export function unresolvedAuthorFallback(msg: Pick<MessageAuthorFields, "userId"
 export function resolveAuthorAvatarUrl(
   msg: MessageAuthorFields,
   userAvatarUrl: string | undefined,
-): string | undefined {
+): UserId | undefined {
   return hasRealMessageAuthor(msg)
     ? (userAvatarUrl ?? msg.botIcon)
     : (msg.botIcon ?? userAvatarUrl);
@@ -111,7 +112,7 @@ export function resolveMessageAuthorAvatar(
   return {
     avatarColor: user?.avatarColor ?? DEFAULT_AVATAR_COLOR,
     avatarUrl: resolveAuthorAvatarUrl(msg, user?.avatarUrl),
-    id: profileUserId ?? msg.userId,
+    id: profileUserId ?? msg.userId ?? "",
     name: resolveAuthorDisplayName(msg, user?.name, "Unknown"),
   };
 }

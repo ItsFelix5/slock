@@ -1,3 +1,4 @@
+import { isFileId } from "@slock/slack";
 import type { CanvasFile, CanvasImage, LayoutFrame } from "@slock/types";
 import { asMessage, asString, field, type RawField } from "./protobufRaw.ts";
 import { encodeRawMessage } from "./rawEncode.ts";
@@ -18,8 +19,12 @@ export function readFile(record: SectionRecord, frames: LayoutFrame[]): CanvasFi
   if (!(file && record.id)) return null;
   const ref = asMessage(field(asMessage(field(file, 3)) ?? new Map(), 2));
   const fileRef = (ref && asString(field(ref, 1))) ?? "";
+  const fileId = fileRef.startsWith(FILE_REF_PREFIX)
+    ? fileRef.slice(FILE_REF_PREFIX.length)
+    : fileRef;
+  if (!isFileId(fileId)) return null;
   return {
-    fileId: fileRef.startsWith(FILE_REF_PREFIX) ? fileRef.slice(FILE_REF_PREFIX.length) : fileRef,
+    fileId,
     frames,
     id: record.id,
     kind: "file",
@@ -34,9 +39,10 @@ export function readImage(
 ): CanvasImage | null {
   const image = asMessage(content(record)?.get(FIELD_IMAGES)?.[0]);
   const full = image && asMessage(field(image, 3));
-  if (!(image && full && record.id)) return null;
+  const fileId = (full && asString(field(full, 5))) ?? "";
+  if (!(image && full && record.id && isFileId(fileId))) return null;
   return {
-    fileId: asString(field(full, 5)) ?? "",
+    fileId,
     frames,
     height: Number(field(full, 3)?.varint ?? 0n),
     id: record.id,

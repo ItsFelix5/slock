@@ -1,18 +1,14 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createConnectionHarness } from "../../../../src/realtime/testing/connectionHarness";
 
 let harness: ReturnType<typeof createConnectionHarness>;
 
 beforeEach(() => {
-  jest.useFakeTimers();
-  jest.spyOn(Math, "random").mockReturnValue(0.5);
   harness = createConnectionHarness();
 });
 
 afterEach(() => {
   harness.restore();
-  jest.restoreAllMocks();
-  jest.useRealTimers();
 });
 
 describe("connecting", () => {
@@ -61,7 +57,7 @@ describe("connecting", () => {
     const { connection } = harness.start();
     expect(connection.connectionState()).toBe("reconnecting");
     Object.assign(globalThis, { WebSocket: original });
-    jest.advanceTimersByTime(1000);
+    harness.env.advance(1000);
     expect(harness.sockets.sockets).toHaveLength(1);
   });
 });
@@ -69,13 +65,13 @@ describe("connecting", () => {
 describe("reconnect backoff", () => {
   test("delays grow 1.7x from one second and cap at twenty", () => {
     harness.start();
-    const delays = [1000, 1700, 2890, 4913, 8353, 14_201, 20_000, 20_000];
+    const delays = [1000, 1700, 2890, 4913, 8352, 14_199, 20_000, 20_000];
     for (const delay of delays) {
       const before = harness.sockets.sockets.length;
       harness.sockets.last().drop();
-      jest.advanceTimersByTime(delay - 1);
+      harness.env.advance(delay - 1);
       expect(harness.sockets.sockets).toHaveLength(before);
-      jest.advanceTimersByTime(1);
+      harness.env.advance(1);
       expect(harness.sockets.sockets).toHaveLength(before + 1);
     }
   });
@@ -83,14 +79,14 @@ describe("reconnect backoff", () => {
   test("a gateway connection resets the delay", () => {
     const { connection } = harness.start();
     harness.sockets.last().drop();
-    jest.advanceTimersByTime(1000);
+    harness.env.advance(1000);
     harness.sockets.last().drop();
-    jest.advanceTimersByTime(1700);
+    harness.env.advance(1700);
     harness.sockets.last().accept();
     connection.setGatewayConnected(true);
     harness.sockets.last().drop();
     expect(connection.connectionState()).toBe("reconnecting");
-    jest.advanceTimersByTime(1000);
+    harness.env.advance(1000);
     expect(harness.sockets.sockets).toHaveLength(4);
   });
 
@@ -100,9 +96,9 @@ describe("reconnect backoff", () => {
     expect(harness.sockets.last().readyState).toBe(2);
     harness.sockets.last().drop();
     harness.sockets.last().drop();
-    jest.advanceTimersByTime(1000);
+    harness.env.advance(1000);
     expect(harness.sockets.sockets).toHaveLength(2);
-    jest.advanceTimersByTime(30_000);
+    harness.env.advance(30_000);
     expect(harness.sockets.sockets).toHaveLength(2);
   });
 });
@@ -116,7 +112,7 @@ describe("network", () => {
     expect(connection.connectionState()).toBe("offline");
     expect(connection.gatewayConnected()).toBe(false);
     expect(harness.sockets.last().readyState).toBe(2);
-    jest.advanceTimersByTime(600_000);
+    harness.env.advance(600_000);
     expect(harness.sockets.sockets).toHaveLength(1);
     harness.browser.goOnline();
     expect(harness.sockets.sockets).toHaveLength(2);
@@ -139,7 +135,7 @@ describe("network", () => {
     harness.browser.setOnlineSilently(false);
     harness.sockets.last().drop();
     expect(connection.connectionState()).toBe("offline");
-    jest.advanceTimersByTime(600_000);
+    harness.env.advance(600_000);
     expect(harness.sockets.sockets).toHaveLength(1);
   });
 

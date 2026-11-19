@@ -1,15 +1,19 @@
 import { defined } from "@slock/core";
-import type { Message } from "@slock/types";
+import { compareTs } from "@slock/slack";
+import type { ChannelId, Message } from "@slock/types";
 import { confirmsPending, dedupeMessages, isPendingMessage } from "../../api/messageMerge";
 
 export function createMessageMergeActions(deps: {
-  setMessagesByChannel: (channelId: string, update: (existing: Message[]) => Message[]) => void;
+  setMessagesByChannel: (
+    channelId: ChannelId,
+    update: (existing: Message[]) => Message[],
+  ) => void;
 }) {
-  function insertMessageInOrder(channelId: string, msg: Message) {
+  function insertMessageInOrder(channelId: ChannelId, msg: Message) {
     deps.setMessagesByChannel(channelId, (existing = []) => {
       const messages = dedupeMessages(existing);
       if (messages.some((m) => m.ts === msg.ts)) return messages;
-      const idx = messages.findIndex((m) => parseFloat(m.ts) > parseFloat(msg.ts));
+      const idx = messages.findIndex((m) => compareTs(m.ts, msg.ts) > 0);
       if (idx === -1) return [...messages, msg];
       return [...messages.slice(0, idx), msg, ...messages.slice(idx)];
     });
@@ -31,7 +35,7 @@ export function createMessageMergeActions(deps: {
       return dedupeMessages(next);
     }
     const last = existing.at(-1);
-    if (!last || parseFloat(last.ts) < parseFloat(msg.ts)) return [...existing, msg];
+    if (!last || compareTs(last.ts, msg.ts) < 0) return [...existing, msg];
     return dedupeMessages([...existing, msg]);
   }
   return { insertMessageInOrder, mergeIncomingMessage };

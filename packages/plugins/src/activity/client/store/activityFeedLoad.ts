@@ -1,8 +1,8 @@
-import { defined } from "@slock/core";
-import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
+import { defined, type Env } from "@slock/core";
+import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
 import { createSignal, onCleanup } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
-import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../kinds";
+import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, NO_USER, reactionActivityKey } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import { createEntryResolution } from "./entryResolution";
 
@@ -12,6 +12,7 @@ export function createActivityFeedLoad(deps: {
   activityItems: ActivityItem[];
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   currentUser: () => User | undefined;
+  env: Env;
   backfillMissingReadCursors: (items: readonly ActivityItem[]) => Promise<void>;
   fetchActivityFeedEntries: (
     limit?: number,
@@ -20,20 +21,21 @@ export function createActivityFeedLoad(deps: {
     unreadOnly?: boolean,
   ) => Promise<{ entries: FeedEntry[]; nextCursor?: string }>;
   fetchHistoryAround: (
-    channelId: string,
-    ts: string,
+    channelId: ChannelId,
+    ts: Ts,
     limit: number,
   ) => Promise<{ messages: Message[] }>;
   fetchMessagesByIds: (
-    entries: { channelId: string; ts: string }[],
+    entries: { channelId: ChannelId; ts: Ts }[],
   ) => Promise<Map<string, Message>>;
-  isBotUser?: (userId: string) => boolean;
+  isBotUser?: (userId: UserId) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
   setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
   const { createEntryPusher, resolvePendingEntries } = createEntryResolution({
     cacheResolvedMessages: deps.cacheResolvedMessages,
+    env: deps.env,
     fetchHistoryAround: deps.fetchHistoryAround,
     fetchMessagesByIds: deps.fetchMessagesByIds,
     isBotUser: deps.isBotUser,
@@ -97,7 +99,7 @@ export function createActivityFeedLoad(deps: {
       const { push } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
-        const toFetch = stale.filter((entry) => !!entry.channelId);
+        const toFetch = stale.filter((entry) => entry.channelId !== NO_CHANNEL);
         const batch = await deps.fetchMessagesByIds(toFetch);
         if (batch.size) deps.cacheResolvedMessages?.(batch);
         deps.setActivityItems(
@@ -115,7 +117,7 @@ export function createActivityFeedLoad(deps: {
               Object.assign(defined(list[index]), {
                 ...resolved,
                 text: resolved.text || defined(list[index]).text,
-                userId: resolved.userId || defined(list[index]).userId,
+                userId: resolved.userId === NO_USER ? defined(list[index]).userId : resolved.userId,
               });
             }
             list.sort((a, b) => b.time - a.time);
@@ -172,6 +174,7 @@ export function createActivityFeedLoad(deps: {
 
   const liveRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
+    env: deps.env,
     isLoading: isFetching,
     refresh: refreshActivityFeed,
   });

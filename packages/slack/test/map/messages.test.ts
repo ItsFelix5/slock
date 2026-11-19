@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int, pick, text } from "@slock/core/testing";
 import type { RawMessage } from "@slock/types";
-import { garbageRecord, MESSAGE_SPEC, viaJson } from "../../src/map/garbage";
 import {
   isHiddenSubtype,
   isMyRelayedMessage,
@@ -11,8 +10,10 @@ import {
   mapVisibleMessages,
   RELAY_BOT_ID,
 } from "../../src/map/messages";
+import { stamp, uid } from "../../src/testing";
+import { garbageRecord, MESSAGE_SPEC, viaJson } from "../garbage";
 
-const TS = "1700000000.000100";
+const TS = stamp("1700000000.000100");
 
 describe("mapMessage", () => {
   test("uses the ts as id and the user as author", () => {
@@ -21,13 +22,13 @@ describe("mapMessage", () => {
       kind: "normal",
       text: "hi",
       ts: TS,
-      userId: "U1",
+      userId: uid("U1"),
     });
   });
 
   test("bot messages fall back to the bot id as author", () => {
-    expect(mapMessage({ bot_id: "B1", ts: TS }).userId).toBe("B1");
-    expect(mapMessage({ ts: TS }).userId).toBe("");
+    expect(mapMessage({ bot_id: "B1", ts: TS }).userId).toBe(uid("B1"));
+    expect(mapMessage({ ts: TS }).userId).toBeUndefined();
   });
 
   test("bot icon prefers the message icons over the bot profile", () => {
@@ -71,7 +72,7 @@ describe("mapMessage", () => {
   test("threadTs is dropped for the root of a thread", () => {
     expect(mapMessage({ thread_ts: TS, ts: TS }).threadTs).toBeUndefined();
     expect(mapMessage({ thread_ts: "1699999999.000100", ts: TS }).threadTs).toBe(
-      "1699999999.000100",
+      stamp("1699999999.000100"),
     );
   });
 
@@ -98,13 +99,13 @@ describe("mapMessage", () => {
     forAll(
       (random) => ({
         ...garbageRecord(random, MESSAGE_SPEC),
-        ts: `${int(random, 1, 2e9)}.${text(random, "0123456789", 6)}`,
+        ts: `${int(random, 1, 2e9)}.${text(random, "0123456789", 6)}0`,
       }),
       (garbage) => {
         const raw = viaJson<RawMessage>(garbage);
         const mapped = mapMessage(raw);
-        expect(mapped.id).toBe(raw.ts);
-        expect(mapped.ts).toBe(raw.ts);
+        expect(mapped.id).toBe(stamp(raw.ts));
+        expect(mapped.ts).toBe(stamp(raw.ts));
       },
       500,
     );
@@ -132,7 +133,11 @@ describe("visible messages", () => {
       { ts: "5", type: "channel_join" },
       { ts: "2", type: "message" },
     ];
-    expect(mapVisibleMessages(raws).map((message) => message.id)).toEqual(["3", "1", "2"]);
+    expect(mapVisibleMessages(raws).map((message) => message.id)).toEqual([
+      stamp("3"),
+      stamp("1"),
+      stamp("2"),
+    ]);
   });
 
   test("never drops or reorders visible messages", () => {
@@ -146,7 +151,7 @@ describe("visible messages", () => {
       (raws) => {
         const expected = raws
           .filter((raw) => raw.subtype !== "message_changed")
-          .map((raw) => raw.ts);
+          .map((raw) => stamp(raw.ts));
         expect(mapVisibleMessages(raws).map((message) => message.id)).toEqual(expected);
       },
     );

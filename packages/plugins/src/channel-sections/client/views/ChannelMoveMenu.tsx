@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { Icon, IconButton, InlineFeedback, Menu, MenuItem, useEditShortcuts } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import {
@@ -18,7 +19,7 @@ type Destination =
   | { kind: "section"; id: string; name: string };
 
 export interface ChannelMoveMenuProps {
-  channelId: string;
+  channelId: ChannelId;
   onComplete?: () => void;
   variant?: "header" | "menu-item";
 }

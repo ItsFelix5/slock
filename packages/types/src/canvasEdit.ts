@@ -1,3 +1,4 @@
+import type { ChannelId, FileId, TeamId, Ts, UserId } from "./ids";
 import type { Reaction } from "./types";
 
 export type CanvasLineKind =
@@ -25,7 +26,7 @@ export interface CanvasLine {
 }
 
 export interface CanvasFile {
-  fileId: string;
+  fileId: FileId;
   frames: LayoutFrame[];
   id: string;
   kind: "file";
@@ -39,7 +40,7 @@ export interface CanvasImageThumb {
 }
 
 export interface CanvasImage {
-  fileId: string;
+  fileId: FileId;
   frames: LayoutFrame[];
   height: number;
   id: string;
@@ -78,14 +79,14 @@ export type CanvasNode = CanvasFile | CanvasImage | CanvasLine | CanvasTable;
 
 export type CanvasControl = { id: string } & (
   | { kind: "annotation" }
-  | { channelId: string; kind: "channel" }
+  | { channelId: ChannelId; kind: "channel" }
   | { kind: "date"; label: string; ms: number }
-  | { kind: "emoji"; name: string; teamId: string }
-  | { kind: "user"; userId: string }
+  | { kind: "emoji"; name: string; teamId: TeamId }
+  | { kind: "user"; userId: UserId }
 );
 
 export interface CanvasVersion {
-  authorId: string;
+  authorId: UserId;
   createdMs: number;
   sequence: number;
   versionId: string;
@@ -93,13 +94,13 @@ export interface CanvasVersion {
 
 export interface CanvasCommentThread {
   archived: boolean;
-  authorIds: string[];
-  latestReply: string | null;
+  authorIds: UserId[];
+  latestReply: Ts | null;
   quote: string;
   reactions: Reaction[];
   replyCount: number;
   threadId: string;
-  ts: string;
+  ts: Ts;
 }
 
 export interface CanvasUpsert {

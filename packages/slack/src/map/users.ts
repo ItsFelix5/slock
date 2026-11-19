@@ -1,6 +1,7 @@
 import type { RawBot, RawUser, RawUserProfile, User, UserCustomField } from "@slock/types";
+import { parseUserId } from "../ids";
 
-export const SLACK_USER_ID = "USLACK";
+export const SLACK_USER_ID = parseUserId("USLACK");
 const SLACK_AVATAR_URL = "/public/slack-logo.svg";
 const SLACKBOT_AVATAR_URL = "https://a.slack-edge.com/80588/img/plugins/slackbot/service_512.png";
 
@@ -66,7 +67,7 @@ export function mapUser(raw: RawUser): User {
     botId: raw.profile?.bot_id || undefined,
     customFields,
     email: raw.profile?.email || undefined,
-    id: raw.id,
+    id: parseUserId(raw.id),
 
     isBot: !!raw.is_bot || raw.id === "USLACKBOT" || isSlack,
     isWorkspaceAdmin: !!(raw.is_admin || raw.is_owner || raw.is_primary_owner),
@@ -93,7 +94,7 @@ export function mapBot(raw: RawBot): User {
     avatarColor: "#616061",
     avatarUrl: rawIcon || undefined,
     botId: raw.id,
-    id: raw.id,
+    id: parseUserId(raw.id),
     isBot: true,
     name: raw.name ?? "",
   };
