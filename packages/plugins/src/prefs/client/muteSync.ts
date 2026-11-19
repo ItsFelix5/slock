@@ -1,11 +1,12 @@
+import type { ChannelId } from "@slock/types";
 import { createLatestValueSync } from "../../query/client/api";
 import { setMutedChannels } from "../../slack/client/api";
 
-type MuteWrite = { ids: string[]; seq: number };
+type MuteWrite = { ids: ChannelId[]; seq: number };
 
-export function createMuteSync(onFailed: (confirmedIds: string[]) => void) {
+export function createMuteSync(onFailed: (confirmedIds: ChannelId[]) => void) {
   let seq = 0;
-  let confirmedIds: string[] = [];
+  let confirmedIds: ChannelId[] = [];
   const sync = createLatestValueSync<MuteWrite>({
     key: () => "mutes",
     onError: (_write, error) => {
@@ -20,9 +21,9 @@ export function createMuteSync(onFailed: (confirmedIds: string[]) => void) {
     },
   });
   return {
-    confirm(ids: string[]) {
+    confirm(ids: ChannelId[]) {
       confirmedIds = ids;
     },
-    push: (ids: string[]) => sync.force({ ids, seq: ++seq }),
+    push: (ids: ChannelId[]) => sync.force({ ids, seq: ++seq }),
   };
 }

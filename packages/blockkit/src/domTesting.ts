@@ -16,7 +16,11 @@ export function unmountAll() {
 }
 
 export function pressKey(element: Element, key: string) {
-  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key });
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+  });
   element.dispatchEvent(event);
   return event;
 }

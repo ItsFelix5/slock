@@ -28,7 +28,11 @@
   { "n": "stuck_out_tongue", "u": "1f61b" },
   { "n": "stuck_out_tongue_winking_eye", "u": "1f61c" },
   { "n": "zany_face", "u": "1f92a" },
-  { "n": "grinning_face_with_one_large_and_one_small_eye", "u": "1f92a", "a": "zany_face" },
+  {
+    "n": "grinning_face_with_one_large_and_one_small_eye",
+    "u": "1f92a",
+    "a": "zany_face"
+  },
   { "n": "stuck_out_tongue_closed_eyes", "u": "1f61d" },
   { "n": "money_mouth_face", "u": "1f911" },
   { "n": "hugging_face", "u": "1f917" },
@@ -41,12 +45,20 @@
   { "n": "face_with_open_eyes_and_hand_over_mouth", "u": "1fae2" },
   { "n": "face_with_peeking_eye", "u": "1fae3" },
   { "n": "shushing_face", "u": "1f92b" },
-  { "n": "face_with_finger_covering_closed_lips", "u": "1f92b", "a": "shushing_face" },
+  {
+    "n": "face_with_finger_covering_closed_lips",
+    "u": "1f92b",
+    "a": "shushing_face"
+  },
   { "n": "thinking_face", "u": "1f914" },
   { "n": "saluting_face", "u": "1fae1" },
   { "n": "zipper_mouth_face", "u": "1f910" },
   { "n": "face_with_raised_eyebrow", "u": "1f928" },
-  { "n": "face_with_one_eyebrow_raised", "u": "1f928", "a": "face_with_raised_eyebrow" },
+  {
+    "n": "face_with_one_eyebrow_raised",
+    "u": "1f928",
+    "a": "face_with_raised_eyebrow"
+  },
   { "n": "neutral_face", "u": "1f610" },
   { "n": "expressionless", "u": "1f611" },
   { "n": "no_mouth", "u": "1f636" },
@@ -80,7 +92,11 @@
   { "n": "dizzy_face", "u": "1f635" },
   { "n": "face_with_spiral_eyes", "u": "1f635-200d-1f4ab" },
   { "n": "exploding_head", "u": "1f92f" },
-  { "n": "shocked_face_with_exploding_head", "u": "1f92f", "a": "exploding_head" },
+  {
+    "n": "shocked_face_with_exploding_head",
+    "u": "1f92f",
+    "a": "exploding_head"
+  },
   { "n": "face_with_cowboy_hat", "u": "1f920" },
   { "n": "partying_face", "u": "1f973" },
   { "n": "disguised_face", "u": "1f978" },
@@ -4286,9 +4302,15 @@
   { "n": "man-man-girl-girl", "u": "1f468-200d-1f468-200d-1f467-200d-1f467" },
   { "n": "woman-woman-boy", "u": "1f469-200d-1f469-200d-1f466" },
   { "n": "woman-woman-girl", "u": "1f469-200d-1f469-200d-1f467" },
-  { "n": "woman-woman-girl-boy", "u": "1f469-200d-1f469-200d-1f467-200d-1f466" },
+  {
+    "n": "woman-woman-girl-boy",
+    "u": "1f469-200d-1f469-200d-1f467-200d-1f466"
+  },
   { "n": "woman-woman-boy-boy", "u": "1f469-200d-1f469-200d-1f466-200d-1f466" },
-  { "n": "woman-woman-girl-girl", "u": "1f469-200d-1f469-200d-1f467-200d-1f467" },
+  {
+    "n": "woman-woman-girl-girl",
+    "u": "1f469-200d-1f469-200d-1f467-200d-1f467"
+  },
   { "n": "man-boy", "u": "1f468-200d-1f466" },
   { "n": "man-boy-boy", "u": "1f468-200d-1f466-200d-1f466" },
   { "n": "man-girl", "u": "1f468-200d-1f467" },
@@ -4305,7 +4327,10 @@
   { "n": "people_hugging", "u": "1fac2" },
   { "n": "family", "u": "1f46a" },
   { "n": "family_adult_adult_child", "u": "1f9d1-200d-1f9d1-200d-1f9d2" },
-  { "n": "family_adult_adult_child_child", "u": "1f9d1-200d-1f9d1-200d-1f9d2-200d-1f9d2" },
+  {
+    "n": "family_adult_adult_child_child",
+    "u": "1f9d1-200d-1f9d1-200d-1f9d2-200d-1f9d2"
+  },
   { "n": "family_adult_child", "u": "1f9d1-200d-1f9d2" },
   { "n": "family_adult_child_child", "u": "1f9d1-200d-1f9d2-200d-1f9d2" },
   { "n": "footprints", "u": "1f463" },
@@ -5271,11 +5296,20 @@
   { "n": "repeat_one", "u": "1f502" },
   { "n": "arrow_forward", "u": "25b6-fe0f" },
   { "n": "fast_forward", "u": "23e9" },
-  { "n": "black_right_pointing_double_triangle_with_vertical_bar", "u": "23ed-fe0f" },
-  { "n": "black_right_pointing_triangle_with_double_vertical_bar", "u": "23ef-fe0f" },
+  {
+    "n": "black_right_pointing_double_triangle_with_vertical_bar",
+    "u": "23ed-fe0f"
+  },
+  {
+    "n": "black_right_pointing_triangle_with_double_vertical_bar",
+    "u": "23ef-fe0f"
+  },
   { "n": "arrow_backward", "u": "25c0-fe0f" },
   { "n": "rewind", "u": "23ea" },
-  { "n": "black_left_pointing_double_triangle_with_vertical_bar", "u": "23ee-fe0f" },
+  {
+    "n": "black_left_pointing_double_triangle_with_vertical_bar",
+    "u": "23ee-fe0f"
+  },
   { "n": "arrow_up_small", "u": "1f53c" },
   { "n": "arrow_double_up", "u": "23eb" },
   { "n": "arrow_down_small", "u": "1f53d" },

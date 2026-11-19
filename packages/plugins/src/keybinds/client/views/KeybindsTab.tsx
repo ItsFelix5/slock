@@ -1,4 +1,5 @@
 import {
+  ariaBoolean,
   clearKeybindOverride,
   comboLabel,
   confirmDialog,
@@ -20,7 +21,7 @@ import {
   useListShortcuts,
   useNavigationShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, Index, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 
 function includesText(text: string, query: string) {
   return text.toLowerCase().includes(query);
@@ -91,18 +92,15 @@ export default function KeybindsTab() {
 
   const navRows = () => [...(listRef?.querySelectorAll<HTMLElement>("[data-nav-row]") ?? [])];
 
-  createEffect(() => {
-    groups();
-    queueMicrotask(() => {
-      const rows = navRows();
-      rovingTabIndex(
-        rows,
-        Math.max(
-          document.activeElement instanceof HTMLElement ? rows.indexOf(document.activeElement) : -1,
-          0,
-        ),
-      );
-    });
+  createEffect(groups, () => {
+    const rows = navRows();
+    rovingTabIndex(
+      rows,
+      Math.max(
+        document.activeElement instanceof HTMLElement ? rows.indexOf(document.activeElement) : -1,
+        0,
+      ),
+    );
   });
 
   onSettled(() => {
@@ -185,7 +183,7 @@ export default function KeybindsTab() {
           value={query()}
         />
         <button
-          aria-pressed={finder.recording()}
+          aria-pressed={ariaBoolean(finder.recording())}
           class="settings-status-clear settings-keybind-find btn-reset flex-align-center busy"
           onClick={finder.start}
           type="button"
@@ -196,16 +194,18 @@ export default function KeybindsTab() {
       </div>
 
       <div onFocusIn={onListFocusIn} onKeyDown={redirectTypingToSearch} ref={listRef}>
-        <Index each={groups()}>
+        <For each={groups()} keyed={false}>
           {(group) => (
             <div class="settings-section">
               <div class="settings-section-title">{group().label}</div>
               <div class="settings-list flex-col">
-                <Index each={group().shortcuts}>{(info) => <ShortcutRow info={info()} />}</Index>
+                <For each={group().shortcuts} keyed={false}>
+                  {(info) => <ShortcutRow info={info()} />}
+                </For>
               </div>
             </div>
           )}
-        </Index>
+        </For>
       </div>
 
       <Show when={groups().length === 0}>

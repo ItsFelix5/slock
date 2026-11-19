@@ -1,3 +1,4 @@
+import { parseFileId } from "@slock/slack";
 import { describe, expect, test } from "bun:test";
 import type { CanvasEdit, CanvasNode, LayoutFrame } from "@slock/types";
 import { editOf, meta, Server, sectionId } from "../../../src/canvas/protocol/canvasSimulator.ts";
@@ -93,7 +94,7 @@ describe("block types", () => {
 
   test("image and file keep their metadata", () => {
     const image: CanvasNode = {
-      fileId: "F1",
+      fileId: parseFileId("F1"),
       frames: [],
       height: 40,
       id: sectionId(1),
@@ -105,7 +106,7 @@ describe("block types", () => {
       width: 60,
     };
     const file: CanvasNode = {
-      fileId: "F2",
+      fileId: parseFileId("F2"),
       frames: [],
       id: sectionId(2),
       kind: "file",

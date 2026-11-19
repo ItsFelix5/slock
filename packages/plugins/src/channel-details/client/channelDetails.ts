@@ -9,6 +9,7 @@ import type {
   User,
   UserId,
 } from "@slock/types";
+import { parseUserId } from "@slock/slack";
 import { createSignal } from "solid-js";
 import { createKeyedQuery, defineKey } from "../../query/client/api";
 import {
@@ -118,8 +119,8 @@ export function createChannelDetailsStore() {
   }
 
   function loadChannelManagerIds(id: ChannelId): Promise<UserId[]> {
-    return withFeedbackOrThrow(id, "Failed to load channel managers.", () =>
-      fetchChannelManagerIds(id),
+    return withFeedbackOrThrow(id, "Failed to load channel managers.", async () =>
+      (await fetchChannelManagerIds(id)).map(parseUserId),
     );
   }
 

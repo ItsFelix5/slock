@@ -1,6 +1,5 @@
 import type { Env } from "@slock/core";
 import type { GatewayEvent } from "@slock/types";
-import { batch } from "solid-js";
 import type { RealtimeHandler } from "./api";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
 
@@ -50,22 +49,9 @@ export function createRealtime(points: {
     }
   }
 
-  let queue: string[] = [];
-  function handleRaw(raw: string) {
-    queue.push(raw);
-    if (queue.length > 1) return;
-    queueMicrotask(() => {
-      const frames = queue;
-      queue = [];
-      batch(() => {
-        for (const frame of frames) dispatch(frame);
-      });
-    });
-  }
-
   const connection = createRealtimeConnection({
     env: points.env,
-    onMessage: handleRaw,
+    onMessage: dispatch,
     onOpen: () => {
       for (const run of points.onOpen()) run();
     },

@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
-import { batch, createMemo } from "solid-js";
-import { createStore } from "solid-js";
+import type { ChannelId } from "@slock/types";
+import { createMemo, createStore } from "solid-js";
 import type { PaneContent } from "../../shell/client/api/types";
 import type { ConversationKindResolver, ConversationOpenHook } from "./api";
 import type { ChannelMessageTarget, View } from "./api/types";
@@ -18,7 +18,7 @@ export function createConversations(deps: {
 }) {
   const [targets, setTargets] = createStore<Record<string, ChannelMessageTarget | undefined>>({});
 
-  function kindOf(id: string): View["kind"] {
+  function kindOf(id: ChannelId): View["kind"] {
     for (const resolve of deps.kinds()) {
       const kind = resolve(id);
       if (kind) return kind;
@@ -26,7 +26,7 @@ export function createConversations(deps: {
     return "channel";
   }
 
-  const viewFor = (id: string): View => ({ id, kind: kindOf(id) });
+  const viewFor = (id: ChannelId): View => ({ id, kind: kindOf(id) });
 
   const activeView = createMemo<View | null>(() => {
     const view = asView(shell.activeContent());
@@ -36,24 +36,29 @@ export function createConversations(deps: {
   const visibleViews = () => panes.panes().flatMap(({ content }) => asView(content) ?? []);
   const mountedViews = () => panes.mountedPanes().flatMap(({ content }) => asView(content) ?? []);
 
+  function writeTarget(paneId: string, target: ChannelMessageTarget | undefined) {
+    setTargets((draft) => {
+      if (target) draft[paneId] = target;
+      else delete draft[paneId];
+    });
+  }
+
   function setActiveView(view: View, options?: { target?: ChannelMessageTarget }) {
     const next = viewFor(view.id);
-    batch(() => {
-      for (const hook of deps.opened()) hook(next);
-      setTargets(shell.open(next), options?.target);
-    });
+    for (const hook of deps.opened()) hook(next);
+    writeTarget(shell.open(next), options?.target);
   }
 
   return {
     activeView,
-    clearMessageTarget: (paneId: string) => setTargets(paneId, undefined),
-    isOpenInAnyPane: (id: string, kind: View["kind"]) =>
+    clearMessageTarget: (paneId: string) => writeTarget(paneId, undefined),
+    isOpenInAnyPane: (id: ChannelId, kind: View["kind"]) =>
       visibleViews().some((view) => view.kind === kind && view.id === id),
     kindOf,
     mountedViews,
     messageTarget: (paneId: string) => targets[paneId] ?? null,
     setActiveView,
-    setMessageTarget: (paneId: string, target: ChannelMessageTarget) => setTargets(paneId, target),
+    setMessageTarget: writeTarget,
     targetPaneIds: () => Object.keys(targets),
     viewFor,
     visibleMessageTargets: () =>

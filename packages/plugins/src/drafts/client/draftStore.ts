@@ -1,7 +1,6 @@
 import { compareTs, isSlackError } from "@slock/slack";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
-import { createSignal } from "solid-js";
-import { createStore, produce } from "solid-js";
+import { createSignal, createStore } from "solid-js";
 import { deleteDraft, fetchDrafts, saveDraft } from "./draftApi";
 
 export function draftCacheKey(channelId: ChannelId, threadTs?: Ts): string {
@@ -24,36 +23,45 @@ export function createDraftStore() {
   let hydration: Promise<boolean> | null = null;
   let disposed = false;
 
-  function upsert(entry: DraftEntry) {
-    if (entry.lastUpdatedTs) lastKnownTs.set(entry.id, entry.lastUpdatedTs);
-    setDrafts(draftCacheKey(entry.channelId, entry.threadTs), (list = []) => {
-      const idx = list.findIndex((e) => e.id === entry.id);
-      return idx === -1 ? [...list, entry] : list.map((e, i) => (i === idx ? entry : e));
+  function write(entry: DraftEntry, onlyIfNewer: boolean): boolean {
+    const key = draftCacheKey(entry.channelId, entry.threadTs);
+    let applied = false;
+    setDrafts((all) => {
+      const list = (all[key] ??= []);
+      const index = list.findIndex((e) => e.id === entry.id);
+      const known = list[index];
+      if (known && onlyIfNewer && !isNewerDraft(entry, known)) return;
+      if (index === -1) list.push(entry);
+      else list[index] = entry;
+      applied = true;
+    });
+    if (applied && entry.lastUpdatedTs) lastKnownTs.set(entry.id, entry.lastUpdatedTs);
+    return applied;
+  }
+
+  const upsert = (entry: DraftEntry) => void write(entry, false);
+
+  function remove(key: string, id: string) {
+    setDrafts((all) => {
+      const next = all[key]?.filter((e) => e.id !== id);
+      if (next?.length) all[key] = next;
+      else delete all[key];
     });
   }
 
-  function remove(key: string, id: string) {
-    const next = drafts[key]?.filter((e) => e.id !== id);
-    setDrafts(
-      produce((all) => {
-        if (next?.length) all[key] = next;
-        else delete all[key];
-      }),
-    );
-  }
-
   function applyRemote(draft: DraftEntry) {
-    if (!hydrated) return;
-    const key = draftCacheKey(draft.channelId, draft.threadTs);
-    const known = drafts[key]?.find((e) => e.id === draft.id);
-    if (known && !isNewerDraft(draft, known)) return;
-    upsert(draft);
+    if (hydrated) write(draft, true);
   }
 
   function removeRemote(id: string) {
-    for (const [key, list] of Object.entries(drafts)) {
-      if (list.some((e) => e.id === id)) remove(key, id);
-    }
+    setDrafts((all) => {
+      for (const [key, list] of Object.entries(all)) {
+        const next = list.filter((e) => e.id !== id);
+        if (next.length === list.length) continue;
+        if (next.length) all[key] = next;
+        else delete all[key];
+      }
+    });
   }
 
   function deleteOnServer(id: string): Promise<void> {

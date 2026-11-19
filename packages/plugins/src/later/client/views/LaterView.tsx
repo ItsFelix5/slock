@@ -33,7 +33,9 @@ const usersStore = service("users");
 const later = service("later");
 
 export default function LaterView() {
-  onSettled(() => later.ensureLaterLoaded());
+  onSettled(() => {
+    void later.ensureLaterLoaded();
+  });
   let listRef: HTMLDivElement | undefined;
   initRovingTabIndexDefault(
     () => listRef,
@@ -80,7 +82,9 @@ export default function LaterView() {
           >
             <For each={later.laterItems}>
               {(item) => {
-                onSettled(() => later.ensureLaterMessageLoaded(item));
+                onSettled(() => {
+                  void later.ensureLaterMessageLoaded(item);
+                });
                 const msg = createMemo(() => later.laterMessageFor(item.channelId, item.ts));
                 const isLoaded = createMemo(() => msg() !== undefined);
                 const isLoading = createMemo(() =>
@@ -90,7 +94,10 @@ export default function LaterView() {
                   later.hasLaterMessageError(item.channelId, item.ts),
                 );
 
-                const authorId = createMemo(() => resolveProfileUserId(msg() ?? { userId: "" }));
+                const authorId = createMemo(() => {
+                  const message = msg();
+                  return message ? resolveProfileUserId(message) : undefined;
+                });
                 const author = createMemo(() => {
                   const id = authorId();
                   return id ? usersStore.userById(id) : undefined;

@@ -1,5 +1,6 @@
 import { service, usePoint } from "@slock/core/solid";
 import {
+  ariaBoolean,
   Button,
   Icon,
   InlineFeedback,
@@ -8,7 +9,7 @@ import {
   useEscapeClose,
   useTabStripShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import { channelIconName } from "../../../channels/client/api";
 import type { ChannelDetailsTabItem } from "../api";
@@ -90,27 +91,34 @@ export default function ChannelDetails() {
   });
 
   createEffect(
-    on(channelDetails.channelDetailsId, () => setTab(channelDetails.channelDetailsTab())),
+    () => {
+      channelDetails.channelDetailsId();
+      return channelDetails.channelDetailsTab();
+    },
+    (requested) => {
+      setTab(requested);
+    },
   );
-  createEffect(() => {
-    if (activeTab()?.item?.managerOnly && !managerIds.isLoading && !isManager()) setTab("about");
-  });
+  createEffect(
+    () => !!activeTab()?.item?.managerOnly && !managerIds.isLoading && !isManager(),
+    (locked) => {
+      if (locked) setTab("about");
+    },
+  );
 
   let seededDetails: EditableChannelDetails | undefined;
-  createEffect(
-    on(details, (d) => {
-      if (!d) return;
-      const merged = mergeChannelDetailsDraft(
-        { name: nameInput(), purpose: purposeInput(), topic: topicInput() },
-        seededDetails,
-        d,
-      );
-      setTopicInput(merged.topic);
-      setPurposeInput(merged.purpose);
-      setNameInput(merged.name);
-      seededDetails = editableChannelDetails(d);
-    }),
-  );
+  createEffect(details, (d) => {
+    if (!d) return;
+    const merged = mergeChannelDetailsDraft(
+      { name: nameInput(), purpose: purposeInput(), topic: topicInput() },
+      seededDetails,
+      d,
+    );
+    setTopicInput(merged.topic);
+    setPurposeInput(merged.purpose);
+    setNameInput(merged.name);
+    seededDetails = editableChannelDetails(d);
+  });
 
   const nameDirty = () => {
     const d = details();
@@ -204,15 +212,17 @@ export default function ChannelDetails() {
                       <For each={visibleTabs()}>
                         {(t, i) => (
                           <button
-                            aria-selected={tab() === t.key}
-                            class="channel-details-tab btn-reset flex-align-center"
-                            classList={{ active: tab() === t.key }}
+                            aria-selected={ariaBoolean(tab() === t.key)}
+                            class={[
+                              "channel-details-tab btn-reset flex-align-center",
+                              { active: tab() === t.key },
+                            ]}
                             onClick={() => setTab(t.key)}
                             ref={(el) => {
                               tabButtonRefs[i()] = el;
                             }}
                             role="tab"
-                            tabIndex={tab() === t.key ? 0 : -1}
+                            tabindex={tab() === t.key ? 0 : -1}
                             type="button"
                           >
                             {t.label}

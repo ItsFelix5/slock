@@ -15,7 +15,7 @@ export function createLocalPref<T>(key: string, fallback: T) {
       return fallback;
     }
   };
-  const [value, setValue] = createSignal<T>(read());
+  const [value, setValue] = createSignal(read);
   function persist(next: T): void {
     setValue(() => next);
     try {

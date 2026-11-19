@@ -1,4 +1,3 @@
-import { createSignal } from "solid-js";
 import { useShortcut } from "./hooks/useShortcut";
 
 export interface UndoEntry {
@@ -9,19 +8,16 @@ export interface UndoEntry {
 const MAX_ENTRIES = 30;
 
 export function createUndoStack() {
-  const [entries, setEntries] = createSignal<(UndoEntry & { id: number })[]>([]);
-  let nextId = 0;
+  const entries: UndoEntry[] = [];
 
   function push(entry: UndoEntry) {
-    const id = nextId++;
-    setEntries((prev) => [...prev, { ...entry, id }].slice(-MAX_ENTRIES));
+    entries.push(entry);
+    entries.splice(0, entries.length - MAX_ENTRIES);
   }
 
   async function undo(): Promise<string | undefined> {
-    const current = entries();
-    const last = current[current.length - 1];
+    const last = entries.pop();
     if (!last) return;
-    setEntries((prev) => prev.filter((e) => e.id !== last.id));
     await last.undo();
     return last.label;
   }

@@ -24,13 +24,21 @@ export const FONT_PRESETS: FontPreset[] = [
     label: "System UI",
     value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   },
-  { id: "georgia", label: "Georgia", value: 'Georgia, "Times New Roman", serif' },
+  {
+    id: "georgia",
+    label: "Georgia",
+    value: 'Georgia, "Times New Roman", serif',
+  },
   {
     id: "mono",
     label: "Monospace",
     value: '"JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace',
   },
-  { id: "comic-sans", label: "Comic Sans", value: '"Comic Sans MS", "Comic Neue", cursive' },
+  {
+    id: "comic-sans",
+    label: "Comic Sans",
+    value: '"Comic Sans MS", "Comic Neue", cursive',
+  },
   {
     id: "opendyslexic",
     label: "OpenDyslexic",

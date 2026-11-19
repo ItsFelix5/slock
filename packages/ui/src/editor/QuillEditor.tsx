@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onSettled } from "solid-js";
+import { createMemo, createSignal, onSettled } from "solid-js";
 import { dispatchManualShortcut } from "../hooks/useShortcut";
 import { bindLinePrefix, type LinePrefixFormat } from "./blockShortcuts";
 import ContextBlot from "./ContextBlot";
@@ -8,24 +8,14 @@ import { wireEmbedCaretEscape } from "./embedCaret";
 import FormatBubble from "./format/FormatBubble";
 import LinkEditPopover from "./format/LinkEditPopover";
 import { createLinkEditController } from "./format/linkEdit";
-import { linkifySelectionPaste, wireLinkAutoconvert } from "./linkAutolink";
-import { listAutofillBinding, listIndentBindings, wireListOffsetCleanup } from "./listOffset";
-import { INLINE_MARKS, wireArrowDownExit, wireMarkdownAutoformat } from "./markdownAutoformat";
-import Quill, { getEmbedBlot } from "./quill";
+import { wireLinkAutoconvert } from "./linkAutolink";
+import { wireListOffsetCleanup } from "./listOffset";
+import { wireArrowDownExit, wireMarkdownAutoformat } from "./markdownAutoformat";
+import Quill from "./quill";
+import { BASE_FORMATS, EXTENDED_FORMATS, quillKeyboardBindings } from "./quillKeyboard";
+import { pasteCaptureHandler, stripPastedHeader } from "./quillPaste";
 import "./editor.css";
 import "./editorLists.css";
-
-const BASE_FORMATS = ["bold", "code", "italic", "link", "strike", "mention", "emoji"];
-const EXTENDED_FORMATS = [
-  "blockquote",
-  "context",
-  "header",
-  "indent",
-  "list",
-  "code-block",
-  "divider",
-  "date",
-];
 
 export interface QuillEditorProps {
   checklists?: boolean;
@@ -43,9 +33,6 @@ export interface QuillEditorProps {
   placeholder?: string;
 }
 
-const Delta = Quill.import("delta");
-type Delta = InstanceType<typeof Delta>;
-
 const LINE_PREFIX_FORMATS: LinePrefixFormat[] = [
   { prefix: /^>$/, length: 1, format: "blockquote", value: true },
   { prefix: /^#$/, length: 1, format: "header", value: 1 },
@@ -54,25 +41,15 @@ const LINE_PREFIX_FORMATS: LinePrefixFormat[] = [
   { prefix: /^####$/, length: 4, format: "header", value: 4 },
 ];
 
-const UNFORMAT_ON_BACKSPACE = ["blockquote", "context", "header", "code-block"];
-
-function stripPastedHeader(_node: Element, delta: Delta) {
-  return new Delta(
-    delta.ops.map((op) => {
-      if (!op.attributes?.header) return op;
-      const { header: _header, ...attributes } = op.attributes;
-      return { ...op, attributes };
-    }),
-  );
-}
-
 export default function QuillEditor(props: QuillEditorProps) {
   let container: HTMLDivElement | undefined;
   let quill: Quill | undefined;
   const [mounted, setMounted] = createSignal<Quill>();
-  const formats =
-    props.formats ??
-    ((props.extendedFormats ?? true) ? [...BASE_FORMATS, ...EXTENDED_FORMATS] : BASE_FORMATS);
+  const formats = createMemo(
+    () =>
+      props.formats ??
+      ((props.extendedFormats ?? true) ? [...BASE_FORMATS, ...EXTENDED_FORMATS] : BASE_FORMATS),
+  );
   const linkEdit = createLinkEditController(() => quill);
   useEditorShortcuts(() => quill, {
     extendedFormats: props.formats?.includes("code-block") ?? props.extendedFormats ?? true,
@@ -81,70 +58,13 @@ export default function QuillEditor(props: QuillEditorProps) {
 
   onSettled(() => {
     if (!container) return;
-    const has = (name: string) => formats.includes(name);
-    const blockFormats = formats.some((name) => EXTENDED_FORMATS.includes(name));
-    const editor = new Quill(container, {
-      formats: has("list") ? [...formats, "listOffset"] : formats,
+    const activeFormats = formats();
+    const has = (name: string) => activeFormats.includes(name);
+    const editor: Quill = new Quill(container, {
+      formats: has("list") ? [...activeFormats, "listOffset"] : activeFormats,
       modules: {
         keyboard: {
-          bindings: {
-            bold: false,
-            italic: false,
-            "list autofill": listAutofillBinding(props.checklists ?? false),
-            ...(has("list") && has("indent") ? listIndentBindings() : {}),
-            "embed backspace": {
-              key: "Backspace",
-              collapsed: true,
-              handler(range: { index: number }) {
-                if (range.index === 0) return true;
-                const [leaf, offset] = editor.getLeaf(range.index);
-                if (!(leaf instanceof getEmbedBlot()) || offset === 0) return true;
-                const text = leaf.contentNode.textContent;
-                if (!text) return true;
-                const at = leaf.offset(editor.scroll);
-                editor.deleteText(at, 1, "user");
-                editor.insertText(at, text, "user");
-                editor.setSelection(at + text.length, 0, "silent");
-                return false;
-              },
-            },
-            ...Object.fromEntries(
-              INLINE_MARKS.map(([, format]) => [
-                `${format} backspace`,
-                {
-                  key: "Backspace",
-                  collapsed: true,
-                  format: [format],
-                  handler(range: { index: number }) {
-                    if (range.index > 0 && editor.getFormat(range.index - 1, 1)[format])
-                      return true;
-                    editor.format(format, false, "user");
-                    return false;
-                  },
-                },
-              ]),
-            ),
-            ...(blockFormats
-              ? {
-                  "header enter": false,
-                  ...Object.fromEntries(
-                    UNFORMAT_ON_BACKSPACE.filter(has).map((format) => [
-                      `${format} backspace`,
-                      {
-                        key: "Backspace",
-                        collapsed: true,
-                        offset: 0,
-                        format: [format],
-                        handler() {
-                          editor.format(format, false, "user");
-                          return false;
-                        },
-                      },
-                    ]),
-                  ),
-                }
-              : {}),
-          },
+          bindings: quillKeyboardBindings(() => editor, activeFormats, props.checklists ?? false),
         },
         history: true,
         clipboard: {
@@ -172,14 +92,10 @@ export default function QuillEditor(props: QuillEditorProps) {
     wireArrowDownExit(editor);
     if (has("list")) wireListOffsetCleanup(editor);
     wireLinkAutoconvert(editor);
-    onCleanup(wireEmbedCaretEscape(editor));
+    const unwireEmbedCaretEscape = wireEmbedCaretEscape(editor);
     editor.on("text-change", linkEdit.revalidate);
     editor.root.addEventListener("click", linkEdit.handleClick);
     editor.root.addEventListener("dblclick", linkEdit.handleDoubleClick);
-    onCleanup(() => {
-      editor.root.removeEventListener("click", linkEdit.handleClick);
-      editor.root.removeEventListener("dblclick", linkEdit.handleDoubleClick);
-    });
 
     props.onReady(editor);
 
@@ -189,36 +105,26 @@ export default function QuillEditor(props: QuillEditorProps) {
         event.stopPropagation();
       }
     };
+    const handlePasteCapture = pasteCaptureHandler(editor, {
+      onPasteFiles: props.onPasteFiles,
+      onPasteText: props.onPasteText,
+    });
     container.addEventListener("keydown", handleKeyDownCapture, true);
-    onCleanup(() => container?.removeEventListener("keydown", handleKeyDownCapture, true));
-
-    const handlePasteCapture = (event: ClipboardEvent) => {
-      const files = event.clipboardData?.files;
-      if (files && files.length > 0 && props.onPasteFiles) {
-        event.preventDefault();
-        event.stopPropagation();
-        props.onPasteFiles(files);
-        return;
-      }
-      if (props.onPasteText?.(editor, event)) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      const text = event.clipboardData?.getData("text/plain");
-      if (text && linkifySelectionPaste(editor, text)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
     container.addEventListener("paste", handlePasteCapture, true);
-    onCleanup(() => container?.removeEventListener("paste", handlePasteCapture, true));
+
+    return () => {
+      unwireEmbedCaretEscape();
+      editor.root.removeEventListener("click", linkEdit.handleClick);
+      editor.root.removeEventListener("dblclick", linkEdit.handleDoubleClick);
+      container?.removeEventListener("keydown", handleKeyDownCapture, true);
+      container?.removeEventListener("paste", handlePasteCapture, true);
+    };
   });
 
   return (
     <>
       <div class="ql-editor-root" ref={container} />
-      <FormatBubble formats={formats} quill={mounted()} />
+      <FormatBubble formats={formats()} quill={mounted()} />
       <LinkEditPopover
         anchor={() => linkEdit.state()?.anchorEl}
         onClose={linkEdit.close}

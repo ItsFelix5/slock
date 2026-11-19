@@ -1,20 +1,22 @@
 import { defined } from "@slock/core";
+import { isChannelId, isTs } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 
 const SLACK_HOST_RE: RegExp = /(^|\.)slack\.com$/i;
 const ARCHIVE_PATH_RE = /^\/archives\/([A-Z0-9]+)\/p(\d+)\/?$/;
 const SLACK_TS_RE = /^\d+\.\d+$/;
 
 export interface SlackPermalinkTarget {
-  channelId: string;
+  channelId: ChannelId;
 
-  messageTs: string;
-  threadTs: string;
+  messageTs: Ts;
+  threadTs: Ts;
 }
 
 export interface SlackPermalinkNavigator {
-  openChannelMessage: (channelId: string, ts: string) => void;
-  openChannelPeek: (channelId: string, threadTs: string, highlightTs?: string) => void;
-  openMessageInSplit: (channelId: string, ts: string, threadTs?: string) => void;
+  openChannelMessage: (channelId: ChannelId, ts: Ts) => void;
+  openChannelPeek: (channelId: ChannelId, threadTs: Ts, highlightTs?: Ts) => void;
+  openMessageInSplit: (channelId: ChannelId, ts: Ts, threadTs?: Ts) => void;
 }
 
 export interface SlackPermalinkOpenerDeps {
@@ -93,5 +95,6 @@ export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {
   const threadTs =
     requestedThreadTs && SLACK_TS_RE.test(requestedThreadTs) ? requestedThreadTs : messageTs;
 
-  return { channelId: defined(channelId), messageTs, threadTs };
+  if (!(channelId && isChannelId(channelId) && isTs(messageTs) && isTs(threadTs))) return null;
+  return { channelId, messageTs, threadTs };
 }

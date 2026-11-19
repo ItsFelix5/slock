@@ -51,7 +51,7 @@ const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const prefs = service("prefs");
   createEffect(() => {
-    const preferencesSettled = prefs.preferencesReady() || !!bootstrap.userPrefs.error;
+    const preferencesSettled = prefs.preferencesReady() || !!bootstrap.userPrefs().error;
     if (users.currentUser() && preferencesSettled) void untrack(() => store.ensureActivityLoaded());
   });
   const conversations = service("conversations");
@@ -66,7 +66,7 @@ const setup: Setup = (ctx) => {
     );
     if (added.length) store.markActivityItemsRead(added);
   });
-  createEffect(() => store.setGatewayActivityBadgeCounts(bootstrap.bootstrap.data?.activityCounts));
+  createEffect(() => store.setGatewayActivityBadgeCounts(bootstrap.bootstrap().data?.activityCounts));
   ctx.add("unread.counts", (notifications) => {
     if (store.setGatewayActivityBadgeCounts(notifications)) store.requestActivityRefresh();
   });

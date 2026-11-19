@@ -91,11 +91,10 @@ export default function ResizeHandle(props: {
       aria-valuemax={props.max}
       aria-valuemin={props.min}
       aria-valuenow={Math.round(props.width())}
-      class="resize-handle"
-      classList={{ [props.side]: true }}
+      class={["resize-handle", props.side]}
       onPointerDown={onPointerDown}
       ref={rootRef}
-      tabIndex={0}
+      tabindex={0}
     />
   );
 }

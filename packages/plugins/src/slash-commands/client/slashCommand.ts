@@ -1,15 +1,16 @@
 import { defined, errorMessage } from "@slock/core";
+import type { ChannelId, Ts } from "@slock/types";
 import { composerFeedbackKey, SLASH_COMMAND_RE } from "./api";
 
 export interface SlashCommandDeps {
-  run: (channelId: string, command: string, text: string) => Promise<string | null>;
+  run: (channelId: ChannelId, command: string, text: string) => Promise<string | null>;
   flashError: (key: string, message: string) => void;
 }
 
 export async function handleSlashCommand(
   deps: SlashCommandDeps,
-  channelId: string,
-  threadTs: string | undefined,
+  channelId: ChannelId,
+  threadTs: Ts | undefined,
   input: string,
 ): Promise<{ handled: boolean; succeeded: boolean }> {
   const match = SLASH_COMMAND_RE.exec(input);

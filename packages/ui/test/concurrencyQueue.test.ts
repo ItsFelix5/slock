@@ -63,7 +63,11 @@ describe("createConcurrencyQueue", () => {
   test("never exceeds the limit and runs every task exactly once", async () => {
     const tasks: Promise<unknown>[] = [];
     forAll(
-      (random) => ({ count: int(random, 0, 25), limit: int(random, 1, 5), order: random() }),
+      (random) => ({
+        count: int(random, 0, 25),
+        limit: int(random, 1, 5),
+        order: random(),
+      }),
       ({ count, limit, order }) => {
         const queue = createConcurrencyQueue(limit);
         const g = gate();

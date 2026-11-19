@@ -43,7 +43,11 @@ function urlBefore(
   const trimmed = match[0].replace(TRAILING_PUNCTUATION_RE, "");
   if (!(urlMatch || BARE_DOMAIN_RE.test(trimmed))) return;
   const start = end - match[0].length;
-  return { end: start + trimmed.length, start, url: urlMatch ? trimmed : `https://${trimmed}` };
+  return {
+    end: start + trimmed.length,
+    start,
+    url: urlMatch ? trimmed : `https://${trimmed}`,
+  };
 }
 
 function linkifyUrlEndingAt(quill: Quill, end: number): void {

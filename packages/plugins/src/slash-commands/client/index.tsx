@@ -2,7 +2,9 @@ import type { Setup } from "@slock/core";
 import { createSlashCommandsStore } from "./store";
 
 const setup: Setup = (ctx) => {
-  ctx.provide("slash-commands", createSlashCommandsStore());
+  const store = createSlashCommandsStore();
+  ctx.provide("slash-commands", store);
+  ctx.add("realtime.handler", { run: store.invalidate, types: ["commands_changed"] });
 };
 
 export default setup;

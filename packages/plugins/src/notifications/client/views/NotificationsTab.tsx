@@ -55,15 +55,15 @@ export default function NotificationsTab() {
     <>
       <h2>Notifications</h2>
 
-      <Show when={bootstrapStore.userPrefs.error}>
+      <Show when={bootstrapStore.userPrefs().error}>
         <div class="settings-preferences-error flex-between">
           <span>Couldn't load your saved preferences. Changes are disabled to protect them.</span>
           <Button
-            disabled={bootstrapStore.userPrefs.isFetching}
+            disabled={bootstrapStore.userPrefs().refreshing}
             onClick={() => void bootstrapStore.retryUserPrefs()}
             size="sm"
           >
-            {bootstrapStore.userPrefs.isFetching ? "Retrying…" : "Try again"}
+            {bootstrapStore.userPrefs().refreshing ? "Retrying…" : "Try again"}
           </Button>
         </div>
       </Show>

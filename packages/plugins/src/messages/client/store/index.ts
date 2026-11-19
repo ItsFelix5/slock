@@ -1,6 +1,6 @@
 import { isMyRelayedMessage } from "@slock/slack";
-import type { ConversationViewData, Message, User } from "@slock/types";
-import { produce, reconcile, snapshot } from "solid-js";
+import type { ChannelId, ConversationViewData, Message, Ts, User, UserId } from "@slock/types";
+import { reconcile, snapshot } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../api";
 import {
@@ -19,21 +19,21 @@ import { createReactionEvents } from "./reactionEvents";
 
 export function createMessagesStore(deps: {
   currentUser: () => User | undefined;
-  clearChannelUnread: (channelId: string) => void;
-  lastReadFor: (channelId: string) => number | undefined;
-  unreadDividerTsFor: (channelId: string) => number | undefined;
-  threadReadTsFor: (threadTs: string) => string | undefined;
-  setLastReadByChannel: (channelId: string, ts: number) => void;
-  setUnreadDividerTs: (channelId: string, ts: number) => void;
-  setUnreadChannelIds: (channelId: string, unread: boolean) => void;
-  setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-  syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-  setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
+  clearChannelUnread: (channelId: ChannelId) => void;
+  lastReadFor: (channelId: ChannelId) => number | undefined;
+  unreadDividerTsFor: (channelId: ChannelId) => number | undefined;
+  threadReadTsFor: (threadTs: Ts) => Ts | undefined;
+  setLastReadByChannel: (channelId: ChannelId, ts: number) => void;
+  setUnreadDividerTs: (channelId: ChannelId, ts: number) => void;
+  setUnreadChannelIds: (channelId: ChannelId, unread: boolean) => void;
+  setChannelRead: (channelId: ChannelId, ts: Ts) => Promise<boolean>;
+  syncChannelRead: (channelId: ChannelId, ts: Ts) => Promise<boolean>;
+  setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
   visibleMessageTargets: () => ChannelMessageTarget[];
   visibleViews: () => View[];
   visibleThreads: () => ThreadRef[];
   onConversationView?: (view: ConversationViewData) => void;
-  onMessageDeleted: (channelId: string, ts: string) => void;
+  onMessageDeleted: (channelId: ChannelId, ts: Ts) => void;
   extendPatch: (current: Message, patch: Partial<Message>) => Partial<Message>;
   retainsDeleted: (msg: Message) => boolean;
 }) {
@@ -46,11 +46,13 @@ export function createMessagesStore(deps: {
   const {
     messagesByChannel,
     setMessagesByChannel,
+    updateChannelMessages,
+    updateThreadMessages,
     reactionMessages,
     setReactionMessages,
     loadedChannels,
     threadMessages,
-    setThreadMessages: setThreadMessagesRaw,
+    setThreadMessages,
     acceptsLiveReplies,
     loadOlderMessages,
     loadNewerMessages,
@@ -79,7 +81,6 @@ export function createMessagesStore(deps: {
     jumpToTs,
     refreshThreadReplies,
   } = history;
-  const setThreadMessages: typeof setMessagesByChannel = setThreadMessagesRaw;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
     hasMoreHistory,
@@ -98,49 +99,43 @@ export function createMessagesStore(deps: {
     threadMessages,
   });
   const mergeActions = createMessageMergeActions({
-    setMessagesByChannel: (channelId, update) => setMessagesByChannel(channelId, update),
+    updateChannelMessages,
   });
   const findAllMessageLocations = createMessageLocator(
     messagesByChannel,
     threadMessages,
     reactionMessages,
   );
-  const latestMessageTsMsByUser = (userId: string) =>
+  function editList(location: MessageLocation, edit: (list: Message[]) => void) {
+    if (location.store === "channel") setMessagesByChannel((s) => edit((s[location.key] ??= [])));
+    else if (location.store === "thread") setThreadMessages((s) => edit((s[location.key] ??= [])));
+    else setReactionMessages((s) => edit((s[location.key] ??= [])));
+  }
+  const latestMessageTsMsByUser = (userId: UserId) =>
     findLatestMessageTsMsByUser(messagesByChannel, threadMessages, userId);
-  const messagesInChannel = (channelId: string) => messagesByChannel[channelId];
-  const messagesInThread = (threadTs: string) => threadMessages[threadTs];
-  const reactionMessageFor = (channelId: string, ts: string) =>
+  const messagesInChannel = (channelId: ChannelId) => messagesByChannel[channelId];
+  const messagesInThread = (threadTs: Ts) => threadMessages[threadTs];
+  const reactionMessageFor = (channelId: ChannelId, ts: Ts) =>
     reactionMessages[reactionMessageKey(channelId, ts)]?.[0];
-  const setStore = {
-    channel: setMessagesByChannel,
-    reaction: setReactionMessages,
-    thread: setThreadMessages,
-  } as const;
-  function patchMessage(channelId: string, ts: string, patch: Partial<Message>) {
+  function patchMessage(channelId: ChannelId, ts: Ts, patch: Partial<Message>) {
     for (const { location, list } of findAllMessageLocations(channelId, ts)) {
       const current = list.find((m) => m.ts === ts);
       if (!current) continue;
-      setStore[location.store](
-        location.key,
-        (m) => m.ts === ts,
-        reconcile({
-          ...snapshot(current),
-          ...patch,
-          ...deps.extendPatch(snapshot(current), patch),
-        }),
-      );
+      const base = snapshot(current);
+      const next = { ...base, ...patch, ...deps.extendPatch(base, patch) };
+      editList(location, (messages) => {
+        const target = messages.find((m) => m.ts === ts);
+        if (target) reconcile(next, "id")(target);
+      });
     }
   }
-  function removeMessage(location: MessageLocation, ts: string) {
-    setStore[location.store](
-      location.key,
-      produce((list) => {
-        const idx = list.findIndex((m) => m.ts === ts);
-        if (idx !== -1) list.splice(idx, 1);
-      }),
-    );
+  function removeMessage(location: MessageLocation, ts: Ts) {
+    editList(location, (messages) => {
+      const idx = messages.findIndex((m) => m.ts === ts);
+      if (idx !== -1) messages.splice(idx, 1);
+    });
   }
-  function markDeleted(channelId: string, ts: string) {
+  function markDeleted(channelId: ChannelId, ts: Ts) {
     deps.onMessageDeleted(channelId, ts);
     const locations = findAllMessageLocations(channelId, ts);
     const msg = locations[0]?.list.find((m) => m.ts === ts);
@@ -148,10 +143,12 @@ export function createMessagesStore(deps: {
     else {
       history.forgetRemoved(channelId, ts);
       for (const { location } of locations) removeMessage(location, ts);
-      setThreadMessages(produce((threads) => delete threads[ts]));
+      setThreadMessages((threads) => {
+        delete threads[ts];
+      });
     }
   }
-  const dismissMessage = (channelId: string, ts: string) => {
+  const dismissMessage = (channelId: ChannelId, ts: Ts) => {
     for (const { location } of findAllMessageLocations(channelId, ts)) removeMessage(location, ts);
   };
   const { applyReactionEvent } = createReactionEvents({
@@ -167,8 +164,7 @@ export function createMessagesStore(deps: {
     currentUser: deps.currentUser,
     patchMessage,
     removeMessage,
-    setChannelMessages: setMessagesByChannel,
-    setThreadMessages,
+    editList,
   });
   const { broadcastThreadReply, deleteMessageAt, editMessageText } = createMessageMutations({
     currentUser: deps.currentUser,
@@ -223,10 +219,11 @@ export function createMessagesStore(deps: {
     reactionMessageFor,
     refreshThreadReplies,
     removeMessage,
-    setMessagesByChannel,
     setReactionMessages,
     setThreadMessages,
     threadMessages,
+    updateChannelMessages,
+    updateThreadMessages,
     visibleThreads: deps.visibleThreads,
     broadcastThreadReply,
     deleteMessageAt,

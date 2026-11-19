@@ -130,7 +130,10 @@ function LineChart(props: { series: ChartSeries[]; categories: string[]; filled?
       />
       <For each={rows()}>
         {(row, si) => {
-          const points = row.map((p, i) => ({ x: toX(i), y: toY(p?.value ?? 0) }));
+          const points = row.map((p, i) => ({
+            x: toX(i),
+            y: toY(p?.value ?? 0),
+          }));
           const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
           const areaPath = `${linePath} L${points.at(-1)?.x},${zeroY()} L${points[0]?.x},${zeroY()} Z`;
           return (

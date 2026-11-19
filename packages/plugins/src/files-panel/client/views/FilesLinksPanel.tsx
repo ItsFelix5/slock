@@ -85,8 +85,7 @@ export default function FilesLinksPanel() {
                 <For each={TYPE_FILTERS}>
                   {(f) => (
                     <button
-                      class="files-links-filter-chip"
-                      classList={{ active: typeFilter() === f.value }}
+                      class={["files-links-filter-chip", { active: typeFilter() === f.value }]} 
                       onClick={() => setTypeFilter(f.value)}
                       type="button"
                     >

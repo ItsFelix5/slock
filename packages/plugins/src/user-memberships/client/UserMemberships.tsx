@@ -60,8 +60,7 @@ export default function UserMemberships(props: ProfileMetaProps) {
           <For each={FILTERS}>
             {(filter, index) => (
               <button
-                class="segmented-control-btn"
-                classList={{ active: filterIndex() === index() }}
+                class={["segmented-control-btn", { active: filterIndex() === index() }]}
                 onClick={() => select(index())}
                 type="button"
               >

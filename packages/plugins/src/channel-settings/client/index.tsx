@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { lazy } from "solid-js";
+import { lazy, Show } from "solid-js";
 
 const SettingsTab = lazy(() => import("./views/SettingsTab"));
 
@@ -11,12 +11,16 @@ const setup: Setup = (ctx) => {
       label: "Settings",
       managerOnly: true,
       view: (props) => (
-        <SettingsTab
-          archived={props.archived}
-          channelId={props.channelId}
-          onChanged={props.refetch}
-          private={props.private}
-        />
+        <Show keyed when={props.channelId}>
+          {(channelId) => (
+            <SettingsTab
+              archived={props.archived}
+              channelId={channelId}
+              onChanged={props.refetch}
+              private={props.private}
+            />
+          )}
+        </Show>
       ),
     },
     { order: 20 },

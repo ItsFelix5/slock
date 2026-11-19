@@ -23,7 +23,7 @@ export default function HomeView(props: { unreadsOnly: Accessor<boolean> }) {
   const bootstrap = service("bootstrap");
   const channels = service("channels");
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement>();
-  const preferencesLoading = () => bootstrap.userPrefs.isLoading;
+  const preferencesLoading = () => bootstrap.userPrefs().status === "loading";
 
   return (
     <div class="sidebar-scroll-wrap">
@@ -31,10 +31,10 @@ export default function HomeView(props: { unreadsOnly: Accessor<boolean> }) {
         <Show
           fallback={<SidebarSkeleton />}
           when={
-            !(bootstrap.bootstrap.isLoading || channels.sectionsLoading() || preferencesLoading())
+            !(bootstrap.bootstrap().status === "loading" || channels.sectionsLoading() || preferencesLoading())
           }
         >
-          <Show when={bootstrap.userPrefs.error}>
+          <Show when={bootstrap.userPrefs().error}>
             <ResourceError
               label="Couldn't load preferences."
               loading={preferencesLoading}

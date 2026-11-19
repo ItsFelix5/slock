@@ -127,8 +127,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
           <For each={items()}>
             {(item, index) => (
               <button
-                class="compose-picker-row btn-reset flex-align-center"
-                classList={{ active: activeIndex() === index() }}
+                class={["compose-picker-row btn-reset flex-align-center", { active: activeIndex() === index() }]} 
                 id={optionId(index())}
                 onClick={() => props.onSelect(item.id)}
                 onMouseEnter={() => setActiveIndex(index())}

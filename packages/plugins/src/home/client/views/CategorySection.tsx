@@ -63,22 +63,20 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
     sections().draggingSectionId() !== props.id;
   return (
     <div
-      class="sidebar-section"
-      classList={{
+      class={["sidebar-section", {
         "sidebar-section-dragging": dragging(),
         "sidebar-section-drop-after": dropping(false),
         "sidebar-section-drop-before": dropping(true),
-      }}
+      }]} 
       data-reorderable={cat()?.reorderable ? "true" : undefined}
       data-section-id={props.id}
       ref={sectionRef}
     >
       <div
-        class="sidebar-section-header flex-align-center"
-        classList={{
+        class={["sidebar-section-header flex-align-center", {
           "sidebar-section-header-draggable":
             cat()?.reorderable && !sections().sectionStructurePending(),
-        }}
+        }]} 
         draggable={
           cat()?.reorderable &&
           sections().renamingId() !== props.id &&

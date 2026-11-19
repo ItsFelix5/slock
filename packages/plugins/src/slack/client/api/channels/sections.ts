@@ -1,4 +1,12 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut, extractChannelSections } from "@slock/slack";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+  extractChannelSections,
+  parseChannelId,
+} from "@slock/slack";
 import type { BootstrapSection, ChannelSection, RawChannelSection } from "@slock/types";
 import { fetchInitialData } from "../initialData";
 import {
@@ -24,7 +32,7 @@ async function fetchSectionList(): Promise<ChannelSection[]> {
 
 function mapInitialSections(sections: Record<string, BootstrapSection>): ChannelSection[] {
   return Object.entries(sections).map(([id, section]) => ({
-    channelIds: section.channel_ids ?? [],
+    channelIds: (section.channel_ids ?? []).map(parseChannelId),
     id,
     name: section.name ?? "Section",
     sidebar:

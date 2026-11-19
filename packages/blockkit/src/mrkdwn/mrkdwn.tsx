@@ -1,5 +1,5 @@
-import { createMemo, For } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createMemo, For } from "solid-js";
 import { InertTokensContext } from "../context";
 import EmojiText from "../emoji/EmojiText";
 import { type BlockNode, parseMrkdwn } from "./mrkdwnBlocks";

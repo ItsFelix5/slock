@@ -1,5 +1,5 @@
-import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { Show } from "solid-js";
 import "./PanelHeader.css";
 import Icon from "../media/Icon";
 

@@ -1,5 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import { runSlashCommand } from "../../slack/client/api";
+import { slashCommands } from "./commands";
 import { handleSlashCommand } from "./slashCommand";
 
 const feedback = service("feedback");
@@ -10,7 +12,10 @@ export function createSlashCommandsStore() {
     run: runSlashCommand,
   };
   return {
-    handleSlashCommand: (channelId: string, threadTs: string | undefined, input: string) =>
+    available: () => slashCommands.read(null) ?? [],
+    handleSlashCommand: (channelId: ChannelId, threadTs: Ts | undefined, input: string) =>
       handleSlashCommand(deps, channelId, threadTs, input),
+    invalidate: () => slashCommands.invalidateAll(),
+    load: () => slashCommands.ensure(null).catch(() => []),
   };
 }

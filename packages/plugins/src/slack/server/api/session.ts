@@ -107,11 +107,12 @@ export async function connectAccount(
   const session = readSession(cookieHeader);
   const existing = session.accounts.find((account) => account.token === creds.token);
   const id = existing?.id ?? crypto.randomUUID();
+  const routeTeamId = teamIdFromRoute(creds.route);
   const summary: AccountSummary = {
     name: profileName(await fetchProfile(creds)),
     domain: creds.domain,
     id,
-    teamId: teamIdFromRoute(creds.route),
+    teamId: isTeamId(routeTeamId) ? routeTeamId : null,
   };
   return sessionResponse(session, {
     accounts: [...session.accounts.filter((account) => account.id !== id), { ...creds, id }],

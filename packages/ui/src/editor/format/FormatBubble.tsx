@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import IconButton from "../../button/IconButton";
 import { useShortcut } from "../../hooks/useShortcut";
 import FloatingPanel from "../../overlay/floating/FloatingPanel";
@@ -69,53 +69,56 @@ export default function FormatBubble(props: FormatBubbleProps) {
     scope: "composer",
   });
 
-  createEffect(() => {
-    const { quill } = props;
-    if (!quill) return;
-    const element = document.createElement("div");
-    element.className = "format-bubble-anchor";
-    quill.container.append(element);
+  createEffect(
+    () => props.quill,
+    (quill) => {
+      if (!quill) return;
+      const element = document.createElement("div");
+      element.className = "format-bubble-anchor";
+      quill.container.append(element);
 
-    const refresh = () => {
-      if (linkRange()) return;
-      const range = quill.getSelection();
-      const bounds = range && range.length > 0 ? quill.getBounds(range.index, range.length) : null;
-      const format = range ? quill.getFormat(range) : {};
-      if (
-        !bounds ||
-        format["code-block"] ||
-        bounds.top < 0 ||
-        bounds.bottom > quill.container.clientHeight
-      ) {
+      const refresh = () => {
+        if (linkRange()) return;
+        const range = quill.getSelection();
+        const bounds =
+          range && range.length > 0 ? quill.getBounds(range.index, range.length) : null;
+        const format = range ? quill.getFormat(range) : {};
+        if (
+          !bounds ||
+          format["code-block"] ||
+          bounds.top < 0 ||
+          bounds.bottom > quill.container.clientHeight
+        ) {
+          setOpen(false);
+          return;
+        }
+        Object.assign(element.style, {
+          height: `${bounds.height}px`,
+          left: `${bounds.left}px`,
+          top: `${bounds.top}px`,
+          width: `${bounds.width}px`,
+        });
+        setActive(format);
+        setAnchor(element);
+        setOpen(true);
+      };
+      const hide = () => {
+        setLinkRange(undefined);
         setOpen(false);
-        return;
-      }
-      Object.assign(element.style, {
-        height: `${bounds.height}px`,
-        left: `${bounds.left}px`,
-        top: `${bounds.top}px`,
-        width: `${bounds.width}px`,
-      });
-      setActive(format);
-      setAnchor(element);
-      setOpen(true);
-    };
-    const hide = () => {
-      setLinkRange(undefined);
-      setOpen(false);
-    };
+      };
 
-    quill.on("editor-change", refresh);
-    quill.root.addEventListener("scroll", refresh);
-    quill.root.addEventListener("mousedown", hide);
-    onCleanup(() => {
-      quill.off("editor-change", refresh);
-      quill.root.removeEventListener("scroll", refresh);
-      quill.root.removeEventListener("mousedown", hide);
-      element.remove();
-      hide();
-    });
-  });
+      quill.on("editor-change", refresh);
+      quill.root.addEventListener("scroll", refresh);
+      quill.root.addEventListener("mousedown", hide);
+      return () => {
+        quill.off("editor-change", refresh);
+        quill.root.removeEventListener("scroll", refresh);
+        quill.root.removeEventListener("mousedown", hide);
+        element.remove();
+        hide();
+      };
+    },
+  );
 
   return (
     <Show when={buttons().length > 0}>
@@ -147,7 +150,7 @@ export default function FormatBubble(props: FormatBubbleProps) {
                 icon={button.icon}
                 onClick={() => press(button)}
                 size="sm"
-                tabIndex={-1}
+                tabindex={-1}
               />
             )}
           </For>

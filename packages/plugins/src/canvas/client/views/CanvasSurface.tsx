@@ -1,7 +1,7 @@
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import type { Op } from "@slock/ui/editor/quill";
-import { onCleanup } from "solid-js";
+import { onCleanup, onSettled } from "solid-js";
 import MentionHoverCard from "../../../composer/client/api/editor/MentionHoverCard";
 import { createMentionHoverController } from "../../../composer/client/api/editor/mentionHover";
 import { useMentionResolution } from "../../../composer/client/api/editor/mentionResolution";
@@ -42,6 +42,10 @@ export interface CanvasSurfaceProps {
 export default function CanvasSurface(props: CanvasSurfaceProps) {
   let quill: Quill | undefined;
   let wrapper: HTMLDivElement | undefined;
+  const disposers: Array<() => void> = [];
+  onCleanup(() => {
+    for (const dispose of disposers.splice(0)) dispose();
+  });
   const resolveMention = useMentionResolution(() => quill);
   const mentionHover = createMentionHoverController();
 
@@ -68,10 +72,12 @@ export default function CanvasSurface(props: CanvasSurfaceProps) {
     if (services?.readOnly) editor.disable();
     bindCanvasKeys(editor);
     ignoreEmbedChurn(editor);
-    onCleanup(scheduleDecorations(editor));
-    onCleanup(emojiAutoconvert(editor));
-    onCleanup(mentionHover.bind(editor));
-    onCleanup(services?.register(props.scope, editor) ?? (() => undefined));
+    disposers.push(
+      scheduleDecorations(editor),
+      emojiAutoconvert(editor),
+      mentionHover.bind(editor),
+      services?.register(props.scope, editor) ?? (() => undefined),
+    );
     editor.on("text-change", (_delta, _old, source) => {
       if (source === "silent") return;
       services?.afterChange(editor);
@@ -83,22 +89,21 @@ export default function CanvasSurface(props: CanvasSurfaceProps) {
     props.onReady?.(editor);
   }
 
-  function isolate(element: HTMLDivElement) {
-    wrapper = element;
-    if (!props.nested) return;
-    for (const type of ISOLATED_EVENTS) {
-      const stop = (event: Event) => event.stopPropagation();
-      element.addEventListener(type, stop);
-      onCleanup(() => element.removeEventListener(type, stop));
-    }
-  }
+  onSettled(() => {
+    if (!(props.nested && wrapper)) return;
+    const element = wrapper;
+    const stop = (event: Event) => event.stopPropagation();
+    for (const type of ISOLATED_EVENTS) element.addEventListener(type, stop);
+    return () => {
+      for (const type of ISOLATED_EVENTS) element.removeEventListener(type, stop);
+    };
+  });
 
   return (
     <div
-      class="canvas-surface"
-      classList={{ nested: props.nested }}
+      class={["canvas-surface", { nested: props.nested }]}
       data-scope={props.scope()}
-      ref={isolate}
+      ref={wrapper}
     >
       <QuillEditor
         ariaLabel={props.ariaLabel}

@@ -1,7 +1,9 @@
+import { createFakeEnv } from "@slock/core/testing";
+import { ch, stamp } from "@slock/slack/testing";
 import type { Block } from "@slock/types";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 import { createComposerDraftState } from "../../../src/drafts/client/composerDrafts";
-import { hydrateDrafts } from "../../../src/drafts/client/draftStore";
+import { createDraftStore } from "../../../src/drafts/client/draftStore";
 
 export const blocks = (value: string): Block[] =>
   value
@@ -18,28 +20,48 @@ export const settle = async () => {
 };
 
 export function mountComposer(initialKey: string) {
-  const [key, setKey] = createSignal(initialKey);
-  const [current, setCurrent] = createSignal<Block[]>([]);
+  const env = createFakeEnv();
+  const store = createDraftStore();
+  const [key, setKeySignal] = createSignal(initialKey);
+  const [current, setCurrentSignal] = createSignal<Block[]>([]);
   let dispose = () => {};
   const state = createRoot((stop) => {
     dispose = stop;
-    return createComposerDraftState({
+    return createComposerDraftState(store, env, {
       blocks: current,
-      channelId: () => key().split(":thread:")[0],
-      editing: () => false,
-      key,
-      loadIntoEditor: (loaded) => setCurrent(loaded),
+      channelId: () => ch(key().split(":thread:")[0] ?? ""),
+      loadIntoEditor: (loaded) => setCurrentSignal(loaded),
       ready: () => true,
-      resetPreviews: () => {},
-      threadTs: () => key().split(":thread:")[1],
+      threadTs: () => {
+        const ts = key().split(":thread:")[1];
+        return ts ? stamp(ts) : undefined;
+      },
     });
   });
-  return { current, dispose: () => dispose(), setCurrent, setKey, state };
+  return {
+    current,
+    dispose: () => {
+      dispose();
+      store.dispose();
+    },
+    env,
+    setCurrent: (value: Block[]) => {
+      setCurrentSignal(value);
+      flush();
+    },
+    setKey: (value: string) => {
+      setKeySignal(value);
+      flush();
+    },
+    state,
+    store,
+  };
 }
 
 export async function mountReady(key: string) {
   const composer = mountComposer(key);
-  await hydrateDrafts();
+  await composer.store.hydrate();
   await settle();
+  flush();
   return composer;
 }

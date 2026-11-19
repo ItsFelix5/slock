@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
-import { Button, InlineFeedback, type Pane, PanelHeader, useTabStripShortcuts } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { ariaBoolean, Button, InlineFeedback, type Pane, PanelHeader, useTabStripShortcuts } from "@slock/ui";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import MrkdwnComposer from "../../../composer/client/api/MrkdwnComposer";
 import type { UsergroupDetailsPaneContent } from "../api";
 import UsergroupChannelsTab from "./UsergroupChannelsTab";
@@ -47,25 +47,25 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
 
   const details = createMemo(() => usergroups.usergroupDetailsById(usergroupId()));
 
-  createEffect(on(usergroupId, () => setTab("about")));
+  createEffect(usergroupId, () => {
+    setTab("about");
+  });
 
-  createEffect(on(usergroupId, (id) => void groupActions.loadUsergroupDetails(id)));
+  createEffect(usergroupId, (id) => void groupActions.loadUsergroupDetails(id));
 
   let seededDetails: EditableUsergroupDetails | undefined;
-  createEffect(
-    on(details, (d) => {
-      if (!d) return;
-      const merged = mergeUsergroupDetailsDraft(
-        { description: descriptionInput(), handle: handleInput(), title: nameInput() },
-        seededDetails,
-        d,
-      );
-      setNameInput(merged.title);
-      setHandleInput(merged.handle);
-      setDescriptionInput(merged.description);
-      seededDetails = editableUsergroupDetails(d);
-    }),
-  );
+  createEffect(details, (d) => {
+    if (!d) return;
+    const merged = mergeUsergroupDetailsDraft(
+      { description: descriptionInput(), handle: handleInput(), title: nameInput() },
+      seededDetails,
+      d,
+    );
+    setNameInput(merged.title);
+    setHandleInput(merged.handle);
+    setDescriptionInput(merged.description);
+    seededDetails = editableUsergroupDetails(d);
+  });
 
   const saveName = async () => {
     const v = nameInput().trim();
@@ -99,9 +99,9 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
         priority={2}
       />
       <div
-        aria-busy={
-          groupActions.usergroupDetailsLoading() || groupActions.usergroupMutationPending()
-        }
+        aria-busy={ariaBoolean(
+          groupActions.usergroupDetailsLoading() || groupActions.usergroupMutationPending(),
+        )}
         class="usergroup-details-body flex-col"
       >
         <Show when={details() && groupActions.usergroupDetailsLoading()}>
@@ -151,15 +151,17 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                 <For each={TABS}>
                   {(t, i) => (
                     <button
-                      aria-selected={tab() === t.key}
-                      class="usergroup-details-tab btn-reset flex-align-center"
-                      classList={{ active: tab() === t.key }}
+                      aria-selected={ariaBoolean(tab() === t.key)}
+                      class={[
+                        "usergroup-details-tab btn-reset flex-align-center",
+                        { active: tab() === t.key },
+                      ]}
                       onClick={() => setTab(t.key)}
                       ref={(el) => {
                         tabButtonRefs[i()] = el;
                       }}
                       role="tab"
-                      tabIndex={tab() === t.key ? 0 : -1}
+                      tabindex={tab() === t.key ? 0 : -1}
                       type="button"
                     >
                       {t.label}

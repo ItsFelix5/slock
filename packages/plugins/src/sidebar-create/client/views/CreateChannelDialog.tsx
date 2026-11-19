@@ -38,16 +38,14 @@ export default function CreateChannelDialog(props: { onClose: () => void }) {
         <span class="create-label">Visibility</span>
         <div class="segmented-control create-visibility">
           <button
-            class="segmented-control-btn"
-            classList={{ active: !isPrivate() }}
+            class={["segmented-control-btn", { active: !isPrivate() }]}
             onClick={() => setIsPrivate(false)}
             type="button"
           >
             Public
           </button>
           <button
-            class="segmented-control-btn"
-            classList={{ active: isPrivate() }}
+            class={["segmented-control-btn", { active: isPrivate() }]}
             onClick={() => setIsPrivate(true)}
             type="button"
           >

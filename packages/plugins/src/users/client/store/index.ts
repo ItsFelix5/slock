@@ -3,8 +3,7 @@ import { service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
 import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
 import type { User } from "@slock/types";
-import { batch, createMemo, createSignal } from "solid-js";
-import { createStore, produce, snapshot } from "solid-js";
+import { createMemo, createSignal, createStore, snapshot } from "solid-js";
 import { createLocalPref } from "../../../slack/client/api/localPref";
 import { createDerivedUsers } from "./derivedUsers";
 import { createUserProfileFields } from "./profileFields";
@@ -29,6 +28,10 @@ export function createUsersStore(
     {},
   );
   const requestedPresence = new Set<string>();
+  const markUnresolvable = (id: string, unresolvable: boolean) =>
+    setUnresolvableUsers((draft) => {
+      draft[id] = unresolvable;
+    });
   const [selfStatusOverride, setSelfStatusOverride] = createSignal<Partial<User> | null>(null);
 
   const [nicknames, persistNicknames] = createLocalPref<Record<string, string>>("nicknames", {});
@@ -57,17 +60,13 @@ export function createUsersStore(
       keys.every((key) => Reflect.get(current, key) === Reflect.get(user, key))
     )
       return;
-    setExtraUsers(
-      produce((s) => {
-        s[user.id] = user;
-      }),
-    );
+    setExtraUsers((draft) => {
+      draft[user.id] = user;
+    });
   }
 
   function cacheUsers(users: User[]): void {
-    batch(() => {
-      for (const user of users) putUser(user);
-    });
+    for (const user of users) putUser(user);
   }
 
   const idByName = createMemo(() => {
@@ -104,12 +103,15 @@ export function createUsersStore(
           .then((user) => {
             if (user) {
               putUser(user);
-              if (user.id !== id) setUserAliases(id, user.id);
+              if (user.id !== id)
+                setUserAliases((draft) => {
+                  draft[id] = user.id;
+                });
             } else {
-              setUnresolvableUsers(id, true);
+              markUnresolvable(id, true);
             }
           })
-          .catch(() => setUnresolvableUsers(id, true))
+          .catch(() => markUnresolvable(id, true))
           .finally(() => {
             pendingUsers.delete(id);
           });
@@ -133,17 +135,17 @@ export function createUsersStore(
   }
 
   function invalidateUser(id: string) {
-    setExtraUsers(
-      produce((s) => {
-        delete s[id];
-      }),
-    );
+    setExtraUsers((draft) => {
+      delete draft[id];
+    });
     pendingUsers.delete(id);
-    setUnresolvableUsers(id, false);
+    markUnresolvable(id, false);
   }
 
   function recordPeerPresence(id: string, presence: "active" | "away") {
-    setPresenceOverrides(id, presence);
+    setPresenceOverrides((draft) => {
+      draft[id] = presence;
+    });
   }
 
   async function searchUsers(query: string, excludeId?: string): Promise<User[]> {
@@ -187,7 +189,6 @@ export function createUsersStore(
       const status = selfStatusOverride();
       return withNickname({ ...base, presence, ...(status ?? {}) });
     },
-    undefined,
     { equals: sameUser },
   );
 
@@ -211,7 +212,10 @@ export function createUsersStore(
     api
       .fetchAppDescription(appId, botId)
       .then((description) => {
-        if (description) setBotBios(appId, description);
+        if (description)
+          setBotBios((draft) => {
+            draft[appId] = description;
+          });
       })
       .catch(() => {});
     return known;
@@ -251,13 +255,10 @@ export function createUsersStore(
       await api.setPresence(presence);
       const selfId = deps.currentUserBase()?.id;
       if (selfId) {
-        if (presence === "away") setPresenceOverrides(selfId, "away");
-        else
-          setPresenceOverrides(
-            produce((s) => {
-              delete s[selfId];
-            }),
-          );
+        setPresenceOverrides((draft) => {
+          if (presence === "away") draft[selfId] = "away";
+          else delete draft[selfId];
+        });
       }
       return true;
     } catch (err) {

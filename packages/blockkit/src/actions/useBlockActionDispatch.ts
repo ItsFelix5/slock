@@ -66,5 +66,12 @@ export function useBlockActionDispatch(context: () => BlockActionContext | undef
     if (action_id) context()?.view?.state.record(block_id, action_id, value);
   };
 
-  return { canDispatch, dispatch, flashUnsupported, pending, record, unsupported };
+  return {
+    canDispatch,
+    dispatch,
+    flashUnsupported,
+    pending,
+    record,
+    unsupported,
+  };
 }

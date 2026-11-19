@@ -9,7 +9,7 @@ import {
   PanelHeader,
   useShortcut,
 } from "@slock/ui";
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { copyCanvasLink } from "../../../message-links/client/api/messageLinks";
 import type { CanvasPaneContent } from "../api";
 import { createCanvasComments } from "../lib/canvasComments";
@@ -47,7 +47,9 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
 
   const [editorOutline, setEditorOutline] = createSignal<OutlineSource | null>(null);
-  createEffect(on(fileId, () => setEditorOutline(null)));
+  createEffect(fileId, () => {
+    setEditorOutline(null);
+  });
   const outline = () => editorOutline();
   const headings = (): OutlineItem[] => (outline()?.items() ?? []).filter((item) => item.text);
 
@@ -96,7 +98,8 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   }
 
   createEffect(
-    on([() => content.data, () => outline()?.items()], () => queueMicrotask(updateActiveHeading)),
+    () => [content.data, outline()?.items()],
+    () => queueMicrotask(updateActiveHeading),
   );
 
   return (

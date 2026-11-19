@@ -1,5 +1,5 @@
-import { mapFile } from "@slock/slack";
-import type { CanvasFile, CanvasImage, RawFile } from "@slock/types";
+import { mapFile, parseFileId } from "@slock/slack";
+import type { CanvasFile, CanvasImage, FileId, RawFile } from "@slock/types";
 import { uploadFilesForEdit } from "../../../slack/client/api";
 import type { FileEmbedValue, ImageEmbedValue } from "./canvasEmbedValues";
 import { resolveCanvasFile } from "./canvasRequests";
@@ -14,7 +14,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function processedFile(id: string): Promise<RawFile> {
+async function processedFile(id: FileId): Promise<RawFile> {
   let file = await resolveCanvasFile(id);
   for (let attempt = 0; attempt < IMAGE_RETRIES; attempt++) {
     if (!mapFile(file).isImage || file.original_w) break;
@@ -29,7 +29,7 @@ function imageNode(file: RawFile, id: string): CanvasImage {
   const height = file.original_h ?? PREVIEW_WIDTH;
   const scale = Math.min(1, PREVIEW_WIDTH / width);
   return {
-    fileId: file.id,
+    fileId: parseFileId(file.id),
     frames: [],
     height,
     id,
@@ -50,7 +50,7 @@ function imageNode(file: RawFile, id: string): CanvasImage {
 }
 
 function fileNode(file: RawFile, id: string): CanvasFile {
-  return { fileId: file.id, frames: [], id, kind: "file", permalink: file.permalink ?? "" };
+  return { fileId: parseFileId(file.id), frames: [], id, kind: "file", permalink: file.permalink ?? "" };
 }
 
 export type UploadedBlock =
@@ -64,7 +64,7 @@ export async function uploadCanvasBlocks(
   const uploaded = await uploadFilesForEdit(files.map((file) => ({ file })));
   const blocks: UploadedBlock[] = [];
   for (const { id: fileId } of uploaded) {
-    const file = await processedFile(fileId);
+    const file = await processedFile(parseFileId(fileId));
     const id = newId();
     blocks.push(
       mapFile(file).isImage

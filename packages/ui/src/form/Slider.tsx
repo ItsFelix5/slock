@@ -34,7 +34,9 @@ export default function Slider(props: SliderProps) {
             <span
               class={[
                 "slider-tick",
-                { active: Math.abs(props.value - (props.min + i() * tickSpacing())) < 0.05 },
+                {
+                  active: Math.abs(props.value - (props.min + i() * tickSpacing())) < 0.05,
+                },
               ]}
               onClick={() => props.onChange(props.min + i() * tickSpacing())}
             >

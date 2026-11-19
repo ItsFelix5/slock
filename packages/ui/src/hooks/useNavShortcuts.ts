@@ -11,12 +11,42 @@ const NAV_SHORTCUTS: Record<
   NavDirection,
   { id: string; key: string; label: string; repeat: boolean }
 > = {
-  down: { id: "nav.listNext", key: "ArrowDown", label: "Move to the next item", repeat: true },
-  up: { id: "nav.listPrev", key: "ArrowUp", label: "Move to the previous item", repeat: true },
-  right: { id: "nav.itemNext", key: "ArrowRight", label: "Move right", repeat: true },
-  left: { id: "nav.itemPrev", key: "ArrowLeft", label: "Move left", repeat: true },
-  start: { id: "nav.listHome", key: "Home", label: "Jump to the first item", repeat: false },
-  end: { id: "nav.listEnd", key: "End", label: "Jump to the last item", repeat: false },
+  down: {
+    id: "nav.listNext",
+    key: "ArrowDown",
+    label: "Move to the next item",
+    repeat: true,
+  },
+  up: {
+    id: "nav.listPrev",
+    key: "ArrowUp",
+    label: "Move to the previous item",
+    repeat: true,
+  },
+  right: {
+    id: "nav.itemNext",
+    key: "ArrowRight",
+    label: "Move right",
+    repeat: true,
+  },
+  left: {
+    id: "nav.itemPrev",
+    key: "ArrowLeft",
+    label: "Move left",
+    repeat: true,
+  },
+  start: {
+    id: "nav.listHome",
+    key: "Home",
+    label: "Jump to the first item",
+    repeat: false,
+  },
+  end: {
+    id: "nav.listEnd",
+    key: "End",
+    label: "Jump to the last item",
+    repeat: false,
+  },
 };
 
 const LIST_DIRECTIONS: readonly ListDirection[] = ["down", "up", "start", "end"];
@@ -129,7 +159,11 @@ export function useGridShortcuts(options: {
   root: Root;
   submit?: () => void;
 }) {
-  useNavigationShortcuts({ directions: GRID_DIRECTIONS, move: options.move, root: options.root });
+  useNavigationShortcuts({
+    directions: GRID_DIRECTIONS,
+    move: options.move,
+    root: options.root,
+  });
   if (options.submit) useConfirmShortcut(options.submit, { target: targetOf(options.root) });
 }
 

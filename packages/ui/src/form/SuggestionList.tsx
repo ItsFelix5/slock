@@ -17,11 +17,7 @@ export interface SuggestionListProps<T> {
 
 export default function SuggestionList<T>(props: SuggestionListProps<T>) {
   return (
-    <div
-      class={["suggestion-list", props.class]}
-      id={props.id}
-      ref={props.ref}
-    >
+    <div class={["suggestion-list", props.class]} id={props.id} ref={props.ref}>
       <For each={props.items}>
         {(item, i) => {
           const row = (

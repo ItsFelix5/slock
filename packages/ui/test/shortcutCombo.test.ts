@@ -86,7 +86,12 @@ describe("comboFromEvent", () => {
         shift: pick(random, [true, false]),
       }),
       ({ alt, ctrl, key, mac, meta, shift }) => {
-        const input = press(key, { altKey: alt, ctrlKey: ctrl, metaKey: meta, shiftKey: shift });
+        const input = press(key, {
+          altKey: alt,
+          ctrlKey: ctrl,
+          metaKey: meta,
+          shiftKey: shift,
+        });
         const combo = comboFromEvent(input, mac);
         expect(combo && matchesCombo(input, combo, false, mac)).toBe(true);
       },

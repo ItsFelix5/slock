@@ -49,12 +49,11 @@ export function DmRow(props: { dm: DirectMessage }) {
       <div class="sidebar-row-wrap">
         <SplitNavigation onSplit={() => openConversationInSplit(props.dm.id)}>
           <button
-            class="sidebar-row btn-reset flex-align-center"
-            classList={{
+            class={["sidebar-row btn-reset flex-align-center", {
               active: isActive(),
               muted: muted(),
               unread: unreadStore.isChannelUnread(props.dm.id) && !muted(),
-            }}
+            }]} 
             data-channel-id={props.dm.id}
             data-nav-row
             onClick={() => viewStore.setActiveView({ id: props.dm.id, kind: "dm" })}

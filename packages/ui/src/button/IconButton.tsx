@@ -1,6 +1,6 @@
 import "./IconButton.css";
-import { omit, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { omit, Show } from "solid-js";
 import Icon, { type IconName } from "../media/Icon";
 import Tooltip from "../overlay/Tooltip";
 

@@ -43,10 +43,13 @@ export function createUserProfileFields(
     api
       .fetchUserProfile(routeId)
       .then((profile) => {
-        if ((customFieldsVersion.get(id) ?? 0) === startVersion) {
-          setCustomFieldsById(id, profile.customFields ?? []);
-        }
-        setProfileStartDatesById(id, profile.startDate);
+        setCustomFieldsById((draft) => {
+          if ((customFieldsVersion.get(id) ?? 0) === startVersion)
+            draft[id] = profile.customFields ?? [];
+        });
+        setProfileStartDatesById((draft) => {
+          draft[id] = profile.startDate;
+        });
       })
       .catch(() => {})
       .finally(() => {
@@ -99,7 +102,9 @@ export function createUserProfileFields(
             if (value) merged.set(id, { id, value });
             else merged.delete(id);
           }
-          setCustomFieldsById(selfId, [...merged.values()]);
+          setCustomFieldsById((draft) => {
+            draft[selfId] = [...merged.values()];
+          });
           loadedCustomFields.add(selfId);
           customFieldsVersion.set(selfId, (customFieldsVersion.get(selfId) ?? 0) + 1);
         }

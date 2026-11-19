@@ -5,9 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./solid": "./src/solid/index.ts"
   },
   "devDependencies": {
     "@slock/core": "workspace:*"
+  },
+  "dependencies": {
+    "solid-js": "2.0.3"
   }
 }

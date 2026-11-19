@@ -1,4 +1,4 @@
-import { apiGet, apiPut } from "@slock/slack";
+import { apiGet, apiPut, isUserId } from "@slock/slack";
 import type { ChannelPostingPrefs, ChannelPostingPrefsPatch } from "@slock/types";
 
 const MAX_POSTING_EXCEPTIONS = 100;
@@ -64,7 +64,7 @@ export function parseChannelPostingPrefs(value: unknown): ChannelPostingPrefs {
   );
   return {
     allowChannelMentions: channelMentionsEnabled && hereMentionsEnabled,
-    postingExceptionUserIds: [...new Set(posting.userIds)].slice(0, MAX_POSTING_EXCEPTIONS),
+    postingExceptionUserIds: [...new Set(posting.userIds.filter(isUserId))].slice(0, MAX_POSTING_EXCEPTIONS),
     postingRestrictedToManagers: posting.types.includes("admin"),
     threadsRestrictedToManagers: threads.types.includes("admin"),
   };

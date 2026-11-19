@@ -19,16 +19,16 @@ export default function LinkEditPopover(props: LinkEditPopoverProps) {
   const [text, setText] = createSignal(props.text);
   let panelRef: HTMLDivElement | undefined;
   let urlInput: HTMLInputElement | undefined;
-  let wasOpen = false;
 
-  createEffect(() => {
-    if (props.open && !wasOpen) {
+  createEffect(
+    () => props.open,
+    (isOpen, wasOpen) => {
+      if (!isOpen || wasOpen) return;
       setUrl(props.url);
       setText(props.text);
       queueMicrotask(() => urlInput?.select());
-    }
-    wasOpen = props.open;
-  });
+    },
+  );
 
   const commitAndClose = () => {
     props.onUpdate(url(), text());

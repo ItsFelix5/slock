@@ -1,5 +1,5 @@
-import { type Accessor, createEffect, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { type Accessor, createEffect, Show } from "solid-js";
 import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, {
   type FloatingAlign,
@@ -25,10 +25,11 @@ export default function HoverCard(props: HoverCardProps) {
   let anchorRef: HTMLSpanElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   const ownHoverIntent = useHoverIntent();
-  const { cancelClose, close, open, openNow, scheduleClose, scheduleOpen } =
-    props.hoverIntent ?? ownHoverIntent;
+  const intent = () => props.hoverIntent ?? ownHoverIntent;
+  const open = () => intent().open();
+  const close = () => intent().close();
 
-  createEffect(() => props.onOpenChange?.(open()));
+  createEffect(open, (isOpen) => props.onOpenChange?.(isOpen));
 
   const handleFocusOut = (event: FocusEvent) => {
     const next = event.relatedTarget;
@@ -41,10 +42,10 @@ export default function HoverCard(props: HoverCardProps) {
       <FloatingPanel
         align={props.align ?? "start"}
         anchor={props.anchor ?? (() => anchorRef)}
-        class={`hover-card flex-col ${props.panelClass ?? ""}`}
+        class={["hover-card flex-col", props.panelClass]}
         onFocusOut={handleFocusOut}
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
+        onMouseEnter={() => intent().cancelClose()}
+        onMouseLeave={() => intent().scheduleClose()}
         onScroll={close}
         open
         panelRef={(element) => {
@@ -62,11 +63,11 @@ export default function HoverCard(props: HoverCardProps) {
 
   return (
     <span
-      class={`hover-card-anchor ${props.anchorClass ?? ""}`}
-      onFocusIn={openNow}
+      class={["hover-card-anchor", props.anchorClass]}
+      onFocusIn={() => intent().openNow()}
       onFocusOut={handleFocusOut}
-      onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleClose}
+      onMouseEnter={() => intent().scheduleOpen()}
+      onMouseLeave={() => intent().scheduleClose()}
       ref={(element) => {
         anchorRef = element;
       }}

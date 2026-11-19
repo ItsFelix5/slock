@@ -1,5 +1,5 @@
 import { BlockKit, createViewState } from "@slock/blockkit";
-import { createEffect, on, Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import type { MessageHeaderProps } from "../../../messages/client/api";
 import { dispatchHomeOpen } from "../fetch";
 import "./AppHome.css";
@@ -8,12 +8,10 @@ import { useAppHome } from "./useAppHome";
 export default function AppHomeTakeover(props: MessageHeaderProps) {
   const home = useAppHome(() => props.id);
   createEffect(
-    on(
-      () => home.data?.appHome?.app_id,
-      (appId) => {
-        if (appId) void dispatchHomeOpen(props.id, appId);
-      },
-    ),
+    () => home.data?.appHome?.app_id,
+    (appId) => {
+      if (appId) void dispatchHomeOpen(props.id, appId);
+    },
   );
   return (
     <div class="app-home">

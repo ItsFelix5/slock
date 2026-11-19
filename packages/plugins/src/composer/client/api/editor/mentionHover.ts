@@ -20,8 +20,8 @@ export function createMentionHoverController() {
   const [state, setState] = createSignal<MentionHoverState | undefined>(undefined);
   let hoverEl: HTMLElement | undefined;
 
-  createEffect(() => {
-    if (!hoverIntent.open()) setState(undefined);
+  createEffect(hoverIntent.open, (open) => {
+    if (!open) setState(undefined);
   });
 
   const handleMouseOver = (event: MouseEvent) => {

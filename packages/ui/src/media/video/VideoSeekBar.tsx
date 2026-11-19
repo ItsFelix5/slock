@@ -20,7 +20,7 @@ export default function VideoSeekBar(props: {
       onPointerDown={props.onScrub}
       ref={props.ref}
       role="slider"
-      tabIndex={0}
+      tabindex={0}
     >
       <div class="video-player-seek-track">
         <div

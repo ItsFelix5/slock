@@ -1,6 +1,6 @@
 import { getHost } from "@slock/core/solid";
 import type Quill from "@slock/ui/editor/quill";
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { ComposerEditor, ComposerProps } from "../api";
 
@@ -13,11 +13,10 @@ export function createEditorPlugins(getQuill: () => Quill | undefined, props?: C
   };
 
   return {
-    bind(quill: Quill) {
-      for (const bind of getHost().items("composer.editor")) {
-        const cleanup = bind(quill, editor);
-        if (cleanup) onCleanup(cleanup);
-      }
+    bind(quill: Quill): Array<() => void> {
+      return getHost()
+        .items("composer.editor")
+        .flatMap((bind) => bind(quill, editor) ?? []);
     },
     editor,
     popover: () => (

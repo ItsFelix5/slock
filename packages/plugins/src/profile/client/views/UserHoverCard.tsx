@@ -48,7 +48,7 @@ export default function UserHoverCard(props: {
                   <AvatarImage avatarUrl={u().avatarUrl} />
                   <Show when={presence()}>
                     {(p) => (
-                      <span class="user-hovercard-presence" classList={{ away: p() === "away" }} />
+                      <span class={["user-hovercard-presence", { away: p() === "away" }]} />
                     )}
                   </Show>
                 </div>

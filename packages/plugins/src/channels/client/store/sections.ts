@@ -39,9 +39,14 @@ export function createChannelSections(deps: {
   );
   const mutateSections = (next: ChannelSection[]) => query.client.setQueryData(sectionsKey(), next);
   const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
-  const [sectionSidebarPendingById, setSectionSidebarPendingById] = createStore<
+  const [sectionSidebarPendingById, setSectionSidebarPending] = createStore<
     Record<string, boolean>
   >({});
+  function setSectionSidebarPendingById(sectionId: string, pending: boolean) {
+    setSectionSidebarPending((draft) => {
+      draft[sectionId] = pending;
+    });
+  }
   async function refreshSections() {
     return (await rawSections.refetch()).data;
   }

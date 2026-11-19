@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
-import { createSignal } from "solid-js";
 import { cssColorToOklch, formatOklch } from "../form/color/oklchColor";
+import { createImmediateSignal } from "../immediateSignal";
 import { setFont } from "./font";
 import { BUILTIN_THEME_COLORS } from "./themeColorBuiltins";
 import {
@@ -20,7 +20,10 @@ import {
 } from "./themeDerivations";
 import { THEME_PRESETS, type ThemePreset } from "./themePresets";
 
-export { type ThemeColorDefinition, themeColorDefinitions } from "./themeColorRegistry";
+export {
+  type ThemeColorDefinition,
+  themeColorDefinitions,
+} from "./themeColorRegistry";
 
 const THEME_COLORS_KEY = "slock-theme-colors";
 const THEME_PRESET_KEY = "slock-theme-preset";
@@ -45,7 +48,7 @@ function applyThemeColorScheme(scheme: "dark" | "light") {
   document.documentElement.dataset.colorScheme = scheme;
 }
 
-const [themeColors, setThemeColorsSignal] = createSignal<ThemeColors>(loadThemeColors());
+const [themeColors, setThemeColorsSignal] = createImmediateSignal<ThemeColors>(loadThemeColors());
 
 function applyThemeColor({ key, derive }: ThemeColorDefinition) {
   const value = themeColors()[key] ?? derive;
@@ -118,7 +121,9 @@ export function setColorRef(key: string, ref: ColorRef): void {
 }
 
 export function decoupleThemeColor(key: string): void {
-  setThemeColors({ [key]: formatOklch(cssColorToOklch(getEffectiveColor(key))) });
+  setThemeColors({
+    [key]: formatOklch(cssColorToOklch(getEffectiveColor(key))),
+  });
 }
 
 export function copyableThemePalette(): string {

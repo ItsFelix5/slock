@@ -71,16 +71,19 @@ export function createInPaneSearch(
     setMatchIndex(0);
   };
 
-  createEffect(() => {
-    const q = query().trim().toLowerCase();
-    const index = rowIndex();
-    const list = matches();
-    const current = list[matchIndex()];
-    if (!(q && index)) {
-      clearHighlights();
-      return;
-    }
-    const currentRanges: Range[] = [];
+  createEffect(
+    () => ({
+      current: matches()[matchIndex()],
+      index: rowIndex(),
+      list: matches(),
+      q: query().trim().toLowerCase(),
+    }),
+    ({ current, index, list, q }) => {
+      if (!(q && index)) {
+        clearHighlights();
+        return;
+      }
+      const currentRanges: Range[] = [];
     const otherRanges: Range[] = [];
     for (const m of list) {
       const row = index.get(m.ts);
@@ -90,7 +93,8 @@ export function createInPaneSearch(
     }
     CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
     CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
-  });
+    },
+  );
   onCleanup(clearHighlights);
 
   useShortcut({

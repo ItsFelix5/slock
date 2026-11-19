@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { VideoBlock } from "@slock/types";
 import { imageSrc } from "@slock/ui";
+import { flush } from "solid-js";
 import Video from "../../src/blocks/Video";
 import { attrs, count, mount, unmountAll } from "../../src/domTesting";
 
@@ -15,7 +16,10 @@ const block = (fields: Partial<VideoBlock>): VideoBlock => ({
   ...fields,
 });
 
-const play = (host: HTMLElement) => host.querySelector<HTMLButtonElement>("button")?.click();
+const play = (host: HTMLElement) => {
+  host.querySelector<HTMLButtonElement>("button")?.click();
+  flush();
+};
 
 describe("Video block", () => {
   test("embeds an external https player after play", () => {

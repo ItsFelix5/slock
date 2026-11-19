@@ -1,13 +1,5 @@
 import { defined } from "@slock/core";
-import {
-  batch,
-  createEffect,
-  createMemo,
-  createSignal,
-  getOwner,
-  onCleanup,
-  runWithOwner,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner } from "solid-js";
 import type { PaneKind } from "../api";
 import type { PaneContent } from "../api/types";
 import type { createPanesSlice } from "./panes";
@@ -49,6 +41,7 @@ export function createViewStateSlice(deps: {
   panes: Pick<
     ReturnType<typeof createPanesSlice>,
     | "closePane"
+    | "currentPanes"
     | "focusedPrimaryContent"
     | "insertContentPane"
     | "navigateFocusedPane"
@@ -73,18 +66,17 @@ export function createViewStateSlice(deps: {
 
   let lastNavSerialized: string | null = null;
   let lastStructuralKey: string | null = null;
-  let syncingFromPopState = false;
 
-  function liveIdContentPairs(): { id: string; content: PaneContent }[] {
-    return panes.panes().flatMap((p) => (p.content ? [{ content: p.content, id: p.id }] : []));
+  function liveIdContentPairs(list: ReturnType<typeof panes.currentPanes>) {
+    return list.flatMap((p) => (p.content ? [{ content: p.content, id: p.id }] : []));
   }
 
-  function livePaneContents(): PaneContent[] {
-    return liveIdContentPairs().map((p) => p.content);
+  function navSnapshotOf(list: ReturnType<typeof panes.currentPanes>): NavSnapshot {
+    return { panes: liveIdContentPairs(list).map((p) => p.content) };
   }
 
   function reconcilePanesToward(target: PaneContent[]) {
-    const live = liveIdContentPairs();
+    const live = liveIdContentPairs(panes.currentPanes());
     const eq = (a: PaneContent, b: PaneContent) => paneKey(a) === paneKey(b);
 
     let prefix = 0;
@@ -124,10 +116,6 @@ export function createViewStateSlice(deps: {
     return snap.panes.map(paneKey).join("/");
   }
 
-  function currentNavSnapshot(): NavSnapshot {
-    return { panes: livePaneContents() };
-  }
-
   function pushOrReplace(snap: NavSnapshot, replace: boolean) {
     const serialized = JSON.stringify(snap);
     lastNavSerialized = serialized;
@@ -157,39 +145,39 @@ export function createViewStateSlice(deps: {
       const popped: NavSnapshot | undefined = e.state?.slockNav;
       if (!popped) return;
 
-      syncingFromPopState = true;
-      batch(() => {
-        reconcilePanesToward(popped.panes);
-      });
-
-      const merged = currentNavSnapshot();
+      reconcilePanesToward(popped.panes);
+      const merged = navSnapshotOf(panes.currentPanes());
       pushOrReplace(merged, true);
       lastStructuralKey = structuralKey(merged);
-      syncingFromPopState = false;
     };
     window.addEventListener("popstate", onPopState);
     onCleanup(() => window.removeEventListener("popstate", onPopState));
 
-    createEffect(() => {
-      const snap = currentNavSnapshot();
-      if (JSON.stringify(snap) === lastNavSerialized) return;
-      if (syncingFromPopState) return;
-      const key = structuralKey(snap);
-      const replace = key === lastStructuralKey;
-      lastStructuralKey = key;
-      pushOrReplace(snap, replace);
-    });
+    createEffect(
+      () => JSON.stringify(navSnapshotOf(panes.panes())),
+      (serialized) => {
+        if (serialized === lastNavSerialized) return;
+        const snap: NavSnapshot = JSON.parse(serialized);
+        const key = structuralKey(snap);
+        const replace = key === lastStructuralKey;
+        lastStructuralKey = key;
+        pushOrReplace(snap, replace);
+      },
+    );
 
-    createEffect(() => {
-      const content = panes.focusedPrimaryContent();
-      if (content) setLastPrimary(content);
-    });
+    createEffect(
+      () => panes.focusedPrimaryContent(),
+      (content) => {
+        if (content) setLastPrimary(content);
+      },
+    );
 
-    createEffect(() => {
-      if (panes.focusedPrimaryContent()) return;
-      const next = activeContent();
-      if (next) panes.navigateFocusedPane(next);
-    });
+    createEffect(
+      () => (panes.focusedPrimaryContent() ? null : activeContent()),
+      (next) => {
+        if (next) panes.navigateFocusedPane(next);
+      },
+    );
   }
 
   return {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { createComponent } from "solid-js";
 import { render } from "@solidjs/web";
+import { createComponent } from "solid-js";
 import NavRow from "../../src/nav/NavRow";
 
 let dispose: (() => void) | undefined;
@@ -57,7 +57,12 @@ function click(element: Element) {
 }
 
 function press(element: Element, key: string, repeat = false) {
-  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key, repeat });
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+    repeat,
+  });
   element.dispatchEvent(event);
   return event;
 }

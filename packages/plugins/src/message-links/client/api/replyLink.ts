@@ -1,19 +1,28 @@
 import { defined, narrowByType } from "@slock/core";
+import { isChannelId, isTs } from "@slock/slack";
 import type {
   Block,
+  ChannelId,
   Message,
   RichTextBlock,
   RichTextInlineElement,
   RichTextSubBlock,
+  Ts,
 } from "@slock/types";
 import { parseSlackPermalink } from "./slackPermalink";
 
 const BRACKETED_LINK_RE = /^<(https?:\/\/[^\s|>]+)(?:\|([^>]*))?>/;
 const BARE_PERMALINK_RE = /^(https?:\/\/[^\s<>]+)/;
 
-function permalinkToChannelTs(url: string): { channelId: string; ts: string } | null {
+type MessageRef = { channelId: ChannelId; ts: Ts };
+
+function permalinkToChannelTs(url: string): MessageRef | null {
   const target = parseSlackPermalink(url);
   return target && { channelId: target.channelId, ts: target.messageTs };
+}
+
+function messageRef(channelId: string, ts: string): MessageRef | null {
+  return isChannelId(channelId) && isTs(ts) ? { channelId, ts } : null;
 }
 
 export const INVISIBLE_LABEL = "︇︇";
@@ -27,11 +36,11 @@ export function encodeReplyLink(permalink: string): string {
 }
 
 export function threadContainsMessage(
-  channelId: string,
-  threadTs: string | undefined,
+  channelId: ChannelId,
+  threadTs: Ts | undefined,
   messages: readonly Pick<Message, "ts">[],
-  targetChannelId: string,
-  targetTs: string,
+  targetChannelId: ChannelId,
+  targetTs: Ts,
 ): boolean {
   return (
     !!threadTs &&
@@ -42,10 +51,10 @@ export function threadContainsMessage(
 
 function parseReplyLink(
   text: string,
-  isThreadMessage?: (channelId: string, ts: string) => boolean,
+  isThreadMessage?: (channelId: ChannelId, ts: Ts) => boolean,
 ): {
-  ts: string;
-  channelId: string;
+  ts: Ts;
+  channelId: ChannelId;
   rest: string;
   url: string;
 } | null {
@@ -85,12 +94,12 @@ function parseReplyLink(
 
 function replyTargetFromElement(
   element: RichTextInlineElement,
-): { ts: string; channelId: string; url: string } | null {
+): ReplyTarget | null {
   if (element.type === "message_mention") {
     const parsed =
-      element.channel_id && element.message_ts
-        ? { channelId: element.channel_id, ts: element.message_ts }
-        : permalinkToChannelTs(element.url);
+      (element.channel_id && element.message_ts
+        ? messageRef(element.channel_id, element.message_ts)
+        : undefined) ?? permalinkToChannelTs(element.url);
     return parsed && { ...parsed, url: element.url };
   }
   if (element.type === "link" && (isBareLabel(element.text) || element.text === element.url)) {
@@ -114,8 +123,8 @@ export function withReplyLink(blocks: Block[], permalink: string): Block[] {
 
 function parseReplyLinkFromBlocks(
   blocks: readonly Block[],
-  isThreadMessage?: (channelId: string, ts: string) => boolean,
-): { ts: string; channelId: string; url: string; blocks: Block[] } | null {
+  isThreadMessage?: (channelId: ChannelId, ts: Ts) => boolean,
+): (ReplyTarget & { blocks: Block[] }) | null {
   const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");
   if (!richText) return null;
   const [section] = richText.elements;
@@ -152,14 +161,14 @@ function parseReplyLinkFromBlocks(
 }
 
 export interface ReplyTarget {
-  channelId: string;
-  ts: string;
+  channelId: ChannelId;
+  ts: Ts;
   url: string;
 }
 
 export function splitReplyLink(
   message: { blocks?: readonly Block[]; text: string },
-  isThreadMessage?: (channelId: string, ts: string) => boolean,
+  isThreadMessage?: (channelId: ChannelId, ts: Ts) => boolean,
 ): { blocks: Block[] | undefined; replyRef: ReplyTarget | null; text: string } {
   const textRef = parseReplyLink(message.text, isThreadMessage);
   const text = textRef?.rest ?? message.text;

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import { trackPageIdle } from "../src/pageIdle";
 
 beforeEach(() => {
@@ -27,8 +27,10 @@ test("goes idle after 30 s hidden", () => {
   const page = fakeDocument();
   page.show("hidden");
   jest.advanceTimersByTime(29_999);
+  flush();
   expect(page.idle()).toBe(false);
   jest.advanceTimersByTime(1);
+  flush();
   expect(page.idle()).toBe(true);
 });
 
@@ -38,11 +40,14 @@ test("coming back clears idle and cancels a pending idle", () => {
   jest.advanceTimersByTime(20_000);
   page.show("visible");
   jest.advanceTimersByTime(60_000);
+  flush();
   expect(page.idle()).toBe(false);
   page.show("hidden");
   jest.advanceTimersByTime(30_000);
+  flush();
   expect(page.idle()).toBe(true);
   page.show("visible");
+  flush();
   expect(page.idle()).toBe(false);
 });
 
@@ -52,7 +57,9 @@ test("hiding twice does not shorten or stack the timer", () => {
   jest.advanceTimersByTime(20_000);
   page.show("hidden");
   jest.advanceTimersByTime(20_000);
+  flush();
   expect(page.idle()).toBe(false);
   jest.advanceTimersByTime(10_000);
+  flush();
   expect(page.idle()).toBe(true);
 });

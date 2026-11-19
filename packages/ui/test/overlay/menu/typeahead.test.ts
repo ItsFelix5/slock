@@ -94,7 +94,14 @@ describe("isTypeaheadKey", () => {
   const key = (
     value: string,
     modifiers: Partial<Record<"altKey" | "ctrlKey" | "metaKey", boolean>> = {},
-  ) => isTypeaheadKey({ altKey: false, ctrlKey: false, metaKey: false, key: value, ...modifiers });
+  ) =>
+    isTypeaheadKey({
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      key: value,
+      ...modifiers,
+    });
 
   test("accepts printable characters", () => {
     expect(key("a")).toBe(true);

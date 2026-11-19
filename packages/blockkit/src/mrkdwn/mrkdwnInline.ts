@@ -112,12 +112,18 @@ export function parseInline(text: string): InlineNode[] {
     else if (token !== undefined) nodes.push(parseToken(token));
     else if (emoji !== undefined) nodes.push({ name: emoji, t: "emoji" });
     else if (doubleBold !== undefined || bold !== undefined)
-      nodes.push({ nodes: parseInline(defined(doubleBold ?? bold)), t: "bold" });
+      nodes.push({
+        nodes: parseInline(defined(doubleBold ?? bold)),
+        t: "bold",
+      });
     else if (italic !== undefined) nodes.push({ nodes: parseInline(italic), t: "italic" });
     else if (strike !== undefined) nodes.push({ nodes: parseInline(strike), t: "strike" });
     else if (bareUrl !== undefined) {
       const trail = bareUrl.match(TRAILING_URL_PUNCTUATION_RE)?.[0] ?? "";
-      nodes.push({ t: "link", url: trail ? bareUrl.slice(0, -trail.length) : bareUrl });
+      nodes.push({
+        t: "link",
+        url: trail ? bareUrl.slice(0, -trail.length) : bareUrl,
+      });
       if (trail) nodes.push({ t: "text", text: trail });
     }
     lastIndex = index + match[0].length;

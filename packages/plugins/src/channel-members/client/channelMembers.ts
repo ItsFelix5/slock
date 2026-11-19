@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
-import type { ChannelMembersPage, User } from "@slock/types";
+import type { ChannelId, ChannelMembersPage, User, UserId } from "@slock/types";
 import { confirmDialog, createDebouncedRequest } from "@slock/ui";
-import { createEffect, createMemo, createSignal, on } from "solid-js";
+import { createEffect, createMemo, createSignal, onSettled } from "solid-js";
 import type { MemberFilter } from "../../channel-details/client/api";
 import { createKeyedPageLoader } from "./keyedPageLoader";
 
@@ -18,9 +18,9 @@ const pagedKeyFor = (filter: MemberFilter): PagedFilter | undefined =>
   filter === "managers" ? undefined : filter;
 
 function createPendingIds() {
-  const [ids, setIds] = createSignal<ReadonlySet<string>>(new Set());
-  const has = (id: string) => ids().has(id);
-  async function run<T>(id: string, task: () => Promise<T>) {
+  const [ids, setIds] = createSignal<ReadonlySet<UserId>>(new Set());
+  const has = (id: UserId) => ids().has(id);
+  async function run<T>(id: UserId, task: () => Promise<T>) {
     setIds((current) => new Set(current).add(id));
     try {
       return await task();
@@ -36,7 +36,7 @@ function createPendingIds() {
 }
 
 export function createChannelMembers(deps: {
-  channelId: () => string;
+  channelId: () => ChannelId;
   channelName: () => string;
   memberCount: () => number | undefined;
   onMembersChanged?: () => void;
@@ -51,7 +51,7 @@ export function createChannelMembers(deps: {
     apps: undefined,
     everyone: undefined,
   });
-  const [managerIds, setManagerIds] = createSignal<string[]>([]);
+  const [managerIds, setManagerIds] = createSignal<UserId[]>([]);
   const [loadingManagers, setLoadingManagers] = createSignal(false);
   const [managersLoaded, setManagersLoaded] = createSignal(false);
   const removing = createPendingIds();
@@ -60,11 +60,10 @@ export function createChannelMembers(deps: {
   const pagedLoader = createKeyedPageLoader<PagedFilter, ChannelMembersPage>({
     load: (f) => channelDetails.loadChannelMembersPage(deps.channelId(), f, pagedCursors()[f]),
     onResult: (f, page) => {
-      const known = new Set(pagedMembers()[f].map((u) => u.id));
-      setPagedMembers((prev) => ({
-        ...prev,
-        [f]: [...prev[f], ...page.members.filter((u) => !known.has(u.id))],
-      }));
+      setPagedMembers((prev) => {
+        const known = new Set(prev[f].map((u) => u.id));
+        return { ...prev, [f]: [...prev[f], ...page.members.filter((u) => !known.has(u.id))] };
+      });
       setPagedCursors((prev) => ({ ...prev, [f]: page.nextCursor }));
     },
   });
@@ -83,13 +82,11 @@ export function createChannelMembers(deps: {
     }
   };
 
-  void loadManagers();
-  createEffect(
-    on(filter, (f) => {
-      const key = pagedKeyFor(f);
-      if (key && !pagedLoader.hasLoaded(key)) void loadMore(key);
-    }),
-  );
+  onSettled(() => void loadManagers());
+  createEffect(filter, (f) => {
+    const key = pagedKeyFor(f);
+    if (key && !pagedLoader.hasLoaded(key)) void loadMore(key);
+  });
 
   const filterCount = (f: MemberFilter): number | undefined => {
     if (f === "everyone") return deps.memberCount();
@@ -153,8 +150,11 @@ export function createChannelMembers(deps: {
       onResult: setSearchResults,
     },
   );
-  const runSearch = () => searchRequest.run(searchActive() ? query() : "");
-  createEffect(runSearch);
+  const activeSearchTerm = () => (searchActive() ? query() : "");
+  const runSearch = () => searchRequest.run(activeSearchTerm());
+  createEffect(activeSearchTerm, (term) => {
+    searchRequest.run(term);
+  });
 
   const nonMembers = createMemo(() => {
     const results = searchResults();
@@ -219,7 +219,7 @@ export function createChannelMembers(deps: {
     filteredMembers,
     isAdding: adding.has,
     isLoading,
-    isManager: (id: string) => managerIds().includes(id),
+    isManager: (id: UserId) => managerIds().includes(id),
     isRemoving: removing.has,
     loadError,
     loadErrorLabel,

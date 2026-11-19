@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import type { ChannelId, Message } from "@slock/types";
+import { createEffect, createSignal } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import { createFeedPagination } from "./api/pane/scroll/feedPagination";
 import { createFeedScroll } from "./api/pane/scroll/feedScroll";
@@ -16,11 +16,15 @@ export function createMessageListScroll(deps: {
   messageTarget: () => ChannelMessageTarget | null;
   paneView: () => View | null;
 }) {
-  const viewId = () => deps.paneView()?.id ?? "";
-  const isLive = () => !messagesStore.hasNewerHistory(viewId());
+  const viewId = () => deps.paneView()?.id;
+  const whenView = <T>(read: (id: ChannelId) => T, fallback: T) => {
+    const id = viewId();
+    return id === undefined ? fallback : read(id);
+  };
+  const isLive = () => whenView((id) => !messagesStore.hasNewerHistory(id), true);
   const [isLoadingNewer, setIsLoadingNewer] = createSignal(false);
 
-  async function loadNewerMessages(channelId: string) {
+  async function loadNewerMessages(channelId: ChannelId) {
     setIsLoadingNewer(true);
     try {
       await messagesStore.loadNewerMessages(channelId);
@@ -30,13 +34,19 @@ export function createMessageListScroll(deps: {
   }
 
   const pagination = createFeedPagination({
-    busy: () => messagesStore.isLoadingHistory(viewId()),
+    busy: () => whenView((id) => messagesStore.isLoadingHistory(id), false),
     canLoadNewer: () =>
-      messagesStore.hasNewerHistory(viewId()) && !messagesStore.hasNewerHistoryError(viewId()),
+      whenView(
+        (id) => messagesStore.hasNewerHistory(id) && !messagesStore.hasNewerHistoryError(id),
+        false,
+      ),
     canLoadOlder: () =>
-      messagesStore.hasMoreHistory(viewId()) && !messagesStore.hasOlderHistoryError(viewId()),
-    loadNewer: () => void loadNewerMessages(viewId()),
-    loadOlder: () => void messagesStore.loadOlderMessages(viewId()),
+      whenView(
+        (id) => messagesStore.hasMoreHistory(id) && !messagesStore.hasOlderHistoryError(id),
+        false,
+      ),
+    loadNewer: () => whenView((id) => void loadNewerMessages(id), undefined),
+    loadOlder: () => whenView((id) => void messagesStore.loadOlderMessages(id), undefined),
     ready: () => feed.ready(),
     scroller: () => feed.element(),
     size: () => deps.messages().length,
@@ -46,7 +56,10 @@ export function createMessageListScroll(deps: {
     isLive,
     onMove: (direction) => {
       if (!feed.ready()) return;
-      rememberScrollAnchor(viewId(), feed.atBottom() && isLive() ? undefined : feed.topAnchor());
+      whenView(
+        (id) => rememberScrollAnchor(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
+        undefined,
+      );
       pagination.check(direction);
     },
   });
@@ -60,14 +73,15 @@ export function createMessageListScroll(deps: {
     },
   });
 
-  createEffect(() => {
-    const id = deps.paneView()?.id;
-    if (id) onCleanup(() => unreadStore.setBottomSeen(id, false));
+  createEffect(viewId, (id) => {
+    if (id) return () => unreadStore.setBottomSeen(id, false);
   });
-  createEffect(() => {
-    const id = deps.paneView()?.id;
-    if (id) unreadStore.setBottomSeen(id, feed.ready() && feed.atBottom() && isLive());
-  });
+  createEffect(
+    () => ({ id: viewId(), seen: feed.ready() && feed.atBottom() && isLive() }),
+    ({ id, seen }) => {
+      if (id) unreadStore.setBottomSeen(id, seen);
+    },
+  );
 
   const visibleDay = () => {
     const ts = feed.topTs();

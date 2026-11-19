@@ -14,9 +14,8 @@ export interface CanvasServices {
 const ROOT_CLASS = ".canvas-editor";
 const registry = new WeakMap<Element, CanvasServices>();
 
-export function provideCanvasServices(root: Element, services: CanvasServices): () => void {
+export function provideCanvasServices(root: Element, services: CanvasServices) {
   registry.set(root, services);
-  return () => registry.delete(root);
 }
 
 export function canvasServicesFor(node: Element): CanvasServices | undefined {

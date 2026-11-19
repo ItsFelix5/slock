@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { CanvasCommentThread } from "@slock/types";
+import type { CanvasCommentThread, ChannelId, FileId } from "@slock/types";
 import { createQuery } from "@tanstack/solid-query";
 import { defineKey } from "../../../query/client/api";
 import { toggleReaction } from "../../../slack/client/api";
@@ -13,7 +13,7 @@ const commentsKey = defineKey<[string?]>("canvasComments");
 const messageLinks = service("message-links");
 const usersStore = service("users");
 
-export function refreshCommentsForChannel(channelId: string) {
+export function refreshCommentsForChannel(channelId: ChannelId) {
   for (const [queryKey, data] of query.client.getQueriesData<CanvasComments>({
     queryKey: commentsKey(),
   })) {
@@ -21,7 +21,7 @@ export function refreshCommentsForChannel(channelId: string) {
   }
 }
 
-export function createCanvasComments(fileId: () => string) {
+export function createCanvasComments(fileId: () => FileId) {
   const commentsQuery = createQuery(
     () => ({ queryFn: () => fetchCanvasComments(fileId()), queryKey: commentsKey(fileId()) }),
     () => query.client,
@@ -30,8 +30,10 @@ export function createCanvasComments(fileId: () => string) {
   const refetch = () => commentsQuery.refetch();
 
   function hasMine(thread: CanvasCommentThread | undefined, name: string) {
-    const me = usersStore.currentUser()?.id ?? "";
-    return !!thread?.reactions.find((reaction) => reaction.name === name)?.users.includes(me);
+    const me = usersStore.currentUser()?.id;
+    return (
+      !!me && !!thread?.reactions.find((reaction) => reaction.name === name)?.users.includes(me)
+    );
   }
 
   async function run(action: () => Promise<void>, failure: string) {
@@ -45,13 +47,14 @@ export function createCanvasComments(fileId: () => string) {
 
   const reactToThread = (thread: CanvasCommentThread, name: string) =>
     run(async () => {
-      await toggleReaction(comments()?.channelId ?? "", thread.ts, name, hasMine(thread, name));
+      const channelId = comments()?.channelId;
+      if (channelId) await toggleReaction(channelId, thread.ts, name, hasMine(thread, name));
     }, "Couldn't update the reaction");
 
-  const openThread = (thread: CanvasCommentThread) =>
-    messageLinks.openThread(comments()?.channelId ?? "", thread.ts, undefined, {
-      pinned: true,
-    });
+  const openThread = (thread: CanvasCommentThread) => {
+    const channelId = comments()?.channelId;
+    if (channelId) messageLinks.openThread(channelId, thread.ts, undefined, { pinned: true });
+  };
 
   const openAnnotation = (annotationId: string) =>
     run(async () => {

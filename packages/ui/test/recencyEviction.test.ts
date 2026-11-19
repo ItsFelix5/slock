@@ -1,17 +1,34 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int, pick, text } from "@slock/core/testing";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 import { createRecencyEviction } from "../src/recencyEviction";
 
 function watch(keepRecent: number, initial: string[] = []) {
-  const [visible, setVisible] = createSignal(initial);
-  const [idle, setIdle] = createSignal(false);
+  const [visible, writeVisible] = createSignal(initial);
+  const [idle, writeIdle] = createSignal(false);
   const evicted: string[] = [];
   const dispose = createRoot((dispose) => {
-    createRecencyEviction({ evict: (key) => evicted.push(key), idle, keepRecent, visible });
+    createRecencyEviction({
+      evict: (key) => evicted.push(key),
+      idle,
+      keepRecent,
+      visible,
+    });
     return dispose;
   });
-  return { dispose, evicted, setIdle, setVisible };
+  flush();
+  const settled =
+    <T>(write: (value: T) => void) =>
+    (value: T) => {
+      write(value);
+      flush();
+    };
+  return {
+    dispose,
+    evicted,
+    setIdle: settled(writeIdle),
+    setVisible: settled(writeVisible),
+  };
 }
 
 describe("createRecencyEviction", () => {

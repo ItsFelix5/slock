@@ -72,7 +72,7 @@ export default function MessageList() {
           query={inPaneSearch.query()}
         />
       </Show>
-      <Show when={!bootstrapStore.bootstrap.isLoading}>
+      <Show when={bootstrapStore.bootstrap().status !== "loading"}>
         <Show when={paneView()}>
           {(v) => (
             <>

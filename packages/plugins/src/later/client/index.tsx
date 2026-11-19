@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId, isTs } from "@slock/slack";
 import { Icon, useShortcut } from "@slock/ui";
 import { lazy } from "solid-js";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
@@ -38,12 +39,11 @@ const setup: Setup = (ctx) => {
   ctx.add("realtime.handler", {
     run: (event) => {
       if (event.type === "saved_clear") store.applySavedEvent("clear");
-      else if (event.type === "saved_added" || event.type === "saved_deleted")
-        store.applySavedEvent(
-          event.type === "saved_added" ? "add" : "remove",
-          event.item.channel,
-          event.item.ts,
-        );
+      else if (event.type === "saved_added" || event.type === "saved_deleted") {
+        const { channel, ts } = event.item;
+        if (channel && ts && isChannelId(channel) && isTs(ts))
+          store.applySavedEvent(event.type === "saved_added" ? "add" : "remove", channel, ts);
+      }
     },
     types: ["saved_added", "saved_deleted", "saved_clear"],
   });
@@ -60,7 +60,9 @@ const setup: Setup = (ctx) => {
     handler: () => {
       const focus = active();
       const ts = focus?.focusedTs();
-      if (focus && ts != null) store.toggleSaveForLater(focus.channelId(), ts);
+      const channelId = focus?.channelId();
+      if (ts && channelId && isChannelId(channelId) && isTs(ts))
+        void store.toggleSaveForLater(channelId, ts);
     },
     id: "messages.saveForLater",
     label: "Save / unsave for later",

@@ -1,3 +1,4 @@
+import { defined } from "@slock/core";
 import { applyPreset, Icon, Menu, MenuItem, type ThemeFamily, type ThemePreset } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import "./ThemeFamilyChip.css";
@@ -23,13 +24,12 @@ function Dot(props: { preset: ThemePreset }) {
 }
 
 function Swatch(props: { preset: ThemePreset }) {
-  const { accent, mainBg } = props.preset.colors;
   return (
     <span
       aria-hidden="true"
       class="settings-theme-swatch"
       style={{
-        background: `radial-gradient(circle, ${accent} 0 3px, ${mainBg} 3.5px)`,
+        background: `radial-gradient(circle, ${props.preset.colors.accent} 0 3px, ${props.preset.colors.mainBg} 3.5px)`,
         "border-color": previewBorder(props.preset),
       }}
     />
@@ -38,7 +38,7 @@ function Swatch(props: { preset: ThemePreset }) {
 
 export default function ThemeFamilyChip(props: { activeId: string; family: ThemeFamily }) {
   const [open, setOpen] = createSignal(false);
-  const first = () => props.family.presets[0] as ThemePreset;
+  const first = () => defined(props.family.presets[0]);
   const active = () => props.family.presets.find((preset) => preset.id === props.activeId);
   const shown = () => active() ?? first();
   const chipLabel = () => {
@@ -56,8 +56,13 @@ export default function ThemeFamilyChip(props: { activeId: string; family: Theme
           panelClass="menu-panel"
           trigger={
             <button
-              class="settings-preset-btn settings-theme-preset-btn btn-reset flex-align-center"
-              classList={{ active: Boolean(active()) }}
+              class={[
+                "settings-preset-btn",
+                "settings-theme-preset-btn",
+                "btn-reset",
+                "flex-align-center",
+                { active: Boolean(active()) },
+              ]}
               onClick={() => setOpen(!open())}
               style={previewStyle(shown())}
               type="button"

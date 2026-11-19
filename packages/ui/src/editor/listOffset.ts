@@ -17,7 +17,9 @@ class ListOffsetAttributor extends Parchment.StyleAttributor {
 }
 
 Quill.register(
-  new ListOffsetAttributor("listOffset", "counter-set", { scope: Parchment.Scope.BLOCK }),
+  new ListOffsetAttributor("listOffset", "counter-set", {
+    scope: Parchment.Scope.BLOCK,
+  }),
 );
 
 function listValue(marker: string) {

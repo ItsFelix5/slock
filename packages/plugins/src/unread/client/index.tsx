@@ -1,7 +1,12 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { buildUnreadMap, parseBadgeCounts, parseCountGroup } from "@slock/slack";
-import { batch } from "solid-js";
+import {
+  buildUnreadMap,
+  isChannelId,
+  isTs,
+  parseBadgeCounts,
+  parseCountGroup,
+} from "@slock/slack";
 import { isDmId } from "../../dms/client/api";
 import { gatewayHandler } from "../../realtime/client/api";
 import { fetchCounts, markChannelRead, markThreadRead } from "../../slack/client/api";
@@ -25,7 +30,7 @@ const setup: Setup = (ctx) => {
   };
   const store = createUnreadStore({
     api: { markChannelRead, markThreadRead },
-    bootstrap: () => bootstrap.bootstrap.data,
+    bootstrap: () => bootstrap.bootstrap().data,
     flash: (...args) => feedback.flash(...args),
     onReadSynced: () => refreshSoon(READ_REFRESH_MS),
     patchChannel: channels.patchChannel,
@@ -34,10 +39,16 @@ const setup: Setup = (ctx) => {
   ctx.provide("unread", store);
   const onCounts = ctx.use("unread.counts");
   let lastRefreshAt = 0;
+  let refreshSeq = 0;
+  let disposed = false;
+  ctx.onCleanup(() => {
+    disposed = true;
+  });
   const refreshCounts = async () => {
     lastRefreshAt = Date.now();
+    const seq = ++refreshSeq;
     const data = await fetchCounts().catch(() => undefined);
-    if (!data) return;
+    if (!data || disposed || seq !== refreshSeq) return;
     const counts = buildUnreadMap(data.unreads);
     for (const { id } of channels.channels()) {
       store.setUnreadChannelIds(id, !!counts[id]?.unread);
@@ -53,7 +64,8 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["message"], (event) => {
-      if (event.subtype !== "message_deleted" || !event.channel) return;
+      if (event.subtype !== "message_deleted" || !event.channel || !isChannelId(event.channel))
+        return;
       if (!store.isChannelUnread(event.channel)) return;
       refreshSoon(DELETION_REFRESH_MS);
     }),
@@ -71,19 +83,19 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["badge_counts_updated"], (event) => {
-      batch(() => {
-        for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(event))) {
-          store.setUnreadChannelIds(id, unread);
-          if (isDmId(id, (dmId) => !!dms.dmById(dmId))) dms.patchDm(id, { mentions });
-          else channels.patchChannel(id, { mentions });
-        }
-      });
+      for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(event))) {
+        if (!isChannelId(id)) continue;
+        store.setUnreadChannelIds(id, unread);
+        if (isDmId(id, (dmId) => !!dms.dmById(dmId))) dms.patchDm(id, { mentions });
+        else channels.patchChannel(id, { mentions });
+      }
     }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["channel_marked", "group_marked", "im_marked", "mpim_marked"], (event) => {
-      if (!(event.channel && event.ts) || store.isStaleReadEcho(event.channel, event.ts)) return;
+      if (!(event.channel && event.ts && isChannelId(event.channel) && isTs(event.ts))) return;
+      if (store.isStaleReadEcho(event.channel, event.ts)) return;
       const isDm = isDmId(event.channel, (dmId) => !!dms.dmById(dmId));
       const { unread, mentions } = parseCountGroup({ id: event.channel, ...event }, isDm) ?? {
         mentions: 0,
@@ -99,7 +111,7 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["thread_marked"], (event) => {
-      if (event.thread_ts && event.last_read)
+      if (event.thread_ts && event.last_read && isTs(event.thread_ts) && isTs(event.last_read))
         store.setThreadReadTs(event.thread_ts, event.last_read);
     }),
   );

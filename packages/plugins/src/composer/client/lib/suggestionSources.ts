@@ -13,7 +13,6 @@ import type {
   UsergroupSuggestItem,
   UserSuggestItem,
 } from "../api/editor/suggestTypes";
-import { slashCommandsGlobal } from "./commands/slashCommandSuggestions";
 import { stripLeadingAt } from "./quillMentions";
 
 const channelsStore = service("channels");
@@ -22,6 +21,7 @@ const prefsStore = service("prefs");
 const emojiIndex = service("emoji");
 
 const templates = service("templates");
+const slashCommands = service("slash-commands");
 
 const usergroups = service("usergroups");
 
@@ -79,7 +79,10 @@ export function createStaticSuggestion(
   lineCommands?: CommandSuggestItem[],
 ): SuggestState | null {
   if (kind === "command") {
-    const ranked = fuzzySearch(lineCommands ?? slashCommandsGlobal(), {
+    const available: CommandSuggestItem[] = slashCommands
+      .available()
+      .map((command) => ({ ...command, kind: "command" }));
+    const ranked = fuzzySearch(lineCommands ?? available, {
       query,
       text: (c) => c.name,
     });

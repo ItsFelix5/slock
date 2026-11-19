@@ -11,7 +11,7 @@ export function createCanvasNames(): CanvasNames {
     channel: (id) => titles.title(id),
     controlLabel: (embed) => (embed.type === "file" ? "File" : "Embedded content"),
     emojiText: (name) => resolveStandardEmoji(name) ?? null,
-    teamId: getCachedWorkspaceId() ?? "",
+    teamId: getCachedWorkspaceId(),
     user: (id) => usersStore.userById(id)?.name ?? id,
   };
 }

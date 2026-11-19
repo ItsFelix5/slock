@@ -9,7 +9,11 @@ import { flattenOptions, optionKey, optionPayload, toComboboxOption } from "./op
 
 type SelectKind = EntityKind | "external" | "static";
 
-const ENTITY_KEY = { channels: "channel", conversations: "conversation", users: "user" } as const;
+const ENTITY_KEY = {
+  channels: "channel",
+  conversations: "conversation",
+  users: "user",
+} as const;
 const DEFAULT_MIN_QUERY = 3;
 
 function kindOf(type: string): SelectKind {

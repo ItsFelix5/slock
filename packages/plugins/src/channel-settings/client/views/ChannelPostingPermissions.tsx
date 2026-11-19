@@ -1,8 +1,9 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isUserId } from "@slock/slack";
 import type { ChannelId, UserId } from "@slock/types";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
 import SettingsLoadError from "./SettingsLoadError";
 import "./ChannelPostingPermissions.css";
@@ -24,15 +25,13 @@ export default function ChannelPostingPermissions(props: { channelId: ChannelId 
 
   const retryPostingPrefs = () => void postingPrefsQuery.refetch();
 
-  createEffect(
-    on(postingPrefs, (prefs) => {
-      if (!prefs) return;
-      setPostingRestricted(prefs.postingRestrictedToManagers);
-      setPostingExceptionUserIds(prefs.postingExceptionUserIds);
-      setThreadsRestricted(prefs.threadsRestrictedToManagers);
-      setAllowChannelMentions(prefs.allowChannelMentions);
-    }),
-  );
+  createEffect(postingPrefs, (prefs) => {
+    if (!prefs) return;
+    setPostingRestricted(prefs.postingRestrictedToManagers);
+    setPostingExceptionUserIds(prefs.postingExceptionUserIds);
+    setThreadsRestricted(prefs.threadsRestrictedToManagers);
+    setAllowChannelMentions(prefs.allowChannelMentions);
+  });
 
   const canEdit = () => !!postingPrefs() && !savingPostingPrefs();
 
@@ -188,7 +187,9 @@ export default function ChannelPostingPermissions(props: { channelId: ChannelId 
                 excludeUserIds={postingExceptionUserIds()}
                 includeCurrentUser
                 onClose={() => setAddingPostingException(false)}
-                onSelect={addPostingException}
+                onSelect={(userId) => {
+                  if (isUserId(userId)) addPostingException(userId);
+                }}
               />
             </div>
           </Show>

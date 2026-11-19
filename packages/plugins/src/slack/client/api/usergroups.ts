@@ -1,5 +1,13 @@
-import { apiGet, apiPatch, apiPost, apiPut } from "@slock/slack";
-import type { RawUsergroup, Usergroup, UsergroupDetails } from "@slock/types";
+import {
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+  ifPresent,
+  parseChannelId,
+  parseUserId,
+} from "@slock/slack";
+import type { RawUsergroup, Usergroup, UsergroupDetails, UserId } from "@slock/types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 
 function mapUsergroup(raw: RawUsergroup | undefined): Usergroup | undefined {
@@ -12,12 +20,12 @@ function mapUsergroupDetails(
   raw: RawUsergroup | undefined,
 ): Omit<UsergroupDetails, "memberIds"> | undefined {
   if (!raw) return;
-  const channelIds = [...(raw.prefs?.channels ?? []), ...(raw.prefs?.groups ?? [])].filter(
-    (id, index, ids) => ids.indexOf(id) === index,
-  );
+  const channelIds = [
+    ...new Set([...(raw.prefs?.channels ?? []), ...(raw.prefs?.groups ?? [])]),
+  ].map(parseChannelId);
   return {
     channelIds,
-    createdBy: raw.created_by || undefined,
+    createdBy: ifPresent(parseUserId, raw.created_by),
     dateCreate: raw.date_create || undefined,
     description: raw.description ?? "",
     handle: raw.handle ?? "",
@@ -43,10 +51,10 @@ export function fetchUsergroup(id: string): Promise<Usergroup | null> {
   return fetchUsergroupRaw(id).then((raw) => mapUsergroup(raw) ?? null);
 }
 
-async function fetchUsergroupMemberIds(id: string): Promise<string[]> {
+async function fetchUsergroupMemberIds(id: string): Promise<UserId[]> {
   const data = await apiGet<{ userIds?: string[] }>(`/api/usergroups/${id}/members`);
   if (!data.ok) throw new Error(data.error ?? "usergroups.users.list failed");
-  return data.userIds ?? [];
+  return (data.userIds ?? []).map(parseUserId);
 }
 
 export async function fetchUsergroupDetails(id: string): Promise<UsergroupDetails | null> {

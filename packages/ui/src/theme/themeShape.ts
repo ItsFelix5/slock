@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createImmediateSignal } from "../immediateSignal";
 import { metricsAt } from "../keyframeMetrics";
 
 export interface ThemeShape {
@@ -91,8 +91,26 @@ const DENSITY_KEYFRAMES: [number, DensityMetrics][] = [
 
 const ROUNDNESS_KEYFRAMES: [number, RoundnessMetrics][] = [
   [0, { controlRadius: 0, pillRadius: 0, radiusLg: 0, radiusMd: 0, radiusSm: 0 }],
-  [1, { controlRadius: 6, pillRadius: 999, radiusLg: 12, radiusMd: 8, radiusSm: 4 }],
-  [2, { controlRadius: 999, pillRadius: 999, radiusLg: 40, radiusMd: 26, radiusSm: 14 }],
+  [
+    1,
+    {
+      controlRadius: 6,
+      pillRadius: 999,
+      radiusLg: 12,
+      radiusMd: 8,
+      radiusSm: 4,
+    },
+  ],
+  [
+    2,
+    {
+      controlRadius: 999,
+      pillRadius: 999,
+      radiusLg: 40,
+      radiusMd: 26,
+      radiusSm: 14,
+    },
+  ],
 ];
 
 const THEME_SHAPE_KEY = "slock-theme-shape";
@@ -107,7 +125,10 @@ function loadThemeShape(): ThemeShape {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (typeof parsed.density === "number" && typeof parsed.roundness === "number")
-        return { density: clampAxis(parsed.density), roundness: clampAxis(parsed.roundness) };
+        return {
+          density: clampAxis(parsed.density),
+          roundness: clampAxis(parsed.roundness),
+        };
     }
   } catch {
     localStorage.removeItem(THEME_SHAPE_KEY);
@@ -144,7 +165,7 @@ function applyThemeShape(shape: ThemeShape) {
   root.style.setProperty("--radius-pill", `${roundness.pillRadius}px`);
 }
 
-const [themeShape, setThemeShapeSignal] = createSignal(loadThemeShape());
+const [themeShape, setThemeShapeSignal] = createImmediateSignal(loadThemeShape());
 applyThemeShape(themeShape());
 
 export function setThemeShape(next: Partial<ThemeShape>): void {

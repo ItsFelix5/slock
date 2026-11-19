@@ -21,7 +21,9 @@ describe("createKeybindOverrides", () => {
     const first = memoryStorage();
     createKeybindOverrides(first).set("general.undo", { key: "u", mod: true });
     const second = createKeybindOverrides(memoryStorage(first.data.get("slock-keybind-overrides")));
-    expect(second.overrides()).toEqual({ "general.undo": { key: "u", mod: true } });
+    expect(second.overrides()).toEqual({
+      "general.undo": { key: "u", mod: true },
+    });
   });
 
   test("corrupted or unreadable storage falls back to no overrides", () => {

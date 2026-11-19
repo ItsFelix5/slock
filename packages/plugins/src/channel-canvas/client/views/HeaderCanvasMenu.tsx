@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { IconButton, Menu, MenuItem } from "@slock/ui";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import type { MessageHeaderProps } from "../../../messages/client/api";
 import "./HeaderCanvasMenu.css";
 
@@ -11,11 +11,11 @@ export default function HeaderCanvasMenu(props: MessageHeaderProps) {
   const [open, setOpen] = createSignal(false);
   const canvases = () => (props.kind === "channel" ? canvas.canvasesFor(props.id) : []);
   createEffect(
-    on(
-      () => props.id,
-      () => setOpen(false),
-      { defer: true },
-    ),
+    () => props.id,
+    () => {
+      setOpen(false);
+    },
+    { defer: true },
   );
   return (
     <Show when={canvases().length > 0}>

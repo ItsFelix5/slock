@@ -29,4 +29,4 @@ export {
   type StoredSnapshot,
 } from "./persistence";
 export type { RetryDecision, RetryPolicy } from "./retry";
-export type { EntryState, StateListener } from "./state";
+export { type EntryState, IDLE, type StateListener } from "./state";

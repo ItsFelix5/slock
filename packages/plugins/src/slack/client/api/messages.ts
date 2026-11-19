@@ -7,8 +7,16 @@ import {
   mapAttachment,
   mapMessage,
   mapVisibleMessage,
+  parseTs,
 } from "@slock/slack";
-import type { Message, PinnedMessage, RawAttachment, RawMessage, SearchResult } from "@slock/types";
+import type {
+  Message,
+  PinnedMessage,
+  RawAttachment,
+  RawMessage,
+  SearchResult,
+  Ts,
+} from "@slock/types";
 
 import { fetchRepliesFrom } from "./threadReplies";
 
@@ -162,17 +170,17 @@ export async function toggleStar(channelId: string, remove: boolean) {
 
 type PinsReply = { items?: { message?: RawMessage; ts: string }[] };
 
-export async function fetchPins(channelId: string): Promise<string[]> {
+export async function fetchPins(channelId: string): Promise<Ts[]> {
   const data = await apiGet<PinsReply>(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
-  return (data.items ?? []).map((it) => it.ts).filter(Boolean);
+  return (data.items ?? []).flatMap((it) => (it.ts ? [parseTs(it.ts)] : []));
 }
 
 export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
   const data = await apiGet<PinsReply>(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   return (data.items ?? []).flatMap((it) =>
-    it.message ? [{ message: mapMessage(it.message), ts: it.ts }] : [],
+    it.message ? [{ message: mapMessage(it.message), ts: parseTs(it.ts) }] : [],
   );
 }
 

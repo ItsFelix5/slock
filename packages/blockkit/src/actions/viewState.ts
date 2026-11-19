@@ -85,7 +85,11 @@ export function statefulElements(blocks: Block[]) {
     for (const element of candidates) {
       const data: ElementData | undefined = element;
       if (!(data?.action_id && block.block_id) || STATELESS.includes(data.type)) continue;
-      found.push({ blockId: block.block_id, element: data, optional: !!input?.optional });
+      found.push({
+        blockId: block.block_id,
+        element: data,
+        optional: !!input?.optional,
+      });
     }
   }
   return found;

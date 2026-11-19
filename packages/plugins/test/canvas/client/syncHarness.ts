@@ -1,3 +1,4 @@
+import { parseTeamId } from "@slock/slack";
 import type { CanvasEdit, CanvasNode } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
 import { canvasToOps } from "../../../src/canvas/client/lib/canvasDelta";
@@ -14,7 +15,7 @@ const names: CanvasNames = {
   channel: (id) => id,
   controlLabel: () => "embed",
   emojiText: () => null,
-  teamId: "T1",
+  teamId: parseTeamId("T1"),
   user: (id) => id,
 };
 

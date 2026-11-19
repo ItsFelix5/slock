@@ -13,7 +13,10 @@ function buildHighlightWordsPattern(words: string[]): RegExp | undefined {
     .filter(Boolean)
     .map(escapeRegExp)
     .join("|");
-  cached = { pattern: source ? new RegExp(`\\b(?:${source})\\b`, "gi") : undefined, words };
+  cached = {
+    pattern: source ? new RegExp(`\\b(?:${source})\\b`, "gi") : undefined,
+    words,
+  };
   return cached.pattern;
 }
 

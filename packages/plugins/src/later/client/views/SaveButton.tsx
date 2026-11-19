@@ -14,7 +14,7 @@ export default function SaveButton(props: MessageBarProps) {
       iconSize={15}
       label={saved() ? "Remove from Later" : "Save for later"}
       onClick={() => later.toggleSaveForLater(props.channelId, props.msg.ts)}
-      tabIndex={props.rowFocused() ? undefined : -1}
+      tabindex={props.rowFocused() ? undefined : -1}
     />
   );
 }

@@ -1,6 +1,7 @@
+import { ch, stamp, uid } from "@slock/slack/testing";
 import type { Channel, DirectMessage, Message } from "@slock/types";
-import { createRoot, createSignal } from "solid-js";
-import { createUnreadStore } from "./index";
+import { createRoot, createSignal, flush as flushSolid } from "solid-js";
+import { createUnreadStore } from "../../../../src/unread/client/store";
 
 export type Bootstrap = {
   channels: Channel[];
@@ -9,9 +10,17 @@ export type Bootstrap = {
   lastReadByChannel: Record<string, number>;
 };
 
+export const C1 = ch("C1");
+export { ch, stamp };
+
+const brandedLastRead = (raw: Record<string, number>) =>
+  Object.fromEntries(Object.entries(raw).map(([id, ms]) => [ch(id), ms]));
+
+export const dm = (id: string, unread = false): DirectMessage => ({ id: ch(id), unread });
+
 export const channel = (id: string, unread = false): Channel => ({
   archived: false,
-  id,
+  id: ch(id),
   name: id,
   private: false,
   topic: "",
@@ -24,20 +33,24 @@ export const message = (ts: string, extra: Partial<Message> = {}): Message => ({
   kind: "normal",
   text: ts,
   time: "",
-  ts,
-  userId: "U1",
+  ts: stamp(ts),
+  userId: uid("U1"),
   ...extra,
 });
 
 export const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+export { flushSolid };
+
 const disposers: (() => void)[] = [];
 
 export function mount<T>(build: () => T): T {
-  return createRoot((dispose) => {
+  const result = createRoot((dispose) => {
     disposers.push(dispose);
     return build();
   });
+  flushSolid();
+  return result;
 }
 
 export function unmountAll() {
@@ -54,7 +67,13 @@ export function harness(initial?: Bootstrap) {
   const [bootstrap, setBootstrap] = createSignal(initial);
   const loaded = () => {
     const data = bootstrap();
-    return data && { ...data, countsLoaded: data.countsLoaded ?? true };
+    return (
+      data && {
+        ...data,
+        countsLoaded: data.countsLoaded ?? true,
+        lastReadByChannel: brandedLastRead(data.lastReadByChannel),
+      }
+    );
   };
   const settle = () => (failure.error ? Promise.reject(failure.error) : Promise.resolve());
   const store = createUnreadStore({

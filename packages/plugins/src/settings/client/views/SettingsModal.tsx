@@ -1,5 +1,5 @@
 import { usePoint } from "@slock/core/solid";
-import { Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
+import { ariaBoolean, Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
 import { createMemo, createSignal, For } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import type { SettingsTabItem } from "../api";
@@ -10,7 +10,7 @@ import "./SettingsModal.responsive.css";
 export default function SettingsModal(props: { initialTab?: string; onClose: () => void }) {
   const items = usePoint("settings.tab");
   const tabs = createMemo(() => items().filter((tab) => tab.visible?.() ?? true));
-  const [selected, setSelected] = createSignal(props.initialTab);
+  const [selected, setSelected] = createSignal(() => props.initialTab);
   const active = createMemo(() => tabs().find((tab) => tab.id === selected()) ?? tabs()[0]);
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
@@ -37,15 +37,14 @@ export default function SettingsModal(props: { initialTab?: string; onClose: () 
         <For each={tabs()}>
           {(tab, index) => (
             <button
-              aria-selected={active()?.id === tab.id}
-              class="settings-nav-btn btn-reset"
-              classList={{ active: active()?.id === tab.id }}
+              aria-selected={ariaBoolean(active()?.id === tab.id)}
+              class={["settings-nav-btn", "btn-reset", { active: active()?.id === tab.id }]}
               onClick={() => setSelected(tab.id)}
               ref={(el) => {
                 tabButtonRefs[index()] = el;
               }}
               role="tab"
-              tabIndex={active()?.id === tab.id ? 0 : -1}
+              tabindex={active()?.id === tab.id ? 0 : -1}
               type="button"
             >
               {tab.label}

@@ -1,4 +1,4 @@
-import { getOwner, onCleanup, onSettled, runWithOwner } from "solid-js";
+import { getOwner, onSettled, runWithOwner } from "solid-js";
 
 export type ClickOutsideTarget = string | (() => Element | null | undefined);
 
@@ -19,6 +19,6 @@ export function useClickOutside(
       if (targets.every((t) => isOutside(t, e))) runWithOwner(owner, onClose);
     };
     document.addEventListener("mousedown", handler, true);
-    onCleanup(() => document.removeEventListener("mousedown", handler, true));
+    return () => document.removeEventListener("mousedown", handler, true);
   });
 }

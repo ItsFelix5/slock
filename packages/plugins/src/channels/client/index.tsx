@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { ifPresent, parseChannelId } from "@slock/slack";
+import { ifPresent, isChannelId, parseChannelId } from "@slock/slack";
 import { gatewayHandler } from "../../realtime/client/api";
 import { channelDisplayName } from "./api";
 import { createMembershipHandler, MEMBERSHIP_EVENTS } from "./membershipEvents";
@@ -12,16 +12,17 @@ const setup: Setup = (ctx) => {
   const view = service("conversations");
   const store = createChannelsStore({
     activeView: view.activeView,
-    bootstrap: () => bootstrap.bootstrap.data,
+    bootstrap: () => bootstrap.bootstrap().data,
     decorators: ctx.use("channels.decorate"),
     mutateUserPrefs: bootstrap.mutateUserPrefs,
     setActiveView: view.setActiveView,
-    userPrefs: () => bootstrap.userPrefs.data,
+    userPrefs: () => bootstrap.userPrefs().data,
   });
   ctx.provide("channels", store);
   ctx.add(
     "shell.title",
     (id) => {
+      if (!isChannelId(id)) return;
       const channel = store.channelById(id);
       return { name: channelDisplayName(channel, id), prefix: channel?.canvasFileId ? "" : "#" };
     },
@@ -53,7 +54,10 @@ const setup: Setup = (ctx) => {
     "realtime.handler",
     gatewayHandler(["channel_updated"], (event) => {
       for (const id of event.channels)
-        store.patchChannel(parseChannelId(id), { archived: event.updates.archived, topic: event.updates.topic });
+        store.patchChannel(parseChannelId(id), {
+          archived: event.updates.archived,
+          topic: event.updates.topic,
+        });
     }),
   );
   ctx.add(

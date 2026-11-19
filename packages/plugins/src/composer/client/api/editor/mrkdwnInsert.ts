@@ -1,8 +1,8 @@
 import { BLOCKS_CLIPBOARD_TYPE, stripTrackingParams } from "@slock/blockkit";
+import { escapeRegExp } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { decodeTextEntities } from "@slock/slack";
 import type { Block } from "@slock/types";
-import { escapeRegExp } from "@slock/ui";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "@slock/ui/editor/quill";
 import { resolvedEmojiName } from "../../../../emoji/client/api/resolvedEmojiName";

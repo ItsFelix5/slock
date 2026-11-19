@@ -1,5 +1,6 @@
 import { getHost, service } from "@slock/core/solid";
-import { onCleanup, onSettled } from "solid-js";
+import type { ChannelId, Ts } from "@slock/types";
+import { onSettled } from "solid-js";
 import { fetchPermalinkMessage } from "../../slack/client/api";
 import { consumeSharedProtocolLink } from "./api/incomingLinks";
 import {
@@ -15,7 +16,7 @@ const feedback = service("feedback");
 const messageLinks = service("message-links");
 
 export function installPermalinkHandler(
-  loadedChecks: () => ((channelId: string, ts: string) => boolean)[],
+  loadedChecks: () => ((channelId: ChannelId, ts: Ts) => boolean)[],
 ): void {
   const permalinkOpener = createSlackPermalinkOpener({
     navigate: (target, options) => {
@@ -68,10 +69,10 @@ export function installPermalinkHandler(
     void getHost()
       .idle()
       .then(() => consumeSharedProtocolLink(permalinkOpener));
-    onCleanup(() => {
+    return () => {
       permalinkOpener.invalidate();
       document.removeEventListener("click", openSlackPermalink);
       document.removeEventListener("copy", handleMessageCopy);
-    });
+    };
   });
 }

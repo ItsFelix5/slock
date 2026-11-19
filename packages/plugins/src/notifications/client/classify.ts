@@ -1,4 +1,4 @@
-import type { ActivityItem, DesktopNotificationEvent } from "@slock/types";
+import type { ActivityItem, ChannelId, DesktopNotificationEvent } from "@slock/types";
 
 const NOTIFICATION_KINDS = [
   "mention",
@@ -20,7 +20,7 @@ export function isNotificationKind(kind: string): kind is NotificationKind {
 const BROADCAST_MENTION = /@(channel|here|everyone)\b/;
 
 type Context = {
-  channelId: string;
+  channelId: ChannelId;
   isNotifyAll: boolean;
   matchesPingword: boolean;
 };

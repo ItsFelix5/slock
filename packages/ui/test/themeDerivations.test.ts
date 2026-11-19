@@ -52,7 +52,10 @@ describe("color refs", () => {
   });
 
   test("tolerates surrounding whitespace", () => {
-    expect(parseColorRef("  @accent 10%L  ")).toEqual({ deltaL: 10, source: "accent" });
+    expect(parseColorRef("  @accent 10%L  ")).toEqual({
+      deltaL: 10,
+      source: "accent",
+    });
   });
 });
 

@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import { parseChannelId } from "@slock/slack";
 import type { User } from "@slock/types";
 import { Combobox, type ComboboxOption } from "@slock/ui";
 import { createSignal } from "solid-js";
@@ -30,7 +31,7 @@ export default function CreateGroupChatDialog(props: { onClose: () => void }) {
       fallbackError="Couldn't create group chat."
       onClose={props.onClose}
       onSubmit={async () => {
-        const channelId = await openGroupDm(people().map((person) => person.id));
+        const channelId = parseChannelId(await openGroupDm(people().map((person) => person.id)));
         await dms.ensureMpdm(channelId);
         conversations.setActiveView({ id: channelId, kind: "dm" });
       }}

@@ -24,7 +24,10 @@ export function isTopFocusLayer(layer: object | undefined): boolean {
   return layers.at(-1) === layer;
 }
 
-export function popFocusLayer(layer: object): { wasTop: boolean; revealed: object | undefined } {
+export function popFocusLayer(layer: object): {
+  wasTop: boolean;
+  revealed: object | undefined;
+} {
   const wasTop = isTopFocusLayer(layer);
   const index = layers.indexOf(layer);
   if (index >= 0) layers.splice(index, 1);

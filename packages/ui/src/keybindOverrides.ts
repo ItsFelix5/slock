@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createImmediateSignal } from "./immediateSignal";
 import type { ShortcutCombo } from "./shortcutCombo";
 
 export type KeybindOverrides = Record<string, ShortcutCombo | null>;
@@ -17,7 +17,7 @@ export function createKeybindOverrides(storage: KeyValueStorage) {
     }
   }
 
-  const [overrides, setOverrides] = createSignal<KeybindOverrides>(load());
+  const [overrides, setOverrides] = createImmediateSignal(load());
 
   function persist(next: KeybindOverrides) {
     setOverrides(next);

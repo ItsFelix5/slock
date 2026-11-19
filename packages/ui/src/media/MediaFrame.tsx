@@ -1,5 +1,6 @@
-import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createSignal, Show } from "solid-js";
+import { ariaBoolean } from "../ariaBoolean";
 import Icon from "./Icon";
 import "./MediaFrame.css";
 
@@ -11,7 +12,9 @@ export interface MediaFrameProps {
 
 export default function MediaFrame(props: MediaFrameProps) {
   const [collapsed, setCollapsed] = createSignal(false);
-  const toggle = () => setCollapsed((value) => !value);
+  const toggle = () => {
+    setCollapsed((value) => !value);
+  };
   const caret = () => (
     <Icon name={collapsed() ? "caret-right-filled" : "caret-down-filled"} size={11} />
   );
@@ -20,7 +23,7 @@ export default function MediaFrame(props: MediaFrameProps) {
       <Show
         fallback={
           <button
-            aria-expanded={!collapsed()}
+            aria-expanded={ariaBoolean(!collapsed())}
             class="media-frame-toggle btn-reset flex-align-center"
             onClick={toggle}
             type="button"
@@ -34,7 +37,7 @@ export default function MediaFrame(props: MediaFrameProps) {
         {(titleUrl) => (
           <div class="media-frame-toggle flex-align-center">
             <button
-              aria-expanded={!collapsed()}
+              aria-expanded={ariaBoolean(!collapsed())}
               aria-label={collapsed() ? "Expand" : "Collapse"}
               class="media-frame-caret btn-reset"
               onClick={toggle}

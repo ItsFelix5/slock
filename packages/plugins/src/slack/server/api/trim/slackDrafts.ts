@@ -1,3 +1,4 @@
+import { ifPresent, parseChannelId, parseTs } from "@slock/slack";
 import type { DraftEntry } from "@slock/types";
 import type { RawDraft } from "../slackReplies";
 
@@ -6,11 +7,11 @@ export function trimDraft(draft: RawDraft): DraftEntry | undefined {
   if (!destination || isScheduled(draft)) return;
   return {
     blocks: draft.blocks ?? [],
-    channelId: destination.channel_id,
+    channelId: parseChannelId(destination.channel_id),
     clientMsgId: draft.client_msg_id,
     id: draft.id,
-    lastUpdatedTs: draft.last_updated_ts,
-    threadTs: destination.thread_ts,
+    lastUpdatedTs: ifPresent(parseTs, draft.last_updated_ts),
+    threadTs: ifPresent(parseTs, destination.thread_ts),
   };
 }
 

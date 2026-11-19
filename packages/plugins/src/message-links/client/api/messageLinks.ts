@@ -1,9 +1,10 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import { getChannelLink, getPermalink } from "../../../slack/client/api";
 
 const feedback = service("feedback");
 
-export async function copyMessageLink(channelId: string, ts: string, threadTs?: string) {
+export async function copyMessageLink(channelId: ChannelId, ts: Ts, threadTs?: Ts) {
   try {
     const link = await getPermalink(channelId, ts, threadTs);
     if (!link) throw new Error("no permalink");
@@ -14,7 +15,7 @@ export async function copyMessageLink(channelId: string, ts: string, threadTs?: 
   }
 }
 
-export async function copyChannelLink(channelId: string) {
+export async function copyChannelLink(channelId: ChannelId) {
   try {
     const link = await getChannelLink(channelId);
     if (!link) throw new Error("no channel link");
@@ -36,9 +37,9 @@ export async function copyCanvasLink(fileId: string, permalink: string | null) {
 }
 
 export async function prepareReplyLink(
-  channelId: string,
-  ts: string,
-  threadTs?: string,
+  channelId: ChannelId,
+  ts: Ts,
+  threadTs?: Ts,
 ): Promise<string | null> {
   try {
     return await getPermalink(channelId, ts, threadTs);

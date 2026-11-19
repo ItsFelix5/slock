@@ -1,12 +1,11 @@
-import { defined, formatTimeFromMs } from "@slock/core";
-import { broadcastRangeOf } from "@slock/slack";
-import type { Block, Message, PendingFile, User } from "@slock/types";
-import { produce, type SetStoreFunction } from "solid-js";
+import { formatTimeFromMs } from "@slock/core";
+import { broadcastRangeOf, parseTs } from "@slock/slack";
+import type { Block, ChannelId, Message, PendingFile, Ts, User } from "@slock/types";
+import { reconcile } from "solid-js";
 import { postBroadcastMessage, postMessage, uploadFiles } from "../../../slack/client/api";
 import { dedupeMessages } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
-
-type MessageStoreSetter = SetStoreFunction<Record<string, Message[]>>;
+import { tsFromMs } from "../lib/tsTime";
 
 function optimisticMessage(me: User | undefined, now: number, fields: Partial<Message>): Message {
   return {
@@ -16,45 +15,39 @@ function optimisticMessage(me: User | undefined, now: number, fields: Partial<Me
     pending: true,
     text: "",
     time: formatTimeFromMs(now),
-    ts: String(now / 1000),
-    userId: me?.id ?? "",
+    ts: tsFromMs(now),
+    userId: me?.id,
     ...fields,
   };
 }
 
 export function createMessageSending(deps: {
   currentUser: () => User | undefined;
-  setChannelMessages: MessageStoreSetter;
-  setThreadMessages: MessageStoreSetter;
-  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
-  removeMessage: (location: MessageLocation, ts: string) => void;
+  editList: (location: MessageLocation, edit: (list: Message[]) => void) => void;
+  patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
+  removeMessage: (location: MessageLocation, ts: Ts) => void;
 }) {
   let lastOptimisticMs = 0;
   const nextOptimisticMs = () => {
     lastOptimisticMs = Math.max(Date.now(), lastOptimisticMs + 1);
     return lastOptimisticMs;
   };
-  const setterFor = (location: MessageLocation) =>
-    location.store === "thread" ? deps.setThreadMessages : deps.setChannelMessages;
 
-  function appendOptimistic(channelId: string, threadTs: string | undefined, message: Message) {
+  function appendOptimistic(channelId: ChannelId, threadTs: Ts | undefined, message: Message) {
     const location: MessageLocation = threadTs
       ? { key: threadTs, store: "thread" }
       : { key: channelId, store: "channel" };
-    setterFor(location)(
-      produce((draft) => {
-        draft[location.key] ??= [];
-        defined(draft[location.key]).push(message);
-      }),
-    );
+    deps.editList(location, (list) => {
+      list.push(message);
+    });
     return location;
   }
 
   async function sendMessage(
-    channelId: string,
+    channelId: ChannelId,
     text: string,
     unfurl: string[],
-    threadTs?: string,
+    threadTs?: Ts,
     blocks?: Block[],
     fileIds?: string[],
   ) {
@@ -70,11 +63,15 @@ export function createMessageSending(deps: {
       const res = broadcastRangeOf({ blocks, text: trimmed })
         ? await postBroadcastMessage(channelId, trimmed, unfurl, threadTs, blocks)
         : await postMessage(channelId, trimmed, unfurl, threadTs, blocks, fileIds);
-      setterFor(location)(location.key, (list) =>
-        dedupeMessages(
-          list.map((m) => (m.id === optimistic.id ? { ...m, pending: false, ts: res.ts } : m)),
-        ),
-      );
+      const confirmedTs = parseTs(res.ts);
+      deps.editList(location, (list) => {
+        const confirmed = dedupeMessages(
+          list.map((m) =>
+            m.id === optimistic.id ? { ...m, pending: false, ts: confirmedTs } : m,
+          ),
+        );
+        reconcile(confirmed, "id")(list);
+      });
     } catch (err) {
       console.error("Failed to send message", err);
       deps.removeMessage(location, optimistic.ts);
@@ -82,7 +79,7 @@ export function createMessageSending(deps: {
     }
   }
 
-  async function sendFiles(channelId: string, files: File[], threadTs?: string, comment?: string) {
+  async function sendFiles(channelId: ChannelId, files: File[], threadTs?: Ts, comment?: string) {
     if (files.length === 0) return;
     const pendingFiles: PendingFile[] = files.map((file, i) => ({
       id: `pending-file-${Date.now()}-${i}`,

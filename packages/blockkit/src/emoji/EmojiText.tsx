@@ -24,12 +24,15 @@ function splitParts(text: string): Part[] {
 
 function StillEmojiImg(props: { name: string; url: string; onError?: () => void }) {
   let canvas: HTMLCanvasElement | undefined;
-  createEffect(() => {
-    loadStillEmoji(props.url).then(
-      ({ bitmap, x, y }) => canvas?.getContext("2d")?.drawImage(bitmap, x, y),
-      () => props.onError?.(),
-    );
-  });
+  createEffect(
+    () => props.url,
+    (url) => {
+      loadStillEmoji(url).then(
+        ({ bitmap, x, y }) => canvas?.getContext("2d")?.drawImage(bitmap, x, y),
+        () => props.onError?.(),
+      );
+    },
+  );
   return (
     <canvas
       aria-label={`:${props.name}:`}
@@ -46,16 +49,18 @@ function StillEmojiImg(props: { name: string; url: string; onError?: () => void 
 
 export default function EmojiText(props: { text: string }) {
   const freeze = useEmojiFreeze();
-  const text = createMemo(() => props.text);
-  const parts = createMemo(() => splitParts(decodeTextEntities(text())));
+  const parts = createMemo(() => splitParts(decodeTextEntities(props.text)));
   return (
     <For each={parts()}>
       {(part) => {
         if (part.type === "text") return <>{part.value}</>;
 
         const rawUrl = createMemo(() => emojiUrl(part.name));
-        const [broken, setBroken] = createSignal(false);
-        const url = createMemo(() => (broken() ? undefined : rawUrl()));
+        const [brokenUrl, setBrokenUrl] = createSignal<string | null>();
+        const url = createMemo(() => {
+          const candidate = rawUrl();
+          return candidate === brokenUrl() ? undefined : candidate;
+        });
         const unicode = createMemo(() => {
           const alias = emojiAliasTarget(part.name);
           return (
@@ -63,13 +68,12 @@ export default function EmojiText(props: { text: string }) {
           );
         });
         const loading = createMemo(() => !unicode() && url() === undefined);
-        createEffect(() => {
-          rawUrl();
-          setBroken(false);
-        });
-        createEffect(() => {
-          if (!unicode() && url() === undefined && !hasEmojiLoadError()) void loadCustomEmoji();
-        });
+        createEffect(
+          () => !unicode() && url() === undefined && !hasEmojiLoadError(),
+          (needsLoad) => {
+            if (needsLoad) void loadCustomEmoji();
+          },
+        );
         return (
           <Show
             fallback={
@@ -86,7 +90,7 @@ export default function EmojiText(props: { text: string }) {
             when={url()}
           >
             {(u) => {
-              const onError = () => setBroken(true);
+              const onError = () => setBrokenUrl(rawUrl());
               return (
                 <Show
                   fallback={

@@ -1,7 +1,6 @@
 import type { Services } from "@slock/core/types";
-import type { Message, SavedItem } from "@slock/types";
-import { createMemo, createSignal } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js";
+import type { ChannelId, Message, SavedItem, Ts } from "@slock/types";
+import { createMemo, createSignal, createStore, reconcile } from "solid-js";
 import type {
   fetchMessagesByIds,
   fetchSaved,
@@ -9,6 +8,7 @@ import type {
   toggleSaved,
   updateSaved,
 } from "../../slack/client/api";
+import { laterKey, matchesSaved } from "./savedItems";
 
 export type LaterApi = {
   fetchMessagesByIds: typeof fetchMessagesByIds;
@@ -18,49 +18,48 @@ export type LaterApi = {
   updateSaved: typeof updateSaved;
 };
 
-function removeSaved(list: SavedItem[], channelId: string, ts: string) {
-  const index = list.findIndex((item) => item.channelId === channelId && item.ts === ts);
-  if (index !== -1) list.splice(index, 1);
-}
+type ListStatus = "idle" | "loading" | "error";
+type MessageStatus = "loading" | "error";
 
 export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["flash"]) {
   const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);
   const [laterLoaded, setLaterLoaded] = createSignal(false);
-  const [laterLoading, setLaterLoading] = createSignal(false);
-  const [laterLoadError, setLaterLoadError] = createSignal(false);
+  const [listStatus, setListStatus] = createSignal<ListStatus>("idle");
   const [laterMessages, setLaterMessages] = createStore<Record<string, Message | null>>({});
-  const [laterMessageLoading, setLaterMessageLoading] = createStore<Record<string, boolean>>({});
-  const [laterMessageError, setLaterMessageError] = createStore<Record<string, boolean>>({});
+  const [messageStatus, setMessageStatus] = createStore<Record<string, MessageStatus>>({});
   const [savePending, setSavePending] = createStore<Record<string, boolean>>({});
 
-  const laterKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
+  const changing = new Set<string>();
+  const loadingMessages = new Set<string>();
+  let inflight: Promise<void> | undefined;
 
-  function isSaveForLaterPending(channelId: string, ts: string): boolean {
-    return !!savePending[laterKey(channelId, ts)];
-  }
+  const laterLoading = () => listStatus() === "loading";
+  const laterLoadError = () => listStatus() === "error";
+
+  const isSaveForLaterPending = (channelId: ChannelId, ts: Ts) =>
+    !!savePending[laterKey(channelId, ts)];
 
   const savedKeys = createMemo(
     () => new Set(laterItems.map((item) => laterKey(item.channelId, item.ts))),
   );
 
-  function isSavedForLater(channelId: string, ts: string): boolean {
-    return savedKeys().has(laterKey(channelId, ts));
-  }
-
-  const matches = (channelId: string, ts: string) => (item: SavedItem) =>
-    item.channelId === channelId && item.ts === ts;
+  const isSavedForLater = (channelId: ChannelId, ts: Ts) =>
+    savedKeys().has(laterKey(channelId, ts));
 
   async function changeSaved(
-    channelId: string,
-    ts: string,
+    channelId: ChannelId,
+    ts: Ts,
     optimistic: (list: SavedItem[]) => void,
     request: () => Promise<unknown>,
   ): Promise<boolean> {
     const pendingKey = laterKey(channelId, ts);
-    if (laterLoading() || savePending[pendingKey]) return false;
-    setSavePending(pendingKey, true);
+    if (inflight || changing.has(pendingKey)) return false;
+    changing.add(pendingKey);
+    setSavePending((pending) => {
+      pending[pendingKey] = true;
+    });
     const before = laterItems.map((item) => ({ ...item }));
-    setLaterItems(produce(optimistic));
+    setLaterItems(optimistic);
     try {
       await request();
       return true;
@@ -70,34 +69,35 @@ export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["fla
       setLaterItems(reconcile(before));
       return false;
     } finally {
-      setSavePending(
-        produce((pending) => {
-          delete pending[pendingKey];
-        }),
-      );
+      changing.delete(pendingKey);
+      setSavePending((pending) => {
+        delete pending[pendingKey];
+      });
     }
   }
 
-  function toggleSaveForLater(channelId: string, ts: string): Promise<boolean> {
+  function toggleSaveForLater(channelId: ChannelId, ts: Ts): Promise<boolean> {
     const currentlySaved = isSavedForLater(channelId, ts);
     return changeSaved(
       channelId,
       ts,
       (list) => {
-        if (currentlySaved) removeSaved(list, channelId, ts);
-        else list.push({ channelId, ts });
+        if (currentlySaved) {
+          const index = list.findIndex(matchesSaved(channelId, ts));
+          if (index !== -1) list.splice(index, 1);
+        } else list.push({ channelId, ts });
       },
       () => api.toggleSaved(channelId, ts, currentlySaved),
     );
   }
 
-  function setReminder(channelId: string, ts: string, dateDue: number): Promise<boolean> {
+  function setReminder(channelId: ChannelId, ts: Ts, dateDue: number): Promise<boolean> {
     const currentlySaved = isSavedForLater(channelId, ts);
     return changeSaved(
       channelId,
       ts,
       (list) => {
-        const item = list.find(matches(channelId, ts));
+        const item = list.find(matchesSaved(channelId, ts));
         if (item) item.dateDue = dateDue;
         else list.push({ channelId, dateDue, ts });
       },
@@ -108,110 +108,110 @@ export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["fla
     );
   }
 
-  function clearReminder(channelId: string, ts: string): Promise<boolean> {
+  function clearReminder(channelId: ChannelId, ts: Ts): Promise<boolean> {
     return changeSaved(
       channelId,
       ts,
       (list) => {
-        const item = list.find(matches(channelId, ts));
+        const item = list.find(matchesSaved(channelId, ts));
         if (item) item.dateDue = undefined;
       },
       () => api.updateSaved(channelId, ts, { dateDue: 0 }),
     );
   }
 
-  function reminderDue(channelId: string, ts: string): number | undefined {
-    return laterItems.find(matches(channelId, ts))?.dateDue;
-  }
+  const reminderDue = (channelId: ChannelId, ts: Ts) =>
+    laterItems.find(matchesSaved(channelId, ts))?.dateDue;
 
-  async function ensureLaterLoaded() {
-    if (laterLoading()) return;
-    setLaterLoading(true);
-    setLaterLoadError(false);
+  async function loadLater() {
+    setListStatus("loading");
     try {
       const items = await api.fetchSaved();
       setLaterItems(reconcile(items));
       setLaterLoaded(true);
+      setListStatus("idle");
       void loadLaterMessages(items, true);
     } catch (err) {
       console.error("Failed to load Later", err);
-      setLaterLoadError(true);
+      setListStatus("error");
     } finally {
-      setLaterLoading(false);
+      inflight = undefined;
     }
+  }
+
+  function ensureLaterLoaded(): Promise<void> {
+    inflight ??= loadLater();
+    return inflight;
   }
 
   async function loadLaterMessages(items: SavedItem[], force = false) {
     const pending = items.filter((item) => {
       const key = laterKey(item.channelId, item.ts);
-      return !laterMessageLoading[key] && (force || !(key in laterMessages));
+      return !loadingMessages.has(key) && (force || !(key in laterMessages));
     });
     if (!pending.length) return;
-    for (const item of pending) {
-      const key = laterKey(item.channelId, item.ts);
-      setLaterMessageLoading(key, true);
-      setLaterMessageError(key, false);
-    }
+    const keys = pending.map((item) => laterKey(item.channelId, item.ts));
+    for (const key of keys) loadingMessages.add(key);
+    setMessageStatus((status) => {
+      for (const key of keys) status[key] = "loading";
+    });
     const resolved = new Set<string>();
     try {
       const messages = await api.fetchMessagesByIds(
         pending,
         (batch) => {
-          for (const [key, message] of batch) {
-            resolved.add(key);
-            setLaterMessages(key, message);
-          }
+          setLaterMessages((cache) => {
+            for (const [key, message] of batch) {
+              resolved.add(key);
+              cache[key] = message;
+            }
+          });
         },
         force,
       );
-      for (const item of pending) {
-        const key = laterKey(item.channelId, item.ts);
-        setLaterMessages(key, messages.get(key) ?? null);
-      }
+      setLaterMessages((cache) => {
+        for (const key of keys) cache[key] = messages.get(key) ?? null;
+      });
+      setMessageStatus((status) => {
+        for (const key of keys) delete status[key];
+      });
     } catch (err) {
       console.error("Failed to load saved message", err);
-      for (const item of pending) {
-        const key = laterKey(item.channelId, item.ts);
-        if (!resolved.has(key)) setLaterMessageError(key, true);
-      }
+      setMessageStatus((status) => {
+        for (const key of keys) {
+          if (resolved.has(key)) delete status[key];
+          else status[key] = "error";
+        }
+      });
     } finally {
-      setLaterMessageLoading(
-        produce((loading) => {
-          for (const item of pending) delete loading[laterKey(item.channelId, item.ts)];
-        }),
-      );
+      for (const key of keys) loadingMessages.delete(key);
     }
   }
 
-  function ensureLaterMessageLoaded(item: SavedItem): Promise<void> {
-    return loadLaterMessages([item]);
-  }
+  const ensureLaterMessageLoaded = (item: SavedItem) => loadLaterMessages([item]);
+  const hasLaterMessageError = (channelId: ChannelId, ts: Ts) =>
+    messageStatus[laterKey(channelId, ts)] === "error";
+  const isLaterMessageLoading = (channelId: ChannelId, ts: Ts) =>
+    messageStatus[laterKey(channelId, ts)] === "loading";
+  const laterMessageFor = (channelId: ChannelId, ts: Ts): Message | null | undefined =>
+    laterMessages[laterKey(channelId, ts)];
 
-  function hasLaterMessageError(channelId: string, ts: string): boolean {
-    return !!laterMessageError[laterKey(channelId, ts)];
-  }
-
-  function laterMessageFor(channelId: string, ts: string): Message | null | undefined {
-    return laterMessages[laterKey(channelId, ts)];
-  }
-
-  function isLaterMessageLoading(channelId: string, ts: string): boolean {
-    return !!laterMessageLoading[laterKey(channelId, ts)];
-  }
-
-  function applySavedEvent(action: "add" | "remove" | "clear", channelId?: string, ts?: string) {
+  function applySavedEvent(action: "add" | "remove" | "clear", channelId?: ChannelId, ts?: Ts) {
     if (!laterLoaded()) return;
     if (action === "clear") {
-      setLaterItems([]);
+      setLaterItems(reconcile([]));
       return;
     }
     if (!(channelId && ts)) return;
     if (action === "remove") {
-      setLaterItems((list) =>
-        list.filter((item) => item.channelId !== channelId || item.ts !== ts),
-      );
-    } else if (!isSavedForLater(channelId, ts)) {
-      setLaterItems(produce((list) => list.push({ channelId, ts })));
+      setLaterItems((list) => {
+        const index = list.findIndex(matchesSaved(channelId, ts));
+        if (index !== -1) list.splice(index, 1);
+      });
+    } else {
+      setLaterItems((list) => {
+        if (!list.some(matchesSaved(channelId, ts))) list.push({ channelId, ts });
+      });
     }
   }
 
@@ -228,9 +228,9 @@ export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["fla
     laterLoaded,
     laterLoading,
     laterLoadError,
+    laterMessageFor,
     reminderDue,
     setReminder,
-    laterMessageFor,
     toggleSaveForLater,
   };
 }

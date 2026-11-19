@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { createStore, produce } from "solid-js";
+import { createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import { createReactiveQueryCache } from "../../../query/client/api";
@@ -63,12 +63,14 @@ export function createChannelsStore(deps: {
     setSectionStructurePending: channelSections.setSectionStructurePending,
   });
 
-  createEffect(() => {
-    const data = deps.bootstrap();
-    if (!data || starredSeeded) return;
-    starredSeeded = true;
-    for (const id of data.starredChannelIds) setStarredChannelIds(id, true);
-  });
+  createEffect(
+    () => deps.bootstrap()?.starredChannelIds,
+    (starredIds) => {
+      if (!starredIds || starredSeeded) return;
+      starredSeeded = true;
+      for (const id of starredIds) setStarredChannelIds(id, true);
+    },
+  );
 
   const baseChannelsById = createMemo(() => {
     const base = deps.bootstrap()?.channels ?? [];
@@ -85,9 +87,11 @@ export function createChannelsStore(deps: {
   function patchChannel(id: ChannelId, patch: Partial<Channel>) {
     const known = baseChannelsById().get(id);
     const allowed = known?.canvasFileId ? { ...patch, name: undefined } : patch;
-    setChannelPatches(id, {
-      ...channelPatches[id],
-      ...Object.fromEntries(Object.entries(allowed).filter(([, value]) => value !== undefined)),
+    const defined = Object.fromEntries(
+      Object.entries(allowed).filter(([, value]) => value !== undefined),
+    );
+    setChannelPatches((draft) => {
+      draft[id] = { ...draft[id], ...defined };
     });
   }
 
@@ -95,7 +99,9 @@ export function createChannelsStore(deps: {
     try {
       const channel = await fetchChannel(id);
       if (!channel) return false;
-      setDiscoveredChannels(channel.id, channel);
+      setDiscoveredChannels((draft) => {
+        draft[channel.id] = channel;
+      });
       return true;
     } catch (err) {
       console.error("Failed to discover channel", err);
@@ -217,24 +223,28 @@ export function createChannelsStore(deps: {
   }
 
   function addJoinedChannel(channel: Channel) {
-    setExtraChannels(
-      produce((list) => {
-        const idx = list.findIndex((candidate) => candidate.id === channel.id);
-        if (idx === -1) list.push(channel);
-        else list[idx] = channel;
-      }),
-    );
-    setLeftChannelIds(channel.id, false);
+    setExtraChannels((list) => {
+      const idx = list.findIndex((candidate) => candidate.id === channel.id);
+      if (idx === -1) list.push(channel);
+      else list[idx] = channel;
+    });
+    setLeftChannelIds((draft) => {
+      draft[channel.id] = false;
+    });
   }
 
   function markChannelLeft(channelId: ChannelId) {
     if (leftChannelIds[channelId]) return;
-    setLeftChannelIds(channelId, true);
+    setLeftChannelIds((draft) => {
+      draft[channelId] = true;
+    });
   }
 
   async function joinChannelById(channelId: ChannelId): Promise<boolean> {
     if (isJoinPending(channelId)) return false;
-    setJoinPendingIds(channelId, true);
+    setJoinPendingIds((draft) => {
+      draft[channelId] = true;
+    });
     try {
       const channel = await joinChannel(channelId);
       addJoinedChannel(channel);
@@ -245,13 +255,17 @@ export function createChannelsStore(deps: {
       feedback.flash(channelId, "Failed to join channel.", "error");
       return false;
     } finally {
-      setJoinPendingIds(channelId, false);
+      setJoinPendingIds((draft) => {
+        draft[channelId] = false;
+      });
     }
   }
 
   async function leaveCurrentChannel(channelId: ChannelId): Promise<boolean> {
     if (isLeavePending(channelId)) return false;
-    setLeavePendingIds(channelId, true);
+    setLeavePendingIds((draft) => {
+      draft[channelId] = true;
+    });
     try {
       await leaveChannel(channelId);
       markChannelLeft(channelId);
@@ -261,7 +275,9 @@ export function createChannelsStore(deps: {
       feedback.flash(channelId, "Failed to leave channel.", "error");
       return false;
     } finally {
-      setLeavePendingIds(channelId, false);
+      setLeavePendingIds((draft) => {
+        draft[channelId] = false;
+      });
     }
   }
 

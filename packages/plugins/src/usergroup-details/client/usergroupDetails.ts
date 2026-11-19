@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId, UserId } from "@slock/types";
 import { createConcurrencyQueue } from "@slock/ui";
 import { createSignal } from "solid-js";
 import {
@@ -87,14 +88,14 @@ export function createUsergroupDetails() {
     return withFeedback(id, "Failed to update pinggroup.", () => updateUsergroupProfile(id, patch));
   }
 
-  function addUsergroupMembers(id: string, userIds: string[]): Promise<boolean> {
+  function addUsergroupMembers(id: string, userIds: UserId[]): Promise<boolean> {
     return withFeedback(id, "Failed to add members.", async () => {
       const { memberIds } = await freshDetails(id);
       return setUsergroupMembers(id, [...new Set([...memberIds, ...userIds])]);
     });
   }
 
-  function removeUsergroupMember(id: string, userId: string): Promise<boolean> {
+  function removeUsergroupMember(id: string, userId: UserId): Promise<boolean> {
     return withFeedback(id, "Failed to remove member.", async () => {
       const { memberIds } = await freshDetails(id);
       return setUsergroupMembers(
@@ -104,14 +105,14 @@ export function createUsergroupDetails() {
     });
   }
 
-  function addUsergroupChannels(id: string, channelIds: string[]): Promise<boolean> {
+  function addUsergroupChannels(id: string, channelIds: ChannelId[]): Promise<boolean> {
     return withFeedback(id, "Failed to add channels.", async () => {
       const details = await freshDetails(id);
       return setUsergroupChannels(id, [...new Set([...details.channelIds, ...channelIds])]);
     });
   }
 
-  function removeUsergroupChannel(id: string, channelId: string): Promise<boolean> {
+  function removeUsergroupChannel(id: string, channelId: ChannelId): Promise<boolean> {
     return withFeedback(id, "Failed to remove channel.", async () => {
       const { channelIds } = await freshDetails(id);
       return setUsergroupChannels(

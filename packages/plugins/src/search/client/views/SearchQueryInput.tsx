@@ -68,7 +68,7 @@ export default function SearchQueryInput(props: {
       editor.alignedText(),
       cursor(),
       mergeById(usersStore.knownUsers(), remoteUsers()),
-      mergeById(bootstrapStore.bootstrap.data?.channels ?? [], remoteChannels()),
+      mergeById(bootstrapStore.bootstrap().data?.channels ?? [], remoteChannels()),
       { ...activeViewSuggestionContext(), modifiers: props.modifiers },
     ).slice(0, 8),
   );

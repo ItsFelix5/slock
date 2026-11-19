@@ -11,11 +11,11 @@ export default function BootstrapError() {
       <p>Check your connection and try again or log in again.</p>
       <div class="flex-center bootstrap-error-actions">
         <Button
-          disabled={bootstrapStore.bootstrap.isFetching}
+          disabled={bootstrapStore.bootstrap().refreshing}
           onClick={() => void bootstrapStore.retryBootstrap()}
           variant="primary"
         >
-          {bootstrapStore.bootstrap.isFetching ? "Retrying…" : "Try again"}
+          {bootstrapStore.bootstrap().refreshing ? "Retrying…" : "Try again"}
         </Button>
         <Slot point="bootstrap.error.action" />
       </div>

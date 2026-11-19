@@ -1,5 +1,5 @@
-import { createEffect, onCleanup, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createEffect, onCleanup, Show } from "solid-js";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
 import "./Menu.css";
 import MenuOpenBehavior from "./MenuOpenBehavior";
@@ -48,19 +48,23 @@ export default function Menu(props: MenuProps) {
     const element = trigger();
     if (element?.isConnected) element.focus();
   };
-  const roving = createMenuRovingFocus(() => panelRef, { requireVisible: true });
-
-  createEffect(() => {
-    const isOpen = props.open;
-    const triggerElement = trigger();
-    triggerElement?.setAttribute("aria-expanded", String(isOpen));
-    triggerElement?.setAttribute("aria-haspopup", "true");
-    if (!isOpen) return;
-    onCleanup(() => {
-      if (restoreAfterKeyboardAction) queueMicrotask(focusTrigger);
-      restoreAfterKeyboardAction = false;
-    });
+  const roving = createMenuRovingFocus(() => panelRef, {
+    requireVisible: true,
   });
+
+  createEffect(
+    () => props.open,
+    (isOpen) => {
+      const triggerElement = trigger();
+      triggerElement?.setAttribute("aria-expanded", String(isOpen));
+      triggerElement?.setAttribute("aria-haspopup", "true");
+      if (!isOpen) return;
+      return () => {
+        if (restoreAfterKeyboardAction) queueMicrotask(focusTrigger);
+        restoreAfterKeyboardAction = false;
+      };
+    },
+  );
 
   return (
     <div

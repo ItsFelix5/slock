@@ -2,6 +2,7 @@ import {
   activeFontPreset,
   activePreset,
   applyCopiedThemePalette,
+  ariaBoolean,
   ColorField,
   type ColorRef,
   copyableThemePalette,
@@ -26,7 +27,7 @@ import {
   themeColorDefinitions,
   themeShape,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import "./AppearanceTab.css";
 import CustomCssField from "./CustomCssField";
 import ThemeFamilyChip from "./ThemeFamilyChip";
@@ -57,12 +58,11 @@ function ThemeColorField(props: { color: ThemeColorDefinition }) {
 }
 
 export default function AppearanceTab() {
-  const [fontDraft, setFontDraft] = createSignal(font());
+  const [fontDraft, setFontDraft] = createSignal(font);
   const [copiedKey, copy] = createCopyFeedback();
   const [pasteResult, setPasteResult] = createSignal<"pasted" | "failed" | null>(null);
   const [advancedOpen, setAdvancedOpen] = createSignal(false);
   const activeThemeId = createMemo(activePreset);
-  createEffect(() => setFontDraft(font()));
 
   async function copyTheme() {
     await copy(copyableThemePalette(), "theme");
@@ -175,7 +175,7 @@ export default function AppearanceTab() {
         </div>
 
         <button
-          aria-expanded={advancedOpen()}
+          aria-expanded={ariaBoolean(advancedOpen())}
           class="settings-advanced-toggle btn-reset flex-align-center"
           onClick={() => setAdvancedOpen((open) => !open)}
           type="button"

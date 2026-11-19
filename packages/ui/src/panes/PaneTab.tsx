@@ -1,5 +1,6 @@
-import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { Show } from "solid-js";
+import { ariaBoolean } from "../ariaBoolean";
 import Icon from "../media/Icon";
 import ContextMenu from "../overlay/menu/ContextMenu";
 import MenuItem from "../overlay/menu/MenuItem";
@@ -24,8 +25,7 @@ export default function PaneTab(props: PaneTabProps) {
 
   return (
     <div
-      class="pane-tab-wrap flex-align-center"
-      classList={{ active: props.active }}
+      class={["pane-tab-wrap flex-align-center", { active: props.active }]}
       onAuxClick={(event) => {
         if (event.button !== 1 || !props.onClose) return;
         event.preventDefault();
@@ -37,13 +37,12 @@ export default function PaneTab(props: PaneTabProps) {
       }}
     >
       <button
-        aria-selected={props.active}
-        class="pane-tab truncate btn-reset"
-        classList={{ active: props.active }}
+        aria-selected={ariaBoolean(props.active)}
+        class={["pane-tab truncate btn-reset", { active: props.active }]}
         onClick={props.onActivate}
         ref={props.tabRef}
         role="tab"
-        tabIndex={props.active ? 0 : -1}
+        tabindex={props.active ? 0 : -1}
         type="button"
       >
         {props.children}

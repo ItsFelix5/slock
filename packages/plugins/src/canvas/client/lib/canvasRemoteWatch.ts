@@ -1,4 +1,4 @@
-import { createEffect, on, onCleanup } from "solid-js";
+import { createEffect, onCleanup } from "solid-js";
 import { canvasTitle, canvasToOps } from "./canvasDelta";
 import type { CanvasNames } from "./canvasEmbeds";
 import type { LoadedCanvas } from "./canvasRequests";
@@ -48,9 +48,9 @@ export function watchRemoteChanges(options: {
     clearTimeout(checkTimer);
     checkTimer = setTimeout(() => void check(), delay);
   };
-  createEffect(
-    on(options.remoteChangeTick, () => scheduleCheck(REMOTE_CHECK_DELAY_MS), { defer: true }),
-  );
+  createEffect(options.remoteChangeTick, () => scheduleCheck(REMOTE_CHECK_DELAY_MS), {
+    defer: true,
+  });
   const onFocusOut = () => {
     if (skipped) scheduleCheck(REMOTE_CHECK_DELAY_MS);
   };

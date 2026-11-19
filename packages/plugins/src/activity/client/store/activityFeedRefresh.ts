@@ -1,18 +1,22 @@
+import type { Env, TimerHandle } from "@slock/core";
+
 export function createActivityFeedRefreshScheduler({
   delayMs,
+  env,
   isLoading,
   refresh,
 }: {
   delayMs: number;
+  env: Env;
   isLoading: () => boolean;
   refresh: () => Promise<void>;
 }) {
   let pending = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: TimerHandle | undefined;
 
   const schedule = () => {
     if (timer) return;
-    timer = setTimeout(async () => {
+    timer = env.setTimeout(async () => {
       timer = undefined;
       if (!pending) return;
       if (isLoading()) {
@@ -28,7 +32,7 @@ export function createActivityFeedRefreshScheduler({
   return {
     cancel: () => {
       pending = false;
-      clearTimeout(timer);
+      env.clearTimeout(timer);
       timer = undefined;
     },
     request: () => {

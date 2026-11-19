@@ -1,9 +1,12 @@
-import { service } from "@slock/core/solid";
-import { apiGet, mapChannel, mapChannelDetails, mapUser } from "@slock/slack";
-import type { CanvasListItem, ConversationViewData, RawChannel, RawUser } from "@slock/types";
-import { defineKey } from "../../../query/client/api";
-
-const conversationViewKey = defineKey<[string]>("conversationView");
+import {
+  apiGet,
+  mapChannel,
+  mapChannelDetails,
+  mapUser,
+  parseFileId,
+} from "@slock/slack";
+import type { CanvasListItem, ChannelId, ConversationViewData, RawChannel, RawUser } from "@slock/types";
+import { defineQuery } from "../../../query/client/api";
 
 function mapCanvasTabs(channel: RawChannel): CanvasListItem[] {
   const seen = new Set<string>();
@@ -11,21 +14,20 @@ function mapCanvasTabs(channel: RawChannel): CanvasListItem[] {
   const defaultFileId = channel.properties?.canvas?.file_id;
   if (defaultFileId) {
     seen.add(defaultFileId);
-    result.push({ fileId: defaultFileId, title: "" });
+    result.push({ fileId: parseFileId(defaultFileId), title: "" });
   }
   for (const tab of channel.properties?.tabs ?? []) {
     const fileId = tab.type === "canvas" ? tab.data?.file_id : undefined;
     if (!fileId || seen.has(fileId)) continue;
     seen.add(fileId);
-    result.push({ fileId, title: tab.label?.trim() ?? "" });
+    result.push({ fileId: parseFileId(fileId), title: tab.label?.trim() ?? "" });
   }
   return result;
 }
 
-const query = service("query");
 const DEDUPE_WINDOW_MS = 5_000;
 
-async function loadConversationView(channelId: string): Promise<ConversationViewData> {
+async function loadConversationView(channelId: ChannelId): Promise<ConversationViewData> {
   const data = await apiGet<{
     channel?: RawChannel;
     users?: RawUser[];
@@ -59,14 +61,16 @@ async function loadConversationView(channelId: string): Promise<ConversationView
   };
 }
 
-export function fetchConversationView(channelId: string): Promise<ConversationViewData> {
-  return query.client.query({
-    queryFn: () => loadConversationView(channelId),
-    queryKey: conversationViewKey(channelId),
-    staleTime: DEDUPE_WINDOW_MS,
-  });
+const conversationView = defineQuery<ChannelId, ConversationViewData>({
+  load: loadConversationView,
+  maxAgeMs: DEDUPE_WINDOW_MS,
+  name: "conversationView",
+});
+
+export function fetchConversationView(channelId: ChannelId): Promise<ConversationViewData> {
+  return conversationView.ensure(channelId);
 }
 
-export async function fetchChannelCanvases(channelId: string): Promise<CanvasListItem[]> {
+export async function fetchChannelCanvases(channelId: ChannelId): Promise<CanvasListItem[]> {
   return (await fetchConversationView(channelId)).canvases;
 }

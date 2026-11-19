@@ -1,4 +1,5 @@
-import type { CanvasControl } from "@slock/types";
+import { isChannelId, isUserId } from "@slock/slack";
+import type { CanvasControl, TeamId } from "@slock/types";
 import type { CanvasEmbed } from "../../protocol/api";
 import type { EmbedValue } from "./canvasHtml";
 
@@ -6,7 +7,7 @@ export interface CanvasNames {
   channel(id: string): string;
   controlLabel(embed: CanvasEmbed): string;
   emojiText(name: string): string | null;
-  teamId: string;
+  teamId: TeamId | null;
   user(id: string): string;
 }
 
@@ -113,10 +114,12 @@ export function valueToControl(
 ): CanvasControl | null {
   const { date, emoji, mention } = value;
   if (isRecord(mention) && isString(mention.id)) {
-    if (mention.kind === "user") return { id, kind: "user", userId: mention.id };
-    if (mention.kind === "channel") return { channelId: mention.id, id, kind: "channel" };
+    if (mention.kind === "user" && isUserId(mention.id))
+      return { id, kind: "user", userId: mention.id };
+    if (mention.kind === "channel" && isChannelId(mention.id))
+      return { channelId: mention.id, id, kind: "channel" };
   }
-  if (isRecord(emoji) && isString(emoji.name))
+  if (isRecord(emoji) && isString(emoji.name) && names.teamId)
     return { id, kind: "emoji", name: emoji.name, teamId: names.teamId };
   if (isRecord(date) && typeof date.ts === "number")
     return { id, kind: "date", label: dateLabel(dateMs(date.ts)), ms: dateMs(date.ts) };

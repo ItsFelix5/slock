@@ -66,7 +66,7 @@ export type MessageAuthorProps = {
 
 export type MessageAuthorClass = (props: MessageAuthorProps) => Accessor<string | undefined>;
 
-export type MessageHeaderProps = { id: string; kind: "channel" | "dm" };
+export type MessageHeaderProps = { id: ChannelId; kind: "channel" | "dm" };
 
 export type MessageTakeover = {
   active: (view: MessageHeaderProps) => boolean;

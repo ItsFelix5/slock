@@ -21,14 +21,13 @@ function Keycaps(props: { keys: readonly string[] }) {
 }
 
 export default function KeybindField(props: KeybindFieldProps) {
-  const { recording, start } = useKeybindRecorder(props.onChange);
+  const { recording, start } = useKeybindRecorder((combo) => props.onChange(combo));
 
   return (
     <div class="keybind-field flex-align-center">
       <button
         aria-label={`Change keybind for ${props.label}`}
-        class="keybind-field-btn btn-reset"
-        classList={{ recording: recording() }}
+        class={["keybind-field-btn btn-reset", { recording: recording() }]}
         data-nav-row
         onClick={start}
         type="button"

@@ -89,8 +89,7 @@ export default function SidebarUnreadEdgeIndicator(props: {
       <Show when={above()}>
         <Tooltip content="Unread channels above">
           <button
-            class="sidebar-unread-edge sidebar-unread-edge-top"
-            classList={{ mention: aboveMention() }}
+            class={["sidebar-unread-edge sidebar-unread-edge-top", { mention: aboveMention() }]} 
             onClick={() => scrollToward(-1)}
             type="button"
           >
@@ -101,8 +100,7 @@ export default function SidebarUnreadEdgeIndicator(props: {
       <Show when={below()}>
         <Tooltip content="Unread channels below">
           <button
-            class="sidebar-unread-edge sidebar-unread-edge-bottom"
-            classList={{ mention: belowMention() }}
+            class={["sidebar-unread-edge sidebar-unread-edge-bottom", { mention: belowMention() }]} 
             onClick={() => scrollToward(1)}
             type="button"
           >

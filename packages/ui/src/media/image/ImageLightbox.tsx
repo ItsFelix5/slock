@@ -1,6 +1,6 @@
 import { clamp } from "@slock/core";
-import { createEffect, createSignal, on, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createEffect, createSignal, Show } from "solid-js";
 import IconButton from "../../button/IconButton";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { useNavigationShortcuts } from "../../hooks/useNavShortcuts";
@@ -39,24 +39,29 @@ export function ImageLightbox(props: {
   const [lensZoom, setLensZoom] = createSignal(LENS_ZOOM_DEFAULT);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
-  const [naturalSize, setNaturalSize] = createSignal<{ w: number; h: number } | null>(null);
+  const [naturalSize, setNaturalSize] = createSignal<{
+    w: number;
+    h: number;
+  } | null>(null);
   const index = () => clamp(props.index, 0, props.gallery.length - 1);
   const image = () => defined(props.gallery[index()]);
   const hasPrevious = () => index() > 0;
   const hasNext = () => index() < props.gallery.length - 1;
 
   createEffect(
-    on(
-      () => image().src,
-      () => {
-        setFailed(false);
-        setLoading(true);
-        setLensZoom(LENS_ZOOM_DEFAULT);
-        setNaturalSize(null);
-      },
-      { defer: true },
-    ),
+    () => image().src,
+    () => {
+      setFailed(false);
+      setLoading(true);
+      setLensZoom(LENS_ZOOM_DEFAULT);
+      setNaturalSize(null);
+    },
+    { defer: true },
   );
+
+  const clearLens = () => {
+    setLens(null);
+  };
 
   const upscaleStyle = (): JSX.CSSProperties | undefined => {
     const size = naturalSize();
@@ -161,7 +166,9 @@ export function ImageLightbox(props: {
           aria-label="Previous image"
           class="zoomable-image-navigation zoomable-image-previous"
           disabled={!hasPrevious()}
-          onClick={() => hasPrevious() && props.onIndexChange(index() - 1)}
+          onClick={() => {
+            if (hasPrevious()) props.onIndexChange(index() - 1);
+          }}
           type="button"
         >
           <Icon name="arrow-left" size={20} />
@@ -170,7 +177,9 @@ export function ImageLightbox(props: {
           aria-label="Next image"
           class="zoomable-image-navigation zoomable-image-next"
           disabled={!hasNext()}
-          onClick={() => hasNext() && props.onIndexChange(index() + 1)}
+          onClick={() => {
+            if (hasNext()) props.onIndexChange(index() + 1);
+          }}
           type="button"
         >
           <Icon name="arrow-right" size={20} />
@@ -209,19 +218,20 @@ export function ImageLightbox(props: {
           aria-label="Magnify image. Arrow keys pan, plus and minus zoom."
           class="zoomable-image-spyglass-area"
           ref={lensAreaRef}
-          onBlur={() => setLens(null)}
+          onBlur={clearLens}
           onFocus={focusLens}
           onMouseDown={moveLens}
-          onMouseLeave={() => setLens(null)}
-          onMouseMove={(e) => lens() && moveLens(e)}
-          onMouseUp={() => setLens(null)}
+          onMouseLeave={clearLens}
+          onMouseMove={(e) => {
+            if (lens()) moveLens(e);
+          }}
+          onMouseUp={clearLens}
           onWheel={zoomLens}
-          tabIndex={0}
+          tabindex={0}
         >
           <img
             alt={image().alt}
-            class="zoomable-image-full"
-            classList={{ "zoomable-image-full-loading": loading() }}
+            class={["zoomable-image-full", { "zoomable-image-full-loading": loading() }]}
             draggable={false}
             onError={() => {
               setFailed(true);

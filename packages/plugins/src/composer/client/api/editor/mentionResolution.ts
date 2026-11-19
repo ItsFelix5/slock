@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import type Quill from "@slock/ui/editor/quill";
 import { createEffect, createSignal } from "solid-js";
 import type { MentionValue } from "../../lib/embedValues";
@@ -15,7 +16,8 @@ interface Pending {
 }
 
 function knownName({ id, kind }: Pending): string | undefined {
-  return kind === "user" ? usersStore.userById(id)?.name : channelsStore.channelById(id)?.name;
+  if (kind === "user") return usersStore.userById(id)?.name;
+  return isChannelId(id) ? channelsStore.channelById(id)?.name : undefined;
 }
 
 export function useMentionResolution(
@@ -23,24 +25,27 @@ export function useMentionResolution(
 ): (id: string, kind?: ResolvableKind) => void {
   const [pending, setPending] = createSignal<Pending[]>([]);
 
-  createEffect(() => {
-    for (const item of pending()) {
-      const name = knownName(item);
-      if (!name) continue;
-      getQuill()
-        ?.root.querySelectorAll<HTMLElement>(
-          `.bk-mention[data-kind="${item.kind}"][data-id="${item.id}"]`,
-        )
-        .forEach((node) => {
-          if (node.dataset.name !== item.id) return;
-          node.dataset.name = name;
-          node
-            .querySelector('[contenteditable="false"]')
-            ?.replaceChildren(...mentionLabel({ ...item, name }));
-        });
-      setPending((items) => items.filter((other) => other !== item));
-    }
-  });
+  createEffect(
+    () => pending().map((item) => ({ item, name: knownName(item) })),
+    (entries) => {
+      const resolved = entries.flatMap(({ item, name }) => (name ? [{ item, name }] : []));
+      if (resolved.length === 0) return;
+      for (const { item, name } of resolved) {
+        getQuill()
+          ?.root.querySelectorAll<HTMLElement>(
+            `.bk-mention[data-kind="${item.kind}"][data-id="${item.id}"]`,
+          )
+          .forEach((node) => {
+            if (node.dataset.name !== item.id) return;
+            node.dataset.name = name;
+            node
+              .querySelector('[contenteditable="false"]')
+              ?.replaceChildren(...mentionLabel({ ...item, name }));
+          });
+      }
+      setPending((items) => items.filter((other) => !resolved.some(({ item }) => item === other)));
+    },
+  );
 
   return (id, kind = "user") =>
     setPending((items) =>

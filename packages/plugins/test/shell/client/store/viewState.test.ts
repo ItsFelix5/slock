@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import type { PaneContent } from "../../../../src/shell/client/api/types";
 import { kinds, loadShellStore, main, side } from "../../../../src/shell/client/store/paneTestKit";
 
@@ -40,14 +40,36 @@ function createFakeWindow(initialPath: string) {
     index = to;
     for (const listener of listeners) listener({ state: entries[index]?.state });
   };
+  const settledTravel = (to: number) => {
+    flush();
+    travel(to);
+    flush();
+  };
   return {
-    back: () => travel(index - 1),
-    entries,
-    forward: () => travel(index + 1),
-    index: () => index,
+    back: () => settledTravel(index - 1),
+    get entries() {
+      flush();
+      return entries;
+    },
+    forward: () => settledTravel(index + 1),
+    index: () => {
+      flush();
+      return index;
+    },
     install: () => Object.assign(globalThis, { window: fake }),
     listenerCount: () => listeners.size,
-    path: () => entries[index]?.path,
+    path: () => {
+      flush();
+      return entries[index]?.path;
+    },
+  };
+}
+
+function flushing<Args extends unknown[], Result>(action: (...args: Args) => Result) {
+  return (...args: Args): Result => {
+    const result = action(...args);
+    flush();
+    return result;
   };
 }
 
@@ -65,8 +87,17 @@ function boot(initialPath: string, defaultView?: PaneContent) {
     store.viewState.start();
     return store;
   });
-  const layout = () => panes.panes().map((pane) => pane.content);
-  return { browser, dispose, layout, panes, view };
+  const layout = () => {
+    flush();
+    return panes.panes().map((pane) => pane.content);
+  };
+  return {
+    browser,
+    dispose,
+    layout,
+    panes: { ...panes, openInNewPane: flushing(panes.openInNewPane) },
+    view: { ...view, closeTile: flushing(view.closeTile), open: flushing(view.open) },
+  };
 }
 
 const realWindow = globalThis.window;

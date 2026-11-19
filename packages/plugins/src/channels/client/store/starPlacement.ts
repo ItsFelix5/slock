@@ -15,10 +15,22 @@ export function createChannelStarPlacement(deps: {
   sectionStructurePending: () => boolean;
   setSectionStructurePending: (pending: boolean) => void;
 }) {
-  const [starredChannelIds, setStarredChannelIds] = createStore<Record<ChannelId, boolean>>({});
-  const [placementPendingByChannel, setPlacementPendingByChannel] = createStore<
+  const [starredChannelIds, setStarredIds] = createStore<Record<ChannelId, boolean>>({});
+  const [placementPendingByChannel, setPlacementPending] = createStore<
     Record<ChannelId, boolean>
   >({});
+
+  function setStarredChannelIds(channelId: ChannelId, starred: boolean) {
+    setStarredIds((draft) => {
+      draft[channelId] = starred;
+    });
+  }
+
+  function setPlacementPendingByChannel(channelId: ChannelId, pending: boolean) {
+    setPlacementPending((draft) => {
+      draft[channelId] = pending;
+    });
+  }
 
   function isChannelStarred(channelId: ChannelId): boolean {
     return !!starredChannelIds[channelId];

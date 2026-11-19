@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { CanvasVersion } from "@slock/types";
-import { createEffect, createMemo, createSignal, on } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { createKeyedQuery, defineKey } from "../../../query/client/api";
 import { diffNodes } from "../../protocol/api";
 import {
@@ -50,12 +50,10 @@ export function createCanvasHistory(
     return view ? diffNodes(view.previous?.nodes ?? [], view.doc.nodes) : undefined;
   });
 
-  createEffect(
-    on(fileId, () => {
-      setOpen(false);
-      setSelected(null);
-    }),
-  );
+  createEffect(fileId, () => {
+    setOpen(false);
+    setSelected(null);
+  });
 
   function close() {
     setOpen(false);

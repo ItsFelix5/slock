@@ -51,12 +51,10 @@ export function createFeedPagination(deps: {
     else deps.loadNewer();
   }
 
-  createEffect(() => {
-    deps.ready();
-    deps.busy();
-    deps.size();
-    check(undefined);
-  });
+  createEffect(
+    () => [deps.ready(), deps.busy(), deps.size()],
+    () => check(undefined),
+  );
 
   return {
     check,

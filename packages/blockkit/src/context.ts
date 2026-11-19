@@ -1,6 +1,6 @@
 import type { Attachment } from "@slock/types";
-import { createContext, useContext } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createContext, useContext } from "solid-js";
 
 export interface BlockKitMentionInfo {
   isMember?: boolean;

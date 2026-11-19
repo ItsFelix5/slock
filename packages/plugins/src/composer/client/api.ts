@@ -1,9 +1,10 @@
-import type { Block, SlackFile } from "@slock/types";
+import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
 import type { IconName, useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import type { Component } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { ComposerProps } from "./composerTypes";
+import type { createPendingFilesStore } from "./lib/pendingFiles";
 import type { MentionValue } from "./lib/embedValues";
 
 export type { ComposerProps } from "./composerTypes";
@@ -47,8 +48,8 @@ export type MentionCardProps = {
 };
 
 export type OutgoingDraft = {
-  channelId: string;
-  threadTs?: string;
+  channelId: ChannelId;
+  threadTs?: Ts;
   text: string;
   blocks?: Block[];
   files: File[];
@@ -72,7 +73,10 @@ export type ComposerDraftAction = {
 
 declare module "@slock/core/types" {
   interface Services {
-    composer: { uploadOnAttach: () => boolean };
+    composer: {
+      pendingFiles: ReturnType<typeof createPendingFilesStore>;
+      uploadOnAttach: () => boolean;
+    };
   }
   interface Points {
     "composer.attach": Component<ComposerAttachProps>;

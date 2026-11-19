@@ -6,7 +6,10 @@ export function createMenuRovingFocus(
   panelRef: () => HTMLElement | undefined,
   options?: { requireVisible?: boolean },
 ) {
-  let typeahead: TypeaheadState = { buffer: "", time: Number.NEGATIVE_INFINITY };
+  let typeahead: TypeaheadState = {
+    buffer: "",
+    time: Number.NEGATIVE_INFINITY,
+  };
 
   const menuItems = () =>
     [...(panelRef()?.querySelectorAll<HTMLElement>(".menu-item:not([disabled])") ?? [])].filter(

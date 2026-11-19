@@ -128,7 +128,11 @@ export function findTimeMentions(
             : undefined
         : msAtOffset(anchorMs, hour, minute, offsetMinutes);
     if (timestamp === undefined) continue;
-    mentions.push({ end: match.index + match[0].length, start: match.index, timestamp });
+    mentions.push({
+      end: match.index + match[0].length,
+      start: match.index,
+      timestamp,
+    });
   }
   return mentions;
 }

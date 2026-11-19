@@ -45,13 +45,26 @@ function tokenElement(el: HTMLElement, style: RichTextStyle): RichTextInlineElem
     const text = el.matches(".bk-mention-message")
       ? dataset.linkUrl
       : cleanText(el.textContent ?? "");
-    return { style: styleOrUndefined(style), text, type: "link", url: dataset.linkUrl };
+    return {
+      style: styleOrUndefined(style),
+      text,
+      type: "link",
+      url: dataset.linkUrl,
+    };
   }
   if (dataset.mentionId) {
-    return { style: styleOrUndefined(style), type: "user", user_id: dataset.mentionId };
+    return {
+      style: styleOrUndefined(style),
+      type: "user",
+      user_id: dataset.mentionId,
+    };
   }
   if (dataset.channelId) {
-    return { channel_id: dataset.channelId, style: styleOrUndefined(style), type: "channel" };
+    return {
+      channel_id: dataset.channelId,
+      style: styleOrUndefined(style),
+      type: "channel",
+    };
   }
   if (dataset.usergroupId) return { type: "usergroup", usergroup_id: dataset.usergroupId };
   if (dataset.broadcast && isBroadcastRange(dataset.broadcast)) {
@@ -142,7 +155,11 @@ export function fragmentToBlocks(root: HTMLElement): Block[] {
         }
       } else if (child.matches(".bk-context")) {
         const text = plainTextWithEmoji(child);
-        if (text) pushBlock({ elements: [{ text, type: "plain_text" }], type: "context" });
+        if (text)
+          pushBlock({
+            elements: [{ text, type: "plain_text" }],
+            type: "context",
+          });
       } else if (child.matches("blockquote")) {
         const elements = collectInline(child, {}, []);
         if (elements.length) pushSubBlock({ elements, type: "rich_text_quote" });
@@ -152,7 +169,10 @@ export function fragmentToBlocks(root: HTMLElement): Block[] {
       } else if (child.matches("ul, ol")) {
         const items = Array.from(child.children, (li) => collectInline(li, {}, []));
         pushSubBlock({
-          elements: items.map((elements) => ({ elements, type: "rich_text_section" })),
+          elements: items.map((elements) => ({
+            elements,
+            type: "rich_text_section",
+          })),
           style: child.matches("ol") ? "ordered" : "bullet",
           type: "rich_text_list",
         });

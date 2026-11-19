@@ -2,6 +2,7 @@ import { EmojiText } from "@slock/blockkit";
 import { formatTimeFromMs } from "@slock/core";
 import { usePoint } from "@slock/core/solid";
 import { blockPreviewText } from "@slock/slack";
+import type { DraftEntry } from "@slock/types";
 import {
   Icon,
   type ListDirection,
@@ -13,7 +14,6 @@ import {
   useShortcut,
 } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
-import type { DraftValue } from "../../../../drafts/client/api";
 import type { ComposerDraftAction } from "../../api";
 import "./DraftsMenu.css";
 
@@ -32,18 +32,18 @@ function relativeLabel(ts: string | undefined): string {
 }
 
 type Row =
-  | { kind: "entry"; entry: DraftValue }
+  | { kind: "entry"; entry: DraftEntry }
   | { kind: "save-new" }
   | { kind: "action"; action: ComposerDraftAction };
 
 export default function DraftsMenu(props: {
   hasContent: boolean;
   onClose: () => void;
-  onDelete: (entry: DraftValue) => Promise<void>;
+  onDelete: (entry: DraftEntry) => Promise<void>;
   onSaveAndStartNew: () => void;
   onSaveAs: (action: ComposerDraftAction, name: string) => void;
-  onSwitchTo: (entry: DraftValue) => void;
-  stack: DraftValue[];
+  onSwitchTo: (entry: DraftEntry) => void;
+  stack: DraftEntry[];
 }) {
   const actions = usePoint("composer.draftAction");
   const [naming, setNaming] = createSignal<ComposerDraftAction>();
@@ -99,7 +99,7 @@ export default function DraftsMenu(props: {
     const row = index === null ? undefined : rows()[index];
     return row?.kind === "entry" ? row.entry : undefined;
   };
-  const remove = async (entry: DraftValue) => {
+  const remove = async (entry: DraftEntry) => {
     await props.onDelete(entry);
     if (rows().length === 0) props.onClose();
     else setActive((index) => (index === null ? null : Math.min(index, rows().length - 1)));

@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import CommentQuote from "./views/CommentQuote";
 import HeaderCanvasMenu from "./views/HeaderCanvasMenu";
 import ThreadSubtitle from "./views/ThreadSubtitle";
@@ -21,13 +22,13 @@ const setup: Setup = (ctx) => {
     ) : undefined;
   });
   ctx.add("threads.header", (channelId) => {
-    const fileId = channels.channelById(channelId)?.canvasFileId;
+    const fileId = isChannelId(channelId) ? channels.channelById(channelId)?.canvasFileId : undefined;
     return fileId
       ? { subtitle: () => <ThreadSubtitle fileId={fileId} />, title: "Comment" }
       : undefined;
   });
   ctx.add("shell.resolve", (content) => {
-    if (content.kind !== "channel") return;
+    if (content.kind !== "channel" || !isChannelId(content.id)) return;
     const fileId = channels.channelById(content.id)?.canvasFileId;
     return fileId ? { fileId, kind: "canvas", title: canvas.canvasTitle(fileId) ?? "" } : undefined;
   });

@@ -45,8 +45,7 @@ export default function GlobalSearchResults(props: {
         <div class="global-search-options flex-col gap-xs" id={props.listboxId}>
           <Show when={props.hasQuery}>
             <button
-              class="global-search-result global-search-message-action btn-reset flex-align-center"
-              classList={{ active: props.activeIndex === 0 }}
+              class={["global-search-result global-search-message-action btn-reset flex-align-center", { active: props.activeIndex === 0 }]} 
               id={optionId(0)}
               onClick={props.onMessageSearch}
               onMouseEnter={() => props.onActiveIndex(0)}
@@ -67,8 +66,7 @@ export default function GlobalSearchResults(props: {
                 return (
                   <SplitNavigation onSplit={() => openConversationInSplit(channel.id)}>
                     <button
-                      class="global-search-result global-search-jump btn-reset flex-align-center"
-                      classList={{ active: props.activeIndex === itemIndex() }}
+                      class={["global-search-result global-search-jump btn-reset flex-align-center", { active: props.activeIndex === itemIndex() }]} 
                       id={optionId(itemIndex())}
                       onClick={() => props.onChannel(channel)}
                       onMouseEnter={() => props.onActiveIndex(itemIndex())}
@@ -91,8 +89,7 @@ export default function GlobalSearchResults(props: {
                 return (
                   <SplitNavigation onSplit={() => openConversationInSplit(dm.id)}>
                     <button
-                      class="global-search-result global-search-jump btn-reset flex-align-center"
-                      classList={{ active: props.activeIndex === itemIndex() }}
+                      class={["global-search-result global-search-jump btn-reset flex-align-center", { active: props.activeIndex === itemIndex() }]} 
                       id={optionId(itemIndex())}
                       onClick={() => props.onDm(dm)}
                       onMouseEnter={() => props.onActiveIndex(itemIndex())}
@@ -109,8 +106,7 @@ export default function GlobalSearchResults(props: {
                 const file = row.data;
                 return (
                   <button
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: props.activeIndex === itemIndex() }}
+                    class={["global-search-result global-search-jump btn-reset flex-align-center", { active: props.activeIndex === itemIndex() }]} 
                     id={optionId(itemIndex())}
                     onClick={() => props.onFile(file)}
                     onMouseEnter={() => props.onActiveIndex(itemIndex())}
@@ -131,8 +127,7 @@ export default function GlobalSearchResults(props: {
               return (
                 <SplitNavigation onSplit={() => dmsStore.openDmWithUser(user.id, { split: true })}>
                   <button
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: props.activeIndex === itemIndex() }}
+                    class={["global-search-result global-search-jump btn-reset flex-align-center", { active: props.activeIndex === itemIndex() }]} 
                     id={optionId(itemIndex())}
                     onClick={() => props.onPerson(user.id)}
                     onMouseEnter={() => props.onActiveIndex(itemIndex())}

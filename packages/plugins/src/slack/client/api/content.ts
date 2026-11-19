@@ -1,5 +1,12 @@
 import { defined } from "@slock/core";
-import { apiGet, apiPost, mapFile, mapFileShare } from "@slock/slack";
+import {
+  apiGet,
+  apiPost,
+  ifPresent,
+  mapFile,
+  mapFileShare,
+  parseUserId,
+} from "@slock/slack";
 import type {
   FileUploadInput,
   RawFile,
@@ -36,13 +43,16 @@ export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> 
     access: {
       orgId: data.access.org_id,
       orgLevel: data.access.org_level,
-      users: data.access.users.map((entry) => ({ access: entry.access, userId: entry.user_id })),
+      users: data.access.users.map((entry) => ({
+        access: entry.access,
+        userId: parseUserId(entry.user_id),
+      })),
     },
     content: data.content ?? null,
     contentTruncated: !!data.contentTruncated,
     editable: data.editable === true,
     file: mapFile(data.file),
-    ownerId: data.owner ?? null,
+    ownerId: ifPresent(parseUserId, data.owner) ?? null,
     shares: (data.shares ?? []).map(mapFileShare),
     starred: !!data.starred,
     viewerCount: data.viewer_count ?? null,

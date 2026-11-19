@@ -1,4 +1,5 @@
 import { createEffect, createSignal, createUniqueId, For, Show } from "solid-js";
+import { ariaBoolean } from "../ariaBoolean";
 import type { AvatarUser } from "../avatar/Avatar";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 import Icon, { type IconName } from "../media/Icon";
@@ -142,7 +143,7 @@ export default function Combobox(props: ComboboxProps) {
         aria-activedescendant={open() ? nav.activeOptionId() : undefined}
         aria-autocomplete="list"
         aria-controls={listboxId}
-        aria-expanded={open()}
+        aria-expanded={ariaBoolean(open())}
         aria-label={props.ariaLabel}
         class="combobox-input input-plain"
         disabled={props.disabled}

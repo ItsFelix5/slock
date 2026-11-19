@@ -26,10 +26,15 @@ export async function fetchExternalOptions(
   if (!ctx.botId) throw new Error("This menu needs its app");
   const appId = ctx.appId ?? (await fetchBotAppInfo(ctx.botId))?.appId;
   if (!appId) throw new Error("Couldn't resolve the app behind this menu");
-  const data = await apiPost<{ option_groups?: OptionGroup[]; options?: Option[] }>(
-    "/api/blocks/suggestions",
-    { ...params, appId, botId: ctx.botId, container: containerOf(ctx) },
-  );
+  const data = await apiPost<{
+    option_groups?: OptionGroup[];
+    options?: Option[];
+  }>("/api/blocks/suggestions", {
+    ...params,
+    appId,
+    botId: ctx.botId,
+    container: containerOf(ctx),
+  });
   if (!data.ok) throw new Error(data.error ?? "blocks.suggestions failed");
   return { groups: data.option_groups, options: data.options };
 }
