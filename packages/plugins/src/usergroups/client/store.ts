@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { Usergroup, UsergroupDetails } from "@slock/types";
 import { queryOptions } from "@tanstack/solid-query";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import { createReactiveQueryCache, defineKey } from "../../query/client/api";
 import { fetchUsergroup, fetchUsergroupDetails } from "../../slack/client/api";
 

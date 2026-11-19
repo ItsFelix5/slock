@@ -1,7 +1,8 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
 import { AvatarImage, HoverCard, Icon, type useHoverIntent } from "@slock/ui";
-import { createMemo, createSignal, type JSX, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { AppBadge } from "../api/AppBadge";
 import "./UserHoverCard.css";
 import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime";

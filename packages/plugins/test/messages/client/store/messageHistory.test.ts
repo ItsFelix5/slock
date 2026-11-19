@@ -5,7 +5,7 @@ import { compareTs } from "@slock/slack";
 import { ch, stamp } from "@slock/slack/testing";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
 import { createRoot } from "solid-js";
-import { unwrap } from "solid-js/store";
+import { snapshot } from "solid-js";
 import { message, slackTs } from "../../../../src/messages/client/messageFixture";
 import { createMessageHistory } from "../../../../src/messages/client/store/messageHistory";
 
@@ -82,7 +82,7 @@ function createHarness(serverSize: number) {
       { visibleMessageTargets: () => [], visibleThreads: () => [], visibleViews: () => [] },
       server.api,
     );
-    const window = () => [...unwrap(history.messagesByChannel[CHANNEL] ?? [])];
+    const window = () => [...snapshot(history.messagesByChannel[CHANNEL] ?? [])];
     const flush = () => new Promise((resolve) => setImmediate(resolve));
     return { dispose, flush, history, server, window };
   });

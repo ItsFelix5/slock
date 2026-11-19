@@ -1,7 +1,8 @@
 import type { Block, SlackFile } from "@slock/types";
 import type { IconName, useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
-import type { Component, JSX } from "solid-js";
+import type { Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { ComposerProps } from "./composerTypes";
 import type { MentionValue } from "./lib/embedValues";
 

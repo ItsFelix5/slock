@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test
 import { BlockKit } from "@slock/blockkit";
 import { forAll } from "@slock/core/testing";
 import type { Block } from "@slock/types";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { buildRichTextBlocks } from "../../../src/composer/client/lib/richTextBuild";
 import { handleMessageCopy } from "../../../src/message-links/client/messageCopy";
 import { bootComposerHost, type ComposerFixture, mountComposer } from "./composerHarness";

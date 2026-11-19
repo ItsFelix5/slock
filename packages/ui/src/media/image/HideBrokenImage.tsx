@@ -1,4 +1,5 @@
-import { createSignal, type JSX, Show, splitProps } from "solid-js";
+import { createSignal, Show, splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { imageSrc } from "../mediaSrc";
 
 export default function HideBrokenImage(

@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 export default function LinkButton(props: { children: JSX.Element; href: string; style?: string }) {
   return (

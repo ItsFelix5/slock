@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import { InlineFeedback, useEditShortcuts } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { idsEqual } from "./categories";
 import { useChannelRows } from "./channelRows";
 import ChannelRow from "./rows/ChannelRow";

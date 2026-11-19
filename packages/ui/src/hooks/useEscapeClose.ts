@@ -1,4 +1,4 @@
-import { type Accessor, getOwner, type Owner, onCleanup, onMount, runWithOwner } from "solid-js";
+import { type Accessor, getOwner, type Owner, onCleanup, onSettled, runWithOwner } from "solid-js";
 import { type ShortcutOptions, useShortcut } from "./useShortcut";
 
 interface EscapeLayer {
@@ -50,7 +50,7 @@ export function useCloseShortcut() {
 
 export function useEscapeClose(onClose: () => void, enabled: Accessor<boolean> = () => true) {
   const owner = getOwner();
-  onMount(() => {
+  onSettled(() => {
     const layer = { enabled, onClose, owner };
     layers.push(layer);
     onCleanup(() => {

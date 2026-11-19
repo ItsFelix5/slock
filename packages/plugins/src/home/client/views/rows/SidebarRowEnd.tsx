@@ -1,6 +1,7 @@
 import { Slot, service } from "@slock/core/solid";
 import { HoverCard, Icon, Tooltip } from "@slock/ui";
-import { createMemo, For, type JSX } from "solid-js";
+import { createMemo, For } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { channelHasDraft } from "../../../../drafts/client/api";
 import { unreadSummary } from "../lib/unreadSummary";
 import DraftList from "./DraftList";

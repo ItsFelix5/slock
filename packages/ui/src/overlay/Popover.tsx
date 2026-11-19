@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";

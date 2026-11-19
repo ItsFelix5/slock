@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import Icon from "../media/Icon";
 import Tooltip from "../overlay/Tooltip";
 import type { Feedback } from "./keyedFeedback";
@@ -62,17 +62,18 @@ export default function InlineFeedback(props: InlineFeedbackProps) {
   const owner = Symbol("inline-feedback");
   const [visibleFeedback, setVisibleFeedback] = createSignal<Feedback>();
 
-  createEffect(() => {
-    const { feedback } = props;
-    if (!feedback) {
-      setVisibleFeedback(undefined);
-      return;
-    }
-    const release = claimFeedback(feedback, owner, props.priority ?? 0, (selected) => {
-      setVisibleFeedback(selected ? feedback : undefined);
-    });
-    onCleanup(release);
-  });
+  createEffect(
+    () => ({ feedback: props.feedback, priority: props.priority ?? 0 }),
+    ({ feedback, priority }) => {
+      if (!feedback) {
+        setVisibleFeedback(undefined);
+        return;
+      }
+      return claimFeedback(feedback, owner, priority, (selected) => {
+        setVisibleFeedback(selected ? feedback : undefined);
+      });
+    },
+  );
 
   return (
     <Show when={visibleFeedback()}>

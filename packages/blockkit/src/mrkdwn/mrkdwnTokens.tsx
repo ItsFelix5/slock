@@ -2,7 +2,8 @@ import { formatTimeFromMs } from "@slock/core";
 import "./mrkdwnTokens.css";
 import { decodeTextEntities } from "@slock/slack";
 import { Icon, Tooltip } from "@slock/ui";
-import { For, type JSX, Show } from "solid-js";
+import { For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   useBlockKitResolver,
   useHighlightWords,

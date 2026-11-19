@@ -1,6 +1,6 @@
 import type { ActivityItem } from "@slock/types";
 import { createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import { gatewayActivityCountsSnapshot, gatewayActivityPingCount } from "../kinds";
 
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([

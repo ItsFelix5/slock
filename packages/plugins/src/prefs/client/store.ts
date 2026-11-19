@@ -3,7 +3,7 @@ import { service } from "@slock/core/solid";
 import type { UserPrefs } from "@slock/types";
 import { createQuery } from "@tanstack/solid-query";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
+import { createStore, reconcile } from "solid-js";
 import { defineKey } from "../../query/client/api";
 import {
   endDndSnooze,

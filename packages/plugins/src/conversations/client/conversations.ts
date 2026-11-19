@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { batch, createMemo } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import type { PaneContent } from "../../shell/client/api/types";
 import type { ConversationKindResolver, ConversationOpenHook } from "./api";
 import type { ChannelMessageTarget, View } from "./api/types";

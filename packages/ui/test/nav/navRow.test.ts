@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createComponent } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import NavRow from "../../src/nav/NavRow";
 
 let dispose: (() => void) | undefined;

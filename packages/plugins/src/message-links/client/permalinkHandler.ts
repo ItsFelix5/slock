@@ -1,5 +1,5 @@
 import { getHost, service } from "@slock/core/solid";
-import { onCleanup, onMount } from "solid-js";
+import { onCleanup, onSettled } from "solid-js";
 import { fetchPermalinkMessage } from "../../slack/client/api";
 import { consumeSharedProtocolLink } from "./api/incomingLinks";
 import {
@@ -62,7 +62,7 @@ export function installPermalinkHandler(
     void permalinkOpener.open(target, { split });
   };
 
-  onMount(() => {
+  onSettled(() => {
     document.addEventListener("click", openSlackPermalink);
     document.addEventListener("copy", handleMessageCopy);
     void getHost()

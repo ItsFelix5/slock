@@ -1,6 +1,6 @@
 import { isMyRelayedMessage } from "@slock/slack";
 import type { ConversationViewData, Message, User } from "@slock/types";
-import { produce, reconcile, unwrap } from "solid-js/store";
+import { produce, reconcile, snapshot } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../api";
 import {
@@ -124,9 +124,9 @@ export function createMessagesStore(deps: {
         location.key,
         (m) => m.ts === ts,
         reconcile({
-          ...unwrap(current),
+          ...snapshot(current),
           ...patch,
-          ...deps.extendPatch(unwrap(current), patch),
+          ...deps.extendPatch(snapshot(current), patch),
         }),
       );
     }

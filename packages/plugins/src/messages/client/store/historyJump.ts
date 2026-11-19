@@ -2,7 +2,7 @@ import { startOfDay } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { parseTs } from "@slock/slack";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
-import type { SetStoreFunction, Store } from "solid-js/store";
+import type { SetStoreFunction, Store } from "solid-js";
 import { mergeMessages } from "../api/messageMerge";
 import { tsFromMs } from "../lib/tsTime";
 import type { HistoryMeta } from "./history/historyFlags";

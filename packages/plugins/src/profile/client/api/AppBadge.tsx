@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { ClickableInline } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import "./AppBadge.css";
 
 const usersStore = service("users");

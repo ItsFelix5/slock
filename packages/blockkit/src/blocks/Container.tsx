@@ -1,5 +1,6 @@
 import type { Block, ContainerBlock } from "@slock/types";
-import { createSignal, For, type JSX, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import BkText from "../BkText";
 import ImageElement from "../elements/ImageElement";
 import InlineAction from "../InlineAction";

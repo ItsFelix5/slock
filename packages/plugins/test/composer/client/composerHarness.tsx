@@ -2,7 +2,7 @@ import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
 import type { Block } from "@slock/types";
 import Quill, { Delta } from "@slock/ui/editor/quill";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import type { ComposerProps } from "../../../src/composer/client/composerTypes";
 import { type DeltaOp, mrkdwnText } from "../../../src/composer/client/lib/deltaLines";
 import { buildRichTextBlocks } from "../../../src/composer/client/lib/richTextBuild";

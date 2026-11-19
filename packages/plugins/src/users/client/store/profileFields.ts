@@ -2,7 +2,7 @@ import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { User, UserCustomField } from "@slock/types";
 import { createConcurrencyQueue } from "@slock/ui";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 
 const feedback = service("feedback");
 

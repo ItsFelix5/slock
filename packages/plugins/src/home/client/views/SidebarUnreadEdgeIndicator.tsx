@@ -1,5 +1,5 @@
 import { Icon, Tooltip } from "@slock/ui";
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, onSettled, Show } from "solid-js";
 import "./SidebarUnreadEdgeIndicator.css";
 
 function unreadRows(container: HTMLElement): HTMLElement[] {
@@ -63,7 +63,7 @@ export default function SidebarUnreadEdgeIndicator(props: {
     });
   }
 
-  onMount(() => {
+  onSettled(() => {
     const container = props.containerRef();
     if (!container) return;
     recompute();

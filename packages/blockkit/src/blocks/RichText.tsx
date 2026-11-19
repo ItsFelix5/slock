@@ -7,8 +7,9 @@ import type {
   RichTextStyle,
   RichTextSubBlock,
 } from "@slock/types";
-import { For, type JSX } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { For } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Dynamic } from "@solidjs/web";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
 import { parseArchiveLink } from "../mrkdwn/mrkdwnInline";

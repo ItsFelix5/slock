@@ -1,5 +1,5 @@
 import type Quill from "@slock/ui/editor/quill";
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import type { CanvasNames } from "../../lib/canvasEmbeds";
 
 export interface CanvasServices {
@@ -26,6 +26,6 @@ export function canvasServicesFor(node: Element): CanvasServices | undefined {
 
 export function useCanvasServices(node: Element) {
   const [services, setServices] = createSignal<CanvasServices>();
-  onMount(() => queueMicrotask(() => setServices(canvasServicesFor(node))));
+  onSettled(() => queueMicrotask(() => setServices(canvasServicesFor(node))));
   return services;
 }

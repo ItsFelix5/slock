@@ -3,7 +3,7 @@ import { Slot, service } from "@slock/core/solid";
 import type { User } from "@slock/types";
 import { AvatarImage, Icon } from "@slock/ui";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { AppBadge } from "../api/AppBadge";
 import UserProfileStatus from "./UserProfileStatus";
 

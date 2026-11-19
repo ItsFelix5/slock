@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
 import { createRoot } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import { createActivityFeedLoad } from "../../../../src/activity/client/store/activityFeedLoad";
 
 const me: User = { avatarColor: "", id: "U1", name: "me" };

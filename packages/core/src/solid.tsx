@@ -1,5 +1,5 @@
-import { type Accessor, type Component, ErrorBoundary, For, type JSX, splitProps } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { type Accessor, type Component, createComponent, Errored, For, omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { usePoint } from "./solidHost";
 import type { Points } from "./types";
 
@@ -12,19 +12,19 @@ type ComponentPoint = {
 type PropsOf<T> = T extends (props: infer Props) => JSX.Element ? Props : never;
 
 export function Slot<P extends ComponentPoint>(props: { point: P } & PropsOf<Points[P]>) {
-  const [, rest] = splitProps(props, ["point"]);
+  const rest = omit(props, "point");
   const items = usePoint(props.point) as Accessor<Component<typeof rest>[]>;
   return (
     <For each={items()}>
       {(item) => (
-        <ErrorBoundary
+        <Errored
           fallback={(error) => {
-            console.error(`${props.point} item failed`, error);
+            console.error(`${props.point} item failed`, error());
             return null;
           }}
         >
-          <Dynamic component={item} {...rest} />
-        </ErrorBoundary>
+          {createComponent(item, rest)}
+        </Errored>
       )}
     </For>
   );

@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onSettled } from "solid-js";
 import { type ScrollDirection, scrollDirection } from "../../../lib/scrollMath";
 import { observeComposerOverlay } from "../composerOverlay";
 import { anchorDrift, captureAnchors, type FeedAnchor, shiftAnchors } from "./feedAnchors";
@@ -135,7 +135,7 @@ export function createFeedScroll(options: {
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("scrollend", onScrollEnd);
     const stopObserving = observeFeed(el, settle);
-    onMount(() => onCleanup(observeComposerOverlay(el, settle)));
+    onSettled(() => onCleanup(observeComposerOverlay(el, settle)));
     onCleanup(() => {
       glide.stop();
       el.removeEventListener("scroll", onScroll);

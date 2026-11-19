@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { Message } from "@slock/types";
 import { createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import {
   channel,
   fakeWindow,

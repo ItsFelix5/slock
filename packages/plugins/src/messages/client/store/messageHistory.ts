@@ -2,7 +2,7 @@ import { defined } from "@slock/core";
 import type { ConversationViewData, Message } from "@slock/types";
 import { createRecencyEviction } from "@slock/ui";
 import { batch, createEffect, untrack } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
+import { createStore, produce, reconcile } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import {
   fetchChannelDetails,

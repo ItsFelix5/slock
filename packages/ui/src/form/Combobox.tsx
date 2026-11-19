@@ -1,4 +1,4 @@
-import { createEffect, createSignal, createUniqueId, For, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, createUniqueId, For, Show } from "solid-js";
 import type { AvatarUser } from "../avatar/Avatar";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 import Icon, { type IconName } from "../media/Icon";
@@ -51,20 +51,21 @@ export default function Combobox(props: ComboboxProps) {
   );
 
   useEscapeClose(() => setOpen(false), open);
-  onCleanup(() => clearTimeout(timer));
 
-  createEffect(() => {
-    if (!open()) return;
-    const text = query();
-    const id = ++requestId;
-    clearTimeout(timer);
-    const run = () =>
-      Promise.resolve(props.search(text))
-        .then((found) => id === requestId && setResults(found))
-        .catch(() => id === requestId && setResults([]));
-    if (text) timer = setTimeout(run, 150);
-    else void run();
-  });
+  createEffect(
+    () => (open() ? query() : undefined),
+    (text) => {
+      if (text === undefined) return;
+      const id = ++requestId;
+      const run = () =>
+        Promise.resolve(props.search(text))
+          .then((found) => id === requestId && setResults(found))
+          .catch(() => id === requestId && setResults([]));
+      if (text) timer = setTimeout(run, 150);
+      else void run();
+      return () => clearTimeout(timer);
+    },
+  );
 
   const show = () => {
     if (props.disabled) return;
@@ -109,8 +110,7 @@ export default function Combobox(props: ComboboxProps) {
 
   return (
     <div
-      class="combobox flex-align-center"
-      classList={{ disabled: props.disabled }}
+      class={["combobox flex-align-center", { disabled: props.disabled }]}
       onClick={() => {
         input?.focus();
         show();

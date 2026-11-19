@@ -1,4 +1,5 @@
-import { type JSX, mergeProps, splitProps } from "solid-js";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import "./Button.css";
 
 export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -9,25 +10,21 @@ export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 export default function Button(props: ButtonProps) {
-  const merged = mergeProps({ size: "md", variant: "secondary" }, props);
-  const [, rest] = splitProps(merged, ["variant", "size", "icon", "disabled", "children", "class"]);
+  const rest = omit(props, "variant", "size", "icon", "disabled", "children", "class");
 
   return (
     <button
       class={[
         "btn",
-        `btn-${merged.variant}`,
-        `btn-${merged.size}`,
-        merged.icon && "btn-icon",
-        merged.disabled && "btn-disabled",
-        merged.class,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      disabled={merged.disabled}
+        `btn-${props.variant ?? "secondary"}`,
+        `btn-${props.size ?? "md"}`,
+        { "btn-icon": props.icon, "btn-disabled": props.disabled },
+        props.class,
+      ]}
+      disabled={props.disabled}
       {...rest}
     >
-      {merged.children}
+      {props.children}
     </button>
   );
 }

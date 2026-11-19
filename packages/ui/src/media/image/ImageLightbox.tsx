@@ -1,5 +1,6 @@
 import { clamp } from "@slock/core";
-import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import { createEffect, createSignal, on, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import IconButton from "../../button/IconButton";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { useNavigationShortcuts } from "../../hooks/useNavShortcuts";

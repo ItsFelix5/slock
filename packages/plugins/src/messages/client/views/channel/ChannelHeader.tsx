@@ -71,11 +71,11 @@ export default function ChannelHeader() {
           onMouseLeave={() => setTopicHovered(false)}
           tabIndex={topicOverflowing() ? 0 : undefined}
         >
-          <EmojiFreezeContext.Provider value={() => topicOverflowing() || !topicHovered()}>
+          <EmojiFreezeContext value={() => topicOverflowing() || !topicHovered()}>
             <span class="channel-header-topic truncate text-dim text-sm" ref={setTopicEl}>
               <Mrkdwn text={channelTopic()} />
             </span>
-          </EmojiFreezeContext.Provider>
+          </EmojiFreezeContext>
           <span class="channel-header-topic-tooltip text-dim text-sm">
             <Mrkdwn text={channelTopic()} />
           </span>

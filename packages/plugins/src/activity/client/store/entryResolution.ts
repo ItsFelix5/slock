@@ -1,7 +1,7 @@
 import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
 import { batch as solidBatch } from "solid-js";
-import { produce, type SetStoreFunction } from "solid-js/store";
+import { produce, type SetStoreFunction } from "solid-js";
 import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, reactionActivityKey } from "../kinds";
 
 export function createEntryResolution(deps: {

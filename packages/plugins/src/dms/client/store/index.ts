@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { createMemo } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import { defineKey } from "../../../query/client/api";
 import { closeDm, fetchChannelMembers, openDm } from "../../../slack/client/api";

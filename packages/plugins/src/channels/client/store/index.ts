@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import { createReactiveQueryCache } from "../../../query/client/api";

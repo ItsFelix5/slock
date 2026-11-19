@@ -1,7 +1,8 @@
 import { service } from "@slock/core/solid";
 import type { Attachment, Block, ChannelId, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
-import { createSignal, type JSX, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
 import { createKeyedQuery } from "../../../../query/client/api";
 import { fetchPermalinkMessage } from "../../../../slack/client/api";

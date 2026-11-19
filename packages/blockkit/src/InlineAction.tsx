@@ -1,4 +1,5 @@
-import { type JSX, Show, splitProps } from "solid-js";
+import { Show, splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useInertTokens } from "./context";
 
 interface InlineActionProps extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, "onClick"> {

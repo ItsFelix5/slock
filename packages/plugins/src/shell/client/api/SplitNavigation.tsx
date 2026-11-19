@@ -1,4 +1,5 @@
-import { type JSX, onCleanup } from "solid-js";
+import { onCleanup } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
   const onActivate = (event: MouseEvent | KeyboardEvent) => {

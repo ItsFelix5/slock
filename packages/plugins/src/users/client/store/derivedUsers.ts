@@ -1,5 +1,5 @@
 import type { User } from "@slock/types";
-import { unwrap } from "solid-js/store";
+import { snapshot } from "solid-js";
 
 type Presence = "active" | "away";
 
@@ -14,7 +14,7 @@ export function createDerivedUsers(deps: {
   return (id: string, known: User): User => {
     const presence = deps.presenceOf(id);
     const nickname = deps.nicknameOf(id);
-    const source = unwrap(known);
+    const source = snapshot(known);
     const cached = entries.get(id);
     if (
       cached &&

@@ -9,7 +9,7 @@ import {
   useGridShortcuts,
   useListShortcuts,
 } from "@slock/ui";
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, onSettled, Show } from "solid-js";
 import { createKeyedQuery, defineKey } from "../../../query/client/api";
 import type { Gif } from "../store";
 import { loadGifs } from "../tenor";
@@ -40,7 +40,7 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
 
   useEscapeClose(props.onClose);
   useClickOutside(".gif-picker", props.onClose);
-  onMount(() => requestAnimationFrame(() => searchRef?.focus()));
+  onSettled(() => requestAnimationFrame(() => searchRef?.focus()));
   onCleanup(() => clearTimeout(delay));
 
   const showingFavorites = () => tab() === "favorites" && !query();

@@ -1,4 +1,5 @@
-import { createMemo, For, type JSX, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import "./PaneRow.css";
 import { defined } from "@slock/core";
 

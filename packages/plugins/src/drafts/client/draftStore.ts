@@ -1,7 +1,7 @@
 import { compareTs, isSlackError } from "@slock/slack";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
 import { createSignal } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 import { deleteDraft, fetchDrafts, saveDraft } from "./draftApi";
 
 export function draftCacheKey(channelId: ChannelId, threadTs?: Ts): string {

@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { SearchResult } from "@slock/types";
 import { createDebouncedRequest } from "@slock/ui";
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import { navigateToSlackPermalink } from "../../../message-links/client/api/slackPermalink";
 import { searchMessages } from "../../../slack/client/api";
 import { type SortMode, sortParams } from "../searchQuery";
@@ -58,7 +58,7 @@ export default function MessageSearchView() {
   };
   const canSearch = () => !!serializedQuery().trim();
 
-  onMount(runSearch);
+  onSettled(runSearch);
 
   return (
     <div class="message-search-view flex-col">

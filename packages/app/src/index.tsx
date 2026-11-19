@@ -2,7 +2,7 @@ import "./index.css";
 import plugins from "virtual:plugins";
 import { createHost, localEnabledStore } from "@slock/core";
 import { Slot, setHost, solidReactive } from "@slock/core/solid";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 
 const PLUGINS_KEY = "slock_plugins";
 

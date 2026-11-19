@@ -11,7 +11,7 @@ import {
   initRovingTabIndexDefault,
   useContextMenu,
 } from "@slock/ui";
-import { createMemo, For, onMount, Show } from "solid-js";
+import { createMemo, For, onSettled, Show } from "solid-js";
 import { openConversation, openConversationInSplit } from "../../../conversations/client/api/nav";
 import MessageActionsMenuItems from "../../../messages/client/api/cards/MessageActionsMenuItems";
 import MessageReferenceSnippet from "../../../messages/client/api/cards/MessageReferenceSnippet";
@@ -33,7 +33,7 @@ const usersStore = service("users");
 const later = service("later");
 
 export default function LaterView() {
-  onMount(() => later.ensureLaterLoaded());
+  onSettled(() => later.ensureLaterLoaded());
   let listRef: HTMLDivElement | undefined;
   initRovingTabIndexDefault(
     () => listRef,
@@ -80,7 +80,7 @@ export default function LaterView() {
           >
             <For each={later.laterItems}>
               {(item) => {
-                onMount(() => later.ensureLaterMessageLoaded(item));
+                onSettled(() => later.ensureLaterMessageLoaded(item));
                 const msg = createMemo(() => later.laterMessageFor(item.channelId, item.ts));
                 const isLoaded = createMemo(() => msg() !== undefined);
                 const isLoading = createMemo(() =>

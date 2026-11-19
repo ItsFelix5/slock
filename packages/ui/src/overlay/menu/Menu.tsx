@@ -1,4 +1,5 @@
-import { createEffect, type JSX, onCleanup, Show } from "solid-js";
+import { createEffect, onCleanup, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
 import "./Menu.css";
 import MenuOpenBehavior from "./MenuOpenBehavior";

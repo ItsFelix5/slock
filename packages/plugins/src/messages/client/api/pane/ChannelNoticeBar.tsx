@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
 import { Button, Icon, InlineFeedback } from "@slock/ui";
-import { type JSX, Show } from "solid-js";
+import { Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import "./ChannelNoticeBar.css";
 
 const feedback = service("feedback");

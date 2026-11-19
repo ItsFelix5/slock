@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
 import type { User } from "@slock/types";
 import { onCleanup } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 
 const TYPING_TTL_MS = 4000;
 

@@ -1,5 +1,5 @@
 import type { Message } from "@slock/types";
-import { produce } from "solid-js/store";
+import { produce } from "solid-js";
 
 const MAX_CACHED_REACTION_MESSAGES = 200;
 

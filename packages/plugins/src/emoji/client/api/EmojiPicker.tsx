@@ -17,7 +17,7 @@ import {
   For,
   on,
   onCleanup,
-  onMount,
+  onSettled,
   Show,
 } from "solid-js";
 import "./EmojiPicker.css";
@@ -48,7 +48,7 @@ export default function EmojiPicker(props: {
 
   useEscapeClose(props.onClose);
 
-  onMount(() => {
+  onSettled(() => {
     void loadCustomEmoji();
     requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
   });
@@ -82,7 +82,7 @@ export default function EmojiPicker(props: {
   const [scrollTop, setScrollTop] = createSignal(0);
   const [viewportHeight, setViewportHeight] = createSignal(360);
 
-  onMount(() => {
+  onSettled(() => {
     if (!bodyRef) return;
     const measure = () => bodyRef && setViewportHeight(bodyRef.clientHeight);
     measure();

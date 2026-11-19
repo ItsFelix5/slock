@@ -1,4 +1,4 @@
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 
 type LoadStatus = "loading" | "loaded" | "error";
 

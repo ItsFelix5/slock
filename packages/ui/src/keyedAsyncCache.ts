@@ -1,4 +1,4 @@
-import { createStore, produce, type SetStoreFunction } from "solid-js/store";
+import { createStore, produce, type SetStoreFunction } from "solid-js";
 import { backgroundFetchQueue } from "./concurrencyQueue";
 
 export interface KeyedAsyncCache<T> {

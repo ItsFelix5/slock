@@ -1,7 +1,7 @@
 import { defined, type Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
 import { createSignal, onCleanup } from "solid-js";
-import { createStore, produce, type SetStoreFunction } from "solid-js/store";
+import { createStore, produce, type SetStoreFunction } from "solid-js";
 import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, NO_USER, reactionActivityKey } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import { createEntryResolution } from "./entryResolution";

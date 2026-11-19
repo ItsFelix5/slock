@@ -3,7 +3,7 @@ import { Icon } from "@slock/ui";
 import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
 import { Show } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { canvasFileTitle, createCanvasFileQuery } from "../../lib/canvasRequests";
 
 export interface CanvasControlValue {

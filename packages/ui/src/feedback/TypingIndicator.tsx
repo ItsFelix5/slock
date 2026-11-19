@@ -22,12 +22,14 @@ export default function TypingIndicator(props: TypingIndicatorProps) {
     <Show when={props.users.length > 0}>
       <span
         aria-live="polite"
-        class="typing-indicator flex-align-center"
-        classList={{
-          "typing-indicator-dots-only": props.dotsOnly,
-          "typing-indicator-floating": !props.inline,
-          "typing-indicator-inline": props.inline,
-        }}
+        class={[
+          "typing-indicator flex-align-center",
+          {
+            "typing-indicator-dots-only": props.dotsOnly,
+            "typing-indicator-floating": !props.inline,
+            "typing-indicator-inline": props.inline,
+          },
+        ]}
       >
         <Show when={props.avatars}>
           <AvatarStack max={3} size="tiny" users={props.users} />

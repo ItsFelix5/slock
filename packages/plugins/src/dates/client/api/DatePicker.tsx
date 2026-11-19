@@ -1,6 +1,6 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
 import { IconButton, useClickOutside, useEscapeClose } from "@slock/ui";
-import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, onSettled, Show } from "solid-js";
 import "./DatePicker.css";
 
 function nextHour(): Date {
@@ -81,7 +81,7 @@ export default function DatePicker(props: {
   };
 
   let dateInput: HTMLInputElement | undefined;
-  onMount(() => {
+  onSettled(() => {
     const timer = setTimeout(() => dateInput?.focus());
     onCleanup(() => clearTimeout(timer));
   });

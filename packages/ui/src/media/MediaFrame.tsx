@@ -1,4 +1,5 @@
-import { createSignal, type JSX, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import Icon from "./Icon";
 import "./MediaFrame.css";
 

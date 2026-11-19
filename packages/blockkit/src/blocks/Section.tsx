@@ -1,5 +1,5 @@
 import type { SectionBlock } from "@slock/types";
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onSettled, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
@@ -16,7 +16,7 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
   };
   let textEl: HTMLDivElement | undefined;
 
-  onMount(() => {
+  onSettled(() => {
     if (!(textEl && clampable())) return;
     onCleanup(observeOverflow(textEl, (value) => expanded() || setOverflowing(value)));
   });

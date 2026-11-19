@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import Icon from "../media/Icon";
 import "./ConnectionStatus.css";
 
@@ -11,26 +11,30 @@ export default function ConnectionStatus(props: {
   const [visible, setVisible] = createSignal(props.state === "offline");
   let hasConnected = props.state === "connected";
 
-  createEffect(() => {
-    const { state } = props;
-    if (state === "connected") {
-      hasConnected = true;
-      setVisible(false);
-      return;
-    }
-    if (state === "offline" || hasConnected) {
-      setVisible(true);
-      return;
-    }
-    const timer = setTimeout(() => setVisible(true), 1000);
-    onCleanup(() => clearTimeout(timer));
-  });
+  createEffect(
+    () => props.state,
+    (state) => {
+      if (state === "connected") {
+        hasConnected = true;
+        setVisible(false);
+        return;
+      }
+      if (state === "offline" || hasConnected) {
+        setVisible(true);
+        return;
+      }
+      const timer = setTimeout(() => setVisible(true), 1000);
+      return () => clearTimeout(timer);
+    },
+  );
 
   const shown = () => visible() && props.state !== "connected";
   return (
     <div
-      class="connection-status surface-popover flex-align-center gap-sm"
-      classList={{ "connection-status-shown": shown() }}
+      class={[
+        "connection-status surface-popover flex-align-center gap-sm",
+        { "connection-status-shown": shown() },
+      ]}
     >
       <Icon name={props.state === "offline" ? "cloud-offline" : "refresh"} size={15} />
       <span>{props.state}</span>

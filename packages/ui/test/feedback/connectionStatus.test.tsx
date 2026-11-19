@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import ConnectionStatus, { type ConnectionStatusState } from "../../src/feedback/ConnectionStatus";
 
 let dispose: (() => void) | undefined;

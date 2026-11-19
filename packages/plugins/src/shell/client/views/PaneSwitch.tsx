@@ -1,7 +1,8 @@
 import { getHost, service, usePoint } from "@slock/core/solid";
 import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
-import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { createEffect, createMemo, onCleanup, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Dynamic } from "@solidjs/web";
 import type { PaneContent } from "../api/types";
 
 export function paneTabLabel(pane: Pane<PaneContent | null>): JSX.Element {

@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, ChannelSection } from "@slock/types";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import {
   updateSectionChannels as apiUpdateSectionChannels,
   toggleStar,

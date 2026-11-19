@@ -5,7 +5,7 @@ import { ch, uid } from "@slock/slack/testing";
 import type { ChannelId, GatewayEvent, Message, Ts, User } from "@slock/types";
 import { QueryClient } from "@tanstack/solid-query";
 import { createRoot, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import type { View } from "../../../../src/conversations/client/api/types";
 import type { ThreadRef } from "../../../../src/messages/client/api";
 import { createMessageEvents } from "../../../../src/messages/client/store/events";

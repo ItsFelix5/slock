@@ -1,4 +1,5 @@
-import { createEffect, createSignal, type JSX, on, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import IconButton from "../../button/IconButton";
 import { FloatingMountContext } from "../../overlay/floating/FloatingPanel";
 import { startFrameCoalescedPointerDrag } from "../../pointerDrag";
@@ -154,7 +155,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             : undefined
         }
       >
-        <FloatingMountContext.Provider value={() => (fullscreen() ? wrapRef : undefined)}>
+        <FloatingMountContext value={() => (fullscreen() ? wrapRef : undefined)}>
           <video
             aria-label={props.ariaLabel}
             class={props.class}
@@ -272,7 +273,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
               </div>
             </div>
           </div>
-        </FloatingMountContext.Provider>
+        </FloatingMountContext>
       </div>
     </Show>
   );

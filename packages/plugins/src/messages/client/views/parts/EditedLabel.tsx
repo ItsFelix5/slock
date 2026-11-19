@@ -1,7 +1,7 @@
 import { getHost } from "@slock/core/solid";
 import type { Message } from "@slock/types";
 import { Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 
 export default function EditedLabel(props: { msg: Message }) {
   const history = () => getHost().items("messages.edited")[0];

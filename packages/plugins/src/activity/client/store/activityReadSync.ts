@@ -1,4 +1,4 @@
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 
 export function createActivityReadSync(
   syncChannelRead: (channelId: string, ts: string) => Promise<boolean>,

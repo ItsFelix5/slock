@@ -1,5 +1,6 @@
 import "./IconButton.css";
-import { type JSX, splitProps } from "solid-js";
+import { omit, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import Icon, { type IconName } from "../media/Icon";
 import Tooltip from "../overlay/Tooltip";
 
@@ -15,7 +16,8 @@ export interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElem
 }
 
 export default function IconButton(props: IconButtonProps) {
-  const [local, rest] = splitProps(props, [
+  const rest = omit(
+    props,
     "active",
     "circular",
     "class",
@@ -25,31 +27,28 @@ export default function IconButton(props: IconButtonProps) {
     "label",
     "size",
     "tone",
-  ]);
+  );
 
   const button = (
     <button
-      aria-label={local.label}
+      aria-label={props.label}
       class={[
         "btn-reset icon-btn icon-action",
-        local.size,
-        local.circular && "circular",
-        local.tone && `text-${local.tone}`,
-        local.active && "active",
-        local.class,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+        props.size,
+        { circular: props.circular, active: props.active },
+        props.tone && `text-${props.tone}`,
+        props.class,
+      ]}
       type="button"
       {...rest}
     >
-      <Icon name={local.icon} size={local.iconSize ?? 16} />
+      <Icon name={props.icon} size={props.iconSize ?? 16} />
     </button>
   );
 
-  return local.label && !local.hideTooltip ? (
-    <Tooltip content={local.label}>{button}</Tooltip>
-  ) : (
-    button
+  return (
+    <Show fallback={button} when={props.label && !props.hideTooltip}>
+      {(label) => <Tooltip content={label()}>{button}</Tooltip>}
+    </Show>
   );
 }

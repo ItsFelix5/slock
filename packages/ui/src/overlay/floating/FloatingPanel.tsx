@@ -1,15 +1,7 @@
 import { clamp } from "@slock/core";
-import {
-  createContext,
-  createEffect,
-  getOwner,
-  type JSX,
-  onCleanup,
-  runWithOwner,
-  Show,
-  useContext,
-} from "solid-js";
-import { Portal } from "solid-js/web";
+import { createContext, createEffect, getOwner, onCleanup, runWithOwner, Show, useContext } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
 
 export const FloatingMountContext = createContext<() => Element | undefined>();
 
@@ -207,9 +199,9 @@ export default function FloatingPanel(props: FloatingPanelProps) {
             visibility: "hidden",
           }}
         >
-          <FloatingMountContext.Provider value={() => panel}>
+          <FloatingMountContext value={() => panel}>
             {props.children}
-          </FloatingMountContext.Provider>
+          </FloatingMountContext>
         </div>
       </Portal>
     </Show>

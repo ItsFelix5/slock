@@ -1,4 +1,4 @@
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 
 let emojiUrls: Record<string, string | null> = {};
 let emojiAliasesToBuiltinNames: Record<string, string> = {};

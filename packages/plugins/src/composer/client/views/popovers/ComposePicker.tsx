@@ -8,7 +8,7 @@ import {
   useEscapeClose,
   useListShortcuts,
 } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
 import "../../api/pickers/ComposeUserPicker.css";
 

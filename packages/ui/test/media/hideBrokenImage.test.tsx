@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import HideBrokenImage from "../../src/media/image/HideBrokenImage";
 import { imageSrc } from "../../src/media/mediaSrc";
 

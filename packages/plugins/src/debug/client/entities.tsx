@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { Avatar, Icon } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 import { openConversation } from "../../conversations/client/api/nav";
 import { loadCanvasDebug } from "./canvasDebugData";

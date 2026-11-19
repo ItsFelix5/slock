@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ActivityItem } from "@slock/types";
 import { createRoot } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import { PING_KINDS } from "../../../../src/activity/client/kinds";
 import { createActivityReadState } from "../../../../src/activity/client/store/activityReadState";
 

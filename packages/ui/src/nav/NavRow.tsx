@@ -1,4 +1,5 @@
-import { type JSX, splitProps } from "solid-js";
+import { splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 const NESTED_INTERACTIVE = "a[href], button, input, select, textarea, summary, [role='button']";
 

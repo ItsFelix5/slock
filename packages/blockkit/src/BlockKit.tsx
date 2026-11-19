@@ -21,10 +21,11 @@ import type {
   TaskCardBlock,
   VideoBlock,
 } from "@slock/types";
-import { For, type JSX, Match, Show, Switch } from "solid-js";
+import { For, Match, Show, Switch } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import Mrkdwn from "./mrkdwn/mrkdwn";
 import "./BlockKit.css";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import type { ViewState } from "./actions/viewState";
 import Alert from "./blocks/Alert";
 import { Card, Carousel } from "./blocks/Card";

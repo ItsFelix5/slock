@@ -71,8 +71,8 @@ export default function MessageTextContent(props: {
               class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
               classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
             >
-              <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
-                <TimeAnchorContext.Provider
+              <MessageAttachmentsContext value={() => props.msg.attachments}>
+                <TimeAnchorContext
                   value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
                 >
                   <Show
@@ -100,8 +100,8 @@ export default function MessageTextContent(props: {
                       />
                     )}
                   </Show>
-                </TimeAnchorContext.Provider>
-              </MessageAttachmentsContext.Provider>
+                </TimeAnchorContext>
+              </MessageAttachmentsContext>
             </div>
           </Show>
         }

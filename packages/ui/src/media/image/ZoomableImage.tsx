@@ -1,4 +1,5 @@
-import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import { createEffect, createSignal, on, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import Icon from "../Icon";
 import { imageSrc } from "../mediaSrc";
 import { ImageLightbox } from "./ImageLightbox";

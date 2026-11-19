@@ -1,7 +1,8 @@
 import { HighlightWordsContext } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
-import { createMemo, For, type JSX, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import MessageRow from "../../views/MessageRow";
 import { retainsDeleted } from "../deletedMessages";
 import type { OpenThreadHandler } from "../messageFocus";
@@ -48,7 +49,7 @@ export default function MessageRows(props: MessageRowsProps) {
   });
 
   return (
-    <HighlightWordsContext.Provider value={prefsStore.highlightWords}>
+    <HighlightWordsContext value={prefsStore.highlightWords}>
       <For each={props.messages}>
         {(message, index) => {
           const prev = createMemo(() => previousVisible()[index()]);
@@ -79,6 +80,6 @@ export default function MessageRows(props: MessageRowsProps) {
           );
         }}
       </For>
-    </HighlightWordsContext.Provider>
+    </HighlightWordsContext>
   );
 }

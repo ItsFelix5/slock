@@ -1,5 +1,5 @@
 import type { ActivityItem, Message, User } from "@slock/types";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import {
   fetchChannelLastRead,
   fetchHistoryAround,

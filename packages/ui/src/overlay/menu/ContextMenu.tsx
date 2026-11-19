@@ -1,6 +1,7 @@
 import { clamp } from "@slock/core";
-import { createEffect, type JSX, onCleanup, onMount, Show } from "solid-js";
-import { Portal } from "solid-js/web";
+import { createEffect, onCleanup, onSettled, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { FloatingMountContext } from "../floating/FloatingPanel";
@@ -49,7 +50,7 @@ function ContextMenuPanel(props: {
 
   const roving = createMenuRovingFocus(() => ref);
 
-  onMount(() => {
+  onSettled(() => {
     if (!ref) return;
     ref.dataset.menuPanel = "";
     const rect = ref.getBoundingClientRect();
@@ -75,9 +76,9 @@ function ContextMenuPanel(props: {
       ref={ref}
       style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >
-      <FloatingMountContext.Provider value={() => ref}>
+      <FloatingMountContext value={() => ref}>
         {props.children}
-      </FloatingMountContext.Provider>
+      </FloatingMountContext>
     </div>
   );
 }

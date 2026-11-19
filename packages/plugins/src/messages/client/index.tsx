@@ -134,9 +134,9 @@ const setup: Setup = (ctx) => {
   ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));
   ctx.add("shell.provider", (props) => (
-    <BlockKitResolverContext.Provider value={blockKitResolver}>
+    <BlockKitResolverContext value={blockKitResolver}>
       {props.children}
-    </BlockKitResolverContext.Provider>
+    </BlockKitResolverContext>
   ));
   ctx.add("messages.blockKit", {
     wrapLink: (url, trigger, attachments) => {

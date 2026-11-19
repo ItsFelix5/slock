@@ -1,7 +1,7 @@
 import type { Services } from "@slock/core/types";
 import type { Message, SavedItem } from "@slock/types";
 import { createMemo, createSignal } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
+import { createStore, produce, reconcile } from "solid-js";
 import type {
   fetchMessagesByIds,
   fetchSaved,

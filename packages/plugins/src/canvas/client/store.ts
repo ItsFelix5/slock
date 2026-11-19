@@ -3,7 +3,7 @@ import type { Services } from "@slock/core/types";
 import type { CanvasListItem } from "@slock/types";
 import { createQuery, queryOptions } from "@tanstack/solid-query";
 import { createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import { createReactiveQueryCache, defineKey, shouldRetry } from "../../query/client/api";
 import { fetchChannelCanvases } from "../../slack/client/api";
 import {

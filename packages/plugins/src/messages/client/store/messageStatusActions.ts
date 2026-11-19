@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 import { toggleThreadSubscription } from "../../../slack/client/api";
 
 const feedback = service("feedback");

@@ -13,7 +13,7 @@ import {
   resizePanes,
 } from "@slock/ui";
 import { createEffect, createSignal } from "solid-js";
-import { createStore, reconcile, unwrap } from "solid-js/store";
+import { createStore, reconcile, snapshot } from "solid-js";
 import type { PaneKind } from "../api";
 import type { PaneContent } from "../api/types";
 
@@ -90,14 +90,14 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
 
   function navigateFocusedPane(content: PaneContent): string {
     const id = nearestPrimaryPaneId(currentFocusedId());
-    commit(replacePaneContent(unwrap(state.panes), id, content));
+    commit(replacePaneContent(snapshot(state.panes), id, content));
     activateId(id);
     return id;
   }
 
   function setPaneContent(id: string, content: PaneContent | null) {
     if (!findPane(state.panes, id)) return;
-    commit(replacePaneContent(unwrap(state.panes), id, content));
+    commit(replacePaneContent(snapshot(state.panes), id, content));
   }
 
   function setAllPanes(contents: PaneContent[]) {
@@ -114,7 +114,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   function insertContentPane(content: PaneContent, afterId: string | null): string {
     const id = createPaneId();
     const fraction = kindOf(content)?.size ?? 0.32;
-    commit(insertPane(unwrap(state.panes), afterId, content, id, fraction));
+    commit(insertPane(snapshot(state.panes), afterId, content, id, fraction));
     activateId(id);
     return id;
   }
@@ -130,12 +130,12 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
       existing.id === focusedId ||
       isPaneRightAfter(state.panes, focusedId, existing.id);
     if (staysInPlace) {
-      commit(replacePaneContent(unwrap(state.panes), existing.id, content));
+      commit(replacePaneContent(snapshot(state.panes), existing.id, content));
       activateId(existing.id);
       return existing.id;
     }
     const id = createPaneId();
-    const withoutExisting = closePaneInList(unwrap(state.panes), existing.id);
+    const withoutExisting = closePaneInList(snapshot(state.panes), existing.id);
     commit(insertPane(withoutExisting, focusedId, content, id, kindOf(content)?.size ?? 0.32));
     activateId(id);
     return id;
@@ -145,7 +145,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
     if (state.panes.length <= 1) return;
     const hadFocus = activePaneId() === id || focusedPaneId() === id;
     const index = state.panes.findIndex((p) => p.id === id);
-    commit(closePaneInList(unwrap(state.panes), id));
+    commit(closePaneInList(snapshot(state.panes), id));
     if (hadFocus) {
       const next = state.panes[Math.min(index, state.panes.length - 1)];
       if (next) activateId(next.id);
@@ -153,7 +153,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   }
 
   function resize(sizes: number[]) {
-    commit(resizePanes(unwrap(state.panes), sizes));
+    commit(resizePanes(snapshot(state.panes), sizes));
   }
 
   return {

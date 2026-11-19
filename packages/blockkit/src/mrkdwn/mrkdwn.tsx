@@ -1,4 +1,5 @@
-import { createMemo, For, type JSX } from "solid-js";
+import { createMemo, For } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { InertTokensContext } from "../context";
 import EmojiText from "../emoji/EmojiText";
 import { type BlockNode, parseMrkdwn } from "./mrkdwnBlocks";
@@ -91,8 +92,8 @@ function renderBlock(b: BlockNode, inline: boolean | undefined) {
 export default function Mrkdwn(props: { inline?: boolean; text: string }): JSX.Element {
   const blocks = createMemo(() => parseMrkdwn(props.text ?? ""));
   return (
-    <InertTokensContext.Provider value={!!props.inline}>
+    <InertTokensContext value={!!props.inline}>
       <For each={blocks()}>{(b) => renderBlock(b, props.inline)}</For>
-    </InertTokensContext.Provider>
+    </InertTokensContext>
   );
 }

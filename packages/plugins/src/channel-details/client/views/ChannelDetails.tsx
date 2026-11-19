@@ -9,7 +9,7 @@ import {
   useTabStripShortcuts,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { channelIconName } from "../../../channels/client/api";
 import type { ChannelDetailsTabItem } from "../api";
 import type { ChannelDetailsTab } from "../channelDetails";

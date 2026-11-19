@@ -19,7 +19,7 @@ export default function MessageReferenceSnippet(props: {
   const blocks = () => (props.blocks?.length ? props.blocks : undefined);
 
   return (
-    <TimeAnchorContext.Provider value={{ ms: parseFloat(props.ts) * 1000, tz: props.tz }}>
+    <TimeAnchorContext value={{ ms: parseFloat(props.ts) * 1000, tz: props.tz }}>
       <Show
         fallback={
           <>
@@ -46,6 +46,6 @@ export default function MessageReferenceSnippet(props: {
           />
         )}
       </Show>
-    </TimeAnchorContext.Provider>
+    </TimeAnchorContext>
   );
 }

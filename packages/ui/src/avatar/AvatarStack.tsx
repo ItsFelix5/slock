@@ -1,4 +1,4 @@
-import { Index, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import Avatar, { type AvatarUser } from "./Avatar";
 import "./AvatarStack.css";
 
@@ -17,13 +17,13 @@ export default function AvatarStack(props: AvatarStackProps) {
 
   return (
     <span class="avatar-stack">
-      <Index each={visibleUsers()}>
+      <For each={visibleUsers()} keyed={false}>
         {(user) => (
           <span class="avatar-stack-item">
             <Avatar size={size()} user={user()} />
           </span>
         )}
-      </Index>
+      </For>
       <Show when={extraUsers() > 0}>
         <span aria-hidden="true" class={`avatar-stack-item avatar-stack-overflow avatar-${size()}`}>
           +{extraUsers()}

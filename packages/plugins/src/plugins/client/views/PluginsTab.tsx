@@ -1,6 +1,7 @@
 import type { PluginInfo } from "@slock/core";
 import { getHost, service, usePoint } from "@slock/core/solid";
-import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { PluginRow, ServerOnlyRow } from "./PluginRow";
 import { PluginSettings } from "./PluginSettings";
 import { UploadPlugin } from "./UploadPlugin";

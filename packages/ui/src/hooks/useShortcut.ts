@@ -1,5 +1,5 @@
 import { defined } from "@slock/core";
-import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
+import { type Accessor, createSignal, onCleanup, onSettled } from "solid-js";
 import { keybindOverrides } from "../keybindOverrides";
 import { comboLabel, combosOverlap, matchesCombo, type ShortcutCombo } from "../shortcutCombo";
 
@@ -113,7 +113,7 @@ export function inside(...roots: (() => Element | null | undefined)[]) {
 }
 
 export function useShortcut(def: ShortcutDef) {
-  onMount(() => {
+  onSettled(() => {
     const shortcut: RegisteredShortcut = { ...def, enabled: def.enabled ?? (() => true) };
     if (shortcuts.length === 0) document.addEventListener("keydown", handleKeyDown);
     shortcuts.push(shortcut);

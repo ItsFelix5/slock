@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
 import { queryOptions } from "@tanstack/solid-query";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 import { createReactiveQueryCache, defineKey } from "../../query/client/api";
 import { fetchPinnedMessages, fetchPins, togglePin } from "../../slack/client/api";
 

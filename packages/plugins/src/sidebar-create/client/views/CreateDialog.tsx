@@ -1,5 +1,6 @@
 import { Button, Modal, ModalHeader } from "@slock/ui";
-import { createSignal, type JSX, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import "./CreateDialog.css";
 
 export default function CreateDialog(props: {

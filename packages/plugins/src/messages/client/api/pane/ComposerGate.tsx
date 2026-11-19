@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
-import { createSignal, type JSX, Match, Switch } from "solid-js";
+import { createSignal, Match, Switch } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import ChannelNoticeBar from "./ChannelNoticeBar";
 
 const channelsStore = service("channels");

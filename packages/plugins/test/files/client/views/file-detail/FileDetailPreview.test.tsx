@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { SlackFile } from "@slock/types";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import FileDetailPreview from "../../../../../src/files/client/views/file-detail/FileDetailPreview";
 
 const disposers: (() => void)[] = [];

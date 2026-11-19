@@ -1,7 +1,7 @@
 import { usePoint } from "@slock/core/solid";
 import type { Option, SelectElement } from "@slock/types";
 import { Combobox, type ComboboxOption, fuzzySearch } from "@slock/ui";
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import { fetchExternalOptions } from "../actions/blockActions";
 import type { BlockActionContext } from "../BlockKit";
 import type { EntityKind } from "../entitySource";
@@ -108,7 +108,7 @@ export default function Select(props: {
     );
   };
 
-  onMount(() => {
+  onSettled(() => {
     if (currentDefault()) props.dispatch(payload(selected()));
   });
 

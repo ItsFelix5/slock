@@ -40,7 +40,7 @@ export default function ReplyReferenceRow(props: {
     wrapUsergroupMention: undefined,
   };
   const contents = (
-    <BlockKitResolverContext.Provider value={withoutHoverCards}>
+    <BlockKitResolverContext value={withoutHoverCards}>
       <Icon name={props.icon ?? "email-reply"} size={13} />
       <Show
         fallback={
@@ -90,7 +90,7 @@ export default function ReplyReferenceRow(props: {
           );
         }}
       </Show>
-    </BlockKitResolverContext.Provider>
+    </BlockKitResolverContext>
   );
 
   return (

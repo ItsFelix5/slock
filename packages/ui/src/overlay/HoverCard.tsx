@@ -1,4 +1,5 @@
-import { type Accessor, createEffect, type JSX, Show } from "solid-js";
+import { type Accessor, createEffect, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, {
   type FloatingAlign,

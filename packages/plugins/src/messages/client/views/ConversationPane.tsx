@@ -1,7 +1,7 @@
 import { Slot, service, usePoint } from "@slock/core/solid";
 import type { Pane } from "@slock/ui";
 import { Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { PaneViewProvider } from "../../../conversations/client/api/paneView";
 import type { View } from "../../../conversations/client/api/types";
 import "./ConversationPane.css";

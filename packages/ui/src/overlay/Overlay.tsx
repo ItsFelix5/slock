@@ -1,5 +1,6 @@
-import { type JSX, onCleanup, onMount } from "solid-js";
-import { Portal } from "solid-js/web";
+import { onCleanup, onSettled } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
 import {
   focusableWithin,
   isTopFocusLayer,
@@ -26,7 +27,7 @@ export default function Overlay(props: OverlayProps) {
   const previouslyFocused =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-  onMount(() => {
+  onSettled(() => {
     const layer = pushFocusLayer();
     queueMicrotask(() => {
       if (!(isTopFocusLayer(layer) && overlayRef) || overlayRef.contains(document.activeElement))
@@ -83,9 +84,9 @@ export default function Overlay(props: OverlayProps) {
         role="dialog"
         tabIndex={-1}
       >
-        <FloatingMountContext.Provider value={() => overlayRef}>
+        <FloatingMountContext value={() => overlayRef}>
           {props.children}
-        </FloatingMountContext.Provider>
+        </FloatingMountContext>
       </div>
     </Portal>
   );

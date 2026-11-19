@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onSettled } from "solid-js";
 import { dispatchManualShortcut } from "../hooks/useShortcut";
 import { bindLinePrefix, type LinePrefixFormat } from "./blockShortcuts";
 import ContextBlot from "./ContextBlot";
@@ -79,7 +79,7 @@ export default function QuillEditor(props: QuillEditorProps) {
     onSubmit: () => props.onSubmit,
   });
 
-  onMount(() => {
+  onSettled(() => {
     if (!container) return;
     const has = (name: string) => formats.includes(name);
     const blockFormats = formats.some((name) => EXTENDED_FORMATS.includes(name));

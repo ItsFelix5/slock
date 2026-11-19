@@ -126,7 +126,10 @@ describe("stop and restart leave nothing behind", () => {
     await host.register({
       id: "effects",
       setup: () => {
-        createEffect(() => onCleanup(() => events.push("effect disposed")));
+        createEffect(
+          () => undefined,
+          () => () => events.push("effect disposed"),
+        );
       },
     });
     expect(events).toEqual([]);
@@ -180,8 +183,14 @@ describe("reactivity with the solid adapter", () => {
     const items: string[] = [];
     const listings: string[] = [];
     const dispose = createRoot((disposeRoot) => {
-      createEffect(() => items.push(host.items("hostTestItems").join(",")));
-      createEffect(() => listings.push(JSON.stringify(states(host))));
+      createEffect(
+        () => host.items("hostTestItems").join(","),
+        (value) => void items.push(value),
+      );
+      createEffect(
+        () => JSON.stringify(states(host)),
+        (value) => void listings.push(value),
+      );
       return disposeRoot;
     });
     await host.register({ id: "p", setup: (ctx) => ctx.add("hostTestItems", "x") });

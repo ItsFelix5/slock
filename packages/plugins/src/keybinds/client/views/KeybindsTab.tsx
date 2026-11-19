@@ -20,7 +20,7 @@ import {
   useListShortcuts,
   useNavigationShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, Index, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Index, onSettled, Show } from "solid-js";
 
 function includesText(text: string, query: string) {
   return text.toLowerCase().includes(query);
@@ -105,7 +105,7 @@ export default function KeybindsTab() {
     });
   });
 
-  onMount(() => {
+  onSettled(() => {
     if (!document.activeElement?.closest('[role="tablist"]')) searchRef?.focus();
   });
 

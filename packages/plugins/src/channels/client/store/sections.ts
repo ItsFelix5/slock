@@ -2,7 +2,7 @@ import { service } from "@slock/core/solid";
 import type { ChannelSection, UserPrefs } from "@slock/types";
 import { createQuery } from "@tanstack/solid-query";
 import { createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import { defineKey } from "../../../query/client/api";
 import {
   createSection as apiCreateSection,

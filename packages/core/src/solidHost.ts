@@ -1,12 +1,18 @@
-import { type Accessor, createRoot, createSignal, untrack } from "solid-js";
+import { type Accessor, createRoot, createSignal, flush, untrack } from "solid-js";
 import type { Host } from "./host/host";
 import type { Points, Reactive, Services } from "./types";
 
 export const solidReactive: Reactive = {
   scope: (fn) => createRoot((dispose) => ({ dispose, value: fn() })),
   signal: (initial) => {
-    const [read, write] = createSignal(initial);
-    return [read, (value) => write(() => value)];
+    const [read, write] = createSignal<typeof initial>(() => initial, { ownedWrite: true });
+    return [
+      read,
+      (value) => {
+        write(() => value);
+        flush();
+      },
+    ];
   },
   untrack,
 };

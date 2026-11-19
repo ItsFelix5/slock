@@ -1,7 +1,7 @@
 import type { Services } from "@slock/core/types";
 import type { Channel, DirectMessage, Message } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import type { ThreadRef } from "../../../messages/client/api";

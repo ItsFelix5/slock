@@ -4,7 +4,7 @@ import type { Services } from "@slock/core/types";
 import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
 import type { User } from "@slock/types";
 import { batch, createMemo, createSignal } from "solid-js";
-import { createStore, produce, unwrap } from "solid-js/store";
+import { createStore, produce, snapshot } from "solid-js";
 import { createLocalPref } from "../../../slack/client/api/localPref";
 import { createDerivedUsers } from "./derivedUsers";
 import { createUserProfileFields } from "./profileFields";
@@ -49,7 +49,7 @@ export function createUsersStore(
   }
 
   function putUser(user: User): void {
-    const current = unwrap(extraUsers[user.id]);
+    const current = snapshot(extraUsers[user.id]);
     const keys = Object.keys(user);
     if (
       current &&

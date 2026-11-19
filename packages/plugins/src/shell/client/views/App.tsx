@@ -8,8 +8,9 @@ import {
   usePaneNavigation,
   windowWidth,
 } from "@slock/ui";
-import { createMemo, type JSX, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { createMemo, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Dynamic } from "@solidjs/web";
 import "./App.css";
 import PaneSwitch, { paneTabLabel } from "./PaneSwitch";
 

@@ -1,5 +1,5 @@
 import { IconButton } from "@slock/ui";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import type { PluginSettingsItem } from "../api";
 import "./PluginSettings.css";
 

@@ -1,7 +1,7 @@
 import type { Message } from "@slock/types";
 import { createKeyedAsyncCache, createRecencyEviction } from "@slock/ui";
 import { createEffect, untrack } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce } from "solid-js";
 import {
   fetchReplies,
   fetchRepliesBefore,
