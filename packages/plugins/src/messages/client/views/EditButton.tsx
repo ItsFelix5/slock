@@ -11,7 +11,7 @@ export default function EditButton(props: MessageBarProps) {
         icon="edit"
         label="Edit message"
         onClick={props.onEditRequest}
-        tabIndex={props.rowFocused() ? undefined : -1}
+        tabindex={props.rowFocused() ? undefined : -1}
       />
     </Show>
   );

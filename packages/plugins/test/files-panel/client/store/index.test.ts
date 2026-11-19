@@ -1,13 +1,14 @@
 import { describe, expect, jest, test } from "bun:test";
 import { int, pick, seededRandom } from "@slock/core/testing";
-import type { SlackFile, SlackLink } from "@slock/types";
-import { createRoot } from "solid-js";
+import { parseChannelId, parseFileId, parseTs } from "@slock/slack";
+import type { ChannelId, SlackFile, SlackLink } from "@slock/types";
+import { createRoot, flush } from "solid-js";
 import { createFilesLinksPanel } from "../../../../src/files-panel/client/store/index";
 import type { searchChannelFilesAndLinks } from "../../../../src/slack/client/api";
 
 type Page = Awaited<ReturnType<typeof searchChannelFilesAndLinks>>;
 type Call = {
-  channelId: string;
+  channelId: ChannelId;
   page: number;
   query: string;
   reject: () => void;
@@ -15,11 +16,11 @@ type Call = {
 };
 
 function file(id: string, created: number): SlackFile {
-  return { created, id, isImage: false, name: id, urlPrivate: `https://files/${id}` };
+  return { created, id: parseFileId(id), isImage: false, name: id, urlPrivate: `https://files/${id}` };
 }
 
 function link(ts: string, url = `https://example.com/${ts}`): SlackLink {
-  return { title: null, ts, url };
+  return { title: null, ts: parseTs(ts), url };
 }
 
 function page(files: SlackFile[] = [], links: SlackLink[] = [], hasMore = false): Page {
@@ -52,13 +53,20 @@ function harness() {
 
 const settle = async () => {
   for (let i = 0; i < 4; i++) await Promise.resolve();
+  flush();
 };
+
+const C1 = parseChannelId("C1");
+const C2 = parseChannelId("C2");
+const CA = parseChannelId("CA");
+const CB = parseChannelId("CB");
 
 describe("loading", () => {
   test("open starts a page 1 load and merges files and links newest first", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
-    expect(panel.filesLinksChannelId()).toBe("C1");
+    panel.openFilesLinksPanel(C1);
+    flush();
+    expect(panel.filesLinksChannelId()).toBe(C1);
     expect(panel.filesLinksLoading()).toBe(true);
     expect(calls.map(({ channelId, page, query }) => [channelId, page, query])).toEqual([
       ["C1", 1, ""],
@@ -73,12 +81,13 @@ describe("loading", () => {
 
   test("a failed load shows the error and retry clears it", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     calls[0]?.reject();
     await settle();
     expect(panel.filesLinksLoadError()).toBe(true);
     expect(panel.filesLinksLoading()).toBe(false);
     panel.retryFilesLinks();
+    flush();
     expect(panel.filesLinksLoadError()).toBe(false);
     calls[1]?.resolve(page([file("F1", 1)]));
     await settle();
@@ -95,8 +104,9 @@ describe("loading", () => {
 describe("closing", () => {
   test("a result that arrives after close is dropped", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     panel.closeFilesLinksPanel();
+    flush();
     expect(panel.filesLinksChannelId()).toBeNull();
     expect(panel.filesLinksLoading()).toBe(false);
     calls[0]?.resolve(page([file("F1", 1)], [], true));
@@ -108,7 +118,7 @@ describe("closing", () => {
 
   test("an error that arrives after close is dropped", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     panel.closeFilesLinksPanel();
     calls[0]?.reject();
     await settle();
@@ -117,20 +127,20 @@ describe("closing", () => {
 
   test("a slow channel A load never lands in channel B", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("A");
-    panel.openFilesLinksPanel("B");
+    panel.openFilesLinksPanel(CA);
+    panel.openFilesLinksPanel(CB);
     calls[1]?.resolve(page([file("FB", 5)]));
     await settle();
     calls[0]?.resolve(page([file("FA", 9)]));
     await settle();
-    expect(panel.filesLinksChannelId()).toBe("B");
+    expect(panel.filesLinksChannelId()).toBe(CB);
     expect(panel.filesLinksEntries().map((entry) => entry.sortTs)).toEqual([5]);
   });
 
   test("close cancels a pending debounced query", () => {
     jest.useFakeTimers();
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     panel.setFilesLinksQuery("report");
     panel.closeFilesLinksPanel();
     jest.advanceTimersByTime(1000);
@@ -141,21 +151,22 @@ describe("closing", () => {
   test("opening again cancels a debounced query from the previous channel", () => {
     jest.useFakeTimers();
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("A");
+    panel.openFilesLinksPanel(CA);
     panel.setFilesLinksQuery("old");
-    panel.openFilesLinksPanel("B");
+    panel.openFilesLinksPanel(CB);
     jest.advanceTimersByTime(1000);
     expect(calls.map(({ channelId, query }) => [channelId, query])).toEqual([
-      ["A", ""],
-      ["B", ""],
+      ["CA", ""],
+      ["CB", ""],
     ]);
     jest.useRealTimers();
   });
 
   test("jumping to a message closes the panel and opens the message", () => {
     const { opened, panel } = harness();
-    panel.openFilesLinksPanel("C1");
-    panel.jumpToFilesLinksMessage("C1", "1.5", "1.0");
+    panel.openFilesLinksPanel(C1);
+    panel.jumpToFilesLinksMessage(C1, parseTs("1.5"), parseTs("1.0"));
+    flush();
     expect(panel.filesLinksChannelId()).toBeNull();
     expect(opened).toEqual([["C1", "1.5", "1.0"]]);
   });
@@ -165,7 +176,7 @@ describe("query", () => {
   test("typing debounces to one search with the last query", () => {
     jest.useFakeTimers();
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     panel.setFilesLinksQuery("r");
     jest.advanceTimersByTime(200);
     panel.setFilesLinksQuery("re");
@@ -182,7 +193,7 @@ describe("query", () => {
   test("a new query replaces the rows instead of appending", async () => {
     jest.useFakeTimers();
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     calls[0]?.resolve(page([file("F1", 1), file("F2", 2)]));
     await settle();
     panel.setFilesLinksQuery("x");
@@ -197,7 +208,7 @@ describe("query", () => {
 describe("pagination", () => {
   test("load more appends the next page and dedupes repeats", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     calls[0]?.resolve(page([file("F1", 10)], [link("5.1")], true));
     await settle();
     panel.loadMoreFilesLinks();
@@ -210,14 +221,14 @@ describe("pagination", () => {
 
   test("load more is blocked while loading, after an error, and without more pages", async () => {
     const { calls, panel } = harness();
-    panel.openFilesLinksPanel("C1");
+    panel.openFilesLinksPanel(C1);
     panel.loadMoreFilesLinks();
     expect(calls).toHaveLength(1);
     calls[0]?.resolve(page([file("F1", 1)], [], false));
     await settle();
     panel.loadMoreFilesLinks();
     expect(calls).toHaveLength(1);
-    panel.openFilesLinksPanel("C2");
+    panel.openFilesLinksPanel(C2);
     calls[1]?.reject();
     await settle();
     panel.loadMoreFilesLinks();
@@ -241,7 +252,7 @@ describe("invariant", () => {
       const steps = int(random, 3, 20);
       for (let step = 0; step < steps; step++) {
         const action = pick(random, actions);
-        if (action === "open") panel.openFilesLinksPanel(pick(random, ["A", "B"]));
+        if (action === "open") panel.openFilesLinksPanel(pick(random, [CA, CB]));
         else if (action === "query") panel.setFilesLinksQuery(pick(random, ["", "x", "yy"]));
         else if (action === "more") panel.loadMoreFilesLinks();
         else if (action === "close") panel.closeFilesLinksPanel();

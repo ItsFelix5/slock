@@ -6,7 +6,8 @@ import { installFakeWebSocket } from "./fakeWebSocket";
 
 type Connection = ReturnType<typeof createRealtimeConnection>;
 
-function settled(connection: Connection): Connection {
+
+function settled(connection: Connection) {
   const read = <T>(signal: () => T) => () => {
     flush();
     return signal();
@@ -16,7 +17,7 @@ function settled(connection: Connection): Connection {
     connectionState: read(connection.connectionState),
     gatewayConnected: read(connection.gatewayConnected),
     isSelfOnline: read(connection.isSelfOnline),
-    setGatewayConnected(connected) {
+    setGatewayConnected(connected: boolean) {
       connection.setGatewayConnected(connected);
       flush();
     },

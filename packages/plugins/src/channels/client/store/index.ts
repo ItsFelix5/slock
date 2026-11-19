@@ -4,7 +4,6 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
-import { createReactiveQueryCache } from "../../../query/client/api";
 import {
   fetchBrowsableChannels,
   fetchChannel,
@@ -13,7 +12,8 @@ import {
   leaveChannel,
 } from "../../../slack/client/api";
 import type { ChannelDecorator } from "../api";
-import { channelManagerQueryOptions, channelRosterQueryOptions } from "./queries";
+import { channelManagers, channelRosters } from "./queries";
+import { createFlags } from "./flags";
 import { createChannelSections } from "./sections";
 import { createChannelStarPlacement } from "./starPlacement";
 
@@ -21,7 +21,6 @@ const env = service("env");
 
 const feedback = service("feedback");
 
-const query = service("query");
 
 export function createChannelsStore(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: ChannelId[] } | undefined;
@@ -40,9 +39,9 @@ export function createChannelsStore(deps: {
   const channelDetailsRequested = new Map<ChannelId, Promise<boolean>>();
 
   const [channelPatches, setChannelPatches] = createStore<Record<ChannelId, Partial<Channel>>>({});
-  const [leftChannelIds, setLeftChannelIds] = createStore<Record<ChannelId, boolean>>({});
-  const [joinPendingIds, setJoinPendingIds] = createStore<Record<ChannelId, boolean>>({});
-  const [leavePendingIds, setLeavePendingIds] = createStore<Record<ChannelId, boolean>>({});
+  const leftChannels = createFlags<ChannelId>();
+  const joinPending = createFlags<ChannelId>();
+  const leavePending = createFlags<ChannelId>();
   let starredSeeded = false;
   const [browsableChannels, setBrowsableChannels] = createSignal<BrowsableChannel[]>([]);
 
@@ -174,52 +173,40 @@ export function createChannelsStore(deps: {
     return baseChannelsById().has(id) || !!discoveredChannels[id]?.canvasFileId;
   }
 
-  const channelRosters = createReactiveQueryCache(
-    query.client,
-    "channelRosters",
-    channelRosterQueryOptions,
-  );
-
   function channelRosterIds(channelId: ChannelId): Set<UserId> | undefined {
-    return channelRosters.entry(channelId);
+    return channelRosters.peek(channelId);
   }
 
   function ensureChannelRoster(channelId: ChannelId): Promise<Set<UserId> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
     const channel = channelById(channelId);
     if (channel?.private && !isChannelMember(channelId)) return Promise.resolve(new Set());
-    return query.client.query({ ...channelRosterQueryOptions(channelId), staleTime: "static" });
+    return channelRosters.ensure(channelId);
   }
 
   function invalidateChannelRoster(channelId: ChannelId): void {
     channelRosters.invalidate(channelId);
   }
 
-  const channelManagers = createReactiveQueryCache(
-    query.client,
-    "channelManagers",
-    channelManagerQueryOptions,
-  );
-
   function channelManagerIds(channelId: ChannelId): Set<UserId> | undefined {
-    return channelManagers.entry(channelId);
+    return channelManagers.peek(channelId);
   }
 
   function ensureChannelManagers(channelId: ChannelId): Promise<Set<UserId> | undefined> {
     if (isDmId(channelId, () => false)) return Promise.resolve(undefined);
-    return query.client.query({ ...channelManagerQueryOptions(channelId), staleTime: "static" });
+    return channelManagers.ensure(channelId);
   }
 
   function isChannelLeft(channelId: ChannelId): boolean {
-    return !!leftChannelIds[channelId];
+    return leftChannels.has(channelId);
   }
 
   function isJoinPending(channelId: ChannelId): boolean {
-    return !!joinPendingIds[channelId];
+    return joinPending.has(channelId);
   }
 
   function isLeavePending(channelId: ChannelId): boolean {
-    return !!leavePendingIds[channelId];
+    return leavePending.has(channelId);
   }
 
   function addJoinedChannel(channel: Channel) {
@@ -228,23 +215,17 @@ export function createChannelsStore(deps: {
       if (idx === -1) list.push(channel);
       else list[idx] = channel;
     });
-    setLeftChannelIds((draft) => {
-      draft[channel.id] = false;
-    });
+    leftChannels.set(channel.id, false);
   }
 
   function markChannelLeft(channelId: ChannelId) {
-    if (leftChannelIds[channelId]) return;
-    setLeftChannelIds((draft) => {
-      draft[channelId] = true;
-    });
+    if (leftChannels.has(channelId)) return;
+    leftChannels.set(channelId, true);
   }
 
   async function joinChannelById(channelId: ChannelId): Promise<boolean> {
     if (isJoinPending(channelId)) return false;
-    setJoinPendingIds((draft) => {
-      draft[channelId] = true;
-    });
+    joinPending.set(channelId, true);
     try {
       const channel = await joinChannel(channelId);
       addJoinedChannel(channel);
@@ -255,17 +236,13 @@ export function createChannelsStore(deps: {
       feedback.flash(channelId, "Failed to join channel.", "error");
       return false;
     } finally {
-      setJoinPendingIds((draft) => {
-        draft[channelId] = false;
-      });
+      joinPending.set(channelId, false);
     }
   }
 
   async function leaveCurrentChannel(channelId: ChannelId): Promise<boolean> {
     if (isLeavePending(channelId)) return false;
-    setLeavePendingIds((draft) => {
-      draft[channelId] = true;
-    });
+    leavePending.set(channelId, true);
     try {
       await leaveChannel(channelId);
       markChannelLeft(channelId);
@@ -275,9 +252,7 @@ export function createChannelsStore(deps: {
       feedback.flash(channelId, "Failed to leave channel.", "error");
       return false;
     } finally {
-      setLeavePendingIds((draft) => {
-        draft[channelId] = false;
-      });
+      leavePending.set(channelId, false);
     }
   }
 

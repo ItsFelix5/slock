@@ -1,6 +1,6 @@
 import type { EntityKind, EntitySource } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import { isChannelId, isUserId } from "@slock/slack";
+import { isChannelId, isUserId, parseChannelId } from "@slock/slack";
 import type { Channel, ConversationFilter, DirectMessage, User } from "@slock/types";
 import { type ComboboxOption, fuzzySearch } from "@slock/ui";
 import { channelIconName } from "../../channels/client/api";
@@ -99,8 +99,9 @@ async function conversationId(id: string) {
   if (existing) return existing;
   const channelId = await openDm(id);
   if (!channelId) throw new Error("Could not open a direct message");
-  dmsStore.ensureDm(channelId, id);
-  return channelId;
+  const dmId = parseChannelId(channelId);
+  dmsStore.ensureDm(dmId, id);
+  return dmId;
 }
 
 export function createEntitySource(lastOpenedConversation: () => string | undefined): EntitySource {

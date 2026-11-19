@@ -39,7 +39,7 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
           onClick={() => viewStore.setActiveView({ id: props.channel.id, kind: "channel" })}
           {...prefetch}
           onContextMenu={ctxMenu.open}
-          tabIndex={-1}
+          tabindex={-1}
           type="button"
         >
           <span class="sidebar-row-icon">

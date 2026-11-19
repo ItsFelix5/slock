@@ -1,5 +1,6 @@
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
+import { parseChannelId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import Quill, { Delta } from "@slock/ui/editor/quill";
 import { render } from "@solidjs/web";
@@ -54,7 +55,7 @@ export async function mountComposer(props: Partial<ComposerProps> = {}): Promise
   const server = fakeDraftServer();
   const host = document.createElement("div");
   document.body.append(host);
-  const dispose = render(() => <Composer channelId="C1" {...props} />, host);
+  const dispose = render(() => <Composer channelId={parseChannelId("C1")} {...props} />, host);
   await settle();
   const quill = findQuill(host);
   quill.focus();

@@ -10,7 +10,9 @@ const usersStore = service("users");
 const titles = service("titles");
 
 const dataResolver = {
-  onChannelClick: (id: string) => viewStore.setActiveView({ id, kind: "channel" as const }),
+  onChannelClick: (id: string) => {
+    if (isChannelId(id)) viewStore.setActiveView({ id, kind: "channel" });
+  },
   onUserClick: (id: string) => usersStore.openUserProfile(id),
   resolveChannel: (id: string) => {
     if (!isChannelId(id)) return;

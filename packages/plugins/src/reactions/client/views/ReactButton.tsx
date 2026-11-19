@@ -25,7 +25,7 @@ export default function ReactButton(props: MessageBarProps) {
         icon="emoji"
         label="React"
         onClick={toggle}
-        tabIndex={props.rowFocused() ? undefined : -1}
+        tabindex={props.rowFocused() ? undefined : -1}
       />
       <Show when={open()}>
         <FloatingEmojiPicker

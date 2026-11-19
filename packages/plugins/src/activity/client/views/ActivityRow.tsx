@@ -1,5 +1,5 @@
 import { maybeService, service } from "@slock/core/solid";
-import type { ActivityItem } from "@slock/types";
+import type { ActivityItem, Ts } from "@slock/types";
 import { ContextMenu, Icon, NavRow, useContextMenu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import ReactionRow from "../../../reactions/client/api/ReactionRow";
@@ -13,7 +13,7 @@ import ActivityTimelineRow from "./ActivityTimelineRow";
 import "./ActivityThread.css";
 import { defined } from "@slock/core";
 import { createActivityRowDisplay } from "./activityRowDisplay";
-import { currentRowKey, openActivityRow } from "./activityRowOpen";
+import { openActivityRow } from "./activityRowOpen";
 import { ActivityMessageText } from "./activityThreadMessage";
 import { createActivityTimeline, type TimelineEntry } from "./activityTimeline";
 
@@ -81,11 +81,11 @@ export default function ActivityRow(props: {
   const openRow = () => openActivityRow(props.row, false);
   const openRowInSplit = () => openActivityRow(props.row, true);
 
-  const openThreadTs = (ts: string) => {
+  const openThreadTs = (ts: Ts) => {
     messageLinks.openChannelPeek(latest().channelId, threadTs(), ts);
   };
 
-  const openThreadInSplit = (ts: string) => {
+  const openThreadInSplit = (ts: Ts) => {
     messageLinks.openThread(latest().channelId, threadTs(), ts, { pinned: true });
   };
 
@@ -112,12 +112,14 @@ export default function ActivityRow(props: {
   return (
     <article class="activity-item-wrap">
       <div
-        class="activity-item"
-        classList={{
-          "activity-item-thread": isThreadGroup(),
-          active: currentRowKey() === props.row.key,
-          unread: isUnread(),
-        }}
+        class={[
+          "activity-item",
+          {
+            "activity-item-thread": isThreadGroup(),
+            active: activityStore.currentRowKey() === props.row.key,
+            unread: isUnread(),
+          },
+        ]}
       >
         <SplitNavigation onSplit={openRowInSplit}>
           <NavRow
@@ -125,7 +127,7 @@ export default function ActivityRow(props: {
             data-activity-row
             onActivate={openRow}
             onContextMenu={ctxMenu.open}
-            tabIndex={-1}
+            tabindex={-1}
           >
             <ActivityAvatar
               display={display}
@@ -145,11 +147,13 @@ export default function ActivityRow(props: {
               </Show>
               <Show when={!isThreadGroup()}>
                 <span
-                  class="activity-snippet"
-                  classList={{
-                    "activity-snippet-reminder":
-                      latest().activityType === "saved_reminder" && !latest().reminderNote,
-                  }}
+                  class={[
+                    "activity-snippet",
+                    {
+                      "activity-snippet-reminder":
+                        latest().activityType === "saved_reminder" && !latest().reminderNote,
+                    },
+                  ]}
                 >
                   <ActivityMessageText
                     author={latest()}
@@ -187,7 +191,7 @@ export default function ActivityRow(props: {
                 class="activity-read-more btn-reset"
                 data-nav-row
                 onClick={() => setExpanded(true)}
-                tabIndex={-1}
+                tabindex="-1"
                 type="button"
               >
                 <Icon name="history" size={13} />
@@ -227,7 +231,7 @@ export default function ActivityRow(props: {
           threadTs(),
         )}
       />
-      <span class="activity-unread-dot" classList={{ unread: isUnread() }} />
+      <span class={["activity-unread-dot", { unread: isUnread() }]} />
 
       <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
         <ActivityRowMenuItems onClose={ctxMenu.close} onSeen={props.onSeen} row={props.row} />

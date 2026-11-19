@@ -41,7 +41,9 @@ export default function ViewModal() {
   );
   createEffect(
     () => view()?.id,
-    () => setFailed(false),
+    () => {
+      setFailed(false);
+    },
     { defer: true },
   );
 

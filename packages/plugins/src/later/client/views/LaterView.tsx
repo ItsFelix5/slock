@@ -1,6 +1,7 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
 import { formatTime } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import {
   Button,
   ClickableInline,
@@ -42,7 +43,7 @@ export default function LaterView() {
     () => later.laterItems,
   );
 
-  const goTo = (channelId: string, ts: string, rootTs?: string) => {
+  const goTo = (channelId: ChannelId, ts: Ts, rootTs?: Ts) => {
     messageLinks.openChannelMessage(channelId, ts, rootTs);
   };
 

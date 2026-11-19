@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import { parseChannelId } from "@slock/slack";
 import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { createMemo, createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
@@ -118,11 +119,12 @@ export function createDmsStore(deps: {
         deps.closeUserProfile();
         return true;
       }
-      const channelId = await openDm(userId);
-      if (!channelId) {
+      const openedId = await openDm(userId);
+      if (!openedId) {
         feedback.flash(userId, "Could not open a direct message with this user.", "error");
         return false;
       }
+      const channelId = parseChannelId(openedId);
       if (existing) setClosedDmIds(channelId, false);
       else
         setExtraDms((list) => {

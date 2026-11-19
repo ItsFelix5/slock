@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Host } from "@slock/core";
+import { parseUserId } from "@slock/slack";
 import { setHost } from "@slock/core/solid";
 import { createUsergroupDetails } from "../../../src/usergroup-details/client/usergroupDetails";
 
@@ -23,7 +24,7 @@ function fakeSlack() {
 }
 
 beforeEach(() => {
-  members = ["u1", "u2"];
+  members = ["U1", "U2"];
   putBodies = [];
   fakeSlack();
   const services: Record<string, unknown> = {
@@ -43,19 +44,19 @@ afterEach(() => {
 
 describe("usergroup mutations", () => {
   test("adding a member keeps the existing members", async () => {
-    await createUsergroupDetails().addUsergroupMembers("g1", ["u3"]);
-    expect(putBodies[0]).toEqual(["u1", "u2", "u3"]);
+    await createUsergroupDetails().addUsergroupMembers("g1", [parseUserId("U3")]);
+    expect(putBodies[0]).toEqual(["U1", "U2", "U3"]);
   });
 
   test("two adds in a row accumulate", async () => {
     const details = createUsergroupDetails();
-    await details.addUsergroupMembers("g1", ["u3"]);
-    await details.addUsergroupMembers("g1", ["u4"]);
-    expect(putBodies.at(-1)).toEqual(["u1", "u2", "u3", "u4"]);
+    await details.addUsergroupMembers("g1", [parseUserId("U3")]);
+    await details.addUsergroupMembers("g1", [parseUserId("U4")]);
+    expect(putBodies.at(-1)).toEqual(["U1", "U2", "U3", "U4"]);
   });
 
   test("removing a member keeps the others", async () => {
-    await createUsergroupDetails().removeUsergroupMember("g1", "u1");
-    expect(putBodies[0]).toEqual(["u2"]);
+    await createUsergroupDetails().removeUsergroupMember("g1", parseUserId("U1"));
+    expect(putBodies[0]).toEqual(["U2"]);
   });
 });

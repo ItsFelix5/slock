@@ -28,7 +28,7 @@ export default function ResultMessageCard(props: {
           class="result-message-card-main"
           onActivate={props.onOpen}
           onContextMenu={props.ctxMenu?.open}
-          tabIndex={-1}
+          tabindex={-1}
         >
           <Show fallback={<Avatar size="medium" user={props.avatarUser} />} when={profileUserId()}>
             {(userId) => (

@@ -26,7 +26,7 @@ export default function EmojiPickerButton(props: {
         classList={{ mine: mine(), reacted: reacted() }}
         data-emoji-index={props.index}
         onClick={() => props.onSelect(props.entry.name)}
-        tabIndex={props.active ? 0 : -1}
+        tabindex={props.active ? 0 : -1}
         type="button"
       >
         <Show fallback={props.entry.unicode ?? "❔"} when={url()}>

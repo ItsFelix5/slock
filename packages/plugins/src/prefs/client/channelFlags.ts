@@ -7,7 +7,7 @@ export function createChannelFlags() {
   const [pending, setPending] = createStore<Record<string, boolean>>({});
 
   function enabledIds(): ChannelId[] {
-    return Object.keys(flags).filter((id) => flags[id] && isChannelId(id));
+    return Object.keys(flags).flatMap((id) => (flags[id] && isChannelId(id) ? [id] : []));
   }
 
   function enabledIdsWith(channelId: ChannelId, enabled: boolean): ChannelId[] {

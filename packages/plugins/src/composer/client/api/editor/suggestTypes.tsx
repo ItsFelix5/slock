@@ -1,12 +1,12 @@
 import { emojiUrl } from "@slock/blockkit";
 import { blockPreviewText } from "@slock/slack";
-import type { Block, SlackFile, User } from "@slock/types";
+import type { Block, ChannelId, SlackFile, User, UserId } from "@slock/types";
 import { Avatar, Icon, type IconName, imageSrc } from "@slock/ui";
 import { channelIconName } from "../../../../channels/client/api";
 
 export type UserSuggestItem = {
   kind: "user";
-  id: string;
+  id: UserId;
   name: string;
   user: User;
   notInChannel?: boolean;
@@ -20,7 +20,7 @@ export type SpecialMentionSuggestItem = {
 export type UsergroupSuggestItem = { kind: "usergroup"; id: string; name: string };
 export type ChannelSuggestItem = {
   kind: "channel";
-  id: string;
+  id: ChannelId;
   name: string;
   private: boolean;
   notInChannel?: boolean;

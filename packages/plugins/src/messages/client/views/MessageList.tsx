@@ -25,7 +25,7 @@ export default function MessageList() {
     if (!v) return [];
     return groupSystemMessages(messagesStore.messagesInChannel(v.id) ?? []);
   });
-  const activeChannelId = () => paneView()?.id ?? "";
+  const activeChannelId = () => paneView()?.id;
 
   const {
     feed,
@@ -54,9 +54,8 @@ export default function MessageList() {
 
   return (
     <div
-      aria-hidden={pending()}
-      class="message-list"
-      classList={{ "message-list-pending": pending() }}
+      aria-hidden={pending() ? "true" : "false"}
+      class={["message-list", { "message-list-pending": pending() }]}
       onFocusIn={messageFocus.onContainerFocusIn}
       onFocusOut={messageFocus.onContainerFocusOut}
       ref={feed.attach}

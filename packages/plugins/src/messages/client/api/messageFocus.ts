@@ -28,7 +28,7 @@ export interface MessageFocusCallbacks {
 
 export interface ActiveMessageFocus {
   callbacks: MessageFocusCallbacks;
-  channelId: Accessor<ChannelId>;
+  channelId: Accessor<ChannelId | undefined>;
   focusEdge: (edge: "start" | "end") => void;
   focusedMessage: () => Message | undefined;
   focusedLiveTs: Accessor<Ts | null>;
@@ -56,7 +56,7 @@ export function clearActiveMessageFocus() {
 export function createMessageFocus(
   messages: Accessor<Message[]>,
   feed: FeedScroll,
-  channelId: Accessor<ChannelId>,
+  channelId: Accessor<ChannelId | undefined>,
   callbacks: MessageFocusCallbacks = {},
 ) {
   const [focusedTs, setFocusedTs] = createSignal<Ts | null>(null);
@@ -66,11 +66,14 @@ export function createMessageFocus(
   const [moreMenuTs, setMoreMenuTs] = createSignal<Ts | null>(null);
 
   createEffect(
-    () => ({
-      anchor: unreadStore.unreadDividerTsForChannel(channelId()),
-      current: focusedTs(),
-      list: messages(),
-    }),
+    () => {
+      const id = channelId();
+      return {
+        anchor: id && unreadStore.unreadDividerTsForChannel(id),
+        current: focusedTs(),
+        list: messages(),
+      };
+    },
     ({ anchor, current, list }) => {
       if (!list.length) {
         if (current !== null) setFocusedTs(null);

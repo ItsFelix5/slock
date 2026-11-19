@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { User } from "@slock/types";
+import type { ChannelId, User } from "@slock/types";
 import { fuzzySearch } from "@slock/ui";
 import type { Setter } from "solid-js";
 import { fetchBrowsableChannels } from "../../../slack/client/api";
@@ -33,7 +33,7 @@ export type SuggestionOptions = {
   lineCommands?: () => CommandSuggestItem[];
   includeBroadcastMentions?: boolean;
 
-  channelId?: () => string | undefined;
+  channelId?: () => ChannelId | undefined;
 };
 
 const SPECIAL_MENTIONS: Omit<SpecialMentionSuggestItem, "kind">[] = [
@@ -62,7 +62,7 @@ function usergroupItems(triggerKind: "user" | "userlink", query: string): Usergr
     .map((g) => ({ id: g.id, kind: "usergroup", name: stripLeadingAt(g.name) }));
 }
 
-function isChannelBroadcastManager(channelId: string | undefined): boolean {
+function isChannelBroadcastManager(channelId: ChannelId | undefined): boolean {
   if (!channelId) return false;
   const me = usersStore.currentUser();
   if (!me) return false;
@@ -70,7 +70,7 @@ function isChannelBroadcastManager(channelId: string | undefined): boolean {
   return channelsStore.channelManagerIds(channelId)?.has(me.id) ?? false;
 }
 
-type ChannelCandidate = { id: string; name: string; private: boolean };
+type ChannelCandidate = { id: ChannelId; name: string; private: boolean };
 
 export function createStaticSuggestion(
   kind: "command" | "emoji",
@@ -118,7 +118,7 @@ export function updateUserSuggestions(
   const channelId = trigger.kind === "user" ? opts.channelId?.() : undefined;
   const roster = channelId ? channelsStore.channelRosterIds(channelId) : undefined;
   const managerIds = channelId ? channelsStore.channelManagerIds(channelId) : undefined;
-  const canBroadcast = (id: string | undefined) =>
+  const canBroadcast = (id: ChannelId | undefined) =>
     opts.includeBroadcastMentions !== false && isChannelBroadcastManager(id);
   const specials = specialMentionItems(trigger.kind, query, canBroadcast(channelId));
   const groups = usergroupItems(trigger.kind, query);

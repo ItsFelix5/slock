@@ -17,13 +17,13 @@ export function ActivityRemindItem(props: ActivityMenuProps) {
       activityStore.markActivityItemsRead(props.row.items);
   };
   return (
-    <Show when={latest()?.channelId}>
-      {(channelId) => (
+    <Show when={latest()}>
+      {(item) => (
         <RemindMenu
-          channelId={channelId()}
+          channelId={item().channelId}
           close={props.close}
           onRemind={markReminderRead}
-          ts={latest()?.threadTs ?? latest()?.ts ?? ""}
+          ts={item().threadTs ?? item().ts}
         />
       )}
     </Show>

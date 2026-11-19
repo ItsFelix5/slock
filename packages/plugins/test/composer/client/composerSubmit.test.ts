@@ -1,11 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { createHost } from "@slock/core";
+import { parseChannelId } from "@slock/slack";
 import { setHost, solidReactive } from "@slock/core/solid";
 import { partialService } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
 import { createRoot } from "solid-js";
 import { createComposerSubmitHandler } from "../../../src/composer/client/composerSubmit";
-import { createPendingFileState } from "../../../src/composer/client/lib/pendingFiles";
+import {
+  createPendingFileState,
+  createPendingFilesStore,
+} from "../../../src/composer/client/lib/pendingFiles";
 
 const sent: string[] = [];
 let cleared = 0;
@@ -30,7 +34,11 @@ beforeAll(async () => {
     },
     {
       id: "composer",
-      setup: (ctx) => ctx.provide("composer", { uploadOnAttach: () => false }),
+      setup: (ctx) =>
+        ctx.provide("composer", {
+          pendingFiles: createPendingFilesStore(),
+          uploadOnAttach: () => false,
+        }),
     },
     {
       id: "feedback",
@@ -72,11 +80,12 @@ function mountHandler() {
     createPendingFileState({
       disabled: () => false,
       draftKey: () => "C1",
+      store: createPendingFilesStore(),
       uploadOnAttach: () => false,
     }),
   );
   const handler = createComposerSubmitHandler({
-    channelId: () => "C1",
+    channelId: () => parseChannelId("C1"),
     clearDraftAfterSend: () => {
       cleared += 1;
       return Promise.resolve();

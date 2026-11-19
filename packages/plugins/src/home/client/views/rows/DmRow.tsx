@@ -59,7 +59,7 @@ export function DmRow(props: { dm: DirectMessage }) {
             onClick={() => viewStore.setActiveView({ id: props.dm.id, kind: "dm" })}
             {...prefetch}
             onContextMenu={ctxMenu.open}
-            tabIndex={-1}
+            tabindex={-1}
             type="button"
           >
             <Show fallback={<AvatarStack max={3} size="small" users={members()} />} when={user()}>

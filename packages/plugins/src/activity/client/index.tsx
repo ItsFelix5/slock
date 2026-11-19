@@ -2,7 +2,8 @@ import { EmojiText } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Icon } from "@slock/ui";
-import { createEffect, lazy, Show, untrack } from "solid-js";
+import { isTs } from "@slock/slack";
+import { createEffect, lazy, Show } from "solid-js";
 import { createReactionCache } from "./reactionCache";
 import { createActivityStore } from "./store";
 
@@ -23,7 +24,7 @@ function ActivityButton() {
         )}
       </Show>
       <Show when={activity.hasUnreadActivity()}>
-        <span class="sidebar-ping-dot" classList={{ "has-count": activity.unreadPingCount() > 0 }}>
+        <span class={["sidebar-ping-dot", { "has-count": activity.unreadPingCount() > 0 }]}>
           <Show when={activity.unreadPingCount() > 0}>{activity.unreadPingCount()}</Show>
         </span>
       </Show>
@@ -39,6 +40,7 @@ const setup: Setup = (ctx) => {
     cacheResolvedMessages: createReactionCache(messages),
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
+    env: ctx.get("env"),
     isBotUser: (userId) => !!users.userById(userId)?.isBot,
     lastReadByChannel: unread.lastReadByChannel,
     reactionMessageFor: messages.reactionMessageFor,
@@ -50,23 +52,34 @@ const setup: Setup = (ctx) => {
   ctx.provide("activity", store);
   const bootstrap = service("bootstrap");
   const prefs = service("prefs");
-  createEffect(() => {
-    const preferencesSettled = prefs.preferencesReady() || !!bootstrap.userPrefs().error;
-    if (users.currentUser() && preferencesSettled) void untrack(() => store.ensureActivityLoaded());
-  });
+  createEffect(
+    () => !!users.currentUser() && (prefs.preferencesReady() || !!bootstrap.userPrefs().error),
+    (ready) => {
+      if (ready) void store.ensureActivityLoaded();
+    },
+  );
   const conversations = service("conversations");
-  createEffect(() => {
-    const view = conversations.activeView();
-    if (!view) return;
-    const added = store.activityItems.filter(
-      (item) =>
-        item.activityType === "quietly_added_to_channel" &&
-        item.channelId === view.id &&
-        store.isActivityItemUnread(item),
-    );
-    if (added.length) store.markActivityItemsRead(added);
-  });
-  createEffect(() => store.setGatewayActivityBadgeCounts(bootstrap.bootstrap().data?.activityCounts));
+  createEffect(
+    () => {
+      const view = conversations.activeView();
+      if (!view) return [];
+      return store.activityItems.filter(
+        (item) =>
+          item.activityType === "quietly_added_to_channel" &&
+          item.channelId === view.id &&
+          store.isActivityItemUnread(item),
+      );
+    },
+    (added) => {
+      if (added.length) store.markActivityItemsRead(added);
+    },
+  );
+  createEffect(
+    () => bootstrap.bootstrap().data?.activityCounts,
+    (counts) => {
+      store.setGatewayActivityBadgeCounts(counts);
+    },
+  );
   ctx.add("unread.counts", (notifications) => {
     if (store.setGatewayActivityBadgeCounts(notifications)) store.requestActivityRefresh();
   });
@@ -81,6 +94,7 @@ const setup: Setup = (ctx) => {
       if (
         event.type === "thread_marked" &&
         event.thread_ts &&
+        isTs(event.thread_ts) &&
         typeof event.unread_count === "number"
       )
         store.applyThreadMarked(event.thread_ts, event.unread_count);

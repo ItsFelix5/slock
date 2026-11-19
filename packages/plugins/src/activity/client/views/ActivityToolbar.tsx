@@ -17,9 +17,8 @@ export default function ActivityToolbar(props: {
             const count = () => props.tabCount(state.key);
             return (
               <button
-                aria-selected={props.readState === state.key}
-                class="btn-reset"
-                classList={{ active: props.readState === state.key }}
+                aria-selected={props.readState === state.key ? "true" : "false"}
+                class={["btn-reset", { active: props.readState === state.key }]}
                 onClick={() => props.onReadStateChange(state.key)}
                 type="button"
               >
@@ -37,7 +36,7 @@ export default function ActivityToolbar(props: {
         <div aria-label="Activity type" class="activity-type-icons">
           <IconButton
             active={props.selectedTag === "all"}
-            aria-pressed={props.selectedTag === "all"}
+            aria-pressed={props.selectedTag === "all" ? "true" : "false"}
             class="activity-type-button hover-hl"
             icon="list-view"
             iconSize={17}
@@ -48,7 +47,7 @@ export default function ActivityToolbar(props: {
             {(filter) => (
               <IconButton
                 active={props.selectedTag === filter.key}
-                aria-pressed={props.selectedTag === filter.key}
+                aria-pressed={props.selectedTag === filter.key ? "true" : "false"}
                 class="activity-type-button hover-hl"
                 icon={filter.icon}
                 iconSize={17}

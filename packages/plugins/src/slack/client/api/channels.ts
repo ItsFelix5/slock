@@ -9,6 +9,7 @@ import {
   mapFile,
   mapLink,
   mapUser,
+  parseUserId,
 } from "@slock/slack";
 import type {
   BrowsableChannel,
@@ -21,6 +22,7 @@ import type {
   RawFile,
   RawLink,
   RawUser,
+  UserId,
 } from "@slock/types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 import { mapBrowsableChannels } from "./search";
@@ -120,10 +122,10 @@ export async function fetchChannelMembers(
     nextCursor: data.next_marker || undefined,
   };
 }
-export async function fetchChannelManagerIds(channelId: string): Promise<string[]> {
+export async function fetchChannelManagerIds(channelId: string): Promise<UserId[]> {
   const data = await apiGet<{ userIds?: string[] }>(`/api/channels/${channelId}/managers`);
   if (!data.ok) throw new Error(data.error ?? "admin.roles.entity.listAssignments failed");
-  return data.userIds ?? [];
+  return (data.userIds ?? []).map(parseUserId);
 }
 export async function inviteToChannel(channelId: string, userIds: string[]): Promise<void> {
   const data = await apiPost(`/api/channels/${channelId}/members`, { userIds });

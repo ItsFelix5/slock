@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { parseTs } from "@slock/slack";
 import { forAll } from "@slock/core/testing";
 import { bootComposerHost, type ComposerFixture, mountComposer, settle } from "./composerHarness";
 import { editorState } from "./editorStates";
@@ -161,7 +162,7 @@ describe("replies", () => {
     const permalink = "https://x.slack.com/archives/C1/p1700000000000100";
     const reply = await mountComposer({
       replyTo: { onCancel: () => {}, onJump: () => {}, onSent: () => {}, permalink },
-      threadTs: "1700000000.000100",
+      threadTs: parseTs("1700000000.000100"),
     });
     try {
       reply.fill([{ insert: "answer\n" }]);

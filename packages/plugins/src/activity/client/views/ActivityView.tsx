@@ -5,7 +5,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import { createPingCoverage } from "../kinds";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
-import { clearCurrentRow, currentRowKey, openActivityRow } from "./activityRowOpen";
+import { openActivityRow } from "./activityRowOpen";
 import "./ActivityView.css";
 import { createActivityRows } from "./activityRows";
 import {
@@ -26,7 +26,7 @@ const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
 
 export default function ActivityView() {
   let listRef: HTMLDivElement | undefined;
-  onCleanup(clearCurrentRow);
+  onCleanup(() => activityStore.setCurrentRowKey(undefined));
   const [selectedTag, setSelectedTag] = createSignal<Tag | "all">("all");
   const [readState, setReadState] = createSignal<ReadState>("all");
 
@@ -91,7 +91,7 @@ export default function ActivityView() {
 
   sidebarStore.provideCycle(0, () =>
     visibleRows().map((row) => ({
-      active: currentRowKey() === row.key,
+      active: activityStore.currentRowKey() === row.key,
       open: (split) => openActivityRow(row, split),
     })),
   );
@@ -149,29 +149,35 @@ export default function ActivityView() {
 
   let topUpKey: string | undefined;
   let topUpAttempts = 0;
-  createEffect(() => {
-    visibleRows();
-    const types = activeFeedTypes();
-    const unreadOnly = activeUnreadOnly();
-    const key = `${selectedTag()}|${readState()}`;
-    if (key !== topUpKey) {
-      topUpKey = key;
-      topUpAttempts = 0;
-    }
-    const el = scrollRef;
-    if (!el || el.scrollHeight > el.clientHeight) return;
-    if (!(activityStore.activityLoaded() && activityStore.activityHasMore(types, unreadOnly)))
-      return;
-    if (activityStore.activityLoading() || activityStore.activityLoadingMore()) return;
-    if (activityStore.activityLoadMoreError()) return;
-    if (topUpAttempts >= MAX_AUTO_TOP_UP_ATTEMPTS) return;
-    topUpAttempts++;
-    void activityStore.loadMoreActivity(types, unreadOnly);
-  });
+  createEffect(
+    () => {
+      visibleRows();
+      const types = activeFeedTypes();
+      const unreadOnly = activeUnreadOnly();
+      const canLoadMore =
+        activityStore.activityLoaded() &&
+        activityStore.activityHasMore(types, unreadOnly) &&
+        !activityStore.activityLoading() &&
+        !activityStore.activityLoadingMore() &&
+        !activityStore.activityLoadMoreError();
+      return { canLoadMore, key: `${selectedTag()}|${readState()}`, types, unreadOnly };
+    },
+    ({ canLoadMore, key, types, unreadOnly }) => {
+      if (key !== topUpKey) {
+        topUpKey = key;
+        topUpAttempts = 0;
+      }
+      const el = scrollRef;
+      if (!el || el.scrollHeight > el.clientHeight || !canLoadMore) return;
+      if (topUpAttempts >= MAX_AUTO_TOP_UP_ATTEMPTS) return;
+      topUpAttempts++;
+      void activityStore.loadMoreActivity(types, unreadOnly);
+    },
+  );
 
   return (
     <div
-      aria-busy={activityStore.activityLoading()}
+      aria-busy={activityStore.activityLoading() ? "true" : "false"}
       class="activity-view"
       onScroll={handleScroll}
       ref={scrollRef}
@@ -267,8 +273,10 @@ export default function ActivityView() {
 
         <Show when={activityStore.activityHasMore(activeFeedTypes(), activeUnreadOnly())}>
           <div
-            class="activity-load-notice flex-center gap-sm text-dim text-sm"
-            classList={{ "activity-load-idle": !activityStore.activityLoadingMore() }}
+            class={[
+              "activity-load-notice flex-center gap-sm text-dim text-sm",
+              { "activity-load-idle": !activityStore.activityLoadingMore() },
+            ]}
           >
             Loading more…
           </div>

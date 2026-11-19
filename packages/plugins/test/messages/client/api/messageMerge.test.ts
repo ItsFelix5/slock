@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
+import { fid, stamp, uid } from "@slock/slack/testing";
 import type { Message } from "@slock/types";
 import {
   confirmsPending,
@@ -44,7 +45,7 @@ describe("confirmsPending", () => {
   });
 
   test.each([
-    ["other author", confirmed({ userId: "U2" })],
+    ["other author", confirmed({ userId: uid("U2") })],
     ["other text", confirmed({ text: "bye" })],
     ["too late", confirmed({ ts: slackTs(1_700_000_061) })],
     ["too early", confirmed({ ts: slackTs(1_699_999_939) })],
@@ -72,14 +73,14 @@ describe("confirmsPending", () => {
 
 describe("dedupeMessages", () => {
   test("sorts by timestamp as a number", () => {
-    const result = dedupeMessages([message("10.000001"), message("9.999999"), message("100.5")]);
+    const result = dedupeMessages([message(stamp("10.000001")), message(stamp("9.999999")), message(stamp("100.5"))]);
     expect(result.map((m) => m.ts)).toEqual(["9.999999", "10.000001", "100.5"]);
   });
 
   test("the last duplicate wins", () => {
     const result = dedupeMessages([
-      message("5.1", { text: "old" }),
-      message("5.1", { text: "new" }),
+      message(stamp("5.1"), { text: "old" }),
+      message(stamp("5.1"), { text: "new" }),
     ]);
     expect(result.map((m) => m.text)).toEqual(["new"]);
   });
@@ -115,38 +116,38 @@ describe("mergeMessages", () => {
   });
 
   test("fresh data replaces existing messages with the same id", () => {
-    const old = message("5.000001", { text: "old" });
-    const result = mergeMessages([old], [message("5.000001", { text: "edited" })]);
+    const old = message(stamp("5.000001"), { text: "old" });
+    const result = mergeMessages([old], [message(stamp("5.000001"), { text: "edited" })]);
     expect(result.map((m) => m.text)).toEqual(["edited"]);
   });
 
   test("keeps object identity when nothing changed", () => {
-    const existing = message("5.000001");
+    const existing = message(stamp("5.000001"));
     const result = mergeMessages([existing], [{ ...existing }]);
     expect(result[0]).toBe(existing);
   });
 
   test("a deleted flag from history sticks to the known message", () => {
-    const known = message("5.000001", { text: "keep" });
-    const [merged] = mergeMessages([known], [message("5.000001", { deleted: true, text: "" })]);
+    const known = message(stamp("5.000001"), { text: "keep" });
+    const [merged] = mergeMessages([known], [message(stamp("5.000001"), { deleted: true, text: "" })]);
     expect(merged).toEqual({ ...known, deleted: true });
   });
 
   test("history without the flag clears a local deleted mark", () => {
-    const known = message("5.000001", { deleted: true });
-    const [merged] = mergeMessages([known], [message("5.000001")]);
+    const known = message(stamp("5.000001"), { deleted: true });
+    const [merged] = mergeMessages([known], [message(stamp("5.000001"))]);
     expect(merged?.deleted).toBeUndefined();
   });
 
   test("subscription state survives a refresh that lacks it", () => {
-    const known = message("5.000001", { isSubscribed: true });
-    const [merged] = mergeMessages([known], [message("5.000001")]);
+    const known = message(stamp("5.000001"), { isSubscribed: true });
+    const [merged] = mergeMessages([known], [message(stamp("5.000001"))]);
     expect(merged?.isSubscribed).toBe(true);
   });
 
   test("merging a page into an empty list returns it ordered", () => {
-    const page = [message("3.1"), message("1.1"), message("2.1")];
-    expect(mergeMessages([], page).map((m) => m.ts)).toEqual(["1.1", "2.1", "3.1"]);
+    const page = [message(stamp("3.1")), message(stamp("1.1")), message(stamp("2.1"))];
+    expect(mergeMessages([], page).map((m) => m.ts)).toEqual([stamp("1.1"), stamp("2.1"), stamp("3.1")]);
   });
 
   test("output is ordered, unique and contains every fresh message", () => {

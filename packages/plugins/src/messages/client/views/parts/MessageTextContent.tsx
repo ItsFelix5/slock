@@ -68,8 +68,13 @@ export default function MessageTextContent(props: {
         fallback={
           <Show when={props.messageText || props.renderBlocks}>
             <div
-              class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
-              classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
+              class={[
+                "message-text",
+                {
+                  "message-deleted-text": props.msg.deleted,
+                  "message-emoji-only": props.hasEnlargedEmojiOnlyText,
+                },
+              ]}
             >
               <MessageAttachmentsContext value={() => props.msg.attachments}>
                 <TimeAnchorContext

@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { ActivityItem, Block, Message, SlackFile } from "@slock/types";
+import type { ActivityItem, Block, Message, SlackFile, Ts, UserId } from "@slock/types";
 import { createEffect, createMemo, untrack } from "solid-js";
 import type { MessageAuthorFields } from "../../../messages/client/api/messageAuthor";
 
@@ -13,21 +13,26 @@ export interface TimelineEntry {
   isRoot: boolean;
   item?: ActivityItem;
   message?: Message;
-  ts: string;
+  ts: Ts;
 }
 
 export function createActivityTimeline(deps: {
-  currentUserId: () => string | undefined;
+  currentUserId: () => UserId | undefined;
   expanded: () => boolean;
   isThreadGroup: () => boolean;
   items: () => ActivityItem[];
   latest: () => ActivityItem;
-  threadTs: () => string;
+  threadTs: () => Ts;
 }) {
-  createEffect(() => {
-    if (!deps.isThreadGroup()) return;
-    messagesStore.ensureThreadRepliesLoaded(deps.latest().channelId, deps.threadTs());
-  });
+  createEffect(
+    () =>
+      deps.isThreadGroup()
+        ? { channelId: deps.latest().channelId, threadTs: deps.threadTs() }
+        : undefined,
+    (thread) => {
+      if (thread) messagesStore.ensureThreadRepliesLoaded(thread.channelId, thread.threadTs);
+    },
+  );
   const fullThread = createMemo(() =>
     messagesStore.hasMoreReplies(deps.threadTs())
       ? undefined
@@ -35,7 +40,7 @@ export function createActivityTimeline(deps: {
   );
   const orderedItems = createMemo(() => [...deps.items()].reverse());
   const activityByTs = createMemo(() => {
-    const map = new Map<string, ActivityItem>();
+    const map = new Map<Ts, ActivityItem>();
     for (const item of deps.items()) map.set(item.ts, item);
     return map;
   });
@@ -44,9 +49,9 @@ export function createActivityTimeline(deps: {
     deps.items().find((item) => item.kind === "thread_reply" && (item.unreadCount ?? 0) > 1),
   );
 
-  let timelineCache = new Map<string, TimelineEntry>();
+  let timelineCache = new Map<Ts, TimelineEntry>();
   function timelineEntry(
-    ts: string,
+    ts: Ts,
     isRoot: boolean,
     item: ActivityItem | undefined,
     message: Message | undefined,
@@ -76,12 +81,13 @@ export function createActivityTimeline(deps: {
     return entries;
   });
 
-  function entryUserId(entry: TimelineEntry): string {
-    return entry.message?.userId ?? entry.item?.userId ?? "";
+  function entryUserId(entry: TimelineEntry): UserId | undefined {
+    return entry.message?.userId ?? entry.item?.userId;
   }
 
   function entryUnread(entry: TimelineEntry): boolean {
-    if (entryUserId(entry) === deps.currentUserId()) return false;
+    const author = entryUserId(entry);
+    if (author && author === deps.currentUserId()) return false;
     if (entry.item) return activityStore.isActivityItemUnread(entry.item);
     const bundled = bundledItem();
     const list = fullThread();

@@ -2,6 +2,7 @@ import { BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelId, Ts } from "@slock/types";
+import { isChannelId } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import type { View } from "../../conversations/client/api/types";
@@ -109,7 +110,7 @@ const setup: Setup = (ctx) => {
       singleton: false,
       tabLabel,
       url: {
-        parse: (segment) => ({ id: segment, kind: "channel" }),
+        parse: (segment) => (isChannelId(segment) ? { id: segment, kind: "channel" } : null),
         serialize: (content) => (content.kind === "channel" ? content.id : ""),
       },
       view: ConversationView,

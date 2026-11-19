@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { parseUserId } from "@slock/slack";
 import { forAll, int, pick } from "@slock/core/testing";
 import type { User } from "@slock/types";
 import { createRoot } from "solid-js";
@@ -12,7 +13,7 @@ import {
 
 const userIn = (tz: string | undefined, tzLabel?: string): User => ({
   avatarColor: "#000",
-  id: "U1",
+  id: parseUserId("U1"),
   name: "Ann",
   tz,
   tzLabel,

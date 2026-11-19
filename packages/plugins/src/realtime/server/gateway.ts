@@ -30,6 +30,12 @@ const SUBSCRIPTION_TOPICS = ["user_change", "dnd_invalidated"];
 
 const PONG = JSON.stringify({ type: "pong" });
 
+function openSocket(url: string, headers: Record<string, string>): WebSocket {
+  const socket: unknown = Reflect.construct(WebSocket, [url, { headers }]);
+  if (!(socket instanceof WebSocket)) throw new Error("WebSocket constructor returned a non-socket");
+  return socket;
+}
+
 export function statusMessage(connected: boolean): string {
   return JSON.stringify({ connected, type: "_status" });
 }
@@ -139,8 +145,8 @@ export function createGateway(
     if (state.closed || state.gatewaySocket) return;
     let socket: WebSocket;
     try {
-      socket = new WebSocket(buildGatewayUrl(state.creds), {
-        headers: { cookie: `d=${state.creds.slackSession}` },
+      socket = openSocket(buildGatewayUrl(state.creds), {
+        cookie: `d=${state.creds.slackSession}`,
       });
     } catch {
       scheduleGatewayReconnect(state);

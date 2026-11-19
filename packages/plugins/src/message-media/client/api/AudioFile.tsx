@@ -119,7 +119,7 @@ export default function AudioFile(props: { file: SlackFile }) {
               seekTo((event.clientX - rect.left) / rect.width);
             }}
             ref={waveformRef}
-            tabIndex={0}
+            tabindex={0}
           >
             <For each={samples()}>
               {(sample, index) => (

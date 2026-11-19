@@ -134,7 +134,7 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
                   if (e.key === "f") gifs.toggleFavorite(gif);
                 }}
                 role="button"
-                tabIndex={0}
+                tabindex={0}
               >
                 <img alt="" loading="lazy" src={gif.preview} />
                 <IconButton

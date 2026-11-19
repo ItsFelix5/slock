@@ -49,7 +49,7 @@ export default function GlobalSearchResults(props: {
               id={optionId(0)}
               onClick={props.onMessageSearch}
               onMouseEnter={() => props.onActiveIndex(0)}
-              tabIndex={-1}
+              tabindex={-1}
               type="button"
             >
               <span class="global-search-jump-icon">
@@ -70,7 +70,7 @@ export default function GlobalSearchResults(props: {
                       id={optionId(itemIndex())}
                       onClick={() => props.onChannel(channel)}
                       onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                      tabIndex={-1}
+                      tabindex={-1}
                       type="button"
                     >
                       <span class="global-search-jump-icon">
@@ -93,7 +93,7 @@ export default function GlobalSearchResults(props: {
                       id={optionId(itemIndex())}
                       onClick={() => props.onDm(dm)}
                       onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                      tabIndex={-1}
+                      tabindex={-1}
                       type="button"
                     >
                       <AvatarStack max={3} size="small" users={members} />
@@ -110,7 +110,7 @@ export default function GlobalSearchResults(props: {
                     id={optionId(itemIndex())}
                     onClick={() => props.onFile(file)}
                     onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                    tabIndex={-1}
+                    tabindex={-1}
                     type="button"
                   >
                     <span class="global-search-jump-icon">
@@ -131,7 +131,7 @@ export default function GlobalSearchResults(props: {
                     id={optionId(itemIndex())}
                     onClick={() => props.onPerson(user.id)}
                     onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                    tabIndex={-1}
+                    tabindex={-1}
                     type="button"
                   >
                     <Avatar size="small" user={user} />

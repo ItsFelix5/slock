@@ -1,9 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { ChannelSection, UserPrefs } from "@slock/types";
-import { createQuery } from "@tanstack/solid-query";
 import { createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import {
   createSection as apiCreateSection,
   deleteSection as apiDeleteSection,
@@ -18,10 +16,9 @@ import {
   setSectionCollapsedPreference,
   setSectionSidebarPreference,
 } from "../api/sectionMutations";
+import { createFlags } from "./flags";
 
 const feedback = service("feedback");
-const query = service("query");
-const sectionsKey = defineKey("channelSections");
 
 export function createChannelSections(deps: {
   userPrefs: () => UserPrefs | undefined;
@@ -33,26 +30,22 @@ export function createChannelSections(deps: {
     sectionsLoaded = true;
     return load();
   };
-  const rawSections = createQuery(
-    () => ({ queryFn: loadSections, queryKey: sectionsKey() }),
-    () => query.client,
-  );
-  const mutateSections = (next: ChannelSection[]) => query.client.setQueryData(sectionsKey(), next);
+  const sectionsQuery = defineQuery<null, ChannelSection[]>({
+    load: loadSections,
+    name: "channelSections",
+  });
+  const rawSections = sectionsQuery.state(() => null);
+  const mutateSections = (next: ChannelSection[]) => sectionsQuery.set(null, next);
   const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
-  const [sectionSidebarPendingById, setSectionSidebarPending] = createStore<
-    Record<string, boolean>
-  >({});
-  function setSectionSidebarPendingById(sectionId: string, pending: boolean) {
-    setSectionSidebarPending((draft) => {
-      draft[sectionId] = pending;
-    });
-  }
+  const sidebarPending = createFlags<string>();
+  const setSectionSidebarPendingById = sidebarPending.set;
   async function refreshSections() {
-    return (await rawSections.refetch()).data;
+    return sectionsQuery.refresh(null).catch(() => undefined);
   }
 
   const sections = createMemo(() => {
-    const list = rawSections.error ? undefined : rawSections.data;
+    const { data: list, error } = rawSections();
+    if (error) return undefined;
     if (!list) return list;
     const prefs = deps.userPrefs();
     const sectionSort = prefs?.sectionSort ?? {};
@@ -127,7 +120,7 @@ export function createChannelSections(deps: {
   }
 
   function isSectionSidebarPending(sectionId: string): boolean {
-    return !!sectionSidebarPendingById[sectionId];
+    return sidebarPending.has(sectionId);
   }
 
   async function setChannelSectionSidebar(
@@ -248,8 +241,8 @@ export function createChannelSections(deps: {
     setChannelSectionSidebar,
     setSectionStructurePending,
     sections,
-    sectionsError: () => rawSections.error,
-    sectionsLoading: () => rawSections.isFetching && rawSections.data === undefined,
+    sectionsError: () => rawSections().error,
+    sectionsLoading: () => rawSections().data === undefined && rawSections().error === undefined,
     toggleCategoryCollapsed,
     toggleSectionFilter,
   };

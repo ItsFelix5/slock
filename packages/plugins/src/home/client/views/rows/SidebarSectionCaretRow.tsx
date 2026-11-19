@@ -21,7 +21,7 @@ export function SidebarSectionCaretRow(props: {
         class="sidebar-caret btn-reset icon-shift"
         data-nav-row
         onClick={props.onToggleOpen}
-        tabIndex={-1}
+        tabindex={-1}
         type="button"
       >
         <Icon
@@ -36,7 +36,7 @@ export function SidebarSectionCaretRow(props: {
             class="btn-reset text-muted text-sm"
             data-nav-row
             onClick={onLabelClick()}
-            tabIndex={-1}
+            tabindex={-1}
             type="button"
           >
             {props.label}

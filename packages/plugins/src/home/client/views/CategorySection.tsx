@@ -98,7 +98,7 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
               class="sidebar-section-rename-input"
               onBlur={() => void sections().commitRename()}
               onInput={(e) => sections().setRenameValue(e.currentTarget.value)}
-              readOnly={sections().sectionStructurePending()}
+              readonly={sections().sectionStructurePending()}
               value={sections().renameValue()}
             />
           }

@@ -1,19 +1,42 @@
 import type { PluginDef } from "@slock/core";
 import { partialService } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
+import { parseChannelId, parseUserId } from "@slock/slack";
+import type { Channel, User, UserId } from "@slock/types";
+import { createMemo, createRoot } from "solid-js";
+import { createPendingFilesStore } from "../../../src/composer/client/lib/pendingFiles";
 import { emojiAutoconvert } from "../../../src/emoji/client/api/emojiAutoconvert";
 import { createEmojiIndex } from "../../../src/emoji/client/api/emojiSearch";
 
-export const ME = { avatarColor: "#000", id: "U0", name: "me" };
-export const USERS = [
+export const ME: User = { avatarColor: "#000", id: parseUserId("U0"), name: "me" };
+export const USERS: User[] = [
   ME,
-  { avatarColor: "#000", id: "U1", name: "ann" },
-  { avatarColor: "#000", id: "U2", name: "bob" },
+  { avatarColor: "#000", id: parseUserId("U1"), name: "ann" },
+  { avatarColor: "#000", id: parseUserId("U2"), name: "bob" },
 ];
-export const CHANNELS = [
-  { archived: false, id: "C1", name: "general", private: false, topic: "", unread: false },
-  { archived: false, id: "C2", name: "dev", private: false, topic: "", unread: false },
+export const CHANNELS: Channel[] = [
+  {
+    archived: false,
+    id: parseChannelId("C1"),
+    name: "general",
+    private: false,
+    topic: "",
+    unread: false,
+  },
+  {
+    archived: false,
+    id: parseChannelId("C2"),
+    name: "dev",
+    private: false,
+    topic: "",
+    unread: false,
+  },
 ];
+const USER_IDS = new Set<UserId>(USERS.map((user) => user.id));
+
+export function sourceOf<T>(value: T) {
+  return createRoot(() => createMemo(() => value));
+}
 const USERGROUPS = [{ id: "S1", name: "@devs" }];
 
 export interface SentMessage {
@@ -56,14 +79,16 @@ export function composerServices(outbox: Outbox): PluginDef[] {
     provide(
       "slash-commands",
       partialService<Services["slash-commands"]>({
+        available: () => [],
         handleSlashCommand: () => Promise.resolve({ handled: false, succeeded: false }),
+        load: () => Promise.resolve([]),
       }),
     ),
     provide(
       "users",
       partialService<Services["users"]>({
-        currentUser: () => ME,
-        knownUsers: () => USERS,
+        currentUser: sourceOf<User | undefined>(ME),
+        knownUsers: sourceOf(USERS),
         searchUsers: () => Promise.resolve([]),
         userById: (id) => USERS.find((user) => user.id === id),
       }),
@@ -72,11 +97,11 @@ export function composerServices(outbox: Outbox): PluginDef[] {
       "channels",
       partialService<Services["channels"]>({
         channelById: (id) => CHANNELS.find((channel) => channel.id === id),
-        channelManagerIds: () => new Set<string>(),
-        channelRosterIds: () => new Set(USERS.map((user) => user.id)),
-        channels: () => CHANNELS,
-        ensureChannelManagers: () => Promise.resolve(new Set<string>()),
-        ensureChannelRoster: () => Promise.resolve(new Set(USERS.map((user) => user.id))),
+        channelManagerIds: () => new Set<UserId>(),
+        channelRosterIds: () => USER_IDS,
+        channels: sourceOf(CHANNELS),
+        ensureChannelManagers: () => Promise.resolve(new Set<UserId>()),
+        ensureChannelRoster: () => Promise.resolve(USER_IDS),
         isChannelMember: () => true,
       }),
     ),
@@ -97,8 +122,11 @@ export function composerServices(outbox: Outbox): PluginDef[] {
         usedEmojiNames: () => [],
       }),
     ),
-    provide("templates", partialService<Services["templates"]>({ templates: () => [] })),
-    provide("composer", { uploadOnAttach: () => false }),
+    provide("templates", partialService<Services["templates"]>({ templates: sourceOf([]) })),
+    provide("composer", {
+      pendingFiles: createPendingFilesStore(),
+      uploadOnAttach: () => false,
+    }),
     { id: "emoji", setup: (ctx) => ctx.provide("emoji", createEmojiIndex()) },
     { id: "emoji-autoconvert", setup: (ctx) => ctx.add("composer.editor", emojiAutoconvert) },
   ];

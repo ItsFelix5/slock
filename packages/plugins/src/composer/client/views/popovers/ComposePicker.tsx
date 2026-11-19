@@ -131,7 +131,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
                 id={optionId(index())}
                 onClick={() => props.onSelect(item.id)}
                 onMouseEnter={() => setActiveIndex(index())}
-                tabIndex={-1}
+                tabindex={-1}
                 type="button"
               >
                 {props.renderItem(item, activeIndex() === index(), optionId(index()))}

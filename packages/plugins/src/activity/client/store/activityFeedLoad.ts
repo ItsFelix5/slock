@@ -1,15 +1,17 @@
-import { defined, type Env } from "@slock/core";
+import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
-import { createSignal, onCleanup } from "solid-js";
-import { createStore, produce, type SetStoreFunction } from "solid-js";
+import { createSignal, createStore, onCleanup } from "solid-js";
 import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, NO_USER, reactionActivityKey } from "../kinds";
+import type { ActivityItems } from "./activityItems";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import { createEntryResolution } from "./entryResolution";
 
 const LIVE_ACTIVITY_REFRESH_DELAY_MS = 250;
 
+type FetchStatus = "idle" | "loading" | "error";
+
 export function createActivityFeedLoad(deps: {
-  activityItems: ActivityItem[];
+  items: ActivityItems;
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   currentUser: () => User | undefined;
   env: Env;
@@ -31,7 +33,6 @@ export function createActivityFeedLoad(deps: {
   isBotUser?: (userId: UserId) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
-  setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
   const { createEntryPusher, resolvePendingEntries } = createEntryResolution({
     cacheResolvedMessages: deps.cacheResolvedMessages,
@@ -41,16 +42,14 @@ export function createActivityFeedLoad(deps: {
     isBotUser: deps.isBotUser,
     onReactionPushed: deps.onReactionPushed,
     resolveActivityEntry: deps.resolveActivityEntry,
-    setActivityItems: deps.setActivityItems,
+    items: deps.items,
   });
 
-  const [activityLoading, setActivityLoading] = createSignal(false);
+  const [loadStatus, setLoadStatus] = createSignal<FetchStatus>("idle");
+  const [moreStatus, setMoreStatus] = createSignal<FetchStatus>("idle");
   const [activityLoaded, setActivityLoaded] = createSignal(false);
-  const [activityLoadError, setActivityLoadError] = createSignal(false);
   const [activityHasMore, setActivityHasMore] = createSignal(true);
-  const [activityLoadingMore, setActivityLoadingMore] = createSignal(false);
-  const [activityLoadMoreError, setActivityLoadMoreError] = createSignal(false);
-  const isFetching = () => activityLoading() || activityLoadingMore();
+  let fetching = false;
   let activityFeedCursor: string | undefined;
 
   const scopedActivityFeedCursors = new Map<string, string | undefined>();
@@ -82,70 +81,69 @@ export function createActivityFeedLoad(deps: {
   }
 
   async function refreshActivityFeed() {
-    if (isFetching()) return;
+    if (fetching) return;
     const me = deps.currentUser();
     if (!me) return;
-    setActivityLoading(true);
-    setActivityLoadError(false);
+    fetching = true;
+    setLoadStatus("loading");
     try {
       const { entries, nextCursor } = await deps.fetchActivityFeedEntries();
       activityFeedCursor = nextCursor;
       setActivityHasMore(!!nextCursor);
-      const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.activityItems);
+      const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.items.list);
       const pending = entries.filter((entry) => !seen.has(entry.id));
 
-      const knownTimes = new Map(deps.activityItems.map((item) => [item.id, item.time]));
+      const knownTimes = new Map(deps.items.list.map((item) => [item.id, item.time]));
       const stale = entries.filter((entry) => entry.time > (knownTimes.get(entry.id) ?? Infinity));
-      const { push } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
+      const { push, pushed } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
       if (stale.length) {
         const toFetch = stale.filter((entry) => entry.channelId !== NO_CHANNEL);
         const batch = await deps.fetchMessagesByIds(toFetch);
         if (batch.size) deps.cacheResolvedMessages?.(batch);
-        deps.setActivityItems(
-          produce((list) => {
-            for (const entry of stale) {
-              const index = list.findIndex((i) => i.id === entry.id);
-              if (index === -1) continue;
-              const resolved = deps.resolveActivityEntry(entry, batch);
-              if (resolved.time < defined(list[index]).time) continue;
-              if (isOwnOrUnresolved(resolved, me)) {
-                list.splice(index, 1);
-                continue;
-              }
-
-              Object.assign(defined(list[index]), {
-                ...resolved,
-                text: resolved.text || defined(list[index]).text,
-                userId: resolved.userId === NO_USER ? defined(list[index]).userId : resolved.userId,
-              });
+        deps.items.update((list) => {
+          for (const entry of stale) {
+            const index = list.findIndex((i) => i.id === entry.id);
+            const known = list[index];
+            if (!known) continue;
+            const resolved = deps.resolveActivityEntry(entry, batch);
+            if (resolved.time < known.time) continue;
+            if (isOwnOrUnresolved(resolved, me)) {
+              list.splice(index, 1);
+              continue;
             }
-            list.sort((a, b) => b.time - a.time);
-          }),
-        );
+            Object.assign(known, {
+              ...resolved,
+              text: resolved.text || known.text,
+              userId: resolved.userId === NO_USER ? known.userId : resolved.userId,
+            });
+          }
+          list.sort((a, b) => b.time - a.time);
+        });
       }
       setActivityLoaded(true);
-      void deps.backfillMissingReadCursors(deps.activityItems);
+      setLoadStatus("idle");
+      void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
     } catch (err) {
       console.error("Failed to load activity", err);
-      setActivityLoadError(true);
+      setLoadStatus("error");
     } finally {
-      setActivityLoading(false);
+      fetching = false;
     }
   }
 
   async function ensureActivityLoaded() {
-    if (activityLoaded() || activityLoadError()) return;
+    if (activityLoaded() || loadStatus() === "error") return;
     await refreshActivityFeed();
   }
 
   async function loadMoreActivity(types?: string, unreadOnly?: boolean) {
     const scopeKey = activityFeedScopeKey(types, unreadOnly);
-    if (!activityLoaded() || isFetching() || !activityHasMoreFor(types, unreadOnly)) return;
+    if (!activityLoaded() || fetching || !activityHasMoreFor(types, unreadOnly)) return;
     const me = deps.currentUser();
     if (!me) return;
-    setActivityLoadingMore(true);
-    setActivityLoadMoreError(false);
+    fetching = true;
+    setMoreStatus("loading");
     try {
       const cursor = scopeKey ? scopedActivityFeedCursors.get(scopeKey) : activityFeedCursor;
       const { entries, nextCursor } = await deps.fetchActivityFeedEntries(
@@ -157,25 +155,29 @@ export function createActivityFeedLoad(deps: {
       if (scopeKey) scopedActivityFeedCursors.set(scopeKey, nextCursor);
       else activityFeedCursor = nextCursor;
       const hasMore = !!nextCursor && entries.length > 0;
-      if (scopeKey) setScopedActivityHasMore(scopeKey, hasMore);
+      if (scopeKey)
+        setScopedActivityHasMore((scoped) => {
+          scoped[scopeKey] = hasMore;
+        });
       else setActivityHasMore(hasMore);
-      const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.activityItems);
+      const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.items.list);
       const pending = entries.filter((entry) => !seen.has(entry.id));
-      const { push } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
+      const { push, pushed } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
       await resolvePendingEntries(pending, seen, seenChannelPosts, push);
-      void deps.backfillMissingReadCursors(deps.activityItems);
+      setMoreStatus("idle");
+      void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
     } catch (err) {
       console.error("Failed to load more activity", err);
-      setActivityLoadMoreError(true);
+      setMoreStatus("error");
     } finally {
-      setActivityLoadingMore(false);
+      fetching = false;
     }
   }
 
   const liveRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
     env: deps.env,
-    isLoading: isFetching,
+    isLoading: () => fetching,
     refresh: refreshActivityFeed,
   });
 
@@ -185,10 +187,10 @@ export function createActivityFeedLoad(deps: {
   return {
     activityHasMore: activityHasMoreFor,
     activityLoaded,
-    activityLoading,
-    activityLoadError,
-    activityLoadingMore,
-    activityLoadMoreError,
+    activityLoading: () => loadStatus() === "loading",
+    activityLoadError: () => loadStatus() === "error",
+    activityLoadingMore: () => moreStatus() === "loading",
+    activityLoadMoreError: () => moreStatus() === "error",
     ensureActivityLoaded,
     loadMoreActivity,
     requestActivityRefresh,

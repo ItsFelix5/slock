@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
+import { parseUserId } from "@slock/slack";
 import { partialService, seededRandom } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
 import type { Block } from "@slock/types";
@@ -19,7 +20,7 @@ beforeAll(async () => {
         ctx.provide(
           "users",
           partialService<Services["users"]>({
-            userById: (id) => ({ avatarColor: "#000", id, name: `user-${id}` }),
+            userById: (id) => ({ avatarColor: "#000", id: parseUserId(id), name: `user-${id}` }),
           }),
         ),
     },
