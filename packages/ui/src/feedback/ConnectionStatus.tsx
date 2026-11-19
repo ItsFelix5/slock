@@ -26,17 +26,19 @@ export default function ConnectionStatus(props: {
     onCleanup(() => clearTimeout(timer));
   });
 
+  const shown = () => visible() && props.state !== "connected";
   return (
-    <Show when={visible() && props.state !== "connected"}>
-      <div class="connection-status surface-popover flex-align-center gap-sm">
-        <Icon name={props.state === "offline" ? "cloud-offline" : "refresh"} size={15} />
-        <span>{props.state}</span>
-        <Show when={props.state === "reconnecting"}>
-          <button class="connection-status-retry" onClick={props.onRetry} type="button">
-            Retry now
-          </button>
-        </Show>
-      </div>
-    </Show>
+    <div
+      class="connection-status surface-popover flex-align-center gap-sm"
+      classList={{ "connection-status-shown": shown() }}
+    >
+      <Icon name={props.state === "offline" ? "cloud-offline" : "refresh"} size={15} />
+      <span>{props.state}</span>
+      <Show when={props.state === "reconnecting"}>
+        <button class="connection-status-retry" onClick={props.onRetry} type="button">
+          Retry now
+        </button>
+      </Show>
+    </div>
   );
 }

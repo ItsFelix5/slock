@@ -15,7 +15,9 @@ function MediaBody(props: MessageBodyProps) {
         {(files) => <PendingFiles files={files()} />}
       </Show>
       <MessageAttachmentList
-        attachments={props.attachments}
+        attachments={
+          props.isEditing ? props.attachments?.filter((a) => a.id === undefined) : props.attachments
+        }
         channelId={props.channelId}
         msg={props.msg}
       />

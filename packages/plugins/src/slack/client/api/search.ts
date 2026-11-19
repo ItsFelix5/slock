@@ -15,6 +15,7 @@ export function mapBrowsableChannels(items: RawChannel[]): BrowsableChannel[] {
         !(
           channel.is_archived ||
           channel.is_member ||
+          channel.is_private ||
           channel.is_mpim ||
           channel.is_im ||
           channel.is_record_channel ||

@@ -1,7 +1,3 @@
-:root {
-  --reply-reference-indent: 34px;
-}
-
 .reply-reference-row {
   position: relative;
   container-type: inline-size;
@@ -16,8 +12,13 @@
 
 .reply-reference-row,
 .reply-reference-anchor {
-  width: calc(100% - var(--reply-reference-indent));
-  margin: var(--space-xs) 0 -2px var(--reply-reference-indent);
+  --reply-reference-indent: calc(
+    var(--message-row-inline-start) +
+    var(--message-avatar-size) +
+    var(--message-row-avatar-gap)
+  );
+  width: calc(100% - var(--reply-reference-indent) - var(--message-row-inline-end));
+  margin: var(--space-xs) var(--message-row-inline-end) -2px var(--reply-reference-indent);
 }
 
 .reply-reference-row::before {

@@ -1,5 +1,5 @@
-import { children, type JSX } from "solid-js";
-import { useHoverIntent } from "../useHoverIntent";
+import { children, type JSX, Show } from "solid-js";
+import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";
 import "./Tooltip.css";
 
@@ -12,33 +12,45 @@ export interface TooltipProps {
   placement?: VerticalPlacement;
 }
 
-export default function Tooltip(props: TooltipProps) {
-  let anchorRef: HTMLSpanElement | undefined;
-  const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+function TooltipBubble(
+  props: TooltipProps & { anchor: () => HTMLElement | undefined; onScroll: () => void },
+) {
   const content = children(() => props.content);
-
-  const showable = () => !props.disabled && !!content();
-
   return (
-    <span
-      class={`tooltip-anchor${props.class ? ` ${props.class}` : ""}`}
-      onFocusIn={(event) => showable() && event.target.matches(":focus-visible") && scheduleOpen()}
-      onFocusOut={scheduleClose}
-      onMouseEnter={() => showable() && scheduleOpen()}
-      onMouseLeave={scheduleClose}
-      ref={anchorRef}
-    >
-      {props.children}
+    <Show when={content()}>
       <FloatingPanel
         align={props.align ?? "center"}
-        anchor={() => anchorRef}
+        anchor={props.anchor}
         class="tooltip-bubble"
-        onScroll={close}
-        open={open() && showable()}
+        onScroll={props.onScroll}
+        open
         placement={props.placement ?? "top"}
       >
         {content()}
       </FloatingPanel>
+    </Show>
+  );
+}
+
+export default function Tooltip(props: TooltipProps) {
+  let anchorRef: HTMLSpanElement | undefined;
+  const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+
+  return (
+    <span
+      class={`tooltip-anchor${props.class ? ` ${props.class}` : ""}`}
+      onFocusIn={(event) =>
+        !props.disabled && event.target.matches(":focus-visible") && scheduleOpen()
+      }
+      onFocusOut={scheduleClose}
+      onMouseEnter={() => !props.disabled && scheduleOpen()}
+      onMouseLeave={scheduleClose}
+      ref={anchorRef}
+    >
+      {props.children}
+      <Show when={open() && !props.disabled}>
+        <TooltipBubble {...props} anchor={() => anchorRef} onScroll={close} />
+      </Show>
     </span>
   );
 }

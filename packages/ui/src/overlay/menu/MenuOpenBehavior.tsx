@@ -1,6 +1,6 @@
-import { useClickOutside } from "../../useClickOutside";
-import { useCancelShortcut, useEscapeClose } from "../../useEscapeClose";
-import { inside } from "../../useShortcut";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import { useCancelShortcut, useEscapeClose } from "../../hooks/useEscapeClose";
+import { inside } from "../../hooks/useShortcut";
 import type { createMenuRovingFocus } from "./rovingMenuFocus";
 import { useMenuShortcuts } from "./rovingMenuFocus";
 

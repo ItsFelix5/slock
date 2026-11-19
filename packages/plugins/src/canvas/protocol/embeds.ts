@@ -6,7 +6,6 @@ export type CanvasEmbed =
   | { ms: number; type: "date" }
   | { shortcode: string; type: "emoji" }
   | { userId: string; type: "user" }
-  | { durationMs: number; type: "video" }
   | { type: "unknown" };
 
 const REF_PREFIX_RE = /^s[a-z]:/;
@@ -39,10 +38,5 @@ export function parseEmbedRecord(msg: RawMessage): CanvasEmbed {
   const file = content && asMessage(field(content, 54));
   if (file)
     return { fileId: (asString(field(file, 2)) ?? "").replace(REF_PREFIX_RE, ""), type: "file" };
-  const video = content && asMessage(field(content, 7));
-  if (video) {
-    const durationMs = field(msg, 2)?.varint;
-    return { durationMs: durationMs === undefined ? 0 : Number(durationMs), type: "video" };
-  }
   return { type: "unknown" };
 }

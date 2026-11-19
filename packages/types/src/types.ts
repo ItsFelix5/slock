@@ -1,7 +1,7 @@
-import type { Block } from "./blocks";
+import type { Block } from "./blocks/blocks";
 import type { Attachment, PendingFile, SlackFile } from "./fileTypes";
-import type { RawMessage } from "./rawTypes";
 import type { User } from "./userTypes";
+import type { RawMessage } from "./wire/rawTypes";
 
 export interface CanvasListItem {
   fileId: string;

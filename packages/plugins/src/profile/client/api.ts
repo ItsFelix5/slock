@@ -6,8 +6,11 @@ export type ProfilePaneContent = PaneContentOf<"profile">;
 
 export type ProfileMetaProps = { user: User };
 
+export type ProfileHoverProps = { userId: string; close(): void };
+
 declare module "@slock/core/types" {
   interface Points {
+    "profile.hoverAction": Component<ProfileHoverProps>;
     "profile.meta": Component<ProfileMetaProps>;
   }
 }

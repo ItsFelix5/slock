@@ -8,8 +8,24 @@
   font-size: var(--font-size-meta);
   color: var(--text-primary);
   text-align: center;
-  transform: translateX(-50%);
   text-transform: capitalize;
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  visibility: hidden;
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out,
+    visibility 0s linear 160ms;
+}
+
+.connection-status-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out,
+    visibility 0s;
 }
 
 .connection-status-retry {

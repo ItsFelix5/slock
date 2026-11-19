@@ -29,6 +29,10 @@ beforeAll(async () => {
         ),
     },
     {
+      id: "composer",
+      setup: (ctx) => ctx.provide("composer", { uploadOnAttach: () => false }),
+    },
+    {
       id: "feedback",
       setup: (ctx) =>
         ctx.provide("feedback", partialService<Services["feedback"]>({ flash: () => {} })),
@@ -65,7 +69,11 @@ function mountHandler() {
     },
   };
   const pendingFiles = createRoot(() =>
-    createPendingFileState({ disabled: () => false, draftKey: () => "C1" }),
+    createPendingFileState({
+      disabled: () => false,
+      draftKey: () => "C1",
+      uploadOnAttach: () => false,
+    }),
   );
   const handler = createComposerSubmitHandler({
     channelId: () => "C1",
@@ -86,6 +94,7 @@ function mountHandler() {
     },
     onSent: () => {},
     pendingFiles,
+    removedAttachmentIds: () => [],
     replyTo: () => undefined,
     sending: () => false,
     setExistingFiles: () => {},

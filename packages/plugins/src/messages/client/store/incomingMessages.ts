@@ -1,6 +1,5 @@
 import { isHiddenSubtype, mapMessage } from "@slock/slack";
 import type { Channel, DirectMessage, GatewayMessageEvent, Message, User } from "@slock/types";
-import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import { isPendingMessage } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
@@ -28,7 +27,7 @@ type IncomingMessageDeps = {
   setThreadMessages: (threadTs: string, updater: (existing?: Message[]) => Message[]) => void;
   setUnreadChannelIds: (id: string, unread: boolean) => void;
   threadMessages: Record<string, Message[]>;
-  visibleViews: () => View[];
+  isViewed: (channelId: string) => boolean;
 };
 
 export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
@@ -148,8 +147,9 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     if (
       me &&
       msg.userId !== me.id &&
+      msg.kind !== "system" &&
       !isThreadReply &&
-      !deps.visibleViews().some((v) => v.id === channel)
+      !deps.isViewed(channel)
     ) {
       deps.setUnreadChannelIds(channel, true);
     }

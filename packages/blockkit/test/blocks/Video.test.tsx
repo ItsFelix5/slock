@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { VideoBlock } from "@slock/types";
+import { imageSrc } from "@slock/ui";
 import Video from "../../src/blocks/Video";
 import { attrs, count, mount, unmountAll } from "../../src/domTesting";
 
@@ -39,7 +40,7 @@ describe("Video block", () => {
       <Video block={block({ provider_icon_url: "https://img.example.com/i.png" })} />
     ));
     expect(attrs(host, "img.bk-video-provider-icon", "src")).toEqual([
-      "https://img.example.com/i.png",
+      imageSrc("https://img.example.com/i.png"),
     ]);
   });
 

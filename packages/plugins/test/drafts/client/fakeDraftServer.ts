@@ -41,7 +41,12 @@ export function fakeDraftServer(initial: DraftEntry[] = []) {
       state.drafts = [...state.drafts.filter((d) => d.id !== id), entry];
       return reply({ id, lastUpdatedTs: entry.lastUpdatedTs });
     }
-    state.drafts = state.drafts.filter((d) => d.id !== path.split("/").pop());
+    const id = path.split("/").pop();
+    const target = state.drafts.find((d) => d.id === id);
+    if (target && Number(body.lastUpdatedTs ?? 0) < Number(target.lastUpdatedTs)) {
+      return Response.json({ error: "draft_has_conflict", ok: false }, { status: 502 });
+    }
+    state.drafts = state.drafts.filter((d) => d.id !== id);
     return reply({});
   };
   globalThis.fetch = Object.assign(handler, { preconnect: () => {} });

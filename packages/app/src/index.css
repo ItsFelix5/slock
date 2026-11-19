@@ -20,6 +20,10 @@ body {
   background: var(--main-bg);
 }
 
+::selection {
+  background: var(--selection-bg);
+}
+
 button {
   font-family: inherit;
   cursor: pointer;

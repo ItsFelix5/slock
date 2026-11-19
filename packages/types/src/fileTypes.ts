@@ -1,4 +1,4 @@
-import type { Block } from "./blocks";
+import type { Block } from "./blocks/blocks";
 
 export interface SlackFile {
   created?: number;

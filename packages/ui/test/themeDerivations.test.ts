@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
-import { addThemeColorDefinitions, themeColorVar } from "../src/themeColorRegistry";
+import { addThemeColorDefinitions, themeColorVar } from "../src/theme/themeColorRegistry";
 import {
   type ColorRef,
   colorRefToCss,
@@ -8,7 +8,7 @@ import {
   isColorRef,
   parseColorRef,
   resolveThemeColorValue,
-} from "../src/themeDerivations";
+} from "../src/theme/themeDerivations";
 
 const sources = ["accent", "textPrimary", "mainBg", "accentHover"];
 
@@ -75,8 +75,8 @@ describe("colorRefToCss", () => {
   });
 
   test("stops resolving once the definition is removed", () => {
-    addThemeColorDefinitions([{ key: "accentHover", label: "Hover" }])();
-    expect(colorRefToCss("@accentHover")).toBe("@accentHover");
+    addThemeColorDefinitions([{ key: "removedColor", label: "Hover" }])();
+    expect(colorRefToCss("@removedColor")).toBe("@removedColor");
   });
 });
 

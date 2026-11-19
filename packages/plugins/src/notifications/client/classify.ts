@@ -34,7 +34,7 @@ export function classifyNotification(
   if (channelId.startsWith("D")) return "dm";
   if (launchParams.has("thread_ts")) return "thread_reply";
   if (BROADCAST_MENTION.test(text)) return "channel_mention";
-  if (matchesPingword) return "keyword";
   if (isNotifyAll) return "channel_all";
+  if (matchesPingword) return "keyword";
   return "mention";
 }

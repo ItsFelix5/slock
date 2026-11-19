@@ -1,14 +1,15 @@
-import { For, type JSX, Show } from "solid-js";
-import Icon from "../media/Icon";
+import { createMemo, For, type JSX, Show } from "solid-js";
 import "./PaneRow.css";
 import { defined } from "@slock/core";
 
-import { useTabStripShortcuts } from "../useNavShortcuts";
+import { useTabStripShortcuts } from "../hooks/useNavShortcuts";
 import PaneDivider from "./PaneDivider";
+import PaneTab from "./PaneTab";
 import { MIN_FRACTION, type Pane } from "./paneList";
 import { distributeResize } from "./resize";
 
 export const MIN_PANE_WIDTH = 430;
+const MAX_WARM_TABS = 4;
 
 function isNarrowPaneRow(containerWidth: number, paneCount: number): boolean {
   return containerWidth > 0 && containerWidth < paneCount * MIN_PANE_WIDTH;
@@ -51,6 +52,16 @@ export default function PaneRow<T>(props: PaneLayoutProps<T>) {
     return wanted ?? defined(panes[panes.length - 1]);
   };
 
+  const warmIds = createMemo<string[]>((previous) => {
+    const id = activePane().id;
+    const live = new Set(props.panes.map((p) => p.id));
+    return [id, ...previous.filter((other) => other !== id && live.has(other))].slice(
+      0,
+      MAX_WARM_TABS,
+    );
+  }, []);
+  const mounted = (pane: Pane<T>) => !tabbed() || warmIds().includes(pane.id);
+
   return (
     <div class="pane-row" classList={{ "pane-row-tabbed": tabbed() }}>
       <Show when={tabbed()}>
@@ -67,48 +78,23 @@ export default function PaneRow<T>(props: PaneLayoutProps<T>) {
                 props.onCloseTab?.(pane);
               };
               return (
-                <div
-                  class="pane-tab-wrap flex-align-center"
-                  classList={{ active: isActive() }}
-                  onAuxClick={(event) => {
-                    if (event.button !== 1 || !props.onCloseTab) return;
-                    event.preventDefault();
-                    closeTab();
+                <PaneTab
+                  active={isActive()}
+                  hasOthers={props.panes.length > 1}
+                  onActivate={() => props.onActivate(pane.id)}
+                  onClose={props.onCloseTab && closeTab}
+                  onCloseOthers={() => {
+                    props.onActivate(pane.id);
+                    for (const other of props.panes.filter((p) => p.id !== pane.id)) {
+                      props.onCloseTab?.(other);
+                    }
                   }}
-                  onMouseDown={(event) => {
-                    if (event.button === 1) event.preventDefault();
+                  tabRef={(el) => {
+                    tabButtonRefs[i()] = el;
                   }}
                 >
-                  <button
-                    aria-selected={isActive()}
-                    class="pane-tab truncate btn-reset"
-                    classList={{ active: isActive() }}
-                    onClick={() => props.onActivate(pane.id)}
-                    ref={(el) => {
-                      tabButtonRefs[i()] = el;
-                    }}
-                    role="tab"
-                    tabIndex={isActive() ? 0 : -1}
-                    type="button"
-                  >
-                    {props.tabLabel?.(pane)}
-                  </button>
-                  <Show when={props.onCloseTab}>
-                    {(_onCloseTab) => (
-                      <button
-                        aria-label="Close tab"
-                        class="pane-tab-close btn-reset flex-center hover-hl"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          closeTab();
-                        }}
-                        type="button"
-                      >
-                        <Icon name="close" size={12} />
-                      </button>
-                    )}
-                  </Show>
-                </div>
+                  {props.tabLabel?.(pane)}
+                </PaneTab>
               );
             }}
           </For>
@@ -125,7 +111,7 @@ export default function PaneRow<T>(props: PaneLayoutProps<T>) {
                   : { flex: `${pane.size} 1 0%` }
               }
             >
-              {props.renderPane(pane)}
+              <Show when={mounted(pane)}>{props.renderPane(pane)}</Show>
             </div>
             <Show when={!tabbed() && i() < props.panes.length - 1}>
               <PaneDivider

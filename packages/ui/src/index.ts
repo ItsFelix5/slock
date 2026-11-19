@@ -14,16 +14,11 @@ export { default as InlineFeedback } from "./feedback/InlineFeedback";
 export { createKeyedFeedback } from "./feedback/keyedFeedback";
 export { default as Skeleton } from "./feedback/Skeleton";
 export { default as TypingIndicator } from "./feedback/TypingIndicator";
-export { effectiveFont, setFont } from "./font";
-export {
-  activeFontPreset,
-  FONT_PRESETS,
-} from "./fontPresets";
-export { default as ColorField } from "./form/ColorField";
 export type { ComboboxOption } from "./form/Combobox";
 export { default as Combobox } from "./form/Combobox";
-export { default as KeybindField } from "./form/KeybindField";
-export { useKeybindRecorder } from "./form/keybindRecorder";
+export { default as ColorField } from "./form/color/ColorField";
+export { default as KeybindField } from "./form/keybind/KeybindField";
+export { useKeybindRecorder } from "./form/keybind/keybindRecorder";
 export {
   createListboxActiveIndex,
   gridNavigationIndex,
@@ -38,6 +33,29 @@ export { default as Slider } from "./form/Slider";
 export { default as SuggestionList } from "./form/SuggestionList";
 export { default as Switch } from "./form/Switch";
 export { fuzzySearch } from "./fuzzy";
+export { useClickOutside } from "./hooks/useClickOutside";
+export { useDeferredMount } from "./hooks/useDeferredMount";
+export { useElementVisible } from "./hooks/useElementVisible";
+export { useCancelShortcut, useCloseShortcut, useEscapeClose } from "./hooks/useEscapeClose";
+export { useHoverIntent } from "./hooks/useHoverIntent";
+export {
+  useConfirmShortcut,
+  useEditShortcuts,
+  useFieldCommitShortcut,
+  useGridShortcuts,
+  useListShortcuts,
+  useNavigationShortcuts,
+  useSeekShortcuts,
+  useTabStripShortcuts,
+} from "./hooks/useNavShortcuts";
+export {
+  inside,
+  listShortcuts,
+  SHORTCUT_GROUPS,
+  type ShortcutInfo,
+  shortcutConflicts,
+  useShortcut,
+} from "./hooks/useShortcut";
 export {
   clearKeybindOverride,
   resetAllKeybinds,
@@ -46,36 +64,36 @@ export {
 export { createKeyedAsyncCache } from "./keyedAsyncCache";
 export { default as PanelHeader } from "./layout/PanelHeader";
 export { default as ResizeHandle, windowWidth } from "./layout/ResizeHandle";
-export { default as ConstrainedImage } from "./media/ConstrainedImage";
-export { createMediaVolume } from "./media/createMediaVolume";
 export { formatSize } from "./media/formatSize";
-export { default as HideBrokenImage } from "./media/HideBrokenImage";
 export { default as Icon, ICON_NAMES, type IconName, iconElement, isOneOf } from "./media/Icon";
-export { ImageLightbox } from "./media/ImageLightbox";
+export { default as ConstrainedImage } from "./media/image/ConstrainedImage";
+export { default as HideBrokenImage } from "./media/image/HideBrokenImage";
+export { ImageLightbox } from "./media/image/ImageLightbox";
+export { constrainMediaDimensions } from "./media/image/mediaDimensions";
+export type { ZoomableImageItem } from "./media/image/ZoomableImage";
+export { default as ZoomableImage } from "./media/image/ZoomableImage";
 export { default as MediaFrame } from "./media/MediaFrame";
-export { constrainMediaDimensions } from "./media/mediaDimensions";
-export { default as VideoPlayer } from "./media/VideoPlayer";
-export { default as VolumeControl } from "./media/VolumeControl";
-export { formatDuration } from "./media/videoTime";
-export type { ZoomableImageItem } from "./media/ZoomableImage";
-export { default as ZoomableImage } from "./media/ZoomableImage";
+export { fileSrc, imageSrc } from "./media/mediaSrc";
+export { createMediaVolume } from "./media/video/createMediaVolume";
+export { default as VideoPlayer } from "./media/video/VideoPlayer";
+export { default as VolumeControl } from "./media/video/VolumeControl";
+export { formatDuration } from "./media/video/videoTime";
 export { default as NavRow } from "./nav/NavRow";
 export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
 export {
   ConfirmDialog,
   confirmDialog,
-} from "./overlay/ConfirmDialog";
-export { CopyJsonButton, DebugInfoDialog, showDebugInfo } from "./overlay/DebugInfoDialog";
-export type { Placement } from "./overlay/floating/FloatingPanel";
-export { default as FloatingPanel } from "./overlay/floating/FloatingPanel";
-export { default as HoverCard } from "./overlay/HoverCard";
-export { default as JsonTree } from "./overlay/JsonTree";
+} from "./overlay/dialog/ConfirmDialog";
+export { CopyJsonButton, default as JsonTree } from "./overlay/dialog/JsonTree";
 export {
   default as Modal,
   ModalCloseButton,
   ModalHeader,
-} from "./overlay/Modal";
+} from "./overlay/dialog/Modal";
+export type { Placement } from "./overlay/floating/FloatingPanel";
+export { default as FloatingPanel } from "./overlay/floating/FloatingPanel";
+export { default as HoverCard } from "./overlay/HoverCard";
 export { default as ContextMenu } from "./overlay/menu/ContextMenu";
 export { default as Menu } from "./overlay/menu/Menu";
 export { default as MenuItem } from "./overlay/menu/MenuItem";
@@ -110,6 +128,11 @@ export {
   TRAILING_PUNCTUATION_RE,
   WHITESPACE_RE,
 } from "./textHighlight";
+export { font, setFont } from "./theme/font";
+export {
+  activeFontPreset,
+  FONT_PRESETS,
+} from "./theme/fontPresets";
 export {
   activePreset,
   applyCopiedThemePalette,
@@ -126,30 +149,9 @@ export {
   setThemeColors,
   type ThemeColorDefinition,
   themeColorDefinitions,
-} from "./themeColors";
-export type { ColorRef } from "./themeDerivations";
-export { THEME_PRESETS } from "./themePresets";
-export { setThemeShape, themeShape } from "./themeShape";
+} from "./theme/themeColors";
+export { setThemeCss, themeCss } from "./theme/themeCss";
+export type { ColorRef } from "./theme/themeDerivations";
+export { THEME_FAMILIES, type ThemeFamily, type ThemePreset } from "./theme/themePresets";
+export { setThemeShape, themeShape } from "./theme/themeShape";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";
-export { useClickOutside } from "./useClickOutside";
-export { useElementVisible } from "./useElementVisible";
-export { useCancelShortcut, useCloseShortcut, useEscapeClose } from "./useEscapeClose";
-export { useHoverIntent } from "./useHoverIntent";
-export {
-  useConfirmShortcut,
-  useEditShortcuts,
-  useFieldCommitShortcut,
-  useGridShortcuts,
-  useListShortcuts,
-  useNavigationShortcuts,
-  useSeekShortcuts,
-  useTabStripShortcuts,
-} from "./useNavShortcuts";
-export {
-  inside,
-  listShortcuts,
-  SHORTCUT_GROUPS,
-  type ShortcutInfo,
-  shortcutConflicts,
-  useShortcut,
-} from "./useShortcut";

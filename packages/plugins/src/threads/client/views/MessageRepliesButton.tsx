@@ -52,9 +52,7 @@ export default function MessageRepliesButton(props: {
       </Show>
       <TypingIndicator
         inline
-        names={typingStore
-          .typingUsersInThread(props.channelId, props.msg.ts)
-          .map((user) => user.name)}
+        users={typingStore.typingUsersInThread(props.channelId, props.msg.ts)}
       />
     </button>
   );

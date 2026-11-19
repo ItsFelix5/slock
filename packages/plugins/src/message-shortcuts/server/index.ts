@@ -14,7 +14,7 @@ const list: Route[] = [
   route("GET", "message-shortcuts", async (ctx) => {
     const data = await callSlack<AppCommandsReply>("client.appCommands", {}, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "client.appCommands", ctx.creds);
+      return slackErrorResponse(data, "client.appCommands");
     }
     const shortcuts: MessageShortcut[] = [];
     for (const app of data.app_actions ?? []) {
@@ -33,7 +33,7 @@ const list: Route[] = [
         });
       }
     }
-    return jsonResponse({ ok: true, shortcuts }, ctx.creds);
+    return jsonResponse({ ok: true, shortcuts });
   }),
 
   route("POST", "message-shortcuts/:actionId/run", async (ctx) => {

@@ -1,5 +1,6 @@
 import { IconButton, useEditShortcuts } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
+import { uploadProgress } from "../lib/attachUpload";
 import FileChipThumbnail from "./FileChipThumbnail";
 
 export default function FileChip(props: {
@@ -64,6 +65,12 @@ export default function FileChip(props: {
           </button>
         </Show>
       </span>
+      <Show when={(uploadProgress(props.file) ?? 1) < 1}>
+        <span
+          class="composer-file-chip-progress"
+          style={{ "--progress": uploadProgress(props.file) }}
+        />
+      </Show>
       <IconButton
         class="composer-file-chip-remove icon-shift"
         disabled={props.disabled}

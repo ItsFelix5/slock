@@ -1,3 +1,4 @@
+import { BlockEmbed } from "quill/blots/block";
 import type Quill from "./quill";
 
 const OBJECT_REPLACEMENT_CHAR = "￼";
@@ -5,7 +6,13 @@ const OBJECT_REPLACEMENT_CHAR = "￼";
 export function indexAlignedText(quill: Quill): string {
   return quill
     .getContents()
-    .ops.map((op) => (typeof op.insert === "string" ? op.insert : OBJECT_REPLACEMENT_CHAR))
+    .ops.map((op) => {
+      if (typeof op.insert === "string") return op.insert;
+      const blot = quill.scroll.query(Object.keys(op.insert ?? {})[0] ?? "");
+      return typeof blot === "function" && blot.prototype instanceof BlockEmbed
+        ? "\n"
+        : OBJECT_REPLACEMENT_CHAR;
+    })
     .join("");
 }
 

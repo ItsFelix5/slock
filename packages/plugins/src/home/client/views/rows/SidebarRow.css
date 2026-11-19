@@ -12,19 +12,21 @@
   top: 50%;
   right: 16px;
   transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.sidebar-row-wrap:hover > .tooltip-anchor,
+.sidebar-row-wrap:has(:focus-visible) > .tooltip-anchor {
+  pointer-events: auto;
+  opacity: 1;
 }
 
 .sidebar-row-close {
-  display: none;
   width: var(--sidebar-row-cell);
   height: var(--sidebar-row-cell);
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
-}
-
-.sidebar-row-wrap:hover .sidebar-row-close,
-.sidebar-row-wrap:has(:focus-visible) .sidebar-row-close {
-  display: flex;
 }
 
 .sidebar-row-feedback {

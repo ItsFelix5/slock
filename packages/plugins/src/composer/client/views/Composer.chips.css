@@ -2,6 +2,17 @@
   display: flex;
   min-width: 0;
 }
+.composer-file-chip-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(var(--progress));
+  transform-origin: left;
+  transition: transform 160ms ease;
+}
 .composer-file-chip-image {
   position: relative;
   display: grid;

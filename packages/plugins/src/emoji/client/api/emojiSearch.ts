@@ -6,6 +6,10 @@ import { mergeEmojiEntries } from "../emojiPickerEntries";
 
 const prefsStore = service("prefs");
 
+function spaced(text: string): string {
+  return text.replace(/[\s_-]+/g, " ");
+}
+
 export interface EmojiEntry {
   name: string;
   searchText: string;
@@ -15,7 +19,7 @@ export interface EmojiEntry {
 const STANDARD_EMOJI_ENTRIES: EmojiEntry[] = standardEmojiEntries().map(
   (e): EmojiEntry => ({
     name: e.name,
-    searchText: [e.name, ...e.aliases].join(" ").replace(/[_-]/g, " "),
+    searchText: spaced([e.name, ...e.aliases].join(" ")),
     unicode: e.unicode,
   }),
 );
@@ -29,7 +33,7 @@ export function standardEmojiUnicode(name: string): string | undefined {
 function customEmojiEntries(): EmojiEntry[] {
   return customEmojiNames()
     .filter((n) => emojiUrl(n))
-    .map((name): EmojiEntry => ({ name, searchText: name }));
+    .map((name): EmojiEntry => ({ name, searchText: spaced(name) }));
 }
 
 export function createEmojiIndex() {
@@ -44,8 +48,8 @@ export function createEmojiIndex() {
     return fuzzySearch(entries, {
       altText: (e) => e.searchText,
       frequency: (e) => prefsStore.emojiUseScore(e.name),
-      query,
-      text: (e) => e.name,
+      query: spaced(query),
+      text: (e) => spaced(e.name),
     });
   }
 

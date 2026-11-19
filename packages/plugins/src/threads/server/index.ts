@@ -19,9 +19,9 @@ const list: Route[] = [
     );
     const data = await callSlack<HistoryReply>("conversations.replies", params, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.replies", ctx.creds);
+      return slackErrorResponse(data, "conversations.replies");
     }
-    return jsonResponse(trimHistory(data), ctx.creds);
+    return jsonResponse(trimHistory(data));
   }),
 
   route("POST", "channels/:id/messages/broadcast", async (ctx) =>

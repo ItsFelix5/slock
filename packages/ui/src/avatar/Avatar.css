@@ -9,6 +9,13 @@
   border-radius: var(--radius-md);
 }
 
+.avatar-tiny {
+  width: 14px;
+  height: 14px;
+  font-size: 8px;
+  border-radius: var(--radius-control);
+}
+
 .avatar-small {
   width: 20px;
   height: 20px;

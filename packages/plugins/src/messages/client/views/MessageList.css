@@ -5,13 +5,16 @@
   padding-bottom: calc(var(--composer-overlay-h, 0px) + 12px);
   overflow: hidden auto;
   overflow-anchor: none;
+  transition: opacity 0.12s ease;
   scrollbar-width: none;
 }
 .message-list::-webkit-scrollbar {
   display: none;
 }
-.message-list-rows-pending {
-  visibility: hidden;
+.message-list-pending {
+  pointer-events: none;
+  opacity: 0;
+  transition: none;
 }
 .message-list-loading-older {
   padding: 10px var(--message-row-inline-end);
@@ -102,17 +105,17 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 56px;
 }
-.message-row-group:has(.message-hover-actions) {
+.message-row-group.has-actions {
   content-visibility: visible;
 }
 .message-row-group.pending .message-row {
   opacity: 0.6;
 }
 .message-row-group:hover,
-.message-row-group:has(.message-row:focus-visible) {
+.message-row-group.kb-row {
   background: var(--hover-bg);
 }
-.message-row-group:has(.message-row:focus-visible) {
+.message-row-group.kb-row {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: calc(-1 * var(--focus-ring-width));
 }
@@ -150,7 +153,7 @@
 }
 .message-row:hover .message-hover-actions,
 .message-row:focus-visible .message-hover-actions,
-.message-row:has(:focus-visible) .message-hover-actions,
+.message-row-group.kb-within .message-hover-actions,
 .message-hover-actions.force-visible {
   display: flex;
 }

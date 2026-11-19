@@ -11,7 +11,7 @@ import { For, type JSX } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import { parseArchiveLink } from "../mrkdwnInline";
+import { parseArchiveLink } from "../mrkdwn/mrkdwnInline";
 import {
   CanvasMention,
   DateToken,
@@ -21,11 +21,11 @@ import {
   MessageLinkMention,
   TimeAwareText,
   UsergroupMention,
-} from "../mrkdwnTokens";
+} from "../mrkdwn/mrkdwnTokens";
 import { safeColor } from "../safeColor";
 import "./RichText.css";
-import "../mrkdwn.css";
-import "../mrkdwnTokens.css";
+import "../mrkdwn/mrkdwn.css";
+import "../mrkdwn/mrkdwnTokens.css";
 
 function styleClasses(style: RichTextStyle | undefined) {
   return {

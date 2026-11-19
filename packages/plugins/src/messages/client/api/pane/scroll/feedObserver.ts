@@ -1,5 +1,11 @@
 export function observeFeed(scroller: HTMLElement, onChange: () => void) {
-  const resize = new ResizeObserver(onChange);
+  let frame = 0;
+  const flush = () => {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    onChange();
+  };
+  const resize = new ResizeObserver(flush);
   const watched = new Set<Element>();
 
   function watchChildren() {
@@ -15,9 +21,10 @@ export function observeFeed(scroller: HTMLElement, onChange: () => void) {
     }
   }
 
-  const mutations = new MutationObserver(() => {
+  const mutations = new MutationObserver((records) => {
     watchChildren();
-    onChange();
+    if (records.some((record) => record.removedNodes.length))
+      frame ||= requestAnimationFrame(flush);
   });
 
   resize.observe(scroller);
@@ -25,6 +32,7 @@ export function observeFeed(scroller: HTMLElement, onChange: () => void) {
   watchChildren();
 
   return () => {
+    cancelAnimationFrame(frame);
     resize.disconnect();
     mutations.disconnect();
   };

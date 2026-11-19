@@ -47,16 +47,25 @@ function decodeSection(msg: RawMessage): SectionRecord | null {
   };
 }
 
+const PLAIN_ID_RE = /^[A-Za-z0-9]+$/;
+
+function secretPathOf(thread: RawMessage): string {
+  const ref = field(thread, 7);
+  const text = asString(ref) ?? "";
+  if (PLAIN_ID_RE.test(text)) return text;
+  const packed = asMessage(ref);
+  return (packed && asString(field(packed, 9))) ?? "";
+}
+
 function decodeMeta(document: RawMessage): CanvasMeta | null {
   const thread = asMessage(field(document, 3));
   const doc = asMessage(field(document, 6));
   const threadId = thread && asString(field(thread, 1));
   const documentId = doc && asString(field(doc, 1));
   if (!(thread && doc && threadId && documentId)) return null;
-  const secretPath = asMessage(field(thread, 7));
   return {
     documentId,
-    secretPath: (secretPath && asString(field(secretPath, 9))) ?? "",
+    secretPath: secretPathOf(thread),
     shardChars: asString(field(doc, 42)) || documentId.slice(0, 3),
     threadId,
   };

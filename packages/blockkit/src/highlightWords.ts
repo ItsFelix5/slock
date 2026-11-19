@@ -4,10 +4,17 @@ function escapeRegExp(word: string): string {
   return word.replace(REGEXP_SPECIAL_RE, "\\$&");
 }
 
+let cached: { words: string[]; pattern: RegExp | undefined } | undefined;
+
 function buildHighlightWordsPattern(words: string[]): RegExp | undefined {
-  const trimmed = words.map((w) => w.trim()).filter(Boolean);
-  if (trimmed.length === 0) return;
-  return new RegExp(`\\b(?:${trimmed.map(escapeRegExp).join("|")})\\b`, "gi");
+  if (cached?.words === words) return cached.pattern;
+  const source = words
+    .map((w) => w.trim())
+    .filter(Boolean)
+    .map(escapeRegExp)
+    .join("|");
+  cached = { pattern: source ? new RegExp(`\\b(?:${source})\\b`, "gi") : undefined, words };
+  return cached.pattern;
 }
 
 export type HighlightSegment = { highlighted: boolean; text: string };

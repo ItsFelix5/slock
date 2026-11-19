@@ -10,9 +10,6 @@ export default function Container(props: {
   block: ContainerBlock;
   render: (block: Block) => JSX.Element;
 }) {
-  const [collapsed, setCollapsed] = createSignal(
-    !!props.block.is_collapsible && !!props.block.default_collapsed,
-  );
   const childBlocks = () => props.block.child_blocks ?? [];
   const hasHeading = () =>
     !!(
@@ -21,6 +18,9 @@ export default function Container(props: {
       props.block.subtitle ||
       props.block.icon
     );
+  const [collapsed, setCollapsed] = createSignal(
+    hasHeading() && !!props.block.is_collapsible && props.block.default_collapsed !== false,
+  );
 
   const heading = () => (
     <>

@@ -1,10 +1,20 @@
 .pane-divider {
   position: relative;
-  flex: 0 0 3px;
+  z-index: 1;
+  flex: 0 0 var(--pane-divider-width);
   height: auto;
   border: none;
   cursor: col-resize;
   touch-action: none;
+}
+
+.pane-divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  right: -1px;
 }
 
 .pane-divider::after {
@@ -12,8 +22,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 1px;
-  width: 1px;
+  left: 0;
+  width: var(--pane-divider-width);
   background: var(--border);
 }
 
@@ -25,5 +35,6 @@
 }
 
 .pane-divider:focus-visible {
-  --focus-offset: -2px;
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent);
 }

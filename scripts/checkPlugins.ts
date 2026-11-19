@@ -13,7 +13,7 @@ const BANNED: [RegExp, string][] = [
   [/^(?:export )?const .*= createRoot\(/m, "module level createRoot (create it in setup)"],
 ];
 const LIBRARY_PACKAGES = ["core", "ui", "blockkit", "slack", "types"];
-const GATEWAY_EVENTS_FILE = join(import.meta.dir, "../packages/types/src/gatewayEvents.ts");
+const GATEWAY_EVENTS_FILE = join(import.meta.dir, "../packages/types/src/wire/gatewayEvents.ts");
 const INTERNAL_EVENTS = new Set(["_status"]);
 const fix = Bun.argv.includes("--fix");
 

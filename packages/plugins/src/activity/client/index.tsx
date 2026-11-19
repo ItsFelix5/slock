@@ -33,7 +33,6 @@ function ActivityButton() {
 
 const setup: Setup = (ctx) => {
   const messages = service("messages");
-  const sidebar = service("sidebar");
   const unread = service("unread");
   const users = service("users");
   const store = createActivityStore({
@@ -41,7 +40,6 @@ const setup: Setup = (ctx) => {
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     isBotUser: (userId) => !!users.userById(userId)?.isBot,
-    isActivityViewOpen: () => sidebar.nav() === "activity",
     lastReadByChannel: unread.lastReadByChannel,
     reactionMessageFor: messages.reactionMessageFor,
     setLastReadByChannel: unread.setLastReadByChannel,

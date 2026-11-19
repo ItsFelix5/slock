@@ -17,17 +17,14 @@ const list: Route[] = [
 
   route("GET", "channels/:id/pins", async (ctx) => {
     const data = await callSlack<PinsListReply>("pins.list", { channel: ctx.params.id }, ctx.creds);
-    if (!data.ok) return slackErrorResponse(data, "pins.list", ctx.creds);
-    return jsonResponse(
-      {
-        items: (data.items ?? []).map((item) => ({
-          message: item.type === "message" && item.message ? trimMessage(item.message) : undefined,
-          ts: item.message?.ts ?? item.created ?? item.channel,
-        })),
-        ok: true,
-      },
-      ctx.creds,
-    );
+    if (!data.ok) return slackErrorResponse(data, "pins.list");
+    return jsonResponse({
+      items: (data.items ?? []).map((item) => ({
+        message: item.type === "message" && item.message ? trimMessage(item.message) : undefined,
+        ts: item.message?.ts ?? item.created ?? item.channel,
+      })),
+      ok: true,
+    });
   }),
 ];
 

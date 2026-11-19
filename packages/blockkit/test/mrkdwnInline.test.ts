@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, pick, text } from "@slock/core/testing";
-import { type InlineNode, parseArchiveLink, parseInline } from "../src/mrkdwnInline";
+import { type InlineNode, parseArchiveLink, parseInline } from "../src/mrkdwn/mrkdwnInline";
 
 describe("canvas token", () => {
   test("parses id only", () => {

@@ -1,3 +1,4 @@
+import { imageSrc } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
 import { createKeyedQuery, defineKey } from "../../query/client/api";
@@ -24,7 +25,7 @@ export default function UserInstalledApps(props: ProfileMetaProps) {
                   fallback={<span class="installed-app-icon installed-app-icon-empty" />}
                   when={app.icon}
                 >
-                  <img alt="" class="installed-app-icon" src={app.icon} />
+                  <img alt="" class="installed-app-icon" src={imageSrc(app.icon)} />
                 </Show>
                 <span class="truncate">{app.name}</span>
               </li>

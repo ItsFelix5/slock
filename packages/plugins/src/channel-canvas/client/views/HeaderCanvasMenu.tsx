@@ -29,7 +29,6 @@ export default function HeaderCanvasMenu(props: MessageHeaderProps) {
             class="channel-header-btn"
             icon="canvas-browser"
             onClick={() => setOpen(!open())}
-            size="md"
           />
         }
       >

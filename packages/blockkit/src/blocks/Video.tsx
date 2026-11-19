@@ -1,8 +1,8 @@
 import type { VideoBlock } from "@slock/types";
-import { Icon } from "@slock/ui";
+import { Icon, imageSrc } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import BkText from "../BkText";
-import { Link } from "../mrkdwnTokens";
+import { Link } from "../mrkdwn/mrkdwnTokens";
 import { safeEmbedUrl, safeMediaUrl } from "../safeUrl";
 import "./Video.css";
 
@@ -10,7 +10,7 @@ export default function Video(props: { block: VideoBlock }) {
   const [started, setStarted] = createSignal(false);
   const embedUrl = () => safeEmbedUrl(props.block.video_url);
   const posterImage = () => {
-    const url = safeMediaUrl(props.block.thumbnail_url);
+    const url = imageSrc(safeMediaUrl(props.block.thumbnail_url));
     return url ? `url(${JSON.stringify(url)})` : undefined;
   };
 
@@ -46,7 +46,7 @@ export default function Video(props: { block: VideoBlock }) {
       </div>
       <div class="bk-video-info">
         <Show when={safeMediaUrl(props.block.provider_icon_url)}>
-          {(url) => <img alt="" class="bk-video-provider-icon" src={url()} />}
+          {(url) => <img alt="" class="bk-video-provider-icon" src={imageSrc(url())} />}
         </Show>
         <div class="bk-video-text flex-col">
           <Link

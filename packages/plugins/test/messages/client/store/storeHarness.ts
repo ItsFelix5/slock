@@ -67,14 +67,17 @@ export async function createStoreHarness() {
           patchedChannels.push(id);
         },
       },
-      conversations: { visibleViews: views },
+      conversations: { mountedViews: views },
       dms: {
         closedDmIds: closedDms,
         dmById: () => undefined,
         ensureDm: () => {},
         setClosedDmIds: () => {},
       },
-      unread: { setUnreadChannelIds: setUnread },
+      unread: {
+        isViewed: (id) => views().some((view) => view.id === id),
+        setUnreadChannelIds: setUnread,
+      },
       users: { currentUser: () => me },
     });
     return { events, store };

@@ -25,7 +25,6 @@ export default function CreateUsergroupDialog(props: { onClose: () => void }) {
           autofocus
           class="text-field"
           onInput={(event) => setName(event.currentTarget.value)}
-          placeholder="Designers"
           value={name()}
         />
       </label>

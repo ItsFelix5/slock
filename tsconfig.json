@@ -8,6 +8,9 @@
     { "path": "./packages/blockkit" },
     { "path": "./packages/server" },
     { "path": "./packages/plugins/tsconfig.server.json" },
+    { "path": "./packages/plugins/tsconfig.client.json" },
+    { "path": "./tsconfig.test.json" },
+    { "path": "./packages/app" },
     { "path": "./packages/relay" }
   ]
 }

@@ -1,7 +1,7 @@
 import { emojiUrl } from "@slock/blockkit";
 import { blockPreviewText } from "@slock/slack";
 import type { Block, SlackFile, User } from "@slock/types";
-import { Avatar, Icon, type IconName } from "@slock/ui";
+import { Avatar, Icon, type IconName, imageSrc } from "@slock/ui";
 import { channelIconName } from "../../../../channels/client/api";
 
 export type UserSuggestItem = {
@@ -122,7 +122,7 @@ export function suggestItemContent(item: SuggestItem) {
             {item.iconName ? (
               <Icon name={item.iconName} size={12} />
             ) : item.icon ? (
-              <img alt="" src={item.icon} />
+              <img alt="" src={imageSrc(item.icon)} />
             ) : (
               "/"
             )}

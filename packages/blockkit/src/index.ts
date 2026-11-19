@@ -1,4 +1,7 @@
 export { formatDuration } from "@slock/ui";
+export type { FileInputProps, RichTextInputProps } from "./actions/inputPoints";
+export { createViewState, type ViewState, type ViewValues } from "./actions/viewState";
+export { validateView } from "./actions/viewValidation";
 export { default as BkText } from "./BkText";
 export type { BlockActionContext } from "./BlockKit";
 export { default as BlockKit } from "./BlockKit";
@@ -40,13 +43,10 @@ export {
 } from "./emoji/emojiCache";
 export type { EntityKind, EntitySource } from "./entitySource";
 export { type HighlightSegment, splitHighlightWords } from "./highlightWords";
-export type { FileInputProps, RichTextInputProps } from "./inputPoints";
 export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";
-export { default as Mrkdwn } from "./mrkdwn";
-export { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwnInline";
-export { Link, Mention, TimeAwareText } from "./mrkdwnTokens";
+export { default as Mrkdwn } from "./mrkdwn/mrkdwn";
+export { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwn/mrkdwnInline";
+export { Link, Mention, TimeAwareText } from "./mrkdwn/mrkdwnTokens";
 export { safeBase64, safeColor } from "./safeColor";
 export { safeEmbedUrl, safeMediaUrl, safeUrl } from "./safeUrl";
 export { stripTrackingParams } from "./urlCleanup";
-export { createViewState, type ViewState, type ViewValues } from "./viewState";
-export { validateView } from "./viewValidation";

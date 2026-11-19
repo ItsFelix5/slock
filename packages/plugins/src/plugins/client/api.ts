@@ -1,5 +1,7 @@
 import type { Accessor, Component } from "solid-js";
 
+export { definePluginSettings } from "./definePluginSettings";
+
 export type PluginsService = {
   installed: Accessor<string[]>;
   serverOnly: Accessor<{ id: string; name?: string }[]>;

@@ -11,7 +11,7 @@ const isPersisted = (key: readonly unknown[]) => PERSISTED_KEYS.some(([name]) =>
 export async function restoreQueries(client: QueryClient): Promise<void> {
   const account = getActiveAccountId();
   if (!account) return;
-  void pruneSnapshots(listAccounts().map(({ id }) => id));
+  void pruneSnapshots(listAccounts().map(({ id }) => id)).catch(() => {});
   try {
     const snapshot = await readSnapshot(account);
     if (!snapshot) return;

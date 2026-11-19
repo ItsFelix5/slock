@@ -34,10 +34,6 @@
   border-radius: var(--radius-control);
 }
 
-.activity-thread-message:hover {
-  background: var(--hover-bg);
-}
-
 .activity-thread-avatar {
   position: relative;
   z-index: 1;

@@ -1,0 +1,28 @@
+.settings-theme-preset-btn:hover {
+  box-shadow: inset 0 0 0 999px rgb(from var(--theme-preview-overlay) r g b / 6%);
+}
+
+.settings-theme-preset-btn:has(input:checked),
+.settings-theme-preset-btn.active {
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.settings-theme-preset-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-circle);
+}
+
+.settings-theme-swatch {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1px solid;
+  border-radius: var(--radius-circle);
+}
+
+.settings-theme-menu-check {
+  margin-left: auto;
+  color: var(--accent);
+}

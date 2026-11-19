@@ -37,9 +37,9 @@ const list: Route[] = [
     const params = historyParams({ channel: ctx.params.id, limit: "60" }, ctx.searchParams);
     const data = await callSlack<HistoryReply>("conversations.history", params, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.history", ctx.creds);
+      return slackErrorResponse(data, "conversations.history");
     }
-    return jsonResponse(trimHistory(data), ctx.creds);
+    return jsonResponse(trimHistory(data));
   }),
 
   route("POST", "channels/:id/messages", async (ctx) => {
@@ -64,9 +64,9 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "chat.postMessage", ctx.creds);
+      return slackErrorResponse(data, "chat.postMessage");
     }
-    return jsonResponse({ ok: true, ts: data.ts }, ctx.creds);
+    return jsonResponse({ ok: true, ts: data.ts });
   }),
 
   route("POST", "channels/:id/unfurl", async (ctx) => {
@@ -74,15 +74,15 @@ const list: Route[] = [
     if (!url) return errorResponse("invalid_url", 400);
     const data = await callSlack<UnfurlLinkReply>(
       "chat.unfurlLink",
-      { channel: ctx.params.id, url },
+      {
+        channel: ctx.params.id,
+        url,
+      },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "chat.unfurlLink", ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "chat.unfurlLink");
     const attachment = data.attachments?.[url];
-    return jsonResponse(
-      { attachment: attachment && trimAttachment(attachment), ok: true },
-      ctx.creds,
-    );
+    return jsonResponse({ attachment: attachment && trimAttachment(attachment), ok: true });
   }),
 
   route("PATCH", "channels/:id/messages/:ts", async (ctx) => {
@@ -113,9 +113,9 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "chat.update", ctx.creds);
+      return slackErrorResponse(data, "chat.update");
     }
-    return jsonResponse({ ok: true }, ctx.creds);
+    return jsonResponse({ ok: true });
   }),
 
   route("DELETE", "channels/:id/messages/:ts", async (ctx) => {
@@ -145,9 +145,9 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "messages.list", ctx.creds);
+      return slackErrorResponse(data, "messages.list");
     }
-    return jsonResponse({ messages: trimMessagesListEntry(data.messages), ok: true }, ctx.creds);
+    return jsonResponse({ messages: trimMessagesListEntry(data.messages), ok: true });
   }),
 
   route("GET", "channels/:id/view", async (ctx) => {
@@ -168,15 +168,12 @@ const list: Route[] = [
       },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "conversations.view", ctx.creds);
-    return jsonResponse(
-      {
-        channel: data.channel && trimChannel(data.channel),
-        ok: true,
-        users: data.users?.map(trimUser),
-      },
-      ctx.creds,
-    );
+    if (!data.ok) return slackErrorResponse(data, "conversations.view");
+    return jsonResponse({
+      channel: data.channel && trimChannel(data.channel),
+      ok: true,
+      users: data.users?.map(trimUser),
+    });
   }),
 ];
 

@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js";
+import { imageSrc } from "../media/mediaSrc";
 import "./Avatar.css";
 
 export const DEFAULT_AVATAR_COLOR = "#616061";
@@ -14,7 +15,7 @@ export interface AvatarUser {
 
 export interface AvatarProps {
   showPresence?: boolean;
-  size?: "small" | "medium" | "large" | "message";
+  size?: "tiny" | "small" | "medium" | "large" | "message";
   user: AvatarUser;
 }
 
@@ -36,7 +37,7 @@ export function AvatarImage(props: { alt?: string; avatarUrl: string | undefined
           fetchpriority="low"
           loading="lazy"
           onError={() => setImageFailed(true)}
-          src={props.avatarUrl}
+          src={imageSrc(props.avatarUrl)}
         />
       </Show>
     </>

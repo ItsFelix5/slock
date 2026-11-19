@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { createHost, Unavailable } from "../src/host";
+import { createHost, Unavailable } from "../src/host/host";
 import type { PluginDef, Setup } from "../src/types";
 
 declare module "../src/types" {

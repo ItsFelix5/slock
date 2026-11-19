@@ -14,8 +14,8 @@ export function createMessageEvents(
   deps: {
     channels: Pick<Services["channels"], "isChannelMember" | "patchChannel">;
     dms: Pick<Services["dms"], "closedDmIds" | "dmById" | "ensureDm" | "setClosedDmIds">;
-    conversations: Pick<Services["conversations"], "visibleViews">;
-    unread: Pick<Services["unread"], "setUnreadChannelIds">;
+    conversations: Pick<Services["conversations"], "mountedViews">;
+    unread: Pick<Services["unread"], "isViewed" | "setUnreadChannelIds">;
     users: Pick<Services["users"], "currentUser">;
   },
 ) {
@@ -40,7 +40,7 @@ export function createMessageEvents(
     setThreadMessages: messages.setThreadMessages,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     threadMessages: messages.threadMessages,
-    visibleViews: conversations.visibleViews,
+    isViewed: unread.isViewed,
   });
 
   const handlers = [
@@ -79,7 +79,7 @@ export function createMessageEvents(
 
   function onReconnect({ downMs }: { downMs: number }) {
     if (downMs < MIN_CATCH_UP_DOWNTIME_MS) return;
-    const visibleIds = new Set(conversations.visibleViews().map((view) => view.id));
+    const visibleIds = new Set(conversations.mountedViews().map((view) => view.id));
     for (const channel of messages.loadedChannels) {
       if (visibleIds.has(channel))
         void catchUpQueue.run(async () => messages.loadRecentHistory(channel));

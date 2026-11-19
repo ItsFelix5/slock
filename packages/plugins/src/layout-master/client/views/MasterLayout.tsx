@@ -22,7 +22,7 @@ export default function MasterLayout<T>(props: PaneLayoutProps<T>) {
     <div
       class="master-layout"
       style={{
-        "grid-template-columns": `minmax(0, ${master()}fr) ${stacked() ? 3 : 0}px minmax(0, ${1 - master()}fr)`,
+        "grid-template-columns": `minmax(0, ${master()}fr) ${stacked() ? "var(--pane-divider-width)" : "0px"} minmax(0, ${1 - master()}fr)`,
         "grid-template-rows": `repeat(${stackRows()}, minmax(0, 1fr))`,
       }}
     >

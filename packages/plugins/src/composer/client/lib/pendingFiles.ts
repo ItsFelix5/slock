@@ -1,4 +1,5 @@
 import { createEffect, createSignal } from "solid-js";
+import { startUpload } from "./attachUpload";
 
 const pendingFilesByDraft = new Map<string, File[]>();
 
@@ -9,6 +10,7 @@ export function clearAllPendingFiles() {
 export function createPendingFileState(opts: {
   disabled: () => boolean;
   draftKey: () => string | undefined;
+  uploadOnAttach: () => boolean;
 }) {
   const [files, setFiles] = createSignal<File[]>([]);
   let loadedKey: string | undefined;
@@ -21,6 +23,7 @@ export function createPendingFileState(opts: {
   });
 
   const store = (next: File[]) => {
+    if (opts.uploadOnAttach()) for (const file of next) startUpload(file);
     setFiles(next);
     const key = opts.draftKey();
     if (!key) return;

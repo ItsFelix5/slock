@@ -1,5 +1,4 @@
 import { defined } from "@slock/core";
-import { rewriteSlackAssetUrls } from "../../slack/server/api/assets";
 import { type Credentials, teamIdFromRoute } from "../../slack/server/api/auth";
 import type { GatewayEvent, RealtimeEventHook, RealtimeTrim } from "./api";
 import { trimSlackGatewayPayload } from "./trim";
@@ -111,7 +110,7 @@ function forward(state: ConnectionState, event: GatewayEvent) {
   }
   const custom = state.trims().find((entry) => entry.types.includes(event.type));
   const trimmed = custom ? custom.trim(event, state.creds) : trimSlackGatewayPayload(event);
-  if (trimmed) send(state, rewriteSlackAssetUrls(trimmed, state.creds));
+  if (trimmed) send(state, trimmed);
 }
 
 function connectGateway(state: ConnectionState) {

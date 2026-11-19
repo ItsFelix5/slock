@@ -1,9 +1,10 @@
 import { Icon, Menu, MenuItem } from "@slock/ui";
 import { createSignal, Match, Switch } from "solid-js";
 import CreateChannelDialog from "./CreateChannelDialog";
+import CreateGroupChatDialog from "./CreateGroupChatDialog";
 import CreateUsergroupDialog from "./CreateUsergroupDialog";
 
-type Kind = "channel" | "usergroup";
+type Kind = "channel" | "groupchat" | "usergroup";
 
 export default function AddRow() {
   const [open, setOpen] = createSignal(false);
@@ -39,6 +40,9 @@ export default function AddRow() {
         <MenuItem icon="channel-add" onClick={() => pick("channel")}>
           New channel
         </MenuItem>
+        <MenuItem icon="user-add" onClick={() => pick("groupchat")}>
+          New group chat
+        </MenuItem>
         <MenuItem icon="user-groups" onClick={() => pick("usergroup")}>
           New pinggroup
         </MenuItem>
@@ -46,6 +50,9 @@ export default function AddRow() {
       <Switch>
         <Match when={kind() === "channel"}>
           <CreateChannelDialog onClose={close} />
+        </Match>
+        <Match when={kind() === "groupchat"}>
+          <CreateGroupChatDialog onClose={close} />
         </Match>
         <Match when={kind() === "usergroup"}>
           <CreateUsergroupDialog onClose={close} />

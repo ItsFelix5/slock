@@ -140,13 +140,11 @@ export default function LaterView() {
                       }}
                       onSplit={() => {
                         const threadTs = msg()?.threadTs;
-                        if (threadTs && threadTs !== item.ts) {
-                          messageLinks.openThread(item.channelId, threadTs, item.ts, {
-                            pinned: true,
-                          });
-                        } else {
-                          openConversationInSplit(item.channelId, item.ts);
-                        }
+                        messageLinks.openMessageInSplit(
+                          item.channelId,
+                          item.ts,
+                          threadTs === item.ts ? undefined : threadTs,
+                        );
                       }}
                       snippet={
                         <Show

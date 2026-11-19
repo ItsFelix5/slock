@@ -1,4 +1,5 @@
 import { safeMediaUrl } from "@slock/blockkit";
+import { defined } from "@slock/core";
 import type { SlackFile } from "@slock/types";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createSignal, createUniqueId, type JSX, Match, Show, Switch } from "solid-js";
@@ -111,7 +112,7 @@ function PdfBody(props: { file: SlackFile }) {
 function MailBody(props: { file: SlackFile }) {
   const raw = createKeyedQuery(() => ({
     queryFn: async ({ signal }) => {
-      const response = await fetch(props.file.urlPrivate, { signal });
+      const response = await fetch(defined(safeMediaUrl(props.file.urlPrivate)), { signal });
       if (!response.ok) throw new Error(`Email preview failed (${response.status})`);
       return response.text();
     },
@@ -123,69 +124,71 @@ function MailBody(props: { file: SlackFile }) {
     return props.file.filetype === "email" ? { bodyHtml: text } : parseEml(text);
   };
   return (
-    <Switch
-      fallback={
-        <div class="file-viewer-mail-empty flex-center text-dim text-sm">No readable body.</div>
-      }
-    >
-      <Match when={raw.isFetching && raw.data === undefined}>
-        <div class="file-viewer-loading flex-center text-dim text-sm">Loading email…</div>
-      </Match>
-      <Match when={raw.error}>
-        <div class="file-viewer-error flex-center flex-col">
-          <div>Couldn't preview this email.</div>
-          <Button onClick={() => raw.refetch()} size="sm">
-            Try again
-          </Button>
-        </div>
-      </Match>
-      <Match when={mail()}>
-        {(m) => (
-          <div class="file-viewer-mail flex-col">
-            <div class="file-viewer-mail-headers">
-              <Show when={m().subject}>
-                <div class="file-viewer-mail-subject">{m().subject}</div>
-              </Show>
-              <Show when={m().from}>
-                <div class="file-viewer-mail-meta">
-                  <strong>From:</strong> {m().from}
-                </div>
-              </Show>
-              <Show when={m().to}>
-                <div class="file-viewer-mail-meta">
-                  <strong>To:</strong> {m().to}
-                </div>
-              </Show>
-              <Show when={m().date}>
-                <div class="file-viewer-mail-meta">
-                  <strong>Date:</strong> {m().date}
-                </div>
-              </Show>
-            </div>
-            <Switch
-              fallback={
-                <div class="file-viewer-mail-empty flex-center text-dim text-sm">
-                  No readable body.
-                </div>
-              }
-            >
-              <Match when={m().bodyHtml}>
-                {(html) => (
-                  <iframe
-                    class="file-viewer-frame file-viewer-mail-frame"
-                    sandbox=""
-                    srcdoc={emailSrcdoc(html())}
-                    title="Email body"
-                  />
-                )}
-              </Match>
-              <Match when={m().bodyText}>
-                {(text) => <pre class="file-viewer-mail-text">{text()}</pre>}
-              </Match>
-            </Switch>
+    <div class="file-viewer-frame-wrap flex-col">
+      <Switch
+        fallback={
+          <div class="file-viewer-mail-empty flex-center text-dim text-sm">No readable body.</div>
+        }
+      >
+        <Match when={raw.isFetching && raw.data === undefined}>
+          <div class="file-viewer-loading flex-center text-dim text-sm">Loading email…</div>
+        </Match>
+        <Match when={raw.error}>
+          <div class="file-viewer-error flex-center flex-col">
+            <div>Couldn't preview this email.</div>
+            <Button onClick={() => raw.refetch()} size="sm">
+              Try again
+            </Button>
           </div>
-        )}
-      </Match>
-    </Switch>
+        </Match>
+        <Match when={mail()}>
+          {(m) => (
+            <div class="file-viewer-mail flex-col">
+              <div class="file-viewer-mail-headers">
+                <Show when={m().subject}>
+                  <div class="file-viewer-mail-subject">{m().subject}</div>
+                </Show>
+                <Show when={m().from}>
+                  <div class="file-viewer-mail-meta">
+                    <strong>From:</strong> {m().from}
+                  </div>
+                </Show>
+                <Show when={m().to}>
+                  <div class="file-viewer-mail-meta">
+                    <strong>To:</strong> {m().to}
+                  </div>
+                </Show>
+                <Show when={m().date}>
+                  <div class="file-viewer-mail-meta">
+                    <strong>Date:</strong> {m().date}
+                  </div>
+                </Show>
+              </div>
+              <Switch
+                fallback={
+                  <div class="file-viewer-mail-empty flex-center text-dim text-sm">
+                    No readable body.
+                  </div>
+                }
+              >
+                <Match when={m().bodyHtml}>
+                  {(html) => (
+                    <iframe
+                      class="file-viewer-frame file-viewer-mail-frame"
+                      sandbox=""
+                      srcdoc={emailSrcdoc(html())}
+                      title="Email body"
+                    />
+                  )}
+                </Match>
+                <Match when={m().bodyText}>
+                  {(text) => <pre class="file-viewer-mail-text">{text()}</pre>}
+                </Match>
+              </Switch>
+            </div>
+          )}
+        </Match>
+      </Switch>
+    </div>
   );
 }

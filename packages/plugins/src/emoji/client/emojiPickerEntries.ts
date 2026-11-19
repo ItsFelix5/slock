@@ -19,5 +19,5 @@ export function prioritizeEmojiEntries(
 
 export function mergeEmojiEntries(custom: EmojiEntry[], standard: EmojiEntry[]): EmojiEntry[] {
   const customNames = new Set(custom.map((entry) => entry.name));
-  return [...custom, ...standard.filter((entry) => !customNames.has(entry.name))];
+  return [...standard.filter((entry) => !customNames.has(entry.name)), ...custom];
 }

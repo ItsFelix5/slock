@@ -1,1 +1,1 @@
-{ "id": "http", "core": true, "name": "HTTP", "requires": [] }
+{ "id": "http", "core": true, "name": "HTTP security and compression", "requires": [] }

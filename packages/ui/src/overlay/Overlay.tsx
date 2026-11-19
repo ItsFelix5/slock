@@ -1,13 +1,13 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
-import { FloatingMountContext } from "./floating/FloatingPanel";
 import {
   focusableWithin,
   isTopFocusLayer,
   popFocusLayer,
   pushFocusLayer,
   tabWrapTarget,
-} from "./focusTrap";
+} from "./dialog/focusTrap";
+import { FloatingMountContext } from "./floating/FloatingPanel";
 import "./Overlay.css";
 
 type OverlayLabel =

@@ -16,15 +16,12 @@ const setup: Setup = (ctx) => {
     "http",
     routes([
       route("GET", "last-seen/:id", (request) =>
-        jsonResponse(
-          {
-            lastSeen: request.creds
-              ? (lastSeen.get(key(request.creds, request.params.id)) ?? null)
-              : null,
-            ok: true,
-          },
-          request.creds,
-        ),
+        jsonResponse({
+          lastSeen: request.creds
+            ? (lastSeen.get(key(request.creds, request.params.id)) ?? null)
+            : null,
+          ok: true,
+        }),
       ),
     ]),
   );

@@ -3,6 +3,8 @@ const ARRIVED_PX = 0.5;
 const SNAP_VIEWPORTS = 3;
 const SNAP_REMAINING_VIEWPORTS = 1.5;
 
+export const prefersReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 export function glideStep(distance: number, elapsedMs: number) {
   if (Math.abs(distance) <= ARRIVED_PX) return distance;
   return distance * (1 - Math.exp(-elapsedMs / GLIDE_TAU_MS));

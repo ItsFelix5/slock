@@ -31,6 +31,14 @@
   position: relative;
   min-width: 0;
   padding: 2px 0;
+  border-radius: var(--radius-sm);
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+}
+
+.canvas-columns-block:hover .canvas-column,
+.canvas-columns-block:focus-within .canvas-column {
+  outline-color: var(--border);
 }
 
 .canvas-column-handle {
@@ -71,7 +79,9 @@
 }
 
 .canvas-column:hover > .canvas-column-remove,
-.canvas-table-block:hover .canvas-table-remove {
+.canvas-column:focus-within > .canvas-column-remove,
+.canvas-table-block:hover .canvas-table-remove,
+.canvas-table-block:focus-within .canvas-table-remove {
   display: grid;
 }
 

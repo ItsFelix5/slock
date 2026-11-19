@@ -30,8 +30,8 @@ const list: Route[] = [
   }),
   route("GET", "counts", async (ctx) => {
     const data = await callSlack<CountsReply>("client.counts", {}, ctx.creds);
-    if (!data.ok) return slackErrorResponse(data, "client.counts", ctx.creds);
-    return jsonResponse({ ...trimCounts(data), ok: true }, ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "client.counts");
+    return jsonResponse({ ...trimCounts(data), ok: true });
   }),
 ];
 

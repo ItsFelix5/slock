@@ -53,7 +53,7 @@ describe("safeUrl", () => {
 
 describe("safeMediaUrl", () => {
   test.each([
-    ["https://files.slack.com/a.png", "https://files.slack.com/a.png"],
+    ["https://files.slack.com/a.png", "/api/assets?url=https%3A%2F%2Ffiles.slack.com%2Fa.png"],
     ["  http://a.b/c.gif ", "http://a.b/c.gif"],
     [
       "/api/assets?url=https%3A%2F%2Ffiles.slack.com%2Fa.png",

@@ -1,7 +1,6 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { createSignal } from "solid-js";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
 import type { ActivityRow } from "./ActivityRow";
 
 const viewStore = service("conversations");
@@ -18,9 +17,7 @@ export function openActivityRow(row: ActivityRow, split: boolean) {
   if (!item.channelId) return;
   setCurrentRowKey(row.key);
   if (split) {
-    if (item.threadTs)
-      messageLinks.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });
-    else openConversationInSplit(item.channelId, item.ts);
+    messageLinks.openMessageInSplit(item.channelId, item.ts, item.threadTs);
     return;
   }
   if (item.activityType === "quietly_added_to_channel") {

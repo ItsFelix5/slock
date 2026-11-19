@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseManifest } from "../src/manifest";
+import { parseManifest } from "../src/host/manifest";
 import { forAll, int, pick, text } from "../src/testing";
 
 describe("parseManifest", () => {

@@ -97,3 +97,9 @@ export async function openDm(userId: string): Promise<string | null> {
   if (!data.ok) return null;
   return data.channel.id;
 }
+
+export async function openGroupDm(userIds: string[]): Promise<string> {
+  const data = await apiPost<{ channel: { id: string } }>("/api/dms", { userIds });
+  if (!data.ok) throw new Error(data.error ?? "conversations.open failed");
+  return data.channel.id;
+}

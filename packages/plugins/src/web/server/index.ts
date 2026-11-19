@@ -66,10 +66,7 @@ const setup: Setup = async (ctx) => {
   };
 
   ctx.add("http", serve, { order: -100 });
-  ctx.add(
-    "http",
-    routes([route("GET", "plugins", async () => jsonResponse(await listPlugins(), null))]),
-  );
+  ctx.add("http", routes([route("GET", "plugins", async () => jsonResponse(await listPlugins()))]));
   ctx.add("http.csp", () => ({
     "script-src": [...(importMapHash ? [importMapHash] : []), "blob:"],
   }));

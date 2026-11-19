@@ -40,16 +40,13 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok && data.error !== "not_in_channel" && data.error !== "channel_not_found") {
-      return slackErrorResponse(data, "edge users/list", ctx.creds);
+      return slackErrorResponse(data, "edge users/list");
     }
-    return jsonResponse(
-      {
-        next_marker: data.ok ? data.next_marker : undefined,
-        ok: true,
-        results: (data.ok ? (data.results ?? []) : []).map(trimUser),
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      next_marker: data.ok ? data.next_marker : undefined,
+      ok: true,
+      results: (data.ok ? (data.results ?? []) : []).map(trimUser),
+    });
   }),
 
   route("POST", "channels/:id/members", async (ctx) => {

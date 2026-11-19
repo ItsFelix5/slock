@@ -24,3 +24,6 @@ A plugin is `packages/plugins/src/<id>/` with `plugin.json` (`id`, `name`, `requ
 - **Lifecycle:** state is created in `setup`. Release with `ctx.onCleanup`. `host.restart()` on account switch must leave nothing behind. Throw `Unavailable` from `setup` if the plugin can't run yet.
 - **Server:** requests go through the `http` point. Use `route`/`routes` from `slack/server/api/router`. Wrap another plugin's route with `next()`.
 - **Panes:** merge into `PaneContents` and register `shell.pane`. Open messages through `message-links`.
+
+## Overlays
+Modals, panes and cards clip their children (`overflow: hidden` or scroll). Never position a dropdown, picker or popover with `position: absolute` inside one: it gets cut off or adds a scrollbar. Use `FloatingPanel` (via `Popover`, `Menu` or `Combobox` from `@slock/ui`), which portals into the nearest overlay. Pick people or channels in a dialog with `Combobox`. `ComposePicker` is absolute and only for the composer. Check that a new popup opens inside a dialog without clipping or scrolling it.

@@ -165,12 +165,7 @@ export function createActivityReadState(deps: {
       deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
 
       deps.clearChannelUnread(channelId);
-      void deps.activityReadSync.request(channelId, ts).then(async (synced) => {
-        if (!synced) return;
-        try {
-          setGatewayActivityBadgeCounts(await deps.fetchActivityBadgeCounts());
-        } catch {}
-      });
+      void deps.activityReadSync.request(channelId, ts);
     }
 
     for (const { channelId, threadTs, ts } of latestByThread.values())

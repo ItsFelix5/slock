@@ -79,8 +79,8 @@ export function createKeyedAsyncCache<T>(
       })
       .finally(() => {
         if (!isCurrent()) return;
-        setLoading(produce((s) => delete s[key]));
         inFlight.delete(key);
+        setLoading(produce((s) => delete s[key]));
       });
     inFlight.set(key, request);
     return request;

@@ -24,6 +24,7 @@ export function createScrollFeed(rowHeights: number[], viewportHeight: number) {
   let viewport = viewportHeight;
   let scrolled = 0;
   let nextId = 0;
+  let writes = 0;
 
   const contentHeight = () => rows.reduce((sum, row) => sum + (heights.get(row) ?? 0), 0);
   const maxScroll = () => Math.max(0, contentHeight() - viewport);
@@ -37,6 +38,7 @@ export function createScrollFeed(rowHeights: number[], viewportHeight: number) {
     scrollTop: {
       get: () => scrolled,
       set: (value: number) => {
+        writes += 1;
         scrolled = value;
         clampScroll();
       },
@@ -45,18 +47,21 @@ export function createScrollFeed(rowHeights: number[], viewportHeight: number) {
   container.getBoundingClientRect = () => rect(CONTAINER_TOP, viewport);
 
   function makeRow(height: number) {
+    const group = document.createElement("div");
+    group.className = "message-row-group";
     const row = document.createElement("div");
     row.dataset.messageTs = String(nextId++);
-    heights.set(row, height);
-    row.getBoundingClientRect = () => {
-      const index = rows.indexOf(row);
+    group.append(row);
+    heights.set(group, height);
+    group.getBoundingClientRect = () => {
+      const index = rows.indexOf(group);
       if (index < 0) return rect(0, 0);
       const above = rows
         .slice(0, index)
         .reduce((sum, earlier) => sum + (heights.get(earlier) ?? 0), 0);
       return rect(CONTAINER_TOP + above - scrolled, height);
     };
-    return row;
+    return group;
   }
 
   const feed = {
@@ -67,6 +72,7 @@ export function createScrollFeed(rowHeights: number[], viewportHeight: number) {
     },
     container,
     contentHeight,
+    writes: () => writes,
     offsetOf: (row: HTMLElement) => row.getBoundingClientRect().top - CONTAINER_TOP,
     prepend(newHeights: number[]) {
       const added = newHeights.map(makeRow);

@@ -4,7 +4,6 @@ import { AddRowButton, FloatingPanel, Icon } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import ComposeChannelPicker from "../../../../composer/client/api/pickers/ComposeChannelPicker";
 import ComposeUserPicker from "../../../../composer/client/api/pickers/ComposeUserPicker";
-import { openConversationInSplit } from "../../../../conversations/client/api/nav";
 import { SplitNavigation } from "../../../../shell/client/api/SplitNavigation";
 import {
   type FileAccessTarget,
@@ -17,6 +16,7 @@ import { ACCESS_OPTIONS, ORG_ACCESS_OPTIONS } from "./accessLevels";
 import UserChip from "./UserChip";
 
 const feedback = service("feedback");
+const messageLinks = service("message-links");
 
 function uniqueChannelShares(shares: SlackFileShare[]): SlackFileShare[] {
   return [...new Map(shares.map((share) => [share.channelId, share])).values()];
@@ -111,7 +111,11 @@ export default function FileDetailAccess(props: {
               onRemove={canManage() ? () => void remove({ channelId: share.channelId }) : undefined}
               options={ACCESS_OPTIONS}
             >
-              <SplitNavigation onSplit={() => openConversationInSplit(share.channelId, share.ts)}>
+              <SplitNavigation
+                onSplit={() =>
+                  messageLinks.openMessageInSplit(share.channelId, share.ts, share.threadTs)
+                }
+              >
                 <button
                   class="file-detail-channel btn-reset flex-align-center"
                   onClick={() => props.onOpenShare(share)}

@@ -9,11 +9,7 @@ const usersStore = service("users");
 export function createCanvasNames(): CanvasNames {
   return {
     channel: (id) => titles.title(id),
-    controlLabel: (embed) => {
-      if (embed.type === "file") return "File";
-      if (embed.type === "video") return "Video";
-      return "Embedded content";
-    },
+    controlLabel: (embed) => (embed.type === "file" ? "File" : "Embedded content"),
     emojiText: (name) => resolveStandardEmoji(name) ?? null,
     teamId: getCachedWorkspaceId() ?? "",
     user: (id) => usersStore.userById(id)?.name ?? id,

@@ -1,5 +1,5 @@
 import type { ApiReply } from "@slock/types";
-import { apiDelete, apiPost } from "../api/client";
+import { apiDelete, apiPost } from "../client";
 import { getActiveAccountId, refreshAccountInfo } from "./account";
 
 async function sessionRequest(request: Promise<ApiReply>): Promise<void> {

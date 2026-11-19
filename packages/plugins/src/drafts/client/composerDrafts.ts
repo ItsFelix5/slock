@@ -1,9 +1,10 @@
 import { blockPreviewText } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import { deleteDraft, saveDraft } from "../../slack/client/api/drafts";
+import { saveDraft } from "../../slack/client/api/drafts";
 import {
   type DraftValue,
+  deleteDraftOnServer,
   deleteEntry,
   draftCacheKey,
   drafts,
@@ -56,7 +57,7 @@ export function createComposerDraftState(opts: {
         if (startId && !(await hydrateDrafts())) throw new Error("Draft hydration failed");
         if (!blockPreviewText(blocks).trim()) {
           if (startId) {
-            await deleteDraft(startId);
+            await deleteDraftOnServer(startId);
             removeEntry(key, startId);
             if (generation === sessionGeneration && activeDraftId() === startId)
               setActiveDraftId(undefined);
@@ -230,7 +231,7 @@ export function createComposerDraftState(opts: {
           );
           if (activeId) ids.add(activeId);
           for (const id of ids) {
-            await deleteDraft(id);
+            await deleteDraftOnServer(id);
             removeEntry(key, id);
           }
         })

@@ -3,19 +3,25 @@ import { service } from "@slock/core/solid";
 import { TypingIndicator } from "@slock/ui";
 import { Show } from "solid-js";
 import type { HomeRowEndProps } from "../../home/client/api";
+import { definePluginSettings } from "../../plugins/client/api";
 
 const typingStore = service("typing");
 
-function RowTyping(props: HomeRowEndProps) {
-  const names = () => typingStore.typingUsersInChannel(props.id).map((user) => user.name);
-  return (
-    <Show when={names().length}>
-      <TypingIndicator dotsOnly inline names={names()} />
-    </Show>
-  );
-}
-
 const setup: Setup = (ctx) => {
+  const setting = definePluginSettings(ctx, {
+    showAvatars: { default: false, label: "Show avatars" },
+  });
+  const showAvatars = setting("showAvatars");
+
+  function RowTyping(props: HomeRowEndProps) {
+    const users = () => typingStore.typingUsersInChannel(props.id);
+    return (
+      <Show when={users().length}>
+        <TypingIndicator avatars={showAvatars()} dotsOnly inline users={users()} />
+      </Show>
+    );
+  }
+
   ctx.add("home.rowEnd", RowTyping);
 };
 

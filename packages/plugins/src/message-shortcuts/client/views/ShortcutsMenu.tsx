@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { MessageShortcut } from "@slock/types";
-import { fuzzySearch, Icon, Menu, MenuItem } from "@slock/ui";
+import { fuzzySearch, Icon, imageSrc, Menu, MenuItem } from "@slock/ui";
 import { createQuery } from "@tanstack/solid-query";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { MessageMenuProps } from "../../../messages/client/api";
@@ -80,7 +80,7 @@ export default function ShortcutsMenu(props: MessageMenuProps) {
                 <MenuItem
                   leading={
                     <Show fallback={<Icon name="apps" size={15} />} when={shortcut.icon}>
-                      {(icon) => <img alt="" class="menu-item-app-icon" src={icon()} />}
+                      {(icon) => <img alt="" class="menu-item-app-icon" src={imageSrc(icon())} />}
                     </Show>
                   }
                   onClick={() => run(shortcut)}

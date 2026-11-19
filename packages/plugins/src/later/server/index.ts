@@ -52,7 +52,7 @@ const list: Route[] = [
 
   route("GET", "saved", async (ctx) => {
     const data = await callSlack<SavedListReply>("saved.list", { limit: "40" }, ctx.creds);
-    if (!data.ok) return slackErrorResponse(data, "saved.list", ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "saved.list");
 
     const items = data.saved_items ?? data.items ?? [];
     const normalized = items
@@ -65,7 +65,7 @@ const list: Route[] = [
         ts: item.ts ?? item.message_ts,
       }))
       .filter((item) => !!item.channelId && !!item.ts);
-    return jsonResponse({ items: normalized, ok: true }, ctx.creds);
+    return jsonResponse({ items: normalized, ok: true });
   }),
 ];
 

@@ -1,5 +1,5 @@
-import { type Accessor, createEffect, type JSX } from "solid-js";
-import { useHoverIntent } from "../useHoverIntent";
+import { type Accessor, createEffect, type JSX, Show } from "solid-js";
+import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, {
   type FloatingAlign,
   type VerticalPlacement,
@@ -36,23 +36,25 @@ export default function HoverCard(props: HoverCardProps) {
   };
 
   const panel = (
-    <FloatingPanel
-      align={props.align ?? "start"}
-      anchor={props.anchor ?? (() => anchorRef)}
-      class={`hover-card flex-col ${props.panelClass ?? ""}`}
-      onFocusOut={handleFocusOut}
-      onMouseEnter={cancelClose}
-      onMouseLeave={scheduleClose}
-      onScroll={close}
-      open={open() && (props.openWhen?.() ?? true)}
-      panelRef={(element) => {
-        panelRef = element;
-      }}
-      placement={props.placement ?? "top"}
-      style={props.width ? { width: `${props.width}px` } : undefined}
-    >
-      {props.content(close)}
-    </FloatingPanel>
+    <Show when={open() && (props.openWhen?.() ?? true)}>
+      <FloatingPanel
+        align={props.align ?? "start"}
+        anchor={props.anchor ?? (() => anchorRef)}
+        class={`hover-card flex-col ${props.panelClass ?? ""}`}
+        onFocusOut={handleFocusOut}
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+        onScroll={close}
+        open
+        panelRef={(element) => {
+          panelRef = element;
+        }}
+        placement={props.placement ?? "top"}
+        style={props.width ? { width: `${props.width}px` } : undefined}
+      >
+        {props.content(close)}
+      </FloatingPanel>
+    </Show>
   );
 
   if (props.anchor) return panel;

@@ -201,7 +201,18 @@ export function createCanvasSync(options: CanvasSyncOptions) {
       retired: new Set(),
     });
     const next = { entries: remote.entries, title: remoteTitle };
-    return diffSnapshots(baseline, next, []) !== null;
+    const edit = diffSnapshots(baseline, next, []);
+    if (edit)
+      console.debug("[canvas-debug] remote diff", {
+        deleted: edit.deleted,
+        title: edit.title,
+        upserts: edit.upserts.map(({ after, node }) => ({
+          after,
+          id: node.id,
+          html: "html" in node ? node.html : node.kind,
+        })),
+      });
+    return edit !== null;
   }
 
   return {

@@ -44,7 +44,13 @@ export function createRealtime(points: {
       return;
     }
     if (event.type === "_status") connection.setGatewayConnected(!!event.connected);
-    for (const handler of handlersFor(event.type)) handler.run(event);
+    for (const handler of handlersFor(event.type)) {
+      try {
+        handler.run(event);
+      } catch (error) {
+        console.error(`realtime handler failed for ${event.type}`, error);
+      }
+    }
   }
 
   let queue: string[] = [];

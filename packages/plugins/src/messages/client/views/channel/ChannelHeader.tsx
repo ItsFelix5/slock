@@ -25,7 +25,6 @@ export default function ChannelHeader() {
     const el = topicEl();
     if (!el) return;
     const measure = () => setTopicOverflowing(el.scrollWidth > el.clientWidth);
-    measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     onCleanup(() => observer.disconnect());
@@ -107,7 +106,6 @@ export default function ChannelHeader() {
                   class="channel-header-btn"
                   icon="ellipsis-vertical-filled"
                   onClick={() => setMoreOpen(!moreOpen())}
-                  size="md"
                 />
               }
             >
@@ -127,7 +125,6 @@ export default function ChannelHeader() {
             class="channel-header-btn"
             icon="close"
             onClick={() => viewStore.closeTile(paneId)}
-            size="md"
           />
         </Show>
       </div>

@@ -2,19 +2,15 @@ import type { RawBot, RawIcons, RawUser, RawUserProfile } from "@slock/types";
 
 export function trimIcons(icons: RawIcons | undefined): RawIcons | undefined {
   if (!icons) return icons;
-  return {
-    image_32: icons.image_32,
-    image_36: icons.image_36,
-    image_48: icons.image_48,
-    image_64: icons.image_64,
-    image_72: icons.image_72,
-  };
+  const image = icons.image_72 ?? icons.image_48 ?? icons.image_36;
+  return image ? { image_72: image } : {};
 }
 
 export function trimProfile(profile: RawUserProfile): RawUserProfile {
+  const image = profile.image_192 || profile.image_72 || profile.image_48;
   return {
     api_app_id: profile.api_app_id,
-    avatar_hash: profile.avatar_hash,
+    avatar_hash: image ? undefined : profile.avatar_hash,
     bot_id: profile.bot_id,
     display_name: profile.display_name,
     email: profile.email,
@@ -26,16 +22,14 @@ export function trimProfile(profile: RawUserProfile): RawUserProfile {
           ]),
         )
       : profile.fields,
-    image_192: profile.image_192,
-    image_48: profile.image_48,
-    image_72: profile.image_72,
+    image_192: image,
     phone: profile.phone,
     pronouns: profile.pronouns,
     real_name: profile.real_name,
     start_date: profile.start_date,
     status_emoji: profile.status_emoji,
     status_text: profile.status_text,
-    team: profile.team,
+    team: image ? undefined : profile.team,
     title: profile.title,
   };
 }

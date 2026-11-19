@@ -1,13 +1,13 @@
 import { writeFileSync } from "node:fs";
-import { areaOf, loadFiles } from "./audit/files";
+import { areaOf, loadFiles } from "./audit/lib/files";
 import {
   countByAreaAndColumn,
   formatViolation,
   groupOf,
   markdownReport,
   table,
-} from "./audit/report";
-import { RULES } from "./audit/rules";
+} from "./audit/lib/report";
+import { RULES } from "./audit/lib/rules";
 
 const args = Bun.argv.slice(2);
 const option = (name: string) =>

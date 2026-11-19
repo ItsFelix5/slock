@@ -87,7 +87,6 @@ describe("historyLoadOnScroll", () => {
       ...both,
       direction,
       metrics: metrics(scrollTop),
-      olderCoolingDown: false,
       ...overrides,
     });
 
@@ -112,14 +111,9 @@ describe("historyLoadOnScroll", () => {
     expect(scroll(undefined, 9000)).toBeUndefined();
   });
 
-  test("cooldown and unavailable pages block loading", () => {
-    expect(scroll("older", 0, { olderCoolingDown: true })).toBeUndefined();
+  test("unavailable pages block loading", () => {
     expect(scroll("older", 0, { canLoadOlder: false })).toBeUndefined();
     expect(scroll("newer", 9500, { canLoadNewer: false })).toBeUndefined();
-  });
-
-  test("cooldown does not block newer", () => {
-    expect(scroll("newer", 9500, { olderCoolingDown: true })).toBe("newer");
   });
 
   test("never asks for a page that is unavailable", () => {
@@ -129,15 +123,11 @@ describe("historyLoadOnScroll", () => {
         canLoadOlder: random() < 0.5,
         direction: directions[int(random, 0, 2)],
         metrics: metrics(int(random, 0, 12_000), int(random, 100, 1200), int(random, 0, 12_000)),
-        olderCoolingDown: random() < 0.5,
       }),
       (input) => {
         const load = historyLoadOnScroll(input);
         if (load === "newer") expect(input.canLoadNewer && input.direction === "newer").toBe(true);
-        if (load === "older")
-          expect(input.canLoadOlder && !input.olderCoolingDown && input.direction !== "newer").toBe(
-            true,
-          );
+        if (load === "older") expect(input.canLoadOlder && input.direction !== "newer").toBe(true);
       },
     );
   });

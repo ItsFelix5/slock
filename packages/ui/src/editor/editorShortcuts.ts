@@ -1,7 +1,7 @@
-import { useShortcut } from "../useShortcut";
+import { useShortcut } from "../hooks/useShortcut";
+import { toggleUnicodeFont, type UnicodeFontKey } from "./format/unicodeFonts";
 import { linkifyBeforeSubmit } from "./linkAutolink";
 import type Quill from "./quill";
-import { toggleUnicodeFont, type UnicodeFontKey } from "./unicodeFonts";
 
 const CONTINUED_BLOCK_FORMATS = ["blockquote", "context", "header", "list", "code-block"];
 const EXITABLE_BLOCK_FORMATS = ["blockquote", "list"];

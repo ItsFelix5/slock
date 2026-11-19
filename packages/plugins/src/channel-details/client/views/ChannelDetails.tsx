@@ -154,7 +154,7 @@ export default function ChannelDetails() {
       nextTopic === d.topic ? true : channelDetails.updateChannelTopic(id, nextTopic),
       nextPurpose === d.purpose ? true : channelDetails.updateChannelPurpose(id, nextPurpose),
     ]);
-    await Promise.resolve(refetch()).catch(() => {});
+    await refetch();
     setSaving(false);
 
     if (!nameOk) setNameInput(d.name);

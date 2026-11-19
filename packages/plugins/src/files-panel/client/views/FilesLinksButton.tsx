@@ -13,13 +13,5 @@ export default function FilesLinksButton(props: MessageHeaderProps) {
     else filesPanel.openFilesLinksPanel(props.id);
     queueMicrotask(() => focusPaneById(paneId));
   };
-  return (
-    <IconButton
-      active={isOpen()}
-      class="channel-header-btn"
-      icon="search"
-      onClick={toggle}
-      size="md"
-    />
-  );
+  return <IconButton active={isOpen()} class="channel-header-btn" icon="search" onClick={toggle} />;
 }

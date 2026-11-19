@@ -24,7 +24,7 @@ function presenceRoutes(seen: () => PresenceSeen[]): Route[] {
           return [id, presence] as const;
         }),
       );
-      return jsonResponse({ ok: true, presence: Object.fromEntries(entries) }, ctx.creds);
+      return jsonResponse({ ok: true, presence: Object.fromEntries(entries) });
     }),
 
     route("PUT", "presence", async (ctx) => {

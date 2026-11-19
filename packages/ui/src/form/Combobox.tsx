@@ -1,8 +1,8 @@
 import { createEffect, createSignal, createUniqueId, For, onCleanup, Show } from "solid-js";
 import type { AvatarUser } from "../avatar/Avatar";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 import Icon, { type IconName } from "../media/Icon";
 import FloatingPanel from "../overlay/floating/FloatingPanel";
-import { useEscapeClose } from "../useEscapeClose";
 import "./Combobox.css";
 import ComboboxLeading from "./ComboboxLeading";
 import { createListboxActiveIndex, listNavigationIndex } from "./listNavigation";

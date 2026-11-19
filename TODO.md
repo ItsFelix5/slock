@@ -7,7 +7,6 @@ Yes this instruction is in a file and not a prompt THAT IS NOT A REASON TO MENTI
 - reminders
 - drag and drop
 - quick search plain sucks (from, with, in, has, is, during, type, hasmy)
-- make activity triage over recall and later issue tracking over a list?
 - glance?
 - right click section to temp open
 - quoting?
@@ -17,7 +16,7 @@ Yes this instruction is in a file and not a prompt THAT IS NOT A REASON TO MENTI
 - request subtitles
 - create channels/groups
 - notif sounds
-- unfurls in compose
+- better unfurls in compose
 - new improved unfurl ui
 - draft schedule
 - collapse sidebar
@@ -38,6 +37,8 @@ Yes this instruction is in a file and not a prompt THAT IS NOT A REASON TO MENTI
 - lists
 - huddles
 - directories
+- draft clearing
+- later/todo/issue tracker/triage/recall/lists/notes/directories/folders
 
 metadata
 @channel

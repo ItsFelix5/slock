@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ImageBlock } from "@slock/types";
+import { imageSrc } from "@slock/ui";
 import Image from "../../src/blocks/Image";
 import { attrs, count, mount, unmountAll } from "../../src/domTesting";
 
@@ -17,7 +18,7 @@ describe("Image block", () => {
     const host = mount(() => (
       <Image block={block({ title: { text: "Q3", type: "plain_text" } })} />
     ));
-    expect(attrs(host, "img", "src")).toEqual(["https://img.example.com/a.png"]);
+    expect(attrs(host, "img", "src")).toEqual([imageSrc("https://img.example.com/a.png")]);
     expect(host.querySelector("figcaption")?.textContent).toBe("Q3");
   });
 
@@ -30,7 +31,7 @@ describe("Image block", () => {
         })}
       />
     ));
-    expect(attrs(host, "img", "src")).toEqual(["https://files.slack.com/b.png"]);
+    expect(attrs(host, "img", "src")).toEqual([imageSrc("https://files.slack.com/b.png")]);
   });
 
   test.each([

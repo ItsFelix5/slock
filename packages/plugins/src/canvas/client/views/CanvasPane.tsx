@@ -218,7 +218,13 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                     restoring={history.restoring()}
                     version={version}
                   />
-                  <Show keyed when={history.viewing.data?.doc}>
+                  <Show
+                    fallback={
+                      <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
+                    }
+                    keyed
+                    when={history.viewing.data?.doc}
+                  >
                     {(doc) => (
                       <CanvasEditor
                         diff={history.diff()}

@@ -1,7 +1,12 @@
 import type { CanvasVersion } from "@slock/types";
-import { inside, useCancelShortcut, useClickOutside, useEscapeClose } from "@slock/ui";
+import { Avatar, inside, useCancelShortcut, useEscapeClose } from "@slock/ui";
 import { For, onMount, Show } from "solid-js";
-import { versionAuthor, versionTime } from "../lib/canvasVersions";
+import {
+  groupVersionsByDay,
+  versionAuthor,
+  versionAuthorUser,
+  versionClock,
+} from "../lib/canvasVersions";
 import "./CanvasHistory.css";
 
 export default function CanvasHistory(props: {
@@ -14,7 +19,12 @@ export default function CanvasHistory(props: {
   versions: CanvasVersion[];
 }) {
   let panel: HTMLElement | undefined;
-  useClickOutside([() => panel, props.anchor], props.onClose);
+  const latestId = () => props.versions[0]?.versionId;
+  const isSelected = (version: CanvasVersion) =>
+    props.selected
+      ? props.selected.versionId === version.versionId
+      : version.versionId === latestId();
+
   useEscapeClose(props.onClose);
   useCancelShortcut(
     () => {
@@ -28,41 +38,45 @@ export default function CanvasHistory(props: {
   return (
     <aside
       aria-label="Version history"
-      class="canvas-history surface-popover"
+      class="canvas-history"
       ref={(element) => {
         panel = element;
       }}
     >
       <header class="canvas-history-header">
-        <strong>Version history</strong>
+        <strong>History</strong>
       </header>
-      <ol class="canvas-history-list">
-        <li>
-          <button
-            aria-pressed={!props.selected}
-            class="canvas-history-item btn-reset flex-col"
-            onClick={() => props.onSelect(null)}
-            type="button"
-          >
-            <span class="canvas-history-time">Latest</span>
-          </button>
-        </li>
-        <For each={props.versions}>
-          {(version) => (
-            <li>
-              <button
-                aria-pressed={props.selected?.versionId === version.versionId}
-                class="canvas-history-item btn-reset flex-col"
-                onClick={() => props.onSelect(version)}
-                type="button"
-              >
-                <span class="canvas-history-time">{versionTime(version)}</span>
-                <span class="canvas-history-author text-dim">{versionAuthor(version)}</span>
-              </button>
-            </li>
-          )}
-        </For>
-      </ol>
+      <For each={groupVersionsByDay(props.versions)}>
+        {(day) => (
+          <section>
+            <h3 class="canvas-history-day text-dim">{day.label}</h3>
+            <ol class="canvas-history-list">
+              <For each={day.versions}>
+                {(version) => (
+                  <li>
+                    <button
+                      aria-pressed={isSelected(version)}
+                      class="canvas-history-item btn-reset flex-align-center"
+                      onClick={() =>
+                        props.onSelect(version.versionId === latestId() ? null : version)
+                      }
+                      type="button"
+                    >
+                      <Show when={versionAuthorUser(version)}>
+                        {(user) => <Avatar size="small" user={user()} />}
+                      </Show>
+                      <span class="flex-col canvas-history-text">
+                        <span class="canvas-history-time">{versionClock(version)}</span>
+                        <span class="canvas-history-author text-dim">{versionAuthor(version)}</span>
+                      </span>
+                    </button>
+                  </li>
+                )}
+              </For>
+            </ol>
+          </section>
+        )}
+      </For>
       <Show when={props.loading}>
         <div class="canvas-history-note text-dim" role="status">
           Loading…

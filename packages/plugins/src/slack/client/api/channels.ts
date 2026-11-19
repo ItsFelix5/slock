@@ -31,6 +31,7 @@ export {
   fetchFreshSections,
   fetchSections,
   openDm,
+  openGroupDm,
   renameSection,
   reorderSection,
   setChannelNotifyAll,

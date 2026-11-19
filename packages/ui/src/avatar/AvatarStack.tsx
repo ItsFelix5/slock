@@ -4,7 +4,7 @@ import "./AvatarStack.css";
 
 export interface AvatarStackProps {
   max?: number;
-  size?: "small" | "medium" | "large";
+  size?: "tiny" | "small" | "medium" | "large";
   users: AvatarUser[];
 }
 

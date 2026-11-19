@@ -1,6 +1,7 @@
-import { BlockKit, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
-import type { Block } from "@slock/types";
+import { BlockKit, TimeAnchorContext } from "@slock/blockkit";
+import type { Block, SlackFile } from "@slock/types";
 import { Show } from "solid-js";
+import TextOrFiles from "../../../../files/client/api/TextOrFiles";
 
 export default function MessageReferenceSnippet(props: {
   blocks?: Block[];
@@ -8,6 +9,7 @@ export default function MessageReferenceSnippet(props: {
   botUserId?: string;
   channelId: string;
   edited?: boolean;
+  files?: SlackFile[];
   inline?: boolean;
   text: string;
   threadTs?: string;
@@ -21,7 +23,7 @@ export default function MessageReferenceSnippet(props: {
       <Show
         fallback={
           <>
-            <Mrkdwn inline={props.inline} text={props.text} />
+            <TextOrFiles files={props.files} inline={props.inline} text={props.text} />
             <Show when={props.edited}>
               <span class="message-edited"> (edited)</span>
             </Show>
@@ -39,6 +41,7 @@ export default function MessageReferenceSnippet(props: {
               messageTs: props.ts,
               threadTs: props.threadTs,
             }}
+            inert={props.inline}
             trailing={props.edited ? <span class="message-edited"> (edited)</span> : undefined}
           />
         )}

@@ -30,7 +30,9 @@ export default function Image(props: { block: ImageBlock }) {
     );
   const frameTitle = () => {
     const size = formatSize(props.block.image_bytes);
-    return [props.block.title?.text ?? "GIF", size && `(${size})`].filter(Boolean).join(" ");
+    const title = props.block.title?.text;
+    const name = title && title !== "GIF" ? title : props.block.alt_text || title || "GIF";
+    return [name, size && `(${size})`].filter(Boolean).join(" ");
   };
   const image = () => (
     <ZoomableImage

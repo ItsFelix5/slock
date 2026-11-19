@@ -1,9 +1,9 @@
-export { localEnabledStore } from "./enabledStore";
-export type { Host, HostOptions, PluginInfo } from "./host";
-export { createHost, Unavailable } from "./host";
+export { localEnabledStore } from "./host/enabledStore";
+export type { Host, HostOptions, PluginInfo } from "./host/host";
+export { createHost, Unavailable } from "./host/host";
+export { parseManifest } from "./host/manifest";
 export type { HttpContext, HttpHandler } from "./http";
 export { runHttp } from "./http";
-export { parseManifest } from "./manifest";
 export type {
   AddOptions,
   Context,
@@ -23,6 +23,7 @@ export {
   CLOCK_24H,
   formatDay,
   formatDayFromMs,
+  formatMonthDayFromMs,
   formatTime,
   formatTimeFromMs,
 } from "./util/time";

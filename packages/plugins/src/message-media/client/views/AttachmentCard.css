@@ -183,11 +183,4 @@
 
 .attachment-remove {
   margin-top: 6px;
-  opacity: 0;
-}
-
-.attachment-removable:hover .attachment-remove,
-.attachment-removable:focus-within .attachment-remove,
-.remove-visible .attachment-remove {
-  opacity: 1;
 }

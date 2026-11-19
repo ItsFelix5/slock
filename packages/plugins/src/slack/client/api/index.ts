@@ -34,6 +34,7 @@ export {
   joinChannel,
   leaveChannel,
   openDm,
+  openGroupDm,
   PairedPreferenceWriteError,
   parseChannelPostingPrefs,
   removeFromChannel,

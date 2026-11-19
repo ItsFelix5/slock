@@ -50,24 +50,21 @@ const list: Route[] = [
       ),
     ]);
     if (!filesData.ok) {
-      return slackErrorResponse(filesData, "search.modules.files", ctx.creds);
+      return slackErrorResponse(filesData, "search.modules.files");
     }
     if (!linksData.ok) {
-      return slackErrorResponse(linksData, "conversations.searchLinks", ctx.creds);
+      return slackErrorResponse(linksData, "conversations.searchLinks");
     }
-    return jsonResponse(
-      {
-        files: filesData.items ?? [],
-        filesTotal: filesData.pagination?.total_count ?? 0,
-        hasMore:
-          page * 50 < (filesData.pagination?.total_count ?? 0) ||
-          page * 50 < (linksData.pagination?.total_count ?? 0),
-        links: linksData.items ?? [],
-        linksTotal: linksData.pagination?.total_count ?? 0,
-        ok: true,
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      files: filesData.items ?? [],
+      filesTotal: filesData.pagination?.total_count ?? 0,
+      hasMore:
+        page * 50 < (filesData.pagination?.total_count ?? 0) ||
+        page * 50 < (linksData.pagination?.total_count ?? 0),
+      links: linksData.items ?? [],
+      linksTotal: linksData.pagination?.total_count ?? 0,
+      ok: true,
+    });
   }),
 ];
 

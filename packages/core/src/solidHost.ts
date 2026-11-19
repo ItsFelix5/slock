@@ -1,5 +1,5 @@
 import { type Accessor, createRoot, createSignal, untrack } from "solid-js";
-import type { Host } from "./host";
+import type { Host } from "./host/host";
 import type { Points, Reactive, Services } from "./types";
 
 export const solidReactive: Reactive = {

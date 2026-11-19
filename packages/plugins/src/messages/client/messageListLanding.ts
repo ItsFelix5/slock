@@ -1,246 +1,132 @@
 import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, onCleanup, untrack } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
-import {
-  flashMessageElement,
-  getRememberedScrollAnchor,
-  jumpToMessageInContainer,
-  pinToRow,
-  rememberScrollAnchor,
-  restoreScrollAnchor,
-  scrollToBottom,
-  waitForMessageElement,
-} from "./api/pane/scrollAnchor";
+import type { FeedScroll } from "./api/pane/scroll/feedScroll";
+import { getRememberedScrollAnchor } from "./api/pane/scroll/rememberedAnchors";
 import { findUnreadDividerIndex } from "./lib/unreadDivider";
 
 const unreadStore = service("unread");
 const messagesStore = service("messages");
 
+const DIVIDER_WAIT_MS = 3000;
+
 export function createMessageListLanding(deps: {
   clearMessageTarget: () => void;
+  feed: FeedScroll;
   messages: () => Message[];
   messageTarget: () => ChannelMessageTarget | null;
+  onViewSwitch: () => void;
   paneView: () => View | null;
-  scrollRef: () => HTMLDivElement | undefined;
 }) {
+  const { feed } = deps;
   let lastViewId: string | undefined;
   let positionedViewId: string | undefined;
-  let landingRun = 0;
-  let pinnedRun = 0;
-  let requestedMessageTarget: ReturnType<typeof deps.messageTarget> = null;
-  let cancelPendingFlash: (() => void) | undefined;
+  let requestedMessageTarget: ChannelMessageTarget | null = null;
+  let dividerWait: ReturnType<typeof setTimeout> | undefined;
 
-  const [readyViewId, setReadyViewId] = createSignal<string>();
-  const [shouldFollowBottom, setShouldFollowBottom] = createSignal(true);
+  const landOnBottom = () => feed.land({ at: "bottom" });
 
-  function landOnBottom(viewId: string) {
-    const run = ++landingRun;
-    setShouldFollowBottom(true);
-    queueMicrotask(() => {
-      const el = deps.scrollRef();
-      if (run !== landingRun || deps.paneView()?.id !== viewId || !el) return;
-      scrollToBottom(el);
-      setReadyViewId(viewId);
-    });
-  }
-
-  function landOnMessage(viewId: string, ts: string, align: ScrollLogicalPosition, flash = false) {
-    const el = deps.scrollRef();
-    if (!el) return;
-    const run = ++landingRun;
-    setShouldFollowBottom(false);
-    cancelPendingFlash?.();
-    cancelPendingFlash = waitForMessageElement(el, ts, (row) => {
-      if (run !== landingRun || deps.paneView()?.id !== viewId) return;
-      const pin = () => {
-        setShouldFollowBottom(false);
-        row.scrollIntoView({ block: align });
-      };
-      pin();
-      pinnedRun = run;
-      const stopPinning = pinToRow(
-        el,
-        () => run !== landingRun,
-        pin,
-        () => {
-          if (pinnedRun === run) pinnedRun = 0;
-        },
-      );
-      const stopFlash = flash ? flashMessageElement(row) : undefined;
-      cancelPendingFlash = () => {
-        stopPinning();
-        stopFlash?.();
-      };
-      setReadyViewId(viewId);
-    });
-  }
-
-  function landOnDivider(viewId: string, dividerTs: string) {
-    const el = deps.scrollRef();
-    if (!el) return;
-    const run = ++landingRun;
-    setShouldFollowBottom(false);
-    cancelPendingFlash?.();
-    cancelPendingFlash = waitForMessageElement(el, dividerTs, (dividerRow) => {
-      const current = deps.scrollRef();
-      if (run !== landingRun || deps.paneView()?.id !== viewId || !current) return;
-      const containerRect = current.getBoundingClientRect();
-      const dividerRect = dividerRow.getBoundingClientRect();
-      const unreadContentHeight =
-        current.scrollHeight - (dividerRect.top - containerRect.top + current.scrollTop);
-      if (unreadContentHeight <= current.clientHeight) {
-        setShouldFollowBottom(true);
-        scrollToBottom(current);
-      } else {
-        dividerRow.scrollIntoView({ block: "start" });
-      }
-      setReadyViewId(viewId);
-    });
-  }
-
-  function landOnRememberedAnchor(viewId: string, anchor: { offset: number; ts: string }) {
-    const el = deps.scrollRef();
-    if (!el) return;
-    const run = ++landingRun;
-    setShouldFollowBottom(false);
-    cancelPendingFlash?.();
-    cancelPendingFlash = waitForMessageElement(el, anchor.ts, (row) => {
-      const current = deps.scrollRef();
-      if (run !== landingRun || deps.paneView()?.id !== viewId || !current) return;
-      restoreScrollAnchor(current, { el: row, offset: anchor.offset });
-      setReadyViewId(viewId);
-    });
-  }
-
-  function cancelLanding() {
-    landingRun += 1;
-    const view = deps.paneView();
-    if (view && readyViewId() !== view.id) setReadyViewId(view.id);
-  }
-
-  function loadWindowAroundAnchor(view: View, anchor: number) {
-    void messagesStore.jumpToTs(view.id, (anchor / 1000).toFixed(6)).then(async (ok) => {
-      if (ok) await messagesStore.loadNewerMessages(view.id);
-      if (deps.paneView()?.id !== view.id) return;
-      if (ok) landOnDividerOrBottom(view, deps.messages(), true);
-      else landOnBottom(view.id);
-    });
-  }
-
-  function landOnDividerOrBottom(view: View, msgs: Message[], windowLoaded = false) {
-    const anchor = unreadStore.unreadDividerTsForChannel(view.id);
-    if (anchor === undefined) return;
-    positionedViewId = view.id;
-
+  function landOnDivider(view: View, anchor: number, windowLoaded: boolean) {
+    const msgs = deps.messages();
     const [first] = msgs;
     const anchorAboveWindow = first && parseFloat(first.ts) * 1000 > anchor;
     if (!windowLoaded && anchorAboveWindow && messagesStore.hasMoreHistory(view.id)) {
-      loadWindowAroundAnchor(view, anchor);
+      void loadWindowAroundAnchor(view, anchor);
       return;
     }
-
-    const dividerIndex = findUnreadDividerIndex(msgs, anchor);
-    const dividerTs = dividerIndex >= 0 ? msgs[dividerIndex]?.ts : undefined;
-    if (dividerTs) landOnDivider(view.id, dividerTs);
-    else landOnBottom(view.id);
+    const dividerTs = msgs[findUnreadDividerIndex(msgs, anchor)]?.ts;
+    if (dividerTs) feed.land({ at: "row", ts: dividerTs, align: "start" });
+    else landOnBottom();
   }
 
-  function jumpToMessage(ts: string) {
-    const container = deps.scrollRef();
-    if (!container) return;
-    setShouldFollowBottom(false);
-    cancelPendingFlash?.();
-    cancelPendingFlash = jumpToMessageInContainer(container, ts);
+  async function loadWindowAroundAnchor(view: View, anchor: number) {
+    const ok = await messagesStore.jumpToTs(view.id, (anchor / 1000).toFixed(6));
+    if (ok) await messagesStore.loadNewerMessages(view.id);
+    if (deps.paneView()?.id !== view.id) return;
+    if (ok) landOnDivider(view, anchor, true);
+    else landOnBottom();
   }
 
-  function jumpToDate(dateMs: number) {
+  function landOnRememberedOrBottom(view: View) {
+    const remembered = getRememberedScrollAnchor(view.id);
+    if (remembered && deps.messages().some((m) => m.ts === remembered.ts))
+      feed.land({ at: "offset", ...remembered });
+    else landOnBottom();
+  }
+
+  function waitForDivider(view: View) {
+    dividerWait ??= setTimeout(() => {
+      dividerWait = undefined;
+      if (positionedViewId === view.id || deps.paneView()?.id !== view.id) return;
+      positionedViewId = view.id;
+      landOnRememberedOrBottom(view);
+    }, DIVIDER_WAIT_MS);
+  }
+  onCleanup(() => clearTimeout(dividerWait));
+
+  function landOnFirstMessage(jump: (viewId: string) => Promise<boolean>) {
     const view = deps.paneView();
     if (!view) return;
-    void messagesStore.jumpToDate(view.id, dateMs).then((ok) => {
-      if (!ok || deps.paneView()?.id !== view.id) return;
-      queueMicrotask(() => {
-        const [first] = deps.messages();
-        if (first) landOnMessage(view.id, first.ts, "start");
-      });
+    void jump(view.id).then((ok) => {
+      const [first] = deps.messages();
+      if (ok && first && deps.paneView()?.id === view.id)
+        feed.land({ at: "row", ts: first.ts, align: "start" });
     });
   }
 
-  function jumpToBeginning() {
-    const view = deps.paneView();
-    if (!view) return;
-    void messagesStore.jumpToBeginning(view.id).then((ok) => {
-      if (!ok || deps.paneView()?.id !== view.id) return;
-      queueMicrotask(() => {
-        const [first] = deps.messages();
-        if (first) landOnMessage(view.id, first.ts, "start");
-      });
+  function landOnTarget(view: View, target: ChannelMessageTarget, msgs: Message[]) {
+    if (msgs.some((candidate) => candidate.ts === target.ts)) {
+      const reloaded = requestedMessageTarget === target;
+      requestedMessageTarget = target;
+      positionedViewId = view.id;
+      deps.clearMessageTarget();
+      if (reloaded || !untrack(feed.ready))
+        feed.land({ at: "row", ts: target.ts, align: "center", flash: true });
+      else feed.glideTo(target.ts);
+      return;
+    }
+    if (requestedMessageTarget === target) return;
+    requestedMessageTarget = target;
+    void messagesStore.ensureChannelMessage(target.channelId, target.ts).then((found) => {
+      if (!found && deps.messageTarget() === target) deps.clearMessageTarget();
     });
+  }
+
+  function landInitially(view: View) {
+    const anchor = unreadStore.unreadDividerTsForChannel(view.id);
+    if (anchor === undefined && !messagesStore.hasNewerHistory(view.id)) {
+      waitForDivider(view);
+      return;
+    }
+    clearTimeout(dividerWait);
+    dividerWait = undefined;
+    positionedViewId = view.id;
+    if (anchor !== undefined && Number.isFinite(anchor)) landOnDivider(view, anchor, false);
+    else landOnRememberedOrBottom(view);
   }
 
   createEffect(() => {
     const view = deps.paneView();
     const msgs = deps.messages();
-    const switchedView = view?.id !== lastViewId;
-    lastViewId = view?.id;
-    if (switchedView) {
-      landingRun += 1;
+    if (view?.id !== lastViewId) {
+      lastViewId = view?.id;
       positionedViewId = undefined;
-      setShouldFollowBottom(true);
-      cancelPendingFlash?.();
-      cancelPendingFlash = undefined;
+      clearTimeout(dividerWait);
+      dividerWait = undefined;
+      deps.onViewSwitch();
     }
-    const el = deps.scrollRef();
-    if (!(el && view)) return;
+    if (!(view && feed.element())) return;
 
     const target = deps.messageTarget();
-    if (target?.channelId === view.id) {
-      const index = msgs.findIndex((candidate) => candidate.ts === target.ts);
-      if (index >= 0) {
-        requestedMessageTarget = target;
-        const coldOpen = readyViewId() !== view.id;
-        deps.clearMessageTarget();
-        positionedViewId = view.id;
-        if (coldOpen) landOnMessage(view.id, target.ts, "center", true);
-        else jumpToMessage(target.ts);
-        return;
-      }
-
-      if (requestedMessageTarget !== target) {
-        requestedMessageTarget = target;
-        void messagesStore.ensureChannelMessage(target.channelId, target.ts).then((found) => {
-          if (!found && deps.messageTarget() === target) deps.clearMessageTarget();
-        });
-      }
-      return;
-    }
-
-    if (positionedViewId !== view.id && msgs.length > 0) {
-      const remembered = getRememberedScrollAnchor(view.id);
-      if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
-        positionedViewId = view.id;
-        landOnRememberedAnchor(view.id, remembered);
-      } else {
-        landOnDividerOrBottom(view, msgs);
-      }
-    }
+    if (target?.channelId === view.id) landOnTarget(view, target, msgs);
+    else if (positionedViewId !== view.id && msgs.length > 0) landInitially(view);
   });
 
-  const isPinning = () => pinnedRun !== 0 && pinnedRun === landingRun;
-
-  function trackScrollAnchor(viewId: string, anchor: { offset: number; ts: string }) {
-    if (readyViewId() === viewId) rememberScrollAnchor(viewId, anchor);
-  }
-
   return {
-    cancelLanding,
-    isPinning,
-    jumpToBeginning,
-    jumpToDate,
-    jumpToMessage,
-    readyViewId,
-    setShouldFollowBottom,
-    shouldFollowBottom,
-    trackScrollAnchor,
+    jumpToBeginning: () => landOnFirstMessage(messagesStore.jumpToBeginning),
+    jumpToDate: (dateMs: number) =>
+      landOnFirstMessage((viewId) => messagesStore.jumpToDate(viewId, dateMs)),
+    jumpToMessage: feed.glideTo,
   };
 }

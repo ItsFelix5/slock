@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createRoot } from "solid-js";
-import { useVideoShortcuts } from "../../src/media/useVideoShortcuts";
+import { useVideoShortcuts } from "../../src/media/video/useVideoShortcuts";
 
 const disposers: (() => void)[] = [];
 

@@ -1,8 +1,12 @@
+import { HighlightWordsContext } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
 import { createMemo, For, type JSX, Show } from "solid-js";
 import MessageRow from "../../views/MessageRow";
 import { retainsDeleted } from "../deletedMessages";
 import type { OpenThreadHandler } from "../messageFocus";
+
+const prefsStore = service("prefs");
 
 export type MessageRowsProps = {
   messages: Message[];
@@ -44,35 +48,37 @@ export default function MessageRows(props: MessageRowsProps) {
   });
 
   return (
-    <For each={props.messages}>
-      {(message, index) => {
-        const prev = createMemo(() => previousVisible()[index()]);
-        return (
-          <>
-            <MessageRow
-              channelId={props.channelId}
-              editingTs={props.editingTs}
-              focusedTs={props.focusedTs}
-              index={index}
-              message={message}
-              messageByTs={messageByTs}
-              messages={props.messages}
-              moreMenuTs={props.moreMenuTs}
-              onJumpToMessage={props.onJumpToMessage}
-              onOpenThread={props.onOpenThread}
-              onReplyLink={props.onReplyLink}
-              onStartEdit={props.onStartEdit}
-              onStopEdit={props.onStopEdit}
-              onToggleMoreMenu={props.onToggleMoreMenu}
-              onToggleReactionPicker={props.onToggleReactionPicker}
-              prev={prev}
-              reactionPickerTs={props.reactionPickerTs}
-              threadTs={props.threadTs}
-            />
-            <Show when={message.ts === props.gapAfterTs}>{props.gap}</Show>
-          </>
-        );
-      }}
-    </For>
+    <HighlightWordsContext.Provider value={prefsStore.highlightWords}>
+      <For each={props.messages}>
+        {(message, index) => {
+          const prev = createMemo(() => previousVisible()[index()]);
+          return (
+            <>
+              <MessageRow
+                channelId={props.channelId}
+                editingTs={props.editingTs}
+                focusedTs={props.focusedTs}
+                index={index}
+                message={message}
+                messageByTs={messageByTs}
+                messages={props.messages}
+                moreMenuTs={props.moreMenuTs}
+                onJumpToMessage={props.onJumpToMessage}
+                onOpenThread={props.onOpenThread}
+                onReplyLink={props.onReplyLink}
+                onStartEdit={props.onStartEdit}
+                onStopEdit={props.onStopEdit}
+                onToggleMoreMenu={props.onToggleMoreMenu}
+                onToggleReactionPicker={props.onToggleReactionPicker}
+                prev={prev}
+                reactionPickerTs={props.reactionPickerTs}
+                threadTs={props.threadTs}
+              />
+              <Show when={message.ts === props.gapAfterTs}>{props.gap}</Show>
+            </>
+          );
+        }}
+      </For>
+    </HighlightWordsContext.Provider>
   );
 }

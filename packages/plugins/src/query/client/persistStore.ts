@@ -28,8 +28,17 @@ export const writeSnapshot = (account: string, snapshot: unknown): Promise<IDBVa
   run("readwrite", (store) => store.put(snapshot, account));
 
 export async function pruneSnapshots(keep: readonly string[]): Promise<void> {
-  const keys = await run("readonly", (store) => store.getAllKeys());
-  for (const key of keys)
-    if (typeof key === "string" && !keep.includes(key))
-      await run("readwrite", (store) => store.delete(key));
+  const db = await open();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(STORE, "readwrite");
+    const store = transaction.objectStore(STORE);
+    const request = store.getAllKeys();
+    request.onsuccess = () => {
+      for (const key of request.result)
+        if (typeof key === "string" && !keep.includes(key)) store.delete(key);
+    };
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
 }

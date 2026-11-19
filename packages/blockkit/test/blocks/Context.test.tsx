@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ContextBlock } from "@slock/types";
+import { imageSrc } from "@slock/ui";
 import Context from "../../src/blocks/Context";
 import { attrs, mount, unmountAll } from "../../src/domTesting";
 
@@ -13,7 +14,7 @@ const imageBlock = (image_url: string): ContextBlock => ({
 describe("Context block image", () => {
   test("keeps an https image", () => {
     const host = mount(() => <Context block={imageBlock("https://img.example.com/a.png")} />);
-    expect(attrs(host, "img", "src")).toEqual(["https://img.example.com/a.png"]);
+    expect(attrs(host, "img", "src")).toEqual([imageSrc("https://img.example.com/a.png")]);
   });
 
   test.each([

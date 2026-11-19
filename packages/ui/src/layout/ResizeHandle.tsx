@@ -1,8 +1,8 @@
 import { createSignal, onCleanup } from "solid-js";
 import "./ResizeHandle.css";
+import { useCancelShortcut } from "../hooks/useEscapeClose";
+import { useAdjustShortcuts } from "../hooks/useNavShortcuts";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
-import { useCancelShortcut } from "../useEscapeClose";
-import { useAdjustShortcuts } from "../useNavShortcuts";
 
 function resizeWidth(
   width: number,

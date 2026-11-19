@@ -1,0 +1,46 @@
+.debug-pane {
+  width: 100%;
+  height: 100%;
+}
+
+.debug-pane-header {
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+.debug-pane-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.debug-pane-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-sm) var(--space-lg) var(--space-lg);
+  overflow: auto;
+  background-color: var(--code-bg);
+}
+
+.debug-chip {
+  display: inline-flex;
+  gap: var(--space-xs);
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-right: var(--space-xs);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-secondary);
+  vertical-align: middle;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  transition: background-color 0.1s;
+}
+
+.debug-chip:hover,
+.debug-chip:focus-visible {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}

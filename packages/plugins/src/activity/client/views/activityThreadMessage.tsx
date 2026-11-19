@@ -1,9 +1,8 @@
 import { formatDayFromMs, formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { Block, SlackFile } from "@slock/types";
-import { Avatar, DEFAULT_AVATAR_COLOR, Icon, NavRow, Tooltip } from "@slock/ui";
+import { Avatar, DEFAULT_AVATAR_COLOR, NavRow, Tooltip } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { fileSummaryIcon, fileSummaryLabel } from "../../../files/client/api/fileSummary";
 import { splitReplyLink } from "../../../message-links/client/api/replyLink";
 import MessageReferenceSnippet from "../../../messages/client/api/cards/MessageReferenceSnippet";
 import {
@@ -28,33 +27,18 @@ export function ActivityMessageText(props: {
   ts: string;
 }) {
   const content = createMemo(() => splitReplyLink(props));
-  const filesOnly = createMemo(() => {
-    if (content().blocks || content().text.trim()) return;
-    return props.files?.length ? props.files : undefined;
-  });
   return (
-    <Show
-      fallback={
-        <MessageReferenceSnippet
-          blocks={content().blocks}
-          botId={props.author.botId}
-          botUserId={props.author.userId}
-          channelId={props.channelId}
-          inline
-          text={content().text}
-          threadTs={props.threadTs}
-          ts={props.ts}
-        />
-      }
-      when={filesOnly()}
-    >
-      {(files) => (
-        <span class="activity-file-fallback">
-          <Icon name={fileSummaryIcon(files())} size={12} />
-          {fileSummaryLabel(files())}
-        </span>
-      )}
-    </Show>
+    <MessageReferenceSnippet
+      blocks={content().blocks}
+      botId={props.author.botId}
+      botUserId={props.author.userId}
+      channelId={props.channelId}
+      files={props.files}
+      inline
+      text={content().text}
+      threadTs={props.threadTs}
+      ts={props.ts}
+    />
   );
 }
 

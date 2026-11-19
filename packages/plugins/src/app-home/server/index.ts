@@ -28,11 +28,8 @@ const setup: Setup = (ctx) => {
           { channel: request.params.id, return_app_home: "true" },
           request.creds,
         );
-        if (!data.ok) return slackErrorResponse(data, "conversations.info", request.creds);
-        return jsonResponse(
-          { appHome: data.app_home ?? null, view: data.home_view },
-          request.creds,
-        );
+        if (!data.ok) return slackErrorResponse(data, "conversations.info");
+        return jsonResponse({ appHome: data.app_home ?? null, view: data.home_view });
       }),
       route("POST", "conversations/:id/app-home/open", async (request) => {
         const { appId } = await request.body.json<{ appId?: string }>();
@@ -42,7 +39,7 @@ const setup: Setup = (ctx) => {
           { app: appId },
           request.creds,
         );
-        if (!profile.ok) return slackErrorResponse(profile, "apps.profile.get", request.creds);
+        if (!profile.ok) return slackErrorResponse(profile, "apps.profile.get");
         return mutate(
           "apps.home.dispatchOpenEvent",
           { id: request.params.id, service_team_id: profile.app_profile.team_id, type: "home" },

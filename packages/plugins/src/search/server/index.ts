@@ -60,7 +60,7 @@ const HIGHLIGHT_MARKER = /[\uE000-\uF8FF]/;
 const list: Route[] = [
   route("GET", "search", async (ctx) => {
     let query = (ctx.searchParams.get("query") ?? "").trim();
-    if (!query) return jsonResponse({ channels: [], files: [], ok: true, users: [] }, ctx.creds);
+    if (!query) return jsonResponse({ channels: [], files: [], ok: true, users: [] });
     const scope =
       query[0] === "#"
         ? "channels"
@@ -127,26 +127,22 @@ const list: Route[] = [
             ctx.creds,
           ),
     ]);
-    if (!peopleData.ok) return slackErrorResponse(peopleData, "users.search", ctx.creds);
-    if (!channelsData.ok)
-      return slackErrorResponse(channelsData, "edge channels/search", ctx.creds);
-    if (!filesData.ok) return slackErrorResponse(filesData, "search.modules.files", ctx.creds);
-    return jsonResponse(
-      {
-        channels: (channelsData.results ?? [])
-          .filter((channel) => !isHostedChannel(channel))
-          .map(trimChannel),
-        files: (filesData.items ?? []).map(trimFile),
-        ok: true,
-        users: (peopleData.results ?? []).map(trimUser),
-      },
-      ctx.creds,
-    );
+    if (!peopleData.ok) return slackErrorResponse(peopleData, "users.search");
+    if (!channelsData.ok) return slackErrorResponse(channelsData, "edge channels/search");
+    if (!filesData.ok) return slackErrorResponse(filesData, "search.modules.files");
+    return jsonResponse({
+      channels: (channelsData.results ?? [])
+        .filter((channel) => !isHostedChannel(channel))
+        .map(trimChannel),
+      files: (filesData.items ?? []).map(trimFile),
+      ok: true,
+      users: (peopleData.results ?? []).map(trimUser),
+    });
   }),
 
   route("GET", "search/messages", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
-    if (!query) return jsonResponse({ ok: true, results: [] }, ctx.creds);
+    if (!query) return jsonResponse({ ok: true, results: [] });
     const sort = ctx.searchParams.get("sort") === "score" ? "score" : "timestamp";
     const sortDir = ctx.searchParams.get("sortDir") === "asc" ? "asc" : "desc";
     const data = await callSlack<MessagesSearchReply>(
@@ -170,41 +166,36 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "search.modules.messages", ctx.creds);
+      return slackErrorResponse(data, "search.modules.messages");
     }
     const matches = (data.items ?? []).flatMap((group) =>
       group.channel && !isHostedChannel(group.channel)
         ? (group.messages ?? []).map((message) => ({ ...message, channel: group.channel }))
         : [],
     );
-    return jsonResponse(
-      {
-        ok: true,
-        results: matches
-          .flatMap((match) =>
-            match.channel?.id && match.ts
-              ? [{ ...match, channel: match.channel, ts: match.ts }]
-              : [],
-          )
-          .map((match) => {
-            const { highlights, text } = extractHighlights(match.text ?? "");
-            return {
-              blocks: match.blocks,
-              botIcon: botIconFromMatch(match),
-              botId: match.bot_id,
-              botName: match.username ?? match.bot_profile?.name,
-              channelId: match.channel.id,
-              channelName: match.channel.name ?? match.channel.id,
-              highlights,
-              text,
-              threadTs: threadTsFromMatch(match),
-              ts: match.ts,
-              userId: match.user ?? match.bot_id ?? "",
-            };
-          }),
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      ok: true,
+      results: matches
+        .flatMap((match) =>
+          match.channel?.id && match.ts ? [{ ...match, channel: match.channel, ts: match.ts }] : [],
+        )
+        .map((match) => {
+          const { highlights, text } = extractHighlights(match.text ?? "");
+          return {
+            blocks: match.blocks,
+            botIcon: botIconFromMatch(match),
+            botId: match.bot_id,
+            botName: match.username ?? match.bot_profile?.name,
+            channelId: match.channel.id,
+            channelName: match.channel.name ?? match.channel.id,
+            highlights,
+            text,
+            threadTs: threadTsFromMatch(match),
+            ts: match.ts,
+            userId: match.user ?? match.bot_id ?? "",
+          };
+        }),
+    });
   }),
 
   route("POST", "search/save", async (ctx) => {
@@ -214,7 +205,7 @@ const list: Route[] = [
         await callSlack("search.save", { module: "messages", query: query.trim() }, ctx.creds);
       } catch {}
     }
-    return jsonResponse({ ok: true }, ctx.creds);
+    return jsonResponse({ ok: true });
   }),
 ];
 

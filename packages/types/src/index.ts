@@ -1,24 +1,4 @@
 export type {
-  AccountSummary,
-  ActivityFeedPage,
-  ApiFailure,
-  ApiReply,
-  Bootstrap,
-  ChannelFilesAndLinks,
-  ChannelPostingPrefs,
-  ChannelPostingPrefsPatch,
-  ConversationViewData,
-  DraftEntry,
-  FeedEntry,
-  FileUploadInput,
-  GlobalSearchResults,
-  HistoryPage,
-  PinnedMessage,
-  SearchResult,
-  SessionInfo,
-  UserPrefs,
-} from "./apiTypes";
-export type {
   ActionsBlock,
   AlertBlock,
   Block,
@@ -62,8 +42,7 @@ export type {
   TextInputElement,
   TextObject,
   VideoBlock,
-} from "./blocks";
-export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./bootstrapPayload";
+} from "./blocks/blocks";
 export type {
   CanvasCommentThread,
   CanvasControl,
@@ -93,37 +72,6 @@ export type {
   SlackFileShare,
   SlackLink,
 } from "./fileTypes";
-export type {
-  ChannelUpdates,
-  DesktopNotificationEvent,
-  GatewayEvent,
-  GatewayMessageEvent,
-  MembershipEvent,
-} from "./gatewayEvents";
-export type {
-  RawActivityEntry,
-  RawActivityFeedEntry,
-  RawActivityItem,
-  RawActivityMessage,
-} from "./rawActivity";
-export type {
-  RawAttachment,
-  RawBot,
-  RawChannel,
-  RawChannelProperties,
-  RawChannelSection,
-  RawChannelText,
-  RawCountGroup,
-  RawCounts,
-  RawFile,
-  RawFileShare,
-  RawIcons,
-  RawLink,
-  RawMessage,
-  RawUser,
-  RawUsergroup,
-  RawUserProfile,
-} from "./rawTypes";
 export type { BroadcastRange, RichTextBroadcastElement } from "./richText";
 export type {
   BrowsableChannel,
@@ -147,3 +95,55 @@ export type {
   UsergroupDetails,
   UserProfile,
 } from "./userTypes";
+export type {
+  AccountSummary,
+  ActivityFeedPage,
+  ApiFailure,
+  ApiReply,
+  Bootstrap,
+  ChannelFilesAndLinks,
+  ChannelPostingPrefs,
+  ChannelPostingPrefsPatch,
+  ConversationViewData,
+  DraftEntry,
+  FeedEntry,
+  FileUploadInput,
+  GlobalSearchResults,
+  HistoryPage,
+  PinnedMessage,
+  SearchResult,
+  SessionInfo,
+  UserPrefs,
+} from "./wire/apiTypes";
+export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./wire/bootstrapPayload";
+export type {
+  ChannelUpdates,
+  DesktopNotificationEvent,
+  GatewayEvent,
+  GatewayMessageEvent,
+  MembershipEvent,
+} from "./wire/gatewayEvents";
+export type {
+  RawActivityEntry,
+  RawActivityFeedEntry,
+  RawActivityItem,
+  RawActivityMessage,
+} from "./wire/rawActivity";
+export type {
+  RawAttachment,
+  RawBot,
+  RawChannel,
+  RawChannelProperties,
+  RawChannelSection,
+  RawChannelText,
+  RawCountGroup,
+  RawCounts,
+  RawFile,
+  RawFileShare,
+  RawIcons,
+  RawLink,
+  RawMessage,
+  RawUser,
+  RawUsergroup,
+  RawUserProfile,
+} from "./wire/rawTypes";

@@ -1,11 +1,17 @@
-import type { Block, Message, SlackFile } from "@slock/types";
+import type { Attachment, Block, Message, SlackFile } from "@slock/types";
 
 export interface ComposerEditingProps {
+  initialAttachments?: Attachment[];
   initialBlocks?: Block[];
   initialFiles?: SlackFile[];
   initialText?: string;
   onCancel: () => void;
-  onSave: (text: string, blocks?: Block[], fileIds?: string[]) => Promise<boolean>;
+  onSave: (
+    text: string,
+    blocks?: Block[],
+    fileIds?: string[],
+    removedAttachmentIds?: number[],
+  ) => Promise<boolean>;
 }
 
 export interface ComposerReplyToProps {

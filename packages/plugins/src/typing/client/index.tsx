@@ -11,12 +11,11 @@ const setup: Setup = (ctx) => {
   ctx.provide("typing", store);
 
   function TypingFooter(props: MessageFooterProps) {
-    const names = () =>
-      (props.threadTs
+    const users = () =>
+      props.threadTs
         ? store.typingUsersInThread(props.channelId, props.threadTs)
-        : store.typingUsersInChannel(props.channelId)
-      ).map((user) => user.name);
-    return <TypingIndicator names={names()} />;
+        : store.typingUsersInChannel(props.channelId);
+    return <TypingIndicator users={users()} />;
   }
 
   ctx.add("realtime.handler", {

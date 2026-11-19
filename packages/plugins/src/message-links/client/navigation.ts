@@ -1,6 +1,6 @@
 import type { Services } from "@slock/core/types";
 import { batch } from "solid-js";
-import { viewForConversation } from "../../conversations/client/api/nav";
+import { openConversationInSplit, viewForConversation } from "../../conversations/client/api/nav";
 
 export function createMessageNavigation(deps: {
   openInNewPane: Services["shell.panes"]["openInNewPane"];
@@ -27,5 +27,10 @@ export function createMessageNavigation(deps: {
     else deps.setActiveView(viewForConversation(channelId), { target: { channelId, ts } });
   }
 
-  return { openChannelMessage, openChannelPeek, openThread };
+  function openMessageInSplit(channelId: string, ts: string, threadTs?: string) {
+    if (threadTs) openThread(channelId, threadTs, ts, { pinned: true });
+    else openConversationInSplit(channelId, ts);
+  }
+
+  return { openChannelMessage, openChannelPeek, openMessageInSplit, openThread };
 }

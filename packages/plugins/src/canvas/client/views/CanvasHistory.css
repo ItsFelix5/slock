@@ -1,26 +1,28 @@
 .canvas-history-slot {
   position: sticky;
-  top: var(--space-md);
+  top: 0;
   z-index: 4;
   flex: none;
   align-self: flex-start;
-  width: 0;
-  height: 0;
+  width: 240px;
+  max-height: 70vh;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
 }
 
 .canvas-history {
-  position: absolute;
-  top: 0;
-  right: var(--space-md);
-  width: 240px;
-  max-height: 70vh;
   padding: var(--space-md);
-  overflow-y: auto;
   font-size: var(--font-size-meta);
 }
 
 .canvas-history-header {
   margin-bottom: var(--space-sm);
+}
+
+.canvas-history-day {
+  margin: var(--space-md) 0 var(--space-xs);
+  font-size: var(--font-size-meta);
+  font-weight: 600;
 }
 
 .canvas-history-note {
@@ -34,7 +36,7 @@
 }
 
 .canvas-history-item {
-  align-items: flex-start;
+  gap: var(--space-sm);
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
   text-align: left;
@@ -61,7 +63,7 @@
   top: 0;
   z-index: 3;
   gap: var(--space-md);
-  padding: var(--space-sm) var(--space-xl);
+  padding: var(--space-sm) var(--space-lg);
   font-size: var(--font-size-meta);
   background: var(--warning-subtle);
   border-bottom: 1px solid var(--warning-muted);

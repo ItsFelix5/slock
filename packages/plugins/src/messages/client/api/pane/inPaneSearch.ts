@@ -9,7 +9,7 @@ import {
   useShortcut,
 } from "@slock/ui";
 import { type Accessor, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import { jumpToMessageInContainer } from "./scrollAnchor";
+import type { FeedScroll } from "./scroll/feedScroll";
 
 const ALL_MATCHES = "search-match";
 const CURRENT_MATCH = "search-match-current";
@@ -31,7 +31,7 @@ function clearHighlights() {
 
 export function createInPaneSearch(
   messages: Accessor<Message[]>,
-  container: Accessor<HTMLElement | undefined>,
+  feed: FeedScroll,
   paneId: Accessor<string>,
 ) {
   const [open, setOpen] = createSignal(false);
@@ -40,7 +40,7 @@ export function createInPaneSearch(
 
   const rowIndex = createMemo(() => {
     if (!open()) return;
-    const el = container();
+    const el = feed.element();
     if (!el) return;
     messages();
     return indexContainer(el);
@@ -53,17 +53,14 @@ export function createInPaneSearch(
     return messages().filter((m) => index.get(m.ts)?.text.includes(q));
   });
 
-  let stopJump: (() => void) | undefined;
   let hasJumpedSinceQueryChange = false;
   const jump = (index: number) => {
     const list = matches();
-    const el = container();
-    if (!(list.length && el)) return;
+    if (!list.length) return;
     const wrapped = ((index % list.length) + list.length) % list.length;
     setMatchIndex(wrapped);
     hasJumpedSinceQueryChange = true;
-    stopJump?.();
-    stopJump = jumpToMessageInContainer(el, defined(list[wrapped]).ts);
+    feed.glideTo(defined(list[wrapped]).ts);
   };
   const jumpRelative = (delta: number) =>
     jump(hasJumpedSinceQueryChange ? matchIndex() + delta : matchIndex());
@@ -108,7 +105,6 @@ export function createInPaneSearch(
     group: "Lists",
   });
   useEscapeClose(close, open);
-  onCleanup(() => stopJump?.());
 
   return {
     close,

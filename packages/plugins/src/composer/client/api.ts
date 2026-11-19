@@ -70,6 +70,9 @@ export type ComposerDraftAction = {
 };
 
 declare module "@slock/core/types" {
+  interface Services {
+    composer: { uploadOnAttach: () => boolean };
+  }
   interface Points {
     "composer.attach": Component<ComposerAttachProps>;
     "composer.beforeSend": BeforeSend;

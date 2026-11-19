@@ -1,11 +1,11 @@
 import { getHost, service } from "@slock/core/solid";
 import { onCleanup, onMount } from "solid-js";
-import { openConversationInSplit } from "../../conversations/client/api/nav";
 import { fetchPermalinkMessage } from "../../slack/client/api";
 import { consumeSharedProtocolLink } from "./api/incomingLinks";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
+  openSlackPermalinkInSplit,
   parseSlackPermalink,
 } from "./api/slackPermalink";
 import { handleMessageCopy } from "./messageCopy";
@@ -20,12 +20,7 @@ export function installPermalinkHandler(
   const permalinkOpener = createSlackPermalinkOpener({
     navigate: (target, options) => {
       if (options?.split) {
-        if (target.threadTs === target.messageTs)
-          openConversationInSplit(target.channelId, target.messageTs);
-        else
-          messageLinks.openThread(target.channelId, target.threadTs, target.messageTs, {
-            pinned: true,
-          });
+        openSlackPermalinkInSplit(target, messageLinks);
         return;
       }
       navigateToSlackPermalink(target, messageLinks);

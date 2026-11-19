@@ -17,7 +17,7 @@ async function sendRelayAction(ctx: RouteCtx, channel: string, action: RelayActi
     { channel, command: RELAY_COMMAND, text: JSON.stringify(action) },
     creds,
   );
-  return sent.ok ? okResponse(creds) : slackErrorResponse(sent, "relay", creds);
+  return sent.ok ? okResponse() : slackErrorResponse(sent, "relay");
 }
 
 export function relayBroadcast(ctx: RouteCtx, channel: string, body: object) {

@@ -88,6 +88,16 @@ export function annotateSelection(quill: Quill, id: string): boolean {
   return true;
 }
 
+export function removeAnnotation(quill: Quill, id: string) {
+  let index = 0;
+  for (const op of quill.getContents().ops) {
+    const length = typeof op.insert === "string" ? op.insert.length : 1;
+    if (op.attributes?.[ANNOTATION_ATTRIBUTE] === id)
+      quill.formatText(index, length, ANNOTATION_ATTRIBUTE, false, "user");
+    index += length;
+  }
+}
+
 function blockInsertIndex(quill: Quill): number {
   const range = quill.getSelection(true);
   const [line] = quill.getLine(range.index);

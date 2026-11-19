@@ -5,7 +5,6 @@ import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { uploadFilesForEdit } from "../../../slack/client/api";
 import "./Composer.css";
 import { createComposerDraftState, draftCacheKey } from "../../../drafts/client/api";
 import { composerFeedbackKey } from "../../../slash-commands/client/api";
@@ -27,7 +26,9 @@ import { useSuggestShortcuts } from "../api/editor/useSuggestShortcuts";
 import { useSuggestUi } from "../api/editor/useSuggestUi";
 import { createComposerSubmitHandler } from "../composerSubmit";
 import type { ComposerProps } from "../composerTypes";
+import { uploadAll } from "../lib/attachUpload";
 import { mrkdwnText } from "../lib/deltaLines";
+import { createEditAttachments } from "../lib/editAttachments";
 import { createEditorPlugins } from "../lib/editorPlugins";
 import { wireHeaderLimit } from "../lib/headerLimit";
 import { createLinkPreviews } from "../lib/linkPreviews";
@@ -42,6 +43,7 @@ import ComposerReplyRow from "./ComposerReplyRow";
 import DraftsMenu from "./popovers/DraftsMenu";
 
 const feedback = service("feedback");
+const composer = service("composer");
 
 export default function Composer(props: ComposerProps) {
   let quill: Quill | undefined;
@@ -82,12 +84,15 @@ export default function Composer(props: ComposerProps) {
     props.editing?.initialFiles ?? [],
   );
 
+  const editAttachments = createEditAttachments(() => props.editing?.initialAttachments);
+
   const pendingFiles = createPendingFileState({
     disabled: sending,
     draftKey: () =>
       props.editing || !props.channelId
         ? undefined
         : draftCacheKey(props.channelId, props.threadTs),
+    uploadOnAttach: composer.uploadOnAttach,
   });
 
   const [edits, setEdits] = createSignal(0);
@@ -132,6 +137,7 @@ export default function Composer(props: ComposerProps) {
     linkPreviews,
     onSent: () => props.replyTo?.onSent(),
     pendingFiles,
+    removedAttachmentIds: editAttachments.removed,
     replyTo: () => props.replyTo,
     sending,
     setExistingFiles,
@@ -198,7 +204,12 @@ export default function Composer(props: ComposerProps) {
         onRemoveExisting={(id) => setExistingFiles((files) => files.filter((f) => f.id !== id))}
         pendingFiles={pendingFiles}
       />
-      <ComposerLinkPreviews onRemove={linkPreviews.dismiss} previews={linkPreviews.previews()} />
+      <ComposerLinkPreviews
+        onRemove={(preview) =>
+          props.editing ? editAttachments.remove(preview) : linkPreviews.dismiss(preview.url)
+        }
+        previews={props.editing ? editAttachments.previews() : linkPreviews.previews()}
+      />
       <div class="composer-row">
         <ComposerAttachMenu
           onFilesSelected={(files) => pendingFiles.add(files)}
@@ -254,10 +265,7 @@ export default function Composer(props: ComposerProps) {
               onSaveAs={async (action, name) => {
                 if (!quill) return;
                 const blocks = editorBlocks();
-                const newFiles = pendingFiles.files();
-                const uploaded = newFiles.length
-                  ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
-                  : [];
+                const uploaded = await uploadAll(pendingFiles.files());
                 action.save(name, { blocks, files: [...existingFiles(), ...uploaded] });
               }}
               onSwitchTo={(entry) => draftState?.switchTo(entry)}

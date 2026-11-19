@@ -4,7 +4,7 @@ import RemovableAttachment from "../../../message-media/client/api/RemovableAtta
 import type { LinkPreview } from "../lib/linkPreviews";
 
 export default function ComposerLinkPreviews(props: {
-  onRemove: (url: string) => void;
+  onRemove: (preview: LinkPreview) => void;
   previews: LinkPreview[];
 }) {
   return (
@@ -12,7 +12,7 @@ export default function ComposerLinkPreviews(props: {
       <div class="composer-link-previews">
         <For each={props.previews}>
           {(preview) => (
-            <RemovableAttachment alwaysShowRemove onRemove={() => props.onRemove(preview.url)}>
+            <RemovableAttachment onRemove={() => props.onRemove(preview)}>
               <AttachmentCard attachment={preview.attachment} showPermalink />
             </RemovableAttachment>
           )}

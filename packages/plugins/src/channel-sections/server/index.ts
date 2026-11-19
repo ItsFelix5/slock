@@ -19,12 +19,9 @@ const list: Route[] = [
   route("GET", "sections", async (ctx) => {
     const data = await callSlack<ChannelSectionsReply>("users.channelSections.list", {}, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "users.channelSections.list", ctx.creds);
+      return slackErrorResponse(data, "users.channelSections.list");
     }
-    return jsonResponse(
-      { channel_sections: data.channel_sections?.map(trimChannelSection) },
-      ctx.creds,
-    );
+    return jsonResponse({ channel_sections: data.channel_sections?.map(trimChannelSection) });
   }),
 
   route("POST", "sections", async (ctx) => {
@@ -36,20 +33,17 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "users.channelSections.create", ctx.creds);
+      return slackErrorResponse(data, "users.channelSections.create");
     }
     const section = data.channel_section ?? data;
-    return jsonResponse(
-      {
-        channel_section: {
-          channel_section_id: section.channel_section_id,
-          id: section.id,
-          name: section.name,
-        },
-        ok: true,
+    return jsonResponse({
+      channel_section: {
+        channel_section_id: section.channel_section_id,
+        id: section.id,
+        name: section.name,
       },
-      ctx.creds,
-    );
+      ok: true,
+    });
   }),
 
   route("PATCH", "sections/:id", async (ctx) => {

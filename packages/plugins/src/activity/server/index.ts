@@ -226,7 +226,7 @@ const list: Route[] = [
         },
         ctx.creds,
       );
-      if (!done.ok) return slackErrorResponse(done, "saved.update", ctx.creds);
+      if (!done.ok) return slackErrorResponse(done, "saved.update");
     }
     return mutate("activity.archive", { key, ts, type }, ctx);
   }),
@@ -263,19 +263,16 @@ const list: Route[] = [
       },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "activity.feed", ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "activity.feed");
     const rawItems = data.items ?? [];
     const reminders = await fetchReminders(rawItems, ctx.creds);
-    return jsonResponse(
-      {
-        items: rawItems.map((raw) => trimActivityItem(raw, reminders)),
-        ok: true,
-        response_metadata: data.response_metadata
-          ? { next_cursor: data.response_metadata.next_cursor }
-          : undefined,
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      items: rawItems.map((raw) => trimActivityItem(raw, reminders)),
+      ok: true,
+      response_metadata: data.response_metadata
+        ? { next_cursor: data.response_metadata.next_cursor }
+        : undefined,
+    });
   }),
 ];
 

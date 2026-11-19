@@ -1,4 +1,4 @@
-import type { Block } from "./blocks";
+import type { Block } from "./blocks/blocks";
 import type { SlackFile } from "./fileTypes";
 
 export interface ActivityItem {

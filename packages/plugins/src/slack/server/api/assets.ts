@@ -25,8 +25,6 @@ const CONTENT_ADDRESSED_HOST_RE = /\.slack-edge\.com$/;
 const SLACK_ASSET_KEY_RE =
   /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$|^vtt$/i;
 
-const SLACK_IMGS_KEY_RE = /(?:^|_)(?:avatar|icon|image|thumb)(?:_|$)/i;
-
 function isAllowedSlackUrl(value: string): boolean {
   try {
     const parsed = new URL(value);
@@ -59,50 +57,21 @@ function slackImgsProxyUrl(value: string): string | null {
   return `https://slack-imgs.com/?c=1&o1=ro&url=${encodeURIComponent(value)}`;
 }
 
-function hydrateAvatarHash(value: Record<string, unknown>): void {
-  const { profile, id } = value;
-  if (!(isRecord(profile) && typeof id === "string")) return;
-  if (profile.image_192 || profile.image_72 || profile.image_48) return;
-  const hash = profile.avatar_hash;
-  const team = profile.team ?? value.team_id;
-  if (typeof hash !== "string" || typeof team !== "string") return;
-  profile.image_192 = `https://ca.slack-edge.com/${team}-${id}-${hash}-192`;
-}
-
-export function downloadUrl(url: string): string {
-  return isAllowedSlackUrl(url) ? `${ASSET_PATH}?url=${encodeURIComponent(url)}` : url;
-}
-
 export function imageUrl(url: string): string {
-  return isAllowedSlackUrl(url) ? downloadUrl(url) : (slackImgsProxyUrl(url) ?? url);
+  return isAllowedSlackUrl(url)
+    ? `${ASSET_PATH}?url=${encodeURIComponent(url)}`
+    : (slackImgsProxyUrl(url) ?? url);
 }
 
-export function rewriteSlackAssetUrls(value: unknown, creds: Credentials | null): unknown {
-  if (!(creds && value) || typeof value !== "object") return value;
-  if (Array.isArray(value)) return value.map((entry) => rewriteSlackAssetUrls(entry, creds));
-  if (isRecord(value)) hydrateAvatarHash(value);
-  const rewritten: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === "string" && isStaticAssetUrl(entry)) {
-      rewritten[key] = downloadUrl(entry);
-      continue;
-    }
-    if (typeof entry === "string" && SLACK_ASSET_KEY_RE.test(key)) {
-      if (isAllowedSlackUrl(entry)) {
-        rewritten[key] = downloadUrl(entry);
-        continue;
-      }
-      if (SLACK_IMGS_KEY_RE.test(key)) {
-        const proxied = slackImgsProxyUrl(entry);
-        if (proxied) {
-          rewritten[key] = proxied;
-          continue;
-        }
-      }
-    }
-    rewritten[key] = rewriteSlackAssetUrls(entry, creds);
+export function slackAssetUrlsIn(value: unknown, key = ""): string[] {
+  if (typeof value === "string") {
+    const asset =
+      isStaticAssetUrl(value) || (SLACK_ASSET_KEY_RE.test(key) && isAllowedSlackUrl(value));
+    return asset ? [value] : [];
   }
-  return rewritten;
+  if (Array.isArray(value)) return value.flatMap((entry) => slackAssetUrlsIn(entry));
+  if (!isRecord(value)) return [];
+  return Object.entries(value).flatMap(([name, entry]) => slackAssetUrlsIn(entry, name));
 }
 
 async function fetchFollowingRedirects(
@@ -128,6 +97,32 @@ async function fetchFollowingRedirects(
   throw new Error("Slack file redirected too many times");
 }
 
+const FILE_RETRIES = 1;
+const FILE_RETRY_DELAY_MS = 500;
+
+async function fetchFileOnce(url: string, headers: Record<string, string>): Promise<Response> {
+  const controller = new AbortController();
+  const connectTimer = setTimeout(() => controller.abort(), FILE_CONNECT_TIMEOUT_MS);
+  try {
+    return await fetchFollowingRedirects(url, headers, controller.signal);
+  } finally {
+    clearTimeout(connectTimer);
+  }
+}
+
+async function fetchFileWithRetry(url: string, headers: Record<string, string>): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetchFileOnce(url, headers);
+      if (res.status < 500 || attempt === FILE_RETRIES) return res;
+      await res.body?.cancel();
+    } catch (error) {
+      if (attempt === FILE_RETRIES) throw error;
+    }
+    await Bun.sleep(FILE_RETRY_DELAY_MS);
+  }
+}
+
 export async function slackAssetResponse(
   fileUrl: string | null,
   creds: Credentials | null,
@@ -139,26 +134,18 @@ export async function slackAssetResponse(
   }
   if (!creds) return new Response("not configured", { headers: jsonHeaders, status: 401 });
 
-  const controller = new AbortController();
-  const connectTimer = setTimeout(() => controller.abort(), FILE_CONNECT_TIMEOUT_MS);
   let fileRes: Response;
   try {
-    fileRes = await fetchFollowingRedirects(
-      fileUrl,
-      {
-        cookie: `d=${creds.slackSession}`,
-        ...(acceptEncoding ? { "accept-encoding": acceptEncoding } : {}),
-        ...(range ? { range } : {}),
-      },
-      controller.signal,
-    );
+    fileRes = await fetchFileWithRetry(fileUrl, {
+      cookie: `d=${creds.slackSession}`,
+      ...(acceptEncoding ? { "accept-encoding": acceptEncoding } : {}),
+      ...(range ? { range } : {}),
+    });
   } catch (error) {
     return new Response(errorMessage(error, "Slack file request failed"), {
       headers: jsonHeaders,
       status: 502,
     });
-  } finally {
-    clearTimeout(connectTimer);
   }
   if (!(fileRes.ok && fileRes.body)) {
     return new Response(`Slack file request failed: ${fileRes.status} ${fileRes.statusText}`, {

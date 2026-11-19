@@ -1,12 +1,6 @@
-import {
-  BlockKit,
-  HighlightWordsContext,
-  MessageAttachmentsContext,
-  Mrkdwn,
-  TimeAnchorContext,
-} from "@slock/blockkit";
+import { BlockKit, MessageAttachmentsContext, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
 import { Slot, service, usePoint } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { Attachment, Message } from "@slock/types";
 import { createMemo, Show } from "solid-js";
 import { encodeReplyLink, withReplyLink } from "../../../../message-links/client/api/replyLink";
 import type { MessageContent } from "../../lib/messageRenderState";
@@ -14,9 +8,9 @@ import { deleteOrDismissMessage } from "../../messageActions";
 import EditedLabel from "./EditedLabel";
 
 const messagesStore = service("messages");
-const prefsStore = service("prefs");
 
 export default function MessageTextContent(props: {
+  attachments: Attachment[] | undefined;
   channelId: string;
   hasEnlargedEmojiOnlyText: boolean;
   isEditing: boolean;
@@ -42,11 +36,12 @@ export default function MessageTextContent(props: {
           channelId={props.channelId}
           point="composer.input"
           editing={{
+            initialAttachments: props.attachments,
             initialBlocks: props.renderBlocks,
             initialFiles: props.replyRef ? undefined : props.msg.files,
             initialText: props.messageText,
             onCancel: () => props.onStopEdit?.(),
-            onSave: async (text, blocks, fileIds) => {
+            onSave: async (text, blocks, fileIds, removedAttachmentIds) => {
               if (!(text.trim() || fileIds?.length)) {
                 const deleted = await deleteOrDismissMessage(props.channelId, props.msg);
                 if (deleted) props.onStopEdit?.();
@@ -59,6 +54,7 @@ export default function MessageTextContent(props: {
                 url ? encodeReplyLink(url) + text : text,
                 url && blocks ? withReplyLink(blocks, url) : blocks,
                 fileIds,
+                removedAttachmentIds,
               );
               if (saved) props.onStopEdit?.();
               return saved;
@@ -75,39 +71,37 @@ export default function MessageTextContent(props: {
               class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
               classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
             >
-              <HighlightWordsContext.Provider value={prefsStore.highlightWords}>
-                <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
-                  <TimeAnchorContext.Provider
-                    value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
+              <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
+                <TimeAnchorContext.Provider
+                  value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
+                >
+                  <Show
+                    fallback={
+                      <>
+                        <Mrkdwn text={props.messageText} />
+                        <Show when={props.msg.edited}>
+                          <EditedLabel msg={props.msg} />
+                        </Show>
+                      </>
+                    }
+                    when={props.renderBlocks}
                   >
-                    <Show
-                      fallback={
-                        <>
-                          <Mrkdwn text={props.messageText} />
-                          <Show when={props.msg.edited}>
-                            <EditedLabel msg={props.msg} />
-                          </Show>
-                        </>
-                      }
-                      when={props.renderBlocks}
-                    >
-                      {(blocks) => (
-                        <BlockKit
-                          blocks={blocks()}
-                          context={{
-                            botId: props.msg.botId,
-                            botUserId: props.msg.userId,
-                            channelId: props.channelId,
-                            messageTs: props.msg.ts,
-                            threadTs: props.msg.threadTs,
-                          }}
-                          trailing={props.msg.edited ? <EditedLabel msg={props.msg} /> : undefined}
-                        />
-                      )}
-                    </Show>
-                  </TimeAnchorContext.Provider>
-                </MessageAttachmentsContext.Provider>
-              </HighlightWordsContext.Provider>
+                    {(blocks) => (
+                      <BlockKit
+                        blocks={blocks()}
+                        context={{
+                          botId: props.msg.botId,
+                          botUserId: props.msg.userId,
+                          channelId: props.channelId,
+                          messageTs: props.msg.ts,
+                          threadTs: props.msg.threadTs,
+                        }}
+                        trailing={props.msg.edited ? <EditedLabel msg={props.msg} /> : undefined}
+                      />
+                    )}
+                  </Show>
+                </TimeAnchorContext.Provider>
+              </MessageAttachmentsContext.Provider>
             </div>
           </Show>
         }

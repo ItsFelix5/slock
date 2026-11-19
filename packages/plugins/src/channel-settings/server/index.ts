@@ -6,9 +6,10 @@ import {
 import {
   errorResponse,
   jsonResponse,
+  okResponse,
   slackErrorResponse,
 } from "../../slack/server/api/jsonResponse";
-import type { Route, RouteCtx } from "../../slack/server/api/router";
+import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type {
@@ -16,10 +17,6 @@ import type {
   MemberPermissionsReply,
   RetentionReply,
 } from "../../slack/server/api/slackReplies";
-
-function okNoop(ctx: RouteCtx): Response {
-  return jsonResponse({ ok: true }, ctx.creds);
-}
 
 const list: Route[] = [
   route("PUT", "channels/:id/purpose", async (ctx) => {
@@ -41,10 +38,10 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.getRetention", ctx.creds);
+      return slackErrorResponse(data, "conversations.getRetention");
     }
     const days = data.retention_type === "1" ? Number(data.retention_duration) || null : null;
-    return jsonResponse({ days, ok: true }, ctx.creds);
+    return jsonResponse({ days, ok: true });
   }),
 
   route("PUT", "channels/:id/retention", async (ctx) => {
@@ -67,27 +64,24 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.permissions.accountTypes.list", ctx.creds);
+      return slackErrorResponse(data, "conversations.permissions.accountTypes.list");
     }
     const member = data.account_types?.find((type) => type.account_type === "FULL_MEMBER");
     const allowed = (permission: string) =>
       member?.permissions.find((entry) => entry.permission === permission)?.is_allowed ?? true;
-    return jsonResponse(
-      {
-        invite: allowed("INVITE_TO_CHANNEL"),
-        ok: true,
-        setPurpose: allowed("SET_CHANNEL_PURPOSE"),
-        setTopic: allowed("SET_CHANNEL_TOPIC"),
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      invite: allowed("INVITE_TO_CHANNEL"),
+      ok: true,
+      setPurpose: allowed("SET_CHANNEL_PURPOSE"),
+      setTopic: allowed("SET_CHANNEL_TOPIC"),
+    });
   }),
 
   route("PUT", "channels/:id/member-permissions", async (ctx) => {
     const { permissions } = await ctx.body.json<{
       permissions?: { is_allowed: boolean; permission: string }[];
     }>();
-    if (!permissions?.length) return okNoop(ctx);
+    if (!permissions?.length) return okResponse();
     return mutate(
       "conversations.permissions.accountTypes.set",
       {
@@ -106,23 +100,20 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.info", ctx.creds);
+      return slackErrorResponse(data, "conversations.info");
     }
     const { pref } = data.channel;
-    return jsonResponse(
-      {
-        ok: true,
-        prefs: pref
-          ? {
-              can_thread: pref.can_thread,
-              enable_at_channel: pref.enable_at_channel,
-              enable_at_here: pref.enable_at_here,
-              who_can_post: pref.who_can_post,
-            }
-          : {},
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      ok: true,
+      prefs: pref
+        ? {
+            can_thread: pref.can_thread,
+            enable_at_channel: pref.enable_at_channel,
+            enable_at_here: pref.enable_at_here,
+            who_can_post: pref.who_can_post,
+          }
+        : {},
+    });
   }),
 
   route("PUT", "channels/:id/posting-prefs", async (ctx) => {
@@ -152,15 +143,12 @@ const list: Route[] = [
   route("GET", "channels/:id/managers", async (ctx) => {
     const data = await fetchChannelManagerAssignments(ctx.params.id, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "admin.roles.entity.listAssignments", ctx.creds);
+      return slackErrorResponse(data, "admin.roles.entity.listAssignments");
     }
-    return jsonResponse(
-      {
-        ok: true,
-        userIds: managerIdsFromAssignments(data),
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      ok: true,
+      userIds: managerIdsFromAssignments(data),
+    });
   }),
 ];
 

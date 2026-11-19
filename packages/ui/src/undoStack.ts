@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { useShortcut } from "./useShortcut";
+import { useShortcut } from "./hooks/useShortcut";
 
 export interface UndoEntry {
   label: string;

@@ -40,7 +40,6 @@ function setup(options: { failArchive?: boolean; reactedBy?: string[] } = {}) {
       {
         clearChannelUnread: () => {},
         currentUser: () => me,
-        isActivityViewOpen: () => false,
         lastReadByChannel: {},
         reactionMessageFor: () => reactedMessage(options.reactedBy ?? []),
         setLastReadByChannel: () => {},

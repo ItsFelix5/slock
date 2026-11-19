@@ -45,7 +45,6 @@ export function createActivityStore(
   deps: {
     cacheResolvedMessages?: (messages: Map<string, Message>) => void;
     currentUser: () => User | undefined;
-    isActivityViewOpen: () => boolean;
     isBotUser?: (userId: string) => boolean;
     lastReadByChannel: Record<string, number>;
     reactionMessageFor?: (channelId: string, ts: string) => Message | undefined;
@@ -120,7 +119,6 @@ export function createActivityStore(
     fetchActivityFeedEntries: api.fetchActivityFeedEntries,
     fetchHistoryAround: api.fetchHistoryAround,
     fetchMessagesByIds: api.fetchMessagesByIds,
-    isActivityViewOpen: deps.isActivityViewOpen,
     isBotUser: deps.isBotUser,
     onReactionPushed: recentReactionFlash.flash,
     resolveActivityEntry: api.resolveActivityEntry,

@@ -1,0 +1,74 @@
+import { errorMessage } from "@slock/core";
+import { service } from "@slock/core/solid";
+import { CopyJsonButton, IconButton, JsonTree, type Pane, PanelHeader } from "@slock/ui";
+import { For, Show } from "solid-js";
+import { createKeyedQuery, defineKey } from "../../../query/client/api";
+import type { DebugPaneContent } from "../api";
+import { entities } from "../entities";
+import "./DebugPane.css";
+import IdChip from "./IdChip";
+
+const debugKey = defineKey<[string, string]>("debug");
+
+const viewStore = service("shell.view");
+
+export default function DebugPane(props: { pane: Pane<DebugPaneContent> }) {
+  const content = () => props.pane.content;
+  const entity = () => entities[content().entity];
+  const data = createKeyedQuery(() => ({
+    queryFn: async () => (await entities[content().entity]?.load(content().id)) ?? null,
+    queryKey: debugKey(content().entity, content().id),
+    staleTime: 0,
+  }));
+
+  const decorate = (value: string) => {
+    if (value === content().id) return;
+    for (const [kind, candidate] of Object.entries(entities)) {
+      if (candidate.pattern?.test(value) && candidate.load(value))
+        return <IdChip entity={kind} id={value} />;
+    }
+  };
+
+  return (
+    <div class="debug-pane flex-col surface-card" data-pane={props.pane.id}>
+      <PanelHeader
+        canClose={viewStore.canCloseTile()}
+        onClose={() => viewStore.closeTile(props.pane.id)}
+      >
+        <div class="debug-pane-header flex-align-center">
+          <div class="debug-pane-title truncate title-sm">{entity()?.title(content().id)}</div>
+          <For each={entity()?.related?.(content().id)}>
+            {(ref) => <IdChip entity={ref.entity} id={ref.id} />}
+          </For>
+          <IconButton
+            icon="open-in-main-view"
+            iconSize={15}
+            label={`Open ${entity()?.label}`}
+            onClick={() => entity()?.open(content().id)}
+            size="sm"
+          />
+          <IconButton
+            icon="refresh"
+            iconSize={15}
+            label="Reload"
+            onClick={() => void data.refetch()}
+            size="sm"
+          />
+          <CopyJsonButton value={data.data} />
+        </div>
+      </PanelHeader>
+      <div class="debug-pane-body">
+        <Show
+          fallback={
+            <span class="text-dim">
+              {data.error ? errorMessage(data.error) : data.isPending ? "Loading..." : "Not stored"}
+            </span>
+          }
+          when={data.data}
+        >
+          <JsonTree decorate={decorate} openDepth={3} value={data.data} />
+        </Show>
+      </div>
+    </div>
+  );
+}

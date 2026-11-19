@@ -22,8 +22,8 @@ export const appProfileRoutes = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "apps.profile.get", ctx.creds);
+      return slackErrorResponse(data, "apps.profile.get");
     }
-    return jsonResponse({ desc: data.app_profile?.desc, ok: true }, ctx.creds);
+    return jsonResponse({ desc: data.app_profile?.desc, ok: true });
   }),
 ];

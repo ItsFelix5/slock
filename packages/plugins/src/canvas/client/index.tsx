@@ -3,8 +3,10 @@ import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createEffect, lazy, Show } from "solid-js";
+import { gatewayHandler } from "../../realtime/client/api";
 import type { PaneContent } from "../../shell/client/api/types";
 import type { CanvasPaneContent } from "./api";
+import { refreshCommentsForChannel } from "./lib/canvasComments";
 import { openCanvasLinksOnClick } from "./lib/canvasLinks";
 import { fetchCanvasTitle } from "./lib/canvasRequests";
 import { createCanvasStore } from "./store";
@@ -45,11 +47,17 @@ const setup: Setup = (ctx) => {
   });
   ctx.add("realtime.handler", {
     run: (event) => {
-      if ((event.type === "document_change" || event.type === "document_update") && event.file_id)
-        store.noteRemoteChange(event.file_id);
+      if ("file_id" in event && event.file_id) store.noteRemoteChange(event.file_id);
     },
-    types: ["document_change", "document_update"],
+    types: ["document_change", "document_update", "file_change"],
   });
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["message", "reaction_added", "reaction_removed"], (event) => {
+      const channelId = event.type === "message" ? event.channel : event.item.channel;
+      if (channelId) refreshCommentsForChannel(channelId);
+    }),
+  );
   ctx.add("messages.blockKit", {
     onCanvasClick: store.openCanvasPane,
     resolveCanvasTitle: store.canvasTitle,

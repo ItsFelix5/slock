@@ -1,6 +1,6 @@
 import { type ListDirection, listNavigationIndex, rovingTabIndex } from "../form/listNavigation";
-import { useListShortcuts } from "../useNavShortcuts";
-import { useShortcut } from "../useShortcut";
+import { useListShortcuts } from "../hooks/useNavShortcuts";
+import { useShortcut } from "../hooks/useShortcut";
 
 const PANE_SELECTOR = "[data-pane]";
 

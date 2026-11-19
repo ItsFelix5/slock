@@ -7,7 +7,7 @@ import {
   type ShortcutDef,
   shortcutConflicts,
   useShortcut,
-} from "../src/useShortcut";
+} from "../src/hooks/useShortcut";
 
 const body = () => document.body;
 

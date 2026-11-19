@@ -36,15 +36,12 @@ export function historyLoadOnScroll(
   input: HistoryAvailability & {
     direction: ScrollDirection | undefined;
     metrics: ScrollMetrics;
-    olderCoolingDown: boolean;
   },
 ): ScrollDirection | undefined {
   const reach = input.metrics.clientHeight * HISTORY_EDGE_VIEWPORTS;
   if (input.direction === "newer")
     return input.canLoadNewer && distanceFromBottom(input.metrics) <= reach ? "newer" : undefined;
-  return input.canLoadOlder && !input.olderCoolingDown && input.metrics.scrollTop <= reach
-    ? "older"
-    : undefined;
+  return input.canLoadOlder && input.metrics.scrollTop <= reach ? "older" : undefined;
 }
 
 export function historyLoadToFillViewport(

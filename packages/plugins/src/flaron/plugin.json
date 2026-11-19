@@ -1,1 +1,1 @@
-{ "id": "flaron", "name": "Flaron", "requires": ["channels"] }
+{ "id": "flaron", "name": "Flaron private channel lookup", "requires": ["channels"] }

@@ -3,15 +3,17 @@ import { getHost, service } from "@slock/core/solid";
 import { blockPreviewText, broadcastRangeOf } from "@slock/slack";
 import type { SlackFile } from "@slock/types";
 import { encodeReplyLink, withReplyLink } from "../../message-links/client/api/replyLink";
-import { uploadFilesForEdit } from "../../slack/client/api";
 import { SLASH_COMMAND_RE } from "../../slash-commands/client/api";
 import type { ComposerProps } from "./composerTypes";
+import { uploadAll } from "./lib/attachUpload";
 import { type DeltaOp, mrkdwnText } from "./lib/deltaLines";
 import type { createPendingFileState } from "./lib/pendingFiles";
 import { buildRichTextBlocks } from "./lib/richTextBuild";
 import { submitComposerPayload } from "./lib/submission";
 
 const feedback = service("feedback");
+
+const composer = service("composer");
 
 const messagesStore = service("messages");
 
@@ -33,6 +35,7 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
   linkPreviews: { reset: () => unknown; urlsToSend: () => Promise<string[]> };
   onSent: () => void;
   pendingFiles: ReturnType<typeof createPendingFileState>;
+  removedAttachmentIds: () => number[];
   replyTo: () => ComposerProps["replyTo"];
   sending: () => boolean;
   setExistingFiles: (files: SlackFile[]) => void;
@@ -57,11 +60,14 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
         const blocks = buildRichTextBlocks(quill.getContents().ops);
         const newFiles = deps.pendingFiles.files();
         const existing = deps.existingFiles();
-        const uploaded = newFiles.length
-          ? await uploadFilesForEdit(newFiles.map((file) => ({ file })))
-          : [];
+        const uploaded = await uploadAll(newFiles);
         const fileIds = [...existing, ...uploaded].map((f) => f.id);
-        await editing.onSave(blockPreviewText(blocks) || text, blocks, fileIds);
+        await editing.onSave(
+          blockPreviewText(blocks) || text,
+          blocks,
+          fileIds,
+          deps.removedAttachmentIds(),
+        );
       } catch (err) {
         feedback.flash(deps.feedbackKey(), errorMessage(err, "Failed to save message."), "error");
       } finally {
@@ -145,7 +151,17 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
           blocks,
           filesToSend.length === 0 && reusedFileIds.length ? reusedFileIds : undefined,
         ),
-      uploadFiles: () => messagesStore.sendFiles(channelId, filesToSend, threadTs, outgoing),
+      uploadFiles: composer.uploadOnAttach()
+        ? async () =>
+            messagesStore.sendMessage(
+              channelId,
+              outgoing,
+              [],
+              threadTs,
+              blocks,
+              (await uploadAll(filesToSend)).map((file) => file.id),
+            )
+        : () => messagesStore.sendFiles(channelId, filesToSend, threadTs, outgoing),
     });
   }
 

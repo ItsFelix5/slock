@@ -17,6 +17,18 @@ export function reactionActivityKey(item: ActivityItem): string | undefined {
   return `${item.channelId}:${item.ts}:${item.reactionName}:${item.userId}`;
 }
 
+export function createPingCoverage(items: readonly ActivityItem[]) {
+  const covered = new Set<string>();
+  for (const { channelId, kind, threadTs, ts } of items) {
+    if (kind === "thread_reply") covered.add(`thread:${channelId}:${threadTs ?? ts}`);
+    if (kind === "channel_all") covered.add(`post:${channelId}:${ts}`);
+  }
+  return (item: ActivityItem) =>
+    item.kind === "keyword" &&
+    (covered.has(`post:${item.channelId}:${item.ts}`) ||
+      covered.has(`thread:${item.channelId}:${item.threadTs ?? item.ts}`));
+}
+
 export function channelPostKey(channelId: string, ts: string): string {
   return `${channelId}:${ts}`;
 }

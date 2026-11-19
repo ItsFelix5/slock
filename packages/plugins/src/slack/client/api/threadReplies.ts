@@ -30,13 +30,27 @@ async function fetchRange(channelId: string, threadTs: string, range: Range): Pr
     `/api/channels/${channelId}/threads/${threadTs}/messages?${query}`,
   );
   if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
-  const raws = data.messages ?? [];
-  const messages = mapVisibleMessages(raws);
+  const raws = (data.messages ?? []).filter(
+    (raw) => raw.ts !== undefined && inRange(raw.ts, range),
+  );
   return {
     edge: raws.at(-1)?.ts,
     hasMore: !!data.has_more,
-    messages: range.oldest ? messages.filter((m) => m.ts !== threadTs) : messages,
+    messages: mapVisibleMessages(raws),
   };
+}
+
+function inRange(ts: string, range: Range): boolean {
+  const value = Number(ts);
+  if (range.oldest) {
+    const oldest = Number(range.oldest);
+    if (range.inclusive ? value < oldest : value <= oldest) return false;
+  }
+  if (range.latest) {
+    const latest = Number(range.latest);
+    if (range.inclusive ? value > latest : value >= latest) return false;
+  }
+  return true;
 }
 
 export function fetchReplies(

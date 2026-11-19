@@ -30,6 +30,17 @@ export function ThreadMoreStatus(props: { ts: string }) {
           Loading replies…
         </div>
       </Show>
+      <Show when={messagesStore.missingReplies(props.ts) > 0}>
+        <div class="thread-panel-more-error flex-center">
+          <span>
+            {messagesStore.missingReplies(props.ts)} replies didn't load, so this thread is
+            incomplete.
+          </span>
+          <Button onClick={() => void messagesStore.refreshThreadReplies(props.ts)} size="sm">
+            Reload thread
+          </Button>
+        </div>
+      </Show>
       <Show when={messagesStore.hasMoreRepliesError(props.ts)}>
         <div class="thread-panel-more-error flex-center">
           <span>Couldn't load more replies.</span>

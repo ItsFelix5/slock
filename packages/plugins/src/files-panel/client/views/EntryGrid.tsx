@@ -1,15 +1,15 @@
 import { EmojiText, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { SlackFile, SlackLink } from "@slock/types";
-import { formatSize, Icon, Tooltip } from "@slock/ui";
+import { formatSize, Icon, imageSrc, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
 import { fileIconName, fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import type { FilesLinksEntry } from "../api";
 import { formatDate, linkDomain } from "../lib/panelView";
 
 const filesPanel = service("files-panel");
+const messageLinks = service("message-links");
 
 function JumpButton(props: { onJump: () => void; onSplit: () => void }) {
   return (
@@ -55,7 +55,7 @@ function FileCard(props: {
               class="files-links-card-thumb"
               decoding="async"
               loading="lazy"
-              src={thumb()}
+              src={imageSrc(thumb())}
             />
           )}
         </Show>
@@ -83,7 +83,11 @@ function FileCard(props: {
           )
         }
         onSplit={() =>
-          filesPanel.openFileMessage(props.channelId, props.file.id, openConversationInSplit)
+          filesPanel.openFileMessage(
+            props.channelId,
+            props.file.id,
+            messageLinks.openMessageInSplit,
+          )
         }
       />
     </div>
@@ -115,7 +119,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
               class="files-links-card-favicon"
               decoding="async"
               loading="lazy"
-              src={icon()}
+              src={imageSrc(icon())}
             />
           )}
         </Show>
@@ -133,7 +137,11 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
           )
         }
         onSplit={() =>
-          filesPanel.openLinkMessage(props.channelId, props.link.ts, openConversationInSplit)
+          filesPanel.openLinkMessage(
+            props.channelId,
+            props.link.ts,
+            messageLinks.openMessageInSplit,
+          )
         }
       />
     </div>

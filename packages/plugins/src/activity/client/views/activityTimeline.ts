@@ -28,7 +28,11 @@ export function createActivityTimeline(deps: {
     if (!deps.isThreadGroup()) return;
     messagesStore.ensureThreadRepliesLoaded(deps.latest().channelId, deps.threadTs());
   });
-  const fullThread = createMemo(() => messagesStore.messagesInThread(deps.threadTs()));
+  const fullThread = createMemo(() =>
+    messagesStore.hasMoreReplies(deps.threadTs())
+      ? undefined
+      : messagesStore.messagesInThread(deps.threadTs()),
+  );
   const orderedItems = createMemo(() => [...deps.items()].reverse());
   const activityByTs = createMemo(() => {
     const map = new Map<string, ActivityItem>();

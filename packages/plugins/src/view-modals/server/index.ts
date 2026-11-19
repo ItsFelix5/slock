@@ -68,8 +68,8 @@ const list: Route[] = [
       },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "blocks.suggestions", ctx.creds);
-    return jsonResponse({ option_groups: data.option_groups, options: data.options }, ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "blocks.suggestions");
+    return jsonResponse({ option_groups: data.option_groups, options: data.options });
   }),
 
   route("POST", "views/submit", async (ctx) => {
@@ -85,15 +85,12 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) return errorResponse(data.error, 502, data);
-    return jsonResponse(
-      {
-        errors: data.errors,
-        response_action: data.response_action,
-        toast_message: data.toast_message,
-        view: data.view,
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      errors: data.errors,
+      response_action: data.response_action,
+      toast_message: data.toast_message,
+      view: data.view,
+    });
   }),
 
   route("POST", "views/close", async (ctx) => {

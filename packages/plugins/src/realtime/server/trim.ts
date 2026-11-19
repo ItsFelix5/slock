@@ -28,17 +28,25 @@ type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &
     deleted_ts?: string;
     dnd_status?: { snooze_enabled?: boolean; snooze_endtime?: number };
     event_ts?: string;
+    file?: { id?: string };
+    file_id?: string;
     is_shared?: boolean;
     item?: { channel?: string; message?: { ts?: string }; ts?: string; type?: string };
     item_user?: string;
     message?: RawMessage;
     launchUri?: string;
     mention_count?: number;
+    mention_count_display?: number;
     msg?: string;
     presence?: string;
     purpose?: string;
     reaction?: string;
-    subscription?: { last_read?: string; thread_ts?: string; unread_count?: number };
+    subscription?: {
+      channel?: string;
+      last_read?: string;
+      thread_ts?: string;
+      unread_count?: number;
+    };
     subteam?: { id?: string };
     subteam_id?: string;
     subtitle?: string;
@@ -47,6 +55,7 @@ type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &
     ts?: string;
     type?: string;
     unread_count?: number;
+    unread_count_display?: number;
     user?: string | RawUser;
     users?: string[];
     view?: ModalView;
@@ -76,6 +85,10 @@ function trimView(view: ModalView | undefined): ModalView | undefined {
 
 function channelId(channel: RawGatewayEvent["channel"]): string | undefined {
   return typeof channel === "string" ? channel : channel?.id;
+}
+
+function threadChannel(payload: RawGatewayEvent): string | undefined {
+  return channelId(payload.channel) ?? payload.subscription?.channel;
 }
 
 function isFileEvent(type: string | undefined): type is `file_${string}` {
@@ -128,9 +141,11 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
       return {
         channel: channelId(payload.channel),
         mention_count: payload.mention_count,
+        mention_count_display: payload.mention_count_display,
         ts: payload.ts,
         type: payload.type,
         unread_count: payload.unread_count,
+        unread_count_display: payload.unread_count_display,
       };
     case "channel_joined":
     case "group_joined":
@@ -217,7 +232,7 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
       return { type: payload.type };
     case "thread_marked":
       return {
-        channel: channelId(payload.channel),
+        channel: threadChannel(payload),
         last_read: payload.subscription?.last_read,
         thread_ts: payload.subscription?.thread_ts,
         type: payload.type,
@@ -226,8 +241,8 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
     case "thread_subscribed":
     case "thread_unsubscribed":
       return {
-        channel: channelId(payload.channel),
-        thread_ts: payload.thread_ts,
+        channel: threadChannel(payload),
+        thread_ts: payload.subscription?.thread_ts ?? payload.thread_ts,
         type: payload.type,
       };
     case "manual_presence_change":
@@ -246,6 +261,8 @@ export function trimSlackGatewayPayload(payload: RawGatewayEvent): GatewayEvent 
         type: payload.type,
       };
     default:
-      return isFileEvent(payload.type) ? { type: payload.type } : trimSyncEvent(payload);
+      return isFileEvent(payload.type)
+        ? { file_id: payload.file_id ?? payload.file?.id, type: payload.type }
+        : trimSyncEvent(payload);
   }
 }

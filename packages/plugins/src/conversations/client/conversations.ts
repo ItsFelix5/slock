@@ -34,6 +34,7 @@ export function createConversations(deps: {
   });
 
   const visibleViews = () => panes.panes().flatMap(({ content }) => asView(content) ?? []);
+  const mountedViews = () => panes.mountedPanes().flatMap(({ content }) => asView(content) ?? []);
 
   function setActiveView(view: View, options?: { target?: ChannelMessageTarget }) {
     const next = viewFor(view.id);
@@ -49,6 +50,7 @@ export function createConversations(deps: {
     isOpenInAnyPane: (id: string, kind: View["kind"]) =>
       visibleViews().some((view) => view.kind === kind && view.id === id),
     kindOf,
+    mountedViews,
     messageTarget: (paneId: string) => targets[paneId] ?? null,
     setActiveView,
     setMessageTarget: (paneId: string, target: ChannelMessageTarget) => setTargets(paneId, target),

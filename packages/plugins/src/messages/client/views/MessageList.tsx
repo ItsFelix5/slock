@@ -1,6 +1,6 @@
 import { Slot, service } from "@slock/core/solid";
 import { Button, Icon } from "@slock/ui";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { usePaneView } from "../../../conversations/client/api/paneView";
 import InPaneSearchBar from "../api/pane/InPaneSearchBar";
 import { createInPaneSearch } from "../api/pane/inPaneSearch";
@@ -19,9 +19,6 @@ const messagesStore = service("messages");
 export default function MessageList() {
   const { clearMessageTarget, messageTarget, paneId, view: paneView } = usePaneView();
 
-  let scrollRef: HTMLDivElement | undefined;
-  const [contentRef, setContentRef] = createSignal<HTMLDivElement>();
-
   const groupSystemMessages = createSystemMessageGrouper();
   const messages = createMemo(() => {
     const v = paneView();
@@ -29,39 +26,26 @@ export default function MessageList() {
     return groupSystemMessages(messagesStore.messagesInChannel(v.id) ?? []);
   });
   const activeChannelId = () => paneView()?.id ?? "";
-  const messageFocus = createMessageFocus(messages, () => scrollRef, activeChannelId, {
-    onOpenThread: (ts, opts) => {
-      const v = paneView();
-      if (v) messageLinks.openThread(v.id, ts, ts, opts);
-    },
-  });
-  const inPaneSearch = createInPaneSearch(
-    messages,
-    () => scrollRef,
-    () => paneId,
-  );
 
   const {
-    handleTouchEnd,
-    handleTouchStart,
-    handleWheel,
+    feed,
     isLoadingNewer,
     jumpToBeginning,
     jumpToDate,
     jumpToMessage,
     loadNewerMessages,
-    loadOlderMessagesPreservingScroll,
-    readyViewId,
-    scheduleScrollCheck,
     visibleDay,
-  } = createMessageListScroll({
-    clearMessageTarget,
-    contentRef,
-    messages,
-    messageTarget,
-    paneView,
-    scrollRef: () => scrollRef,
+  } = createMessageListScroll({ clearMessageTarget, messages, messageTarget, paneView });
+
+  const messageFocus = createMessageFocus(messages, feed, activeChannelId, {
+    paneId,
+    onOpenThread: (ts, opts) => {
+      const v = paneView();
+      if (v) messageLinks.openThread(v.id, ts, ts, opts);
+    },
   });
+  const inPaneSearch = createInPaneSearch(messages, feed, () => paneId);
+  const pending = () => !feed.ready() && messages().length > 0;
 
   const channelName = createMemo(() => {
     const v = paneView();
@@ -70,14 +54,12 @@ export default function MessageList() {
 
   return (
     <div
+      aria-hidden={pending()}
       class="message-list"
+      classList={{ "message-list-pending": pending() }}
       onFocusIn={messageFocus.onContainerFocusIn}
       onFocusOut={messageFocus.onContainerFocusOut}
-      onScroll={() => scheduleScrollCheck()}
-      on:touchend={{ handleEvent: handleTouchEnd, passive: true }}
-      on:touchstart={{ handleEvent: handleTouchStart, passive: true }}
-      on:wheel={{ handleEvent: handleWheel, passive: true }}
-      ref={scrollRef}
+      ref={feed.attach}
     >
       <Show when={inPaneSearch.open()}>
         <InPaneSearchBar
@@ -90,7 +72,7 @@ export default function MessageList() {
           query={inPaneSearch.query()}
         />
       </Show>
-      <Show when={!bootstrapStore.bootstrap.isFetching}>
+      <Show when={!bootstrapStore.bootstrap.isLoading}>
         <Show when={paneView()}>
           {(v) => (
             <>
@@ -103,93 +85,83 @@ export default function MessageList() {
                   />
                 )}
               </Show>
-              <div ref={setContentRef}>
-                <Show
-                  fallback={
-                    <div class="message-list-intro message-list-error flex-col gap-sm">
-                      <div class="message-list-intro-icon flex-center">
-                        <Icon name="warning" size={26} />
-                      </div>
-                      <h2>Couldn't load this conversation</h2>
-                      <p>Check your connection or access, then try again.</p>
-                      <Button onClick={() => messagesStore.loadRecentHistory(v().id)} size="sm">
-                        Try again
-                      </Button>
+              <Show
+                fallback={
+                  <div class="message-list-intro message-list-error flex-col gap-sm">
+                    <div class="message-list-intro-icon flex-center">
+                      <Icon name="warning" size={26} />
                     </div>
-                  }
-                  when={!(messagesStore.hasHistoryError(v().id) && messages().length === 0)}
-                >
-                  <Show when={messagesStore.hasHistoryError(v().id) && messages().length > 0}>
-                    <div class="message-list-load-error flex-center">
-                      <span>Couldn't refresh this conversation.</span>
-                      <Button onClick={() => messagesStore.loadRecentHistory(v().id)} size="sm">
-                        Try again
-                      </Button>
-                    </div>
-                  </Show>
-                  <Show when={messagesStore.hasOlderHistoryError(v().id)}>
-                    <div class="message-list-load-error flex-center">
-                      <span>Couldn't load older messages.</span>
-                      <Button
-                        onClick={() => void loadOlderMessagesPreservingScroll(v().id)}
-                        size="sm"
-                      >
-                        Try again
-                      </Button>
-                    </div>
-                  </Show>
-                  <Show
-                    when={
-                      messagesStore.hasMoreHistory(v().id) && messagesStore.isLoadingHistory(v().id)
-                    }
-                  >
-                    <div class="message-list-loading-older">Loading messages…</div>
-                  </Show>
-                  <Show when={!messagesStore.hasMoreHistory(v().id)}>
-                    <Show
-                      fallback={<Slot id={v().id} kind={v().kind} point="messages.intro" />}
-                      when={v().kind === "channel"}
-                    >
-                      <div class="message-list-intro">
-                        <div class="message-list-intro-icon flex-center">#</div>
-                        <h2 class="truncate">{channelName()}</h2>
-                      </div>
-                    </Show>
-                  </Show>
-                </Show>
-              </div>
-              <div
-                aria-hidden={readyViewId() !== v().id}
-                classList={{ "message-list-rows-pending": readyViewId() !== v().id }}
+                    <h2>Couldn't load this conversation</h2>
+                    <p>Check your connection or access, then try again.</p>
+                    <Button onClick={() => messagesStore.loadRecentHistory(v().id)} size="sm">
+                      Try again
+                    </Button>
+                  </div>
+                }
+                when={!(messagesStore.hasHistoryError(v().id) && messages().length === 0)}
               >
-                <MessageRows
-                  channelId={v().id}
-                  editingTs={messageFocus.editingTs}
-                  focusedTs={messageFocus.focusedTs}
-                  messages={messages()}
-                  moreMenuTs={messageFocus.moreMenuTs}
-                  onJumpToMessage={jumpToMessage}
-                  onOpenThread={(ts, opts) => messageLinks.openThread(v().id, ts, ts, opts)}
-                  onStartEdit={messageFocus.onStartEdit}
-                  onStopEdit={messageFocus.onStopEdit}
-                  onToggleMoreMenu={messageFocus.onToggleMoreMenu}
-                  onToggleReactionPicker={messageFocus.onToggleReactionPicker}
-                  reactionPickerTs={messageFocus.reactionPickerTs}
-                />
-                <Show when={messagesStore.hasNewerHistoryError(v().id)}>
+                <Show when={messagesStore.hasHistoryError(v().id) && messages().length > 0}>
                   <div class="message-list-load-error flex-center">
-                    <span>Couldn't load newer messages.</span>
-                    <Button onClick={() => void loadNewerMessages(v().id)} size="sm">
+                    <span>Couldn't refresh this conversation.</span>
+                    <Button onClick={() => messagesStore.loadRecentHistory(v().id)} size="sm">
                       Try again
                     </Button>
                   </div>
                 </Show>
-                <Show when={isLoadingNewer()}>
-                  <div aria-live="polite" class="message-list-loading-older">
-                    Loading messages…
+                <Show when={messagesStore.hasOlderHistoryError(v().id)}>
+                  <div class="message-list-load-error flex-center">
+                    <span>Couldn't load older messages.</span>
+                    <Button onClick={() => void messagesStore.loadOlderMessages(v().id)} size="sm">
+                      Try again
+                    </Button>
                   </div>
                 </Show>
-              </div>
+                <Show
+                  when={
+                    messagesStore.hasMoreHistory(v().id) && messagesStore.isLoadingHistory(v().id)
+                  }
+                >
+                  <div class="message-list-loading-older">Loading messages…</div>
+                </Show>
+                <Show when={!messagesStore.hasMoreHistory(v().id)}>
+                  <Show
+                    fallback={<Slot id={v().id} kind={v().kind} point="messages.intro" />}
+                    when={v().kind === "channel"}
+                  >
+                    <div class="message-list-intro">
+                      <div class="message-list-intro-icon flex-center">#</div>
+                      <h2 class="truncate">{channelName()}</h2>
+                    </div>
+                  </Show>
+                </Show>
+              </Show>
+              <MessageRows
+                channelId={v().id}
+                editingTs={messageFocus.editingTs}
+                focusedTs={messageFocus.focusedTs}
+                messages={messages()}
+                moreMenuTs={messageFocus.moreMenuTs}
+                onJumpToMessage={jumpToMessage}
+                onOpenThread={(ts, opts) => messageLinks.openThread(v().id, ts, ts, opts)}
+                onStartEdit={messageFocus.onStartEdit}
+                onStopEdit={messageFocus.onStopEdit}
+                onToggleMoreMenu={messageFocus.onToggleMoreMenu}
+                onToggleReactionPicker={messageFocus.onToggleReactionPicker}
+                reactionPickerTs={messageFocus.reactionPickerTs}
+              />
+              <Show when={messagesStore.hasNewerHistoryError(v().id)}>
+                <div class="message-list-load-error flex-center">
+                  <span>Couldn't load newer messages.</span>
+                  <Button onClick={() => void loadNewerMessages(v().id)} size="sm">
+                    Try again
+                  </Button>
+                </div>
+              </Show>
+              <Show when={isLoadingNewer()}>
+                <div aria-live="polite" class="message-list-loading-older">
+                  Loading messages…
+                </div>
+              </Show>
             </>
           )}
         </Show>

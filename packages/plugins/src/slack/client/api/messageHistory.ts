@@ -55,6 +55,12 @@ const NEWER_PAGE_SIZE = 50;
 const NEWER_SPANS_SECONDS = [300, 3600, 43200, 518400];
 const NEWER_MIN_SPAN_SECONDS = 1;
 
+function newerSpans(start: number): number[] {
+  const now = Date.now() / 1000;
+  const reaching = NEWER_SPANS_SECONDS.findIndex((span) => start + span >= now);
+  return reaching < 0 ? NEWER_SPANS_SECONDS : NEWER_SPANS_SECONDS.slice(0, reaching + 1);
+}
+
 type NewerWindow = { end: number; page: HistoryPage; reachesPresent: boolean };
 
 async function fetchNewerWindow(
@@ -97,7 +103,7 @@ export async function fetchHistoryNewer(channelId: string, oldest: string): Prom
   let start = parseFloat(oldest);
   for (;;) {
     const windows = await Promise.all(
-      NEWER_SPANS_SECONDS.map((span) => fetchNewerWindow(channelId, start, span)),
+      newerSpans(start).map((span) => fetchNewerWindow(channelId, start, span)),
     );
     const fitting = windows.findLast(
       (w) => !w.page.hasMore && (w.reachesPresent || w.page.messages.length > 0),

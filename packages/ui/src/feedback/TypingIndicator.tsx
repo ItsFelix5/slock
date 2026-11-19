@@ -1,10 +1,13 @@
 import { Show } from "solid-js";
+import type { AvatarUser } from "../avatar/Avatar";
+import AvatarStack from "../avatar/AvatarStack";
 import "./TypingIndicator.css";
 
 export interface TypingIndicatorProps {
+  avatars?: boolean;
   dotsOnly?: boolean;
   inline?: boolean;
-  names: string[];
+  users: AvatarUser[];
 }
 
 function label(names: string[]): string {
@@ -16,7 +19,7 @@ function label(names: string[]): string {
 
 export default function TypingIndicator(props: TypingIndicatorProps) {
   return (
-    <Show when={props.names.length > 0}>
+    <Show when={props.users.length > 0}>
       <span
         aria-live="polite"
         class="typing-indicator flex-align-center"
@@ -26,13 +29,18 @@ export default function TypingIndicator(props: TypingIndicatorProps) {
           "typing-indicator-inline": props.inline,
         }}
       >
+        <Show when={props.avatars}>
+          <AvatarStack max={3} size="tiny" users={props.users} />
+        </Show>
         <span aria-hidden="true" class="typing-indicator-dots">
           <span />
           <span />
           <span />
         </span>
         <Show when={!props.dotsOnly}>
-          <span class="typing-indicator-label truncate">{label(props.names)}</span>
+          <span class="typing-indicator-label truncate">
+            {label(props.users.map((user) => user.name))}
+          </span>
         </Show>
       </span>
     </Show>

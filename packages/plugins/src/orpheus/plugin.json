@@ -1,1 +1,1 @@
-{ "id": "orpheus", "name": "Haiku Detector", "requires": ["query"] }
+{ "id": "orpheus", "name": "Haiku detector", "requires": ["query"] }

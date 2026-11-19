@@ -24,8 +24,8 @@ async function mutateChannel(
   ctx: RouteCtx,
 ): Promise<Response> {
   const data = await callSlack<ChannelReply>(slackMethod, params, ctx.creds);
-  if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds);
-  return jsonResponse({ channel: trimChannel(data.channel), ok: true }, ctx.creds);
+  if (!data.ok) return slackErrorResponse(data, slackMethod);
+  return jsonResponse({ channel: trimChannel(data.channel), ok: true });
 }
 
 function lookupRoute(resolvers: () => ChannelResolver[]): Route {
@@ -39,7 +39,7 @@ function lookupRoute(resolvers: () => ChannelResolver[]): Route {
     );
 
     if (!data.ok && data.error !== "channel_not_found") {
-      return slackErrorResponse(data, "edge channels/info", ctx.creds);
+      return slackErrorResponse(data, "edge channels/info");
     }
     const entries = await Promise.all(
       ids.map(async (id) => {
@@ -57,14 +57,14 @@ function lookupRoute(resolvers: () => ChannelResolver[]): Route {
         return [id, null] as const;
       }),
     );
-    return jsonResponse({ channels: Object.fromEntries(entries), ok: true }, ctx.creds);
+    return jsonResponse({ channels: Object.fromEntries(entries), ok: true });
   });
 }
 
 const list: Route[] = [
   route("GET", "channels/browse", async (ctx) => {
     const query = ctx.searchParams.get("query")?.trim();
-    if (!query) return jsonResponse({ items: [], ok: true }, ctx.creds);
+    if (!query) return jsonResponse({ items: [], ok: true });
     const data = await callSlackEdge<EdgeChannelsReply>(
       "channels/search",
       {
@@ -82,16 +82,12 @@ const list: Route[] = [
       return slackErrorResponse(
         data.ok ? { error: "channels/search returned no results" } : data,
         "edge channels/search",
-        ctx.creds,
       );
     }
-    return jsonResponse(
-      {
-        items: data.results.filter((channel) => !isHostedChannel(channel)).map(trimChannel),
-        ok: true,
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      items: data.results.filter((channel) => !isHostedChannel(channel)).map(trimChannel),
+      ok: true,
+    });
   }),
 
   route("POST", "channels", async (ctx) => {
@@ -106,21 +102,24 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.create", ctx.creds);
+      return slackErrorResponse(data, "conversations.create");
     }
-    return jsonResponse({ channel: trimChannel(data.channel), ok: true }, ctx.creds);
+    return jsonResponse({ channel: trimChannel(data.channel), ok: true });
   }),
 
   route("GET", "channels/:id", async (ctx) => {
     const data = await callSlack<ChannelInfoReply>(
       "conversations.info",
-      { channel: ctx.params.id, include_num_members: "true" },
+      {
+        channel: ctx.params.id,
+        include_num_members: "true",
+      },
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.info", ctx.creds);
+      return slackErrorResponse(data, "conversations.info");
     }
-    return jsonResponse({ channel: trimChannel(data.channel), ok: true }, ctx.creds);
+    return jsonResponse({ channel: trimChannel(data.channel), ok: true });
   }),
 
   route("PATCH", "channels/:id", async (ctx) => {
@@ -128,13 +127,16 @@ const list: Route[] = [
     if (!name) return errorResponse("invalid_name", 400);
     const data = await callSlack<ChannelReply>(
       "conversations.rename",
-      { channel: ctx.params.id, name },
+      {
+        channel: ctx.params.id,
+        name,
+      },
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.rename", ctx.creds);
+      return slackErrorResponse(data, "conversations.rename");
     }
-    return jsonResponse({ channel: { name: data.channel.name ?? name }, ok: true }, ctx.creds);
+    return jsonResponse({ channel: { name: data.channel.name ?? name }, ok: true });
   }),
 
   route("POST", "channels/:id/join", (ctx) =>

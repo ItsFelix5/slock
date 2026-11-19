@@ -44,8 +44,8 @@ export async function mutate(
   ctx: RouteCtx,
 ): Promise<Response> {
   const data = await callSlack(slackMethod, params, ctx.creds);
-  if (!data.ok) return slackErrorResponse(data, slackMethod, ctx.creds);
-  return okResponse(ctx.creds);
+  if (!data.ok) return slackErrorResponse(data, slackMethod);
+  return okResponse();
 }
 
 function matchSegments(segments: string[], parts: string[]): Record<string, string> | null {

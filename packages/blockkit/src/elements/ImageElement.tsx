@@ -1,5 +1,5 @@
 import type { ImageElement as ImageElementType } from "@slock/types";
-import { ZoomableImage } from "@slock/ui";
+import { imageSrc, ZoomableImage } from "@slock/ui";
 import { safeMediaUrl } from "../safeUrl";
 import "./ImageElement.css";
 
@@ -8,7 +8,13 @@ export default function ImageElement(props: { el: ImageElementType; icon?: boole
   if (!src) return null;
   if (props.icon)
     return (
-      <img alt={props.el.alt_text} class="bk-image-el" decoding="async" loading="lazy" src={src} />
+      <img
+        alt={props.el.alt_text}
+        class="bk-image-el"
+        decoding="async"
+        loading="lazy"
+        src={imageSrc(src)}
+      />
     );
   return (
     <ZoomableImage

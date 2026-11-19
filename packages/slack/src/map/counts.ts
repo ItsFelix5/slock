@@ -1,6 +1,6 @@
 import type { RawCountGroup, RawCounts } from "@slock/types";
 
-function parseCountGroup(
+export function parseCountGroup(
   g: RawCountGroup,
   everyMessageMentions: boolean,
 ): { id: string; unread: boolean; mentions: number } | null {

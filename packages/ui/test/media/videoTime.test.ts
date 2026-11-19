@@ -6,7 +6,7 @@ import {
   ratioFromPointer,
   ratioOf,
   timeFromRatio,
-} from "../../src/media/videoTime";
+} from "../../src/media/video/videoTime";
 
 describe("formatDuration", () => {
   test.each([

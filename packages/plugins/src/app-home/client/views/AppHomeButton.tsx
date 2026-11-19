@@ -17,7 +17,6 @@ export default function AppHomeButton(props: MessageHeaderProps) {
         icon={isOpen() ? "home-filled" : "home"}
         label="Home"
         onClick={() => (isOpen() ? appHome.closeHome() : appHome.openHome(props.id))}
-        size="md"
       />
     </Show>
   );

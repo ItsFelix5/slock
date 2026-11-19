@@ -2,7 +2,6 @@ import { defined } from "@slock/core";
 import { Slot, service } from "@slock/core/solid";
 import { MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
 import { copyMessageLink } from "../../../message-links/client/api/messageLinks";
 import type { ActivityRow } from "./ActivityRow";
 
@@ -37,9 +36,7 @@ export default function ActivityRowMenuItems(props: ActivityRowMenuItemsProps) {
 
   const openInSplit = () => {
     const item = latest();
-    if (item.threadTs)
-      messageLinks.openThread(item.channelId, item.threadTs, item.ts, { pinned: true });
-    else openConversationInSplit(item.channelId, item.ts);
+    messageLinks.openMessageInSplit(item.channelId, item.ts, item.threadTs);
   };
 
   const markRead = () => props.onSeen(props.row.items);

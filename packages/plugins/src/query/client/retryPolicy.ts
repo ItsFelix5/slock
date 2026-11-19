@@ -6,7 +6,7 @@ const RATE_LIMIT_FALLBACK_MS = 30_000;
 const JITTER_MS = 2_000;
 const RATE_LIMIT_MESSAGE = /rate_?limited/;
 const DETERMINISTIC_ERROR =
-  /^(channel_not_found|not_in_channel|is_archived|message_not_found|user_not_found|no_permission|access_denied|not_allowed|restricted_action|file_not_found|thread_not_found|team_not_found|bot_not_found|cant_.+|invalid_.+|missing_.+)$/;
+  /^(channel_not_found|not_in_channel|is_archived|message_not_found|user_not_found|no_permission|access_denied|not_allowed|restricted_action|file_not_found|not_visible|enterprise_is_restricted|thread_not_found|team_not_found|bot_not_found|cant_.+|invalid_.+|missing_.+)$/;
 
 function isAuthFailure(error: unknown): boolean {
   return error instanceof Error && isAuthError(error.message);

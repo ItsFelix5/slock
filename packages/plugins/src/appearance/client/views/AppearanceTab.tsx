@@ -2,14 +2,13 @@ import {
   activeFontPreset,
   activePreset,
   applyCopiedThemePalette,
-  applyPreset,
   ColorField,
   type ColorRef,
   copyableThemePalette,
   createCopyFeedback,
   decoupleThemeColor,
-  effectiveFont,
   FONT_PRESETS,
+  font,
   getColorFormula,
   getColorRef,
   getEffectiveColor,
@@ -22,13 +21,15 @@ import {
   setFont,
   setThemeColors,
   setThemeShape,
-  THEME_PRESETS,
+  THEME_FAMILIES,
   type ThemeColorDefinition,
   themeColorDefinitions,
   themeShape,
 } from "@slock/ui";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import "./AppearanceTab.css";
+import CustomCssField from "./CustomCssField";
+import ThemeFamilyChip from "./ThemeFamilyChip";
 
 function ThemeColorField(props: { color: ThemeColorDefinition }) {
   const key = () => props.color.key;
@@ -56,15 +57,12 @@ function ThemeColorField(props: { color: ThemeColorDefinition }) {
 }
 
 export default function AppearanceTab() {
-  const [fontDraft, setFontDraft] = createSignal(effectiveFont());
+  const [fontDraft, setFontDraft] = createSignal(font());
   const [copiedKey, copy] = createCopyFeedback();
   const [pasteResult, setPasteResult] = createSignal<"pasted" | "failed" | null>(null);
   const [advancedOpen, setAdvancedOpen] = createSignal(false);
-  createEffect(() => setFontDraft(effectiveFont()));
-
-  function commitFont(value: string) {
-    setFont(value.trim());
-  }
+  const activeThemeId = createMemo(activePreset);
+  createEffect(() => setFontDraft(font()));
 
   async function copyTheme() {
     await copy(copyableThemePalette(), "theme");
@@ -133,7 +131,7 @@ export default function AppearanceTab() {
           <input
             aria-label="Custom font"
             class="settings-status-input text-field"
-            onChange={(e) => commitFont(e.currentTarget.value)}
+            onChange={(e) => setFont(e.currentTarget.value)}
             onInput={(e) => setFontDraft(e.currentTarget.value)}
             spellcheck={false}
             style={{ "font-family": fontDraft() }}
@@ -146,40 +144,15 @@ export default function AppearanceTab() {
       <div class="settings-section">
         <div class="settings-section-title">Theme</div>
         <div class="settings-preset-group">
-          <For each={THEME_PRESETS}>
-            {(preset) => (
-              <label
-                class="settings-preset-btn settings-theme-preset-btn flex-align-center"
-                style={{
-                  "--theme-preview-overlay": preset.colors.textPrimary,
-                  background: preset.colors.mainBg,
-                  "border-color": preset.colors.borderStrong ?? preset.colors.border,
-                  color: preset.colors.textPrimary,
-                }}
-              >
-                <input
-                  checked={activePreset() === preset.id}
-                  class="sr-input"
-                  name="theme-preset"
-                  onChange={() => applyPreset(preset)}
-                  type="radio"
-                  value={preset.id}
-                />
-                <span
-                  aria-hidden="true"
-                  class="settings-theme-preset-dot"
-                  style={{ background: preset.colors.accent }}
-                />
-                {preset.label}
-              </label>
-            )}
+          <For each={THEME_FAMILIES}>
+            {(family) => <ThemeFamilyChip activeId={activeThemeId()} family={family} />}
           </For>
         </div>
       </div>
 
       <div class="settings-section">
-        <div class="settings-row flex-between">
-          <div class="settings-row-label">Custom colors</div>
+        <div class="settings-section-title flex-between">
+          Custom colors
           <div class="settings-theme-actions flex-align-center">
             <IconButton
               icon={pasteResult() === "pasted" ? "check" : "arrow-down"}
@@ -218,6 +191,8 @@ export default function AppearanceTab() {
           </div>
         </Show>
       </div>
+
+      <CustomCssField />
     </>
   );
 }

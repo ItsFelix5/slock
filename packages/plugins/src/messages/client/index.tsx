@@ -3,14 +3,12 @@ import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
-import { openConversationInSplit } from "../../conversations/client/api/nav";
 import type { View } from "../../conversations/client/api/types";
 import { parseSlackPermalink } from "../../message-links/client/api/slackPermalink";
-import { SplitNavigation } from "../../shell/client/api/SplitNavigation";
 import type { PaneContent } from "../../shell/client/api/types";
 import { liveOnly } from "./api/deletedMessages";
 import { clearActiveMessageFocus } from "./api/messageFocus";
-import { forgetScrollAnchors } from "./api/pane/scrollAnchor";
+import { forgetScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
 import { createBlockKitResolver } from "./blockKitResolver";
 import { installDocumentTitle } from "./documentTitle";
 import { createEntitySource } from "./entitySource";
@@ -44,14 +42,14 @@ const setup: Setup = (ctx) => {
   const titles = service("titles");
   const panes = service("shell.panes");
   const conversations = service("conversations");
-  const visibleThreads = () =>
-    panes
-      .panes()
-      .flatMap(({ content }) =>
-        content?.kind === "thread"
-          ? [{ channelId: content.channelId, highlightTs: content.highlightTs, ts: content.ts }]
-          : [],
-      );
+  const threadsIn = (list: ReturnType<typeof panes.panes>) =>
+    list.flatMap(({ content }) =>
+      content?.kind === "thread"
+        ? [{ channelId: content.channelId, highlightTs: content.highlightTs, ts: content.ts }]
+        : [],
+    );
+  const visibleThreads = () => threadsIn(panes.panes());
+  const mountedThreads = () => threadsIn(panes.mountedPanes());
   ctx.add("composer.mentionCard", MessageLinkMentionCard);
   const deletedHooks = ctx.use("messages.deleted");
   const patchHooks = ctx.use("messages.patch");
@@ -79,8 +77,8 @@ const setup: Setup = (ctx) => {
     syncChannelRead: unread.syncChannelRead,
     unreadDividerTsFor: unread.unreadDividerTsForChannel,
     visibleMessageTargets: conversations.visibleMessageTargets,
-    visibleThreads,
-    visibleViews: conversations.visibleViews,
+    visibleThreads: mountedThreads,
+    visibleViews: conversations.mountedViews,
   });
   ctx.provide("messages", messages);
   ctx.add("messages.prefetch", messages.prefetchHistory);
@@ -149,16 +147,14 @@ const setup: Setup = (ctx) => {
         ? attachmentToHoverPreview(unfurl)
         : loaded && messageToHoverPreview(loaded);
       return (
-        <SplitNavigation onSplit={() => openConversationInSplit(target.channelId, target.threadTs)}>
-          <MessageLinkHoverCard
-            channelId={target.channelId}
-            knownPreview={knownPreview}
-            messageTs={target.messageTs}
-            threadTs={target.threadTs}
-          >
-            {trigger}
-          </MessageLinkHoverCard>
-        </SplitNavigation>
+        <MessageLinkHoverCard
+          channelId={target.channelId}
+          knownPreview={knownPreview}
+          messageTs={target.messageTs}
+          threadTs={target.threadTs}
+        >
+          {trigger}
+        </MessageLinkHoverCard>
       );
     },
   });

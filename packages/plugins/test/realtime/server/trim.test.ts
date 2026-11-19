@@ -123,6 +123,21 @@ describe("message events", () => {
   });
 });
 
+describe("thread subscription events", () => {
+  test("thread_subscribed reads channel and thread_ts from the nested subscription", () => {
+    const out = trim({
+      subscription: { channel: "C1", thread_ts: "1.1", type: "thread" },
+      type: "thread_subscribed",
+    });
+    expect(out).toEqual({ channel: "C1", thread_ts: "1.1", type: "thread_subscribed" });
+  });
+
+  test("thread_unsubscribed keeps top-level channel and thread_ts", () => {
+    const out = trim({ channel: "C1", thread_ts: "1.1", type: "thread_unsubscribed" });
+    expect(out).toEqual({ channel: "C1", thread_ts: "1.1", type: "thread_unsubscribed" });
+  });
+});
+
 describe("dnd events", () => {
   test("dnd_updated_user keeps only type and user", () => {
     const event = trim({
@@ -207,6 +222,7 @@ describe("draft events", () => {
 describe("routing", () => {
   test("file events pass through by type and unknown events are dropped", () => {
     expect(trim({ file_id: "F1", type: "file_shared" })).toEqual({
+      file_id: "F1",
       type: "file_shared",
     });
     expect(trim({ type: "made_up_event" })).toBeNull();

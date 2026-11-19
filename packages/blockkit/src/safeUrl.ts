@@ -1,3 +1,5 @@
+import { fileSrc } from "@slock/ui";
+
 const SAFE_SCHEME_RE = /^(?:https?|mailto|tel|slack):/i;
 
 export const HTTP_URL_RE = /^https?:\/\//i;
@@ -12,7 +14,7 @@ const ASSET_PROXY_RE = /^\/api\/assets\?/;
 export function safeMediaUrl(url: string | undefined): string | undefined {
   const trimmed = url?.trim();
   return trimmed && (HTTP_URL_RE.test(trimmed) || ASSET_PROXY_RE.test(trimmed))
-    ? trimmed
+    ? fileSrc(trimmed)
     : undefined;
 }
 
@@ -20,7 +22,7 @@ export function safeEmbedUrl(
   url: string | undefined,
   appOrigin = window.location.origin,
 ): string | undefined {
-  const media = safeMediaUrl(url);
-  if (!(media && URL.canParse(media))) return;
-  return new URL(media).origin === appOrigin ? undefined : media;
+  const trimmed = url?.trim();
+  if (!(trimmed && HTTP_URL_RE.test(trimmed) && URL.canParse(trimmed))) return;
+  return new URL(trimmed).origin === appOrigin ? undefined : trimmed;
 }

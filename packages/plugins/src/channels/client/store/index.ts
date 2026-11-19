@@ -31,7 +31,7 @@ export function createChannelsStore(deps: {
 }) {
   const [extraChannels, setExtraChannels] = createStore<Channel[]>([]);
 
-  const [discoveredChannels, setDiscoveredChannels] = createStore<Channel[]>([]);
+  const [discoveredChannels, setDiscoveredChannels] = createStore<Record<string, Channel>>({});
   const pendingChannels = new Map<string, Promise<unknown>>();
   const channelDiscoveryMisses = new Map<string, number>();
   const channelDiscoveryRetryMs = 30_000;
@@ -92,7 +92,7 @@ export function createChannelsStore(deps: {
   async function discoverChannel(id: string): Promise<boolean> {
     const channel = await fetchChannel(id);
     if (!channel) return false;
-    setDiscoveredChannels(produce((list) => list.push(channel)));
+    setDiscoveredChannels(channel.id, channel);
     return true;
   }
 
@@ -100,7 +100,7 @@ export function createChannelsStore(deps: {
     deps.decorators().reduce((current, decorate) => decorate(current), channel);
 
   function channelById(id: string): Channel | undefined {
-    const base = baseChannelsById().get(id) ?? discoveredChannels.find((c) => c.id === id);
+    const base = baseChannelsById().get(id) ?? discoveredChannels[id];
     const patch = channelPatches[id];
     const known = base && patch ? { ...base, ...patch } : base;
     if (known) return decorated(known);
@@ -156,9 +156,7 @@ export function createChannelsStore(deps: {
   }
 
   function isChannelMember(id: string): boolean {
-    return (
-      baseChannelsById().has(id) || !!discoveredChannels.find((c) => c.id === id)?.canvasFileId
-    );
+    return baseChannelsById().has(id) || !!discoveredChannels[id]?.canvasFileId;
   }
 
   const channelRosters = createReactiveQueryCache(

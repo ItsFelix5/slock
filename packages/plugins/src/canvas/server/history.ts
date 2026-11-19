@@ -27,7 +27,7 @@ export const historyRoutes: Route[] = [
       { file_id: ctx.params.id, limit: VERSION_LIMIT, reason: HISTORY_REASON },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "quip.history.getVersions", ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "quip.history.getVersions");
     const versions = (data.versions ?? []).flatMap((version) =>
       version.version_id && version.sequence !== undefined
         ? [
@@ -40,7 +40,7 @@ export const historyRoutes: Route[] = [
           ]
         : [],
     );
-    return jsonResponse({ ok: true, versions }, ctx.creds);
+    return jsonResponse({ ok: true, versions });
   }),
 
   route("GET", "canvases/:id/versions/:versionId", async (ctx) => {
@@ -54,8 +54,8 @@ export const historyRoutes: Route[] = [
       { ...query, versionId: ctx.params.versionId },
       ctx.creds,
     );
-    if (!raw.ok) return jsonResponse({ error: raw.error }, ctx.creds, 502);
-    return jsonResponse({ ok: true, raw: Buffer.from(raw.bytes).toString("base64") }, ctx.creds);
+    if (!raw.ok) return jsonResponse({ error: raw.error }, 502);
+    return jsonResponse({ ok: true, raw: Buffer.from(raw.bytes).toString("base64") });
   }),
 
   route("POST", "canvases/:id/versions/:versionId/restore", async (ctx) => {
@@ -75,7 +75,7 @@ export const historyRoutes: Route[] = [
       },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "quip.history.restoreVersion", ctx.creds);
-    return jsonResponse({ ok: true }, ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "quip.history.restoreVersion");
+    return jsonResponse({ ok: true });
   }),
 ];

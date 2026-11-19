@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { createEffect, createRoot, onCleanup } from "solid-js";
-import { createHost } from "../src/host";
+import { createHost } from "../src/host/host";
 import { solidReactive } from "../src/solidHost";
 import { forAll, int } from "../src/testing";
 import type { PluginDef, Setup } from "../src/types";

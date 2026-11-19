@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 import { createActivityFeedLoad } from "../../../../src/activity/client/store/activityFeedLoad";
 
@@ -23,11 +23,10 @@ function entry(id: string, time: number, patch: Partial<FeedEntry> = {}): FeedEn
 
 type Pages = Record<string, { entries: FeedEntry[]; nextCursor?: string }>;
 
-function harness(pages: Pages, options: { viewOpen?: boolean } = {}) {
+function harness(pages: Pages) {
   const fetches: { cursor?: string; types?: string }[] = [];
   const reactionFlashes: string[] = [];
   const [items, setItems] = createStore<ActivityItem[]>([]);
-  const [viewOpen, setViewOpen] = createSignal(options.viewOpen ?? false);
   let failNextFetch = false;
   let delayFetchMs = 0;
   const load = createActivityFeedLoad({
@@ -45,7 +44,6 @@ function harness(pages: Pages, options: { viewOpen?: boolean } = {}) {
     },
     fetchHistoryAround: async () => ({ messages: [] }),
     fetchMessagesByIds: async () => new Map<string, Message>(),
-    isActivityViewOpen: viewOpen,
     onReactionPushed: (name) => reactionFlashes.push(name),
     resolveActivityEntry: (raw) => ({ ...raw, text: raw.text ?? "" }),
     setActivityItems: setItems,
@@ -62,7 +60,6 @@ function harness(pages: Pages, options: { viewOpen?: boolean } = {}) {
     setDelay: (ms: number) => {
       delayFetchMs = ms;
     },
-    setViewOpen,
   };
 }
 
@@ -205,7 +202,6 @@ describe("createActivityFeedLoad", () => {
         },
       });
       await h.load.ensureActivityLoaded();
-      h.setViewOpen(true);
       const pages: Pages = {
         "": {
           entries: [
@@ -224,10 +220,7 @@ describe("createActivityFeedLoad", () => {
   test("a pending live refresh is dropped when the store is disposed", async () => {
     let fetches!: unknown[];
     await createRoot(async (dispose) => {
-      const { fetches: recorded, load } = harness(
-        { "": { entries: [entry("a", 100)] } },
-        { viewOpen: true },
-      );
+      const { fetches: recorded, load } = harness({ "": { entries: [entry("a", 100)] } });
       fetches = recorded;
       load.requestActivityRefresh();
       dispose();
@@ -236,12 +229,10 @@ describe("createActivityFeedLoad", () => {
     expect(fetches).toHaveLength(0);
   });
 
-  test("an update that arrives while the view is closed refreshes once it opens", async () => {
+  test("an update refreshes the feed without the view open", async () => {
     await inRoot(async () => {
       const h = harness({ "": { entries: [entry("a", 100)] } });
       h.load.requestActivityRefresh();
-      expect(h.fetches).toHaveLength(0);
-      h.setViewOpen(true);
       await wait(300);
       expect(h.fetches).toHaveLength(1);
     });

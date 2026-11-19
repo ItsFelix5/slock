@@ -6,24 +6,18 @@ import { prepareReplyLink } from "../../../message-links/client/api/messageLinks
 import type { ThreadPaneContent } from "../../../messages/client/api";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
 import ComposerGate from "../../../messages/client/api/pane/ComposerGate";
-import { observeComposerOverlay } from "../../../messages/client/api/pane/composerOverlay";
 import InPaneSearchBar from "../../../messages/client/api/pane/InPaneSearchBar";
 import { createInPaneSearch } from "../../../messages/client/api/pane/inPaneSearch";
 import MessageRows from "../../../messages/client/api/pane/MessageRows";
+import { createFeedPagination } from "../../../messages/client/api/pane/scroll/feedPagination";
+import { createFeedScroll } from "../../../messages/client/api/pane/scroll/feedScroll";
 import {
-  captureScrollAnchor,
   getRememberedScrollAnchor,
-  isScrolledToBottom,
-  jumpToMessageInContainer,
-  landOnMessageInContainer,
   rememberScrollAnchor,
-  restoreScrollAnchor,
-  scrollToBottom,
-} from "../../../messages/client/api/pane/scrollAnchor";
+} from "../../../messages/client/api/pane/scroll/rememberedAnchors";
 import ThreadHeader from "./ThreadHeader";
 import ThreadJumpPills from "./ThreadJumpPills";
 import { ThreadEarlierStatus, ThreadLoadStatus, ThreadMoreStatus } from "./ThreadLoadStatus";
-import { createThreadPagination } from "./threadPagination";
 import "./ThreadPane.css";
 
 const feedback = service("feedback");
@@ -36,51 +30,64 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     null,
   );
 
-  const [edges, setEdges] = createSignal({ atBottom: true, atTop: true });
-
-  let messagesRef: HTMLDivElement | undefined;
-  let cancelJump: (() => void) | undefined;
   const messages = createMemo(() => messagesStore.messagesInThread(thread().ts) ?? []);
-  const hasMore = () => messagesStore.hasMoreReplies(thread().ts);
-  const messageFocus = createMessageFocus(
-    messages,
-    () => messagesRef,
-    () => thread().channelId,
-    {
-      onReplyLink: (msg) => void startReply(msg),
-      threadTs: () => thread().ts,
+  const hasMore = () =>
+    messagesStore.hasMoreReplies(thread().ts) || messagesStore.missingReplies(thread().ts) > 0;
+
+  const feed = createFeedScroll({
+    isLive: () => !hasMore(),
+    onMove: (direction) => {
+      if (!feed.ready()) return;
+      rememberScrollAnchor(
+        thread().ts,
+        feed.atBottom() && !hasMore() ? undefined : feed.topAnchor(),
+      );
+      pagination.check(direction);
     },
-  );
+  });
+
+  const loadEarlier = () => void messagesStore.loadEarlierReplies(thread().ts);
+  const pagination = createFeedPagination({
+    busy: () =>
+      messagesStore.isLoadingThread(thread().ts) ||
+      messagesStore.isLoadingMoreReplies(thread().ts) ||
+      messagesStore.isLoadingEarlierReplies(thread().ts),
+    canLoadNewer: () =>
+      messagesStore.hasMoreReplies(thread().ts) && !messagesStore.hasMoreRepliesError(thread().ts),
+    canLoadOlder: () =>
+      messagesStore.hasEarlierReplies(thread().ts) &&
+      !messagesStore.hasEarlierRepliesError(thread().ts),
+    loadNewer: () => void messagesStore.loadMoreReplies(thread().ts),
+    loadOlder: loadEarlier,
+    ready: feed.ready,
+    scroller: feed.element,
+    size: () => messages().length,
+  });
+
+  const messageFocus = createMessageFocus(messages, feed, () => thread().channelId, {
+    paneId: props.pane.id,
+    onReplyLink: (msg) => void startReply(msg),
+    threadTs: () => thread().ts,
+  });
+  const inPaneSearch = createInPaneSearch(messages, feed, () => props.pane.id);
+  const pending = () => !feed.ready() && messages().length > 0;
 
   const replyTargetMessage = () => messages().find((m) => m.ts === replyTarget()?.ts);
-  const inPaneSearch = createInPaneSearch(
-    messages,
-    () => messagesRef,
-    () => props.pane.id,
-  );
-
-  const jumpToReplyTarget = () => jumpToMessage(replyTarget()?.ts ?? "");
+  const jumpToReplyTarget = () => feed.glideTo(replyTarget()?.ts ?? "");
   const cancelReply = () => setReplyTarget(null);
 
   createEffect(
     on(
       () => thread().ts,
       () => {
-        cancelJump?.();
-        cancelJump = undefined;
+        feed.reset();
+        pagination.reset();
         setReplyTarget(null);
       },
     ),
   );
-  onCleanup(() => cancelJump?.());
-  createEffect(() => {
-    if (!messagesRef) return;
-    onCleanup(observeComposerOverlay(messagesRef, () => shouldFollowBottom));
-  });
 
   let handledFocusKey: string | undefined;
-  let readyTs: string | undefined;
-  let justHandledTs: string | undefined;
   createEffect(() => {
     const { channelId, highlightTs, ts } = thread();
     const key = `${ts}:${highlightTs ?? ""}`;
@@ -94,64 +101,17 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       if (messagesStore.isLoadingThread(ts)) return;
     }
     handledFocusKey = key;
-    readyTs = ts;
-    justHandledTs = ts;
-
-    if (highlightTs) {
-      const found = msgs.some((m) => m.ts === highlightTs);
-      const targetTs = found ? highlightTs : first.ts;
-      if (!found) feedback.flash("navigation", "Couldn't find that reply.", "error");
-      queueMicrotask(() => {
-        messageFocus.focusMessage(targetTs);
-        if (!messagesRef) return;
-        cancelJump?.();
-        cancelJump = landOnMessageInContainer(messagesRef, targetTs);
-      });
-      return;
-    }
-
-    const remembered = getRememberedScrollAnchor(ts);
-    if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
-      queueMicrotask(() => {
-        if (!messagesRef) return;
-        const row = messagesRef.querySelector<HTMLElement>(
-          `[data-message-ts="${CSS.escape(remembered.ts)}"]`,
-        );
-        if (row) restoreScrollAnchor(messagesRef, { el: row, offset: remembered.offset });
-        else jumpToMessage(first.ts);
-      });
-      return;
-    }
-
-    queueMicrotask(() => {
-      jumpToMessage(first.ts);
+    const found = highlightTs !== undefined && msgs.some((m) => m.ts === highlightTs);
+    if (highlightTs && !found) feedback.flash("navigation", "Couldn't find that reply.", "error");
+    const remembered = highlightTs ? undefined : getRememberedScrollAnchor(ts);
+    if (found && highlightTs) {
+      messageFocus.focusMessage(highlightTs);
+      feed.land({ align: "center", at: "row", flash: true, ts: highlightTs });
+    } else if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
+      feed.land({ at: "offset", offset: remembered.offset, ts: remembered.ts });
+    } else {
       messageFocus.focusMessage(first.ts);
-    });
-  });
-
-  let lastThreadTs: string | undefined;
-  let shouldFollowBottom = true;
-  createEffect(() => {
-    const t = thread();
-    const msgs = messages();
-    const switchedThread = t.ts !== lastThreadTs;
-    lastThreadTs = t.ts;
-    if (switchedThread) shouldFollowBottom = true;
-    if (!(messagesRef && msgs.length > 0)) return;
-
-    if (justHandledTs === t.ts) {
-      justHandledTs = undefined;
-      shouldFollowBottom = false;
-      return;
-    }
-    if (readyTs !== t.ts) return;
-
-    if (shouldFollowBottom && !hasMore()) {
-      queueMicrotask(() => {
-        if (!messagesRef) return;
-        scrollToBottom(messagesRef);
-        shouldFollowBottom = isScrolledToBottom(messagesRef);
-      });
+      feed.land({ align: "start", at: "row", ts: first.ts });
     }
   });
 
@@ -166,52 +126,11 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     setReplyTarget({ permalink, ts: msg.ts });
   }
 
-  function jumpToMessage(ts: string) {
-    if (!messagesRef) return;
-    cancelJump?.();
-    pagination.startJump();
-    cancelJump = jumpToMessageInContainer(messagesRef, ts);
-  }
-
-  function reportBottomSeen() {
-    if (messagesRef)
-      unreadStore.setBottomSeen(
-        thread().ts,
-        readyTs === thread().ts && isScrolledToBottom(messagesRef) && !hasMore(),
-      );
-  }
-
-  const pagination = createThreadPagination({
-    container: () => messagesRef,
-    isReady: () => readyTs === thread().ts,
-    threadTs: () => thread().ts,
-  });
-  createEffect(() => {
-    messages();
-    hasMore();
-    queueMicrotask(pagination.loadMore);
-  });
   createEffect(() => {
     const { ts } = thread();
-    messages();
-    queueMicrotask(reportBottomSeen);
+    unreadStore.setBottomSeen(ts, feed.ready() && feed.atBottom() && !hasMore());
     onCleanup(() => unreadStore.setBottomSeen(ts, false));
   });
-
-  function handleMessagesScroll() {
-    if (!messagesRef) return;
-    shouldFollowBottom = isScrolledToBottom(messagesRef) && !hasMore();
-    reportBottomSeen();
-    pagination.onScroll();
-    setEdges({
-      atBottom: shouldFollowBottom,
-      atTop: messagesRef.scrollTop <= messagesRef.clientHeight / 2,
-    });
-    if (readyTs !== thread().ts) return;
-    const anchor = captureScrollAnchor(messagesRef);
-    const ts = anchor?.el.dataset.messageTs;
-    if (anchor && ts) rememberScrollAnchor(thread().ts, { offset: anchor.offset, ts });
-  }
 
   return (
     <div class="thread-panel flex-col" data-pane={props.pane.id}>
@@ -224,12 +143,12 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       <ThreadLoadStatus hasMessages={messages().length > 0} ts={thread().ts} />
       <div
         aria-busy={messagesStore.isLoadingThread(thread().ts)}
+        aria-hidden={pending()}
         class="thread-panel-messages"
+        classList={{ "thread-panel-messages-pending": pending() }}
         onFocusIn={messageFocus.onContainerFocusIn}
         onFocusOut={messageFocus.onContainerFocusOut}
-        onScroll={handleMessagesScroll}
-        onWheel={pagination.onWheel}
-        ref={messagesRef}
+        ref={feed.attach}
       >
         <Show when={inPaneSearch.open()}>
           <InPaneSearchBar
@@ -248,24 +167,22 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
           focusedTs={messageFocus.focusedTs}
           messages={messages()}
           moreMenuTs={messageFocus.moreMenuTs}
-          onJumpToMessage={jumpToMessage}
+          onJumpToMessage={feed.glideTo}
           onReplyLink={startReply}
           onStartEdit={messageFocus.onStartEdit}
           onStopEdit={messageFocus.onStopEdit}
           onToggleMoreMenu={messageFocus.onToggleMoreMenu}
           onToggleReactionPicker={messageFocus.onToggleReactionPicker}
           reactionPickerTs={messageFocus.reactionPickerTs}
-          gap={
-            <ThreadEarlierStatus onRetry={() => void pagination.loadEarlier()} ts={thread().ts} />
-          }
+          gap={<ThreadEarlierStatus onRetry={loadEarlier} ts={thread().ts} />}
           gapAfterTs={messagesStore.hasEarlierReplies(thread().ts) ? thread().ts : undefined}
           threadTs={thread().ts}
         />
         <ThreadMoreStatus ts={thread().ts} />
       </div>
       <ThreadJumpPills
-        atBottom={edges().atBottom}
-        atTop={edges().atTop}
+        atBottom={feed.atBottom() && !hasMore()}
+        atTop={feed.atTop()}
         onFirst={() => messageFocus.focusEdge("start")}
         onLatest={() => messageFocus.focusEdge("end")}
       />

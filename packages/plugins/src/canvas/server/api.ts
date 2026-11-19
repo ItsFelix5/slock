@@ -138,14 +138,14 @@ export async function lookupThread(
   creds: Credentials,
 ): Promise<ThreadLookup> {
   const data = await callSlack<FileInfoReply>("files.info", { file: ctx.params.id }, creds);
-  if (!data.ok) return { response: slackErrorResponse(data, "files.info", creds) };
+  if (!data.ok) return { response: slackErrorResponse(data, "files.info") };
   const threadId = data.file.quip_thread_id;
   if (!threadId) {
-    return { response: jsonResponse({ error: "canvas has no quip_thread_id" }, creds, 502) };
+    return { response: jsonResponse({ error: "canvas has no quip_thread_id" }, 502) };
   }
   return { editable: canEditCanvas(data.file), threadId };
 }
 
 export function notConfigured(): Response {
-  return slackErrorResponse({ error: "not_configured" }, "files.info", null);
+  return slackErrorResponse({ error: "not_configured" }, "files.info");
 }

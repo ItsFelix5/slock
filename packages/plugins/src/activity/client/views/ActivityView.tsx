@@ -2,6 +2,7 @@ import { formatDayFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Button, Icon, initRovingTabIndexDefault } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { createPingCoverage } from "../kinds";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
 import { clearCurrentRow, currentRowKey, openActivityRow } from "./activityRowOpen";
@@ -41,7 +42,10 @@ export default function ActivityView() {
 
   const tagRows = createMemo(() => {
     const tag = selectedTag();
-    if (tag === "all") return rows();
+    if (tag === "all") {
+      const isCovered = createPingCoverage(activityStore.activityItems);
+      return rows().filter((row) => !row.items.every(isCovered));
+    }
     return rows().filter((row) => row.items.some((item) => item.kind === tag));
   });
 

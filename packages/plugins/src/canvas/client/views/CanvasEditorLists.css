@@ -64,192 +64,34 @@
   text-decoration: line-through;
 }
 
-.canvas-editor .ql-editor li[data-list="bullet"]:not([class*="ql-indent"]),
-.canvas-editor .ql-editor li[data-list="checked"]:not([class*="ql-indent"]),
-.canvas-editor .ql-editor li[data-list="unchecked"]:not([class*="ql-indent"]) {
-  counter-set: list-0;
-}
-
-.canvas-editor .ql-editor {
-  counter-reset: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8;
-}
-
-.canvas-editor .ql-editor > :not(ol) {
-  counter-set: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8;
-}
-
-.canvas-editor .ql-editor li[data-list] {
-  --level: 0;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"] {
-  counter-increment: list-0;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"] > .ql-ui::before {
-  content: counter(list-0, decimal) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"] > .ql-ui::before {
-  content: "\2022";
-}
-
-.canvas-editor .ql-editor li[data-list] {
-  counter-set: list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8;
-}
-
 .canvas-editor .ql-editor li[data-list].ql-indent-1 {
   --level: 1;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-1 {
-  counter-increment: list-1;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-1 > .ql-ui::before {
-  content: counter(list-1, lower-alpha) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-1 > .ql-ui::before {
-  content: "\25E6";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-1 {
-  counter-set: list-2 list-3 list-4 list-5 list-6 list-7 list-8;
 }
 
 .canvas-editor .ql-editor li[data-list].ql-indent-2 {
   --level: 2;
 }
 
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-2 {
-  counter-increment: list-2;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-2 > .ql-ui::before {
-  content: counter(list-2, lower-roman) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-2 > .ql-ui::before {
-  content: "\25AA";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-2 {
-  counter-set: list-3 list-4 list-5 list-6 list-7 list-8;
-}
-
 .canvas-editor .ql-editor li[data-list].ql-indent-3 {
   --level: 3;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-3 {
-  counter-increment: list-3;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-3 > .ql-ui::before {
-  content: counter(list-3, decimal) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-3 > .ql-ui::before {
-  content: "\2022";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-3 {
-  counter-set: list-4 list-5 list-6 list-7 list-8;
 }
 
 .canvas-editor .ql-editor li[data-list].ql-indent-4 {
   --level: 4;
 }
 
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-4 {
-  counter-increment: list-4;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-4 > .ql-ui::before {
-  content: counter(list-4, lower-alpha) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-4 > .ql-ui::before {
-  content: "\25E6";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-4 {
-  counter-set: list-5 list-6 list-7 list-8;
-}
-
 .canvas-editor .ql-editor li[data-list].ql-indent-5 {
   --level: 5;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-5 {
-  counter-increment: list-5;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-5 > .ql-ui::before {
-  content: counter(list-5, lower-roman) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-5 > .ql-ui::before {
-  content: "\25AA";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-5 {
-  counter-set: list-6 list-7 list-8;
 }
 
 .canvas-editor .ql-editor li[data-list].ql-indent-6 {
   --level: 6;
 }
 
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-6 {
-  counter-increment: list-6;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-6 > .ql-ui::before {
-  content: counter(list-6, decimal) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-6 > .ql-ui::before {
-  content: "\2022";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-6 {
-  counter-set: list-7 list-8;
-}
-
 .canvas-editor .ql-editor li[data-list].ql-indent-7 {
   --level: 7;
 }
 
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-7 {
-  counter-increment: list-7;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-7 > .ql-ui::before {
-  content: counter(list-7, lower-alpha) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-7 > .ql-ui::before {
-  content: "\25E6";
-}
-
-.canvas-editor .ql-editor li[data-list].ql-indent-7 {
-  counter-set: list-8;
-}
-
 .canvas-editor .ql-editor li[data-list].ql-indent-8 {
   --level: 8;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-8 {
-  counter-increment: list-8;
-}
-
-.canvas-editor .ql-editor li[data-list="ordered"].ql-indent-8 > .ql-ui::before {
-  content: counter(list-8, lower-roman) ". ";
-}
-
-.canvas-editor .ql-editor li[data-list="bullet"].ql-indent-8 > .ql-ui::before {
-  content: "\25AA";
 }

@@ -1,1 +1,17 @@
-{ "id": "debug", "name": "Debug tools", "requires": ["channels", "dms", "query", "users"] }
+{
+  "id": "debug",
+  "name": "Debug tools",
+  "requires": [
+    "activity",
+    "canvas",
+    "channels",
+    "dms",
+    "message-links",
+    "messages",
+    "query",
+    "shell",
+    "usergroup-details",
+    "usergroups",
+    "users"
+  ]
+}

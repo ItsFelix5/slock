@@ -1,5 +1,5 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { service } from "@slock/core/solid";
+import { Slot, service } from "@slock/core/solid";
 import { HoverCard, Icon, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
@@ -51,6 +51,11 @@ export default function UsergroupHoverCard(props: {
                 <Icon name="user-groups" size={14} />
                 View pinggroup
               </button>
+              <Slot
+                close={close}
+                point="usergroup-details.hoverAction"
+                usergroupId={props.usergroupId}
+              />
             </>
           )}
         </Show>

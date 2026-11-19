@@ -1,4 +1,4 @@
-import { CLOCK_24H, defined, formatTimeFromMs } from "@slock/core";
+import { CLOCK_24H, defined, formatMonthDayFromMs, formatTimeFromMs } from "@slock/core";
 
 const MONTH_NAMES = [
   "January",
@@ -78,10 +78,10 @@ function dateSlash(date: Date): string {
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()}`;
 }
 function time(date: Date): string {
-  return date.toLocaleTimeString([], CLOCK_24H);
+  return formatTimeFromMs(date.getTime());
 }
 function timeSecs(date: Date): string {
-  return date.toLocaleTimeString([], { ...CLOCK_24H, second: "2-digit" });
+  return `${time(date)}:${pad(date.getSeconds())}`;
 }
 function ago(date: Date): string {
   const seconds = Math.round((Date.now() - date.getTime()) / 1000);
@@ -172,19 +172,29 @@ export function formatSlackDateTokens(
   }
 }
 
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+
+function zoneFormat(timeZone: string) {
+  let format = zoneFormats.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-US", {
+      day: "2-digit",
+      hour: "2-digit",
+      hour12: false,
+      minute: "2-digit",
+      month: "2-digit",
+      second: "2-digit",
+      timeZone,
+      year: "numeric",
+    });
+    zoneFormats.set(timeZone, format);
+  }
+  return format;
+}
+
 export function partsInZone(ms: number, timeZone: string) {
   const map: Record<string, string> = {};
-  for (const part of new Intl.DateTimeFormat("en-US", {
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-    minute: "2-digit",
-    month: "2-digit",
-    second: "2-digit",
-    timeZone,
-    year: "numeric",
-  }).formatToParts(new Date(ms)))
-    map[part.type] = part.value;
+  for (const part of zoneFormat(timeZone).formatToParts(new Date(ms))) map[part.type] = part.value;
   return {
     day: Number(map.day),
 
@@ -249,8 +259,5 @@ export function formatLastSeen(seenAt: number, now: number): string {
     return `yesterday at ${formatTimeFromMs(seenAt)}`;
   }
   if (dayDiff < 7) return `${dayDiff}d ago`;
-  return new Date(seenAt).toLocaleDateString([], {
-    day: "numeric",
-    month: "short",
-  });
+  return formatMonthDayFromMs(seenAt);
 }

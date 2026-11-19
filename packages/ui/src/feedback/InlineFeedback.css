@@ -5,6 +5,12 @@
   animation: inline-feedback-in 0.15s ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .inline-feedback {
+    animation: none;
+  }
+}
+
 .inline-feedback-success {
   color: var(--presence-active);
 }

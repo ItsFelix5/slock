@@ -15,7 +15,7 @@ const reportRoutes = [
       return errorResponse("invalid_names", 400);
     }
     await reportFlaronChannelNames(names);
-    return jsonResponse({ ok: true }, ctx.creds);
+    return jsonResponse({ ok: true });
   }),
 ];
 

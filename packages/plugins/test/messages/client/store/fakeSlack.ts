@@ -13,10 +13,12 @@ export function createFakeSlack(me: string) {
   let failures = 0;
   let requests: string[] = [];
   let historyGate: Promise<void> = Promise.resolve();
+  let repliesGate: Promise<void> = Promise.resolve();
+  let dropped: { times: number; ts: string } | undefined;
 
   const nextTs = () => {
-    last = Math.max(last + 0.000001, Date.now() / 1000);
-    return last.toFixed(6);
+    last = Math.max(last + 1, Date.now() * 1000);
+    return (last / 1_000_000).toFixed(6);
   };
   const channel = (id: string) => {
     const list = posts.get(id) ?? [];
@@ -84,14 +86,32 @@ export function createFakeSlack(me: string) {
     const inclusive = query.get("inclusive") === "true";
     const limit = Number(query.get("limit") ?? 100);
     const parent = parentOf(id, threadTs);
-    const all = [...(parent ? [withThreadFields(id, parent)] : []), ...repliesOf(id, threadTs)];
-    const matching = oldest ? all.filter((m) => (inclusive ? m.ts >= oldest : m.ts > oldest)) : all;
-    return { has_more: matching.length > limit, messages: matching.slice(0, limit), ok: true };
+    const root = parent ? [withThreadFields(id, parent)] : [];
+    const skip = dropped?.times ? dropped.ts : undefined;
+    if (dropped?.times) dropped.times--;
+    const all = repliesOf(id, threadTs).filter((m) => m.ts !== skip);
+    const latest = query.get("latest");
+    const unranged = !(oldest || latest) && all.length >= limit;
+    const matching = unranged
+      ? [defined(all[Math.floor(all.length / 2)]), ...all.slice(limit - 1)]
+      : all
+          .filter((m) => !oldest || (inclusive ? m.ts >= oldest : m.ts > oldest))
+          .filter((m) => !latest || (inclusive ? m.ts <= latest : m.ts < latest));
+    const room = limit - root.length;
+    return {
+      has_more: matching.length > room,
+      messages: [...root, ...matching.slice(0, room)],
+      ok: true,
+    };
   }
 
   async function route(method: string, { body, path, query }: Reply) {
     const [, , id = "", kind, ts, tail] = path;
-    if (kind === "threads" && method === "GET") return replies(id, defined(ts), query);
+    if (kind === "threads" && method === "GET") {
+      const snapshot = replies(id, defined(ts), query);
+      await repliesGate;
+      return snapshot;
+    }
     if (kind !== "messages") return { error: "not_found", ok: false };
     if (method === "GET") {
       const snapshot = history(id, query);
@@ -167,6 +187,9 @@ export function createFakeSlack(me: string) {
       subtype: "message_changed",
       type: "message",
     }),
+    dropReply(ts: string, times: number) {
+      dropped = { times, ts };
+    },
     failNextPosts(count: number) {
       failures = count;
     },
@@ -176,6 +199,14 @@ export function createFakeSlack(me: string) {
       historyGate = gate.promise;
       return () => {
         historyGate = Promise.resolve();
+        gate.release();
+      };
+    },
+    holdReplies() {
+      const gate = hold();
+      repliesGate = gate.promise;
+      return () => {
+        repliesGate = Promise.resolve();
         gate.release();
       };
     },

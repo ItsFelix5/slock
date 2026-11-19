@@ -48,6 +48,7 @@ export function harness(initial?: Bootstrap) {
   const channelReads: [string, string][] = [];
   const threadReads: [string, string, string][] = [];
   const flashes: string[] = [];
+  let countRefreshes = 0;
   const patches: [string, object][] = [];
   const failure: { error?: Error } = {};
   const [bootstrap, setBootstrap] = createSignal(initial);
@@ -69,10 +70,20 @@ export function harness(initial?: Bootstrap) {
     },
     bootstrap: loaded,
     flash: (_key, text) => flashes.push(text),
+    onReadSynced: () => countRefreshes++,
     patchChannel: (id, patch) => patches.push([id, patch]),
     patchDm: (id, patch) => patches.push([id, patch]),
   });
-  return { channelReads, failure, flashes, patches, setBootstrap, store, threadReads };
+  return {
+    channelReads,
+    countRefreshes: () => countRefreshes,
+    failure,
+    flashes,
+    patches,
+    setBootstrap,
+    store,
+    threadReads,
+  };
 }
 
 function replace<T extends object, K extends keyof T>(target: T, key: K, value: T[K]) {

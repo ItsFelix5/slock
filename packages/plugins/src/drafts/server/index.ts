@@ -18,14 +18,11 @@ const list: Route[] = [
       { is_active: "true", limit: "100" },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "drafts.list", ctx.creds);
-    return jsonResponse(
-      {
-        drafts: trimDrafts(data.drafts ?? []),
-        ok: true,
-      },
-      ctx.creds,
-    );
+    if (!data.ok) return slackErrorResponse(data, "drafts.list");
+    return jsonResponse({
+      drafts: trimDrafts(data.drafts ?? []),
+      ok: true,
+    });
   }),
 
   route("PUT", "drafts", async (ctx) => {
@@ -55,12 +52,12 @@ const list: Route[] = [
     const data = await callSlack<DraftCreateReply>("drafts.create", params, ctx.creds);
     if (!data.ok) {
       console.error("[drafts.create] failed", { blocks, error: data.error, params });
-      return slackErrorResponse(data, "drafts.create", ctx.creds);
+      return slackErrorResponse(data, "drafts.create");
     }
     const draftId = data.draft?.id ?? data.id;
     if (!draftId) return errorResponse("draft_creation_failed", 502);
     const lastUpdatedTs = data.draft?.last_updated_ts ?? data.last_updated_ts;
-    return jsonResponse({ id: draftId, lastUpdatedTs, ok: true }, ctx.creds);
+    return jsonResponse({ id: draftId, lastUpdatedTs, ok: true });
   }),
 
   route("DELETE", "drafts/:id", async (ctx) => {
@@ -75,9 +72,9 @@ const list: Route[] = [
     };
     const data = await callSlack("drafts.delete", sentParams, ctx.creds);
     if (!data.ok && data.error !== "draft_delete_invalid") {
-      return slackErrorResponse(data, "drafts.delete", ctx.creds);
+      return slackErrorResponse(data, "drafts.delete");
     }
-    return jsonResponse({ ok: true }, ctx.creds);
+    return jsonResponse({ ok: true });
   }),
 ];
 

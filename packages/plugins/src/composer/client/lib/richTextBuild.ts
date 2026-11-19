@@ -158,6 +158,10 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
     });
     list = null;
   };
+  const endLists = () => {
+    flushList();
+    itemCounts = [];
+  };
   const flushRichText = () => {
     if (!elements.length) return;
     blocks.push({ elements: elements.splice(0), type: "rich_text" });
@@ -169,7 +173,7 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
     if (line.segments.length === 1 && line.segments[0]?.embed?.divider) {
       flushPlain();
       flushQuote();
-      flushList();
+      endLists();
       flushCode();
       flushRichText();
       blocks.push({ type: "divider" });
@@ -179,7 +183,7 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
     if (attrs?.header) {
       flushPlain();
       flushQuote();
-      flushList();
+      endLists();
       flushCode();
       flushRichText();
       blocks.push({
@@ -197,7 +201,7 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
     if (attrs?.context) {
       flushPlain();
       flushQuote();
-      flushList();
+      endLists();
       flushCode();
       flushRichText();
       blocks.push({
@@ -210,7 +214,7 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
     if (attrs?.["code-block"]) {
       flushPlain();
       flushQuote();
-      flushList();
+      endLists();
       codeLines ??= [];
       codeLines.push(line.segments.map((s) => s.text).join(""));
       continue;
@@ -233,8 +237,7 @@ export function buildRichTextBlocks(ops: readonly DeltaOp[]): Block[] {
       itemCounts[indent] = (itemCounts[indent] ?? 0) + 1;
       continue;
     }
-    flushList();
-    itemCounts = [];
+    endLists();
 
     if (attrs?.blockquote) {
       flushPlain();

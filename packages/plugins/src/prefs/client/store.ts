@@ -222,9 +222,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
   }
 
   async function retryDndStatus(): Promise<void> {
-    try {
-      await dndStatus.refetch();
-    } catch {}
+    await dndStatus.refetch();
   }
 
   function applyDndSnoozeEvent(snoozedUntil: number | null): void {

@@ -1,7 +1,7 @@
 import { maybeService, Slot, service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
-import { ContextMenu, useContextMenu } from "@slock/ui";
-import { createMemo, createSignal, Show } from "solid-js";
+import { ContextMenu, useContextMenu, useDeferredMount } from "@slock/ui";
+import { createEffect, createMemo, Show } from "solid-js";
 import { retainsDeleted } from "../api/deletedMessages";
 import type { OpenThreadHandler } from "../api/messageFocus";
 import { isMessageBackgroundContextMenu } from "../messageContextMenuTarget";
@@ -15,6 +15,7 @@ import {
   resolveProfileUserId,
 } from "../api/messageAuthor";
 import { resolveMessageContent, resolveMessageNeighbors } from "../lib/messageRenderState";
+import { createRowEngagement } from "./createRowEngagement";
 import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageRowAvatar from "./parts/MessageRowAvatar";
@@ -115,10 +116,14 @@ export default function MessageRow(props: MessageRowProps) {
   const avatarUrl = () => resolveAuthorAvatarUrl(msg(), user()?.avatarUrl);
   const isEditing = () => props.editingTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
+  const deferred = useDeferredMount();
+  createEffect(() => {
+    if (isEditing() || focused()) deferred.now();
+  });
 
   const saved = () => !!later()?.isSavedForLater(props.channelId, msg().ts);
   const focused = () => props.focusedTs?.() === msg().ts;
-  const [engaged, setEngaged] = createSignal(false);
+  const { engaged, events: rowEvents, keyboardFocus } = createRowEngagement();
   const isSystem = () => msg().kind === "system";
   const showActions = () =>
     !isSystem() &&
@@ -149,7 +154,10 @@ export default function MessageRow(props: MessageRowProps) {
           compact: sameAuthorAsPrev(),
           deleted: msg().deleted,
           ephemeral: msg().isEphemeral,
+          "has-actions": showActions(),
           "is-first-message": props.index() === 0,
+          "kb-row": keyboardFocus() === "row",
+          "kb-within": keyboardFocus() === "within",
           pending: msg().pending,
           saved: saved(),
           system: isSystem(),
@@ -173,15 +181,7 @@ export default function MessageRow(props: MessageRowProps) {
         <div
           class="message-row"
           data-message-ts={msg().ts}
-          onFocusIn={() => setEngaged(true)}
-          onFocusOut={(e) => {
-            const next = e.relatedTarget;
-            if (!(next instanceof Node && e.currentTarget.contains(next))) setEngaged(false);
-          }}
-          onMouseEnter={() => setEngaged(true)}
-          onMouseLeave={(e) => {
-            if (!e.currentTarget.matches(":focus-within")) setEngaged(false);
-          }}
+          {...rowEvents}
           onContextMenu={(e) => {
             if (isEditing()) return;
             if (!isMessageBackgroundContextMenu(e)) return;
@@ -226,7 +226,7 @@ export default function MessageRow(props: MessageRowProps) {
                 user={user()}
               />
             </Show>
-            <div class="message-body">
+            <div class="message-body" ref={deferred.ref}>
               <Show when={!sameAuthorAsPrev()}>
                 <MessageMeta
                   channelId={props.channelId}
@@ -248,26 +248,29 @@ export default function MessageRow(props: MessageRowProps) {
                   userId={profileUserId()}
                 />
               </Show>
-              <MessageTextContent
-                channelId={props.channelId}
-                hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
-                isEditing={isEditing()}
-                messageText={messageText()}
-                msg={msg()}
-                onStopEdit={props.onStopEdit}
-                renderBlocks={renderBlocks()}
-                replyRef={replyRef()}
-                tz={user()?.tz}
-              />
-              <Slot
-                attachments={visibleAttachments()}
-                channelId={props.channelId}
-                isEditing={isEditing()}
-                msg={msg()}
-                onOpenThread={props.onOpenThread}
-                point="messages.body"
-                threadTs={props.threadTs}
-              />
+              <Show fallback={<div class="message-content-pending" />} when={deferred.ready()}>
+                <MessageTextContent
+                  attachments={visibleAttachments()}
+                  channelId={props.channelId}
+                  hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
+                  isEditing={isEditing()}
+                  messageText={messageText()}
+                  msg={msg()}
+                  onStopEdit={props.onStopEdit}
+                  renderBlocks={renderBlocks()}
+                  replyRef={replyRef()}
+                  tz={user()?.tz}
+                />
+                <Slot
+                  attachments={visibleAttachments()}
+                  channelId={props.channelId}
+                  isEditing={isEditing()}
+                  msg={msg()}
+                  onOpenThread={props.onOpenThread}
+                  point="messages.body"
+                  threadTs={props.threadTs}
+                />
+              </Show>
             </div>
           </Show>
         </div>

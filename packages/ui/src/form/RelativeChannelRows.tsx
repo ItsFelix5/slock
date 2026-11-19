@@ -1,5 +1,5 @@
-import type { ColorRef } from "../themeDerivations";
-import ColorChannelRow from "./ColorChannelRow";
+import type { ColorRef } from "../theme/themeDerivations";
+import ColorChannelRow from "./color/ColorChannelRow";
 
 export interface RelativeColor {
   onChange: (ref: ColorRef) => void;

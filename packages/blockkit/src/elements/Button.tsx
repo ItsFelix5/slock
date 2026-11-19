@@ -1,9 +1,9 @@
 import type { ButtonElement } from "@slock/types";
 import { Show } from "solid-js";
+import { useBlockActionDispatch } from "../actions/useBlockActionDispatch";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import { safeUrl } from "../safeUrl";
-import { useBlockActionDispatch } from "../useBlockActionDispatch";
 import LinkButton from "./LinkButton";
 import "./Controls.css";
 

@@ -48,6 +48,7 @@
   padding: var(--space-sm) var(--space-md) 0;
 }
 .composer-file-chip {
+  position: relative;
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--font-size-meta);

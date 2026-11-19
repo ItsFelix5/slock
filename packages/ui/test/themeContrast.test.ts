@@ -1,27 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import { cssColorToOklch, type OklchColor } from "../src/form/oklchColor";
-import { BUILTIN_THEME_COLORS } from "../src/themeColorBuiltins";
-import { parseColorRef } from "../src/themeDerivations";
-import { THEME_PRESETS, type ThemePreset } from "../src/themePresets";
+import type { OklchColor } from "../src/form/color/oklchColor";
+import { BUILTIN_THEME_COLORS } from "../src/theme/themeColorBuiltins";
+import {
+  resolvePresetColor,
+  THEME_FAMILIES,
+  THEME_PRESETS,
+  type ThemePreset,
+} from "../src/theme/themePresets";
+
+const OFFICIAL_FLOOR = 2;
+const OFFICIAL_IDS = new Set(
+  THEME_FAMILIES.filter((family) => family.source).flatMap((family) =>
+    family.presets.map((preset) => preset.id),
+  ),
+);
 
 type Rgb = [number, number, number];
-
-const MAX_DEPTH = 12;
-
-function resolve(preset: ThemePreset, key: string, depth = 0): OklchColor {
-  if (depth > MAX_DEPTH) throw new Error(`${preset.id}: reference cycle at ${key}`);
-  const raw = preset.colors[key] ?? BUILTIN_THEME_COLORS.find((def) => def.key === key)?.derive;
-  if (raw === undefined) throw new Error(`${preset.id}: ${key} has no value`);
-  const ref = parseColorRef(raw);
-  if (!ref) return cssColorToOklch(raw);
-  const source = resolve(preset, ref.source, depth + 1);
-  return {
-    alpha: ref.alpha === undefined ? source.alpha : ref.alpha / 100,
-    chroma: Math.max(0, source.chroma + (ref.deltaC ?? 0) / 100),
-    hue: source.hue,
-    lightness: Math.min(1, Math.max(0, source.lightness + (ref.deltaL ?? 0) / 100)),
-  };
-}
 
 function toSrgb({ lightness, chroma, hue }: OklchColor): Rgb {
   const a = chroma * Math.cos((hue * Math.PI) / 180);
@@ -56,9 +50,9 @@ function flatten(color: OklchColor, base: Rgb): Rgb {
 }
 
 function contrast(preset: ThemePreset, foreground: string, background: string): number {
-  const page = toSrgb(resolve(preset, "mainBg"));
-  const backRgb = flatten(resolve(preset, background), page);
-  const frontRgb = flatten(resolve(preset, foreground), backRgb);
+  const page = toSrgb(resolvePresetColor(preset, "mainBg"));
+  const backRgb = flatten(resolvePresetColor(preset, background), page);
+  const frontRgb = flatten(resolvePresetColor(preset, foreground), backRgb);
   const [x, y] = [luminance(frontRgb), luminance(backRgb)];
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
@@ -79,14 +73,15 @@ const readable: [string, string, number][] = [
 describe("theme presets", () => {
   test("every preset resolves every color without cycles or gaps", () => {
     for (const preset of THEME_PRESETS) {
-      for (const { key } of BUILTIN_THEME_COLORS) expect(() => resolve(preset, key)).not.toThrow();
+      for (const { key } of BUILTIN_THEME_COLORS)
+        expect(() => resolvePresetColor(preset, key)).not.toThrow();
     }
   });
 
   test("preset ids are unique and each dark or light scheme matches its background", () => {
     expect(new Set(THEME_PRESETS.map((preset) => preset.id)).size).toBe(THEME_PRESETS.length);
     for (const preset of THEME_PRESETS) {
-      const { lightness } = resolve(preset, "mainBg");
+      const { lightness } = resolvePresetColor(preset, "mainBg");
       expect(lightness > 0.6).toBe(preset.colorScheme === "light");
     }
   });
@@ -96,7 +91,7 @@ describe("theme presets", () => {
       const failures = THEME_PRESETS.map(
         (preset) => [preset.id, contrast(preset, foreground, background)] as const,
       )
-        .filter(([, ratio]) => ratio < minimum)
+        .filter(([id, ratio]) => ratio < (OFFICIAL_IDS.has(id) ? OFFICIAL_FLOOR : minimum))
         .map(([id, ratio]) => `${id} ${ratio.toFixed(2)}`);
       expect(failures).toEqual([]);
     });

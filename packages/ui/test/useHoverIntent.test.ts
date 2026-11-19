@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { createRoot } from "solid-js";
-import { useHoverIntent } from "../src/useHoverIntent";
+import { useHoverIntent } from "../src/hooks/useHoverIntent";
 
 beforeEach(() => {
   jest.useFakeTimers();

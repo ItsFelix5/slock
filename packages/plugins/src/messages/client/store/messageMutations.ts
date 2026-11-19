@@ -1,7 +1,12 @@
 import { service } from "@slock/core/solid";
 import { isMyRelayedMessage } from "@slock/slack";
 import type { Block, Message, User } from "@slock/types";
-import { broadcastReply, deleteMessage, editMessage } from "../../../slack/client/api";
+import {
+  broadcastReply,
+  deleteAttachment,
+  deleteMessage,
+  editMessage,
+} from "../../../slack/client/api";
 import type { MessageLocation } from "../lib/messageLocations";
 
 const feedback = service("feedback");
@@ -28,13 +33,24 @@ export function createMessageMutations(deps: {
     text: string,
     blocks?: Block[],
     fileIds?: string[],
+    removedAttachmentIds: number[] = [],
   ) {
     const trimmed = text.trim();
     if (!trimmed) return false;
     const previous = findMessage(channelId, ts);
     try {
       await editMessage(channelId, ts, trimmed, blocks, isRelayed(previous), fileIds);
-      deps.patchMessage(channelId, ts, { blocks, edited: true, text: trimmed });
+      await Promise.all(removedAttachmentIds.map((id) => deleteAttachment(channelId, ts, id)));
+      deps.patchMessage(channelId, ts, {
+        ...(removedAttachmentIds.length && {
+          attachments: previous?.attachments?.filter(
+            (a) => a.id === undefined || !removedAttachmentIds.includes(a.id),
+          ),
+        }),
+        blocks,
+        edited: true,
+        text: trimmed,
+      });
       if (previous && previous.text !== trimmed) {
         feedback.undo.push({
           label: "edit message",

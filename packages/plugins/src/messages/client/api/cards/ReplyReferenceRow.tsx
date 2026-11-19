@@ -1,8 +1,9 @@
 import { BlockKitResolverContext, Mrkdwn, useBlockKitResolver } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { Attachment, Message } from "@slock/types";
-import { Avatar, Icon, type IconName } from "@slock/ui";
+import { Avatar, Icon, type IconName, imageSrc } from "@slock/ui";
 import { Show } from "solid-js";
+import TextOrFiles from "../../../../files/client/api/TextOrFiles";
 import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
 import { parseSlackPermalink } from "../../../../message-links/client/api/slackPermalink";
 import MessageLinkHoverCard, {
@@ -48,7 +49,9 @@ export default function ReplyReferenceRow(props: {
               <>
                 <span class="reply-reference-avatar flex-center reply-reference-bot">
                   <Show fallback="💬" when={attachment().authorIcon}>
-                    {(icon) => <img alt="" decoding="async" loading="lazy" src={icon()} />}
+                    {(icon) => (
+                      <img alt="" decoding="async" loading="lazy" src={imageSrc(icon())} />
+                    )}
                   </Show>
                 </span>
                 <Show when={resolveAttachmentAuthorName(attachment(), usersStore.userById)}>
@@ -76,7 +79,12 @@ export default function ReplyReferenceRow(props: {
               <Avatar size="small" user={author()} />
               <span class="reply-reference-name truncate">{author().name}</span>
               <span class="truncate">
-                <Mrkdwn inline text={snippet(msg())} />
+                <TextOrFiles
+                  blocks={splitReplyLink(msg()).blocks}
+                  files={msg().files}
+                  inline
+                  text={snippet(msg())}
+                />
               </span>
             </>
           );

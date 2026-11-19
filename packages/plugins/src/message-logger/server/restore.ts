@@ -1,6 +1,5 @@
 import type { HttpHandler } from "@slock/core";
 import type { RawMessage } from "@slock/types";
-import { rewriteSlackAssetUrls } from "../../slack/server/api/assets";
 import { jsonHeaders } from "../../slack/server/api/auth";
 import type { LogStore, TsRange } from "./store";
 import { workspaceOf } from "./workspace";
@@ -46,9 +45,7 @@ export function restoreDeleted(store: LogStore): HttpHandler {
       ? store.threadMessages(workspace, channel, threadTs, repliesRange(page, searchParams))
       : store.channelMessages(workspace, channel, historyRange(page, searchParams));
     const liveTs = new Set(live.map((message) => message.ts));
-    const restored = kept
-      .filter((message) => !liveTs.has(message.ts))
-      .map((message) => rewriteSlackAssetUrls(message, creds) as RawMessage);
+    const restored = kept.filter((message) => !liveTs.has(message.ts));
     const direction = replies ? 1 : -1;
     const messages = [...live, ...restored].sort(
       (a, b) => direction * (Number(a.ts) - Number(b.ts)),

@@ -17,7 +17,7 @@ const list: Route[] = [
   route("GET", "commands", async (ctx) => {
     const data = await callSlack<AppCommandsReply>("client.appCommands", {}, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "client.appCommands", ctx.creds);
+      return slackErrorResponse(data, "client.appCommands");
     }
     const byName = new Map<string, { name: string; desc: string; icon: string | null }>();
     for (const c of data.commands ?? []) {
@@ -31,7 +31,7 @@ const list: Route[] = [
         });
       }
     }
-    return jsonResponse({ commands: [...byName.values()], ok: true }, ctx.creds);
+    return jsonResponse({ commands: [...byName.values()], ok: true });
   }),
 
   route("POST", "commands/run", async (ctx) => {
@@ -52,7 +52,7 @@ const list: Route[] = [
         502,
       );
     }
-    return jsonResponse({ ok: true }, ctx.creds);
+    return jsonResponse({ ok: true });
   }),
 ];
 

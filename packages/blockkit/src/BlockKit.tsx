@@ -22,9 +22,10 @@ import type {
   VideoBlock,
 } from "@slock/types";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
-import Mrkdwn from "./mrkdwn";
+import Mrkdwn from "./mrkdwn/mrkdwn";
 import "./BlockKit.css";
 import { Dynamic } from "solid-js/web";
+import type { ViewState } from "./actions/viewState";
 import Alert from "./blocks/Alert";
 import { Card, Carousel } from "./blocks/Card";
 import Container from "./blocks/Container";
@@ -39,7 +40,6 @@ import { Plan, TaskCard } from "./blocks/TaskCard";
 import Video from "./blocks/Video";
 import ElementRenderer from "./elements/ElementRenderer";
 import EmojiText from "./emoji/EmojiText";
-import type { ViewState } from "./viewState";
 
 export interface BlockActionContext {
   appId?: string;
@@ -174,6 +174,7 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
 export default function BlockKit(props: {
   blocks: Block[];
   context?: BlockActionContext;
+  inert?: boolean;
   trailing?: JSX.Element;
 }) {
   const canPlaceTrailingInline = () => {
@@ -185,7 +186,7 @@ export default function BlockKit(props: {
 
   return (
     <>
-      <div class="bk-root flex-col gap-sm">
+      <div class="bk-root flex-col gap-sm" inert={props.inert}>
         <For each={props.blocks}>
           {(b, index) => (
             <BlockView

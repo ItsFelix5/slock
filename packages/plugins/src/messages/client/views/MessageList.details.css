@@ -2,6 +2,9 @@
   flex: 1;
   min-width: 0;
 }
+.message-content-pending {
+  min-height: 1lh;
+}
 .message-meta {
   display: flex;
   gap: var(--message-meta-gap);
@@ -194,6 +197,6 @@ button.message-bot-badge {
   opacity: 0;
 }
 .message-row-group.system:hover .message-time,
-.message-row-group.system:has(.message-row:focus-visible) .message-time {
+.message-row-group.system.kb-row .message-time {
   opacity: 1;
 }

@@ -1,1 +1,6 @@
-{ "id": "presence", "core": true, "name": "Presence", "requires": ["dms", "realtime", "users"] }
+{
+  "id": "presence",
+  "core": true,
+  "name": "Online status",
+  "requires": ["dms", "realtime", "users"]
+}

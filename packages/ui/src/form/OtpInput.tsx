@@ -1,8 +1,8 @@
 import { createEffect, createSignal, For } from "solid-js";
 import "./OtpInput.css";
 import { defined } from "@slock/core";
-import { useNavigationShortcuts } from "../useNavShortcuts";
-import { inside, useShortcut } from "../useShortcut";
+import { useNavigationShortcuts } from "../hooks/useNavShortcuts";
+import { inside, useShortcut } from "../hooks/useShortcut";
 
 const DIGIT = /[0-9]/;
 

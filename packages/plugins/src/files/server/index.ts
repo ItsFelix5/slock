@@ -49,35 +49,32 @@ const list: Route[] = [
       callSlack<FileSharesReply>("files.getShares", { file_id: ctx.params.id }, ctx.creds),
     ]);
     if (!infoData.ok) {
-      return slackErrorResponse(infoData, "files.info", ctx.creds);
+      return slackErrorResponse(infoData, "files.info");
     }
     if (!sharesData.ok) {
-      return slackErrorResponse(sharesData, "files.getShares", ctx.creds);
+      return slackErrorResponse(sharesData, "files.getShares");
     }
     const { file } = infoData;
-    return jsonResponse(
-      {
-        access: {
-          org_id: file.user_team ?? null,
-          org_level: file.org_or_workspace_access ?? "none",
-          users: (file.dm_mpdm_users_with_file_access ?? []).flatMap((entry) =>
-            entry.user_id ? [{ access: entry.access ?? "read", user_id: entry.user_id }] : [],
-          ),
-        },
-        content: infoData.content ?? null,
-        contentTruncated: !!infoData.is_truncated,
-        editable: file.editable === true,
-        file: trimFile(file),
-        ok: true,
-        owner: file.canvas_creator_id ?? file.user ?? null,
-        shares: flattenShares(sharesData.conversation_shares?.shares).filter(
-          (share) => share.channel_id !== hostedChannelId(ctx.params.id),
+    return jsonResponse({
+      access: {
+        org_id: file.user_team ?? null,
+        org_level: file.org_or_workspace_access ?? "none",
+        users: (file.dm_mpdm_users_with_file_access ?? []).flatMap((entry) =>
+          entry.user_id ? [{ access: entry.access ?? "read", user_id: entry.user_id }] : [],
         ),
-        starred: !!file.is_starred,
-        viewer_count: sharesData.viewer_count ?? null,
       },
-      ctx.creds,
-    );
+      content: infoData.content ?? null,
+      contentTruncated: !!infoData.is_truncated,
+      editable: file.editable === true,
+      file: trimFile(file),
+      ok: true,
+      owner: file.canvas_creator_id ?? file.user ?? null,
+      shares: flattenShares(sharesData.conversation_shares?.shares).filter(
+        (share) => share.channel_id !== hostedChannelId(ctx.params.id),
+      ),
+      starred: !!file.is_starred,
+      viewer_count: sharesData.viewer_count ?? null,
+    });
   }),
 
   route("POST", "files/:id/rename", async (ctx) => {
@@ -86,8 +83,8 @@ const list: Route[] = [
     const name = title?.trim();
     if (!name) return errorResponse("invalid_title", 400);
     const edited = await callSlack("files.edit", { file: ctx.params.id, title: name }, ctx.creds);
-    if (!edited.ok) return slackErrorResponse(edited, "files.edit", ctx.creds);
-    return jsonResponse({ ok: true }, ctx.creds);
+    if (!edited.ok) return slackErrorResponse(edited, "files.edit");
+    return jsonResponse({ ok: true });
   }),
 
   route("POST", "files/:id/access", async (ctx) => {
@@ -142,10 +139,7 @@ const list: Route[] = [
     if (!reservation.ok) return errorResponse(reservation.error, 502);
     if (!(reservation.upload_url && ctx.creds))
       return errorResponse("file reservation failed", 502);
-    return jsonResponse(
-      { file_id: reservation.file_id, upload_url: reservation.upload_url },
-      ctx.creds,
-    );
+    return jsonResponse({ file_id: reservation.file_id, upload_url: reservation.upload_url });
   }),
 
   route("POST", "files/upload", async (ctx) =>
@@ -163,10 +157,10 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "files.completeUploadExternal", ctx.creds);
+      return slackErrorResponse(data, "files.completeUploadExternal");
     }
     const files = data.files?.map(trimFile) ?? [];
-    return jsonResponse({ files }, ctx.creds);
+    return jsonResponse({ files });
   }),
 ];
 

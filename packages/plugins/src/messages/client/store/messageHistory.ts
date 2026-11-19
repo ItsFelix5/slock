@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
 import type { ConversationViewData, Message } from "@slock/types";
 import { createRecencyEviction } from "@slock/ui";
-import { createEffect, untrack } from "solid-js";
+import { batch, createEffect, untrack } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
 import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import {
@@ -36,8 +36,8 @@ const DEFAULT_HISTORY_API: MessageHistoryApi = {
   fetchHistoryNewer,
 };
 
-const MAX_LOADED_MESSAGES = 300;
-const KEEP_RECENT_CHANNELS = 3;
+const MAX_LOADED_MESSAGES = 120;
+const KEEP_RECENT_CHANNELS = 8;
 
 export function createMessageHistory(
   deps: {
@@ -72,6 +72,7 @@ export function createMessageHistory(
     loadEarlierReplies,
     hasMoreReplies,
     hasMoreRepliesError,
+    missingReplies,
     hasThreadError,
     isLoadingMoreReplies,
     loadMoreReplies,
@@ -125,16 +126,18 @@ export function createMessageHistory(
     try {
       const { messages, hasMore, nextCursor } = await source.history;
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      replaceMessages(channelId, (existing) =>
-        mergeMessages(replaceAnchoredWindow ? [] : existing, messages),
-      );
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.delete(channelId);
-      setHistoryMeta(channelId, {
-        anchored: false,
-        hasMore,
-        hasNewer: false,
-        loading: false,
+      batch(() => {
+        replaceMessages(channelId, (existing) =>
+          mergeMessages(replaceAnchoredWindow ? [] : existing, messages),
+        );
+        setHistoryMeta(channelId, {
+          anchored: false,
+          hasMore,
+          hasNewer: false,
+          loading: false,
+        });
       });
     } catch (err) {
       console.error("Failed to load channel history", channelId, err);
@@ -188,9 +191,11 @@ export function createMessageHistory(
     try {
       const { messages: older, hasMore, nextCursor } = await api.fetchHistory(channelId, cursor);
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      mergeOlder(channelId, older);
       historyCursor.set(channelId, nextCursor);
-      setHistoryMeta(channelId, { hasMore, loading: false });
+      batch(() => {
+        mergeOlder(channelId, older);
+        setHistoryMeta(channelId, { hasMore, loading: false });
+      });
     } catch {
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
       setHistoryMeta(channelId, "loading", false);
@@ -218,14 +223,17 @@ export function createMessageHistory(
         nextCursor,
       } = await api.fetchHistoryNewer(channelId, boundary);
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
-      mergeNewer(channelId, newer);
-      if (hasMore) {
-        newerHistoryBoundary.set(channelId, defined(nextCursor));
-        setHistoryMeta(channelId, { loading: false, newerError: false });
-        return;
-      }
-      newerHistoryBoundary.delete(channelId);
-      setHistoryMeta(channelId, { anchored: false, hasNewer: false, loading: false });
+      if (hasMore) newerHistoryBoundary.set(channelId, defined(nextCursor));
+      else newerHistoryBoundary.delete(channelId);
+      batch(() => {
+        mergeNewer(channelId, newer);
+        setHistoryMeta(
+          channelId,
+          hasMore
+            ? { loading: false, newerError: false }
+            : { anchored: false, hasNewer: false, loading: false },
+        );
+      });
     } catch {
       if (!windowEpochs.isCurrent(channelId, epoch)) return;
       setHistoryMeta(channelId, "loading", false);
@@ -257,6 +265,7 @@ export function createMessageHistory(
     loadEarlierReplies,
     hasMoreReplies,
     hasMoreRepliesError,
+    missingReplies,
     hasThreadError,
     isLoadingMoreReplies,
     loadMoreReplies,

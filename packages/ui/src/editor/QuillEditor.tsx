@@ -1,18 +1,19 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { dispatchManualShortcut } from "../useShortcut";
+import { dispatchManualShortcut } from "../hooks/useShortcut";
 import { bindLinePrefix, type LinePrefixFormat } from "./blockShortcuts";
 import ContextBlot from "./ContextBlot";
 import DividerBlot from "./DividerBlot";
 import { useEditorShortcuts } from "./editorShortcuts";
 import { wireEmbedCaretEscape } from "./embedCaret";
-import FormatBubble from "./FormatBubble";
-import LinkEditPopover from "./LinkEditPopover";
+import FormatBubble from "./format/FormatBubble";
+import LinkEditPopover from "./format/LinkEditPopover";
+import { createLinkEditController } from "./format/linkEdit";
 import { linkifySelectionPaste, wireLinkAutoconvert } from "./linkAutolink";
-import { createLinkEditController } from "./linkEdit";
 import { listAutofillBinding, listIndentBindings, wireListOffsetCleanup } from "./listOffset";
 import { INLINE_MARKS, wireArrowDownExit, wireMarkdownAutoformat } from "./markdownAutoformat";
 import Quill, { getEmbedBlot } from "./quill";
 import "./editor.css";
+import "./editorLists.css";
 
 const BASE_FORMATS = ["bold", "code", "italic", "link", "strike", "mention", "emoji"];
 const EXTENDED_FORMATS = [

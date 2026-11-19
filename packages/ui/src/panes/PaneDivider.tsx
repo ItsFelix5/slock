@@ -1,6 +1,6 @@
 import { onCleanup } from "solid-js";
+import { useAdjustShortcuts } from "../hooks/useNavShortcuts";
 import { startFrameCoalescedPointerDrag } from "../pointerDrag";
-import { useAdjustShortcuts } from "../useNavShortcuts";
 import "./PaneDivider.css";
 
 export default function PaneDivider(props: {

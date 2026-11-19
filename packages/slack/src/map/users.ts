@@ -2,7 +2,13 @@ import type { RawBot, RawUser, RawUserProfile, User, UserCustomField } from "@sl
 
 export const SLACK_USER_ID = "USLACK";
 const SLACK_AVATAR_URL = "/public/slack-logo.svg";
-const SLACKBOT_AVATAR_URL = `/api/assets?url=${encodeURIComponent("https://a.slack-edge.com/80588/img/plugins/slackbot/service_512.png")}`;
+const SLACKBOT_AVATAR_URL = "https://a.slack-edge.com/80588/img/plugins/slackbot/service_512.png";
+
+function hashedAvatarUrl(raw: RawUser): string | undefined {
+  const hash = raw.profile?.avatar_hash;
+  const team = raw.profile?.team ?? raw.team_id;
+  return hash && team ? `https://ca.slack-edge.com/${team}-${raw.id}-${hash}-192` : undefined;
+}
 
 function colorFromHex(hex: string | undefined) {
   return hex ? `#${hex}` : "#616061";
@@ -51,6 +57,7 @@ export function mapUser(raw: RawUser): User {
     : raw.profile?.image_192 ||
       raw.profile?.image_72 ||
       raw.profile?.image_48 ||
+      hashedAvatarUrl(raw) ||
       (raw.id === "USLACKBOT" ? SLACKBOT_AVATAR_URL : undefined);
   return {
     appId: raw.profile?.api_app_id || undefined,

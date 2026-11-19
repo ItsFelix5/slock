@@ -4,14 +4,22 @@ import { createQuery } from "@tanstack/solid-query";
 import { defineKey } from "../../../query/client/api";
 import { toggleReaction } from "../../../slack/client/api";
 import { isThreadAnnotation } from "../api/canvasQuote";
-import { fetchCanvasComments, openCanvasComment } from "./canvasRequests";
+import { type CanvasComments, fetchCanvasComments, openCanvasComment } from "./canvasRequests";
 
 const feedback = service("feedback");
 const query = service("query");
-const commentsKey = defineKey<[string]>("canvasComments");
+const commentsKey = defineKey<[string?]>("canvasComments");
 
 const messageLinks = service("message-links");
 const usersStore = service("users");
+
+export function refreshCommentsForChannel(channelId: string) {
+  for (const [queryKey, data] of query.client.getQueriesData<CanvasComments>({
+    queryKey: commentsKey(),
+  })) {
+    if (data?.channelId === channelId) void query.client.invalidateQueries({ queryKey });
+  }
+}
 
 export function createCanvasComments(fileId: () => string) {
   const commentsQuery = createQuery(

@@ -5,7 +5,7 @@ import {
   popFocusLayer,
   pushFocusLayer,
   tabWrapTarget,
-} from "../../src/overlay/focusTrap";
+} from "../../src/overlay/dialog/focusTrap";
 
 describe("tabWrapTarget", () => {
   test.each([

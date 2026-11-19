@@ -3,7 +3,7 @@ import type Quill from "@slock/ui/editor/quill";
 import { createSignal } from "solid-js";
 import type { CanvasCommandContext } from "./canvasCommands";
 import { CANVAS_DATE_FORMAT, dateLabel, dateMs } from "./canvasEmbeds";
-import { insertBlock } from "./canvasFormatting";
+import { commentAnchorAt, insertBlock } from "./canvasFormatting";
 import { uploadCanvasBlocks } from "./canvasUpload";
 
 const feedback = service("feedback");
@@ -13,6 +13,7 @@ const FEEDBACK_KEY = "canvas-insert";
 export interface CanvasPicker {
   anchor: HTMLElement;
   annotationId?: string;
+  fresh?: boolean;
   kind: "date" | "react";
   quill: Quill;
 }
@@ -72,10 +73,12 @@ export function createCanvasCommandContext(options: {
       newId: options.newId,
       pickDate: () => setPicker({ anchor, kind: "date", quill }),
       pickFiles: () => void pickFiles().then((files) => uploadFiles(quill, files)),
-      react: () =>
+      react: () => {
+        const fresh = !commentAnchorAt(quill);
         void options
           .annotate(quill)
-          .then((id) => id && setPicker({ anchor, annotationId: id, kind: "react", quill })),
+          .then((id) => id && setPicker({ anchor, annotationId: id, fresh, kind: "react", quill }));
+      },
     };
   }
 

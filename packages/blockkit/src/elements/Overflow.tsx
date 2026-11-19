@@ -1,10 +1,10 @@
 import type { OverflowElement } from "@slock/types";
 import { Icon, Menu } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
+import { useBlockActionDispatch } from "../actions/useBlockActionDispatch";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import { safeUrl } from "../safeUrl";
-import { useBlockActionDispatch } from "../useBlockActionDispatch";
 import "./Controls.css";
 import { optionPayload } from "./options";
 

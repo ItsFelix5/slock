@@ -1,7 +1,7 @@
 import { createEffect, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useClickOutside } from "../../useClickOutside";
-import { useEscapeClose } from "../../useEscapeClose";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { clamp, FloatingMountContext } from "../floating/FloatingPanel";
 import "./ContextMenu.css";
 import "./Menu.css";

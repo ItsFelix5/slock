@@ -31,6 +31,7 @@ import type { SortMode } from "../searchQuery";
 import { readableQuery } from "./lib/searchQueryEditor";
 
 const dmsStore = service("dms");
+const messageLinks = service("message-links");
 const titles = service("titles");
 const channelsStore = service("channels");
 const usersStore = service("users");
@@ -219,7 +220,11 @@ export default function MessageSearchResults(props: {
                         name={displayName()}
                         onOpen={() => props.onResult(result)}
                         onSplit={() =>
-                          openConversationInSplit(result.channelId, result.threadTs ?? result.ts)
+                          messageLinks.openMessageInSplit(
+                            result.channelId,
+                            result.ts,
+                            result.threadTs,
+                          )
                         }
                         snippet={
                           <span data-search-terms={JSON.stringify(result.highlights ?? [])}>
@@ -257,7 +262,11 @@ export default function MessageSearchResults(props: {
                           icon="move-to-split-view"
                           onClick={() => {
                             ctxMenu.close();
-                            openConversationInSplit(result.channelId, result.threadTs ?? result.ts);
+                            messageLinks.openMessageInSplit(
+                              result.channelId,
+                              result.ts,
+                              result.threadTs,
+                            );
                           }}
                         >
                           Open in split view

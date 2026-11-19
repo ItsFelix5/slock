@@ -11,7 +11,7 @@ const BASE_SECONDS = 1_700_000_000;
 const PAGE = 30;
 const NEWER_PAGE = 50;
 const AROUND = 28;
-const WINDOW_CAP = 300;
+const WINDOW_CAP = 120;
 
 function createServer(count: number) {
   const all: Message[] = [];

@@ -21,7 +21,6 @@ export function UploadPlugin() {
   return (
     <div class="settings-row">
       <div class="settings-row-label">Add a plugin</div>
-      <div class="settings-row-meta text-dim">Plugins run with full access to your account.</div>
       <input
         accept=".js,text/javascript"
         hidden

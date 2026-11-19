@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
 import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
-import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import { channelPostKey, isOwnOrUnresolved, reactionActivityKey } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
@@ -27,7 +27,6 @@ export function createActivityFeedLoad(deps: {
   fetchMessagesByIds: (
     entries: { channelId: string; ts: string }[],
   ) => Promise<Map<string, Message>>;
-  isActivityViewOpen: () => boolean;
   isBotUser?: (userId: string) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
@@ -178,16 +177,7 @@ export function createActivityFeedLoad(deps: {
   });
 
   onCleanup(liveRefresh.cancel);
-  let refreshWhenOpened = false;
-  const requestActivityRefresh = () => {
-    if (deps.isActivityViewOpen()) liveRefresh.request();
-    else refreshWhenOpened = true;
-  };
-  createEffect(() => {
-    if (!(deps.isActivityViewOpen() && refreshWhenOpened)) return;
-    refreshWhenOpened = false;
-    untrack(liveRefresh.request);
-  });
+  const requestActivityRefresh = liveRefresh.request;
 
   return {
     activityHasMore: activityHasMoreFor,

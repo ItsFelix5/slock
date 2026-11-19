@@ -2,7 +2,7 @@ import type { PlanBlock, TaskCardBlock } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { For, type JSX, Show } from "solid-js";
 import BkText from "../BkText";
-import { Link } from "../mrkdwnTokens";
+import { Link } from "../mrkdwn/mrkdwnTokens";
 import RichText from "./RichText";
 import "./TaskCard.css";
 
@@ -12,7 +12,7 @@ function Disclosure(props: {
   title: JSX.Element;
 }) {
   return (
-    <details class="bk-disclosure" open>
+    <details class="bk-disclosure">
       <summary class="bk-disclosure-summary flex-align-center">
         <Show
           fallback={<span class={`bk-task-status bk-task-status--${props.status ?? "pending"}`} />}

@@ -35,7 +35,7 @@ export const TAG_FILTERS: { icon: IconName; key: Tag; label: string }[] = [
   {
     icon: ACTIVITY_KIND_ICONS.usergroup_mention,
     key: "usergroup_mention",
-    label: "Usergroups",
+    label: "Pinggroups",
   },
   {
     icon: ACTIVITY_KIND_ICONS.channel_mention,

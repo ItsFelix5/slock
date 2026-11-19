@@ -20,10 +20,10 @@ const list: Route[] = [
   route("GET", "canvases/:id/file-info", async (ctx) => {
     const data = await callSlack<FileInfoReply>("files.info", { file: ctx.params.id }, ctx.creds);
     if (!data.ok) {
-      if (data.error === "file_not_found") return jsonResponse({ file: null, ok: true }, ctx.creds);
-      return slackErrorResponse(data, "files.info", ctx.creds);
+      if (data.error === "file_not_found") return jsonResponse({ file: null, ok: true });
+      return slackErrorResponse(data, "files.info");
     }
-    return jsonResponse({ file: trimFile(data.file), ok: true }, ctx.creds);
+    return jsonResponse({ file: trimFile(data.file), ok: true });
   }),
 
   route("GET", "canvases/:id/raw", async (ctx) => {
@@ -32,12 +32,13 @@ const list: Route[] = [
     if ("response" in lookup) return lookup.response;
     const raw = await fetchCanvasRaw(lookup.threadId, ctx.creds);
     if (!raw.ok) {
-      return jsonResponse({ error: raw.error }, ctx.creds, 502);
+      return jsonResponse({ error: raw.error }, 502);
     }
-    return jsonResponse(
-      { editable: lookup.editable, ok: true, raw: Buffer.from(raw.bytes).toString("base64") },
-      ctx.creds,
-    );
+    return jsonResponse({
+      editable: lookup.editable,
+      ok: true,
+      raw: Buffer.from(raw.bytes).toString("base64"),
+    });
   }),
 
   route("POST", "canvases/:id/edit", async (ctx) => {
@@ -49,7 +50,7 @@ const list: Route[] = [
     if (!lookup.editable) return errorResponse("not_editable", 403);
     const result = await applyCanvasEdit(lookup.threadId, edit, ctx.creds);
     if (!result.ok) return errorResponse(result.error, result.status);
-    return jsonResponse({ ok: true }, ctx.creds);
+    return jsonResponse({ ok: true });
   }),
 ];
 
@@ -70,9 +71,7 @@ const renameCanvas: HttpHandler = async (c, next) => {
     { controls: [], deleted: [], title: name, upserts: [] },
     c.creds,
   );
-  return result.ok
-    ? jsonResponse({ ok: true }, c.creds)
-    : errorResponse(result.error, result.status);
+  return result.ok ? jsonResponse({ ok: true }) : errorResponse(result.error, result.status);
 };
 
 const setup: Setup = (ctx) => {

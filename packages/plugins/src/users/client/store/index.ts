@@ -3,7 +3,7 @@ import { service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
 import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
 import type { User } from "@slock/types";
-import { createMemo, createSignal } from "solid-js";
+import { batch, createMemo, createSignal } from "solid-js";
 import { createStore, produce, unwrap } from "solid-js/store";
 import { createLocalPref } from "../../../slack/client/api/localPref";
 import { createDerivedUsers } from "./derivedUsers";
@@ -21,6 +21,7 @@ export function createUsersStore(
   api: UsersApi = DEFAULT_USERS_API,
 ) {
   const [extraUsers, setExtraUsers] = createStore<Record<string, User>>({});
+  const [userAliases, setUserAliases] = createStore<Record<string, string>>({});
   const pendingUsers = new Set<string>();
 
   const [unresolvableUsers, setUnresolvableUsers] = createStore<Record<string, boolean>>({});
@@ -64,7 +65,9 @@ export function createUsersStore(
   }
 
   function cacheUsers(users: User[]): void {
-    for (const user of users) putUser(user);
+    batch(() => {
+      for (const user of users) putUser(user);
+    });
   }
 
   const idByName = createMemo(() => {
@@ -89,6 +92,8 @@ export function createUsersStore(
   function userById(id: string): User | undefined {
     if (!id) return;
     if (id === SLACK_USER_ID) return SLACK_SYSTEM_USER;
+    const alias = userAliases[id];
+    if (alias) return userById(alias);
     if (id === deps.currentUserBase()?.id) return currentUser();
     const known = extraUsers[id];
     if (!known) {
@@ -97,8 +102,10 @@ export function createUsersStore(
         api
           .fetchUser(id)
           .then((user) => {
-            if (user) putUser(user);
-            else {
+            if (user) {
+              putUser(user);
+              if (user.id !== id) setUserAliases(id, user.id);
+            } else {
               setUnresolvableUsers(id, true);
             }
           })

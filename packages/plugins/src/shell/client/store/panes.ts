@@ -35,6 +35,17 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   });
 
   const [activePaneId, setActivePaneId] = createSignal<string | null>(null);
+  const [mountedIds, setMountedIds] = createSignal<ReadonlySet<string>>(new Set());
+
+  function markMounted(id: string): () => void {
+    setMountedIds((ids) => new Set(ids).add(id));
+    return () =>
+      setMountedIds((ids) => {
+        const next = new Set(ids);
+        next.delete(id);
+        return next;
+      });
+  }
 
   createEffect(() => {
     const id = focusedPaneId();
@@ -152,6 +163,8 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
     currentFocusedId,
     focusedPrimaryContent,
     insertContentPane,
+    markMounted,
+    mountedPanes: () => state.panes.filter((pane) => mountedIds().has(pane.id)),
     navigateFocusedPane,
     openInNewPane,
     panes: () => state.panes,

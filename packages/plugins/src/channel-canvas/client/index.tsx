@@ -14,8 +14,9 @@ const setup: Setup = (ctx) => {
       : channel,
   );
   ctx.add("messages.quote", (msg, channelId) => {
+    if (!msg.canvasThreadId) return;
     const fileId = channels.channelById(channelId)?.canvasFileId;
-    return msg.canvasThreadId && fileId ? (
+    return fileId ? (
       <CommentQuote fileId={fileId} text={msg.text} threadId={msg.canvasThreadId} />
     ) : undefined;
   });

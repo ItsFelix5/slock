@@ -1,5 +1,5 @@
 import type { JSX } from "solid-js";
-import { useTabStripShortcuts } from "../useNavShortcuts";
+import { useTabStripShortcuts } from "../hooks/useNavShortcuts";
 import "./SegmentedControl.css";
 
 const SEGMENT_SELECTOR = "button:not(:disabled)";

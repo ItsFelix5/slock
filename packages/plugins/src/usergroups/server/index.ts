@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import type { RawUsergroup } from "@slock/types";
+import { teamIdFromRoute } from "../../slack/server/api/auth";
 import { cachedEntityForId } from "../../slack/server/api/cachedEntity";
 import {
   errorResponse,
@@ -38,23 +39,20 @@ const list: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "edge usergroups/info", ctx.creds);
+      return slackErrorResponse(data, "edge usergroups/info");
     }
-    return jsonResponse(
-      {
-        ok: true,
-        usergroups: Object.fromEntries(
-          ids.map((id) => {
-            const group = cachedEntityForId(
-              { index: data.usergroups, results: data.results, single: data.usergroup },
-              id,
-            );
-            return [id, group ? trimUsergroup(group) : null];
-          }),
-        ),
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      ok: true,
+      usergroups: Object.fromEntries(
+        ids.map((id) => {
+          const group = cachedEntityForId(
+            { index: data.usergroups, results: data.results, single: data.usergroup },
+            id,
+          );
+          return [id, group ? trimUsergroup(group) : null];
+        }),
+      ),
+    });
   }),
 
   route("POST", "usergroups", async (ctx) => {
@@ -62,23 +60,25 @@ const list: Route[] = [
     if (!name) return errorResponse("invalid_name", 400);
     const data = await callSlack<{ usergroup?: RawUsergroup }>(
       "usergroups.create",
-      { name },
+      { name, team_id: teamIdFromRoute(ctx.creds?.route ?? "") },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "usergroups.create", ctx.creds);
-    return jsonResponse({ id: data.usergroup?.id, ok: true }, ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "usergroups.create");
+    return jsonResponse({ id: data.usergroup?.id, ok: true });
   }),
 
   route("GET", "usergroups/:id/members", async (ctx) => {
     const data = await callSlack<UsergroupMembersReply>(
       "usergroups.users.list",
-      { usergroup: ctx.params.id },
+      {
+        usergroup: ctx.params.id,
+      },
       ctx.creds,
     );
     if (!data.ok) {
-      return slackErrorResponse(data, "usergroups.users.list", ctx.creds);
+      return slackErrorResponse(data, "usergroups.users.list");
     }
-    return jsonResponse({ ok: true, userIds: data.users ?? [] }, ctx.creds);
+    return jsonResponse({ ok: true, userIds: data.users ?? [] });
   }),
 
   route("PATCH", "usergroups/:id", async (ctx) => {

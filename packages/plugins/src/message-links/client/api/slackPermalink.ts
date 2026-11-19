@@ -14,6 +14,7 @@ export interface SlackPermalinkTarget {
 export interface SlackPermalinkNavigator {
   openChannelMessage: (channelId: string, ts: string) => void;
   openChannelPeek: (channelId: string, threadTs: string, highlightTs?: string) => void;
+  openMessageInSplit: (channelId: string, ts: string, threadTs?: string) => void;
 }
 
 export interface SlackPermalinkOpenerDeps {
@@ -50,13 +51,25 @@ export function createSlackPermalinkOpener(deps: SlackPermalinkOpenerDeps) {
 
 export function navigateToSlackPermalink(
   target: SlackPermalinkTarget,
-  navigator: SlackPermalinkNavigator,
+  navigator: Omit<SlackPermalinkNavigator, "openMessageInSplit">,
 ) {
   if (target.threadTs !== target.messageTs) {
     navigator.openChannelPeek(target.channelId, target.threadTs, target.messageTs);
     return;
   }
   navigator.openChannelMessage(target.channelId, target.messageTs);
+}
+
+export function openSlackPermalinkInSplit(
+  target: SlackPermalinkTarget,
+  navigator: Pick<SlackPermalinkNavigator, "openMessageInSplit">,
+) {
+  const isReply = target.threadTs !== target.messageTs;
+  navigator.openMessageInSplit(
+    target.channelId,
+    target.messageTs,
+    isReply ? target.threadTs : undefined,
+  );
 }
 
 export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {

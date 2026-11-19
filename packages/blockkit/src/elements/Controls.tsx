@@ -2,10 +2,10 @@ import { Slot } from "@slock/core/solid";
 import type { BlockElement, ConfirmationDialog, TextObject } from "@slock/types";
 import { ICON_NAMES, Icon, type IconName, isOneOf, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
+import { useBlockActionDispatch } from "../actions/useBlockActionDispatch";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import { safeUrl } from "../safeUrl";
-import { useBlockActionDispatch } from "../useBlockActionDispatch";
 import ChoiceGroup from "./ChoiceGroup";
 import "./Controls.css";
 import {

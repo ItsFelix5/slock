@@ -1,12 +1,7 @@
-import { scrollToBottom } from "./scrollAnchor";
-
 const COMPOSER_OVERLAY_SELECTOR = ":scope > .composer-overlay";
 const COMPOSER_OVERLAY_HEIGHT_VAR = "--composer-overlay-h";
 
-export function observeComposerOverlay(
-  scrollEl: HTMLElement,
-  shouldFollowBottom: () => boolean,
-): () => void {
+export function observeComposerOverlay(scrollEl: HTMLElement, onChange: () => void): () => void {
   const parent = scrollEl.parentElement;
   if (!parent) return () => {};
 
@@ -16,7 +11,7 @@ export function observeComposerOverlay(
   const update = () => {
     if (!currentOverlay) return;
     parent.style.setProperty(COMPOSER_OVERLAY_HEIGHT_VAR, `${currentOverlay.offsetHeight}px`);
-    if (shouldFollowBottom()) scrollToBottom(scrollEl);
+    onChange();
   };
 
   const sync = () => {
@@ -26,7 +21,7 @@ export function observeComposerOverlay(
     currentOverlay = overlay;
     if (!overlay) {
       parent.style.setProperty(COMPOSER_OVERLAY_HEIGHT_VAR, "0px");
-      if (shouldFollowBottom()) scrollToBottom(scrollEl);
+      onChange();
       return;
     }
     resizeObserver = new ResizeObserver(update);

@@ -1,6 +1,6 @@
 import type { TextObject } from "@slock/types";
 import EmojiText from "./emoji/EmojiText";
-import Mrkdwn from "./mrkdwn";
+import Mrkdwn from "./mrkdwn/mrkdwn";
 
 export default function BkText(props: { text: TextObject | undefined; class?: string }) {
   if (!props.text) return null;

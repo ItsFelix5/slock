@@ -7,7 +7,6 @@
 .avatar-stack-item {
   display: inline-flex;
   border-radius: var(--radius-control);
-  box-shadow: 0 0 0 2px var(--main-bg);
 }
 
 .avatar-stack-item:not(:first-child) {

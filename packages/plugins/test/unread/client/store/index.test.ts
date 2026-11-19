@@ -3,6 +3,7 @@ import type { Message } from "@slock/types";
 import {
   channel,
   fakeWindow,
+  flush,
   harness,
   message,
   mount,
@@ -149,5 +150,23 @@ describe("window activity", () => {
     expect(browser.listenerCount()).toBe(3);
     unmountAll();
     expect(browser.listenerCount()).toBe(0);
+  });
+});
+
+describe("count refresh", () => {
+  test("only reads that clear unread ask for fresh counts", async () => {
+    const { countRefreshes, store } = mount(() =>
+      harness({
+        channels: [channel("C1", true), channel("C2")],
+        directMessages: [],
+        lastReadByChannel: {},
+      }),
+    );
+    void store.syncChannelRead("C2", "1.000000");
+    await flush();
+    expect(countRefreshes()).toBe(0);
+    void store.syncChannelRead("C1", "1.000000");
+    await flush();
+    expect(countRefreshes()).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import type { Message } from "@slock/types";
+import type { HistoryPage, Message } from "@slock/types";
 import type { SetStoreFunction, Store } from "solid-js/store";
 import { mergeMessages } from "../api/messageMerge";
 import type { HistoryMeta } from "./history/historyFlags";
@@ -6,10 +6,8 @@ import type { HistoryMeta } from "./history/historyFlags";
 export function createHistoryJump(deps: {
   api: {
     fetchChannelDetails: (channelId: string) => Promise<{ created?: number }>;
-    fetchHistoryAround: (
-      channelId: string,
-      ts: string,
-    ) => Promise<{ messages: Message[]; hasMore: boolean; nextCursor?: string }>;
+    fetchHistoryAround: (channelId: string, ts: string) => Promise<HistoryPage>;
+    fetchHistoryNewer: (channelId: string, oldest: string) => Promise<HistoryPage>;
   };
   historyCursor: Map<string, string | undefined>;
   historyMeta: Store<Record<string, HistoryMeta>>;
@@ -92,19 +90,23 @@ export function createHistoryJump(deps: {
       olderError: false,
     });
     try {
-      const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
+      const around = await api.fetchHistoryAround(channelId, ts);
+      const fromStart = around.messages.length === 0;
+      const newer = fromStart ? await api.fetchHistoryNewer(channelId, ts) : undefined;
       if (!windowEpochs.isCurrent(channelId, epoch)) return false;
+      const messages = newer?.messages ?? around.messages;
       if (messages.length === 0) {
         void loadRecentHistory(channelId);
         return false;
       }
       replaceMessages(channelId, () => mergeMessages([], messages));
-      historyCursor.set(channelId, nextCursor);
-      newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
+      historyCursor.set(channelId, fromStart ? undefined : around.nextCursor);
+      if (newer && !newer.hasMore) newerHistoryBoundary.delete(channelId);
+      else newerHistoryBoundary.set(channelId, newer?.nextCursor ?? messages.at(-1)?.ts ?? ts);
       setHistoryMeta(channelId, {
-        anchored: true,
-        hasMore,
-        hasNewer: true,
+        anchored: !newer || newer.hasMore,
+        hasMore: !fromStart && around.hasMore,
+        hasNewer: !newer || newer.hasMore,
         initialError: false,
         loading: false,
         newerError: false,

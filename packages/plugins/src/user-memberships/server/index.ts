@@ -13,7 +13,7 @@ const setup: Setup = (ctx) => {
         if (!USER_ID_RE.test(request.params.id)) return errorResponse("invalid_user", 400);
         const reply = await listMemberships(request.params.id, request.creds);
         if (!reply.ok) return errorResponse(reply.error, 502);
-        return jsonResponse({ memberships: reply.memberships }, request.creds);
+        return jsonResponse({ memberships: reply.memberships });
       }),
     ]),
   );

@@ -194,8 +194,15 @@ const REF_SAFE_ROOTS = [
   "irs",
 ];
 
+const rootPatterns = new Map<string, RegExp>();
+
 function matchesRoot(hostname: string, root: string): boolean {
-  return new RegExp(`(^|\\.)${root}\\.[a-z]{2,}(?:\\.[a-z]{2,})?$`).test(hostname);
+  let pattern = rootPatterns.get(root);
+  if (!pattern) {
+    pattern = new RegExp(`(^|\\.)${root}\\.[a-z]{2,}(?:\\.[a-z]{2,})?$`);
+    rootPatterns.set(root, pattern);
+  }
+  return pattern.test(hostname);
 }
 
 function isTrackingParam(key: string): boolean {
@@ -212,6 +219,7 @@ export function stripTrackingParams(rawUrl: string): string {
   } catch {
     return rawUrl;
   }
+  if (!url.search) return rawUrl;
   const domainNames = DOMAIN_TRACKING_PARAMS.find((d) =>
     d.roots.some((root) => matchesRoot(url.hostname, root)),
   )?.names.map((n) => n.toLowerCase());

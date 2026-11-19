@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { localEnabledStore } from "../src/enabledStore";
+import { localEnabledStore } from "../src/host/enabledStore";
 
 function fakeStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));

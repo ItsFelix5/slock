@@ -1,5 +1,6 @@
-import { focusedPaneId, focusPaneById, useEscapeClose, useShortcut } from "@slock/ui";
+import { focusedPaneId, focusPaneById, inside, useEscapeClose, useShortcut } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
+import { editLastMessageInPane } from "../../../messages/client/api/messageFocus";
 
 export function useComposerShortcuts(deps: {
   dismissPreviews: () => void;
@@ -39,6 +40,20 @@ export function useComposerShortcuts(deps: {
     label: "Remove link previews",
     scope: "composer",
     group: "Message box",
+  });
+  useShortcut({
+    allowInInputs: true,
+    combo: { key: "ArrowUp" },
+    enabled: () => !deps.editing() && (deps.quill()?.getLength() ?? 2) <= 1,
+    handler: () => {
+      const id = deps.paneId();
+      if (id) editLastMessageInPane(id);
+    },
+    id: "composer.editLast",
+    label: "Edit your last message",
+    scope: "composer",
+    group: "Message box",
+    target: inside(() => deps.quill()?.root),
   });
   useEscapeClose(
     () => {

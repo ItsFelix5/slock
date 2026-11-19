@@ -3,6 +3,7 @@ import { Button, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, on, Show } from "solid-js";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
 import MessageRows from "../../../messages/client/api/pane/MessageRows";
+import { createFeedScroll } from "../../../messages/client/api/pane/scroll/feedScroll";
 import type { PinnedPaneContent } from "../api";
 import "./PinnedPane.css";
 
@@ -15,8 +16,8 @@ const pinned = service("pins");
 const INTERACTIVE = "a, button, input, textarea, select, [contenteditable], [role='button']";
 
 export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
-  let listRef: HTMLDivElement | undefined;
   const channelId = () => props.pane.content.channelId;
+  const feed = createFeedScroll({ isLive: () => false });
 
   const pins = () => pinned.pinnedMessagesFor(channelId());
   const messages = createMemo(() =>
@@ -33,7 +34,7 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
     if (message) messageLinks.openChannelMessage(channelId(), ts, message.threadTs);
   };
 
-  const messageFocus = createMessageFocus(messages, () => listRef, channelId, {
+  const messageFocus = createMessageFocus(messages, feed, channelId, {
     onOpenThread: openThread,
   });
 
@@ -63,7 +64,7 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
           const ts = e.target instanceof HTMLElement ? e.target.dataset.messageTs : undefined;
           if (e.key === "Enter" && ts) goTo(ts);
         }}
-        ref={listRef}
+        ref={feed.attach}
       >
         <Show when={loading() && pins() !== undefined && !loadError()}>
           <div class="pinned-panel-refreshing text-dim text-sm">Refreshing…</div>

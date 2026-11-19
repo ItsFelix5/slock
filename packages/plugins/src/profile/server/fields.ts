@@ -8,17 +8,14 @@ export const fieldRoutes: Route[] = [
   route("GET", "profile-fields", async (ctx) => {
     const data = await callSlack<TeamProfileReply>("team.profile.get", {}, ctx.creds);
     if (!data.ok) {
-      return slackErrorResponse(data, "team.profile.get", ctx.creds);
+      return slackErrorResponse(data, "team.profile.get");
     }
-    return jsonResponse(
-      {
-        fields: (data.profile?.fields ?? [])
-          .filter((f) => !f.is_hidden)
-          .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
-          .map((f) => ({ fieldName: f.field_name, id: f.id, label: f.label, type: f.type })),
-        ok: true,
-      },
-      ctx.creds,
-    );
+    return jsonResponse({
+      fields: (data.profile?.fields ?? [])
+        .filter((f) => !f.is_hidden)
+        .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
+        .map((f) => ({ fieldName: f.field_name, id: f.id, label: f.label, type: f.type })),
+      ok: true,
+    });
   }),
 ];

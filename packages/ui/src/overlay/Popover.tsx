@@ -1,6 +1,6 @@
 import type { JSX } from "solid-js";
-import { useClickOutside } from "../useClickOutside";
-import { useEscapeClose } from "../useEscapeClose";
+import { useClickOutside } from "../hooks/useClickOutside";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";
 import "./Popover.css";
 

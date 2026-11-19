@@ -98,6 +98,7 @@ export function composerServices(outbox: Outbox): PluginDef[] {
       }),
     ),
     provide("templates", partialService<Services["templates"]>({ templates: () => [] })),
+    provide("composer", { uploadOnAttach: () => false }),
     { id: "emoji", setup: (ctx) => ctx.provide("emoji", createEmojiIndex()) },
     { id: "emoji-autoconvert", setup: (ctx) => ctx.add("composer.editor", emojiAutoconvert) },
   ];

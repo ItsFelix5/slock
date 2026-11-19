@@ -1,8 +1,9 @@
 import type { SectionBlock } from "@slock/types";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
+import { observeOverflow } from "../overflowObserver";
 import "./Section.css";
 
 export default function Section(props: { block: SectionBlock; context?: BlockActionContext }) {
@@ -17,7 +18,7 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
 
   onMount(() => {
     if (!(textEl && clampable())) return;
-    setOverflowing(textEl.scrollHeight - textEl.clientHeight > 2);
+    onCleanup(observeOverflow(textEl, (value) => expanded() || setOverflowing(value)));
   });
 
   return (

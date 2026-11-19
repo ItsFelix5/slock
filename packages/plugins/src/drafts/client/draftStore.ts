@@ -24,6 +24,7 @@ export type DraftValue = {
 const [drafts, setDrafts] = createStore<Record<string, DraftValue[]>>({});
 const [draftsReady, setDraftsReady] = createSignal(false);
 export const locallyTouchedKeys = new Set<string>();
+const lastKnownTs = new Map<string, string>();
 let draftsHydrated = false;
 let draftHydrationPromise: Promise<boolean> | null = null;
 let generation = 0;
@@ -35,11 +36,13 @@ export function resetDrafts() {
   setDrafts(reconcile({}));
   setDraftsReady(false);
   locallyTouchedKeys.clear();
+  lastKnownTs.clear();
   draftsHydrated = false;
   draftHydrationPromise = null;
 }
 
 export function upsertEntry(key: string, entry: DraftValue) {
+  if (entry.lastUpdatedTs) lastKnownTs.set(entry.id, entry.lastUpdatedTs);
   setDrafts(key, (list = []) => {
     const idx = list.findIndex((e) => e.id === entry.id);
     return idx === -1 ? [...list, entry] : list.map((e, i) => (i === idx ? entry : e));
@@ -75,9 +78,13 @@ export function removeRemoteDraft(id: string) {
   }
 }
 
+export function deleteDraftOnServer(id: string): Promise<void> {
+  return deleteDraft(id, lastKnownTs.get(id));
+}
+
 export async function deleteEntry(key: string, id: string) {
   locallyTouchedKeys.add(key);
-  await deleteDraft(id, drafts[key]?.find((e) => e.id === id)?.lastUpdatedTs);
+  await deleteDraftOnServer(id);
   removeEntry(key, id);
 }
 

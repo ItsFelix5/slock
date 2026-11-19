@@ -68,7 +68,7 @@ const list: Route[] = [
     else if (identity?.result === "verified_eligible") status = "eligible";
     else if (identity?.result === "verified_but_over_18") status = "over_18";
 
-    return jsonResponse({ ok: true, status }, ctx.creds);
+    return jsonResponse({ ok: true, status });
   }),
 ];
 

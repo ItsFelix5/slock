@@ -1,22 +1,19 @@
-import { service } from "@slock/core/solid";
-import { IconButton, MenuItem, showDebugInfo } from "@slock/ui";
+import { IconButton, MenuItem } from "@slock/ui";
 import type { ActivityMenuProps } from "../../../activity/client/api";
+import type { CanvasDocModel } from "../../../canvas/client/api";
+import type { ChannelDetailsHoverProps } from "../../../channel-details/client/api";
 import type { ChannelMenuProps, MessageMenuProps } from "../../../messages/client/api";
-import type { ProfileMetaProps } from "../../../profile/client/api";
+import type { ProfileHoverProps, ProfileMetaProps } from "../../../profile/client/api";
+import type { UsergroupHoverProps } from "../../../usergroup-details/client/api";
+import { messageId, openDebug } from "../entities";
 
-const usersStore = service("users");
-const channels = service("channels");
-const dms = service("dms");
-
-const userName = (id: string) => usersStore.userById(id)?.name ?? id;
-
-function DebugItem(props: { close(): void; title: string; data: unknown }) {
+function DebugItem(props: { close(): void; entity: string; id: string }) {
   return (
     <MenuItem
       icon="bug"
       onClick={() => {
         props.close();
-        showDebugInfo(props.title, props.data);
+        openDebug(props.entity, props.id);
       }}
     >
       Show debug info
@@ -24,51 +21,61 @@ function DebugItem(props: { close(): void; title: string; data: unknown }) {
   );
 }
 
-export function MessageDebugItem(props: MessageMenuProps) {
-  const msg = () => props.msg;
+function HoverDebugButton(props: { close(): void; entity: string; id: string }) {
   return (
-    <DebugItem
-      close={props.close}
-      data={{
-        message: msg(),
-        author: usersStore.userById(msg().userId),
-        channel: channels.channelById(props.channelId) ?? dms.dmById(props.channelId),
-        reactions: msg().reactions?.map((reaction) => ({
-          ...reaction,
-          users: reaction.users.map(userName),
-        })),
-        replyUsers: msg().replyUsers?.map(userName),
-        context: { channelId: props.channelId, threadTs: props.threadTs },
+    <button
+      class="hover-card-action btn-reset flex-center"
+      onClick={() => {
+        props.close();
+        openDebug(props.entity, props.id);
       }}
-      title={`Message ${msg().ts}`}
-    />
+      type="button"
+    >
+      Debug
+    </button>
   );
 }
 
-export function ActivityDebugItem(props: ActivityMenuProps) {
-  return (
-    <DebugItem close={props.close} data={props.row} title={`Activity row: ${props.row.key}`} />
-  );
-}
-
-export function ChannelDebugItem(props: ChannelMenuProps) {
-  return (
-    <DebugItem
-      close={props.close}
-      data={props.isDm ? dms.dmById(props.channelId) : channels.channelById(props.channelId)}
-      title={`${props.isDm ? "DM" : "Channel"} ${props.channelId}`}
-    />
-  );
-}
-
-export function ProfileDebugButton(props: ProfileMetaProps) {
+export function DebugButton(props: { entity: string; id: string; label: string }) {
   return (
     <IconButton
       icon="bug"
       iconSize={15}
-      label="User debug"
-      onClick={() => showDebugInfo(`User ${props.user.id}`, props.user)}
+      label={props.label}
+      onClick={() => openDebug(props.entity, props.id)}
       size="sm"
     />
   );
 }
+
+export const MessageDebugItem = (props: MessageMenuProps) => (
+  <DebugItem close={props.close} entity="message" id={messageId(props.channelId, props.msg.ts)} />
+);
+
+export const ActivityDebugItem = (props: ActivityMenuProps) => (
+  <DebugItem close={props.close} entity="activity" id={props.row.items[0]?.id ?? props.row.key} />
+);
+
+export const ChannelDebugItem = (props: ChannelMenuProps) => (
+  <DebugItem close={props.close} entity="channel" id={props.channelId} />
+);
+
+export const ProfileDebugButton = (props: ProfileMetaProps) => (
+  <DebugButton entity="user" id={props.user.id} label="User debug" />
+);
+
+export const CanvasDebugButton = (props: { doc: CanvasDocModel | null; fileId: string }) => (
+  <DebugButton entity="canvas" id={props.fileId} label="Canvas debug" />
+);
+
+export const UserHoverDebug = (props: ProfileHoverProps) => (
+  <HoverDebugButton close={props.close} entity="user" id={props.userId} />
+);
+
+export const ChannelHoverDebug = (props: ChannelDetailsHoverProps) => (
+  <HoverDebugButton close={props.close} entity="channel" id={props.channelId} />
+);
+
+export const UsergroupHoverDebug = (props: UsergroupHoverProps) => (
+  <HoverDebugButton close={props.close} entity="usergroup" id={props.usergroupId} />
+);

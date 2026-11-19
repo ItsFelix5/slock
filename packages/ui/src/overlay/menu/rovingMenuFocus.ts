@@ -1,5 +1,5 @@
 import { type ListDirection, listNavigationIndex } from "../../form/listNavigation";
-import { useListShortcuts } from "../../useNavShortcuts";
+import { useListShortcuts } from "../../hooks/useNavShortcuts";
 import { isTypeaheadKey, pushTypeahead, type TypeaheadState, typeaheadIndex } from "./typeahead";
 
 export function createMenuRovingFocus(

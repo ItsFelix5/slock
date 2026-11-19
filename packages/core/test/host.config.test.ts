@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createHost } from "../src/host";
+import { createHost } from "../src/host/host";
 
 function states(host: ReturnType<typeof createHost>) {
   return Object.fromEntries(host.list().map(({ id, status }) => [id, status.state]));

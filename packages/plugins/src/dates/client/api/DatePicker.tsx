@@ -1,6 +1,6 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
 import { IconButton, useClickOutside, useEscapeClose } from "@slock/ui";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import "./DatePicker.css";
 
 function nextHour(): Date {
@@ -80,6 +80,16 @@ export default function DatePicker(props: {
     if (!Number.isNaN(d.getTime())) setDate(d);
   };
 
+  let dateInput: HTMLInputElement | undefined;
+  onMount(() => {
+    const timer = setTimeout(() => dateInput?.focus());
+    onCleanup(() => clearTimeout(timer));
+  });
+
+  const confirm = () => {
+    if (!props.initial && format()) props.onSelect(dateToTs(date()), format());
+  };
+
   const selectAgo = () => setUseAgo(true);
   const selectDateFormat = (value: string) => {
     setDateFormat(value);
@@ -95,6 +105,12 @@ export default function DatePicker(props: {
       <input
         class="compose-date-input text-field input-reset"
         onInput={(e) => onDateInput(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          confirm();
+        }}
+        ref={dateInput}
         step="1"
         type={props.dateOnly ? "date" : "datetime-local"}
         value={props.dateOnly ? toLocalInputValue(date()).slice(0, 10) : toLocalInputValue(date())}
@@ -201,12 +217,7 @@ export default function DatePicker(props: {
               {formatSlackDateTokens(format(), dateToTs(date()))}
             </span>
           </Show>
-          <button
-            class="compose-date-insert"
-            disabled={!format()}
-            onClick={() => props.onSelect(dateToTs(date()), format())}
-            type="button"
-          >
+          <button class="compose-date-insert" disabled={!format()} onClick={confirm} type="button">
             Insert
           </button>
         </div>

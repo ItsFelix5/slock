@@ -30,17 +30,13 @@ export const commentRoutes: Route[] = [
       ctx.creds,
     );
     if (!data.ok) {
-      if (data.error === "channel_not_found")
-        return jsonResponse({ ok: true, threads: [] }, ctx.creds);
-      return slackErrorResponse(data, "conversations.history", ctx.creds);
+      if (data.error === "channel_not_found") return jsonResponse({ ok: true, threads: [] });
+      return slackErrorResponse(data, "conversations.history");
     }
     const threads = (data.messages ?? [])
       .filter((message) => message.document_comment?.thread_id)
       .map(trimMessage);
-    return jsonResponse(
-      { channelId: hostedChannelId(ctx.params.id), ok: true, threads },
-      ctx.creds,
-    );
+    return jsonResponse({ channelId: hostedChannelId(ctx.params.id), ok: true, threads });
   }),
 
   route("POST", "canvases/:id/comments/open", async (ctx) => {
@@ -53,9 +49,9 @@ export const commentRoutes: Route[] = [
       { channel, inclusive: "true", limit: "1", ts },
       ctx.creds,
     );
-    if (!data.ok) return slackErrorResponse(data, "conversations.replies", ctx.creds);
+    if (!data.ok) return slackErrorResponse(data, "conversations.replies");
     const root = data.messages?.[0];
     if (!root) return errorResponse("thread_not_found", 404);
-    return jsonResponse({ channelId: channel, ok: true, ts: root.ts }, ctx.creds);
+    return jsonResponse({ channelId: channel, ok: true, ts: root.ts });
   }),
 ];

@@ -15,13 +15,18 @@ const list: Route[] = [
   ),
 
   route("POST", "dms", async (ctx) => {
-    const { userId } = await ctx.body.json<{ userId?: string }>();
-    if (!userId) return errorResponse("invalid_user_id", 400);
-    const data = await callSlack<ChannelReply>("conversations.open", { users: userId }, ctx.creds);
+    const { userId, userIds } = await ctx.body.json<{ userId?: string; userIds?: string[] }>();
+    const users = userIds ?? (userId ? [userId] : []);
+    if (!users.length) return errorResponse("invalid_user_id", 400);
+    const data = await callSlack<ChannelReply>(
+      "conversations.open",
+      { users: users.join(",") },
+      ctx.creds,
+    );
     if (!data.ok) {
-      return slackErrorResponse(data, "conversations.open", ctx.creds);
+      return slackErrorResponse(data, "conversations.open");
     }
-    return jsonResponse({ channel: { id: data.channel.id }, ok: true }, ctx.creds);
+    return jsonResponse({ channel: { id: data.channel.id }, ok: true });
   }),
 ];
 

@@ -27,17 +27,11 @@ export function createBootstrapStore(deps: {
     deps.client.setQueryData(userPrefsKey(), updater);
 
   async function retryUserPrefs(): Promise<void> {
-    try {
-      await userPrefs.refetch();
-    } catch {}
+    await userPrefs.refetch();
   }
 
   async function retryBootstrap(): Promise<void> {
-    try {
-      await bootstrap.refetch();
-    } catch {
-      return;
-    }
+    await bootstrap.refetch();
     if (userPrefs.error) void retryUserPrefs();
     for (const hook of deps.retryHooks()) hook();
   }

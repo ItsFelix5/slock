@@ -23,7 +23,9 @@ const mountPreview = (fields: Partial<SlackFile>) => {
 describe("FileDetailPreview", () => {
   test("renders a safe image thumbnail", () => {
     const host = mountPreview({ isImage: true, thumbUrl: "https://files.slack.com/t.png" });
-    expect(host.querySelector("img")?.getAttribute("src")).toBe("https://files.slack.com/t.png");
+    expect(host.querySelector("img")?.getAttribute("src")).toBe(
+      "/api/assets?url=https%3A%2F%2Ffiles.slack.com%2Ft.png",
+    );
   });
 
   test.each([
@@ -37,7 +39,9 @@ describe("FileDetailPreview", () => {
 
   test("links a safe original", () => {
     const host = mountPreview({ urlPrivate: "https://files.slack.com/f.zip" });
-    expect(host.querySelector("a")?.getAttribute("href")).toBe("https://files.slack.com/f.zip");
+    expect(host.querySelector("a")?.getAttribute("href")).toBe(
+      "/api/assets?url=https%3A%2F%2Ffiles.slack.com%2Ff.zip",
+    );
   });
 
   test.each(["javascript:alert(1)", "//evil.com/f.zip"])("hides open link for %p", (urlPrivate) => {

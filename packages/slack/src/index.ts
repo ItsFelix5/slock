@@ -7,14 +7,14 @@ export {
   apiPut,
   apiUpload,
   isAuthError,
-} from "./api/client";
+} from "./client";
 export {
   canvasFileIdOf,
   extractChannelSections,
   mapChannel,
   mapChannelDetails,
 } from "./map/channels";
-export { buildUnreadMap, parseBadgeCounts } from "./map/counts";
+export { buildUnreadMap, parseBadgeCounts, parseCountGroup } from "./map/counts";
 export { mapAttachment, mapFile, mapFileShare, mapLink } from "./map/files";
 export {
   HISTORY_PAGE_SIZE,

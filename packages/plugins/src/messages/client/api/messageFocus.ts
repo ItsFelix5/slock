@@ -3,6 +3,7 @@ import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { findUnreadDividerIndex } from "../lib/unreadDivider";
+import type { FeedScroll } from "./pane/scroll/feedScroll";
 
 const unreadStore = service("unread");
 
@@ -17,6 +18,7 @@ export function threadRootTs(msg: Message) {
 export type OpenThreadHandler = (ts: string, opts?: OpenThreadOptions) => void;
 
 export interface MessageFocusCallbacks {
+  paneId?: string;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
 
@@ -38,8 +40,13 @@ export interface ActiveMessageFocus {
 }
 
 const [active, setActive] = createSignal<ActiveMessageFocus>();
+const editLastByPane = new Map<string, () => void>();
 
 export { active };
+
+export function editLastMessageInPane(paneId: string) {
+  editLastByPane.get(paneId)?.();
+}
 
 export function clearActiveMessageFocus() {
   setActive(undefined);
@@ -47,7 +54,7 @@ export function clearActiveMessageFocus() {
 
 export function createMessageFocus(
   messages: Accessor<Message[]>,
-  container: Accessor<HTMLElement | undefined>,
+  feed: FeedScroll,
   channelId: Accessor<string>,
   callbacks: MessageFocusCallbacks = {},
 ) {
@@ -73,12 +80,9 @@ export function createMessageFocus(
 
   function focusRow(ts: string, opts?: { preventScroll?: boolean }) {
     setFocusedTs(ts);
-    const row = container()?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
-    if (opts?.preventScroll) row?.focus({ preventScroll: true });
-    else {
-      row?.focus();
-      row?.scrollIntoView({ block: "nearest" });
-    }
+    const row = feed.element()?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
+    row?.focus({ preventScroll: true });
+    if (!opts?.preventScroll) feed.reveal(ts);
   }
 
   function moveFocus(delta: number) {
@@ -98,9 +102,8 @@ export function createMessageFocus(
   function focusEdge(edge: "start" | "end") {
     const list = messages();
     if (!list.length) return;
-    focusRow(defined(list[edge === "start" ? 0 : list.length - 1]).ts);
-    const scroller = container();
-    if (scroller) scroller.scrollTop = edge === "start" ? 0 : scroller.scrollHeight;
+    focusRow(defined(list[edge === "start" ? 0 : list.length - 1]).ts, { preventScroll: true });
+    feed.scrollEdge(edge);
   }
 
   const focusedMessage = () => {
@@ -110,10 +113,12 @@ export function createMessageFocus(
 
   const focusedLiveTs = () => (focusedMessage()?.deleted ? null : focusedTs());
 
+  const isEditable = (msg: Message) =>
+    !(msg.deleted || msg.isEphemeral) && service("messages").isMine(msg);
+
   const isOwnEditableMessage = () => {
     const msg = focusedMessage();
-    if (!msg || msg.deleted || msg.isEphemeral) return false;
-    return service("messages").isMine(msg);
+    return !!msg && isEditable(msg);
   };
 
   const startEdit = (ts: string) => {
@@ -121,6 +126,18 @@ export function createMessageFocus(
     setEditingTs(ts);
   };
   const stopEdit = () => setEditingTs(null);
+
+  const { paneId } = callbacks;
+  if (paneId) {
+    const editLast = () => {
+      const last = messages().findLast(isEditable);
+      if (last) startEdit(last.ts);
+    };
+    editLastByPane.set(paneId, editLast);
+    onCleanup(() => {
+      if (editLastByPane.get(paneId) === editLast) editLastByPane.delete(paneId);
+    });
+  }
 
   const toggleReactionPicker = (ts: string) =>
     setReactionPickerTs((current) => (current === ts ? null : ts));

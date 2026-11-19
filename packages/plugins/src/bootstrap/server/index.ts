@@ -72,14 +72,14 @@ const setup: Setup = (ctx) => {
         payload.error = Object.keys(errors).length > 0 ? errors : undefined;
         payload.retry_after = Object.keys(retryAfter).length > 0 ? retryAfter : undefined;
         payload.pending = pending.length > 0 ? pending : undefined;
-        return jsonResponse(payload, creds);
+        return jsonResponse(payload);
       }),
       route("GET", "bootstrap/:part", async ({ creds, params }) => {
         const part = parts().find((candidate) => candidate.name === params.part);
         if (!part) return errorResponse("unknown_part", 404);
         const result = await part.load(creds);
         if (!result.ok) return errorResponse(result.error, 502);
-        return jsonResponse({ ...result.payload, ok: true }, creds);
+        return jsonResponse({ ...result.payload, ok: true });
       }),
     ]),
   );

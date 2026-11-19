@@ -1,6 +1,6 @@
-import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { ActivityItem } from "@slock/types";
+import TextOrFiles from "../../files/client/api/TextOrFiles";
 import { splitReplyLink } from "../../message-links/client/api/replyLink";
 import { SplitNavigation } from "../../shell/client/api/SplitNavigation";
 import "./ThreadRow.css";
@@ -25,7 +25,12 @@ export default function ThreadRow(props: { item: ActivityItem }) {
         type="button"
       >
         <span class="sidebar-row-name truncate">
-          <Mrkdwn inline text={splitReplyLink(props.item).text} />
+          <TextOrFiles
+            blocks={splitReplyLink(props.item).blocks}
+            files={props.item.files}
+            inline
+            text={splitReplyLink(props.item).text}
+          />
         </span>
       </button>
     </SplitNavigation>

@@ -1,7 +1,7 @@
 import type { AttachmentAction } from "@slock/types";
 import { createSignal, For, onCleanup, Show } from "solid-js";
+import { runAttachmentAction } from "./actions/blockActions";
 import type { BlockActionContext } from "./BlockKit";
-import { runAttachmentAction } from "./blockActions";
 import LinkButton from "./elements/LinkButton";
 import { safeUrl } from "./safeUrl";
 import "./elements/Controls.css";
