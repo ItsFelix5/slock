@@ -5,7 +5,7 @@
  * from `retryPolicy.ts`, idle eviction, cleared on cleanup) and the IndexedDB persistence adapter
  * of the active account.
  *
- * `defineQuery({ name, load, maxAgeMs?, persist? })` creates one cache and returns a handle. Call it
+ * `defineQuery({ name, load, maxAgeMs?, gcMs?, retry?, persist? })` creates one cache and returns a handle. Call it
  * at module scope or in `setup`; the cache binds lazily to the live hub, so handles survive
  * `host.restart()` without module state. `Arg` is the cache key (hashed
  * structurally); `undefined` means "disabled", so argless queries use `null` as their arg.
@@ -25,7 +25,7 @@
  */
 import type { PersistAdapter, ResourceHub } from "@slock/resource";
 
-export { shouldRetry } from "../retryPolicy";
+export { retryPolicy, shouldRetry } from "../retryPolicy";
 export { createLatestValueSync } from "./latestValueSync";
 export {
   defineQuery,

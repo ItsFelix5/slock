@@ -1,7 +1,7 @@
 import { Slot, service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { Message, Ts } from "@slock/types";
 import type { Pane } from "@slock/ui";
-import { createEffect, createMemo, createSignal, on, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { prepareReplyLink } from "../../../message-links/client/api/messageLinks";
 import type { ThreadPaneContent } from "../../../messages/client/api";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
@@ -26,7 +26,7 @@ const unreadStore = service("unread");
 
 export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const thread = () => props.pane.content;
-  const [replyTarget, setReplyTarget] = createSignal<{ ts: string; permalink: string } | null>(
+  const [replyTarget, setReplyTarget] = createSignal<{ ts: Ts; permalink: string } | null>(
     null,
   );
 
@@ -73,32 +73,37 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const pending = () => !feed.ready() && messages().length > 0;
 
   const replyTargetMessage = () => messages().find((m) => m.ts === replyTarget()?.ts);
-  const jumpToReplyTarget = () => feed.glideTo(replyTarget()?.ts ?? "");
+  const jumpToReplyTarget = () => {
+    const target = replyTarget();
+    if (target) feed.glideTo(target.ts);
+  };
   const cancelReply = () => setReplyTarget(null);
 
   createEffect(
-    on(
-      () => thread().ts,
-      () => {
-        feed.reset();
-        pagination.reset();
-        setReplyTarget(null);
-      },
-    ),
+    () => thread().ts,
+    () => {
+      feed.reset();
+      pagination.reset();
+      setReplyTarget(null);
+    },
   );
 
   let handledFocusKey: string | undefined;
-  createEffect(() => {
-    const { channelId, highlightTs, ts } = thread();
+  createEffect(
+    () => ({
+      loading: messagesStore.isLoadingThread(thread().ts),
+      msgs: messages(),
+      thread: thread(),
+    }),
+    ({ loading, msgs, thread: { channelId, highlightTs, ts } }) => {
     const key = `${ts}:${highlightTs ?? ""}`;
     if (handledFocusKey === key) return;
-    const msgs = messages();
     const [first] = msgs;
     if (!first) return;
     const highlightMissing = highlightTs !== undefined && !msgs.some((m) => m.ts === highlightTs);
     if (highlightMissing) {
-      untrack(() => messagesStore.ensureThreadRepliesLoaded(channelId, ts, highlightTs));
-      if (messagesStore.isLoadingThread(ts)) return;
+      if (loading) return;
+      if (messagesStore.ensureThreadRepliesLoaded(channelId, ts, highlightTs)) return;
     }
     handledFocusKey = key;
     const found = highlightTs !== undefined && msgs.some((m) => m.ts === highlightTs);
@@ -113,7 +118,8 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       messageFocus.focusMessage(first.ts);
       feed.land({ align: "start", at: "row", ts: first.ts });
     }
-  });
+    },
+  );
 
   async function startReply(msg: Message) {
     const t = thread();
@@ -126,11 +132,14 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     setReplyTarget({ permalink, ts: msg.ts });
   }
 
-  createEffect(() => {
-    const { ts } = thread();
-    unreadStore.setBottomSeen(ts, feed.ready() && feed.atBottom() && !hasMore());
-    onCleanup(() => unreadStore.setBottomSeen(ts, false));
-  });
+  createEffect(
+    () => thread().ts,
+    (ts) => () => unreadStore.setBottomSeen(ts, false),
+  );
+  createEffect(
+    () => ({ seen: feed.ready() && feed.atBottom() && !hasMore(), ts: thread().ts }),
+    ({ seen, ts }) => unreadStore.setBottomSeen(ts, seen),
+  );
 
   return (
     <div class="thread-panel flex-col" data-pane={props.pane.id}>
@@ -142,10 +151,9 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       />
       <ThreadLoadStatus hasMessages={messages().length > 0} ts={thread().ts} />
       <div
-        aria-busy={messagesStore.isLoadingThread(thread().ts)}
-        aria-hidden={pending()}
-        class="thread-panel-messages"
-        classList={{ "thread-panel-messages-pending": pending() }}
+        aria-busy={messagesStore.isLoadingThread(thread().ts) ? "true" : "false"}
+        aria-hidden={pending() ? "true" : "false"}
+        class={["thread-panel-messages", { "thread-panel-messages-pending": pending() }]}
         onFocusIn={messageFocus.onContainerFocusIn}
         onFocusOut={messageFocus.onContainerFocusOut}
         ref={feed.attach}

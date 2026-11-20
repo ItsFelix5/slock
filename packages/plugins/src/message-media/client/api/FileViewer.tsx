@@ -1,5 +1,4 @@
 import { safeMediaUrl } from "@slock/blockkit";
-import { defined } from "@slock/core";
 import type { SlackFile } from "@slock/types";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createSignal, createUniqueId, Match, Show, Switch } from "solid-js";

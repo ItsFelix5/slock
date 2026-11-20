@@ -1,33 +1,27 @@
 import { service } from "@slock/core/solid";
 import type { CanvasCommentThread, ChannelId, FileId } from "@slock/types";
-import { createQuery } from "@tanstack/solid-query";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import { toggleReaction } from "../../../slack/client/api";
 import { isThreadAnnotation } from "../api/canvasQuote";
 import { type CanvasComments, fetchCanvasComments, openCanvasComment } from "./canvasRequests";
 
 const feedback = service("feedback");
-const query = service("query");
-const commentsKey = defineKey<[string?]>("canvasComments");
+const canvasComments = defineQuery<FileId, CanvasComments>({
+  load: fetchCanvasComments,
+  name: "canvasComments",
+});
 
 const messageLinks = service("message-links");
 const usersStore = service("users");
 
 export function refreshCommentsForChannel(channelId: ChannelId) {
-  for (const [queryKey, data] of query.client.getQueriesData<CanvasComments>({
-    queryKey: commentsKey(),
-  })) {
-    if (data?.channelId === channelId) void query.client.invalidateQueries({ queryKey });
-  }
+  canvasComments.invalidateWhere((fileId) => canvasComments.read(fileId)?.channelId === channelId);
 }
 
 export function createCanvasComments(fileId: () => FileId) {
-  const commentsQuery = createQuery(
-    () => ({ queryFn: () => fetchCanvasComments(fileId()), queryKey: commentsKey(fileId()) }),
-    () => query.client,
-  );
-  const comments = () => commentsQuery.data;
-  const refetch = () => commentsQuery.refetch();
+  const commentsQuery = canvasComments.state(fileId);
+  const comments = () => commentsQuery().data;
+  const refetch = () => canvasComments.refresh(fileId());
 
   function hasMine(thread: CanvasCommentThread | undefined, name: string) {
     const me = usersStore.currentUser()?.id;

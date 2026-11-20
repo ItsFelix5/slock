@@ -59,13 +59,13 @@ function harness(initial: SavedItem[] = []) {
   };
 }
 
-const savedMessage = (ts: Ts): Message => ({
+const savedMessage = (ts: string): Message => ({
   day: "",
   id: ts,
   kind: "normal",
   text: ts,
   time: "",
-  ts,
+  ts: stamp(ts),
   userId: uid("U1"),
 });
 

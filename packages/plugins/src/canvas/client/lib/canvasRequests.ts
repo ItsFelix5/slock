@@ -1,5 +1,4 @@
 import { errorMessage } from "@slock/core";
-import { service } from "@slock/core/solid";
 import { apiGet, apiPost, mapReaction, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import type {
   CanvasCommentThread,
@@ -11,39 +10,29 @@ import type {
   RawMessage,
   Ts,
 } from "@slock/types";
-import { createQuery, queryOptions } from "@tanstack/solid-query";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import { type CanvasMeta, readCanvas, readCanvasVersion } from "../../protocol/api";
 import type { CanvasDocModel } from "./canvasDelta";
 import { CanvasEditError } from "./canvasSync";
 
-const canvasFileKey = defineKey<[string]>("canvasFile");
-
-const query = service("query");
-
-function canvasFileOptions(fileId: FileId) {
-  return queryOptions({
-    queryFn: async () => {
-      const info = await apiGet<{ file: RawFile | null }>(`/api/canvases/${fileId}/file-info`);
-      if (!info.ok) throw new Error(info.error ?? "files.info failed");
-      return info.file;
-    },
-    queryKey: canvasFileKey(fileId),
-    staleTime: Infinity,
-  });
-}
+const canvasFile = defineQuery<FileId, RawFile | null>({
+  load: async (fileId) => {
+    const info = await apiGet<{ file: RawFile | null }>(`/api/canvases/${fileId}/file-info`);
+    if (!info.ok) throw new Error(info.error ?? "files.info failed");
+    return info.file;
+  },
+  name: "canvasFile",
+  retry: { retries: 0 },
+});
 
 export async function resolveCanvasFile(fileId: FileId): Promise<RawFile> {
-  const file = await query.client.query(canvasFileOptions(fileId));
+  const file = await canvasFile.ensure(fileId);
   if (!file) throw new Error("not_visible");
   return file;
 }
 
-export function createCanvasFileQuery(fileId: () => string) {
-  return createQuery(
-    () => ({ ...canvasFileOptions(fileId()), retry: false }),
-    () => query.client,
-  );
+export function createCanvasFileQuery(fileId: () => FileId | undefined) {
+  return canvasFile.state(fileId);
 }
 
 export function canvasFileTitle(file: RawFile | null | undefined): string | undefined {

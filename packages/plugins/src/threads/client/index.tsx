@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId, isTs } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { Show } from "solid-js";
 import type { MessageBodyProps, ThreadPaneContent } from "../../messages/client/api";
@@ -60,6 +61,7 @@ const setup: Setup = (ctx) => {
           const rest = segment.slice(split + 1);
           const pinned = rest.endsWith(PINNED_MARK);
           const ts = pinned ? rest.slice(0, -1) : rest;
+          if (!(isChannelId(channelId) && isTs(ts))) return null;
           return { channelId, kind: "thread", pinned: pinned || undefined, ts };
         },
         serialize: (content) =>

@@ -1,10 +1,10 @@
 import { service } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import type { Attachment, Block, ChannelId, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
-import { createKeyedQuery } from "../../../../query/client/api";
 import { fetchPermalinkMessage } from "../../../../slack/client/api";
 import MessageReferenceSnippet from "../../api/cards/MessageReferenceSnippet";
 import {
@@ -13,9 +13,8 @@ import {
   resolveMessageAuthorAvatar,
 } from "../../api/messageAuthor";
 import "./MessageLinkHoverCard.css";
-import { defineKey } from "../../../../query/client/api";
+import { defineQuery } from "../../../../query/client/api";
 
-const messageLinkPreviewKey = defineKey<[ChannelId, Ts, Ts | undefined]>("messageLinkPreview");
 
 const usersStore = service("users");
 
@@ -58,6 +57,20 @@ export function messageToHoverPreview(
   };
 }
 
+interface PreviewRef {
+  channelId: ChannelId;
+  messageTs: Ts;
+  threadTs: Ts;
+}
+
+const messageLinkPreview = defineQuery<PreviewRef, HoverPreview | null>({
+  load: async ({ channelId, messageTs, threadTs }) => {
+    const msg = await fetchPermalinkMessage(channelId, messageTs, threadTs);
+    return msg ? messageToHoverPreview(msg) : null;
+  },
+  name: "messageLinkPreview",
+});
+
 export default function MessageLinkHoverCard(props: {
   channelId: ChannelId;
   messageTs: Ts;
@@ -70,18 +83,12 @@ export default function MessageLinkHoverCard(props: {
 }) {
   const [open, setOpen] = createSignal(false);
 
-  const fetched = createKeyedQuery(() => {
+  const fetched = messageLinkPreview.state(() => {
     if (!open() || props.knownPreview) return;
     const { channelId, messageTs, threadTs } = props;
-    return {
-      queryFn: async () => {
-        const msg = await fetchPermalinkMessage(channelId, messageTs, threadTs);
-        return msg ? messageToHoverPreview(msg) : null;
-      },
-      queryKey: messageLinkPreviewKey(channelId, messageTs, threadTs),
-    };
+    return { channelId, messageTs, threadTs };
   });
-  const preview = () => props.knownPreview ?? fetched.data ?? undefined;
+  const preview = () => props.knownPreview ?? fetched().data ?? undefined;
 
   return (
     <HoverCard
@@ -92,7 +99,7 @@ export default function MessageLinkHoverCard(props: {
         <Show
           fallback={
             <div class="message-link-hovercard-status text-dim text-sm">
-              {fetched.isLoading ? "Loading message…" : "Message unavailable"}
+              {isWaiting(fetched()) ? "Loading message…" : "Message unavailable"}
             </div>
           }
           when={preview()}

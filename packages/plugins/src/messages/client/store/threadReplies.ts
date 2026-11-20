@@ -189,7 +189,7 @@ export function createThreadReplies(
     return Number(anchor) >= lower && Number(anchor) <= upper;
   }
 
-  function ensureThreadRepliesLoaded(channelId: ChannelId, ts: Ts, anchor?: Ts): void {
+  function ensureThreadRepliesLoaded(channelId: ChannelId, ts: Ts, anchor?: Ts): boolean {
     channelForThread.set(ts, channelId);
     if (
       anchor &&
@@ -201,9 +201,11 @@ export function createThreadReplies(
       void refreshThread(ts).then(() => {
         if (anchorForThread.has(ts)) void refreshThread(ts);
       });
-      return;
+      return true;
     }
-    if (!(paging[ts] || hasThreadError(ts))) void refreshThread(ts);
+    if (paging[ts] || hasThreadError(ts)) return false;
+    void refreshThread(ts);
+    return true;
   }
 
   createEffect(

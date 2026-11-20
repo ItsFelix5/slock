@@ -4,6 +4,7 @@ import {
   type EnsureOptions,
   type FetchContext,
   type PersistOptions,
+  type RetryPolicy,
   type ResourceCache,
   type ResourceHub,
   type SubscribeOptions,
@@ -25,6 +26,8 @@ export interface QueryPersistence<Arg, T> {
 }
 
 export interface QueryDefinition<Arg, T> {
+  gcMs?: number;
+  retry?: RetryPolicy;
   load: (arg: Arg, context: FetchContext) => Promise<T>;
   maxAgeMs?: number;
   name: string;
@@ -82,11 +85,11 @@ export function defineQuery<Arg, T>(definition: QueryDefinition<Arg, T>): Query<
     const existing = bound.get(hub);
     if (existing) return existing;
     const cache = hub.cache<Arg, T>({
-      gcMs: GC_MS,
+      gcMs: definition.gcMs ?? GC_MS,
       load: definition.load,
       maxAgeMs: definition.maxAgeMs,
       persist: definition.persist && persistOptions(definition.name, definition.persist),
-      retry: retryPolicy,
+      retry: definition.retry ?? retryPolicy,
     });
     const created = { cache, reader: createCacheReader(cache) };
     bound.set(hub, created);
