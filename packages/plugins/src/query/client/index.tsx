@@ -5,6 +5,7 @@ import { pageIdle } from "@slock/ui";
 import { createEffect } from "solid-js";
 import { createIdbAdapter, noPersistence, pruneSnapshots } from "./persistStore";
 import { toResourceEnv } from "./resourceEnv";
+import { installRevalidateTriggers } from "./revalidateTriggers";
 
 const setup: Setup = async (ctx) => {
   const hub = createResourceHub(toResourceEnv(ctx.get("env")));
@@ -17,6 +18,8 @@ const setup: Setup = async (ctx) => {
       if (idle) hub.evictInactive();
     },
   );
+  const env = ctx.get("env");
+  ctx.onCleanup(installRevalidateTriggers({ now: env.now, onRevalidate: hub.revalidate }));
   ctx.onCleanup(() => {
     hub.clear();
     hub.dispose();
