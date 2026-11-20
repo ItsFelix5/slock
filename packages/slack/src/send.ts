@@ -1,4 +1,4 @@
-import { service } from "@slock/core/solid";
+import { service } from "@slock/core/services";
 import { networkError } from "./error";
 
 const env = service("env");
