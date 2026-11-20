@@ -6,8 +6,8 @@ import { compareTs } from "@slock/slack";
 import { ch, stamp } from "@slock/slack/testing";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
 import { createRoot, snapshot } from "solid-js";
-import { message, slackTs } from "../../../../src/messages/client/messageFixture";
 import { createMessageHistory } from "../../../../src/messages/client/store/messageHistory";
+import { message, slackTs } from "../messageFixture";
 
 let host: ReturnType<typeof createHost>;
 beforeAll(async () => {

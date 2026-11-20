@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { forAll, inRoot, int, pick } from "@slock/core/testing";
 import { flush } from "solid-js";
 import type { PaneContent } from "../../../../src/shell/client/api/types";
-import { kinds, loadShellStore, main, side } from "../../../../src/shell/client/store/paneTestKit";
+import { kinds, loadShellStore, main, side } from "./paneTestKit";
 
 const { createShellStore } = await loadShellStore(mock.module);
 

@@ -1,6 +1,6 @@
 import { createFakeEnv } from "@slock/core/testing";
 import { createRoot, flush } from "solid-js";
-import { createRealtimeConnection } from "../client/connection/realtimeConnection";
+import { createRealtimeConnection } from "../../../src/realtime/client/connection/realtimeConnection";
 import { installFakeBrowser } from "./fakeBrowser";
 import { installFakeWebSocket } from "./fakeWebSocket";
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { GatewayEvent } from "../../../src/realtime/server/api";
-import { createGatewayHarness, creds, watch } from "../../../src/realtime/testing/gatewayHarness";
+import { createGatewayHarness, creds, watch } from "../support/gatewayHarness";
 
 let h: ReturnType<typeof createGatewayHarness>;
 

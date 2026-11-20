@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost, solidReactive } from "@slock/core/solid";
+import { createFakeEnv } from "@slock/core/testing";
 import type { AccountSummary } from "@slock/types";
 import {
   forceReauth,
@@ -29,7 +32,6 @@ function setGlobal(name: string, value: unknown) {
 let jar = "";
 let events: string[] = [];
 let deleted: string[] = [];
-const realFetch = globalThis.fetch;
 const realGlobals = GLOBAL_NAMES.map((name) => Object.getOwnPropertyDescriptor(globalThis, name));
 
 beforeEach(() => {
@@ -45,18 +47,19 @@ beforeEach(() => {
     },
   });
   setGlobal("window", { dispatchEvent: (event: Event) => events.push(event.type) });
-  globalThis.fetch = Object.assign(
-    (url: string | URL | Request, init?: RequestInit) => {
-      deleted.push(`${init?.method} ${String(url)}`);
-      return Promise.resolve(new Response("{}"));
+  const env = createFakeEnv();
+  env.fetch.respond(
+    () => true,
+    (call) => {
+      deleted.push(`${call.method} ${call.url}`);
+      return new Response("{}");
     },
-    { preconnect: realFetch.preconnect },
   );
+  setHost(createHost({ env, reactive: solidReactive }));
   refreshAccountInfo();
 });
 
 afterEach(() => {
-  globalThis.fetch = realFetch;
   GLOBAL_NAMES.forEach((name, index) => {
     const descriptor = realGlobals[index];
     if (descriptor) Object.defineProperty(globalThis, name, descriptor);

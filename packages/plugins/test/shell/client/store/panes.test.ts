@@ -10,7 +10,7 @@ import {
   main,
   setFocusedId,
   side,
-} from "../../../../src/shell/client/store/paneTestKit";
+} from "./paneTestKit";
 
 const { createPanesSlice } = await loadPanes(mock.module);
 

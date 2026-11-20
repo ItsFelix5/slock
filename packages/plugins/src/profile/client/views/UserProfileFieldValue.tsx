@@ -1,6 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import { isFileId } from "@slock/slack";
+import { isFileId, isUserId } from "@slock/slack";
 import { Avatar } from "@slock/ui";
 import { Errored, For, Loading, Match, Show, Switch } from "solid-js";
 import { useFileDetail } from "../../../files/client/api/fileDetailQuery";
@@ -32,12 +32,12 @@ function UserFieldValue(props: { ids: string }) {
         {(id) => (
           <Show
             fallback={<span class="user-profile-field-value">{id}</span>}
-            when={usersStore.userById(id)}
+            when={isUserId(id) ? usersStore.userById(id) : undefined}
           >
             {(user) => (
               <button
                 class="user-profile-field-user btn-reset flex-align-center"
-                onClick={() => usersStore.openUserProfile(id)}
+                onClick={() => usersStore.openUserProfile(user().id)}
                 type="button"
               >
                 <Avatar size="small" user={user()} />

@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { isChannelId, isFileId, isTs } from "@slock/slack";
+import { isChannelId, isFileId, isTs, isUserId } from "@slock/slack";
 import { Avatar, Icon } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
@@ -105,7 +105,9 @@ export const entities: Record<string, Entity> = {
     ),
     label: "Profile",
     load: (id) => users.userById(id),
-    open: (id) => users.openUserProfile(id),
+    open: (id) => {
+      if (isUserId(id)) users.openUserProfile(id);
+    },
     pattern: /^[UWB][A-Z0-9]{8,}$/,
     title: (id) => `User ${id}`,
     wrap: "wrapUserMention",

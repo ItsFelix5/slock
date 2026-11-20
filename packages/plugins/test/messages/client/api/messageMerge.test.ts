@@ -8,7 +8,7 @@ import {
   isPendingMessage,
   mergeMessages,
 } from "../../../../src/messages/client/api/messageMerge";
-import { message, slackTs } from "../../../../src/messages/client/messageFixture";
+import { message, slackTs } from "../messageFixture";
 
 const SENT_AT_MS = 1_700_000_000_000;
 

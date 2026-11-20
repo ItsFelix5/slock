@@ -54,7 +54,9 @@ function claimFeedback(
 
 export default function InlineFeedback(props: InlineFeedbackProps) {
   const owner = Symbol("inline-feedback");
-  const [visibleFeedback, setVisibleFeedback] = createSignal<Feedback>();
+  const [visibleFeedback, setVisibleFeedback] = createSignal<Feedback | undefined>(undefined, {
+    ownedWrite: true,
+  });
 
   createEffect(
     () => ({ feedback: props.feedback, priority: props.priority ?? 0 }),

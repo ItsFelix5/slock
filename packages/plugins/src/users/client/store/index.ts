@@ -2,7 +2,7 @@ import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
 import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
-import type { User } from "@slock/types";
+import type { User, UserId } from "@slock/types";
 import { createMemo, createSignal, createStore, snapshot } from "solid-js";
 import { createLocalPref } from "../../../slack/client/api/localPref";
 import { createDerivedUsers } from "./derivedUsers";
@@ -221,7 +221,7 @@ export function createUsersStore(
     return known;
   }
 
-  function openUserProfile(id: string) {
+  function openUserProfile(id: UserId) {
     deps.panes.openInNewPane({ kind: "profile", userId: id });
   }
 

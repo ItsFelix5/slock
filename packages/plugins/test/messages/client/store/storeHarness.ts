@@ -25,13 +25,6 @@ export const settle = async () => {
 export async function createStoreHarness() {
   const env = createFakeEnv();
   const slack = createFakeSlack(ME, env);
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = Object.assign(
-    (input: RequestInfo | URL, init?: RequestInit) => env.fetch(input, init),
-    {
-      preconnect: realFetch.preconnect,
-    },
-  );
   const host = createHost({ env, reactive: solidReactive });
   setHost(host);
   await host.register(
@@ -107,7 +100,6 @@ export async function createStoreHarness() {
     deleted,
     deliver,
     dispose() {
-      globalThis.fetch = realFetch;
       dispose();
       return host.stop();
     },

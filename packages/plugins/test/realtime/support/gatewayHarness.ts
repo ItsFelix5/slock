@@ -1,7 +1,7 @@
 import { createFakeEnv } from "@slock/core/testing";
-import type { Credentials } from "../../slack/server/api/auth";
-import type { RealtimeEventHook, RealtimeTrim } from "../server/api";
-import { createGateway } from "../server/gateway";
+import type { RealtimeEventHook, RealtimeTrim } from "../../../src/realtime/server/api";
+import { createGateway } from "../../../src/realtime/server/gateway";
+import type { Credentials } from "../../../src/slack/server/api/auth";
 import { installFakeWebSocket } from "./fakeWebSocket";
 
 export const creds: Credentials = {

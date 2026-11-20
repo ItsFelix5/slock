@@ -7,10 +7,7 @@ import {
   createFeedScroll,
   type LandTarget,
 } from "../../../../../src/messages/client/api/pane/scroll/feedScroll";
-import {
-  CONTAINER_TOP,
-  createScrollFeed,
-} from "../../../../../src/messages/client/api/pane/scrollFeedFixture";
+import { CONTAINER_TOP, createScrollFeed } from "./scrollFeedFixture";
 
 const changes = ["prepend", "append", "grow", "shrink", "resize"] as const;
 

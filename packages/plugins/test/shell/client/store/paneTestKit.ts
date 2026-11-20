@@ -9,10 +9,10 @@ import {
   replacePaneContent,
   resizePanes,
 } from "../../../../../ui/src/panes/paneList";
-import type { PaneKind } from "../api";
-import type { PaneContent } from "../api/types";
+import type { PaneKind } from "../../../../src/shell/client/api";
+import type { PaneContent } from "../../../../src/shell/client/api/types";
 
-declare module "../api/types" {
+declare module "../../../../src/shell/client/api/types" {
   interface PaneContents {
     mainTest: { id: string; at?: string };
     sideTest: { id: string };
@@ -49,12 +49,12 @@ function installUiBoundary(mockModule: MockModule) {
 
 export function loadPanes(mockModule: MockModule) {
   installUiBoundary(mockModule);
-  return import("./panes");
+  return import("../../../../src/shell/client/store/panes");
 }
 
 export function loadShellStore(mockModule: MockModule) {
   installUiBoundary(mockModule);
-  return import("./index");
+  return import("../../../../src/shell/client/store/index");
 }
 
 const labels = { tabLabel: () => "", view: () => "" };

@@ -1,6 +1,6 @@
 import { type BlockActionContext, safeColor, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { decodeTextEntities } from "@slock/slack";
-import type { Attachment, Message } from "@slock/types";
+import type { Attachment, ChannelId, Message, Ts } from "@slock/types";
 import { HideBrokenImage, Icon } from "@slock/ui";
 import { Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
@@ -16,8 +16,8 @@ import { defineQuery } from "../../../query/client/api";
 import AttachmentContent from "./AttachmentContent";
 
 interface OriginalRef {
-  channelId: string;
-  ts: string;
+  channelId: ChannelId;
+  ts: Ts;
 }
 
 const lookupOriginal = ({ channelId, ts }: OriginalRef) =>

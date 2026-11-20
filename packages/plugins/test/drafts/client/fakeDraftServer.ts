@@ -1,3 +1,6 @@
+import { createHost } from "@slock/core";
+import { setHost, solidReactive } from "@slock/core/solid";
+import { createFakeEnv, type FakeEnv } from "@slock/core/testing";
 import { ch, stamp } from "@slock/slack/testing";
 import type { Block, DraftEntry } from "@slock/types";
 
@@ -12,7 +15,7 @@ type RequestBody = {
 
 export type DraftCall = { method: string; path: string; body: Record<string, unknown> };
 
-export function fakeDraftServer(initial: DraftEntry[] = []) {
+export function fakeDraftServer(initial: DraftEntry[] = [], hostEnv?: FakeEnv) {
   const calls: DraftCall[] = [];
   let clock = 100;
   let nextId = 1;
@@ -21,9 +24,10 @@ export function fakeDraftServer(initial: DraftEntry[] = []) {
   let writeGate: Promise<void> | undefined;
   const state = { drafts: [...initial], failList: false, failSave: false };
 
-  const originalFetch = globalThis.fetch;
-  const handler = async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-    const path = String(input);
+  const env = hostEnv ?? createFakeEnv();
+  const host = hostEnv ? undefined : createHost({ env, reactive: solidReactive });
+  if (host) setHost(host);
+  const handler = async (path: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const body: RequestBody = typeof init?.body === "string" ? JSON.parse(init.body) : {};
     calls.push({ body: { ...body }, method, path });
@@ -60,7 +64,10 @@ export function fakeDraftServer(initial: DraftEntry[] = []) {
     state.drafts = state.drafts.filter((d) => d.id !== id);
     return reply({});
   };
-  globalThis.fetch = Object.assign(handler, { preconnect: () => {} });
+  env.fetch.respond(
+    () => true,
+    (call) => handler(call.url, call.init),
+  );
 
   return {
     calls,
@@ -81,7 +88,7 @@ export function fakeDraftServer(initial: DraftEntry[] = []) {
     },
     releaseList: () => releaseList(),
     restore: () => {
-      globalThis.fetch = originalFetch;
+      void host?.stop();
     },
     state,
   };

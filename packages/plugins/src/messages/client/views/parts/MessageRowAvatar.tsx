@@ -11,7 +11,7 @@ export default function MessageRowAvatar(props: {
   displayName: string;
   fallbackUserId: UserId | undefined;
   focused: boolean;
-  profileUserId: string | undefined;
+  profileUserId: UserId | undefined;
   user: User | undefined;
 }) {
   return (

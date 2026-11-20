@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isUserId } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { Show } from "solid-js";
 import type { PaneContent } from "../../shell/client/api/types";
@@ -7,8 +8,6 @@ import type { ProfilePaneContent } from "./api";
 import UserHoverCard from "./views/UserHoverCard";
 import UserMentionCard from "./views/UserMentionCard";
 import UserProfile from "./views/UserProfile";
-
-const USER_SEGMENT = /^[UB]/;
 
 function ProfileView(props: { pane: Pane<PaneContent | null> }) {
   return (
@@ -28,8 +27,7 @@ const setup: Setup = (ctx) => {
       tabLabel: (content) =>
         content.kind === "profile" ? (users.userById(content.userId)?.name ?? "Profile") : "…",
       url: {
-        parse: (segment) =>
-          USER_SEGMENT.test(segment) ? { kind: "profile", userId: segment } : null,
+        parse: (segment) => (isUserId(segment) ? { kind: "profile", userId: segment } : null),
         serialize: (content) => (content.kind === "profile" ? content.userId : ""),
       },
       view: ProfileView,

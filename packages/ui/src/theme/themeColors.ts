@@ -22,7 +22,7 @@ export type { ThemeColorDefinition } from "./themeColorRegistry";
 const THEME_COLORS_KEY = "slock-theme-colors";
 const THEME_PRESET_KEY = "slock-theme-preset";
 
-function storedPreset(): ThemePreset {
+export function storedPreset(): ThemePreset {
   const id = localStorage.getItem(THEME_PRESET_KEY);
   return THEME_PRESETS.find((preset) => preset.id === id) ?? defined(THEME_PRESETS[0]);
 }
@@ -45,7 +45,6 @@ function sameColor(a: string | undefined, b: string | undefined): boolean {
 }
 
 export interface ThemeColorsDeps {
-  initThemeCss: (presetCss: string | undefined) => void;
   setFont: (font: string) => void;
   setThemeCss: (css: string) => void;
 }
@@ -85,7 +84,6 @@ export function createThemeColors(deps: ThemeColorsDeps) {
 
   const removeBuiltins = registerThemeColors(BUILTIN_THEME_COLORS);
   applyThemeColorScheme(storedPreset().colorScheme ?? "dark");
-  deps.initThemeCss(storedPreset().css);
 
   function setThemeColors(overrides: ThemeColors): void {
     storeThemeColors({ ...themeColors(), ...overrides });
