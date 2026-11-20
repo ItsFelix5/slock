@@ -1,10 +1,8 @@
 import { EmojiText } from "@slock/blockkit";
-import { service } from "@slock/core/solid";
 import { Tooltip } from "@slock/ui";
-import { createQuery } from "@tanstack/solid-query";
 import { createMemo, Show } from "solid-js";
 import type { ComposerTrailingProps } from "../../composer/client/api";
-import { defineKey } from "../../query/client/api";
+import { defineQuery } from "../../query/client/api";
 import { isHaiku } from "./haiku/isHaiku";
 import "./OrpheusIndicator.css";
 
@@ -13,31 +11,25 @@ const MAX_LENGTH = 300;
 const MIN_WORDS = 5;
 const WHITESPACE_RE = /\s+/;
 
-const syllableExceptionsKey = defineKey<[]>("syllableExceptions");
-
-const query = service("query");
+const syllableExceptions = defineQuery<null, Map<string, number>>({
+  load: () => import("./haiku/syllableExceptions").then((m) => m.default),
+  name: "syllableExceptions",
+});
 
 export default function OrpheusIndicator(props: ComposerTrailingProps) {
   const longEnough = createMemo<boolean>(
     (was) => was || props.text.trim().split(WHITESPACE_RE).length >= MIN_WORDS,
     false,
   );
-  const counts = createQuery(
-    () => ({
-      enabled: longEnough(),
-      queryFn: () => import("./haiku/syllableExceptions").then((m) => m.default),
-      queryKey: syllableExceptionsKey(),
-      staleTime: Number.POSITIVE_INFINITY,
-    }),
-    () => query.client,
-  );
+  const counts = syllableExceptions.state(() => (longEnough() ? null : undefined));
   const reacts = createMemo(() => {
     const text = props.text.replaceAll("&", "&amp;");
+    const exceptions = counts().data;
     return (
-      !!counts.data &&
+      !!exceptions &&
       props.channelId !== HAIKU_OFF_CHANNEL &&
       text.length < MAX_LENGTH &&
-      isHaiku(text, counts.data)
+      isHaiku(text, exceptions)
     );
   });
   return (

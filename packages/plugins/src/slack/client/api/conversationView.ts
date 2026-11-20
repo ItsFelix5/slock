@@ -1,11 +1,11 @@
-import {
-  apiGet,
-  mapChannel,
-  mapChannelDetails,
-  mapUser,
-  parseFileId,
-} from "@slock/slack";
-import type { CanvasListItem, ChannelId, ConversationViewData, RawChannel, RawUser } from "@slock/types";
+import { apiGet, mapChannel, mapChannelDetails, mapUser, parseFileId } from "@slock/slack";
+import type {
+  CanvasListItem,
+  ChannelId,
+  ConversationViewData,
+  RawChannel,
+  RawUser,
+} from "@slock/types";
 import { defineQuery } from "../../../query/client/api";
 
 function mapCanvasTabs(channel: RawChannel): CanvasListItem[] {

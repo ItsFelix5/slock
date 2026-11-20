@@ -1,11 +1,4 @@
-import {
-  apiGet,
-  apiPost,
-  canvasFileIdOf,
-  mapFile,
-  mapUser,
-  parseChannelId,
-} from "@slock/slack";
+import { apiGet, apiPost, canvasFileIdOf, mapFile, mapUser, parseChannelId } from "@slock/slack";
 import type {
   BrowsableChannel,
   GlobalSearchResults,

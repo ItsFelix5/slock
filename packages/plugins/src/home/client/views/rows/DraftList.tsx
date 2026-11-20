@@ -1,6 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { blockPreviewText } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 import { Icon, SuggestionList } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import { channelIconName } from "../../../../channels/client/api";
@@ -11,7 +12,7 @@ const viewStore = service("conversations");
 const messageLinks = service("message-links");
 
 export default function DraftList(props: {
-  channelId: string;
+  channelId: ChannelId;
   close: () => void;
   kind?: "channel" | "dm";
 }) {
@@ -19,7 +20,7 @@ export default function DraftList(props: {
   const entries = () => draftsForChannel(props.channelId);
   const rowId = (i: number) => `draft-row-${i}`;
 
-  const restore = (threadTs: string | undefined) => {
+  const restore = (threadTs: Ts | undefined) => {
     if (threadTs) messageLinks.openThread(props.channelId, threadTs);
     else viewStore.setActiveView({ id: props.channelId, kind: props.kind ?? "channel" });
     props.close();

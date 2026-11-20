@@ -1,9 +1,8 @@
 import { splitHighlightWords } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { ChannelId, UserPrefs } from "@slock/types";
-import { createQuery } from "@tanstack/solid-query";
 import { createEffect, createSignal } from "solid-js";
-import { defineKey } from "../../query/client/api";
+import { defineQuery } from "../../query/client/api";
 import {
   endDndSnooze,
   fetchDndStatus,
@@ -12,18 +11,20 @@ import {
   setDndSnooze,
   setHighlightWords as setHighlightWordsApi,
 } from "../../slack/client/api";
+import { createChannelFlags } from "./channelFlags";
 import {
   emojiUseScore as calculateEmojiUseScore,
   frecencyScore as calculateFrecencyScore,
   recentIds as calculateRecentIds,
   usedEmojiNames as calculateUsedEmojiNames,
 } from "./lib/frecency";
-import { createChannelFlags } from "./channelFlags";
 import { createMuteSync } from "./muteSync";
 
 const feedback = service("feedback");
-const query = service("query");
-const dndStatusKey = defineKey("dndStatus");
+const dndStatusQuery = defineQuery<null, Awaited<ReturnType<typeof fetchDndStatus>>>({
+  load: fetchDndStatus,
+  name: "dndStatus",
+});
 
 export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined }) {
   const muted = createChannelFlags();
@@ -32,10 +33,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
   const [highlightWordsPending, setHighlightWordsPending] = createSignal(false);
   const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(null);
   const [dndPending, setDndPending] = createSignal(false);
-  const dndStatus = createQuery(
-    () => ({ queryFn: fetchDndStatus, queryKey: dndStatusKey() }),
-    () => query.client,
-  );
+  const dndStatus = dndStatusQuery.state(() => null);
 
   let muteClicks = 0;
   let lastMuteChannelId: ChannelId | undefined;
@@ -73,7 +71,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
   }
 
   createEffect(
-    () => (dndStatus.error ? undefined : dndStatus.data),
+    () => (dndStatus().error ? undefined : dndStatus().data),
     (status) => {
       if (status !== undefined) setDndSnoozedUntil(status);
     },
@@ -189,15 +187,15 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
   const usedEmojiNames = () => calculateUsedEmojiNames(deps.userPrefs());
 
   function isDndPending(): boolean {
-    return dndPending() || dndStatus.isFetching;
+    return dndPending() || dndStatus().refreshing;
   }
 
   function hasDndStatusError(): boolean {
-    return !!dndStatus.error;
+    return !!dndStatus().error;
   }
 
   async function retryDndStatus(): Promise<void> {
-    await dndStatus.refetch();
+    await dndStatusQuery.refresh(null).catch(() => {});
   }
 
   function applyDndSnoozeEvent(snoozedUntil: number | null): void {

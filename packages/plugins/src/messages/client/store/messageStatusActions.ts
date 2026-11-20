@@ -7,6 +7,7 @@ import { toggleThreadSubscription } from "../../../slack/client/api";
 import { tsFromMs, tsJustBefore, tsToMs } from "../lib/tsTime";
 
 const feedback = service("feedback");
+const env = service("env");
 
 export function createMessageStatusActions(deps: {
   clearChannelUnread: (channelId: ChannelId) => void;
@@ -90,7 +91,7 @@ export function createMessageStatusActions(deps: {
     const loadedLatest = deps.hasNewerHistory(channelId)
       ? undefined
       : messagesByChannel[channelId]?.at(-1)?.ts;
-    const latest = loadedLatest ?? tsFromMs(Date.now());
+    const latest = loadedLatest ?? tsFromMs(env.now());
     const latestMs = tsToMs(latest);
     if (latestMs <= (deps.lastReadFor(channelId) ?? 0)) {
       deps.clearChannelUnread(channelId);

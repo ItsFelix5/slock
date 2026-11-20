@@ -1,7 +1,7 @@
 import { usePoint } from "@slock/core/solid";
 import { ariaBoolean, Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
+import { dynamic } from "@solidjs/web";
 import { createMemo, createSignal, For } from "solid-js";
-import { Dynamic } from "@solidjs/web";
 import type { SettingsTabItem } from "../api";
 import "./SettingsForm.css";
 import "./SettingsModal.css";
@@ -12,6 +12,7 @@ export default function SettingsModal(props: { initialTab?: string; onClose: () 
   const tabs = createMemo(() => items().filter((tab) => tab.visible?.() ?? true));
   const [selected, setSelected] = createSignal(() => props.initialTab);
   const active = createMemo(() => tabs().find((tab) => tab.id === selected()) ?? tabs()[0]);
+  const ActiveTab = dynamic(() => active()?.view);
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
   useTabStripShortcuts<SettingsTabItem>({
@@ -54,7 +55,7 @@ export default function SettingsModal(props: { initialTab?: string; onClose: () 
       </div>
 
       <div class="settings-content">
-        <Dynamic component={active()?.view} />
+        <ActiveTab />
       </div>
     </Modal>
   );

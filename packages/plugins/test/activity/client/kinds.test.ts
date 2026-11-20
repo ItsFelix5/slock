@@ -1,39 +1,42 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int } from "@slock/core/testing";
+import { ch, stamp, uid } from "@slock/slack/testing";
 import type { ActivityItem, User } from "@slock/types";
 import {
   channelPostKey,
   gatewayActivityCountsSnapshot,
   gatewayActivityPingCount,
   isOwnOrUnresolved,
+  NO_CHANNEL,
+  NO_USER,
   reactionActivityKey,
 } from "../../../src/activity/client/kinds";
 
-const me: User = { avatarColor: "", id: "U1", name: "me" };
+const me: User = { avatarColor: "", id: uid("U1"), name: "me" };
 
 function item(patch: Partial<ActivityItem>): ActivityItem {
   return {
-    channelId: "C1",
+    channelId: ch("C1"),
     id: "a",
     kind: "mention",
     text: "",
     time: 1,
-    ts: "1.1",
-    userId: "U2",
+    ts: stamp("1.1"),
+    userId: uid("U2"),
     ...patch,
   };
 }
 
 describe("isOwnOrUnresolved", () => {
   test.each([
-    ["own channel_all", "channel_all", "U1", true],
-    ["own thread reply", "thread_reply", "U1", true],
-    ["own dm", "dm", "U1", true],
-    ["unresolved author", "thread_reply", "", true],
-    ["someone else", "thread_reply", "U2", false],
-    ["own mention is kept", "mention", "U1", false],
-    ["own reaction is kept", "reaction", "U1", false],
-    ["unresolved mention is kept", "mention", "", false],
+    ["own channel_all", "channel_all", uid("U1"), true],
+    ["own thread reply", "thread_reply", uid("U1"), true],
+    ["own dm", "dm", uid("U1"), true],
+    ["unresolved author", "thread_reply", NO_USER, true],
+    ["someone else", "thread_reply", uid("U2"), false],
+    ["own mention is kept", "mention", uid("U1"), false],
+    ["own reaction is kept", "reaction", uid("U1"), false],
+    ["unresolved mention is kept", "mention", NO_USER, false],
   ] as const)("%s", (_name, kind, userId, expected) => {
     expect(isOwnOrUnresolved({ kind, userId }, me)).toBe(expected);
   });
@@ -42,28 +45,28 @@ describe("isOwnOrUnresolved", () => {
 describe("reactionActivityKey", () => {
   test("joins channel, ts, reaction and user", () => {
     expect(
-      reactionActivityKey(item({ kind: "reaction", reactionName: "tada", userId: "U9" })),
+      reactionActivityKey(item({ kind: "reaction", reactionName: "tada", userId: uid("U9") })),
     ).toBe("C1:1.1:tada:U9");
   });
 
   test.each([
     ["not a reaction", { kind: "mention" as const, reactionName: "x" }],
     ["no emoji", { kind: "reaction" as const }],
-    ["no user", { kind: "reaction" as const, reactionName: "x", userId: "" }],
-    ["no channel", { channelId: "", kind: "reaction" as const, reactionName: "x" }],
+    ["no user", { kind: "reaction" as const, reactionName: "x", userId: NO_USER }],
+    ["no channel", { channelId: NO_CHANNEL, kind: "reaction" as const, reactionName: "x" }],
   ])("is undefined for %s", (_name, patch) => {
     expect(reactionActivityKey(item(patch))).toBeUndefined();
   });
 
   test("two users reacting with the same emoji get different keys", () => {
-    const a = reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: "U1" }));
-    const b = reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: "U2" }));
+    const a = reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: uid("U1") }));
+    const b = reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: uid("U2") }));
     expect(a).not.toBe(b);
   });
 });
 
 test("channelPostKey separates channel and ts", () => {
-  expect(channelPostKey("C1", "1.2")).toBe("C1:1.2");
+  expect(channelPostKey(ch("C1"), stamp("1.2"))).toBe("C1:1.2");
 });
 
 describe("gatewayActivityPingCount", () => {

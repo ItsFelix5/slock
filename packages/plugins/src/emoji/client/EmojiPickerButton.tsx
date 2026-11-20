@@ -22,8 +22,7 @@ export default function EmojiPickerButton(props: {
     <Tooltip content={tooltip()}>
       <button
         aria-label={`:${props.entry.name}:`}
-        class="emoji-picker-btn btn-reset flex-center"
-        classList={{ mine: mine(), reacted: reacted() }}
+        class={["emoji-picker-btn btn-reset flex-center", { mine: mine(), reacted: reacted() }]}
         data-emoji-index={props.index}
         onClick={() => props.onSelect(props.entry.name)}
         tabindex={props.active ? 0 : -1}

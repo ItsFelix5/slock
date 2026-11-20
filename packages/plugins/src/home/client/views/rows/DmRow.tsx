@@ -19,7 +19,6 @@ const feedback = service("feedback");
 
 const sidebarStore = service("sidebar");
 
-const viewStore = service("conversations");
 const conversationsStore = service("conversations");
 const unreadStore = service("unread");
 const dmsStore = service("dms");
@@ -49,14 +48,17 @@ export function DmRow(props: { dm: DirectMessage }) {
       <div class="sidebar-row-wrap">
         <SplitNavigation onSplit={() => openConversationInSplit(props.dm.id)}>
           <button
-            class={["sidebar-row btn-reset flex-align-center", {
-              active: isActive(),
-              muted: muted(),
-              unread: unreadStore.isChannelUnread(props.dm.id) && !muted(),
-            }]} 
+            class={[
+              "sidebar-row btn-reset flex-align-center",
+              {
+                active: isActive(),
+                muted: muted(),
+                unread: unreadStore.isChannelUnread(props.dm.id) && !muted(),
+              },
+            ]}
             data-channel-id={props.dm.id}
             data-nav-row
-            onClick={() => viewStore.setActiveView({ id: props.dm.id, kind: "dm" })}
+            onClick={() => conversationsStore.setActiveView({ id: props.dm.id, kind: "dm" })}
             {...prefetch}
             onContextMenu={ctxMenu.open}
             tabindex={-1}

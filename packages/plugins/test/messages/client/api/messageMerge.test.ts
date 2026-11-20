@@ -56,7 +56,7 @@ describe("confirmsPending", () => {
   test("a file upload confirms a pending file message whatever the text", () => {
     const upload = pending({ pendingFiles: [], text: "" });
     const file = {
-      id: "F1",
+      id: fid("F1"),
       isImage: false,
       name: "a.txt",
       urlPrivate: "https://files.slack.com/a",
@@ -73,8 +73,12 @@ describe("confirmsPending", () => {
 
 describe("dedupeMessages", () => {
   test("sorts by timestamp as a number", () => {
-    const result = dedupeMessages([message(stamp("10.000001")), message(stamp("9.999999")), message(stamp("100.5"))]);
-    expect(result.map((m) => m.ts)).toEqual(["9.999999", "10.000001", "100.5"]);
+    const result = dedupeMessages([
+      message(stamp("10.000001")),
+      message(stamp("9.999999")),
+      message(stamp("100.5")),
+    ]);
+    expect(result.map((m) => m.ts)).toEqual([stamp("9.999999"), stamp("10.000001"), stamp("100.5")]);
   });
 
   test("the last duplicate wins", () => {

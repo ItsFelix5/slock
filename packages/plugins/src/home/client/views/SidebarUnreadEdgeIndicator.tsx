@@ -1,6 +1,8 @@
 import { Icon, Tooltip } from "@slock/ui";
-import { createSignal, onCleanup, onSettled, Show } from "solid-js";
+import { createSignal, onSettled, Show } from "solid-js";
 import "./SidebarUnreadEdgeIndicator.css";
+
+const NO_EDGES = { above: false, aboveMention: false, below: false, belowMention: false };
 
 function unreadRows(container: HTMLElement): HTMLElement[] {
   return [...container.querySelectorAll<HTMLElement>(".sidebar-row.unread")];
@@ -13,10 +15,7 @@ function isMention(row: HTMLElement): boolean {
 export default function SidebarUnreadEdgeIndicator(props: {
   containerRef: () => HTMLDivElement | undefined;
 }) {
-  const [above, setAbove] = createSignal(false);
-  const [below, setBelow] = createSignal(false);
-  const [aboveMention, setAboveMention] = createSignal(false);
-  const [belowMention, setBelowMention] = createSignal(false);
+  const [edges, setEdges] = createSignal(NO_EDGES);
 
   function recompute() {
     const container = props.containerRef();
@@ -36,10 +35,12 @@ export default function SidebarUnreadEdgeIndicator(props: {
         if (isMention(row)) mentionBelow = true;
       }
     }
-    setAbove(hasAbove);
-    setBelow(hasBelow);
-    setAboveMention(mentionAbove);
-    setBelowMention(mentionBelow);
+    setEdges({
+      above: hasAbove,
+      aboveMention: mentionAbove,
+      below: hasBelow,
+      belowMention: mentionBelow,
+    });
   }
 
   function scrollToward(direction: -1 | 1) {
@@ -76,20 +77,23 @@ export default function SidebarUnreadEdgeIndicator(props: {
       childList: true,
       subtree: true,
     });
-    onCleanup(() => {
+    return () => {
       container.removeEventListener("scroll", scheduleRecompute);
       window.removeEventListener("resize", scheduleRecompute);
       mutationObserver.disconnect();
       if (recomputeRaf) cancelAnimationFrame(recomputeRaf);
-    });
+    };
   });
 
   return (
     <>
-      <Show when={above()}>
+      <Show when={edges().above}>
         <Tooltip content="Unread channels above">
           <button
-            class={["sidebar-unread-edge sidebar-unread-edge-top", { mention: aboveMention() }]} 
+            class={[
+              "sidebar-unread-edge sidebar-unread-edge-top",
+              { mention: edges().aboveMention },
+            ]}
             onClick={() => scrollToward(-1)}
             type="button"
           >
@@ -97,10 +101,13 @@ export default function SidebarUnreadEdgeIndicator(props: {
           </button>
         </Tooltip>
       </Show>
-      <Show when={below()}>
+      <Show when={edges().below}>
         <Tooltip content="Unread channels below">
           <button
-            class={["sidebar-unread-edge sidebar-unread-edge-bottom", { mention: belowMention() }]} 
+            class={[
+              "sidebar-unread-edge sidebar-unread-edge-bottom",
+              { mention: edges().belowMention },
+            ]}
             onClick={() => scrollToward(1)}
             type="button"
           >

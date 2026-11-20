@@ -96,7 +96,7 @@ describe("createLaterSlice", () => {
   test("loads saved items and their messages", async () => {
     await run(async () => {
       const { later } = await loaded([item(stamp("1.1")), item(stamp("2.2"))]);
-      expect(later.laterItems.map((i) => i.ts)).toEqual(["1.1", "2.2"]);
+      expect(later.laterItems.map((i) => i.ts)).toEqual([stamp("1.1"), stamp("2.2")]);
       await Promise.resolve();
       expect(later.laterMessageFor(C1, stamp("1.1"))?.ts).toBe(stamp("1.1"));
     });
@@ -122,7 +122,7 @@ describe("createLaterSlice", () => {
       h.fail(true);
       expect(await h.later.setReminder(C1, stamp("2.2"), 500)).toBe(false);
       expect(await h.later.toggleSaveForLater(C1, stamp("3.3"))).toBe(false);
-      expect(h.later.laterItems.map((i) => [i.ts, i.dateDue])).toEqual([
+      expect(h.later.laterItems.map((i) => [String(i.ts), i.dateDue])).toEqual([
         ["1.1", 100],
         ["2.2", undefined],
       ]);
@@ -183,11 +183,11 @@ describe("createLaterSlice", () => {
       h.later.applySavedEvent("add", C1, stamp("5.5"));
       h.later.applySavedEvent("add", C1, stamp("5.5"));
       flush();
-      expect(h.later.laterItems.map((i) => i.ts)).toEqual(["1.1", "5.5"]);
+      expect(h.later.laterItems.map((i) => i.ts)).toEqual([stamp("1.1"), stamp("5.5")]);
       h.later.applySavedEvent("remove", C1, stamp("1.1"));
       h.later.applySavedEvent("remove", C1, stamp("9.9"));
       flush();
-      expect(h.later.laterItems.map((i) => i.ts)).toEqual(["5.5"]);
+      expect(h.later.laterItems.map((i) => i.ts)).toEqual([stamp("5.5")]);
       h.later.applySavedEvent("clear");
       flush();
       expect(h.later.laterItems).toHaveLength(0);

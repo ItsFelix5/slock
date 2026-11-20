@@ -1,4 +1,5 @@
 import { service, usePoint } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import {
   ariaBoolean,
   Button,
@@ -54,8 +55,11 @@ export default function ChannelDetails() {
   useEscapeClose(channelDetails.closeChannelDetails, () => !!channelDetails.channelDetailsId());
 
   const detailsQuery = channelDetails.createChannelDetailsQuery(channelDetails.channelDetailsId);
-  const details = () => detailsQuery.data;
-  const refetch = () => detailsQuery.refetch();
+  const details = () => detailsQuery().data;
+  const refetch = () => {
+    const id = channelDetails.channelDetailsId();
+    if (id) void channelDetails.queries.details.refresh(id).catch(() => {});
+  };
 
   const currentDetails = createMemo(() => {
     const d = details();
@@ -70,8 +74,8 @@ export default function ChannelDetails() {
     if (me.isWorkspaceAdmin) return true;
     const creatorId = currentDetails()?.creatorId;
     if (creatorId && me.id === creatorId) return true;
-    if (managerIds.isError) return false;
-    return (managerIds.data ?? []).includes(me.id);
+    if (managerIds().error) return false;
+    return (managerIds().data ?? []).includes(me.id);
   });
   const tabItems = usePoint("channel-details.tab");
   const visibleTabs = createMemo<TabEntry[]>(() => [
@@ -100,7 +104,7 @@ export default function ChannelDetails() {
     },
   );
   createEffect(
-    () => !!activeTab()?.item?.managerOnly && !managerIds.isLoading && !isManager(),
+    () => !!activeTab()?.item?.managerOnly && !isWaiting(managerIds()) && !isManager(),
     (locked) => {
       if (locked) setTab("about");
     },
@@ -194,7 +198,7 @@ export default function ChannelDetails() {
                       </Button>
                     </div>
                   }
-                  when={detailsQuery.isLoading}
+                  when={isWaiting(detailsQuery())}
                 >
                   <div class="channel-details-loading flex-center text-dim text-sm">
                     Loading channel details…

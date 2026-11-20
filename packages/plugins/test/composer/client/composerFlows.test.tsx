@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { parseTs } from "@slock/slack";
 import { forAll } from "@slock/core/testing";
+import { parseTs } from "@slock/slack";
 import { bootComposerHost, type ComposerFixture, mountComposer, settle } from "./composerHarness";
 import { editorState } from "./editorStates";
 

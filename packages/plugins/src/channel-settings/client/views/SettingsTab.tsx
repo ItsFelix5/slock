@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import type { ChannelId } from "@slock/types";
 import { Button } from "@slock/ui";
 import { createEffect, createMemo, createSignal, createStore, For, Show, snapshot } from "solid-js";
@@ -60,7 +61,7 @@ export default function SettingsTab(props: {
 
   const permissionsQuery = channelDetails.createMemberPermissionsQuery(() => props.channelId);
   createEffect(
-    () => permissionsQuery.data,
+    () => permissionsQuery().data,
     (loaded) => {
       if (!loaded) return;
       const choice = (allowed: boolean): PermissionChoice => (allowed ? "allow" : "restrict");
@@ -79,8 +80,9 @@ export default function SettingsTab(props: {
   );
 
   const retentionQuery = channelDetails.createChannelRetentionQuery(() => props.channelId);
-  const retention = () => retentionQuery.data;
-  const retryRetention = () => void retentionQuery.refetch();
+  const retention = () => retentionQuery().data;
+  const retryRetention = () =>
+    void channelDetails.queries.retention.refresh(props.channelId).catch(() => {});
 
   const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>("");
   const [retentionDays, setRetentionDays] = createSignal(90);
@@ -202,9 +204,9 @@ export default function SettingsTab(props: {
 
       <div class="settings-section">
         <div class="settings-section-title">Message retention</div>
-        <Show when={retentionQuery.error}>
+        <Show when={retentionQuery().error}>
           <SettingsLoadError
-            error={retentionQuery.error}
+            error={retentionQuery().error}
             message="Retention policy couldn't be loaded."
             onRetry={retryRetention}
           />
@@ -222,7 +224,7 @@ export default function SettingsTab(props: {
               value={retentionChoice()}
             >
               <option disabled value="">
-                {retentionQuery.isLoading ? "Loading…" : "Choose a policy…"}
+                {isWaiting(retentionQuery()) ? "Loading…" : "Choose a policy…"}
               </option>
               <option value="keep">Keep all messages</option>
               <option value="delete">Delete after…</option>

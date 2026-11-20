@@ -1,6 +1,6 @@
 import { IconButton } from "@slock/ui";
-import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { For, Show } from "solid-js";
 import { type AccessOption, accessLabel } from "./accessLevels";
 
 export default function AccessRow(props: {

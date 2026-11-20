@@ -1,6 +1,6 @@
 import { dirname, join, resolve } from "node:path";
-import { transformAsync } from "@solidjs/compiler";
 import { defined } from "@slock/core";
+import { transformAsync } from "@solidjs/compiler";
 import type { BunPlugin } from "bun";
 
 const WORKSPACE_SOURCE = /\/packages\/(app|ui|blockkit|types|core|plugins)\/src\/.*\.[jt]sx?$/;

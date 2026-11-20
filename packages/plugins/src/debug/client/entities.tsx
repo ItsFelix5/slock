@@ -38,7 +38,10 @@ function splitMessageId(id: string) {
   const split = id.indexOf(MESSAGE_SEPARATOR);
   const channelId = id.slice(0, split);
   const ts = id.slice(split + 1);
-  return { channelId: isChannelId(channelId) ? channelId : undefined, ts: isTs(ts) ? ts : undefined };
+  return {
+    channelId: isChannelId(channelId) ? channelId : undefined,
+    ts: isTs(ts) ? ts : undefined,
+  };
 }
 
 const dmOf = (id: string) => (isChannelId(id) ? dms.dmById(id) : undefined);

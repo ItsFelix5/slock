@@ -1,9 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { createHost } from "@slock/core";
-import { parseChannelId } from "@slock/slack";
 import { setHost, solidReactive } from "@slock/core/solid";
 import { partialService } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
+import { parseChannelId } from "@slock/slack";
 import { createRoot } from "solid-js";
 import { createComposerSubmitHandler } from "../../../src/composer/client/composerSubmit";
 import {

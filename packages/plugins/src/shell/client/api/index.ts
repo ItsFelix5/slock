@@ -1,6 +1,6 @@
 import type { Pane, PaneLayoutProps } from "@slock/ui";
-import type { Accessor, Component } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import type { Accessor, Component } from "solid-js";
 import type { createFeedback } from "../feedback";
 import type { createShellStore } from "../store";
 import type { createTitles } from "../titles";

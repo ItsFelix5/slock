@@ -120,21 +120,21 @@ describe("setThreadRead", () => {
 
 describe("isThreadUnread", () => {
   const root = (extra: Partial<Message>) =>
-    message("1.1", { isSubscribed: true, latestReply: "5.5", ...extra });
+    message("1.1", { isSubscribed: true, latestReply: stamp("5.5"), ...extra });
 
   test.each([
     ["a newer reply than the root", root({}), true],
     ["no replies", root({ latestReply: undefined }), false],
     ["not subscribed", root({ isSubscribed: false }), false],
-    ["server read cursor at the latest reply", root({ threadLastRead: "5.5" }), false],
-    ["server read cursor before the latest reply", root({ threadLastRead: "3.3" }), true],
+    ["server read cursor at the latest reply", root({ threadLastRead: stamp("5.5") }), false],
+    ["server read cursor before the latest reply", root({ threadLastRead: stamp("3.3") }), true],
   ])("%s", (_name, thread, expected) => {
     expect(mount(() => harness()).store.isThreadUnread(thread)).toBe(expected);
   });
 
   test("a local cursor beats the server cursor", () => {
     const { store } = mount(() => harness());
-    const thread = root({ threadLastRead: "1.1" });
+    const thread = root({ threadLastRead: stamp("1.1") });
     expect(store.isThreadUnread(thread)).toBe(true);
     store.setThreadReadTs(stamp("1.1"), stamp("5.5"));
     flushSolid();

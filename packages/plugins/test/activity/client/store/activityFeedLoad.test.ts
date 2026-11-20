@@ -1,22 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import type { ActivityItem, FeedEntry, Message, User } from "@slock/types";
+import { systemEnv } from "@slock/core";
+import { ch, stamp, uid } from "@slock/slack/testing";
+import type { FeedEntry, Message, User } from "@slock/types";
 import { createRoot } from "solid-js";
-import { createStore } from "solid-js";
+import { createActivityItems } from "../../../../src/activity/client/store/activityItems";
 import { createActivityFeedLoad } from "../../../../src/activity/client/store/activityFeedLoad";
 
-const me: User = { avatarColor: "", id: "U1", name: "me" };
+const me: User = { avatarColor: "", id: uid("U1"), name: "me" };
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function entry(id: string, time: number, patch: Partial<FeedEntry> = {}): FeedEntry {
   return {
-    channelId: "C1",
+    channelId: ch("C1"),
     id,
     kind: "mention",
     text: id,
     time,
-    ts: `${time}.0`,
+    ts: stamp(`${time}.0`),
     unread: true,
-    userId: "U2",
+    userId: uid("U2"),
     ...patch,
   };
 }
@@ -26,13 +28,14 @@ type Pages = Record<string, { entries: FeedEntry[]; nextCursor?: string }>;
 function harness(pages: Pages) {
   const fetches: { cursor?: string; types?: string }[] = [];
   const reactionFlashes: string[] = [];
-  const [items, setItems] = createStore<ActivityItem[]>([]);
+  const activityItems = createActivityItems();
+  const items = activityItems.list;
   let failNextFetch = false;
   let delayFetchMs = 0;
   const load = createActivityFeedLoad({
-    activityItems: items,
     backfillMissingReadCursors: async () => {},
     currentUser: () => me,
+    env: systemEnv,
     fetchActivityFeedEntries: async (_limit, cursor, types) => {
       fetches.push({ cursor, types });
       if (delayFetchMs) await wait(delayFetchMs);
@@ -44,9 +47,9 @@ function harness(pages: Pages) {
     },
     fetchHistoryAround: async () => ({ messages: [] }),
     fetchMessagesByIds: async () => new Map<string, Message>(),
+    items: activityItems,
     onReactionPushed: (name) => reactionFlashes.push(name),
     resolveActivityEntry: (raw) => ({ ...raw, text: raw.text ?? "" }),
-    setActivityItems: setItems,
   });
   return {
     failNextFetch: () => {
@@ -81,7 +84,7 @@ describe("createActivityFeedLoad", () => {
           entries: [
             entry("a", 100),
             entry("c", 300),
-            entry("b", 200, { kind: "thread_reply", userId: "U1" }),
+            entry("b", 200, { kind: "thread_reply", userId: uid("U1") }),
           ],
         },
       });
@@ -156,7 +159,7 @@ describe("createActivityFeedLoad", () => {
   test("duplicate ids and repeated reactions are pushed once", async () => {
     await inRoot(async () => {
       const reaction = (id: string, time: number) =>
-        entry(id, time, { kind: "reaction", reactionName: "tada", ts: "5.5", userId: "U3" });
+        entry(id, time, { kind: "reaction", reactionName: "tada", ts: stamp("5.5"), userId: uid("U3") });
       const h = harness({
         "": {
           entries: [entry("a", 100), entry("a", 100), reaction("r1", 200), reaction("r2", 300)],
@@ -198,14 +201,14 @@ describe("createActivityFeedLoad", () => {
     await inRoot(async () => {
       const h = harness({
         "": {
-          entries: [entry("t", 100, { kind: "thread_reply", threadTs: "9.9", unreadCount: 1 })],
+          entries: [entry("t", 100, { kind: "thread_reply", threadTs: stamp("9.9"), unreadCount: 1 })],
         },
       });
       await h.load.ensureActivityLoaded();
       const pages: Pages = {
         "": {
           entries: [
-            entry("t", 500, { kind: "thread_reply", threadTs: "9.9", unreadCount: 4 }),
+            entry("t", 500, { kind: "thread_reply", threadTs: stamp("9.9"), unreadCount: 4 }),
             entry("n", 300),
           ],
         },

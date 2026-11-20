@@ -1,6 +1,6 @@
 import { MIN_PANE_WIDTH, type Pane, PaneDivider } from "@slock/ui";
-import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createSignal, Show } from "solid-js";
 
 const MAX_INITIAL_FRACTION = 0.65;
 

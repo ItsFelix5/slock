@@ -1,6 +1,6 @@
-import { parseChannelId, parseFileId, parseTeamId, parseUserId } from "@slock/slack";
 import { describe, expect, test } from "bun:test";
 import { forAll, int } from "@slock/core/testing";
+import { parseChannelId, parseFileId, parseTeamId, parseUserId } from "@slock/slack";
 import type { CanvasControl, CanvasNode } from "@slock/types";
 import { editOf, meta, Server, sectionId } from "../../../src/canvas/protocol/canvasSimulator.ts";
 import { readCanvas, readCanvasVersion } from "../../../src/canvas/protocol/document.ts";
@@ -61,11 +61,23 @@ describe("readCanvas", () => {
         upserts: [
           {
             after: null,
-            node: { fileId: parseFileId("F1"), frames: [], id: sectionId(1), kind: "file", permalink: "p" },
+            node: {
+              fileId: parseFileId("F1"),
+              frames: [],
+              id: sectionId(1),
+              kind: "file",
+              permalink: "p",
+            },
           },
           {
             after: sectionId(1),
-            node: { fileId: parseFileId("F1"), frames: [], id: sectionId(2), kind: "file", permalink: "p" },
+            node: {
+              fileId: parseFileId("F1"),
+              frames: [],
+              id: sectionId(2),
+              kind: "file",
+              permalink: "p",
+            },
           },
         ],
       }),
@@ -117,7 +129,10 @@ describe("embeds", () => {
       msg.set(21, [{ bytes: new TextEncoder().encode(ORPHANED_EMBED_RECORDS_ANCHOR) }]);
     const embeds = readCanvas(server.loadData())?.embeds;
     expect(embeds?.get(sectionId(10))).toEqual({ type: "user", userId: parseUserId("U1") });
-    expect(embeds?.get(sectionId(11))).toEqual({ channelId: parseChannelId("C1"), type: "channel" });
+    expect(embeds?.get(sectionId(11))).toEqual({
+      channelId: parseChannelId("C1"),
+      type: "channel",
+    });
     expect(embeds?.get(sectionId(12))).toEqual({ ms: 1_700_000_000_000, type: "date" });
     expect(embeds?.get(sectionId(13))).toEqual({ shortcode: "tada", type: "emoji" });
   });

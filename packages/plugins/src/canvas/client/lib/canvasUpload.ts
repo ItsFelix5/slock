@@ -50,7 +50,13 @@ function imageNode(file: RawFile, id: string): CanvasImage {
 }
 
 function fileNode(file: RawFile, id: string): CanvasFile {
-  return { fileId: parseFileId(file.id), frames: [], id, kind: "file", permalink: file.permalink ?? "" };
+  return {
+    fileId: parseFileId(file.id),
+    frames: [],
+    id,
+    kind: "file",
+    permalink: file.permalink ?? "",
+  };
 }
 
 export type UploadedBlock =

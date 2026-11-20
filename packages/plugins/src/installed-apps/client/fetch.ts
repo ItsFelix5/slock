@@ -1,4 +1,5 @@
 import { apiGet } from "@slock/slack";
+import { defineQuery } from "../../query/client/api";
 
 export type InstalledApp = { id: string; name: string; icon?: string; official: boolean };
 
@@ -16,5 +17,12 @@ export async function fetchAppInstallers(appId: string): Promise<AppInstallers> 
   return data;
 }
 
-export const INSTALLED_APPS_QUERY = "installedApps";
-export const APP_INSTALLERS_QUERY = "appInstallers";
+export const installedApps = defineQuery<string, InstalledApp[]>({
+  load: fetchInstalledApps,
+  name: "installedApps",
+});
+
+export const appInstallers = defineQuery<string, AppInstallers>({
+  load: fetchAppInstallers,
+  name: "appInstallers",
+});

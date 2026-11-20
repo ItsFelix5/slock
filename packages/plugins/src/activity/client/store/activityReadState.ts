@@ -1,6 +1,6 @@
 import type { ActivityItem, ChannelId, Ts } from "@slock/types";
 import { createMemo, createSignal, createStore } from "solid-js";
-import { gatewayActivityCountsSnapshot, gatewayActivityPingCount } from "../kinds";
+import { gatewayActivityCountsSnapshot, gatewayActivityPingCount, hasChannel } from "../kinds";
 import type { ActivityItems } from "./activityItems";
 
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
@@ -53,7 +53,7 @@ export function createActivityReadState(deps: {
   }
 
   function isBelowReadCursor(item: ActivityItem): boolean {
-    if (!item.channelId || isMarkedViaActivityApi(item)) return false;
+    if (!hasChannel(item) || isMarkedViaActivityApi(item)) return false;
     if (item.threadTs) {
       const threadCursor = deps.threadReadTsFor(item.threadTs);
       return threadCursor !== undefined && parseFloat(item.ts) <= parseFloat(threadCursor);
@@ -88,7 +88,7 @@ export function createActivityReadState(deps: {
   const attemptedReadCursorBackfill = new Set<string>();
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
-    if (!item.channelId) return false;
+    if (!hasChannel(item)) return false;
     return deps.lastReadByChannel[item.channelId] === undefined;
   }
 
@@ -142,11 +142,11 @@ export function createActivityReadState(deps: {
           .catch(() => {});
         continue;
       }
-      setActivityRead(item.id, item.channelId ? undefined : true);
+      setActivityRead(item.id, hasChannel(item) ? undefined : true);
 
       if (item.kind === "thread_reply" && item.unreadCount !== undefined)
         setUnreadCount(item.id, 0);
-      if (!item.channelId) continue;
+      if (!hasChannel(item)) continue;
       if (item.threadTs) {
         const key = `${item.channelId}:${item.threadTs}`;
         const prev = latestByThread.get(key);

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { defined } from "@slock/core";
+import { stamp } from "@slock/slack/testing";
 import { forAll, int, pick, type Random } from "@slock/core/testing";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import {
   createFeedScroll,
   type LandTarget,
@@ -38,16 +39,27 @@ function mount(rows: number[], viewport: number, isLive = () => true) {
     layout(change: () => void) {
       change();
       feed.settle();
+      flush();
     },
     async land(target: LandTarget) {
       feed.land(target);
       await Promise.resolve();
+      flush();
+    },
+    reset() {
+      feed.reset();
+      flush();
+    },
+    settle() {
+      feed.settle();
+      flush();
     },
     maxTop: () => fixture.container.scrollHeight - fixture.container.clientHeight,
     userScroll(top: number) {
       fixture.container.scrollTop = top;
       fixture.container.dispatchEvent(new Event("scroll"));
       fixture.container.dispatchEvent(new Event("scrollend"));
+      flush();
     },
   };
 }
@@ -87,7 +99,7 @@ describe("following the bottom", () => {
       }),
       ({ random, rows, sequence, viewport }) => {
         const view = mount(rows, viewport);
-        view.feed.settle();
+        view.settle();
         for (const kind of sequence) {
           applyChange(view, kind, random);
           expect(view.fixture.container.scrollTop).toBe(Math.max(0, view.maxTop()));
@@ -99,7 +111,7 @@ describe("following the bottom", () => {
 
   test("a user scroll away stops following", () => {
     const view = mount(uniform(30, 60), 300);
-    view.feed.settle();
+    view.settle();
     view.userScroll(view.maxTop() - 400);
     const before = view.fixture.container.scrollTop;
     view.layout(() => view.fixture.append([100, 100]));
@@ -109,7 +121,7 @@ describe("following the bottom", () => {
 
   test("scrolling back to the bottom resumes following", () => {
     const view = mount(uniform(30, 60), 300);
-    view.feed.settle();
+    view.settle();
     view.userScroll(100);
     view.userScroll(view.maxTop());
     view.layout(() => view.fixture.append([100]));
@@ -118,7 +130,7 @@ describe("following the bottom", () => {
 
   test("a feed that is not live never follows", async () => {
     const view = mount(uniform(5, 100), 200, () => false);
-    await view.land({ align: "start", at: "row", ts: "0" });
+    await view.land({ align: "start", at: "row", ts: stamp("0") });
     view.layout(() => view.fixture.append([300]));
     expect(view.fixture.container.scrollTop).toBe(0);
   });
@@ -130,7 +142,7 @@ describe("holding position", () => {
       (random) => ({ random, scrollTo: int(random, 100, 1800) }),
       ({ random, scrollTo }) => {
         const view = mount(uniform(40, 60), 300);
-        view.feed.settle();
+        view.settle();
         view.userScroll(scrollTo);
         const { group, offset } = topRow(view);
         view.layout(() => view.fixture.prepend(heights(random, int(random, 1, 5))));
@@ -144,7 +156,7 @@ describe("holding position", () => {
 
   test("layout changes mid-gesture wait for scrollend", () => {
     const view = mount(uniform(40, 60), 300);
-    view.feed.settle();
+    view.settle();
     view.fixture.container.scrollTop = 500;
     view.fixture.container.dispatchEvent(new Event("scroll"));
     const { group, offset } = topRow(view);
@@ -157,7 +169,7 @@ describe("holding position", () => {
 
   test("resizing the pane keeps the top row in place", () => {
     const view = mount(uniform(40, 60), 300);
-    view.feed.settle();
+    view.settle();
     view.userScroll(500);
     const { group, offset } = topRow(view);
     view.layout(() => view.fixture.resize(500));
@@ -168,7 +180,7 @@ describe("holding position", () => {
 describe("plain scrolling", () => {
   test("never writes scrollTop back while nothing shifts", () => {
     const view = mount(uniform(80, 61.3), 300);
-    view.feed.settle();
+    view.settle();
     for (let top = 40; top < 3000; top += 37.7) {
       view.fixture.container.scrollTop = top;
       const writes = view.fixture.writes();
@@ -181,7 +193,7 @@ describe("plain scrolling", () => {
 describe("landing", () => {
   test("a row target stays pinned while rows above it change", async () => {
     const view = mount(uniform(40, 60), 300);
-    await view.land({ align: "start", at: "row", ts: "20" });
+    await view.land({ align: "start", at: "row", ts: stamp("20") });
     const target = defined(view.fixture.rows()[20]);
     expect(view.fixture.offsetOf(target)).toBe(0);
     view.layout(() => view.fixture.setHeight(3, 500));
@@ -192,7 +204,7 @@ describe("landing", () => {
 
   test("a user scroll releases the pin", async () => {
     const view = mount(uniform(40, 60), 300);
-    await view.land({ align: "start", at: "row", ts: "20" });
+    await view.land({ align: "start", at: "row", ts: stamp("20") });
     view.userScroll(view.fixture.container.scrollTop + 100);
     const target = defined(view.fixture.rows()[20]);
     const offset = view.fixture.offsetOf(target);
@@ -202,14 +214,14 @@ describe("landing", () => {
 
   test("a missing row falls back to the bottom and reveals the list", async () => {
     const view = mount(uniform(40, 60), 300);
-    await view.land({ align: "center", at: "row", ts: "nope" });
+    await view.land({ align: "center", at: "row", ts: stamp("999999") });
     expect(view.feed.ready()).toBe(true);
     expect(view.fixture.container.scrollTop).toBe(view.maxTop());
   });
 
   test("an offset target restores the remembered position", async () => {
     const view = mount(uniform(40, 60), 300);
-    await view.land({ at: "offset", offset: 25, ts: "10" });
+    await view.land({ at: "offset", offset: 25, ts: stamp("10") });
     expect(view.fixture.offsetOf(defined(view.fixture.rows()[10]))).toBe(25);
   });
 
@@ -217,7 +229,7 @@ describe("landing", () => {
     const view = mount([100, 100, 100], 200);
     await view.land({ at: "bottom" });
     expect(view.feed.ready()).toBe(true);
-    view.feed.reset();
+    view.reset();
     expect(view.feed.ready()).toBe(false);
   });
 });
@@ -225,7 +237,7 @@ describe("landing", () => {
 describe("hidden panes", () => {
   test("the position survives the browser resetting scrollTop while hidden", () => {
     const view = mount(uniform(40, 60), 300);
-    view.feed.settle();
+    view.settle();
     view.userScroll(500);
     const { group, offset } = topRow(view);
     view.layout(() => view.fixture.resize(0));

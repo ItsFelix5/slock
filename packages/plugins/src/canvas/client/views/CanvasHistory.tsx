@@ -1,5 +1,5 @@
 import type { CanvasVersion } from "@slock/types";
-import { ariaBoolean, Avatar, inside, useCancelShortcut, useEscapeClose } from "@slock/ui";
+import { Avatar, ariaBoolean, inside, useCancelShortcut, useEscapeClose } from "@slock/ui";
 import { For, onSettled, Show } from "solid-js";
 import {
   groupVersionsByDay,

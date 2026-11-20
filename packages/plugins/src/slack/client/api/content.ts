@@ -1,12 +1,5 @@
 import { defined } from "@slock/core";
-import {
-  apiGet,
-  apiPost,
-  ifPresent,
-  mapFile,
-  mapFileShare,
-  parseUserId,
-} from "@slock/slack";
+import { apiGet, apiPost, ifPresent, mapFile, mapFileShare, parseUserId } from "@slock/slack";
 import type {
   FileUploadInput,
   RawFile,

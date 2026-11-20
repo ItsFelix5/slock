@@ -1,7 +1,7 @@
 import { getHost } from "@slock/core/solid";
 import type Quill from "@slock/ui/editor/quill";
-import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createSignal, Show } from "solid-js";
 import type { ComposerEditor, ComposerProps } from "../api";
 
 export function createEditorPlugins(getQuill: () => Quill | undefined, props?: ComposerProps) {

@@ -1,8 +1,8 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { Avatar } from "@slock/ui";
-import { For, Match, Show, Switch } from "solid-js";
-import { createFileDetailQuery } from "../../../files/client/api/fileDetailQuery";
+import { Errored, For, Loading, Match, Show, Switch } from "solid-js";
+import { useFileDetail } from "../../../files/client/api/fileDetailQuery";
 import MessageFiles from "../../../message-media/client/api/MessageFiles";
 import { formatStartDate } from "./userProfileTime";
 
@@ -11,14 +11,16 @@ const usersStore = service("users");
 const URL_VALUE_RE = /^https?:\/\/\S+$/i;
 
 function FileFieldValue(props: { id: string }) {
-  const detail = createFileDetailQuery(() => props.id);
+  const detail = useFileDetail(() => props.id);
+  const fallback = () => <span class="user-profile-field-value">{props.id}</span>;
   return (
-    <Show
-      fallback={<span class="user-profile-field-value">{props.id}</span>}
-      when={detail.data?.file}
-    >
-      {(file) => <MessageFiles files={[file()]} />}
-    </Show>
+    <Errored fallback={fallback}>
+      <Loading fallback={fallback()}>
+        <Show fallback={fallback()} when={detail()?.file}>
+          {(file) => <MessageFiles files={[file()]} />}
+        </Show>
+      </Loading>
+    </Errored>
   );
 }
 

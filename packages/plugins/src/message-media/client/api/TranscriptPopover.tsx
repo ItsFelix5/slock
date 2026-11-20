@@ -2,6 +2,7 @@ import { formatDuration } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import { IconButton, Popover } from "@slock/ui";
 import { createEffect, createSignal, For, Match, onCleanup, Switch } from "solid-js";
+import { isWaiting } from "@slock/resource";
 import { createFileDetailQuery } from "../../../files/client/api/fileDetailQuery";
 import "./TranscriptPopover.css";
 
@@ -26,7 +27,7 @@ export default function TranscriptPopover(props: {
     open() && !props.file.transcriptionLines ? props.file.id : undefined,
   );
 
-  const lines = () => detail.data?.file.transcriptionLines ?? props.file.transcriptionLines ?? [];
+  const lines = () => detail().data?.file.transcriptionLines ?? props.file.transcriptionLines ?? [];
 
   const seek = (startMs: number) => {
     const media = props.media();
@@ -60,7 +61,7 @@ export default function TranscriptPopover(props: {
     >
       <div class="transcript-popover-body" ref={bodyRef}>
         <Switch>
-          <Match when={detail.isLoading && lines().length === 0}>
+          <Match when={isWaiting(detail()) && lines().length === 0}>
             <div class="transcript-popover-status text-dim text-xs">Loading transcript…</div>
           </Match>
           <Match when={lines().length}>
@@ -85,7 +86,7 @@ export default function TranscriptPopover(props: {
               }}
             </For>
           </Match>
-          <Match when={!detail.isLoading}>
+          <Match when={!isWaiting(detail())}>
             <div class="transcript-popover-status text-dim text-xs">No transcript available.</div>
           </Match>
         </Switch>

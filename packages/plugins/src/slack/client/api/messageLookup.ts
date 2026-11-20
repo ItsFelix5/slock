@@ -9,7 +9,6 @@ type MessageRef = { channelId: string; ts: string };
 
 const MESSAGES_LIST_BATCH_SIZE = 25;
 
-
 function rawMessagesFromMessagesListEntry(entry: unknown): RawMessage[] {
   const messages = isRecord(entry) && "messages" in entry ? entry.messages : entry;
   if (Array.isArray(messages)) return messages;

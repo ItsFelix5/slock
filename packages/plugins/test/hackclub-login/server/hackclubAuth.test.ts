@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost } from "@slock/core/services";
+import slack from "../../../src/slack/server/index";
 import {
   type EmailChallenge,
   exchangeEmailCode,
@@ -38,6 +41,12 @@ function serve(route: Route) {
   }) as typeof fetch);
   return requests;
 }
+
+beforeAll(async () => {
+  const host = createHost();
+  setHost(host);
+  await host.register({ id: "slack", setup: slack });
+});
 
 afterEach(() => mock.restore());
 

@@ -90,8 +90,7 @@ export default function Composer(props: ComposerProps) {
 
   const pendingFiles = createPendingFileState({
     disabled: sending,
-    draftKey: () =>
-      props.editing ? undefined : draftCacheKey(props.channelId, props.threadTs),
+    draftKey: () => (props.editing ? undefined : draftCacheKey(props.channelId, props.threadTs)),
     store: composer.pendingFiles,
     uploadOnAttach: composer.uploadOnAttach,
   });
@@ -170,7 +169,10 @@ export default function Composer(props: ComposerProps) {
 
   return (
     <div
-      class={["composer composer-frame surface-popover", { "composer-editing": !!props.editing, "drag-over": dragOver() }]} 
+      class={[
+        "composer composer-frame surface-popover",
+        { "composer-editing": !!props.editing, "drag-over": dragOver() },
+      ]}
       onDragLeave={() => setDragOver(false)}
       onDragOver={(e) => {
         e.preventDefault();

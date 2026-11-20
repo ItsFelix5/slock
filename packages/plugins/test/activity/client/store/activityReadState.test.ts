@@ -1,29 +1,30 @@
 import { describe, expect, test } from "bun:test";
+import { ch, stamp, uid } from "@slock/slack/testing";
 import type { ActivityItem } from "@slock/types";
-import { createRoot } from "solid-js";
-import { createStore } from "solid-js";
-import { PING_KINDS } from "../../../../src/activity/client/kinds";
+import { createRoot, flush as flushSolid } from "solid-js";
+import { NO_CHANNEL, PING_KINDS } from "../../../../src/activity/client/kinds";
+import { createActivityItems } from "../../../../src/activity/client/store/activityItems";
 import { createActivityReadState } from "../../../../src/activity/client/store/activityReadState";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const item = (id: string, patch: Partial<ActivityItem> = {}): ActivityItem => ({
-  channelId: "C1",
+  channelId: ch("C1"),
   id,
   kind: "mention",
   text: id,
   time: 1,
-  ts: "10.000",
+  ts: stamp("10.000"),
   unread: true,
-  userId: "U2",
+  userId: uid("U2"),
   ...patch,
 });
 
 const reminder = (patch: Partial<ActivityItem> = {}) =>
   item("r1", {
     activityType: "saved_reminder",
-    channelId: "",
-    feedTs: "9.9",
+    channelId: NO_CHANNEL,
+    feedTs: stamp("9.9"),
     kind: "other",
     linkedItemId: "Rm1",
     ...patch,
@@ -35,9 +36,14 @@ function setup(initial: ActivityItem[], options: { lastRead?: number; failMark?:
   const threadSyncs: [string, string, string][] = [];
   const cleared: string[] = [];
   const lastRead: Record<string, number> = options.lastRead ? { C1: options.lastRead } : {};
-  const [items, setItems] = createStore<ActivityItem[]>(initial);
+  const activityItems = createActivityItems();
+  activityItems.update((list) => {
+    list.push(...initial);
+  });
+  flushSolid();
+  const items = activityItems.list;
   const state = createActivityReadState({
-    activityItems: items,
+    items: activityItems,
     activityReadSync: {
       request: (channelId, ts) => {
         channelSyncs.push([channelId, ts]);
@@ -53,7 +59,6 @@ function setup(initial: ActivityItem[], options: { lastRead?: number; failMark?:
       return options.failMark ? Promise.reject(new Error("boom")) : Promise.resolve();
     },
     pingKinds: PING_KINDS,
-    setActivityItems: (predicate, key, value) => setItems(predicate, key, value),
     setLastReadByChannel: (channelId, ts) => {
       lastRead[channelId] = ts;
     },
@@ -94,15 +99,17 @@ describe("read state", () => {
       const { state } = setup([entry]);
       expect(state.isActivityItemUnread(entry)).toBe(false);
       state.markActivityItemUnread(entry);
+      flushSolid();
       expect(state.isActivityItemUnread(entry)).toBe(true);
     });
   });
 
   test("marking a thread reply unread restores at least one unread", () => {
     inRoot(() => {
-      const entry = item("a", { kind: "thread_reply", threadTs: "1.1", unreadCount: 0 });
+      const entry = item("a", { kind: "thread_reply", threadTs: stamp("1.1"), unreadCount: 0 });
       const { items, state } = setup([entry]);
       state.markActivityItemUnread(entry);
+      flushSolid();
       expect(items[0]?.unreadCount).toBe(1);
     });
   });
@@ -124,7 +131,7 @@ describe("markActivityItemsRead for reminders", () => {
   });
 
   test("falls back to the entry ts when there is no feed ts", async () => {
-    const entry = reminder({ feedTs: undefined, ts: "4.4" });
+    const entry = reminder({ feedTs: undefined, ts: stamp("4.4") });
     const { marked, state } = inRoot(() => setup([entry]));
     state.markActivityItemsRead([entry]);
     await flush();
@@ -160,7 +167,7 @@ describe("markActivityItemsRead for reminders", () => {
 
 describe("markActivityItemsRead for messages", () => {
   test("syncs the newest ts per channel and clears the unread flag", async () => {
-    const entries = [item("a", { ts: "10.000" }), item("b", { ts: "12.000" })];
+    const entries = [item("a", { ts: stamp("10.000") }), item("b", { ts: stamp("12.000") })];
     const { channelSyncs, cleared, lastRead, state } = inRoot(() => setup(entries));
     state.markActivityItemsRead(entries);
     await flush();
@@ -171,7 +178,7 @@ describe("markActivityItemsRead for messages", () => {
   });
 
   test("does not move the channel cursor backwards", async () => {
-    const entries = [item("a", { ts: "10.000" })];
+    const entries = [item("a", { ts: stamp("10.000") })];
     const { channelSyncs, lastRead, state } = inRoot(() => setup(entries, { lastRead: 20_000 }));
     state.markActivityItemsRead(entries);
     await flush();
@@ -181,8 +188,8 @@ describe("markActivityItemsRead for messages", () => {
 
   test("thread replies sync the thread cursor, not the channel", async () => {
     const entries = [
-      item("a", { threadTs: "1.000", ts: "10.000" }),
-      item("b", { threadTs: "1.000", ts: "11.000" }),
+      item("a", { threadTs: stamp("1.000"), ts: stamp("10.000") }),
+      item("b", { threadTs: stamp("1.000"), ts: stamp("11.000") }),
     ];
     const { channelSyncs, state, threadSyncs } = inRoot(() => setup(entries));
     state.markActivityItemsRead(entries);
@@ -192,7 +199,7 @@ describe("markActivityItemsRead for messages", () => {
   });
 
   test("items without a channel are only marked locally", async () => {
-    const entry = item("a", { channelId: "" });
+    const entry = item("a", { channelId: NO_CHANNEL });
     const { channelSyncs, marked, state } = inRoot(() => setup([entry]));
     state.markActivityItemsRead([entry]);
     await flush();

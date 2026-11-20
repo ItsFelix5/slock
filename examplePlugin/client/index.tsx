@@ -18,7 +18,7 @@ const setup: Setup = (ctx) => {
       <IconButton
         class="sidebar-global-search-btn icon-shift"
         icon="star"
-        onClick={() => setClicks(clicks() + 1)}
+        onClick={() => setClicks((count) => count + 1)}
       />
     ),
     { order: 100 },

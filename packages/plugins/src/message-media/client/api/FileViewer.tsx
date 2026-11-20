@@ -5,11 +5,19 @@ import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { createSignal, createUniqueId, Match, Show, Switch } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import "./FileViewer.css";
-import { createKeyedQuery, defineKey } from "../../../query/client/api";
+import { isWaiting } from "@slock/resource";
+import { defineQuery } from "../../../query/client/api";
 import { parseEml } from "../views/mailParse";
 import { emailSrcdoc } from "./emailSrcdoc";
 
-const mailKey = defineKey<[string]>("mailPreview");
+const mailPreview = defineQuery<string, string>({
+  load: async (url, { signal }) => {
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(`Email preview failed (${response.status})`);
+    return response.text();
+  },
+  name: "mailPreview",
+});
 
 export default function FileViewer(props: {
   file: SlackFile;
@@ -111,16 +119,10 @@ function PdfBody(props: { file: SlackFile }) {
 }
 
 function MailBody(props: { file: SlackFile }) {
-  const raw = createKeyedQuery(() => ({
-    queryFn: async ({ signal }) => {
-      const response = await fetch(defined(safeMediaUrl(props.file.urlPrivate)), { signal });
-      if (!response.ok) throw new Error(`Email preview failed (${response.status})`);
-      return response.text();
-    },
-    queryKey: mailKey(props.file.urlPrivate),
-  }));
+  const mailUrl = () => safeMediaUrl(props.file.urlPrivate);
+  const raw = mailPreview.state(mailUrl);
   const mail = () => {
-    const text = raw.data;
+    const text = raw().data;
     if (text === undefined) return;
     return props.file.filetype === "email" ? { bodyHtml: text } : parseEml(text);
   };
@@ -131,13 +133,16 @@ function MailBody(props: { file: SlackFile }) {
           <div class="file-viewer-mail-empty flex-center text-dim text-sm">No readable body.</div>
         }
       >
-        <Match when={raw.isFetching && raw.data === undefined}>
+        <Match when={isWaiting(raw())}>
           <div class="file-viewer-loading flex-center text-dim text-sm">Loading email…</div>
         </Match>
-        <Match when={raw.error}>
+        <Match when={raw().error}>
           <div class="file-viewer-error flex-center flex-col">
             <div>Couldn't preview this email.</div>
-            <Button onClick={() => raw.refetch()} size="sm">
+            <Button onClick={() => {
+                const url = mailUrl();
+                if (url) void mailPreview.refresh(url).catch(() => {});
+              }} size="sm">
               Try again
             </Button>
           </div>

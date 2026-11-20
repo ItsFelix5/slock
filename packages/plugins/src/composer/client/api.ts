@@ -1,11 +1,11 @@
 import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
 import type { IconName, useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
-import type { Component } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import type { Component } from "solid-js";
 import type { ComposerProps } from "./composerTypes";
-import type { createPendingFilesStore } from "./lib/pendingFiles";
 import type { MentionValue } from "./lib/embedValues";
+import type { createPendingFilesStore } from "./lib/pendingFiles";
 
 export type { ComposerProps } from "./composerTypes";
 

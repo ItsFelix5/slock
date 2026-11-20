@@ -22,7 +22,9 @@ const setup: Setup = (ctx) => {
     ) : undefined;
   });
   ctx.add("threads.header", (channelId) => {
-    const fileId = isChannelId(channelId) ? channels.channelById(channelId)?.canvasFileId : undefined;
+    const fileId = isChannelId(channelId)
+      ? channels.channelById(channelId)?.canvasFileId
+      : undefined;
     return fileId
       ? { subtitle: () => <ThreadSubtitle fileId={fileId} />, title: "Comment" }
       : undefined;

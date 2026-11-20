@@ -8,9 +8,9 @@ import {
   usePaneNavigation,
   windowWidth,
 } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { Dynamic } from "@solidjs/web";
+import { dynamic } from "@solidjs/web";
+import { createMemo, Show } from "solid-js";
 import "./App.css";
 import PaneSwitch, { paneTabLabel } from "./PaneSwitch";
 
@@ -37,12 +37,13 @@ export default function App() {
   const blockers = usePoint("shell.blocker");
   const blocker = createMemo(() => blockers().find((item) => item.active()));
   const arrangements = usePoint("shell.arrangement");
-  const arrangement = () => arrangements()[0];
+  const Blocker = dynamic(() => blocker()?.view);
+  const Arrangement = dynamic(() => arrangements()[0]?.view);
 
   return (
     <Providers>
       <ConfirmDialog />
-      <Show fallback={<Dynamic component={blocker()?.view} />} when={!blocker()}>
+      <Show fallback={<Blocker />} when={!blocker()}>
         <div class="app">
           <InlineFeedback
             class="app-navigation-feedback surface-popover"
@@ -55,9 +56,8 @@ export default function App() {
             priority={1}
           />
           <Slot point="shell.start" />
-          <Dynamic
+          <Arrangement
             activePaneId={panesStore.activePaneId}
-            component={arrangement()?.view}
             containerWidth={() => windowWidth() - layout.startWidth()}
             onActivate={panesStore.activatePane}
             onCloseTab={(pane) => viewStore.closeTile(pane.id)}

@@ -2,8 +2,8 @@ import { EmojiText } from "@slock/blockkit";
 import { Icon } from "@slock/ui";
 import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
-import { Show } from "solid-js";
 import { render } from "@solidjs/web";
+import { Show } from "solid-js";
 import { canvasFileTitle, createCanvasFileQuery } from "../../lib/canvasRequests";
 
 export interface CanvasControlValue {

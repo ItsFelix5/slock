@@ -44,7 +44,11 @@ function mentionClassName(value: MentionValue, isSelf: boolean): string {
 
 function mentionIcon(value: MentionValue): HTMLElement | undefined {
   if (value.kind === "messagelink") return iconElement("message", 12);
-  if (value.kind === "channel" && isChannelId(value.id) && channelsStore.channelById(value.id)?.private)
+  if (
+    value.kind === "channel" &&
+    isChannelId(value.id) &&
+    channelsStore.channelById(value.id)?.private
+  )
     return iconElement("lock", 12);
 }
 

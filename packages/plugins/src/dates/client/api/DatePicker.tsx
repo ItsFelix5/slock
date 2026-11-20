@@ -1,10 +1,5 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
-import {
-  ariaBoolean,
-  IconButton,
-  useClickOutside,
-  useEscapeClose,
-} from "@slock/ui";
+import { ariaBoolean, IconButton, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import {
   DATE_PAIRS,

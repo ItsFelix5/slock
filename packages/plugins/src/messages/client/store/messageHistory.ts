@@ -20,12 +20,12 @@ import { createHistoryJump } from "./historyJump";
 import { replaceMessageList, updateMessageList } from "./storeWrites";
 import { createThreadReplies } from "./threadReplies";
 
-type MessageHistoryApi = {
-  fetchChannelDetails: typeof fetchChannelDetails;
-  fetchConversationView: typeof fetchConversationView;
-  fetchHistory: typeof fetchHistory;
-  fetchHistoryAround: typeof fetchHistoryAround;
-  fetchHistoryNewer: typeof fetchHistoryNewer;
+export type MessageHistoryApi = {
+  fetchChannelDetails: (channelId: ChannelId) => ReturnType<typeof fetchChannelDetails>;
+  fetchConversationView: (channelId: ChannelId) => ReturnType<typeof fetchConversationView>;
+  fetchHistory: (channelId: ChannelId, cursor?: string) => ReturnType<typeof fetchHistory>;
+  fetchHistoryAround: (channelId: ChannelId, ts: Ts) => ReturnType<typeof fetchHistoryAround>;
+  fetchHistoryNewer: (channelId: ChannelId, oldest: Ts) => ReturnType<typeof fetchHistoryNewer>;
 };
 
 const DEFAULT_HISTORY_API: MessageHistoryApi = {

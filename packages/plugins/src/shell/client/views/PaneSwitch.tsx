@@ -1,8 +1,8 @@
 import { getHost, service, usePoint } from "@slock/core/solid";
 import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
-import { createEffect, createMemo, onSettled, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { Dynamic } from "@solidjs/web";
+import { dynamic } from "@solidjs/web";
+import { createEffect, createMemo, onSettled } from "solid-js";
 import type { PaneContent } from "../api/types";
 
 export function paneTabLabel(pane: Pane<PaneContent | null>): JSX.Element {
@@ -39,9 +39,6 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
     if (next) panes.setPaneContent(props.pane.id, next);
   });
 
-  return (
-    <Show when={!redirect() && kind()}>
-      {(item) => <Dynamic component={item().view} pane={props.pane} />}
-    </Show>
-  );
+  const View = dynamic(() => (redirect() ? undefined : kind()?.view));
+  return <View pane={props.pane} />;
 }

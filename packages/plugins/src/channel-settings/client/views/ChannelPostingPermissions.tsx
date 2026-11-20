@@ -1,5 +1,6 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import { isUserId } from "@slock/slack";
 import type { ChannelId, UserId } from "@slock/types";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
@@ -14,7 +15,7 @@ const usersStore = service("users");
 
 export default function ChannelPostingPermissions(props: { channelId: ChannelId }) {
   const postingPrefsQuery = channelDetails.createChannelPostingPrefsQuery(() => props.channelId);
-  const postingPrefs = () => postingPrefsQuery.data;
+  const postingPrefs = () => postingPrefsQuery().data;
   const [postingRestricted, setPostingRestricted] = createSignal(false);
   const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<UserId[]>([]);
   const [threadsRestricted, setThreadsRestricted] = createSignal(false);
@@ -23,7 +24,8 @@ export default function ChannelPostingPermissions(props: { channelId: ChannelId 
   const [addingPostingException, setAddingPostingException] = createSignal(false);
   const [postingPrefsSaveError, setPostingPrefsSaveError] = createSignal<string>();
 
-  const retryPostingPrefs = () => void postingPrefsQuery.refetch();
+  const retryPostingPrefs = () =>
+    void channelDetails.queries.postingPrefs.refresh(props.channelId).catch(() => {});
 
   createEffect(postingPrefs, (prefs) => {
     if (!prefs) return;
@@ -110,12 +112,12 @@ export default function ChannelPostingPermissions(props: { channelId: ChannelId 
   return (
     <div class="settings-section">
       <div class="settings-section-title">Posting permissions</div>
-      <Show when={postingPrefsQuery.isLoading}>
+      <Show when={isWaiting(postingPrefsQuery())}>
         <p class="channel-details-meta">Loading posting permissions…</p>
       </Show>
-      <Show when={postingPrefsQuery.error}>
+      <Show when={postingPrefsQuery().error}>
         <SettingsLoadError
-          error={postingPrefsQuery.error}
+          error={postingPrefsQuery().error}
           message="Posting permissions couldn't be loaded."
           onRetry={retryPostingPrefs}
         />

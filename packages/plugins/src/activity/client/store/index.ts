@@ -72,7 +72,6 @@ export function createActivityStore(
     isActivityItemUnread,
     markActivityItemsRead,
     markActivityItemUnread,
-    setCurrentRowKey,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,

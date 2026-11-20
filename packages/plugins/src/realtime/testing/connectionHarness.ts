@@ -6,12 +6,13 @@ import { installFakeWebSocket } from "./fakeWebSocket";
 
 type Connection = ReturnType<typeof createRealtimeConnection>;
 
-
 function settled(connection: Connection) {
-  const read = <T>(signal: () => T) => () => {
-    flush();
-    return signal();
-  };
+  const read =
+    <T>(signal: () => T) =>
+    () => {
+      flush();
+      return signal();
+    };
   return {
     ...connection,
     connectionState: read(connection.connectionState),
@@ -51,13 +52,15 @@ export function createConnectionHarness(opts: { online?: boolean } = {}) {
     sockets,
     start() {
       const started = createRoot((disposeRoot) => ({
-        connection: settled(createRealtimeConnection({
-          env,
-          onMessage: (raw) => void log.push(`message:${raw}`),
-          onOpen: () => void log.push("open"),
-          onReconnect: () => void log.push("reconnect"),
-          url: () => "ws://test/ws",
-        })),
+        connection: settled(
+          createRealtimeConnection({
+            env,
+            onMessage: (raw) => void log.push(`message:${raw}`),
+            onOpen: () => void log.push("open"),
+            onReconnect: () => void log.push("reconnect"),
+            url: () => "ws://test/ws",
+          }),
+        ),
         dispose: disposeRoot,
       }));
       ({ dispose } = started);

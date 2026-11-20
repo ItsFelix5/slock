@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int, pick, text } from "@slock/core/testing";
+import { ch, stamp } from "@slock/slack/testing";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
@@ -8,9 +9,9 @@ import {
 } from "../../../../src/message-links/client/api/slackPermalink";
 
 const target: SlackPermalinkTarget = {
-  channelId: "C0123ABCD",
-  messageTs: "1700000000.123456",
-  threadTs: "1700000000.123456",
+  channelId: ch("C0123ABCD"),
+  messageTs: stamp("1700000000.123456"),
+  threadTs: stamp("1700000000.123456"),
 };
 
 describe("parseSlackPermalink", () => {
@@ -23,9 +24,9 @@ describe("parseSlackPermalink", () => {
       "thread reply",
       "https://team.slack.com/archives/C0123ABCD/p1700000005000100?thread_ts=1700000000.123456&cid=C0123ABCD",
       {
-        channelId: "C0123ABCD",
-        messageTs: "1700000005.000100",
-        threadTs: "1700000000.123456",
+        channelId: ch("C0123ABCD"),
+        messageTs: stamp("1700000005.000100"),
+        threadTs: stamp("1700000000.123456"),
       },
     ],
     [
@@ -36,7 +37,7 @@ describe("parseSlackPermalink", () => {
     [
       "dm",
       "https://team.slack.com/archives/D0123ABCD/p1700000000123456",
-      { ...target, channelId: "D0123ABCD" },
+      { ...target, channelId: ch("D0123ABCD") },
     ],
     [
       "garbage thread_ts falls back to the message",
@@ -79,7 +80,7 @@ describe("parseSlackPermalink", () => {
   test("round trips generated message timestamps", () => {
     forAll(
       (random) => ({
-        channelId: `C${text(random, "ABCDEFGHJKLMNP0123456789", 8)}`,
+        channelId: `C0${text(random, "ABCDEFGHJKLMNP0123456789", 8)}`,
         micros: int(random, 0, 999999),
         seconds: int(random, 1_000_000_000, 2_000_000_000),
         subdomain: pick(random, ["team", "a-b", "x1"]),
@@ -89,8 +90,8 @@ describe("parseSlackPermalink", () => {
         const parsed = parseSlackPermalink(
           `https://${subdomain}.slack.com/archives/${channelId}/p${digits}`,
         );
-        expect(parsed?.channelId).toBe(channelId);
-        expect(parsed?.messageTs).toBe(`${seconds}.${String(micros).padStart(6, "0")}`);
+        expect(parsed?.channelId).toBe(ch(channelId));
+        expect(parsed?.messageTs).toBe(stamp(`${seconds}.${String(micros).padStart(6, "0")}`));
         expect(parsed?.threadTs).toBe(parsed?.messageTs);
       },
     );
@@ -108,12 +109,12 @@ describe("navigateToSlackPermalink", () => {
   }
 
   test("opens a top level message in the channel", () => {
-    expect(run(target)).toEqual([["message", "C0123ABCD", "1700000000.123456"]]);
+    expect(run(target)).toEqual([["message", ch("C0123ABCD"), stamp("1700000000.123456")]]);
   });
 
   test("opens a reply as a peek highlighting the reply", () => {
-    const reply = { ...target, messageTs: "1700000005.000100" };
-    expect(run(reply)).toEqual([["peek", "C0123ABCD", "1700000000.123456", "1700000005.000100"]]);
+    const reply = { ...target, messageTs: stamp("1700000005.000100") };
+    expect(run(reply)).toEqual([["peek", ch("C0123ABCD"), stamp("1700000000.123456"), stamp("1700000005.000100")]]);
   });
 });
 
@@ -153,7 +154,7 @@ describe("createSlackPermalinkOpener", () => {
       () => new Promise<boolean>((resolve) => gates.push(() => resolve(true))),
     );
     const first = opener.open(target);
-    const second = opener.open({ ...target, messageTs: "1700000009.000001" });
+    const second = opener.open({ ...target, messageTs: stamp("1700000009.000001") });
     for (const release of gates) release();
     await Promise.all([first, second]);
     expect(events).toEqual(["navigate 1700000009.000001"]);

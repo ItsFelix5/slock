@@ -1,5 +1,5 @@
 import { errorMessage } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { service } from "@slock/core/services";
 import type { Credentials } from "./auth.ts";
 
 export type SlackFailure = { error: string; ok: false; retry_after?: string };

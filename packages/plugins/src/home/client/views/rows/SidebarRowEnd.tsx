@@ -1,7 +1,8 @@
 import { Slot, service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { HoverCard, Icon, Tooltip } from "@slock/ui";
-import { createMemo, For } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createMemo, For } from "solid-js";
 import { channelHasDraft } from "../../../../drafts/client/api";
 import { unreadSummary } from "../lib/unreadSummary";
 import DraftList from "./DraftList";
@@ -13,7 +14,7 @@ const messagesStore = service("messages");
 const prefsStore = service("prefs");
 
 export default function SidebarRowEnd(props: {
-  id: string;
+  id: ChannelId;
   kind: "channel" | "dm";
   mentions?: number;
 }) {

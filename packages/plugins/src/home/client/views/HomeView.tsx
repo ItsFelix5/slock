@@ -31,7 +31,11 @@ export default function HomeView(props: { unreadsOnly: Accessor<boolean> }) {
         <Show
           fallback={<SidebarSkeleton />}
           when={
-            !(bootstrap.bootstrap().status === "loading" || channels.sectionsLoading() || preferencesLoading())
+            !(
+              bootstrap.bootstrap().status === "loading" ||
+              channels.sectionsLoading() ||
+              preferencesLoading()
+            )
           }
         >
           <Show when={bootstrap.userPrefs().error}>

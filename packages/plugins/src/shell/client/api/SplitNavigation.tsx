@@ -1,5 +1,5 @@
-import { onSettled } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { onSettled } from "solid-js";
 
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
   const onActivate = (event: MouseEvent | KeyboardEvent) => {

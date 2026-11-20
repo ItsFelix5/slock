@@ -1,13 +1,6 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
-import {
-  apiGet,
-  apiPost,
-  mapReaction,
-  parseChannelId,
-  parseTs,
-  parseUserId,
-} from "@slock/slack";
+import { apiGet, apiPost, mapReaction, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import type {
   CanvasCommentThread,
   CanvasEdit,

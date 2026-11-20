@@ -7,6 +7,7 @@
     "channels",
     "conversations",
     "dms",
+    "drafts",
     "files",
     "message-links",
     "prefs",

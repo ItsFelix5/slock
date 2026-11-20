@@ -8,7 +8,7 @@ import { handleSlashCommand } from "../../../src/slash-commands/client/slashComm
 const C1 = parseChannelId("C1");
 
 function harness(result: () => Promise<string | null>) {
-  const runs: [ChannelId, string, string][] = [];
+  const runs: [string, string, string][] = [];
   const flashes: [string, string][] = [];
   const deps = {
     flashError: (key: string, message: string) => flashes.push([key, message]),

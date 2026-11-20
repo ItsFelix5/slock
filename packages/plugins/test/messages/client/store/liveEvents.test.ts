@@ -200,6 +200,7 @@ describe("reconnecting after downtime", () => {
   test("a message still sending is not lost or doubled by the catch up", async () => {
     h.slack.say(C1, OTHER, "one");
     await h.store.loadRecentHistory(C1);
+    h.env.advance(1000);
     const release = h.slack.holdPosts();
     const sending = h.store.sendMessage(C1, "in flight", []);
     await settle();

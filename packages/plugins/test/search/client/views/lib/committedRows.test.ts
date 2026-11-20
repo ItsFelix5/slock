@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { int, pick, seededRandom } from "@slock/core/testing";
-import { batch, createMemo, createRoot, createSignal } from "solid-js";
+import { createMemo, createRoot, createSignal, flush } from "solid-js";
 import { createDebouncedRequest } from "../../../../../../ui/src/debouncedRequest";
 import {
   createCommittedRows,
@@ -14,6 +14,7 @@ async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+  flush();
 }
 
 function harness() {
@@ -43,12 +44,12 @@ function harness() {
         ),
       { onPendingChange: setSearching, onReset: () => setRemote([]), onResult: setRemote },
     );
-    const type = (value: string) =>
-      batch(() => {
-        setQuery(value);
-        committed.restart();
-        request.run(value, { immediate: true });
-      });
+    const type = (value: string) => {
+      setQuery(value);
+      committed.restart();
+      request.run(value, { immediate: true });
+      flush();
+    };
     return { committed, local, query, ranked, remote, searching, setLocal, setRemote, type };
   });
   return { dispose: dispose[0] as () => void, pending, selected, submitted, view };
@@ -90,6 +91,7 @@ describe("frozen snapshot", () => {
     const committed = view.committed.rows();
     view.setLocal(["aardvark"]);
     view.setRemote(["zeta"]);
+    flush();
     expect(view.committed.rows()).toBe(committed);
     expect(view.ranked()).toEqual(["aardvark", "zeta"]);
     expect(selected).toEqual([1]);

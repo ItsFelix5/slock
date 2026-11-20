@@ -94,7 +94,10 @@ export default function CanvasMarginThreads(props: {
       <For each={visible()}>
         {(thread) => (
           <div
-            class={["canvas-margin-thread flex-align-center", { active: active() === thread.threadId }]}
+            class={[
+              "canvas-margin-thread flex-align-center",
+              { active: active() === thread.threadId },
+            ]}
             onFocusIn={() => setActive(thread.threadId)}
             onFocusOut={clearActive}
             onMouseEnter={() => setActive(thread.threadId)}

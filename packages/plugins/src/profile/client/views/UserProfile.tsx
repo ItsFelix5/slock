@@ -1,32 +1,30 @@
 import { service } from "@slock/core/solid";
 import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
-import { createQuery } from "@tanstack/solid-query";
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { fetchProfileFieldDefs } from "../../../slack/client/api";
 import type { ProfilePaneContent } from "../api";
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
 import "./UserProfile.css";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
 import { createProfileForm } from "./profileForm";
 import { isCustomFieldDef } from "./userProfileFieldValues";
 import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime";
 
-const profileFieldDefsKey = defineKey<[]>("profileFieldDefs");
+const profileFieldDefsQuery = defineQuery<null, Awaited<ReturnType<typeof fetchProfileFieldDefs>>>({
+  load: fetchProfileFieldDefs,
+  name: "profileFieldDefs",
+});
 
 const feedback = service("feedback");
 
-const query = service("query");
 const viewStore = service("shell.view");
 const usersStore = service("users");
 
 export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const profileUserId = () => props.pane.content.userId;
-  const profileFieldDefs = createQuery(
-    () => ({ queryFn: fetchProfileFieldDefs, queryKey: profileFieldDefsKey() }),
-    () => query.client,
-  );
+  const profileFieldDefs = profileFieldDefsQuery.state(() => null);
   const [photoToEdit, setPhotoToEdit] = createSignal<File>();
   const user = createMemo(() => {
     const base = usersStore.userById(profileUserId());
@@ -38,7 +36,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
   const botBio = () =>
     user()?.isBot ? usersStore.botBio(user()?.appId, user()?.botId) : undefined;
   const form = createProfileForm({
-    fieldDefs: () => profileFieldDefs.data,
+    fieldDefs: () => profileFieldDefs().data,
     user,
     userId: profileUserId,
   });
@@ -53,7 +51,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     return u?.startDate ?? (u ? usersStore.profileStartDateFor(u.id) : undefined);
   });
   const customFields = createMemo(() => {
-    const defs = profileFieldDefs.data;
+    const defs = profileFieldDefs().data;
     const id = user()?.id;
     const values = id ? usersStore.customFieldsFor(id) : undefined;
     if (!(defs && values?.length)) return [];
@@ -71,7 +69,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
       }));
   });
   const editableCustomFields = createMemo(() =>
-    (profileFieldDefs.data ?? []).filter(isCustomFieldDef),
+    (profileFieldDefs().data ?? []).filter(isCustomFieldDef),
   );
   return (
     <>
@@ -115,15 +113,15 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
                 startDate={startDate()}
                 user={u()}
               />
-              <Show when={profileFieldDefs.error}>
+              <Show when={profileFieldDefs().error}>
                 <div class="user-profile-fields-warning flex-between">
                   <span>Additional profile fields are unavailable.</span>
                   <Button
-                    disabled={profileFieldDefs.isFetching}
-                    onClick={() => void profileFieldDefs.refetch()}
+                    disabled={profileFieldDefs().refreshing}
+                    onClick={() => void profileFieldDefsQuery.refresh(null).catch(() => {})}
                     size="sm"
                   >
-                    {profileFieldDefs.isFetching ? "Retrying…" : "Try again"}
+                    {profileFieldDefs().refreshing ? "Retrying…" : "Try again"}
                   </Button>
                 </div>
               </Show>

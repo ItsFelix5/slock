@@ -32,7 +32,8 @@ const PONG = JSON.stringify({ type: "pong" });
 
 function openSocket(url: string, headers: Record<string, string>): WebSocket {
   const socket: unknown = Reflect.construct(WebSocket, [url, { headers }]);
-  if (!(socket instanceof WebSocket)) throw new Error("WebSocket constructor returned a non-socket");
+  if (!(socket instanceof WebSocket))
+    throw new Error("WebSocket constructor returned a non-socket");
   return socket;
 }
 

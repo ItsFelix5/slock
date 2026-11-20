@@ -1,4 +1,5 @@
 import { formatTimeFromMs } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { broadcastRangeOf, parseTs } from "@slock/slack";
 import type { Block, ChannelId, Message, PendingFile, Ts, User } from "@slock/types";
 import { reconcile } from "solid-js";
@@ -6,6 +7,8 @@ import { postBroadcastMessage, postMessage, uploadFiles } from "../../../slack/c
 import { dedupeMessages } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
 import { tsFromMs } from "../lib/tsTime";
+
+const env = service("env");
 
 function optimisticMessage(me: User | undefined, now: number, fields: Partial<Message>): Message {
   return {
@@ -29,7 +32,7 @@ export function createMessageSending(deps: {
 }) {
   let lastOptimisticMs = 0;
   const nextOptimisticMs = () => {
-    lastOptimisticMs = Math.max(Date.now(), lastOptimisticMs + 1);
+    lastOptimisticMs = Math.max(env.now(), lastOptimisticMs + 1);
     return lastOptimisticMs;
   };
 
@@ -82,7 +85,7 @@ export function createMessageSending(deps: {
   async function sendFiles(channelId: ChannelId, files: File[], threadTs?: Ts, comment?: string) {
     if (files.length === 0) return;
     const pendingFiles: PendingFile[] = files.map((file, i) => ({
-      id: `pending-file-${Date.now()}-${i}`,
+      id: `pending-file-${env.now()}-${i}`,
       isImage: file.type.startsWith("image/"),
       name: file.name,
       previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,

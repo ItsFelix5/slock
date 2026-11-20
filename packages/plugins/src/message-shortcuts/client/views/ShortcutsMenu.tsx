@@ -1,27 +1,23 @@
-import { service } from "@slock/core/solid";
 import type { MessageShortcut } from "@slock/types";
 import { fuzzySearch, Icon, imageSrc, Menu, MenuItem } from "@slock/ui";
-import { createQuery } from "@tanstack/solid-query";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { MessageMenuProps } from "../../../messages/client/api";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import { fetchMessageShortcuts } from "../../../slack/client/api";
 import { runShortcut } from "../runShortcut";
 
-const messageShortcutsKey = defineKey<[]>("messageShortcuts");
-
-const query = service("query");
+const messageShortcuts = defineQuery<null, MessageShortcut[]>({
+  load: fetchMessageShortcuts,
+  name: "messageShortcuts",
+});
 
 export default function ShortcutsMenu(props: MessageMenuProps) {
-  const shortcuts = createQuery(
-    () => ({ queryFn: fetchMessageShortcuts, queryKey: messageShortcutsKey() }),
-    () => query.client,
-  );
+  const shortcuts = messageShortcuts.state(() => null);
   const [open, setOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
 
   const filtered = createMemo(() => {
-    const all: MessageShortcut[] = shortcuts.data ?? [];
+    const all: MessageShortcut[] = shortcuts().data ?? [];
     const text = search().trim();
     if (!text) return all;
     return fuzzySearch(all, { altText: (s) => s.appName, query: text, text: (s) => s.name });
@@ -39,18 +35,18 @@ export default function ShortcutsMenu(props: MessageMenuProps) {
 
   return (
     <>
-      <Show when={shortcuts.isFetching}>
+      <Show when={shortcuts().refreshing}>
         <div aria-live="polite" class="menu-item disabled">
           <Icon name="apps" size={15} />
           Loading shortcuts…
         </div>
       </Show>
-      <Show when={shortcuts.error}>
-        <MenuItem icon="refresh" onClick={() => void shortcuts.refetch()}>
+      <Show when={shortcuts().error}>
+        <MenuItem icon="refresh" onClick={() => void messageShortcuts.refresh(null).catch(() => {})}>
           Retry
         </MenuItem>
       </Show>
-      <Show when={shortcuts.data?.length}>
+      <Show when={shortcuts().data?.length}>
         <Menu
           class="message-more-item-wrap"
           onClose={close}

@@ -1,5 +1,12 @@
 import { defined } from "@slock/core";
-import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  getOwner,
+  onCleanup,
+  runWithOwner,
+} from "solid-js";
 import type { PaneKind } from "../api";
 import type { PaneContent } from "../api/types";
 import type { createPanesSlice } from "./panes";

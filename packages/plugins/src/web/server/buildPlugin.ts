@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { solidJsx } from "./solidPlugin";
 
 const AUTHOR_SOURCE = /\.[jt]sx?$/;
-const SHARED_LIBS = ["solid-js", "solid-js/*", "@slock/*", "@tanstack/solid-query"];
+const SHARED_LIBS = ["solid-js", "@solidjs/web", "@slock/*"];
 
 export async function buildPlugin(entry: string, output: string): Promise<void> {
   const result = await Bun.build({

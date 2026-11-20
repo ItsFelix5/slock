@@ -22,7 +22,7 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
   let dropped: { times: number; ts: Ts } | undefined;
 
   const nextTs = () => {
-    last = Math.max(last + 1, env.now() * 1000);
+    last = Math.max(last + 1, env.now() * 1000 + 1);
     return stamp((last / 1_000_000).toFixed(6));
   };
   const channel = (id: ChannelId) => {

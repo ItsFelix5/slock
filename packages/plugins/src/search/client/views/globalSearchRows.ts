@@ -113,7 +113,9 @@ export function createGlobalSearchRows(deps: {
   });
   const recentRows = createMemo<GlobalSearchRow[]>(() => {
     const activeId = viewStore.activeView()?.id;
-    const channels = new Map((bootstrapStore.bootstrap().data?.channels ?? []).map((c) => [c.id, c]));
+    const channels = new Map(
+      (bootstrapStore.bootstrap().data?.channels ?? []).map((c) => [c.id, c]),
+    );
     const dms = new Map(dmsStore.directMessages().map((dm) => [dm.id, dm]));
     const recent: GlobalSearchRow[] = [];
     for (const id of prefsStore.recentIds()) {

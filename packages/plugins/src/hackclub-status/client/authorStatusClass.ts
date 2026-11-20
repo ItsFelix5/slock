@@ -1,8 +1,6 @@
 import { apiGet } from "@slock/slack";
 import type { MessageAuthorClass } from "../../messages/client/api";
-import { createKeyedQuery, defineKey } from "../../query/client/api";
-
-const hackclubStatusKey = defineKey<[string]>("hackclubStatus");
+import { defineQuery } from "../../query/client/api";
 
 const STALE_MS = 5 * 60_000;
 
@@ -12,15 +10,19 @@ async function fetchHackClubStatus(userId: string): Promise<string> {
   return data.status;
 }
 
+const hackclubStatus = defineQuery<string, string | null>({
+  load: (id) => fetchHackClubStatus(id).catch(() => null),
+  maxAgeMs: STALE_MS,
+  name: "hackclubStatus",
+});
+
 export const authorStatusClass: MessageAuthorClass = ({ user, userId, visible }) => {
-  const status = createKeyedQuery(() => {
+  const status = hackclubStatus.state(() => {
     const id = userId();
-    if (!(visible() && id && user() && !user()?.isBot)) return;
-    return {
-      queryFn: () => fetchHackClubStatus(id).catch(() => null),
-      queryKey: hackclubStatusKey(id),
-      staleTime: STALE_MS,
-    };
+    return visible() && id && user() && !user()?.isBot ? id : undefined;
   });
-  return () => (status.data ? `hackclub-status-${status.data}` : undefined);
+  return () => {
+    const { data } = status();
+    return data ? `hackclub-status-${data}` : undefined;
+  };
 };

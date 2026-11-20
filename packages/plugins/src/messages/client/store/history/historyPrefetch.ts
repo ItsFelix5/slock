@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
-import type { fetchConversationView, fetchHistory } from "../../../../slack/client/api";
+import type { MessageHistoryApi } from "../messageHistory";
 
 const TTL_MS = 10_000;
 
@@ -8,12 +8,12 @@ const env = service("env");
 
 type Entry = {
   at: number;
-  history: ReturnType<typeof fetchHistory>;
-  view: ReturnType<typeof fetchConversationView>;
+  history: ReturnType<MessageHistoryApi["fetchHistory"]>;
+  view: ReturnType<MessageHistoryApi["fetchConversationView"]>;
 };
 
 export function createHistoryPrefetch(
-  api: { fetchConversationView: typeof fetchConversationView; fetchHistory: typeof fetchHistory },
+  api: Pick<MessageHistoryApi, "fetchConversationView" | "fetchHistory">,
   isLoaded: (channelId: ChannelId) => boolean,
 ) {
   const entries = new Map<ChannelId, Entry>();

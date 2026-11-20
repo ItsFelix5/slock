@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { Channel, ChannelId } from "@slock/types";
 import { Button, Icon, InlineFeedback, Switch } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
@@ -38,6 +39,45 @@ function RowAction(props: {
     >
       {props.children}
     </button>
+  );
+}
+
+function ChannelListSection(props: {
+  channels: Channel[];
+  empty: string;
+  isPending: (id: ChannelId) => boolean;
+  onRemove: (id: ChannelId) => void;
+  title: string;
+}) {
+  return (
+    <div class="settings-section">
+      <div class="settings-section-title">{props.title}</div>
+      <Show
+        fallback={<div class="settings-list-empty text-dim text-sm">{props.empty}</div>}
+        when={props.channels.length > 0}
+      >
+        <div class="settings-list flex-col">
+          <For each={props.channels}>
+            {(c) => (
+              <div class="settings-list-row flex-between">
+                <span class="settings-list-row-name flex-align-center">
+                  <Icon name={channelIconName(c.private, c.archived)} size={12} />{" "}
+                  <span class="truncate">{channelDisplayName(c)}</span>
+                </span>
+                <InlineFeedback
+                  class="settings-list-row-feedback truncate"
+                  feedback={feedback.get(c.id)}
+                  priority={2}
+                />
+                <RowAction disabled={props.isPending(c.id)} onClick={() => props.onRemove(c.id)}>
+                  <Icon name="close" size={12} />
+                </RowAction>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
   );
 }
 
@@ -161,73 +201,21 @@ export default function NotificationsTab() {
         </Show>
       </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">Notify for all messages</div>
-        <Show
-          fallback={
-            <div class="settings-list-empty text-dim text-sm">
-              No channels set to notify for all messages.
-            </div>
-          }
-          when={notifyAllChannels().length > 0}
-        >
-          <div class="settings-list flex-col">
-            <For each={notifyAllChannels()}>
-              {(c) => (
-                <div class="settings-list-row flex-between">
-                  <span class="settings-list-row-name flex-align-center">
-                    <Icon name={channelIconName(c.private, c.archived)} size={12} />{" "}
-                    <span class="truncate">{channelDisplayName(c)}</span>
-                  </span>
-                  <InlineFeedback
-                    class="settings-list-row-feedback truncate"
-                    feedback={feedback.get(c.id)}
-                    priority={2}
-                  />
-                  <RowAction
-                    disabled={prefsStore.isNotifyAllPending(c.id)}
-                    onClick={() => prefsStore.toggleNotifyAllChannel(c.id)}
-                  >
-                    <Icon name="close" size={12} />
-                  </RowAction>
-                </div>
-              )}
-            </For>
-          </div>
-        </Show>
-      </div>
+      <ChannelListSection
+        channels={notifyAllChannels()}
+        empty="No channels set to notify for all messages."
+        isPending={(id) => prefsStore.isNotifyAllPending(id)}
+        onRemove={(id) => prefsStore.toggleNotifyAllChannel(id)}
+        title="Notify for all messages"
+      />
 
-      <div class="settings-section">
-        <div class="settings-section-title">Muted channels</div>
-        <Show
-          fallback={<div class="settings-list-empty text-dim text-sm">No muted channels.</div>}
-          when={mutedChannels().length > 0}
-        >
-          <div class="settings-list flex-col">
-            <For each={mutedChannels()}>
-              {(c) => (
-                <div class="settings-list-row flex-between">
-                  <span class="settings-list-row-name flex-align-center">
-                    <Icon name={channelIconName(c.private, c.archived)} size={12} />{" "}
-                    <span class="truncate">{channelDisplayName(c)}</span>
-                  </span>
-                  <InlineFeedback
-                    class="settings-list-row-feedback truncate"
-                    feedback={feedback.get(c.id)}
-                    priority={2}
-                  />
-                  <RowAction
-                    disabled={prefsStore.isMutePending()}
-                    onClick={() => prefsStore.toggleMuteChannel(c.id)}
-                  >
-                    <Icon name="close" size={12} />
-                  </RowAction>
-                </div>
-              )}
-            </For>
-          </div>
-        </Show>
-      </div>
+      <ChannelListSection
+        channels={mutedChannels()}
+        empty="No muted channels."
+        isPending={() => prefsStore.isMutePending()}
+        onRemove={(id) => prefsStore.toggleMuteChannel(id)}
+        title="Muted channels"
+      />
     </>
   );
 }

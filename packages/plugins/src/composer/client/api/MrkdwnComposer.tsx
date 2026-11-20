@@ -105,7 +105,7 @@ export default function MrkdwnComposer(props: {
 
   return (
     <div
-      class={["mrkdwn-composer", { disabled: props.disabled, multiline: props.multiline }]} 
+      class={["mrkdwn-composer", { disabled: props.disabled, multiline: props.multiline }]}
       onFocusOut={onFocusOut}
       ref={rootRef}
     >

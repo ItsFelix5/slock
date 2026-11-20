@@ -1,13 +1,21 @@
-import { describe, expect, test } from "bun:test";
-import { defined } from "@slock/core";
-import { int, pick, seededRandom } from "@slock/core/testing";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { createHost, defined } from "@slock/core";
+import { setHost, solidReactive } from "@slock/core/solid";
+import { createFakeEnv, int, pick, seededRandom } from "@slock/core/testing";
 import { compareTs } from "@slock/slack";
 import { ch, stamp } from "@slock/slack/testing";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
-import { createRoot } from "solid-js";
-import { snapshot } from "solid-js";
+import { createRoot, snapshot } from "solid-js";
 import { message, slackTs } from "../../../../src/messages/client/messageFixture";
 import { createMessageHistory } from "../../../../src/messages/client/store/messageHistory";
+
+let host: ReturnType<typeof createHost>;
+beforeAll(async () => {
+  host = createHost({ env: createFakeEnv(), reactive: solidReactive });
+  setHost(host);
+  await host.register();
+});
+afterAll(() => host.stop());
 
 const CHANNEL = ch("C1");
 const BASE_SECONDS = 1_700_000_000;
@@ -188,7 +196,7 @@ describe("history window properties", () => {
         else {
           const posted = server.append();
           if (!history.hasNewerHistory(CHANNEL))
-            history.setMessagesByChannel(CHANNEL, (existing = []) => [...existing, posted]);
+            history.updateChannelMessages(CHANNEL, (existing) => [...existing, posted]);
         }
         await flush();
         expectHealthyWindow(window(), server, trace);

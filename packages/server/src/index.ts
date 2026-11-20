@@ -1,4 +1,5 @@
 import { createHost, type HttpContext, runHttp } from "@slock/core";
+import { setHost } from "@slock/core/services";
 import { UPGRADED, type WsData } from "./http.ts";
 import { discoverServerPlugins } from "./plugins.ts";
 
@@ -12,6 +13,7 @@ const host = createHost({
     write: () => {},
   },
 });
+setHost(host);
 for (const plugin of await discoverServerPlugins()) await host.register(plugin);
 for (const { id, status } of host.list()) {
   if (status.state === "failed" || status.state === "blocked")

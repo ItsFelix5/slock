@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { createHost, runHttp } from "@slock/core";
+import { setHost } from "@slock/core/solid";
 import setup from "../../../src/activity/server/index";
 import type { Credentials } from "../../../src/slack/server/api/auth";
 
@@ -39,6 +40,11 @@ afterEach(() => fetchSpy.mockRestore());
 
 async function request(path: string, body?: object) {
   const host = createHost();
+  setHost(host);
+  await host.register({
+    id: "slack",
+    setup: (ctx) => ctx.provide("slack.inFlight", { pending: new Map() }),
+  });
   await host.register({ id: "activity", setup });
   const url = new URL(`http://localhost${path}`);
   const req = new Request(url, {

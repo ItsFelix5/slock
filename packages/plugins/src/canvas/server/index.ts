@@ -57,24 +57,26 @@ const listRoutes = (wire: CanvasWire): Route[] => [
 
 const RENAME_PATH = /^\/api\/files\/([^/]+)\/rename$/;
 
-const renameCanvas = (wire: CanvasWire): HttpHandler => async (c, next) => {
-  const fileId = c.req.method === "POST" ? RENAME_PATH.exec(c.url.pathname)?.[1] : undefined;
-  if (!(fileId && c.creds)) return next();
-  const info = await callSlack<FileInfoReply>("files.info", { file: fileId }, c.creds);
-  const threadId = info.ok ? info.file.quip_thread_id : undefined;
-  if (!threadId) return next();
-  if (info.ok && !canEditCanvas(info.file)) return errorResponse("not_editable", 403);
-  const body: unknown = await c.req.json();
-  const name = isRecord(body) && typeof body.title === "string" ? body.title.trim() : "";
-  if (!name) return errorResponse("invalid_title", 400);
-  const result = await applyCanvasEdit(
-    wire,
-    threadId,
-    { controls: [], deleted: [], title: name, upserts: [] },
-    c.creds,
-  );
-  return result.ok ? jsonResponse({ ok: true }) : errorResponse(result.error, result.status);
-};
+const renameCanvas =
+  (wire: CanvasWire): HttpHandler =>
+  async (c, next) => {
+    const fileId = c.req.method === "POST" ? RENAME_PATH.exec(c.url.pathname)?.[1] : undefined;
+    if (!(fileId && c.creds)) return next();
+    const info = await callSlack<FileInfoReply>("files.info", { file: fileId }, c.creds);
+    const threadId = info.ok ? info.file.quip_thread_id : undefined;
+    if (!threadId) return next();
+    if (info.ok && !canEditCanvas(info.file)) return errorResponse("not_editable", 403);
+    const body: unknown = await c.req.json();
+    const name = isRecord(body) && typeof body.title === "string" ? body.title.trim() : "";
+    if (!name) return errorResponse("invalid_title", 400);
+    const result = await applyCanvasEdit(
+      wire,
+      threadId,
+      { controls: [], deleted: [], title: name, upserts: [] },
+      c.creds,
+    );
+    return result.ok ? jsonResponse({ ok: true }) : errorResponse(result.error, result.status);
+  };
 
 const setup: Setup = (ctx) => {
   const wire = createCanvasWire(ctx.get("env"));

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { build, channel, ids, section } from "../../../../src/home/client/views/categoriesFixtures";
+import { build, channel, ids, section } from "./categoriesFixtures";
 
 describe("buildCategories without sections", () => {
   test("lists channels first as hidden-read, then DMs and apps", () => {

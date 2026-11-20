@@ -1,5 +1,6 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { hasChannel } from "../kinds";
 import type { ActivityRow } from "./ActivityRow";
 
 const viewStore = service("conversations");
@@ -8,7 +9,7 @@ const activityStore = service("activity");
 
 export function openActivityRow(row: ActivityRow, split: boolean) {
   const item = defined(row.items[0]);
-  if (!item.channelId) return;
+  if (!hasChannel(item)) return;
   activityStore.setCurrentRowKey(row.key);
   if (split) {
     messageLinks.openMessageInSplit(item.channelId, item.ts, item.threadTs);

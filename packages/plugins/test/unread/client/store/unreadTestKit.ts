@@ -29,7 +29,7 @@ export const channel = (id: string, unread = false): Channel => ({
 
 export const message = (ts: string, extra: Partial<Message> = {}): Message => ({
   day: "",
-  id: ts,
+  id: stamp(ts),
   kind: "normal",
   text: ts,
   time: "",

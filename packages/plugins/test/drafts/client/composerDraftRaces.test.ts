@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { ch } from "@slock/slack/testing";
 import { blocks, mountReady, settle } from "./composerHarness";
 import { fakeDraftServer } from "./fakeDraftServer";
 
@@ -169,7 +170,7 @@ describe("switching while saves are in flight", () => {
     await settle();
     const byChannel = server.state.drafts.map((d) => [d.channelId, d.threadTs, d.blocks]);
     expect(byChannel).toHaveLength(3);
-    expect(server.state.drafts.map((d) => d.channelId).sort()).toEqual(["C1", "C1", "C2"]);
+    expect(server.state.drafts.map((d) => d.channelId).sort()).toEqual([ch("C1"), ch("C1"), ch("C2")]);
     composer.dispose();
   });
 });

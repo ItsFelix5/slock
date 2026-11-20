@@ -1,3 +1,5 @@
+import { isTs } from "@slock/slack";
+import type { Ts } from "@slock/types";
 const GROUP = "message-row-group";
 const DIVIDER = "message-divider";
 const FLASH_CLASS = "message-flash";
@@ -7,8 +9,9 @@ export function feedGroups(scroller: HTMLElement) {
   return scroller.querySelectorAll<HTMLElement>(`:scope > .${GROUP}`);
 }
 
-export function groupTs(group: HTMLElement) {
-  return group.querySelector<HTMLElement>("[data-message-ts]")?.dataset.messageTs;
+export function groupTs(group: HTMLElement): Ts | undefined {
+  const ts = group.querySelector<HTMLElement>("[data-message-ts]")?.dataset.messageTs;
+  return ts !== undefined && isTs(ts) ? ts : undefined;
 }
 
 export function findGroup(scroller: HTMLElement, ts: string) {

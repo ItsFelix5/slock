@@ -14,10 +14,12 @@ import {
 const { createPanesSlice } = await loadPanes(mock.module);
 
 function settled(slice: ReturnType<typeof createPanesSlice>) {
-  const read = <T>(reader: () => T) => () => {
-    flush();
-    return reader();
-  };
+  const read =
+    <T>(reader: () => T) =>
+    () => {
+      flush();
+      return reader();
+    };
   return {
     ...slice,
     activePaneId: read(slice.activePaneId),

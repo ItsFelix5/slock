@@ -30,7 +30,7 @@ export interface Message {
   edited?: boolean;
   editHistory?: string[];
   files?: SlackFile[];
-  id: Ts;
+  id: string;
   pending?: boolean;
   pendingFiles?: PendingFile[];
   isBroadcast?: boolean;

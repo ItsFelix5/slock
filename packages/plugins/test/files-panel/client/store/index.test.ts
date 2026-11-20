@@ -16,7 +16,13 @@ type Call = {
 };
 
 function file(id: string, created: number): SlackFile {
-  return { created, id: parseFileId(id), isImage: false, name: id, urlPrivate: `https://files/${id}` };
+  return {
+    created,
+    id: parseFileId(id),
+    isImage: false,
+    name: id,
+    urlPrivate: `https://files/${id}`,
+  };
 }
 
 function link(ts: string, url = `https://example.com/${ts}`): SlackLink {
@@ -38,7 +44,7 @@ function harness() {
       search: (channelId, _channelName, query, pageNumber) =>
         new Promise((resolve, reject) => {
           calls.push({
-            channelId,
+            channelId: parseChannelId(channelId),
             page: pageNumber ?? 1,
             query,
             reject: () => reject(new Error("network")),
@@ -75,7 +81,9 @@ describe("loading", () => {
     await settle();
     expect(panel.filesLinksLoading()).toBe(false);
     expect(
-      panel.filesLinksEntries().map((entry) => (entry.kind === "file" ? entry.file.id : "link")),
+      panel
+        .filesLinksEntries()
+        .map((entry): string => (entry.kind === "file" ? entry.file.id : "link")),
     ).toEqual(["F2", "link", "F1"]);
   });
 
@@ -266,7 +274,7 @@ describe("invariant", () => {
       }
       panel.closeFilesLinksPanel();
       const before = panel.filesLinksEntries();
-      for (const call of calls) call.resolve(page([file("LATE", 999)], [], true));
+      for (const call of calls) call.resolve(page([file("FLATE", 999)], [], true));
       jest.advanceTimersByTime(1000);
       await settle();
       expect(panel.filesLinksEntries()).toBe(before);

@@ -10,8 +10,6 @@ export type AppHome = {
   view: ModalView | null;
 };
 
-export const APP_HOME_QUERY = "appHome";
-
 export async function fetchAppHome(channelId: ChannelId): Promise<AppHome> {
   const data = await apiGet<AppHome>(`/api/conversations/${channelId}/app-home`);
   if (!data.ok) throw new Error(data.error ?? "app home lookup failed");

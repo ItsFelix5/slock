@@ -10,16 +10,7 @@ import {
   useListShortcuts,
   useShortcut,
 } from "@slock/ui";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  on,
-  onCleanup,
-  onSettled,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import "./EmojiPicker.css";
 import EmojiPickerButton from "../EmojiPickerButton";
 import { prioritizeEmojiEntries } from "../emojiPickerEntries";
@@ -50,7 +41,14 @@ export default function EmojiPicker(props: {
 
   onSettled(() => {
     void loadCustomEmoji();
-    requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => searchInputRef?.focus());
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
   });
 
   const allEntries = emojiIndex.allEmojiEntries;
@@ -87,19 +85,17 @@ export default function EmojiPicker(props: {
     const measure = () => bodyRef && setViewportHeight(bodyRef.clientHeight);
     measure();
     window.addEventListener("resize", measure);
-    onCleanup(() => window.removeEventListener("resize", measure));
+    return () => window.removeEventListener("resize", measure);
   });
 
   createEffect(
-    on(
-      query,
-      () => {
-        setScrollTop(0);
-        if (bodyRef) bodyRef.scrollTop = 0;
-        setActiveIndex(0);
-      },
-      { defer: true },
-    ),
+    query,
+    () => {
+      setScrollTop(0);
+      if (bodyRef) bodyRef.scrollTop = 0;
+      setActiveIndex(0);
+    },
+    { defer: true },
   );
 
   const visible = createMemo(() => visibleChunks(layout(), scrollTop(), viewportHeight()));
