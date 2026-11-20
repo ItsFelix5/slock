@@ -29,7 +29,7 @@ function mount() {
         onActivate: () => {
           calls.activate += 1;
         },
-        tabIndex: -1,
+        tabindex: -1,
         get children() {
           return [
             child("span", "label"),

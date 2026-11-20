@@ -17,9 +17,8 @@ const syllableExceptions = defineQuery<null, Map<string, number>>({
 });
 
 export default function OrpheusIndicator(props: ComposerTrailingProps) {
-  const longEnough = createMemo<boolean>(
-    (was) => was || props.text.trim().split(WHITESPACE_RE).length >= MIN_WORDS,
-    false,
+  const longEnough = createMemo(
+    (was = false) => was || props.text.trim().split(WHITESPACE_RE).length >= MIN_WORDS,
   );
   const counts = syllableExceptions.state(() => (longEnough() ? null : undefined));
   const reacts = createMemo(() => {

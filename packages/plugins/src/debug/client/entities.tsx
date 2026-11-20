@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { isChannelId, isTs } from "@slock/slack";
+import { isChannelId, isFileId, isTs } from "@slock/slack";
 import { Avatar, Icon } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
@@ -66,7 +66,9 @@ export const entities: Record<string, Entity> = {
   canvas: {
     label: "Canvas",
     load: loadCanvasDebug,
-    open: (id) => canvas.openCanvasPane(id),
+    open: (id) => {
+      if (isFileId(id)) canvas.openCanvasPane(id);
+    },
     title: (id) => `Canvas ${id}`,
   },
   channel: {

@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import { Button, SegmentedControl } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
@@ -38,9 +39,7 @@ function labelOf(membership: Membership): string {
 export default function UserMemberships(props: ProfileMetaProps) {
   const [filterIndex, setFilterIndex] = createSignal(0);
   const [limit, setLimit] = createSignal(PAGE_SIZE);
-  const memberships = membershipsQuery.state(() =>
-    props.user.isBot ? undefined : props.user.id,
-  );
+  const memberships = membershipsQuery.state(() => (props.user.isBot ? undefined : props.user.id));
   const visible = createMemo(() => {
     const kinds = FILTERS[filterIndex()]?.kinds ?? [];
     return (memberships().data ?? []).filter((m) => kinds.includes(m.kind));
@@ -72,7 +71,10 @@ export default function UserMemberships(props: ProfileMetaProps) {
               <li>
                 <button
                   class="user-membership btn-reset flex-align-center"
-                  onClick={() => conversations.setActiveView(conversations.viewFor(membership.id))}
+                  onClick={() => {
+                    if (isChannelId(membership.id))
+                      conversations.setActiveView(conversations.viewFor(membership.id));
+                  }}
                   type="button"
                 >
                   <span class="truncate">{labelOf(membership)}</span>
